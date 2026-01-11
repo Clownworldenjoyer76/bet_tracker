@@ -5,58 +5,130 @@ import re
 from pathlib import Path
 
 INPUT_DIR = Path("docs/win")
-OUTPUT_DIR = INPUT_DIR / "clean"
+OUTPUT_DIR = Path("docs/win/clean")
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-FILENAME_RE = re.compile(
-    r"win_prob_(?P<league>[^_]+)_(?P<date>\d{4}-\d{2}-\d{2})\.csv"
-)
+LEAGUE_MAP = {
+    "ncaab": "ncaab",
+    "nba": "nba",
+    "nfl": "nfl",
+    "nhl": "nhl",
+}
 
-OUTPUT_HEADERS = [
-    "date",
-    "time",
-    "team",
-    "opponent",
-    "win_probability",
-    "league",
-]
 
-def main():
-    if not INPUT_DIR.exists():
-        raise RuntimeError("docs/win directory does not exist")
+def detect_league(filename: str) -> str:
+    name = filename.lower()
+    for key in LEAGUE_MAP:
+        if key in name:
+            return LEAGUE_MAP[key]
+    return "unknown"
 
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    for src in INPUT_DIR.glob("win_prob_*.csv"):
-        match = FILENAME_RE.match(src.name)
-        if not match:
+def is_date_row(row):
+    if not row:
+        return False
+    return bool(re.match(r"\d{2}/\d{2}/\d{4}", row[0]))
+
+
+def is_header_row(row):
+    joined = " ".join(row).lower()
+    return "teams" in joined and "win" in joined
+
+
+def parse():
+    for path in INPUT_DIR.glob("win_prob_*.csv"):
+        league = detect_league(path.name)
+
+        with path.open(newline="", encoding="utf-8") as f:
+            reader = list(csv.reader(f))
+
+        game_date = None
+        header_index = None
+
+        # pass 1: find date + header
+        for i, row in enumerate(reader):
+            if is_date_row(row):
+                game_date = row[0].replace("/", "-")
+            if is_header_row(row):
+                header_index = i
+                break
+
+        if not game_date or header_index is None:
+            print(f"Skipping {path.name}: unable to detect structure")
             continue
 
-        league = match.group("league")
-        date = match.group("date")
+        data_rows = reader[header_index + 1 :]
 
-        dst = OUTPUT_DIR / f"win_prob__clean_{league}_{date}.csv"
+        cleaned_rows = []
 
-        with src.open(newline="", encoding="utf-8") as f_in:
-            reader = csv.DictReader(f_in)
+        for row in data_rows:
+            if len(row) < 3:
+                continue
 
-            with dst.open("w", newline="", encoding="utf-8") as f_out:
-                writer = csv.DictWriter(
-                    f_out,
-                    fieldnames=OUTPUT_HEADERS
-                )
-                writer.writeheader()
+            time = row[0].strip()
+            teams = row[1].strip()
+            win = row[2].strip().replace("%", "")
 
-                for row in reader:
-                    writer.writerow({
-                        "date": row["date"],
-                        "time": row["time"],
-                        "team": row["team"],
-                        "opponent": row["opponent"],
-                        "win_probability": row["win_probability"],
-                        "league": row.get("league", league),
-                    })
+            if " vs " not in teams.lower():
+                continue
 
-        print(f"Created {dst}")
+            team_a, team_b = [t.strip() for t in teams.split(" vs ")]
+
+            try:
+                win_prob_a = float(win) / 100.0
+                win_prob_b = round(1.0 - win_prob_a, 3)
+            except ValueError:
+                continue
+
+            cleaned_rows.append(
+                {
+                    "date": game_date,
+                    "time": time,
+                    "team": team_a,
+                    "opponent": team_b,
+                    "win_probability": round(win_prob_a, 3),
+                    "league": league,
+                }
+            )
+
+            cleaned_rows.append(
+                {
+                    "date": game_date,
+                    "time": time,
+                    "team": team_b,
+                    "opponent": team_a,
+                    "win_probability": win_prob_b,
+                    "league": league,
+                }
+            )
+
+        if not cleaned_rows:
+            print(f"No games parsed from {path.name}")
+            continue
+
+        output_file = OUTPUT_DIR / f"win_prob_clean_{league}_{game_date}.csv"
+
+        with output_file.open("w", newline="", encoding="utf-8") as out:
+            writer = csv.DictWriter(
+                out,
+                fieldnames=[
+                    "date",
+                    "time",
+                    "team",
+                    "opponent",
+                    "win_probability",
+                    "league",
+                ],
+            )
+            writer.writeheader()
+            writer.writerows(cleaned_rows)
+
+        print(f"Created {output_file}")
+
+
+def main():
+    parse()
+
 
 if __name__ == "__main__":
     main()
