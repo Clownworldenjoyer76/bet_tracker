@@ -196,8 +196,8 @@ function escapeCSV(value) {
    ========================= */
 
 async function commitToGitHub({ token, filename, content }) {
-    const owner = "<YOUR_GITHUB_USERNAME>";
-    const repo = "<YOUR_REPO_NAME>";
+    const owner = "Clownworldenjoyer76";
+    const repo = "bet_tracker";
     const path = `docs/win/${filename}`;
 
     const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
