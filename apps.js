@@ -1,9 +1,8 @@
 // apps.js
-// Final version: single confirmation popup on submit only
+// Single popup AFTER submit only
 
 document.addEventListener("DOMContentLoaded", () => {
     const form = document.getElementById("win-prob-form");
-
     if (!form) return;
 
     form.addEventListener("submit", async (e) => {
@@ -19,18 +18,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 throw new Error("One or more required fields are empty");
             }
 
-            const csvContent = rawData; // placeholder until parsing logic re-added
             const filename = `win_prob_${league}_${date}.csv`;
 
             await commitToGitHub({
                 token,
                 filename,
-                content: csvContent
+                content: rawData
             });
 
             alert(
                 "SUCCESS\n\n" +
-                "CSV file was saved.\n\n" +
+                "File saved.\n\n" +
                 "Repository: Clownworldenjoyer76/bet_tracker\n" +
                 `Path: docs/win/${filename}`
             );
