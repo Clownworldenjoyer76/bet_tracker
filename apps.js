@@ -7,6 +7,8 @@ document.addEventListener("DOMContentLoaded", () => {
     form.addEventListener("submit", async (e) => {
         e.preventDefault();
 
+        let filename = null;
+
         try {
             const league = getRequiredValue("league");
             const date = getRequiredValue("date");
@@ -17,16 +19,29 @@ document.addEventListener("DOMContentLoaded", () => {
             const rows = buildRows(games, league, date);
             const csv = buildCSV(rows);
 
-            const filename = `win_prob_${league}_${date}.csv`;
+            filename = `win_prob_${league}_${date}.csv`;
+
             await commitToGitHub({
                 token,
                 filename,
                 content: csv
             });
 
-            alert(`Success: ${filename} committed to GitHub.`);
+            // Explicit confirmation popup on success
+            confirm(
+                `SUCCESS\n\n` +
+                `File saved to repository:\n\n` +
+                `repo: Clownworldenjoyer76/bet_tracker\n` +
+                `path: docs/win/${filename}`
+            );
+
         } catch (err) {
-            alert(`ERROR: ${err.message}`);
+            // Explicit confirmation popup on failure
+            confirm(
+                `FAILED\n\n` +
+                `No file was saved.\n\n` +
+                `Reason:\n${err.message}`
+            );
         }
     });
 });
@@ -67,7 +82,7 @@ function parseRawGameData(raw) {
         }
         i++;
 
-        if (i + 3 > lines.length) {
+        if (i + 2 > lines.length) {
             throw new Error(`Incomplete game block starting at time ${time}`);
         }
 
@@ -201,7 +216,6 @@ async function commitToGitHub({ token, filename, content }) {
     const path = `docs/win/${filename}`;
 
     const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
-
     const encodedContent = btoa(unescape(encodeURIComponent(content)));
 
     const response = await fetch(apiUrl, {
