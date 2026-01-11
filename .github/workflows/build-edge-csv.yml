@@ -1,4 +1,4 @@
-name: 1. Build Edge CSV
+name: "2. Build Edge CSV"
 
 on:
   workflow_dispatch:
@@ -28,8 +28,11 @@ jobs:
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
 
-          # force-add ignored CSV
-          git add -f docs/win/edge_*.csv
+          # add generated edge CSVs
+          git add docs/win/edge
+
+          # do not fail if nothing changed
+          git diff --cached --quiet && echo "No edge CSV changes to commit" && exit 0
 
           git commit -m "Add edge CSV"
           git push
