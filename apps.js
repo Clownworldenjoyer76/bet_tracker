@@ -1,25 +1,13 @@
 // apps.js
-// GUARANTEED EXECUTION DIAGNOSTIC VERSION
+// Final version: single confirmation popup on submit only
 
-// 1) Prove the file is loaded at all
-alert("apps.js LOADED");
-
-// 2) Prove DOMContentLoaded fires
 document.addEventListener("DOMContentLoaded", () => {
-    alert("DOM CONTENT LOADED");
-
     const form = document.getElementById("win-prob-form");
 
-    if (!form) {
-        alert("FORM NOT FOUND");
-        return;
-    }
+    if (!form) return;
 
-    // 3) Prove submit handler fires
     form.addEventListener("submit", async (e) => {
         e.preventDefault();
-
-        alert("SUBMIT HANDLER FIRED");
 
         try {
             const league = document.getElementById("league").value.trim();
@@ -31,21 +19,58 @@ document.addEventListener("DOMContentLoaded", () => {
                 throw new Error("One or more required fields are empty");
             }
 
-            alert("INPUTS READ SUCCESSFULLY");
+            const csvContent = rawData; // placeholder until parsing logic re-added
+            const filename = `win_prob_${league}_${date}.csv`;
 
-            // STOP HERE — do not attempt GitHub yet
+            await commitToGitHub({
+                token,
+                filename,
+                content: csvContent
+            });
+
             alert(
-                "SUCCESS (DIAGNOSTIC)\n\n" +
-                "JavaScript is executing correctly.\n" +
-                "Form submission works.\n\n" +
-                "Next step is GitHub commit logic."
+                "SUCCESS\n\n" +
+                "CSV file was saved.\n\n" +
+                "Repository: Clownworldenjoyer76/bet_tracker\n" +
+                `Path: docs/win/${filename}`
             );
 
         } catch (err) {
             alert(
-                "FAILED (DIAGNOSTIC)\n\n" +
-                err.message
+                "FAILED\n\n" +
+                "No file was saved.\n\n" +
+                `Reason:\n${err.message}`
             );
         }
     });
 });
+
+/* =========================
+   GitHub Commit
+   ========================= */
+
+async function commitToGitHub({ token, filename, content }) {
+    const owner = "Clownworldenjoyer76";
+    const repo = "bet_tracker";
+    const path = `docs/win/${filename}`;
+
+    const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
+    const encodedContent = btoa(unescape(encodeURIComponent(content)));
+
+    const response = await fetch(apiUrl, {
+        method: "PUT",
+        headers: {
+            "Authorization": `token ${token}`,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            message: `Add ${filename}`,
+            content: encodedContent
+        })
+    });
+
+    if (!response.ok) {
+        const text = await response.text();
+        throw new Error(text);
+    }
+}
