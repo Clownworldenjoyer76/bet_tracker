@@ -7,8 +7,6 @@ document.addEventListener("DOMContentLoaded", () => {
     form.addEventListener("submit", async (e) => {
         e.preventDefault();
 
-        let filename = null;
-
         try {
             const league = getRequiredValue("league");
             const date = getRequiredValue("date");
@@ -19,7 +17,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const rows = buildRows(games, league, date);
             const csv = buildCSV(rows);
 
-            filename = `win_prob_${league}_${date}.csv`;
+            const filename = `win_prob_${league}_${date}.csv`;
 
             await commitToGitHub({
                 token,
@@ -27,17 +25,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 content: csv
             });
 
-            // Explicit confirmation popup on success
-            confirm(
+            alert(
                 `SUCCESS\n\n` +
-                `File saved to repository:\n\n` +
-                `repo: Clownworldenjoyer76/bet_tracker\n` +
-                `path: docs/win/${filename}`
+                `File saved to GitHub.\n\n` +
+                `Repository: Clownworldenjoyer76/bet_tracker\n` +
+                `Path: docs/win/${filename}`
             );
 
         } catch (err) {
-            // Explicit confirmation popup on failure
-            confirm(
+            alert(
                 `FAILED\n\n` +
                 `No file was saved.\n\n` +
                 `Reason:\n${err.message}`
@@ -102,13 +98,11 @@ function parseRawGameData(raw) {
 }
 
 function extractTime(line) {
-    // Accepts formats like "02:00 PM", "2:00 PM", "14:30"
     const timeRegex = /^(\d{1,2}:\d{2})(\s?[AP]M)?$/i;
     return timeRegex.test(line) ? line : null;
 }
 
 function parseTeamLine(line) {
-    // Expect: "Team Name (10-5) 61.5%" or "Team Name 0.615"
     const parts = line.split(/\s+/);
     const probRaw = parts[parts.length - 1];
 
