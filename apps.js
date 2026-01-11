@@ -1,228 +1,51 @@
-// app.js
-// Core client-side logic for Win Probability CSV Generator
+// apps.js
+// GUARANTEED EXECUTION DIAGNOSTIC VERSION
 
+// 1) Prove the file is loaded at all
+alert("apps.js LOADED");
+
+// 2) Prove DOMContentLoaded fires
 document.addEventListener("DOMContentLoaded", () => {
+    alert("DOM CONTENT LOADED");
+
     const form = document.getElementById("win-prob-form");
 
+    if (!form) {
+        alert("FORM NOT FOUND");
+        return;
+    }
+
+    // 3) Prove submit handler fires
     form.addEventListener("submit", async (e) => {
         e.preventDefault();
 
-        let filename = null;
+        alert("SUBMIT HANDLER FIRED");
 
         try {
-            const league = getRequiredValue("league");
-            const date = getRequiredValue("date");
-            const rawData = getRequiredValue("raw-data");
-            const token = getRequiredValue("github-token");
+            const league = document.getElementById("league").value.trim();
+            const date = document.getElementById("date").value.trim();
+            const rawData = document.getElementById("raw-data").value.trim();
+            const token = document.getElementById("github-token").value.trim();
 
-            const games = parseRawGameData(rawData);
-            const rows = buildRows(games, league, date);
-            const csv = buildCSV(rows);
+            if (!league || !date || !rawData || !token) {
+                throw new Error("One or more required fields are empty");
+            }
 
-            filename = `win_prob_${league}_${date}.csv`;
+            alert("INPUTS READ SUCCESSFULLY");
 
-            await commitToGitHub({
-                token,
-                filename,
-                content: csv
-            });
-
+            // STOP HERE — do not attempt GitHub yet
             alert(
-                "SUCCESS\n\n" +
-                "File was saved.\n\n" +
-                "Repository: Clownworldenjoyer76/bet_tracker\n" +
-                `Path: docs/win/${filename}`
+                "SUCCESS (DIAGNOSTIC)\n\n" +
+                "JavaScript is executing correctly.\n" +
+                "Form submission works.\n\n" +
+                "Next step is GitHub commit logic."
             );
 
         } catch (err) {
             alert(
-                "FAILED\n\n" +
-                "No file was saved.\n\n" +
-                `Reason:\n${err.message}`
+                "FAILED (DIAGNOSTIC)\n\n" +
+                err.message
             );
         }
     });
 });
-
-/* =========================
-   Helpers
-   ========================= */
-
-function getRequiredValue(id) {
-    const el = document.getElementById(id);
-    if (!el || !el.value.trim()) {
-        throw new Error(`Missing required field: ${id}`);
-    }
-    return el.value.trim();
-}
-
-/* =========================
-   Parsing & Normalization
-   ========================= */
-
-function parseRawGameData(raw) {
-    const lines = raw
-        .split("\n")
-        .map(l => l.trim())
-        .filter(l => l.length > 0);
-
-    if (lines.length < 3) {
-        throw new Error("Raw data does not contain enough lines to form a game.");
-    }
-
-    const games = [];
-    let i = 0;
-
-    while (i < lines.length) {
-        const time = extractTime(lines[i]);
-        if (!time) {
-            throw new Error(`Expected time on line ${i + 1}: "${lines[i]}"`);
-        }
-        i++;
-
-        if (i + 1 >= lines.length) {
-            throw new Error(`Incomplete game block starting at time ${time}`);
-        }
-
-        const teamA = parseTeamLine(lines[i]);
-        const teamB = parseTeamLine(lines[i + 1]);
-
-        games.push({ time, teamA, teamB });
-        i += 2;
-    }
-
-    return games;
-}
-
-function extractTime(line) {
-    const timeRegex = /^(\d{1,2}:\d{2})(\s?[AP]M)?$/i;
-    return timeRegex.test(line) ? line : null;
-}
-
-function parseTeamLine(line) {
-    const parts = line.split(/\s+/);
-    const probRaw = parts[parts.length - 1];
-
-    const probability = normalizeProbability(probRaw);
-    if (probability < 0 || probability > 1) {
-        throw new Error(`Invalid win probability: "${probRaw}"`);
-    }
-
-    const teamRaw = line.slice(0, line.lastIndexOf(probRaw)).trim();
-    const team = stripRecord(teamRaw);
-
-    if (!team) {
-        throw new Error(`Could not parse team name from line: "${line}"`);
-    }
-
-    return { team, probability };
-}
-
-function normalizeProbability(raw) {
-    let p = raw.replace("%", "");
-    if (isNaN(p)) {
-        throw new Error(`Invalid probability value: "${raw}"`);
-    }
-    p = Number(p);
-    if (p > 1) {
-        p = p / 100;
-    }
-    return p;
-}
-
-function stripRecord(team) {
-    return team.replace(/\s*\([^)]*\)\s*$/, "").trim();
-}
-
-/* =========================
-   CSV Construction
-   ========================= */
-
-function buildRows(games, league, date) {
-    const rows = [];
-
-    games.forEach(game => {
-        rows.push({
-            date,
-            time: game.time,
-            team: game.teamA.team,
-            opponent: game.teamB.team,
-            win_probability: game.teamA.probability,
-            league
-        });
-
-        rows.push({
-            date,
-            time: game.time,
-            team: game.teamB.team,
-            opponent: game.teamA.team,
-            win_probability: game.teamB.probability,
-            league
-        });
-    });
-
-    return rows;
-}
-
-function buildCSV(rows) {
-    const headers = [
-        "date",
-        "time",
-        "team",
-        "opponent",
-        "win_probability",
-        "league"
-    ];
-
-    const lines = [headers.join(",")];
-
-    rows.forEach(r => {
-        lines.push([
-            r.date,
-            r.time,
-            escapeCSV(r.team),
-            escapeCSV(r.opponent),
-            r.win_probability,
-            r.league
-        ].join(","));
-    });
-
-    return lines.join("\n");
-}
-
-function escapeCSV(value) {
-    if (value.includes(",") || value.includes("\"")) {
-        return `"${value.replace(/"/g, "\"\"")}"`;
-    }
-    return value;
-}
-
-/* =========================
-   GitHub Commit
-   ========================= */
-
-async function commitToGitHub({ token, filename, content }) {
-    const owner = "Clownworldenjoyer76";
-    const repo = "bet_tracker";
-    const path = `docs/win/${filename}`;
-
-    const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
-    const encodedContent = btoa(unescape(encodeURIComponent(content)));
-
-    const response = await fetch(apiUrl, {
-        method: "PUT",
-        headers: {
-            "Authorization": `token ${token}`,
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            message: `Add ${filename}`,
-            content: encodedContent
-        })
-    });
-
-    if (!response.ok) {
-        const text = await response.text();
-        throw new Error(`GitHub API error: ${text}`);
-    }
-}
