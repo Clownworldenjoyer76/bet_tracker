@@ -7,6 +7,8 @@ document.addEventListener("DOMContentLoaded", () => {
     form.addEventListener("submit", async (e) => {
         e.preventDefault();
 
+        let filename = null;
+
         try {
             const league = getRequiredValue("league");
             const date = getRequiredValue("date");
@@ -17,7 +19,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const rows = buildRows(games, league, date);
             const csv = buildCSV(rows);
 
-            const filename = `win_prob_${league}_${date}.csv`;
+            filename = `win_prob_${league}_${date}.csv`;
 
             await commitToGitHub({
                 token,
@@ -26,16 +28,16 @@ document.addEventListener("DOMContentLoaded", () => {
             });
 
             alert(
-                `SUCCESS\n\n` +
-                `File saved to GitHub.\n\n` +
-                `Repository: Clownworldenjoyer76/bet_tracker\n` +
+                "SUCCESS\n\n" +
+                "File was saved.\n\n" +
+                "Repository: Clownworldenjoyer76/bet_tracker\n" +
                 `Path: docs/win/${filename}`
             );
 
         } catch (err) {
             alert(
-                `FAILED\n\n` +
-                `No file was saved.\n\n` +
+                "FAILED\n\n" +
+                "No file was saved.\n\n" +
                 `Reason:\n${err.message}`
             );
         }
@@ -64,7 +66,7 @@ function parseRawGameData(raw) {
         .map(l => l.trim())
         .filter(l => l.length > 0);
 
-    if (lines.length < 4) {
+    if (lines.length < 3) {
         throw new Error("Raw data does not contain enough lines to form a game.");
     }
 
@@ -78,19 +80,14 @@ function parseRawGameData(raw) {
         }
         i++;
 
-        if (i + 2 > lines.length) {
+        if (i + 1 >= lines.length) {
             throw new Error(`Incomplete game block starting at time ${time}`);
         }
 
         const teamA = parseTeamLine(lines[i]);
         const teamB = parseTeamLine(lines[i + 1]);
 
-        games.push({
-            time,
-            teamA,
-            teamB
-        });
-
+        games.push({ time, teamA, teamB });
         i += 2;
     }
 
