@@ -1,6 +1,6 @@
 // apps.js
-// Single popup AFTER submit only
 // XLSX export — NO time modification
+// Defensive: hard-fails if XLSX is not loaded
 
 document.addEventListener("DOMContentLoaded", () => {
     const form = document.getElementById("win-prob-form");
@@ -10,6 +10,13 @@ document.addEventListener("DOMContentLoaded", () => {
         e.preventDefault();
 
         try {
+            // HARD CHECK — this is what was missing before
+            if (typeof XLSX === "undefined") {
+                throw new Error(
+                    "XLSX library not loaded. Check index.html script order."
+                );
+            }
+
             const league = document.getElementById("league").value.trim();
             const date = document.getElementById("date").value.trim();
             const rawData = document.getElementById("raw-data").value.trim();
@@ -19,15 +26,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 throw new Error("One or more required fields are empty");
             }
 
-            // Convert pasted text into rows (Excel/Sheets style)
+            // Preserve pasted rows exactly as-is (Sheets/Excel style)
             const rows = rawData
                 .split("\n")
-                .map(r => r.trim())
-                .filter(Boolean)
+                .map(r => r.replace(/\r/g, "").trim())
+                .filter(r => r.length > 0)
                 .map(r => r.split("\t"));
 
             if (rows.length === 0) {
-                throw new Error("No rows detected in pasted data");
+                throw new Error("No tabular rows detected in pasted data");
             }
 
             // Build XLSX
@@ -45,7 +52,7 @@ document.addEventListener("DOMContentLoaded", () => {
             await commitToGitHub({
                 token,
                 filename,
-                content: xlsxArrayBuffer
+                arrayBuffer: xlsxArrayBuffer
             });
 
             alert(
@@ -69,13 +76,13 @@ document.addEventListener("DOMContentLoaded", () => {
    GitHub Commit (binary-safe)
    ========================= */
 
-async function commitToGitHub({ token, filename, content }) {
+async function commitToGitHub({ token, filename, arrayBuffer }) {
     const owner = "Clownworldenjoyer76";
     const repo = "bet_tracker";
     const path = `docs/win/${filename}`;
 
-    // Convert ArrayBuffer → Base64 (required for GitHub API)
-    const bytes = new Uint8Array(content);
+    // ArrayBuffer → Base64 (safe for binary XLSX)
+    const bytes = new Uint8Array(arrayBuffer);
     let binary = "";
     for (let i = 0; i < bytes.length; i++) {
         binary += String.fromCharCode(bytes[i]);
