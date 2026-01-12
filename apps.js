@@ -1,5 +1,6 @@
 // apps.js
 // Single popup AFTER submit only
+// XLSX export — NO time modification
 
 document.addEventListener("DOMContentLoaded", () => {
     const form = document.getElementById("win-prob-form");
@@ -18,12 +19,33 @@ document.addEventListener("DOMContentLoaded", () => {
                 throw new Error("One or more required fields are empty");
             }
 
-            const filename = `win_prob_${league}_${date}.csv`;
+            // Convert pasted text into rows (Excel/Sheets style)
+            const rows = rawData
+                .split("\n")
+                .map(r => r.trim())
+                .filter(Boolean)
+                .map(r => r.split("\t"));
+
+            if (rows.length === 0) {
+                throw new Error("No rows detected in pasted data");
+            }
+
+            // Build XLSX
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+            XLSX.utils.book_append_sheet(wb, ws, "data");
+
+            const xlsxArrayBuffer = XLSX.write(wb, {
+                bookType: "xlsx",
+                type: "array"
+            });
+
+            const filename = `win_prob_${league}_${date}.xlsx`;
 
             await commitToGitHub({
                 token,
                 filename,
-                content: rawData
+                content: xlsxArrayBuffer
             });
 
             alert(
@@ -44,7 +66,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 /* =========================
-   GitHub Commit
+   GitHub Commit (binary-safe)
    ========================= */
 
 async function commitToGitHub({ token, filename, content }) {
@@ -52,8 +74,15 @@ async function commitToGitHub({ token, filename, content }) {
     const repo = "bet_tracker";
     const path = `docs/win/${filename}`;
 
+    // Convert ArrayBuffer → Base64 (required for GitHub API)
+    const bytes = new Uint8Array(content);
+    let binary = "";
+    for (let i = 0; i < bytes.length; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    const encodedContent = btoa(binary);
+
     const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
-    const encodedContent = btoa(unescape(encodeURIComponent(content)));
 
     const response = await fetch(apiUrl, {
         method: "PUT",
