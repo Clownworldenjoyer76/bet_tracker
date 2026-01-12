@@ -2,12 +2,12 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Win Probability CSV Generator</title>
+    <title>Win Probability XLSX Generator</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body>
 
-    <h1>Win Probability CSV Generator</h1>
+    <h1>Win Probability XLSX Generator</h1>
 
     <form id="win-prob-form" novalidate>
 
@@ -27,7 +27,13 @@
 
         <div>
             <label for="raw-data">Raw Game Data</label><br>
-            <textarea id="raw-data" name="raw-data" rows="15" cols="80"></textarea>
+            <textarea
+                id="raw-data"
+                name="raw-data"
+                rows="15"
+                cols="80"
+                placeholder="Paste data exactly as you would into Excel / Google Sheets"
+            ></textarea>
         </div>
 
         <br>
@@ -43,10 +49,10 @@
 
     </form>
 
-    <!-- ADD THIS -->
-    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <!-- REQUIRED: SheetJS (must load BEFORE apps.js) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.19.3/dist/xlsx.full.min.js"></script>
 
-    <!-- KEEP THIS -->
+    <!-- Your frontend logic -->
     <script src="apps.js"></script>
 
 </body>
