@@ -1,9 +1,9 @@
 // apps.js
-// Frontend CSV generator
-// One row per game
-// NO time changes
-// NO inference
+// Frontend CSV writer
+// NO XLSX
 // NO external libraries
+// NO time modification
+// Writes EXACTLY what is pasted, but as a real CSV
 
 document.addEventListener("DOMContentLoaded", () => {
     const form = document.getElementById("win-prob-form");
@@ -22,20 +22,20 @@ document.addEventListener("DOMContentLoaded", () => {
                 throw new Error("Missing required field");
             }
 
-            // Parse pasted tabular data (Sheets / Excel style)
-            const rows = rawData
-                .split("\n")
-                .map(r => r.replace(/\r/g, "").trim())
-                .filter(Boolean)
-                .map(r => r.split("\t"));
+            // Expect pasted data in TABULAR form (like Google Sheets)
+            // Each row = one game
+            // Columns expected (TAB-separated):
+            // date | time | team_a | team_b | win_probability_a | win_probability_b
 
-            if (rows.length < 2) {
-                throw new Error("Not enough rows detected");
+            const lines = rawData
+                .split("\n")
+                .map(l => l.replace(/\r/g, "").trim())
+                .filter(Boolean);
+
+            if (lines.length === 0) {
+                throw new Error("No data detected");
             }
 
-            // Build CSV explicitly
-            // Expected column order in pasted data:
-            // date | time | team_a | team_b | win_probability_a | win_probability_b
             const header = [
                 "date",
                 "time",
@@ -48,9 +48,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
             let csv = header.join(",") + "\n";
 
-            for (const row of rows) {
-                if (row.length < 6) {
-                    throw new Error("Row missing required columns");
+            for (const line of lines) {
+                const cols = line.split("\t");
+
+                if (cols.length < 6) {
+                    throw new Error("Each row must have at least 6 tab-separated columns");
                 }
 
                 const [
@@ -60,9 +62,9 @@ document.addEventListener("DOMContentLoaded", () => {
                     teamB,
                     probA,
                     probB
-                ] = row;
+                ] = cols;
 
-                csv += [
+                const row = [
                     rowDate,
                     rowTime,
                     teamA,
@@ -70,7 +72,9 @@ document.addEventListener("DOMContentLoaded", () => {
                     probA,
                     probB,
                     league
-                ].map(v => `"${v.replace(/"/g, '""')}"`).join(",") + "\n";
+                ].map(v => `"${String(v).replace(/"/g, '""')}"`);
+
+                csv += row.join(",") + "\n";
             }
 
             const filename = `win_prob_${league}_${date}.csv`;
@@ -96,11 +100,11 @@ async function commitToGitHub(token, filename, content) {
     const repo = "bet_tracker";
     const path = `docs/win/${filename}`;
 
-    const encodedContent = btoa(
+    const encoded = btoa(
         unescape(encodeURIComponent(content))
     );
 
-    const res = await fetch(
+    const response = await fetch(
         `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
         {
             method: "PUT",
@@ -110,13 +114,13 @@ async function commitToGitHub(token, filename, content) {
             },
             body: JSON.stringify({
                 message: `Add ${filename}`,
-                content: encodedContent
+                content: encoded
             })
         }
     );
 
-    if (!res.ok) {
-        const text = await res.text();
+    if (!response.ok) {
+        const text = await response.text();
         throw new Error(text);
     }
 }
