@@ -14,9 +14,10 @@ Joins:
 Behavior:
 - Reads EDGE league from column (not filename)
 - Supports edge_*_{YYYY-MM-DD}*.csv and edge_*_{YYYY_MM_DD}*.csv
-- Handles multiple DK rows per team (selects best DK moneyline)
 - Writes headers even if no rows qualify
 - COMPLETELY IGNORES any row where league == "soc"
+- DK JOIN IS STRICT: league + team + opponent ONLY
+  (no team-only fallback, no best-of guessing)
 """
 
 import sys
@@ -93,13 +94,14 @@ def load_dk(target: date) -> pd.DataFrame:
         die(f"Missing DK file: {p}")
     df = pd.read_excel(p)
     df.columns = [norm(c) for c in df.columns]
+
     if "bet_pct" not in df.columns and "bets_pct" in df.columns:
         df = df.rename(columns={"bets_pct": "bet_pct"})
-    for col in ["league", "team", "moneyline"]:
+
+    for col in ["league", "team", "opponent", "moneyline"]:
         if col not in df.columns:
             die(f"DK missing column: {col}")
-    if "opponent" not in df.columns:
-        df["opponent"] = ""
+
     if "handle_pct" not in df.columns:
         df["handle_pct"] = pd.NA
     if "bet_pct" not in df.columns:
@@ -109,9 +111,11 @@ def load_dk(target: date) -> pd.DataFrame:
     df["team"] = df["team"].apply(norm)
     df["opponent"] = df["opponent"].apply(norm)
     df["_ml"] = df["moneyline"].apply(american_to_int)
+
     if df["_ml"].isna().any():
         bad = df[df["_ml"].isna()][["league", "team", "moneyline"]].head(10)
         die(f"Unparsable DK moneylines:\n{bad}")
+
     return df
 
 
@@ -120,6 +124,7 @@ def main():
     dk = load_dk(target)
     canon_to_dk = load_mapping()
     edge_files = find_edge_files(target)
+
     if not edge_files:
         die("No edge files found for target date")
 
@@ -138,9 +143,11 @@ def main():
     for ef in edge_files:
         ed = pd.read_csv(ef)
         ed.columns = [norm(c) for c in ed.columns]
+
         for col in ["league", "team", "opponent", "acceptable_american_odds"]:
             if col not in ed.columns:
                 die(f"Edge missing column {col} in {ef}")
+
         ed["league"] = ed["league"].apply(norm_league)
         ed["acceptable_american_odds"] = pd.to_numeric(
             ed["acceptable_american_odds"], errors="coerce"
@@ -151,7 +158,7 @@ def main():
         for _, r in ed.iterrows():
             lg = r["league"]
 
-            # 🔒 HARD SKIP: ignore soccer entirely
+            # HARD SKIP: soccer
             if lg == "soc":
                 continue
 
@@ -161,25 +168,40 @@ def main():
 
             if (lg, team) not in canon_to_dk:
                 die(f"Missing mapping for {(lg, team)}")
-            dk_team = canon_to_dk[(lg, team)]
 
-            dkm = dk[(dk["league"] == lg) & (dk["team"] == dk_team)]
+            if (lg, opp) not in canon_to_dk:
+                continue  # cannot form strict join without opponent mapping
+
+            dk_team = canon_to_dk[(lg, team)]
+            dk_opp = canon_to_dk[(lg, opp)]
+
+            dkm = dk[
+                (dk["league"] == lg)
+                & (dk["team"] == dk_team)
+                & (dk["opponent"] == dk_opp)
+            ]
+
             if dkm.empty:
                 continue
 
-            # choose best DK price (max moneyline)
-            best = dkm.loc[dkm["_ml"].idxmax()]
-            if best["_ml"] >= acc:
+            if len(dkm) > 1:
+                die(
+                    f"Ambiguous DK rows for {(lg, team, opp)}:\n"
+                    f"{dkm[['team','opponent','moneyline']]}"
+                )
+
+            row = dkm.iloc[0]
+            if row["_ml"] >= acc:
                 out_rows.append(
                     {
                         "date": target.isoformat(),
                         "league": lg,
                         "team": team,
                         "opponent": opp,
-                        "edge_american": best["_ml"] - acc,
-                        "dk_odds": best["_ml"],
-                        "handle_pct": best["handle_pct"],
-                        "bet_pct": best["bet_pct"],
+                        "edge_american": row["_ml"] - acc,
+                        "dk_odds": row["_ml"],
+                        "handle_pct": row["handle_pct"],
+                        "bet_pct": row["bet_pct"],
                     }
                 )
 
@@ -190,4 +212,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
