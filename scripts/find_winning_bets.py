@@ -50,15 +50,16 @@ def main():
 
     # -----------------------------
     # Load team mapping
+    # canonical → dk (CORRECT DIRECTION)
     # -----------------------------
-    team_map = {}
+    canonical_to_dk = {}
     with MAP_PATH.open(newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            team_map[(row["league"], row["dk_team"])] = row["canonical_team"]
+            canonical_to_dk[(row["league"], row["canonical_team"])] = row["dk_team"]
 
     # -----------------------------
-    # Prepare output schema (ALWAYS written)
+    # Prepare output schema
     # -----------------------------
     output_columns = [
         "date",
@@ -86,20 +87,15 @@ def main():
         for _, edge_row in edge_df.iterrows():
             canonical_team = edge_row["team"]
 
-            dk_team_matches = [
-                dk_team
-                for (lg, dk_team), canon in team_map.items()
-                if lg == league and canon == canonical_team
-            ]
-
-            if not dk_team_matches:
+            key = (league, canonical_team)
+            if key not in canonical_to_dk:
                 print(
                     f"ERROR: No team mapping found for "
                     f"league='{league}', canonical_team='{canonical_team}'"
                 )
                 sys.exit(1)
 
-            dk_team = dk_team_matches[0]
+            dk_team = canonical_to_dk[key]
 
             dk_match = dk_df[
                 (dk_df["league"] == league) &
@@ -116,7 +112,7 @@ def main():
             dk_row = dk_match.iloc[0]
 
             # -----------------------------
-            # Compute edge directly
+            # Compute edge
             # -----------------------------
             edge_american = (
                 edge_row["acceptable_american_odds"]
