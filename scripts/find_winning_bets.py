@@ -17,7 +17,6 @@ Behavior:
 - Writes headers even if no rows qualify
 - COMPLETELY IGNORES any row where league == "soc"
 - DK JOIN IS STRICT: league + team + opponent ONLY
-  (no team-only fallback, no best-of guessing)
 """
 
 import sys
@@ -63,36 +62,48 @@ def american_to_int(x) -> Optional[int]:
 def load_mapping() -> Dict[Tuple[str, str], str]:
     if not MAP_PATH.exists():
         die(f"Missing mapping file: {MAP_PATH}")
+
     out: Dict[Tuple[str, str], str] = {}
     with MAP_PATH.open(newline="", encoding="utf-8") as f:
         for r in csv.DictReader(f):
             lg = norm_league(r["league"])
             canon = norm(r["canonical_team"])
             dk = norm(r["dk_team"])
+
             if not lg or not canon or not dk:
                 die(f"Blank mapping row: {r}")
+
             key = (lg, canon)
             if key in out and out[key] != dk:
                 die(f"Conflicting mapping for {key}: {out[key]} vs {dk}")
+
             out[key] = dk
+
     return out
 
 
 def find_edge_files(target: date) -> List[Path]:
     y, m, d = target.year, f"{target.month:02}", f"{target.day:02}"
-    pats = [f"edge_*_{y}-{m}-{d}*.csv", f"edge_*_{y}_{m}_{d}*.csv"]
+    patterns = [
+        f"edge_*_{y}-{m}-{d}*.csv",
+        f"edge_*_{y}_{m}_{d}*.csv",
+    ]
+
     files: List[Path] = []
-    for p in pats:
+    for p in patterns:
         files.extend(sorted(EDGE_DIR.glob(p)))
+
     return list(dict.fromkeys(files))
 
 
 def load_dk(target: date) -> pd.DataFrame:
     y, m, d = target.year, f"{target.month:02}", f"{target.day:02}"
-    p = DK_DIR / f"DK_{y}_{m}_{d}.xlsx"
-    if not p.exists():
-        die(f"Missing DK file: {p}")
-    df = pd.read_excel(p)
+    path = DK_DIR / f"DK_{y}_{m}_{d}.xlsx"
+
+    if not path.exists():
+        die(f"Missing DK file: {path}")
+
+    df = pd.read_excel(path)
     df.columns = [norm(c) for c in df.columns]
 
     if "bet_pct" not in df.columns and "bets_pct" in df.columns:
@@ -121,6 +132,7 @@ def load_dk(target: date) -> pd.DataFrame:
 
 def main():
     target = date.today()
+
     dk = load_dk(target)
     canon_to_dk = load_mapping()
     edge_files = find_edge_files(target)
@@ -152,6 +164,7 @@ def main():
         ed["acceptable_american_odds"] = pd.to_numeric(
             ed["acceptable_american_odds"], errors="coerce"
         )
+
         if ed["acceptable_american_odds"].isna().any():
             die(f"Non-numeric acceptable_american_odds in {ef}")
 
@@ -170,7 +183,7 @@ def main():
                 die(f"Missing mapping for {(lg, team)}")
 
             if (lg, opp) not in canon_to_dk:
-                continue  # cannot form strict join without opponent mapping
+                continue
 
             dk_team = canon_to_dk[(lg, team)]
             dk_opp = canon_to_dk[(lg, opp)]
@@ -191,6 +204,7 @@ def main():
                 )
 
             row = dkm.iloc[0]
+
             if row["_ml"] >= acc:
                 out_rows.append(
                     {
@@ -205,9 +219,9 @@ def main():
                     }
                 )
 
-    out = OUT_DIR / f"winning_bets_{target.year}_{target.month:02}_{target.day:02}.csv"
-    pd.DataFrame(out_rows, columns=out_cols).to_csv(out, index=False)
-    print(f"Wrote {out} ({len(out_rows)} rows)")
+    out_path = OUT_DIR / "pre_final.csv"
+    pd.DataFrame(out_rows, columns=out_cols).to_csv(out_path, index=False)
+    print(f"Wrote {out_path} ({len(out_rows)} rows)")
 
 
 if __name__ == "__main__":
