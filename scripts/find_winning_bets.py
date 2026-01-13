@@ -16,12 +16,13 @@ Behavior:
 - Supports edge_*_{YYYY-MM-DD}*.csv and edge_*_{YYYY_MM_DD}*.csv
 - Handles multiple DK rows per team (selects best DK moneyline)
 - Writes headers even if no rows qualify
+- COMPLETELY IGNORES any row where league == "soc"
 """
 
 import sys
 import csv
 from pathlib import Path
-from datetime import date, datetime
+from datetime import date
 from typing import Dict, Tuple, List, Optional
 import pandas as pd
 
@@ -122,22 +123,38 @@ def main():
     if not edge_files:
         die("No edge files found for target date")
 
-    out_cols = ["date","league","team","opponent","edge_american","dk_odds","handle_pct","bet_pct"]
+    out_cols = [
+        "date",
+        "league",
+        "team",
+        "opponent",
+        "edge_american",
+        "dk_odds",
+        "handle_pct",
+        "bet_pct",
+    ]
     out_rows = []
 
     for ef in edge_files:
         ed = pd.read_csv(ef)
         ed.columns = [norm(c) for c in ed.columns]
-        for col in ["league","team","opponent","acceptable_american_odds"]:
+        for col in ["league", "team", "opponent", "acceptable_american_odds"]:
             if col not in ed.columns:
                 die(f"Edge missing column {col} in {ef}")
         ed["league"] = ed["league"].apply(norm_league)
-        ed["acceptable_american_odds"] = pd.to_numeric(ed["acceptable_american_odds"], errors="coerce")
+        ed["acceptable_american_odds"] = pd.to_numeric(
+            ed["acceptable_american_odds"], errors="coerce"
+        )
         if ed["acceptable_american_odds"].isna().any():
             die(f"Non-numeric acceptable_american_odds in {ef}")
 
         for _, r in ed.iterrows():
             lg = r["league"]
+
+            # 🔒 HARD SKIP: ignore soccer entirely
+            if lg == "soc":
+                continue
+
             team = norm(r["team"])
             opp = norm(r["opponent"])
             acc = int(r["acceptable_american_odds"])
@@ -146,23 +163,25 @@ def main():
                 die(f"Missing mapping for {(lg, team)}")
             dk_team = canon_to_dk[(lg, team)]
 
-            dkm = dk[(dk["league"]==lg) & (dk["team"]==dk_team)]
+            dkm = dk[(dk["league"] == lg) & (dk["team"] == dk_team)]
             if dkm.empty:
                 continue
 
             # choose best DK price (max moneyline)
             best = dkm.loc[dkm["_ml"].idxmax()]
             if best["_ml"] >= acc:
-                out_rows.append({
-                    "date": target.isoformat(),
-                    "league": lg,
-                    "team": team,
-                    "opponent": opp,
-                    "edge_american": best["_ml"] - acc,
-                    "dk_odds": best["_ml"],
-                    "handle_pct": best["handle_pct"],
-                    "bet_pct": best["bet_pct"],
-                })
+                out_rows.append(
+                    {
+                        "date": target.isoformat(),
+                        "league": lg,
+                        "team": team,
+                        "opponent": opp,
+                        "edge_american": best["_ml"] - acc,
+                        "dk_odds": best["_ml"],
+                        "handle_pct": best["handle_pct"],
+                        "bet_pct": best["bet_pct"],
+                    }
+                )
 
     out = OUT_DIR / f"winning_bets_{target.year}_{target.month:02}_{target.day:02}.csv"
     pd.DataFrame(out_rows, columns=out_cols).to_csv(out, index=False)
