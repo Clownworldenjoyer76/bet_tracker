@@ -22,13 +22,13 @@ OUT_DIR.mkdir(parents=True, exist_ok=True)
 # -----------------------------
 # League-specific logic hooks
 # -----------------------------
-def evaluate_edge(row, dk_row, league):
+def evaluate_edge(edge_american, row, dk_row, league):
     if league == "nba":
-        return row["edge"] > 0
+        return edge_american >= 0
     if league == "nhl":
-        return row["edge"] > 0
+        return edge_american >= 0
     if league == "nfl":
-        return row["edge"] > 0
+        return edge_american >= 0
     if league == "soc":
         return False
     return False
@@ -57,6 +57,20 @@ def main():
         for row in reader:
             team_map[(row["league"], row["dk_team"])] = row["canonical_team"]
 
+    # -----------------------------
+    # Prepare output schema (ALWAYS written)
+    # -----------------------------
+    output_columns = [
+        "date",
+        "league",
+        "team",
+        "opponent",
+        "edge_american",
+        "dk_odds",
+        "handle_pct",
+        "bet_pct",
+    ]
+
     output_rows = []
 
     # -----------------------------
@@ -72,7 +86,6 @@ def main():
         for _, edge_row in edge_df.iterrows():
             canonical_team = edge_row["team"]
 
-            # Find DK team mapped to this canonical team
             dk_team_matches = [
                 dk_team
                 for (lg, dk_team), canon in team_map.items()
@@ -102,20 +115,28 @@ def main():
 
             dk_row = dk_match.iloc[0]
 
-            if evaluate_edge(edge_row, dk_row, league):
+            # -----------------------------
+            # Compute edge directly
+            # -----------------------------
+            edge_american = (
+                edge_row["acceptable_american_odds"]
+                - edge_row["fair_american_odds"]
+            )
+
+            if evaluate_edge(edge_american, edge_row, dk_row, league):
                 output_rows.append({
                     "date": f"{y}-{m}-{d}",
                     "league": league,
                     "team": canonical_team,
                     "opponent": edge_row["opponent"],
-                    "edge": edge_row["edge"],
+                    "edge_american": edge_american,
                     "dk_odds": dk_row["moneyline"],
                     "handle_pct": dk_row.get("handle_pct"),
                     "bet_pct": dk_row.get("bet_pct"),
                 })
 
     out_path = OUT_DIR / f"winning_bets_{y}_{m}_{d}.csv"
-    pd.DataFrame(output_rows).to_csv(out_path, index=False)
+    pd.DataFrame(output_rows, columns=output_columns).to_csv(out_path, index=False)
     print(f"Wrote {out_path}")
 
 
