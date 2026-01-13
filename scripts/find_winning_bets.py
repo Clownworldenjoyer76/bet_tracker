@@ -219,7 +219,7 @@ def main():
                     }
                 )
 
-    out_path = OUT_DIR / "pre_final.csv"
+    out_path = OUT_DIR / f"pre_final_{target.year}_{target.month:02}_{target.day:02}.csv"
     pd.DataFrame(out_rows, columns=out_cols).to_csv(out_path, index=False)
     print(f"Wrote {out_path} ({len(out_rows)} rows)")
 
