@@ -1,0 +1,31 @@
+name: 4 Build NCAAB Value File (Manual)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-value:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run value builder
+        run: |
+          python scripts/build_value_file.py
+
+      - name: Commit and push value file
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add docs/win/value/
+          git commit -m "Build NCAAB value file" || echo "No changes to commit"
+          git push
