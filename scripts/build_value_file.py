@@ -14,6 +14,7 @@ Adds:
 Rules:
 - Baseline = 1.0 unit ($0.10)
 - Stake tiers based strictly on win_probability and acceptable_american_odds
+- Output ONLY bets with units_to_bet > 0.10
 - No odds recalculation
 - No external data
 """
@@ -61,11 +62,14 @@ def main():
                 win_prob = float(row["win_probability"])
                 acceptable_american = int(row["acceptable_american_odds"])
             except Exception:
-                row["units_to_bet"] = ""
-                writer.writerow(row)
                 continue
 
             units = determine_units(win_prob, acceptable_american)
+
+            # FILTER: only include bets with units_to_bet > 0.10
+            if units <= 0.10:
+                continue
+
             row["units_to_bet"] = f"{units:.2f}"
             writer.writerow(row)
 
