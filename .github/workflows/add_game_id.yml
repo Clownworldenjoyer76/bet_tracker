@@ -1,0 +1,27 @@
+name: 1 Add game_id to win probability files
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  add-game-id:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run game_id script
+        run: python scripts/add_game_id.py
+
+      - name: Commit and push changes
+        run: |
+          if git status --porcelain | grep .; then
+            git config user.name "github-actions"
+            git config user.email "github-actions@github.com"
+            git add docs/win/clean/win_prob__clean_*.csv
+            git commit -m "Add game_id to win probability files"
+            git push
+          fi
