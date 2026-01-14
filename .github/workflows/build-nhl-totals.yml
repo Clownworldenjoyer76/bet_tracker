@@ -1,0 +1,32 @@
+name: 4 Build NHL Totals Edge (Manual)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-nhl-totals:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run NHL totals edge builder
+        run: |
+          python scripts/build_edge_nhl_totals.py
+
+      - name: Commit and push output
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add docs/win/nhl/
+          git commit -m "Build NHL totals edge file" || exit 0
+          git push
