@@ -1,0 +1,46 @@
+<!-- docs/nhl.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>NHL Games Today</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <h1>NHL Games Today</h1>
+
+  <nav class="nav">
+    <a href="index.html">Home</a>
+    <a href="ncaab.html">NCAAB</a>
+    <a href="tracker.html">Bet Tracker</a>
+  </nav>
+
+  <section class="controls">
+    <label for="nhl-date" class="control-label">Date:</label>
+    <input id="nhl-date" type="date" />
+    <span class="hint">Select a date to load historical files.</span>
+  </section>
+
+  <div id="status" class="status"></div>
+  <div id="games" class="games"></div>
+
+  <script src="app.js"></script>
+  <script>
+    // Default to local “today” for the picker. Filenames are derived from the selected date.
+    const dateInput = document.getElementById("nhl-date");
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    const dd = String(now.getDate()).padStart(2, "0");
+    dateInput.value = `${yyyy}-${mm}-${dd}`;
+
+    function runLoad() {
+      const selected = dateInput.value; // YYYY-MM-DD
+      loadNHLDaily(selected);
+    }
+
+    dateInput.addEventListener("change", runLoad);
+    runLoad();
+  </script>
+</body>
+</html>
