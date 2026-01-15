@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Build NHL Totals Edge File (Single Selection per Game)
+Build NHL Totals Edge File (Distance-Weighted)
 
 Inputs:
 - docs/win/clean/win_prob__clean_nhl_*.csv
@@ -8,14 +8,10 @@ Inputs:
 Outputs:
 - docs/win/nhl/edge_nhl_totals_YYYY_MM_DD.csv
 
-Rules:
+Method:
 - Poisson model using total_goals as λ
-- EDGE_BUFFER_TOTALS = 7%
-- Totals evaluated: 5.5 and 6.5
-- Over / Under only
-- One output row per game:
-    • model_probability >= MIN_PROB
-    • closest to 0.50 among qualifying outcomes
+- Market lines: 5.5, 6.5
+- Acceptable odds buffer scales with distance from λ
 """
 
 import csv
@@ -24,9 +20,10 @@ from math import exp, factorial
 from pathlib import Path
 from datetime import datetime
 
-EDGE_BUFFER_TOTALS = 0.07
+# --- CONFIG ---
+BASE_EDGE_BUFFER = 0.07        # base 7%
+DISTANCE_PENALTY = 0.06        # +6% per goal away from λ
 TOTAL_LINES = [5.5, 6.5]
-MIN_PROB = 0.55  # selection threshold
 
 INPUT_DIR = Path("docs/win/clean")
 OUTPUT_DIR = Path("docs/win/nhl")
@@ -47,8 +44,10 @@ def decimal_to_american(d: float) -> int:
     return int(round(-100 / (d - 1)))
 
 
-def acceptable_decimal(p: float) -> float:
-    return 1.0 / max(p - EDGE_BUFFER_TOTALS, 0.0001)
+def acceptable_decimal(p: float, market_total: float, lam: float) -> float:
+    distance = abs(market_total - lam)
+    effective_buffer = BASE_EDGE_BUFFER + DISTANCE_PENALTY * distance
+    return 1.0 / max(p - effective_buffer, 0.0001)
 
 
 def main():
@@ -80,7 +79,7 @@ def main():
             "fair_american_odds",
             "acceptable_decimal_odds",
             "acceptable_american_odds",
-            "league"
+            "league",
         ]
 
         writer = csv.DictWriter(outfile, fieldnames=fieldnames)
@@ -100,8 +99,6 @@ def main():
             team_1 = row["team"]
             team_2 = row["opponent"]
 
-            candidates = []
-
             for market_total in TOTAL_LINES:
                 cutoff = int(market_total - 0.5)
 
@@ -109,16 +106,13 @@ def main():
                 p_over = 1.0 - p_under
 
                 for side, p in (("UNDER", p_under), ("OVER", p_over)):
-                    if p < MIN_PROB:
-                        continue
-
                     fair_d = fair_decimal(p)
                     fair_a = decimal_to_american(fair_d)
 
-                    acc_d = acceptable_decimal(p)
+                    acc_d = acceptable_decimal(p, market_total, lam)
                     acc_a = decimal_to_american(acc_d)
 
-                    candidates.append({
+                    writer.writerow({
                         "game_id": game_id,
                         "date": row["date"],
                         "time": row["time"],
@@ -131,19 +125,8 @@ def main():
                         "fair_american_odds": fair_a,
                         "acceptable_decimal_odds": round(acc_d, 4),
                         "acceptable_american_odds": acc_a,
-                        "league": "nhl"
+                        "league": "nhl",
                     })
-
-            if not candidates:
-                continue
-
-            # select outcome closest to 50%
-            best = min(
-                candidates,
-                key=lambda x: abs(x["model_probability"] - 0.5)
-            )
-
-            writer.writerow(best)
 
 
 if __name__ == "__main__":
