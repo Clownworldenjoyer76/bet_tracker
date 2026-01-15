@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import csv
+import re
 from pathlib import Path
 
 EDGE = 0.05  # requires 5% better price than fair odds
@@ -24,18 +25,44 @@ def normalize_probability(raw: str) -> float:
     return p
 
 
+def normalize_timestamp(ts: str) -> str:
+    """
+    Normalize date portion in timestamp to underscores for consistent output filenames.
+
+    Examples:
+      2026-01-14 -> 2026_01_14
+      2026_01_14 -> 2026_01_14
+      20260114   -> 20260114 (left as-is)
+      2026-01-14_235959 -> 2026_01_14_235959
+    """
+    # Replace YYYY-MM-DD anywhere in the timestamp with YYYY_MM_DD
+    ts = re.sub(r"(\d{4})-(\d{2})-(\d{2})", r"\1_\2_\3", ts)
+    return ts
+
+
 def parse_filename(path: Path):
     """
-    Expected filename:
-      win_prob__clean_{league}_{timestamp}.csv
+    Expected filename patterns (common):
+      win_prob__clean_{league}_{YYYY-MM-DD}.csv
+      win_prob__clean_{league}_{YYYY_MM_DD}.csv
+      win_prob__clean_{league}_{timestamp}.csv  (timestamp may include date/time)
+
+    We extract:
+      league = second-to-last underscore-separated token
+      timestamp = last token (normalized to YYYY_MM_DD if it contains YYYY-MM-DD)
     """
     name = path.stem
     parts = name.split("_")
-    if len(parts) < 5:
+
+    # Handle double-underscore filenames like "win_prob__clean_..."
+    parts = [p for p in parts if p != ""]
+
+    if len(parts) < 4:
         raise ValueError(f"Unexpected filename format: {path.name}")
 
     league = parts[-2]
     timestamp = parts[-1]
+    timestamp = normalize_timestamp(timestamp)
     return league, timestamp
 
 
