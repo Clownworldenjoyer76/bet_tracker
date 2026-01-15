@@ -10,13 +10,6 @@ Inputs:
 
 Outputs:
 - docs/win/soc/edge_soc_totals_YYYY_MM_DD.csv
-
-Rules:
-- Poisson model on total goals (λ = home_goals + away_goals)
-- EDGE_BUFFER_TOTALS = 3.5%
-- Deterministic dedupe via game_id
-- Totals evaluated: 1.5, 2.5, 3.5, 4.5
-- Over / Under only
 """
 
 import csv
@@ -24,6 +17,7 @@ import glob
 from math import exp, factorial
 from pathlib import Path
 from datetime import datetime
+from collections import defaultdict
 
 EDGE_BUFFER_TOTALS = 0.035
 TOTAL_LINES = [1.5, 2.5, 3.5, 4.5]
@@ -63,12 +57,16 @@ def main():
     today = datetime.utcnow()
     out_path = OUTPUT_DIR / f"edge_soc_totals_{today.year}_{today.month:02d}_{today.day:02d}.csv"
 
-    seen_games = set()
+    games = defaultdict(list)
 
-    with open(latest_file, newline="", encoding="utf-8") as infile, \
-         open(out_path, "w", newline="", encoding="utf-8") as outfile:
-
+    with open(latest_file, newline="", encoding="utf-8") as infile:
         reader = csv.DictReader(infile)
+        for row in reader:
+            if not row.get("game_id") or not row.get("goals"):
+                continue
+            games[row["game_id"]].append(row)
+
+    with open(out_path, "w", newline="", encoding="utf-8") as outfile:
         fieldnames = [
             "game_id",
             "date",
@@ -88,21 +86,19 @@ def main():
         writer = csv.DictWriter(outfile, fieldnames=fieldnames)
         writer.writeheader()
 
-        for row in reader:
+        for game_id, rows in games.items():
+            if len(rows) != 2:
+                continue  # strict: must be exactly two teams
+
             try:
-                game_id = row["game_id"]
-                lam_home = float(row["home_goals"])
-                lam_away = float(row["away_goals"])
-            except Exception:
+                lam_total = sum(float(r["goals"]) for r in rows)
+            except ValueError:
                 continue
 
-            if game_id in seen_games:
-                continue
-            seen_games.add(game_id)
-
-            lam_total = lam_home + lam_away
-            team_1 = row["team"]
-            team_2 = row["opponent"]
+            team_1 = rows[0]["team"]
+            team_2 = rows[1]["team"]
+            date = rows[0]["date"]
+            time = rows[0]["time"]
 
             for market_total in TOTAL_LINES:
                 cutoff = int(market_total - 0.5)
@@ -119,8 +115,8 @@ def main():
 
                     writer.writerow({
                         "game_id": game_id,
-                        "date": row["date"],
-                        "time": row["time"],
+                        "date": date,
+                        "time": time,
                         "team_1": team_1,
                         "team_2": team_2,
                         "market_total": market_total,
