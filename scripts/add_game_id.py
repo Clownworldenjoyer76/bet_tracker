@@ -2,6 +2,7 @@
 
 import csv
 from pathlib import Path
+from datetime import datetime
 
 PATTERN = "docs/win/clean/win_prob__clean_*.csv"
 
@@ -41,8 +42,16 @@ def process_file(path: Path):
 
             if row_b.get("team") == opp_a and row_b.get("opponent") == team_a:
                 league = row_a.get("league")
-                date = row_a.get("date")
-                game_id = f"{league}_{date}_game_{game_counter}"
+                raw_date = row_a.get("date")
+
+                try:
+                    dt = datetime.strptime(raw_date, "%m/%d/%Y")
+                except ValueError:
+                    dt = datetime.strptime(raw_date, "%m/%d/%y")
+
+                formatted_date = dt.strftime("%Y_%m_%d")
+
+                game_id = f"{league}_{formatted_date}_game_{game_counter}"
 
                 row_a["game_id"] = game_id
                 row_b["game_id"] = game_id
