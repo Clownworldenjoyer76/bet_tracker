@@ -10,6 +10,11 @@ Inputs:
 
 Outputs:
 - docs/win/soc/edge_soc_totals_YYYY_MM_DD.csv
+
+Notes:
+- Clean file ordering invariant:
+  • rows[0] = AWAY team
+  • rows[1] = HOME team
 """
 
 import csv
@@ -21,6 +26,10 @@ from collections import defaultdict
 
 EDGE_BUFFER_TOTALS = 0.035
 TOTAL_LINES = [1.5, 2.5, 3.5, 4.5]
+
+# Home / Away asymmetry
+HOME_MULT = 1.10
+AWAY_MULT = 0.90
 
 INPUT_DIR = Path("docs/win/clean")
 OUTPUT_DIR = Path("docs/win/soc")
@@ -88,10 +97,14 @@ def main():
 
         for game_id, rows in games.items():
             if len(rows) != 2:
-                continue  # strict: must be exactly two teams
+                continue  # strict invariant
 
             try:
-                lam_total = sum(float(r["goals"]) for r in rows)
+                # rows[0] = away, rows[1] = home
+                lam_total = (
+                    float(rows[0]["goals"]) * AWAY_MULT +
+                    float(rows[1]["goals"]) * HOME_MULT
+                )
             except ValueError:
                 continue
 
