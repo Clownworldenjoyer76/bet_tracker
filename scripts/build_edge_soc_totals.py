@@ -6,7 +6,7 @@ Script:
 - scripts/build_edge_soc_totals.py
 
 Inputs:
-- docs/win/clean/win_prob__clean_soccer_*.csv
+- docs/win/clean/win_prob__clean_soc_*.csv
 
 Outputs:
 - docs/win/soc/edge_soc_totals_YYYY_MM_DD.csv
@@ -52,7 +52,9 @@ def acceptable_decimal(p: float) -> float:
 
 
 def main():
-    input_files = sorted(glob.glob(str(INPUT_DIR / "win_prob__clean_soccer_*.csv")))
+    input_files = sorted(
+        glob.glob(str(INPUT_DIR / "win_prob__clean_soc_*.csv"))
+    )
     if not input_files:
         raise FileNotFoundError("No clean soccer win probability files found")
 
