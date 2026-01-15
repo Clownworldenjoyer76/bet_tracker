@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Build NHL Totals Edge File (Distance-Weighted)
+Build NHL Totals Edge File (Centered, Single Selection)
 
 Inputs:
 - docs/win/clean/win_prob__clean_nhl_*.csv
@@ -10,8 +10,8 @@ Outputs:
 
 Method:
 - Poisson model using total_goals as λ
-- Market lines: 5.5, 6.5
-- Acceptable odds buffer scales with distance from λ
+- Distance-weighted acceptable odds
+- ONE output row per game
 """
 
 import csv
@@ -21,8 +21,8 @@ from pathlib import Path
 from datetime import datetime
 
 # --- CONFIG ---
-BASE_EDGE_BUFFER = 0.07        # base 7%
-DISTANCE_PENALTY = 0.06        # +6% per goal away from λ
+BASE_EDGE_BUFFER = 0.07
+DISTANCE_PENALTY = 0.06
 TOTAL_LINES = [5.5, 6.5]
 
 INPUT_DIR = Path("docs/win/clean")
@@ -46,8 +46,8 @@ def decimal_to_american(d: float) -> int:
 
 def acceptable_decimal(p: float, market_total: float, lam: float) -> float:
     distance = abs(market_total - lam)
-    effective_buffer = BASE_EDGE_BUFFER + DISTANCE_PENALTY * distance
-    return 1.0 / max(p - effective_buffer, 0.0001)
+    buffer = BASE_EDGE_BUFFER + DISTANCE_PENALTY * distance
+    return 1.0 / max(p - buffer, 0.0001)
 
 
 def main():
@@ -99,6 +99,8 @@ def main():
             team_1 = row["team"]
             team_2 = row["opponent"]
 
+            candidates = []
+
             for market_total in TOTAL_LINES:
                 cutoff = int(market_total - 0.5)
 
@@ -106,13 +108,16 @@ def main():
                 p_over = 1.0 - p_under
 
                 for side, p in (("UNDER", p_under), ("OVER", p_over)):
+                    if p < 0.5:
+                        continue  # only express belief, not tails
+
                     fair_d = fair_decimal(p)
                     fair_a = decimal_to_american(fair_d)
 
                     acc_d = acceptable_decimal(p, market_total, lam)
                     acc_a = decimal_to_american(acc_d)
 
-                    writer.writerow({
+                    candidates.append({
                         "game_id": game_id,
                         "date": row["date"],
                         "time": row["time"],
@@ -120,13 +125,34 @@ def main():
                         "team_2": team_2,
                         "market_total": market_total,
                         "side": side,
-                        "model_probability": round(p, 4),
-                        "fair_decimal_odds": round(fair_d, 4),
+                        "model_probability": p,
+                        "fair_decimal_odds": fair_d,
                         "fair_american_odds": fair_a,
-                        "acceptable_decimal_odds": round(acc_d, 4),
+                        "acceptable_decimal_odds": acc_d,
                         "acceptable_american_odds": acc_a,
                         "league": "nhl",
+                        "distance": abs(market_total - lam),
                     })
+
+            if not candidates:
+                continue
+
+            # 1) closest to λ
+            min_dist = min(c["distance"] for c in candidates)
+            closest = [c for c in candidates if c["distance"] == min_dist]
+
+            # 2) highest probability among those
+            best = max(closest, key=lambda x: x["model_probability"])
+
+            # cleanup helper field
+            best.pop("distance")
+
+            # rounding for output
+            best["model_probability"] = round(best["model_probability"], 4)
+            best["fair_decimal_odds"] = round(best["fair_decimal_odds"], 4)
+            best["acceptable_decimal_odds"] = round(best["acceptable_decimal_odds"], 4)
+
+            writer.writerow(best)
 
 
 if __name__ == "__main__":
