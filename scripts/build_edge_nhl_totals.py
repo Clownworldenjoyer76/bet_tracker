@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Build NHL Totals Edge File
+Build NHL Totals Edge File (Single Selection per Game)
 
 Inputs:
 - docs/win/clean/win_prob__clean_nhl_*.csv
@@ -11,9 +11,11 @@ Outputs:
 Rules:
 - Poisson model using total_goals as λ
 - EDGE_BUFFER_TOTALS = 7%
-- Deterministic dedupe via game_id
 - Totals evaluated: 5.5 and 6.5
 - Over / Under only
+- One output row per game:
+    • model_probability >= MIN_PROB
+    • closest to 0.50 among qualifying outcomes
 """
 
 import csv
@@ -24,24 +26,30 @@ from datetime import datetime
 
 EDGE_BUFFER_TOTALS = 0.07
 TOTAL_LINES = [5.5, 6.5]
+MIN_PROB = 0.55  # selection threshold
 
 INPUT_DIR = Path("docs/win/clean")
 OUTPUT_DIR = Path("docs/win/nhl")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
+
 def poisson_cdf(k: int, lam: float) -> float:
     return sum((lam ** i) * exp(-lam) / factorial(i) for i in range(k + 1))
 
+
 def fair_decimal(p: float) -> float:
     return 1.0 / p
+
 
 def decimal_to_american(d: float) -> int:
     if d >= 2.0:
         return int(round((d - 1) * 100))
     return int(round(-100 / (d - 1)))
 
+
 def acceptable_decimal(p: float) -> float:
     return 1.0 / max(p - EDGE_BUFFER_TOTALS, 0.0001)
+
 
 def main():
     input_files = sorted(glob.glob(str(INPUT_DIR / "win_prob__clean_nhl_*.csv")))
@@ -74,6 +82,7 @@ def main():
             "acceptable_american_odds",
             "league"
         ]
+
         writer = csv.DictWriter(outfile, fieldnames=fieldnames)
         writer.writeheader()
 
@@ -91,6 +100,8 @@ def main():
             team_1 = row["team"]
             team_2 = row["opponent"]
 
+            candidates = []
+
             for market_total in TOTAL_LINES:
                 cutoff = int(market_total - 0.5)
 
@@ -98,13 +109,16 @@ def main():
                 p_over = 1.0 - p_under
 
                 for side, p in (("UNDER", p_under), ("OVER", p_over)):
+                    if p < MIN_PROB:
+                        continue
+
                     fair_d = fair_decimal(p)
                     fair_a = decimal_to_american(fair_d)
 
                     acc_d = acceptable_decimal(p)
                     acc_a = decimal_to_american(acc_d)
 
-                    writer.writerow({
+                    candidates.append({
                         "game_id": game_id,
                         "date": row["date"],
                         "time": row["time"],
@@ -119,6 +133,18 @@ def main():
                         "acceptable_american_odds": acc_a,
                         "league": "nhl"
                     })
+
+            if not candidates:
+                continue
+
+            # select outcome closest to 50%
+            best = min(
+                candidates,
+                key=lambda x: abs(x["model_probability"] - 0.5)
+            )
+
+            writer.writerow(best)
+
 
 if __name__ == "__main__":
     main()
