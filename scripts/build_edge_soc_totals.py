@@ -1,13 +1,20 @@
 #!/usr/bin/env python3
 """
-Build Soccer Totals Edge File (OU only)
+Build Soccer Totals Edge File
 
-Key guards added:
-- Only 2.5 and 3.5 totals
-- One side per total per game
-- Min probability threshold
-- Min fair odds threshold
-- Stricter edge buffer for single-book totals
+Script:
+- scripts/build_edge_soc_totals.py
+
+Inputs:
+- docs/win/clean/win_prob__clean_soc_*.csv
+
+Outputs:
+- docs/win/soc/edge_soc_totals_YYYY_MM_DD.csv
+
+Notes:
+- Clean file ordering invariant:
+  • rows[0] = AWAY team
+  • rows[1] = HOME team
 """
 
 import csv
@@ -17,12 +24,10 @@ from pathlib import Path
 from datetime import datetime
 from collections import defaultdict
 
-# ---- CONFIG ----
-EDGE_BUFFER_TOTALS = 0.07      # stricter than sides (single book)
-TOTAL_LINES = [2.5, 3.5]       # remove 1.5 and 4.5
-MIN_PROB = 0.54
-MIN_FAIR_DECIMAL = 1.55
+EDGE_BUFFER_TOTALS = 0.035
+TOTAL_LINES = [1.5, 2.5, 3.5, 4.5]
 
+# Home / Away asymmetry
 HOME_MULT = 1.10
 AWAY_MULT = 0.90
 
@@ -46,7 +51,6 @@ def decimal_to_american(d: float) -> int:
 
 
 def acceptable_decimal(p: float) -> float:
-    # conservative buffer for OU with one sportsbook
     return 1.0 / max(p - EDGE_BUFFER_TOTALS, 0.0001)
 
 
@@ -96,6 +100,7 @@ def main():
                 continue  # strict invariant
 
             try:
+                # rows[0] = away, rows[1] = home
                 lam_total = (
                     float(rows[0]["goals"]) * AWAY_MULT +
                     float(rows[1]["goals"]) * HOME_MULT
@@ -114,41 +119,28 @@ def main():
                 p_under = poisson_cdf(cutoff, lam_total)
                 p_over = 1.0 - p_under
 
-                # ---- ONE SIDE PER TOTAL ----
-                if p_under >= p_over:
-                    side, p = "UNDER", p_under
-                else:
-                    side, p = "OVER", p_over
+                for side, p in (("UNDER", p_under), ("OVER", p_over)):
+                    fair_d = fair_decimal(p)
+                    fair_a = decimal_to_american(fair_d)
 
-                # ---- FILTERS ----
-                if p < MIN_PROB:
-                    continue
+                    acc_d = acceptable_decimal(p)
+                    acc_a = decimal_to_american(acc_d)
 
-                fair_d = fair_decimal(p)
-                if fair_d < MIN_FAIR_DECIMAL:
-                    continue
-
-                fair_a = decimal_to_american(fair_d)
-                acc_d = acceptable_decimal(p)
-                acc_a = decimal_to_american(acc_d)
-
-                writer.writerow({
-                    "game_id": game_id,
-                    "date": date,
-                    "time": time,
-                    "team_1": team_1,
-                    "team_2": team_2,
-                    "market_total": market_total,
-                    "side": side,
-                    "model_probability": round(p, 4),
-                    "fair_decimal_odds": round(fair_d, 4),
-                    "fair_american_odds": fair_a,
-                    "acceptable_decimal_odds": round(acc_d, 4),
-                    "acceptable_american_odds": acc_a,
-                    "league": "soc",
-                })
-
-    print(f"Created {out_path}")
+                    writer.writerow({
+                        "game_id": game_id,
+                        "date": date,
+                        "time": time,
+                        "team_1": team_1,
+                        "team_2": team_2,
+                        "market_total": market_total,
+                        "side": side,
+                        "model_probability": round(p, 4),
+                        "fair_decimal_odds": round(fair_d, 4),
+                        "fair_american_odds": fair_a,
+                        "acceptable_decimal_odds": round(acc_d, 4),
+                        "acceptable_american_odds": acc_a,
+                        "league": "soc_ou",
+                    })
 
 
 if __name__ == "__main__":
