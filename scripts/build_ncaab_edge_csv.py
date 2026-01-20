@@ -5,12 +5,10 @@ import re
 from pathlib import Path
 
 EDGE = 0.05
-NCAAB_MIN_EDGE = 0.10          # ≥ +10%
-NCAAB_MIN_PROB = 0.50          # win probability floor
-NCAAB_DOG_MIN_PROB = 0.45      # underdog floor
-NCAAB_DOG_MIN_EDGE = 0.15      # underdog edge
+NCAAB_MIN_EDGE = 0.10
+NCAAB_DOG_MIN_EDGE = 0.15
 NCAAB_HEAVY_FAV_LINE = -300
-NCAAB_HEAVY_FAV_EDGE = 0.50    # ≥ +50%
+NCAAB_HEAVY_FAV_EDGE = 0.50
 
 INPUT_DIR = Path("docs/win/clean")
 OUTPUT_DIR = Path("docs/win/edge")
@@ -67,26 +65,15 @@ def process_file(input_path: Path):
             fair_decimal = 1.0 / p
             fair_american = decimal_to_american(fair_decimal)
 
-            # -------- NCAAB RULES --------
-            if league == "ncaab":
-                edge_required = NCAAB_MIN_EDGE
+            edge_required = NCAAB_MIN_EDGE
 
-                if fair_american > 0:
-                    if p < NCAAB_DOG_MIN_PROB:
-                        continue
-                    edge_required = max(edge_required, NCAAB_DOG_MIN_EDGE)
+            if fair_american > 0:
+                edge_required = max(edge_required, NCAAB_DOG_MIN_EDGE)
 
-                if fair_american <= NCAAB_HEAVY_FAV_LINE:
-                    edge_required = max(edge_required, NCAAB_HEAVY_FAV_EDGE)
+            if fair_american <= NCAAB_HEAVY_FAV_LINE:
+                edge_required = max(edge_required, NCAAB_HEAVY_FAV_EDGE)
 
-                if p < NCAAB_MIN_PROB:
-                    continue
-
-                acceptable_decimal = fair_decimal * (1.0 + edge_required)
-
-            # -------- ALL OTHER LEAGUES --------
-            else:
-                acceptable_decimal = fair_decimal * (1.0 + EDGE)
+            acceptable_decimal = fair_decimal * (1.0 + edge_required)
 
             row["fair_decimal_odds"] = round(fair_decimal, 6)
             row["fair_american_odds"] = fair_american
@@ -99,9 +86,9 @@ def process_file(input_path: Path):
 
 
 def main():
-    files = sorted(INPUT_DIR.glob("win_prob__clean_*.csv"))
+    files = sorted(INPUT_DIR.glob("win_prob__clean_ncaab_*"))
     if not files:
-        raise FileNotFoundError("No cleaned files found")
+        raise FileNotFoundError("No cleaned NCAAB files found")
 
     for path in files:
         process_file(path)
