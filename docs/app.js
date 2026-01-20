@@ -1,15 +1,10 @@
-// docs/app.js
 const GH_OWNER = "Clownworldenjoyer76";
 const GH_REPO = "bet_tracker";
 const GH_BRANCH = "main";
 const RAW_BASE = `https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/${GH_BRANCH}`;
 
-/**
- * Robust CSV parser:
- * - supports quoted fields
- * - supports commas inside quotes
- * - supports CRLF
- */
+/* ================= CSV PARSER ================= */
+
 function parseCSV(text) {
   const rows = [];
   let row = [];
@@ -26,18 +21,15 @@ function parseCSV(text) {
       i++;
       continue;
     }
-
     if (c === '"') {
       inQuotes = !inQuotes;
       continue;
     }
-
     if (!inQuotes && c === ",") {
       row.push(field);
       field = "";
       continue;
     }
-
     if (!inQuotes && c === "\n") {
       row.push(field);
       rows.push(row);
@@ -45,11 +37,9 @@ function parseCSV(text) {
       field = "";
       continue;
     }
-
     field += c;
   }
 
-  // last field
   if (field.length > 0 || row.length > 0) {
     row.push(field);
     rows.push(row);
@@ -70,201 +60,28 @@ function parseCSV(text) {
     }
     objects.push(obj);
   }
-
   return objects;
 }
 
 function fetchText(url) {
   return fetch(url).then(res => {
-    if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.text();
   });
 }
 
 function setStatus(msg) {
   const el = document.getElementById("status");
-  if (!el) return;
-  el.textContent = msg || "";
-}
-
-/**
- * NHL loader:
- * - Uses filename date (derived from picker YYYY-MM-DD) to construct:
- *   docs/win/edge/edge_nhl_YYYY_MM_DD.csv
- *   docs/win/nhl/edge_nhl_totals_YYYY_MM_DD.csv
- * - Groups games by game_id in the order they appear in edge_nhl file
- * - Renders one game box per game_id
- * - Leaves blanks if data missing
- * - Rounds win_probability and goals to 2 decimals
- */
-async function loadNHLDaily(selectedDateYYYYMMDD) {
-  setStatus("");
-
-  const gamesEl = document.getElementById("games");
-  if (gamesEl) gamesEl.innerHTML = "";
-
-  // Convert YYYY-MM-DD -> YYYY_MM_DD
-  const parts = (selectedDateYYYYMMDD || "").split("-");
-  if (parts.length !== 3) {
-    setStatus("Invalid date selected.");
-    return;
-  }
-  const yyyy = parts[0];
-  const mm = parts[1];
-  const dd = parts[2];
-  const fileDate = `${yyyy}_${mm}_${dd}`;
-
-  const mlUrl = `${RAW_BASE}/docs/win/edge/edge_nhl_${fileDate}.csv`;
-  const totalsUrl = `${RAW_BASE}/docs/win/nhl/edge_nhl_totals_${fileDate}.csv`;
-
-  let mlRows = [];
-  let totalsRows = [];
-
-  try {
-    const [mlText, totalsText] = await Promise.all([
-      fetchText(mlUrl).catch(() => ""),       // render blanks if missing
-      fetchText(totalsUrl).catch(() => "")
-    ]);
-
-    mlRows = mlText ? parseCSV(mlText) : [];
-    totalsRows = totalsText ? parseCSV(totalsText) : [];
-  } catch (e) {
-    setStatus("Failed to load NHL files.");
-    return;
-  }
-
-  // Index totals by game_id (one row per game, per your spec)
-  const totalsByGameId = new Map();
-  for (const r of totalsRows) {
-    const gid = (r.game_id || "").trim();
-    if (!gid) continue;
-    if (!totalsByGameId.has(gid)) totalsByGameId.set(gid, r);
-  }
-
-  // Group ML rows by game_id in file order
-  const gameOrder = [];
-  const mlByGameId = new Map();
-
-  for (const r of mlRows) {
-    const gid = (r.game_id || "").trim();
-    if (!gid) continue;
-
-    if (!mlByGameId.has(gid)) {
-      mlByGameId.set(gid, []);
-      gameOrder.push(gid);
-    }
-    mlByGameId.get(gid).push(r);
-  }
-
-  if (gameOrder.length === 0) {
-    setStatus("No NHL games found for this date.");
-    return;
-  }
-
-  renderNHLGames(gameOrder, mlByGameId, totalsByGameId);
+  if (el) el.textContent = msg || "";
 }
 
 function format2(n) {
   const x = Number(n);
-  if (!Number.isFinite(x)) return "";
-  return x.toFixed(2);
+  return Number.isFinite(x) ? x.toFixed(2) : "";
 }
 
 function safeGet(obj, key) {
-  if (!obj) return "";
-  const v = obj[key];
-  return (v ?? "").toString().trim();
-}
-
-function renderNHLGames(gameOrder, mlByGameId, totalsByGameId) {
-  const container = document.getElementById("games");
-  if (!container) return;
-
-  container.innerHTML = "";
-
-  for (const gid of gameOrder) {
-    const rows = mlByGameId.get(gid) || [];
-    const first = rows[0] || null;
-
-    // Header requires: "team at opponent" derived from ML edge file first occurrence
-    const headerTeam = safeGet(first, "team");
-    const headerOpp = safeGet(first, "opponent");
-    const headerText = (headerTeam && headerOpp) ? `${headerTeam} at ${headerOpp}` : "";
-
-    // Team row is first row encountered for that game_id
-    const teamName = headerTeam || "";
-    const teamWinProb = first ? format2(safeGet(first, "win_probability")) : "";
-    const teamGoals = first ? format2(safeGet(first, "goals")) : "";
-    const teamAcceptML = first ? safeGet(first, "acceptable_american_odds") : "";
-
-    // Opponent row should match on (opponent + game_id) as requested.
-    // We locate the row where team == first.opponent. If not found, fallback to second row if present.
-    let oppRow = null;
-    if (first && headerOpp) {
-      for (const r of rows) {
-        if (safeGet(r, "team") === headerOpp) {
-          oppRow = r;
-          break;
-        }
-      }
-    }
-    if (!oppRow && rows.length >= 2) oppRow = rows[1] || null;
-
-    const oppName = headerOpp || (oppRow ? safeGet(oppRow, "team") : "");
-    const oppWinProb = oppRow ? format2(safeGet(oppRow, "win_probability")) : "";
-    const oppGoals = oppRow ? format2(safeGet(oppRow, "goals")) : "";
-    const oppAcceptML = oppRow ? safeGet(oppRow, "acceptable_american_odds") : "";
-
-    // Totals row (one per game)
-    const totals = totalsByGameId.get(gid) || null;
-    const totalsSide = totals ? safeGet(totals, "side") : "";
-    const totalsMarket = totals ? safeGet(totals, "market_total") : "";
-    const totalsAccept = totals ? safeGet(totals, "acceptable_american_odds") : "";
-
-    const takeOUForTeamLine = (totalsSide || totalsMarket) ? `${totalsSide} ${totalsMarket}`.trim() : "";
-
-    const box = document.createElement("div");
-    box.className = "game-box";
-
-    const h = document.createElement("div");
-    h.className = "game-header";
-    h.textContent = headerText || `Game ID: ${gid}`;
-    box.appendChild(h);
-
-    const table = document.createElement("table");
-    table.className = "game-grid";
-
-    table.innerHTML = `
-      <thead>
-        <tr>
-          <th class="cell-muted"></th>
-          <th>Win Probability</th>
-          <th>Projected Goals</th>
-          <th>Take ML at</th>
-          <th>Take Over/Under at</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><strong>${escapeHtml(teamName)}</strong></td>
-          <td>${escapeHtml(teamWinProb)}</td>
-          <td>${escapeHtml(teamGoals)}</td>
-          <td>${escapeHtml(teamAcceptML)}</td>
-          <td>${escapeHtml(takeOUForTeamLine)}</td>
-        </tr>
-        <tr>
-          <td><strong>${escapeHtml(oppName)}</strong></td>
-          <td>${escapeHtml(oppWinProb)}</td>
-          <td>${escapeHtml(oppGoals)}</td>
-          <td>${escapeHtml(oppAcceptML)}</td>
-          <td>${escapeHtml(totalsAccept)}</td>
-        </tr>
-      </tbody>
-    `;
-
-    box.appendChild(table);
-    container.appendChild(box);
-  }
+  return (obj && obj[key]) ? obj[key].toString().trim() : "";
 }
 
 function escapeHtml(str) {
@@ -276,6 +93,132 @@ function escapeHtml(str) {
     .replaceAll("'", "&#039;");
 }
 
-/* Existing functions you already had can remain below if needed.
-   Keeping them here would be redundant; NHL page uses loadNHLDaily().
-*/
+/* ================= SOCCER LOADER ================= */
+
+async function loadSoccerDaily(selectedDate) {
+  setStatus("");
+  const gamesEl = document.getElementById("games");
+  if (gamesEl) gamesEl.innerHTML = "";
+
+  const parts = (selectedDate || "").split("-");
+  if (parts.length !== 3) {
+    setStatus("Invalid date selected.");
+    return;
+  }
+
+  const yyyy = parts[0];
+  const mm = parts[1];
+  const dd = parts[2];
+
+  const sidesUrl =
+    `${RAW_BASE}/docs/win/edge/edge_soc_${yyyy}-${mm}-${dd}.csv`;
+
+  const totalsUrl =
+    `${RAW_BASE}/docs/win/soc/edge_soc_totals_${yyyy}_${mm}_${dd}.csv`;
+
+  let sides = [];
+  let totals = [];
+
+  try {
+    const [sidesText, totalsText] = await Promise.all([
+      fetchText(sidesUrl).catch(() => ""),
+      fetchText(totalsUrl).catch(() => "")
+    ]);
+    sides = sidesText ? parseCSV(sidesText) : [];
+    totals = totalsText ? parseCSV(totalsText) : [];
+  } catch {
+    setStatus("Failed to load soccer files.");
+    return;
+  }
+
+  if (sides.length === 0) {
+    setStatus("No soccer games found for this date.");
+    return;
+  }
+
+  const sidesByGame = new Map();
+  const gameOrder = [];
+
+  for (const r of sides) {
+    const gid = safeGet(r, "game_id");
+    if (!gid) continue;
+    if (!sidesByGame.has(gid)) {
+      sidesByGame.set(gid, []);
+      gameOrder.push(gid);
+    }
+    sidesByGame.get(gid).push(r);
+  }
+
+  const totalsByGame = new Map();
+  for (const r of totals) {
+    const gid = safeGet(r, "game_id");
+    if (!gid) continue;
+    if (!totalsByGame.has(gid)) totalsByGame.set(gid, []);
+    totalsByGame.get(gid).push(r);
+  }
+
+  renderSoccerGames(gameOrder, sidesByGame, totalsByGame);
+}
+
+function renderSoccerGames(gameOrder, sidesByGame, totalsByGame) {
+  const container = document.getElementById("games");
+  if (!container) return;
+
+  for (const gid of gameOrder) {
+    const sideRows = sidesByGame.get(gid) || [];
+    if (sideRows.length < 2) continue;
+
+    const a = sideRows[0];
+    const b = sideRows[1];
+
+    const header =
+      `${safeGet(a, "team")} vs ${safeGet(b, "team")}`;
+
+    const totals = totalsByGame.get(gid) || [];
+
+    const box = document.createElement("div");
+    box.className = "game-box";
+
+    const h = document.createElement("div");
+    h.className = "game-header";
+    h.textContent = header;
+    box.appendChild(h);
+
+    const table = document.createElement("table");
+    table.className = "game-grid";
+
+    let totalsHtml = "";
+    for (const t of totals) {
+      totalsHtml += `<div>${escapeHtml(
+        `${safeGet(t, "side")} ${safeGet(t, "market_total")} @ ${safeGet(t, "acceptable_american_odds")}`
+      )}</div>`;
+    }
+
+    table.innerHTML = `
+      <thead>
+        <tr>
+          <th>Team</th>
+          <th>Win %</th>
+          <th>Take ML At</th>
+          <th>Totals</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>${escapeHtml(safeGet(a, "team"))}</strong></td>
+          <td>${format2(safeGet(a, "win_probability"))}</td>
+          <td>${escapeHtml(safeGet(a, "acceptable_american_odds"))}</td>
+          <td rowspan="2">${totalsHtml || ""}</td>
+        </tr>
+        <tr>
+          <td><strong>${escapeHtml(safeGet(b, "team"))}</strong></td>
+          <td>${format2(safeGet(b, "win_probability"))}</td>
+          <td>${escapeHtml(safeGet(b, "acceptable_american_odds"))}</td>
+        </tr>
+      </tbody>
+    `;
+
+    box.appendChild(table);
+    container.appendChild(box);
+  }
+}
