@@ -5,7 +5,7 @@ Build Soccer Totals Edge File (Market-Anchored)
 Contract:
 - Use best_ou as the ONLY total line
 - Decide OVER / UNDER / NO PLAY
-- No alternate totals
+- No game is ever dropped
 """
 
 import csv
@@ -20,9 +20,9 @@ from collections import defaultdict
 # -----------------------------
 EDGE_BUFFER_TOTALS = 0.035
 
-MIN_EDGE = 0.055          # minimum absolute edge between sides
-MIN_SIDE_PROB = 0.54      # minimum probability to take a side
-MIN_LAM = 1.1             # sanity bounds
+MIN_EDGE = 0.055
+MIN_SIDE_PROB = 0.54
+MIN_LAM = 1.1
 MAX_LAM = 4.2
 
 HOME_MULT = 1.10
@@ -74,13 +74,8 @@ def main():
     with open(latest_file, newline="", encoding="utf-8") as infile:
         reader = csv.DictReader(infile)
         for row in reader:
-            if not row.get("game_id"):
-                continue
-            if not row.get("goals"):
-                continue
-            if not row.get("best_ou"):
-                continue
-            games[row["game_id"]].append(row)
+            if row.get("game_id"):
+                games[row["game_id"]].append(row)
 
     with open(out_path, "w", newline="", encoding="utf-8") as outfile:
         fieldnames = [
@@ -103,69 +98,98 @@ def main():
         writer.writeheader()
 
         for game_id, rows in games.items():
-            # strict invariant: exactly two rows per match
+            # invariant: expect two rows, otherwise emit NO PLAY
             if len(rows) != 2:
+                writer.writerow({
+                    "game_id": game_id,
+                    "date": rows[0].get("date", ""),
+                    "time": rows[0].get("time", ""),
+                    "team_1": rows[0].get("team", ""),
+                    "team_2": "",
+                    "market_total": "",
+                    "side": "NO PLAY",
+                    "model_probability": "",
+                    "fair_decimal_odds": "",
+                    "fair_american_odds": "",
+                    "acceptable_decimal_odds": "",
+                    "acceptable_american_odds": "",
+                    "league": "soc_ou",
+                })
                 continue
 
+            team_1 = rows[0]["team"]
+            team_2 = rows[1]["team"]
+            date = rows[0]["date"]
+            time = rows[0]["time"]
+
+            side = "NO PLAY"
+            p_selected = None
+            market_total = rows[0].get("best_ou", "")
+
             try:
-                # rows[0] = away, rows[1] = home
                 lam_total = (
                     float(rows[0]["goals"]) * AWAY_MULT +
                     float(rows[1]["goals"]) * HOME_MULT
                 )
             except ValueError:
-                continue
+                lam_total = None
 
-            # sanity bounds
-            if not (MIN_LAM <= lam_total <= MAX_LAM):
-                continue
+            if lam_total is not None and MIN_LAM <= lam_total <= MAX_LAM:
+                try:
+                    market_total = float(market_total)
+                    cutoff = int(market_total - 0.5)
 
-            try:
-                market_total = float(rows[0]["best_ou"])
-            except ValueError:
-                continue
+                    p_under = poisson_cdf(cutoff, lam_total)
+                    p_over = 1.0 - p_under
+                    edge = abs(p_over - p_under)
 
-            cutoff = int(market_total - 0.5)
+                    if edge >= MIN_EDGE:
+                        if p_over >= MIN_SIDE_PROB and p_over > p_under:
+                            side = "OVER"
+                            p_selected = p_over
+                        elif p_under >= MIN_SIDE_PROB and p_under > p_over:
+                            side = "UNDER"
+                            p_selected = p_under
+                except ValueError:
+                    pass
 
-            p_under = poisson_cdf(cutoff, lam_total)
-            p_over = 1.0 - p_under
+            if p_selected is not None:
+                fair_d = fair_decimal(p_selected)
+                fair_a = decimal_to_american(fair_d)
+                acc_d = acceptable_decimal(p_selected)
+                acc_a = decimal_to_american(acc_d)
 
-            edge = abs(p_over - p_under)
-
-            # enforce edge threshold
-            if edge < MIN_EDGE:
-                continue
-
-            # side selection
-            if p_over >= MIN_SIDE_PROB and p_over > p_under:
-                side = "OVER"
-                p = p_over
-            elif p_under >= MIN_SIDE_PROB and p_under > p_over:
-                side = "UNDER"
-                p = p_under
+                writer.writerow({
+                    "game_id": game_id,
+                    "date": date,
+                    "time": time,
+                    "team_1": team_1,
+                    "team_2": team_2,
+                    "market_total": market_total,
+                    "side": side,
+                    "model_probability": round(p_selected, 4),
+                    "fair_decimal_odds": round(fair_d, 4),
+                    "fair_american_odds": fair_a,
+                    "acceptable_decimal_odds": round(acc_d, 4),
+                    "acceptable_american_odds": acc_a,
+                    "league": "soc_ou",
+                })
             else:
-                continue
-
-            fair_d = fair_decimal(p)
-            fair_a = decimal_to_american(fair_d)
-            acc_d = acceptable_decimal(p)
-            acc_a = decimal_to_american(acc_d)
-
-            writer.writerow({
-                "game_id": game_id,
-                "date": rows[0]["date"],
-                "time": rows[0]["time"],
-                "team_1": rows[0]["team"],
-                "team_2": rows[1]["team"],
-                "market_total": market_total,
-                "side": side,
-                "model_probability": round(p, 4),
-                "fair_decimal_odds": round(fair_d, 4),
-                "fair_american_odds": fair_a,
-                "acceptable_decimal_odds": round(acc_d, 4),
-                "acceptable_american_odds": acc_a,
-                "league": "soc_ou",
-            })
+                writer.writerow({
+                    "game_id": game_id,
+                    "date": date,
+                    "time": time,
+                    "team_1": team_1,
+                    "team_2": team_2,
+                    "market_total": market_total,
+                    "side": "NO PLAY",
+                    "model_probability": "",
+                    "fair_decimal_odds": "",
+                    "fair_american_odds": "",
+                    "acceptable_decimal_odds": "",
+                    "acceptable_american_odds": "",
+                    "league": "soc_ou",
+                })
 
     print(f"Created {out_path}")
 
