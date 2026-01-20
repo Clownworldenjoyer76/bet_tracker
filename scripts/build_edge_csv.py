@@ -4,8 +4,8 @@ import csv
 import re
 from pathlib import Path
 
-EDGE = 0.05  # default edge buffer for non-soc leagues
-SOC_EDGE = 0.15  # stricter buffer for 3-way soccer markets
+EDGE = 0.05          # default edge buffer for non-soc leagues
+SOC_EDGE = 0.15      # stricter buffer for 3-way soccer markets
 
 INPUT_DIR = Path("docs/win/clean")
 OUTPUT_DIR = Path("docs/win/edge")
@@ -61,6 +61,7 @@ def process_file(input_path: Path):
         if not reader.fieldnames or "win_probability" not in reader.fieldnames:
             raise ValueError(f"{input_path.name} missing required 'win_probability' column")
 
+        # preserve all input columns (including best_ou if present)
         fieldnames = list(reader.fieldnames) + [
             "fair_decimal_odds",
             "fair_american_odds",
@@ -84,7 +85,7 @@ def process_file(input_path: Path):
 
             for game_id, game_rows in games.items():
                 if len(game_rows) != 2:
-                    continue  # malformed or incomplete match
+                    continue
 
                 r1, r2 = game_rows
                 p1 = normalize_probability(r1["win_probability"])
@@ -95,7 +96,6 @@ def process_file(input_path: Path):
 
                 p_draw = derive_draw_probability(p1, p2)
 
-                # optional hard filter on draw-heavy matches
                 if p_draw > 0.28:
                     continue
 
