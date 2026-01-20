@@ -19,20 +19,18 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Run edge calculation
+      - name: Run soccer edge calculation
         run: |
-          python scripts/build_edge_csv.py
+          python scripts/build_soc_edge_csv.py
 
       - name: Commit generated CSV
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
 
-          # add generated edge CSVs
           git add docs/win/edge
 
-          # do not fail if nothing changed
           git diff --cached --quiet && echo "No edge CSV changes to commit" && exit 0
 
-          git commit -m "Add edge CSV"
+          git commit -m "Add soccer edge CSV"
           git push
