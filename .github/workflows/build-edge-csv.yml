@@ -24,13 +24,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install pandas
 
-      - name: Run edge calculation
-        run: |
-          python scripts/build_soc_edge_csv.py
+      - name: Run NBA edge script
+        run: python scripts/build_nba_edge_csv.py
 
-      - name: Commit generated CSV
-        run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git add docs/win/edge
-          git diff --cached --quiet && echo "No edge CSV changes to commit"
+      - name: Run NCAAB edge script
+        run: python scripts/build_ncaab_edge_csv.py
+
+      - name: Run SOC edge script
+        run: python scripts/build_soc_edge_csv.py
+
+      - name: Run NHL edge script
+        run: python scripts/build_nhl_edge_csv.py
