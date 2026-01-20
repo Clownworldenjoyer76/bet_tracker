@@ -4,7 +4,8 @@ import csv
 import re
 from pathlib import Path
 
-EDGE = 0.05  # requires 5% better price than fair odds
+EDGE = 0.05  # default edge buffer for non-soc leagues
+SOC_EDGE = 0.15  # stricter buffer for 3-way soccer markets
 
 INPUT_DIR = Path("docs/win/clean")
 OUTPUT_DIR = Path("docs/win/edge")
@@ -26,44 +27,27 @@ def normalize_probability(raw: str) -> float:
 
 
 def normalize_timestamp(ts: str) -> str:
-    """
-    Normalize date portion in timestamp to underscores for consistent output filenames.
-
-    Examples:
-      2026-01-14 -> 2026_01_14
-      2026_01_14 -> 2026_01_14
-      20260114   -> 20260114 (left as-is)
-      2026-01-14_235959 -> 2026_01_14_235959
-    """
-    # Replace YYYY-MM-DD anywhere in the timestamp with YYYY_MM_DD
     ts = re.sub(r"(\d{4})-(\d{2})-(\d{2})", r"\1_\2_\3", ts)
     return ts
 
 
 def parse_filename(path: Path):
-    """
-    Expected filename patterns (common):
-      win_prob__clean_{league}_{YYYY-MM-DD}.csv
-      win_prob__clean_{league}_{YYYY_MM_DD}.csv
-      win_prob__clean_{league}_{timestamp}.csv  (timestamp may include date/time)
-
-    We extract:
-      league = second-to-last underscore-separated token
-      timestamp = last token (normalized to YYYY_MM_DD if it contains YYYY-MM-DD)
-    """
     name = path.stem
-    parts = name.split("_")
-
-    # Handle double-underscore filenames like "win_prob__clean_..."
-    parts = [p for p in parts if p != ""]
+    parts = [p for p in name.split("_") if p != ""]
 
     if len(parts) < 4:
         raise ValueError(f"Unexpected filename format: {path.name}")
 
     league = parts[-2]
-    timestamp = parts[-1]
-    timestamp = normalize_timestamp(timestamp)
+    timestamp = normalize_timestamp(parts[-1])
     return league, timestamp
+
+
+def derive_draw_probability(p1: float, p2: float) -> float:
+    p_draw = 1.0 - (p1 + p2)
+    if not (0.0 <= p_draw <= 0.4):
+        raise ValueError(f"Invalid derived draw probability: {p_draw}")
+    return p_draw
 
 
 def process_file(input_path: Path):
@@ -87,23 +71,64 @@ def process_file(input_path: Path):
         writer = csv.DictWriter(outfile, fieldnames=fieldnames)
         writer.writeheader()
 
-        for row in reader:
-            p = normalize_probability(row["win_probability"])
+        rows = list(reader)
 
-            if not (0.0 < p < 1.0):
-                raise ValueError(
-                    f"Invalid win_probability '{row['win_probability']}' in {input_path.name}"
-                )
+        # ---- SOC ONLY LOGIC ----
+        if league == "soc":
+            games = {}
+            for row in rows:
+                game_id = row.get("game_id")
+                if not game_id:
+                    continue
+                games.setdefault(game_id, []).append(row)
 
-            fair_decimal = 1.0 / p
-            acceptable_decimal = fair_decimal * (1.0 + EDGE)
+            for game_id, game_rows in games.items():
+                if len(game_rows) != 2:
+                    continue  # malformed or incomplete match
 
-            row["fair_decimal_odds"] = round(fair_decimal, 6)
-            row["fair_american_odds"] = decimal_to_american(fair_decimal)
-            row["acceptable_decimal_odds"] = round(acceptable_decimal, 6)
-            row["acceptable_american_odds"] = decimal_to_american(acceptable_decimal)
+                r1, r2 = game_rows
+                p1 = normalize_probability(r1["win_probability"])
+                p2 = normalize_probability(r2["win_probability"])
 
-            writer.writerow(row)
+                if not (0.0 < p1 < 1.0 and 0.0 < p2 < 1.0):
+                    continue
+
+                p_draw = derive_draw_probability(p1, p2)
+
+                # optional hard filter on draw-heavy matches
+                if p_draw > 0.28:
+                    continue
+
+                for row, p_win in [(r1, p1), (r2, p2)]:
+                    p_conditional = p_win / (1.0 - p_draw)
+
+                    fair_decimal = 1.0 / p_conditional
+                    acceptable_decimal = fair_decimal * SOC_EDGE
+
+                    row["fair_decimal_odds"] = round(fair_decimal, 6)
+                    row["fair_american_odds"] = decimal_to_american(fair_decimal)
+                    row["acceptable_decimal_odds"] = round(acceptable_decimal, 6)
+                    row["acceptable_american_odds"] = decimal_to_american(acceptable_decimal)
+
+                    writer.writerow(row)
+
+        # ---- ALL OTHER LEAGUES (UNCHANGED) ----
+        else:
+            for row in rows:
+                p = normalize_probability(row["win_probability"])
+
+                if not (0.0 < p < 1.0):
+                    continue
+
+                fair_decimal = 1.0 / p
+                acceptable_decimal = fair_decimal * (1.0 + EDGE)
+
+                row["fair_decimal_odds"] = round(fair_decimal, 6)
+                row["fair_american_odds"] = decimal_to_american(fair_decimal)
+                row["acceptable_decimal_odds"] = round(acceptable_decimal, 6)
+                row["acceptable_american_odds"] = decimal_to_american(acceptable_decimal)
+
+                writer.writerow(row)
 
     print(f"Created {output_path}")
 
