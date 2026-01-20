@@ -1,33 +1,49 @@
-import pandas as pd
+#!/usr/bin/env python3
+
+import csv
 from pathlib import Path
 
-CLEAN_DIR = Path("docs/win/clean")
-EDGE_DIR = Path("docs/win/edge")
-EDGE_DIR.mkdir(parents=True, exist_ok=True)
+EDGE_MULTIPLIER = 1.05
 
-def decimal_to_american(decimal_odds: float) -> int:
-    if decimal_odds >= 2:
-        return int((decimal_odds - 1) * 100)
+INPUT_GLOB = "docs/win/clean/win_prob__clean_soc_*"
+OUTPUT_DIR = Path("docs/win/edge")
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def decimal_to_american(decimal):
+    if decimal >= 2:
+        return int(round((decimal - 1) * 100))
     else:
-        return int(-100 / (decimal_odds - 1))
+        return int(round(-100 / (decimal - 1)))
 
-def implied_prob_from_decimal(decimal_odds: float) -> float:
-    return 1 / decimal_odds
 
-for csv_path in CLEAN_DIR.glob("win_prob__clean_soc_*"):
-    df = pd.read_csv(csv_path)
+for input_path in Path(".").glob(INPUT_GLOB):
+    date_part = input_path.name.split("_")[-1].replace("-", "_").replace(".csv", "")
+    output_path = OUTPUT_DIR / f"edge_soc_{date_part}.csv"
 
-    for side in ["home", "draw", "away"]:
-        dec_col = f"{side}_odds_decimal"
-        amer_col = f"{side}_odds_american"
-        imp_col = f"{side}_prob_market"
-        edge_col = f"{side}_edge"
+    with input_path.open(newline="", encoding="utf-8") as infile, \
+         output_path.open("w", newline="", encoding="utf-8") as outfile:
 
-        df[amer_col] = df[dec_col].apply(decimal_to_american)
-        df[imp_col] = df[dec_col].apply(implied_prob_from_decimal)
-        df[edge_col] = df[f"{side}_prob_model"] - df[imp_col]
+        reader = csv.DictReader(infile)
+        fieldnames = list(reader.fieldnames) + [
+            "fair_decimal_odds",
+            "fair_american_odds",
+            "acceptable_decimal_odds",
+            "acceptable_american_odds",
+        ]
 
-    out_path = EDGE_DIR / csv_path.name.replace("clean", "edge")
-    df.to_csv(out_path, index=False)
+        writer = csv.DictWriter(outfile, fieldnames=fieldnames)
+        writer.writeheader()
 
-    print(f"Wrote {out_path}")
+        for row in reader:
+            p = float(row["win_probability"])
+
+            fair_decimal = 1 / p
+            acceptable_decimal = fair_decimal * EDGE_MULTIPLIER
+
+            row["fair_decimal_odds"] = fair_decimal
+            row["fair_american_odds"] = decimal_to_american(fair_decimal)
+            row["acceptable_decimal_odds"] = acceptable_decimal
+            row["acceptable_american_odds"] = decimal_to_american(acceptable_decimal)
+
+            writer.writerow(row)
