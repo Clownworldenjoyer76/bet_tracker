@@ -144,7 +144,6 @@ def run_soccer():
             writer.writerow(SOCCER_HEADERS)
             writer.writerows(output_rows)
 
-
 # ============================================================
 # ======================= NHL (STRICT) =======================
 # ============================================================
@@ -182,6 +181,7 @@ def run_nhl():
             if not any(row):
                 continue
 
+            # Column 0: Time (date + time)
             dt_lines = str(row[0]).splitlines() if row[0] else []
             date = dt_lines[0] if len(dt_lines) > 0 else ""
             time = dt_lines[1] if len(dt_lines) > 1 else ""
@@ -189,19 +189,23 @@ def run_nhl():
             if date and not file_date:
                 file_date = datetime.strptime(date, "%m/%d/%Y").strftime("%Y-%m-%d")
 
+            # Column 1: Teams
             teams = str(row[1]).splitlines() if row[1] else []
             team_a = strip_team(teams[0]) if len(teams) > 0 else ""
             team_b = strip_team(teams[1]) if len(teams) > 1 else ""
 
+            # Column 2: Win %
             wins = str(row[2]).splitlines() if row[2] else []
             win_a = pct_to_decimal(wins[0]) if len(wins) > 0 else ""
             win_b = pct_to_decimal(wins[1]) if len(wins) > 1 else ""
 
-            goals = str(row[5]).splitlines() if row[5] else []
+            # Column 3: Goals
+            goals = str(row[3]).splitlines() if row[3] else []
             goals_a = goals[0] if len(goals) > 0 else ""
             goals_b = goals[1] if len(goals) > 1 else ""
 
-            total_goals = row[6] if row[6] is not None else ""
+            # Column 4: Total Goals
+            total_goals = row[4] if row[4] is not None else ""
 
             output_rows.append([
                 date, time,
@@ -228,7 +232,6 @@ def run_nhl():
             writer = csv.writer(f)
             writer.writerow(NHL_HEADERS)
             writer.writerows(output_rows)
-
 
 # ============================================================
 # ======================= NCAAB ===============================
@@ -334,7 +337,6 @@ def run_ncaab():
             writer = csv.writer(f)
             writer.writerow(NCAAB_HEADERS)
             writer.writerows(output_rows)
-
 
 # ============================================================
 # ======================= MAIN ================================
