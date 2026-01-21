@@ -4,11 +4,8 @@ import csv
 import re
 from pathlib import Path
 
-EDGE = 0.05
-NCAAB_MIN_EDGE = 0.10
-NCAAB_DOG_MIN_EDGE = 0.15
-NCAAB_HEAVY_FAV_LINE = -300
-NCAAB_HEAVY_FAV_EDGE = 0.50
+# Market vig baseline (house juice)
+EDGE = 0.05  # 5% market vig approximation
 
 INPUT_DIR = Path("docs/win/clean")
 OUTPUT_DIR = Path("docs/win/edge")
@@ -62,23 +59,18 @@ def process_file(input_path: Path):
             if not (0.0 < p < 1.0):
                 continue
 
+            # Fair odds from model
             fair_decimal = 1.0 / p
             fair_american = decimal_to_american(fair_decimal)
 
-            edge_required = NCAAB_MIN_EDGE
-
-            if fair_american > 0:
-                edge_required = max(edge_required, NCAAB_DOG_MIN_EDGE)
-
-            if fair_american <= NCAAB_HEAVY_FAV_LINE:
-                edge_required = max(edge_required, NCAAB_HEAVY_FAV_EDGE)
-
-            acceptable_decimal = fair_decimal * (1.0 + edge_required)
+            # Market-vig baseline (house juice only)
+            acceptable_decimal = fair_decimal * (1.0 + EDGE)
+            acceptable_american = decimal_to_american(acceptable_decimal)
 
             row["fair_decimal_odds"] = round(fair_decimal, 6)
             row["fair_american_odds"] = fair_american
             row["acceptable_decimal_odds"] = round(acceptable_decimal, 6)
-            row["acceptable_american_odds"] = decimal_to_american(acceptable_decimal)
+            row["acceptable_american_odds"] = acceptable_american
 
             writer.writerow(row)
 
