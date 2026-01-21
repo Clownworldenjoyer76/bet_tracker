@@ -167,7 +167,7 @@ function renderSoccerGames(order, games, totalsByGame) {
     const ouClass =
       totals.side && totals.side !== "NO PLAY"
         ? mlClassFromProb(totals.model_probability)
-        : "";
+        : "no-play";
 
     const box = document.createElement("div");
     box.className = "game-box";
@@ -198,7 +198,9 @@ function renderSoccerGames(order, games, totalsByGame) {
             <td><strong>${escapeHtml(b.team)}</strong></td>
             <td>${formatPct(b.win_probability)}</td>
             <td>${format2(b.goals)}</td>
-            <td>${escapeHtml(totals.side)}</td>
+            <td class="${totals.side === 'NO PLAY' ? 'no-play' : ''}">
+              ${escapeHtml(totals.side)}
+            </td>
             <td class="${mlClassFromProb(b.win_probability)}">
               ${escapeHtml(b.personally_acceptable_american_odds)}
             </td>
