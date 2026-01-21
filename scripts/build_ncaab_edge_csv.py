@@ -26,15 +26,27 @@ def normalize_probability(raw: str) -> float:
     return p
 
 
-def normalize_timestamp(ts: str) -> str:
-    return re.sub(r"(\d{4})-(\d{2})-(\d{2})", r"\1_\2_\3", ts)
-
-
 def parse_filename(path: Path):
-    parts = [p for p in path.stem.split("_") if p]
-    if len(parts) < 4:
+    """
+    Expected filename:
+    win_prob__clean_ncaab_YYYY_MM_DD.csv
+    """
+    stem = path.stem
+
+    prefix = "win_prob__clean_"
+    if not stem.startswith(prefix):
         raise ValueError(f"Unexpected filename format: {path.name}")
-    return parts[-2], normalize_timestamp(parts[-1])
+
+    remainder = stem[len(prefix):]  # ncaab_YYYY_MM_DD
+    parts = remainder.split("_")
+
+    if len(parts) != 4:
+        raise ValueError(f"Unexpected filename format: {path.name}")
+
+    league = parts[0]
+    timestamp = "_".join(parts[1:4])  # YYYY_MM_DD
+
+    return league, timestamp
 
 
 def process_file(input_path: Path):
@@ -59,11 +71,9 @@ def process_file(input_path: Path):
             if not (0.0 < p < 1.0):
                 continue
 
-            # Fair odds from model
             fair_decimal = 1.0 / p
             fair_american = decimal_to_american(fair_decimal)
 
-            # Market-vig baseline (house juice only)
             acceptable_decimal = fair_decimal * (1.0 + EDGE)
             acceptable_american = decimal_to_american(acceptable_decimal)
 
