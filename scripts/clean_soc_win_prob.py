@@ -22,6 +22,7 @@ HEADERS = [
     "win_probability",
     "draw_probability",
     "best_ou",
+    "bet_type",
     "league",
 ]
 
@@ -95,20 +96,37 @@ def main():
             total_goals = row[6] if row[6] is not None else ""
             best_ou = parse_best_ou(row[7])
 
+            # Team A win
             output_rows.append([
                 date, time,
                 team_a, team_b,
                 goals_a, total_goals,
                 win_a, draw,
-                best_ou, LEAGUE
+                best_ou,
+                "win",
+                LEAGUE
             ])
 
+            # Team B win
             output_rows.append([
                 date, time,
                 team_b, team_a,
                 goals_b, total_goals,
                 win_b, draw,
-                best_ou, LEAGUE
+                best_ou,
+                "win",
+                LEAGUE
+            ])
+
+            # Draw
+            output_rows.append([
+                date, time,
+                "DRAW", f"{team_a} vs {team_b}",
+                "", total_goals,
+                "", draw,
+                best_ou,
+                "draw",
+                LEAGUE
             ])
 
         file_date = datetime.strptime(
