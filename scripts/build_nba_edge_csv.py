@@ -28,24 +28,19 @@ def normalize_timestamp(ts: str) -> str:
     return re.sub(r"(\d{4})-(\d{2})-(\d{2})", r"\1_\2_\3", ts)
 
 
-def parse_filename(path: Path):
-    parts = [p for p in path.stem.split("_") if p]
-    league = parts[-2]
-    timestamp = normalize_timestamp(parts[-1])
-    return league, timestamp
-
-
 def process_file(input_path: Path):
-    league, timestamp = parse_filename(input_path)
-    if league != "nba":
+    # NBA ONLY
+    if "_nba_" not in input_path.stem:
         return
 
-    output_path = OUTPUT_DIR / f"edge_nba_annotated_{timestamp}.csv"
+    timestamp = normalize_timestamp(input_path.stem.split("_")[-1])
+    output_path = OUTPUT_DIR / f"edge_nba_{timestamp}.csv"
 
     with input_path.open(newline="", encoding="utf-8") as infile, \
          output_path.open("w", newline="", encoding="utf-8") as outfile:
 
         reader = csv.DictReader(infile)
+
         fieldnames = list(reader.fieldnames) + [
             "fair_decimal_odds",
             "fair_american_odds",
@@ -57,7 +52,7 @@ def process_file(input_path: Path):
         writer.writeheader()
 
         for row in reader:
-            raw = row.get("win_probability", "").strip()
+            raw = (row.get("win_probability") or "").strip()
 
             if not raw:
                 row.update({
@@ -95,7 +90,11 @@ def process_file(input_path: Path):
 
 
 def main():
-    for path in sorted(INPUT_DIR.glob("win_prob__clean_nba_*.csv")):
+    files = sorted(INPUT_DIR.glob("win_prob__clean_nba_*.csv"))
+    if not files:
+        raise FileNotFoundError("No NBA clean files found")
+
+    for path in files:
         process_file(path)
 
 
