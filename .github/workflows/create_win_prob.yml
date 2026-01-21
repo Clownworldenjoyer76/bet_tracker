@@ -1,0 +1,36 @@
+name: 00 Clean Win Prob CSV 
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  clean-soc-win-prob:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+
+      - name: Run soccer cleaning script
+        run: |
+          python scripts/clean_soc_win_prob.py
+
+      - name: Commit and push cleaned CSV output
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/win/clean/
+          git commit -m "Generate cleaned soccer win probability CSV"
+          git push
