@@ -234,6 +234,91 @@ def run_nhl():
             writer.writerows(output_rows)
 
 # ============================================================
+# ======================= NBA (STRICT) =======================
+# ============================================================
+
+NBA_LEAGUE = "nba"
+
+NBA_HEADERS = [
+    "date",
+    "time",
+    "team",
+    "opponent",
+    "win_probability",
+    "league",
+]
+
+
+def run_nba():
+    files = sorted(INPUT_DIR.glob("nba_*.xlsx"))
+    if not files:
+        return
+
+    for path in files:
+        wb = load_workbook(path, data_only=True)
+        ws = wb.active
+        rows = list(ws.iter_rows(values_only=True))
+
+        data_rows = rows[1:]
+
+        # Skip fully blank trailing rows only (do not skip any other rows)
+        while data_rows and (not data_rows[-1] or not any(data_rows[-1])):
+            data_rows.pop()
+
+        output_rows = []
+
+        file_date = ""
+        for row in data_rows:
+            # No conditional skipping: process every remaining row
+
+            dt_lines = str(row[0]).splitlines() if row and len(row) > 0 and row[0] else []
+            date = dt_lines[0] if len(dt_lines) > 0 else ""
+            time = dt_lines[1] if len(dt_lines) > 1 else ""
+
+            if date and not file_date:
+                # filename date derived from first available date
+                file_date = datetime.strptime(date, "%m/%d/%Y").strftime("%Y-%m-%d")
+
+            teams = str(row[1]).splitlines() if row and len(row) > 1 and row[1] else []
+            team_a = strip_team(teams[0]) if len(teams) > 0 else ""
+            team_b = strip_team(teams[1]) if len(teams) > 1 else ""
+
+            wins = str(row[2]).splitlines() if row and len(row) > 2 and row[2] else []
+            win_a = pct_to_decimal(wins[0]) if len(wins) > 0 else ""
+            win_b = pct_to_decimal(wins[1]) if len(wins) > 1 else ""
+
+            output_rows.append([
+                date,
+                time,
+                team_a,
+                team_b,
+                win_a,
+                NBA_LEAGUE,
+            ])
+
+            output_rows.append([
+                date,
+                time,
+                team_b,
+                team_a,
+                win_b,
+                NBA_LEAGUE,
+            ])
+
+        if not output_rows:
+            continue
+
+        if not file_date:
+            raise ValueError(f"NBA clean: could not determine file date from {path.name}")
+
+        out_path = OUTPUT_DIR / f"win_prob__clean_{NBA_LEAGUE}_{file_date}.csv"
+
+        with out_path.open("w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(NBA_HEADERS)
+            writer.writerows(output_rows)
+
+# ============================================================
 # ======================= NCAAB ===============================
 # ============================================================
 
@@ -345,6 +430,7 @@ def run_ncaab():
 def main():
     run_soccer()
     run_nhl()
+    run_nba()
     run_ncaab()
 
 
