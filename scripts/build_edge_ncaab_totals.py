@@ -9,23 +9,24 @@ Outputs:
 - docs/win/ncaab/edge_ncaab_totals_YYYY_MM_DD.csv
 
 Rules:
-- Uses total_points as λ
-- Normal approximation
-- Chooses OVER vs UNDER by higher model probability
-- Skips game if max(model_probability) < 0.55
-- One row per game
+- λ derived from total_points
+- Normal model for totals
+- Skip games with no best_ou
+- Skip if max(model_probability) < 0.55
+- Select OVER or UNDER with higher probability
+- ONE output row per game
 """
 
 import csv
 import glob
-from math import erf, sqrt
+from math import sqrt, erf
 from pathlib import Path
 from datetime import datetime
 
 # --- CONFIG ---
 BASE_EDGE_BUFFER = 0.07
-DISTANCE_PENALTY = 0.15  # increased distance sensitivity
-STD_DEV = 11.0  # fixed total-points std dev
+DISTANCE_PENALTY = 0.08   # ← UPDATED
+MIN_PROB_THRESHOLD = 0.55
 
 INPUT_DIR = Path("docs/win/edge")
 OUTPUT_DIR = Path("docs/win/ncaab")
@@ -49,23 +50,31 @@ def decimal_to_american(d: float) -> int:
 
 def acceptable_decimal(p: float, market_total: float, lam: float) -> float:
     distance = abs(market_total - lam)
-    buffer = BASE_EDGE_BUFFER + DISTANCE_PENALTY * distance
-    return 1.0 / max(p - buffer, 0.0001)
+    raw_buffer = BASE_EDGE_BUFFER + DISTANCE_PENALTY * distance
+
+    # --- CAP BUFFER SO IT NEVER EXCEEDS PROBABILITY ---
+    buffer = min(raw_buffer, p - 0.05)
+
+    # --- HARD SKIP IF BUFFER KILLS SIGNAL ---
+    if p - buffer <= 0:
+        return None
+
+    return 1.0 / (p - buffer)
 
 
 def main():
-    files = sorted(glob.glob(str(INPUT_DIR / "edge_ncaab_*.csv")))
-    if not files:
+    input_files = sorted(glob.glob(str(INPUT_DIR / "edge_ncaab_*.csv")))
+    if not input_files:
         raise FileNotFoundError("No NCAAB edge files found")
 
-    latest = files[-1]
+    latest_file = input_files[-1]
 
     today = datetime.utcnow()
     out_path = OUTPUT_DIR / f"edge_ncaab_totals_{today.year}_{today.month:02d}_{today.day:02d}.csv"
 
-    seen = set()
+    seen_games = set()
 
-    with open(latest, newline="", encoding="utf-8") as infile, \
+    with open(latest_file, newline="", encoding="utf-8") as infile, \
          open(out_path, "w", newline="", encoding="utf-8") as outfile:
 
         reader = csv.DictReader(infile)
@@ -92,35 +101,36 @@ def main():
             try:
                 game_id = row["game_id"]
                 lam = float(row["total_points"])
-                market = row.get("best_ou")
-                if not market:
-                    continue
-                market = float(market)
+                market_total = float(row["best_ou"])
             except Exception:
                 continue
 
-            if game_id in seen:
+            if game_id in seen_games:
                 continue
-            seen.add(game_id)
+            seen_games.add(game_id)
 
-            cutoff = market - 0.5
-            p_under = normal_cdf(cutoff, lam, STD_DEV)
+            # --- NORMAL MODEL PARAMETERS ---
+            sigma = sqrt(lam)
+
+            cutoff = market_total
+            p_under = normal_cdf(cutoff, lam, sigma)
             p_over = 1.0 - p_under
 
-            if max(p_under, p_over) < 0.55:
-                continue
+            side, p = max(
+                (("OVER", p_over), ("UNDER", p_under)),
+                key=lambda x: x[1]
+            )
 
-            if p_over >= p_under:
-                side = "OVER"
-                p = p_over
-            else:
-                side = "UNDER"
-                p = p_under
+            if p < MIN_PROB_THRESHOLD:
+                continue
 
             fair_d = fair_decimal(p)
             fair_a = decimal_to_american(fair_d)
 
-            acc_d = acceptable_decimal(p, market, lam)
+            acc_d = acceptable_decimal(p, market_total, lam)
+            if acc_d is None:
+                continue  # HARD SKIP
+
             acc_a = decimal_to_american(acc_d)
 
             writer.writerow({
@@ -129,7 +139,7 @@ def main():
                 "team_1": row["team"],
                 "team_2": row["opponent"],
                 "game_id": game_id,
-                "best_ou": market,
+                "best_ou": market_total,
                 "side": side,
                 "model_probability": round(p, 4),
                 "fair_decimal_odds": round(fair_d, 4),
