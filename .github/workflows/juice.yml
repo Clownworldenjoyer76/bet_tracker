@@ -7,7 +7,7 @@ permissions:
   contents: write
 
 jobs:
-  build-final-soccer:
+  build-final-juice:
     runs-on: ubuntu-latest
 
     steps:
@@ -27,16 +27,21 @@ jobs:
         run: |
           python scripts/soc_juiced.py
 
-      - name: Commit and push final soccer files
+      - name: Run ncaab personal juice script
+        run: |
+          python scripts/ncaab_juiced.py
+
+      - name: Commit and push final files
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
 
           git add docs/win/final/final_soc_*.csv
+          git add docs/win/final/final_ncaab_*.csv
 
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "Build final soccer odds with personal juice"
+            git commit -m "Build final soccer and ncaab odds with personal juice"
             git push
           fi
