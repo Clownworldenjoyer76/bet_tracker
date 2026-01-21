@@ -25,6 +25,10 @@ for input_path in Path(".").glob(INPUT_GLOB):
          output_path.open("w", newline="", encoding="utf-8") as outfile:
 
         reader = csv.DictReader(infile)
+
+        if "bet_type" not in reader.fieldnames:
+            raise ValueError("Missing required column: bet_type")
+
         fieldnames = list(reader.fieldnames) + [
             "fair_decimal_odds",
             "fair_american_odds",
@@ -36,7 +40,14 @@ for input_path in Path(".").glob(INPUT_GLOB):
         writer.writeheader()
 
         for row in reader:
-            p = float(row["win_probability"])
+            bet_type = row["bet_type"]
+
+            if bet_type == "draw":
+                p = float(row["draw_probability"])
+            elif bet_type == "win":
+                p = float(row["win_probability"])
+            else:
+                raise ValueError(f"Unknown bet_type: {bet_type}")
 
             fair_decimal = 1 / p
             acceptable_decimal = fair_decimal * EDGE_MULTIPLIER
