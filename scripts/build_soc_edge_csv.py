@@ -39,13 +39,22 @@ for input_path in Path(".").glob(INPUT_GLOB):
         writer = csv.DictWriter(outfile, fieldnames=fieldnames)
         writer.writeheader()
 
+        last_game_id = None
+
         for row in reader:
             bet_type = row["bet_type"]
 
-            if bet_type == "draw":
-                p = float(row["draw_probability"])
-            elif bet_type == "win":
+            if bet_type == "win":
+                last_game_id = row.get("game_id")
+
                 p = float(row["win_probability"])
+
+            elif bet_type == "draw":
+                if last_game_id is not None:
+                    row["game_id"] = last_game_id
+
+                p = float(row["draw_probability"])
+
             else:
                 raise ValueError(f"Unknown bet_type: {bet_type}")
 
