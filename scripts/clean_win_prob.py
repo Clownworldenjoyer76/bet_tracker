@@ -146,6 +146,91 @@ def run_soccer():
 
 
 # ============================================================
+# ======================= NHL (STRICT) =======================
+# ============================================================
+
+NHL_LEAGUE = "nhl"
+
+NHL_HEADERS = [
+    "date",
+    "time",
+    "team",
+    "opponent",
+    "goals",
+    "total_goals",
+    "win_probability",
+    "league",
+]
+
+
+def run_nhl():
+    files = sorted(INPUT_DIR.glob("nhl_*.xlsx"))
+    if not files:
+        return
+
+    for path in files:
+        wb = load_workbook(path, data_only=True)
+        ws = wb.active
+        rows = list(ws.iter_rows(values_only=True))
+
+        data_rows = rows[1:]
+        output_rows = []
+
+        file_date = ""
+
+        for row in data_rows:
+            if not any(row):
+                continue
+
+            dt_lines = str(row[0]).splitlines() if row[0] else []
+            date = dt_lines[0] if len(dt_lines) > 0 else ""
+            time = dt_lines[1] if len(dt_lines) > 1 else ""
+
+            if date and not file_date:
+                file_date = datetime.strptime(date, "%m/%d/%Y").strftime("%Y-%m-%d")
+
+            teams = str(row[1]).splitlines() if row[1] else []
+            team_a = strip_team(teams[0]) if len(teams) > 0 else ""
+            team_b = strip_team(teams[1]) if len(teams) > 1 else ""
+
+            wins = str(row[2]).splitlines() if row[2] else []
+            win_a = pct_to_decimal(wins[0]) if len(wins) > 0 else ""
+            win_b = pct_to_decimal(wins[1]) if len(wins) > 1 else ""
+
+            goals = str(row[5]).splitlines() if row[5] else []
+            goals_a = goals[0] if len(goals) > 0 else ""
+            goals_b = goals[1] if len(goals) > 1 else ""
+
+            total_goals = row[6] if row[6] is not None else ""
+
+            output_rows.append([
+                date, time,
+                team_a, team_b,
+                goals_a, total_goals,
+                win_a,
+                NHL_LEAGUE
+            ])
+
+            output_rows.append([
+                date, time,
+                team_b, team_a,
+                goals_b, total_goals,
+                win_b,
+                NHL_LEAGUE
+            ])
+
+        if not output_rows:
+            continue
+
+        out_path = OUTPUT_DIR / f"win_prob__clean_{NHL_LEAGUE}_{file_date}.csv"
+
+        with out_path.open("w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(NHL_HEADERS)
+            writer.writerows(output_rows)
+
+
+# ============================================================
 # ======================= NCAAB ===============================
 # ============================================================
 
@@ -257,6 +342,7 @@ def run_ncaab():
 
 def main():
     run_soccer()
+    run_nhl()
     run_ncaab()
 
 
