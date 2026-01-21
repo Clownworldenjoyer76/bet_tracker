@@ -74,6 +74,11 @@ function format2(n) {
   return Number.isFinite(x) ? x.toFixed(2) : "";
 }
 
+function formatPct(n) {
+  const x = Number(n);
+  return Number.isFinite(x) ? `${(x * 100).toFixed(2)}%` : "";
+}
+
 function escapeHtml(str) {
   return (str ?? "").toString()
     .replaceAll("&", "&amp;")
@@ -89,7 +94,7 @@ async function fetchText(url) {
   return res.text();
 }
 
-/* ================= SOCCER (UPDATED) ================= */
+/* ================= SOCCER ================= */
 
 async function loadSoccerDaily(selectedDate) {
   setStatus("");
@@ -98,11 +103,15 @@ async function loadSoccerDaily(selectedDate) {
   const [yyyy, mm, dd] = selectedDate.split("-");
   const d = `${yyyy}_${mm}_${dd}`;
 
-  const url = `${RAW_BASE}/docs/win/final/final_soc_${d}.csv`;
+  const finalUrl = `${RAW_BASE}/docs/win/final/final_soc_${d}.csv`;
+  const totalsUrl = `${RAW_BASE}/docs/win/soc/edge_soc_totals_${d}.csv`;
 
   let rows = [];
+  let totals = [];
+
   try {
-    rows = parseCSV(await fetchText(url));
+    rows = parseCSV(await fetchText(finalUrl));
+    totals = parseCSV(await fetchText(totalsUrl));
   } catch {
     setStatus("Failed to load soccer file.");
     return;
@@ -111,6 +120,11 @@ async function loadSoccerDaily(selectedDate) {
   if (!rows.length) {
     setStatus("No soccer games found for this date.");
     return;
+  }
+
+  const totalsByGame = new Map();
+  for (const t of totals) {
+    totalsByGame.set(t.game_id, t);
   }
 
   const games = new Map();
@@ -124,14 +138,15 @@ async function loadSoccerDaily(selectedDate) {
     games.get(r.game_id).push(r);
   }
 
-  renderSoccerGames(order, games);
+  renderSoccerGames(order, games, totalsByGame);
 }
 
-function renderSoccerGames(order, games) {
+function renderSoccerGames(order, games, totalsByGame) {
   const container = document.getElementById("games");
 
   for (const gid of order) {
     const rows = games.get(gid);
+    const totals = totalsByGame.get(gid) || {};
 
     const winRows = rows.filter(r => r.bet_type === "win");
     const drawRow = rows.find(r => r.bet_type === "draw");
@@ -150,29 +165,33 @@ function renderSoccerGames(order, games) {
         <thead>
           <tr>
             <th></th>
-            <th>Probability</th>
+            <th>Win Probability</th>
             <th>Projected Goals</th>
+            <th>Take O/U at</th>
             <th>Take ML at</th>
           </tr>
         </thead>
         <tbody>
           <tr>
             <td><strong>${escapeHtml(a.team)}</strong></td>
-            <td>${format2(a.win_probability)}</td>
+            <td>${formatPct(a.win_probability)}</td>
             <td>${format2(a.goals)}</td>
+            <td>${escapeHtml(totals.market_total)}</td>
             <td>${escapeHtml(a.personally_acceptable_american_odds)}</td>
           </tr>
           <tr>
             <td><strong>${escapeHtml(b.team)}</strong></td>
-            <td>${format2(b.win_probability)}</td>
+            <td>${formatPct(b.win_probability)}</td>
             <td>${format2(b.goals)}</td>
+            <td>${escapeHtml(totals.side)}</td>
             <td>${escapeHtml(b.personally_acceptable_american_odds)}</td>
           </tr>
           ${drawRow ? `
           <tr class="draw-row">
             <td><strong>DRAW</strong></td>
-            <td>${format2(drawRow.draw_probability)}</td>
+            <td>${formatPct(drawRow.draw_probability)}</td>
             <td></td>
+            <td>${escapeHtml(totals.acceptable_american_odds)}</td>
             <td>${escapeHtml(drawRow.personally_acceptable_american_odds)}</td>
           </tr>` : ""}
         </tbody>
