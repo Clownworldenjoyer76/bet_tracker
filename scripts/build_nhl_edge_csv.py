@@ -44,6 +44,11 @@ def parse_filename(path: Path):
 
 def process_file(input_path: Path):
     league, timestamp = parse_filename(input_path)
+
+    # HARD GUARANTEE — NHL ONLY
+    if league != "nhl":
+        return
+
     output_path = OUTPUT_DIR / f"edge_{league}_{timestamp}.csv"
 
     with input_path.open(newline="", encoding="utf-8") as infile, \
@@ -67,25 +72,20 @@ def process_file(input_path: Path):
             fair_decimal = 1.0 / p
             fair_american = decimal_to_american(fair_decimal)
 
-            if league == "nhl":
-                if p < MIN_P_NHL:
+            if p < MIN_P_NHL:
+                continue
+
+            acceptable_decimal = fair_decimal * (1.0 + EDGE_NHL)
+            acceptable_american = decimal_to_american(acceptable_decimal)
+
+            edge = (acceptable_decimal - fair_decimal) / fair_decimal
+
+            if fair_american > 0:
+                if edge < MIN_EDGE_POS_ODDS_NHL:
                     continue
-
-                acceptable_decimal = fair_decimal * (1.0 + EDGE_NHL)
-                acceptable_american = decimal_to_american(acceptable_decimal)
-
-                edge = (acceptable_decimal - fair_decimal) / fair_decimal
-
-                if fair_american > 0:
-                    if edge < MIN_EDGE_POS_ODDS_NHL:
-                        continue
-                else:
-                    if fair_american <= HEAVY_FAV_THRESHOLD and edge < MIN_EDGE_HEAVY_FAV_NHL:
-                        continue
-
             else:
-                acceptable_decimal = fair_decimal * (1.0 + EDGE_DEFAULT)
-                acceptable_american = decimal_to_american(acceptable_decimal)
+                if fair_american <= HEAVY_FAV_THRESHOLD and edge < MIN_EDGE_HEAVY_FAV_NHL:
+                    continue
 
             row["fair_decimal_odds"] = round(fair_decimal, 6)
             row["fair_american_odds"] = fair_american
@@ -98,7 +98,8 @@ def process_file(input_path: Path):
 
 
 def main():
-    for path in sorted(INPUT_DIR.glob("win_prob__clean_*.csv")):
+    # NHL FILES ONLY — NO OTHER LEAGUES CAN BE TOUCHED
+    for path in sorted(INPUT_DIR.glob("win_prob__clean_nhl_*.csv")):
         process_file(path)
 
 
