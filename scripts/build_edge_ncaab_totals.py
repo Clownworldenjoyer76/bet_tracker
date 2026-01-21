@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Build NCAAB Totals Edge File (Single Selection, Normal Model)
+Build NCAAB Totals Edge File (Normal Model, Single Selection)
 
 Inputs:
 - docs/win/edge/edge_ncaab_*.csv
@@ -8,13 +8,12 @@ Inputs:
 Outputs:
 - docs/win/ncaab/edge_ncaab_totals_YYYY_MM_DD.csv
 
-Method:
-- Normal model using total_points as λ
-- σ fixed (configurable)
-- Uses best_ou as market line
-- Chooses OVER vs UNDER by higher probability
-- Skips games with max(model_probability) < 0.55
-- Distance-weighted acceptable odds (multiplicative, not inverse)
+Rules:
+- Uses total_points as λ
+- Normal approximation
+- Chooses OVER vs UNDER by higher model probability
+- Skips game if max(model_probability) < 0.55
+- One row per game
 """
 
 import csv
@@ -25,9 +24,8 @@ from datetime import datetime
 
 # --- CONFIG ---
 BASE_EDGE_BUFFER = 0.07
-DISTANCE_PENALTY = 0.06
-MIN_MODEL_PROB = 0.55
-SIGMA = 14.0  # std dev for NCAAB totals
+DISTANCE_PENALTY = 0.15  # increased distance sensitivity
+STD_DEV = 11.0  # fixed total-points std dev
 
 INPUT_DIR = Path("docs/win/edge")
 OUTPUT_DIR = Path("docs/win/ncaab")
@@ -49,25 +47,25 @@ def decimal_to_american(d: float) -> int:
     return int(round(-100 / (d - 1)))
 
 
-def acceptable_decimal(fair_d: float, market_total: float, lam: float) -> float:
+def acceptable_decimal(p: float, market_total: float, lam: float) -> float:
     distance = abs(market_total - lam)
     buffer = BASE_EDGE_BUFFER + DISTANCE_PENALTY * distance
-    return fair_d * (1.0 + buffer)
+    return 1.0 / max(p - buffer, 0.0001)
 
 
 def main():
-    input_files = sorted(glob.glob(str(INPUT_DIR / "edge_ncaab_*.csv")))
-    if not input_files:
+    files = sorted(glob.glob(str(INPUT_DIR / "edge_ncaab_*.csv")))
+    if not files:
         raise FileNotFoundError("No NCAAB edge files found")
 
-    latest_file = input_files[-1]
+    latest = files[-1]
 
     today = datetime.utcnow()
     out_path = OUTPUT_DIR / f"edge_ncaab_totals_{today.year}_{today.month:02d}_{today.day:02d}.csv"
 
-    seen_games = set()
+    seen = set()
 
-    with open(latest_file, newline="", encoding="utf-8") as infile, \
+    with open(latest, newline="", encoding="utf-8") as infile, \
          open(out_path, "w", newline="", encoding="utf-8") as outfile:
 
         reader = csv.DictReader(infile)
@@ -94,21 +92,23 @@ def main():
             try:
                 game_id = row["game_id"]
                 lam = float(row["total_points"])
-                market_total = row.get("best_ou")
-                if market_total in ("", None):
+                market = row.get("best_ou")
+                if not market:
                     continue
-                market_total = float(market_total)
+                market = float(market)
             except Exception:
                 continue
 
-            if game_id in seen_games:
+            if game_id in seen:
                 continue
-            seen_games.add(game_id)
+            seen.add(game_id)
 
-            cutoff = market_total
-
-            p_under = normal_cdf(cutoff, lam, SIGMA)
+            cutoff = market - 0.5
+            p_under = normal_cdf(cutoff, lam, STD_DEV)
             p_over = 1.0 - p_under
+
+            if max(p_under, p_over) < 0.55:
+                continue
 
             if p_over >= p_under:
                 side = "OVER"
@@ -117,13 +117,10 @@ def main():
                 side = "UNDER"
                 p = p_under
 
-            if p < MIN_MODEL_PROB:
-                continue
-
             fair_d = fair_decimal(p)
             fair_a = decimal_to_american(fair_d)
 
-            acc_d = acceptable_decimal(fair_d, market_total, lam)
+            acc_d = acceptable_decimal(p, market, lam)
             acc_a = decimal_to_american(acc_d)
 
             writer.writerow({
@@ -132,7 +129,7 @@ def main():
                 "team_1": row["team"],
                 "team_2": row["opponent"],
                 "game_id": game_id,
-                "best_ou": market_total,
+                "best_ou": market,
                 "side": side,
                 "model_probability": round(p, 4),
                 "fair_decimal_odds": round(fair_d, 4),
