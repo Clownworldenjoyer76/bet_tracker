@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Build NCAAB Totals Edge File (Normal Model, Single Selection)
+Build NCAAB Totals Edge File (Normal Model)
 
 Inputs:
 - docs/win/edge/edge_ncaab_*.csv
@@ -9,12 +9,14 @@ Outputs:
 - docs/win/ncaab/edge_ncaab_totals_YYYY_MM_DD.csv
 
 Rules:
-- λ derived from total_points
-- Normal model for totals
-- Skip games with no best_ou
+- Normal model with λ = total_points
+- σ = sqrt(λ)
+- Uses best_ou as market total
+- Select OVER or UNDER by higher probability
 - Skip if max(model_probability) < 0.55
-- Select OVER or UNDER with higher probability
-- ONE output row per game
+- Distance-weighted acceptable odds
+- Distance penalty = 0.08
+- Hard skip if acceptable_american_odds > +500
 """
 
 import csv
@@ -23,10 +25,12 @@ from math import sqrt, erf
 from pathlib import Path
 from datetime import datetime
 
+
 # --- CONFIG ---
 BASE_EDGE_BUFFER = 0.07
-DISTANCE_PENALTY = 0.08   # ← UPDATED
-MIN_PROB_THRESHOLD = 0.55
+DISTANCE_PENALTY = 0.08
+MIN_PROBABILITY = 0.55
+MAX_ACCEPTABLE_AMERICAN = 500
 
 INPUT_DIR = Path("docs/win/edge")
 OUTPUT_DIR = Path("docs/win/ncaab")
@@ -50,14 +54,10 @@ def decimal_to_american(d: float) -> int:
 
 def acceptable_decimal(p: float, market_total: float, lam: float) -> float:
     distance = abs(market_total - lam)
-    raw_buffer = BASE_EDGE_BUFFER + DISTANCE_PENALTY * distance
+    buffer = BASE_EDGE_BUFFER + DISTANCE_PENALTY * distance
 
-    # --- CAP BUFFER SO IT NEVER EXCEEDS PROBABILITY ---
-    buffer = min(raw_buffer, p - 0.05)
-
-    # --- HARD SKIP IF BUFFER KILLS SIGNAL ---
-    if p - buffer <= 0:
-        return None
+    # cap buffer so it can never exceed probability
+    buffer = min(buffer, p - 0.0001)
 
     return 1.0 / (p - buffer)
 
@@ -98,40 +98,42 @@ def main():
         writer.writeheader()
 
         for row in reader:
+            game_id = row.get("game_id")
+            if not game_id or game_id in seen_games:
+                continue
+            seen_games.add(game_id)
+
             try:
-                game_id = row["game_id"]
                 lam = float(row["total_points"])
                 market_total = float(row["best_ou"])
             except Exception:
                 continue
 
-            if game_id in seen_games:
-                continue
-            seen_games.add(game_id)
-
-            # --- NORMAL MODEL PARAMETERS ---
             sigma = sqrt(lam)
 
-            cutoff = market_total
-            p_under = normal_cdf(cutoff, lam, sigma)
+            # continuity correction
+            p_under = normal_cdf(market_total, lam, sigma)
             p_over = 1.0 - p_under
 
-            side, p = max(
-                (("OVER", p_over), ("UNDER", p_under)),
-                key=lambda x: x[1]
-            )
+            if p_over >= p_under:
+                side = "OVER"
+                p = p_over
+            else:
+                side = "UNDER"
+                p = p_under
 
-            if p < MIN_PROB_THRESHOLD:
+            if p < MIN_PROBABILITY:
                 continue
 
             fair_d = fair_decimal(p)
             fair_a = decimal_to_american(fair_d)
 
             acc_d = acceptable_decimal(p, market_total, lam)
-            if acc_d is None:
-                continue  # HARD SKIP
-
             acc_a = decimal_to_american(acc_d)
+
+            # HARD SKIP: excessive pricing = no-bet
+            if acc_a > MAX_ACCEPTABLE_AMERICAN:
+                continue
 
             writer.writerow({
                 "date": row["date"],
@@ -148,6 +150,8 @@ def main():
                 "acceptable_american_odds": acc_a,
                 "league": "ncaab_ou",
             })
+
+    print(f"Created {out_path}")
 
 
 if __name__ == "__main__":
