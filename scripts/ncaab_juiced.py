@@ -8,24 +8,30 @@ OUTPUT_DIR = Path("docs/win/final")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def personal_juice(prob: float) -> int | None:
+def personal_juice(prob: float) -> int:
     """
-    Returns extra juice in American odds (positive integer),
-    or None to indicate NO BET.
+    Returns extra juice in American odds (integer),
+    based on NCAAB personal juice rules.
     """
     if prob >= 0.75:
-        return int(round(0.50 * 100))   # +50% edge
+        return 50   # +50% edge
     if prob >= 0.70:
-        return int(round(0.25 * 100))   # +25% edge
+        return 25   # +25% edge
     if prob >= 0.65:
-        return int(round(0.25 * 100))   # +25% edge
+        return 25   # +25% edge
     if prob >= 0.60:
-        return int(round(0.15 * 100))   # +15% edge
+        return 15   # +15% edge
     if prob >= 0.55:
-        return int(round(0.10 * 100))   # +10% edge
+        return 10   # +10% edge
     if prob >= 0.50:
-        return int(round(0.10 * 100))   # +10% edge
-    return None  # p < 0.50 → NO BET
+        return 10   # +10% edge
+    if prob >= 0.45:
+        return 20   # +20% edge
+    if prob >= 0.40:
+        return 30   # +30% edge
+    if prob >= 0.35:
+        return 40   # +40% edge
+    return 75       # +75% edge
 
 
 def process_file(path: Path):
@@ -48,11 +54,7 @@ def process_file(path: Path):
             base_acceptable = int(row["acceptable_american_odds"])
 
             juice = personal_juice(p)
-
-            if juice is None:
-                row["personally_acceptable_american_odds"] = ""
-            else:
-                row["personally_acceptable_american_odds"] = base_acceptable + juice
+            row["personally_acceptable_american_odds"] = base_acceptable + juice
 
             writer.writerow(row)
 
