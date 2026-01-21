@@ -1,17 +1,20 @@
 #!/usr/bin/env python3
 """
-build_edge_ncaab_totals.py (v1)
+Build NCAAB Totals Edge File (Single Selection, Normal Model)
 
-Purpose:
-- Build ONE NCAAB totals (OVER/UNDER) edge pick per game
-- Uses Normal distribution with fixed sigma
-- Skips low-confidence games
-
-Input:
+Inputs:
 - docs/win/edge/edge_ncaab_*.csv
 
-Output:
+Outputs:
 - docs/win/ncaab/edge_ncaab_totals_YYYY_MM_DD.csv
+
+Method:
+- Normal model using total_points as λ
+- σ fixed (configurable)
+- Uses best_ou as market line
+- Chooses OVER vs UNDER by higher probability
+- Skips games with max(model_probability) < 0.55
+- Distance-weighted acceptable odds (multiplicative, not inverse)
 """
 
 import csv
@@ -20,22 +23,17 @@ from math import erf, sqrt
 from pathlib import Path
 from datetime import datetime
 
-# =====================
-# CONFIG
-# =====================
-SIGMA = 14.0
+# --- CONFIG ---
 BASE_EDGE_BUFFER = 0.07
 DISTANCE_PENALTY = 0.06
 MIN_MODEL_PROB = 0.55
+SIGMA = 14.0  # std dev for NCAAB totals
 
 INPUT_DIR = Path("docs/win/edge")
 OUTPUT_DIR = Path("docs/win/ncaab")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
-# =====================
-# HELPERS
-# =====================
 def normal_cdf(x: float, mu: float, sigma: float) -> float:
     z = (x - mu) / (sigma * sqrt(2))
     return 0.5 * (1 + erf(z))
@@ -51,19 +49,16 @@ def decimal_to_american(d: float) -> int:
     return int(round(-100 / (d - 1)))
 
 
-def acceptable_decimal(p: float, market_total: float, lam: float) -> float:
+def acceptable_decimal(fair_d: float, market_total: float, lam: float) -> float:
     distance = abs(market_total - lam)
     buffer = BASE_EDGE_BUFFER + DISTANCE_PENALTY * distance
-    return 1.0 / max(p - buffer, 0.0001)
+    return fair_d * (1.0 + buffer)
 
 
-# =====================
-# MAIN
-# =====================
 def main():
     input_files = sorted(glob.glob(str(INPUT_DIR / "edge_ncaab_*.csv")))
     if not input_files:
-        raise FileNotFoundError("No edge_ncaab files found")
+        raise FileNotFoundError("No NCAAB edge files found")
 
     latest_file = input_files[-1]
 
@@ -96,40 +91,39 @@ def main():
         writer.writeheader()
 
         for row in reader:
-            game_id = row.get("game_id")
-            if not game_id or game_id in seen_games:
-                continue
-
-            best_ou = row.get("best_ou")
-            if not best_ou:
-                continue
-
             try:
-                market_total = float(best_ou)
+                game_id = row["game_id"]
                 lam = float(row["total_points"])
+                market_total = row.get("best_ou")
+                if market_total in ("", None):
+                    continue
+                market_total = float(market_total)
             except Exception:
                 continue
 
+            if game_id in seen_games:
+                continue
             seen_games.add(game_id)
 
             cutoff = market_total
+
             p_under = normal_cdf(cutoff, lam, SIGMA)
             p_over = 1.0 - p_under
 
             if p_over >= p_under:
                 side = "OVER"
-                model_p = p_over
+                p = p_over
             else:
                 side = "UNDER"
-                model_p = p_under
+                p = p_under
 
-            if model_p < MIN_MODEL_PROB:
+            if p < MIN_MODEL_PROB:
                 continue
 
-            fair_d = fair_decimal(model_p)
+            fair_d = fair_decimal(p)
             fair_a = decimal_to_american(fair_d)
 
-            acc_d = acceptable_decimal(model_p, market_total, lam)
+            acc_d = acceptable_decimal(fair_d, market_total, lam)
             acc_a = decimal_to_american(acc_d)
 
             writer.writerow({
@@ -140,15 +134,13 @@ def main():
                 "game_id": game_id,
                 "best_ou": market_total,
                 "side": side,
-                "model_probability": round(model_p, 4),
+                "model_probability": round(p, 4),
                 "fair_decimal_odds": round(fair_d, 4),
                 "fair_american_odds": fair_a,
                 "acceptable_decimal_odds": round(acc_d, 4),
                 "acceptable_american_odds": acc_a,
                 "league": "ncaab_ou",
             })
-
-    print(f"Created {out_path}")
 
 
 if __name__ == "__main__":
