@@ -141,6 +141,14 @@ async function loadSoccerDaily(selectedDate) {
   renderSoccerGames(order, games, totalsByGame);
 }
 
+function mlClassFromProb(p) {
+  const x = Number(p);
+  if (!Number.isFinite(x)) return "";
+  if (x > 0.65) return "ml-green";
+  if (x > 0.50) return "ml-orange";
+  return "ml-pink";
+}
+
 function renderSoccerGames(order, games, totalsByGame) {
   const container = document.getElementById("games");
 
@@ -177,14 +185,18 @@ function renderSoccerGames(order, games, totalsByGame) {
             <td>${formatPct(a.win_probability)}</td>
             <td>${format2(a.goals)}</td>
             <td>${escapeHtml(totals.market_total)}</td>
-            <td>${escapeHtml(a.personally_acceptable_american_odds)}</td>
+            <td class="${mlClassFromProb(a.win_probability)}">
+              ${escapeHtml(a.personally_acceptable_american_odds)}
+            </td>
           </tr>
           <tr>
             <td><strong>${escapeHtml(b.team)}</strong></td>
             <td>${formatPct(b.win_probability)}</td>
             <td>${format2(b.goals)}</td>
             <td>${escapeHtml(totals.side)}</td>
-            <td>${escapeHtml(b.personally_acceptable_american_odds)}</td>
+            <td class="${mlClassFromProb(b.win_probability)}">
+              ${escapeHtml(b.personally_acceptable_american_odds)}
+            </td>
           </tr>
           ${drawRow ? `
           <tr class="draw-row">
