@@ -1,0 +1,38 @@
+name: Build NCAAB Totals Edge
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-ncaab-totals:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run NCAAB totals edge script
+        run: |
+          python scripts/build_edge_ncaab_totals.py
+
+      - name: Commit and push totals edge file
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+          git add docs/win/ncaab/edge_ncaab_totals_*.csv
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Build NCAAB totals edge file"
+            git push
+          fi
