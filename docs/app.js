@@ -95,7 +95,7 @@ async function fetchText(url) {
 }
 
 /* ================= SOCCER ================= */
-/* (UNCHANGED — DO NOT TOUCH) */
+/* UNCHANGED */
 
 async function loadSoccerDaily(selectedDate) {
   setStatus("");
@@ -224,7 +224,7 @@ function renderSoccerGames(order, games, totalsByGame) {
   }
 }
 
-/* ================= NCAAB (NEW — ONLY ADDITION) ================= */
+/* ================= NCAAB ================= */
 
 async function loadNCAABDaily(selectedDate) {
   setStatus("");
@@ -271,12 +271,15 @@ function renderNCAABGames(order, games) {
 
     const a = rows[0];
     const b = rows[1];
+    const time = a.time || "";
 
     const box = document.createElement("div");
     box.className = "game-box";
 
     box.innerHTML = `
-      <div class="game-header">${escapeHtml(a.team)} vs ${escapeHtml(b.team)}</div>
+      <div class="game-header">
+        ${escapeHtml(a.team)} vs ${escapeHtml(b.team)}${time ? ` — ${escapeHtml(time)}` : ""}
+      </div>
       <table class="game-grid">
         <thead>
           <tr>
