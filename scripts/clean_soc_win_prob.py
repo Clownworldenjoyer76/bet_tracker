@@ -70,6 +70,10 @@ def main():
         output_rows = []
 
         for row in data_rows:
+            # SKIP rows with no visible game data
+            if not row[1] and not row[2] and not row[5]:
+                continue
+
             dt_lines = str(row[0]).splitlines() if row[0] else []
             date = dt_lines[0] if len(dt_lines) > 0 else ""
             time = dt_lines[1] if len(dt_lines) > 1 else ""
