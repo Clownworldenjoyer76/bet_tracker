@@ -95,6 +95,7 @@ async function fetchText(url) {
 }
 
 /* ================= SOCCER ================= */
+/* (UNCHANGED — DO NOT TOUCH) */
 
 async function loadSoccerDaily(selectedDate) {
   setStatus("");
@@ -215,6 +216,96 @@ function renderSoccerGames(order, games, totalsByGame) {
             </td>
             <td>${escapeHtml(drawRow.personally_acceptable_american_odds)}</td>
           </tr>` : ""}
+        </tbody>
+      </table>
+    `;
+
+    container.appendChild(box);
+  }
+}
+
+/* ================= NCAAB (NEW — ONLY ADDITION) ================= */
+
+async function loadNCAABDaily(selectedDate) {
+  setStatus("");
+  document.getElementById("games").innerHTML = "";
+
+  const [yyyy, mm, dd] = selectedDate.split("-");
+  const d = `${yyyy}_${mm}_${dd}`;
+
+  const url = `${RAW_BASE}/docs/win/final/final_ncaab_${d}.csv`;
+
+  let rows = [];
+  try {
+    rows = parseCSV(await fetchText(url));
+  } catch {
+    setStatus("Failed to load NCAAB file.");
+    return;
+  }
+
+  if (!rows.length) {
+    setStatus("No NCAAB games found for this date.");
+    return;
+  }
+
+  const games = new Map();
+  const order = [];
+
+  for (const r of rows) {
+    if (!games.has(r.game_id)) {
+      games.set(r.game_id, []);
+      order.push(r.game_id);
+    }
+    games.get(r.game_id).push(r);
+  }
+
+  renderNCAABGames(order, games);
+}
+
+function renderNCAABGames(order, games) {
+  const container = document.getElementById("games");
+
+  for (const gid of order) {
+    const rows = games.get(gid);
+    if (rows.length !== 2) continue;
+
+    const a = rows[0];
+    const b = rows[1];
+
+    const box = document.createElement("div");
+    box.className = "game-box";
+
+    box.innerHTML = `
+      <div class="game-header">${escapeHtml(a.team)} vs ${escapeHtml(b.team)}</div>
+      <table class="game-grid">
+        <thead>
+          <tr>
+            <th></th>
+            <th>Win Probability</th>
+            <th>Projected Pts</th>
+            <th>Take O/U at</th>
+            <th>Take ML at</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>${escapeHtml(a.team)}</strong></td>
+            <td>${formatPct(a.win_probability)}</td>
+            <td>${format2(a.points)}</td>
+            <td>${escapeHtml(a.best_ou)}</td>
+            <td class="${mlClassFromProb(a.win_probability)}">
+              ${escapeHtml(a.personally_acceptable_american_odds)}
+            </td>
+          </tr>
+          <tr>
+            <td><strong>${escapeHtml(b.team)}</strong></td>
+            <td>${formatPct(b.win_probability)}</td>
+            <td>${format2(b.points)}</td>
+            <td>${escapeHtml(b.best_ou)}</td>
+            <td class="${mlClassFromProb(b.win_probability)}">
+              ${escapeHtml(b.personally_acceptable_american_odds)}
+            </td>
+          </tr>
         </tbody>
       </table>
     `;
