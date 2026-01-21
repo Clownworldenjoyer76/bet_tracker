@@ -164,6 +164,11 @@ function renderSoccerGames(order, games, totalsByGame) {
     const a = winRows[0];
     const b = winRows[1];
 
+    const ouClass =
+      totals.side && totals.side !== "NO PLAY"
+        ? mlClassFromProb(totals.model_probability)
+        : "";
+
     const box = document.createElement("div");
     box.className = "game-box";
 
@@ -203,7 +208,9 @@ function renderSoccerGames(order, games, totalsByGame) {
             <td><strong>DRAW</strong></td>
             <td>${formatPct(drawRow.draw_probability)}</td>
             <td></td>
-            <td>${escapeHtml(totals.acceptable_american_odds)}</td>
+            <td class="${ouClass}">
+              ${escapeHtml(totals.acceptable_american_odds)}
+            </td>
             <td>${escapeHtml(drawRow.personally_acceptable_american_odds)}</td>
           </tr>` : ""}
         </tbody>
