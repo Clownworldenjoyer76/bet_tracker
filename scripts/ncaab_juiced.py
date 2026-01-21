@@ -18,9 +18,25 @@ def personal_edge_pct(prob: float) -> float:
     """
     Returns personal juice as a percentage (e.g. 0.20 = 20%)
     applied multiplicatively to acceptable_decimal_odds.
+
+    UPDATED NCAAB PERSONAL JUICE TABLE (data-aligned):
+
+    p ≥ 0.85  -> 0.30   (elite favorites: require more edge, cap exposure)
+    0.75–0.85 -> 0.25
+    0.70–0.75 -> 0.25
+    0.65–0.70 -> 0.25
+    0.60–0.65 -> 0.15   (reduced from 0.20 — historically profitable)
+    0.55–0.60 -> 0.10
+    0.50–0.55 -> 0.10
+    0.45–0.50 -> 0.20
+    0.40–0.45 -> 0.30
+    0.35–0.40 -> 0.40
+    < 0.35    -> 0.75
     """
+    if prob >= 0.85:
+        return 0.30
     if prob >= 0.75:
-        return 0.50
+        return 0.25
     if prob >= 0.70:
         return 0.25
     if prob >= 0.65:
