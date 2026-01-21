@@ -14,24 +14,16 @@ def decimal_to_american(decimal: float) -> int:
     return int(round(-100 / (decimal - 1)))
 
 
+def american_to_decimal(american: int) -> float:
+    if american > 0:
+        return 1 + (american / 100)
+    return 1 + (100 / abs(american))
+
+
 def personal_edge_pct(prob: float) -> float:
     """
     Returns personal juice as a percentage (e.g. 0.20 = 20%)
     applied multiplicatively to acceptable_decimal_odds.
-
-    UPDATED NCAAB PERSONAL JUICE TABLE (data-aligned):
-
-    p ≥ 0.85  -> 0.30   (elite favorites: require more edge, cap exposure)
-    0.75–0.85 -> 0.25
-    0.70–0.75 -> 0.25
-    0.65–0.70 -> 0.25
-    0.60–0.65 -> 0.15   (reduced from 0.20 — historically profitable)
-    0.55–0.60 -> 0.10
-    0.50–0.55 -> 0.10
-    0.45–0.50 -> 0.20
-    0.40–0.45 -> 0.30
-    0.35–0.40 -> 0.40
-    < 0.35    -> 0.75
     """
     if prob >= 0.85:
         return 0.30
@@ -42,9 +34,9 @@ def personal_edge_pct(prob: float) -> float:
     if prob >= 0.65:
         return 0.25
     if prob >= 0.60:
-        return 0.15
+        return 0.10   # CHANGED (was 0.15)
     if prob >= 0.55:
-        return 0.10
+        return 0.05   # CHANGED (was 0.10)
     if prob >= 0.50:
         return 0.10
     if prob >= 0.45:
@@ -73,10 +65,19 @@ def process_file(path: Path):
         for row in reader:
             p = float(row["win_probability"])
             base_decimal = float(row["acceptable_decimal_odds"])
+            base_american = int(row["acceptable_american_odds"])
 
             edge_pct = personal_edge_pct(p)
             personal_decimal = base_decimal * (1.0 + edge_pct)
             personal_american = decimal_to_american(personal_decimal)
+
+            # RULE 1: cap favorite flip-through
+            if base_american < 0 and personal_american > 120:
+                personal_american = 120
+
+            # RULE 3: cap extreme longshots
+            if p < 0.10 and personal_american > 2500:
+                personal_american = 2500
 
             row["personally_acceptable_american_odds"] = personal_american
             writer.writerow(row)
