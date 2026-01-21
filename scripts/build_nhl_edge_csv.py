@@ -4,13 +4,7 @@ import csv
 import re
 from pathlib import Path
 
-EDGE_DEFAULT = 0.05
 EDGE_NHL = 0.08
-
-MIN_P_NHL = 0.52
-MIN_EDGE_POS_ODDS_NHL = 0.12
-MIN_EDGE_HEAVY_FAV_NHL = 0.35
-HEAVY_FAV_THRESHOLD = -250
 
 INPUT_DIR = Path("docs/win/clean")
 OUTPUT_DIR = Path("docs/win/edge")
@@ -45,7 +39,7 @@ def parse_filename(path: Path):
 def process_file(input_path: Path):
     league, timestamp = parse_filename(input_path)
 
-    # HARD GUARANTEE — NHL ONLY
+    # HARD SCOPE: NHL ONLY
     if league != "nhl":
         return
 
@@ -61,31 +55,36 @@ def process_file(input_path: Path):
             "acceptable_decimal_odds",
             "acceptable_american_odds",
         ]
+
         writer = csv.DictWriter(outfile, fieldnames=fieldnames)
         writer.writeheader()
 
         for row in reader:
-            p = normalize_probability(row["win_probability"])
+            raw = row.get("win_probability", "").strip()
+            if not raw:
+                # preserve row structure; output blanks
+                row["fair_decimal_odds"] = ""
+                row["fair_american_odds"] = ""
+                row["acceptable_decimal_odds"] = ""
+                row["acceptable_american_odds"] = ""
+                writer.writerow(row)
+                continue
+
+            p = normalize_probability(raw)
+
             if not (0.0 < p < 1.0):
+                row["fair_decimal_odds"] = ""
+                row["fair_american_odds"] = ""
+                row["acceptable_decimal_odds"] = ""
+                row["acceptable_american_odds"] = ""
+                writer.writerow(row)
                 continue
 
             fair_decimal = 1.0 / p
             fair_american = decimal_to_american(fair_decimal)
 
-            if p < MIN_P_NHL:
-                continue
-
             acceptable_decimal = fair_decimal * (1.0 + EDGE_NHL)
             acceptable_american = decimal_to_american(acceptable_decimal)
-
-            edge = (acceptable_decimal - fair_decimal) / fair_decimal
-
-            if fair_american > 0:
-                if edge < MIN_EDGE_POS_ODDS_NHL:
-                    continue
-            else:
-                if fair_american <= HEAVY_FAV_THRESHOLD and edge < MIN_EDGE_HEAVY_FAV_NHL:
-                    continue
 
             row["fair_decimal_odds"] = round(fair_decimal, 6)
             row["fair_american_odds"] = fair_american
@@ -98,7 +97,6 @@ def process_file(input_path: Path):
 
 
 def main():
-    # NHL FILES ONLY — NO OTHER LEAGUES CAN BE TOUCHED
     for path in sorted(INPUT_DIR.glob("win_prob__clean_nhl_*.csv")):
         process_file(path)
 
