@@ -7,7 +7,7 @@ from datetime import datetime
 from openpyxl import load_workbook
 
 # ============================================================
-# Shared paths (unchanged behavior)
+# Shared paths
 # ============================================================
 
 INPUT_DIR = Path("docs/win/dump")
@@ -17,7 +17,7 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 # ============================================================
 # ======================= SOCCER =============================
 # ============================================================
-# ⚠️ THIS SECTION IS VERBATIM BEHAVIOR — DO NOT MODIFY ⚠️
+# ⚠️ DO NOT MODIFY — BEHAVIOR PRESERVED ⚠️
 # ============================================================
 
 SOCCER_LEAGUE = "soc"
@@ -173,6 +173,13 @@ def parse_best_ou_ncaab(value):
     return f"{nums[0]}.5"
 
 
+def round_prob(value):
+    try:
+        return f"{round(float(value), 2):.2f}"
+    except Exception:
+        return ""
+
+
 def run_ncaab():
     files = sorted(INPUT_DIR.glob("ncaab_*.xlsx"))
     if not files:
@@ -207,8 +214,8 @@ def run_ncaab():
             team_b = strip_team(teams[1])
 
             wins = str(row[2]).splitlines()
-            win_a = pct_to_decimal(wins[0])
-            win_b = pct_to_decimal(wins[1])
+            win_a = round_prob(pct_to_decimal(wins[0]))
+            win_b = round_prob(pct_to_decimal(wins[1]))
 
             points = str(row[5]).splitlines()
             pts_a = points[0]
