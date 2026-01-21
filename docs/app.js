@@ -69,10 +69,6 @@ function setStatus(msg) {
   if (el) el.textContent = msg || "";
 }
 
-function safeGet(obj, key) {
-  return obj && obj[key] != null ? obj[key].toString().trim() : "";
-}
-
 function format2(n) {
   const x = Number(n);
   return Number.isFinite(x) ? x.toFixed(2) : "";
@@ -93,97 +89,7 @@ async function fetchText(url) {
   return res.text();
 }
 
-/* ================= NHL (UNCHANGED) ================= */
-
-async function loadNHLDaily(selectedDate) {
-  setStatus("");
-  document.getElementById("games").innerHTML = "";
-
-  const [yyyy, mm, dd] = selectedDate.split("-");
-  const d = `${yyyy}_${mm}_${dd}`;
-
-  const mlUrl = `${RAW_BASE}/docs/win/edge/edge_nhl_${d}.csv`;
-  const totalsUrl = `${RAW_BASE}/docs/win/nhl/edge_nhl_totals_${d}.csv`;
-
-  let ml = [], totals = [];
-  try {
-    ml = parseCSV(await fetchText(mlUrl));
-    totals = parseCSV(await fetchText(totalsUrl));
-  } catch {
-    setStatus("Failed to load NHL files.");
-    return;
-  }
-
-  const totalsByGame = new Map();
-  for (const r of totals) {
-    if (!totalsByGame.has(r.game_id)) totalsByGame.set(r.game_id, r);
-  }
-
-  const games = new Map();
-  const order = [];
-  for (const r of ml) {
-    if (!games.has(r.game_id)) {
-      games.set(r.game_id, []);
-      order.push(r.game_id);
-    }
-    games.get(r.game_id).push(r);
-  }
-
-  if (!order.length) {
-    setStatus("No NHL games found for this date.");
-    return;
-  }
-
-  renderNHLGames(order, games, totalsByGame);
-}
-
-function renderNHLGames(order, games, totalsByGame) {
-  const container = document.getElementById("games");
-  for (const gid of order) {
-    const rows = games.get(gid);
-    const a = rows[0];
-    const b = rows[1];
-
-    const t = totalsByGame.get(gid);
-
-    const box = document.createElement("div");
-    box.className = "game-box";
-
-    box.innerHTML = `
-      <div class="game-header">${escapeHtml(a.team)} at ${escapeHtml(a.opponent)}</div>
-      <table class="game-grid">
-        <thead>
-          <tr>
-            <th></th>
-            <th>Win Probability</th>
-            <th>Projected Goals</th>
-            <th>Take ML at</th>
-            <th>Take Over/Under at</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><strong>${escapeHtml(a.team)}</strong></td>
-            <td>${format2(a.win_probability)}</td>
-            <td>${format2(a.goals)}</td>
-            <td>${escapeHtml(a.acceptable_american_odds)}</td>
-            <td>${t ? `${t.side} ${t.market_total}` : ""}</td>
-          </tr>
-          <tr>
-            <td><strong>${escapeHtml(b.team)}</strong></td>
-            <td>${format2(b.win_probability)}</td>
-            <td>${format2(b.goals)}</td>
-            <td>${escapeHtml(b.acceptable_american_odds)}</td>
-            <td>${t ? t.acceptable_american_odds : ""}</td>
-          </tr>
-        </tbody>
-      </table>
-    `;
-    container.appendChild(box);
-  }
-}
-
-/* ================= SOCCER (FIXED) ================= */
+/* ================= SOCCER (UPDATED) ================= */
 
 async function loadSoccerDaily(selectedDate) {
   setStatus("");
@@ -192,31 +98,25 @@ async function loadSoccerDaily(selectedDate) {
   const [yyyy, mm, dd] = selectedDate.split("-");
   const d = `${yyyy}_${mm}_${dd}`;
 
-  const sidesUrl = `${RAW_BASE}/docs/win/edge/edge_soc_${d}.csv`;
-  const totalsUrl = `${RAW_BASE}/docs/win/soc/edge_soc_totals_${d}.csv`;
+  const url = `${RAW_BASE}/docs/win/final/final_soc_${d}.csv`;
 
-  let sides = [], totals = [];
+  let rows = [];
   try {
-    sides = parseCSV(await fetchText(sidesUrl));
-    totals = parseCSV(await fetchText(totalsUrl));
+    rows = parseCSV(await fetchText(url));
   } catch {
-    setStatus("Failed to load soccer files.");
+    setStatus("Failed to load soccer file.");
     return;
   }
 
-  if (!sides.length) {
+  if (!rows.length) {
     setStatus("No soccer games found for this date.");
     return;
   }
 
-  const totalsByGame = new Map();
-  for (const r of totals) {
-    if (!totalsByGame.has(r.game_id)) totalsByGame.set(r.game_id, r);
-  }
-
   const games = new Map();
   const order = [];
-  for (const r of sides) {
+
+  for (const r of rows) {
     if (!games.has(r.game_id)) {
       games.set(r.game_id, []);
       order.push(r.game_id);
@@ -224,19 +124,22 @@ async function loadSoccerDaily(selectedDate) {
     games.get(r.game_id).push(r);
   }
 
-  renderSoccerGames(order, games, totalsByGame);
+  renderSoccerGames(order, games);
 }
 
-function renderSoccerGames(order, games, totalsByGame) {
+function renderSoccerGames(order, games) {
   const container = document.getElementById("games");
 
   for (const gid of order) {
     const rows = games.get(gid);
-    if (rows.length < 2) continue;
 
-    const a = rows[0];
-    const b = rows[1];
-    const t = totalsByGame.get(gid);
+    const winRows = rows.filter(r => r.bet_type === "win");
+    const drawRow = rows.find(r => r.bet_type === "draw");
+
+    if (winRows.length !== 2) continue;
+
+    const a = winRows[0];
+    const b = winRows[1];
 
     const box = document.createElement("div");
     box.className = "game-box";
@@ -247,10 +150,9 @@ function renderSoccerGames(order, games, totalsByGame) {
         <thead>
           <tr>
             <th></th>
-            <th>Win Probability</th>
+            <th>Probability</th>
             <th>Projected Goals</th>
             <th>Take ML at</th>
-            <th>Take Over/Under at</th>
           </tr>
         </thead>
         <tbody>
@@ -258,19 +160,25 @@ function renderSoccerGames(order, games, totalsByGame) {
             <td><strong>${escapeHtml(a.team)}</strong></td>
             <td>${format2(a.win_probability)}</td>
             <td>${format2(a.goals)}</td>
-            <td>${escapeHtml(a.acceptable_american_odds)}</td>
-            <td>${t ? `${t.side} ${t.market_total}` : ""}</td>
+            <td>${escapeHtml(a.personally_acceptable_american_odds)}</td>
           </tr>
           <tr>
             <td><strong>${escapeHtml(b.team)}</strong></td>
             <td>${format2(b.win_probability)}</td>
             <td>${format2(b.goals)}</td>
-            <td>${escapeHtml(b.acceptable_american_odds)}</td>
-            <td>${t ? t.acceptable_american_odds : ""}</td>
+            <td>${escapeHtml(b.personally_acceptable_american_odds)}</td>
           </tr>
+          ${drawRow ? `
+          <tr class="draw-row">
+            <td><strong>DRAW</strong></td>
+            <td>${format2(drawRow.draw_probability)}</td>
+            <td></td>
+            <td>${escapeHtml(drawRow.personally_acceptable_american_odds)}</td>
+          </tr>` : ""}
         </tbody>
       </table>
     `;
+
     container.appendChild(box);
   }
 }
