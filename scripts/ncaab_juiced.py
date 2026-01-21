@@ -8,34 +8,39 @@ OUTPUT_DIR = Path("docs/win/final")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def personal_juice(prob: float) -> int:
+def decimal_to_american(decimal: float) -> int:
+    if decimal >= 2.0:
+        return int(round(100 * (decimal - 1)))
+    return int(round(-100 / (decimal - 1)))
+
+
+def personal_edge_pct(prob: float) -> float:
     """
-    Returns extra juice in American odds (integer),
-    based on NCAAB personal juice rules.
+    Returns personal juice as a percentage (e.g. 0.20 = 20%)
+    applied multiplicatively to acceptable_decimal_odds.
     """
     if prob >= 0.75:
-        return 50   # +50% edge
+        return 0.50
     if prob >= 0.70:
-        return 25   # +25% edge
+        return 0.25
     if prob >= 0.65:
-        return 25   # +25% edge
+        return 0.25
     if prob >= 0.60:
-        return 15   # +15% edge
+        return 0.15
     if prob >= 0.55:
-        return 10   # +10% edge
+        return 0.10
     if prob >= 0.50:
-        return 10   # +10% edge
+        return 0.10
     if prob >= 0.45:
-        return 20   # +20% edge
+        return 0.20
     if prob >= 0.40:
-        return 30   # +30% edge
+        return 0.30
     if prob >= 0.35:
-        return 40   # +40% edge
-    return 75       # +75% edge
+        return 0.40
+    return 0.75
 
 
 def process_file(path: Path):
-    # edge_ncaab_YYYY_MM_DD.csv → final_ncaab_YYYY_MM_DD.csv
     suffix = path.name.replace("edge_ncaab_", "")
     output_path = OUTPUT_DIR / f"final_ncaab_{suffix}"
 
@@ -51,11 +56,13 @@ def process_file(path: Path):
 
         for row in reader:
             p = float(row["win_probability"])
-            base_acceptable = int(row["acceptable_american_odds"])
+            base_decimal = float(row["acceptable_decimal_odds"])
 
-            juice = personal_juice(p)
-            row["personally_acceptable_american_odds"] = base_acceptable + juice
+            edge_pct = personal_edge_pct(p)
+            personal_decimal = base_decimal * (1.0 + edge_pct)
+            personal_american = decimal_to_american(personal_decimal)
 
+            row["personally_acceptable_american_odds"] = personal_american
             writer.writerow(row)
 
     print(f"Created {output_path}")
