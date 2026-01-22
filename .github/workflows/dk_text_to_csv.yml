@@ -1,0 +1,110 @@
+name: DK Text to CSV
+
+on:
+  workflow_dispatch:
+    inputs:
+      league:
+        description: "league (nba | ncaab | nhl | soc)"
+        required: true
+      raw_text:
+        description: "Raw DraftKings text block"
+        required: true
+
+jobs:
+  build_csv:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Validate league
+        run: |
+          case "${{ inputs.league }}" in
+            nba|ncaab|nhl|soc) ;;
+            *)
+              echo "Invalid league: ${{ inputs.league }}"
+              exit 1
+              ;;
+          esac
+
+      - name: Write raw text to file
+        run: |
+          cat << 'EOF' > raw.txt
+          ${{ inputs.raw_text }}
+          EOF
+
+      - name: Parse DK text and build CSV
+        run: |
+          python3 << 'EOF'
+          import csv
+          import re
+          from datetime import datetime
+
+          LEAGUE = "${{ inputs.league }}"
+          OUT = f"docs/win/manual/dk_{LEAGUE}_{datetime.now().strftime('%Y_%m_%d')}.csv"
+
+          with open("raw.txt") as f:
+              lines = [l.strip() for l in f if l.strip()]
+
+          # remove noise
+          lines = [l.replace("opens in a new tab", "").strip() for l in lines]
+
+          rows = []
+          i = 0
+
+          while i < len(lines):
+              if "@" not in lines[i]:
+                  i += 1
+                  continue
+
+              away, home = [x.strip() for x in lines[i].split("@")]
+              date_str, time_str = lines[i+1].split(",")
+              i += 5  # skip headers
+
+              for _ in range(2):
+                  team = lines[i]
+                  odds = lines[i+1]
+                  handle = lines[i+2].replace("%", "")
+                  bets = lines[i+3].replace("%", "")
+
+                  opponent = home if team == away else away
+
+                  rows.append([
+                      date_str.strip(),
+                      time_str.strip(),
+                      team,
+                      opponent,
+                      odds,
+                      handle,
+                      bets,
+                      LEAGUE
+                  ])
+                  i += 4
+
+          with open(OUT, "w", newline="") as f:
+              writer = csv.writer(f)
+              writer.writerow([
+                  "date",
+                  "time",
+                  "team",
+                  "opponent",
+                  "odds",
+                  "handle_pct",
+                  "bets_pct",
+                  "league"
+              ])
+              writer.writerows(rows)
+
+          print(f"Wrote {len(rows)} rows to {OUT}")
+          EOF
+
+      - name: Commit CSV
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add docs/win/manual/*.csv
+          git commit -m "Add DK manual CSV (${{
+            inputs.league
+          }})" || echo "Nothing to commit"
+          git push
