@@ -499,3 +499,31 @@ function renderNHLGames(order, games, totalsByGame) {
           </tr>
 
           <tr>
+            <td><strong>${escapeHtml(b.team)}</strong></td>
+            <td>${formatPct(b.win_probability)}</td>
+            <td>${format2(b.goals)}</td>
+            <td class="${totals.side === 'NO PLAY' ? 'no-play' : ''}">
+              ${escapeHtml(totals.side)}
+            </td>
+            <td class="${mlClassFromProb(b.win_probability)}">
+              ${escapeHtml(b.personally_acceptable_american_odds)}
+            </td>
+          </tr>
+
+          <tr class="draw-row">
+            <td><strong>O/U</strong></td>
+            <td></td>
+            <td></td>
+            <td class="${ouClass}">
+              ${escapeHtml(totals.acceptable_american_odds)}
+            </td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+    `;
+
+    container.appendChild(box);
+  }
+}
+
