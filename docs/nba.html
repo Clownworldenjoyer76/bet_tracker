@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>NBA Games</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <h1>NBA — Playable Bets</h1>
+
+  <nav class="nav">
+    <a href="index.html">Home</a>
+    <a href="ncaab.html">NCAAB</a>
+    <a href="nhl.html">NHL</a>
+    <a href="tracker.html">Bet Tracker</a>
+  </nav>
+
+  <section class="controls">
+    <label for="nba-date" class="control-label">Date:</label>
+    <input id="nba-date" type="date" />
+    <span class="hint">Select a date to load historical files.</span>
+  </section>
+
+  <div id="status" class="status"></div>
+  <div id="games" class="games"></div>
+
+  <script src="app.js"></script>
+  <script>
+    const dateInput = document.getElementById("nba-date");
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    const dd = String(now.getDate()).padStart(2, "0");
+    dateInput.value = `${yyyy}-${mm}-${dd}`;
+
+    function runLoad() {
+      loadNBADaily(dateInput.value);
+    }
+
+    dateInput.addEventListener("change", runLoad);
+    runLoad();
+  </script>
+</body>
+</html>
