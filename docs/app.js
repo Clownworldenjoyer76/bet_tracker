@@ -386,6 +386,21 @@ function renderNCAABGames(order, games, totalsByGame) {
 
 /* ================= NHL ================= */
 
+function timeToMinutes(t) {
+  if (!t) return 0;
+  const m = t.match(/(\d+):(\d+)\s*(AM|PM)/i);
+  if (!m) return 0;
+
+  let h = parseInt(m[1], 10);
+  const min = parseInt(m[2], 10);
+  const ap = m[3].toUpperCase();
+
+  if (ap === "PM" && h !== 12) h += 12;
+  if (ap === "AM" && h === 12) h = 0;
+
+  return h * 60 + min;
+}
+
 async function loadNHLDaily(selectedDate) {
   setStatus("");
   document.getElementById("games").innerHTML = "";
@@ -403,7 +418,7 @@ async function loadNHLDaily(selectedDate) {
     rows = parseCSV(await fetchText(finalUrl));
     totals = parseCSV(await fetchText(totalsUrl));
   } catch {
-    setStatus("Failed to load NHL file.");
+    setStatus("Failed to load NHL files.");
     return;
   }
 
@@ -428,7 +443,6 @@ async function loadNHLDaily(selectedDate) {
     games.get(r.game_id).push(r);
   }
 
-  // AM / PM aware time sort
   order.sort((a, b) =>
     timeToMinutes(games.get(a)?.[0]?.time) -
     timeToMinutes(games.get(b)?.[0]?.time)
@@ -478,36 +492,10 @@ function renderNHLGames(order, games, totalsByGame) {
             <td><strong>${escapeHtml(a.team)}</strong></td>
             <td>${formatPct(a.win_probability)}</td>
             <td>${format2(a.goals)}</td>
-            <td>${escapeHtml(totals.best_ou)}</td>
+            <td>${escapeHtml(totals.market_total)}</td>
             <td class="${mlClassFromProb(a.win_probability)}">
               ${escapeHtml(a.personally_acceptable_american_odds)}
             </td>
           </tr>
+
           <tr>
-            <td><strong>${escapeHtml(b.team)}</strong></td>
-            <td>${formatPct(b.win_probability)}</td>
-            <td>${format2(b.goals)}</td>
-            <td class="${totals.side === "NO PLAY" ? "no-play" : ""}">
-              ${escapeHtml(totals.side)}
-            </td>
-            <td class="${mlClassFromProb(b.win_probability)}">
-              ${escapeHtml(b.personally_acceptable_american_odds)}
-            </td>
-          </tr>
-          <tr class="draw-row">
-            <td><strong>O/U</strong></td>
-            <td></td>
-            <td></td>
-            <td class="${ouClass}">
-              ${escapeHtml(totals.acceptable_american_odds)}
-            </td>
-            <td></td>
-          </tr>
-        </tbody>
-      </table>
-    `;
-
-    container.appendChild(box);
-  }
-}
-
