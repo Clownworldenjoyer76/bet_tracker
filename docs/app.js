@@ -526,4 +526,102 @@ function renderNHLGames(order, games, totalsByGame) {
     container.appendChild(box);
   }
 }
+/* ================= NBA ================= */
+
+async function loadNBADaily(selectedDate) {
+  setStatus("");
+  document.getElementById("games").innerHTML = "";
+
+  const [yyyy, mm, dd] = selectedDate.split("-");
+  const d = `${yyyy}_${mm}_${dd}`;
+
+  const url = `${RAW_BASE}/docs/win/final/final_nba_${d}.csv`;
+
+  let rows = [];
+  try {
+    rows = parseCSV(await fetchText(url));
+  } catch {
+    setStatus("No NBA file found for this date.");
+    return;
+  }
+
+  if (!rows.length) {
+    setStatus("No NBA games found for this date.");
+    return;
+  }
+
+  const games = new Map();
+  const order = [];
+
+  for (const r of rows) {
+    if (!games.has(r.game_id)) {
+      games.set(r.game_id, []);
+      order.push(r.game_id);
+    }
+    games.get(r.game_id).push(r);
+  }
+
+  order.sort((a, b) =>
+    timeToMinutes(games.get(a)?.[0]?.time) -
+    timeToMinutes(games.get(b)?.[0]?.time)
+  );
+
+  renderNBAGames(order, games);
+}
+
+function renderNBAGames(order, games) {
+  const container = document.getElementById("games");
+
+  for (const gid of order) {
+    const rows = games.get(gid);
+    if (rows.length !== 2) continue;
+
+    const a = rows[0];
+    const b = rows[1];
+
+    const box = document.createElement("div");
+    box.className = "game-box";
+
+    box.innerHTML = `
+      <div class="game-header">
+        ${escapeHtml(a.team)} vs ${escapeHtml(b.team)}
+        <span class="cell-muted"> — ${escapeHtml(a.time)}</span>
+      </div>
+
+      <table class="game-grid">
+        <thead>
+          <tr>
+            <th></th>
+            <th>Win Probability</th>
+            <th>Projected Pts</th>
+            <th>Take O/U at</th>
+            <th>Take ML at</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>${escapeHtml(a.team)}</strong></td>
+            <td>${formatPct(a.win_probability)}</td>
+            <td>${format2(a.points)}</td>
+            <td>—</td>
+            <td class="${mlClassFromProb(a.win_probability)}">
+              ${escapeHtml(a.personally_acceptable_american_odds)}
+            </td>
+          </tr>
+          <tr>
+            <td><strong>${escapeHtml(b.team)}</strong></td>
+            <td>${formatPct(b.win_probability)}</td>
+            <td>${format2(b.points)}</td>
+            <td>—</td>
+            <td class="${mlClassFromProb(b.win_probability)}">
+              ${escapeHtml(b.personally_acceptable_american_odds)}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    `;
+
+    container.appendChild(box);
+  }
+}
 
