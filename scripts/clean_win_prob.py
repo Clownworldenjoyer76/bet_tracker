@@ -250,6 +250,30 @@ NBA_HEADERS = [
 ]
 
 
+def parse_best_ou(raw):
+    """
+    Parse strings like:
+    o229½-110
+    u237-110
+    → 229.5 / 237.0
+    """
+    if not raw:
+        return ""
+
+    s = str(raw).strip().lower()
+    if not (s.startswith("o") or s.startswith("u")):
+        return ""
+
+    s = s[1:]                  # drop o/u
+    s = s.split("-")[0]        # drop odds
+    s = s.replace("½", ".5")   # half points
+
+    try:
+        return float(s)
+    except ValueError:
+        return ""
+
+
 def run_nba():
     files = sorted(INPUT_DIR.glob("nba_*.xlsx"))
     if not files:
@@ -288,8 +312,8 @@ def run_nba():
             pts_a = points[0] if len(points) > 0 else ""
             pts_b = points[1] if len(points) > 1 else ""
 
-            total_points = row[6] if len(row) > 6 else ""
-            best_ou = parse_best_ou(row[7]) if len(row) > 7 else ""
+            best_ou = parse_best_ou(row[5]) if len(row) > 5 else ""
+            total_points = best_ou  # λ for totals model
 
             output_rows.append([
                 date, time,
