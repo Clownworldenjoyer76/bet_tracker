@@ -383,3 +383,131 @@ function renderNCAABGames(order, games, totalsByGame) {
     container.appendChild(box);
   }
 }
+
+/* ================= NHL ================= */
+
+async function loadNHLDaily(selectedDate) {
+  setStatus("");
+  document.getElementById("games").innerHTML = "";
+
+  const [yyyy, mm, dd] = selectedDate.split("-");
+  const d = `${yyyy}_${mm}_${dd}`;
+
+  const finalUrl = `${RAW_BASE}/docs/win/final/final_nhl_${d}.csv`;
+  const totalsUrl = `${RAW_BASE}/docs/win/nhl/edge_nhl_totals_${d}.csv`;
+
+  let rows = [];
+  let totals = [];
+
+  try {
+    rows = parseCSV(await fetchText(finalUrl));
+    totals = parseCSV(await fetchText(totalsUrl));
+  } catch {
+    setStatus("Failed to load NHL file.");
+    return;
+  }
+
+  if (!rows.length) {
+    setStatus("No NHL games found for this date.");
+    return;
+  }
+
+  const totalsByGame = new Map();
+  for (const t of totals) {
+    totalsByGame.set(t.game_id, t);
+  }
+
+  const games = new Map();
+  const order = [];
+
+  for (const r of rows) {
+    if (!games.has(r.game_id)) {
+      games.set(r.game_id, []);
+      order.push(r.game_id);
+    }
+    games.get(r.game_id).push(r);
+  }
+
+  // AM / PM aware time sort
+  order.sort((a, b) =>
+    timeToMinutes(games.get(a)?.[0]?.time) -
+    timeToMinutes(games.get(b)?.[0]?.time)
+  );
+
+  renderNHLGames(order, games, totalsByGame);
+}
+
+function renderNHLGames(order, games, totalsByGame) {
+  const container = document.getElementById("games");
+
+  for (const gid of order) {
+    const rows = games.get(gid);
+    if (rows.length !== 2) continue;
+
+    const a = rows[0];
+    const b = rows[1];
+    const totals = totalsByGame.get(gid) || {};
+    const time = a.time || "";
+
+    const ouClass =
+      totals.side && totals.side !== "NO PLAY"
+        ? mlClassFromProb(totals.model_probability)
+        : "no-play";
+
+    const box = document.createElement("div");
+    box.className = "game-box";
+
+    box.innerHTML = `
+      <div class="game-header">
+        ${escapeHtml(a.team)} vs ${escapeHtml(b.team)}
+        ${time ? ` — ${escapeHtml(time)}` : ""}
+      </div>
+
+      <table class="game-grid">
+        <thead>
+          <tr>
+            <th></th>
+            <th>Win Probability</th>
+            <th>Projected Goals</th>
+            <th>Take O/U at</th>
+            <th>Take ML at</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>${escapeHtml(a.team)}</strong></td>
+            <td>${formatPct(a.win_probability)}</td>
+            <td>${format2(a.goals)}</td>
+            <td>${escapeHtml(totals.best_ou)}</td>
+            <td class="${mlClassFromProb(a.win_probability)}">
+              ${escapeHtml(a.personally_acceptable_american_odds)}
+            </td>
+          </tr>
+          <tr>
+            <td><strong>${escapeHtml(b.team)}</strong></td>
+            <td>${formatPct(b.win_probability)}</td>
+            <td>${format2(b.goals)}</td>
+            <td class="${totals.side === "NO PLAY" ? "no-play" : ""}">
+              ${escapeHtml(totals.side)}
+            </td>
+            <td class="${mlClassFromProb(b.win_probability)}">
+              ${escapeHtml(b.personally_acceptable_american_odds)}
+            </td>
+          </tr>
+          <tr class="draw-row">
+            <td><strong>O/U</strong></td>
+            <td></td>
+            <td></td>
+            <td class="${ouClass}">
+              ${escapeHtml(totals.acceptable_american_odds)}
+            </td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+    `;
+
+    container.appendChild(box);
+  }
+}
+
