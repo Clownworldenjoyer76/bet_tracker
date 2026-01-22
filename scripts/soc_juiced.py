@@ -7,15 +7,16 @@ INPUT_DIR = Path("docs/win/edge")
 OUTPUT_DIR = Path("docs/win/final")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-# Static personal juice rules
+# Updated personal juice rules (Version 1.2)
 # (min_probability, max_probability, american_odds_addition)
 PERSONAL_JUICE_RULES = [
-    (0.65, 1.01, 10),
-    (0.55, 0.65, 5),
-    (0.50, 0.55, 0),
-    (0.45, 0.50, 0),
-    (0.40, 0.45, 15),
-    (0.00, 0.40, 75),
+    (0.65, 1.01, 10),   # p ≥ 0.65
+    (0.55, 0.65, 5),    # 0.55 ≤ p < 0.65
+    (0.50, 0.55, 0),    # 0.50 ≤ p < 0.55
+    (0.45, 0.50, 0),    # 0.45 ≤ p < 0.50
+    (0.40, 0.45, 5),    # 0.40 ≤ p < 0.45  (reduced from +15)
+    (0.30, 0.40, 25),   # 0.30 ≤ p < 0.40  (new tier)
+    (0.00, 0.30, 75),   # p < 0.30
 ]
 
 
