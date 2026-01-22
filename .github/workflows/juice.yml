@@ -25,15 +25,19 @@ jobs:
 
       - name: Run soccer personal juice script
         run: |
-          python scripts/soc_juiced.py
+          python scripts/juice_soc.py
 
       - name: Run ncaab personal juice script
         run: |
-          python scripts/ncaab_juiced.py
+          python scripts/juice_ncaab.py
 
-      - name: Run soccer personal juice script
+      - name: Run nhl personal juice script
         run: |
-          python scripts/nhl_juiced.py
+          python scripts/juice_nhl.py
+
+      - name: Run nba personal juice script
+        run: |
+          python scripts/juice_nba.py
 
       - name: Commit and push final files
         run: |
@@ -43,6 +47,8 @@ jobs:
           git add docs/win/final/final_soc_*.csv
           git add docs/win/final/final_ncaab_*.csv
           git add docs/win/final/final_nhl_*.csv
+          git add docs/win/final/final_nba_*.csv
+
 
           if git diff --cached --quiet; then
             echo "No changes to commit"
