@@ -42,6 +42,11 @@
       color: #555;
       font-size: 13px;
     }
+    .status {
+      margin-top: 15px;
+      font-size: 14px;
+      font-weight: 600;
+    }
   </style>
 </head>
 <body>
@@ -49,14 +54,13 @@
   <h1>DraftKings Text → CSV</h1>
 
   <label for="league">League</label>
-<select id="league">
-  <option value="">-- Select League --</option>
-  <option value="nhl">NHL</option>
-  <option value="nba">NBA</option>
-  <option value="ncaab">NCAAB</option>
-  <option value="soc">Soccer</option>
-</select>
-
+  <select id="league">
+    <option value="">-- Select League --</option>
+    <option value="nhl">NHL</option>
+    <option value="nba">NBA</option>
+    <option value="ncaab">NCAAB</option>
+    <option value="soc">Soccer</option>
+  </select>
 
   <label for="rawText">Paste DraftKings Text</label>
   <textarea id="rawText" placeholder="Paste the raw DK text block here exactly as copied..."></textarea>
@@ -64,13 +68,21 @@
   <button onclick="submitJob()">Generate CSV</button>
 
   <div class="note">
-    This submits the data to GitHub Actions. Processing takes ~10–20 seconds.
+    This submits the data to GitHub Actions. Processing typically takes 10–20 seconds.
   </div>
 
+  <div id="status" class="status"></div>
+
   <script>
+    const owner = "YOUR_GITHUB_USERNAME";
+    const repo = "YOUR_REPO_NAME";
+    const workflowFile = "dk_text_to_csv.yml";
+    const token = "YOUR_GITHUB_TOKEN"; // workflow + contents:write
+
     async function submitJob() {
       const league = document.getElementById("league").value;
       const rawText = document.getElementById("rawText").value;
+      const statusEl = document.getElementById("status");
 
       if (!league) {
         alert("Select a league.");
@@ -82,11 +94,8 @@
         return;
       }
 
-      const owner = "YOUR_GITHUB_USERNAME";
-      const repo = "YOUR_REPO_NAME";
-      const workflowFile = "dk_text_to_csv.yml";
-
-      const token = "YOUR_GITHUB_TOKEN"; // classic PAT or fine-grained with workflow + contents:write
+      const runId = Date.now().toString();
+      statusEl.textContent = "Submitting workflow…";
 
       const url = `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${workflowFile}/dispatches`;
 
@@ -100,16 +109,57 @@
           ref: "main",
           inputs: {
             league: league,
-            raw_text: rawText
+            raw_text: rawText,
+            run_id: runId
           }
         })
       });
 
       if (response.status === 204) {
-        alert("Workflow triggered successfully.");
+        statusEl.textContent = "Workflow started. Waiting for confirmation…";
+        pollStatus(runId);
       } else {
         const text = await response.text();
-        alert("Error triggering workflow:\n" + text);
+        statusEl.textContent = "Error triggering workflow.";
+        alert(text);
+      }
+    }
+
+    async function pollStatus(runId) {
+      const statusEl = document.getElementById("status");
+
+      try {
+        const url = `https://api.github.com/repos/${owner}/${repo}/actions/runs?event=workflow_dispatch`;
+        const res = await fetch(url, {
+          headers: {
+            "Accept": "application/vnd.github+json",
+            "Authorization": `Bearer ${token}`
+          }
+        });
+
+        const data = await res.json();
+
+        const run = data.workflow_runs.find(r =>
+          r.head_commit &&
+          r.head_commit.message &&
+          r.head_commit.message.includes(runId)
+        );
+
+        if (!run) {
+          setTimeout(() => pollStatus(runId), 4000);
+          return;
+        }
+
+        if (run.conclusion === "success") {
+          statusEl.textContent = "Success: CSV generated and committed.";
+        } else if (run.conclusion === "failure") {
+          statusEl.textContent = "Failure: workflow errored. Check Actions logs.";
+        } else {
+          statusEl.textContent = "Processing…";
+          setTimeout(() => pollStatus(runId), 4000);
+        }
+      } catch (err) {
+        statusEl.textContent = "Error checking workflow status.";
       }
     }
   </script>
