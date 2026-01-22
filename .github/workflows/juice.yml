@@ -31,6 +31,10 @@ jobs:
         run: |
           python scripts/ncaab_juiced.py
 
+      - name: Run soccer personal juice script
+        run: |
+          python scripts/nhl_juiced.py
+
       - name: Commit and push final files
         run: |
           git config user.name "github-actions"
@@ -38,10 +42,11 @@ jobs:
 
           git add docs/win/final/final_soc_*.csv
           git add docs/win/final/final_ncaab_*.csv
+          git add docs/win/final/final_nhl_*.csv
 
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "Build final soccer and ncaab odds with personal juice"
+            git commit -m "Build final odds with personal juice"
             git push
           fi
