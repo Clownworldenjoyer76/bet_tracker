@@ -19,8 +19,35 @@ def implied_win_probability(odds):
 def process_csv(path):
     df = pd.read_csv(path)
 
-    # Add or overwrite win_probability column
+    # Add or overwrite win_probability
     df["win_probability"] = df["odds"].apply(implied_win_probability)
+
+    # Define probability buckets
+    bins = [
+        0.0, 0.10, 0.20, 0.30, 0.40,
+        0.50, 0.60, 0.70, 0.80, 0.90, 1.00
+    ]
+
+    labels = [
+        "0–10%",
+        "10–20%",
+        "20–30%",
+        "30–40%",
+        "40–50%",
+        "50–60%",
+        "60–70%",
+        "70–80%",
+        "80–90%",
+        "90–100%"
+    ]
+
+    df["probability_bucket"] = pd.cut(
+        df["win_probability"],
+        bins=bins,
+        labels=labels,
+        include_lowest=True,
+        right=False
+    )
 
     df.to_csv(path, index=False)
 
