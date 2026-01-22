@@ -14,9 +14,7 @@ Rules:
 - Uses best_ou as market total
 - Select OVER or UNDER by higher probability
 - Skip if max(model_probability) < 0.55
-- Distance-weighted acceptable odds
-- Distance penalty = 0.08
-- Hard skip if acceptable_american_odds > +500
+- Totals odds are tightly bounded (market-realistic)
 """
 
 import csv
@@ -27,10 +25,11 @@ from datetime import datetime
 
 
 # --- CONFIG ---
-BASE_EDGE_BUFFER = 0.07
-DISTANCE_PENALTY = 0.08
 MIN_PROBABILITY = 0.55
-MAX_ACCEPTABLE_AMERICAN = 500
+
+# Totals markets do not price wide
+MIN_ACCEPTABLE_DECIMAL = 1.80   # ~ -125
+MAX_ACCEPTABLE_DECIMAL = 1.95   # ~ -105
 
 INPUT_DIR = Path("docs/win/edge")
 OUTPUT_DIR = Path("docs/win/ncaab")
@@ -52,14 +51,12 @@ def decimal_to_american(d: float) -> int:
     return int(round(-100 / (d - 1)))
 
 
-def acceptable_decimal(p: float, market_total: float, lam: float) -> float:
-    distance = abs(market_total - lam)
-    buffer = BASE_EDGE_BUFFER + DISTANCE_PENALTY * distance
-
-    # cap buffer so it can never exceed probability
-    buffer = min(buffer, p - 0.0001)
-
-    return 1.0 / (p - buffer)
+def acceptable_decimal_totals(fair_d: float) -> float:
+    """
+    Totals markets are tightly priced.
+    Acceptable odds are clamped to realistic bounds.
+    """
+    return min(max(fair_d, MIN_ACCEPTABLE_DECIMAL), MAX_ACCEPTABLE_DECIMAL)
 
 
 def main():
@@ -111,7 +108,7 @@ def main():
 
             sigma = sqrt(lam)
 
-            # continuity correction
+            # Continuity correction
             p_under = normal_cdf(market_total, lam, sigma)
             p_over = 1.0 - p_under
 
@@ -128,12 +125,8 @@ def main():
             fair_d = fair_decimal(p)
             fair_a = decimal_to_american(fair_d)
 
-            acc_d = acceptable_decimal(p, market_total, lam)
+            acc_d = acceptable_decimal_totals(fair_d)
             acc_a = decimal_to_american(acc_d)
-
-            # HARD SKIP: excessive pricing = no-bet
-            if acc_a > MAX_ACCEPTABLE_AMERICAN:
-                continue
 
             writer.writerow({
                 "date": row["date"],
