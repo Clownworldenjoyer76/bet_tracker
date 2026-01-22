@@ -1,4 +1,4 @@
-name: 09 Testing Win Probability Update
+name: Generate Probability Band Results
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ permissions:
   contents: write
 
 jobs:
-  update-win-probability:
+  generate-band-results:
     runs-on: ubuntu-latest
 
     steps:
@@ -24,14 +24,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install pandas
 
-      - name: Run win probability script
+      - name: Run band aggregation script
         run: |
-          python scripts/testing_win.py
+          python scripts/testing_band_results.py
 
-      - name: Commit updated CSVs
+      - name: Commit band output files
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          git add testing/csvs/*.csv
-          git commit -m "Add win_probability column to testing CSVs" || echo "No changes to commit"
+          git add testing/csvs/bands/*.csv
+          git commit -m "Add probability bucket win/loss summaries" || echo "No changes to commit"
           git push
