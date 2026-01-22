@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>DK Text → CSV</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      margin: 40px;
+      background: #f7f7f7;
+    }
+    h1 {
+      margin-bottom: 10px;
+    }
+    label {
+      display: block;
+      margin-top: 20px;
+      font-weight: 600;
+    }
+    select, textarea, button {
+      width: 100%;
+      margin-top: 8px;
+      padding: 10px;
+      font-size: 14px;
+    }
+    textarea {
+      height: 320px;
+      font-family: monospace;
+    }
+    button {
+      margin-top: 20px;
+      background: #24292f;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #000;
+    }
+    .note {
+      margin-top: 10px;
+      color: #555;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>DraftKings Text → CSV</h1>
+
+  <label for="league">League</label>
+  <select id="league">
+    <option value="">-- Select League --</option>
+    <option value="nhl">NHL</option>
+    <option value="nba">NBA</option>
+    <option value="ncaab">NCAAB</option>
+    <option value="soc">Soccer</option>
+  </select>
+
+  <label for="rawText">Paste DraftKings Text</label>
+  <textarea id="rawText" placeholder="Paste the raw DK text block here exactly as copied..."></textarea>
+
+  <button onclick="submitJob()">Generate CSV</button>
+
+  <div class="note">
+    This submits the data to GitHub Actions. Processing takes ~10–20 seconds.
+  </div>
+
+  <script>
+    async function submitJob() {
+      const league = document.getElementById("league").value;
+      const rawText = document.getElementById("rawText").value;
+
+      if (!league) {
+        alert("Select a league.");
+        return;
+      }
+
+      if (!rawText.trim()) {
+        alert("Paste the DraftKings text.");
+        return;
+      }
+
+      const owner = "YOUR_GITHUB_USERNAME";
+      const repo = "YOUR_REPO_NAME";
+      const workflowFile = "dk_text_to_csv.yml";
+
+      const token = "YOUR_GITHUB_TOKEN"; // classic PAT or fine-grained with workflow + contents:write
+
+      const url = `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${workflowFile}/dispatches`;
+
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Accept": "application/vnd.github+json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          ref: "main",
+          inputs: {
+            league: league,
+            raw_text: rawText
+          }
+        })
+      });
+
+      if (response.status === 204) {
+        alert("Workflow triggered successfully.");
+      } else {
+        const text = await response.text();
+        alert("Error triggering workflow:\n" + text);
+      }
+    }
+  </script>
+
+</body>
+</html>
