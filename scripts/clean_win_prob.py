@@ -17,8 +17,6 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 # ============================================================
 # ======================= SOCCER =============================
 # ============================================================
-# ⚠️ DO NOT MODIFY — BEHAVIOR PRESERVED ⚠️
-# ============================================================
 
 SOCCER_LEAGUE = "soc"
 
@@ -81,33 +79,26 @@ def run_soccer():
             if not row or (not row[1] and not row[2] and not row[4]):
                 continue
 
-            # Column 0: Time (date + time)
             dt_lines = str(row[0]).splitlines() if row[0] else []
             date = dt_lines[0] if len(dt_lines) > 0 else ""
             time = dt_lines[1] if len(dt_lines) > 1 else ""
 
-            # Column 1: Teams
             teams = str(row[1]).splitlines() if row[1] else []
             team_a = strip_team(teams[0]) if len(teams) > 0 else ""
             team_b = strip_team(teams[1]) if len(teams) > 1 else ""
 
-            # Column 2: Win %
             wins = str(row[2]).splitlines() if row[2] else []
             win_a = pct_to_decimal(wins[0]) if len(wins) > 0 else ""
             win_b = pct_to_decimal(wins[1]) if len(wins) > 1 else ""
 
-            # Column 3: Draw %
             draw = pct_to_decimal(row[3]) if len(row) > 3 else ""
 
-            # Column 4: Goals
             goals = str(row[4]).splitlines() if len(row) > 4 and row[4] else []
             goals_a = goals[0] if len(goals) > 0 else ""
             goals_b = goals[1] if len(goals) > 1 else ""
 
-            # Column 5: Total Goals
             total_goals = row[5] if len(row) > 5 and row[5] is not None else ""
 
-            # Column 6: Best O/U (may be missing)
             best_ou_raw = row[6] if len(row) > 6 else ""
             best_ou = parse_best_ou(best_ou_raw)
 
@@ -241,7 +232,7 @@ def run_nhl():
             writer.writerows(output_rows)
 
 # ============================================================
-# ======================= NBA (STRICT) =======================
+# ======================= NBA (UPDATED) ======================
 # ============================================================
 
 NBA_LEAGUE = "nba"
@@ -251,7 +242,10 @@ NBA_HEADERS = [
     "time",
     "team",
     "opponent",
+    "points",
+    "total_points",
     "win_probability",
+    "best_ou",
     "league",
 ]
 
@@ -272,40 +266,45 @@ def run_nba():
             data_rows.pop()
 
         output_rows = []
-
         file_date = ""
+
         for row in data_rows:
-            dt_lines = str(row[0]).splitlines() if row and len(row) > 0 and row[0] else []
+            dt_lines = str(row[0]).splitlines() if row and row[0] else []
             date = dt_lines[0] if len(dt_lines) > 0 else ""
             time = dt_lines[1] if len(dt_lines) > 1 else ""
 
             if date and not file_date:
                 file_date = datetime.strptime(date, "%m/%d/%Y").strftime("%Y-%m-%d")
 
-            teams = str(row[1]).splitlines() if row and len(row) > 1 and row[1] else []
+            teams = str(row[1]).splitlines() if row and row[1] else []
             team_a = strip_team(teams[0]) if len(teams) > 0 else ""
             team_b = strip_team(teams[1]) if len(teams) > 1 else ""
 
-            wins = str(row[2]).splitlines() if row and len(row) > 2 and row[2] else []
+            wins = str(row[2]).splitlines() if row and row[2] else []
             win_a = pct_to_decimal(wins[0]) if len(wins) > 0 else ""
             win_b = pct_to_decimal(wins[1]) if len(wins) > 1 else ""
 
+            points = str(row[5]).splitlines() if len(row) > 5 and row[5] else []
+            pts_a = points[0] if len(points) > 0 else ""
+            pts_b = points[1] if len(points) > 1 else ""
+
+            total_points = row[6] if len(row) > 6 else ""
+            best_ou = parse_best_ou(row[7]) if len(row) > 7 else ""
+
             output_rows.append([
-                date,
-                time,
-                team_a,
-                team_b,
-                win_a,
-                NBA_LEAGUE,
+                date, time,
+                team_a, team_b,
+                pts_a, total_points,
+                win_a, best_ou,
+                NBA_LEAGUE
             ])
 
             output_rows.append([
-                date,
-                time,
-                team_b,
-                team_a,
-                win_b,
-                NBA_LEAGUE,
+                date, time,
+                team_b, team_a,
+                pts_b, total_points,
+                win_b, best_ou,
+                NBA_LEAGUE
             ])
 
         if not output_rows:
