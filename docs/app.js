@@ -257,11 +257,15 @@ async function loadNCAABDaily(selectedDate) {
   const [yyyy, mm, dd] = selectedDate.split("-");
   const d = `${yyyy}_${mm}_${dd}`;
 
-  const url = `${RAW_BASE}/docs/win/final/final_ncaab_${d}.csv`;
+  const finalUrl = `${RAW_BASE}/docs/win/final/final_ncaab_${d}.csv`;
+  const totalsUrl = `${RAW_BASE}/docs/win/ncaab/edge_ncaab_totals_${d}.csv`;
 
   let rows = [];
+  let totals = [];
+
   try {
-    rows = parseCSV(await fetchText(url));
+    rows = parseCSV(await fetchText(finalUrl));
+    totals = parseCSV(await fetchText(totalsUrl));
   } catch {
     setStatus("No NCAAB file found for this date.");
     return;
@@ -270,6 +274,11 @@ async function loadNCAABDaily(selectedDate) {
   if (!rows.length) {
     setStatus("No NCAAB games found for this date.");
     return;
+  }
+
+  const totalsByGame = new Map();
+  for (const t of totals) {
+    totalsByGame.set(t.game_id, t);
   }
 
   const games = new Map();
@@ -283,15 +292,16 @@ async function loadNCAABDaily(selectedDate) {
     games.get(r.game_id).push(r);
   }
 
-  order.sort((a, b) =>
-    timeToMinutes(games.get(a)?.[0]?.time) -
-    timeToMinutes(games.get(b)?.[0]?.time)
+  order.sort(
+    (a, b) =>
+      timeToMinutes(games.get(a)?.[0]?.time) -
+      timeToMinutes(games.get(b)?.[0]?.time)
   );
 
-  renderNCAABGames(order, games);
+  renderNCAABGames(order, games, totalsByGame);
 }
 
-function renderNCAABGames(order, games) {
+function renderNCAABGames(order, games, totalsByGame) {
   const container = document.getElementById("games");
 
   for (const gid of order) {
@@ -300,6 +310,12 @@ function renderNCAABGames(order, games) {
 
     const a = rows[0];
     const b = rows[1];
+    const totals = totalsByGame.get(gid) || {};
+
+    const ouClass =
+      totals.side && totals.side !== "NO PLAY"
+        ? mlClassFromProb(totals.model_probability)
+        : "no-play";
 
     const box = document.createElement("div");
     box.className = "game-box";
@@ -309,6 +325,7 @@ function renderNCAABGames(order, games) {
         ${escapeHtml(a.team)} vs ${escapeHtml(b.team)}
         <span class="cell-muted"> — ${escapeHtml(a.time)}</span>
       </div>
+
       <table class="game-grid">
         <thead>
           <tr>
@@ -338,6 +355,16 @@ function renderNCAABGames(order, games) {
               ${escapeHtml(b.personally_acceptable_american_odds)}
             </td>
           </tr>
+          ${totals.game_id ? `
+          <tr class="ou-row">
+            <td><strong>${escapeHtml(totals.side || "O/U")}</strong></td>
+            <td>${formatPct(totals.model_probability)}</td>
+            <td></td>
+            <td>${escapeHtml(totals.best_ou)}</td>
+            <td class="${ouClass}">
+              ${escapeHtml(totals.acceptable_american_odds)}
+            </td>
+          </tr>` : ""}
         </tbody>
       </table>
     `;
@@ -345,3 +372,4 @@ function renderNCAABGames(order, games) {
     container.appendChild(box);
   }
 }
+
