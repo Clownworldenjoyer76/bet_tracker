@@ -78,29 +78,38 @@ def run_soccer():
         output_rows = []
 
         for row in data_rows:
-            if not row[1] and not row[2] and not row[5]:
+            if not row or (not row[1] and not row[2] and not row[4]):
                 continue
 
+            # Column 0: Time (date + time)
             dt_lines = str(row[0]).splitlines() if row[0] else []
             date = dt_lines[0] if len(dt_lines) > 0 else ""
             time = dt_lines[1] if len(dt_lines) > 1 else ""
 
+            # Column 1: Teams
             teams = str(row[1]).splitlines() if row[1] else []
             team_a = strip_team(teams[0]) if len(teams) > 0 else ""
             team_b = strip_team(teams[1]) if len(teams) > 1 else ""
 
+            # Column 2: Win %
             wins = str(row[2]).splitlines() if row[2] else []
             win_a = pct_to_decimal(wins[0]) if len(wins) > 0 else ""
             win_b = pct_to_decimal(wins[1]) if len(wins) > 1 else ""
 
-            draw = pct_to_decimal(row[3])
+            # Column 3: Draw %
+            draw = pct_to_decimal(row[3]) if len(row) > 3 else ""
 
-            goals = str(row[5]).splitlines() if row[5] else []
+            # Column 4: Goals
+            goals = str(row[4]).splitlines() if len(row) > 4 and row[4] else []
             goals_a = goals[0] if len(goals) > 0 else ""
             goals_b = goals[1] if len(goals) > 1 else ""
 
-            total_goals = row[6] if row[6] is not None else ""
-            best_ou = parse_best_ou(row[7])
+            # Column 5: Total Goals
+            total_goals = row[5] if len(row) > 5 and row[5] is not None else ""
+
+            # Column 6: Best O/U (may be missing)
+            best_ou_raw = row[6] if len(row) > 6 else ""
+            best_ou = parse_best_ou(best_ou_raw)
 
             output_rows.append([
                 date, time,
@@ -131,6 +140,9 @@ def run_soccer():
                 "draw",
                 SOCCER_LEAGUE
             ])
+
+        if not output_rows:
+            continue
 
         file_date = datetime.strptime(
             data_rows[0][0].splitlines()[0],
@@ -181,7 +193,6 @@ def run_nhl():
             if not any(row):
                 continue
 
-            # Column 0: Time (date + time)
             dt_lines = str(row[0]).splitlines() if row[0] else []
             date = dt_lines[0] if len(dt_lines) > 0 else ""
             time = dt_lines[1] if len(dt_lines) > 1 else ""
@@ -189,22 +200,18 @@ def run_nhl():
             if date and not file_date:
                 file_date = datetime.strptime(date, "%m/%d/%Y").strftime("%Y-%m-%d")
 
-            # Column 1: Teams
             teams = str(row[1]).splitlines() if row[1] else []
             team_a = strip_team(teams[0]) if len(teams) > 0 else ""
             team_b = strip_team(teams[1]) if len(teams) > 1 else ""
 
-            # Column 2: Win %
             wins = str(row[2]).splitlines() if row[2] else []
             win_a = pct_to_decimal(wins[0]) if len(wins) > 0 else ""
             win_b = pct_to_decimal(wins[1]) if len(wins) > 1 else ""
 
-            # Column 3: Goals
             goals = str(row[3]).splitlines() if row[3] else []
             goals_a = goals[0] if len(goals) > 0 else ""
             goals_b = goals[1] if len(goals) > 1 else ""
 
-            # Column 4: Total Goals
             total_goals = row[4] if row[4] is not None else ""
 
             output_rows.append([
@@ -261,7 +268,6 @@ def run_nba():
 
         data_rows = rows[1:]
 
-        # Skip fully blank trailing rows only (do not skip any other rows)
         while data_rows and (not data_rows[-1] or not any(data_rows[-1])):
             data_rows.pop()
 
@@ -269,14 +275,11 @@ def run_nba():
 
         file_date = ""
         for row in data_rows:
-            # No conditional skipping: process every remaining row
-
             dt_lines = str(row[0]).splitlines() if row and len(row) > 0 and row[0] else []
             date = dt_lines[0] if len(dt_lines) > 0 else ""
             time = dt_lines[1] if len(dt_lines) > 1 else ""
 
             if date and not file_date:
-                # filename date derived from first available date
                 file_date = datetime.strptime(date, "%m/%d/%Y").strftime("%Y-%m-%d")
 
             teams = str(row[1]).splitlines() if row and len(row) > 1 and row[1] else []
