@@ -393,11 +393,11 @@ def run_ncaab():
             win_b = round_prob(pct_to_decimal(wins[1]))
 
             points = str(row[3]).splitlines() if len(row) > 3 and row[3] else []
-pts_a = points[0] if len(points) > 0 else ""
-pts_b = points[1] if len(points) > 1 else ""
+            pts_a = points[0] if len(points) > 0 else ""
+            pts_b = points[1] if len(points) > 1 else ""
 
-total_points = row[4] if len(row) > 4 and row[4] is not None else ""
-best_ou = parse_best_ou_ncaab(row[5]) if len(row) > 5 else ""
+            total_points = row[4] if len(row) > 4 and row[4] is not None else ""
+            best_ou = parse_best_ou_ncaab(row[5]) if len(row) > 5 else ""
 
 
             output_rows.append([
