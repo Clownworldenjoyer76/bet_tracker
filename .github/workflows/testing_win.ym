@@ -1,0 +1,37 @@
+name: 09 Testing Win Probability Update
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-win-probability:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas
+
+      - name: Run win probability script
+        run: |
+          python scripts/testing_win.py
+
+      - name: Commit updated CSVs
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add testing/csvs/*.csv
+          git commit -m "Add win_probability column to testing CSVs" || echo "No changes to commit"
+          git push
