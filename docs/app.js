@@ -102,6 +102,23 @@ function mlClassFromProb(p) {
   return "ml-pink";
 }
 
+/* ===== TIME SORTING (AM/PM AWARE) ===== */
+
+function timeToMinutes(t) {
+  if (!t) return 0;
+  const m = t.match(/(\d+):(\d+)\s*(AM|PM)/i);
+  if (!m) return 0;
+
+  let h = Number(m[1]);
+  const min = Number(m[2]);
+  const ap = m[3].toUpperCase();
+
+  if (ap === "PM" && h !== 12) h += 12;
+  if (ap === "AM" && h === 12) h = 0;
+
+  return h * 60 + min;
+}
+
 /* ================= SOCCER ================= */
 
 async function loadSoccerDaily(selectedDate) {
@@ -145,6 +162,11 @@ async function loadSoccerDaily(selectedDate) {
     }
     games.get(r.game_id).push(r);
   }
+
+  order.sort((a, b) =>
+    timeToMinutes(games.get(a)?.[0]?.time) -
+    timeToMinutes(games.get(b)?.[0]?.time)
+  );
 
   renderSoccerGames(order, games, totalsByGame);
 }
@@ -260,6 +282,11 @@ async function loadNCAABDaily(selectedDate) {
     }
     games.get(r.game_id).push(r);
   }
+
+  order.sort((a, b) =>
+    timeToMinutes(games.get(a)?.[0]?.time) -
+    timeToMinutes(games.get(b)?.[0]?.time)
+  );
 
   renderNCAABGames(order, games);
 }
