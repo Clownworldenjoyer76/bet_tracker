@@ -20,32 +20,34 @@ def american_to_decimal(american: int) -> float:
     return 1 + (100 / abs(american))
 
 
+
 def personal_edge_pct(prob: float) -> float:
     """
     Returns personal juice as a percentage (e.g. 0.20 = 20%)
     applied multiplicatively to acceptable_decimal_odds.
+    NCAAB v1.2 — all-time data aligned
     """
-    if prob >= 0.85:
-        return 0.30
+
     if prob >= 0.75:
-        return 0.25
+        return 0.25   # ↓ reduced from 0.30
     if prob >= 0.70:
-        return 0.25
+        return 0.20   # ↓ reduced from 0.25
     if prob >= 0.65:
-        return 0.25
+        return 0.15   # ↓ reduced from 0.25
     if prob >= 0.60:
-        return 0.10   # CHANGED (was 0.15)
+        return 0.10   # unchanged
     if prob >= 0.55:
-        return 0.05   # CHANGED (was 0.10)
+        return 0.05   # unchanged (best-performing zone)
     if prob >= 0.50:
-        return 0.10
+        return 0.05   # ↓ reduced from 0.10
     if prob >= 0.45:
-        return 0.20
+        return 0.15   # ↓ reduced from 0.20
     if prob >= 0.40:
-        return 0.30
+        return 0.25   # ↓ reduced from 0.30
     if prob >= 0.35:
-        return 0.40
-    return 0.75
+        return 0.35   # ↓ reduced from 0.40
+    return 0.75       # unchanged (extreme tail protection)
+
 
 
 def process_file(path: Path):
@@ -75,7 +77,7 @@ def process_file(path: Path):
             if base_american < 0 and personal_american > 120:
                 personal_american = 120
 
-            # RULE 3: cap extreme longshots
+            # RULE 2: cap extreme longshots
             if p < 0.10 and personal_american > 2500:
                 personal_american = 2500
 
@@ -83,6 +85,7 @@ def process_file(path: Path):
             writer.writerow(row)
 
     print(f"Created {output_path}")
+
 
 
 def main():
