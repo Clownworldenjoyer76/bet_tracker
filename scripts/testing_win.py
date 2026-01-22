@@ -3,54 +3,46 @@
 import os
 import pandas as pd
 
-CSV_DIR = "testing/csvs"
+INPUT_DIR = "testing/csvs"
+OUTPUT_DIR = "testing/csvs/bands"
 
 
-def implied_win_probability(odds):
-    try:
-        odds = float(odds)
-        if odds <= 0:
-            return None
-        return 1.0 / odds
-    except (ValueError, TypeError):
-        return None
-
-
-def process_csv(path):
+def process_csv(path, output_path):
     df = pd.read_csv(path)
 
-    # Add or overwrite win_probability
-    df["win_probability"] = df["odds"].apply(implied_win_probability)
+    # Normalize status just in case
+    df["status"] = df["status"].str.strip()
 
-    # Create ~3% probability buckets
-    step = 0.03
-    bins = [round(i * step, 4) for i in range(int(1 / step) + 1)]
-    if bins[-1] < 1.0:
-        bins.append(1.0)
-
-    labels = [
-        f"{int(bins[i] * 100)}–{int(bins[i + 1] * 100)}%"
-        for i in range(len(bins) - 1)
-    ]
-
-    df["probability_bucket"] = pd.cut(
-        df["win_probability"],
-        bins=bins,
-        labels=labels,
-        include_lowest=True,
-        right=False
+    # Aggregate wins and losses by probability bucket
+    grouped = (
+        df.groupby("probability_bucket")["status"]
+        .value_counts()
+        .unstack(fill_value=0)
+        .rename(columns={"Win": "wins", "Loss": "losses"})
     )
 
-    df.to_csv(path, index=False)
+    # Ensure both columns exist
+    if "wins" not in grouped.columns:
+        grouped["wins"] = 0
+    if "losses" not in grouped.columns:
+        grouped["losses"] = 0
+
+    grouped["total_bets"] = grouped["wins"] + grouped["losses"]
+
+    grouped.reset_index().to_csv(output_path, index=False)
 
 
 def main():
-    if not os.path.isdir(CSV_DIR):
-        raise FileNotFoundError(f"Directory not found: {CSV_DIR}")
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-    for filename in os.listdir(CSV_DIR):
-        if filename.lower().endswith(".csv"):
-            process_csv(os.path.join(CSV_DIR, filename))
+    for filename in os.listdir(INPUT_DIR):
+        if not filename.lower().endswith(".csv"):
+            continue
+
+        input_path = os.path.join(INPUT_DIR, filename)
+        output_path = os.path.join(OUTPUT_DIR, filename)
+
+        process_csv(input_path, output_path)
 
 
 if __name__ == "__main__":
