@@ -4,75 +4,105 @@ on:
   workflow_dispatch:
     inputs:
       league:
+        description: "nba | ncaab | nhl | soc"
         required: true
         type: string
       raw_text:
+        description: "Raw DraftKings text block"
         required: true
         type: string
+
+permissions:
+  contents: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
       - name: Validate league
+        shell: bash
         run: |
           case "${{ inputs.league }}" in
             nba|ncaab|nhl|soc) ;;
             *) echo "invalid league"; exit 1 ;;
           esac
 
-      - name: Write input
+      - name: Parse and write CSV
+        env:
+          LEAGUE: ${{ inputs.league }}
+          RAW_TEXT: ${{ inputs.raw_text }}
+        shell: bash
         run: |
           mkdir -p docs/win/manual
-          cat <<EOF > raw.txt
-${{ inputs.raw_text }}
-EOF
-
-      - name: Parse DK text
-        run: |
-          python3 <<'EOF'
-          import csv
+          python3 - <<'PY'
+          import os, csv
           from datetime import datetime
 
-          league = "${{ inputs.league }}"
-          out = f"docs/win/manual/dk_{league}_{datetime.now().strftime('%Y_%m_%d')}.csv"
+          league = os.environ["LEAGUE"].strip()
+          raw = os.environ.get("RAW_TEXT", "")
 
-          with open("raw.txt") as f:
-              lines = [l.strip().replace("opens in a new tab","") for l in f if l.strip()]
+          # normalize lines
+          lines = []
+          for l in raw.splitlines():
+              s = l.strip()
+              if not s:
+                  continue
+              s = s.replace("opens in a new tab", "").strip()
+              if s:
+                  lines.append(s)
+
+          out_path = f"docs/win/manual/dk_{league}_{datetime.now().strftime('%Y_%m_%d')}.csv"
 
           rows = []
           i = 0
-
           while i < len(lines):
               if "@" not in lines[i]:
                   i += 1
                   continue
 
-              away, home = [x.strip() for x in lines[i].split("@")]
-              date, time = [x.strip() for x in lines[i+1].split(",")]
-              i += 6  # header labels
+              away, home = [x.strip() for x in lines[i].split("@", 1)]
+              date_str, time_str = [x.strip() for x in lines[i + 1].split(",", 1)]
+              i += 2
 
-              t1, o1, h1, b1 = lines[i:i+4]
-              t2, o2, h2, b2 = lines[i+4:i+8]
+              # required labels (consume, do not skip blindly)
+              need = ["Moneyline", "Odds", "% Handle", "% Bets"]
+              for want in need:
+                  if i >= len(lines) or lines[i] != want:
+                      raise SystemExit(f"format error: expected {want}, got {lines[i] if i < len(lines) else 'EOF'}")
+                  i += 1
 
-              rows.append([date, time, t1, away, o1, h1[:-1], b1[:-1], league])
-              rows.append([date, time, t2, home, o2, h2[:-1], b2[:-1], league])
+              # two team blocks: team, odds, handle%, bets%
+              if i + 7 >= len(lines):
+                  raise SystemExit("format error: incomplete team block")
 
+              team1, odds1, handle1, bets1 = lines[i:i+4]
+              team2, odds2, handle2, bets2 = lines[i+4:i+8]
               i += 8
 
-          with open(out, "w", newline="") as f:
+              handle1 = handle1.replace("%","")
+              bets1   = bets1.replace("%","")
+              handle2 = handle2.replace("%","")
+              bets2   = bets2.replace("%","")
+
+              # DK lists home team first in your examples
+              rows.append([date_str, time_str, team1, away, odds1, handle1, bets1, league])
+              rows.append([date_str, time_str, team2, home, odds2, handle2, bets2, league])
+
+          with open(out_path, "w", newline="") as f:
               w = csv.writer(f)
               w.writerow(["date","time","team","opponent","odds","handle_pct","bets_pct","league"])
               w.writerows(rows)
-          EOF
 
-      - name: Commit
+          print(out_path)
+          PY
+
+      - name: Commit CSV
+        shell: bash
         run: |
-          git config user.name github-actions
-          git config user.email github-actions@github.com
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
           git add docs/win/manual/*.csv
-          git commit -m "Add DK CSV" || true
+          git commit -m "Add DK manual CSV" || true
           git push
