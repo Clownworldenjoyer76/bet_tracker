@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """
-Build Soccer Totals Edge File (Market-Anchored)
+Build Soccer Totals Evaluation File (Model-Anchored)
 
-Contract:
-- Use best_ou as the ONLY total line
-- Decide OVER / UNDER / NO PLAY
-- No game is ever dropped
+Rules:
+- No live market odds assumed
+- Use best_ou as the comparison total
+- OVER if model total > best_ou
+- UNDER if model total < best_ou
+- NO PLAY if best_ou missing/invalid or totals equal
+- Price every valid game
 """
 
 import csv
@@ -16,22 +19,19 @@ from datetime import datetime
 from collections import defaultdict
 
 # -----------------------------
-# PARAMETERS (EXPLICIT)
+# PARAMETERS
 # -----------------------------
 EDGE_BUFFER_TOTALS = 0.035
-
-MIN_EDGE = 0.055
-MIN_SIDE_PROB = 0.54
-MIN_LAM = 1.1
-MAX_LAM = 4.2
 
 HOME_MULT = 1.10
 AWAY_MULT = 0.90
 
+MIN_LAM = 0.5
+MAX_LAM = 6.0
+
 INPUT_DIR = Path("docs/win/clean")
 OUTPUT_DIR = Path("docs/win/soc")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-
 
 # -----------------------------
 # MATH HELPERS
@@ -52,7 +52,6 @@ def decimal_to_american(d: float) -> int:
 
 def acceptable_decimal(p: float) -> float:
     return 1.0 / max(p - EDGE_BUFFER_TOTALS, 0.0001)
-
 
 # -----------------------------
 # MAIN
@@ -98,7 +97,8 @@ def main():
         writer.writeheader()
 
         for game_id, rows in games.items():
-            # invariant: expect two rows, otherwise emit NO PLAY
+
+            # Require exactly two teams
             if len(rows) != 2:
                 writer.writerow({
                     "game_id": game_id,
@@ -122,36 +122,39 @@ def main():
             date = rows[0]["date"]
             time = rows[0]["time"]
 
+            market_total_raw = rows[0].get("best_ou", "")
             side = "NO PLAY"
             p_selected = None
-            market_total = rows[0].get("best_ou", "")
+
+            try:
+                market_total = float(market_total_raw)
+            except (ValueError, TypeError):
+                market_total = ""
 
             try:
                 lam_total = (
                     float(rows[0]["goals"]) * AWAY_MULT +
                     float(rows[1]["goals"]) * HOME_MULT
                 )
-            except ValueError:
+            except (ValueError, TypeError):
                 lam_total = None
 
-            if lam_total is not None and MIN_LAM <= lam_total <= MAX_LAM:
-                try:
-                    market_total = float(market_total)
-                    cutoff = int(market_total - 0.5)
+            if (
+                lam_total is not None
+                and market_total != ""
+                and MIN_LAM <= lam_total <= MAX_LAM
+            ):
+                cutoff = int(market_total - 0.5)
 
-                    p_under = poisson_cdf(cutoff, lam_total)
-                    p_over = 1.0 - p_under
-                    edge = abs(p_over - p_under)
+                p_under = poisson_cdf(cutoff, lam_total)
+                p_over = 1.0 - p_under
 
-                    if edge >= MIN_EDGE:
-                        if p_over >= MIN_SIDE_PROB and p_over > p_under:
-                            side = "OVER"
-                            p_selected = p_over
-                        elif p_under >= MIN_SIDE_PROB and p_under > p_over:
-                            side = "UNDER"
-                            p_selected = p_under
-                except ValueError:
-                    pass
+                if lam_total > market_total:
+                    side = "OVER"
+                    p_selected = p_over
+                elif lam_total < market_total:
+                    side = "UNDER"
+                    p_selected = p_under
 
             if p_selected is not None:
                 fair_d = fair_decimal(p_selected)
