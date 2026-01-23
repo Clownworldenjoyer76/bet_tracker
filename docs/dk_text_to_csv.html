@@ -1,69 +1,87 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>DK Text → CSV</title>
+  <meta charset="UTF-8" />
+  <title>DK Text to CSV</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 24px; }
+    label { display:block; margin-top: 14px; font-weight: 600; }
+    select, input, textarea, button { width: 100%; box-sizing: border-box; padding: 10px; margin-top: 6px; }
+    textarea { height: 320px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+    button { margin-top: 14px; cursor: pointer; }
+    pre { background:#111; color:#eee; padding:12px; white-space:pre-wrap; word-break:break-word; }
+  </style>
 </head>
 <body>
 
-<h2>DraftKings Text → CSV</h2>
+  <h2>DraftKings Text → CSV</h2>
 
-<label>League</label><br>
-<select id="league">
-  <option value="">-- select --</option>
-  <option value="nhl">nhl</option>
-  <option value="nba">nba</option>
-  <option value="ncaab">ncaab</option>
-  <option value="soc">soc</option>
-</select><br><br>
+  <label for="league">League (lowercase)</label>
+  <select id="league">
+    <option value="">-- select --</option>
+    <option value="nhl">nhl</option>
+    <option value="nba">nba</option>
+    <option value="ncaab">ncaab</option>
+    <option value="soc">soc</option>
+  </select>
 
-<label>GitHub Token (classic PAT)</label><br>
-<input type="password" id="token"><br><br>
+  <label for="token">GitHub Token (classic PAT)</label>
+  <input id="token" type="password" placeholder="ghp_..." />
 
-<label>Raw DK Text</label><br>
-<textarea id="raw" rows="18" cols="80"></textarea><br><br>
+  <label for="raw">Raw DK text</label>
+  <textarea id="raw" placeholder="Paste the DK text block here..."></textarea>
 
-<button onclick="run()">Generate CSV</button>
+  <button id="btn" onclick="dispatch()">Run workflow</button>
 
-<pre id="out"></pre>
+  <pre id="out"></pre>
 
-<script>
-const owner = "Clownworldenjoyer76";
-const repo  = "bet_tracker";
-const workflowFile = "dk_text_to_csv.yml";
+  <script>
+    const OWNER = "Clownworldenjoyer76";
+    const REPO  = "bet_tracker";
+    const WORKFLOW_FILE = "dk_text_to_csv.yml";
+    const REF = "main";
 
-async function run() {
-  const league = document.getElementById("league").value;
-  const token  = document.getElementById("token").value.trim();
-  const raw    = document.getElementById("raw").value;
-  const out    = document.getElementById("out");
+    async function dispatch() {
+      const league = document.getElementById("league").value.trim();
+      const token  = document.getElementById("token").value.trim();
+      const raw    = document.getElementById("raw").value;
+      const out    = document.getElementById("out");
+      const btn    = document.getElementById("btn");
 
-  if (!league || !token || !raw) {
-    alert("Missing input");
-    return;
-  }
+      out.textContent = "";
 
-  const res = await fetch(
-    `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${workflowFile}/dispatches`,
-    {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${token}`,
-        "Accept": "application/vnd.github+json"
-      },
-      body: JSON.stringify({
-        ref: "main",
-        inputs: {
-          league: league,
-          raw_text: raw
-        }
-      })
+      if (!league) { out.textContent = "ERROR: league required"; return; }
+      if (!token)  { out.textContent = "ERROR: token required"; return; }
+      if (!raw.trim()) { out.textContent = "ERROR: raw text required"; return; }
+
+      btn.disabled = true;
+      btn.textContent = "Submitting...";
+
+      try {
+        const url = `https://api.github.com/repos/${OWNER}/${REPO}/actions/workflows/${WORKFLOW_FILE}/dispatches`;
+        const res = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Accept": "application/vnd.github+json",
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            ref: REF,
+            inputs: { league: league, raw_text: raw }
+          })
+        });
+
+        const text = await res.text();
+        out.textContent = `HTTP ${res.status}\n${text || ""}`;
+      } catch (e) {
+        out.textContent = `ERROR: ${String(e)}`;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Run workflow";
+      }
     }
-  );
-
-  out.textContent = `status: ${res.status}`;
-}
-</script>
+  </script>
 
 </body>
 </html>
