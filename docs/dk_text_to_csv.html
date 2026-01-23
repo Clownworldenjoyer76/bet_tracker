@@ -17,7 +17,7 @@
       margin-top: 20px;
       font-weight: 600;
     }
-    select, textarea, button {
+    select, textarea, input, button {
       width: 100%;
       margin-top: 8px;
       padding: 10px;
@@ -62,8 +62,22 @@
     <option value="soc">Soccer</option>
   </select>
 
+  <label for="token">GitHub Token (Classic PAT)</label>
+  <input
+    type="password"
+    id="token"
+    placeholder="ghp_********************************"
+  />
+
+  <div class="note">
+    Token is used once per submission and is not stored.
+  </div>
+
   <label for="rawText">Paste DraftKings Text</label>
-  <textarea id="rawText" placeholder="Paste the raw DK text block here exactly as copied..."></textarea>
+  <textarea
+    id="rawText"
+    placeholder="Paste the raw DK text block here exactly as copied..."
+  ></textarea>
 
   <button onclick="submitJob()">Generate CSV</button>
 
@@ -77,15 +91,20 @@
     const owner = "Clownworldenjoyer76";
     const repo = "bet_tracker";
     const workflowFile = "dk_text_to_csv.yml";
-    const token = "XXXXXX"; // workflow + contents:write
 
     async function submitJob() {
       const league = document.getElementById("league").value;
       const rawText = document.getElementById("rawText").value;
+      const token = document.getElementById("token").value.trim();
       const statusEl = document.getElementById("status");
 
       if (!league) {
         alert("Select a league.");
+        return;
+      }
+
+      if (!token) {
+        alert("Enter your GitHub token.");
         return;
       }
 
@@ -117,7 +136,7 @@
 
       if (response.status === 204) {
         statusEl.textContent = "Workflow started. Waiting for confirmation…";
-        pollStatus(runId);
+        pollStatus(runId, token);
       } else {
         const text = await response.text();
         statusEl.textContent = "Error triggering workflow.";
@@ -125,7 +144,7 @@
       }
     }
 
-    async function pollStatus(runId) {
+    async function pollStatus(runId, token) {
       const statusEl = document.getElementById("status");
 
       try {
@@ -146,7 +165,7 @@
         );
 
         if (!run) {
-          setTimeout(() => pollStatus(runId), 4000);
+          setTimeout(() => pollStatus(runId, token), 4000);
           return;
         }
 
@@ -156,7 +175,7 @@
           statusEl.textContent = "Failure: workflow errored. Check Actions logs.";
         } else {
           statusEl.textContent = "Processing…";
-          setTimeout(() => pollStatus(runId), 4000);
+          setTimeout(() => pollStatus(runId, token), 4000);
         }
       } catch (err) {
         statusEl.textContent = "Error checking workflow status.";
