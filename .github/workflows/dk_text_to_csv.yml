@@ -52,88 +52,44 @@ EOF
           with open("raw.txt") as f:
               raw_lines = [l.strip() for l in f if l.strip()]
 
-          # normalize noise
           lines = [l.replace("opens in a new tab", "").strip() for l in raw_lines]
 
           rows = []
           i = 0
 
           while i < len(lines):
-              # detect game header
               if "@" not in lines[i]:
                   i += 1
                   continue
 
               away, home = [x.strip() for x in lines[i].split("@")]
               date_str, time_str = [x.strip() for x in lines[i + 1].split(",")]
-
               i += 2
 
-              # labeled section (no blind skipping)
-              if lines[i] != "Moneyline":
-                  raise ValueError(f"Expected 'Moneyline', got '{lines[i]}'")
-              i += 1
+              if lines[i] != "Moneyline": raise ValueError(lines[i]); i += 1
+              if lines[i] != "Odds": raise ValueError(lines[i]); i += 1
+              if lines[i] != "% Handle": raise ValueError(lines[i]); i += 1
+              if lines[i] != "% Bets": raise ValueError(lines[i]); i += 1
 
-              if lines[i] != "Odds":
-                  raise ValueError(f"Expected 'Odds', got '{lines[i]}'")
-              i += 1
+              team1 = lines[i]; odds1 = lines[i+1]
+              handle1 = lines[i+2].replace("%","")
+              bets1 = lines[i+3].replace("%","")
 
-              if lines[i] != "% Handle":
-                  raise ValueError(f"Expected '% Handle', got '{lines[i]}'")
-              i += 1
+              team2 = lines[i+4]; odds2 = lines[i+5]
+              handle2 = lines[i+6].replace("%","")
+              bets2 = lines[i+7].replace("%","")
 
-              if lines[i] != "% Bets":
-                  raise ValueError(f"Expected '% Bets', got '{lines[i]}'")
-              i += 1
+              rows.append([date_str, time_str, team1, away, odds1, handle1, bets1, LEAGUE])
+              rows.append([date_str, time_str, team2, home, odds2, handle2, bets2, LEAGUE])
 
-              # DK lists HOME team first
-              team1 = lines[i]; i += 1
-              odds1 = lines[i]; i += 1
-              handle1 = lines[i].replace("%", ""); i += 1
-              bets1 = lines[i].replace("%", ""); i += 1
-
-              team2 = lines[i]; i += 1
-              odds2 = lines[i]; i += 1
-              handle2 = lines[i].replace("%", ""); i += 1
-              bets2 = lines[i].replace("%", ""); i += 1
-
-              rows.append([
-                  date_str,
-                  time_str,
-                  team1,
-                  away,
-                  odds1,
-                  handle1,
-                  bets1,
-                  LEAGUE
-              ])
-
-              rows.append([
-                  date_str,
-                  time_str,
-                  team2,
-                  home,
-                  odds2,
-                  handle2,
-                  bets2,
-                  LEAGUE
-              ])
+              i += 8
 
           with open(OUT, "w", newline="") as f:
               writer = csv.writer(f)
               writer.writerow([
-                  "date",
-                  "time",
-                  "team",
-                  "opponent",
-                  "odds",
-                  "handle_pct",
-                  "bets_pct",
-                  "league"
+                  "date","time","team","opponent","odds","handle_pct","bets_pct","league"
               ])
               writer.writerows(rows)
-
-          print(f"Wrote {len(rows)} rows to {OUT}")
           EOF
 
       - name: Commit CSV
@@ -141,5 +97,5 @@ EOF
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git add docs/win/manual/*.csv
-          git commit -m "Add DK manual CSV (${{ inputs.league }}) ${{ inputs.run_id }}" || echo "Nothing to commit"
+          git commit -m "Add DK manual CSV (${{ inputs.league }}) ${{ inputs.run_id }}" || true
           git push
