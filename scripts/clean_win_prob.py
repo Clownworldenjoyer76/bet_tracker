@@ -340,7 +340,7 @@ def run_nba():
             pts_a = points[0] if len(points) > 0 else ""
             pts_b = points[1] if len(points) > 1 else ""
 
-            best_ou = parse_best_ou(row[5]) if len(row) > 5 else ""
+            best_ou = f"{int(float(parse_best_ou(row[5])))}.5" if len(row) > 5 and row[5] else ""
             total_points = best_ou  # λ for totals model
 
             output_rows.append([
