@@ -226,7 +226,7 @@ def run_nhl():
             goals_a = goals[0] if len(goals) > 0 else ""
             goals_b = goals[1] if len(goals) > 1 else ""
 
-            total_goals = row[4] if row[4] is not None else ""
+            total_goals = f"{int(float(row[4]))}.5" if row[4] is not None else ""
 
             # NEW: extract best O/U (adjust index if your dump differs)
             best_ou = parse_best_ou_nhl(row[5]) if len(row) > 5 else ""
