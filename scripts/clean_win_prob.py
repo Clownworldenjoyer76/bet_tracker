@@ -161,8 +161,31 @@ NHL_HEADERS = [
     "goals",
     "total_goals",
     "win_probability",
+    "best_ou",
     "league",
 ]
+
+
+def parse_best_ou_nhl(value):
+    """
+    Parse NHL totals like:
+    5.5
+    6.0
+    o6.5 -110
+    u5.5
+    """
+    if value is None:
+        return ""
+
+    s = str(value).lower()
+    nums = re.findall(r"\d+\.?\d*", s)
+    if not nums:
+        return ""
+
+    try:
+        return float(nums[0])
+    except ValueError:
+        return ""
 
 
 def run_nhl():
@@ -205,11 +228,15 @@ def run_nhl():
 
             total_goals = row[4] if row[4] is not None else ""
 
+            # NEW: extract best O/U (adjust index if your dump differs)
+            best_ou = parse_best_ou_nhl(row[5]) if len(row) > 5 else ""
+
             output_rows.append([
                 date, time,
                 team_a, team_b,
                 goals_a, total_goals,
                 win_a,
+                best_ou,
                 NHL_LEAGUE
             ])
 
@@ -218,6 +245,7 @@ def run_nhl():
                 team_b, team_a,
                 goals_b, total_goals,
                 win_b,
+                best_ou,
                 NHL_LEAGUE
             ])
 
@@ -230,6 +258,7 @@ def run_nhl():
             writer = csv.writer(f)
             writer.writerow(NHL_HEADERS)
             writer.writerows(output_rows)
+
 
 # ============================================================
 # ======================= NBA (UPDATED) ======================
