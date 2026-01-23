@@ -9,6 +9,9 @@ on:
       raw_text:
         description: "Raw DraftKings text block"
         required: true
+      run_id:
+        description: "Frontend run identifier"
+        required: true
 
 jobs:
   build_csv:
@@ -38,7 +41,6 @@ jobs:
         run: |
           python3 << 'EOF'
           import csv
-          import re
           from datetime import datetime
 
           LEAGUE = "${{ inputs.league }}"
@@ -59,14 +61,14 @@ jobs:
                   continue
 
               away, home = [x.strip() for x in lines[i].split("@")]
-              date_str, time_str = lines[i+1].split(",")
+              date_str, time_str = lines[i + 1].split(",")
               i += 5  # skip headers
 
               for _ in range(2):
                   team = lines[i]
-                  odds = lines[i+1]
-                  handle = lines[i+2].replace("%", "")
-                  bets = lines[i+3].replace("%", "")
+                  odds = lines[i + 1]
+                  handle = lines[i + 2].replace("%", "")
+                  bets = lines[i + 3].replace("%", "")
 
                   opponent = home if team == away else away
 
@@ -104,7 +106,5 @@ jobs:
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git add docs/win/manual/*.csv
-          git commit -m "Add DK manual CSV (${{
-            inputs.league
-          }})" || echo "Nothing to commit"
+          git commit -m "Add DK manual CSV (${{ inputs.league }}) run:${{ inputs.run_id }}" || echo "Nothing to commit"
           git push
