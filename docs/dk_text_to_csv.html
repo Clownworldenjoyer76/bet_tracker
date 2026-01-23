@@ -3,185 +3,75 @@
 <head>
   <meta charset="UTF-8" />
   <title>DK Text → CSV</title>
-  <style>
-    body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-      margin: 40px;
-      background: #f7f7f7;
-    }
-    h1 {
-      margin-bottom: 10px;
-    }
-    label {
-      display: block;
-      margin-top: 20px;
-      font-weight: 600;
-    }
-    select, textarea, input, button {
-      width: 100%;
-      margin-top: 8px;
-      padding: 10px;
-      font-size: 14px;
-    }
-    textarea {
-      height: 320px;
-      font-family: monospace;
-    }
-    button {
-      margin-top: 20px;
-      background: #24292f;
-      color: #fff;
-      border: none;
-      cursor: pointer;
-    }
-    button:hover {
-      background: #000;
-    }
-    .note {
-      margin-top: 10px;
-      color: #555;
-      font-size: 13px;
-    }
-    .status {
-      margin-top: 15px;
-      font-size: 14px;
-      font-weight: 600;
-    }
-  </style>
 </head>
 <body>
 
-  <h1>DraftKings Text → CSV</h1>
+<h1>DraftKings Text → CSV</h1>
 
-  <label for="league">League</label>
-  <select id="league">
-    <option value="">-- Select League --</option>
-    <option value="nhl">NHL</option>
-    <option value="nba">NBA</option>
-    <option value="ncaab">NCAAB</option>
-    <option value="soc">Soccer</option>
-  </select>
+<label>League</label>
+<select id="league">
+  <option value="">-- Select League --</option>
+  <option value="nhl">NHL</option>
+  <option value="nba">NBA</option>
+  <option value="ncaab">NCAAB</option>
+  <option value="soc">Soccer</option>
+</select>
 
-  <label for="token">GitHub Token (Classic PAT)</label>
-  <input
-    type="password"
-    id="token"
-    placeholder="ghp_********************************"
-  />
+<label>GitHub Token (Classic PAT)</label>
+<input type="password" id="token" />
 
-  <div class="note">
-    Token is used once per submission and is not stored.
-  </div>
+<label>Paste DraftKings Text</label>
+<textarea id="rawText" rows="15"></textarea>
 
-  <label for="rawText">Paste DraftKings Text</label>
-  <textarea
-    id="rawText"
-    placeholder="Paste the raw DK text block here exactly as copied..."
-  ></textarea>
+<button onclick="submitJob()">Generate CSV</button>
 
-  <button onclick="submitJob()">Generate CSV</button>
+<pre id="status"></pre>
 
-  <div class="note">
-    This submits the data to GitHub Actions. Processing typically takes 10–20 seconds.
-  </div>
+<script>
+const owner = "Clownworldenjoyer76";
+const repo = "bet_tracker";
 
-  <div id="status" class="status"></div>
+/*
+CRITICAL FIX:
+Use WORKFLOW ID, not filename.
+This avoids GitHub returning 422 even when workflow_dispatch exists.
+*/
+const workflowId = "dk_text_to_csv"; // <-- workflow ID (no .yml)
 
-  <script>
-    const owner = "Clownworldenjoyer76";
-    const repo = "bet_tracker";
-    const workflowFile = "dk_text_to_csv.yml";
+async function submitJob() {
+  const league = document.getElementById("league").value;
+  const token = document.getElementById("token").value.trim();
+  const rawText = document.getElementById("rawText").value;
+  const status = document.getElementById("status");
 
-    async function submitJob() {
-      const league = document.getElementById("league").value;
-      const rawText = document.getElementById("rawText").value;
-      const token = document.getElementById("token").value.trim();
-      const statusEl = document.getElementById("status");
+  if (!league || !token || !rawText) {
+    alert("Missing input");
+    return;
+  }
 
-      if (!league) {
-        alert("Select a league.");
-        return;
-      }
-
-      if (!token) {
-        alert("Enter your GitHub token.");
-        return;
-      }
-
-      if (!rawText.trim()) {
-        alert("Paste the DraftKings text.");
-        return;
-      }
-
-      const runId = Date.now().toString();
-      statusEl.textContent = "Submitting workflow…";
-
-      const url = `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${workflowFile}/dispatches`;
-
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Accept": "application/vnd.github+json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          ref: "main",
-          inputs: {
-            league: league,
-            raw_text: rawText,
-            run_id: runId
-          }
-        })
-      });
-
-      if (response.status === 204) {
-        statusEl.textContent = "Workflow started. Waiting for confirmation…";
-        pollStatus(runId, token);
-      } else {
-        const text = await response.text();
-        statusEl.textContent = "Error triggering workflow.";
-        alert(text);
-      }
-    }
-
-    async function pollStatus(runId, token) {
-      const statusEl = document.getElementById("status");
-
-      try {
-        const url = `https://api.github.com/repos/${owner}/${repo}/actions/runs?event=workflow_dispatch`;
-        const res = await fetch(url, {
-          headers: {
-            "Accept": "application/vnd.github+json",
-            "Authorization": `Bearer ${token}`
-          }
-        });
-
-        const data = await res.json();
-
-        const run = data.workflow_runs.find(r =>
-          r.head_commit &&
-          r.head_commit.message &&
-          r.head_commit.message.includes(runId)
-        );
-
-        if (!run) {
-          setTimeout(() => pollStatus(runId, token), 4000);
-          return;
+  const res = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${workflowId}/dispatches`,
+    {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Accept": "application/vnd.github+json"
+      },
+      body: JSON.stringify({
+        ref: "main",
+        inputs: {
+          league,
+          raw_text: rawText,
+          run_id: Date.now().toString()
         }
-
-        if (run.conclusion === "success") {
-          statusEl.textContent = "Success: CSV generated and committed.";
-        } else if (run.conclusion === "failure") {
-          statusEl.textContent = "Failure: workflow errored. Check Actions logs.";
-        } else {
-          statusEl.textContent = "Processing…";
-          setTimeout(() => pollStatus(runId, token), 4000);
-        }
-      } catch (err) {
-        statusEl.textContent = "Error checking workflow status.";
-      }
+      })
     }
-  </script>
+  );
+
+  const text = await res.text();
+  status.textContent = `status=${res.status}\n${text}`;
+}
+</script>
 
 </body>
 </html>
