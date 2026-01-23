@@ -283,7 +283,7 @@ def parse_best_ou(raw):
     Parse strings like:
     o229½-110
     u237-110
-    → 229.5 / 237.0
+    → 229.5 / 237.5
     """
     if not raw:
         return ""
@@ -297,7 +297,7 @@ def parse_best_ou(raw):
     s = s.replace("½", ".5")   # half points
 
     try:
-        return float(s)
+        return f"{int(float(s))}.5"
     except ValueError:
         return ""
 
@@ -313,35 +313,37 @@ def run_nba():
         rows = list(ws.iter_rows(values_only=True))
 
         data_rows = rows[1:]
-
-        while data_rows and (not data_rows[-1] or not any(data_rows[-1])):
-            data_rows.pop()
-
         output_rows = []
         file_date = ""
 
         for row in data_rows:
-            dt_lines = str(row[0]).splitlines() if row and row[0] else []
-            date = dt_lines[0] if len(dt_lines) > 0 else ""
-            time = dt_lines[1] if len(dt_lines) > 1 else ""
+            if not row or not row[0] or not row[1]:
+                continue
 
-            if date and not file_date:
+            dt_lines = str(row[0]).splitlines()
+            if len(dt_lines) < 2:
+                continue
+
+            date = dt_lines[0]
+            time = dt_lines[1]
+
+            if not file_date:
                 file_date = datetime.strptime(date, "%m/%d/%Y").strftime("%Y-%m-%d")
 
-            teams = str(row[1]).splitlines() if row and row[1] else []
-            team_a = strip_team(teams[0]) if len(teams) > 0 else ""
-            team_b = strip_team(teams[1]) if len(teams) > 1 else ""
+            teams = str(row[1]).splitlines()
+            team_a = strip_team(teams[0])
+            team_b = strip_team(teams[1])
 
-            wins = str(row[2]).splitlines() if row and row[2] else []
-            win_a = pct_to_decimal(wins[0]) if len(wins) > 0 else ""
-            win_b = pct_to_decimal(wins[1]) if len(wins) > 1 else ""
+            wins = str(row[2]).splitlines()
+            win_a = pct_to_decimal(wins[0])
+            win_b = pct_to_decimal(wins[1])
 
-            points = str(row[5]).splitlines() if len(row) > 5 and row[5] else []
+            points = str(row[3]).splitlines() if len(row) > 3 and row[3] else []
             pts_a = points[0] if len(points) > 0 else ""
             pts_b = points[1] if len(points) > 1 else ""
 
-            best_ou = f"{int(float(parse_best_ou(row[5])))}.5" if len(row) > 5 and row[5] else ""
-            total_points = best_ou  # λ for totals model
+            total_points = row[4] if len(row) > 4 and row[4] is not None else ""
+            best_ou = parse_best_ou(row[5]) if len(row) > 5 else ""
 
             output_rows.append([
                 date, time,
@@ -362,15 +364,13 @@ def run_nba():
         if not output_rows:
             continue
 
-        if not file_date:
-            raise ValueError(f"NBA clean: could not determine file date from {path.name}")
-
         out_path = OUTPUT_DIR / f"win_prob__clean_{NBA_LEAGUE}_{file_date}.csv"
 
         with out_path.open("w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
             writer.writerow(NBA_HEADERS)
             writer.writerows(output_rows)
+
 
 # ============================================================
 # ======================= NCAAB ===============================
