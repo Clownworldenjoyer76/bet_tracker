@@ -11,7 +11,7 @@ on:
         required: true
       run_id:
         description: "Frontend run identifier"
-        required: true
+        required: false
 
 jobs:
   build_csv:
@@ -34,8 +34,8 @@ jobs:
       - name: Write raw text to file
         run: |
           cat << 'EOF' > raw.txt
-          ${{ inputs.raw_text }}
-          EOF
+${{ inputs.raw_text }}
+EOF
 
       - name: Parse DK text and build CSV
         run: |
@@ -47,42 +47,75 @@ jobs:
           OUT = f"docs/win/manual/dk_{LEAGUE}_{datetime.now().strftime('%Y_%m_%d')}.csv"
 
           with open("raw.txt") as f:
-              lines = [l.strip() for l in f if l.strip()]
+              raw_lines = [l.strip() for l in f if l.strip()]
 
-          # remove noise
-          lines = [l.replace("opens in a new tab", "").strip() for l in lines]
+          # normalize noise
+          lines = [l.replace("opens in a new tab", "").strip() for l in raw_lines]
 
           rows = []
           i = 0
 
           while i < len(lines):
+              # game header
               if "@" not in lines[i]:
                   i += 1
                   continue
 
               away, home = [x.strip() for x in lines[i].split("@")]
-              date_str, time_str = lines[i + 1].split(",")
-              i += 5  # skip headers
+              date_str, time_str = [x.strip() for x in lines[i + 1].split(",")]
 
-              for _ in range(2):
-                  team = lines[i]
-                  odds = lines[i + 1]
-                  handle = lines[i + 2].replace("%", "")
-                  bets = lines[i + 3].replace("%", "")
+              i += 2
 
-                  opponent = home if team == away else away
+              # labeled section (do not skip blindly)
+              if lines[i] != "Moneyline":
+                  raise ValueError(f"Expected 'Moneyline', got '{lines[i]}'")
+              i += 1
 
-                  rows.append([
-                      date_str.strip(),
-                      time_str.strip(),
-                      team,
-                      opponent,
-                      odds,
-                      handle,
-                      bets,
-                      LEAGUE
-                  ])
-                  i += 4
+              if lines[i] != "Odds":
+                  raise ValueError(f"Expected 'Odds', got '{lines[i]}'")
+              i += 1
+
+              if lines[i] != "% Handle":
+                  raise ValueError(f"Expected '% Handle', got '{lines[i]}'")
+              i += 1
+
+              if lines[i] != "% Bets":
+                  raise ValueError(f"Expected '% Bets', got '{lines[i]}'")
+              i += 1
+
+              # team 1 (DK lists HOME team first)
+              team1 = lines[i]; i += 1
+              odds1 = lines[i]; i += 1
+              handle1 = lines[i].replace("%", ""); i += 1
+              bets1 = lines[i].replace("%", ""); i += 1
+
+              # team 2
+              team2 = lines[i]; i += 1
+              odds2 = lines[i]; i += 1
+              handle2 = lines[i].replace("%", ""); i += 1
+              bets2 = lines[i].replace("%", ""); i += 1
+
+              rows.append([
+                  date_str,
+                  time_str,
+                  team1,
+                  away,
+                  odds1,
+                  handle1,
+                  bets1,
+                  LEAGUE
+              ])
+
+              rows.append([
+                  date_str,
+                  time_str,
+                  team2,
+                  home,
+                  odds2,
+                  handle2,
+                  bets2,
+                  LEAGUE
+              ])
 
           with open(OUT, "w", newline="") as f:
               writer = csv.writer(f)
@@ -106,5 +139,5 @@ jobs:
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git add docs/win/manual/*.csv
-          git commit -m "Add DK manual CSV (${{ inputs.league }}) run:${{ inputs.run_id }}" || echo "Nothing to commit"
+          git commit -m "Add DK manual CSV (${{ inputs.league }}) ${{ inputs.run_id }}" || echo "Nothing to commit"
           git push
