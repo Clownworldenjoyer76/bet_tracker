@@ -6,12 +6,15 @@ on:
       league:
         description: "league (nba | ncaab | nhl | soc)"
         required: true
+        type: string
       raw_text:
         description: "Raw DraftKings text block"
         required: true
+        type: string
       run_id:
         description: "Frontend run identifier"
         required: false
+        type: string
 
 jobs:
   build_csv:
@@ -56,7 +59,7 @@ EOF
           i = 0
 
           while i < len(lines):
-              # game header
+              # detect game header
               if "@" not in lines[i]:
                   i += 1
                   continue
@@ -66,7 +69,7 @@ EOF
 
               i += 2
 
-              # labeled section (do not skip blindly)
+              # labeled section (no blind skipping)
               if lines[i] != "Moneyline":
                   raise ValueError(f"Expected 'Moneyline', got '{lines[i]}'")
               i += 1
@@ -83,13 +86,12 @@ EOF
                   raise ValueError(f"Expected '% Bets', got '{lines[i]}'")
               i += 1
 
-              # team 1 (DK lists HOME team first)
+              # DK lists HOME team first
               team1 = lines[i]; i += 1
               odds1 = lines[i]; i += 1
               handle1 = lines[i].replace("%", ""); i += 1
               bets1 = lines[i].replace("%", ""); i += 1
 
-              # team 2
               team2 = lines[i]; i += 1
               odds2 = lines[i]; i += 1
               handle2 = lines[i].replace("%", ""); i += 1
