@@ -492,7 +492,7 @@ function renderNHLGames(order, games, totalsByGame) {
             <td><strong>${escapeHtml(a.team)}</strong></td>
             <td>${formatPct(a.win_probability)}</td>
             <td>${format2(a.goals)}</td>
-            <td>${escapeHtml(totals.market_total)}</td>
+            <td>${escapeHtml(totals.market_total || a.best_ou)}</td>
             <td class="${mlClassFromProb(a.win_probability)}">
               ${escapeHtml(a.personally_acceptable_american_odds)}
             </td>
