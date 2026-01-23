@@ -1,56 +1,50 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>DK Text → CSV</title>
 </head>
 <body>
 
-<h1>DraftKings Text → CSV</h1>
+<h2>DraftKings Text → CSV</h2>
 
-<label>League</label>
+<label>League</label><br>
 <select id="league">
-  <option value="">-- Select League --</option>
-  <option value="nhl">NHL</option>
-  <option value="nba">NBA</option>
-  <option value="ncaab">NCAAB</option>
-  <option value="soc">Soccer</option>
-</select>
+  <option value="">-- select --</option>
+  <option value="nhl">nhl</option>
+  <option value="nba">nba</option>
+  <option value="ncaab">ncaab</option>
+  <option value="soc">soc</option>
+</select><br><br>
 
-<label>GitHub Token (Classic PAT)</label>
-<input type="password" id="token" />
+<label>GitHub Token (classic PAT)</label><br>
+<input type="password" id="token"><br><br>
 
-<label>Paste DraftKings Text</label>
-<textarea id="rawText" rows="15"></textarea>
+<label>Raw DK Text</label><br>
+<textarea id="raw" rows="18" cols="80"></textarea><br><br>
 
-<button onclick="submitJob()">Generate CSV</button>
+<button onclick="run()">Generate CSV</button>
 
-<pre id="status"></pre>
+<pre id="out"></pre>
 
 <script>
 const owner = "Clownworldenjoyer76";
-const repo = "bet_tracker";
+const repo  = "bet_tracker";
+const workflowFile = "dk_text_to_csv.yml";
 
-/*
-CRITICAL FIX:
-Use WORKFLOW ID, not filename.
-This avoids GitHub returning 422 even when workflow_dispatch exists.
-*/
-const workflowId = "dk_text_to_csv"; // <-- workflow ID (no .yml)
-
-async function submitJob() {
+async function run() {
   const league = document.getElementById("league").value;
-  const token = document.getElementById("token").value.trim();
-  const rawText = document.getElementById("rawText").value;
-  const status = document.getElementById("status");
+  const token  = document.getElementById("token").value.trim();
+  const raw    = document.getElementById("raw").value;
+  const out    = document.getElementById("out");
 
-  if (!league || !token || !rawText) {
+  if (!league || !token || !raw) {
     alert("Missing input");
     return;
   }
 
   const res = await fetch(
-    `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${workflowId}/dispatches`,
+    `https://api.github.com/repos/${owner}/${repo}/actions/workflows/${workflowFile}/dispatches`,
     {
       method: "POST",
       headers: {
@@ -60,16 +54,14 @@ async function submitJob() {
       body: JSON.stringify({
         ref: "main",
         inputs: {
-          league,
-          raw_text: rawText,
-          run_id: Date.now().toString()
+          league: league,
+          raw_text: raw
         }
       })
     }
   );
 
-  const text = await res.text();
-  status.textContent = `status=${res.status}\n${text}`;
+  out.textContent = `status: ${res.status}`;
 }
 </script>
 
