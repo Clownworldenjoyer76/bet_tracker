@@ -528,6 +528,8 @@ function renderNHLGames(order, games, totalsByGame) {
 }
 /* ================= NBA ================= */
 
+/* ================= NBA ================= */
+
 async function loadNBADaily(selectedDate) {
   setStatus("");
   document.getElementById("games").innerHTML = "";
@@ -535,19 +537,33 @@ async function loadNBADaily(selectedDate) {
   const [yyyy, mm, dd] = selectedDate.split("-");
   const d = `${yyyy}_${mm}_${dd}`;
 
-  const url = `${RAW_BASE}/docs/win/final/final_nba_${d}.csv`;
+  const finalUrl = `${RAW_BASE}/docs/win/final/final_nba_${d}.csv`;
+  const totalsUrl = `${RAW_BASE}/docs/win/nba/edge_nba_totals_${d}.csv`;
 
   let rows = [];
+  let totals = [];
+
   try {
-    rows = parseCSV(await fetchText(url));
+    rows = parseCSV(await fetchText(finalUrl));
   } catch {
     setStatus("No NBA file found for this date.");
     return;
   }
 
+  try {
+    totals = parseCSV(await fetchText(totalsUrl));
+  } catch {
+    totals = [];
+  }
+
   if (!rows.length) {
     setStatus("No NBA games found for this date.");
     return;
+  }
+
+  const totalsByGame = new Map();
+  for (const t of totals) {
+    if (t.game_id) totalsByGame.set(t.game_id, t);
   }
 
   const games = new Map();
@@ -566,10 +582,10 @@ async function loadNBADaily(selectedDate) {
     timeToMinutes(games.get(b)?.[0]?.time)
   );
 
-  renderNBAGames(order, games);
+  renderNBAGames(order, games, totalsByGame);
 }
 
-function renderNBAGames(order, games) {
+function renderNBAGames(order, games, totalsByGame) {
   const container = document.getElementById("games");
 
   for (const gid of order) {
@@ -578,6 +594,15 @@ function renderNBAGames(order, games) {
 
     const a = rows[0];
     const b = rows[1];
+    const totals = totalsByGame.get(gid) || {};
+    const time = a.time || "";
+
+    const hasOU = !!totals.game_id;
+
+    const ouClass =
+      totals.side && totals.side !== "NO PLAY"
+        ? mlClassFromProb(totals.model_probability)
+        : "no-play";
 
     const box = document.createElement("div");
     box.className = "game-box";
@@ -585,7 +610,7 @@ function renderNBAGames(order, games) {
     box.innerHTML = `
       <div class="game-header">
         ${escapeHtml(a.team)} vs ${escapeHtml(b.team)}
-        <span class="cell-muted"> — ${escapeHtml(a.time)}</span>
+        ${time ? `<span class="cell-muted"> — ${escapeHtml(time)}</span>` : ""}
       </div>
 
       <table class="game-grid">
@@ -603,20 +628,34 @@ function renderNBAGames(order, games) {
             <td><strong>${escapeHtml(a.team)}</strong></td>
             <td>${formatPct(a.win_probability)}</td>
             <td>${format2(a.points)}</td>
-            <td>—</td>
+            <td>${hasOU ? escapeHtml(totals.market_total) : ""}</td>
             <td class="${mlClassFromProb(a.win_probability)}">
               ${escapeHtml(a.personally_acceptable_american_odds)}
             </td>
           </tr>
+
           <tr>
             <td><strong>${escapeHtml(b.team)}</strong></td>
             <td>${formatPct(b.win_probability)}</td>
             <td>${format2(b.points)}</td>
-            <td>—</td>
+            <td class="${hasOU && totals.side === "NO PLAY" ? "no-play" : ""}">
+              ${hasOU ? escapeHtml(totals.side) : ""}
+            </td>
             <td class="${mlClassFromProb(b.win_probability)}">
               ${escapeHtml(b.personally_acceptable_american_odds)}
             </td>
           </tr>
+
+          ${hasOU ? `
+          <tr class="draw-row">
+            <td><strong>O/U</strong></td>
+            <td></td>
+            <td></td>
+            <td class="${ouClass}">
+              ${escapeHtml(totals.acceptable_american_odds)}
+            </td>
+            <td></td>
+          </tr>` : ""}
         </tbody>
       </table>
     `;
@@ -624,4 +663,3 @@ function renderNBAGames(order, games) {
     container.appendChild(box);
   }
 }
-
