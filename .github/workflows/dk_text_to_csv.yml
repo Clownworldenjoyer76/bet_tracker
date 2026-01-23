@@ -16,6 +16,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
@@ -29,19 +30,24 @@ jobs:
 
       - name: Write raw text safely
         shell: bash
+        env:
+          RAW_TEXT: ${{ inputs.raw_text }}
         run: |
           mkdir -p docs/win/manual
-          printf '%s\n' "${{ inputs.raw_text }}" > raw.txt
+          printf '%s\n' "$RAW_TEXT" > raw.txt
 
       - name: Parse DK text and write CSV
         shell: bash
+        env:
+          LEAGUE: ${{ inputs.league }}
         run: |
           python3 <<'PY'
           import csv
           from datetime import datetime
+          import os
 
-          LEAGUE = "${{ inputs.league }}"
-          OUT = f"docs/win/manual/dk_{LEAGUE}_{datetime.now().strftime('%Y_%m_%d')}.csv"
+          league = os.environ["LEAGUE"]
+          out = f"docs/win/manual/dk_{league}_{datetime.now().strftime('%Y_%m_%d')}.csv"
 
           with open("raw.txt") as f:
               lines = [l.strip().replace("opens in a new tab","") for l in f if l.strip()]
@@ -66,10 +72,10 @@ jobs:
               t2, o2, h2, b2 = lines[i+4:i+8]
               i += 8
 
-              rows.append([date_str, time_str, t1, away, o1, h1[:-1], b1[:-1], LEAGUE])
-              rows.append([date_str, time_str, t2, home, o2, h2[:-1], b2[:-1], LEAGUE])
+              rows.append([date_str, time_str, t1, away, o1, h1.rstrip("%"), b1.rstrip("%"), league])
+              rows.append([date_str, time_str, t2, home, o2, h2.rstrip("%"), b2.rstrip("%"), league])
 
-          with open(OUT, "w", newline="") as f:
+          with open(out, "w", newline="") as f:
               w = csv.writer(f)
               w.writerow(["date","time","team","opponent","odds","handle_pct","bets_pct","league"])
               w.writerows(rows)
