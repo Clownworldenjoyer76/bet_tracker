@@ -4,55 +4,44 @@ on:
   workflow_dispatch:
     inputs:
       league:
-        description: "league (nba | ncaab | nhl | soc)"
         required: true
         type: string
       raw_text:
-        description: "Raw DraftKings text block"
         required: true
-        type: string
-      run_id:
-        description: "Frontend run identifier"
-        required: false
         type: string
 
 jobs:
-  build_csv:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Validate league
         run: |
           case "${{ inputs.league }}" in
             nba|ncaab|nhl|soc) ;;
-            *)
-              echo "Invalid league: ${{ inputs.league }}"
-              exit 1
-              ;;
+            *) echo "invalid league"; exit 1 ;;
           esac
 
-      - name: Write raw text to file
+      - name: Write input
         run: |
-          cat << 'EOF' > raw.txt
+          mkdir -p docs/win/manual
+          cat <<EOF > raw.txt
 ${{ inputs.raw_text }}
 EOF
 
-      - name: Parse DK text and build CSV
+      - name: Parse DK text
         run: |
-          python3 << 'EOF'
+          python3 <<'EOF'
           import csv
           from datetime import datetime
 
-          LEAGUE = "${{ inputs.league }}"
-          OUT = f"docs/win/manual/dk_{LEAGUE}_{datetime.now().strftime('%Y_%m_%d')}.csv"
+          league = "${{ inputs.league }}"
+          out = f"docs/win/manual/dk_{league}_{datetime.now().strftime('%Y_%m_%d')}.csv"
 
           with open("raw.txt") as f:
-              raw_lines = [l.strip() for l in f if l.strip()]
-
-          lines = [l.replace("opens in a new tab", "").strip() for l in raw_lines]
+              lines = [l.strip().replace("opens in a new tab","") for l in f if l.strip()]
 
           rows = []
           i = 0
@@ -63,39 +52,27 @@ EOF
                   continue
 
               away, home = [x.strip() for x in lines[i].split("@")]
-              date_str, time_str = [x.strip() for x in lines[i + 1].split(",")]
-              i += 2
+              date, time = [x.strip() for x in lines[i+1].split(",")]
+              i += 6  # header labels
 
-              if lines[i] != "Moneyline": raise ValueError(lines[i]); i += 1
-              if lines[i] != "Odds": raise ValueError(lines[i]); i += 1
-              if lines[i] != "% Handle": raise ValueError(lines[i]); i += 1
-              if lines[i] != "% Bets": raise ValueError(lines[i]); i += 1
+              t1, o1, h1, b1 = lines[i:i+4]
+              t2, o2, h2, b2 = lines[i+4:i+8]
 
-              team1 = lines[i]; odds1 = lines[i+1]
-              handle1 = lines[i+2].replace("%","")
-              bets1 = lines[i+3].replace("%","")
-
-              team2 = lines[i+4]; odds2 = lines[i+5]
-              handle2 = lines[i+6].replace("%","")
-              bets2 = lines[i+7].replace("%","")
-
-              rows.append([date_str, time_str, team1, away, odds1, handle1, bets1, LEAGUE])
-              rows.append([date_str, time_str, team2, home, odds2, handle2, bets2, LEAGUE])
+              rows.append([date, time, t1, away, o1, h1[:-1], b1[:-1], league])
+              rows.append([date, time, t2, home, o2, h2[:-1], b2[:-1], league])
 
               i += 8
 
-          with open(OUT, "w", newline="") as f:
-              writer = csv.writer(f)
-              writer.writerow([
-                  "date","time","team","opponent","odds","handle_pct","bets_pct","league"
-              ])
-              writer.writerows(rows)
+          with open(out, "w", newline="") as f:
+              w = csv.writer(f)
+              w.writerow(["date","time","team","opponent","odds","handle_pct","bets_pct","league"])
+              w.writerows(rows)
           EOF
 
-      - name: Commit CSV
+      - name: Commit
         run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
+          git config user.name github-actions
+          git config user.email github-actions@github.com
           git add docs/win/manual/*.csv
-          git commit -m "Add DK manual CSV (${{ inputs.league }}) ${{ inputs.run_id }}" || true
+          git commit -m "Add DK CSV" || true
           git push
