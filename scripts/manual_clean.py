@@ -10,7 +10,7 @@ Output:
 
 Behavior:
 - Normalize date and time columns
-- Rename team/opponent columns
+- Retain team/opponent semantics (no home/away inference)
 - Normalize odds minus sign
 - Convert handle/bets percentages to numeric decimals
 - Add market column
@@ -20,7 +20,6 @@ Behavior:
 
 from pathlib import Path
 import pandas as pd
-from datetime import datetime
 
 INPUT_DIR = Path("docs/win/manual")
 OUTPUT_DIR = INPUT_DIR / "cleaned"
@@ -53,17 +52,14 @@ def clean_file(path: Path):
     df["date"] = df["date"].apply(lambda x: normalize_date(x, year))
     df["time"] = df["time"].apply(normalize_time)
 
-    # Rename columns
-    df = df.rename(columns={
-        "team": "home_team",
-        "opponent": "away_team",
-    })
+    # Retain neutral team/opponent semantics
+    # (home/away cannot be inferred safely at this stage)
 
     # Odds normalization (unicode minus)
     df["odds"] = df["odds"].astype(str).str.replace("−", "-", regex=False)
 
     # Percent columns -> numeric decimals
-    for col in ["handle_pct", "bets_pct"]:
+    for col in ("handle_pct", "bets_pct"):
         df[col] = (
             df[col]
             .astype(str)
