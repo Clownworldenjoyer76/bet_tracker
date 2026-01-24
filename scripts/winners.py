@@ -2,12 +2,24 @@
 
 import csv
 from pathlib import Path
+from datetime import datetime
 
 FINAL_DIR = Path("docs/win/final")
-NORM_DIR = Path("docs/win/manual/normalized")
+MANUAL_DIR = Path("docs/win/manual/normalized")
 OUT_DIR = FINAL_DIR / "winners"
-
 OUT_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def parse_date(value):
+    if not value:
+        return None
+    value = value.strip()
+    for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%m/%d/%y"):
+        try:
+            return datetime.strptime(value, fmt).date()
+        except ValueError:
+            pass
+    return None
 
 
 def load_csv(path: Path):
@@ -15,120 +27,81 @@ def load_csv(path: Path):
         return list(csv.DictReader(f))
 
 
-def normalize_date(value: str) -> str:
-    """
-    Normalize dates like:
-    1/24/2026 or 01/24/2026  ->  2026-01-24
-    """
-    month, day, year = value.split("/")
-    return f"{year}-{month.zfill(2)}-{day.zfill(2)}"
-
-
-def make_key(row: dict):
-    """
-    Strict match key:
-    date, team, opponent, league
-    """
+def key_no_date(row):
     return (
-        normalize_date(row["date"].strip()),
         row["team"].strip(),
         row["opponent"].strip(),
         row["league"].strip(),
     )
 
 
-def american_odds_is_acceptable(final_odds: float, acceptable_odds: float) -> bool:
-    """
-    Returns True if final_odds is BETTER THAN OR EQUAL TO acceptable_odds
-    using correct American odds logic.
-    """
-    # Both positive (underdogs): higher is better
-    if final_odds > 0 and acceptable_odds > 0:
-        return final_odds >= acceptable_odds
-
-    # Both negative (favorites): closer to zero is better
-    if final_odds < 0 and acceptable_odds < 0:
-        return final_odds <= acceptable_odds
-
-    # Mixed signs: positive is always better than negative
-    return final_odds > acceptable_odds
-
-
 def main():
-    # ------------------------------------------------------------
-    # Load normalized rows indexed by normalized key
-    # ------------------------------------------------------------
-    norm_index = {}
+    # Load manual normalized rows into lookup (NO DATE IN KEY)
+    manual_lookup = {}
+    for path in MANUAL_DIR.glob("*.csv"):
+        for row in load_csv(path):
+            manual_lookup[key_no_date(row)] = row
 
-    for file in NORM_DIR.glob("*.csv"):
-        for row in load_csv(file):
-            key = make_key(row)
-            norm_index[key] = row
+    winners_by_date = {}
 
-    if not norm_index:
-        raise RuntimeError("No normalized rows loaded")
-
-    # ------------------------------------------------------------
-    # Process final files
-    # ------------------------------------------------------------
-    for file in FINAL_DIR.glob("final_*.csv"):
-        final_rows = load_csv(file)
+    for final_path in FINAL_DIR.glob("*.csv"):
+        final_rows = load_csv(final_path)
         if not final_rows:
             continue
 
-        winners = []
-
-        for row in final_rows:
-            key = make_key(row)
-            if key not in norm_index:
+        for frow in final_rows:
+            key = key_no_date(frow)
+            if key not in manual_lookup:
                 continue
 
-            norm = norm_index[key]
+            mrow = manual_lookup[key]
+
+            f_date = parse_date(frow["date"])
+            if not f_date:
+                continue
 
             try:
-                final_odds = float(row["odds"])
-                acceptable_odds = float(norm["personally_acceptable_american_odds"])
-                normalized_odds = float(norm["odds"])
+                final_odds = float(frow["odds"])
+                acceptable_odds = float(
+                    mrow["personally_acceptable_american_odds"]
+                )
             except (KeyError, ValueError):
                 continue
 
-            if american_odds_is_acceptable(final_odds, acceptable_odds):
-                winners.append({
-                    "date": row["date"],
-                    "time": row["time"],
-                    "team": row["team"],
-                    "opponent": row["opponent"],
-                    "win_probability": norm["win_probability"],
-                    "league": row["league"],
-                    "personally_acceptable_american_odds": acceptable_odds,
-                    "odds": normalized_odds,
-                })
+            # CORRECT AMERICAN ODDS COMPARISON
+            # More positive = better price
+            if final_odds < acceptable_odds:
+                winners_by_date.setdefault(f_date, []).append(
+                    {
+                        "Date": frow["date"],
+                        "Time": frow["time"],
+                        "Team": frow["team"],
+                        "Opponent": frow["opponent"],
+                        "win_probability": frow["win_probability"],
+                        "league": frow["league"],
+                        "personally_acceptable_american_odds": acceptable_odds,
+                        "Odds": final_odds,
+                    }
+                )
 
-        if not winners:
-            continue
-
-        # final_{league}_{YYYY}_{MM}_{DD}.csv
-        parts = file.stem.split("_")
-        year, month, day = parts[-3], parts[-2], parts[-1]
-
-        out_file = OUT_DIR / f"winners_{year}_{day}_{month}.csv"
-
-        with out_file.open("w", newline="", encoding="utf-8") as f:
+    for d, rows in winners_by_date.items():
+        out_path = OUT_DIR / f"winners_{d.year}_{d.day:02d}_{d.month:02d}.csv"
+        with out_path.open("w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(
                 f,
                 fieldnames=[
-                    "date",
-                    "time",
-                    "team",
-                    "opponent",
+                    "Date",
+                    "Time",
+                    "Team",
+                    "Opponent",
                     "win_probability",
                     "league",
                     "personally_acceptable_american_odds",
-                    "odds",
+                    "Odds",
                 ],
             )
             writer.writeheader()
-            writer.writerows(winners)
+            writer.writerows(rows)
 
 
 if __name__ == "__main__":
