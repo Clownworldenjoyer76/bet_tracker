@@ -1,0 +1,33 @@
+name: 08 Generate Winners
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  winners:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run winners script
+        run: |
+          python scripts/winners.py
+
+      - name: Commit winners CSVs
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+
+          git add docs/win/final/winners/*.csv
+          git commit -m "Add winners CSVs" || true
+          git push
