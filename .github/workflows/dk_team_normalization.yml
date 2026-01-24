@@ -1,0 +1,26 @@
+name: 05 DK_03 Team Name Normalization
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  normalize:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run DK team normalization
+        run: |
+          python3 scripts/dk_names.py
+
+      - name: Commit normalized files
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add docs/win/manual/normalized/*.csv
+          git commit -m "Normalize DK team names" || true
+          git push
