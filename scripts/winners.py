@@ -3,7 +3,6 @@
 import csv
 from pathlib import Path
 
-# Directories
 FINAL_DIR = Path("docs/win/final")
 NORM_DIR = Path("docs/win/manual/normalized")
 OUT_DIR = FINAL_DIR / "winners"
@@ -16,23 +15,49 @@ def load_csv(path: Path):
         return list(csv.DictReader(f))
 
 
+def normalize_date(value: str) -> str:
+    """
+    Normalize dates like:
+    1/24/2026 or 01/24/2026  ->  2026-01-24
+    """
+    month, day, year = value.split("/")
+    return f"{year}-{month.zfill(2)}-{day.zfill(2)}"
+
+
 def make_key(row: dict):
     """
-    Match strictly on:
+    Strict match key:
     date, team, opponent, league
     """
     return (
-        row["date"],
-        row["team"],
-        row["opponent"],
-        row["league"],
+        normalize_date(row["date"].strip()),
+        row["team"].strip(),
+        row["opponent"].strip(),
+        row["league"].strip(),
     )
 
 
+def american_odds_is_acceptable(final_odds: float, acceptable_odds: float) -> bool:
+    """
+    Returns True if final_odds is BETTER THAN OR EQUAL TO acceptable_odds
+    using correct American odds logic.
+    """
+    # Both positive (underdogs): higher is better
+    if final_odds > 0 and acceptable_odds > 0:
+        return final_odds >= acceptable_odds
+
+    # Both negative (favorites): closer to zero is better
+    if final_odds < 0 and acceptable_odds < 0:
+        return final_odds <= acceptable_odds
+
+    # Mixed signs: positive is always better than negative
+    return final_odds > acceptable_odds
+
+
 def main():
-    # ------------------------------------------------------------------
-    # Load normalized data indexed by (date, team, opponent, league)
-    # ------------------------------------------------------------------
+    # ------------------------------------------------------------
+    # Load normalized rows indexed by normalized key
+    # ------------------------------------------------------------
     norm_index = {}
 
     for file in NORM_DIR.glob("*.csv"):
@@ -40,14 +65,13 @@ def main():
             key = make_key(row)
             norm_index[key] = row
 
-    # ------------------------------------------------------------------
-    # Process final files
-    # ------------------------------------------------------------------
-    for file in FINAL_DIR.glob("final_*.csv"):
-        # Skip any accidental files inside winners directory
-        if file.parent == OUT_DIR:
-            continue
+    if not norm_index:
+        raise RuntimeError("No normalized rows loaded")
 
+    # ------------------------------------------------------------
+    # Process final files
+    # ------------------------------------------------------------
+    for file in FINAL_DIR.glob("final_*.csv"):
         final_rows = load_csv(file)
         if not final_rows:
             continue
@@ -68,17 +92,13 @@ def main():
             except (KeyError, ValueError):
                 continue
 
-            # ----------------------------------------------------------
-            # EXACT CONDITION:
-            # final odds < personally acceptable odds
-            # ----------------------------------------------------------
-            if final_odds < acceptable_odds:
+            if american_odds_is_acceptable(final_odds, acceptable_odds):
                 winners.append({
                     "date": row["date"],
                     "time": row["time"],
                     "team": row["team"],
                     "opponent": row["opponent"],
-                    "win_probability": row["win_probability"],
+                    "win_probability": norm["win_probability"],
                     "league": row["league"],
                     "personally_acceptable_american_odds": acceptable_odds,
                     "odds": normalized_odds,
@@ -87,10 +107,7 @@ def main():
         if not winners:
             continue
 
-        # --------------------------------------------------------------
-        # Filename format: winners_{year}_{day}_{month}.csv
-        # Source: final_{year}_{month}_{day}.csv
-        # --------------------------------------------------------------
+        # final_{league}_{YYYY}_{MM}_{DD}.csv
         parts = file.stem.split("_")
         year, month, day = parts[-3], parts[-2], parts[-1]
 
