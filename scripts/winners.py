@@ -1,6 +1,9 @@
+#!/usr/bin/env python3
+
 import csv
 from pathlib import Path
 
+# Directories
 FINAL_DIR = Path("docs/win/final")
 NORM_DIR = Path("docs/win/manual/normalized")
 OUT_DIR = FINAL_DIR / "winners"
@@ -8,12 +11,16 @@ OUT_DIR = FINAL_DIR / "winners"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def load_csv(path):
-    with open(path, newline="", encoding="utf-8") as f:
+def load_csv(path: Path):
+    with path.open(newline="", encoding="utf-8") as f:
         return list(csv.DictReader(f))
 
 
-def make_key(row):
+def make_key(row: dict):
+    """
+    Match strictly on:
+    date, team, opponent, league
+    """
     return (
         row["date"],
         row["team"],
@@ -23,15 +30,24 @@ def make_key(row):
 
 
 def main():
-    # Load normalized rows indexed by date, team, opponent, league
+    # ------------------------------------------------------------------
+    # Load normalized data indexed by (date, team, opponent, league)
+    # ------------------------------------------------------------------
     norm_index = {}
 
     for file in NORM_DIR.glob("*.csv"):
         for row in load_csv(file):
-            norm_index[make_key(row)] = row
+            key = make_key(row)
+            norm_index[key] = row
 
+    # ------------------------------------------------------------------
     # Process final files
+    # ------------------------------------------------------------------
     for file in FINAL_DIR.glob("final_*.csv"):
+        # Skip any accidental files inside winners directory
+        if file.parent == OUT_DIR:
+            continue
+
         final_rows = load_csv(file)
         if not final_rows:
             continue
@@ -48,11 +64,14 @@ def main():
             try:
                 final_odds = float(row["odds"])
                 acceptable_odds = float(norm["personally_acceptable_american_odds"])
-                norm_odds = float(norm["odds"])
+                normalized_odds = float(norm["odds"])
             except (KeyError, ValueError):
                 continue
 
-            # EXACT CONDITION AS SPECIFIED
+            # ----------------------------------------------------------
+            # EXACT CONDITION:
+            # final odds < personally acceptable odds
+            # ----------------------------------------------------------
             if final_odds < acceptable_odds:
                 winners.append({
                     "date": row["date"],
@@ -62,18 +81,22 @@ def main():
                     "win_probability": row["win_probability"],
                     "league": row["league"],
                     "personally_acceptable_american_odds": acceptable_odds,
-                    "odds": norm_odds,
+                    "odds": normalized_odds,
                 })
 
         if not winners:
             continue
 
+        # --------------------------------------------------------------
+        # Filename format: winners_{year}_{day}_{month}.csv
+        # Source: final_{year}_{month}_{day}.csv
+        # --------------------------------------------------------------
         parts = file.stem.split("_")
         year, month, day = parts[-3], parts[-2], parts[-1]
 
         out_file = OUT_DIR / f"winners_{year}_{day}_{month}.csv"
 
-        with open(out_file, "w", newline="", encoding="utf-8") as f:
+        with out_file.open("w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(
                 f,
                 fieldnames=[
