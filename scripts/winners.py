@@ -8,13 +8,6 @@ OUT_DIR = FINAL_DIR / "winners"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def american_to_decimal(a):
-    a = float(a)
-    if a > 0:
-        return 1 + a / 100
-    return 1 + 100 / abs(a)
-
-
 def load_csv(path):
     with open(path, newline="", encoding="utf-8") as f:
         return list(csv.DictReader(f))
@@ -56,10 +49,8 @@ def main():
             except (KeyError, ValueError):
                 continue
 
-            dk_dec = american_to_decimal(dk_odds)
-            acceptable_dec = american_to_decimal(acceptable_odds)
-
-            if dk_dec >= acceptable_dec:
+            # SIMPLE NUMERIC COMPARISON — EXACTLY AS INSTRUCTED
+            if dk_odds >= acceptable_odds:
                 winners.append({
                     "date": row["date"],
                     "time": row["time"],
