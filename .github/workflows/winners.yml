@@ -1,4 +1,4 @@
-name: 08 Generate Winners
+name: Generate Winners
 
 on:
   workflow_dispatch:
@@ -24,10 +24,19 @@ jobs:
           python scripts/winners.py
 
       - name: Commit winners CSVs
+        shell: bash
         run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
 
-          git add docs/win/final/winners/*.csv
-          git commit -m "Add winners CSVs" || true
+          shopt -s nullglob
+          files=(docs/win/final/winners/*.csv)
+
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No winners CSVs to commit"
+            exit 0
+          fi
+
+          git add "${files[@]}"
+          git commit -m "Add winners CSVs"
           git push
