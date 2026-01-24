@@ -15,20 +15,22 @@ def load_csv(path):
 
 def make_key(row):
     return (
-        row["date"].strip(),
-        row["team"].strip(),
-        row["opponent"].strip(),
-        row["league"].strip(),
+        row["date"],
+        row["team"],
+        row["opponent"],
+        row["league"],
     )
 
 
 def main():
+    # Load normalized rows indexed by date, team, opponent, league
     norm_index = {}
 
     for file in NORM_DIR.glob("*.csv"):
         for row in load_csv(file):
             norm_index[make_key(row)] = row
 
+    # Process final files
     for file in FINAL_DIR.glob("final_*.csv"):
         final_rows = load_csv(file)
         if not final_rows:
@@ -37,20 +39,21 @@ def main():
         winners = []
 
         for row in final_rows:
-            k = make_key(row)
-            if k not in norm_index:
+            key = make_key(row)
+            if key not in norm_index:
                 continue
 
-            norm = norm_index[k]
+            norm = norm_index[key]
 
             try:
-                dk_odds = float(norm["odds"])
+                final_odds = float(row["odds"])
                 acceptable_odds = float(norm["personally_acceptable_american_odds"])
+                norm_odds = float(norm["odds"])
             except (KeyError, ValueError):
                 continue
 
-            # SIMPLE NUMERIC COMPARISON — EXACTLY AS INSTRUCTED
-            if dk_odds >= acceptable_odds:
+            # EXACT CONDITION AS SPECIFIED
+            if final_odds < acceptable_odds:
                 winners.append({
                     "date": row["date"],
                     "time": row["time"],
@@ -59,7 +62,7 @@ def main():
                     "win_probability": row["win_probability"],
                     "league": row["league"],
                     "personally_acceptable_american_odds": acceptable_odds,
-                    "odds": dk_odds,
+                    "odds": norm_odds,
                 })
 
         if not winners:
@@ -68,9 +71,9 @@ def main():
         parts = file.stem.split("_")
         year, month, day = parts[-3], parts[-2], parts[-1]
 
-        out_path = OUT_DIR / f"winners_{year}_{month}_{day}.csv"
+        out_file = OUT_DIR / f"winners_{year}_{day}_{month}.csv"
 
-        with open(out_path, "w", newline="", encoding="utf-8") as f:
+        with open(out_file, "w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(
                 f,
                 fieldnames=[
