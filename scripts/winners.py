@@ -12,8 +12,7 @@ def american_to_decimal(a):
     a = float(a)
     if a > 0:
         return 1 + a / 100
-    else:
-        return 1 + 100 / abs(a)
+    return 1 + 100 / abs(a)
 
 
 def load_csv(path):
@@ -31,14 +30,12 @@ def make_key(row):
 
 
 def main():
-    # Index normalized rows
     norm_index = {}
 
     for file in NORM_DIR.glob("*.csv"):
         for row in load_csv(file):
             norm_index[make_key(row)] = row
 
-    # Process final files
     for file in FINAL_DIR.glob("final_*.csv"):
         final_rows = load_csv(file)
         if not final_rows:
@@ -54,16 +51,15 @@ def main():
             norm = norm_index[k]
 
             try:
-                final_odds = float(row["odds"])
-                acceptable_odds = float(norm["personally_acceptable_american_odds"])
                 dk_odds = float(norm["odds"])
+                acceptable_odds = float(norm["personally_acceptable_american_odds"])
             except (KeyError, ValueError):
                 continue
 
-            final_dec = american_to_decimal(final_odds)
+            dk_dec = american_to_decimal(dk_odds)
             acceptable_dec = american_to_decimal(acceptable_odds)
 
-            if final_dec >= acceptable_dec:
+            if dk_dec >= acceptable_dec:
                 winners.append({
                     "date": row["date"],
                     "time": row["time"],
