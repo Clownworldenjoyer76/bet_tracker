@@ -14,8 +14,9 @@ Output:
 
 Behavior:
 - Match on league (normalized)
-- Replace team and opponent using dk_team -> canonical_team (normalized)
+- Replace team and opponent using dk_team -> canonical_team
 - Leave unmapped names unchanged
+- Log unmapped teams
 - Write output only if changes are detected
 """
 
@@ -31,27 +32,29 @@ OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def norm(s: str) -> str:
-    """Normalize strings for reliable matching (trim, collapse spaces, fix NBSP, lower for league)."""
+    """Normalize team strings (trim, collapse spaces, fix NBSP)."""
     if pd.isna(s):
         return s
-    s = str(s).replace("\u00A0", " ").strip()          # NBSP -> space, trim
-    s = re.sub(r"\s+", " ", s)                         # collapse whitespace
+    s = str(s).replace("\u00A0", " ").strip()
+    s = re.sub(r"\s+", " ", s)
     return s
 
 
 def norm_league(s: str) -> str:
-    return norm(s).lower() if not pd.isna(s) else s
+    """Normalize league string."""
+    if pd.isna(s):
+        return s
+    return norm(s).lower()
 
 
 def load_team_map() -> dict:
+    """Load team mappings into {league: {dk_team: canonical_team}}."""
     df = pd.read_csv(MAP_PATH, dtype=str)
 
-    # Normalize mapping columns
     df["league"] = df["league"].apply(norm_league)
     df["dk_team"] = df["dk_team"].apply(norm)
     df["canonical_team"] = df["canonical_team"].apply(norm)
 
-    # Build {league: {dk_team: canonical_team}}
     team_map: dict[str, dict[str, str]] = {}
     for _, row in df.iterrows():
         lg = row["league"]
@@ -67,8 +70,8 @@ def load_team_map() -> dict:
 def normalize_file(path: Path, team_map: dict):
     df = pd.read_csv(path, dtype=str)
 
+    # clean_dk_{league}_{year}_{month}_{day}.csv
     parts = path.stem.split("_")
-    # clean_dk_{league}_{year}_{month}_{day}.csv -> 6 parts
     if len(parts) < 6:
         return
 
@@ -77,37 +80,45 @@ def normalize_file(path: Path, team_map: dict):
 
     league_map = team_map.get(league)
     if not league_map:
+        print(f"[WARN] No team map for league '{league}' ({path.name})")
         return
 
-    # Normalize input strings before replacement
+    # Normalize input strings
     df["league"] = df["league"].apply(norm_league)
     df["team"] = df["team"].apply(norm)
     df["opponent"] = df["opponent"].apply(norm)
 
     before = df[["team", "opponent"]].copy()
 
-    # Replace using the league-specific dict
-    df["team"] = df["team"].replace(league_map)
-    df["opponent"] = df["opponent"].replace(league_map)
+    # Deterministic replacement (NO pandas replace magic)
+    df["team"] = df["team"].apply(lambda x: league_map.get(x, x))
+    df["opponent"] = df["opponent"].apply(lambda x: league_map.get(x, x))
 
-    # Optional: log unmapped teams for this file (helps you finish team_map.csv)
-    unmapped = sorted(set(before["team"]) | set(before["opponent"]) - set(league_map.keys()))
+    # Log unmapped teams
+    unmapped = sorted(
+        (set(before["team"]) | set(before["opponent"])) - set(league_map.keys())
+    )
     if unmapped:
-        print(f"[{path.name}] unmapped ({league}) count={len(unmapped)} example={unmapped[:10]}")
+        print(
+            f"[{path.name}] unmapped teams ({league}): "
+            f"{len(unmapped)} example={unmapped[:10]}"
+        )
 
     out_path = OUT_DIR / f"norm_dk_{league}_{year}_{month}_{day}.csv"
 
-    # Only write if changed
+    # Write only if changed
     if out_path.exists():
         old = pd.read_csv(out_path, dtype=str)
         if old.equals(df):
             return
 
     df.to_csv(out_path, index=False)
+    print(f"[OK] wrote {out_path}")
 
 
 def main():
     team_map = load_team_map()
+
     for file in CLEAN_DIR.glob("clean_dk_*.csv"):
         normalize_file(file, team_map)
 
