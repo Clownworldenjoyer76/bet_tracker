@@ -9,7 +9,8 @@ Output:
   docs/win/manual/cleaned/clean_dk_{league}_{year}_{month}_{day}.csv
 
 Behavior:
-- Normalize date and time columns
+- Normalize date to M/D/YYYY
+- Normalize time to HH:MM AM/PM
 - Retain team/opponent semantics (no home/away inference)
 - Normalize odds minus sign
 - Convert handle/bets percentages to numeric decimals
@@ -20,6 +21,7 @@ Behavior:
 
 from pathlib import Path
 import pandas as pd
+import re
 
 INPUT_DIR = Path("docs/win/manual")
 OUTPUT_DIR = INPUT_DIR / "cleaned"
@@ -27,14 +29,28 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def normalize_date(date_str: str, year: int) -> str:
-    """Convert M/D -> MM/DD/YYYY"""
+    """
+    Convert M/D or MM/DD -> M/D/YYYY
+    """
     month, day = date_str.split("/")
-    return f"{int(month):02d}/{int(day):02d}/{year}"
+    return f"{int(month)}/{int(day)}/{year}"
 
 
 def normalize_time(time_str: str) -> str:
-    """Convert 07:10PM -> 07:10 PM"""
-    return time_str[:-2] + " " + time_str[-2:]
+    """
+    Convert:
+      03:55PM  -> 03:55 PM
+      3:55PM   -> 03:55 PM
+      03:55 PM -> 03:55 PM
+    """
+    s = time_str.strip().upper().replace(" ", "")
+    match = re.match(r"(\d{1,2}:\d{2})(AM|PM)", s)
+    if not match:
+        return time_str  # fail safe
+
+    time_part, meridiem = match.groups()
+    hour, minute = time_part.split(":")
+    return f"{int(hour):02d}:{minute} {meridiem}"
 
 
 def clean_file(path: Path):
