@@ -24,6 +24,19 @@ def load_csv(path):
         return list(csv.DictReader(f))
 
 
+def is_better_american_odds(actual, acceptable):
+    # BOTH NEGATIVE (favorites): closer to zero is better
+    if acceptable < 0 and actual < 0:
+        return actual > acceptable
+
+    # BOTH POSITIVE (underdogs): higher is better
+    if acceptable > 0 and actual > 0:
+        return actual >= acceptable
+
+    # Mixed signs → actual is always worse
+    return False
+
+
 def main():
     manual_rows = []
     for p in MANUAL_DIR.glob("*.csv"):
@@ -57,7 +70,7 @@ def main():
                     except Exception:
                         continue
 
-                    if odds < acceptable:
+                    if is_better_american_odds(odds, acceptable):
                         winners_by_date.setdefault(f_date, []).append(
                             {
                                 "Date": f["date"],
