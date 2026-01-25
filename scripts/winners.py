@@ -19,22 +19,9 @@ def parse_date(value):
     return None
 
 
-def load_csv(path):
+def load_csv(path: Path):
     with path.open(newline="", encoding="utf-8") as f:
         return list(csv.DictReader(f))
-
-
-def is_better_american_odds(actual, acceptable):
-    # BOTH NEGATIVE (favorites): closer to zero is better
-    if acceptable < 0 and actual < 0:
-        return actual > acceptable
-
-    # BOTH POSITIVE (underdogs): higher is better
-    if acceptable > 0 and actual > 0:
-        return actual >= acceptable
-
-    # Mixed signs → actual is always worse
-    return False
 
 
 def main():
@@ -55,22 +42,22 @@ def main():
                 continue
 
             for m in manual_rows:
+                # STRICT MATCH: date, team, opponent, league
+                m_date = parse_date(m.get("date", ""))
                 if (
-                    f["team"].strip() == m["team"].strip()
+                    m_date == f_date
+                    and f["team"].strip() == m["team"].strip()
                     and f["opponent"].strip() == m["opponent"].strip()
                     and f["league"].strip() == m["league"].strip()
                 ):
-                    m_date = parse_date(m.get("date", ""))
-                    if m_date and abs((f_date - m_date).days) > 1:
-                        continue
-
                     try:
                         acceptable = float(f["personally_acceptable_american_odds"])
-                        odds = float(m["odds"])
+                        actual = float(m["odds"])
                     except Exception:
                         continue
 
-                    if is_better_american_odds(odds, acceptable):
+                    # ONLY RULE
+                    if actual >= acceptable:
                         winners_by_date.setdefault(f_date, []).append(
                             {
                                 "Date": f["date"],
@@ -80,7 +67,7 @@ def main():
                                 "win_probability": f["win_probability"],
                                 "league": f["league"],
                                 "personally_acceptable_american_odds": acceptable,
-                                "Odds": odds,
+                                "Odds": actual,
                             }
                         )
 
