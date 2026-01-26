@@ -16,12 +16,9 @@ SPREAD_BANDS = {
         (0, 1), (1.5, 3), (3.5, 6),
         (6.5, 10), (10.5, 14), (14.5, 100),
     ],
-    "nhl": [
-        (0, 0.5), (1, 1.5), (2, 2.5), (3, 100),
-    ],
-    "mlb": [
-        (0, 0.5), (1, 1.5), (2, 2.5), (3, 100),
-    ],
+    # NHL / MLB are puck line / run line
+    "nhl": [(1, 1.5)],
+    "mlb": [(1, 1.5)],
 }
 
 
@@ -29,7 +26,7 @@ def spread_to_band(val, league):
     for lo, hi in SPREAD_BANDS[league]:
         if lo <= abs(val) <= hi:
             return f"{lo} to {hi}"
-    return "unknown"
+    return None  # important: no "unknown"
 
 
 def ats_profit(win, odds=-110):
@@ -95,8 +92,16 @@ def process_file(path: Path):
 
     sides = pd.DataFrame(rows)
 
-    # drop pushes from ROI math (tracked separately)
+    # ---- LEAGUE GUARDS ----
+    if league in {"nhl", "mlb"}:
+        # Only keep true puck/run line games (±1.5)
+        sides = sides[sides["spread"].abs() == 1.5]
+
     sides["band"] = sides["spread"].apply(lambda x: spread_to_band(x, league))
+
+    # Drop anything outside defined bands
+    sides = sides.dropna(subset=["band"])
+
     sides["profit"] = sides.apply(
         lambda r: 0.0 if r.push else ats_profit(r.win),
         axis=1,
@@ -115,15 +120,24 @@ def process_file(path: Path):
     )
 
     summary["decisions"] = summary["bets"] - summary["pushes"]
+    summary = summary[summary["decisions"] > 0]
+
     summary["win_pct"] = (
         summary["wins"] / summary["decisions"]
-    ).replace([np.inf, np.nan], 0).round(4)
+    ).round(4)
 
     summary["roi"] = (
         summary["profit"] / summary["decisions"]
-    ).replace([np.inf, np.nan], 0).round(4)
+    ).round(4)
 
-    out_path = OUT_DIR / f"{league}_spread_bands.csv"
+    # Clear naming
+    suffix = (
+        "spread_bands"
+        if league in {"nba", "nfl"}
+        else "puck_runline_bands"
+    )
+
+    out_path = OUT_DIR / f"{league}_{suffix}.csv"
     summary.to_csv(out_path, index=False)
 
     print(f"[OK] wrote {out_path} ({len(summary)} rows)")
