@@ -82,12 +82,24 @@ ODDS_BANDS = [
 ]
 
 
-
 def odds_to_band(odds: float) -> str:
     for low, high in ODDS_BANDS:
         if low <= odds <= high:
             return f"{low} to {high}"
     return "unknown"
+
+
+def calc_profit(odds: float, win: bool) -> float:
+    """
+    Flat 1-unit staking.
+    """
+    if not win:
+        return -1.0
+
+    if odds < 0:
+        return 100.0 / abs(odds)
+
+    return odds / 100.0
 
 
 def process_file(path: Path):
@@ -104,16 +116,24 @@ def process_file(path: Path):
 
     df["band"] = df["close_ml"].apply(odds_to_band)
 
+    # profit per bet
+    df["profit"] = df.apply(
+        lambda r: calc_profit(r["close_ml"], r["win"]),
+        axis=1,
+    )
+
     summary = (
         df.groupby("band")
         .agg(
             bets=("win", "count"),
             wins=("win", "sum"),
+            profit=("profit", "sum"),
         )
         .reset_index()
     )
 
     summary["win_pct"] = (summary["wins"] / summary["bets"]).round(4)
+    summary["roi"] = (summary["profit"] / summary["bets"]).round(4)
 
     out_path = path.with_name(path.stem.replace("_normalized", "") + "_ml_bands.csv")
     summary.to_csv(out_path, index=False)
@@ -122,13 +142,13 @@ def process_file(path: Path):
 
 
 def main():
-    files = DATA_DIR.glob("*_normalized.csv")
+    files = list(DATA_DIR.glob("*_normalized.csv"))
 
-    if not any(files):
+    if not files:
         print("[WARN] no normalized files found")
         return
 
-    for path in DATA_DIR.glob("*_normalized.csv"):
+    for path in files:
         try:
             process_file(path)
         except Exception as e:
