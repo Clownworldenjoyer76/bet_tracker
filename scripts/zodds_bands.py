@@ -1,65 +1,76 @@
-# scripts/zodds_bands.py
-
 from pathlib import Path
 import pandas as pd
+import numpy as np
 
 DATA_DIR = Path("bets/historic")
 
-ODDS_BINS = [
-    (-10000, -300, "<= -300"),
-    (-299, -200, "-299 to -200"),
-    (-199, -150, "-199 to -150"),
-    (-149, -110, "-149 to -110"),
-    (-109, -101, "-109 to -101"),
-    (100, 149, "+100 to +149"),
-    (150, 199, "+150 to +199"),
-    (200, 299, "+200 to +299"),
-    (300, 10000, ">= +300"),
+ODDS_BANDS = [
+    (-10000, -301),
+    (-300, -201),
+    (-200, -151),
+    (-150, -101),
+    (-100, -1),
+    (100, 149),
+    (150, 199),
+    (200, 299),
+    (300, 10000),
 ]
 
 
-def odds_band(odds: float) -> str | None:
-    if pd.isna(odds):
-        return None
-    for low, high, label in ODDS_BINS:
+def odds_to_band(odds: float) -> str:
+    for low, high in ODDS_BANDS:
         if low <= odds <= high:
-            return label
-    return None
+            return f"{low} to {high}"
+    return "unknown"
 
 
 def process_file(path: Path):
     df = pd.read_csv(path)
 
+    # detect required columns
     required = {
+        "home_score",
+        "away_score",
         "home_close_ml",
         "away_close_ml",
-        "home_final",
-        "away_final",
     }
 
     if not required.issubset(df.columns):
-        print(f"[SKIP] {path.name} missing required columns")
+        print(f"[SKIP] {path.name}: missing required columns")
         return
 
-    rows = []
+    # force numeric scores (THIS FIXES YOUR ERROR)
+    for col in ["home_score", "away_score"]:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
 
-    for side in ("home", "away"):
-        odds_col = f"{side}_close_ml"
-        score_col = f"{side}_final"
-        opp_col = "away_final" if side == "home" else "home_final"
+    df = df.dropna(subset=["home_score", "away_score"])
 
-        tmp = df[[odds_col, score_col, opp_col]].copy()
-        tmp["win"] = tmp[score_col] > tmp[opp_col]
-        tmp["odds"] = tmp[odds_col]
-        tmp["band"] = tmp["odds"].apply(odds_band)
+    records = []
 
-        rows.append(tmp[["band", "win"]])
+    # home side
+    home = df[["home_close_ml", "home_score", "away_score"]].copy()
+    home["odds"] = pd.to_numeric(home["home_close_ml"], errors="coerce")
+    home["win"] = home["home_score"] > home["away_score"]
 
-    bets = pd.concat(rows)
-    bets = bets.dropna(subset=["band"])
+    # away side
+    away = df[["away_close_ml", "away_score", "home_score"]].copy()
+    away["odds"] = pd.to_numeric(away["away_close_ml"], errors="coerce")
+    away["win"] = away["away_score"] > away["home_score"]
+
+    all_sides = pd.concat(
+        [
+            home[["odds", "win"]],
+            away[["odds", "win"]],
+        ],
+        ignore_index=True,
+    )
+
+    all_sides = all_sides.dropna(subset=["odds"])
+
+    all_sides["band"] = all_sides["odds"].apply(odds_to_band)
 
     summary = (
-        bets.groupby("band")
+        all_sides.groupby("band", dropna=True)
         .agg(
             bets=("win", "count"),
             wins=("win", "sum"),
@@ -76,8 +87,13 @@ def process_file(path: Path):
 
 
 def main():
-    for path in DATA_DIR.glob("*_data.csv"):
-        process_file(path)
+    files = DATA_DIR.glob("*_data.csv")
+
+    for path in files:
+        try:
+            process_file(path)
+        except Exception as e:
+            print(f"[ERROR] {path.name}: {e}")
 
 
 if __name__ == "__main__":
