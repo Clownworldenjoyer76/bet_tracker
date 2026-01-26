@@ -1,0 +1,34 @@
+name: Build Odds Band Win Rates
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-odds-bands:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas
+
+      - name: Generate odds band summaries
+        run: |
+          python scripts/zodds_bands.py
+
+      - name: Commit generated CSVs
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add bets/historic/
+          git commit -m "Generate odds band win-rate summaries" || echo "No changes to commit"
+          git push
