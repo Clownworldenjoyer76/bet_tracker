@@ -67,7 +67,7 @@ class OddsScraper:
             headers = {"User-Agent": "Mozilla/5.0"}
             r = requests.get(url, headers=headers)
 
-            dfs = pd.read_html(r.text)
+            dfs = pd.read_html(io.StringIO(r.text))
             df = pd.concat([df, self._reformat_data(dfs[0][1:], season)], axis=0)
 
         return self._to_schema(df)
@@ -266,7 +266,12 @@ class NHLOddsScraper(OddsScraper):
             r = requests.get(url, headers=headers)
 
             dfs = pd.concat(
-                [dfs, self._reformat_data(pd.read_html(r.text)[0][1:], season, is_cov)],
+                [
+                    dfs,
+                    self._reformat_data(
+                        pd.read_html(io.StringIO(r.text))[0][1:], season, is_cov
+                    ),
+                ],
                 axis=0,
             )
 
