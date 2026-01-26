@@ -22,29 +22,43 @@ def american_to_decimal(american: int) -> float:
 
 def personal_edge_pct(prob: float) -> float:
     """
-    NBA Personal Juice — v1.0 (All-Time Data Aligned)
+    NBA Personal Juice — v1.1 (Moneyline Only)
 
+    Calibrated using all-time NBA moneyline band outcomes.
     Returns extra edge as a percentage applied multiplicatively
     to acceptable_decimal_odds.
     """
 
+    # Heavy favorites — wins are real, pricing is the risk
     if prob >= 0.70:
-        return 0.15
+        return 0.10
+
     if prob >= 0.60:
-        return 0.10
+        return 0.08
+
     if prob >= 0.55:
-        return 0.08
+        return 0.06
+
+    # Anchor zone
     if prob >= 0.50:
-        return 0.08
+        return 0.06
+
     if prob >= 0.45:
-        return 0.10
+        return 0.08
+
+    # Volatility increases
     if prob >= 0.40:
         return 0.15
+
+    # Empirically weak zone
     if prob >= 0.35:
-        return 0.20
+        return 0.25
+
     if prob >= 0.30:
-        return 0.30
-    return 0.60
+        return 0.35
+
+    # Structural failure zone (longshots)
+    return 0.65
 
 
 def process_file(path: Path):
