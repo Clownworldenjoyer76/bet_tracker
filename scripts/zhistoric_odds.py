@@ -1,5 +1,9 @@
-import pandas as pd
+import sys
 from pathlib import Path
+import pandas as pd
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.append(str(ROOT))
 
 from scraper import (
     NHLOddsScraper,
@@ -18,12 +22,10 @@ def normalize(df, league):
     df["league"] = league
     df["final_total"] = df["home_final"] + df["away_final"]
 
-    # Moneyline result (home team)
     df["ml_result_home"] = (
         df["home_final"] > df["away_final"]
     ).map({True: "Win", False: "Loss"})
 
-    # Over / Under result
     df["ou_result"] = "Push"
     df.loc[df["final_total"] > df["close_over_under"], "ou_result"] = "Over"
     df.loc[df["final_total"] < df["close_over_under"], "ou_result"] = "Under"
@@ -48,7 +50,6 @@ def normalize(df, league):
 
 
 def main():
-    # 2019 → 2026 (present)
     years = range(2019, 2027)
 
     nhl = normalize(NHLOddsScraper(years).driver(), "nhl")
@@ -58,7 +59,6 @@ def main():
 
     df = pd.concat([nhl, nba, nfl, mlb], ignore_index=True)
 
-    # Drop junk rows
     df = df[
         (df["close_over_under"] > 0)
         & (df["home_close_ml"] != 0)
