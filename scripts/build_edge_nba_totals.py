@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Build NBA Totals Evaluation File (Model-Anchored)
+Build NBA Totals Evaluation File (Model-Anchored, Config-Driven)
 
 Rules:
 - No live market odds assumed
@@ -10,7 +10,7 @@ Rules:
 - NO PLAY if best_ou missing/invalid or totals equal
 - Normal model with μ = total_points
 - σ = sqrt(μ)
-- Price every valid game
+- Acceptable odds adjusted using config-driven juice table
 """
 
 import csv
@@ -21,16 +21,17 @@ from datetime import datetime
 from collections import defaultdict
 
 # -----------------------------
-# PARAMETERS
+# PATHS
 # -----------------------------
-EDGE_BUFFER_TOTALS = 0.07
+INPUT_DIR = Path("docs/win/edge")
+OUTPUT_DIR = Path("docs/win/nba")
+CONFIG_PATH = Path("config/nba/nba_juice_table.csv")
+
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 MIN_LAM = 150.0
 MAX_LAM = 300.0
 
-INPUT_DIR = Path("docs/win/edge")
-OUTPUT_DIR = Path("docs/win/nba")
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # -----------------------------
 # MATH HELPERS
@@ -50,8 +51,48 @@ def decimal_to_american(d: float) -> int:
     return int(round(-100 / (d - 1)))
 
 
-def acceptable_decimal(p: float) -> float:
-    return 1.0 / max(p - EDGE_BUFFER_TOTALS, 0.0001)
+def acceptable_decimal(p: float, edge_pct: float) -> float:
+    """
+    Apply personal juice multiplicatively (same philosophy as moneylines).
+    """
+    return (1.0 / p) * (1.0 + edge_pct)
+
+
+# -----------------------------
+# LOAD TOTALS JUICE CONFIG
+# -----------------------------
+def load_totals_juice_rules():
+    rules = []
+
+    with CONFIG_PATH.open(newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            if row["market_type"] != "totals":
+                continue
+
+            rules.append({
+                "low": float(row["band_low"]),
+                "high": float(row["band_high"]),
+                "side": row["side"].lower(),
+                "extra": float(row["extra_juice_pct"]),
+            })
+
+    return rules
+
+
+TOTALS_JUICE_RULES = load_totals_juice_rules()
+
+
+def lookup_totals_juice(market_total: float, side: str) -> float:
+    """
+    Returns extra juice pct based on market_total and side.
+    """
+    for rule in TOTALS_JUICE_RULES:
+        if rule["low"] <= market_total <= rule["high"]:
+            if rule["side"] == "any" or rule["side"] == side.lower():
+                return rule["extra"]
+    return 0.0
+
 
 # -----------------------------
 # MAIN
@@ -96,9 +137,6 @@ def main():
 
         for game_id, rows in games.items():
 
-            if not rows:
-                continue
-
             row = rows[0]
 
             team_1 = row.get("team", "")
@@ -106,27 +144,23 @@ def main():
             date = row.get("date", "")
             time = row.get("time", "")
 
+            try:
+                lam = float(row["total_points"])
+                market_total = float(row.get("best_ou", ""))
+            except (ValueError, TypeError):
+                lam = None
+                market_total = None
+
             side = "NO PLAY"
             p_selected = None
 
-            try:
-                lam = float(row["total_points"])
-            except (ValueError, TypeError):
-                lam = None
-
-            try:
-                market_total = float(row.get("best_ou", ""))
-            except (ValueError, TypeError):
-                market_total = ""
-
             if (
                 lam is not None
-                and market_total != ""
+                and market_total is not None
                 and MIN_LAM <= lam <= MAX_LAM
             ):
                 sigma = sqrt(lam)
 
-                # continuity correction
                 p_under = normal_cdf(market_total, lam, sigma)
                 p_over = 1.0 - p_under
 
@@ -140,7 +174,9 @@ def main():
             if p_selected is not None:
                 fair_d = fair_decimal(p_selected)
                 fair_a = decimal_to_american(fair_d)
-                acc_d = acceptable_decimal(p_selected)
+
+                edge_pct = lookup_totals_juice(market_total, side)
+                acc_d = acceptable_decimal(p_selected, edge_pct)
                 acc_a = decimal_to_american(acc_d)
 
                 writer.writerow({
@@ -165,7 +201,7 @@ def main():
                     "time": time,
                     "team_1": team_1,
                     "team_2": team_2,
-                    "market_total": market_total,
+                    "market_total": market_total or "",
                     "side": "NO PLAY",
                     "model_probability": "",
                     "fair_decimal_odds": "",
