@@ -2,6 +2,8 @@ from pathlib import Path
 import pandas as pd
 
 DATA_DIR = Path("bets/historic")
+OUT_DIR = DATA_DIR / "moneyline"
+OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 ODDS_BANDS = [
     (-10000, -1000), (-999, -600), (-599, -500), (-499, -400),
@@ -50,7 +52,7 @@ def process_file(path: Path):
         print(f"[SKIP] {path.name}: schema mismatch")
         return
 
-    # coerce numerics safely (fixes NHL/MLB)
+    # coerce numerics safely (fixes NHL / MLB string scores)
     for c in required:
         df[c] = pd.to_numeric(df[c], errors="coerce")
 
@@ -80,6 +82,7 @@ def process_file(path: Path):
         })
 
     sides = pd.DataFrame(rows)
+
     sides["band"] = sides["odds"].apply(odds_to_band)
     sides["profit"] = sides.apply(lambda r: ml_profit(r.odds, r.win), axis=1)
 
@@ -97,16 +100,14 @@ def process_file(path: Path):
     summary["win_pct"] = (summary["wins"] / summary["bets"]).round(4)
     summary["roi"] = (summary["profit"] / summary["bets"]).round(4)
 
-    out_path = path.with_name(path.stem + "_ml_bands.csv")
+    out_path = OUT_DIR / f"{path.stem}_ml_bands.csv"
     summary.to_csv(out_path, index=False)
 
     print(f"[OK] wrote {out_path} ({len(summary)} rows)")
 
 
 def main():
-    files = DATA_DIR.glob("*_data.csv")
-
-    for path in files:
+    for path in DATA_DIR.glob("*_data.csv"):
         try:
             process_file(path)
         except Exception as e:
