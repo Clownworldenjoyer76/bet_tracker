@@ -52,17 +52,20 @@ def main():
                     and f.get("league", "").strip() == m.get("league", "").strip()
                 ):
                     try:
-                        acceptable = float(
+                        acceptable_decimal = float(
                             f["personally_acceptable_decimal_odds"]
                         )
-                        actual = float(
+                        acceptable_american = f.get(
+                            "personally_acceptable_american_odds", ""
+                        )
+                        actual_decimal = float(
                             m["decimal_odds"]
                         )
                     except Exception:
                         continue
 
                     # ONLY RULE (decimal space)
-                    if actual >= acceptable:
+                    if actual_decimal >= acceptable_decimal:
                         winners_by_date.setdefault(f_date, []).append(
                             {
                                 "Date": f["date"],
@@ -71,8 +74,9 @@ def main():
                                 "Opponent": f["opponent"],
                                 "win_probability": f.get("win_probability", ""),
                                 "league": f["league"],
-                                "personally_acceptable_decimal_odds": acceptable,
-                                "decimal_odds": actual,
+                                "personally_acceptable_decimal_odds": acceptable_decimal,
+                                "decimal_odds": actual_decimal,
+                                "personally_acceptable_american_odds": acceptable_american,
                             }
                         )
 
@@ -90,6 +94,7 @@ def main():
                     "league",
                     "personally_acceptable_decimal_odds",
                     "decimal_odds",
+                    "personally_acceptable_american_odds",
                 ],
             )
             writer.writeheader()
