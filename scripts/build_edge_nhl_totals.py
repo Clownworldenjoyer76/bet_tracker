@@ -1,178 +1,130 @@
 #!/usr/bin/env python3
-"""
-Build NHL Totals Evaluation File (Model-Anchored)
-
-Rules:
-- No live market odds assumed
-- Use best_ou as the comparison total
-- OVER if model total (λ) > best_ou
-- UNDER if model total (λ) < best_ou
-- NO PLAY if best_ou missing/invalid or totals equal
-- Poisson model with λ = total_goals
-- Price every valid game
-"""
 
 import csv
 import glob
-from math import exp, factorial
+from math import sqrt, erf
 from pathlib import Path
 from datetime import datetime
 from collections import defaultdict
 
-# -----------------------------
-# PARAMETERS
-# -----------------------------
-EDGE_BUFFER_TOTALS = 0.06
-
-MIN_LAM = 3.0
-MAX_LAM = 8.0
-
-INPUT_DIR = Path("docs/win/clean")
+INPUT_DIR = Path("docs/win/edge")
 OUTPUT_DIR = Path("docs/win/nhl")
+CONFIG_PATH = Path("config/nhl/nhl_juice_table.csv")
+
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-# -----------------------------
-# MATH HELPERS
-# -----------------------------
-def poisson_cdf(k: int, lam: float) -> float:
-    return sum((lam ** i) * exp(-lam) / factorial(i) for i in range(k + 1))
+
+def load_totals_juice():
+    rules = []
+    with CONFIG_PATH.open(newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for r in reader:
+            if r["market_type"] != "totals":
+                continue
+            rules.append({
+                "low": float(r["band_low"]),
+                "high": float(r["band_high"]),
+                "side": r["side"],
+                "juice": float(r["extra_juice_pct"]),
+            })
+    return rules
 
 
-def fair_decimal(p: float) -> float:
-    return 1.0 / p
+TOTALS_RULES = load_totals_juice()
 
 
-def decimal_to_american(d: float) -> int:
+def lookup_totals_juice(total: float, side: str) -> float:
+    for r in TOTALS_RULES:
+        if r["low"] <= total <= r["high"]:
+            if r["side"] == "any" or r["side"].lower() == side.lower():
+                return r["juice"]
+    return 0.0
+
+
+def normal_cdf(x, mu, sigma):
+    z = (x - mu) / (sigma * sqrt(2))
+    return 0.5 * (1 + erf(z))
+
+
+def decimal_to_american(d):
     if d >= 2.0:
         return int(round((d - 1) * 100))
     return int(round(-100 / (d - 1)))
 
 
-def acceptable_decimal(p: float) -> float:
-    return 1.0 / max(p - EDGE_BUFFER_TOTALS, 0.0001)
+def fair_decimal(p):
+    return 1.0 / p
 
-# -----------------------------
-# MAIN
-# -----------------------------
+
 def main():
-    input_files = sorted(
-        glob.glob(str(INPUT_DIR / "win_prob__clean_nhl_*.csv"))
-    )
-    if not input_files:
-        raise FileNotFoundError("No clean NHL win probability files found")
+    files = sorted(glob.glob(str(INPUT_DIR / "edge_nhl_*.csv")))
+    if not files:
+        raise FileNotFoundError("No NHL edge files found")
 
-    latest_file = input_files[-1]
-
+    latest = files[-1]
     today = datetime.utcnow()
-    out_path = OUTPUT_DIR / f"edge_nhl_totals_{today.year}_{today.month:02d}_{today.day:02d}.csv"
+    out_path = OUTPUT_DIR / f"edge_nhl_totals_{today:%Y_%m_%d}.csv"
 
     games = defaultdict(list)
 
-    with open(latest_file, newline="", encoding="utf-8") as infile:
-        reader = csv.DictReader(infile)
-        for row in reader:
-            if row.get("game_id"):
-                games[row["game_id"]].append(row)
+    with open(latest, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for r in reader:
+            if r.get("game_id"):
+                games[r["game_id"]].append(r)
 
-    with open(out_path, "w", newline="", encoding="utf-8") as outfile:
-        fieldnames = [
-            "game_id",
-            "date",
-            "time",
-            "team_1",
-            "team_2",
-            "market_total",
-            "side",
-            "model_probability",
-            "fair_decimal_odds",
-            "fair_american_odds",
-            "acceptable_decimal_odds",
-            "acceptable_american_odds",
-            "league",
-        ]
-
-        writer = csv.DictWriter(outfile, fieldnames=fieldnames)
+    with open(out_path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=[
+            "game_id", "date", "time", "team_1", "team_2",
+            "market_total", "side", "model_probability",
+            "fair_decimal_odds", "fair_american_odds",
+            "acceptable_decimal_odds", "acceptable_american_odds",
+            "league"
+        ])
         writer.writeheader()
 
-        for game_id, rows in games.items():
+        for gid, rows in games.items():
+            r = rows[0]
 
-            if not rows:
+            try:
+                lam = float(r["total_points"])
+                market = float(r["best_ou"])
+            except Exception:
                 continue
 
-            row = rows[0]
+            sigma = sqrt(lam)
+            p_under = normal_cdf(market, lam, sigma)
+            p_over = 1.0 - p_under
 
-            team_1 = row.get("team", "")
-            team_2 = row.get("opponent", "")
-            date = row.get("date", "")
-            time = row.get("time", "")
-
-            side = "NO PLAY"
-            p_selected = None
-
-            try:
-                lam = float(row["total_goals"])
-            except (ValueError, TypeError):
-                lam = None
-
-            try:
-                market_total = float(row.get("best_ou", ""))
-            except (ValueError, TypeError):
-                market_total = ""
-
-            if (
-                lam is not None
-                and market_total != ""
-                and MIN_LAM <= lam <= MAX_LAM
-            ):
-                cutoff = int(market_total - 0.5)
-
-                p_under = poisson_cdf(cutoff, lam)
-                p_over = 1.0 - p_under
-
-                if lam > market_total:
-                    side = "OVER"
-                    p_selected = p_over
-                elif lam < market_total:
-                    side = "UNDER"
-                    p_selected = p_under
-
-            if p_selected is not None:
-                fair_d = fair_decimal(p_selected)
-                fair_a = decimal_to_american(fair_d)
-                acc_d = acceptable_decimal(p_selected)
-                acc_a = decimal_to_american(acc_d)
-
-                writer.writerow({
-                    "game_id": game_id,
-                    "date": date,
-                    "time": time,
-                    "team_1": team_1,
-                    "team_2": team_2,
-                    "market_total": market_total,
-                    "side": side,
-                    "model_probability": round(p_selected, 4),
-                    "fair_decimal_odds": round(fair_d, 4),
-                    "fair_american_odds": fair_a,
-                    "acceptable_decimal_odds": round(acc_d, 4),
-                    "acceptable_american_odds": acc_a,
-                    "league": "nhl_ou",
-                })
+            if lam > market:
+                side = "OVER"
+                p = p_over
             else:
-                writer.writerow({
-                    "game_id": game_id,
-                    "date": date,
-                    "time": time,
-                    "team_1": team_1,
-                    "team_2": team_2,
-                    "market_total": market_total,
-                    "side": "NO PLAY",
-                    "model_probability": "",
-                    "fair_decimal_odds": "",
-                    "fair_american_odds": "",
-                    "acceptable_decimal_odds": "",
-                    "acceptable_american_odds": "",
-                    "league": "nhl_ou",
-                })
+                side = "UNDER"
+                p = p_under
+
+            fair_d = fair_decimal(p)
+            fair_a = decimal_to_american(fair_d)
+
+            juice = lookup_totals_juice(market, side)
+            acc_d = fair_d * (1.0 + juice)
+            acc_a = decimal_to_american(acc_d)
+
+            writer.writerow({
+                "game_id": gid,
+                "date": r["date"],
+                "time": r["time"],
+                "team_1": r["team"],
+                "team_2": r["opponent"],
+                "market_total": market,
+                "side": side,
+                "model_probability": round(p, 4),
+                "fair_decimal_odds": round(fair_d, 4),
+                "fair_american_odds": fair_a,
+                "acceptable_decimal_odds": round(acc_d, 4),
+                "acceptable_american_odds": acc_a,
+                "league": "nhl_ou",
+            })
 
     print(f"Created {out_path}")
 
