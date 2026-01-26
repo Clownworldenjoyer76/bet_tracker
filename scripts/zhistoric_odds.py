@@ -1,118 +1,122 @@
-import sys
-from pathlib import Path
+# scripts/zhistoric_odds.py
+
+import json
 import pandas as pd
+from pathlib import Path
 
-# --- ensure repo root is on PYTHONPATH ---
-REPO_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO_ROOT))
-
-from scrapers.sportsbookreview import (
-    NHLOddsScraper,
-    NBAOddsScraper,
-    NFLOddsScraper,
-    MLBOddsScraper,
-)
-
-OUT_PATH = Path("bets/historic/odds_scraped.csv")
+BASE_DIR = Path(__file__).resolve().parents[1]
+DATA_DIR = BASE_DIR / "bets" / "historic"
 
 
-def normalize(df: pd.DataFrame, league: str) -> pd.DataFrame:
-    """
-    Normalize scraped odds into a common schema.
-    Defensive by design: skips if required columns are missing.
-    """
+def load_json(path: Path) -> pd.DataFrame:
+    with open(path, "r") as f:
+        data = json.load(f)
+    return pd.DataFrame(data)
 
-    if df is None or df.empty:
-        print(f"[WARN] {league.upper()}: empty dataframe, skipping normalize")
-        return pd.DataFrame()
 
-    required_cols = {
-        "home_final",
-        "away_final",
-        "close_over_under",
-        "home_close_ml",
-        "away_close_ml",
+def save_csv(df: pd.DataFrame, out_path: Path):
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(out_path, index=False)
+    print(f"[OK] wrote {out_path} ({len(df)} rows)")
+
+
+def process_nba():
+    df = load_json(DATA_DIR / "nba_archive_10Y.json")
+
+    cols = [
+        "season",
+        "date",
         "home_team",
         "away_team",
+        "home_final",
+        "away_final",
+        "home_close_ml",
+        "away_close_ml",
+        "home_open_spread",
+        "away_open_spread",
+        "home_close_spread",
+        "away_close_spread",
+        "open_over_under",
+        "close_over_under",
+    ]
+
+    df = df[[c for c in cols if c in df.columns]]
+    save_csv(df, DATA_DIR / "nba_data.csv")
+
+
+def process_nfl():
+    df = load_json(DATA_DIR / "nfl_archive_10Y.json")
+
+    cols = [
+        "season",
         "date",
-    }
+        "home_team",
+        "away_team",
+        "home_final",
+        "away_final",
+        "home_close_ml",
+        "away_close_ml",
+        "home_open_spread",
+        "away_open_spread",
+        "home_close_spread",
+        "away_close_spread",
+        "open_over_under",
+        "close_over_under",
+    ]
 
-    missing = required_cols - set(df.columns)
-    if missing:
-        print(
-            f"[WARN] {league.upper()}: missing columns {sorted(missing)}, "
-            "skipping normalize"
-        )
-        return pd.DataFrame()
+    df = df[[c for c in cols if c in df.columns]]
+    save_csv(df, DATA_DIR / "nfl_data.csv")
 
-    out = pd.DataFrame()
-    out["date"] = df["date"]
-    out["league"] = league
 
-    # teams
-    out["home_team"] = df["home_team"]
-    out["away_team"] = df["away_team"]
+def process_nhl():
+    df = load_json(DATA_DIR / "nhl_archive_10Y.json")
 
-    # moneylines
-    out["home_close_ml"] = pd.to_numeric(df["home_close_ml"], errors="coerce")
-    out["away_close_ml"] = pd.to_numeric(df["away_close_ml"], errors="coerce")
+    cols = [
+        "season",
+        "date",
+        "home_team",
+        "away_team",
+        "home_final",
+        "away_final",
+        "home_close_ml",
+        "away_close_ml",
+        "home_close_spread",
+        "away_close_spread",
+        "open_over_under",
+        "close_over_under",
+    ]
 
-    # totals
-    out["close_over_under"] = pd.to_numeric(
-        df["close_over_under"], errors="coerce"
-    )
+    df = df[[c for c in cols if c in df.columns]]
+    save_csv(df, DATA_DIR / "nhl_data.csv")
 
-    out["home_final"] = pd.to_numeric(df["home_final"], errors="coerce")
-    out["away_final"] = pd.to_numeric(df["away_final"], errors="coerce")
-    out["final_total"] = out["home_final"] + out["away_final"]
 
-    out["ou_result"] = None
-    out.loc[out["final_total"] > out["close_over_under"], "ou_result"] = "Over"
-    out.loc[out["final_total"] < out["close_over_under"], "ou_result"] = "Under"
-    out.loc[out["final_total"] == out["close_over_under"], "ou_result"] = "Push"
+def process_mlb():
+    df = load_json(DATA_DIR / "mlb_archive_10Y.json")
 
-    return out.dropna(how="all")
+    cols = [
+        "season",
+        "date",
+        "home_team",
+        "away_team",
+        "home_final",
+        "away_final",
+        "home_close_ml",
+        "away_close_ml",
+        "home_close_spread",
+        "away_close_spread",
+        "open_over_under",
+        "close_over_under",
+    ]
+
+    df = df[[c for c in cols if c in df.columns]]
+    save_csv(df, DATA_DIR / "mlb_data.csv")
 
 
 def main():
-    years = list(range(2019, 2027))
-    all_data = []
-
-    print("Scraping NHL…")
-    nhl_raw = NHLOddsScraper(years).driver()
-    nhl = normalize(nhl_raw, "nhl")
-    if not nhl.empty:
-        all_data.append(nhl)
-
-    print("Scraping NBA…")
-    nba_raw = NBAOddsScraper(years).driver()
-    nba = normalize(nba_raw, "nba")
-    if not nba.empty:
-        all_data.append(nba)
-
-    print("Scraping NFL…")
-    nfl_raw = NFLOddsScraper(years).driver()
-    nfl = normalize(nfl_raw, "nfl")
-    if not nfl.empty:
-        all_data.append(nfl)
-
-    print("Scraping MLB…")
-    mlb_raw = MLBOddsScraper(years).driver()
-    mlb = normalize(mlb_raw, "mlb")
-    if not mlb.empty:
-        all_data.append(mlb)
-
-    OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-
-    if not all_data:
-        print("[WARN] No data scraped for any league")
-        pd.DataFrame().to_csv(OUT_PATH, index=False)
-        return
-
-    final = pd.concat(all_data, ignore_index=True)
-    final.to_csv(OUT_PATH, index=False)
-
-    print(f"[OK] Wrote {len(final)} rows → {OUT_PATH}")
+    process_nba()
+    process_nfl()
+    process_nhl()
+    process_mlb()
 
 
 if __name__ == "__main__":
