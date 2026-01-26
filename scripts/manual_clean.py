@@ -15,6 +15,7 @@ Behavior:
 - Normalize odds minus sign
 - Convert handle/bets percentages to numeric decimals
 - Add market column
+- Add decimal_odds column (derived from odds)
 - If output exists, update only if changes are detected
 - If no changes, exit silently
 """
@@ -53,6 +54,12 @@ def normalize_time(time_str: str) -> str:
     return f"{int(hour):02d}:{minute} {meridiem}"
 
 
+def american_to_decimal(american: float) -> float:
+    if american > 0:
+        return 1 + (american / 100)
+    return 1 + (100 / abs(american))
+
+
 def clean_file(path: Path):
     df = pd.read_csv(path)
 
@@ -68,17 +75,16 @@ def clean_file(path: Path):
     df["date"] = df["date"].apply(lambda x: normalize_date(x, year))
     df["time"] = df["time"].apply(normalize_time)
 
-    # Retain neutral team/opponent semantics
-    # (home/away cannot be inferred safely at this stage)
-
-    # Odds normalization (unicode minus)
+    # Odds normalization (unicode minus + strip leading '+')
     df["odds"] = (
-    df["odds"]
-    .astype(str)
-    .str.replace("−", "-", regex=False)   # normalize unicode minus
-    .str.lstrip("+")                      # strip leading plus ONLY
-)
+        df["odds"]
+        .astype(str)
+        .str.replace("−", "-", regex=False)
+        .str.lstrip("+")
+    )
 
+    # Decimal odds (derived from odds)
+    df["decimal_odds"] = df["odds"].astype(float).apply(american_to_decimal)
 
     # Percent columns -> numeric decimals
     for col in ("handle_pct", "bets_pct"):
