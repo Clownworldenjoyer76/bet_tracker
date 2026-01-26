@@ -100,7 +100,7 @@ def calc_profit(odds: float, win: bool) -> float:
 def process_file(path: Path):
     df = pd.read_csv(path)
 
-    required = {"close_ml", "win"}
+    required = {"close_ml", "win", "is_home"}
     if not required.issubset(df.columns):
         print(f"[SKIP] {path.name}: missing required columns")
         return
@@ -108,9 +108,17 @@ def process_file(path: Path):
     df["close_ml"] = pd.to_numeric(df["close_ml"], errors="coerce")
     df = df.dropna(subset=["close_ml"])
 
+    # classify
     df["band"] = df["close_ml"].apply(odds_to_band)
     df["side"] = df["close_ml"].apply(
         lambda x: "favorite" if x < 0 else "underdog"
+    )
+
+    # only analyze underdogs for venue split
+    df = df[df["side"] == "underdog"]
+
+    df["venue"] = df["is_home"].apply(
+        lambda x: "home" if x else "away"
     )
 
     df["profit"] = df.apply(
@@ -119,7 +127,7 @@ def process_file(path: Path):
     )
 
     summary = (
-        df.groupby(["band", "side"], dropna=True)
+        df.groupby(["band", "venue"], dropna=True)
         .agg(
             bets=("win", "count"),
             wins=("win", "sum"),
@@ -132,7 +140,7 @@ def process_file(path: Path):
     summary["roi"] = (summary["profit"] / summary["bets"]).round(4)
 
     out_path = path.with_name(
-        path.stem.replace("_normalized", "") + "_ml_bands.csv"
+        path.stem.replace("_normalized", "") + "_ml_ud_home_away.csv"
     )
     summary.to_csv(out_path, index=False)
 
