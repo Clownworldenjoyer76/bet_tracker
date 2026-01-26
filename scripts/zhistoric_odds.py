@@ -1,4 +1,5 @@
 import pandas as pd
+from pathlib import Path
 
 from scraper import (
     NHLOddsScraper,
@@ -6,6 +7,9 @@ from scraper import (
     NFLOddsScraper,
     MLBOddsScraper,
 )
+
+OUT_PATH = Path("bets/historic/odds_scraped.csv")
+OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 
 def normalize(df, league):
@@ -44,15 +48,13 @@ def normalize(df, league):
 
 
 def main():
-    nhl = NHLOddsScraper(range(2014, 2025)).driver()
-    nba = NBAOddsScraper(range(2006, 2025)).driver()
-    nfl = NFLOddsScraper(range(2006, 2025)).driver()
-    mlb = MLBOddsScraper(range(2006, 2025)).driver()
+    # 2019 → 2026 (present)
+    years = range(2019, 2027)
 
-    nhl = normalize(nhl, "nhl")
-    nba = normalize(nba, "nba")
-    nfl = normalize(nfl, "nfl")
-    mlb = normalize(mlb, "mlb")
+    nhl = normalize(NHLOddsScraper(years).driver(), "nhl")
+    nba = normalize(NBAOddsScraper(years).driver(), "nba")
+    nfl = normalize(NFLOddsScraper(years).driver(), "nfl")
+    mlb = normalize(MLBOddsScraper(years).driver(), "mlb")
 
     df = pd.concat([nhl, nba, nfl, mlb], ignore_index=True)
 
@@ -63,7 +65,7 @@ def main():
         & (df["away_close_ml"] != 0)
     ]
 
-    df.to_csv("closing_odds_with_results.csv", index=False)
+    df.to_csv(OUT_PATH, index=False)
 
 
 if __name__ == "__main__":
