@@ -40,7 +40,7 @@ ODDS_BANDS = [
     (-39, -30),
     (-29, -20),
     (-19, -10),
-    (-9, -0),
+    (-9, 0),
     (1, 9),
     (10, 19),
     (20, 29),
@@ -90,15 +90,10 @@ def odds_to_band(odds: float) -> str:
 
 
 def calc_profit(odds: float, win: bool) -> float:
-    """
-    Flat 1-unit staking.
-    """
     if not win:
         return -1.0
-
     if odds < 0:
         return 100.0 / abs(odds)
-
     return odds / 100.0
 
 
@@ -110,20 +105,21 @@ def process_file(path: Path):
         print(f"[SKIP] {path.name}: missing required columns")
         return
 
-    # force numeric odds
     df["close_ml"] = pd.to_numeric(df["close_ml"], errors="coerce")
     df = df.dropna(subset=["close_ml"])
 
     df["band"] = df["close_ml"].apply(odds_to_band)
+    df["side"] = df["close_ml"].apply(
+        lambda x: "favorite" if x < 0 else "underdog"
+    )
 
-    # profit per bet
     df["profit"] = df.apply(
         lambda r: calc_profit(r["close_ml"], r["win"]),
         axis=1,
     )
 
     summary = (
-        df.groupby("band")
+        df.groupby(["band", "side"], dropna=True)
         .agg(
             bets=("win", "count"),
             wins=("win", "sum"),
@@ -135,10 +131,12 @@ def process_file(path: Path):
     summary["win_pct"] = (summary["wins"] / summary["bets"]).round(4)
     summary["roi"] = (summary["profit"] / summary["bets"]).round(4)
 
-    out_path = path.with_name(path.stem.replace("_normalized", "") + "_ml_bands.csv")
+    out_path = path.with_name(
+        path.stem.replace("_normalized", "") + "_ml_bands.csv"
+    )
     summary.to_csv(out_path, index=False)
 
-    print(f"[OK] wrote {out_path} ({len(summary)} bands)")
+    print(f"[OK] wrote {out_path} ({len(summary)} rows)")
 
 
 def main():
