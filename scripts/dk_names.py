@@ -120,9 +120,11 @@ def normalize_file(path: Path, team_map: dict):
     df["opponent"] = df["opponent"].apply(lambda x: league_map.get(x, x))
 
     # Identify unmapped teams
-    unmapped = sorted(
-        (set(before["team"]) | set(before["opponent"])) - set(league_map.keys())
-    )
+   unmapped = sorted(
+    t for t in set(before["team"]) | set(before["opponent"])
+    if t not in league_map or league_map.get(t) == t
+)
+
 
     if unmapped:
         print(
@@ -131,8 +133,8 @@ def normalize_file(path: Path, team_map: dict):
         )
 
         append_no_map(
-            [{"league": league, "team": team} for team in unmapped]
-        )
+    [{"league": league, "team": t} for t in unmapped]
+)
 
     out_path = OUT_DIR / f"norm_dk_{league}_{year}_{month}_{day}.csv"
 
