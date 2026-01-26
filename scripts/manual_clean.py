@@ -9,7 +9,7 @@ Output:
   docs/win/manual/cleaned/clean_dk_{league}_{year}_{month}_{day}.csv
 
 Behavior:
-- Normalize date to M/D/YYYY
+- Normalize date to MM/DD/YY (with leading zeros)
 - Normalize time to HH:MM AM/PM
 - Retain team/opponent semantics (no home/away inference)
 - Normalize odds minus sign
@@ -30,10 +30,10 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 def normalize_date(date_str: str, year: int) -> str:
     """
-    Convert M/D or MM/DD -> M/D/YYYY
+    Convert M/D or MM/DD -> MM/DD/YY (with leading zeros)
     """
     month, day = date_str.split("/")
-    return f"{int(month)}/{int(day)}/{year}"
+    return f"{int(month):02d}/{int(day):02d}/{str(year)[-2:]}"
 
 
 def normalize_time(time_str: str) -> str:
