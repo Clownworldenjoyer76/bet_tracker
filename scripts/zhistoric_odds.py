@@ -1,5 +1,10 @@
+import sys
 from pathlib import Path
 import pandas as pd
+
+# --- ensure repo root is on PYTHONPATH ---
+REPO_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO_ROOT))
 
 from scrapers.sportsbookreview import (
     NHLOddsScraper,
@@ -14,11 +19,10 @@ OUT_PATH = Path("bets/historic/odds_scraped.csv")
 def normalize(df: pd.DataFrame, league: str) -> pd.DataFrame:
     """
     Normalize scraped odds into a common schema.
-    This function is intentionally defensive:
-    - If required columns are missing, returns empty DF
+    Defensive by design: skips if required columns are missing.
     """
 
-    if df.empty:
+    if df is None or df.empty:
         print(f"[WARN] {league.upper()}: empty dataframe, skipping normalize")
         return pd.DataFrame()
 
@@ -28,6 +32,9 @@ def normalize(df: pd.DataFrame, league: str) -> pd.DataFrame:
         "close_over_under",
         "home_close_ml",
         "away_close_ml",
+        "home_team",
+        "away_team",
+        "date",
     }
 
     missing = required_cols - set(df.columns)
@@ -42,9 +49,11 @@ def normalize(df: pd.DataFrame, league: str) -> pd.DataFrame:
     out["date"] = df["date"]
     out["league"] = league
 
-    # moneyline
+    # teams
     out["home_team"] = df["home_team"]
     out["away_team"] = df["away_team"]
+
+    # moneylines
     out["home_close_ml"] = pd.to_numeric(df["home_close_ml"], errors="coerce")
     out["away_close_ml"] = pd.to_numeric(df["away_close_ml"], errors="coerce")
 
@@ -93,14 +102,14 @@ def main():
     if not mlb.empty:
         all_data.append(mlb)
 
+    OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+
     if not all_data:
         print("[WARN] No data scraped for any league")
-        OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
         pd.DataFrame().to_csv(OUT_PATH, index=False)
         return
 
     final = pd.concat(all_data, ignore_index=True)
-    OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     final.to_csv(OUT_PATH, index=False)
 
     print(f"[OK] Wrote {len(final)} rows → {OUT_PATH}")
