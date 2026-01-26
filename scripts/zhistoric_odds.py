@@ -1,8 +1,5 @@
-import sys
 from pathlib import Path
-
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.append(str(ROOT))
+import pandas as pd
 
 from scrapers.sportsbookreview import (
     NHLOddsScraper,
@@ -11,61 +8,102 @@ from scrapers.sportsbookreview import (
     MLBOddsScraper,
 )
 
-
 OUT_PATH = Path("bets/historic/odds_scraped.csv")
-OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 
-def normalize(df, league):
-    df = df.copy()
+def normalize(df: pd.DataFrame, league: str) -> pd.DataFrame:
+    """
+    Normalize scraped odds into a common schema.
+    This function is intentionally defensive:
+    - If required columns are missing, returns empty DF
+    """
 
-    df["league"] = league
-    df["final_total"] = df["home_final"] + df["away_final"]
+    if df.empty:
+        print(f"[WARN] {league.upper()}: empty dataframe, skipping normalize")
+        return pd.DataFrame()
 
-    df["ml_result_home"] = (
-        df["home_final"] > df["away_final"]
-    ).map({True: "Win", False: "Loss"})
+    required_cols = {
+        "home_final",
+        "away_final",
+        "close_over_under",
+        "home_close_ml",
+        "away_close_ml",
+    }
 
-    df["ou_result"] = "Push"
-    df.loc[df["final_total"] > df["close_over_under"], "ou_result"] = "Over"
-    df.loc[df["final_total"] < df["close_over_under"], "ou_result"] = "Under"
+    missing = required_cols - set(df.columns)
+    if missing:
+        print(
+            f"[WARN] {league.upper()}: missing columns {sorted(missing)}, "
+            "skipping normalize"
+        )
+        return pd.DataFrame()
 
-    return df[
-        [
-            "date",
-            "league",
-            "home_team",
-            "away_team",
-            "home_close_ml",
-            "away_close_ml",
-            "close_over_under",
-            "close_over_under_odds",
-            "home_final",
-            "away_final",
-            "final_total",
-            "ml_result_home",
-            "ou_result",
-        ]
-    ]
+    out = pd.DataFrame()
+    out["date"] = df["date"]
+    out["league"] = league
+
+    # moneyline
+    out["home_team"] = df["home_team"]
+    out["away_team"] = df["away_team"]
+    out["home_close_ml"] = pd.to_numeric(df["home_close_ml"], errors="coerce")
+    out["away_close_ml"] = pd.to_numeric(df["away_close_ml"], errors="coerce")
+
+    # totals
+    out["close_over_under"] = pd.to_numeric(
+        df["close_over_under"], errors="coerce"
+    )
+
+    out["home_final"] = pd.to_numeric(df["home_final"], errors="coerce")
+    out["away_final"] = pd.to_numeric(df["away_final"], errors="coerce")
+    out["final_total"] = out["home_final"] + out["away_final"]
+
+    out["ou_result"] = None
+    out.loc[out["final_total"] > out["close_over_under"], "ou_result"] = "Over"
+    out.loc[out["final_total"] < out["close_over_under"], "ou_result"] = "Under"
+    out.loc[out["final_total"] == out["close_over_under"], "ou_result"] = "Push"
+
+    return out.dropna(how="all")
 
 
 def main():
-    years = range(2019, 2027)
+    years = list(range(2019, 2027))
+    all_data = []
 
-    nhl = normalize(NHLOddsScraper(years).driver(), "nhl")
-    nba = normalize(NBAOddsScraper(years).driver(), "nba")
-    nfl = normalize(NFLOddsScraper(years).driver(), "nfl")
-    mlb = normalize(MLBOddsScraper(years).driver(), "mlb")
+    print("Scraping NHL…")
+    nhl_raw = NHLOddsScraper(years).driver()
+    nhl = normalize(nhl_raw, "nhl")
+    if not nhl.empty:
+        all_data.append(nhl)
 
-    df = pd.concat([nhl, nba, nfl, mlb], ignore_index=True)
+    print("Scraping NBA…")
+    nba_raw = NBAOddsScraper(years).driver()
+    nba = normalize(nba_raw, "nba")
+    if not nba.empty:
+        all_data.append(nba)
 
-    df = df[
-        (df["close_over_under"] > 0)
-        & (df["home_close_ml"] != 0)
-        & (df["away_close_ml"] != 0)
-    ]
+    print("Scraping NFL…")
+    nfl_raw = NFLOddsScraper(years).driver()
+    nfl = normalize(nfl_raw, "nfl")
+    if not nfl.empty:
+        all_data.append(nfl)
 
-    df.to_csv(OUT_PATH, index=False)
+    print("Scraping MLB…")
+    mlb_raw = MLBOddsScraper(years).driver()
+    mlb = normalize(mlb_raw, "mlb")
+    if not mlb.empty:
+        all_data.append(mlb)
+
+    if not all_data:
+        print("[WARN] No data scraped for any league")
+        OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+        pd.DataFrame().to_csv(OUT_PATH, index=False)
+        return
+
+    final = pd.concat(all_data, ignore_index=True)
+    OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    final.to_csv(OUT_PATH, index=False)
+
+    print(f"[OK] Wrote {len(final)} rows → {OUT_PATH}")
 
 
 if __name__ == "__main__":
