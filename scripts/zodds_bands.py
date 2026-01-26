@@ -25,19 +25,17 @@ ODDS_BANDS = [
 ]
 
 
-def odds_to_band(odds: float) -> str:
-    for low, high in ODDS_BANDS:
-        if low <= odds <= high:
-            return f"{low} to {high}"
+def odds_to_band(odds):
+    for lo, hi in ODDS_BANDS:
+        if lo <= odds <= hi:
+            return f"{lo} to {hi}"
     return "unknown"
 
 
-def ml_profit(odds: float, win: bool) -> float:
+def ml_profit(odds, win):
     if not win:
         return -1.0
-    if odds < 0:
-        return 100 / abs(odds)
-    return odds / 100
+    return (100 / abs(odds)) if odds < 0 else (odds / 100)
 
 
 def process_file(path: Path):
@@ -49,16 +47,16 @@ def process_file(path: Path):
     }
 
     if not required.issubset(df.columns):
-        print(f"[SKIP] {path.name}: missing required columns")
+        print(f"[SKIP] {path.name}: schema mismatch")
         return
 
-    # force numeric
-    for col in required:
-        df[col] = pd.to_numeric(df[col], errors="coerce")
+    # coerce numerics safely (fixes NHL/MLB)
+    for c in required:
+        df[c] = pd.to_numeric(df[c], errors="coerce")
 
-    df = df.dropna(subset=["home_final", "away_final", "home_close_ml", "away_close_ml"])
+    df = df.dropna(subset=required)
 
-    records = []
+    rows = []
 
     for _, r in df.iterrows():
         home_win = r.home_final > r.away_final
@@ -67,27 +65,27 @@ def process_file(path: Path):
         home_fav = r.home_close_ml < r.away_close_ml
         away_fav = r.away_close_ml < r.home_close_ml
 
-        records.append({
+        rows.append({
             "odds": r.home_close_ml,
             "win": home_win,
-            "side": "home",
             "fav_ud": "favorite" if home_fav else "underdog",
+            "venue": "home",
         })
 
-        records.append({
+        rows.append({
             "odds": r.away_close_ml,
             "win": away_win,
-            "side": "away",
             "fav_ud": "favorite" if away_fav else "underdog",
+            "venue": "away",
         })
 
-    sides = pd.DataFrame(records)
+    sides = pd.DataFrame(rows)
     sides["band"] = sides["odds"].apply(odds_to_band)
-    sides["profit"] = sides.apply(lambda x: ml_profit(x.odds, x.win), axis=1)
+    sides["profit"] = sides.apply(lambda r: ml_profit(r.odds, r.win), axis=1)
 
     summary = (
         sides
-        .groupby(["band", "fav_ud", "side"], dropna=False)
+        .groupby(["band", "fav_ud", "venue"], dropna=False)
         .agg(
             bets=("win", "count"),
             wins=("win", "sum"),
@@ -99,18 +97,14 @@ def process_file(path: Path):
     summary["win_pct"] = (summary["wins"] / summary["bets"]).round(4)
     summary["roi"] = (summary["profit"] / summary["bets"]).round(4)
 
-    out_path = path.with_name(path.stem.replace("_normalized", "") + "_ml_bands.csv")
+    out_path = path.with_name(path.stem + "_ml_bands.csv")
     summary.to_csv(out_path, index=False)
 
     print(f"[OK] wrote {out_path} ({len(summary)} rows)")
 
 
 def main():
-    files = list(DATA_DIR.glob("*_normalized.csv"))
-
-    if not files:
-        print("[WARN] no normalized files found")
-        return
+    files = DATA_DIR.glob("*_data.csv")
 
     for path in files:
         try:
