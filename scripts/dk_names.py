@@ -12,11 +12,16 @@ Mapping:
 Output:
   docs/win/manual/normalized/norm_dk_{league}_{year}_{month}_{day}.csv
 
+Additional output:
+  mappings/need_map/no_map.csv
+    columns: league, team
+
 Behavior:
 - Match on league (normalized)
 - Replace team and opponent using dk_team -> canonical_team
 - Leave unmapped names unchanged
 - Log unmapped teams
+- Persist unmapped teams to no_map.csv
 - Write output only if changes are detected
 """
 
@@ -27,6 +32,10 @@ import re
 CLEAN_DIR = Path("docs/win/manual/cleaned")
 OUT_DIR = Path("docs/win/manual/normalized")
 MAP_PATH = Path("mappings/team_map.csv")
+
+NEED_MAP_DIR = Path("mappings/need_map")
+NEED_MAP_DIR.mkdir(parents=True, exist_ok=True)
+NO_MAP_PATH = NEED_MAP_DIR / "no_map.csv"
 
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -67,6 +76,22 @@ def load_team_map() -> dict:
     return team_map
 
 
+def append_no_map(rows: list[dict]):
+    """Append unmapped (league, team) rows to no_map.csv without duplicates."""
+    if not rows:
+        return
+
+    new_df = pd.DataFrame(rows)
+
+    if NO_MAP_PATH.exists():
+        old_df = pd.read_csv(NO_MAP_PATH, dtype=str)
+        combined = pd.concat([old_df, new_df], ignore_index=True).drop_duplicates()
+    else:
+        combined = new_df.drop_duplicates()
+
+    combined.to_csv(NO_MAP_PATH, index=False)
+
+
 def normalize_file(path: Path, team_map: dict):
     df = pd.read_csv(path, dtype=str)
 
@@ -90,18 +115,23 @@ def normalize_file(path: Path, team_map: dict):
 
     before = df[["team", "opponent"]].copy()
 
-    # Deterministic replacement (NO pandas replace magic)
+    # Deterministic replacement
     df["team"] = df["team"].apply(lambda x: league_map.get(x, x))
     df["opponent"] = df["opponent"].apply(lambda x: league_map.get(x, x))
 
-    # Log unmapped teams
+    # Identify unmapped teams
     unmapped = sorted(
         (set(before["team"]) | set(before["opponent"])) - set(league_map.keys())
     )
+
     if unmapped:
         print(
             f"[{path.name}] unmapped teams ({league}): "
             f"{len(unmapped)} example={unmapped[:10]}"
+        )
+
+        append_no_map(
+            [{"league": league, "team": team} for team in unmapped]
         )
 
     out_path = OUT_DIR / f"norm_dk_{league}_{year}_{month}_{day}.csv"
