@@ -17,7 +17,7 @@ def decimal_to_american(decimal: float) -> int:
 def american_to_decimal(american: int) -> float:
     if american > 0:
         return 1 + (american / 100)
-    return 1 + (100 / abs(american))
+    return 1 + (100 / abs(american)))
 
 
 def personal_edge_pct(prob: float) -> float:
@@ -27,7 +27,6 @@ def personal_edge_pct(prob: float) -> float:
     Returns extra edge as a percentage applied multiplicatively
     to acceptable_decimal_odds.
     """
-
     if prob >= 0.70:
         return 0.15
     if prob >= 0.60:
@@ -57,7 +56,8 @@ def process_file(path: Path):
         reader = csv.DictReader(infile)
 
         fieldnames = list(reader.fieldnames) + [
-            "personally_acceptable_american_odds"
+            "personally_acceptable_american_odds",
+            "personally_acceptable_decimal_odds",
         ]
 
         writer = csv.DictWriter(outfile, fieldnames=fieldnames)
@@ -67,6 +67,7 @@ def process_file(path: Path):
             raw_p = (row.get("win_probability") or "").strip()
             if not raw_p:
                 row["personally_acceptable_american_odds"] = ""
+                row["personally_acceptable_decimal_odds"] = ""
                 writer.writerow(row)
                 continue
 
@@ -86,7 +87,13 @@ def process_file(path: Path):
             if p < 0.10 and personal_american > 2500:
                 personal_american = 2500
 
+            personal_decimal_from_american = american_to_decimal(personal_american)
+
             row["personally_acceptable_american_odds"] = personal_american
+            row["personally_acceptable_decimal_odds"] = round(
+                personal_decimal_from_american, 4
+            )
+
             writer.writerow(row)
 
     print(f"Created {output_path}")
