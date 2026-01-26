@@ -25,6 +25,7 @@ def load_csv(path: Path):
 
 
 def main():
+    # Load all manual rows once
     manual_rows = []
     for p in MANUAL_DIR.glob("*.csv"):
         manual_rows.extend(load_csv(p))
@@ -37,7 +38,7 @@ def main():
             continue
 
         for f in final_rows:
-            f_date = parse_date(f["date"])
+            f_date = parse_date(f.get("date", ""))
             if not f_date:
                 continue
 
@@ -46,17 +47,21 @@ def main():
                 m_date = parse_date(m.get("date", ""))
                 if (
                     m_date == f_date
-                    and f["team"].strip() == m["team"].strip()
-                    and f["opponent"].strip() == m["opponent"].strip()
-                    and f["league"].strip() == m["league"].strip()
+                    and f.get("team", "").strip() == m.get("team", "").strip()
+                    and f.get("opponent", "").strip() == m.get("opponent", "").strip()
+                    and f.get("league", "").strip() == m.get("league", "").strip()
                 ):
                     try:
-                        acceptable = float(f["personally_acceptable_american_odds"])
-                        actual = float(m["odds"])
+                        acceptable = float(
+                            f["personally_acceptable_decimal_odds"]
+                        )
+                        actual = float(
+                            m["decimal_odds"]
+                        )
                     except Exception:
                         continue
 
-                    # ONLY RULE
+                    # ONLY RULE (decimal space)
                     if actual >= acceptable:
                         winners_by_date.setdefault(f_date, []).append(
                             {
@@ -64,10 +69,10 @@ def main():
                                 "Time": f["time"],
                                 "Team": f["team"],
                                 "Opponent": f["opponent"],
-                                "win_probability": f["win_probability"],
+                                "win_probability": f.get("win_probability", ""),
                                 "league": f["league"],
-                                "personally_acceptable_american_odds": acceptable,
-                                "Odds": actual,
+                                "personally_acceptable_decimal_odds": acceptable,
+                                "decimal_odds": actual,
                             }
                         )
 
@@ -83,8 +88,8 @@ def main():
                     "Opponent",
                     "win_probability",
                     "league",
-                    "personally_acceptable_american_odds",
-                    "Odds",
+                    "personally_acceptable_decimal_odds",
+                    "decimal_odds",
                 ],
             )
             writer.writeheader()
