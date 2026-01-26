@@ -72,7 +72,13 @@ def clean_file(path: Path):
     # (home/away cannot be inferred safely at this stage)
 
     # Odds normalization (unicode minus)
-    df["odds"] = df["odds"].astype(str).str.replace("−", "-", regex=False)
+    df["odds"] = (
+    df["odds"]
+    .astype(str)
+    .str.replace("−", "-", regex=False)   # normalize unicode minus
+    .str.lstrip("+")                      # strip leading plus ONLY
+)
+
 
     # Percent columns -> numeric decimals
     for col in ("handle_pct", "bets_pct"):
