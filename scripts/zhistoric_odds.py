@@ -1,16 +1,16 @@
 import sys
 from pathlib import Path
-import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.append(str(ROOT))
 
-from scraper import (
+from scrapers.sportsbookreview import (
     NHLOddsScraper,
     NBAOddsScraper,
     NFLOddsScraper,
     MLBOddsScraper,
 )
+
 
 OUT_PATH = Path("bets/historic/odds_scraped.csv")
 OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
