@@ -10,6 +10,8 @@ CONFIG_PATH = Path("config/nba/nba_juice_table.csv")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
+# ---------- Odds helpers ----------
+
 def decimal_to_american(decimal: float) -> int:
     if decimal >= 2.0:
         return int(round(100 * (decimal - 1)))
@@ -19,34 +21,20 @@ def decimal_to_american(decimal: float) -> int:
 def american_to_decimal(american: int) -> float:
     if american > 0:
         return 1 + (american / 100)
-    return 1 + (100 / abs(american)))
+    return 1 + (100 / abs(american))
 
 
-# ---------------------------------------------------------------------
-# Load NBA juice config (moneyline only)
-# ---------------------------------------------------------------------
+# ---------- Load juice config ----------
+
 def load_moneyline_juice_table():
-    if not CONFIG_PATH.exists():
-        raise FileNotFoundError(f"Missing juice config: {CONFIG_PATH}")
-
+    """
+    Loads NBA moneyline juice rules from config CSV.
+    Returns ordered list of dicts.
+    """
     rules = []
 
     with CONFIG_PATH.open(newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
-
-        required_cols = {
-            "market_type",
-            "band_low",
-            "band_high",
-            "side",
-            "extra_juice_pct",
-        }
-
-        if not required_cols.issubset(reader.fieldnames):
-            raise ValueError(
-                f"Config schema invalid. Required columns: {required_cols}"
-            )
-
         for row in reader:
             if row["market_type"] != "moneyline":
                 continue
@@ -54,34 +42,30 @@ def load_moneyline_juice_table():
             rules.append({
                 "low": float(row["band_low"]),
                 "high": float(row["band_high"]),
-                "side": row["side"].strip().lower(),  # any / favorite / underdog
-                "juice": float(row["extra_juice_pct"]),
+                "side": row["side"],
+                "extra": float(row["extra_juice_pct"]),
             })
 
-    if not rules:
-        raise ValueError("No moneyline rules found in juice table")
-
+    # Highest probability first (defensive ordering)
+    rules.sort(key=lambda r: r["low"], reverse=True)
     return rules
 
 
-ML_JUICE_RULES = load_moneyline_juice_table()
+JUICE_RULES = load_moneyline_juice_table()
 
 
-def lookup_edge_pct(prob: float, side: str) -> float:
+def lookup_personal_edge(prob: float) -> float:
     """
-    side: 'favorite' | 'underdog'
+    Returns extra juice pct based on win_probability.
     """
-    for r in ML_JUICE_RULES:
-        if r["low"] <= prob < r["high"]:
-            if r["side"] == "any" or r["side"] == side:
-                return r["juice"]
-
-    raise ValueError(f"No juice rule matched for p={prob}, side={side}")
+    for rule in JUICE_RULES:
+        if rule["low"] <= prob < rule["high"]:
+            return rule["extra"]
+    return 0.0
 
 
-# ---------------------------------------------------------------------
-# Main processing
-# ---------------------------------------------------------------------
+# ---------- Main processing ----------
+
 def process_file(path: Path):
     suffix = path.name.replace("edge_nba_", "")
     output_path = OUTPUT_DIR / f"final_nba_{suffix}"
@@ -90,19 +74,6 @@ def process_file(path: Path):
          output_path.open("w", newline="", encoding="utf-8") as outfile:
 
         reader = csv.DictReader(infile)
-
-        required = {
-            "win_probability",
-            "acceptable_decimal_odds",
-            "acceptable_american_odds",
-            "side",  # favorite / underdog
-        }
-
-        if not required.issubset(reader.fieldnames):
-            raise ValueError(
-                f"{path.name} missing required columns: {required}"
-            )
-
         fieldnames = list(reader.fieldnames) + [
             "personally_acceptable_american_odds"
         ]
@@ -118,22 +89,21 @@ def process_file(path: Path):
                 continue
 
             p = float(raw_p)
-            side = row["side"].strip().lower()
-
             base_decimal = float(row["acceptable_decimal_odds"])
             base_american = int(row["acceptable_american_odds"])
 
-            edge_pct = lookup_edge_pct(p, side)
+            edge_pct = lookup_personal_edge(p)
 
             personal_decimal = base_decimal * (1.0 + edge_pct)
             personal_american = decimal_to_american(personal_decimal)
 
-            # --------------------------------------------------
-            # Safety caps (unchanged logic)
-            # --------------------------------------------------
+            # ----- Guards -----
+
+            # Favorites may not flip into absurd dogs
             if base_american < 0 and personal_american > 120:
                 personal_american = 120
 
+            # Extreme tail protection
             if p < 0.10 and personal_american > 2500:
                 personal_american = 2500
 
