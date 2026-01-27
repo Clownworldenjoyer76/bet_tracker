@@ -67,6 +67,22 @@ def process_file(path: Path):
 
         output_headers = [
             HEADER_MAP.get(col, col) for col in REQUIRED_COLUMNS
+        ] + [
+            "away_win_prob",
+            "home_win_prob",
+            "away_amer_odds",
+            "home_amer_odds",
+            "away_deci_odds",
+            "home_deci_odds",
+            "underdog",
+            "puck_line",
+            "puck_line_fair_deci",
+            "puck_line_fair_amer",
+            "puck_line_acceptable_deci",
+            "puck_line_acceptable_amer",
+            "puck_line_juiced_deci",
+            "puck_line_juiced_amer",
+            "league",
         ]
 
         with output_path.open("w", newline="", encoding="utf-8") as outfile:
