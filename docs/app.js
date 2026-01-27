@@ -542,6 +542,7 @@ function renderNHLGames(spreads, mlByTeam, ouByGame) {
 /* ======================================================== NBA ======================================================================= */
 /* ======================================================== NBA ======================================================================= */
 
+
 async function loadNBADaily(selectedDate) {
   setStatus("");
   document.getElementById("games").innerHTML = "";
@@ -551,9 +552,11 @@ async function loadNBADaily(selectedDate) {
 
   const finalUrl = `${RAW_BASE}/docs/win/final/final_nba_${d}.csv`;
   const totalsUrl = `${RAW_BASE}/docs/win/nba/edge_nba_totals_${d}.csv`;
+  const spreadsUrl = `${RAW_BASE}/docs/win/nba/spreads/edge_nba_spreads_${d}.csv`;
 
   let rows = [];
   let totals = [];
+  let spreads = [];
 
   try {
     rows = parseCSV(await fetchText(finalUrl));
@@ -568,6 +571,12 @@ async function loadNBADaily(selectedDate) {
     totals = [];
   }
 
+  try {
+    spreads = parseCSV(await fetchText(spreadsUrl));
+  } catch {
+    spreads = [];
+  }
+
   if (!rows.length) {
     setStatus("No NBA games found for this date.");
     return;
@@ -576,6 +585,14 @@ async function loadNBADaily(selectedDate) {
   const totalsByGame = new Map();
   for (const t of totals) {
     if (t.game_id) totalsByGame.set(t.game_id, t);
+  }
+
+  // team -> spread acceptable odds
+  const spreadByTeam = new Map();
+  for (const s of spreads) {
+    if (s.team && s.acceptable_american_odds) {
+      spreadByTeam.set(s.team, s.acceptable_american_odds);
+    }
   }
 
   const games = new Map();
@@ -594,10 +611,10 @@ async function loadNBADaily(selectedDate) {
     timeToMinutes(games.get(b)?.[0]?.time)
   );
 
-  renderNBAGames(order, games, totalsByGame);
+  renderNBAGames(order, games, totalsByGame, spreadByTeam);
 }
 
-function renderNBAGames(order, games, totalsByGame) {
+function renderNBAGames(order, games, totalsByGame, spreadByTeam) {
   const container = document.getElementById("games");
 
   for (const gid of order) {
@@ -607,7 +624,7 @@ function renderNBAGames(order, games, totalsByGame) {
     const a = rows[0];
     const b = rows[1];
     const totals = totalsByGame.get(gid) || {};
-    const time = a.time || "";
+    const time = totals.time || a.time || "";
 
     const hasOU = !!totals.game_id;
 
@@ -621,7 +638,7 @@ function renderNBAGames(order, games, totalsByGame) {
 
     box.innerHTML = `
       <div class="game-header">
-        ${escapeHtml(a.team)} vs ${escapeHtml(b.team)}
+        ${escapeHtml(totals.team_1)} at ${escapeHtml(totals.team_2)}
         ${time ? `<span class="cell-muted"> — ${escapeHtml(time)}</span>` : ""}
       </div>
 
@@ -631,8 +648,9 @@ function renderNBAGames(order, games, totalsByGame) {
             <th></th>
             <th>Win Probability</th>
             <th>Projected Pts</th>
-            <th>Take O/U at</th>
-            <th>Take ML at</th>
+            <th>TAKE O/U AT</th>
+            <th>TAKE ML AT</th>
+            <th>TAKE SPREAD AT</th>
           </tr>
         </thead>
         <tbody>
@@ -644,6 +662,7 @@ function renderNBAGames(order, games, totalsByGame) {
             <td class="${mlClassFromProb(a.win_probability)}">
               ${escapeHtml(a.personally_acceptable_american_odds)}
             </td>
+            <td>${escapeHtml(spreadByTeam.get(a.team) || "")}</td>
           </tr>
 
           <tr>
@@ -656,16 +675,18 @@ function renderNBAGames(order, games, totalsByGame) {
             <td class="${mlClassFromProb(b.win_probability)}">
               ${escapeHtml(b.personally_acceptable_american_odds)}
             </td>
+            <td>${escapeHtml(spreadByTeam.get(b.team) || "")}</td>
           </tr>
 
           ${hasOU ? `
           <tr class="draw-row">
-            <td><strong>O/U</strong></td>
-            <td></td>
+            <td><strong>Over/Under</strong></td>
+            <td>${formatPct(totals.model_probability)}</td>
             <td></td>
             <td class="${ouClass}">
               ${escapeHtml(totals.acceptable_american_odds)}
             </td>
+            <td></td>
             <td></td>
           </tr>` : ""}
         </tbody>
