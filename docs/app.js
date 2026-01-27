@@ -512,7 +512,7 @@ function renderNHLGames(spreads, mlByTeam) {
             <td><strong>Over/Under</strong></td>
             <td></td>
             <td></td>
-            <td>${escapeHtml(r.ou_prob)}</td>
+            <td>${escapeHtml(totals.acceptable_american_odds)}</td>
             <td></td>
             <td></td>
           </tr>
