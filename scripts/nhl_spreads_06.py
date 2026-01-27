@@ -8,34 +8,37 @@ Definition:
 P(+1.5) = P(underdog wins) + P(underdog loses by exactly 1)
 
 Method:
-- Use Poisson goal model with Skellam approximation
+- Independent Poisson goal model
 - Expected goals already provided (home_goals, away_goals)
-- Win probability already provided (away_win_prob / home_win_prob)
-- Compute P(loss by exactly 1) analytically
+- Win probability already provided
+- Compute P(lose by exactly 1) via Poisson convolution
 """
 
 import csv
 import math
 from pathlib import Path
-from collections import defaultdict
 
 INPUT_DIR = Path("docs/win/nhl/spreads")
 OUTPUT_DIR = INPUT_DIR  # in-place overwrite
 
 # --------------------------------------------------
-# Skellam PMF for k = -1 (lose by exactly 1)
+# Poisson PMF
 # --------------------------------------------------
-def skellam_pmf_minus_one(lam_dog: float, lam_fav: float) -> float:
-    """
-    P(D = -1) where D = goals_dog - goals_fav
-    """
-    if lam_dog <= 0 or lam_fav <= 0:
-        return 0.0
+def poisson_pmf(k: int, lam: float) -> float:
+    return math.exp(-lam) * (lam ** k) / math.factorial(k)
 
-    term = math.exp(-(lam_dog + lam_fav))
-    ratio = math.sqrt(lam_dog / lam_fav)
-    bessel = math.i1(2 * math.sqrt(lam_dog * lam_fav))
-    return term * ratio * bessel
+
+# --------------------------------------------------
+# P(underdog loses by exactly 1)
+# --------------------------------------------------
+def prob_lose_by_one(lam_dog: float, lam_fav: float, max_goals: int = 12) -> float:
+    """
+    Sum P(dog = k, fav = k+1) for k = 0..max_goals
+    """
+    p = 0.0
+    for k in range(max_goals + 1):
+        p += poisson_pmf(k, lam_dog) * poisson_pmf(k + 1, lam_fav)
+    return p
 
 
 def compute_plus_one_five_prob(
@@ -46,10 +49,13 @@ def compute_plus_one_five_prob(
     """
     P(+1.5) = P(win) + P(lose by 1)
     """
-    p_lose_by_one = skellam_pmf_minus_one(lam_dog, lam_fav)
-    return min(dog_win_prob + p_lose_by_one, 0.9999)
+    p_lose_1 = prob_lose_by_one(lam_dog, lam_fav)
+    return min(dog_win_prob + p_lose_1, 0.9999)
 
 
+# --------------------------------------------------
+# MAIN
+# --------------------------------------------------
 def main():
     files = sorted(INPUT_DIR.glob("nhl_spreads_*.csv"))
     if not files:
