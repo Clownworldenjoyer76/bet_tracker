@@ -384,22 +384,11 @@ function renderNCAABGames(order, games, totalsByGame) {
   }
 }
 
-/* ================= NHL ================= */
-
-function timeToMinutes(t) {
-  if (!t) return 0;
-  const m = t.match(/(\d+):(\d+)\s*(AM|PM)/i);
-  if (!m) return 0;
-
-  let h = parseInt(m[1], 10);
-  const min = parseInt(m[2], 10);
-  const ap = m[3].toUpperCase();
-
-  if (ap === "PM" && h !== 12) h += 12;
-  if (ap === "AM" && h === 12) h = 0;
-
-  return h * 60 + min;
-}
+/* ================================================================= NHL =================================================================== */
+/* ================================================================= NHL =================================================================== */
+/* ================================================================= NHL =================================================================== */
+/* ================================================================= NHL =================================================================== */
+/* ================================================================= NHL =================================================================== */
 
 async function loadNHLDaily(selectedDate) {
   setStatus("");
@@ -408,73 +397,64 @@ async function loadNHLDaily(selectedDate) {
   const [yyyy, mm, dd] = selectedDate.split("-");
   const d = `${yyyy}_${mm}_${dd}`;
 
-  const finalUrl = `${RAW_BASE}/docs/win/final/final_nhl_${d}.csv`;
-  const totalsUrl = `${RAW_BASE}/docs/win/nhl/edge_nhl_totals_${d}.csv`;
+  const spreadsUrl = `${RAW_BASE}/docs/win/nhl/spreads/nhl_spreads_${d}.csv`;
+  const edgeUrl = `${RAW_BASE}/docs/win/edge/edge_nhl_${yyyy}_${mm}_${dd}.csv`;
 
-  let rows = [];
-  let totals = [];
+  let spreads = [];
+  let edgeRows = [];
 
   try {
-    rows = parseCSV(await fetchText(finalUrl));
-    totals = parseCSV(await fetchText(totalsUrl));
+    spreads = parseCSV(await fetchText(spreadsUrl));
+    edgeRows = parseCSV(await fetchText(edgeUrl));
   } catch {
     setStatus("Failed to load NHL files.");
     return;
   }
 
-  if (!rows.length) {
+  if (!spreads.length) {
     setStatus("No NHL games found for this date.");
     return;
   }
 
-  const totalsByGame = new Map();
-  for (const t of totals) {
-    totalsByGame.set(t.game_id, t);
-  }
-
-  const games = new Map();
-  const order = [];
-
-  for (const r of rows) {
-    if (!games.has(r.game_id)) {
-      games.set(r.game_id, []);
-      order.push(r.game_id);
+  // team -> acceptable ML
+  const mlByTeam = new Map();
+  for (const r of edgeRows) {
+    if (r.team && r.acceptable_american_odds && !mlByTeam.has(r.team)) {
+      mlByTeam.set(r.team, r.acceptable_american_odds);
     }
-    games.get(r.game_id).push(r);
   }
 
-  order.sort((a, b) =>
-    timeToMinutes(games.get(a)?.[0]?.time) -
-    timeToMinutes(games.get(b)?.[0]?.time)
-  );
+  spreads.sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time));
 
-  renderNHLGames(order, games, totalsByGame);
+  renderNHLGames(spreads, mlByTeam);
 }
 
-function renderNHLGames(order, games, totalsByGame) {
+function renderNHLGames(spreads, mlByTeam) {
   const container = document.getElementById("games");
 
-  for (const gid of order) {
-    const rows = games.get(gid);
-    if (rows.length !== 2) continue;
+  for (const r of spreads) {
+    const awayTeam = r.away_team;
+    const homeTeam = r.home_team;
 
-    const a = rows[0];
-    const b = rows[1];
-    const totals = totalsByGame.get(gid) || {};
-    const time = a.time || "";
+    const awayWin = Number(r.away_win_prob);
+    const homeWin = Number(r.home_win_prob);
 
-    const ouClass =
-      totals.side && totals.side !== "NO PLAY"
-        ? mlClassFromProb(totals.model_probability)
-        : "no-play";
+    const awayUnderdog =
+      Number.isFinite(awayWin) &&
+      Number.isFinite(homeWin) &&
+      awayWin < homeWin;
+
+    const homeUnderdog =
+      Number.isFinite(awayWin) &&
+      Number.isFinite(homeWin) &&
+      homeWin < awayWin;
 
     const box = document.createElement("div");
     box.className = "game-box";
 
     box.innerHTML = `
       <div class="game-header">
-        ${escapeHtml(a.team)} vs ${escapeHtml(b.team)}
-        ${time ? ` — ${escapeHtml(time)}` : ""}
+        ${escapeHtml(awayTeam)} vs ${escapeHtml(homeTeam)} — ${escapeHtml(r.time)}
       </div>
 
       <table class="game-grid">
@@ -485,38 +465,40 @@ function renderNHLGames(order, games, totalsByGame) {
             <th>Projected Goals</th>
             <th>Take O/U at</th>
             <th>Take ML at</th>
+            <th>Take +1.5</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td><strong>${escapeHtml(a.team)}</strong></td>
-            <td>${formatPct(a.win_probability)}</td>
-            <td>${format2(a.goals)}</td>
-            <td>${escapeHtml(totals.market_total || a.best_ou)}</td>
-            <td class="${mlClassFromProb(a.win_probability)}">
-              ${escapeHtml(a.personally_acceptable_american_odds)}
+            <td><strong>${escapeHtml(awayTeam)}</strong></td>
+            <td>${formatPct(awayWin)}</td>
+            <td>${format2(r.away_goals)}</td>
+            <td>${escapeHtml(r.market_total)}</td>
+            <td class="${mlClassFromProb(awayWin)}">
+              ${escapeHtml(mlByTeam.get(awayTeam) || "")}
             </td>
+            <td>${awayUnderdog ? escapeHtml(r.puck_line_acceptable_amer) : ""}</td>
           </tr>
 
           <tr>
-            <td><strong>${escapeHtml(b.team)}</strong></td>
-            <td>${formatPct(b.win_probability)}</td>
-            <td>${format2(b.goals)}</td>
-            <td class="${totals.side === 'NO PLAY' ? 'no-play' : ''}">
-              ${escapeHtml(totals.side)}
+            <td><strong>${escapeHtml(homeTeam)}</strong></td>
+            <td>${formatPct(homeWin)}</td>
+            <td>${format2(r.home_goals)}</td>
+            <td class="${r.side === "NO PLAY" ? "no-play" : ""}">
+              ${escapeHtml(r.side)}
             </td>
-            <td class="${mlClassFromProb(b.win_probability)}">
-              ${escapeHtml(b.personally_acceptable_american_odds)}
+            <td class="${mlClassFromProb(homeWin)}">
+              ${escapeHtml(mlByTeam.get(homeTeam) || "")}
             </td>
+            <td>${homeUnderdog ? escapeHtml(r.puck_line_acceptable_amer) : ""}</td>
           </tr>
 
           <tr class="draw-row">
-            <td><strong>O/U</strong></td>
+            <td><strong>Over/Under</strong></td>
             <td></td>
             <td></td>
-            <td class="${ouClass}">
-              ${escapeHtml(totals.acceptable_american_odds)}
-            </td>
+            <td>${escapeHtml(r.ou_prob)}</td>
+            <td></td>
             <td></td>
           </tr>
         </tbody>
@@ -526,9 +508,12 @@ function renderNHLGames(order, games, totalsByGame) {
     container.appendChild(box);
   }
 }
-/* ================= NBA ================= */
 
-/* ================= NBA ================= */
+/* ======================================================== NBA ======================================================================= */
+/* ======================================================== NBA ======================================================================= */
+/* ======================================================== NBA ======================================================================= */
+/* ======================================================== NBA ======================================================================= */
+/* ======================================================== NBA ======================================================================= */
 
 async function loadNBADaily(selectedDate) {
   setStatus("");
