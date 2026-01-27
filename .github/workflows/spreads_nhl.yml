@@ -16,10 +16,13 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Run NHL spreads script 01
+      - name: Run NHL spreads script 01 (create base file + headers)
         run: |
           python scripts/nhl_spreads_01.py
-    
+
+      - name: Run NHL spreads script 02 (populate values)
+        run: |
+          python scripts/nhl_spreads_02.py
 
       - name: Commit and push results
         run: |
