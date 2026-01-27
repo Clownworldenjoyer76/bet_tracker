@@ -3,17 +3,13 @@
 scripts/nhl_spreads_04.py
 
 Purpose:
-- Populate fair puck line odds for UNDERDOG +1.5 only
-- Calculates:
+- Populate FAIR puck line odds for UNDERDOG +1.5 only
+- Calculates ONLY:
     - puck_line_fair_deci
     - puck_line_fair_amer
 
-Inputs (must already exist in CSV):
-- underdog
-- away_team
-- home_team
-- away_goals   (expected goals)
-- home_goals   (expected goals)
+Authoritative goal source:
+- docs/win/final/final_nhl_YYYY_MM_DD.csv
 
 No juice. No sportsbook pricing. No personal edge logic.
 """
@@ -22,10 +18,19 @@ import csv
 from pathlib import Path
 import sys
 import math
+import re
 
 SPREADS_DIR = Path("docs/win/nhl/spreads")
+FINAL_DIR = Path("docs/win/final")
 
-MAX_GOALS = 15  # safe upper bound for NHL Poisson mass
+MAX_GOALS = 15  # safe Poisson cutoff for NHL scoring
+
+
+def extract_date(filename: str) -> str:
+    match = re.search(r"(\d{4}_\d{2}_\d{2})", filename)
+    if not match:
+        raise ValueError(f"Could not extract date from filename: {filename}")
+    return match.group(1)
 
 
 def poisson_pmf(k: int, lam: float) -> float:
@@ -52,21 +57,52 @@ def deci_to_american(deci: float) -> int:
         return int(round(-100 / (deci - 1)))
 
 
-def process_file(path: Path):
-    with path.open(newline="", encoding="utf-8") as f:
+def load_goal_map(final_path: Path):
+    """
+    Returns:
+        dict[(game_id, team)] -> goals (float)
+    """
+    with final_path.open(newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        return {
+            (r["game_id"], r["team"]): float(r["goals"])
+            for r in reader
+        }
+
+
+def process_file(spread_path: Path):
+    date_str = extract_date(spread_path.name)
+    final_path = FINAL_DIR / f"final_nhl_{date_str}.csv"
+
+    if not final_path.exists():
+        raise FileNotFoundError(f"Missing final file: {final_path}")
+
+    goal_map = load_goal_map(final_path)
+
+    with spread_path.open(newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         headers = reader.fieldnames
         rows = list(reader)
 
     for row in rows:
+        gid = row["game_id"]
+        away = row["away_team"]
+        home = row["home_team"]
         underdog = row["underdog"]
 
-        if underdog == row["away_team"]:
-            lam_u = float(row["away_goals"])
-            lam_f = float(row["home_goals"])
+        try:
+            away_goals = goal_map[(gid, away)]
+            home_goals = goal_map[(gid, home)]
+        except KeyError:
+            # strict join failure — do not fabricate
+            continue
+
+        if underdog == away:
+            lam_u = away_goals
+            lam_f = home_goals
         else:
-            lam_u = float(row["home_goals"])
-            lam_f = float(row["away_goals"])
+            lam_u = home_goals
+            lam_f = away_goals
 
         p = fair_prob_underdog_plus_1_5(lam_u, lam_f)
 
@@ -76,12 +112,12 @@ def process_file(path: Path):
         row["puck_line_fair_deci"] = f"{fair_deci:.6f}"
         row["puck_line_fair_amer"] = str(fair_amer)
 
-    with path.open("w", newline="", encoding="utf-8") as f:
+    with spread_path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=headers)
         writer.writeheader()
         writer.writerows(rows)
 
-    print(f"Updated fair puck line odds: {path.name}")
+    print(f"Updated fair puck line odds: {spread_path.name}")
 
 
 def main():
