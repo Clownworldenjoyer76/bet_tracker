@@ -2,15 +2,12 @@
 """
 scripts/nhl_spreads_02.py
 
-Purpose:
-- Populate existing nhl_spreads_*.csv files with values derived from final_nhl_*.csv
+Populate nhl_spreads_*.csv using final_nhl_*.csv
 
-Matching rules (ALL must match):
+Matching rules:
 - game_id
-- final_nhl.team == nhl_spreads.away_team
-- final_nhl.opponent == nhl_spreads.home_team
-
-Writes values ONLY to the specified columns.
+- final.team == spreads.away_team  (away row)
+- final.team == spreads.home_team  (home row)
 """
 
 import csv
@@ -20,12 +17,6 @@ import re
 
 SPREADS_DIR = Path("docs/win/nhl/spreads")
 FINAL_DIR = Path("docs/win/final")
-
-REQUIRED_SPREAD_COLUMNS = [
-    "game_id",
-    "away_team",
-    "home_team",
-]
 
 REQUIRED_FINAL_COLUMNS = [
     "game_id",
@@ -43,18 +34,12 @@ def extract_date(filename: str) -> str:
     return match.group(1)
 
 def load_final_rows(path: Path):
-    rows = []
     with path.open(newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
-
         missing = [c for c in REQUIRED_FINAL_COLUMNS if c not in reader.fieldnames]
         if missing:
             raise ValueError(f"{path.name} missing required columns: {missing}")
-
-        for row in reader:
-            rows.append(row)
-
-    return rows
+        return list(reader)
 
 def process_spread_file(spread_path: Path):
     date_str = extract_date(spread_path.name)
@@ -68,26 +53,26 @@ def process_spread_file(spread_path: Path):
 
     with spread_path.open(newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
-        spread_rows = list(reader)
         headers = reader.fieldnames
-
-    missing = [c for c in REQUIRED_SPREAD_COLUMNS if c not in headers]
-    if missing:
-        raise ValueError(f"{spread_path.name} missing required columns: {missing}")
+        spread_rows = list(reader)
 
     for srow in spread_rows:
-        matches = [
-            frow for frow in final_rows
-            if frow["game_id"] == srow["game_id"]
-            and frow["team"] == srow["away_team"]
-            and frow["opponent"] == srow["home_team"]
-        ]
+        away = next(
+            (r for r in final_rows
+             if r["game_id"] == srow["game_id"]
+             and r["team"] == srow["away_team"]),
+            None
+        )
 
-        if len(matches) != 2:
+        home = next(
+            (r for r in final_rows
+             if r["game_id"] == srow["game_id"]
+             and r["team"] == srow["home_team"]),
+            None
+        )
+
+        if not away or not home:
             continue
-
-        away = matches[0]
-        home = matches[1]
 
         srow["away_win_prob"] = away["win_probability"]
         srow["home_win_prob"] = home["win_probability"]
