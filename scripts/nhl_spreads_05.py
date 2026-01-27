@@ -3,14 +3,16 @@
 scripts/nhl_spreads_05.py
 
 Purpose:
-- Apply 6% juice to FAIR puck line odds (underdog +1.5)
+- Apply venue-adjusted juice to FAIR puck line odds (underdog +1.5)
 - Populates ONLY:
     - puck_line_acceptable_deci
     - puck_line_acceptable_amer
 
 Method:
 - Convert fair decimal -> implied probability
-- Inflate probability by 6%
+- Inflate probability by:
+    - 5% if underdog is HOME
+    - 6% if underdog is AWAY
 - Convert back to odds
 
 No sportsbook lines. No personal edge logic.
@@ -22,7 +24,6 @@ import sys
 import math
 
 SPREADS_DIR = Path("docs/win/nhl/spreads")
-JUICE = 0.06
 
 
 def deci_to_american(deci: float) -> int:
@@ -47,11 +48,26 @@ def process_file(path: Path):
         except ValueError:
             continue
 
+        underdog = row.get("underdog")
+        home_team = row.get("home_team")
+        away_team = row.get("away_team")
+
+        if not underdog or not home_team or not away_team:
+            continue
+
+        # venue-adjusted juice
+        if underdog == home_team:
+            juice = 0.05
+        elif underdog == away_team:
+            juice = 0.06
+        else:
+            continue  # safety: underdog must match one side
+
         # fair implied probability
         p_fair = 1.0 / fair_deci
 
-        # apply 6% juice on probability
-        p_juiced = p_fair * (1.0 + JUICE)
+        # apply juice on probability
+        p_juiced = p_fair * (1.0 + juice)
 
         # guard against impossible probability
         if p_juiced >= 1.0:
