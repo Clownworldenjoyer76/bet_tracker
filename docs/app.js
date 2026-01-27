@@ -589,11 +589,15 @@ async function loadNBADaily(selectedDate) {
 
   // team -> spread acceptable odds
   const spreadByTeam = new Map();
-  for (const s of spreads) {
-    if (s.team && s.acceptable_american_odds) {
-      spreadByTeam.set(s.team, s.acceptable_american_odds);
-    }
+for (const s of spreads) {
+  if (s.team && s.spread && s.acceptable_american_odds) {
+    spreadByTeam.set(
+      s.team,
+      `${s.spread} (${s.acceptable_american_odds})`
+    );
   }
+}
+
 
   const games = new Map();
   const order = [];
