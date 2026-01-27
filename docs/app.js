@@ -414,13 +414,16 @@ async function loadNHLDaily(selectedDate) {
 
   const spreadsUrl = `${RAW_BASE}/docs/win/nhl/spreads/nhl_spreads_${d}.csv`;
   const edgeUrl = `${RAW_BASE}/docs/win/edge/edge_nhl_${yyyy}_${mm}_${dd}.csv`;
+  const totalsUrl = `${RAW_BASE}/docs/win/nhl/edge_nhl_totals_${d}.csv`;
 
   let spreads = [];
   let edgeRows = [];
+  let totalsRows = [];
 
   try {
     spreads = parseCSV(await fetchText(spreadsUrl));
     edgeRows = parseCSV(await fetchText(edgeUrl));
+    totalsRows = parseCSV(await fetchText(totalsUrl));
   } catch {
     setStatus("Failed to load NHL files.");
     return;
@@ -439,12 +442,20 @@ async function loadNHLDaily(selectedDate) {
     }
   }
 
+  // game_id -> acceptable O/U odds
+  const ouByGame = new Map();
+  for (const r of totalsRows) {
+    if (r.game_id && r.personally_acceptable_american_odds) {
+      ouByGame.set(r.game_id, r.personally_acceptable_american_odds);
+    }
+  }
+
   spreads.sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time));
 
-  renderNHLGames(spreads, mlByTeam);
+  renderNHLGames(spreads, mlByTeam, ouByGame);
 }
 
-function renderNHLGames(spreads, mlByTeam) {
+function renderNHLGames(spreads, mlByTeam, ouByGame) {
   const container = document.getElementById("games");
 
   for (const r of spreads) {
@@ -512,7 +523,7 @@ function renderNHLGames(spreads, mlByTeam) {
             <td><strong>Over/Under</strong></td>
             <td></td>
             <td></td>
-            <td>${escapeHtml(totals.acceptable_american_odds)}</td>
+            <td>${escapeHtml(ouByGame.get(r.game_id) || "")}</td>
             <td></td>
             <td></td>
           </tr>
@@ -523,6 +534,7 @@ function renderNHLGames(spreads, mlByTeam) {
     container.appendChild(box);
   }
 }
+
 
 /* ======================================================== NBA ======================================================================= */
 /* ======================================================== NBA ======================================================================= */
