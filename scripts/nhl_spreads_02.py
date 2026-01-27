@@ -3,147 +3,131 @@
 scripts/nhl_spreads_02.py
 
 Purpose:
-- Read existing nhl_spreads_*.csv files under docs/win/nhl/spreads/
-- Match rows against final_nhl_*.csv on:
-    * game_id
-    * final.team      == spreads.away_team
-    * final.opponent  == spreads.home_team
-- Copy / rename values from final_nhl_*.csv into nhl_spreads_*.csv
-- Add required new columns and values
-- Write back to the SAME nhl_spreads_*.csv file (augmenting it)
+- Populate existing nhl_spreads_*.csv files with values derived from final_nhl_*.csv
 
-This script does NOT infer, optimize, or alter unrelated data.
+Matching rules (ALL must match):
+- game_id
+- final_nhl.team == nhl_spreads.away_team
+- final_nhl.opponent == nhl_spreads.home_team
+
+Writes values ONLY to the specified columns.
 """
 
 import csv
 from pathlib import Path
-from typing import Dict, List
+import sys
+import re
 
-ROOT = Path(".")
-FINAL_DIR = ROOT / "docs" / "win" / "nhl"
-SPREADS_DIR = ROOT / "docs" / "win" / "nhl" / "spreads"
+SPREADS_DIR = Path("docs/win/nhl/spreads")
+FINAL_DIR = Path("docs/win/final")
 
+REQUIRED_SPREAD_COLUMNS = [
+    "game_id",
+    "away_team",
+    "home_team",
+]
 
-def load_final_files() -> Dict[str, List[dict]]:
-    """
-    Load all final_nhl_*.csv files and index by game_id.
-    Each game_id maps to a list of rows (one per team).
-    """
-    final_index: Dict[str, List[dict]] = {}
+REQUIRED_FINAL_COLUMNS = [
+    "game_id",
+    "team",
+    "opponent",
+    "win_probability",
+    "personally_acceptable_american_odds",
+    "personally_acceptable_decimal_odds",
+]
 
-    for path in FINAL_DIR.glob("final_nhl_*.csv"):
-        with path.open(newline="", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                game_id = row.get("game_id")
-                if not game_id:
-                    continue
-                final_index.setdefault(game_id, []).append(row)
+def extract_date(filename: str) -> str:
+    match = re.search(r"(\d{4}_\d{2}_\d{2})", filename)
+    if not match:
+        raise ValueError(f"Could not extract date from filename: {filename}")
+    return match.group(1)
 
-    return final_index
-
-
-def find_team_row(rows: List[dict], team: str, opponent: str) -> dict:
-    """
-    From final rows for a game_id, find the row where:
-    team == team AND opponent == opponent
-    """
-    for r in rows:
-        if r.get("team") == team and r.get("opponent") == opponent:
-            return r
-    return {}
-
-
-def process_spreads_file(path: Path, final_index: Dict[str, List[dict]]) -> None:
+def load_final_rows(path: Path):
+    rows = []
     with path.open(newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
-        rows = list(reader)
-        fieldnames = list(reader.fieldnames or [])
 
-    # Required new columns
-    new_columns = [
-        "away_win_prob",
-        "home_win_prob",
-        "away_amer_odds",
-        "home_amer_odds",
-        "away_deci_odds",
-        "home_deci_odds",
-        "underdog",
-        "puck_line",
-        "puck_line_fair_deci",
-        "puck_line_fair_amer",
-        "puck_line_acceptable_deci",
-        "puck_line_acceptable_amer",
-        "puck_line_juiced_deci",
-        "puck_line_juiced_amer",
-        "league",
-    ]
+        missing = [c for c in REQUIRED_FINAL_COLUMNS if c not in reader.fieldnames]
+        if missing:
+            raise ValueError(f"{path.name} missing required columns: {missing}")
 
-    for col in new_columns:
-        if col not in fieldnames:
-            fieldnames.append(col)
+        for row in reader:
+            rows.append(row)
 
-    for row in rows:
-        game_id = row.get("game_id")
-        away_team = row.get("away_team")
-        home_team = row.get("home_team")
+    return rows
 
-        if not game_id or game_id not in final_index:
+def process_spread_file(spread_path: Path):
+    date_str = extract_date(spread_path.name)
+    final_path = FINAL_DIR / f"final_nhl_{date_str}.csv"
+
+    if not final_path.exists():
+        print(f"Missing final file for {spread_path.name}", file=sys.stderr)
+        return
+
+    final_rows = load_final_rows(final_path)
+
+    with spread_path.open(newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        spread_rows = list(reader)
+        headers = reader.fieldnames
+
+    missing = [c for c in REQUIRED_SPREAD_COLUMNS if c not in headers]
+    if missing:
+        raise ValueError(f"{spread_path.name} missing required columns: {missing}")
+
+    for srow in spread_rows:
+        matches = [
+            frow for frow in final_rows
+            if frow["game_id"] == srow["game_id"]
+            and frow["team"] == srow["away_team"]
+            and frow["opponent"] == srow["home_team"]
+        ]
+
+        if len(matches) != 2:
             continue
 
-        final_rows = final_index[game_id]
+        away = matches[0]
+        home = matches[1]
 
-        away_final = find_team_row(final_rows, away_team, home_team)
-        home_final = find_team_row(final_rows, home_team, away_team)
+        srow["away_win_prob"] = away["win_probability"]
+        srow["home_win_prob"] = home["win_probability"]
 
-        if not away_final or not home_final:
-            continue
+        srow["away_amer_odds"] = away["personally_acceptable_american_odds"]
+        srow["home_amer_odds"] = home["personally_acceptable_american_odds"]
 
-        # Copy values
-        row["away_win_prob"] = away_final.get("win_probability", "")
-        row["home_win_prob"] = home_final.get("win_probability", "")
+        srow["away_deci_odds"] = away["personally_acceptable_decimal_odds"]
+        srow["home_deci_odds"] = home["personally_acceptable_decimal_odds"]
 
-        row["away_amer_odds"] = away_final.get("personally_acceptable_american_odds", "")
-        row["home_amer_odds"] = home_final.get("personally_acceptable_american_odds", "")
+        if float(away["win_probability"]) < float(home["win_probability"]):
+            srow["underdog"] = srow["away_team"]
+        else:
+            srow["underdog"] = srow["home_team"]
 
-        row["away_deci_odds"] = away_final.get("personally_acceptable_decimal_odds", "")
-        row["home_deci_odds"] = home_final.get("personally_acceptable_decimal_odds", "")
+        srow["puck_line"] = "+1.5"
+        srow["puck_line_fair_deci"] = ""
+        srow["puck_line_fair_amer"] = ""
+        srow["puck_line_acceptable_deci"] = ""
+        srow["puck_line_acceptable_amer"] = ""
+        srow["puck_line_juiced_deci"] = ""
+        srow["puck_line_juiced_amer"] = ""
+        srow["league"] = "nhl_spread"
 
-        # Underdog determination
-        try:
-            away_wp = float(row["away_win_prob"])
-            home_wp = float(row["home_win_prob"])
-            if away_wp < home_wp:
-                row["underdog"] = away_team
-            elif home_wp < away_wp:
-                row["underdog"] = home_team
-            else:
-                row["underdog"] = ""
-        except Exception:
-            row["underdog"] = ""
-
-        # Static / blank fields
-        row["puck_line"] = "+1.5"
-        row["puck_line_fair_deci"] = ""
-        row["puck_line_fair_amer"] = ""
-        row["puck_line_acceptable_deci"] = ""
-        row["puck_line_acceptable_amer"] = ""
-        row["puck_line_juiced_deci"] = ""
-        row["puck_line_juiced_amer"] = ""
-        row["league"] = "nhl_spread"
-
-    with path.open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
+    with spread_path.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=headers)
         writer.writeheader()
-        writer.writerows(rows)
+        writer.writerows(spread_rows)
 
+    print(f"Updated: {spread_path}")
 
-def main() -> None:
-    final_index = load_final_files()
+def main():
+    files = sorted(SPREADS_DIR.glob("nhl_spreads_*.csv"))
 
-    for spreads_file in SPREADS_DIR.glob("nhl_spreads_*.csv"):
-        process_spreads_file(spreads_file, final_index)
+    if not files:
+        print("No nhl_spreads files found.", file=sys.stderr)
+        sys.exit(1)
 
+    for f in files:
+        process_spread_file(f)
 
 if __name__ == "__main__":
     main()
