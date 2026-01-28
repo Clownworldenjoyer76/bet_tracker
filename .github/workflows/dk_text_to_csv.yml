@@ -62,7 +62,7 @@ jobs:
               lines = [l.strip().replace("opens in a new tab","") for l in f if l.strip()]
 
           # =========================
-          # MONEYLINE (UNCHANGED)
+          # MONEYLINE
           # =========================
           if market == "moneyline":
               out = f"docs/win/manual/dk_{league}_ML_{date}.csv"
@@ -96,7 +96,7 @@ jobs:
                   w.writerows(rows)
 
           # =========================
-          # SPREADS (UNCHANGED)
+          # SPREADS
           # =========================
           elif market == "spreads":
               out = f"docs/win/manual/dk_{league}_spreads_{date}.csv"
@@ -141,7 +141,7 @@ jobs:
                   w.writerows(rows)
 
           # =========================
-          # TOTALS / OVER-UNDERS (FIXED)
+          # TOTALS / OVER-UNDERS
           # =========================
           elif market == "totals":
               out = f"docs/win/manual/dk_{league}_totals_{date}.csv"
@@ -179,11 +179,13 @@ jobs:
 
                   rows.append([date_str, time_str, away, home, side1, total, o1, h1, b1, league_col])
                   rows.append([date_str, time_str, away, home, side2, total, o2, h2, b2, league_col])
+                  rows.append([date_str, time_str, home, away, side1, total, o1, h1, b1, league_col])
+                  rows.append([date_str, time_str, home, away, side2, total, o2, h2, b2, league_col])
 
               with open(out, "w", newline="") as f:
                   w = csv.writer(f)
                   w.writerow([
-                      "date","time","away","home","side","total",
+                      "date","time","team","opponent","side","total",
                       "odds","handle_pct","bets_pct","league"
                   ])
                   w.writerows(rows)
