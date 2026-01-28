@@ -5,9 +5,10 @@ from datetime import datetime
 LEAGUE = sys.argv[1] if len(sys.argv) > 1 else "ncaab"
 DATE = datetime.now().strftime("%Y_%m_%d")
 
-OUT_ML = f"dk_{LEAGUE}_moneyline_{DATE}.csv"
-OUT_SP = f"dk_{LEAGUE}_spreads_{DATE}.csv"
-OUT_OU = f"dk_{LEAGUE}_totals_{DATE}.csv"
+OUT_ML = f"docs/win/manual/dk_{LEAGUE}_moneyline_{DATE}.csv"
+OUT_SP = f"docs/win/manual/dk_{LEAGUE}_spreads_{DATE}.csv"
+OUT_OU = f"docs/win/manual/dk_{LEAGUE}_totals_{DATE}.csv"
+
 
 with open("raw.txt") as f:
     lines = [l.strip().replace("opens in a new tab", "") for l in f if l.strip()]
