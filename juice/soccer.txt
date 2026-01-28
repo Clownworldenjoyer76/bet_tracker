@@ -6,15 +6,18 @@ Draws remain excluded from evaluation.
 ✅ Personal Juice Table (American odds add-on)
 
 
-| # Soccer-specific personal juice rules (Version 2.0)
+| ## Soccer personal juice rules (Version 1.3)
 # (min_probability, max_probability, american_odds_addition)
 
 PERSONAL_JUICE_RULES = [
-    (0.65, 1.01, 0),    # Strong favorites: no extra juice
-    (0.55, 0.65, 0),    # Solid favorites: market already efficient
-    (0.50, 0.55, 0),    # Thin edge zone: neutral
-    (0.45, 0.50, -10),  # Marginal plays: require better price
-    (0.00, 0.45, None), # DO NOT BET
+    (0.65, 1.01, 5),     # Strong favorites: small cushion
+    (0.55, 0.65, 5),     # Solid favorites
+    (0.50, 0.55, 10),    # Coin-flip zone: demand better price
+    (0.45, 0.50, 15),    # Marginal dogs
+    (0.40, 0.45, 30),    # Weak dogs (↑ from 5)
+    (0.35, 0.40, 60),    # Long dogs (new, aggressive)
+    (0.25, 0.35, 100),   # Deep longshots
+    (0.00, 0.25, 160),   # Extreme tails
 ]
 ✅ Bet History Summary (All-Time)
 
