@@ -8,7 +8,7 @@ on:
         type: string
       market:
         required: true
-        type: string   # ML | spreads | totals
+        type: string
       raw_text:
         required: true
         type: string
@@ -39,7 +39,7 @@ jobs:
             *) echo "invalid market"; exit 1 ;;
           esac
 
-      - name: Write raw text safely
+      - name: Write raw text
         shell: bash
         env:
           RAW_TEXT: ${{ inputs.raw_text }}
@@ -47,40 +47,37 @@ jobs:
           mkdir -p docs/win/manual
           printf '%s\n' "$RAW_TEXT" > raw.txt
 
-      - name: Parse DK text and write CSV
+      - name: Parse DK text
         shell: bash
         env:
           LEAGUE: ${{ inputs.league }}
           MARKET: ${{ inputs.market }}
         run: |
           python3 <<'PY'
-          import csv
+          import csv, os
           from datetime import datetime
-          import os
 
           league = os.environ["LEAGUE"]
           market = os.environ["MARKET"]
           date = datetime.now().strftime("%Y_%m_%d")
 
-          if market == "ML":
-              out = f"docs/win/manual/dk_{league}_ML_{date}.csv"
-              league_col = league
-          elif market == "spreads":
+          if market == "spreads":
               out = f"docs/win/manual/dk_{league}_spreads_{date}.csv"
               league_col = f"{league}_spreads"
-          elif market == "totals":
+          elif market == "ML":
+              out = f"docs/win/manual/dk_{league}_ML_{date}.csv"
+              league_col = league
+          else:
               out = f"docs/win/manual/dk_{league}_totals_{date}.csv"
               league_col = f"{league}_ou"
-          else:
-              raise SystemExit("invalid market")
 
           with open("raw.txt") as f:
-              lines = [l.strip().replace("opens in a new tab","") for l in f if l.strip()]
+              lines = [l.replace("opens in a new tab","").strip() for l in f if l.strip()]
 
           rows = []
           i = 0
 
-          if market == "ML":
+          if market == "spreads":
               while i < len(lines):
                   if "@" not in lines[i]:
                       i += 1
@@ -90,66 +87,31 @@ jobs:
                   date_str, time_str = [x.strip() for x in lines[i+1].split(",", 1)]
                   i += 2
 
-                  for lbl in ("Moneyline","Odds","% Handle","% Bets"):
-                      if lines[i] != lbl:
-                          raise SystemExit(f"format error: expected {lbl}, got {lines[i]}")
-                      i += 1
+                  if lines[i:i+4] != ["Spread","Odds","% Handle","% Bets"]:
+                      raise SystemExit("spread header mismatch")
+                  i += 4
 
-                  t1, o1, h1, b1 = lines[i:i+4]
-                  t2, o2, h2, b2 = lines[i+4:i+8]
+                  # Team 1
+                  team1, spread1 = lines[i].rsplit(" ", 1)
+                  odds1 = lines[i+1]
+                  handle1 = lines[i+2].rstrip("%")
+                  bets1 = lines[i+3].rstrip("%")
+
+                  # Team 2
+                  team2, spread2 = lines[i+4].rsplit(" ", 1)
+                  odds2 = lines[i+5]
+                  handle2 = lines[i+6].rstrip("%")
+                  bets2 = lines[i+7].rstrip("%")
+
                   i += 8
 
-                  rows.append([date_str, time_str, t1, away, o1, h1.rstrip("%"), b1.rstrip("%"), league_col])
-                  rows.append([date_str, time_str, t2, home, o2, h2.rstrip("%"), b2.rstrip("%"), league_col])
-
-              header = ["date","time","team","opponent","odds","handle_pct","bets_pct","league"]
-
-          elif market == "spreads":
-              while i < len(lines):
-                  if "@" not in lines[i]:
-                      i += 1
-                      continue
-
-                  away, home = [x.strip() for x in lines[i].split("@", 1)]
-                  date_str, time_str = [x.strip() for x in lines[i+1].split(",", 1)]
-                  i += 2
-
-                  for lbl in ("Spread","Odds","% Handle","% Bets"):
-                      if lines[i] != lbl:
-                          raise SystemExit(f"format error: expected {lbl}, got {lines[i]}")
-                      i += 1
-
-                  t1, s1, o1, h1, b1 = lines[i:i+5]
-                  t2, s2, o2, h2, b2 = lines[i+5:i+10]
-                  i += 10
-
-                  rows.append([date_str, time_str, t1, away, s1, o1, h1.rstrip("%"), b1.rstrip("%"), league_col])
-                  rows.append([date_str, time_str, t2, home, s2, o2, h2.rstrip("%"), b2.rstrip("%"), league_col])
+                  rows.append([date_str, time_str, team1, home if team1 == home else away, spread1, odds1, handle1, bets1, league_col])
+                  rows.append([date_str, time_str, team2, away if team2 == away else home, spread2, odds2, handle2, bets2, league_col])
 
               header = ["date","time","team","opponent","spread","odds","handle_pct","bets_pct","league"]
 
-          elif market == "totals":
-              while i < len(lines):
-                  if "@" not in lines[i]:
-                      i += 1
-                      continue
-
-                  away, home = [x.strip() for x in lines[i].split("@", 1)]
-                  date_str, time_str = [x.strip() for x in lines[i+1].split(",", 1)]
-                  i += 2
-
-                  for lbl in ("Total","Odds","% Handle","% Bets"):
-                      if lines[i] != lbl:
-                          raise SystemExit(f"format error: expected {lbl}, got {lines[i]}")
-                      i += 1
-
-                  total, o_over, h_over, b_over, o_under, h_under, b_under = lines[i:i+7]
-                  i += 7
-
-                  rows.append([date_str, time_str, "Over", total, o_over, h_over.rstrip("%"), b_over.rstrip("%"), league_col])
-                  rows.append([date_str, time_str, "Under", total, o_under, h_under.rstrip("%"), b_under.rstrip("%"), league_col])
-
-              header = ["date","time","side","total","odds","handle_pct","bets_pct","league"]
+          else:
+              raise SystemExit("only spreads handled in this fix")
 
           with open(out, "w", newline="") as f:
               w = csv.writer(f)
@@ -163,7 +125,5 @@ jobs:
           git config user.name github-actions
           git config user.email github-actions@github.com
           git add docs/win/manual/*.csv
-          git commit -m "Add DK CSV (${{
-            inputs.market
-          }})" || true
+          git commit -m "Add DK spreads CSV" || true
           git push
