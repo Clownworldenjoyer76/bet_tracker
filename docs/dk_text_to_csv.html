@@ -16,13 +16,24 @@
 
   <h2>DraftKings Text → CSV</h2>
 
-  <label for="league">League (lowercase)</label>
+  <label for="league">League</label>
   <select id="league">
     <option value="">-- select --</option>
-    <option value="nhl">nhl</option>
     <option value="nba">nba</option>
     <option value="ncaab">ncaab</option>
+    <option value="nhl">nhl</option>
+    <option value="nfl">nfl</option>
     <option value="soc">soc</option>
+    <option value="mls">mls</option>
+    <option value="mlb">mlb</option>
+  </select>
+
+  <label for="market">Market</label>
+  <select id="market">
+    <option value="">-- select --</option>
+    <option value="ML">moneyline</option>
+    <option value="spreads">spread</option>
+    <option value="totals">over / under (totals)</option>
   </select>
 
   <label for="token">GitHub Token (classic PAT)</label>
@@ -43,6 +54,7 @@
 
     async function dispatch() {
       const league = document.getElementById("league").value.trim();
+      const market = document.getElementById("market").value.trim();
       const token  = document.getElementById("token").value.trim();
       const raw    = document.getElementById("raw").value;
       const out    = document.getElementById("out");
@@ -51,6 +63,7 @@
       out.textContent = "";
 
       if (!league) { out.textContent = "ERROR: league required"; return; }
+      if (!market) { out.textContent = "ERROR: market required"; return; }
       if (!token)  { out.textContent = "ERROR: token required"; return; }
       if (!raw.trim()) { out.textContent = "ERROR: raw text required"; return; }
 
@@ -68,7 +81,11 @@
           },
           body: JSON.stringify({
             ref: REF,
-            inputs: { league: league, raw_text: raw }
+            inputs: {
+              league: league,
+              market: market,
+              raw_text: raw
+            }
           })
         });
 
