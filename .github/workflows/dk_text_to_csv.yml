@@ -35,7 +35,7 @@ jobs:
         shell: bash
         run: |
           case "${{ inputs.market }}" in
-            ML|spreads|totals) ;;
+            spreads) ;;
             *) echo "invalid market"; exit 1 ;;
           esac
 
@@ -47,29 +47,19 @@ jobs:
           mkdir -p docs/win/manual
           printf '%s\n' "$RAW_TEXT" > raw.txt
 
-      - name: Parse DK text
+      - name: Parse DK spreads
         shell: bash
         env:
           LEAGUE: ${{ inputs.league }}
-          MARKET: ${{ inputs.market }}
         run: |
           python3 <<'PY'
           import csv, os
           from datetime import datetime
 
           league = os.environ["LEAGUE"]
-          market = os.environ["MARKET"]
+          league_col = f"{league}_spreads"
           date = datetime.now().strftime("%Y_%m_%d")
-
-          if market == "spreads":
-              out = f"docs/win/manual/dk_{league}_spreads_{date}.csv"
-              league_col = f"{league}_spreads"
-          elif market == "ML":
-              out = f"docs/win/manual/dk_{league}_ML_{date}.csv"
-              league_col = league
-          else:
-              out = f"docs/win/manual/dk_{league}_totals_{date}.csv"
-              league_col = f"{league}_ou"
+          out = f"docs/win/manual/dk_{league}_spreads_{date}.csv"
 
           with open("raw.txt") as f:
               lines = [l.replace("opens in a new tab","").strip() for l in f if l.strip()]
@@ -77,45 +67,46 @@ jobs:
           rows = []
           i = 0
 
-          if market == "spreads":
-              while i < len(lines):
-                  if "@" not in lines[i]:
-                      i += 1
-                      continue
+          while i < len(lines):
+              if "@" not in lines[i]:
+                  i += 1
+                  continue
 
-                  away, home = [x.strip() for x in lines[i].split("@", 1)]
-                  date_str, time_str = [x.strip() for x in lines[i+1].split(",", 1)]
-                  i += 2
+              away, home = [x.strip() for x in lines[i].split("@", 1)]
+              date_str, time_str = [x.strip() for x in lines[i+1].split(",", 1)]
 
-                  if lines[i:i+4] != ["Spread","Odds","% Handle","% Bets"]:
-                      raise SystemExit("spread header mismatch")
-                  i += 4
+              # advance past matchup + datetime
+              i += 2
 
-                  # Team 1
-                  team1, spread1 = lines[i].rsplit(" ", 1)
-                  odds1 = lines[i+1]
-                  handle1 = lines[i+2].rstrip("%")
-                  bets1 = lines[i+3].rstrip("%")
+              # enforce header
+              if lines[i:i+4] != ["Spread","Odds","% Handle","% Bets"]:
+                  raise SystemExit(f"spread header mismatch at line {i}")
 
-                  # Team 2
-                  team2, spread2 = lines[i+4].rsplit(" ", 1)
-                  odds2 = lines[i+5]
-                  handle2 = lines[i+6].rstrip("%")
-                  bets2 = lines[i+7].rstrip("%")
+              i += 4
 
-                  i += 8
+              # team 1
+              t1_raw = lines[i]
+              o1 = lines[i+1]
+              h1 = lines[i+2].rstrip("%")
+              b1 = lines[i+3].rstrip("%")
 
-                  rows.append([date_str, time_str, team1, home if team1 == home else away, spread1, odds1, handle1, bets1, league_col])
-                  rows.append([date_str, time_str, team2, away if team2 == away else home, spread2, odds2, handle2, bets2, league_col])
+              # team 2
+              t2_raw = lines[i+4]
+              o2 = lines[i+5]
+              h2 = lines[i+6].rstrip("%")
+              b2 = lines[i+7].rstrip("%")
 
-              header = ["date","time","team","opponent","spread","odds","handle_pct","bets_pct","league"]
+              i += 8  # <-- THIS WAS YOUR BUG BEFORE
 
-          else:
-              raise SystemExit("only spreads handled in this fix")
+              team1, spread1 = t1_raw.rsplit(" ", 1)
+              team2, spread2 = t2_raw.rsplit(" ", 1)
+
+              rows.append([date_str, time_str, team1, home if team1 == home else away, spread1, o1, h1, b1, league_col])
+              rows.append([date_str, time_str, team2, away if team2 == away else home, spread2, o2, h2, b2, league_col])
 
           with open(out, "w", newline="") as f:
               w = csv.writer(f)
-              w.writerow(header)
+              w.writerow(["date","time","team","opponent","spread","odds","handle_pct","bets_pct","league"])
               w.writerows(rows)
           PY
 
@@ -125,5 +116,5 @@ jobs:
           git config user.name github-actions
           git config user.email github-actions@github.com
           git add docs/win/manual/*.csv
-          git commit -m "Add DK spreads CSV" || true
+          git commit -m "Fix DK spreads parsing" || true
           git push
