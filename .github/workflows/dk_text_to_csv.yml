@@ -141,11 +141,11 @@ jobs:
                   w.writerows(rows)
 
           # =========================
-          # TOTALS / OVER-UNDER (NEW)
+          # TOTALS / OVER-UNDERS (FIXED)
           # =========================
           elif market == "totals":
               out = f"docs/win/manual/dk_{league}_totals_{date}.csv"
-              league_col = f"{league}_totals"
+              league_col = f"{league}_ou"
               rows = []
               i = 0
 
@@ -154,7 +154,7 @@ jobs:
                       i += 1
                       continue
 
-                  matchup = lines[i]
+                  away, home = [x.strip() for x in lines[i].split("@", 1)]
                   date_str, time_str = [x.strip() for x in lines[i+1].split(",", 1)]
                   i += 2
 
@@ -162,27 +162,30 @@ jobs:
                       raise SystemExit("totals header mismatch")
                   i += 4
 
-                  side1 = lines[i]
+                  side1_raw = lines[i]
                   o1 = lines[i+1]
                   h1 = lines[i+2].rstrip("%")
                   b1 = lines[i+3].rstrip("%")
 
-                  side2 = lines[i+4]
+                  side2_raw = lines[i+4]
                   o2 = lines[i+5]
                   h2 = lines[i+6].rstrip("%")
                   b2 = lines[i+7].rstrip("%")
 
                   i += 8
 
-                  label1, total1 = side1.split(" ", 1)
-                  label2, total2 = side2.split(" ", 1)
+                  side1, total = side1_raw.split(" ", 1)
+                  side2, _ = side2_raw.split(" ", 1)
 
-                  rows.append([date_str, time_str, label1, total1, o1, h1, b1, league_col])
-                  rows.append([date_str, time_str, label2, total2, o2, h2, b2, league_col])
+                  rows.append([date_str, time_str, away, home, side1, total, o1, h1, b1, league_col])
+                  rows.append([date_str, time_str, away, home, side2, total, o2, h2, b2, league_col])
 
               with open(out, "w", newline="") as f:
                   w = csv.writer(f)
-                  w.writerow(["date","time","side","total","odds","handle_pct","bets_pct","league"])
+                  w.writerow([
+                      "date","time","away","home","side","total",
+                      "odds","handle_pct","bets_pct","league"
+                  ])
                   w.writerows(rows)
 
           else:
