@@ -148,7 +148,7 @@ def run_soccer():
             writer.writerows(output_rows)
 
 # ============================================================
-# ======================= NHL (STRICT) =======================
+# ======================= NHL ================================
 # ============================================================
 
 NHL_LEAGUE = "nhl"
@@ -167,25 +167,12 @@ NHL_HEADERS = [
 
 
 def parse_best_ou_nhl(value):
-    """
-    Parse NHL totals like:
-    5.5
-    6.0
-    o6.5 -110
-    u5.5
-    """
     if value is None:
         return ""
-
-    s = str(value).lower()
-    nums = re.findall(r"\d+\.?\d*", s)
+    nums = re.findall(r"\d+\.?\d*", str(value).lower())
     if not nums:
         return ""
-
-    try:
-        return float(nums[0])
-    except ValueError:
-        return ""
+    return f"{int(float(nums[0]))}.5"
 
 
 def run_nhl():
@@ -200,7 +187,6 @@ def run_nhl():
 
         data_rows = rows[1:]
         output_rows = []
-
         file_date = ""
 
         for row in data_rows:
@@ -227,15 +213,13 @@ def run_nhl():
             goals_b = goals[1] if len(goals) > 1 else ""
 
             total_goals = row[4] if row[4] is not None else ""
-
-            best_ou = f"{int(float(parse_best_ou_nhl(row[5])))}.5" if len(row) > 5 and row[5] is not None else ""
+            best_ou = parse_best_ou_nhl(row[5]) if len(row) > 5 else ""
 
             output_rows.append([
                 date, time,
                 team_a, team_b,
                 goals_a, total_goals,
-                win_a,
-                best_ou,
+                win_a, best_ou,
                 NHL_LEAGUE
             ])
 
@@ -243,23 +227,19 @@ def run_nhl():
                 date, time,
                 team_b, team_a,
                 goals_b, total_goals,
-                win_b,
-                best_ou,
+                win_b, best_ou,
                 NHL_LEAGUE
             ])
 
-        if not output_rows:
-            continue
-
-        out_path = OUTPUT_DIR / f"win_prob__clean_{NHL_LEAGUE}_{file_date}.csv"
-
-        with out_path.open("w", newline="", encoding="utf-8") as f:
-            writer = csv.writer(f)
-            writer.writerow(NHL_HEADERS)
-            writer.writerows(output_rows)
+        if output_rows:
+            out_path = OUTPUT_DIR / f"win_prob__clean_{NHL_LEAGUE}_{file_date}.csv"
+            with out_path.open("w", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                writer.writerow(NHL_HEADERS)
+                writer.writerows(output_rows)
 
 # ============================================================
-# ======================= NBA (UPDATED) ======================
+# ======================= NBA ================================
 # ============================================================
 
 NBA_LEAGUE = "nba"
@@ -278,27 +258,13 @@ NBA_HEADERS = [
 
 
 def parse_best_ou_nba(raw):
-    """
-    Parse strings like:
-    o229½-110
-    u237-110
-    → 229.5 / 237.5
-    """
     if not raw:
         return ""
-
     s = str(raw).strip().lower()
     if not (s.startswith("o") or s.startswith("u")):
         return ""
-
-    s = s[1:]                  # drop o/u
-    s = s.split("-")[0]        # drop odds
-    s = s.replace("½", ".5")   # half points
-
-    try:
-        return f"{int(float(s))}.5"
-    except ValueError:
-        return ""
+    s = s[1:].split("-")[0].replace("½", ".5")
+    return f"{int(float(s))}.5"
 
 
 def run_nba():
@@ -323,8 +289,7 @@ def run_nba():
             if len(dt_lines) < 2:
                 continue
 
-            date = dt_lines[0]
-            time = dt_lines[1]
+            date, time = dt_lines[0], dt_lines[1]
 
             if not file_date:
                 file_date = datetime.strptime(date, "%m/%d/%Y").strftime("%Y-%m-%d")
@@ -337,11 +302,11 @@ def run_nba():
             win_a = pct_to_decimal(wins[0])
             win_b = pct_to_decimal(wins[1])
 
-            points = str(row[3]).splitlines() if len(row) > 3 and row[3] else []
+            points = str(row[3]).splitlines() if row[3] else []
             pts_a = points[0] if len(points) > 0 else ""
             pts_b = points[1] if len(points) > 1 else ""
 
-            total_points = row[4] if len(row) > 4 and row[4] is not None else ""
+            total_points = row[4] or ""
             best_ou = parse_best_ou_nba(row[5]) if len(row) > 5 else ""
 
             output_rows.append([
@@ -360,42 +325,24 @@ def run_nba():
                 NBA_LEAGUE
             ])
 
-        if not output_rows:
-            continue
-
-        out_path = OUTPUT_DIR / f"win_prob__clean_{NBA_LEAGUE}_{file_date}.csv"
-
-        with out_path.open("w", newline="", encoding="utf-8") as f:
-            writer = csv.writer(f)
-            writer.writerow(NBA_HEADERS)
-            writer.writerows(output_rows)
+        if output_rows:
+            out_path = OUTPUT_DIR / f"win_prob__clean_{NBA_LEAGUE}_{file_date}.csv"
+            with out_path.open("w", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                writer.writerow(NBA_HEADERS)
+                writer.writerows(output_rows)
 
 # ============================================================
-# ======================= NCAAB ===============================
+# ======================= NCAAB ==============================
 # ============================================================
 
 NCAAB_LEAGUE = "ncaab"
-
-NCAAB_HEADERS = [
-    "date",
-    "time",
-    "team",
-    "opponent",
-    "points",
-    "total_points",
-    "win_probability",
-    "best_ou",
-    "league",
-]
+NCAAB_HEADERS = NBA_HEADERS
 
 
 def parse_best_ou_ncaab(value):
-    if value is None:
-        return ""
-    nums = re.findall(r"\d+", str(value))
-    if not nums:
-        return ""
-    return f"{nums[0]}.5"
+    nums = re.findall(r"\d+", str(value)) if value else []
+    return f"{nums[0]}.5" if nums else ""
 
 
 def round_prob(value):
@@ -417,8 +364,7 @@ def run_ncaab():
 
         data_rows = rows[1:]
         output_rows = []
-
-        game_date = ""
+        file_date = ""
 
         for row in data_rows:
             if not row or not row[0] or not row[1]:
@@ -428,11 +374,10 @@ def run_ncaab():
             if len(dt_lines) < 2:
                 continue
 
-            date = dt_lines[0]
-            time = dt_lines[1]
+            date, time = dt_lines[0], dt_lines[1]
 
-            if not game_date:
-                game_date = datetime.strptime(date, "%m/%d/%Y").strftime("%Y_%m_%d")
+            if not file_date:
+                file_date = datetime.strptime(date, "%m/%d/%Y").strftime("%Y_%m_%d")
 
             teams = str(row[1]).splitlines()
             team_a = strip_team(teams[0])
@@ -442,11 +387,11 @@ def run_ncaab():
             win_a = round_prob(pct_to_decimal(wins[0]))
             win_b = round_prob(pct_to_decimal(wins[1]))
 
-            points = str(row[3]).splitlines() if len(row) > 3 and row[3] else []
+            points = str(row[3]).splitlines() if row[3] else []
             pts_a = points[0] if len(points) > 0 else ""
             pts_b = points[1] if len(points) > 1 else ""
 
-            total_points = row[4] if len(row) > 4 and row[4] is not None else ""
+            total_points = row[4] or ""
             best_ou = parse_best_ou_ncaab(row[5]) if len(row) > 5 else ""
 
             output_rows.append([
@@ -465,18 +410,15 @@ def run_ncaab():
                 NCAAB_LEAGUE
             ])
 
-        if not output_rows:
-            continue
-
-        out_path = OUTPUT_DIR / f"win_prob__clean_{NCAAB_LEAGUE}_{game_date}.csv"
-
-        with out_path.open("w", newline="", encoding="utf-8") as f:
-            writer = csv.writer(f)
-            writer.writerow(NCAAB_HEADERS)
-            writer.writerows(output_rows)
+        if output_rows:
+            out_path = OUTPUT_DIR / f"win_prob__clean_{NCAAB_LEAGUE}_{file_date}.csv"
+            with out_path.open("w", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                writer.writerow(NCAAB_HEADERS)
+                writer.writerows(output_rows)
 
 # ============================================================
-# ======================= GAME ID PASS (YOUR LOGIC) ===========
+# ======================= GAME ID PASS =======================
 # ============================================================
 
 PATTERN = "docs/win/clean/win_prob__clean_*.csv"
@@ -500,9 +442,9 @@ def process_file(path: Path):
     game_counter = 1
     total_rows = len(rows)
 
+    # Pass 1: original pairing logic
     for i in range(total_rows):
         row_a = rows[i]
-
         if not is_empty(row_a.get("game_id")):
             continue
 
@@ -511,7 +453,6 @@ def process_file(path: Path):
 
         for j in range(i + 1, total_rows):
             row_b = rows[j]
-
             if not is_empty(row_b.get("game_id")):
                 continue
 
@@ -525,13 +466,35 @@ def process_file(path: Path):
                     dt = datetime.strptime(raw_date, "%m/%d/%y")
 
                 formatted_date = dt.strftime("%Y_%m_%d")
-
                 game_id = f"{league}_{formatted_date}_game_{game_counter}"
 
                 row_a["game_id"] = game_id
                 row_b["game_id"] = game_id
-
                 game_counter += 1
+                break
+
+    # Pass 2: attach DRAW rows
+    for row in rows:
+        if row.get("team") != "DRAW":
+            continue
+        if not is_empty(row.get("game_id")):
+            continue
+
+        opp = row.get("opponent")
+        if not opp or " vs " not in opp:
+            continue
+
+        team_a, team_b = [x.strip() for x in opp.split(" vs ", 1)]
+
+        for other in rows:
+            if is_empty(other.get("game_id")):
+                continue
+
+            if (
+                (other.get("team") == team_a and other.get("opponent") == team_b) or
+                (other.get("team") == team_b and other.get("opponent") == team_a)
+            ):
+                row["game_id"] = other["game_id"]
                 break
 
     with path.open("w", newline="", encoding="utf-8") as f:
@@ -549,13 +512,10 @@ def add_game_ids_to_all_clean_csvs():
 # ============================================================
 
 def main():
-    # 1) Generate clean CSVs (your existing formats)
     run_soccer()
     run_nhl()
     run_nba()
     run_ncaab()
-
-    # 2) Add game_id using your exact pairing/counter logic
     add_game_ids_to_all_clean_csvs()
 
 
