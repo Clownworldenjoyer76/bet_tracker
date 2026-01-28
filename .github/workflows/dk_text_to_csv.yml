@@ -32,7 +32,7 @@ jobs:
           esac
 
           case "${{ inputs.market }}" in
-            moneyline|spread) ;;
+            moneyline|spreads) ;;
             *) echo "invalid market"; exit 1 ;;
           esac
 
@@ -62,7 +62,7 @@ jobs:
               lines = [l.strip().replace("opens in a new tab","") for l in f if l.strip()]
 
           # =========================
-          # MONEYLINE (UNCHANGED)
+          # MONEYLINE (ORIGINAL, ISOLATED)
           # =========================
           if market == "moneyline":
               out = f"docs/win/manual/dk_{league}_ML_{date}.csv"
@@ -98,7 +98,7 @@ jobs:
           # =========================
           # SPREADS (ISOLATED)
           # =========================
-          elif market == "spread":
+          elif market == "spreads":
               out = f"docs/win/manual/dk_{league}_spreads_{date}.csv"
               league_col = f"{league}_spreads"
               rows = []
@@ -140,6 +140,9 @@ jobs:
                   w.writerow(["date","time","team","opponent","spread","odds","handle_pct","bets_pct","league"])
                   w.writerows(rows)
 
+          else:
+              raise SystemExit("unsupported market")
+
           PY
 
       - name: Commit CSV
@@ -148,7 +151,5 @@ jobs:
           git config user.name github-actions
           git config user.email github-actions@github.com
           git add docs/win/manual/*.csv
-          git commit -m "Add DK CSV (${{
-            inputs.market
-          }})" || true
+          git commit -m "Add DK CSV (${{ inputs.market }})" || true
           git push
