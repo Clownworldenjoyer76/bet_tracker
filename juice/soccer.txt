@@ -6,18 +6,16 @@ Draws remain excluded from evaluation.
 ✅ Personal Juice Table (American odds add-on)
 
 
-| Probability Bucket  | Extra Juice | Rationale                                                |
-| ------------------- | ----------- | -------------------------------------------------------- |
-| **p ≥ 0.65**        | +10         | Favorites show meaningful losses; not as safe as implied |
-| **0.55 ≤ p < 0.65** | +5          | Generally stable, but variance exists                    |
-| **0.50 ≤ p < 0.55** | +0          | Performing close to expectation                          |
-| **0.45 ≤ p < 0.50** | +0          | Mixed but healthy; no consistent underperformance        |
-| **0.40 ≤ p < 0.45** | **+5**      | Prior penalty overstated; mild caution only              |
-| **0.30 ≤ p < 0.40** | **+25**     | Clear underperformance relative to implied probability   |
-| **p < 0.30**        | **+75**     | Strong, repeated underperformance; tail risk confirmed   |
+| # Soccer-specific personal juice rules (Version 2.0)
+# (min_probability, max_probability, american_odds_addition)
 
-
-
+PERSONAL_JUICE_RULES = [
+    (0.65, 1.01, 0),    # Strong favorites: no extra juice
+    (0.55, 0.65, 0),    # Solid favorites: market already efficient
+    (0.50, 0.55, 0),    # Thin edge zone: neutral
+    (0.45, 0.50, -10),  # Marginal plays: require better price
+    (0.00, 0.45, None), # DO NOT BET
+]
 ✅ Bet History Summary (All-Time)
 
 Total soccer bets analyzed: 63
