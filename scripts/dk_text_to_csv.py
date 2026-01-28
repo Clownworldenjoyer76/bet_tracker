@@ -26,8 +26,10 @@ while i < len(lines):
     date_str, time_str = [x.strip() for x in lines[i+1].split(",", 1)]
     i += 2
 
-    while i < len(lines) and lines[i] in ("Moneyline", "Spread", "Total"):
-        market = lines[i]
+   while lines[i] in ("Moneyline", "Spread", "Total", "Puck Line"):
+    market = lines[i]
+    normalized = "Spread" if market == "Puck Line" else market
+
         i += 1
 
         if lines[i:i+3] != ["Odds", "% Handle", "% Bets"]:
