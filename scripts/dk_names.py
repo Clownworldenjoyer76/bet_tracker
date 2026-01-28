@@ -80,11 +80,15 @@ def append_no_map(rows: list[dict]):
     new_df = pd.DataFrame(rows)
 
     if NO_MAP_PATH.exists():
-        old_df = pd.read_csv(NO_MAP_PATH, dtype=str)
-        combined = pd.concat([old_df, new_df], ignore_index=True).drop_duplicates()
+        try:
+            old_df = pd.read_csv(NO_MAP_PATH, dtype=str)
+            combined = pd.concat([old_df, new_df], ignore_index=True)
+        except pd.errors.EmptyDataError:
+            combined = new_df
     else:
-        combined = new_df.drop_duplicates()
+        combined = new_df
 
+    combined = combined.drop_duplicates()
     combined.to_csv(NO_MAP_PATH, index=False)
 
 
