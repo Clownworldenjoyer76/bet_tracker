@@ -1,4 +1,4 @@
-name: Generate Spreads CSVs (NHL + NBA)
+name: Generate Spreads CSVs (NHL + NBA + NCAAB)
 
 on:
   workflow_dispatch:
@@ -36,6 +36,13 @@ jobs:
           python scripts/spreads_nba.py
 
       # -----------------------
+      # NCAAB spreads
+      # -----------------------
+      - name: Run NCAAB spreads pipeline
+        run: |
+          python scripts/spreads_ncaab.py
+
+      # -----------------------
       # Commit results
       # -----------------------
       - name: Commit and push results
@@ -45,6 +52,7 @@ jobs:
 
           git add docs/win/nhl/spreads/*.csv
           git add docs/win/nba/spreads/*.csv
+          git add docs/win/ncaab/spreads/*.csv
 
-          git commit -m "Generate NHL and NBA spreads CSVs" || echo "No changes to commit"
+          git commit -m "Generate NHL, NBA, and NCAAB spreads CSVs" || echo "No changes to commit"
           git push
