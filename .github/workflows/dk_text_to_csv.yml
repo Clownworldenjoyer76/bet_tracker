@@ -32,7 +32,7 @@ jobs:
           esac
 
           case "${{ inputs.market }}" in
-            moneyline|spreads) ;;
+            moneyline|spreads|totals) ;;
             *) echo "invalid market"; exit 1 ;;
           esac
 
@@ -96,7 +96,7 @@ jobs:
                   w.writerows(rows)
 
           # =========================
-          # SPREADS (FIXED)
+          # SPREADS (UNCHANGED)
           # =========================
           elif market == "spreads":
               out = f"docs/win/manual/dk_{league}_spreads_{date}.csv"
@@ -138,6 +138,51 @@ jobs:
               with open(out, "w", newline="") as f:
                   w = csv.writer(f)
                   w.writerow(["date","time","team","opponent","spread","odds","handle_pct","bets_pct","league"])
+                  w.writerows(rows)
+
+          # =========================
+          # TOTALS / OVER-UNDER (NEW)
+          # =========================
+          elif market == "totals":
+              out = f"docs/win/manual/dk_{league}_totals_{date}.csv"
+              league_col = f"{league}_totals"
+              rows = []
+              i = 0
+
+              while i < len(lines):
+                  if "@" not in lines[i]:
+                      i += 1
+                      continue
+
+                  matchup = lines[i]
+                  date_str, time_str = [x.strip() for x in lines[i+1].split(",", 1)]
+                  i += 2
+
+                  if lines[i:i+4] != ["Total","Odds","% Handle","% Bets"]:
+                      raise SystemExit("totals header mismatch")
+                  i += 4
+
+                  side1 = lines[i]
+                  o1 = lines[i+1]
+                  h1 = lines[i+2].rstrip("%")
+                  b1 = lines[i+3].rstrip("%")
+
+                  side2 = lines[i+4]
+                  o2 = lines[i+5]
+                  h2 = lines[i+6].rstrip("%")
+                  b2 = lines[i+7].rstrip("%")
+
+                  i += 8
+
+                  label1, total1 = side1.split(" ", 1)
+                  label2, total2 = side2.split(" ", 1)
+
+                  rows.append([date_str, time_str, label1, total1, o1, h1, b1, league_col])
+                  rows.append([date_str, time_str, label2, total2, o2, h2, b2, league_col])
+
+              with open(out, "w", newline="") as f:
+                  w = csv.writer(f)
+                  w.writerow(["date","time","side","total","odds","handle_pct","bets_pct","league"])
                   w.writerows(rows)
 
           else:
