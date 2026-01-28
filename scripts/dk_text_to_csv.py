@@ -9,7 +9,6 @@ OUT_ML = f"docs/win/manual/dk_{LEAGUE}_moneyline_{DATE}.csv"
 OUT_SP = f"docs/win/manual/dk_{LEAGUE}_spreads_{DATE}.csv"
 OUT_OU = f"docs/win/manual/dk_{LEAGUE}_totals_{DATE}.csv"
 
-
 with open("raw.txt") as f:
     lines = [l.strip().replace("opens in a new tab", "") for l in f if l.strip()]
 
@@ -26,10 +25,9 @@ while i < len(lines):
     date_str, time_str = [x.strip() for x in lines[i+1].split(",", 1)]
     i += 2
 
-   while lines[i] in ("Moneyline", "Spread", "Total", "Puck Line"):
-    market = lines[i]
-    normalized = "Spread" if market == "Puck Line" else market
-
+    while i < len(lines) and lines[i] in ("Moneyline", "Spread", "Total", "Puck Line"):
+        market = lines[i]
+        normalized = "Spread" if market == "Puck Line" else market
         i += 1
 
         if lines[i:i+3] != ["Odds", "% Handle", "% Bets"]:
@@ -40,14 +38,14 @@ while i < len(lines):
         b = lines[i+4:i+8]
         i += 8
 
-        if market == "Moneyline":
+        if normalized == "Moneyline":
             t1, o1, h1, b1 = a
             t2, o2, h2, b2 = b
 
             ml_rows.append([date_str, time_str, t1, away, o1, h1.rstrip("%"), b1.rstrip("%"), LEAGUE])
             ml_rows.append([date_str, time_str, t2, home, o2, h2.rstrip("%"), b2.rstrip("%"), LEAGUE])
 
-        elif market == "Spread":
+        elif normalized == "Spread":
             t1, o1, h1, b1 = a
             t2, o2, h2, b2 = b
 
@@ -57,7 +55,7 @@ while i < len(lines):
             sp_rows.append([date_str, time_str, team1, team2, spread1, o1, h1.rstrip("%"), b1.rstrip("%"), f"{LEAGUE}_spreads"])
             sp_rows.append([date_str, time_str, team2, team1, spread2, o2, h2.rstrip("%"), b2.rstrip("%"), f"{LEAGUE}_spreads"])
 
-        elif market == "Total":
+        elif normalized == "Total":
             s1, o1, h1, b1 = a
             s2, o2, h2, b2 = b
 
