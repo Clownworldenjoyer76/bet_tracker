@@ -62,7 +62,7 @@ jobs:
               lines = [l.strip().replace("opens in a new tab","") for l in f if l.strip()]
 
           # =========================
-          # MONEYLINE (ORIGINAL, ISOLATED)
+          # MONEYLINE (UNCHANGED)
           # =========================
           if market == "moneyline":
               out = f"docs/win/manual/dk_{league}_ML_{date}.csv"
@@ -96,7 +96,7 @@ jobs:
                   w.writerows(rows)
 
           # =========================
-          # SPREADS (ISOLATED)
+          # SPREADS (FIXED)
           # =========================
           elif market == "spreads":
               out = f"docs/win/manual/dk_{league}_spreads_{date}.csv"
@@ -132,8 +132,8 @@ jobs:
                   team1, spread1 = t1_raw.rsplit(" ", 1)
                   team2, spread2 = t2_raw.rsplit(" ", 1)
 
-                  rows.append([date_str, time_str, team1, away, spread1, o1, h1, b1, league_col])
-                  rows.append([date_str, time_str, team2, home, spread2, o2, h2, b2, league_col])
+                  rows.append([date_str, time_str, team1, team2, spread1, o1, h1, b1, league_col])
+                  rows.append([date_str, time_str, team2, team1, spread2, o2, h2, b2, league_col])
 
               with open(out, "w", newline="") as f:
                   w = csv.writer(f)
@@ -142,7 +142,6 @@ jobs:
 
           else:
               raise SystemExit("unsupported market")
-
           PY
 
       - name: Commit CSV
