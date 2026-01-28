@@ -1,4 +1,4 @@
-name: 09 AUTORUN DK_01 Text to CSV
+name: 09 AUTORUN DK_01 Text to CSV (Mixed Markets)
 
 on:
   workflow_dispatch:
@@ -24,7 +24,7 @@ jobs:
         shell: bash
         run: |
           case "${{ inputs.league }}" in
-            nba|ncaab|nhl|nfl|soc|mls|mlb) ;;
+            nba|ncaab|nhl|nfl|mlb|mls|soc) ;;
             *) echo "invalid league"; exit 1 ;;
           esac
 
@@ -33,21 +33,20 @@ jobs:
         env:
           RAW_TEXT: ${{ inputs.raw_text }}
         run: |
-          mkdir -p docs/win/manual
           printf '%s\n' "$RAW_TEXT" > raw.txt
 
-      - name: Parse DK text
+      - name: Parse DK text (all markets)
         shell: bash
         env:
           LEAGUE: ${{ inputs.league }}
         run: |
-          python3 scripts/dk_text_to_csv.py
+          python3 scripts/dk_text_to_csv.py "$LEAGUE"
 
-      - name: Commit CSV
+      - name: Commit CSVs
         shell: bash
         run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
           git add docs/win/manual/*.csv
-          git commit -m "Add DK CSV (${{ inputs.league }})" || true
+          git commit -m "Add DK CSVs (${{ inputs.league }})" || true
           git push
