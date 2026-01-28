@@ -19,9 +19,9 @@ from datetime import datetime
 from collections import defaultdict
 
 # -----------------------------
-# PARAMETERS
+# PARAMETERS (UPDATED JUICE)
 # -----------------------------
-EDGE_BUFFER_TOTALS = 0.035
+EDGE_BUFFER_TOTALS = 0.045  # increased from 0.035
 
 HOME_MULT = 1.10
 AWAY_MULT = 0.90
@@ -50,8 +50,9 @@ def decimal_to_american(d: float) -> int:
     return int(round(-100 / (d - 1)))
 
 
-def acceptable_decimal(p: float) -> float:
-    return 1.0 / max(p - EDGE_BUFFER_TOTALS, 0.0001)
+def acceptable_decimal(p: float, extra_buffer: float = 0.0) -> float:
+    buffer = EDGE_BUFFER_TOTALS + extra_buffer
+    return 1.0 / max(p - buffer, 0.0001)
 
 # -----------------------------
 # MAIN
@@ -98,7 +99,6 @@ def main():
 
         for game_id, rows in games.items():
 
-            # Require exactly two teams
             if len(rows) != 2:
                 writer.writerow({
                     "game_id": game_id,
@@ -145,7 +145,6 @@ def main():
                 and MIN_LAM <= lam_total <= MAX_LAM
             ):
                 cutoff = int(market_total - 0.5)
-
                 p_under = poisson_cdf(cutoff, lam_total)
                 p_over = 1.0 - p_under
 
@@ -159,7 +158,18 @@ def main():
             if p_selected is not None:
                 fair_d = fair_decimal(p_selected)
                 fair_a = decimal_to_american(fair_d)
-                acc_d = acceptable_decimal(p_selected)
+
+                # ---- JUICE ADJUSTMENT (soc_ou calibrated) ----
+                extra_buffer = 0.0
+
+                if market_total >= 3.5:
+                    extra_buffer += 0.02
+
+                if p_selected < 0.58:
+                    extra_buffer += 0.01
+                # ---------------------------------------------
+
+                acc_d = acceptable_decimal(p_selected, extra_buffer)
                 acc_a = decimal_to_american(acc_d)
 
                 writer.writerow({
