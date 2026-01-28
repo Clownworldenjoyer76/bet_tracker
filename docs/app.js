@@ -272,14 +272,16 @@ async function loadNCAABDaily(selectedDate) {
   const [yyyy, mm, dd] = selectedDate.split("-");
   const d = `${yyyy}_${mm}_${dd}`;
 
-  const url = `${RAW_BASE}/docs/win/final/final_ncaab_${d}.csv`;
-  const totalsUrl = `${RAW_BASE}/docs/win/ncaab/edge_ncaab_totals_${d}.csv`;
+  const finalUrl   = `${RAW_BASE}/docs/win/final/final_ncaab_${d}.csv`;
+  const totalsUrl  = `${RAW_BASE}/docs/win/ncaab/edge_ncaab_totals_${d}.csv`;
+  const spreadsUrl = `${RAW_BASE}/docs/win/ncaab/spreads/edge_ncaab_spreads_${d}.csv`;
 
   let rows = [];
   let totals = [];
+  let spreads = [];
 
   try {
-    rows = parseCSV(await fetchText(url));
+    rows = parseCSV(await fetchText(finalUrl));
   } catch {
     setStatus("No NCAAB file found for this date.");
     return;
@@ -291,6 +293,12 @@ async function loadNCAABDaily(selectedDate) {
     totals = [];
   }
 
+  try {
+    spreads = parseCSV(await fetchText(spreadsUrl));
+  } catch {
+    spreads = [];
+  }
+
   if (!rows.length) {
     setStatus("No NCAAB games found for this date.");
     return;
@@ -299,6 +307,17 @@ async function loadNCAABDaily(selectedDate) {
   const totalsByGame = new Map();
   for (const t of totals) {
     if (t.game_id) totalsByGame.set(t.game_id, t);
+  }
+
+  // team -> "spread (odds)"
+  const spreadByTeam = new Map();
+  for (const s of spreads) {
+    if (s.team && s.spread && s.acceptable_american_odds) {
+      spreadByTeam.set(
+        s.team,
+        `${s.spread} (${s.acceptable_american_odds})`
+      );
+    }
   }
 
   const games = new Map();
@@ -317,10 +336,10 @@ async function loadNCAABDaily(selectedDate) {
     timeToMinutes(games.get(b)?.[0]?.time)
   );
 
-  renderNCAABGames(order, games, totalsByGame);
+  renderNCAABGames(order, games, totalsByGame, spreadByTeam);
 }
 
-function renderNCAABGames(order, games, totalsByGame) {
+function renderNCAABGames(order, games, totalsByGame, spreadByTeam) {
   const container = document.getElementById("games");
 
   for (const gid of order) {
@@ -330,6 +349,7 @@ function renderNCAABGames(order, games, totalsByGame) {
     const a = rows[0];
     const b = rows[1];
     const totals = totalsByGame.get(gid) || {};
+    const time = totals.time || a.time || "";
 
     const hasOU = !!totals.game_id;
 
@@ -343,18 +363,19 @@ function renderNCAABGames(order, games, totalsByGame) {
 
     box.innerHTML = `
       <div class="game-header">
-        ${escapeHtml(a.team)} vs ${escapeHtml(b.team)}
-        <span class="cell-muted"> — ${escapeHtml(a.time)}</span>
+        ${escapeHtml(a.team)} at ${escapeHtml(b.team)}
+        ${time ? `<span class="cell-muted"> — ${escapeHtml(time)}</span>` : ""}
       </div>
+
       <table class="game-grid">
         <thead>
           <tr>
             <th></th>
             <th>Win Probability</th>
             <th>Projected Pts</th>
-            <th>Total</th>
-            <th>Take O/U at</th>
-            <th>Take ML at</th>
+            <th>TAKE O/U AT</th>
+            <th>TAKE ML AT</th>
+            <th>TAKE SPREAD AT</th>
           </tr>
         </thead>
         <tbody>
@@ -362,33 +383,35 @@ function renderNCAABGames(order, games, totalsByGame) {
             <td><strong>${escapeHtml(a.team)}</strong></td>
             <td>${formatPct(a.win_probability)}</td>
             <td>${format2(a.points)}</td>
-            <td>${escapeHtml(a.best_ou)}</td>
-            <td>${hasOU ? escapeHtml(totals.best_ou) : ""}</td>
+            <td>${hasOU ? escapeHtml(totals.market_total) : ""}</td>
             <td class="${mlClassFromProb(a.win_probability)}">
               ${escapeHtml(a.personally_acceptable_american_odds)}
             </td>
+            <td>${escapeHtml(spreadByTeam.get(a.team) || "")}</td>
           </tr>
+
           <tr>
             <td><strong>${escapeHtml(b.team)}</strong></td>
             <td>${formatPct(b.win_probability)}</td>
             <td>${format2(b.points)}</td>
-            <td>${escapeHtml(b.best_ou)}</td>
             <td class="${hasOU && totals.side === "NO PLAY" ? "no-play" : ""}">
               ${hasOU ? escapeHtml(totals.side) : ""}
             </td>
             <td class="${mlClassFromProb(b.win_probability)}">
               ${escapeHtml(b.personally_acceptable_american_odds)}
             </td>
+            <td>${escapeHtml(spreadByTeam.get(b.team) || "")}</td>
           </tr>
+
           ${hasOU ? `
           <tr class="draw-row">
-            <td><strong>O/U</strong></td>
-            <td></td>
-            <td></td>
+            <td><strong>Over/Under</strong></td>
+            <td>${formatPct(totals.model_probability)}</td>
             <td></td>
             <td class="${ouClass}">
               ${escapeHtml(totals.acceptable_american_odds)}
             </td>
+            <td></td>
             <td></td>
           </tr>` : ""}
         </tbody>
