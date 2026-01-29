@@ -30,6 +30,17 @@ def bucketize(p):
             return label
     return None
 
+def safe_float(val):
+    if val is None:
+        return None
+    val = val.strip()
+    if val in ("", "NL", "-"):
+        return None
+    try:
+        return float(val)
+    except ValueError:
+        return None
+
 def process_file(path: Path):
     df = pd.read_csv(path, dtype=str)
 
@@ -37,17 +48,17 @@ def process_file(path: Path):
 
     for _, r in df.iterrows():
         # away side
-        if r["away_ml"] not in ("", "NL"):
-            ml = float(r["away_ml"])
-            p = implied_prob(ml)
+        away_ml = safe_float(r["away_ml"])
+        if away_ml is not None:
+            p = implied_prob(away_ml)
             bucket = bucketize(p)
             win = int(float(r["away_final"]) > float(r["home_final"]))
             rows.append({"prob_bucket": bucket, "win": win})
 
         # home side
-        if r["home_ml"] not in ("", "NL"):
-            ml = float(r["home_ml"])
-            p = implied_prob(ml)
+        home_ml = safe_float(r["home_ml"])
+        if home_ml is not None:
+            p = implied_prob(home_ml)
             bucket = bucketize(p)
             win = int(float(r["home_final"]) > float(r["away_final"]))
             rows.append({"prob_bucket": bucket, "win": win})
