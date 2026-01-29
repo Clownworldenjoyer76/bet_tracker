@@ -2,12 +2,15 @@
 """
 Build NCAAB Totals Evaluation File (Model-Anchored, Juice-Aware)
 
+UPDATED RULE:
+- Market totals are FORCED to .5 (no pushes)
+
 Rules:
 - No live market odds assumed
 - Use best_ou as the comparison total
-- OVER if model total (λ) > best_ou
-- UNDER if model total (λ) < best_ou
-- NO PLAY if best_ou missing/invalid or totals equal
+- OVER if model total (λ) > market_total
+- UNDER if model total (λ) < market_total
+- NO PLAY if best_ou missing/invalid
 - Normal model with μ = total_points
 - σ = sqrt(μ)
 - Personal juice applied via config/ncaab/ncaab_totals_juice_table.csv
@@ -33,8 +36,19 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 JUICE_TABLE_PATH = Path("config/ncaab/ncaab_totals_juice_table.csv")
 
 # -----------------------------
-# MATH HELPERS
+# HELPERS
 # -----------------------------
+def force_half_point(x: float) -> float:
+    """
+    Round to nearest 0.5 and FORCE .5 (no integers).
+    Ensures no pushes.
+    """
+    rounded = round(x * 2) / 2
+    if rounded.is_integer():
+        return rounded + 0.5
+    return rounded
+
+
 def normal_cdf(x: float, mu: float, sigma: float) -> float:
     z = (x - mu) / (sigma * sqrt(2))
     return 0.5 * (1 + erf(z))
@@ -76,7 +90,7 @@ def lookup_totals_juice(table, market_total, side):
         if r["low"] <= market_total <= r["high"]:
             if r["side"] == "ANY" or r["side"] == side:
                 return r["juice"]
-    return 0.0  # default if no rule matches
+    return 0.0
 
 # -----------------------------
 # MAIN
@@ -133,26 +147,23 @@ def main():
 
             side = "NO PLAY"
             p_selected = None
-            market_total = ""
+            market_total = None
 
             try:
                 lam = float(row["total_points"])
+                raw_market_total = float(row.get("best_ou", ""))
             except (ValueError, TypeError):
                 lam = None
-
-            try:
-                market_total = float(row.get("best_ou", ""))
-            except (ValueError, TypeError):
-                market_total = ""
+                raw_market_total = None
 
             if (
                 lam is not None
-                and market_total != ""
+                and raw_market_total is not None
                 and MIN_LAM <= lam <= MAX_LAM
             ):
+                market_total = force_half_point(raw_market_total)
                 sigma = sqrt(lam)
 
-                # continuity correction
                 p_under = normal_cdf(market_total, lam, sigma)
                 p_over = 1.0 - p_under
 
@@ -197,7 +208,7 @@ def main():
                     "time": time,
                     "team_1": team_1,
                     "team_2": team_2,
-                    "market_total": market_total,
+                    "market_total": market_total or "",
                     "side": "NO PLAY",
                     "model_probability": "",
                     "fair_decimal_odds": "",
