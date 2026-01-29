@@ -1,66 +1,77 @@
 import pandas as pd
 from pathlib import Path
 
-IN_DIR = Path("bets/historic/ncaab_old/stage_3")
-OUT_DIR = Path("bets/historic/ncaab_old/stage_2")
+IN_DIR = Path("bets/historic/ncaab_old/stage_2")
+OUT_DIR = Path("bets/historic/ncaab_old/stage_3")
 OUT_DIR.mkdir(parents=True, exist_ok=True)
+
+# probability buckets
+BUCKETS = [
+    (0.00, 0.30, "p < 0.30"),
+    (0.30, 0.35, "0.30–0.35"),
+    (0.35, 0.40, "0.35–0.40"),
+    (0.40, 0.45, "0.40–0.45"),
+    (0.45, 0.50, "0.45–0.50"),
+    (0.50, 0.55, "0.50–0.55"),
+    (0.55, 0.60, "0.55–0.60"),
+    (0.60, 0.65, "0.60–0.65"),
+    (0.65, 0.70, "0.65–0.70"),
+    (0.70, 1.01, "≥ 0.70"),
+]
+
+def implied_prob(ml):
+    if ml < 0:
+        return abs(ml) / (abs(ml) + 100)
+    return 100 / (ml + 100)
+
+def bucketize(p):
+    for lo, hi, label in BUCKETS:
+        if lo <= p < hi:
+            return label
+    return None
 
 def process_file(path: Path):
     df = pd.read_csv(path, dtype=str)
 
-    rows = []
+    # numeric fields
+    df["ML_num"] = pd.to_numeric(df["ML"], errors="coerce")
+    df["actual_spread_num"] = pd.to_numeric(df["actual_spread"], errors="coerce")
 
-    for gid, g in df.groupby("game_id"):
-        if len(g) != 2:
-            continue
+    # drop unusable rows
+    df = df.dropna(subset=["ML_num", "actual_spread_num"])
 
-        g = g.reset_index(drop=True)
+    # implied probability
+    df["implied_prob"] = df["ML_num"].apply(implied_prob)
 
-        vh_vals = g["VH"].tolist()
-        neutral_location = "YES" if all(v == "Neutral" for v in vh_vals) else "NO"
+    # bucket
+    df["prob_bucket"] = df["implied_prob"].apply(bucketize)
 
-        away_row = None
-        home_row = None
+    # outcome (win = 1, loss = 0)
+    def outcome(row):
+        if row["favorite"].upper() == "YES" and row["actual_spread_num"] > 0:
+            return 1
+        if row["underdog"].upper() == "YES" and row["actual_spread_num"] < 0:
+            return 1
+        return 0
 
-        if neutral_location == "NO":
-            away_matches = g[g["VH"] == "Away"]
-            home_matches = g[g["VH"] == "Home"]
+    df["win"] = df.apply(outcome, axis=1)
 
-            if len(away_matches) > 0:
-                away_row = away_matches.iloc[0]
-            if len(home_matches) > 0:
-                home_row = home_matches.iloc[0]
+    # aggregate
+    summary = (
+        df.groupby("prob_bucket", dropna=True)
+        .agg(
+            bets=("win", "count"),
+            wins=("win", "sum"),
+        )
+        .reset_index()
+        .sort_values("prob_bucket")
+    )
 
-        # fallback logic (neutral or partial labeling)
-        if away_row is None or home_row is None:
-            away_row = g.iloc[0]
-            home_row = g.iloc[1]
-
-        # safety: never same team
-        if away_row["Team"] == home_row["Team"]:
-            continue
-
-        rows.append({
-            "game_id": gid,
-            "neutral_location": neutral_location,
-            "away_team": away_row["Team"],
-            "home_team": home_row["Team"],
-            "away_final": away_row["Final"],
-            "home_final": home_row["Final"],
-            "away_ml": away_row["ML"],
-            "home_ml": home_row["ML"],
-            "over_under": away_row["over_under"],
-            "actual_total": away_row["actual_total"],
-            "away_spread": away_row["spread"],
-            "home_spread": home_row["spread"],
-        })
-
-    out_df = pd.DataFrame(rows)
-    out_path = OUT_DIR / path.name.replace("_stage3", "_stage2")
-    out_df.to_csv(out_path, index=False)
+    out_path = OUT_DIR / path.name.replace("_stage2", "_stage3")
+    summary.to_csv(out_path, index=False)
 
 def main():
-    for f in IN_DIR.glob("ncaa-basketball-*_stage3.csv"):
+    for f in IN_DIR.glob("ncaa-basketball-*_stage2.csv"):
         process_file(f)
 
 if __name__ == "__main__":
