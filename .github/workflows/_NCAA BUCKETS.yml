@@ -24,11 +24,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install pandas
 
-      - name: Run moneyline buckets (range)
-        run: python scripts/old_ml.py
+     ## - name: Run moneyline buckets (range)
+     ##   run: python scripts/old_ml.py
 
-      - name: Run moneyline buckets (exact %)
-        run: python scripts/old_ml_exact.py
+    ##  - name: Run moneyline buckets (exact %)
+    ##    run: python scripts/old_ml_exact.py
 
      ## - name: Run over/under buckets
      ##   run: python scripts/old_ou.py
@@ -40,6 +40,6 @@ jobs:
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          git add bets/historic/ncaab_old/location
+          git add bets/historic/ncaab_old/tally
           git commit -m "Update NCAA historical bucket outputs" || echo "No changes to commit"
           git push
