@@ -6,8 +6,8 @@ BASE_OUT = Path("bets/historic/ncaab_old/location")
 
 OUT_DIRS = {
     "neutral": BASE_OUT / "neutral",
-    "away": BASE_OUT / "away",
     "home": BASE_OUT / "home",
+    "away": BASE_OUT / "away",  # exists for schema consistency
 }
 
 for d in OUT_DIRS.values():
@@ -27,8 +27,8 @@ def parse_float(val):
 def main():
     rows = {
         "neutral": [],
-        "away": [],
         "home": [],
+        "away": [],  # intentionally unused for game totals
     }
 
     for path in IN_DIR.glob("*.csv"):
@@ -42,7 +42,6 @@ def main():
                 continue
 
             neutral = str(r.get("neutral_location", "")).upper() == "YES"
-            venue = "neutral" if neutral else "home"
 
             margin = actual - line
             if margin > 0:
@@ -51,6 +50,8 @@ def main():
                 outcome = "UNDER"
             else:
                 outcome = "PUSH"
+
+            venue = "neutral" if neutral else "home"
 
             rows[venue].append(
                 {
@@ -64,7 +65,6 @@ def main():
         out_path = OUT_DIRS[venue] / "exact_ou.csv"
 
         if not data:
-            # write empty file with correct schema
             pd.DataFrame(
                 columns=[
                     "over_under",
