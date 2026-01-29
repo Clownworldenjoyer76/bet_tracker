@@ -1,61 +1,61 @@
 import pandas as pd
 from pathlib import Path
-import re
 
-IN_DIR = Path("bets/historic/ncaab_old/stage_1")
-OUT_DIR = Path("bets/historic/ncaab_old/stage_2")
+IN_DIR = Path("bets/historic/ncaab_old/stage_2")
+OUT_DIR = Path("bets/historic/ncaab_old/stage_3")
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-def extract_season(filename: str) -> str:
-    # first 4-digit year in filename
-    m = re.search(r"(19|20)\d{2}", filename)
-    if not m:
-        raise ValueError(f"Cannot extract season from {filename}")
-    return m.group()
-
 def process_file(path: Path):
-    season = extract_season(path.name)
     df = pd.read_csv(path, dtype=str)
 
-    # moneyline to numeric for logic
-    ml_num = pd.to_numeric(df["ML"], errors="coerce")
+    # normalize flags
+    df["favorite"] = df["favorite"].str.upper().str.strip()
+    df["underdog"] = df["underdog"].str.upper().str.strip()
 
-    favorite = []
-    underdog = []
+    # initialize columns
+    df["over_under"] = ""
+    df["spread"] = ""
 
-    for ml in ml_num:
-        if pd.isna(ml):
-            favorite.append("")
-            underdog.append("")
-        elif ml < 0:
-            favorite.append("YES")
-            underdog.append("")
-        elif ml > 0:
-            favorite.append("")
-            underdog.append("YES")
-        else:
-            favorite.append("PUSH")
-            underdog.append("PUSH")
+    # resolve per game_id
+    for gid, g in df.groupby("game_id"):
+        if len(g) != 2:
+            continue
 
-    out = pd.DataFrame({
-        "game_id": df["game_id"].astype(str) + "_" + season,
-        "VH": df["VH"],
-        "Team": df["Team"],
-        "Final": df["Final"],
-        "Close": df["Close"],
-        "ML": df["ML"],
-        "favorite": favorite,
-        "underdog": underdog,
-        "over_under": "",
-        "spread": ""
-    })
+        # over/under from underdog row
+        ou_row = g[g["underdog"] == "YES"]
+        if len(ou_row) == 1:
+            ou_value = ou_row.iloc[0]["Close"]
+            df.loc[ou_row.index, "over_under"] = ou_value
+            df.loc[g.index.difference(ou_row.index), "over_under"] = ou_value
 
-    out_path = OUT_DIR / path.name.replace("_stage1", "_stage2")
+        # spread from favorite row
+        fav_row = g[g["favorite"] == "YES"]
+        if len(fav_row) == 1:
+            spread_val = fav_row.iloc[0]["Close"]
+            spread_out = f"-{spread_val}"
+            df.loc[fav_row.index, "spread"] = spread_out
+            df.loc[g.index.difference(fav_row.index), "spread"] = spread_out
+
+    out = df[
+        [
+            "game_id",
+            "VH",
+            "Team",
+            "Final",
+            "Close",
+            "ML",
+            "favorite",
+            "underdog",
+            "over_under",
+            "spread",
+        ]
+    ]
+
+    out_path = OUT_DIR / path.name.replace("_stage2", "_stage3")
     out.to_csv(out_path, index=False)
 
 def main():
-    files = IN_DIR.glob("ncaa-basketball-*_stage1.csv")
-    for f in files:
+    for f in IN_DIR.glob("ncaa-basketball-*_stage2.csv"):
         process_file(f)
 
 if __name__ == "__main__":
