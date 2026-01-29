@@ -13,6 +13,7 @@ OUT_DIRS = {
 for d in OUT_DIRS.values():
     d.mkdir(parents=True, exist_ok=True)
 
+
 def parse_float(val):
     try:
         v = str(val).strip()
@@ -22,32 +23,61 @@ def parse_float(val):
     except Exception:
         return None
 
+
 def main():
-    rows = {"neutral": [], "away": [], "home": []}
+    rows = {
+        "neutral": [],
+        "away": [],
+        "home": [],
+    }
 
     for path in IN_DIR.glob("*.csv"):
         df = pd.read_csv(path, dtype=str)
 
         for _, r in df.iterrows():
-            line = parse_float(r["over_under"])
-            actual = parse_float(r["actual_total"])
+            line = parse_float(r.get("over_under"))
+            actual = parse_float(r.get("actual_total"))
 
             if line is None or actual is None:
                 continue
 
-            neutral = str(r["neutral_location"]).upper() == "YES"
-            venue = "neutral" if neutral else "home"  # totals are venue-based, not side-based
+            neutral = str(r.get("neutral_location", "")).upper() == "YES"
+            venue = "neutral" if neutral else "home"
 
             margin = actual - line
-            outcome = "PUSH" if margin == 0 else ("OVER" if margin > 0 else "UNDER")
+            if margin > 0:
+                outcome = "OVER"
+            elif margin < 0:
+                outcome = "UNDER"
+            else:
+                outcome = "PUSH"
 
-            rows[venue].append({
-                "over_under": line,
-                "margin": margin,
-                "outcome": outcome
-            })
+            rows[venue].append(
+                {
+                    "over_under": line,
+                    "margin": margin,
+                    "outcome": outcome,
+                }
+            )
 
     for venue, data in rows.items():
+        out_path = OUT_DIRS[venue] / "exact_ou.csv"
+
+        if not data:
+            # write empty file with correct schema
+            pd.DataFrame(
+                columns=[
+                    "over_under",
+                    "bets",
+                    "overs",
+                    "unders",
+                    "pushes",
+                    "avg_margin",
+                    "median_margin",
+                ]
+            ).to_csv(out_path, index=False)
+            continue
+
         d = pd.DataFrame(data)
 
         out = (
@@ -64,7 +94,8 @@ def main():
             .sort_values("over_under")
         )
 
-        out.to_csv(OUT_DIRS[venue] / "exact_ou.csv", index=False)
+        out.to_csv(out_path, index=False)
+
 
 if __name__ == "__main__":
     main()
