@@ -11,34 +11,30 @@ def process_file(path: Path):
     # drop rows with ML = NL
     df = df[df["ML"] != "NL"].copy()
 
-    # ensure numeric Final
+    # numeric finals for math only
     df["Final_num"] = pd.to_numeric(df["Final"], errors="coerce")
 
-    # initialize new columns
+    # init output columns as strings
     df["actual_total"] = ""
     df["actual_spread"] = ""
 
-    # resolve per game
     for gid, g in df.groupby("game_id"):
         if len(g) != 2:
             continue
 
         idx = g.index
 
-        # actual total = sum of finals
+        # actual total
         total = g["Final_num"].sum()
+        df.loc[idx, "actual_total"] = str(int(total))
 
-        # actual spread = favorite score - underdog score
+        # actual spread = favorite - underdog
         fav = g[g["favorite"].str.upper() == "YES"]
         dog = g[g["underdog"].str.upper() == "YES"]
 
         if len(fav) == 1 and len(dog) == 1:
             spread = fav.iloc[0]["Final_num"] - dog.iloc[0]["Final_num"]
-        else:
-            spread = ""
-
-        df.loc[idx, "actual_total"] = total
-        df.loc[idx, "actual_spread"] = spread
+            df.loc[idx, "actual_spread"] = str(int(spread))
 
     out = df[
         [
