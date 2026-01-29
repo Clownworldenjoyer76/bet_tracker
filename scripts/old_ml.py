@@ -2,7 +2,7 @@ import pandas as pd
 from pathlib import Path
 
 IN_DIR = Path("bets/historic/ncaab_old/stage_2")
-OUT_DIR = Path("bets/historic/ncaab_old/ML")
+OUT_DIR = Path("bets/historic/ncaab_old/tally")
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 BUCKETS = [
@@ -23,7 +23,7 @@ def implied_prob(ml: float) -> float:
         return abs(ml) / (abs(ml) + 100)
     return 100 / (ml + 100)
 
-def bucketize(p: float) -> str | None:
+def bucketize(p: float):
     for lo, hi, label in BUCKETS:
         if lo <= p < hi:
             return label
@@ -40,45 +40,39 @@ def parse_ml(val):
     except ValueError:
         return None
 
-def process_file(path: Path):
-    df = pd.read_csv(path, dtype=str)
-
+def main():
     rows = []
 
-    for _, r in df.iterrows():
-        away_final = float(r["away_final"])
-        home_final = float(r["home_final"])
+    for path in IN_DIR.glob("*.csv"):
+        df = pd.read_csv(path, dtype=str)
 
-        # away side
-        away_ml = parse_ml(r["away_ml"])
-        if away_ml is not None:
-            p = implied_prob(away_ml)
-            bucket = bucketize(p)
-            win = int(away_final > home_final)
-            rows.append({"prob_bucket": bucket, "win": win})
+        for _, r in df.iterrows():
+            away_final = float(r["away_final"])
+            home_final = float(r["home_final"])
 
-        # home side
-        home_ml = parse_ml(r["home_ml"])
-        if home_ml is not None:
-            p = implied_prob(home_ml)
-            bucket = bucketize(p)
-            win = int(home_final > away_final)
-            rows.append({"prob_bucket": bucket, "win": win})
+            away_ml = parse_ml(r["away_ml"])
+            if away_ml is not None:
+                rows.append({
+                    "prob_bucket": bucketize(implied_prob(away_ml)),
+                    "win": int(away_final > home_final)
+                })
+
+            home_ml = parse_ml(r["home_ml"])
+            if home_ml is not None:
+                rows.append({
+                    "prob_bucket": bucketize(implied_prob(home_ml)),
+                    "win": int(home_final > away_final)
+                })
 
     out = (
         pd.DataFrame(rows)
-        .groupby("prob_bucket", dropna=True)
+        .groupby("prob_bucket")
         .agg(bets=("win", "count"), wins=("win", "sum"))
         .reset_index()
         .sort_values("prob_bucket")
     )
 
-    out_path = OUT_DIR / path.name.replace(".csv", "_ml_prob_buckets.csv")
-    out.to_csv(out_path, index=False)
-
-def main():
-    for f in IN_DIR.glob("*.csv"):
-        process_file(f)
+    out.to_csv(OUT_DIR / "ml_prob_bucket_tally.csv", index=False)
 
 if __name__ == "__main__":
     main()
