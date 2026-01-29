@@ -1,4 +1,4 @@
-name: NCAAB Stage 1 Clean (Manual)
+name: NCAAB Stage 1 Clean (Manual + Commit)
 
 on:
   workflow_dispatch:
@@ -6,27 +6,29 @@ on:
 jobs:
   clean:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    permissions:
+      contents: write
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
+      - name: Install deps
         run: |
           python -m pip install --upgrade pip
           pip install pandas
 
-      - name: Run Stage 1 cleaner
+      - name: Run cleaner
         run: |
           python scripts/clean_ncaab_stage1.py
 
-      - name: Upload stage_1 outputs
-        uses: actions/upload-artifact@v4
-        with:
-          name: ncaab_stage1_outputs
-          path: bets/historic/ncaab_old/stage_1
-          if-no-files-found: error
+      - name: Commit outputs
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add bets/historic/ncaab_old/stage_1
+          git commit -m "Add NCAAB stage_1 cleaned data" || exit 0
+          git push
