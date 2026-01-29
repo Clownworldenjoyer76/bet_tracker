@@ -17,20 +17,26 @@ def process_file(path: Path):
         g = g.reset_index(drop=True)
 
         vh_vals = g["VH"].tolist()
-        teams = g["Team"].tolist()
-
-        # neutral location
         neutral_location = "YES" if all(v == "Neutral" for v in vh_vals) else "NO"
 
-        # determine away/home
+        away_row = None
+        home_row = None
+
         if neutral_location == "NO":
-            away_row = g[g["VH"] == "Away"].iloc[0]
-            home_row = g[g["VH"] == "Home"].iloc[0]
-        else:
+            away_matches = g[g["VH"] == "Away"]
+            home_matches = g[g["VH"] == "Home"]
+
+            if len(away_matches) > 0:
+                away_row = away_matches.iloc[0]
+            if len(home_matches) > 0:
+                home_row = home_matches.iloc[0]
+
+        # fallback logic (neutral or partial labeling)
+        if away_row is None or home_row is None:
             away_row = g.iloc[0]
             home_row = g.iloc[1]
 
-        # safety check
+        # safety: never same team
         if away_row["Team"] == home_row["Team"]:
             continue
 
@@ -50,7 +56,6 @@ def process_file(path: Path):
         })
 
     out_df = pd.DataFrame(rows)
-
     out_path = OUT_DIR / path.name.replace("_stage3", "_stage2")
     out_df.to_csv(out_path, index=False)
 
