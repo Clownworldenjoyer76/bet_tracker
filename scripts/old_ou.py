@@ -5,22 +5,6 @@ IN_DIR = Path("bets/historic/ncaab_old/stage_2")
 OUT_DIR = Path("bets/historic/ncaab_old/Over_Under")
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-# total-size buckets (you can adjust later if you want)
-TOTAL_BUCKETS = [
-    (0, 120, "<120"),
-    (120, 130, "120–130"),
-    (130, 140, "130–140"),
-    (140, 150, "140–150"),
-    (150, 160, "150–160"),
-    (160, 1000, "≥160"),
-]
-
-def bucketize_total(total):
-    for lo, hi, label in TOTAL_BUCKETS:
-        if lo <= total < hi:
-            return label
-    return None
-
 def parse_float(val):
     if val is None:
         return None
@@ -44,37 +28,40 @@ def process_file(path: Path):
         if line is None or actual is None:
             continue
 
-        bucket = bucketize_total(line)
-        if bucket is None:
-            continue
+        margin = actual - line
 
-        # outcome
-        if actual > line:
+        if margin > 0:
             outcome = "OVER"
-        elif actual < line:
+        elif margin < 0:
             outcome = "UNDER"
         else:
             outcome = "PUSH"
 
         rows.append({
-            "total_bucket": bucket,
+            "over_under": line,
+            "margin": margin,
             "outcome": outcome
         })
 
+    d = pd.DataFrame(rows)
+
     out = (
-        pd.DataFrame(rows)
-        .groupby("total_bucket")
+        d.groupby("over_under")
         .agg(
             bets=("outcome", "count"),
             overs=("outcome", lambda x: (x == "OVER").sum()),
             unders=("outcome", lambda x: (x == "UNDER").sum()),
             pushes=("outcome", lambda x: (x == "PUSH").sum()),
+            avg_margin=("margin", "mean"),
+            median_margin=("margin", "median"),
+            avg_over_margin=("margin", lambda x: x[x > 0].mean()),
+            avg_under_margin=("margin", lambda x: x[x < 0].mean()),
         )
         .reset_index()
-        .sort_values("total_bucket")
+        .sort_values("over_under")
     )
 
-    out_path = OUT_DIR / path.name.replace(".csv", "_ou_buckets.csv")
+    out_path = OUT_DIR / path.name.replace(".csv", "_ou_exact_totals.csv")
     out.to_csv(out_path, index=False)
 
 def main():
