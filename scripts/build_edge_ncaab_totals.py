@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Build NCAAB Totals Evaluation File (Model-Anchored)
+Build NCAAB Totals Evaluation File (Model-Anchored, Juice-Aware)
 
 Rules:
 - No live market odds assumed
@@ -10,7 +10,7 @@ Rules:
 - NO PLAY if best_ou missing/invalid or totals equal
 - Normal model with μ = total_points
 - σ = sqrt(μ)
-- Price every valid game
+- Personal juice applied via config/ncaab/ncaab_totals_juice_table.csv
 """
 
 import csv
@@ -21,16 +21,16 @@ from datetime import datetime
 from collections import defaultdict
 
 # -----------------------------
-# PARAMETERS
+# PATHS / PARAMETERS
 # -----------------------------
-EDGE_BUFFER_TOTALS = 0.07
-
 MIN_LAM = 100.0
 MAX_LAM = 200.0
 
 INPUT_DIR = Path("docs/win/edge")
 OUTPUT_DIR = Path("docs/win/ncaab")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+JUICE_TABLE_PATH = Path("config/ncaab/ncaab_totals_juice_table.csv")
 
 # -----------------------------
 # MATH HELPERS
@@ -50,8 +50,33 @@ def decimal_to_american(d: float) -> int:
     return int(round(-100 / (d - 1)))
 
 
-def acceptable_decimal(p: float) -> float:
-    return 1.0 / max(p - EDGE_BUFFER_TOTALS, 0.0001)
+def acceptable_decimal(p: float, juice: float) -> float:
+    return 1.0 / max(p - juice, 0.0001)
+
+# -----------------------------
+# JUICE TABLE HELPERS
+# -----------------------------
+def load_totals_juice_table(path: Path):
+    table = []
+    with open(path, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            table.append({
+                "low": float(row["band_low"]),
+                "high": float(row["band_high"]),
+                "side": row["side"].upper(),
+                "juice": float(row["extra_juice_pct"]),
+            })
+    return table
+
+
+def lookup_totals_juice(table, market_total, side):
+    side = side.upper()
+    for r in table:
+        if r["low"] <= market_total <= r["high"]:
+            if r["side"] == "ANY" or r["side"] == side:
+                return r["juice"]
+    return 0.0  # default if no rule matches
 
 # -----------------------------
 # MAIN
@@ -62,6 +87,7 @@ def main():
         raise FileNotFoundError("No NCAAB edge files found")
 
     latest_file = input_files[-1]
+    totals_juice_table = load_totals_juice_table(JUICE_TABLE_PATH)
 
     today = datetime.utcnow()
     out_path = OUTPUT_DIR / f"edge_ncaab_totals_{today.year}_{today.month:02d}_{today.day:02d}.csv"
@@ -95,7 +121,6 @@ def main():
         writer.writeheader()
 
         for game_id, rows in games.items():
-
             if not rows:
                 continue
 
@@ -108,6 +133,7 @@ def main():
 
             side = "NO PLAY"
             p_selected = None
+            market_total = ""
 
             try:
                 lam = float(row["total_points"])
@@ -138,9 +164,15 @@ def main():
                     p_selected = p_under
 
             if p_selected is not None:
+                juice = lookup_totals_juice(
+                    totals_juice_table,
+                    market_total,
+                    side
+                )
+
                 fair_d = fair_decimal(p_selected)
                 fair_a = decimal_to_american(fair_d)
-                acc_d = acceptable_decimal(p_selected)
+                acc_d = acceptable_decimal(p_selected, juice)
                 acc_a = decimal_to_american(acc_d)
 
                 writer.writerow({
