@@ -5,42 +5,38 @@ RAW_DIR = Path("bets/historic/ncaab_old")
 OUT_DIR = RAW_DIR / "stage_1"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-VH_MAP = {
-    "H": "Home",
-    "V": "Away",
-    "N": "Neutral"
-}
+VH_MAP = {"H": "Home", "V": "Away", "N": "Neutral"}
 
-def make_game_id(date, team1, team2):
-    return f"{date}_{team1}_{team2}"
-
-def clean_file(path: Path):
+def clean_file(path: Path) -> pd.DataFrame:
     df = pd.read_csv(path, dtype=str)
 
-    # keep original date as-is
-    df["date"] = df["Date"]
+    df["date"] = df["Date"].astype(str).str.strip()
 
-    # normalize VH
-    df["VH_out"] = df["VH"].map(VH_MAP).fillna("Neutral")
+    # ROT as int (safe because CSV)
+    df["Rot_int"] = pd.to_numeric(df["Rot"], errors="coerce").astype("Int64")
+    # Pair rotation (odd-even pairing)
+    df["pair_rot"] = df["Rot_int"].where(df["Rot_int"] % 2 == 1, df["Rot_int"] - 1)
 
-    # rotation-based pairing
-    df["Rot"] = df["Rot"].astype(int)
-    df["pair_key"] = df["Rot"].where(df["Rot"] % 2 == 1, df["Rot"] - 1)
+    # CRITICAL: pair key must include date because rotation numbers repeat daily
+    df["pair_key"] = df["date"] + "_" + df["pair_rot"].astype(str)
 
-    game_ids = {}
+    # VH mapping
+    vh = df["VH"].astype(str).str.upper().str.strip()
+    df["VH_out"] = vh.map(VH_MAP).fillna("Neutral")
 
-    for pk, g in df.groupby("pair_key"):
-        if len(g) != 2:
+    # Build game_id per pair_key using the two teams (sorted by Rot)
+    game_id_map = {}
+    for pk, g in df.groupby("pair_key", dropna=False):
+        if len(g) < 2:
             continue
-        r = g.sort_values("Rot")
-        date = r.iloc[0]["date"]
+        r = g.sort_values("Rot_int")
         team1 = r.iloc[0]["Team"]
         team2 = r.iloc[1]["Team"]
-        gid = make_game_id(date, team1, team2)
+        gid = f"{r.iloc[0]['date']}_{team1}_{team2}"
         for idx in r.index:
-            game_ids[idx] = gid
+            game_id_map[idx] = gid
 
-    df["game_id"] = df.index.map(game_ids)
+    df["game_id"] = df.index.map(game_id_map)
 
     out = pd.DataFrame({
         "date": df["date"],
@@ -53,17 +49,15 @@ def clean_file(path: Path):
         "Open": df["Open"],
         "Close": df["Close"],
         "ML": df["ML"],
-        "2H": df["2H"]
+        "2H": df["2H"],
     })
 
     return out
 
 def main():
-    files = RAW_DIR.glob("ncaa-basketball-*.csv")
-    for f in files:
+    for f in RAW_DIR.glob("ncaa-basketball-*.csv"):
         cleaned = clean_file(f)
-        out_path = OUT_DIR / f"{f.stem}_stage1.csv"
-        cleaned.to_csv(out_path, index=False)
+        cleaned.to_csv(OUT_DIR / f"{f.stem}_stage1.csv", index=False)
 
 if __name__ == "__main__":
     main()
