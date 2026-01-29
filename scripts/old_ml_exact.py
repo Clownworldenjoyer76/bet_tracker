@@ -5,29 +5,10 @@ IN_DIR = Path("bets/historic/ncaab_old/stage_2")
 OUT_DIR = Path("bets/historic/ncaab_old/ML")
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-BUCKETS = [
-    (0.00, 0.30, "p < 0.30"),
-    (0.30, 0.35, "0.30–0.35"),
-    (0.35, 0.40, "0.35–0.40"),
-    (0.40, 0.45, "0.40–0.45"),
-    (0.45, 0.50, "0.45–0.50"),
-    (0.50, 0.55, "0.50–0.55"),
-    (0.55, 0.60, "0.55–0.60"),
-    (0.60, 0.65, "0.60–0.65"),
-    (0.65, 0.70, "0.65–0.70"),
-    (0.70, 1.01, "≥ 0.70"),
-]
-
 def implied_prob(ml: float) -> float:
     if ml < 0:
         return abs(ml) / (abs(ml) + 100)
     return 100 / (ml + 100)
-
-def bucketize(p: float) -> str | None:
-    for lo, hi, label in BUCKETS:
-        if lo <= p < hi:
-            return label
-    return None
 
 def parse_ml(val):
     if val is None:
@@ -53,27 +34,29 @@ def process_file(path: Path):
         away_ml = parse_ml(r["away_ml"])
         if away_ml is not None:
             p = implied_prob(away_ml)
-            bucket = bucketize(p)
+            prob_pct = int(round(p * 100))
             win = int(away_final > home_final)
-            rows.append({"prob_bucket": bucket, "win": win})
+            rows.append({"prob_pct": prob_pct, "win": win})
 
         # home side
         home_ml = parse_ml(r["home_ml"])
         if home_ml is not None:
             p = implied_prob(home_ml)
-            bucket = bucketize(p)
+            prob_pct = int(round(p * 100))
             win = int(home_final > away_final)
-            rows.append({"prob_bucket": bucket, "win": win})
+            rows.append({"prob_pct": prob_pct, "win": win})
 
     out = (
         pd.DataFrame(rows)
-        .groupby("prob_bucket", dropna=True)
+        .groupby("prob_pct", dropna=True)
         .agg(bets=("win", "count"), wins=("win", "sum"))
         .reset_index()
-        .sort_values("prob_bucket")
+        .sort_values("prob_pct")
     )
 
-    out_path = OUT_DIR / path.name.replace(".csv", "_ml_prob_buckets.csv")
+    out["actual_win_pct"] = out["wins"] / out["bets"]
+
+    out_path = OUT_DIR / path.name.replace(".csv", "_ml_exact_probs.csv")
     out.to_csv(out_path, index=False)
 
 def main():
