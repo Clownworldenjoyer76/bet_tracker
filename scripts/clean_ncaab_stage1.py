@@ -1,40 +1,30 @@
 import pandas as pd
 from pathlib import Path
 
-IN_DIR = Path("bets/historic/ncaab_old/stage_2")
-OUT_DIR = Path("bets/historic/ncaab_old/stage_3")
+IN_DIR = Path("bets/historic/ncaab_old/stage_3")
+OUT_DIR = Path("bets/historic/ncaab_old/stage_2")
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 def process_file(path: Path):
     df = pd.read_csv(path, dtype=str)
 
+    # drop rows with ML = NL
+    df = df[df["ML"] != "NL"]
+
     # normalize flags
     df["favorite"] = df["favorite"].str.upper().str.strip()
     df["underdog"] = df["underdog"].str.upper().str.strip()
 
-    # initialize columns
-    df["over_under"] = ""
-    df["spread"] = ""
+    # build spread column per rules
+    def resolve_spread(row):
+        val = row["spread"]
+        if row["favorite"] == "YES":
+            return val
+        if row["underdog"] == "YES":
+            return val.lstrip("-") if isinstance(val, str) else val
+        return ""
 
-    # resolve per game_id
-    for gid, g in df.groupby("game_id"):
-        if len(g) != 2:
-            continue
-
-        # over/under from underdog row
-        ou_row = g[g["underdog"] == "YES"]
-        if len(ou_row) == 1:
-            ou_value = ou_row.iloc[0]["Close"]
-            df.loc[ou_row.index, "over_under"] = ou_value
-            df.loc[g.index.difference(ou_row.index), "over_under"] = ou_value
-
-        # spread from favorite row
-        fav_row = g[g["favorite"] == "YES"]
-        if len(fav_row) == 1:
-            spread_val = fav_row.iloc[0]["Close"]
-            spread_out = f"-{spread_val}"
-            df.loc[fav_row.index, "spread"] = spread_out
-            df.loc[g.index.difference(fav_row.index), "spread"] = spread_out
+    df["spread_out"] = df.apply(resolve_spread, axis=1)
 
     out = df[
         [
@@ -47,15 +37,16 @@ def process_file(path: Path):
             "favorite",
             "underdog",
             "over_under",
-            "spread",
         ]
-    ]
+    ].copy()
 
-    out_path = OUT_DIR / path.name.replace("_stage2", "_stage3")
+    out["spread"] = df["spread_out"]
+
+    out_path = OUT_DIR / path.name.replace("_stage3", "_stage2")
     out.to_csv(out_path, index=False)
 
 def main():
-    for f in IN_DIR.glob("ncaa-basketball-*_stage2.csv"):
+    for f in IN_DIR.glob("ncaa-basketball-*_stage3.csv"):
         process_file(f)
 
 if __name__ == "__main__":
