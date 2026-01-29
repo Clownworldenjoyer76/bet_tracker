@@ -2,12 +2,12 @@
 """
 build_edge_nba_spreads.py
 
-Mirrors NHL spread workflow exactly, adapted for NBA.
+Mirrors NHL spread workflow, adapted for NBA.
 
-Authoritative rules:
+Authoritative rules (UPDATED):
 - Use projected points to compute margin
 - Favorite = higher projected points
-- Spread = abs(point_diff), rounded to nearest 0.5
+- Spread = abs(point_diff), FORCED to .5 increments (no pushes)
 - One output row per team
 - Spread sign:
     favorite  -> -spread
@@ -19,7 +19,6 @@ import csv
 from pathlib import Path
 from collections import defaultdict
 from datetime import datetime
-from math import copysign
 
 # ============================================================
 # PATHS
@@ -30,17 +29,24 @@ OUTPUT_DIR = Path("docs/win/nba/spreads")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # ============================================================
-# PARAMETERS (MATCH NHL)
+# PARAMETERS
 # ============================================================
 
-EDGE_BUFFER = 0.05   # same buffer concept as NHL
+EDGE_BUFFER = 0.05
 
 # ============================================================
 # HELPERS
 # ============================================================
 
-def round_to_half(x: float) -> float:
-    return round(x * 2) / 2
+def force_half_point(x: float) -> float:
+    """
+    Round to nearest 0.5 and FORCE .5 (no integers).
+    Ensures no pushes.
+    """
+    rounded = round(x * 2) / 2
+    if rounded.is_integer():
+        return rounded + 0.5
+    return rounded
 
 
 def decimal_to_american(d: float) -> int:
@@ -55,7 +61,6 @@ def fair_decimal(p: float) -> float:
 
 def acceptable_decimal(p: float) -> float:
     return 1.0 / max(p - EDGE_BUFFER, 0.0001)
-
 
 # ============================================================
 # MAIN
@@ -73,7 +78,7 @@ def main():
 
     games = defaultdict(list)
 
-    with open(latest_file, newline="", encoding="utf-8") as f:
+    with latest_file.open(newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
             if row.get("game_id"):
@@ -94,7 +99,7 @@ def main():
         "league",
     ]
 
-    with open(out_path, "w", newline="", encoding="utf-8") as f:
+    with out_path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
 
@@ -113,14 +118,12 @@ def main():
                 continue
 
             margin = pts_a - pts_b
-            spread = round_to_half(abs(margin))
+            spread = force_half_point(abs(margin))
 
-            # team A
+            # Team A
             spread_a = -spread if margin > 0 else spread
-            p_sel_a = p_a
-
-            fair_d = fair_decimal(p_sel_a)
-            acc_d = acceptable_decimal(p_sel_a)
+            fair_d = fair_decimal(p_a)
+            acc_d = acceptable_decimal(p_a)
 
             writer.writerow({
                 "game_id": game_id,
@@ -129,7 +132,7 @@ def main():
                 "team": a["team"],
                 "opponent": a["opponent"],
                 "spread": spread_a,
-                "model_probability": round(p_sel_a, 4),
+                "model_probability": round(p_a, 4),
                 "fair_decimal_odds": round(fair_d, 4),
                 "fair_american_odds": decimal_to_american(fair_d),
                 "acceptable_decimal_odds": round(acc_d, 4),
@@ -137,12 +140,10 @@ def main():
                 "league": "nba_spread",
             })
 
-            # team B
+            # Team B
             spread_b = -spread_a
-            p_sel_b = p_b
-
-            fair_d = fair_decimal(p_sel_b)
-            acc_d = acceptable_decimal(p_sel_b)
+            fair_d = fair_decimal(p_b)
+            acc_d = acceptable_decimal(p_b)
 
             writer.writerow({
                 "game_id": game_id,
@@ -151,7 +152,7 @@ def main():
                 "team": b["team"],
                 "opponent": b["opponent"],
                 "spread": spread_b,
-                "model_probability": round(p_sel_b, 4),
+                "model_probability": round(p_b, 4),
                 "fair_decimal_odds": round(fair_d, 4),
                 "fair_american_odds": decimal_to_american(fair_d),
                 "acceptable_decimal_odds": round(acc_d, 4),
