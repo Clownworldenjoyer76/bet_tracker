@@ -11,10 +11,10 @@ def process_file(path: Path):
     # drop rows with ML = NL
     df = df[df["ML"] != "NL"].copy()
 
-    # numeric finals for math only
+    # numeric finals for calculations only
     df["Final_num"] = pd.to_numeric(df["Final"], errors="coerce")
 
-    # init output columns as strings
+    # init output columns (string-safe)
     df["actual_total"] = ""
     df["actual_spread"] = ""
 
@@ -25,16 +25,21 @@ def process_file(path: Path):
         idx = g.index
 
         # actual total
-        total = g["Final_num"].sum()
-        df.loc[idx, "actual_total"] = str(int(total))
+        if g["Final_num"].notna().all():
+            total = g["Final_num"].sum()
+            df.loc[idx, "actual_total"] = str(int(total))
 
         # actual spread = favorite - underdog
         fav = g[g["favorite"].str.upper() == "YES"]
         dog = g[g["underdog"].str.upper() == "YES"]
 
         if len(fav) == 1 and len(dog) == 1:
-            spread = fav.iloc[0]["Final_num"] - dog.iloc[0]["Final_num"]
-            df.loc[idx, "actual_spread"] = str(int(spread))
+            fav_score = fav.iloc[0]["Final_num"]
+            dog_score = dog.iloc[0]["Final_num"]
+
+            if pd.notna(fav_score) and pd.notna(dog_score):
+                spread = fav_score - dog_score
+                df.loc[idx, "actual_spread"] = str(int(spread))
 
     out = df[
         [
