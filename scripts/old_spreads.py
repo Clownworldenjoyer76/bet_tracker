@@ -13,6 +13,7 @@ OUT_DIRS = {
 for d in OUT_DIRS.values():
     d.mkdir(parents=True, exist_ok=True)
 
+
 def parse_float(val):
     try:
         v = str(val).strip()
@@ -22,6 +23,7 @@ def parse_float(val):
     except Exception:
         return None
 
+
 def main():
     rows = {"neutral": [], "away": [], "home": []}
 
@@ -29,32 +31,54 @@ def main():
         df = pd.read_csv(path, dtype=str)
 
         for _, r in df.iterrows():
-            away_final = parse_float(r["away_final"])
-            home_final = parse_float(r["home_final"])
-            away_spread = parse_float(r["away_spread"])
-            home_spread = parse_float(r["home_spread"])
+            away_final = parse_float(r.get("away_final"))
+            home_final = parse_float(r.get("home_final"))
+            away_spread = parse_float(r.get("away_spread"))
+            home_spread = parse_float(r.get("home_spread"))
 
             if away_final is None or home_final is None:
                 continue
 
-            neutral = str(r["neutral_location"]).upper() == "YES"
+            neutral = str(r.get("neutral_location", "")).upper() == "YES"
 
-            if away_spread is not None and away_spread < 0:
-                spread = away_spread
-                ats_margin = (away_final + spread) - home_final
+            # --- Away side (include ALL spreads, +/-) ---
+            if away_spread is not None:
+                ats_margin = (away_final + away_spread) - home_final
+                outcome = (
+                    "PUSH" if ats_margin == 0
+                    else "COVER" if ats_margin > 0
+                    else "NO_COVER"
+                )
                 venue = "neutral" if neutral else "away"
-            elif home_spread is not None and home_spread < 0:
-                spread = home_spread
-                ats_margin = (home_final + spread) - away_final
+                rows[venue].append({
+                    "spread": away_spread,
+                    "outcome": outcome
+                })
+
+            # --- Home side (include ALL spreads, +/-) ---
+            if home_spread is not None:
+                ats_margin = (home_final + home_spread) - away_final
+                outcome = (
+                    "PUSH" if ats_margin == 0
+                    else "COVER" if ats_margin > 0
+                    else "NO_COVER"
+                )
                 venue = "neutral" if neutral else "home"
-            else:
-                continue
+                rows[venue].append({
+                    "spread": home_spread,
+                    "outcome": outcome
+                })
 
-            outcome = "PUSH" if ats_margin == 0 else ("COVER" if ats_margin > 0 else "NO_COVER")
-
-            rows[venue].append({"spread": spread, "outcome": outcome})
-
+    # Write outputs
     for venue, data in rows.items():
+        out_path = OUT_DIRS[venue] / "exact_spreads.csv"
+
+        if not data:
+            pd.DataFrame(
+                columns=["spread", "bets", "covers", "no_covers", "pushes"]
+            ).to_csv(out_path, index=False)
+            continue
+
         out = (
             pd.DataFrame(data)
             .groupby("spread")
@@ -68,7 +92,8 @@ def main():
             .sort_values("spread")
         )
 
-        out.to_csv(OUT_DIRS[venue] / "exact_spreads.csv", index=False)
+        out.to_csv(out_path, index=False)
+
 
 if __name__ == "__main__":
     main()
