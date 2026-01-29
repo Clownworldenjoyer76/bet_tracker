@@ -34,24 +34,27 @@ def process_file(path: Path):
         away_ml = parse_ml(r["away_ml"])
         if away_ml is not None:
             p = implied_prob(away_ml)
-            prob_pct = int(round(p * 100))
+            prob_dec = round(p, 3)
             win = int(away_final > home_final)
-            rows.append({"prob_pct": prob_pct, "win": win})
+            rows.append({"prob_dec": prob_dec, "win": win})
 
         # home side
         home_ml = parse_ml(r["home_ml"])
         if home_ml is not None:
             p = implied_prob(home_ml)
-            prob_pct = int(round(p * 100))
+            prob_dec = round(p, 3)
             win = int(home_final > away_final)
-            rows.append({"prob_pct": prob_pct, "win": win})
+            rows.append({"prob_dec": prob_dec, "win": win})
 
     out = (
         pd.DataFrame(rows)
-        .groupby("prob_pct", dropna=True)
-        .agg(bets=("win", "count"), wins=("win", "sum"))
+        .groupby("prob_dec", dropna=True)
+        .agg(
+            bets=("win", "count"),
+            wins=("win", "sum"),
+        )
         .reset_index()
-        .sort_values("prob_pct")
+        .sort_values("prob_dec")
     )
 
     out["actual_win_pct"] = out["wins"] / out["bets"]
