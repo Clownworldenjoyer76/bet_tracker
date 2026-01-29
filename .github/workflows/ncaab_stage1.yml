@@ -1,18 +1,14 @@
-name: NCAAB Stage 1 Clean
+name: NCAAB Stage 1 Clean (Manual)
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - "bets/historic/ncaab_old/*.xlsx"
-      - "scripts/clean_ncaab_stage1.py"
 
 jobs:
   clean:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Python
@@ -28,11 +24,3 @@ jobs:
       - name: Run Stage 1 cleaner
         run: |
           python scripts/clean_ncaab_stage1.py
-
-      - name: Commit cleaned files
-        run: |
-          git config user.name "github-actions"
-          git config user.email "actions@github.com"
-          git add bets/historic/ncaab_old/stage_1
-          git commit -m "Stage 1 clean: NCAA basketball historical data" || echo "No changes to commit"
-          git push
