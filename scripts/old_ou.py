@@ -2,7 +2,7 @@ import pandas as pd
 from pathlib import Path
 
 IN_DIR = Path("bets/historic/ncaab_old/stage_2")
-OUT_DIR = Path("bets/historic/ncaab_old/Over_Under")
+OUT_DIR = Path("bets/historic/ncaab_old/tally")
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 def parse_float(val):
@@ -16,32 +16,33 @@ def parse_float(val):
     except ValueError:
         return None
 
-def process_file(path: Path):
-    df = pd.read_csv(path, dtype=str)
-
+def main():
     rows = []
 
-    for _, r in df.iterrows():
-        line = parse_float(r["over_under"])
-        actual = parse_float(r["actual_total"])
+    for path in IN_DIR.glob("*.csv"):
+        df = pd.read_csv(path, dtype=str)
 
-        if line is None or actual is None:
-            continue
+        for _, r in df.iterrows():
+            line = parse_float(r["over_under"])
+            actual = parse_float(r["actual_total"])
 
-        margin = actual - line
+            if line is None or actual is None:
+                continue
 
-        if margin > 0:
-            outcome = "OVER"
-        elif margin < 0:
-            outcome = "UNDER"
-        else:
-            outcome = "PUSH"
+            margin = actual - line
 
-        rows.append({
-            "over_under": line,
-            "margin": margin,
-            "outcome": outcome
-        })
+            if margin > 0:
+                outcome = "OVER"
+            elif margin < 0:
+                outcome = "UNDER"
+            else:
+                outcome = "PUSH"
+
+            rows.append({
+                "over_under": line,
+                "margin": margin,
+                "outcome": outcome
+            })
 
     d = pd.DataFrame(rows)
 
@@ -61,12 +62,7 @@ def process_file(path: Path):
         .sort_values("over_under")
     )
 
-    out_path = OUT_DIR / path.name.replace(".csv", "_ou_exact_totals.csv")
-    out.to_csv(out_path, index=False)
-
-def main():
-    for f in IN_DIR.glob("*.csv"):
-        process_file(f)
+    out.to_csv(OUT_DIR / "exact_ou_tally.csv", index=False)
 
 if __name__ == "__main__":
     main()
