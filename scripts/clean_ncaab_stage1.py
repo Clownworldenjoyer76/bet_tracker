@@ -11,10 +11,10 @@ def process_file(path: Path):
     # drop rows with ML = NL
     df = df[df["ML"] != "NL"].copy()
 
-    # numeric finals for calculations only
+    # numeric finals for math only
     df["Final_num"] = pd.to_numeric(df["Final"], errors="coerce")
 
-    # init output columns (string-safe)
+    # init computed columns
     df["actual_total"] = ""
     df["actual_spread"] = ""
 
@@ -38,8 +38,8 @@ def process_file(path: Path):
             dog_score = dog.iloc[0]["Final_num"]
 
             if pd.notna(fav_score) and pd.notna(dog_score):
-                spread = fav_score - dog_score
-                df.loc[idx, "actual_spread"] = str(int(spread))
+                spread_val = fav_score - dog_score
+                df.loc[idx, "actual_spread"] = str(int(spread_val))
 
     out = df[
         [
@@ -47,10 +47,12 @@ def process_file(path: Path):
             "VH",
             "Team",
             "Final",
+            "Close",
             "ML",
             "favorite",
             "underdog",
             "over_under",
+            "spread",          # ← FIX: preserved
             "actual_total",
             "actual_spread",
         ]
