@@ -7,6 +7,11 @@ INPUT_DIR = Path("docs/win/edge")
 OUTPUT_DIR = Path("docs/win/final")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
+JUICE_TABLE_PATH = Path("config/ncaab/ncaab_ml_juice_table.csv")
+
+# -------------------------------------------------
+# ODDS HELPERS
+# -------------------------------------------------
 
 def decimal_to_american(decimal: float) -> int:
     if decimal >= 2.0:
@@ -20,35 +25,42 @@ def american_to_decimal(american: int) -> float:
     return 1 + (100 / abs(american))
 
 
+# -------------------------------------------------
+# LOAD PERSONAL ML JUICE TABLE
+# -------------------------------------------------
 
-def personal_edge_pct(prob: float) -> float:
+def load_ml_juice_table(path: Path):
+    table = []
+    with path.open(newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            if row["market_type"] != "moneyline":
+                continue
+
+            table.append({
+                "low": float(row["band_low"]),
+                "high": float(row["band_high"]),
+                "juice": float(row["extra_juice_pct"]),
+            })
+    return table
+
+
+ML_JUICE_TABLE = load_ml_juice_table(JUICE_TABLE_PATH)
+
+
+def lookup_ml_juice(prob: float) -> float:
     """
-    Returns personal juice as a percentage (e.g. 0.20 = 20%)
-    applied multiplicatively to acceptable_decimal_odds.
-    NCAAB v1.2 — all-time data aligned
+    Returns personal juice pct based on model probability.
     """
-
-    if prob >= 0.75:
-        return 0.25   # ↓ reduced from 0.30
-    if prob >= 0.70:
-        return 0.20   # ↓ reduced from 0.25
-    if prob >= 0.65:
-        return 0.15   # ↓ reduced from 0.25
-    if prob >= 0.60:
-        return 0.10   # unchanged
-    if prob >= 0.55:
-        return 0.05   # unchanged (best-performing zone)
-    if prob >= 0.50:
-        return 0.05   # ↓ reduced from 0.10
-    if prob >= 0.45:
-        return 0.15   # ↓ reduced from 0.20
-    if prob >= 0.40:
-        return 0.25   # ↓ reduced from 0.30
-    if prob >= 0.35:
-        return 0.35   # ↓ reduced from 0.40
-    return 0.75       # unchanged (extreme tail protection)
+    for r in ML_JUICE_TABLE:
+        if r["low"] <= prob < r["high"]:
+            return r["juice"]
+    return 0.0
 
 
+# -------------------------------------------------
+# CORE PROCESSOR
+# -------------------------------------------------
 
 def process_file(path: Path):
     suffix = path.name.replace("edge_ncaab_", "")
@@ -58,9 +70,14 @@ def process_file(path: Path):
          output_path.open("w", newline="", encoding="utf-8") as outfile:
 
         reader = csv.DictReader(infile)
+
+        if "win_probability" not in reader.fieldnames:
+            raise ValueError("This script is moneyline-only")
+
         fieldnames = list(reader.fieldnames) + [
             "personally_acceptable_american_odds"
         ]
+
         writer = csv.DictWriter(outfile, fieldnames=fieldnames)
         writer.writeheader()
 
@@ -69,7 +86,8 @@ def process_file(path: Path):
             base_decimal = float(row["acceptable_decimal_odds"])
             base_american = int(row["acceptable_american_odds"])
 
-            edge_pct = personal_edge_pct(p)
+            edge_pct = lookup_ml_juice(p)
+
             personal_decimal = base_decimal * (1.0 + edge_pct)
             personal_american = decimal_to_american(personal_decimal)
 
@@ -87,6 +105,9 @@ def process_file(path: Path):
     print(f"Created {output_path}")
 
 
+# -------------------------------------------------
+# MAIN
+# -------------------------------------------------
 
 def main():
     files = sorted(INPUT_DIR.glob("edge_ncaab_*.csv"))
