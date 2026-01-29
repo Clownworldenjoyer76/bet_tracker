@@ -13,6 +13,7 @@ Authoritative rules:
     favorite  -> -spread
     underdog  -> +spread
 - Price spreads using model win probability
+- Personal juice applied via config/ncaab/ncaab_spreads_juice_table.csv
 """
 
 import csv
@@ -28,11 +29,7 @@ INPUT_DIR = Path("docs/win/edge")
 OUTPUT_DIR = Path("docs/win/ncaab/spreads")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-# ============================================================
-# PARAMETERS (MATCH NBA)
-# ============================================================
-
-EDGE_BUFFER = 0.05
+JUICE_TABLE_PATH = Path("config/ncaab/ncaab_spreads_juice_table.csv")
 
 # ============================================================
 # HELPERS
@@ -52,9 +49,38 @@ def fair_decimal(p: float) -> float:
     return 1.0 / p
 
 
-def acceptable_decimal(p: float) -> float:
-    return 1.0 / max(p - EDGE_BUFFER, 0.0001)
+def acceptable_decimal(p: float, juice: float) -> float:
+    return 1.0 / max(p - juice, 0.0001)
 
+# ============================================================
+# JUICE TABLE HELPERS
+# ============================================================
+
+def load_spreads_juice_table(path: Path):
+    table = []
+    with open(path, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            table.append({
+                "low": float(row["band_low"]),
+                "high": float(row["band_high"]),
+                "side": row["side"].lower(),  # favorite / underdog / any
+                "juice": float(row["extra_juice_pct"]),
+            })
+    return table
+
+
+def lookup_spreads_juice(table, spread_abs, side):
+    """
+    spread_abs : positive float (absolute spread)
+    side       : 'favorite' or 'underdog'
+    """
+    side = side.lower()
+    for r in table:
+        if r["low"] <= spread_abs <= r["high"]:
+            if r["side"] == "any" or r["side"] == side:
+                return r["juice"]
+    return 0.0
 
 # ============================================================
 # MAIN
@@ -66,6 +92,7 @@ def main():
         raise FileNotFoundError("No NCAAB edge files found")
 
     latest_file = input_files[-1]
+    spreads_juice_table = load_spreads_juice_table(JUICE_TABLE_PATH)
 
     today = datetime.utcnow()
     out_path = OUTPUT_DIR / f"edge_ncaab_spreads_{today.year}_{today.month:02d}_{today.day:02d}.csv"
@@ -114,12 +141,20 @@ def main():
             margin = pts_a - pts_b
             spread = round_to_half(abs(margin))
 
+            # ------------------------
             # Team A
-            spread_a = -spread if margin > 0 else spread
-            p_sel_a = p_a
+            # ------------------------
+            side_a = "favorite" if margin > 0 else "underdog"
+            spread_a = -spread if side_a == "favorite" else spread
 
-            fair_d = fair_decimal(p_sel_a)
-            acc_d = acceptable_decimal(p_sel_a)
+            juice_a = lookup_spreads_juice(
+                spreads_juice_table,
+                spread,
+                side_a
+            )
+
+            fair_d = fair_decimal(p_a)
+            acc_d = acceptable_decimal(p_a, juice_a)
 
             writer.writerow({
                 "game_id": game_id,
@@ -128,7 +163,7 @@ def main():
                 "team": a["team"],
                 "opponent": a["opponent"],
                 "spread": spread_a,
-                "model_probability": round(p_sel_a, 4),
+                "model_probability": round(p_a, 4),
                 "fair_decimal_odds": round(fair_d, 4),
                 "fair_american_odds": decimal_to_american(fair_d),
                 "acceptable_decimal_odds": round(acc_d, 4),
@@ -136,12 +171,20 @@ def main():
                 "league": "ncaab_spread",
             })
 
+            # ------------------------
             # Team B
+            # ------------------------
+            side_b = "underdog" if side_a == "favorite" else "favorite"
             spread_b = -spread_a
-            p_sel_b = p_b
 
-            fair_d = fair_decimal(p_sel_b)
-            acc_d = acceptable_decimal(p_sel_b)
+            juice_b = lookup_spreads_juice(
+                spreads_juice_table,
+                spread,
+                side_b
+            )
+
+            fair_d = fair_decimal(p_b)
+            acc_d = acceptable_decimal(p_b, juice_b)
 
             writer.writerow({
                 "game_id": game_id,
@@ -150,7 +193,7 @@ def main():
                 "team": b["team"],
                 "opponent": b["opponent"],
                 "spread": spread_b,
-                "model_probability": round(p_sel_b, 4),
+                "model_probability": round(p_b, 4),
                 "fair_decimal_odds": round(fair_d, 4),
                 "fair_american_odds": decimal_to_american(fair_d),
                 "acceptable_decimal_odds": round(acc_d, 4),
