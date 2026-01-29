@@ -24,8 +24,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install pandas
 
-      - name: Run moneyline buckets
+      - name: Run moneyline buckets (range)
         run: python scripts/old_ml.py
+
+      - name: Run moneyline buckets (exact %)
+        run: python scripts/old_ml_exact.py
 
       - name: Run over/under buckets
         run: python scripts/old_ou.py
