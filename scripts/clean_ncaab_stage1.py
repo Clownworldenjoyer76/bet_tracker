@@ -1,4 +1,5 @@
 import pandas as pd
+import re
 from pathlib import Path
 
 RAW_DIR = Path("bets/historic/ncaab_old")
@@ -11,11 +12,17 @@ REQUIRED_COLS = {
     "Open", "Close", "ML"
 }
 
-def infer_season_year(mmdd: int, season_start_year: int):
+def extract_season_start_year(filename: str) -> int:
+    match = re.search(r"(19|20)\d{2}", filename)
+    if not match:
+        raise ValueError(f"{filename}: could not infer season year")
+    return int(match.group())
+
+def infer_season_year(mmdd: int, season_start_year: int) -> int:
     month = mmdd // 100
     return season_start_year if month >= 11 else season_start_year + 1
 
-def parse_dates(df, season_start_year):
+def parse_dates(df: pd.DataFrame, season_start_year: int) -> pd.DataFrame:
     df["mmdd"] = df["Date"].astype(int)
     df["year"] = df["mmdd"].apply(lambda x: infer_season_year(x, season_start_year))
     df["month"] = df["mmdd"] // 100
@@ -26,15 +33,14 @@ def parse_dates(df, season_start_year):
     )
     return df
 
-def clean_file(path: Path):
+def clean_file(path: Path) -> pd.DataFrame:
     df = pd.read_excel(path)
 
     missing = REQUIRED_COLS - set(df.columns)
     if missing:
         raise ValueError(f"{path.name}: missing columns {missing}")
 
-    season_start_year = int(path.stem.split("-")[0])
-
+    season_start_year = extract_season_start_year(path.name)
     df = parse_dates(df, season_start_year)
 
     df["rotation"] = df["Rot"].astype(int)
@@ -42,13 +48,11 @@ def clean_file(path: Path):
     if df["is_home"].isna().any():
         raise ValueError(f"{path.name}: invalid VH values")
 
-    # Pair games via rotation
     df["game_key"] = df["rotation"].where(
         df["rotation"] % 2 == 1,
         df["rotation"] - 1
     )
 
-    # Split odds
     df["open_spread"] = df.apply(
         lambda r: r["Open"] if r["is_home"] == 1 else pd.NA,
         axis=1
@@ -68,7 +72,6 @@ def clean_file(path: Path):
 
     df["team_score"] = df["Final"].astype(int)
 
-    # Attach opponent score
     opp_scores = (
         df[["game_key", "team_score"]]
         .groupby("game_key")
@@ -91,15 +94,14 @@ def clean_file(path: Path):
     return df[out_cols].sort_values(["game_date", "game_key", "is_home"])
 
 def main():
-    files = list(RAW_DIR.glob("*.xlsx"))
+    files = sorted(RAW_DIR.glob("ncaa-basketball-*.xlsx"))
     if not files:
-        raise RuntimeError("No XLSX files found")
+        raise RuntimeError("No NCAA basketball XLSX files found")
 
     for f in files:
         cleaned = clean_file(f)
         out_path = OUT_DIR / f"{f.stem}_stage1.csv"
         cleaned.to_csv(out_path, index=False)
-        print(f"✔ Cleaned {f.name} → {out_path}")
 
 if __name__ == "__main__":
     main()
