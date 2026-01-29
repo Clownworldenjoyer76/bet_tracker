@@ -2,7 +2,7 @@ import pandas as pd
 from pathlib import Path
 
 IN_DIR = Path("bets/historic/ncaab_old/stage_2")
-OUT_DIR = Path("bets/historic/ncaab_old/ML")
+OUT_DIR = Path("bets/historic/ncaab_old/tally")
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 def implied_prob(ml: float) -> float:
@@ -21,50 +21,37 @@ def parse_ml(val):
     except ValueError:
         return None
 
-def process_file(path: Path):
-    df = pd.read_csv(path, dtype=str)
-
+def main():
     rows = []
 
-    for _, r in df.iterrows():
-        away_final = float(r["away_final"])
-        home_final = float(r["home_final"])
+    for path in IN_DIR.glob("*.csv"):
+        df = pd.read_csv(path, dtype=str)
 
-        # away side
-        away_ml = parse_ml(r["away_ml"])
-        if away_ml is not None:
-            p = implied_prob(away_ml)
-            prob_dec = round(p, 3)
-            win = int(away_final > home_final)
-            rows.append({"prob_dec": prob_dec, "win": win})
+        for _, r in df.iterrows():
+            away_final = float(r["away_final"])
+            home_final = float(r["home_final"])
 
-        # home side
-        home_ml = parse_ml(r["home_ml"])
-        if home_ml is not None:
-            p = implied_prob(home_ml)
-            prob_dec = round(p, 3)
-            win = int(home_final > away_final)
-            rows.append({"prob_dec": prob_dec, "win": win})
+            away_ml = parse_ml(r["away_ml"])
+            if away_ml is not None:
+                p = round(implied_prob(away_ml), 3)
+                rows.append({"prob_dec": p, "win": int(away_final > home_final)})
+
+            home_ml = parse_ml(r["home_ml"])
+            if home_ml is not None:
+                p = round(implied_prob(home_ml), 3)
+                rows.append({"prob_dec": p, "win": int(home_final > away_final)})
 
     out = (
         pd.DataFrame(rows)
-        .groupby("prob_dec", dropna=True)
-        .agg(
-            bets=("win", "count"),
-            wins=("win", "sum"),
-        )
+        .groupby("prob_dec")
+        .agg(bets=("win", "count"), wins=("win", "sum"))
         .reset_index()
         .sort_values("prob_dec")
     )
 
     out["actual_win_pct"] = out["wins"] / out["bets"]
 
-    out_path = OUT_DIR / path.name.replace(".csv", "_ml_exact_probs.csv")
-    out.to_csv(out_path, index=False)
-
-def main():
-    for f in IN_DIR.glob("*.csv"):
-        process_file(f)
+    out.to_csv(OUT_DIR / "exact_ml_prob_tally.csv", index=False)
 
 if __name__ == "__main__":
     main()
