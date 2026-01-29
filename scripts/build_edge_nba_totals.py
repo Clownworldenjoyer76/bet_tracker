@@ -2,15 +2,8 @@
 """
 Build NBA Totals Evaluation File (Model-Anchored, Config-Driven)
 
-Rules:
-- No live market odds assumed
-- Use best_ou as the comparison total
-- OVER if model total (λ) > best_ou
-- UNDER if model total (λ) < best_ou
-- NO PLAY if best_ou missing/invalid or totals equal
-- Normal model with μ = total_points
-- σ = sqrt(μ)
-- Acceptable odds adjusted using config-driven juice table
+UPDATED RULE:
+- Market totals are FORCED to .5 (no pushes)
 """
 
 import csv
@@ -32,10 +25,20 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 MIN_LAM = 150.0
 MAX_LAM = 300.0
 
+# -----------------------------
+# HELPERS
+# -----------------------------
+def force_half_point(x: float) -> float:
+    """
+    Round to nearest 0.5 and FORCE .5 (no integers).
+    Ensures no pushes.
+    """
+    rounded = round(x * 2) / 2
+    if rounded.is_integer():
+        return rounded + 0.5
+    return rounded
 
-# -----------------------------
-# MATH HELPERS
-# -----------------------------
+
 def normal_cdf(x: float, mu: float, sigma: float) -> float:
     z = (x - mu) / (sigma * sqrt(2))
     return 0.5 * (1 + erf(z))
@@ -53,10 +56,9 @@ def decimal_to_american(d: float) -> int:
 
 def acceptable_decimal(p: float, edge_pct: float) -> float:
     """
-    Apply personal juice multiplicatively (same philosophy as moneylines).
+    Apply personal juice multiplicatively.
     """
     return (1.0 / p) * (1.0 + edge_pct)
-
 
 # -----------------------------
 # LOAD TOTALS JUICE CONFIG
@@ -84,15 +86,11 @@ TOTALS_JUICE_RULES = load_totals_juice_rules()
 
 
 def lookup_totals_juice(market_total: float, side: str) -> float:
-    """
-    Returns extra juice pct based on market_total and side.
-    """
     for rule in TOTALS_JUICE_RULES:
         if rule["low"] <= market_total <= rule["high"]:
             if rule["side"] == "any" or rule["side"] == side.lower():
                 return rule["extra"]
     return 0.0
-
 
 # -----------------------------
 # MAIN
@@ -136,7 +134,6 @@ def main():
         writer.writeheader()
 
         for game_id, rows in games.items():
-
             row = rows[0]
 
             team_1 = row.get("team", "")
@@ -146,19 +143,21 @@ def main():
 
             try:
                 lam = float(row["total_points"])
-                market_total = float(row.get("best_ou", ""))
+                raw_market_total = float(row.get("best_ou", ""))
             except (ValueError, TypeError):
                 lam = None
-                market_total = None
+                raw_market_total = None
 
             side = "NO PLAY"
             p_selected = None
+            market_total = None
 
             if (
                 lam is not None
-                and market_total is not None
+                and raw_market_total is not None
                 and MIN_LAM <= lam <= MAX_LAM
             ):
+                market_total = force_half_point(raw_market_total)
                 sigma = sqrt(lam)
 
                 p_under = normal_cdf(market_total, lam, sigma)
