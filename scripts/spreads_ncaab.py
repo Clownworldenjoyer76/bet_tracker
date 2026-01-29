@@ -7,7 +7,7 @@ Mirrors NBA spread workflow exactly, adapted for NCAAB.
 Authoritative rules:
 - Use projected points to compute margin
 - Favorite = higher projected points
-- Spread = abs(point_diff), rounded to nearest 0.5
+- Spread = abs(point_diff), forced to .5
 - One output row per team
 - Spread sign:
     favorite  -> -spread
@@ -35,8 +35,15 @@ JUICE_TABLE_PATH = Path("config/ncaab/ncaab_spreads_juice_table.csv")
 # HELPERS
 # ============================================================
 
-def round_to_half(x: float) -> float:
-    return round(x * 2) / 2
+def force_half_point(x: float) -> float:
+    """
+    Round to nearest 0.5 and force non-integer (.5) spreads.
+    Eliminates pushes by construction.
+    """
+    rounded = round(x * 2) / 2
+    if rounded.is_integer():
+        return rounded + 0.5
+    return rounded
 
 
 def decimal_to_american(d: float) -> int:
@@ -139,7 +146,7 @@ def main():
                 continue
 
             margin = pts_a - pts_b
-            spread = round_to_half(abs(margin))
+            spread = force_half_point(abs(margin))
 
             # ------------------------
             # Team A
