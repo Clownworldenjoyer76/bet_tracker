@@ -1,57 +1,62 @@
 import pandas as pd
 from pathlib import Path
+import re
 
-RAW_DIR = Path("bets/historic/ncaab_old")
-OUT_DIR = RAW_DIR / "stage_1"
+IN_DIR = Path("bets/historic/ncaab_old/stage_1")
+OUT_DIR = Path("bets/historic/ncaab_old/stage_2")
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-VH_MAP = {
-    "H": "Home",
-    "V": "Away",
-    "N": "Neutral"
-}
+def extract_season(filename: str) -> str:
+    # first 4-digit year in filename
+    m = re.search(r"(19|20)\d{2}", filename)
+    if not m:
+        raise ValueError(f"Cannot extract season from {filename}")
+    return m.group()
 
-def clean_file(path: Path) -> pd.DataFrame:
+def process_file(path: Path):
+    season = extract_season(path.name)
     df = pd.read_csv(path, dtype=str)
 
-    # date passthrough
-    df["date"] = df["Date"].astype(str).str.strip()
+    # moneyline to numeric for logic
+    ml_num = pd.to_numeric(df["ML"], errors="coerce")
 
-    # rotation handling
-    df["Rot_int"] = pd.to_numeric(df["Rot"], errors="coerce").astype("Int64")
-    df["pair_rot"] = df["Rot_int"].where(
-        df["Rot_int"] % 2 == 1,
-        df["Rot_int"] - 1
-    )
+    favorite = []
+    underdog = []
 
-    # stable game_id = date + rotation pair
-    df["game_id"] = df["date"] + "_" + df["pair_rot"].astype(str)
-
-    # VH mapping
-    vh = df["VH"].astype(str).str.upper().str.strip()
-    df["VH_out"] = vh.map(VH_MAP).fillna("Neutral")
+    for ml in ml_num:
+        if pd.isna(ml):
+            favorite.append("")
+            underdog.append("")
+        elif ml < 0:
+            favorite.append("YES")
+            underdog.append("")
+        elif ml > 0:
+            favorite.append("")
+            underdog.append("YES")
+        else:
+            favorite.append("PUSH")
+            underdog.append("PUSH")
 
     out = pd.DataFrame({
-        "date": df["date"],
-        "game_id": df["game_id"],
-        "VH": df["VH_out"],
+        "game_id": df["game_id"].astype(str) + "_" + season,
+        "VH": df["VH"],
         "Team": df["Team"],
-        "1st": df["1st"],
-        "2nd": df["2nd"],
         "Final": df["Final"],
-        "Open": df["Open"],
         "Close": df["Close"],
         "ML": df["ML"],
-        "2H": df["2H"],
+        "favorite": favorite,
+        "underdog": underdog,
+        "over_under": "",
+        "spread": ""
     })
 
-    return out
+    out_path = OUT_DIR / path.name.replace("_stage1", "_stage2")
+    out.to_csv(out_path, index=False)
 
 def main():
-    for f in RAW_DIR.glob("ncaa-basketball-*.csv"):
-        cleaned = clean_file(f)
-        out_path = OUT_DIR / f"{f.stem}_stage1.csv"
-        cleaned.to_csv(out_path, index=False)
+    files = IN_DIR.glob("ncaa-basketball-*_stage1.csv")
+    for f in files:
+        process_file(f)
 
 if __name__ == "__main__":
     main()
