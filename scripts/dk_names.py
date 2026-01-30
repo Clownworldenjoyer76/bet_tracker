@@ -3,7 +3,7 @@
 Normalize DraftKings team names to canonical names using a league-aware mapping.
 
 Input:
-  docs/win/manual/cleaned/dk_*.csv
+  docs/win/manual/cleaned/dk_{league}_{market}_{year}_{month}_{day}.csv
 
 Mapping:
   mappings/team_map.csv
@@ -87,13 +87,17 @@ def append_no_map(rows: list[dict]):
 def normalize_file(path: Path, team_map: dict):
     df = pd.read_csv(path, dtype=str)
 
-    # dk_{league}_{year}_{month}_{day}.csv
+    # dk_{league}_{market}_{year}_{month}_{day}.csv
     parts = path.stem.split("_")
-    if len(parts) < 5:
+    if len(parts) < 6:
+        print(f"[SKIP] unexpected filename format: {path.name}")
         return
 
-    _, league, year, month, day = parts
+    _, league, market, year, month, day = parts
     league = norm_league(league)
+
+    if not (year.isdigit() and month.isdigit() and day.isdigit()):
+        raise ValueError(f"Invalid date in filename: {path.name}")
 
     league_map = team_map.get(league)
     if not league_map:
@@ -102,15 +106,18 @@ def normalize_file(path: Path, team_map: dict):
         append_no_map([{"league": league, "team": t} for t in teams])
         return
 
+    # Normalize input strings
     df["league"] = df["league"].apply(norm_league)
     df["team"] = df["team"].apply(norm)
     df["opponent"] = df["opponent"].apply(norm)
 
     before = df[["team", "opponent"]].copy()
 
+    # Deterministic replacement
     df["team"] = df["team"].apply(lambda x: league_map.get(x, x))
     df["opponent"] = df["opponent"].apply(lambda x: league_map.get(x, x))
 
+    # Identify unmapped teams
     unmapped = sorted(
         t
         for t in set(before["team"]) | set(before["opponent"])
@@ -126,6 +133,7 @@ def normalize_file(path: Path, team_map: dict):
 
     out_path = OUT_DIR / f"norm_dk_{league}_{year}_{month}_{day}.csv"
 
+    # Write only if changed
     if out_path.exists():
         old = pd.read_csv(out_path, dtype=str)
         if old.equals(df):
