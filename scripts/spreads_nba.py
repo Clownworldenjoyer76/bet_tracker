@@ -2,14 +2,15 @@
 """
 build_edge_nba_spreads.py
 
-Authoritative NBA spread builder.
+NBA spreads derived from the SAME game-level belief as moneyline.
+No contradictions, no probability leakage.
 
 Rules:
-- Use FINAL nba file (same source as ML)
-- Spread from projected points
-- Probabilities derived from win_probability (consistency guarantee)
-- Force .5 spreads (no pushes)
-- One row per team
+- Use projected points to compute margin
+- Spread = abs(point_diff), forced to .5 (no pushes)
+- ONE cover probability per game (favorite)
+- Underdog prob = 1 - favorite prob
+- No win_prob multiplication
 """
 
 import csv
@@ -22,66 +23,69 @@ from datetime import datetime
 # PATHS
 # ============================================================
 
-FINAL_DIR = Path("docs/win/final")
+INPUT_DIR = Path("docs/win/edge")
 OUTPUT_DIR = Path("docs/win/nba/spreads")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
+# ============================================================
+# PARAMETERS
+# ============================================================
+
 EDGE_BUFFER = 0.05
-MARGIN_STD_DEV = 12.0  # NBA empirical
+MARGIN_STD_DEV = 12.0  # empirical NBA margin std dev
 
 # ============================================================
 # HELPERS
 # ============================================================
 
 def force_half_point(x: float) -> float:
-    x = abs(x)
     rounded = round(x * 2) / 2
-    if rounded.is_integer():
-        return rounded + 0.5
-    return rounded
+    return rounded + 0.5 if rounded.is_integer() else rounded
 
-def normal_cdf(x: float) -> float:
-    return 0.5 * (1 + math.erf(x / math.sqrt(2)))
 
-def cover_prob_from_win_prob(win_p: float, margin: float) -> float:
-    """
-    Convert win probability into spread cover probability.
-    Keeps markets internally consistent.
-    """
-    z = margin / MARGIN_STD_DEV
-    adj = normal_cdf(z)
-    return max(min(win_p * adj, 0.95), 0.05)
-
-def dec_to_amer(d: float) -> int:
-    if d >= 2:
+def decimal_to_american(d: float) -> int:
+    if d >= 2.0:
         return int(round((d - 1) * 100))
     return int(round(-100 / (d - 1)))
 
+
 def fair_decimal(p: float) -> float:
-    return 1.0 / max(p, 0.0001)
+    return 1.0 / max(p, 1e-6)
+
 
 def acceptable_decimal(p: float) -> float:
-    return 1.0 / max(p - EDGE_BUFFER, 0.0001)
+    return 1.0 / max(p - EDGE_BUFFER, 1e-6)
+
+
+def normal_cdf(x: float) -> float:
+    return 0.5 * (1.0 + math.erf(x / math.sqrt(2)))
+
+
+def favorite_cover_probability(projected_margin: float, spread: float) -> float:
+    z = (projected_margin - spread) / MARGIN_STD_DEV
+    return normal_cdf(z)
 
 # ============================================================
 # MAIN
 # ============================================================
 
 def main():
-    final_files = sorted(FINAL_DIR.glob("final_nba_*.csv"))
-    if not final_files:
-        raise FileNotFoundError("No final NBA files found")
+    input_files = sorted(INPUT_DIR.glob("edge_nba_*.csv"))
+    if not input_files:
+        raise FileNotFoundError("No NBA edge files found")
 
-    latest = final_files[-1]
+    latest_file = input_files[-1]
 
     today = datetime.utcnow()
     out_path = OUTPUT_DIR / f"edge_nba_spreads_{today.year}_{today.month:02d}_{today.day:02d}.csv"
 
     games = defaultdict(list)
 
-    with latest.open(newline="", encoding="utf-8") as f:
-        for row in csv.DictReader(f):
-            games[row["game_id"]].append(row)
+    with latest_file.open(newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            if row.get("game_id"):
+                games[row["game_id"]].append(row)
 
     fieldnames = [
         "game_id",
@@ -102,65 +106,77 @@ def main():
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
 
-        for gid, rows in games.items():
+        for game_id, rows in games.items():
             if len(rows) != 2:
                 continue
 
             a, b = rows
 
-            pts_a = float(a["points"])
-            pts_b = float(b["points"])
-            p_a = float(a["win_probability"])
-            p_b = float(b["win_probability"])
+            try:
+                pts_a = float(a["points"])
+                pts_b = float(b["points"])
+            except (ValueError, TypeError):
+                continue
 
             margin = pts_a - pts_b
-            spread = force_half_point(margin)
+            spread = force_half_point(abs(margin))
 
-            # ---------- Team A ----------
-            spread_a = -spread if margin > 0 else spread
-            p_cover_a = cover_prob_from_win_prob(p_a, margin)
+            # Determine favorite
+            if margin > 0:
+                fav, dog = a, b
+                fav_margin = margin
+                fav_spread = -spread
+                dog_spread = spread
+            else:
+                fav, dog = b, a
+                fav_margin = -margin
+                fav_spread = -spread
+                dog_spread = spread
 
-            fair_d = fair_decimal(p_cover_a)
-            acc_d = acceptable_decimal(p_cover_a)
+            # ONE probability
+            p_fav_cover = favorite_cover_probability(fav_margin, spread)
+            p_dog_cover = 1.0 - p_fav_cover
+
+            # ---- Favorite row ----
+            fair_d = fair_decimal(p_fav_cover)
+            acc_d = acceptable_decimal(p_fav_cover)
 
             writer.writerow({
-                "game_id": gid,
-                "date": a["date"],
-                "time": a["time"],
-                "team": a["team"],
-                "opponent": a["opponent"],
-                "spread": spread_a,
-                "model_probability": round(p_cover_a, 4),
+                "game_id": game_id,
+                "date": fav["date"],
+                "time": fav["time"],
+                "team": fav["team"],
+                "opponent": fav["opponent"],
+                "spread": fav_spread,
+                "model_probability": round(p_fav_cover, 4),
                 "fair_decimal_odds": round(fair_d, 4),
-                "fair_american_odds": dec_to_amer(fair_d),
+                "fair_american_odds": decimal_to_american(fair_d),
                 "acceptable_decimal_odds": round(acc_d, 4),
-                "acceptable_american_odds": dec_to_amer(acc_d),
+                "acceptable_american_odds": decimal_to_american(acc_d),
                 "league": "nba_spread",
             })
 
-            # ---------- Team B ----------
-            spread_b = -spread_a
-            p_cover_b = cover_prob_from_win_prob(p_b, -margin)
-
-            fair_d = fair_decimal(p_cover_b)
-            acc_d = acceptable_decimal(p_cover_b)
+            # ---- Underdog row ----
+            fair_d = fair_decimal(p_dog_cover)
+            acc_d = acceptable_decimal(p_dog_cover)
 
             writer.writerow({
-                "game_id": gid,
-                "date": b["date"],
-                "time": b["time"],
-                "team": b["team"],
-                "opponent": b["opponent"],
-                "spread": spread_b,
-                "model_probability": round(p_cover_b, 4),
+                "game_id": game_id,
+                "date": dog["date"],
+                "time": dog["time"],
+                "team": dog["team"],
+                "opponent": dog["opponent"],
+                "spread": dog_spread,
+                "model_probability": round(p_dog_cover, 4),
                 "fair_decimal_odds": round(fair_d, 4),
-                "fair_american_odds": dec_to_amer(fair_d),
+                "fair_american_odds": decimal_to_american(fair_d),
                 "acceptable_decimal_odds": round(acc_d, 4),
-                "acceptable_american_odds": dec_to_amer(acc_d),
+                "acceptable_american_odds": decimal_to_american(acc_d),
                 "league": "nba_spread",
             })
 
     print(f"Created {out_path}")
+
 
 if __name__ == "__main__":
     main()
