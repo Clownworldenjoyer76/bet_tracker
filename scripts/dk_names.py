@@ -15,14 +15,6 @@ Output:
 Additional output:
   mappings/need_map/no_map.csv
     columns: league, team
-
-Behavior:
-- Match on league (normalized)
-- Replace team and opponent using dk_team -> canonical_team
-- Leave unmapped names unchanged
-- Log unmapped teams
-- Persist unmapped teams to no_map.csv
-- Write output only if changes are detected
 """
 
 from pathlib import Path
@@ -95,12 +87,12 @@ def append_no_map(rows: list[dict]):
 def normalize_file(path: Path, team_map: dict):
     df = pd.read_csv(path, dtype=str)
 
-    # clean_dk_{league}_{year}_{month}_{day}.csv
+    # dk_{league}_{year}_{month}_{day}.csv
     parts = path.stem.split("_")
-    if len(parts) < 6:
+    if len(parts) < 5:
         return
 
-    _, _, league, year, month, day = parts
+    _, league, year, month, day = parts
     league = norm_league(league)
 
     league_map = team_map.get(league)
@@ -110,18 +102,15 @@ def normalize_file(path: Path, team_map: dict):
         append_no_map([{"league": league, "team": t} for t in teams])
         return
 
-    # Normalize input strings
     df["league"] = df["league"].apply(norm_league)
     df["team"] = df["team"].apply(norm)
     df["opponent"] = df["opponent"].apply(norm)
 
     before = df[["team", "opponent"]].copy()
 
-    # Deterministic replacement
     df["team"] = df["team"].apply(lambda x: league_map.get(x, x))
     df["opponent"] = df["opponent"].apply(lambda x: league_map.get(x, x))
 
-    # Identify unmapped teams (missing OR identity-mapped)
     unmapped = sorted(
         t
         for t in set(before["team"]) | set(before["opponent"])
@@ -137,7 +126,6 @@ def normalize_file(path: Path, team_map: dict):
 
     out_path = OUT_DIR / f"norm_dk_{league}_{year}_{month}_{day}.csv"
 
-    # Write only if changed
     if out_path.exists():
         old = pd.read_csv(out_path, dtype=str)
         if old.equals(df):
@@ -150,7 +138,7 @@ def normalize_file(path: Path, team_map: dict):
 def main():
     team_map = load_team_map()
 
-    for file in CLEAN_DIR.glob("clean_dk_*.csv"):
+    for file in CLEAN_DIR.glob("dk_*.csv"):
         normalize_file(file, team_map)
 
 
