@@ -3,7 +3,6 @@
 import csv
 import math
 from pathlib import Path
-from collections import defaultdict
 
 # ============================================================
 # PATHS
@@ -47,29 +46,27 @@ def main():
 
     totals_path = totals_files[-1]
 
-    # Load totals rows
     with totals_path.open(newline="", encoding="utf-8") as f:
         totals_rows = list(csv.DictReader(f))
 
     if not totals_rows:
         return
 
-    # Output date from first row
-    raw_date = totals_rows[0]["date"]
-    date_str = raw_date.replace("/", "_")
+    # YYYY_MM_DD from MM/DD/YYYY
+    m, d, y = totals_rows[0]["date"].split("/")
+    date_str = f"{y}_{m}_{d}"
     out_path = OUTPUT_DIR / f"edge_nba_spreads_{date_str}.csv"
 
-    # Load edge_nba projections
     edge_files = sorted(EDGE_DIR.glob("edge_nba_*.csv"))
     if not edge_files:
         raise FileNotFoundError("No edge_nba files found")
 
     edge_path = edge_files[-1]
 
-    edge_map = {}
+    edge_by_game = {}
     with edge_path.open(newline="", encoding="utf-8") as f:
         for r in csv.DictReader(f):
-            edge_map[(r["game_id"], r["team"])] = r
+            edge_by_game.setdefault(r["game_id"], []).append(r)
 
     fieldnames = [
         "game_id",
@@ -105,9 +102,15 @@ def main():
             away = row["team_1"]
             home = row["team_2"]
 
-            away_edge = edge_map.get((gid, away))
-            home_edge = edge_map.get((gid, home))
-            if not away_edge or not home_edge:
+            edge_rows = edge_by_game.get(gid)
+            if not edge_rows or len(edge_rows) != 2:
+                continue
+
+            if edge_rows[0]["team"] == away:
+                away_edge, home_edge = edge_rows[0], edge_rows[1]
+            elif edge_rows[1]["team"] == away:
+                away_edge, home_edge = edge_rows[1], edge_rows[0]
+            else:
                 continue
 
             away_pts = float(away_edge["points"])
@@ -118,16 +121,13 @@ def main():
             home_spread = round_half(margin)
             away_spread = -home_spread
 
-            # ---- probabilities ----
             z = (margin - home_spread) / LEAGUE_MARGIN_STD
-            home_prob = 1 - normal_cdf(z)
+            home_prob = normal_cdf(z)
             away_prob = 1 - home_prob
 
-            # ---- fair odds ----
             fair_home_dec = 1 / home_prob
             fair_away_dec = 1 / away_prob
 
-            # ---- acceptable odds (juice) ----
             acc_home_dec = 1 / (home_prob * JUICE_MULTIPLIER)
             acc_away_dec = 1 / (away_prob * JUICE_MULTIPLIER)
 
