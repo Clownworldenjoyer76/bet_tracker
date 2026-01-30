@@ -1,104 +1,97 @@
 #!/usr/bin/env python3
-"""
-build_edge_nba_spreads.py
-
-NBA spreads derived from the SAME game-level belief as moneyline.
-No contradictions, no probability leakage.
-
-Rules:
-- Use projected points to compute margin
-- Spread = abs(point_diff), forced to .5 (no pushes)
-- ONE cover probability per game (favorite)
-- Underdog prob = 1 - favorite prob
-- No win_prob multiplication
-"""
 
 import csv
 import math
 from pathlib import Path
 from collections import defaultdict
-from datetime import datetime
 
 # ============================================================
 # PATHS
 # ============================================================
 
-INPUT_DIR = Path("docs/win/edge")
+TOTALS_DIR = Path("docs/win/nba")
+EDGE_DIR = Path("docs/win/edge")
 OUTPUT_DIR = Path("docs/win/nba/spreads")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # ============================================================
-# PARAMETERS
+# CONSTANTS
 # ============================================================
 
-EDGE_BUFFER = 0.05
-MARGIN_STD_DEV = 12.0  # empirical NBA margin std dev
+LEAGUE_MARGIN_STD = 7.2
+JUICE_MULTIPLIER = 1.047619
 
 # ============================================================
 # HELPERS
 # ============================================================
 
-def force_half_point(x: float) -> float:
-    rounded = round(x * 2) / 2
-    return rounded + 0.5 if rounded.is_integer() else rounded
-
-
-def decimal_to_american(d: float) -> int:
-    if d >= 2.0:
-        return int(round((d - 1) * 100))
-    return int(round(-100 / (d - 1)))
-
-
-def fair_decimal(p: float) -> float:
-    return 1.0 / max(p, 1e-6)
-
-
-def acceptable_decimal(p: float) -> float:
-    return 1.0 / max(p - EDGE_BUFFER, 1e-6)
-
+def round_half(x: float) -> float:
+    return round(x * 2) / 2
 
 def normal_cdf(x: float) -> float:
     return 0.5 * (1.0 + math.erf(x / math.sqrt(2)))
 
-
-def favorite_cover_probability(projected_margin: float, spread: float) -> float:
-    z = (projected_margin - spread) / MARGIN_STD_DEV
-    return normal_cdf(z)
+def decimal_to_american(d: float) -> int:
+    if d >= 2:
+        return int(round((d - 1) * 100))
+    return int(round(-100 / (d - 1)))
 
 # ============================================================
 # MAIN
 # ============================================================
 
 def main():
-    input_files = sorted(INPUT_DIR.glob("edge_nba_*.csv"))
-    if not input_files:
-        raise FileNotFoundError("No NBA edge files found")
+    totals_files = sorted(TOTALS_DIR.glob("edge_nba_totals_*.csv"))
+    if not totals_files:
+        raise FileNotFoundError("No edge_nba_totals files found")
 
-    latest_file = input_files[-1]
+    totals_path = totals_files[-1]
 
-    today = datetime.utcnow()
-    out_path = OUTPUT_DIR / f"edge_nba_spreads_{today.year}_{today.month:02d}_{today.day:02d}.csv"
+    # Load totals rows
+    with totals_path.open(newline="", encoding="utf-8") as f:
+        totals_rows = list(csv.DictReader(f))
 
-    games = defaultdict(list)
+    if not totals_rows:
+        return
 
-    with latest_file.open(newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            if row.get("game_id"):
-                games[row["game_id"]].append(row)
+    # Output date from first row
+    date_str = totals_rows[0]["date"].replace("-", "_")
+    out_path = OUTPUT_DIR / f"edge_nba_spreads_{date_str}.csv"
+
+    # Load edge_nba projections
+    edge_files = sorted(EDGE_DIR.glob("edge_nba_*.csv"))
+    if not edge_files:
+        raise FileNotFoundError("No edge_nba files found")
+
+    edge_path = edge_files[-1]
+
+    edge_map = {}
+    with edge_path.open(newline="", encoding="utf-8") as f:
+        for r in csv.DictReader(f):
+            edge_map[(r["game_id"], r["team"])] = r
 
     fieldnames = [
         "game_id",
         "date",
         "time",
-        "team",
-        "opponent",
-        "spread",
-        "model_probability",
-        "fair_decimal_odds",
-        "fair_american_odds",
-        "acceptable_decimal_odds",
-        "acceptable_american_odds",
+        "away_team",
+        "home_team",
+        "away_team_proj_pts",
+        "home_team_proj_pts",
+        "away_spread",
+        "home_spread",
+        "away_ml_prob",
+        "home_ml_prob",
+        "away_spread_probability",
+        "home_spread_probability",
+        "fair_away_spread_decimal_odds",
+        "fair_away_spread_american_odds",
+        "fair_home_spread_decimal_odds",
+        "fair_home_spread_american_odds",
+        "acceptable_away_spread_decimal_odds",
+        "acceptable_away_spread_american_odds",
+        "acceptable_home_spread_decimal_odds",
+        "acceptable_home_spread_american_odds",
         "league",
     ]
 
@@ -106,77 +99,63 @@ def main():
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
 
-        for game_id, rows in games.items():
-            if len(rows) != 2:
+        for row in totals_rows:
+            gid = row["game_id"]
+            away = row["team_1"]
+            home = row["team_2"]
+
+            away_edge = edge_map.get((gid, away))
+            home_edge = edge_map.get((gid, home))
+            if not away_edge or not home_edge:
                 continue
 
-            a, b = rows
+            away_pts = float(away_edge["points"])
+            home_pts = float(home_edge["points"])
 
-            try:
-                pts_a = float(a["points"])
-                pts_b = float(b["points"])
-            except (ValueError, TypeError):
-                continue
+            margin = home_pts - away_pts
 
-            margin = pts_a - pts_b
-            spread = force_half_point(abs(margin))
+            home_spread = round_half(margin)
+            away_spread = -home_spread
 
-            # Determine favorite
-            if margin > 0:
-                fav, dog = a, b
-                fav_margin = margin
-                fav_spread = -spread
-                dog_spread = spread
-            else:
-                fav, dog = b, a
-                fav_margin = -margin
-                fav_spread = -spread
-                dog_spread = spread
+            # ---- probabilities ----
+            z = (home_spread - margin) / LEAGUE_MARGIN_STD
+            home_prob = 1 - normal_cdf(z)
+            away_prob = 1 - home_prob
 
-            # ONE probability
-            p_fav_cover = favorite_cover_probability(fav_margin, spread)
-            p_dog_cover = 1.0 - p_fav_cover
+            # ---- fair odds ----
+            fair_home_dec = 1 / home_prob
+            fair_away_dec = 1 / away_prob
 
-            # ---- Favorite row ----
-            fair_d = fair_decimal(p_fav_cover)
-            acc_d = acceptable_decimal(p_fav_cover)
+            # ---- acceptable odds (juice) ----
+            acc_home_dec = 1 / (home_prob * JUICE_MULTIPLIER)
+            acc_away_dec = 1 / (away_prob * JUICE_MULTIPLIER)
 
             writer.writerow({
-                "game_id": game_id,
-                "date": fav["date"],
-                "time": fav["time"],
-                "team": fav["team"],
-                "opponent": fav["opponent"],
-                "spread": fav_spread,
-                "model_probability": round(p_fav_cover, 4),
-                "fair_decimal_odds": round(fair_d, 4),
-                "fair_american_odds": decimal_to_american(fair_d),
-                "acceptable_decimal_odds": round(acc_d, 4),
-                "acceptable_american_odds": decimal_to_american(acc_d),
-                "league": "nba_spread",
-            })
-
-            # ---- Underdog row ----
-            fair_d = fair_decimal(p_dog_cover)
-            acc_d = acceptable_decimal(p_dog_cover)
-
-            writer.writerow({
-                "game_id": game_id,
-                "date": dog["date"],
-                "time": dog["time"],
-                "team": dog["team"],
-                "opponent": dog["opponent"],
-                "spread": dog_spread,
-                "model_probability": round(p_dog_cover, 4),
-                "fair_decimal_odds": round(fair_d, 4),
-                "fair_american_odds": decimal_to_american(fair_d),
-                "acceptable_decimal_odds": round(acc_d, 4),
-                "acceptable_american_odds": decimal_to_american(acc_d),
+                "game_id": gid,
+                "date": row["date"],
+                "time": row["time"],
+                "away_team": away,
+                "home_team": home,
+                "away_team_proj_pts": away_pts,
+                "home_team_proj_pts": home_pts,
+                "away_spread": away_spread,
+                "home_spread": home_spread,
+                "away_ml_prob": float(away_edge["win_probability"]),
+                "home_ml_prob": float(home_edge["win_probability"]),
+                "away_spread_probability": round(away_prob, 6),
+                "home_spread_probability": round(home_prob, 6),
+                "fair_away_spread_decimal_odds": round(fair_away_dec, 6),
+                "fair_away_spread_american_odds": decimal_to_american(fair_away_dec),
+                "fair_home_spread_decimal_odds": round(fair_home_dec, 6),
+                "fair_home_spread_american_odds": decimal_to_american(fair_home_dec),
+                "acceptable_away_spread_decimal_odds": round(acc_away_dec, 6),
+                "acceptable_away_spread_american_odds": decimal_to_american(acc_away_dec),
+                "acceptable_home_spread_decimal_odds": round(acc_home_dec, 6),
+                "acceptable_home_spread_american_odds": decimal_to_american(acc_home_dec),
                 "league": "nba_spread",
             })
 
     print(f"Created {out_path}")
-
 
 if __name__ == "__main__":
     main()
