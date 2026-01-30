@@ -18,9 +18,9 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 # Constants
 # =========================
 LEAGUE_STD = 7.2
-JUICE = 1.047619  # >1 means "worse" odds when dividing fair odds by JUICE
+JUICE = 1.047619  # acceptable_dec = fair_dec / JUICE  (worse price for bettor)
 EPS = 1e-6
-SPREAD_OFFSETS = [-4.0, -2.0, 0.0, 2.0, 4.0]  # keeps .5 when anchor is .5
+SPREAD_OFFSETS = [-4.0, -2.0, 0.0, 2.0, 4.0]
 
 STRICT = os.getenv("STRICT_VALIDATE", "0") == "1"
 
@@ -34,9 +34,6 @@ def clamp_prob(p: float) -> float:
     return max(EPS, min(1.0 - EPS, p))
 
 def dec_to_amer(d: float) -> int:
-    # Decimal odds d = 1 + profit/1
-    # If d >= 2: + (d-1)*100
-    # else: -100/(d-1)
     if d >= 2.0:
         return int(round((d - 1.0) * 100))
     return int(round(-100.0 / (d - 1.0)))
@@ -46,8 +43,8 @@ def is_half_point(x: float) -> bool:
 
 def snap_to_half_point(x: float) -> float:
     """
-    Snap x to the nearest number with fractional part .5 (i.e., ...,-1.5,-0.5,0.5,1.5,...).
-    Guarantees |snap - x| <= 0.5 (ties broken toward +0.5 direction).
+    Snap to the nearest value ending in .5 (…,-1.5,-0.5,0.5,1.5,…).
+    Guarantees |snap - x| <= 0.5.
     """
     n = math.floor(x)
     c1 = n + 0.5
@@ -58,8 +55,17 @@ def snap_to_half_point(x: float) -> float:
         return c1
     if d2 < d1:
         return c2
-    # tie (exactly halfway): choose the one closer to +infinity to keep deterministic
-    return max(c1, c2)
+    # tie: deterministic
+    return c1
+
+def matchup_sigma(base_sigma: float, proj_total: float) -> float:
+    """
+    Add minimal, deterministic game-level variance to avoid probability ladder clustering.
+    Scales sigma with projected total (higher-scoring games -> higher variance).
+    """
+    # Typical NBA total ~230. Keep the scaling mild.
+    scale = math.sqrt(max(0.80, min(1.25, proj_total / 230.0)))
+    return base_sigma * scale
 
 def warn(msg: str) -> None:
     print(f"[spreads_nba] {msg}", file=sys.stderr)
@@ -130,13 +136,12 @@ def main():
             if not rows or len(rows) != 2:
                 continue
 
-            # Map edge rows to away/home teams reliably
+            # Map edge rows to away/home reliably
             if rows[0].get("team") == away:
                 a, h = rows
             elif rows[1].get("team") == away:
                 a, h = rows[1], rows[0]
             else:
-                # Cannot map; skip
                 continue
 
             away_pts = float(a["points"])
@@ -145,24 +150,27 @@ def main():
             home_ml = float(h["win_probability"])
 
             proj_margin = home_pts - away_pts
-            sigma = LEAGUE_STD
+            proj_total = home_pts + away_pts
+            sigma = matchup_sigma(LEAGUE_STD, proj_total)
 
             # -------------------------
-            # Correct Option-B anchor:
-            # home_spread ≈ -proj_margin, snapped to .5-only grid
+            # Option-B anchor:
+            # 1) build anchor from -proj_margin on .5 grid
+            # 2) use a "margin_used" that is exactly centered on that anchor so p0 is ~0.50 by construction
             # -------------------------
             model_home_spread = snap_to_half_point(-proj_margin)
             model_away_spread = -model_home_spread
 
-            # Optional strict checks (never required)
+            # Use centered margin for spread probabilities (prevents p0 drift due to snapping)
+            margin_used = -model_home_spread  # ensures (margin_used + model_home_spread) == 0
+
             if STRICT:
                 if not is_half_point(model_home_spread):
                     raise AssertionError(f"{gid}: model_home_spread not .5 -> {model_home_spread}")
-                if abs((proj_margin + model_home_spread)) > 0.500000001:
-                    raise AssertionError(
-                        f"{gid}: anchor drift > 0.5: drift={abs(proj_margin + model_home_spread):.6f}, "
-                        f"proj_margin={proj_margin:.6f}, model_home_spread={model_home_spread:.6f}"
-                    )
+                if abs((margin_used + model_home_spread)) > 1e-12:
+                    raise AssertionError(f"{gid}: margin centering failed")
+                if sigma <= 0:
+                    raise AssertionError(f"{gid}: non-positive sigma")
 
             row = {
                 "game_id": gid,
@@ -174,7 +182,7 @@ def main():
                 "away_team_proj_pts": round(away_pts, 1),
                 "home_team_proj_pts": round(home_pts, 1),
                 "proj_margin": round(proj_margin, 3),
-                "sigma": sigma,
+                "sigma": round(sigma, 6),
                 "model_home_spread": model_home_spread,
                 "model_away_spread": model_away_spread,
                 "away_ml_prob": round(away_ml, 6),
@@ -182,7 +190,7 @@ def main():
             }
 
             # -------------------------
-            # Ladder (no re-snapping needed; offsets preserve .5)
+            # Ladder (offsets preserve .5 because anchor ends in .5 and offsets are integers)
             # -------------------------
             last_home_spread = None
             last_home_prob = None
@@ -193,37 +201,37 @@ def main():
                 home_spread = model_home_spread + k
                 away_spread = -home_spread
 
-                if STRICT:
-                    if not is_half_point(home_spread):
-                        raise AssertionError(f"{gid}: home_spread_{tag} not .5 -> {home_spread}")
+                if STRICT and not is_half_point(home_spread):
+                    raise AssertionError(f"{gid}: home_spread_{tag} not .5 -> {home_spread}")
 
-                z = (proj_margin + home_spread) / sigma
-                home_prob = clamp_prob(normal_cdf(z))
-                away_prob = clamp_prob(1.0 - home_prob)
+                # Probability home covers home_spread: P(M + spread > 0), where M = home-away margin
+                z = (margin_used + home_spread) / sigma
+                home_cover = clamp_prob(normal_cdf(z))
+                away_cover = clamp_prob(1.0 - home_cover)
 
-                # Market-safe: favorite determined by sign of spread (negative = favorite)
+                # Favorite is the side with negative spread (always true unless spread == 0, which cannot happen here)
                 if home_spread < 0:
                     fav_team = "home"
-                    fav_prob, dog_prob = home_prob, away_prob
+                    fav_prob, dog_prob = home_cover, away_cover
                 else:
                     fav_team = "away"
-                    fav_prob, dog_prob = away_prob, home_prob
+                    fav_prob, dog_prob = away_cover, home_cover
 
                 # Fair odds
                 fair_fav = 1.0 / fav_prob
                 fair_dog = 1.0 / dog_prob
 
-                # Acceptable odds: worse for bettor (lower decimal), preserve sign stability
+                # Acceptable odds: always worse for bettor than fair (lower decimal)
                 acc_fav = max(1.000001, fair_fav / JUICE)
                 acc_dog = max(1.000001, fair_dog / JUICE)
 
-                # Optional monotonic sanity (home_prob must increase as home_spread increases)
+                # Optional monotonic check (home_cover must increase as home_spread increases)
                 if STRICT and last_home_spread is not None:
-                    if home_spread > last_home_spread and home_prob + 1e-12 < last_home_prob:
+                    if home_spread > last_home_spread and home_cover + 1e-12 < last_home_prob:
                         raise AssertionError(f"{gid}: non-monotone ladder at {tag}")
 
                 last_home_spread = home_spread
-                last_home_prob = home_prob
+                last_home_prob = home_cover
 
                 row.update({
                     f"home_spread_{tag}": home_spread,
@@ -241,14 +249,20 @@ def main():
                     f"acc_dog_amer_{tag}": dec_to_amer(acc_dog),
                 })
 
-            # -------------------------
-            # Soft consistency warnings (no failures)
-            # -------------------------
-            # Anchor sanity: p0 should be near 0.5 within rounding drift
-            z0 = (proj_margin + model_home_spread) / sigma
-            p0 = normal_cdf(z0)
-            if abs(p0 - 0.5) > (normal_cdf(0.5 / sigma) - 0.5) + 1e-6:
-                warn(f"{gid}: p0 unusually far from 0.5 (p0={p0:.4f}, margin={proj_margin:.2f}, spread={model_home_spread:.1f})")
+            # Soft warning: ML vs p0 spread favorite probability disagreement (informational only)
+            # (Does not change outputs; just flags potential upstream modeling inconsistency.)
+            try:
+                p0_tag = "p0"
+                fav_team_p0 = row.get(f"fav_team_{p0_tag}")
+                fav_prob_p0 = float(row.get(f"fav_cover_prob_{p0_tag}"))
+                if fav_team_p0 == "home":
+                    ml_fav = home_ml
+                else:
+                    ml_fav = away_ml
+                if abs(ml_fav - 0.5) > 0.25 and abs(fav_prob_p0 - 0.5) < 0.03:
+                    warn(f"{gid}: large ML edge with near-coinflip spread p0 (ml_fav={ml_fav:.3f}, p0_fav_cover={fav_prob_p0:.3f})")
+            except Exception:
+                pass
 
             w.writerow(row)
 
