@@ -20,10 +20,18 @@ JUICE = 1.047619
 EPS = 1e-6
 SPREAD_OFFSETS = [-4.0, -2.0, 0.0, 2.0, 4.0]
 
+# With "no whole numbers" adjustment, rounding can drift up to 0.75 pts from proj_margin.
+MAX_ANCHOR_DRIFT = 0.75
+DRIFT_EPS = 1e-9
+
 # =========================
 # Helpers
 # =========================
 def round_to_half_no_whole(x: float) -> float:
+    """
+    Round to nearest 0.5, but if result is an integer, force to +/-0.5 away from zero.
+    This can introduce up to 0.75 points of drift vs x (worst-case).
+    """
     r = round(x * 2) / 2
     if r.is_integer():
         return r + 0.5 if r >= 0 else r - 0.5
@@ -40,15 +48,29 @@ def dec_to_amer(d: float) -> int:
         return int(round((d - 1.0) * 100))
     return int(round(-100.0 / (d - 1.0)))
 
+def is_half_point(x: float) -> bool:
+    # True if x ends with .5 (including negative values)
+    return abs((abs(x) % 1.0) - 0.5) < 1e-9
+
 # =========================
 # Main
 # =========================
 def main():
-    totals_file = sorted(TOTALS_DIR.glob("edge_nba_totals_*.csv"))[-1]
+    totals_files = sorted(TOTALS_DIR.glob("edge_nba_totals_*.csv"))
+    if not totals_files:
+        raise RuntimeError(f"No totals files found in {TOTALS_DIR}")
+    totals_file = totals_files[-1]
+
     with totals_file.open(newline="", encoding="utf-8") as f:
         totals = list(csv.DictReader(f))
+    if not totals:
+        raise RuntimeError("Totals file empty")
 
-    edge_file = sorted(EDGE_DIR.glob("edge_nba_*.csv"))[-1]
+    edge_files = sorted(EDGE_DIR.glob("edge_nba_*.csv"))
+    if not edge_files:
+        raise RuntimeError(f"No edge files found in {EDGE_DIR}")
+    edge_file = edge_files[-1]
+
     edge_by_game = {}
     with edge_file.open(newline="", encoding="utf-8") as f:
         for r in csv.DictReader(f):
@@ -109,14 +131,22 @@ def main():
             proj_margin = home_pts - away_pts
             sigma = LEAGUE_STD
 
-            # ✅ Correct Option B anchor (no branching)
+            # =========================
+            # Option B anchor (correct)
+            # =========================
             model_home_spread = -round_to_half_no_whole(proj_margin)
             model_away_spread = -model_home_spread
 
-            # ✅ Correct invariant check (will now pass)
-            z0 = (proj_margin + model_home_spread) / sigma
-            max_dev = normal_cdf(0.5 / sigma) - 0.5
-            assert abs(normal_cdf(z0) - 0.5) <= max_dev + 1e-6
+            # Anchor drift must be explainable solely by rounding + "no whole" rule.
+            drift = abs(proj_margin + model_home_spread)
+            assert drift <= MAX_ANCHOR_DRIFT + DRIFT_EPS, (
+                f"Anchor drift too large for {gid}: drift={drift:.6f}, "
+                f"proj_margin={proj_margin:.6f}, model_home_spread={model_home_spread:.6f}"
+            )
+
+            # All spreads must be half-points
+            assert is_half_point(model_home_spread), f"Anchor not .5 for {gid}: {model_home_spread}"
+            assert is_half_point(model_away_spread), f"Anchor not .5 for {gid}: {model_away_spread}"
 
             row = {
                 "game_id": gid,
@@ -135,15 +165,23 @@ def main():
                 "home_ml_prob": round(home_ml, 6),
             }
 
+            # =========================
+            # Spread ladder
+            # =========================
             for k in SPREAD_OFFSETS:
                 tag = f"m{abs(int(k))}" if k < 0 else f"p{int(k)}"
+
                 home_spread = round_to_half_no_whole(model_home_spread + k)
                 away_spread = -home_spread
+
+                assert is_half_point(home_spread), f"home_spread_{tag} not .5 for {gid}: {home_spread}"
+                assert is_half_point(away_spread), f"away_spread_{tag} not .5 for {gid}: {away_spread}"
 
                 z = (proj_margin + home_spread) / sigma
                 home_prob = clamp_prob(normal_cdf(z))
                 away_prob = clamp_prob(1.0 - home_prob)
 
+                # Market-safe: always report favorite vs dog
                 if home_spread < 0:
                     fav_team = "home"
                     fav_prob, dog_prob = home_prob, away_prob
