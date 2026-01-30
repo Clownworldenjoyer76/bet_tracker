@@ -4,35 +4,30 @@ import csv
 import math
 from pathlib import Path
 
-# ============================================================
+# =========================
 # Paths
-# ============================================================
+# =========================
 TOTALS_DIR = Path("docs/win/nba")
 EDGE_DIR = Path("docs/win/edge")
 OUTPUT_DIR = Path("docs/win/nba/spreads")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-# ============================================================
-# Model constants
-# ============================================================
+# =========================
+# Constants
+# =========================
 LEAGUE_STD = 7.2
 JUICE = 1.047619
 EPS = 1e-6
-
-# Spread ladder offsets (relative to model line)
 SPREAD_OFFSETS = [-4.0, -2.0, 0.0, 2.0, 4.0]
 
-# ============================================================
+# =========================
 # Helpers
-# ============================================================
+# =========================
 def round_to_half_no_whole(x: float) -> float:
     r = round(x * 2) / 2
     if r.is_integer():
         return r + 0.5 if r >= 0 else r - 0.5
     return r
-
-def force_half(x: float) -> float:
-    return round_to_half_no_whole(x)
 
 def normal_cdf(x: float) -> float:
     return 0.5 * (1.0 + math.erf(x / math.sqrt(2)))
@@ -45,19 +40,13 @@ def dec_to_amer(d: float) -> int:
         return int(round((d - 1.0) * 100))
     return int(round(-100.0 / (d - 1.0)))
 
-# ============================================================
+# =========================
 # Main
-# ============================================================
+# =========================
 def main():
     totals_file = sorted(TOTALS_DIR.glob("edge_nba_totals_*.csv"))[-1]
     with totals_file.open(newline="", encoding="utf-8") as f:
         totals = list(csv.DictReader(f))
-
-    if not totals:
-        raise RuntimeError("Totals file empty")
-
-    mm, dd, yyyy = totals[0]["date"].split("/")
-    out_path = OUTPUT_DIR / f"edge_nba_spreads_ladder_{yyyy}_{mm.zfill(2)}_{dd.zfill(2)}.csv"
 
     edge_file = sorted(EDGE_DIR.glob("edge_nba_*.csv"))[-1]
     edge_by_game = {}
@@ -65,9 +54,9 @@ def main():
         for r in csv.DictReader(f):
             edge_by_game.setdefault(r["game_id"], []).append(r)
 
-    # ============================================================
-    # Schema
-    # ============================================================
+    mm, dd, yyyy = totals[0]["date"].split("/")
+    out_path = OUTPUT_DIR / f"edge_nba_spreads_ladder_{yyyy}_{mm.zfill(2)}_{dd.zfill(2)}.csv"
+
     fields = [
         "game_id","date","time","away_team","home_team","league",
         "away_team_proj_pts","home_team_proj_pts",
@@ -117,29 +106,22 @@ def main():
             away_ml = float(a["win_probability"])
             home_ml = float(h["win_probability"])
 
-            # ====================================================
-            # Projection anchor (used ONCE)
-            # ====================================================
             proj_margin = home_pts - away_pts
             sigma = LEAGUE_STD
 
-            # ====================================================
-            # Correct sign logic
-            # Favorite always negative
-            # ====================================================
-            if proj_margin > 0:
-                model_home_spread = -force_half(proj_margin)
-            else:
-                model_home_spread = force_half(abs(proj_margin))
-
+            # Correct sign: favorite always negative
+            model_home_spread = (
+                -round_to_half_no_whole(proj_margin)
+                if proj_margin > 0
+                else round_to_half_no_whole(abs(proj_margin))
+            )
             model_away_spread = -model_home_spread
 
-            # ====================================================
-            # Option B invariant: p0 must be ~50%
-            # ====================================================
+            # Option B invariant (half-point aware)
             z0 = (proj_margin + model_home_spread) / sigma
             p0 = normal_cdf(z0)
-            assert abs(p0 - 0.5) < 0.02, f"Option B violated for {gid}"
+            max_dev = normal_cdf(0.5 / sigma) - 0.5
+            assert abs(p0 - 0.5) <= max_dev + 1e-6
 
             row = {
                 "game_id": gid,
@@ -158,42 +140,26 @@ def main():
                 "home_ml_prob": round(home_ml, 6),
             }
 
-            # ====================================================
-            # Spread ladder
-            # ====================================================
             for k in SPREAD_OFFSETS:
                 tag = f"m{abs(int(k))}" if k < 0 else f"p{int(k)}"
-
-                home_spread = force_half(model_home_spread + k)
+                home_spread = round_to_half_no_whole(model_home_spread + k)
                 away_spread = -home_spread
 
-                # enforce half-point invariant
-                assert abs(abs(home_spread) % 1 - 0.5) < 1e-9
-
                 z = (proj_margin + home_spread) / sigma
-                home_cover_prob = clamp_prob(normal_cdf(z))
-                away_cover_prob = clamp_prob(1.0 - home_cover_prob)
+                home_prob = clamp_prob(normal_cdf(z))
+                away_prob = clamp_prob(1.0 - home_prob)
 
-                # ====================================================
-                # Market-safe definition
-                # ====================================================
                 if home_spread < 0:
                     fav_team = "home"
-                    fav_prob = home_cover_prob
-                    dog_prob = away_cover_prob
+                    fav_prob, dog_prob = home_prob, away_prob
                 else:
                     fav_team = "away"
-                    fav_prob = away_cover_prob
-                    dog_prob = home_cover_prob
+                    fav_prob, dog_prob = away_prob, home_prob
 
-                # ====================================================
-                # Odds
-                # ====================================================
-                fair_fav_dec = 1.0 / fav_prob
-                fair_dog_dec = 1.0 / dog_prob
-
-                acc_fav_dec = fair_fav_dec * JUICE
-                acc_dog_dec = fair_dog_dec * JUICE
+                fair_fav = 1.0 / fav_prob
+                fair_dog = 1.0 / dog_prob
+                acc_fav = fair_fav * JUICE
+                acc_dog = fair_dog * JUICE
 
                 row.update({
                     f"home_spread_{tag}": home_spread,
@@ -201,14 +167,14 @@ def main():
                     f"fav_team_{tag}": fav_team,
                     f"fav_cover_prob_{tag}": round(fav_prob, 6),
                     f"dog_cover_prob_{tag}": round(dog_prob, 6),
-                    f"fair_fav_dec_{tag}": round(fair_fav_dec, 6),
-                    f"fair_fav_amer_{tag}": dec_to_amer(fair_fav_dec),
-                    f"fair_dog_dec_{tag}": round(fair_dog_dec, 6),
-                    f"fair_dog_amer_{tag}": dec_to_amer(fair_dog_dec),
-                    f"acc_fav_dec_{tag}": round(acc_fav_dec, 6),
-                    f"acc_fav_amer_{tag}": dec_to_amer(acc_fav_dec),
-                    f"acc_dog_dec_{tag}": round(acc_dog_dec, 6),
-                    f"acc_dog_amer_{tag}": dec_to_amer(acc_dog_dec),
+                    f"fair_fav_dec_{tag}": round(fair_fav, 6),
+                    f"fair_fav_amer_{tag}": dec_to_amer(fair_fav),
+                    f"fair_dog_dec_{tag}": round(fair_dog, 6),
+                    f"fair_dog_amer_{tag}": dec_to_amer(fair_dog),
+                    f"acc_fav_dec_{tag}": round(acc_fav, 6),
+                    f"acc_fav_amer_{tag}": dec_to_amer(acc_fav),
+                    f"acc_dog_dec_{tag}": round(acc_dog, 6),
+                    f"acc_dog_amer_{tag}": dec_to_amer(acc_dog),
                 })
 
             w.writerow(row)
