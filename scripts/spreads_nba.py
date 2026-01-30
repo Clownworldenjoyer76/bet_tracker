@@ -11,17 +11,21 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 LEAGUE_STD = 7.2
 JUICE = 1.047619
+EPS = 1e-6
 
 def round_half(x):
     return round(x * 2) / 2
 
 def normal_cdf(x):
-    return 0.5 * (1 + math.erf(x / math.sqrt(2)))
+    return 0.5 * (1.0 + math.erf(x / math.sqrt(2)))
 
 def dec_to_amer(d):
     if d >= 2:
         return int(round((d - 1) * 100))
     return int(round(-100 / (d - 1)))
+
+def clamp(p):
+    return max(EPS, min(1.0 - EPS, p))
 
 def main():
     totals_file = sorted(TOTALS_DIR.glob("edge_nba_totals_*.csv"))[-1]
@@ -76,15 +80,14 @@ def main():
 
             margin = home_pts - away_pts
 
-            # CORRECT EVENT: actual_margin + home_spread > 0
-            z = (margin + home_spread) / LEAGUE_STD
-            home_prob = normal_cdf(z)
-            away_prob = 1 - home_prob
+            home_prob = 1.0 - normal_cdf((home_spread - margin) / LEAGUE_STD)
+            home_prob = clamp(home_prob)
+            away_prob = clamp(1.0 - home_prob)
 
-            fair_home_dec = 1 / home_prob
-            fair_away_dec = 1 / away_prob
-            acc_home_dec = 1 / (home_prob * JUICE)
-            acc_away_dec = 1 / (away_prob * JUICE)
+            fair_home_dec = 1.0 / home_prob
+            fair_away_dec = 1.0 / away_prob
+            acc_home_dec = 1.0 / (home_prob * JUICE)
+            acc_away_dec = 1.0 / (away_prob * JUICE)
 
             w.writerow({
                 "game_id": gid,
