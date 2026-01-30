@@ -121,7 +121,7 @@ def main():
             home_spread = round_half(margin)
             away_spread = -home_spread
 
-            z = (margin - home_spread) / LEAGUE_MARGIN_STD
+            z = (margin + home_spread) / LEAGUE_MARGIN_STD
             home_prob = normal_cdf(z)
             away_prob = 1 - home_prob
 
