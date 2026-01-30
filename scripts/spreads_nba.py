@@ -4,159 +4,117 @@ import csv
 import math
 from pathlib import Path
 
-# ============================================================
-# PATHS
-# ============================================================
+# ================= PATHS =================
 
 TOTALS_DIR = Path("docs/win/nba")
 EDGE_DIR = Path("docs/win/edge")
 OUTPUT_DIR = Path("docs/win/nba/spreads")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-# ============================================================
-# CONSTANTS
-# ============================================================
+# ================= CONSTANTS =================
 
 LEAGUE_MARGIN_STD = 7.2
-JUICE_MULTIPLIER = 1.047619
+JUICE = 1.047619
 
-# ============================================================
-# HELPERS
-# ============================================================
+# ================= HELPERS =================
 
 def round_half(x: float) -> float:
     return round(x * 2) / 2
 
 def normal_cdf(x: float) -> float:
-    return 0.5 * (1.0 + math.erf(x / math.sqrt(2)))
+    return 0.5 * (1 + math.erf(x / math.sqrt(2)))
 
-def decimal_to_american(d: float) -> int:
+def dec_to_amer(d: float) -> int:
     if d >= 2:
         return int(round((d - 1) * 100))
     return int(round(-100 / (d - 1)))
 
-# ============================================================
-# MAIN
-# ============================================================
+# ================= MAIN =================
 
 def main():
-    totals_files = sorted(TOTALS_DIR.glob("edge_nba_totals_*.csv"))
-    if not totals_files:
-        raise FileNotFoundError("No edge_nba_totals files found")
-
-    totals_path = totals_files[-1]
-
+    totals_path = sorted(TOTALS_DIR.glob("edge_nba_totals_*.csv"))[-1]
     with totals_path.open(newline="", encoding="utf-8") as f:
-        totals_rows = list(csv.DictReader(f))
+        totals = list(csv.DictReader(f))
 
-    if not totals_rows:
-        return
+    m, d, y = totals[0]["date"].split("/")
+    out_path = OUTPUT_DIR / f"edge_nba_spreads_{y}_{m}_{d}.csv"
 
-    # YYYY_MM_DD from MM/DD/YYYY
-    m, d, y = totals_rows[0]["date"].split("/")
-    date_str = f"{y}_{m}_{d}"
-    out_path = OUTPUT_DIR / f"edge_nba_spreads_{date_str}.csv"
-
-    edge_files = sorted(EDGE_DIR.glob("edge_nba_*.csv"))
-    if not edge_files:
-        raise FileNotFoundError("No edge_nba files found")
-
-    edge_path = edge_files[-1]
-
+    edge_path = sorted(EDGE_DIR.glob("edge_nba_*.csv"))[-1]
     edge_by_game = {}
     with edge_path.open(newline="", encoding="utf-8") as f:
         for r in csv.DictReader(f):
             edge_by_game.setdefault(r["game_id"], []).append(r)
 
-    fieldnames = [
-        "game_id",
-        "date",
-        "time",
-        "away_team",
-        "home_team",
-        "away_team_proj_pts",
-        "home_team_proj_pts",
-        "away_spread",
-        "home_spread",
-        "away_ml_prob",
-        "home_ml_prob",
-        "away_spread_probability",
-        "home_spread_probability",
-        "fair_away_spread_decimal_odds",
-        "fair_away_spread_american_odds",
-        "fair_home_spread_decimal_odds",
-        "fair_home_spread_american_odds",
-        "acceptable_away_spread_decimal_odds",
-        "acceptable_away_spread_american_odds",
-        "acceptable_home_spread_decimal_odds",
-        "acceptable_home_spread_american_odds",
-        "league",
+    fields = [
+        "game_id","date","time","away_team","home_team",
+        "away_team_proj_pts","home_team_proj_pts",
+        "away_spread","home_spread",
+        "away_ml_prob","home_ml_prob",
+        "away_spread_probability","home_spread_probability",
+        "fair_away_spread_decimal_odds","fair_away_spread_american_odds",
+        "fair_home_spread_decimal_odds","fair_home_spread_american_odds",
+        "acceptable_away_spread_decimal_odds","acceptable_away_spread_american_odds",
+        "acceptable_home_spread_decimal_odds","acceptable_home_spread_american_odds",
+        "league"
     ]
 
     with out_path.open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
+        w = csv.DictWriter(f, fieldnames=fields)
+        w.writeheader()
 
-        for row in totals_rows:
-            gid = row["game_id"]
-            away = row["team_1"]
-            home = row["team_2"]
-
-            edge_rows = edge_by_game.get(gid)
-            if not edge_rows or len(edge_rows) != 2:
+        for r in totals:
+            gid = r["game_id"]
+            away, home = r["team_1"], r["team_2"]
+            rows = edge_by_game.get(gid)
+            if not rows or len(rows) != 2:
                 continue
 
-            if edge_rows[0]["team"] == away:
-                away_edge, home_edge = edge_rows[0], edge_rows[1]
-            elif edge_rows[1]["team"] == away:
-                away_edge, home_edge = edge_rows[1], edge_rows[0]
+            if rows[0]["team"] == away:
+                a, h = rows
             else:
-                continue
+                h, a = rows
 
-            away_pts = float(away_edge["points"])
-            home_pts = float(home_edge["points"])
-
+            away_pts = float(a["points"])
+            home_pts = float(h["points"])
             margin = home_pts - away_pts
 
             home_spread = round_half(margin)
             away_spread = -home_spread
 
-            z = (margin + home_spread) / LEAGUE_MARGIN_STD
-            home_prob = normal_cdf(z)
-            away_prob = 1 - home_prob
+            # CORRECT EVENT: margin − spread
+            z = (margin - home_spread) / LEAGUE_MARGIN_STD
+            home_p = normal_cdf(z)
+            away_p = 1 - home_p
 
-            fair_home_dec = 1 / home_prob
-            fair_away_dec = 1 / away_prob
+            fair_home_d = 1 / home_p
+            fair_away_d = 1 / away_p
+            acc_home_d = 1 / (home_p * JUICE)
+            acc_away_d = 1 / (away_p * JUICE)
 
-            acc_home_dec = 1 / (home_prob * JUICE_MULTIPLIER)
-            acc_away_dec = 1 / (away_prob * JUICE_MULTIPLIER)
-
-            writer.writerow({
+            w.writerow({
                 "game_id": gid,
-                "date": row["date"],
-                "time": row["time"],
+                "date": r["date"],
+                "time": r["time"],
                 "away_team": away,
                 "home_team": home,
                 "away_team_proj_pts": away_pts,
                 "home_team_proj_pts": home_pts,
                 "away_spread": away_spread,
                 "home_spread": home_spread,
-                "away_ml_prob": float(away_edge["win_probability"]),
-                "home_ml_prob": float(home_edge["win_probability"]),
-                "away_spread_probability": round(away_prob, 6),
-                "home_spread_probability": round(home_prob, 6),
-                "fair_away_spread_decimal_odds": round(fair_away_dec, 6),
-                "fair_away_spread_american_odds": decimal_to_american(fair_away_dec),
-                "fair_home_spread_decimal_odds": round(fair_home_dec, 6),
-                "fair_home_spread_american_odds": decimal_to_american(fair_home_dec),
-                "acceptable_away_spread_decimal_odds": round(acc_away_dec, 6),
-                "acceptable_away_spread_american_odds": decimal_to_american(acc_away_dec),
-                "acceptable_home_spread_decimal_odds": round(acc_home_dec, 6),
-                "acceptable_home_spread_american_odds": decimal_to_american(acc_home_dec),
-                "league": "nba_spread",
+                "away_ml_prob": float(a["win_probability"]),
+                "home_ml_prob": float(h["win_probability"]),
+                "away_spread_probability": round(away_p, 6),
+                "home_spread_probability": round(home_p, 6),
+                "fair_away_spread_decimal_odds": round(fair_away_d, 6),
+                "fair_away_spread_american_odds": dec_to_amer(fair_away_d),
+                "fair_home_spread_decimal_odds": round(fair_home_d, 6),
+                "fair_home_spread_american_odds": dec_to_amer(fair_home_d),
+                "acceptable_away_spread_decimal_odds": round(acc_away_d, 6),
+                "acceptable_away_spread_american_odds": dec_to_amer(acc_away_d),
+                "acceptable_home_spread_decimal_odds": round(acc_home_d, 6),
+                "acceptable_home_spread_american_odds": dec_to_amer(acc_home_d),
+                "league": "nba_spread"
             })
-
-    print(f"Created {out_path}")
 
 if __name__ == "__main__":
     main()
