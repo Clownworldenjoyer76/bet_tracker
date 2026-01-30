@@ -4,15 +4,24 @@ import csv
 import math
 from pathlib import Path
 
+# =========================
+# Paths
+# =========================
 TOTALS_DIR = Path("docs/win/nba")
 EDGE_DIR = Path("docs/win/edge")
 OUTPUT_DIR = Path("docs/win/nba/spreads")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-LEAGUE_STD = 7.2
-JUICE = 1.047619
+# =========================
+# Model constants
+# =========================
+LEAGUE_STD = 7.2          # league-wide margin std dev
+JUICE = 1.047619         # ~4.55% vig
 EPS = 1e-6
 
+# =========================
+# Helpers
+# =========================
 def round_to_half_no_whole(x: float) -> float:
     r = round(x * 2) / 2
     if r.is_integer():
@@ -22,18 +31,24 @@ def round_to_half_no_whole(x: float) -> float:
 def normal_cdf(x: float) -> float:
     return 0.5 * (1.0 + math.erf(x / math.sqrt(2)))
 
+def clamp_prob(p: float) -> float:
+    return max(EPS, min(1.0 - EPS, p))
+
 def dec_to_amer(d: float) -> int:
     if d >= 2.0:
         return int(round((d - 1.0) * 100))
     return int(round(-100.0 / (d - 1.0)))
 
-def clamp_prob(p: float) -> float:
-    return max(EPS, min(1.0 - EPS, p))
-
+# =========================
+# Main
+# =========================
 def main():
     totals_file = sorted(TOTALS_DIR.glob("edge_nba_totals_*.csv"))[-1]
     with totals_file.open(newline="", encoding="utf-8") as f:
         totals = list(csv.DictReader(f))
+
+    if not totals:
+        raise RuntimeError("Totals file is empty")
 
     mm, dd, yyyy = totals[0]["date"].split("/")
     out_path = OUTPUT_DIR / f"edge_nba_spreads_{yyyy}_{mm.zfill(2)}_{dd.zfill(2)}.csv"
@@ -81,27 +96,33 @@ def main():
             away_ml = float(a["win_probability"])
             home_ml = float(h["win_probability"])
 
+            # =========================
+            # Projection (used ONCE)
+            # =========================
             proj_margin = home_pts - away_pts
-            spread_mag = round_to_half_no_whole(abs(proj_margin))
 
-            if proj_margin > 0:
-                home_spread = -spread_mag
-                away_spread = spread_mag
-            elif proj_margin < 0:
-                away_spread = -spread_mag
-                home_spread = spread_mag
-            else:
-                home_spread = -0.5
-                away_spread = 0.5
+            # =========================
+            # Model-derived spread (frozen)
+            # =========================
+            model_home_spread = -round_to_half_no_whole(proj_margin)
+            model_away_spread = -model_home_spread
 
-            home_prob = normal_cdf((proj_margin + home_spread) / LEAGUE_STD)
-            home_prob = clamp_prob(home_prob)
+            # =========================
+            # Spread cover probabilities
+            # =========================
+            z = (proj_margin + model_home_spread) / LEAGUE_STD
+
+            home_prob = clamp_prob(normal_cdf(z))
             away_prob = clamp_prob(1.0 - home_prob)
 
+            # =========================
+            # Odds
+            # =========================
             fair_home_dec = 1.0 / home_prob
             fair_away_dec = 1.0 / away_prob
-            acc_home_dec = 1.0 / (home_prob * JUICE)
-            acc_away_dec = 1.0 / (away_prob * JUICE)
+
+            acc_home_dec = fair_home_dec * JUICE
+            acc_away_dec = fair_away_dec * JUICE
 
             w.writerow({
                 "game_id": gid,
@@ -109,12 +130,12 @@ def main():
                 "time": r["time"],
                 "away_team": away,
                 "home_team": home,
-                "away_team_proj_pts": away_pts,
-                "home_team_proj_pts": home_pts,
-                "away_spread": away_spread,
-                "home_spread": home_spread,
-                "away_ml_prob": away_ml,
-                "home_ml_prob": home_ml,
+                "away_team_proj_pts": round(away_pts, 1),
+                "home_team_proj_pts": round(home_pts, 1),
+                "away_spread": model_away_spread,
+                "home_spread": model_home_spread,
+                "away_ml_prob": round(away_ml, 6),
+                "home_ml_prob": round(home_ml, 6),
                 "away_spread_probability": round(away_prob, 6),
                 "home_spread_probability": round(home_prob, 6),
                 "fair_away_spread_decimal_odds": round(fair_away_dec, 6),
@@ -125,7 +146,7 @@ def main():
                 "acceptable_away_spread_american_odds": dec_to_amer(acc_away_dec),
                 "acceptable_home_spread_decimal_odds": round(acc_home_dec, 6),
                 "acceptable_home_spread_american_odds": dec_to_amer(acc_home_dec),
-                "league": "nba_spread"
+                "league": "nba"
             })
 
 if __name__ == "__main__":
