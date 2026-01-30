@@ -1,112 +1,142 @@
 #!/usr/bin/env python3
 """
-build_edge_nba_spreads.py
+spreads_nba.py
 
-NBA spreads derived from GAME-LEVEL totals data (NHL-aligned).
+Build NBA spread markets from GAME-LEVEL totals file, but derive the
+spread (margin) and probabilities from the SAME underlying moneyline model outputs
+to prevent contradictions.
 
-Authoritative rules:
-- Source games from edge_nba_totals_*.csv ONLY
-- Use projected points to compute margin
-- Favorite = higher projected points
-- Spread = abs(point_diff), capped and forced to .5
-- One output row per team
-- Spread sign:
-    favorite  -> -spread
-    underdog  -> +spread
-- Price spreads using COVER probability (normal margin model)
-- Enforce probability floors + tail compression
-- Prevent ML / spread self-contradiction
+Inputs:
+- docs/win/nba/edge_nba_totals_YYYY_MM_DD.csv   (game-level, has team_1/team_2)
+- docs/win/final/final_nba_YYYY_MM_DD.csv      (team-level, has points + win_probability)
+
+Conventions:
+- away_team = team_1 (from totals file)
+- home_team = team_2 (from totals file)
+
+Output (team-level, 2 rows per game_id):
+- docs/win/nba/spreads/edge_nba_spreads_YYYY_MM_DD.csv
 """
 
 import csv
 import math
+import re
 from pathlib import Path
-from collections import defaultdict
-from datetime import datetime
+from typing import Dict, Tuple, List
 
 # ============================================================
 # PATHS
 # ============================================================
 
-INPUT_DIR = Path("docs/win/nba")
+TOTALS_DIR = Path("docs/win/nba")
+FINAL_DIR = Path("docs/win/final")
 OUTPUT_DIR = Path("docs/win/nba/spreads")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # ============================================================
-# PARAMETERS (HARD CONSTRAINTS)
+# PRICING / SAFETY FIXES
 # ============================================================
 
 EDGE_BUFFER = 0.05
-MARGIN_STD_DEV = 12.0          # empirical NBA margin std dev
-MAX_SPREAD = 8.5               # absolute cap (no 10.5+)
-MIN_COVER_PROB = 0.12          # floor to prevent insane odds
+MARGIN_STD_DEV = 12.0     # NBA margin std dev (tunable)
+MAX_SPREAD = 8.5          # FIX #1: cap absurd spreads
+MIN_PROB = 0.12           # FIX #2: probability floor prevents insane odds
 
 # ============================================================
 # HELPERS
 # ============================================================
 
+def extract_yyyymmdd(filename: str) -> str:
+    m = re.search(r"(\d{4}_\d{2}_\d{2})", filename)
+    if not m:
+        raise ValueError(f"Could not extract date from: {filename}")
+    return m.group(1)
+
 def force_half_point(x: float) -> float:
     rounded = round(x * 2) / 2
-    if rounded.is_integer():
+    if float(rounded).is_integer():
         return rounded + 0.5
     return rounded
 
+def normal_cdf(x: float) -> float:
+    return 0.5 * (1.0 + math.erf(x / math.sqrt(2)))
+
+def cover_prob(mean_margin: float, spread_for_team: float) -> float:
+    """
+    mean_margin: expected (away - home)
+    spread_for_team: the team's spread value from its perspective
+                     (favorite negative, dog positive)
+
+    A bet on a team at spread S wins if:
+        team_score - opp_score + S > 0
+    In margin terms (away - home):
+        if team is away:
+            margin + S > 0  => margin > -S
+        if team is home:
+            (-margin) + S > 0 => margin < S  (handled by using mean = -mean_margin)
+
+    We implement both teams by passing mean_margin appropriately and using:
+        P(X > threshold) with X ~ Normal(mean_margin, sd)
+    """
+    threshold = -spread_for_team
+    z = (mean_margin - threshold) / MARGIN_STD_DEV
+    return normal_cdf(z)
+
+def compress_tail(p: float) -> float:
+    """
+    FIX #3: compress extremes so spreads don't go totally detached from ML intuition.
+    Keeps ordering but reduces insane tails.
+    """
+    if p > 0.5:
+        return 0.5 + 0.75 * (p - 0.5)
+    return p
 
 def decimal_to_american(d: float) -> int:
     if d >= 2.0:
         return int(round((d - 1) * 100))
     return int(round(-100 / (d - 1)))
 
-
 def fair_decimal(p: float) -> float:
     return 1.0 / max(p, 0.0001)
-
 
 def acceptable_decimal(p: float) -> float:
     return 1.0 / max(p - EDGE_BUFFER, 0.0001)
 
-
-def normal_cdf(x: float) -> float:
-    return 0.5 * (1.0 + math.erf(x / math.sqrt(2)))
-
-
-def cover_probability(projected_margin: float, spread: float) -> float:
-    z = (projected_margin - spread) / MARGIN_STD_DEV
-    return normal_cdf(z)
-
-
-def compress_favorite_tail(p: float) -> float:
+def load_final_map(final_path: Path) -> Dict[Tuple[str, str], dict]:
     """
-    Prevent heavy favorites from having lower spread prob than ML intuition.
+    Map (game_id, team) -> row from final_nba_*.csv
+    Must contain points and win_probability for pricing consistency.
     """
-    if p > 0.5:
-        return 0.5 + 0.75 * (p - 0.5)
-    return p
+    m: Dict[Tuple[str, str], dict] = {}
+    with final_path.open(newline="", encoding="utf-8") as f:
+        r = csv.DictReader(f)
+        for row in r:
+            gid = row.get("game_id")
+            team = row.get("team")
+            if not gid or not team:
+                continue
+            m[(gid, team)] = row
+    return m
 
 # ============================================================
 # MAIN
 # ============================================================
 
 def main():
-    # --------------------------------------------------------
-    # CRITICAL: use totals-derived game file ONLY
-    # --------------------------------------------------------
-    input_files = sorted(INPUT_DIR.glob("edge_nba_totals_*.csv"))
-    if not input_files:
-        raise FileNotFoundError("No NBA totals edge files found")
+    totals_files = sorted(TOTALS_DIR.glob("edge_nba_totals_*.csv"))
+    if not totals_files:
+        raise FileNotFoundError("No docs/win/nba/edge_nba_totals_*.csv files found")
 
-    latest_file = input_files[-1]
+    totals_path = totals_files[-1]
+    date_str = extract_yyyymmdd(totals_path.name)
 
-    today = datetime.utcnow()
-    out_path = OUTPUT_DIR / f"edge_nba_spreads_{today.year}_{today.month:02d}_{today.day:02d}.csv"
+    final_path = FINAL_DIR / f"final_nba_{date_str}.csv"
+    if not final_path.exists():
+        raise FileNotFoundError(f"Missing moneyline-derived final file: {final_path}")
 
-    games = defaultdict(list)
+    final_map = load_final_map(final_path)
 
-    with latest_file.open(newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            if row.get("game_id"):
-                games[row["game_id"]].append(row)
+    out_path = OUTPUT_DIR / f"edge_nba_spreads_{date_str}.csv"
 
     fieldnames = [
         "game_id",
@@ -123,58 +153,67 @@ def main():
         "league",
     ]
 
-    with out_path.open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
+    out_rows: List[dict] = []
 
-        for game_id, rows in games.items():
-            if len(rows) != 2:
+    with totals_path.open(newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        required = {"game_id", "date", "time", "team_1", "team_2"}
+        missing = [c for c in required if c not in (reader.fieldnames or [])]
+        if missing:
+            raise ValueError(f"{totals_path.name} missing required columns: {missing}")
+
+        for trow in reader:
+            gid = trow.get("game_id")
+            away = trow.get("team_1")
+            home = trow.get("team_2")
+
+            if not gid or not away or not home:
                 continue
 
-            a, b = rows
+            away_final = final_map.get((gid, away))
+            home_final = final_map.get((gid, home))
+            if not away_final or not home_final:
+                # strict join: if your naming differs even slightly, you WANT to skip
+                continue
 
             try:
-                pts_a = float(a["points"])
-                pts_b = float(b["points"])
-            except (ValueError, TypeError):
+                pts_away = float(away_final["points"])
+                pts_home = float(home_final["points"])
+            except Exception:
                 continue
 
-            margin = pts_a - pts_b
+            # expected margin in AWAY-HOME space
+            mean_margin = pts_away - pts_home
 
-            # ------------------------------
-            # Spread construction (capped)
-            # ------------------------------
-            raw_spread = min(abs(margin), MAX_SPREAD)
-            spread = force_half_point(raw_spread)
+            # Build spread from projected margin (capped, forced .5)
+            raw = min(abs(mean_margin), MAX_SPREAD)
+            spread_abs = force_half_point(raw)
 
-            # ====================================================
-            # TEAM A
-            # ====================================================
-            is_fav_a = margin > 0
-            spread_a = -spread if is_fav_a else spread
+            # Determine favorite by projected points
+            away_is_fav = mean_margin > 0
+            away_spread = -spread_abs if away_is_fav else spread_abs
+            home_spread = -away_spread
 
-            proj_margin_a = margin
-            p_a = cover_probability(
-                projected_margin=proj_margin_a,
-                spread=spread if is_fav_a else -spread
-            )
+            # COVER probabilities from SAME projected margin base
+            p_away_cover = cover_prob(mean_margin=mean_margin, spread_for_team=away_spread)
+            p_home_cover = cover_prob(mean_margin=-mean_margin, spread_for_team=home_spread)
 
-            if is_fav_a:
-                p_a = compress_favorite_tail(p_a)
+            # compress extremes + floor
+            p_away_cover = max(compress_tail(p_away_cover), MIN_PROB)
+            p_home_cover = max(compress_tail(p_home_cover), MIN_PROB)
 
-            p_a = max(p_a, MIN_COVER_PROB)
+            # price away
+            fair_d = fair_decimal(p_away_cover)
+            acc_d = acceptable_decimal(p_away_cover)
 
-            fair_d = fair_decimal(p_a)
-            acc_d = acceptable_decimal(p_a)
-
-            writer.writerow({
-                "game_id": game_id,
-                "date": a["date"],
-                "time": a["time"],
-                "team": a["team"],
-                "opponent": a["opponent"],
-                "spread": spread_a,
-                "model_probability": round(p_a, 4),
+            out_rows.append({
+                "game_id": gid,
+                "date": trow.get("date", ""),
+                "time": trow.get("time", ""),
+                "team": away,
+                "opponent": home,
+                "spread": away_spread,
+                "model_probability": round(p_away_cover, 4),
                 "fair_decimal_odds": round(fair_d, 4),
                 "fair_american_odds": decimal_to_american(fair_d),
                 "acceptable_decimal_odds": round(acc_d, 4),
@@ -182,33 +221,18 @@ def main():
                 "league": "nba_spread",
             })
 
-            # ====================================================
-            # TEAM B
-            # ====================================================
-            spread_b = -spread_a
-            proj_margin_b = -margin
+            # price home
+            fair_d = fair_decimal(p_home_cover)
+            acc_d = acceptable_decimal(p_home_cover)
 
-            p_b = cover_probability(
-                projected_margin=proj_margin_b,
-                spread=spread if not is_fav_a else -spread
-            )
-
-            if not is_fav_a:
-                p_b = compress_favorite_tail(p_b)
-
-            p_b = max(p_b, MIN_COVER_PROB)
-
-            fair_d = fair_decimal(p_b)
-            acc_d = acceptable_decimal(p_b)
-
-            writer.writerow({
-                "game_id": game_id,
-                "date": b["date"],
-                "time": b["time"],
-                "team": b["team"],
-                "opponent": b["opponent"],
-                "spread": spread_b,
-                "model_probability": round(p_b, 4),
+            out_rows.append({
+                "game_id": gid,
+                "date": trow.get("date", ""),
+                "time": trow.get("time", ""),
+                "team": home,
+                "opponent": away,
+                "spread": home_spread,
+                "model_probability": round(p_home_cover, 4),
                 "fair_decimal_odds": round(fair_d, 4),
                 "fair_american_odds": decimal_to_american(fair_d),
                 "acceptable_decimal_odds": round(acc_d, 4),
@@ -216,8 +240,12 @@ def main():
                 "league": "nba_spread",
             })
 
-    print(f"Created {out_path}")
+    with out_path.open("w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=fieldnames)
+        w.writeheader()
+        w.writerows(out_rows)
 
+    print(f"Created {out_path} ({len(out_rows)} rows)")
 
 if __name__ == "__main__":
     main()
