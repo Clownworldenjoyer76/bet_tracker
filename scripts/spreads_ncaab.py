@@ -123,16 +123,22 @@ def main():
     latest_file = input_files[-1]
     spreads_juice_table = load_spreads_juice_table(JUICE_TABLE_PATH)
 
-    today = datetime.utcnow()
-    out_path = OUTPUT_DIR / f"edge_ncaab_spreads_{today.year}_{today.month:02d}_{today.day:02d}.csv"
-
     games = defaultdict(list)
+    slate_date = None
 
     with latest_file.open(newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
+            if not slate_date and row.get("date"):
+                slate_date = row["date"]
             if row.get("game_id"):
                 games[row["game_id"]].append(row)
+
+    if not slate_date:
+        raise ValueError("Could not determine slate date from input file")
+
+    dt = datetime.strptime(slate_date, "%m/%d/%Y")
+    out_path = OUTPUT_DIR / f"edge_ncaab_spreads_{dt.year}_{dt.month:02d}_{dt.day:02d}.csv"
 
     fieldnames = [
         "game_id",
