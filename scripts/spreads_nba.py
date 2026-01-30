@@ -2,17 +2,15 @@
 """
 build_edge_nba_spreads.py
 
-Mirrors NHL spread workflow, adapted for NBA.
+NBA spreads derived DIRECTLY from moneyline probability.
+No projected-points pricing. No contradictions.
 
-Authoritative rules (PATCHED):
-- Use projected points to compute margin
-- Favorite = higher projected points
-- Spread = abs(point_diff), FORCED to .5 increments (no pushes)
-- One output row per team
-- Spread sign:
-    favorite  -> -spread
-    underdog  -> +spread
-- Price spreads using COVER probability (not win probability)
+Authoritative rules:
+- Moneyline probability is the source of truth
+- Expected margin derived from ML probability
+- Spread derived from expected margin (forced .5)
+- Cover probability derived from same distribution
+- One row per team (mirrors existing format)
 """
 
 import csv
@@ -30,11 +28,12 @@ OUTPUT_DIR = Path("docs/win/nba/spreads")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # ============================================================
-# PARAMETERS
+# PARAMETERS (NBA)
 # ============================================================
 
 EDGE_BUFFER = 0.05
-MARGIN_STD_DEV = 12.0  # NBA empirical scoring margin std dev
+MARGIN_SCALE = 6.5        # controls how ML → margin
+MARGIN_STD_DEV = 12.0     # NBA scoring margin σ
 
 # ============================================================
 # HELPERS
@@ -65,11 +64,19 @@ def normal_cdf(x: float) -> float:
     return 0.5 * (1.0 + math.erf(x / math.sqrt(2)))
 
 
-def cover_probability(projected_margin: float, spread: float) -> float:
+def expected_margin_from_ml(p: float) -> float:
     """
-    Approximate probability of covering a spread.
+    Convert win probability → expected scoring margin.
     """
-    z = (projected_margin - spread) / MARGIN_STD_DEV
+    p = min(max(p, 0.001), 0.999)
+    return MARGIN_SCALE * math.log(p / (1.0 - p))
+
+
+def cover_probability(expected_margin: float, spread: float) -> float:
+    """
+    P(team covers given expected margin and market spread)
+    """
+    z = (expected_margin - spread) / MARGIN_STD_DEV
     return normal_cdf(z)
 
 # ============================================================
@@ -120,23 +127,20 @@ def main():
             a, b = rows
 
             try:
-                pts_a = float(a["points"])
-                pts_b = float(b["points"])
+                p_a = float(a["win_probability"])
+                p_b = float(b["win_probability"])
             except (ValueError, TypeError):
                 continue
 
-            margin = pts_a - pts_b
-            spread = force_half_point(abs(margin))
+            # Expected margins from ML
+            exp_margin_a = expected_margin_from_ml(p_a)
+            exp_margin_b = -exp_margin_a
+
+            spread = force_half_point(abs(exp_margin_a))
 
             # ---------------- Team A ----------------
-            is_fav_a = margin > 0
-            spread_a = -spread if is_fav_a else spread
-
-            proj_margin_a = margin
-            p_cover_a = cover_probability(
-                projected_margin=proj_margin_a,
-                spread=spread if is_fav_a else -spread
-            )
+            spread_a = -spread if exp_margin_a > 0 else spread
+            p_cover_a = cover_probability(exp_margin_a, spread)
 
             fair_d = fair_decimal(p_cover_a)
             acc_d = acceptable_decimal(p_cover_a)
@@ -158,12 +162,7 @@ def main():
 
             # ---------------- Team B ----------------
             spread_b = -spread_a
-            proj_margin_b = -margin
-
-            p_cover_b = cover_probability(
-                projected_margin=proj_margin_b,
-                spread=spread if not is_fav_a else -spread
-            )
+            p_cover_b = cover_probability(exp_margin_b, spread)
 
             fair_d = fair_decimal(p_cover_b)
             acc_d = acceptable_decimal(p_cover_b)
