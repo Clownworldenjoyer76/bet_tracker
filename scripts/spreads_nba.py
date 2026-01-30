@@ -19,25 +19,19 @@ LEAGUE_STD = 7.2
 JUICE = 1.047619
 EPS = 1e-6
 
-# Spread ladder offsets (points relative to model line)
+# Spread ladder offsets (relative to model line)
 SPREAD_OFFSETS = [-4.0, -2.0, 0.0, 2.0, 4.0]
 
 # ============================================================
 # Helpers
 # ============================================================
 def round_to_half_no_whole(x: float) -> float:
-    """
-    Round to nearest half-point, forbid whole numbers.
-    """
     r = round(x * 2) / 2
     if r.is_integer():
         return r + 0.5 if r >= 0 else r - 0.5
     return r
 
 def force_half(x: float) -> float:
-    """
-    Force any number onto a .5 grid.
-    """
     return round_to_half_no_whole(x)
 
 def normal_cdf(x: float) -> float:
@@ -50,28 +44,6 @@ def dec_to_amer(d: float) -> int:
     if d >= 2.0:
         return int(round((d - 1.0) * 100))
     return int(round(-100.0 / (d - 1.0)))
-
-# ============================================================
-# Linear interpolation between ladder points
-# ============================================================
-def interpolate_prob(spreads, probs, target_spread):
-    """
-    Linear interpolation of cover probability at target_spread.
-    Assumes spreads are sorted.
-    """
-    if target_spread <= spreads[0]:
-        return probs[0]
-    if target_spread >= spreads[-1]:
-        return probs[-1]
-
-    for i in range(len(spreads) - 1):
-        s0, s1 = spreads[i], spreads[i + 1]
-        if s0 <= target_spread <= s1:
-            p0, p1 = probs[i], probs[i + 1]
-            w = (target_spread - s0) / (s1 - s0)
-            return p0 + w * (p1 - p0)
-
-    raise RuntimeError("Interpolation failure")
 
 # ============================================================
 # Main
@@ -94,14 +66,14 @@ def main():
             edge_by_game.setdefault(r["game_id"], []).append(r)
 
     # ============================================================
-    # Build schema dynamically
+    # Schema
     # ============================================================
     fields = [
         "game_id","date","time","away_team","home_team","league",
         "away_team_proj_pts","home_team_proj_pts",
         "proj_margin","sigma",
         "model_home_spread","model_away_spread",
-        "away_ml_prob","home_ml_prob"
+        "away_ml_prob","home_ml_prob",
     ]
 
     for k in SPREAD_OFFSETS:
@@ -109,16 +81,17 @@ def main():
         fields += [
             f"home_spread_{tag}",
             f"away_spread_{tag}",
-            f"home_cover_prob_{tag}",
-            f"away_cover_prob_{tag}",
-            f"fair_home_dec_{tag}",
-            f"fair_home_amer_{tag}",
-            f"fair_away_dec_{tag}",
-            f"fair_away_amer_{tag}",
-            f"acc_home_dec_{tag}",
-            f"acc_home_amer_{tag}",
-            f"acc_away_dec_{tag}",
-            f"acc_away_amer_{tag}",
+            f"fav_team_{tag}",
+            f"fav_cover_prob_{tag}",
+            f"dog_cover_prob_{tag}",
+            f"fair_fav_dec_{tag}",
+            f"fair_fav_amer_{tag}",
+            f"fair_dog_dec_{tag}",
+            f"fair_dog_amer_{tag}",
+            f"acc_fav_dec_{tag}",
+            f"acc_fav_amer_{tag}",
+            f"acc_dog_dec_{tag}",
+            f"acc_dog_amer_{tag}",
         ]
 
     with out_path.open("w", newline="", encoding="utf-8") as f:
@@ -150,8 +123,23 @@ def main():
             proj_margin = home_pts - away_pts
             sigma = LEAGUE_STD
 
-            model_home_spread = force_half(-proj_margin)
+            # ====================================================
+            # Correct sign logic
+            # Favorite always negative
+            # ====================================================
+            if proj_margin > 0:
+                model_home_spread = -force_half(proj_margin)
+            else:
+                model_home_spread = force_half(abs(proj_margin))
+
             model_away_spread = -model_home_spread
+
+            # ====================================================
+            # Option B invariant: p0 must be ~50%
+            # ====================================================
+            z0 = (proj_margin + model_home_spread) / sigma
+            p0 = normal_cdf(z0)
+            assert abs(p0 - 0.5) < 0.02, f"Option B violated for {gid}"
 
             row = {
                 "game_id": gid,
@@ -173,48 +161,55 @@ def main():
             # ====================================================
             # Spread ladder
             # ====================================================
-            ladder_spreads = []
-            ladder_probs = []
-
             for k in SPREAD_OFFSETS:
+                tag = f"m{abs(int(k))}" if k < 0 else f"p{int(k)}"
+
                 home_spread = force_half(model_home_spread + k)
                 away_spread = -home_spread
 
+                # enforce half-point invariant
+                assert abs(abs(home_spread) % 1 - 0.5) < 1e-9
+
                 z = (proj_margin + home_spread) / sigma
-                home_prob = clamp_prob(normal_cdf(z))
-                away_prob = clamp_prob(1.0 - home_prob)
+                home_cover_prob = clamp_prob(normal_cdf(z))
+                away_cover_prob = clamp_prob(1.0 - home_cover_prob)
 
-                ladder_spreads.append(home_spread)
-                ladder_probs.append(home_prob)
+                # ====================================================
+                # Market-safe definition
+                # ====================================================
+                if home_spread < 0:
+                    fav_team = "home"
+                    fav_prob = home_cover_prob
+                    dog_prob = away_cover_prob
+                else:
+                    fav_team = "away"
+                    fav_prob = away_cover_prob
+                    dog_prob = home_cover_prob
 
-                fair_home_dec = 1.0 / home_prob
-                fair_away_dec = 1.0 / away_prob
-                acc_home_dec = fair_home_dec * JUICE
-                acc_away_dec = fair_away_dec * JUICE
+                # ====================================================
+                # Odds
+                # ====================================================
+                fair_fav_dec = 1.0 / fav_prob
+                fair_dog_dec = 1.0 / dog_prob
 
-                tag = f"m{abs(int(k))}" if k < 0 else f"p{int(k)}"
+                acc_fav_dec = fair_fav_dec * JUICE
+                acc_dog_dec = fair_dog_dec * JUICE
 
                 row.update({
                     f"home_spread_{tag}": home_spread,
                     f"away_spread_{tag}": away_spread,
-                    f"home_cover_prob_{tag}": round(home_prob, 6),
-                    f"away_cover_prob_{tag}": round(away_prob, 6),
-                    f"fair_home_dec_{tag}": round(fair_home_dec, 6),
-                    f"fair_home_amer_{tag}": dec_to_amer(fair_home_dec),
-                    f"fair_away_dec_{tag}": round(fair_away_dec, 6),
-                    f"fair_away_amer_{tag}": dec_to_amer(fair_away_dec),
-                    f"acc_home_dec_{tag}": round(acc_home_dec, 6),
-                    f"acc_home_amer_{tag}": dec_to_amer(acc_home_dec),
-                    f"acc_away_dec_{tag}": round(acc_away_dec, 6),
-                    f"acc_away_amer_{tag}": dec_to_amer(acc_away_dec),
+                    f"fav_team_{tag}": fav_team,
+                    f"fav_cover_prob_{tag}": round(fav_prob, 6),
+                    f"dog_cover_prob_{tag}": round(dog_prob, 6),
+                    f"fair_fav_dec_{tag}": round(fair_fav_dec, 6),
+                    f"fair_fav_amer_{tag}": dec_to_amer(fair_fav_dec),
+                    f"fair_dog_dec_{tag}": round(fair_dog_dec, 6),
+                    f"fair_dog_amer_{tag}": dec_to_amer(fair_dog_dec),
+                    f"acc_fav_dec_{tag}": round(acc_fav_dec, 6),
+                    f"acc_fav_amer_{tag}": dec_to_amer(acc_fav_dec),
+                    f"acc_dog_dec_{tag}": round(acc_dog_dec, 6),
+                    f"acc_dog_amer_{tag}": dec_to_amer(acc_dog_dec),
                 })
-
-            # ====================================================
-            # Example interpolation (market-ready)
-            # ====================================================
-            # Example: evaluate probability at model_home_spread + 1.5
-            # target_spread = force_half(model_home_spread + 1.5)
-            # interp_prob = interpolate_prob(ladder_spreads, ladder_probs, target_spread)
 
             w.writerow(row)
 
