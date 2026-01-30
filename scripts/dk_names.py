@@ -3,7 +3,7 @@
 Normalize DraftKings team names to canonical names using a league-aware mapping.
 
 Input:
-  docs/win/manual/cleaned/clean_dk_*.csv
+  docs/win/manual/cleaned/dk_*.csv
 
 Mapping:
   mappings/team_map.csv
