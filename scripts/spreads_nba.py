@@ -4,42 +4,31 @@ import csv
 import math
 from pathlib import Path
 
-# ================= PATHS =================
-
 TOTALS_DIR = Path("docs/win/nba")
 EDGE_DIR = Path("docs/win/edge")
 OUTPUT_DIR = Path("docs/win/nba/spreads")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-# ================= CONSTANTS =================
-
 LEAGUE_STD = 7.2
 JUICE = 1.047619
-
-# ================= HELPERS =================
 
 def round_half(x):
     return round(x * 2) / 2
 
 def normal_cdf(x):
-    return 0.5 * (1.0 + math.erf(x / math.sqrt(2)))
+    return 0.5 * (1 + math.erf(x / math.sqrt(2)))
 
 def dec_to_amer(d):
     if d >= 2:
         return int(round((d - 1) * 100))
     return int(round(-100 / (d - 1)))
 
-# ================= MAIN =================
-
 def main():
     totals_file = sorted(TOTALS_DIR.glob("edge_nba_totals_*.csv"))[-1]
     with totals_file.open(newline="", encoding="utf-8") as f:
-        totals_rows = list(csv.DictReader(f))
+        totals = list(csv.DictReader(f))
 
-    if not totals_rows:
-        return
-
-    m, d, y = totals_rows[0]["date"].split("/")
+    m, d, y = totals[0]["date"].split("/")
     out_path = OUTPUT_DIR / f"edge_nba_spreads_{y}_{m}_{d}.csv"
 
     edge_file = sorted(EDGE_DIR.glob("edge_nba_*.csv"))[-1]
@@ -65,7 +54,7 @@ def main():
         w = csv.DictWriter(f, fieldnames=fields)
         w.writeheader()
 
-        for r in totals_rows:
+        for r in totals:
             gid = r["game_id"]
             away = r["team_1"]
             home = r["team_2"]
@@ -87,12 +76,13 @@ def main():
 
             margin = home_pts - away_pts
 
-            home_prob = 1 - normal_cdf((home_spread - margin) / LEAGUE_STD)
+            # CORRECT EVENT: actual_margin + home_spread > 0
+            z = (margin + home_spread) / LEAGUE_STD
+            home_prob = normal_cdf(z)
             away_prob = 1 - home_prob
 
             fair_home_dec = 1 / home_prob
             fair_away_dec = 1 / away_prob
-
             acc_home_dec = 1 / (home_prob * JUICE)
             acc_away_dec = 1 / (away_prob * JUICE)
 
