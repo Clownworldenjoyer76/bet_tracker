@@ -4,7 +4,7 @@ build_edge_nba_spreads.py
 
 Mirrors NHL spread workflow, adapted for NBA.
 
-Authoritative rules (UPDATED):
+Authoritative rules (PATCHED):
 - Use projected points to compute margin
 - Favorite = higher projected points
 - Spread = abs(point_diff), FORCED to .5 increments (no pushes)
@@ -12,10 +12,11 @@ Authoritative rules (UPDATED):
 - Spread sign:
     favorite  -> -spread
     underdog  -> +spread
-- Price spreads using model win probability
+- Price spreads using COVER probability (not win probability)
 """
 
 import csv
+import math
 from pathlib import Path
 from collections import defaultdict
 from datetime import datetime
@@ -33,16 +34,13 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 # ============================================================
 
 EDGE_BUFFER = 0.05
+MARGIN_STD_DEV = 12.0  # NBA empirical scoring margin std dev
 
 # ============================================================
 # HELPERS
 # ============================================================
 
 def force_half_point(x: float) -> float:
-    """
-    Round to nearest 0.5 and FORCE .5 (no integers).
-    Ensures no pushes.
-    """
     rounded = round(x * 2) / 2
     if rounded.is_integer():
         return rounded + 0.5
@@ -56,11 +54,23 @@ def decimal_to_american(d: float) -> int:
 
 
 def fair_decimal(p: float) -> float:
-    return 1.0 / p
+    return 1.0 / max(p, 0.0001)
 
 
 def acceptable_decimal(p: float) -> float:
     return 1.0 / max(p - EDGE_BUFFER, 0.0001)
+
+
+def normal_cdf(x: float) -> float:
+    return 0.5 * (1.0 + math.erf(x / math.sqrt(2)))
+
+
+def cover_probability(projected_margin: float, spread: float) -> float:
+    """
+    Approximate probability of covering a spread.
+    """
+    z = (projected_margin - spread) / MARGIN_STD_DEV
+    return normal_cdf(z)
 
 # ============================================================
 # MAIN
@@ -112,18 +122,24 @@ def main():
             try:
                 pts_a = float(a["points"])
                 pts_b = float(b["points"])
-                p_a = float(a["win_probability"])
-                p_b = float(b["win_probability"])
             except (ValueError, TypeError):
                 continue
 
             margin = pts_a - pts_b
             spread = force_half_point(abs(margin))
 
-            # Team A
-            spread_a = -spread if margin > 0 else spread
-            fair_d = fair_decimal(p_a)
-            acc_d = acceptable_decimal(p_a)
+            # ---------------- Team A ----------------
+            is_fav_a = margin > 0
+            spread_a = -spread if is_fav_a else spread
+
+            proj_margin_a = margin
+            p_cover_a = cover_probability(
+                projected_margin=proj_margin_a,
+                spread=spread if is_fav_a else -spread
+            )
+
+            fair_d = fair_decimal(p_cover_a)
+            acc_d = acceptable_decimal(p_cover_a)
 
             writer.writerow({
                 "game_id": game_id,
@@ -132,7 +148,7 @@ def main():
                 "team": a["team"],
                 "opponent": a["opponent"],
                 "spread": spread_a,
-                "model_probability": round(p_a, 4),
+                "model_probability": round(p_cover_a, 4),
                 "fair_decimal_odds": round(fair_d, 4),
                 "fair_american_odds": decimal_to_american(fair_d),
                 "acceptable_decimal_odds": round(acc_d, 4),
@@ -140,10 +156,17 @@ def main():
                 "league": "nba_spread",
             })
 
-            # Team B
+            # ---------------- Team B ----------------
             spread_b = -spread_a
-            fair_d = fair_decimal(p_b)
-            acc_d = acceptable_decimal(p_b)
+            proj_margin_b = -margin
+
+            p_cover_b = cover_probability(
+                projected_margin=proj_margin_b,
+                spread=spread if not is_fav_a else -spread
+            )
+
+            fair_d = fair_decimal(p_cover_b)
+            acc_d = acceptable_decimal(p_cover_b)
 
             writer.writerow({
                 "game_id": game_id,
@@ -152,7 +175,7 @@ def main():
                 "team": b["team"],
                 "opponent": b["opponent"],
                 "spread": spread_b,
-                "model_probability": round(p_b, 4),
+                "model_probability": round(p_cover_b, 4),
                 "fair_decimal_odds": round(fair_d, 4),
                 "fair_american_odds": decimal_to_american(fair_d),
                 "acceptable_decimal_odds": round(acc_d, 4),
