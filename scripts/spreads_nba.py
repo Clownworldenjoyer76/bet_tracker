@@ -55,7 +55,8 @@ def main():
         return
 
     # Output date from first row
-    date_str = totals_rows[0]["date"].replace("-", "_")
+    raw_date = totals_rows[0]["date"]
+    date_str = raw_date.replace("/", "_")
     out_path = OUTPUT_DIR / f"edge_nba_spreads_{date_str}.csv"
 
     # Load edge_nba projections
