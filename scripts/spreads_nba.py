@@ -109,19 +109,14 @@ def main():
             proj_margin = home_pts - away_pts
             sigma = LEAGUE_STD
 
-            # Correct sign: favorite always negative
-            model_home_spread = (
-                -round_to_half_no_whole(proj_margin)
-                if proj_margin > 0
-                else round_to_half_no_whole(abs(proj_margin))
-            )
+            # ✅ Correct Option B anchor (no branching)
+            model_home_spread = -round_to_half_no_whole(proj_margin)
             model_away_spread = -model_home_spread
 
-            # Option B invariant (half-point aware)
+            # ✅ Correct invariant check (will now pass)
             z0 = (proj_margin + model_home_spread) / sigma
-            p0 = normal_cdf(z0)
             max_dev = normal_cdf(0.5 / sigma) - 0.5
-            assert abs(p0 - 0.5) <= max_dev + 1e-6
+            assert abs(normal_cdf(z0) - 0.5) <= max_dev + 1e-6
 
             row = {
                 "game_id": gid,
