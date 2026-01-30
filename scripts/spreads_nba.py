@@ -2,18 +2,20 @@
 """
 build_edge_nba_spreads.py
 
-Mirrors NHL spread workflow, adapted for NBA.
+NBA spreads derived from GAME-LEVEL totals data (NHL-aligned).
 
-Authoritative rules (PATCHED + STABILIZED):
+Authoritative rules:
+- Source games from edge_nba_totals_*.csv ONLY
 - Use projected points to compute margin
 - Favorite = higher projected points
-- Spread = abs(point_diff), capped and FORCED to .5 (no pushes)
+- Spread = abs(point_diff), capped and forced to .5
 - One output row per team
 - Spread sign:
     favorite  -> -spread
     underdog  -> +spread
-- Price spreads using COVER probability (not win probability)
-- Apply market realism constraints
+- Price spreads using COVER probability (normal margin model)
+- Enforce probability floors + tail compression
+- Prevent ML / spread self-contradiction
 """
 
 import csv
@@ -26,18 +28,18 @@ from datetime import datetime
 # PATHS
 # ============================================================
 
-INPUT_DIR = Path("docs/win/edge")
+INPUT_DIR = Path("docs/win/nba")
 OUTPUT_DIR = Path("docs/win/nba/spreads")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # ============================================================
-# PARAMETERS (MARKET CONTROLS)
+# PARAMETERS (HARD CONSTRAINTS)
 # ============================================================
 
 EDGE_BUFFER = 0.05
-MARGIN_STD_DEV = 12.0      # NBA empirical margin std dev
-MAX_SPREAD = 8.5           # FIX #1: cap spread size
-MIN_COVER_PROB = 0.12      # FIX #2: floor tail probability
+MARGIN_STD_DEV = 12.0          # empirical NBA margin std dev
+MAX_SPREAD = 8.5               # absolute cap (no 10.5+)
+MIN_COVER_PROB = 0.12          # floor to prevent insane odds
 
 # ============================================================
 # HELPERS
@@ -72,14 +74,26 @@ def cover_probability(projected_margin: float, spread: float) -> float:
     z = (projected_margin - spread) / MARGIN_STD_DEV
     return normal_cdf(z)
 
+
+def compress_favorite_tail(p: float) -> float:
+    """
+    Prevent heavy favorites from having lower spread prob than ML intuition.
+    """
+    if p > 0.5:
+        return 0.5 + 0.75 * (p - 0.5)
+    return p
+
 # ============================================================
 # MAIN
 # ============================================================
 
 def main():
-    input_files = sorted(INPUT_DIR.glob("edge_nba_*.csv"))
+    # --------------------------------------------------------
+    # CRITICAL: use totals-derived game file ONLY
+    # --------------------------------------------------------
+    input_files = sorted(INPUT_DIR.glob("edge_nba_totals_*.csv"))
     if not input_files:
-        raise FileNotFoundError("No NBA edge files found")
+        raise FileNotFoundError("No NBA totals edge files found")
 
     latest_file = input_files[-1]
 
@@ -127,29 +141,31 @@ def main():
 
             margin = pts_a - pts_b
 
-            # ---------------- FIX #1: CAP SPREAD ----------------
+            # ------------------------------
+            # Spread construction (capped)
+            # ------------------------------
             raw_spread = min(abs(margin), MAX_SPREAD)
             spread = force_half_point(raw_spread)
 
-            # ---------------- TEAM A ----------------
+            # ====================================================
+            # TEAM A
+            # ====================================================
             is_fav_a = margin > 0
             spread_a = -spread if is_fav_a else spread
 
             proj_margin_a = margin
-            p_cover_a = cover_probability(
+            p_a = cover_probability(
                 projected_margin=proj_margin_a,
                 spread=spread if is_fav_a else -spread
             )
 
-            # ---------------- FIX #3: COMPRESS FAVORITE TAIL ----------------
-            if is_fav_a and spread >= 6.5:
-                p_cover_a = 0.5 + 0.75 * (p_cover_a - 0.5)
+            if is_fav_a:
+                p_a = compress_favorite_tail(p_a)
 
-            # ---------------- FIX #2: FLOOR PROBABILITY ----------------
-            p_cover_a = max(p_cover_a, MIN_COVER_PROB)
+            p_a = max(p_a, MIN_COVER_PROB)
 
-            fair_d = fair_decimal(p_cover_a)
-            acc_d = acceptable_decimal(p_cover_a)
+            fair_d = fair_decimal(p_a)
+            acc_d = acceptable_decimal(p_a)
 
             writer.writerow({
                 "game_id": game_id,
@@ -158,7 +174,7 @@ def main():
                 "team": a["team"],
                 "opponent": a["opponent"],
                 "spread": spread_a,
-                "model_probability": round(p_cover_a, 4),
+                "model_probability": round(p_a, 4),
                 "fair_decimal_odds": round(fair_d, 4),
                 "fair_american_odds": decimal_to_american(fair_d),
                 "acceptable_decimal_odds": round(acc_d, 4),
@@ -166,22 +182,24 @@ def main():
                 "league": "nba_spread",
             })
 
-            # ---------------- TEAM B ----------------
+            # ====================================================
+            # TEAM B
+            # ====================================================
             spread_b = -spread_a
             proj_margin_b = -margin
 
-            p_cover_b = cover_probability(
+            p_b = cover_probability(
                 projected_margin=proj_margin_b,
                 spread=spread if not is_fav_a else -spread
             )
 
-            if not is_fav_a and spread >= 6.5:
-                p_cover_b = 0.5 + 0.75 * (p_cover_b - 0.5)
+            if not is_fav_a:
+                p_b = compress_favorite_tail(p_b)
 
-            p_cover_b = max(p_cover_b, MIN_COVER_PROB)
+            p_b = max(p_b, MIN_COVER_PROB)
 
-            fair_d = fair_decimal(p_cover_b)
-            acc_d = acceptable_decimal(p_cover_b)
+            fair_d = fair_decimal(p_b)
+            acc_d = acceptable_decimal(p_b)
 
             writer.writerow({
                 "game_id": game_id,
@@ -190,7 +208,7 @@ def main():
                 "team": b["team"],
                 "opponent": b["opponent"],
                 "spread": spread_b,
-                "model_probability": round(p_cover_b, 4),
+                "model_probability": round(p_b, 4),
                 "fair_decimal_odds": round(fair_d, 4),
                 "fair_american_odds": decimal_to_american(fair_d),
                 "acceptable_decimal_odds": round(acc_d, 4),
