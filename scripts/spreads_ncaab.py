@@ -1,152 +1,179 @@
+#!/usr/bin/env python3
+
 import csv
-import glob
 import math
-import re
-import sys
 from pathlib import Path
+from collections import defaultdict
+from datetime import datetime
 
-BASE_SIGMA = 7.2
-SIGMA_K = 0.25
-SIGMA_MIN = 7.2
-SIGMA_MAX = 12.5
+# ============================================================
+# PATHS
+# ============================================================
 
-SPREADS_GLOB = "docs/win/manual/normalized/norm_dk_ncaab_spreads_*.csv"
-EDGE_GLOB = "docs/win/edge/edge_ncaab_*.csv"
-JUICE_TABLE_PATH = "config/ncaab/ncaab_spreads_juice_table.csv"
+EDGE_DIR = Path("docs/win/edge")
+DK_DIR = Path("docs/win/manual/normalized")
+OUTPUT_DIR = Path("docs/win/edge")
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
+JUICE_TABLE_PATH = Path("config/ncaab/ncaab_spreads_juice_table.csv")
 
-def dynamic_sigma(spread):
-    return min(SIGMA_MAX, max(SIGMA_MIN, BASE_SIGMA + SIGMA_K * abs(spread)))
+# ============================================================
+# CONSTANTS
+# ============================================================
 
+SIGMA = 7.2
 
-def normal_cdf(x):
+# ============================================================
+# HELPERS
+# ============================================================
+
+def normal_cdf(x: float) -> float:
     return 0.5 * (1.0 + math.erf(x / math.sqrt(2)))
 
+def decimal_to_american(d: float) -> int:
+    if d >= 2.0:
+        return int(round((d - 1) * 100))
+    return int(round(-100 / (d - 1)))
 
-def decimal_to_american(d):
-    if d <= 1:
-        return 0
-    if d < 2:
-        return int(round(-100 / (d - 1)))
-    return int(round(100 * (d - 1)))
+def fair_decimal(p: float) -> float:
+    return 1.0 / p
 
+def acceptable_decimal(p: float, juice: float) -> float:
+    return 1.0 / max(p - juice, 1e-9)
 
-def load_juice_table(path):
+# ============================================================
+# JUICE TABLE
+# ============================================================
+
+def load_spreads_juice_table(path: Path):
     rows = []
-    with open(path, newline="") as f:
-        reader = csv.DictReader(f)
-        for r in reader:
+    with path.open(newline="", encoding="utf-8") as f:
+        for r in csv.DictReader(f):
             rows.append({
-                "market_type": r["market_type"],
-                "band_low": float(r["band_low"]),
-                "band_high": float(r["band_high"]),
-                "side": r["side"],
-                "extra_juice_pct": float(r["extra_juice_pct"]),
+                "low": float(r["band_low"]),
+                "high": float(r["band_high"]),
+                "side": r["side"].lower(),
+                "juice": float(r["extra_juice_pct"]),
             })
     return rows
 
+def lookup_spreads_juice(table, spread_abs, side):
+    for r in table:
+        if r["low"] <= spread_abs <= r["high"]:
+            if r["side"] == "any" or r["side"] == side:
+                return r["juice"]
+    return 0.0
 
-def juice_adjust(prob, spread, side, juice_rows):
-    spread_abs = abs(spread)
-    adj = 0.0
-    for r in juice_rows:
-        if r["market_type"] != "spread":
-            continue
-        if not (r["band_low"] <= spread_abs <= r["band_high"]):
-            continue
-        if r["side"] not in ("any", side):
-            continue
-        adj += r["extra_juice_pct"]
-    return prob * (1.0 + adj)
-
-
-def load_latest_file(pattern):
-    files = sorted(glob.glob(pattern))
-    if not files:
-        raise RuntimeError(f"No files found for pattern: {pattern}")
-    return files[-1]
-
-
-def extract_date_from_filename(path):
-    m = re.search(r"_(\d{4})_(\d{2})_(\d{2})\.csv$", path)
-    if not m:
-        raise RuntimeError(f"Could not extract date from filename: {path}")
-    return f"{m.group(1)}_{m.group(2)}_{m.group(3)}"
-
+# ============================================================
+# MAIN
+# ============================================================
 
 def main():
-    spreads_file = load_latest_file(SPREADS_GLOB)
-    edge_file = load_latest_file(EDGE_GLOB)
+    dk_file = sorted(DK_DIR.glob("norm_dk_ncaab_spreads_*.csv"))[-1]
+    edge_file = sorted(EDGE_DIR.glob("edge_ncaab_*.csv"))[-1]
 
-    date_key = extract_date_from_filename(spreads_file)
-    juice_rows = load_juice_table(JUICE_TABLE_PATH)
+    # extract date from DK filename
+    date_part = dk_file.stem.split("_")[-3:]
+    yyyy, mm, dd = date_part
+    out_path = OUTPUT_DIR / f"edge_ncaab_spreads_{yyyy}_{mm}_{dd}.csv"
 
-    model = {}
-    with open(edge_file, newline="") as f:
-        reader = csv.DictReader(f)
-        for r in reader:
-            model[(r["game_id"], r["team"])] = float(r["win_probability"])
+    # ------------------------
+    # load edge model
+    # ------------------------
+    model_by_team = {}
+    game_meta = {}
 
-    output_rows = []
-
-    with open(spreads_file, newline="") as f:
-        reader = csv.DictReader(f)
-        for r in reader:
-            game_id = r.get("game_id")
-            if not game_id:
-                continue
-
+    with edge_file.open(newline="", encoding="utf-8") as f:
+        for r in csv.DictReader(f):
             team = r["team"]
-            opponent = r["opponent"]
-            spread = float(r["spread"])
-            date = r["date"]
-            time = r["time"]
+            model_by_team[team] = r
+            game_meta[team] = {
+                "game_id": r["game_id"],
+                "date": r["date"],
+                "time": r["time"],
+                "opponent": r["opponent"],
+                "points": float(r["points"]),
+            }
 
-            side = "favorite" if spread < 0 else "underdog"
+    # ------------------------
+    # load juice table
+    # ------------------------
+    juice_table = load_spreads_juice_table(JUICE_TABLE_PATH)
 
-            base_prob = model.get((game_id, team))
-            if base_prob is None:
-                continue
+    rows_written = 0
 
-            sigma = dynamic_sigma(spread)
-            z = spread / sigma
-            model_prob = normal_cdf(z)
-            model_prob = juice_adjust(model_prob, spread, side, juice_rows)
+    fields = [
+        "game_id",
+        "date",
+        "time",
+        "team",
+        "opponent",
+        "spread",
+        "model_probability",
+        "fair_decimal_odds",
+        "fair_american_odds",
+        "acceptable_decimal_odds",
+        "acceptable_american_odds",
+        "league",
+    ]
 
-            fair_decimal = 1.0 / model_prob
-            fair_american = decimal_to_american(fair_decimal)
-            acceptable_decimal = fair_decimal * 1.12
-            acceptable_american = decimal_to_american(acceptable_decimal)
+    with out_path.open("w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=fields)
+        w.writeheader()
 
-            output_rows.append({
-                "game_id": game_id,
-                "date": date,
-                "time": time,
-                "team": team,
-                "opponent": opponent,
-                "spread": spread,
-                "model_probability": round(model_prob, 6),
-                "fair_decimal_odds": round(fair_decimal, 6),
-                "fair_american_odds": fair_american,
-                "acceptable_decimal_odds": round(acceptable_decimal, 6),
-                "acceptable_american_odds": acceptable_american,
-                "league": "ncaab_spread",
-            })
+        with dk_file.open(newline="", encoding="utf-8") as dk:
+            for r in csv.DictReader(dk):
+                team = r["team"]
 
-    if not output_rows:
+                if team not in model_by_team:
+                    continue
+
+                m = model_by_team[team]
+                meta = game_meta[team]
+
+                spread = float(r["spread"])
+                spread_abs = abs(spread)
+
+                side = "favorite" if spread < 0 else "underdog"
+
+                team_pts = float(m["points"])
+                opp_pts = float(model_by_team[meta["opponent"]]["points"])
+                margin = team_pts - opp_pts
+
+                cover_prob = normal_cdf((margin + spread) / SIGMA)
+
+                juice = lookup_spreads_juice(
+                    juice_table,
+                    spread_abs,
+                    side
+                )
+
+                fair_d = fair_decimal(cover_prob)
+                acc_d = acceptable_decimal(cover_prob, juice)
+
+                w.writerow({
+                    "game_id": meta["game_id"],
+                    "date": meta["date"],
+                    "time": meta["time"],
+                    "team": team,
+                    "opponent": meta["opponent"],
+                    "spread": spread,
+                    "model_probability": round(cover_prob, 6),
+                    "fair_decimal_odds": round(fair_d, 6),
+                    "fair_american_odds": decimal_to_american(fair_d),
+                    "acceptable_decimal_odds": round(acc_d, 6),
+                    "acceptable_american_odds": decimal_to_american(acc_d),
+                    "league": "ncaab_spread",
+                })
+
+                rows_written += 1
+
+    if rows_written == 0:
         raise RuntimeError(
-            "spreads_ncaab.py produced ZERO rows — check game_id alignment "
-            "between normalized spreads and edge input."
+            "spreads_ncaab.py produced ZERO rows — no DK teams matched edge model teams."
         )
 
-    out_path = Path(f"docs/win/edge/edge_ncaab_spreads_{date_key}.csv")
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-
-    with open(out_path, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=output_rows[0].keys())
-        writer.writeheader()
-        writer.writerows(output_rows)
-
+    print(f"Created {out_path} ({rows_written} rows)")
 
 if __name__ == "__main__":
     main()
