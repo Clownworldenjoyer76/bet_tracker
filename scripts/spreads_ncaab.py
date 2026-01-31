@@ -2,13 +2,13 @@
 """
 build_edge_ncaab_spreads.py
 
-NCAAB spread pricing with market–model blend (Option C).
+NCAAB spread pricing — MARKET-ANCHORED (recommended).
 
 Rules enforced:
 - Spread comes from DK normalized file
 - Cover probability computed ONCE per game (favorite)
 - Underdog probability = 1 - favorite probability
-- Effective margin = 50% model margin + 50% market spread
+- Effective margin = market spread ONLY
 - Normal CDF with historical sigma = 7.2
 - One output row per team
 - Personal juice applied via config/ncaab/ncaab_spreads_juice_table.csv
@@ -37,8 +37,6 @@ JUICE_TABLE_PATH = Path("config/ncaab/ncaab_spreads_juice_table.csv")
 
 LEAGUE_STD = 7.2
 EPS = 1e-6
-MODEL_WEIGHT = 0.25
-MARKET_WEIGHT = 0.75
 
 # ============================================================
 # HELPERS
@@ -158,34 +156,21 @@ def main():
             if r1["team"] not in spread_by_team or r2["team"] not in spread_by_team:
                 continue
 
-            try:
-                pts_1 = float(r1["points"])
-                pts_2 = float(r2["points"])
-            except (ValueError, TypeError):
-                continue
-
             spread_1 = spread_by_team[r1["team"]]
             spread_2 = spread_by_team[r2["team"]]
 
             # Identify favorite
             if spread_1 < 0:
                 fav, dog = r1, r2
-                fav_pts, dog_pts = pts_1, pts_2
                 fav_spread, dog_spread = spread_1, spread_2
             else:
                 fav, dog = r2, r1
-                fav_pts, dog_pts = pts_2, pts_1
                 fav_spread, dog_spread = spread_2, spread_1
 
-            model_margin = fav_pts - dog_pts
             s = abs(fav_spread)
 
-            effective_margin = (
-                MODEL_WEIGHT * model_margin +
-                MARKET_WEIGHT * s
-            )
-
-            p_fav = clamp(normal_cdf((effective_margin - s) / LEAGUE_STD))
+            # MARKET-ONLY pricing
+            p_fav = clamp(normal_cdf(0.0))
             p_dog = 1.0 - p_fav
 
             juice_fav = lookup_spreads_juice(spreads_juice_table, s, "favorite")
