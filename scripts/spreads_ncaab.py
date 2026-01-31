@@ -37,8 +37,8 @@ JUICE_TABLE_PATH = Path("config/ncaab/ncaab_spreads_juice_table.csv")
 
 LEAGUE_STD = 7.2
 EPS = 1e-6
-MODEL_WEIGHT = 0.5
-MARKET_WEIGHT = 0.5
+MODEL_WEIGHT = 0.25
+MARKET_WEIGHT = 0.75
 
 # ============================================================
 # HELPERS
