@@ -1,180 +1,147 @@
-#!/usr/bin/env python3
-
 import csv
 import math
 from pathlib import Path
-from collections import defaultdict
-from datetime import datetime
 
-# ============================================================
-# CONSTANTS
-# ============================================================
+# =========================
+# CONFIG
+# =========================
 
-LEAGUE_STD = 7.2
-MODEL_WEIGHT = 0.15
-MARKET_WEIGHT = 0.85
-EPS = 1e-6
+INPUT_PATH = Path(
+    "docs/win/manual/normalized/norm_dk_ncaab_spreads_2026_01_31.csv"
+)
+JUICE_TABLE_PATH = Path(
+    "config/ncaab/ncaab_spreads_juice_table.csv"
+)
+OUTPUT_PATH = Path(
+    "docs/win/edge/edge_ncaab_spreads_2026_01_31.csv"
+)
 
-INPUT_DIR = Path("docs/win/edge")
-OUTPUT_DIR = Path("docs/win/ncaab/spreads")
-JUICE_TABLE_PATH = Path("config/ncaab/ncaab_spreads_juice_table.csv")
+EPS = 1e-9
 
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-# ============================================================
-# MATH HELPERS
-# ============================================================
+# =========================
+# HELPERS
+# =========================
 
-def normal_cdf(x: float) -> float:
-    return 0.5 * (1.0 + math.erf(x / math.sqrt(2.0)))
+def american_to_decimal(odds):
+    odds = float(odds)
+    if odds > 0:
+        return 1.0 + odds / 100.0
+    return 1.0 + 100.0 / abs(odds)
 
-def clamp(p: float) -> float:
+
+def decimal_to_american(dec):
+    dec = float(dec)
+    if dec <= 1.0:
+        return 0
+    if dec >= 2.0:
+        return int(round((dec - 1.0) * 100))
+    return int(round(-100.0 / (dec - 1.0)))
+
+
+def clamp_prob(p):
     return max(EPS, min(1.0 - EPS, p))
 
-def dec_to_amer(d: float) -> int:
-    if d >= 2.0:
-        return int(round((d - 1.0) * 100))
-    return int(round(-100.0 / (d - 1.0)))
 
-# ============================================================
+def fair_decimal_from_prob(p):
+    p = clamp_prob(p)
+    return 1.0 / p
+
+
+# =========================
 # JUICE TABLE
-# ============================================================
+# =========================
 
-def load_spreads_juice_table(path: Path):
+def load_spreads_juice_table(path):
     rows = []
     with path.open(newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for r in reader:
             rows.append({
-                "low": float(r["band_low"]),
-                "high": float(r["band_high"]),
-                "side": r["side"].lower(),  # favorite / underdog / any
-                "extra": float(r["extra_juice_pct"]),
+                "market_type": r["market_type"].strip(),
+                "band_low": float(r["band_low"]),
+                "band_high": float(r["band_high"]),
+                "side": r["side"].strip(),  # favorite / underdog / any
+                "extra_juice_pct": float(r["extra_juice_pct"]),
             })
     return rows
 
-def lookup_juice_multiplier(table, spread_abs: float, side: str) -> float:
-    for r in table:
-        if r["low"] <= spread_abs <= r["high"]:
-            if r["side"] == "any" or r["side"] == side:
-                return 1.0 + r["extra"]
-    return 1.0
 
-# ============================================================
-# COVER PROBABILITY
-# ============================================================
+def lookup_spread_juice(juice_table, spread_abs, side):
+    for row in juice_table:
+        if row["market_type"] != "spread":
+            continue
+        if not (row["band_low"] <= spread_abs <= row["band_high"]):
+            continue
+        if row["side"] not in ("any", side):
+            continue
+        return row["extra_juice_pct"]
+    return 0.0
 
-def cover_probability(model_margin: float, market_spread: float) -> float:
-    """
-    model_margin   = proj_pts_fav - proj_pts_dog
-    market_spread  = DK spread for team (negative if favorite)
-    """
-    effective_margin = (
-        MODEL_WEIGHT * model_margin +
-        MARKET_WEIGHT * (-market_spread)
-    )
 
-    z = (effective_margin + market_spread) / LEAGUE_STD
-    return clamp(normal_cdf(z))
-
-# ============================================================
+# =========================
 # MAIN
-# ============================================================
+# =========================
 
 def main():
-    input_files = sorted(INPUT_DIR.glob("edge_ncaab_*.csv"))
-    if not input_files:
-        raise FileNotFoundError("No NCAAB edge files found")
-
-    latest = input_files[-1]
     juice_table = load_spreads_juice_table(JUICE_TABLE_PATH)
 
-    games = defaultdict(list)
-    slate_date = None
+    output_rows = []
 
-    with latest.open(newline="", encoding="utf-8") as f:
+    with INPUT_PATH.open(newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
+
         for r in reader:
-            if not slate_date:
-                slate_date = r["date"]
-            games[r["game_id"]].append(r)
+            spread = float(r["spread"])
+            odds = float(r["odds"])
 
-    dt = datetime.strptime(slate_date, "%m/%d/%Y")
-    out_path = OUTPUT_DIR / f"edge_ncaab_spreads_{dt.year}_{dt.month:02d}_{dt.day:02d}.csv"
+            side = "favorite" if spread < 0 else "underdog"
+            spread_abs = abs(spread)
 
-    fields = [
-        "game_id","date","time","team","opponent","spread",
-        "model_probability",
-        "fair_decimal_odds","fair_american_odds",
-        "acceptable_decimal_odds","acceptable_american_odds",
-        "league"
-    ]
+            # Market implied probability
+            market_decimal = (
+                float(r["decimal_odds"])
+                if r["decimal_odds"]
+                else american_to_decimal(odds)
+            )
+            market_prob = clamp_prob(1.0 / market_decimal)
 
-    with out_path.open("w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=fields)
-        w.writeheader()
+            # Juice adjustment
+            extra_juice = lookup_spread_juice(
+                juice_table, spread_abs, side
+            )
 
-        for gid, rows in games.items():
-            if len(rows) != 2:
-                continue
+            adjusted_prob = clamp_prob(market_prob * (1.0 - extra_juice))
 
-            a, b = rows
+            fair_decimal = fair_decimal_from_prob(adjusted_prob)
+            fair_american = decimal_to_american(fair_decimal)
 
-            pts_a = float(a["points"])
-            pts_b = float(b["points"])
+            acceptable_decimal = fair_decimal
+            acceptable_american = fair_american
 
-            margin = pts_a - pts_b
-            spread_abs = abs(float(a["spread"]))
-
-            # Team A
-            side_a = "favorite" if float(a["spread"]) < 0 else "underdog"
-            p_a = cover_probability(margin, float(a["spread"]))
-
-            mult_a = lookup_juice_multiplier(juice_table, spread_abs, side_a)
-
-            fair_a = 1.0 / p_a
-            acc_a = 1.0 / clamp(p_a * mult_a)
-
-            w.writerow({
-                "game_id": gid,
-                "date": a["date"],
-                "time": a["time"],
-                "team": a["team"],
-                "opponent": a["opponent"],
-                "spread": float(a["spread"]),
-                "model_probability": round(p_a, 6),
-                "fair_decimal_odds": round(fair_a, 6),
-                "fair_american_odds": dec_to_amer(fair_a),
-                "acceptable_decimal_odds": round(acc_a, 6),
-                "acceptable_american_odds": dec_to_amer(acc_a),
-                "league": "ncaab_spread",
+            output_rows.append({
+                "date": r["date"],
+                "time": r["time"],
+                "team": r["team"],
+                "opponent": r["opponent"],
+                "spread": spread,
+                "market_decimal_odds": round(market_decimal, 6),
+                "market_american_odds": int(odds),
+                "fair_decimal_odds": round(fair_decimal, 6),
+                "fair_american_odds": fair_american,
+                "acceptable_decimal_odds": round(acceptable_decimal, 6),
+                "acceptable_american_odds": acceptable_american,
+                "league": r["league"],
             })
 
-            # Team B (complement)
-            side_b = "underdog" if side_a == "favorite" else "favorite"
-            p_b = clamp(1.0 - p_a)
+    OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
 
-            mult_b = lookup_juice_multiplier(juice_table, spread_abs, side_b)
+    with OUTPUT_PATH.open("w", newline="", encoding="utf-8") as f:
+        fieldnames = list(output_rows[0].keys())
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(output_rows)
 
-            fair_b = 1.0 / p_b
-            acc_b = 1.0 / clamp(p_b * mult_b)
-
-            w.writerow({
-                "game_id": gid,
-                "date": b["date"],
-                "time": b["time"],
-                "team": b["team"],
-                "opponent": b["opponent"],
-                "spread": -float(a["spread"]),
-                "model_probability": round(p_b, 6),
-                "fair_decimal_odds": round(fair_b, 6),
-                "fair_american_odds": dec_to_amer(fair_b),
-                "acceptable_decimal_odds": round(acc_b, 6),
-                "acceptable_american_odds": dec_to_amer(acc_b),
-                "league": "ncaab_spread",
-            })
-
-    print(f"Created {out_path}")
 
 if __name__ == "__main__":
     main()
