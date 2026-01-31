@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
 import csv
-import math
 from pathlib import Path
+from statistics import NormalDist
 
 # ============================================================
-# PATHS
+# CONFIGURATION
 # ============================================================
 
 DK_DIR = Path("docs/win/manual/normalized")
@@ -13,55 +13,48 @@ EDGE_DIR = Path("docs/win/edge")
 OUTPUT_DIR = Path("docs/win/ncaab/spreads")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-# ============================================================
-# CONSTANTS
-# ============================================================
-
-SIGMA = 7.2
+SIGMA = 7.2  # Standard deviation for NCAAB
 EPS = 1e-9
 
 # ============================================================
-# HELPERS
+# MATH HELPERS
 # ============================================================
 
-def normal_cdf(x: float) -> float:
-    return 0.5 * (1.0 + math.erf(x / math.sqrt(2)))
+def get_cover_prob(margin: float, spread: float, sigma: float) -> float:
+    """Calculates probability to cover using Normal Distribution."""
+    # z = (Team Margin + Spread) / Sigma
+    z = (margin + spread) / sigma
+    prob = NormalDist(mu=0, sigma=1).cdf(z)
+    return max(EPS, min(1.0 - EPS, prob))
 
 def american_to_decimal(a: float) -> float:
     if a > 0:
         return 1.0 + a / 100.0
     return 1.0 + 100.0 / abs(a)
 
-def decimal_to_american(d: float) -> int:
-    if d >= 2.0:
-        return int(round((d - 1.0) * 100))
-    return int(round(-100.0 / (d - 1.0)))
-
-def clamp(p: float) -> float:
-    return max(EPS, min(1.0 - EPS, p))
-
 # ============================================================
 # MAIN
 # ============================================================
 
 def main():
-    dk_file = sorted(DK_DIR.glob("norm_dk_ncaab_spreads_*.csv"))[-1]
-    edge_file = sorted(EDGE_DIR.glob("edge_ncaab_*.csv"))[-1]
+    # Get latest files
+    try:
+        dk_file = sorted(DK_DIR.glob("norm_dk_ncaab_spreads_*.csv"))[-1]
+        edge_file = sorted(EDGE_DIR.glob("edge_ncaab_*.csv"))[-1]
+    except IndexError:
+        print("Error: Required input files not found.")
+        return
 
+    # Extract date for filename
     parts = dk_file.stem.split("_")
     yyyy, mm, dd = parts[-3], parts[-2], parts[-1]
-
     out_path = OUTPUT_DIR / f"edge_ncaab_spreads_{yyyy}_{mm}_{dd}.csv"
 
-    # ------------------------
-    # load model (points only)
-    # ------------------------
+    # Load model points
     model = {}
-
     with edge_file.open(newline="", encoding="utf-8") as f:
         for r in csv.DictReader(f):
-            team = r["team"]
-            model[team] = {
+            model[r["team"]] = {
                 "points": float(r["points"]),
                 "opponent": r["opponent"],
                 "game_id": r["game_id"],
@@ -69,23 +62,14 @@ def main():
                 "time": r["time"],
             }
 
-    rows_written = 0
-
     fields = [
-        "game_id",
-        "date",
-        "time",
-        "team",
-        "opponent",
-        "spread",
-        "model_cover_prob",
-        "dk_decimal_odds",
-        "dk_american_odds",
-        "market_prob",
-        "edge_prob",
-        "edge_pct",
-        "league",
+        "game_id", "date", "time", "team", "opponent", "spread",
+        "model_cover_prob", "dk_decimal_odds", "dk_american_odds",
+        "market_prob", "edge_prob", "edge_pct", "league"
     ]
+
+    processed_games = set()
+    rows_written = 0
 
     with out_path.open("w", newline="", encoding="utf-8") as f_out:
         writer = csv.DictWriter(f_out, fieldnames=fields)
@@ -93,44 +77,36 @@ def main():
 
         with dk_file.open(newline="", encoding="utf-8") as f_dk:
             reader = csv.DictReader(f_dk)
-
-            # YOU SAID THE FILE HAS ODDS — WE USE THEM DIRECTLY
-            odds_col = None
-            for c in reader.fieldnames:
-                if "american" in c.lower():
-                    odds_col = c
-                    break
-
-            if odds_col is None:
-                raise RuntimeError("No American odds column found in DK file")
+            
+            # Detect American odds column
+            odds_col = next((c for c in reader.fieldnames if "american" in c.lower()), None)
+            if not odds_col:
+                raise RuntimeError("No American odds column found")
 
             for r in reader:
                 team = r["team"]
-
                 if team not in model:
                     continue
 
                 opp = model[team]["opponent"]
-                if opp not in model:
+                game_id = model[team]["game_id"]
+
+                # Avoid processing the same game twice (Home vs Away)
+                if game_id in processed_games:
                     continue
 
                 spread = float(r["spread"])
                 dk_american = float(r[odds_col])
                 dk_decimal = american_to_decimal(dk_american)
 
-                team_pts = model[team]["points"]
-                opp_pts = model[opp]["points"]
-                margin = team_pts - opp_pts
-
-                cover_prob = clamp(
-                    normal_cdf((margin + spread) / SIGMA)
-                )
-
-                market_prob = clamp(1.0 / dk_decimal)
+                # Probabilities
+                margin = model[team]["points"] - model[opp]["points"]
+                cover_prob = get_cover_prob(margin, spread, SIGMA)
+                market_prob = 1.0 / dk_decimal
                 edge = cover_prob - market_prob
 
                 writer.writerow({
-                    "game_id": model[team]["game_id"],
+                    "game_id": game_id,
                     "date": model[team]["date"],
                     "time": model[team]["time"],
                     "team": team,
@@ -144,13 +120,11 @@ def main():
                     "edge_pct": round(edge * 100.0, 2),
                     "league": "ncaab_spread",
                 })
-
+                
+                processed_games.add(game_id)
                 rows_written += 1
 
-    if rows_written == 0:
-        raise RuntimeError("ZERO rows written — team matching failed")
-
-    print(f"Wrote {rows_written} rows to {out_path}")
+    print(f"Success: Wrote {rows_written} unique games to {out_path.name}")
 
 if __name__ == "__main__":
     main()
