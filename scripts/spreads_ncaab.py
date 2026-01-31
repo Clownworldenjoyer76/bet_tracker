@@ -22,7 +22,8 @@ EPS = 1e-9
 
 def get_cover_prob(margin: float, spread: float, sigma: float) -> float:
     """Calculates probability to cover using Normal Distribution."""
-    # z = (Team Margin + Spread) / Sigma
+    # z = (Predicted Margin + Spread) / Sigma
+    # Note: Spread is usually negative for favorites (e.g., -8.5)
     z = (margin + spread) / sigma
     prob = NormalDist(mu=0, sigma=1).cdf(z)
     return max(EPS, min(1.0 - EPS, prob))
@@ -78,10 +79,14 @@ def main():
         with dk_file.open(newline="", encoding="utf-8") as f_dk:
             reader = csv.DictReader(f_dk)
             
-            # Detect American odds column
-            odds_col = next((c for c in reader.fieldnames if "american" in c.lower()), None)
+            # FLEXIBLE COLUMN DETECTION
+            # Looks for 'odds' exactly, then 'american', then defaults to None
+            odds_col = "odds" if "odds" in reader.fieldnames else \
+                       next((c for c in reader.fieldnames if "american" in c.lower()), None)
+            
             if not odds_col:
-                raise RuntimeError("No American odds column found")
+                print(f"Columns found: {reader.fieldnames}")
+                raise RuntimeError("Could not find an 'odds' or 'american' column.")
 
             for r in reader:
                 team = r["team"]
@@ -91,7 +96,7 @@ def main():
                 opp = model[team]["opponent"]
                 game_id = model[team]["game_id"]
 
-                # Avoid processing the same game twice (Home vs Away)
+                # Ensure we only calculate each game once
                 if game_id in processed_games:
                     continue
 
@@ -100,8 +105,10 @@ def main():
                 dk_decimal = american_to_decimal(dk_american)
 
                 # Probabilities
-                margin = model[team]["points"] - model[opp]["points"]
-                cover_prob = get_cover_prob(margin, spread, SIGMA)
+                # Predicted Margin = Team Score - Opponent Score
+                predicted_margin = model[team]["points"] - model[opp]["points"]
+                cover_prob = get_cover_prob(predicted_margin, spread, SIGMA)
+                
                 market_prob = 1.0 / dk_decimal
                 edge = cover_prob - market_prob
 
