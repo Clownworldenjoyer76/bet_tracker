@@ -50,11 +50,13 @@ jobs:
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
 
-          git add docs/win/nhl/spreads/*.csv
-          git add docs/win/nba/spreads/*.csv
-          git add docs/win/ncaab/spreads/*.csv
-          git add docs/win/ncaab/report/*.csv
+          # Add Spreads CSVs
+          git add docs/win/nhl/spreads/*.csv || echo "No NHL files found"
+          git add docs/win/nba/spreads/*.csv || echo "No NBA files found"
+          git add docs/win/ncaab/spreads/*.csv || echo "No NCAAB files found"
           
-
-          git commit -m "Generate NHL, NBA, and NCAAB spreads CSVs" || echo "No changes to commit"
+          # Add Betting Reports (Note: .txt extension)
+          git add docs/win/ncaab/report/*.txt || echo "No NCAAB report found"
+          
+          git commit -m "Generate NHL, NBA, and NCAAB spreads and reports" || echo "No changes to commit"
           git push
