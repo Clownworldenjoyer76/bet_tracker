@@ -48,7 +48,7 @@ def main():
     parts = dk_file.stem.split("_")
     yyyy, mm, dd = parts[-3], parts[-2], parts[-1]
     out_path = OUTPUT_DIR / f"edge_ncaab_spreads_{yyyy}_{mm}_{dd}.csv"
-    report_path = REPORT_DIR / f"betting_report_{yyyy}_{mm}_{dd}.txt"
+    report_path = REPORT_DIR / f"betting_report_{yyyy}_{mm}_{dd}.csv"
 
     model = {}
     with edge_file.open(newline="", encoding="utf-8") as f:
@@ -67,7 +67,7 @@ def main():
         "market_prob", "edge_prob", "edge_pct", "league"
     ]
 
-    bet_report = []
+    bet_report_rows = []
     processed_games = set()
 
     with out_path.open("w", newline="", encoding="utf-8") as f_out:
@@ -109,17 +109,17 @@ def main():
                 processed_games.add(game_id)
 
                 if edge_pct >= EDGE_THRESHOLD:
-                    bet_report.append(f"{row['time']} | {team} ({spread}) @ {dk_american} | Edge: {row['edge_pct']}%")
+                    bet_report_rows.append(row)
 
-    # Write and Print Report
-    report_header = f"NCAAB BETTING REPORT - {mm}/{dd}/{yyyy}\nThreshold: +{EDGE_THRESHOLD}%\n" + "="*45 + "\n"
-    report_body = "\n".join(bet_report) if bet_report else "No high-value edges found."
+    # Write the high-value Betting Report CSV
+    with report_path.open("w", newline="", encoding="utf-8") as f_rep:
+        rep_writer = csv.DictWriter(f_rep, fieldnames=fields)
+        rep_writer.writeheader()
+        rep_writer.writerows(bet_report_rows)
     
-    report_content = report_header + report_body
-    report_path.write_text(report_content)
-    
-    print(report_content)
-    print(f"\nCSV: {out_path.name}\nReport: {report_path.name}")
+    print(f"SUCCESS: Generated {len(bet_report_rows)} high-value edges.")
+    print(f"CSV: {out_path.name}")
+    print(f"Report: {report_path.name}")
 
 if __name__ == "__main__":
     main()
