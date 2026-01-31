@@ -12,7 +12,7 @@ from datetime import datetime
 
 EDGE_DIR = Path("docs/win/edge")
 DK_DIR = Path("docs/win/manual/normalized")
-OUTPUT_DIR = Path("docs/win/edge")
+OUTPUT_DIR = Path("docs/win/ncaab/spreads")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 JUICE_TABLE_PATH = Path("config/ncaab/ncaab_spreads_juice_table.csv")
