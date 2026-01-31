@@ -48,7 +48,7 @@ def normal_cdf(x: float) -> float:
     return 0.5 * (1.0 + math.erf(x / math.sqrt(2.0)))
 
 def clamp(p: float) -> float:
-    return max(EPS, min(1.0 - EPS, p)))
+    return max(EPS, min(1.0 - EPS, p))
 
 def decimal_to_american(d: float) -> int:
     if d >= 2.0:
