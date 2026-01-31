@@ -2,18 +2,18 @@
 """
 build_edge_ncaab_spreads.py
 
-Mirrors NBA spread workflow exactly, adapted for NCAAB.
+Option A: Mirror NBA pricing logic while still using DK spreads.
 
-Authoritative rules:
-- Use projected points ONLY for cover probability
-- Spread comes from DK normalized file
+Rules enforced:
+- Spread comes from DK normalized file (norm_dk_ncaab_spreads_*.csv)
+- Cover probabilities come from projected margin + normal CDF (like NBA)
 - One output row per team
 - Spread sign preserved from DK
-- Price spreads using COVER probability (NOT win probability)
 - Personal juice applied via config/ncaab/ncaab_spreads_juice_table.csv
 """
 
 import csv
+import math
 from pathlib import Path
 from collections import defaultdict
 from datetime import datetime
@@ -30,41 +30,30 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 JUICE_TABLE_PATH = Path("config/ncaab/ncaab_spreads_juice_table.csv")
 
 # ============================================================
+# CONSTANTS (added)
+# ============================================================
+# Tune this if you have a league-specific calibration.
+# Larger -> probabilities closer to 50/50 for the same spread/margin.
+LEAGUE_STD = 10.5
+EPS = 1e-6
+
+# ============================================================
 # HELPERS
 # ============================================================
 
-def cover_probability(p_win: float, spread: float) -> float:
-    """
-    Convert win probability into spread cover probability.
-    Conservative, monotonic, and empirically sane.
-    """
-    s = abs(spread)
+def normal_cdf(x: float) -> float:
+    return 0.5 * (1.0 + math.erf(x / math.sqrt(2.0)))
 
-    if s <= 1.5:
-        adj = 0.015
-    elif s <= 3.5:
-        adj = 0.035
-    elif s <= 5.5:
-        adj = 0.060
-    elif s <= 7.5:
-        adj = 0.085
-    elif s <= 10.5:
-        adj = 0.11
-    else:
-        adj = 0.14
-
-    return max(min(p_win - adj, 0.99), 0.01)
-
+def clamp(p: float) -> float:
+    return max(EPS, min(1.0 - EPS, p))
 
 def decimal_to_american(d: float) -> int:
     if d >= 2.0:
-        return int(round((d - 1) * 100))
-    return int(round(-100 / (d - 1)))
-
+        return int(round((d - 1.0) * 100))
+    return int(round(-100.0 / (d - 1.0)))
 
 def fair_decimal(p: float) -> float:
     return 1.0 / p
-
 
 def acceptable_decimal(p: float, juice: float) -> float:
     return 1.0 / max(p - juice, 0.0001)
@@ -85,7 +74,6 @@ def load_spreads_juice_table(path: Path):
                 "juice": float(row["extra_juice_pct"]),
             })
     return table
-
 
 def lookup_spreads_juice(table, spread_abs, side):
     for r in table:
@@ -109,7 +97,6 @@ def main():
 
     edge_file = edge_files[-1]
     dk_spreads_file = dk_spread_files[-1]
-
     spreads_juice_table = load_spreads_juice_table(JUICE_TABLE_PATH)
 
     # ------------------------
@@ -169,22 +156,28 @@ def main():
                 continue
 
             try:
-                p_a = float(a["win_probability"])
-                p_b = float(b["win_probability"])
+                pts_a = float(a["points"])
+                pts_b = float(b["points"])
             except (ValueError, TypeError):
                 continue
 
-            spread_a = spread_by_team[a["team"]]
-            spread_b = spread_by_team[b["team"]]
+            spread_a = float(spread_by_team[a["team"]])
+            spread_b = float(spread_by_team[b["team"]])
 
+            # Infer sides from DK spread sign
             side_a = "favorite" if spread_a < 0 else "underdog"
             side_b = "favorite" if spread_b < 0 else "underdog"
-
             abs_spread = abs(spread_a)
 
-            p_cover_a = cover_probability(p_a, spread_a)
-            p_cover_b = cover_probability(p_b, spread_b)
+            # Projected margin from model points (team - opponent)
+            margin_a = pts_a - pts_b
+            margin_b = -margin_a
 
+            # Cover probabilities via normal CDF (NBA-style)
+            p_cover_a = clamp(normal_cdf((margin_a + spread_a) / LEAGUE_STD))
+            p_cover_b = clamp(normal_cdf((margin_b + spread_b) / LEAGUE_STD))
+
+            # Apply juice table per side/band
             juice_a = lookup_spreads_juice(spreads_juice_table, abs_spread, side_a)
             juice_b = lookup_spreads_juice(spreads_juice_table, abs_spread, side_b)
 
@@ -201,10 +194,10 @@ def main():
                 "team": a["team"],
                 "opponent": a["opponent"],
                 "spread": spread_a,
-                "model_probability": round(p_cover_a, 4),
-                "fair_decimal_odds": round(fair_a, 4),
+                "model_probability": round(p_cover_a, 6),
+                "fair_decimal_odds": round(fair_a, 6),
                 "fair_american_odds": decimal_to_american(fair_a),
-                "acceptable_decimal_odds": round(acc_a, 4),
+                "acceptable_decimal_odds": round(acc_a, 6),
                 "acceptable_american_odds": decimal_to_american(acc_a),
                 "league": "ncaab_spread",
             })
@@ -216,16 +209,15 @@ def main():
                 "team": b["team"],
                 "opponent": b["opponent"],
                 "spread": spread_b,
-                "model_probability": round(p_cover_b, 4),
-                "fair_decimal_odds": round(fair_b, 4),
+                "model_probability": round(p_cover_b, 6),
+                "fair_decimal_odds": round(fair_b, 6),
                 "fair_american_odds": decimal_to_american(fair_b),
-                "acceptable_decimal_odds": round(acc_b, 4),
+                "acceptable_decimal_odds": round(acc_b, 6),
                 "acceptable_american_odds": decimal_to_american(acc_b),
                 "league": "ncaab_spread",
             })
 
     print(f"Created {out_path}")
-
 
 if __name__ == "__main__":
     main()
