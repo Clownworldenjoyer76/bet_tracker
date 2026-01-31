@@ -2,12 +2,13 @@
 """
 build_edge_ncaab_spreads.py
 
-Correct NCAAB spread pricing.
+NCAAB spread pricing with market–model blend (Option C).
 
 Rules enforced:
 - Spread comes from DK normalized file
 - Cover probability computed ONCE per game (favorite)
 - Underdog probability = 1 - favorite probability
+- Effective margin = 50% model margin + 50% market spread
 - Normal CDF with historical sigma = 7.2
 - One output row per team
 - Personal juice applied via config/ncaab/ncaab_spreads_juice_table.csv
@@ -36,6 +37,8 @@ JUICE_TABLE_PATH = Path("config/ncaab/ncaab_spreads_juice_table.csv")
 
 LEAGUE_STD = 7.2
 EPS = 1e-6
+MODEL_WEIGHT = 0.5
+MARKET_WEIGHT = 0.5
 
 # ============================================================
 # HELPERS
@@ -45,7 +48,7 @@ def normal_cdf(x: float) -> float:
     return 0.5 * (1.0 + math.erf(x / math.sqrt(2.0)))
 
 def clamp(p: float) -> float:
-    return max(EPS, min(1.0 - EPS, p))
+    return max(EPS, min(1.0 - EPS, p)))
 
 def decimal_to_american(d: float) -> int:
     if d >= 2.0:
@@ -122,7 +125,7 @@ def main():
                 games[row["game_id"]].append(row)
 
     if not slate_date:
-        raise ValueError("Could not determine slate date from input file")
+        raise ValueError("Could not determine slate date")
 
     dt = datetime.strptime(slate_date, "%m/%d/%Y")
     out_path = OUTPUT_DIR / f"edge_ncaab_spreads_{dt.year}_{dt.month:02d}_{dt.day:02d}.csv"
@@ -164,7 +167,7 @@ def main():
             spread_1 = spread_by_team[r1["team"]]
             spread_2 = spread_by_team[r2["team"]]
 
-            # Identify favorite / underdog
+            # Identify favorite
             if spread_1 < 0:
                 fav, dog = r1, r2
                 fav_pts, dog_pts = pts_1, pts_2
@@ -174,25 +177,26 @@ def main():
                 fav_pts, dog_pts = pts_2, pts_1
                 fav_spread, dog_spread = spread_2, spread_1
 
-            margin = fav_pts - dog_pts
+            model_margin = fav_pts - dog_pts
             s = abs(fav_spread)
 
-            # Favorite cover probability (single computation)
-            p_fav = clamp(normal_cdf((margin - s) / LEAGUE_STD))
+            effective_margin = (
+                MODEL_WEIGHT * model_margin +
+                MARKET_WEIGHT * s
+            )
+
+            p_fav = clamp(normal_cdf((effective_margin - s) / LEAGUE_STD))
             p_dog = 1.0 - p_fav
 
-            # Juice
             juice_fav = lookup_spreads_juice(spreads_juice_table, s, "favorite")
             juice_dog = lookup_spreads_juice(spreads_juice_table, s, "underdog")
 
-            # Odds
             fair_fav = fair_decimal(p_fav)
             fair_dog = fair_decimal(p_dog)
 
             acc_fav = acceptable_decimal(p_fav, juice_fav)
             acc_dog = acceptable_decimal(p_dog, juice_dog)
 
-            # Write favorite
             writer.writerow({
                 "game_id": game_id,
                 "date": fav["date"],
@@ -208,7 +212,6 @@ def main():
                 "league": "ncaab_spread",
             })
 
-            # Write underdog
             writer.writerow({
                 "game_id": game_id,
                 "date": dog["date"],
