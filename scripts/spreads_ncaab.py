@@ -1,27 +1,9 @@
 import csv
-import math
+import sys
 from pathlib import Path
-
-# =========================
-# CONFIG
-# =========================
-
-INPUT_PATH = Path(
-    "docs/win/manual/normalized/norm_dk_ncaab_spreads_2026_01_31.csv"
-)
-JUICE_TABLE_PATH = Path(
-    "config/ncaab/ncaab_spreads_juice_table.csv"
-)
-OUTPUT_PATH = Path(
-    "docs/win/edge/edge_ncaab_spreads_2026_01_31.csv"
-)
 
 EPS = 1e-9
 
-
-# =========================
-# HELPERS
-# =========================
 
 def american_to_decimal(odds):
     odds = float(odds)
@@ -43,15 +25,6 @@ def clamp_prob(p):
     return max(EPS, min(1.0 - EPS, p))
 
 
-def fair_decimal_from_prob(p):
-    p = clamp_prob(p)
-    return 1.0 / p
-
-
-# =========================
-# JUICE TABLE
-# =========================
-
 def load_spreads_juice_table(path):
     rows = []
     with path.open(newline="", encoding="utf-8") as f:
@@ -61,14 +34,14 @@ def load_spreads_juice_table(path):
                 "market_type": r["market_type"].strip(),
                 "band_low": float(r["band_low"]),
                 "band_high": float(r["band_high"]),
-                "side": r["side"].strip(),  # favorite / underdog / any
+                "side": r["side"].strip(),
                 "extra_juice_pct": float(r["extra_juice_pct"]),
             })
     return rows
 
 
-def lookup_spread_juice(juice_table, spread_abs, side):
-    for row in juice_table:
+def lookup_spread_juice(table, spread_abs, side):
+    for row in table:
         if row["market_type"] != "spread":
             continue
         if not (row["band_low"] <= spread_abs <= row["band_high"]):
@@ -79,18 +52,25 @@ def lookup_spread_juice(juice_table, spread_abs, side):
     return 0.0
 
 
-# =========================
-# MAIN
-# =========================
+def main(run_date):
+    input_path = Path(
+        f"docs/win/manual/normalized/norm_dk_ncaab_spreads_{run_date}.csv"
+    )
+    output_path = Path(
+        f"docs/win/edge/edge_ncaab_spreads_{run_date}.csv"
+    )
+    juice_path = Path(
+        "config/ncaab/ncaab_spreads_juice_table.csv"
+    )
 
-def main():
-    juice_table = load_spreads_juice_table(JUICE_TABLE_PATH)
+    if not input_path.exists():
+        raise FileNotFoundError(input_path)
 
+    juice_table = load_spreads_juice_table(juice_path)
     output_rows = []
 
-    with INPUT_PATH.open(newline="", encoding="utf-8") as f:
+    with input_path.open(newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
-
         for r in reader:
             spread = float(r["spread"])
             odds = float(r["odds"])
@@ -98,26 +78,23 @@ def main():
             side = "favorite" if spread < 0 else "underdog"
             spread_abs = abs(spread)
 
-            # Market implied probability
             market_decimal = (
                 float(r["decimal_odds"])
                 if r["decimal_odds"]
                 else american_to_decimal(odds)
             )
-            market_prob = clamp_prob(1.0 / market_decimal)
 
-            # Juice adjustment
+            market_prob = clamp_prob(1.0 / market_decimal)
             extra_juice = lookup_spread_juice(
                 juice_table, spread_abs, side
             )
 
-            adjusted_prob = clamp_prob(market_prob * (1.0 - extra_juice))
+            adjusted_prob = clamp_prob(
+                market_prob * (1.0 - extra_juice)
+            )
 
-            fair_decimal = fair_decimal_from_prob(adjusted_prob)
+            fair_decimal = 1.0 / adjusted_prob
             fair_american = decimal_to_american(fair_decimal)
-
-            acceptable_decimal = fair_decimal
-            acceptable_american = fair_american
 
             output_rows.append({
                 "date": r["date"],
@@ -129,19 +106,21 @@ def main():
                 "market_american_odds": int(odds),
                 "fair_decimal_odds": round(fair_decimal, 6),
                 "fair_american_odds": fair_american,
-                "acceptable_decimal_odds": round(acceptable_decimal, 6),
-                "acceptable_american_odds": acceptable_american,
+                "acceptable_decimal_odds": round(fair_decimal, 6),
+                "acceptable_american_odds": fair_american,
                 "league": r["league"],
             })
 
-    OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    with OUTPUT_PATH.open("w", newline="", encoding="utf-8") as f:
-        fieldnames = list(output_rows[0].keys())
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
+    with output_path.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=output_rows[0].keys())
         writer.writeheader()
         writer.writerows(output_rows)
 
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) != 2:
+        raise SystemExit("Usage: spreads_ncaab.py YYYY_MM_DD")
+
+    main(sys.argv[1])
