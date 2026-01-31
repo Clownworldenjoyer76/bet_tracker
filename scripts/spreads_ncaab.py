@@ -2,13 +2,14 @@
 """
 build_edge_ncaab_spreads.py
 
-Option A: Mirror NBA pricing logic while still using DK spreads.
+Correct NCAAB spread pricing.
 
 Rules enforced:
-- Spread comes from DK normalized file (norm_dk_ncaab_spreads_*.csv)
-- Cover probabilities come from projected margin + normal CDF (like NBA)
+- Spread comes from DK normalized file
+- Cover probability computed ONCE per game (favorite)
+- Underdog probability = 1 - favorite probability
+- Normal CDF with historical sigma = 7.2
 - One output row per team
-- Spread sign preserved from DK
 - Personal juice applied via config/ncaab/ncaab_spreads_juice_table.csv
 """
 
@@ -30,11 +31,10 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 JUICE_TABLE_PATH = Path("config/ncaab/ncaab_spreads_juice_table.csv")
 
 # ============================================================
-# CONSTANTS (added)
+# CONSTANTS
 # ============================================================
-# Tune this if you have a league-specific calibration.
-# Larger -> probabilities closer to 50/50 for the same spread/margin.
-LEAGUE_STD = 10.5
+
+LEAGUE_STD = 7.2
 EPS = 1e-6
 
 # ============================================================
@@ -56,7 +56,7 @@ def fair_decimal(p: float) -> float:
     return 1.0 / p
 
 def acceptable_decimal(p: float, juice: float) -> float:
-    return 1.0 / max(p - juice, 0.0001)
+    return 1.0 / max(p - juice, EPS)
 
 # ============================================================
 # JUICE TABLE HELPERS
@@ -150,70 +150,77 @@ def main():
             if len(rows) != 2:
                 continue
 
-            a, b = rows
+            r1, r2 = rows
 
-            if a["team"] not in spread_by_team or b["team"] not in spread_by_team:
+            if r1["team"] not in spread_by_team or r2["team"] not in spread_by_team:
                 continue
 
             try:
-                pts_a = float(a["points"])
-                pts_b = float(b["points"])
+                pts_1 = float(r1["points"])
+                pts_2 = float(r2["points"])
             except (ValueError, TypeError):
                 continue
 
-            spread_a = float(spread_by_team[a["team"]])
-            spread_b = float(spread_by_team[b["team"]])
+            spread_1 = spread_by_team[r1["team"]]
+            spread_2 = spread_by_team[r2["team"]]
 
-            # Infer sides from DK spread sign
-            side_a = "favorite" if spread_a < 0 else "underdog"
-            side_b = "favorite" if spread_b < 0 else "underdog"
-            abs_spread = abs(spread_a)
+            # Identify favorite / underdog
+            if spread_1 < 0:
+                fav, dog = r1, r2
+                fav_pts, dog_pts = pts_1, pts_2
+                fav_spread, dog_spread = spread_1, spread_2
+            else:
+                fav, dog = r2, r1
+                fav_pts, dog_pts = pts_2, pts_1
+                fav_spread, dog_spread = spread_2, spread_1
 
-            # Projected margin from model points (team - opponent)
-            margin_a = pts_a - pts_b
-            margin_b = -margin_a
+            margin = fav_pts - dog_pts
+            s = abs(fav_spread)
 
-            # Cover probabilities via normal CDF (NBA-style)
-            p_cover_a = clamp(normal_cdf((margin_a + spread_a) / LEAGUE_STD))
-            p_cover_b = clamp(normal_cdf((margin_b + spread_b) / LEAGUE_STD))
+            # Favorite cover probability (single computation)
+            p_fav = clamp(normal_cdf((margin - s) / LEAGUE_STD))
+            p_dog = 1.0 - p_fav
 
-            # Apply juice table per side/band
-            juice_a = lookup_spreads_juice(spreads_juice_table, abs_spread, side_a)
-            juice_b = lookup_spreads_juice(spreads_juice_table, abs_spread, side_b)
+            # Juice
+            juice_fav = lookup_spreads_juice(spreads_juice_table, s, "favorite")
+            juice_dog = lookup_spreads_juice(spreads_juice_table, s, "underdog")
 
-            fair_a = fair_decimal(p_cover_a)
-            acc_a = acceptable_decimal(p_cover_a, juice_a)
+            # Odds
+            fair_fav = fair_decimal(p_fav)
+            fair_dog = fair_decimal(p_dog)
 
-            fair_b = fair_decimal(p_cover_b)
-            acc_b = acceptable_decimal(p_cover_b, juice_b)
+            acc_fav = acceptable_decimal(p_fav, juice_fav)
+            acc_dog = acceptable_decimal(p_dog, juice_dog)
 
+            # Write favorite
             writer.writerow({
                 "game_id": game_id,
-                "date": a["date"],
-                "time": a["time"],
-                "team": a["team"],
-                "opponent": a["opponent"],
-                "spread": spread_a,
-                "model_probability": round(p_cover_a, 6),
-                "fair_decimal_odds": round(fair_a, 6),
-                "fair_american_odds": decimal_to_american(fair_a),
-                "acceptable_decimal_odds": round(acc_a, 6),
-                "acceptable_american_odds": decimal_to_american(acc_a),
+                "date": fav["date"],
+                "time": fav["time"],
+                "team": fav["team"],
+                "opponent": fav["opponent"],
+                "spread": fav_spread,
+                "model_probability": round(p_fav, 6),
+                "fair_decimal_odds": round(fair_fav, 6),
+                "fair_american_odds": decimal_to_american(fair_fav),
+                "acceptable_decimal_odds": round(acc_fav, 6),
+                "acceptable_american_odds": decimal_to_american(acc_fav),
                 "league": "ncaab_spread",
             })
 
+            # Write underdog
             writer.writerow({
                 "game_id": game_id,
-                "date": b["date"],
-                "time": b["time"],
-                "team": b["team"],
-                "opponent": b["opponent"],
-                "spread": spread_b,
-                "model_probability": round(p_cover_b, 6),
-                "fair_decimal_odds": round(fair_b, 6),
-                "fair_american_odds": decimal_to_american(fair_b),
-                "acceptable_decimal_odds": round(acc_b, 6),
-                "acceptable_american_odds": decimal_to_american(acc_b),
+                "date": dog["date"],
+                "time": dog["time"],
+                "team": dog["team"],
+                "opponent": dog["opponent"],
+                "spread": dog_spread,
+                "model_probability": round(p_dog, 6),
+                "fair_decimal_odds": round(fair_dog, 6),
+                "fair_american_odds": decimal_to_american(fair_dog),
+                "acceptable_decimal_odds": round(acc_dog, 6),
+                "acceptable_american_odds": decimal_to_american(acc_dog),
                 "league": "ncaab_spread",
             })
 
