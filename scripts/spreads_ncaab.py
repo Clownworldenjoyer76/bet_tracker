@@ -5,13 +5,10 @@ build_edge_ncaab_spreads.py
 Mirrors NBA spread workflow exactly, adapted for NCAAB.
 
 Authoritative rules:
-- Use projected points to compute margin
-- Favorite = higher projected points
-- Spread = abs(point_diff), forced to .5
+- Use projected points ONLY for cover probability
+- Spread comes from DK normalized file
 - One output row per team
-- Spread sign:
-    favorite  -> -spread
-    underdog  -> +spread
+- Spread sign preserved from DK
 - Price spreads using COVER probability (NOT win probability)
 - Personal juice applied via config/ncaab/ncaab_spreads_juice_table.csv
 """
@@ -25,7 +22,8 @@ from datetime import datetime
 # PATHS
 # ============================================================
 
-INPUT_DIR = Path("docs/win/edge")
+EDGE_DIR = Path("docs/win/edge")
+DK_SPREADS_DIR = Path("docs/win/manual/normalized")
 OUTPUT_DIR = Path("docs/win/ncaab/spreads")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -34,17 +32,6 @@ JUICE_TABLE_PATH = Path("config/ncaab/ncaab_spreads_juice_table.csv")
 # ============================================================
 # HELPERS
 # ============================================================
-
-def force_half_point(x: float) -> float:
-    """
-    Round to nearest 0.5 and force non-integer (.5) spreads.
-    Eliminates pushes by construction.
-    """
-    rounded = round(x * 2) / 2
-    if rounded.is_integer():
-        return rounded + 0.5
-    return rounded
-
 
 def cover_probability(p_win: float, spread: float) -> float:
     """
@@ -101,10 +88,6 @@ def load_spreads_juice_table(path: Path):
 
 
 def lookup_spreads_juice(table, spread_abs, side):
-    """
-    spread_abs : positive float
-    side       : 'favorite' or 'underdog'
-    """
     for r in table:
         if r["low"] <= spread_abs <= r["high"]:
             if r["side"] == "any" or r["side"] == side:
@@ -116,17 +99,34 @@ def lookup_spreads_juice(table, spread_abs, side):
 # ============================================================
 
 def main():
-    input_files = sorted(INPUT_DIR.glob("edge_ncaab_*.csv"))
-    if not input_files:
-        raise FileNotFoundError("No NCAAB edge files found")
+    edge_files = sorted(EDGE_DIR.glob("edge_ncaab_*.csv"))
+    dk_spread_files = sorted(DK_SPREADS_DIR.glob("norm_dk_ncaab_spreads_*.csv"))
 
-    latest_file = input_files[-1]
+    if not edge_files:
+        raise FileNotFoundError("No NCAAB edge files found")
+    if not dk_spread_files:
+        raise FileNotFoundError("No DK NCAAB spread files found")
+
+    edge_file = edge_files[-1]
+    dk_spreads_file = dk_spread_files[-1]
+
     spreads_juice_table = load_spreads_juice_table(JUICE_TABLE_PATH)
 
+    # ------------------------
+    # Load DK spreads
+    # ------------------------
+    spread_by_team = {}
+    with dk_spreads_file.open(newline="", encoding="utf-8") as f:
+        for r in csv.DictReader(f):
+            spread_by_team[r["team"]] = float(r["spread"])
+
+    # ------------------------
+    # Load edge data
+    # ------------------------
     games = defaultdict(list)
     slate_date = None
 
-    with latest_file.open(newline="", encoding="utf-8") as f:
+    with edge_file.open(newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
             if not slate_date and row.get("date"):
@@ -165,33 +165,34 @@ def main():
 
             a, b = rows
 
+            if a["team"] not in spread_by_team or b["team"] not in spread_by_team:
+                continue
+
             try:
-                pts_a = float(a["points"])
-                pts_b = float(b["points"])
                 p_a = float(a["win_probability"])
                 p_b = float(b["win_probability"])
             except (ValueError, TypeError):
                 continue
 
-            margin = pts_a - pts_b
-            spread = force_half_point(abs(margin))
+            spread_a = spread_by_team[a["team"]]
+            spread_b = spread_by_team[b["team"]]
 
-            # ========================
-            # Team A
-            # ========================
-            side_a = "favorite" if margin > 0 else "underdog"
-            spread_a = -spread if side_a == "favorite" else spread
+            side_a = "favorite" if spread_a < 0 else "underdog"
+            side_b = "favorite" if spread_b < 0 else "underdog"
 
-            p_cover_a = cover_probability(p_a, spread)
+            abs_spread = abs(spread_a)
 
-            juice_a = lookup_spreads_juice(
-                spreads_juice_table,
-                spread,
-                side_a
-            )
+            p_cover_a = cover_probability(p_a, spread_a)
+            p_cover_b = cover_probability(p_b, spread_b)
 
-            fair_d = fair_decimal(p_cover_a)
-            acc_d = acceptable_decimal(p_cover_a, juice_a)
+            juice_a = lookup_spreads_juice(spreads_juice_table, abs_spread, side_a)
+            juice_b = lookup_spreads_juice(spreads_juice_table, abs_spread, side_b)
+
+            fair_a = fair_decimal(p_cover_a)
+            acc_a = acceptable_decimal(p_cover_a, juice_a)
+
+            fair_b = fair_decimal(p_cover_b)
+            acc_b = acceptable_decimal(p_cover_b, juice_b)
 
             writer.writerow({
                 "game_id": game_id,
@@ -201,29 +202,12 @@ def main():
                 "opponent": a["opponent"],
                 "spread": spread_a,
                 "model_probability": round(p_cover_a, 4),
-                "fair_decimal_odds": round(fair_d, 4),
-                "fair_american_odds": decimal_to_american(fair_d),
-                "acceptable_decimal_odds": round(acc_d, 4),
-                "acceptable_american_odds": decimal_to_american(acc_d),
+                "fair_decimal_odds": round(fair_a, 4),
+                "fair_american_odds": decimal_to_american(fair_a),
+                "acceptable_decimal_odds": round(acc_a, 4),
+                "acceptable_american_odds": decimal_to_american(acc_a),
                 "league": "ncaab_spread",
             })
-
-            # ========================
-            # Team B
-            # ========================
-            side_b = "underdog" if side_a == "favorite" else "favorite"
-            spread_b = -spread_a
-
-            p_cover_b = cover_probability(p_b, spread)
-
-            juice_b = lookup_spreads_juice(
-                spreads_juice_table,
-                spread,
-                side_b
-            )
-
-            fair_d = fair_decimal(p_cover_b)
-            acc_d = acceptable_decimal(p_cover_b, juice_b)
 
             writer.writerow({
                 "game_id": game_id,
@@ -233,10 +217,10 @@ def main():
                 "opponent": b["opponent"],
                 "spread": spread_b,
                 "model_probability": round(p_cover_b, 4),
-                "fair_decimal_odds": round(fair_d, 4),
-                "fair_american_odds": decimal_to_american(fair_d),
-                "acceptable_decimal_odds": round(acc_d, 4),
-                "acceptable_american_odds": decimal_to_american(acc_d),
+                "fair_decimal_odds": round(fair_b, 4),
+                "fair_american_odds": decimal_to_american(fair_b),
+                "acceptable_decimal_odds": round(acc_b, 4),
+                "acceptable_american_odds": decimal_to_american(acc_b),
                 "league": "ncaab_spread",
             })
 
