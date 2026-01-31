@@ -78,10 +78,13 @@ def main():
     # load edge model
     # ------------------------
     model_by_team = {}
+    game_meta = {}
 
     with edge_file.open(newline="", encoding="utf-8") as f:
         for r in csv.DictReader(f):
-            model_by_team[r["team"]] = {
+            team = r["team"]
+            model_by_team[team] = r
+            game_meta[team] = {
                 "game_id": r["game_id"],
                 "date": r["date"],
                 "time": r["time"],
@@ -121,9 +124,8 @@ def main():
                 if team not in model_by_team:
                     continue
 
-                meta = model_by_team[team]
+                meta = game_meta[team]
                 opp = meta["opponent"]
-
                 if opp not in model_by_team:
                     continue
 
@@ -131,18 +133,16 @@ def main():
                 spread_abs = abs(spread)
                 side = "favorite" if spread < 0 else "underdog"
 
-                team_pts = meta["points"]
-                opp_pts = model_by_team[opp]["points"]
+                team_pts = float(model_by_team[team]["points"])
+                opp_pts = float(model_by_team[opp]["points"])
                 margin = team_pts - opp_pts
 
-                # PATH A: pure model margin vs market spread
+                # ------------------------------------------------
+                # EDGE FIX: compare model margin to market spread
+                # ------------------------------------------------
                 cover_prob = normal_cdf((margin - spread) / SIGMA)
 
-                juice = lookup_spreads_juice(
-                    juice_table,
-                    spread_abs,
-                    side
-                )
+                juice = lookup_spreads_juice(juice_table, spread_abs, side)
 
                 fair_d = fair_decimal(cover_prob)
                 acc_d = acceptable_decimal(cover_prob, juice)
