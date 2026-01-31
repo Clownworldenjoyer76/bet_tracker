@@ -2,16 +2,15 @@
 """
 build_edge_ncaab_spreads.py
 
-NCAAB spread pricing — MARKET-ANCHORED (recommended).
+Market-anchored NCAAB spread pricing using DK spreads.
 
-Rules enforced:
+Rules:
 - Spread comes from DK normalized file
-- Cover probability computed ONCE per game (favorite)
-- Underdog probability = 1 - favorite probability
-- Effective margin = market spread ONLY
-- Normal CDF with historical sigma = 7.2
+- Historical sigma = 7.2
+- Cover probability = NormalCDF(spread / sigma)
 - One output row per team
-- Personal juice applied via config/ncaab/ncaab_spreads_juice_table.csv
+- Favorite spread negative, underdog positive
+- Juice applied via config/ncaab/ncaab_spreads_juice_table.csv
 """
 
 import csv
@@ -25,7 +24,7 @@ from datetime import datetime
 # ============================================================
 
 EDGE_DIR = Path("docs/win/edge")
-DK_SPREADS_DIR = Path("docs/win/manual/normalized")
+SPREADS_DIR = Path("docs/win/manual/normalized")
 OUTPUT_DIR = Path("docs/win/ncaab/spreads")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -43,7 +42,7 @@ EPS = 1e-6
 # ============================================================
 
 def normal_cdf(x: float) -> float:
-    return 0.5 * (1.0 + math.erf(x / math.sqrt(2.0)))
+    return 0.5 * (1.0 + math.erf(x / math.sqrt(2)))
 
 def clamp(p: float) -> float:
     return max(EPS, min(1.0 - EPS, p))
@@ -60,26 +59,25 @@ def acceptable_decimal(p: float, juice: float) -> float:
     return 1.0 / max(p - juice, EPS)
 
 # ============================================================
-# JUICE TABLE HELPERS
+# JUICE TABLE
 # ============================================================
 
 def load_spreads_juice_table(path: Path):
-    table = []
+    rows = []
     with open(path, newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            table.append({
-                "low": float(row["band_low"]),
-                "high": float(row["band_high"]),
-                "side": row["side"].lower(),  # favorite / underdog / any
-                "juice": float(row["extra_juice_pct"]),
+        for r in csv.DictReader(f):
+            rows.append({
+                "low": float(r["band_low"]),
+                "high": float(r["band_high"]),
+                "side": r["side"].lower(),
+                "juice": float(r["extra_juice_pct"]),
             })
-    return table
+    return rows
 
 def lookup_spreads_juice(table, spread_abs, side):
     for r in table:
         if r["low"] <= spread_abs <= r["high"]:
-            if r["side"] == "any" or r["side"] == side:
+            if r["side"] in ("any", side):
                 return r["juice"]
     return 0.0
 
@@ -88,129 +86,85 @@ def lookup_spreads_juice(table, spread_abs, side):
 # ============================================================
 
 def main():
-    edge_files = sorted(EDGE_DIR.glob("edge_ncaab_*.csv"))
-    dk_spread_files = sorted(DK_SPREADS_DIR.glob("norm_dk_ncaab_spreads_*.csv"))
+    edge_file = sorted(EDGE_DIR.glob("edge_ncaab_*.csv"))[-1]
+    spreads_file = sorted(SPREADS_DIR.glob("norm_dk_ncaab_spreads_*.csv"))[-1]
 
-    if not edge_files:
-        raise FileNotFoundError("No NCAAB edge files found")
-    if not dk_spread_files:
-        raise FileNotFoundError("No DK NCAAB spread files found")
+    juice_table = load_spreads_juice_table(JUICE_TABLE_PATH)
 
-    edge_file = edge_files[-1]
-    dk_spreads_file = dk_spread_files[-1]
-    spreads_juice_table = load_spreads_juice_table(JUICE_TABLE_PATH)
+    edge_by_game = defaultdict(list)
+    with edge_file.open(newline="", encoding="utf-8") as f:
+        for r in csv.DictReader(f):
+            edge_by_game[r["game_id"]].append(r)
 
-    # ------------------------
-    # Load DK spreads
-    # ------------------------
     spread_by_team = {}
-    with dk_spreads_file.open(newline="", encoding="utf-8") as f:
+    with spreads_file.open(newline="", encoding="utf-8") as f:
         for r in csv.DictReader(f):
             spread_by_team[r["team"]] = float(r["spread"])
 
-    # ------------------------
-    # Load edge data
-    # ------------------------
-    games = defaultdict(list)
-    slate_date = None
-
-    with edge_file.open(newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            if not slate_date and row.get("date"):
-                slate_date = row["date"]
-            if row.get("game_id"):
-                games[row["game_id"]].append(row)
-
-    if not slate_date:
-        raise ValueError("Could not determine slate date")
-
-    dt = datetime.strptime(slate_date, "%m/%d/%Y")
+    sample_row = next(iter(edge_by_game.values()))[0]
+    dt = datetime.strptime(sample_row["date"], "%m/%d/%Y")
     out_path = OUTPUT_DIR / f"edge_ncaab_spreads_{dt.year}_{dt.month:02d}_{dt.day:02d}.csv"
 
-    fieldnames = [
-        "game_id",
-        "date",
-        "time",
-        "team",
-        "opponent",
-        "spread",
-        "model_probability",
-        "fair_decimal_odds",
-        "fair_american_odds",
-        "acceptable_decimal_odds",
-        "acceptable_american_odds",
-        "league",
+    fields = [
+        "game_id","date","time","team","opponent",
+        "spread","model_probability",
+        "fair_decimal_odds","fair_american_odds",
+        "acceptable_decimal_odds","acceptable_american_odds",
+        "league"
     ]
 
     with out_path.open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
+        w = csv.DictWriter(f, fieldnames=fields)
+        w.writeheader()
 
-        for game_id, rows in games.items():
+        for gid, rows in edge_by_game.items():
             if len(rows) != 2:
                 continue
 
-            r1, r2 = rows
+            a, b = rows
+            ta, tb = a["team"], b["team"]
 
-            if r1["team"] not in spread_by_team or r2["team"] not in spread_by_team:
+            if ta not in spread_by_team or tb not in spread_by_team:
                 continue
 
-            spread_1 = spread_by_team[r1["team"]]
-            spread_2 = spread_by_team[r2["team"]]
+            sa = spread_by_team[ta]
+            sb = spread_by_team[tb]
 
             # Identify favorite
-            if spread_1 < 0:
-                fav, dog = r1, r2
-                fav_spread, dog_spread = spread_1, spread_2
+            if sa < sb:
+                fav, dog = (a, sa), (b, sb)
             else:
-                fav, dog = r2, r1
-                fav_spread, dog_spread = spread_2, spread_1
+                fav, dog = (b, sb), (a, sa)
 
-            s = abs(fav_spread)
+            spread_abs = abs(fav[1])
 
-            # MARKET-ONLY pricing
-            p_fav = clamp(normal_cdf(0.0))
+            # Market-implied cover probability
+            p_fav = clamp(normal_cdf(spread_abs / LEAGUE_STD))
             p_dog = 1.0 - p_fav
 
-            juice_fav = lookup_spreads_juice(spreads_juice_table, s, "favorite")
-            juice_dog = lookup_spreads_juice(spreads_juice_table, s, "underdog")
+            for row, spread, p, side in [
+                (fav[0], -spread_abs, p_fav, "favorite"),
+                (dog[0],  spread_abs, p_dog, "underdog"),
+            ]:
+                juice = lookup_spreads_juice(juice_table, spread_abs, side)
 
-            fair_fav = fair_decimal(p_fav)
-            fair_dog = fair_decimal(p_dog)
+                fair_d = fair_decimal(p)
+                acc_d = acceptable_decimal(p, juice)
 
-            acc_fav = acceptable_decimal(p_fav, juice_fav)
-            acc_dog = acceptable_decimal(p_dog, juice_dog)
-
-            writer.writerow({
-                "game_id": game_id,
-                "date": fav["date"],
-                "time": fav["time"],
-                "team": fav["team"],
-                "opponent": fav["opponent"],
-                "spread": fav_spread,
-                "model_probability": round(p_fav, 6),
-                "fair_decimal_odds": round(fair_fav, 6),
-                "fair_american_odds": decimal_to_american(fair_fav),
-                "acceptable_decimal_odds": round(acc_fav, 6),
-                "acceptable_american_odds": decimal_to_american(acc_fav),
-                "league": "ncaab_spread",
-            })
-
-            writer.writerow({
-                "game_id": game_id,
-                "date": dog["date"],
-                "time": dog["time"],
-                "team": dog["team"],
-                "opponent": dog["opponent"],
-                "spread": dog_spread,
-                "model_probability": round(p_dog, 6),
-                "fair_decimal_odds": round(fair_dog, 6),
-                "fair_american_odds": decimal_to_american(fair_dog),
-                "acceptable_decimal_odds": round(acc_dog, 6),
-                "acceptable_american_odds": decimal_to_american(acc_dog),
-                "league": "ncaab_spread",
-            })
+                w.writerow({
+                    "game_id": gid,
+                    "date": row["date"],
+                    "time": row["time"],
+                    "team": row["team"],
+                    "opponent": row["opponent"],
+                    "spread": spread,
+                    "model_probability": round(p, 6),
+                    "fair_decimal_odds": round(fair_d, 6),
+                    "fair_american_odds": decimal_to_american(fair_d),
+                    "acceptable_decimal_odds": round(acc_d, 6),
+                    "acceptable_american_odds": decimal_to_american(acc_d),
+                    "league": "ncaab_spread",
+                })
 
     print(f"Created {out_path}")
 
