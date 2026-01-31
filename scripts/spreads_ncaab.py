@@ -3,8 +3,6 @@
 import csv
 import math
 from pathlib import Path
-from collections import defaultdict
-from datetime import datetime
 
 # ============================================================
 # PATHS
@@ -73,21 +71,17 @@ def main():
     edge_file = sorted(EDGE_DIR.glob("edge_ncaab_*.csv"))[-1]
 
     # extract date from DK filename
-    date_part = dk_file.stem.split("_")[-3:]
-    yyyy, mm, dd = date_part
+    yyyy, mm, dd = dk_file.stem.split("_")[-3:]
     out_path = OUTPUT_DIR / f"edge_ncaab_spreads_{yyyy}_{mm}_{dd}.csv"
 
     # ------------------------
     # load edge model
     # ------------------------
     model_by_team = {}
-    game_meta = {}
 
     with edge_file.open(newline="", encoding="utf-8") as f:
         for r in csv.DictReader(f):
-            team = r["team"]
-            model_by_team[team] = r
-            game_meta[team] = {
+            model_by_team[r["team"]] = {
                 "game_id": r["game_id"],
                 "date": r["date"],
                 "time": r["time"],
@@ -124,23 +118,25 @@ def main():
         with dk_file.open(newline="", encoding="utf-8") as dk:
             for r in csv.DictReader(dk):
                 team = r["team"]
-
                 if team not in model_by_team:
                     continue
 
-                m = model_by_team[team]
-                meta = game_meta[team]
+                meta = model_by_team[team]
+                opp = meta["opponent"]
+
+                if opp not in model_by_team:
+                    continue
 
                 spread = float(r["spread"])
                 spread_abs = abs(spread)
-
                 side = "favorite" if spread < 0 else "underdog"
 
-                team_pts = float(m["points"])
-                opp_pts = float(model_by_team[meta["opponent"]]["points"])
+                team_pts = meta["points"]
+                opp_pts = model_by_team[opp]["points"]
                 margin = team_pts - opp_pts
 
-                cover_prob = normal_cdf((margin + spread) / SIGMA)
+                # PATH A: pure model margin vs market spread
+                cover_prob = normal_cdf((margin - spread) / SIGMA)
 
                 juice = lookup_spreads_juice(
                     juice_table,
@@ -156,7 +152,7 @@ def main():
                     "date": meta["date"],
                     "time": meta["time"],
                     "team": team,
-                    "opponent": meta["opponent"],
+                    "opponent": opp,
                     "spread": spread,
                     "model_probability": round(cover_prob, 6),
                     "fair_decimal_odds": round(fair_d, 6),
