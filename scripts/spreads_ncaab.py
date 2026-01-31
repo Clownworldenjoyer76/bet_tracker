@@ -20,21 +20,43 @@ JUICE_TABLE_PATH = Path("config/ncaab/ncaab_spreads_juice_table.csv")
 # ============================================================
 
 SIGMA = 7.2
+P_MIN = 1e-6
+P_MAX = 1.0 - 1e-6
 
 # ============================================================
-# HELPERS
+# MATH / ODDS HELPERS
 # ============================================================
 
 def normal_cdf(x: float) -> float:
     return 0.5 * (1.0 + math.erf(x / math.sqrt(2)))
 
+def clamp(p: float) -> float:
+    return max(P_MIN, min(P_MAX, p))
+
+def american_to_decimal(a: float) -> float:
+    if a > 0:
+        return 1.0 + (a / 100.0)
+    return 1.0 + (100.0 / abs(a))
+
+def decimal_to_american(d: float) -> int:
+    if d >= 2.0:
+        return int(round((d - 1.0) * 100))
+    return int(round(-100.0 / (d - 1.0)))
+
+def decimal_to_prob(d: float) -> float:
+    return 1.0 / d
+
 def american_to_prob(a: float) -> float:
-    if a < 0:
-        return -a / (-a + 100.0)
-    return 100.0 / (a + 100.0)
+    return decimal_to_prob(american_to_decimal(a))
+
+# ============================================================
+# JUICE TABLE (OPTIONAL ADJUSTMENT)
+# ============================================================
 
 def load_spreads_juice_table(path: Path):
     rows = []
+    if not path.exists():
+        return rows
     with path.open(newline="", encoding="utf-8") as f:
         for r in csv.DictReader(f):
             rows.append({
@@ -53,32 +75,104 @@ def lookup_spreads_juice(table, spread_abs, side):
     return 0.0
 
 # ============================================================
+# DK ODDS COLUMN DETECTION
+# ============================================================
+
+def pick_odds_columns(fieldnames):
+    """
+    Returns (american_col, decimal_col) where either can be None.
+    We do not assume exact names; we detect by header substrings.
+    """
+    f = [x.strip() for x in fieldnames if x]
+    f_lower = [x.lower() for x in f]
+
+    def find_any(preds):
+        for p in preds:
+            for i, name in enumerate(f_lower):
+                if p(name):
+                    return f[i]
+        return None
+
+    # American odds candidates (most specific first)
+    american_col = find_any([
+        lambda s: s == "american_odds",
+        lambda s: s.endswith("american_odds"),
+        lambda s: ("american" in s and "odds" in s),
+        lambda s: s in ("odds_american", "american", "price_american"),
+        lambda s: ("moneyline" in s and "american" in s),
+    ])
+
+    # Decimal odds candidates
+    decimal_col = find_any([
+        lambda s: s == "decimal_odds",
+        lambda s: s.endswith("decimal_odds"),
+        lambda s: ("decimal" in s and "odds" in s),
+        lambda s: s in ("odds_decimal", "decimal", "price_decimal"),
+    ])
+
+    # If nothing matched, try a very broad fallback for odds/price
+    if american_col is None and decimal_col is None:
+        decimal_col = find_any([
+            lambda s: s == "odds",
+            lambda s: s == "price",
+            lambda s: s.endswith("_odds"),
+            lambda s: s.endswith("_price"),
+        ])
+
+    return american_col, decimal_col
+
+def parse_float_maybe(x):
+    if x is None:
+        return None
+    s = str(x).strip()
+    if s == "":
+        return None
+    try:
+        return float(s)
+    except ValueError:
+        return None
+
+# ============================================================
 # MAIN
 # ============================================================
 
 def main():
-    dk_file = sorted(DK_DIR.glob("norm_dk_ncaab_spreads_*.csv"))[-1]
-    edge_file = sorted(EDGE_DIR.glob("edge_ncaab_*.csv"))[-1]
+    dk_files = sorted(DK_DIR.glob("norm_dk_ncaab_spreads_*.csv"))
+    edge_files = sorted(EDGE_DIR.glob("edge_ncaab_*.csv"))
+    if not dk_files:
+        raise RuntimeError("No DK spreads files found in docs/win/manual/normalized/")
+    if not edge_files:
+        raise RuntimeError("No edge model files found in docs/win/edge/")
 
-    date_part = dk_file.stem.split("_")[-3:]
-    yyyy, mm, dd = date_part
+    dk_file = dk_files[-1]
+    edge_file = edge_files[-1]
+
+    # extract date from DK filename: norm_dk_ncaab_spreads_YYYY_MM_DD.csv
+    parts = dk_file.stem.split("_")
+    yyyy, mm, dd = parts[-3], parts[-2], parts[-1]
     out_path = OUTPUT_DIR / f"edge_ncaab_spreads_{yyyy}_{mm}_{dd}.csv"
 
     # ------------------------
-    # load model points
+    # load edge model
     # ------------------------
-    model = {}
+    model_by_team = {}
+    game_meta = {}
 
     with edge_file.open(newline="", encoding="utf-8") as f:
         for r in csv.DictReader(f):
-            model[r["team"]] = {
-                "points": float(r["points"]),
-                "opponent": r["opponent"],
+            team = r["team"].strip()
+            model_by_team[team] = r
+            game_meta[team] = {
                 "game_id": r["game_id"],
                 "date": r["date"],
                 "time": r["time"],
+                "opponent": r["opponent"].strip(),
+                "points": float(r["points"]),
             }
 
+    # ------------------------
+    # load juice table (used only as optional market-prob adjustment)
+    # ------------------------
     juice_table = load_spreads_juice_table(JUICE_TABLE_PATH)
 
     fields = [
@@ -88,77 +182,36 @@ def main():
         "team",
         "opponent",
         "spread",
-        "dk_american_odds",
         "model_probability",
-        "dk_implied_probability",
-        "edge",
+        "dk_odds_type",
+        "dk_decimal_odds",
+        "dk_american_odds",
+        "market_implied_prob",
+        "market_implied_prob_juiced",
+        "edge_prob",
+        "edge_pct",
         "league",
     ]
 
     rows_written = 0
 
-    with out_path.open("w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=fields)
+    with out_path.open("w", newline="", encoding="utf-8") as f_out:
+        w = csv.DictWriter(f_out, fieldnames=fields)
         w.writeheader()
 
         with dk_file.open(newline="", encoding="utf-8") as dk:
-            for r in csv.DictReader(dk):
-                team = r["team"]
-                if team not in model:
+            reader = csv.DictReader(dk)
+            if not reader.fieldnames:
+                raise RuntimeError(f"DK file has no header: {dk_file}")
+
+            american_col, decimal_col = pick_odds_columns(reader.fieldnames)
+
+            for r in reader:
+                team = (r.get("team") or "").strip()
+                if not team or team not in model_by_team:
                     continue
 
-                opp = model[team]["opponent"]
-                if opp not in model:
-                    continue
-
-                spread = float(r["spread"])
-                spread_abs = abs(spread)
-                side = "favorite" if spread < 0 else "underdog"
-
-                # CHANGE THIS LINE ONLY if column name differs
-                dk_odds = float(r["american_odds"])
-
-                team_pts = model[team]["points"]
-                opp_pts = model[opp]["points"]
-                margin = team_pts - opp_pts
-
-                model_prob = normal_cdf((margin + spread) / SIGMA)
-
-                dk_prob = american_to_prob(dk_odds)
-
-                juice = lookup_spreads_juice(
-                    juice_table,
-                    spread_abs,
-                    side
-                )
-
-                dk_prob_juiced = min(max(dk_prob + juice, 0.0), 1.0)
-
-                edge = model_prob - dk_prob_juiced
-
-                if edge <= 0:
-                    continue
-
-                w.writerow({
-                    "game_id": model[team]["game_id"],
-                    "date": model[team]["date"],
-                    "time": model[team]["time"],
-                    "team": team,
-                    "opponent": opp,
-                    "spread": spread,
-                    "dk_american_odds": int(dk_odds),
-                    "model_probability": round(model_prob, 6),
-                    "dk_implied_probability": round(dk_prob_juiced, 6),
-                    "edge": round(edge, 6),
-                    "league": "ncaab_spread",
-                })
-
-                rows_written += 1
-
-    if rows_written == 0:
-        raise RuntimeError("No positive spread edges found.")
-
-    print(f"Created {out_path} ({rows_written} edges)")
-
-if __name__ == "__main__":
-    main()
+                meta = game_meta[team]
+                opp = meta["opponent"]
+                if opp not in model_by_team:
+                   
