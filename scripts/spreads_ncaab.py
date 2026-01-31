@@ -3,21 +3,18 @@
 import csv
 import glob
 import os
-from collections import defaultdict
-
-# ---------------- CONFIG ----------------
 
 SPREADS_GLOB = "docs/win/manual/normalized/norm_dk_ncaab_spreads_*.csv"
 EDGE_GLOB = "docs/win/edge/edge_ncaab_*.csv"
 JUICE_TABLE_PATH = "config/ncaab/ncaab_spreads_juice_table.csv"
 OUTPUT_DIR = "docs/win/edge"
 
-# ---------------- HELPERS ----------------
 
 def extract_date(path: str) -> str:
-    # expects *_YYYY_MM_DD.csv
     base = os.path.basename(path)
-    return base.split("_")[-3] + "_" + base.split("_")[-2] + "_" + base.split("_")[-1].replace(".csv", "")
+    parts = base.replace(".csv", "").split("_")
+    return f"{parts[-3]}_{parts[-2]}_{parts[-1]}"
+
 
 def american_from_decimal(d):
     if d <= 1:
@@ -26,9 +23,11 @@ def american_from_decimal(d):
         return int(round(-100 / (d - 1)))
     return int(round((d - 1) * 100))
 
+
 def load_csv(path):
     with open(path, newline="", encoding="utf-8") as f:
         return list(csv.DictReader(f))
+
 
 def load_juice_table(path):
     rows = []
@@ -42,14 +41,14 @@ def load_juice_table(path):
             })
     return rows
 
-def lookup_extra_juice(juice_table, spread_abs, side):
-    for r in juice_table:
+
+def lookup_extra_juice(table, spread_abs, side):
+    for r in table:
         if r["band_low"] <= spread_abs <= r["band_high"]:
             if r["side"] == "any" or r["side"] == side:
                 return r["extra_juice_pct"]
     return 0.0
 
-# ---------------- MAIN ----------------
 
 def main():
     spreads_files = {extract_date(p): p for p in glob.glob(SPREADS_GLOB)}
@@ -66,14 +65,25 @@ def main():
         edge = load_csv(edge_files[date])
 
         edge_index = {}
-        for r in edge:
-            key = (r["game_id"], r["team"])
-            edge_index[key] = r
+        for e in edge:
+            key = (
+                e["date"],
+                e["time"],
+                e["team"],
+                e["opponent"],
+            )
+            edge_index[key] = e
 
         out_rows = []
 
         for s in spreads:
-            key = (s["game_id"], s["team"])
+            key = (
+                s["date"],
+                s["time"],
+                s["team"],
+                s["opponent"],
+            )
+
             if key not in edge_index:
                 continue
 
@@ -116,6 +126,7 @@ def main():
             writer = csv.DictWriter(f, fieldnames=out_rows[0].keys())
             writer.writeheader()
             writer.writerows(out_rows)
+
 
 if __name__ == "__main__":
     main()
