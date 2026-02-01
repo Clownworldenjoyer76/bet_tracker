@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import csv
-import glob
 from pathlib import Path
 from collections import defaultdict
 
@@ -13,8 +12,9 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 def load_norm_data(league, date_str):
     """Loads betting data from docs/win/manual/normalized/."""
-    # Matches norm_dk_{league}_totals_{date}.csv
-    pattern = f"norm_dk_{league}_totals_{date_str}.csv"
+    # Handle NCAAB underscore format vs others
+    search_date = date_str.replace("-", "_") if league == "ncaab" else date_str
+    pattern = f"norm_dk_{league}_totals_{search_date}.csv"
     norm_files = list(INPUT_NORM_DIR.glob(pattern))
     
     data = {}
@@ -36,15 +36,14 @@ def load_norm_data(league, date_str):
     return data
 
 def process_league(league):
-    # Find all clean files for this league
     files = sorted(INPUT_CLEAN_DIR.glob(f"win_prob__clean_{league}_*.csv"))
     
     for file_path in files:
-        # Extract date string from filename (last part)
-        date_str = file_path.stem.split("_")[-1]
+        # FIX: Extract date correctly regardless of dash or underscore
+        # This takes everything after the league name
+        date_part = file_path.stem.split(f"clean_{league}_")[-1]
         
-        # Load external betting data
-        norm_data = load_norm_data(league, date_str)
+        norm_data = load_norm_data(league, date_part)
         
         games = defaultdict(list)
         with open(file_path, mode='r', encoding='utf-8') as f:
@@ -56,17 +55,14 @@ def process_league(league):
 
         output_rows = []
         for gid, rows in games.items():
-            # Soccer has 3 rows (Team A, Team B, DRAW). Others have 2.
-            # We filter for actual team rows to determine Away/Home
             team_rows = [r for r in rows if r["team"] != "DRAW"]
             if len(team_rows) < 2:
                 continue
 
-            away = team_rows[0] # First 'team' listed
-            home = team_rows[1] # Matches 'opponent' of the first
+            away = team_rows[0] 
+            home = team_rows[1] 
             
-            # Pick 'points' for basketball/college, 'goals' for NHL/Soccer
-            p_key = "points" if "points" in away else "goals"
+            p_key = "points" if league in ["nba", "ncaab"] else "goals"
             
             dk = norm_data.get(gid, {"over": {}, "under": {}, "total": ""})
 
@@ -92,10 +88,9 @@ def process_league(league):
             })
 
         if output_rows:
-            # Format output: clean_{league}_{YYYY}_{mm}_{DD}.csv
-            # Converting date format if it contains underscores (NCAAB style)
-            clean_date = date_str.replace("_", "-")
-            out_name = f"clean_{league}_{clean_date}.csv"
+            # Force output to YYYY_mm_DD to keep NCAAB style or YYYY-mm-DD for others
+            final_date = date_part.replace("-", "_") if league == "ncaab" else date_part
+            out_name = f"clean_{league}_{final_date}.csv"
             out_path = OUTPUT_DIR / out_name
             
             headers = [
