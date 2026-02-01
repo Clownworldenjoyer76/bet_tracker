@@ -11,7 +11,7 @@ from openpyxl import load_workbook
 # ============================================================
 
 INPUT_DIR = Path("docs/win/dump")
-OUTPUT_DIR = Path("docs/win/clean")
+OUTPUT_DIR = Path("docs/win/clean/step_1/")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # ============================================================
