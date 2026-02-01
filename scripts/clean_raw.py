@@ -13,7 +13,7 @@ from openpyxl import load_workbook
 BASE_DIR = Path(__file__).parent.parent
 INPUT_RAW_DIR = BASE_DIR / "docs/win/dump"
 INPUT_NORM_DIR = BASE_DIR / "docs/win/manual/normalized"
-FINAL_OUTPUT_DIR = BASE_DIR / "docs/win/cleaned"
+FINAL_OUTPUT_DIR = BASE_DIR / "docs/win/step_1/"
 FINAL_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 def strip_team(name):
