@@ -12,18 +12,15 @@ OUTPUT_DIR = BASE_DIR / "docs/win/cleaned/final"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 def run_fix():
-    # Loop through cleaned files (e.g., clean_nba_2026-01-28.csv)
     for file_path in INPUT_CLEANED_DIR.glob("clean_*.csv"):
         if "final" in file_path.parts: continue
         
-        # Regex to pull league and date parts
-        match = re.search(r"clean_([a-z]+)_(\d{4})-(\d{2})-(\d{2})", file_path.name)
+        match = re.search(r"clean_([a-z]+)_(\d{4})[-_](\d{2})[-_](\d{2})", file_path.name)
         if not match: continue
         
         league, yyyy, mm, dd = match.groups()
         date_str = f"{yyyy}_{mm}_{dd}"
         
-        # Target the TOTALS market file specifically
         norm_filename = f"norm_dk_{league}_totals_{date_str}.csv"
         norm_path = INPUT_NORM_DIR / norm_filename
         
@@ -31,19 +28,20 @@ def run_fix():
             print(f"File Not Found: {norm_path}")
             continue
 
-        # 1. Map Normalized Totals Data
-        dk_lookup = {}
+        # 1. Map Normalized Totals Data by TEAM NAME
+        # Lookup: team_name -> {SIDE: {row_data}}
+        team_lookup = {}
         with open(norm_path, 'r', encoding='utf-8') as f:
             reader = csv.DictReader(f)
             for row in reader:
-                gid = row.get("game_id")
+                team = str(row.get("team", "")).strip().lower()
                 side = str(row.get("side", "")).strip().upper()
                 
-                if gid not in dk_lookup:
-                    dk_lookup[gid] = {"total": row.get("total", ""), "OVER": {}, "UNDER": {}}
+                if team not in team_lookup:
+                    team_lookup[team] = {"total": row.get("total", ""), "OVER": {}, "UNDER": {}}
                 
                 if side in ["OVER", "UNDER"]:
-                    dk_lookup[gid][side] = row
+                    team_lookup[team][side] = row
 
         # 2. Update Cleaned File Rows
         updated_rows = []
@@ -51,8 +49,11 @@ def run_fix():
             reader = csv.DictReader(f)
             headers = reader.fieldnames
             for row in reader:
-                gid = row.get("game_id")
-                dk = dk_lookup.get(gid)
+                # Use home_team or away_team to match the normalized file data
+                # Since 'total' is the same for the game, we lookup by away_team
+                away_team = str(row.get("away_team", "")).strip().lower()
+                
+                dk = team_lookup.get(away_team)
                 
                 if dk:
                     row["total"] = dk.get("total", "")
