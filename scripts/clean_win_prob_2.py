@@ -12,9 +12,8 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 def load_norm_data(league, date_str):
     """Loads betting data from docs/win/manual/normalized/."""
-    # Handle NCAAB underscore format vs others
-    search_date = date_str.replace("-", "_") if league == "ncaab" else date_str
-    pattern = f"norm_dk_{league}_totals_{search_date}.csv"
+    # Ensure search matches the format used in the normalized folder
+    pattern = f"norm_dk_{league}_totals_{date_str}.csv"
     norm_files = list(INPUT_NORM_DIR.glob(pattern))
     
     data = {}
@@ -36,13 +35,15 @@ def load_norm_data(league, date_str):
     return data
 
 def process_league(league):
-    files = sorted(INPUT_CLEAN_DIR.glob(f"win_prob__clean_{league}_*.csv"))
+    # Find all files starting with win_prob__clean_{league}_
+    prefix = f"win_prob__clean_{league}_"
+    files = sorted(INPUT_CLEAN_DIR.glob(f"{prefix}*.csv"))
     
     for file_path in files:
-        # FIX: Extract date correctly regardless of dash or underscore
-        # This takes everything after the league name
-        date_part = file_path.stem.split(f"clean_{league}_")[-1]
+        # Correctly extract the date string by removing the specific prefix
+        date_part = file_path.stem.replace(prefix, "")
         
+        # Load betting data using that exact date string
         norm_data = load_norm_data(league, date_part)
         
         games = defaultdict(list)
@@ -55,13 +56,16 @@ def process_league(league):
 
         output_rows = []
         for gid, rows in games.items():
+            # Skip rows where team is DRAW to find actual competitors
             team_rows = [r for r in rows if r["team"] != "DRAW"]
             if len(team_rows) < 2:
                 continue
 
+            # row 1 = away, row 2 = home
             away = team_rows[0] 
             home = team_rows[1] 
             
+            # Determine if we use 'points' or 'goals'
             p_key = "points" if league in ["nba", "ncaab"] else "goals"
             
             dk = norm_data.get(gid, {"over": {}, "under": {}, "total": ""})
@@ -88,9 +92,8 @@ def process_league(league):
             })
 
         if output_rows:
-            # Force output to YYYY_mm_DD to keep NCAAB style or YYYY-mm-DD for others
-            final_date = date_part.replace("-", "_") if league == "ncaab" else date_part
-            out_name = f"clean_{league}_{final_date}.csv"
+            # Output filename format: clean_{league}_{date}.csv
+            out_name = f"clean_{league}_{date_part}.csv"
             out_path = OUTPUT_DIR / out_name
             
             headers = [
@@ -106,7 +109,7 @@ def process_league(league):
                 writer = csv.DictWriter(out_f, fieldnames=headers)
                 writer.writeheader()
                 writer.writerows(output_rows)
-            print(f"Created: {out_path}")
+            print(f"Processed {league}: {out_path.name}")
 
 def main():
     for league in ["nba", "ncaab", "nhl", "soc"]:
