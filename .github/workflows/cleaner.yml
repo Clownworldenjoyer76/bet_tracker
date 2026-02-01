@@ -23,10 +23,9 @@ jobs:
       - name: Install dependencies
         run: pip install openpyxl
 
-      - name: Run Cleaning Scripts
+      - name: Run Cleaning Script
         run: |
-          python scripts/clean_raw.py
-          python scripts/clean_raw_2.py
+          python scripts/scripts/clean_win_prob.py
 
       - name: Commit and push changes
         run: |
@@ -34,7 +33,7 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
           # Force add the directory
-          git add docs/win/cleaned/*
+          git add docs/win/clean/step_1/*
           
           if [ -n "$(git status --porcelain)" ]; then
             git commit -m "Automated data cleaning"
