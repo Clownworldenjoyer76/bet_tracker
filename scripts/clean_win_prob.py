@@ -11,7 +11,7 @@ from openpyxl import load_workbook
 # ============================================================
 
 INPUT_DIR = Path("docs/win/dump")
-OUTPUT_DIR = Path("docs/win/clean/step_1/")
+OUTPUT_DIR = Path("docs/win/step_1/")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # ============================================================
@@ -421,8 +421,7 @@ def run_ncaab():
 # ======================= GAME ID PASS =======================
 # ============================================================
 
-PATTERN = "docs/win/clean/win_prob__clean_*.csv"
-
+PATTERN = "docs/win/step_1/win_prob__clean_*.csv"
 
 def is_empty(value):
     return value is None or value == ""
