@@ -6,7 +6,7 @@ Input (latest):
   docs/win/edge/edge_nhl_*.csv
 
 Output:
-  docs/win/nhl/edge_nhl_totals_YYYY_MM_DD.csv
+  docs/win/nhl/totals/edge_nhl_totals_YYYY_MM_DD.csv
 
 Config-driven (ONLY):
   config/nhl/nhl_juice_table.csv
