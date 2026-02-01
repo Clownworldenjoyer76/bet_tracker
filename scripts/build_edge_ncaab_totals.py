@@ -30,7 +30,7 @@ MIN_LAM = 100.0
 MAX_LAM = 200.0
 
 INPUT_DIR = Path("docs/win/edge")
-OUTPUT_DIR = Path("docs/win/ncaab")
+OUTPUT_DIR = Path("docs/win/ncaab/totals")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 JUICE_TABLE_PATH = Path("config/ncaab/ncaab_totals_juice_table.csv")
