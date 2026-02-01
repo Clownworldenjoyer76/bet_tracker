@@ -23,6 +23,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install openpyxl
 
+      # This runs the script that now includes the DK mapping logic
       - name: Run script
         run: python scripts/clean_raw.py
 
@@ -30,6 +31,11 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add .
-          git commit -m "Automated cleanup: scripts/clean_raw.py" || echo "No changes to commit"
-          git push
+          git add docs/win/cleaned/
+          # Commit only if changes exist to avoid workflow errors
+          if ! git diff --cached --quiet; then
+            git commit -m "Automated cleanup: scripts/clean_raw.py"
+            git push
+          else
+            echo "No changes to commit"
+          fi
