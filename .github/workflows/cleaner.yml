@@ -26,21 +26,21 @@ jobs:
       - name: Run Primary Cleaning
         run: python scripts/clean_raw.py
 
-      # Changed name to distinguish from the first script
-      - name: Run Secondary Cleaning
+      - name: Run Secondary Cleaning (Fix Odds)
         run: python scripts/clean_raw_2.py
 
       - name: Commit and push changes
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          # Check if the directory exists before adding to avoid "pathspec" errors
-          if [ -d "docs/win/cleaned/" ]; then
-            git add docs/win/cleaned/
-          fi
+          
+          # Stage all changes within the cleaned directory and its subdirectories
+          git add docs/win/cleaned/
+          
+          # Check if there are actually changes to commit
           if ! git diff --cached --quiet; then
-            git commit -m "Automated cleanup of data files"
+            git commit -m "Automated cleanup: Fixed odds and normalized paths"
             git push
           else
-            echo "No changes to commit"
+            echo "No changes detected. Skipping push."
           fi
