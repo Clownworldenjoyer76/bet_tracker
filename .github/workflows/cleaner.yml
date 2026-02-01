@@ -23,22 +23,23 @@ jobs:
           python -m pip install --upgrade pip
           pip install openpyxl
 
-      # This runs the script that now includes the DK mapping logic
-      - name: Run script
+      - name: Run Primary Cleaning
         run: python scripts/clean_raw.py
 
-      - name: Run script
+      # Changed name to distinguish from the first script
+      - name: Run Secondary Cleaning
         run: python scripts/clean_raw_2.py
-    
 
       - name: Commit and push changes
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/win/cleaned/
-          # Commit only if changes exist to avoid workflow errors
+          # Check if the directory exists before adding to avoid "pathspec" errors
+          if [ -d "docs/win/cleaned/" ]; then
+            git add docs/win/cleaned/
+          fi
           if ! git diff --cached --quiet; then
-            git commit -m "Automated cleanup: scripts/clean_raw.py"
+            git commit -m "Automated cleanup of data files"
             git push
           else
             echo "No changes to commit"
