@@ -1,22 +1,20 @@
 #!/usr/bin/env python3
 """
-Build NBA Totals Evaluation File (Model-Anchored, Config-Driven)
-
-UPDATED RULE:
-- Market totals are FORCED to .5 (no pushes)
+Build NBA Totals Evaluation File
+Source: Model (total_points) + Manual DK Normalized (total)
 """
 
-import csv
+import pandas as pd
 import glob
 from math import sqrt, erf
 from pathlib import Path
 from datetime import datetime
-from collections import defaultdict
 
 # -----------------------------
 # PATHS
 # -----------------------------
-INPUT_DIR = Path("docs/win/edge")
+EDGE_DIR = Path("docs/win/edge")
+DK_NORM_DIR = Path("docs/win/manual/normalized")
 OUTPUT_DIR = Path("docs/win/nba/totals")
 CONFIG_PATH = Path("config/nba/nba_juice_table.csv")
 
@@ -29,61 +27,48 @@ MAX_LAM = 300.0
 # HELPERS
 # -----------------------------
 def force_half_point(x: float) -> float:
-    """
-    Round to nearest 0.5 and FORCE .5 (no integers).
-    Ensures no pushes.
-    """
     rounded = round(x * 2) / 2
     if rounded.is_integer():
         return rounded + 0.5
     return rounded
 
-
 def normal_cdf(x: float, mu: float, sigma: float) -> float:
     z = (x - mu) / (sigma * sqrt(2))
     return 0.5 * (1 + erf(z))
 
-
 def fair_decimal(p: float) -> float:
-    return 1.0 / p
-
+    return 1.0 / p if p > 0 else 0.0
 
 def decimal_to_american(d: float) -> int:
+    if d <= 1.0: return 0
     if d >= 2.0:
         return int(round((d - 1) * 100))
     return int(round(-100 / (d - 1)))
 
-
 def acceptable_decimal(p: float, edge_pct: float) -> float:
-    """
-    Apply personal juice multiplicatively.
-    """
-    return (1.0 / p) * (1.0 + edge_pct)
+    return (1.0 / p) * (1.0 + edge_pct) if p > 0 else 0.0
 
 # -----------------------------
-# LOAD TOTALS JUICE CONFIG
+# LOAD JUICE CONFIG
 # -----------------------------
 def load_totals_juice_rules():
     rules = []
-
-    with CONFIG_PATH.open(newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            if row["market_type"] != "totals":
-                continue
-
-            rules.append({
-                "low": float(row["band_low"]),
-                "high": float(row["band_high"]),
-                "side": row["side"].lower(),
-                "extra": float(row["extra_juice_pct"]),
-            })
-
+    if not CONFIG_PATH.exists():
+        return rules
+    
+    df_juice = pd.read_csv(CONFIG_PATH)
+    df_juice = df_juice[df_juice["market_type"] == "totals"]
+    
+    for _, row in df_juice.iterrows():
+        rules.append({
+            "low": float(row["band_low"]),
+            "high": float(row["band_high"]),
+            "side": str(row["side"]).lower(),
+            "extra": float(row["extra_juice_pct"]),
+        })
     return rules
 
-
 TOTALS_JUICE_RULES = load_totals_juice_rules()
-
 
 def lookup_totals_juice(market_total: float, side: str) -> float:
     for rule in TOTALS_JUICE_RULES:
@@ -96,122 +81,87 @@ def lookup_totals_juice(market_total: float, side: str) -> float:
 # MAIN
 # -----------------------------
 def main():
-    input_files = sorted(glob.glob(str(INPUT_DIR / "edge_nba_*.csv")))
-    if not input_files:
-        raise FileNotFoundError("No NBA edge files found")
+    # 1. Load Latest Model Predictions
+    model_files = sorted(glob.glob(str(EDGE_DIR / "edge_nba_*.csv")))
+    if not model_files:
+        raise FileNotFoundError("No NBA edge files found in docs/win/edge")
+    df_model = pd.read_csv(model_files[-1])
 
-    latest_file = input_files[-1]
+    # 2. Load Latest Normalized DK Totals
+    dk_files = sorted(glob.glob(str(DK_NORM_DIR / "norm_dk_nba_totals_*.csv")))
+    if not dk_files:
+        raise FileNotFoundError("No DK norm files found in docs/win/manual/normalized")
+    df_dk = pd.read_csv(dk_files[-1])
+
+    # 3. Merge on Team Name
+    # We only need the 'team' and 'total' columns from the DK file
+    df_dk_subset = df_dk[['team', 'total']].copy()
+    df_dk_subset.rename(columns={'total': 'dk_market_total'}, inplace=True)
+    
+    # Merge model predictions with manual market totals
+    df = pd.merge(df_model, df_dk_subset, on='team', how='inner')
 
     today = datetime.utcnow()
     out_path = OUTPUT_DIR / f"edge_nba_totals_{today.year}_{today.month:02d}_{today.day:02d}.csv"
 
-    games = defaultdict(list)
+    results = []
 
-    with open(latest_file, newline="", encoding="utf-8") as infile:
-        reader = csv.DictReader(infile)
-        for row in reader:
-            if row.get("game_id"):
-                games[row["game_id"]].append(row)
+    for _, row in df.iterrows():
+        game_id = row.get("game_id", "N/A")
+        team_1 = row.get("team", "")
+        team_2 = row.get("opponent", "")
+        
+        try:
+            lam = float(row["total_points"])
+            # Use 'dk_market_total' from the merged manual file
+            raw_market_total = float(row["dk_market_total"])
+        except (ValueError, TypeError, KeyError):
+            continue
 
-    with open(out_path, "w", newline="", encoding="utf-8") as outfile:
-        fieldnames = [
-            "game_id",
-            "date",
-            "time",
-            "team_1",
-            "team_2",
-            "market_total",
-            "side",
-            "model_probability",
-            "fair_decimal_odds",
-            "fair_american_odds",
-            "acceptable_decimal_odds",
-            "acceptable_american_odds",
-            "league",
-        ]
+        side = "NO PLAY"
+        p_selected = None
+        market_total = None
 
-        writer = csv.DictWriter(outfile, fieldnames=fieldnames)
-        writer.writeheader()
+        if MIN_LAM <= lam <= MAX_LAM:
+            market_total = force_half_point(raw_market_total)
+            sigma = sqrt(lam)
 
-        for game_id, rows in games.items():
-            row = rows[0]
+            p_under = normal_cdf(market_total, lam, sigma)
+            p_over = 1.0 - p_under
 
-            team_1 = row.get("team", "")
-            team_2 = row.get("opponent", "")
-            date = row.get("date", "")
-            time = row.get("time", "")
+            if lam > market_total:
+                side = "OVER"
+                p_selected = p_over
+            elif lam < market_total:
+                side = "UNDER"
+                p_selected = p_under
 
-            try:
-                lam = float(row["total_points"])
-                raw_market_total = float(row.get("best_ou", ""))
-            except (ValueError, TypeError):
-                lam = None
-                raw_market_total = None
+        if p_selected is not None:
+            fair_d = fair_decimal(p_selected)
+            fair_a = decimal_to_american(fair_d)
+            edge_pct = lookup_totals_juice(market_total, side)
+            acc_d = acceptable_decimal(p_selected, edge_pct)
+            acc_a = decimal_to_american(acc_d)
 
-            side = "NO PLAY"
-            p_selected = None
-            market_total = None
+            results.append({
+                "game_id": game_id,
+                "date": row.get("date", ""),
+                "time": row.get("time", ""),
+                "team_1": team_1,
+                "team_2": team_2,
+                "market_total": market_total,
+                "side": side,
+                "model_probability": round(p_selected, 4),
+                "fair_decimal_odds": round(fair_d, 4),
+                "fair_american_odds": fair_a,
+                "acceptable_decimal_odds": round(acc_d, 4),
+                "acceptable_american_odds": acc_a,
+                "league": "nba_ou",
+            })
 
-            if (
-                lam is not None
-                and raw_market_total is not None
-                and MIN_LAM <= lam <= MAX_LAM
-            ):
-                market_total = force_half_point(raw_market_total)
-                sigma = sqrt(lam)
-
-                p_under = normal_cdf(market_total, lam, sigma)
-                p_over = 1.0 - p_under
-
-                if lam > market_total:
-                    side = "OVER"
-                    p_selected = p_over
-                elif lam < market_total:
-                    side = "UNDER"
-                    p_selected = p_under
-
-            if p_selected is not None:
-                fair_d = fair_decimal(p_selected)
-                fair_a = decimal_to_american(fair_d)
-
-                edge_pct = lookup_totals_juice(market_total, side)
-                acc_d = acceptable_decimal(p_selected, edge_pct)
-                acc_a = decimal_to_american(acc_d)
-
-                writer.writerow({
-                    "game_id": game_id,
-                    "date": date,
-                    "time": time,
-                    "team_1": team_1,
-                    "team_2": team_2,
-                    "market_total": market_total,
-                    "side": side,
-                    "model_probability": round(p_selected, 4),
-                    "fair_decimal_odds": round(fair_d, 4),
-                    "fair_american_odds": fair_a,
-                    "acceptable_decimal_odds": round(acc_d, 4),
-                    "acceptable_american_odds": acc_a,
-                    "league": "nba_ou",
-                })
-            else:
-                writer.writerow({
-                    "game_id": game_id,
-                    "date": date,
-                    "time": time,
-                    "team_1": team_1,
-                    "team_2": team_2,
-                    "market_total": market_total or "",
-                    "side": "NO PLAY",
-                    "model_probability": "",
-                    "fair_decimal_odds": "",
-                    "fair_american_odds": "",
-                    "acceptable_decimal_odds": "",
-                    "acceptable_american_odds": "",
-                    "league": "nba_ou",
-                })
-
-    print(f"Created {out_path}")
-
+    # Save to CSV
+    pd.DataFrame(results).to_csv(out_path, index=False)
+    print(f"Created {out_path} using {len(results)} matched games.")
 
 if __name__ == "__main__":
     main()
