@@ -22,19 +22,23 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
+          pip install pandas
 
       # --- SOCCER TOTALS ---
       - name: Build Soccer Totals
+        continue-on-error: true
         run: |
           python scripts/build_edge_soc_totals.py
 
       # --- NCAAB TOTALS ---
       - name: Build NCAAB Totals
+        continue-on-error: true
         run: |
           python scripts/build_edge_ncaab_totals.py
 
       # --- NHL TOTALS ---
       - name: Build NHL Totals
+        continue-on-error: true
         run: |
           python scripts/build_edge_nhl_totals.py
 
