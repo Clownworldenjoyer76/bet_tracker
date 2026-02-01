@@ -1,19 +1,14 @@
-name: 01 Manual Data Clean
+name: Run Clean Win Prob
 
 on:
   workflow_dispatch:
 
 jobs:
-  clean-data:
+  clean_data:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -23,21 +18,13 @@ jobs:
       - name: Install dependencies
         run: pip install openpyxl
 
-      - name: Run Cleaning Script
-        run: |
-          python scripts/scripts/clean_win_prob.py
+      - name: Run cleaning script
+        run: python scripts/clean_win_prob.py
 
-      - name: Commit and push changes
+      - name: Commit and Push changes
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          
-          # Force add the directory
-          git add docs/win/clean/step_1/*
-          
-          if [ -n "$(git status --porcelain)" ]; then
-            git commit -m "Automated data cleaning"
-            git push origin HEAD:main
-          else
-            echo "No changes to commit"
-          fi
+          git add docs/win/step_1/
+          git commit -m "Automated data clean: move to step_1" || echo "No changes to commit"
+          git push
