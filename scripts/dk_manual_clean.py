@@ -1,5 +1,3 @@
-# scripts/dk_manual_clean.py
-
 import pandas as pd
 from pathlib import Path
 import re
@@ -8,12 +6,10 @@ INPUT_DIR = Path("docs/win/manual")
 OUTPUT_DIR = INPUT_DIR / "cleaned"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-
 def normalize_date(date_str: str, year: int) -> str:
     # "1/26" -> "01/26/26"
     month, day = date_str.split("/")
     return f"{int(month):02d}/{int(day):02d}/{str(year)[-2:]}"
-
 
 def normalize_time(time_str: str) -> str:
     # "7:07PM" -> "7:07 PM"
@@ -23,18 +19,15 @@ def normalize_time(time_str: str) -> str:
         return time_str
     return f"{m.group(1)} {m.group(2)}"
 
-
 def american_to_decimal(odds: float) -> float:
     if odds > 0:
         return 1 + odds / 100
     return 1 + 100 / abs(odds)
 
-
 def clean_file(path: Path):
     df = pd.read_csv(path)
 
-    # Expected filename:
-    # dk_{league}_{market}_{YYYY}_{MM}_{DD}.csv
+    # Expected filename: dk_{league}_{market}_{YYYY}_{MM}_{DD}.csv
     parts = path.stem.split("_")
     if len(parts) < 6:
         return
@@ -59,10 +52,12 @@ def clean_file(path: Path):
 
     # Percent columns -> decimals
     for col in ("handle_pct", "bets_pct"):
-        df[col] = df[col].astype(float) / 100.0
+        if col in df.columns:
+            df[col] = df[col].astype(float) / 100.0
 
     out_path = OUTPUT_DIR / path.name
 
+    # Check for changes before writing to avoid unnecessary updates
     if out_path.exists():
         old = pd.read_csv(out_path)
         if old.equals(df):
@@ -70,14 +65,18 @@ def clean_file(path: Path):
 
     df.to_csv(out_path, index=False)
 
-
 def main():
+    # Process Moneyline files
     for file in INPUT_DIR.glob("dk_*_moneyline_*.csv"):
         clean_file(file)
 
+    # Process Spreads files
     for file in INPUT_DIR.glob("dk_*_spreads_*.csv"):
         clean_file(file)
 
+    # Process Totals files (NEW)
+    for file in INPUT_DIR.glob("dk_*_totals_*.csv"):
+        clean_file(file)
 
 if __name__ == "__main__":
     main()
