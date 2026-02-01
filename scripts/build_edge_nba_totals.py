@@ -17,7 +17,7 @@ from collections import defaultdict
 # PATHS
 # -----------------------------
 INPUT_DIR = Path("docs/win/edge")
-OUTPUT_DIR = Path("docs/win/nba")
+OUTPUT_DIR = Path("docs/win/nba/totals")
 CONFIG_PATH = Path("config/nba/nba_juice_table.csv")
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
