@@ -87,32 +87,39 @@ def process_league_unified(league):
     raw_data = get_raw_rows(league)
     if not raw_data: return
 
-    # 1. Determine file date
-    first_date = ""
+    # 1. Determine file date (Format: YYYY_mm_dd for matching)
+    search_date = ""
     for r in raw_data:
         if r['date']:
             try:
-                first_date = datetime.strptime(r['date'], "%m/%d/%Y").strftime("%Y-%m-%d")
+                search_date = datetime.strptime(r['date'], "%m/%d/%Y").strftime("%Y_%m_%d")
                 break
-            except: continue
+            except: 
+                try:
+                    search_date = datetime.strptime(r['date'], "%m/%d/%y").strftime("%Y_%m_%d")
+                    break
+                except: continue
     
-    if not first_date: return
+    if not search_date: return
 
-    # 2. Load DK Manual Data safely
-    dk_file = INPUT_NORM_DIR / f"norm_dk_{league}_totals_{first_date.replace('-','_')}.csv"
+    # 2. Load DK Manual Data safely (Force underscore match)
+    dk_file = INPUT_NORM_DIR / f"norm_dk_{league}_totals_{search_date}.csv"
     dk_map = {}
+    
     if dk_file.exists():
         with open(dk_file, 'r', encoding='utf-8') as f:
             reader = csv.DictReader(f)
-            if reader.fieldnames and "game_id" in reader.fieldnames:
-                for row in reader:
-                    gid = row.get("game_id")
-                    if not gid: continue
-                    if gid not in dk_map: 
-                        dk_map[gid] = {"total": row.get("total", ""), "over": {}, "under": {}}
-                    side = (row.get("side") or "").lower()
-                    if side in ["over", "under"]:
-                        dk_map[gid][side] = row
+            for row in reader:
+                gid = row.get("game_id")
+                if not gid: continue
+                if gid not in dk_map: 
+                    dk_map[gid] = {"total": row.get("total", ""), "over": {}, "under": {}}
+                
+                side = (row.get("side") or "").lower()
+                if side in ["over", "under"]:
+                    dk_map[gid][side] = row
+    else:
+        print(f"Warning: Missing DK file {dk_file.name}")
 
     # 3. Group and Merge
     final_rows = []
@@ -130,23 +137,36 @@ def process_league_unified(league):
         
         p_key_a = entry.get("pts_a") or entry.get("goals_a") or ""
         p_key_b = entry.get("pts_b") or entry.get("goals_b") or ""
+        
+        # Pull data from dk_map based on game_id
         dk = dk_map.get(gid, {"total": "", "over": {}, "under": {}})
 
         final_rows.append({
-            "game_id": gid, "date": entry["date"], "time": entry["time"],
-            "away_team": entry["team_a"], "home_team": entry["team_b"],
-            "away_points": p_key_a, "home_points": p_key_b,
-            "total_points": entry.get("total", ""), "away_win_probability": entry["win_a"],
-            "home__win_probability": entry["win_b"], "total": dk["total"],
-            "over_total_odds": dk["over"].get("odds", ""), "under_total_odds": dk["under"].get("odds", ""),
-            "over_handle_pct": dk["over"].get("handle_pct", ""), "under_handle_pct": dk["under"].get("handle_pct", ""),
-            "over_bets_pct": dk["over"].get("bets_pct", ""), "under_bets_pct": dk["under"].get("bets_pct", ""),
+            "game_id": gid, 
+            "date": entry["date"], 
+            "time": entry["time"],
+            "away_team": entry["team_a"], 
+            "home_team": entry["team_b"],
+            "away_points": p_key_a, 
+            "home_points": p_key_b,
+            "total_points": entry.get("total", ""), 
+            "away_win_probability": entry["win_a"],
+            "home__win_probability": entry["win_b"], 
+            "total": dk["total"],
+            "over_total_odds": dk["over"].get("odds", ""), 
+            "under_total_odds": dk["under"].get("odds", ""),
+            "over_handle_pct": dk["over"].get("handle_pct", ""), 
+            "under_handle_pct": dk["under"].get("handle_pct", ""),
+            "over_bets_pct": dk["over"].get("bets_pct", ""), 
+            "under_bets_pct": dk["under"].get("bets_pct", ""),
             "league": league
         })
 
     # 4. Write Final Output
     if final_rows:
-        out_path = FINAL_OUTPUT_DIR / f"clean_{league}_{first_date}.csv"
+        # Save output using dashes for clean filename: clean_league_YYYY-mm-dd.csv
+        out_date = search_date.replace("_", "-")
+        out_path = FINAL_OUTPUT_DIR / f"clean_{league}_{out_date}.csv"
         headers = [
             "game_id", "date", "time", "away_team", "home_team",
             "away_points", "home_points", "total_points",
