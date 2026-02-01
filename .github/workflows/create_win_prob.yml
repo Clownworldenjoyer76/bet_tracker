@@ -1,41 +1,37 @@
-name: 01 Create Win Prob CSVs
+name: Clean Win Probabilities
 
 on:
   workflow_dispatch:
-
-permissions:
-  contents: write
+  schedule:
+    - cron: '0 * * * *' # Runs every hour
 
 jobs:
-  clean-soc-win-prob:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v4
         with:
-          python-version: "3.11"
+          python-version: '3.10'
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install openpyxl
-
-      - name: Run cleaning script
-        run: |
-          python scripts/clean_win_prob.py
-
-      - name: Run cleaning script 2
+      - name: Run Cleaning Script
         run: |
           python scripts/clean_win_prob_2.py
 
-      - name: Commit and push cleaned CSV output
+      - name: Commit and Push changes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/win/
-          git commit -m "Generate win probability CSVs"
-          git push
+          git add docs/win/cleaned/
+          
+          # Check if there are changes before committing
+          if ! git diff --cached --quiet; then
+            git commit -m "Auto-update cleaned win probability data"
+            git push
+          else
+            echo "No new data to commit."
+          fi
