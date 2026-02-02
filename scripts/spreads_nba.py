@@ -5,19 +5,19 @@ from pathlib import Path
 # Constants
 CLEANED_DIR = Path("docs/win/dump/csvs/cleaned")
 NORMALIZED_DIR = Path("docs/win/manual/normalized")
-OUTPUT_DIR = Path("docs/win/nba/spreads")
+OUTPUT_DIR = Path("docs/win/ncaab/spreads")
 
 # Ensure output directory exists
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 def process_spreads():
-    # 1. Get list of cleaned NBA projection files
-    projection_files = glob.glob(str(CLEANED_DIR / "nba_*.csv"))
+    # 1. Get list of cleaned NCAAB projection files
+    projection_files = glob.glob(str(CLEANED_DIR / "ncaab_*.csv"))
     
     for proj_path in projection_files:
-        # Extract date from filename (e.g., nba_2026_02_02.csv -> 2026_02_02)
+        # Extract date suffix
         date_suffix = "_".join(Path(proj_path).stem.split("_")[1:])
-        dk_file = NORMALIZED_DIR / f"norm_dk_nba_spreads_{date_suffix}.csv"
+        dk_file = NORMALIZED_DIR / f"norm_dk_ncaab_spreads_{date_suffix}.csv"
         
         if not dk_file.exists():
             continue
@@ -26,45 +26,25 @@ def process_spreads():
         df_proj = pd.read_csv(proj_path)
         df_dk = pd.read_csv(dk_file)
 
-        # 2. Process DK Data: Pivot 2 rows into 1
-        # We group by date/time and the team pair to identify the game
-        dk_rows = []
-        grouped = df_dk.groupby(['date', 'time', 'team', 'opponent'])
-        
-        # To avoid processing the same game twice (once for each team as 'team')
-        processed_games = set()
-
-        for (dt, tm, team, opp), group in grouped:
-            game_key = tuple(sorted([team, opp]))
-            if game_key in processed_games:
-                continue
-            
-            # Identify Away and Home rows by matching against the projection file teams
-            # We look for the row where 'team' is the 'away_team' in projections
-            # This logic assumes the projection file is the source of truth for who is Away/Home
-            
-            # For this script, we will merge first then pivot based on projection labels
-            processed_games.add(game_key)
-
-        # Better approach: Create a lookup for DK data
+        # 2. Create lookup for DK data (Pivoting 2 rows into 1 conceptually)
         dk_lookup = {}
         for _, row in df_dk.iterrows():
             dk_lookup[(row['team'], row['opponent'])] = row
 
-        # 3. Build the output by iterating through projections
+        # 3. Build the output list
         output_rows = []
         for _, proj in df_proj.iterrows():
             away = proj['away_team']
             home = proj['home_team']
             
-            # Get DK data for both sides
+            # Match DK data using away/home team names
             away_side = dk_lookup.get((away, home))
             home_side = dk_lookup.get((home, away))
             
             if away_side is not None and home_side is not None:
                 row_data = {
                     'game_id': proj['game_id'],
-                    'league': 'nba_spreads',
+                    'league': 'ncaab_spreads',
                     'date': proj['date'],
                     'time': proj['time'],
                     'away_team': away,
@@ -73,7 +53,7 @@ def process_spreads():
                     'home_team_projected_points': proj['home_team_projected_points'],
                     'game_projected_points': proj['game_projected_points'],
                     
-                    # DK Values from Glossary
+                    # DK Values mapped from your Glossary
                     'away_spread_handle_pct': away_side['handle_pct'], # VALUE_4
                     'away_spread_bets_pct': away_side['bets_pct'],     # VALUE_5
                     'home_spread_handle_pct': home_side['handle_pct'], # VALUE_6
@@ -95,10 +75,9 @@ def process_spreads():
         if not output_rows:
             continue
 
+        # 4. Create DataFrame and Save
         output_df = pd.DataFrame(output_rows)
-
-        # 4. Save output
-        output_path = OUTPUT_DIR / f"spreads_nba_{date_suffix}.csv"
+        output_path = OUTPUT_DIR / f"spreads_ncaab_{date_suffix}.csv"
         output_df.to_csv(output_path, index=False)
         print(f"Saved: {output_path}")
 
