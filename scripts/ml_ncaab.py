@@ -37,9 +37,9 @@ def process_ncaab_files():
         # 2. Update Acceptable American Odds based on the new Edge Decimal
         df['acceptable_american_odds'] = df['acceptable_decimal_odds'].apply(to_american)
         
-        # 3. Construct output filename
+        # 3. Construct output filename (e.g., ml_ncaab_2026_02_02.csv)
         base_name = os.path.basename(file_path)
-        output_path = OUTPUT_DIR / f"edge_{base_name}"
+        output_path = OUTPUT_DIR / f"ml_{base_name}"
         
         # 4. Save file
         df.to_csv(output_path, index=False)
