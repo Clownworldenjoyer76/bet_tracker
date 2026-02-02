@@ -1,113 +1,85 @@
-#!/usr/bin/env python3
-
-import csv
+import pandas as pd
+import glob
 from pathlib import Path
-from statistics import NormalDist
 
-# ============================================================
-# CONFIGURATION
-# ============================================================
-
-DK_DIR = Path("docs/win/manual/normalized")
-EDGE_DIR = Path("docs/win/edge")
+# Constants
+CLEANED_DIR = Path("docs/win/dump/csvs/cleaned")
+NORMALIZED_DIR = Path("docs/win/manual/normalized")
 OUTPUT_DIR = Path("docs/win/ncaab/spreads")
 
+# Ensure output directory exists
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-SIGMA = 7.2  
-EDGE_THRESHOLD = 5.0  
-
-# ============================================================
-# MATH HELPERS
-# ============================================================
-
-def get_cover_prob(margin: float, spread: float, sigma: float) -> float:
-    z = (margin + spread) / sigma
-    prob = NormalDist(mu=0, sigma=1).cdf(z)
-    return max(1e-9, min(1.0 - 1e-9, prob))
-
-def american_to_decimal(a: float) -> float:
-    if a > 0: return 1.0 + a / 100.0
-    return 1.0 + 100.0 / abs(a)
-
-def decimal_to_american(d: float) -> int:
-    if d <= 1.0: return 0
-    if d >= 2.0: return int((d - 1) * 100)
-    return int(-100 / (d - 1))
-
-# ============================================================
-# MAIN
-# ============================================================
-
-def main():
-    try:
-        dk_file = sorted(DK_DIR.glob("norm_dk_ncaab_spreads_*.csv"))[-1]
-        edge_file = sorted(EDGE_DIR.glob("edge_ncaab_*.csv"))[-1]
-    except IndexError:
-        print("Error: Required input files not found.")
-        return
-
-    parts = dk_file.stem.split("_")
-    yyyy, mm, dd = parts[-3], parts[-2], parts[-1]
-    out_path = OUTPUT_DIR / f"edge_ncaab_spreads_{yyyy}_{mm}_{dd}.csv"
-
-    model = {}
-    with edge_file.open(newline="", encoding="utf-8") as f:
-        for r in csv.DictReader(f):
-            model[r["team"]] = {
-                "points": float(r["points"]),
-                "opponent": r["opponent"],
-                "game_id": r["game_id"],
-                "date": r["date"],
-                "time": r["time"],
-            }
-
-    fields = [
-        "game_id", "date", "time", "team", "opponent", "spread",
-        "model_cover_prob", "dk_decimal_odds", "dk_american_odds",
-        "market_prob", "edge_prob", "edge_pct", "league"
-    ]
-
-    processed_games = set()
-
-    with out_path.open("w", newline="", encoding="utf-8") as f_out:
-        writer = csv.DictWriter(f_out, fieldnames=fields)
-        writer.writeheader()
-
-        with dk_file.open(newline="", encoding="utf-8") as f_dk:
-            reader = csv.DictReader(f_dk)
-            odds_col = "odds" if "odds" in reader.fieldnames else \
-                       next((c for c in reader.fieldnames if "american" in c.lower()), None)
-
-            for r in reader:
-                team = r["team"]
-                if team not in model: continue
-                
-                game_id = model[team]["game_id"]
-                if game_id in processed_games: continue
-
-                opp = model[team]["opponent"]
-                spread = float(r["spread"])
-                dk_american = float(r[odds_col])
-                dk_decimal = american_to_decimal(dk_american)
-
-                margin = model[team]["points"] - model[opp]["points"]
-                prob = get_cover_prob(margin, spread, SIGMA)
-                market_prob = 1.0 / dk_decimal
-                edge_pct = (prob - market_prob) * 100.0
-
-                row = {
-                    "game_id": game_id, "date": model[team]["date"], "time": model[team]["time"],
-                    "team": team, "opponent": opp, "spread": spread,
-                    "model_cover_prob": round(prob, 4), "dk_decimal_odds": round(dk_decimal, 3),
-                    "dk_american_odds": dk_american, "market_prob": round(market_prob, 4),
-                    "edge_prob": round(prob - market_prob, 4), "edge_pct": round(edge_pct, 2),
-                    "league": "ncaab_spread"
-                }
-                writer.writerow(row)
-                processed_games.add(game_id)
+def process_spreads():
+    # 1. Get list of cleaned NCAAB projection files
+    projection_files = glob.glob(str(CLEANED_DIR / "ncaab_*.csv"))
     
-    print(f"DONE: Spreads CSV generated at {out_path}")
+    for proj_path in projection_files:
+        # Extract date suffix
+        date_suffix = "_".join(Path(proj_path).stem.split("_")[1:])
+        dk_file = NORMALIZED_DIR / f"norm_dk_ncaab_spreads_{date_suffix}.csv"
+        
+        if not dk_file.exists():
+            continue
+
+        # Load data
+        df_proj = pd.read_csv(proj_path)
+        df_dk = pd.read_csv(dk_file)
+
+        # 2. Create lookup for DK data (Pivoting 2 rows into 1 conceptually)
+        dk_lookup = {}
+        for _, row in df_dk.iterrows():
+            dk_lookup[(row['team'], row['opponent'])] = row
+
+        # 3. Build the output list
+        output_rows = []
+        for _, proj in df_proj.iterrows():
+            away = proj['away_team']
+            home = proj['home_team']
+            
+            # Match DK data using away/home team names
+            away_side = dk_lookup.get((away, home))
+            home_side = dk_lookup.get((home, away))
+            
+            if away_side is not None and home_side is not None:
+                row_data = {
+                    'game_id': proj['game_id'],
+                    'league': 'ncaab_spreads',
+                    'date': proj['date'],
+                    'time': proj['time'],
+                    'away_team': away,
+                    'home_team': home,
+                    'away_team_projected_points': proj['away_team_projected_points'],
+                    'home_team_projected_points': proj['home_team_projected_points'],
+                    'game_projected_points': proj['game_projected_points'],
+                    
+                    # DK Values mapped from your Glossary
+                    'away_spread_handle_pct': away_side['handle_pct'], # VALUE_4
+                    'away_spread_bets_pct': away_side['bets_pct'],     # VALUE_5
+                    'home_spread_handle_pct': home_side['handle_pct'], # VALUE_6
+                    'home_spread_bets_pct': home_side['bets_pct'],     # VALUE_7
+                    
+                    'dk_away_spread_odds': away_side['odds'],          # VALUE_2
+                    'dk_home_spread_odds': home_side['odds'],          # VALUE_3
+                    
+                    # Blank columns
+                    'away_spread_probability': "",
+                    'home_spread_probability': "",
+                    'away_spread_acceptable_decimal_odds': "",
+                    'away_spread_acceptable_american_odds': "",
+                    'home_spread_acceptable_decimal_odds': "",
+                    'home_spread_acceptable_american_odds': ""
+                }
+                output_rows.append(row_data)
+
+        if not output_rows:
+            continue
+
+        # 4. Create DataFrame and Save
+        output_df = pd.DataFrame(output_rows)
+        output_path = OUTPUT_DIR / f"spreads_ncaab_{date_suffix}.csv"
+        output_df.to_csv(output_path, index=False)
+        print(f"Saved: {output_path}")
 
 if __name__ == "__main__":
-    main()
+    process_spreads()
