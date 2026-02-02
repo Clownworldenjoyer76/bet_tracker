@@ -30,24 +30,25 @@ def process_ncaab_files():
     for file_path in files:
         df = pd.read_csv(file_path)
         
+        # Exact column names from provided headers
+        away_prob_col = 'away_team_moneyline_win_prob'
+        home_prob_col = 'home_team_moneyline_win_prob'
+        
         # 1. Away ML Calculations
-        # Fair = 1 / Probability
-        df['away_ml_fair_decimal_odds'] = (1 / df['away_win_probability']).round(2)
+        df['away_ml_fair_decimal_odds'] = (1 / df[away_prob_col]).round(2)
         df['away_ml_fair_american_odds'] = df['away_ml_fair_decimal_odds'].apply(to_american)
         
-        # Acceptable = Fair * (1 + Edge)
         df['away_ml_acceptable_decimal_odds'] = (df['away_ml_fair_decimal_odds'] * (1.0 + EDGE_NCAAB)).round(2)
         df['away_ml_acceptable_american_odds'] = df['away_ml_acceptable_decimal_odds'].apply(to_american)
         
         # 2. Home ML Calculations
-        df['home_ml_fair_decimal_odds'] = (1 / df['home_win_probability']).round(2)
+        df['home_ml_fair_decimal_odds'] = (1 / df[home_prob_col]).round(2)
         df['home_ml_fair_american_odds'] = df['home_ml_fair_decimal_odds'].apply(to_american)
         
-        # Acceptable = Fair * (1 + Edge)
         df['home_ml_acceptable_decimal_odds'] = (df['home_ml_fair_decimal_odds'] * (1.0 + EDGE_NCAAB)).round(2)
         df['home_ml_acceptable_american_odds'] = df['home_ml_acceptable_decimal_odds'].apply(to_american)
         
-        # 3. Drop the old ambiguous columns if they exist
+        # 3. Drop useless old columns
         cols_to_drop = ['fair_decimal_odds', 'fair_american_odds', 'acceptable_decimal_odds', 'acceptable_american_odds']
         df = df.drop(columns=[c for c in cols_to_drop if c in df.columns])
 
