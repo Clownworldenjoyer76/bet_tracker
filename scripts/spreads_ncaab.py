@@ -26,7 +26,7 @@ def process_spreads():
         df_proj = pd.read_csv(proj_path)
         df_dk = pd.read_csv(dk_file)
 
-        # 2. Create lookup for DK data (Pivoting 2 rows into 1 conceptually)
+        # 2. Create lookup for DK data
         dk_lookup = {}
         for _, row in df_dk.iterrows():
             dk_lookup[(row['team'], row['opponent'])] = row
@@ -53,14 +53,16 @@ def process_spreads():
                     'home_team_projected_points': proj['home_team_projected_points'],
                     'game_projected_points': proj['game_projected_points'],
                     
-                    # DK Values mapped from your Glossary
-                    'away_spread_handle_pct': away_side['handle_pct'], # VALUE_4
-                    'away_spread_bets_pct': away_side['bets_pct'],     # VALUE_5
-                    'home_spread_handle_pct': home_side['handle_pct'], # VALUE_6
-                    'home_spread_bets_pct': home_side['bets_pct'],     # VALUE_7
+                    'away_spread': away_side['spread'],             # VALUE_1
+                    'home_spread': home_side['spread'],             # VALUE_2
+
+                    'away_spread_handle_pct': away_side['handle_pct'],
+                    'away_spread_bets_pct': away_side['bets_pct'],
+                    'home_spread_handle_pct': home_side['handle_pct'],
+                    'home_spread_bets_pct': home_side['bets_pct'],
                     
-                    'dk_away_spread_odds': away_side['odds'],          # VALUE_2
-                    'dk_home_spread_odds': home_side['odds'],          # VALUE_3
+                    'dk_away_spread_odds': away_side['odds'],
+                    'dk_home_spread_odds': home_side['odds'],
                     
                     # Blank columns
                     'away_spread_probability': "",
@@ -76,7 +78,9 @@ def process_spreads():
             continue
 
         # 4. Create DataFrame and Save
+        # Re-ordering columns strictly per your requirement
         output_df = pd.DataFrame(output_rows)
+        
         output_path = OUTPUT_DIR / f"spreads_ncaab_{date_suffix}.csv"
         output_df.to_csv(output_path, index=False)
         print(f"Saved: {output_path}")
