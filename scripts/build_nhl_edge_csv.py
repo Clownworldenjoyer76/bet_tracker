@@ -1,105 +1,50 @@
-#!/usr/bin/env python3
-
-import csv
-import re
+import pandas as pd
+import glob
+import os
 from pathlib import Path
 
+# Constants
 EDGE_NHL = 0.08
+INPUT_DIR = Path("docs/win/dump/csvs/cleaned")
+OUTPUT_DIR = Path("docs/win/nhl/moneyline")
 
-INPUT_DIR = Path("docs/win/clean")
-OUTPUT_DIR = Path("docs/win/edge")
+# Ensure output directory exists
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-
-def decimal_to_american(decimal: float) -> int:
-    if decimal >= 2.0:
-        return int(round(100.0 * (decimal - 1.0)))
+def to_american(dec):
+    """Converts decimal odds to American odds format."""
+    if dec <= 1.01: 
+        return 0
+    if dec >= 2.0:
+        return int(round((dec - 1.0) * 100))
     else:
-        return int(round(-100.0 / (decimal - 1.0)))
+        return int(round(-100.0 / (dec - 1.0)))
 
-
-def normalize_probability(raw: str) -> float:
-    p = float(raw)
-    if p > 1.0:
-        p = p / 100.0
-    return p
-
-
-def normalize_timestamp(ts: str) -> str:
-    return re.sub(r"(\d{4})-(\d{2})-(\d{2})", r"\1_\2_\3", ts)
-
-
-def parse_filename(path: Path):
-    parts = [p for p in path.stem.split("_") if p]
-    league = parts[-2]
-    timestamp = normalize_timestamp(parts[-1])
-    return league, timestamp
-
-
-def process_file(input_path: Path):
-    league, timestamp = parse_filename(input_path)
-
-    # HARD SCOPE: NHL ONLY
-    if league != "nhl":
+def process_nhl_files():
+    # Only pull NHL files from the cleaned dump
+    files = glob.glob(str(INPUT_DIR / "nhl_*.csv"))
+    
+    if not files:
+        print(f"No NHL files found in {INPUT_DIR}")
         return
 
-    output_path = OUTPUT_DIR / f"edge_{league}_{timestamp}.csv"
-
-    with input_path.open(newline="", encoding="utf-8") as infile, \
-         output_path.open("w", newline="", encoding="utf-8") as outfile:
-
-        reader = csv.DictReader(infile)
-        fieldnames = list(reader.fieldnames) + [
-            "fair_decimal_odds",
-            "fair_american_odds",
-            "acceptable_decimal_odds",
-            "acceptable_american_odds",
-        ]
-
-        writer = csv.DictWriter(outfile, fieldnames=fieldnames)
-        writer.writeheader()
-
-        for row in reader:
-            raw = row.get("win_probability", "").strip()
-            if not raw:
-                # preserve row structure; output blanks
-                row["fair_decimal_odds"] = ""
-                row["fair_american_odds"] = ""
-                row["acceptable_decimal_odds"] = ""
-                row["acceptable_american_odds"] = ""
-                writer.writerow(row)
-                continue
-
-            p = normalize_probability(raw)
-
-            if not (0.0 < p < 1.0):
-                row["fair_decimal_odds"] = ""
-                row["fair_american_odds"] = ""
-                row["acceptable_decimal_odds"] = ""
-                row["acceptable_american_odds"] = ""
-                writer.writerow(row)
-                continue
-
-            fair_decimal = 1.0 / p
-            fair_american = decimal_to_american(fair_decimal)
-
-            acceptable_decimal = fair_decimal * (1.0 + EDGE_NHL)
-            acceptable_american = decimal_to_american(acceptable_decimal)
-
-            row["fair_decimal_odds"] = round(fair_decimal, 6)
-            row["fair_american_odds"] = fair_american
-            row["acceptable_decimal_odds"] = round(acceptable_decimal, 6)
-            row["acceptable_american_odds"] = acceptable_american
-
-            writer.writerow(row)
-
-    print(f"Created {output_path}")
-
-
-def main():
-    for path in sorted(INPUT_DIR.glob("win_prob__clean_nhl_*.csv")):
-        process_file(path)
-
+    for file_path in files:
+        df = pd.read_csv(file_path)
+        
+        # 1. Update Acceptable Decimal Odds (Apply 8% Edge)
+        # We take the pre-existing fair_decimal_odds from your input
+        df['acceptable_decimal_odds'] = (df['fair_decimal_odds'] * (1.0 + EDGE_NHL)).round(2)
+        
+        # 2. Update Acceptable American Odds based on the new Edge Decimal
+        df['acceptable_american_odds'] = df['acceptable_decimal_odds'].apply(to_american)
+        
+        # 3. Construct output filename (e.g., edge_nhl_2026_02_01.csv)
+        base_name = os.path.basename(file_path)
+        output_path = OUTPUT_DIR / f"edge_{base_name}"
+        
+        # 4. Save file
+        df.to_csv(output_path, index=False)
+        print(f"Processed: {base_name} -> {output_path}")
 
 if __name__ == "__main__":
-    main()
+    process_nhl_files()
