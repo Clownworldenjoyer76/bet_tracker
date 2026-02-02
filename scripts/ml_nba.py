@@ -32,15 +32,14 @@ def process_nba_files():
         df = pd.read_csv(file_path)
         
         # 1. Update Acceptable Decimal Odds (Apply 6% Edge)
-        # Formula: Fair Odds * (1 + 0.06)
         df['acceptable_decimal_odds'] = (df['fair_decimal_odds'] * (1.0 + EDGE_NBA)).round(2)
         
-        # 2. Update Acceptable American Odds based on the new Decimal Edge
+        # 2. Update Acceptable American Odds
         df['acceptable_american_odds'] = df['acceptable_decimal_odds'].apply(to_american)
         
-        # 3. Construct output filename (e.g., edge_nba_2026_02_01.csv)
+        # 3. Construct output filename (e.g., ml_nba_2026_02_01.csv)
         base_name = os.path.basename(file_path)
-        output_path = OUTPUT_DIR / f"edge_{base_name}"
+        output_path = OUTPUT_DIR / f"ml_{base_name}"
         
         # 4. Save file
         df.to_csv(output_path, index=False)
