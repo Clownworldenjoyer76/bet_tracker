@@ -20,7 +20,8 @@ def process_files():
     for file_path in files:
         filename = os.path.basename(file_path)
         if "cleaned" in file_path: continue
-        league = filename.split('_')[0].lower()
+        # Append _ml to league name
+        league = f"{filename.split('_')[0].lower()}_ml"
         
         df = pd.read_csv(file_path)
         processed_data = []
@@ -41,7 +42,7 @@ def process_files():
             away_t = team_parts[0].split('(')[0].strip()
             home_t = team_parts[1].split('(')[0].strip()
             
-            # Convert percentage strings to decimals (4 decimal places)
+            # 4-decimal win probability
             p_away_pct = float(win_parts[0])
             p_home_pct = float(win_parts[1])
             p_away_dec = round(p_away_pct / 100, 4)
@@ -58,7 +59,7 @@ def process_files():
                 "game_id": f"{league}_{f_date}_{index}"
             }
 
-            if league in ['nba', 'ncaab']:
+            if "nba" in league or "ncaab" in league:
                 score_parts = str(row['Points']).split('\n')
                 entry["away_team_projected_points"] = float(score_parts[0])
                 entry["home_team_projected_points"] = float(score_parts[1])
@@ -71,7 +72,6 @@ def process_files():
                 entry["home_team_projected_goals"] = s_home
                 entry["game_projected_goals"] = round(s_away + s_home, 2)
 
-            # Odds calculation based on original percentage
             dec_away = round(100 / p_away_pct, 2)
             entry.update({
                 "fair_decimal_odds": dec_away,
@@ -83,7 +83,9 @@ def process_files():
 
         out_df = pd.DataFrame(processed_data)
         for d_val, d_grp in out_df.groupby('date'):
-            out_filename = f"{league}_{d_val}.csv"
+            # Filename keeps base league name (e.g., nba_2026_02_01.csv)
+            clean_league = league.replace('_ml', '')
+            out_filename = f"{clean_league}_{d_val}.csv"
             d_grp.to_csv(os.path.join(OUTPUT_DIR, out_filename), index=False)
 
 if __name__ == "__main__":
