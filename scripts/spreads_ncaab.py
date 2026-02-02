@@ -1,113 +1,84 @@
-#!/usr/bin/env python3
-
-import csv
+import pandas as pd
+import glob
+import numpy as np
 from pathlib import Path
-from statistics import NormalDist
+from scipy.stats import norm
 
-# ============================================================
-# CONFIGURATION
-# ============================================================
-
-DK_DIR = Path("docs/win/manual/normalized")
-EDGE_DIR = Path("docs/win/edge")
+# Constants
+CLEANED_DIR = Path("docs/win/dump/csvs/cleaned")
+NORMALIZED_DIR = Path("docs/win/manual/normalized")
 OUTPUT_DIR = Path("docs/win/ncaab/spreads")
+EDGE = 0.05
+NCAAB_STD_DEV = 11  # Standard deviation for NCAAB margins
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-SIGMA = 7.2  
-EDGE_THRESHOLD = 5.0  
+def to_american(decimal_odds):
+    if pd.isna(decimal_odds) or decimal_odds <= 1.01: return ""
+    if decimal_odds >= 2.0:
+        return f"+{int((decimal_odds - 1) * 100)}"
+    else:
+        return f"-{int(100 / (decimal_odds - 1))}"
 
-# ============================================================
-# MATH HELPERS
-# ============================================================
-
-def get_cover_prob(margin: float, spread: float, sigma: float) -> float:
-    z = (margin + spread) / sigma
-    prob = NormalDist(mu=0, sigma=1).cdf(z)
-    return max(1e-9, min(1.0 - 1e-9, prob))
-
-def american_to_decimal(a: float) -> float:
-    if a > 0: return 1.0 + a / 100.0
-    return 1.0 + 100.0 / abs(a)
-
-def decimal_to_american(d: float) -> int:
-    if d <= 1.0: return 0
-    if d >= 2.0: return int((d - 1) * 100)
-    return int(-100 / (d - 1))
-
-# ============================================================
-# MAIN
-# ============================================================
-
-def main():
-    try:
-        dk_file = sorted(DK_DIR.glob("norm_dk_ncaab_spreads_*.csv"))[-1]
-        edge_file = sorted(EDGE_DIR.glob("edge_ncaab_*.csv"))[-1]
-    except IndexError:
-        print("Error: Required input files not found.")
-        return
-
-    parts = dk_file.stem.split("_")
-    yyyy, mm, dd = parts[-3], parts[-2], parts[-1]
-    out_path = OUTPUT_DIR / f"edge_ncaab_spreads_{yyyy}_{mm}_{dd}.csv"
-
-    model = {}
-    with edge_file.open(newline="", encoding="utf-8") as f:
-        for r in csv.DictReader(f):
-            model[r["team"]] = {
-                "points": float(r["points"]),
-                "opponent": r["opponent"],
-                "game_id": r["game_id"],
-                "date": r["date"],
-                "time": r["time"],
-            }
-
-    fields = [
-        "game_id", "date", "time", "team", "opponent", "spread",
-        "model_cover_prob", "dk_decimal_odds", "dk_american_odds",
-        "market_prob", "edge_prob", "edge_pct", "league"
-    ]
-
-    processed_games = set()
-
-    with out_path.open("w", newline="", encoding="utf-8") as f_out:
-        writer = csv.DictWriter(f_out, fieldnames=fields)
-        writer.writeheader()
-
-        with dk_file.open(newline="", encoding="utf-8") as f_dk:
-            reader = csv.DictReader(f_dk)
-            odds_col = "odds" if "odds" in reader.fieldnames else \
-                       next((c for c in reader.fieldnames if "american" in c.lower()), None)
-
-            for r in reader:
-                team = r["team"]
-                if team not in model: continue
-                
-                game_id = model[team]["game_id"]
-                if game_id in processed_games: continue
-
-                opp = model[team]["opponent"]
-                spread = float(r["spread"])
-                dk_american = float(r[odds_col])
-                dk_decimal = american_to_decimal(dk_american)
-
-                margin = model[team]["points"] - model[opp]["points"]
-                prob = get_cover_prob(margin, spread, SIGMA)
-                market_prob = 1.0 / dk_decimal
-                edge_pct = (prob - market_prob) * 100.0
-
-                row = {
-                    "game_id": game_id, "date": model[team]["date"], "time": model[team]["time"],
-                    "team": team, "opponent": opp, "spread": spread,
-                    "model_cover_prob": round(prob, 4), "dk_decimal_odds": round(dk_decimal, 3),
-                    "dk_american_odds": dk_american, "market_prob": round(market_prob, 4),
-                    "edge_prob": round(prob - market_prob, 4), "edge_pct": round(edge_pct, 2),
-                    "league": "ncaab_spread"
-                }
-                writer.writerow(row)
-                processed_games.add(game_id)
+def process_spreads():
+    projection_files = glob.glob(str(CLEANED_DIR / "ncaab_*.csv"))
     
-    print(f"DONE: Spreads CSV generated at {out_path}")
+    for proj_path in projection_files:
+        date_suffix = "_".join(Path(proj_path).stem.split("_")[1:])
+        dk_file = NORMALIZED_DIR / f"norm_dk_ncaab_spreads_{date_suffix}.csv"
+        
+        if not dk_file.exists(): continue
+
+        df_proj = pd.read_csv(proj_path)
+        df_dk = pd.read_csv(dk_file)
+        dk_lookup = {(row['team'], row['opponent']): row for _, row in df_dk.iterrows()}
+
+        output_rows = []
+        for _, proj in df_proj.iterrows():
+            away, home = proj['away_team'], proj['home_team']
+            away_side, home_side = dk_lookup.get((away, home)), dk_lookup.get((home, away))
+            
+            if away_side is not None and home_side is not None:
+                # 1. Calc projected home margin
+                proj_margin = proj['home_team_projected_points'] - proj['away_team_projected_points']
+                
+                # 2. Probability to cover spread
+                # norm.cdf(x, mean, std) finds probability of result < x
+                home_prob = 1 - norm.cdf(-home_side['spread'], proj_margin, NCAAB_STD_DEV)
+                away_prob = 1 - home_prob
+
+                # 3. Fair odds + 5% Edge
+                away_dec = (1 / away_prob) * (1 + EDGE) if away_prob > 0.01 else 0
+                home_dec = (1 / home_prob) * (1 + EDGE) if home_prob > 0.01 else 0
+
+                output_rows.append({
+                    'game_id': proj['game_id'],
+                    'league': 'ncaab_spreads',
+                    'date': proj['date'],
+                    'time': proj['time'],
+                    'away_team': away,
+                    'home_team': home,
+                    'away_team_projected_points': proj['away_team_projected_points'],
+                    'home_team_projected_points': proj['home_team_projected_points'],
+                    'game_projected_points': proj['game_projected_points'],
+                    'away_spread': away_side['spread'],
+                    'home_spread': home_side['spread'],
+                    'away_spread_handle_pct': away_side['handle_pct'],
+                    'away_spread_bets_pct': away_side['bets_pct'],
+                    'home_spread_handle_pct': home_side['handle_pct'],
+                    'home_spread_bets_pct': home_side['bets_pct'],
+                    'dk_away_spread_odds': away_side['odds'],
+                    'dk_home_spread_odds': home_side['odds'],
+                    'away_spread_probability': round(away_prob, 4),
+                    'home_spread_probability': round(home_prob, 4),
+                    'away_spread_acceptable_decimal_odds': round(away_dec, 3) if away_dec > 0 else "",
+                    'away_spread_acceptable_american_odds': to_american(away_dec),
+                    'home_spread_acceptable_decimal_odds': round(home_dec, 3) if home_dec > 0 else "",
+                    'home_spread_acceptable_american_odds': to_american(home_dec)
+                })
+
+        if output_rows:
+            pd.DataFrame(output_rows).to_csv(OUTPUT_DIR / f"spreads_ncaab_{date_suffix}.csv", index=False)
 
 if __name__ == "__main__":
-    main()
+    process_spreads()
