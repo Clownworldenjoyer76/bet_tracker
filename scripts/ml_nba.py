@@ -31,15 +31,19 @@ def process_nba_files():
     for file_path in files:
         df = pd.read_csv(file_path)
         
+        # Exact column names from headers
+        away_prob_col = 'away_team_moneyline_win_prob'
+        home_prob_col = 'home_team_moneyline_win_prob'
+        
         # 1. Away ML Calculations (1 / Probability)
-        df['away_ml_fair_decimal_odds'] = (1 / df['away_win_probability']).round(2)
+        df['away_ml_fair_decimal_odds'] = (1 / df[away_prob_col]).round(2)
         df['away_ml_fair_american_odds'] = df['away_ml_fair_decimal_odds'].apply(to_american)
         
         df['away_ml_acceptable_decimal_odds'] = (df['away_ml_fair_decimal_odds'] * (1.0 + EDGE_NBA)).round(2)
         df['away_ml_acceptable_american_odds'] = df['away_ml_acceptable_decimal_odds'].apply(to_american)
         
         # 2. Home ML Calculations
-        df['home_ml_fair_decimal_odds'] = (1 / df['home_win_probability']).round(2)
+        df['home_ml_fair_decimal_odds'] = (1 / df[home_prob_col]).round(2)
         df['home_ml_fair_american_odds'] = df['home_ml_fair_decimal_odds'].apply(to_american)
         
         df['home_ml_acceptable_decimal_odds'] = (df['home_ml_fair_decimal_odds'] * (1.0 + EDGE_NBA)).round(2)
