@@ -26,7 +26,6 @@ def process_files():
         processed_data = []
 
         for index, row in df.iterrows():
-            # Data Splitting
             time_parts = str(row['Time']).split('\n')
             team_parts = str(row['Teams']).split('\n')
             win_parts = str(row['Win']).replace('%', '').split('\n')
@@ -42,17 +41,19 @@ def process_files():
             away_t = team_parts[0].split('(')[0].strip()
             home_t = team_parts[1].split('(')[0].strip()
             
-            p_away = float(win_parts[0])
-            p_home = float(win_parts[1])
+            # Convert percentage strings to decimals (4 decimal places)
+            p_away_pct = float(win_parts[0])
+            p_home_pct = float(win_parts[1])
+            p_away_dec = round(p_away_pct / 100, 4)
+            p_home_dec = round(p_home_pct / 100, 4)
             
-            # League Specific Logic
             entry = {
                 "date": f_date,
                 "time": g_time,
                 "away_team": away_t,
                 "home_team": home_t,
-                "away_team_moneyline_win_prob": p_away,
-                "home_team_moneyline_win_prob": p_home,
+                "away_team_moneyline_win_prob": p_away_dec,
+                "home_team_moneyline_win_prob": p_home_dec,
                 "league": league,
                 "game_id": f"{league}_{f_date}_{index}"
             }
@@ -70,8 +71,8 @@ def process_files():
                 entry["home_team_projected_goals"] = s_home
                 entry["game_projected_goals"] = round(s_away + s_home, 2)
 
-            # Odds (Fair = Acceptable)
-            dec_away = round(100 / p_away, 2)
+            # Odds calculation based on original percentage
+            dec_away = round(100 / p_away_pct, 2)
             entry.update({
                 "fair_decimal_odds": dec_away,
                 "fair_american_odds": conv_american(dec_away),
@@ -81,7 +82,6 @@ def process_files():
             processed_data.append(entry)
 
         out_df = pd.DataFrame(processed_data)
-        # Group by date to match filename requirement {league}_{date}
         for d_val, d_grp in out_df.groupby('date'):
             out_filename = f"{league}_{d_val}.csv"
             d_grp.to_csv(os.path.join(OUTPUT_DIR, out_filename), index=False)
