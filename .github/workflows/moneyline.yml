@@ -1,0 +1,44 @@
+name: 02 Moneyline 
+
+on:
+  workflow_dispatch: # Allows manual trigger only
+
+jobs:
+  calculate-edges:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Needed to push changes back to the repo
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: |
+          pip install pandas
+
+      - name: Run NBA Moneyline Script
+        run: python scripts/ml_nba.py
+
+      - name: Run NCAAB Moneyline Script
+        run: python scripts/ml_ncaab.py
+
+      - name: Run NHL Moneyline Script
+        run: python scripts/ml_nhl.py
+
+      - name: Commit and Push Changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/win/*/moneyline/*.csv
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update moneyline edge files"
+            git push
+          fi
