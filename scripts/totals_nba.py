@@ -15,6 +15,7 @@ def process_totals():
     projection_files = glob.glob(str(CLEANED_DIR / "nba_*.csv"))
     
     for proj_path in projection_files:
+        # Extract date (e.g., from 'nba_2026_02_02.csv' get '2026_02_02')
         date_suffix = "_".join(Path(proj_path).stem.split("_")[1:])
         dk_file = NORMALIZED_DIR / f"norm_dk_nba_totals_{date_suffix}.csv"
         
@@ -83,8 +84,8 @@ def process_totals():
         for col in blank_cols:
             output_df[col] = ""
 
-        # UPDATED FILENAME
-        output_path = OUTPUT_DIR / "ou_nba.csv"
+        # OUTPUT FILENAME WITH DATE
+        output_path = OUTPUT_DIR / f"ou_nba_{date_suffix}.csv"
         output_df.to_csv(output_path, index=False)
         print(f"Saved: {output_path}")
 
