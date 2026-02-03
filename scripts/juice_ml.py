@@ -52,7 +52,7 @@ def normalize_date(val):
 
 def run():
     JOBS = [
-        # NBA ML — NOW PROBABILITY-BASED
+        # NBA ML — probability-based
         ("nba", "ml", "config/nba/nba_ml_juice.csv",
          "docs/win/nba/moneyline/ml_nba_*.csv",
          [
@@ -61,16 +61,16 @@ def run():
          ],
          "prob"),
 
-        # NHL ML — UNCHANGED
+        # NHL ML — NOW probability-based
         ("nhl", "ml", "config/nhl/nhl_ml_juice.csv",
          "docs/win/nhl/moneyline/ml_nhl_*.csv",
          [
-             ("home_ml_acceptable_american_odds", None, "home"),
-             ("away_ml_acceptable_american_odds", None, "away"),
+             ("home_ml_acceptable_american_odds", "home_team_moneyline_win_prob", "home"),
+             ("away_ml_acceptable_american_odds", "away_team_moneyline_win_prob", "away"),
          ],
-         "odds_band"),
+         "prob"),
 
-        # NCAAB ML — PROBABILITY-BASED (UNCHANGED)
+        # NCAAB ML — probability-based
         ("ncaab", "ml", "config/ncaab/ncaab_ml_juice.csv",
          "docs/win/ncaab/moneyline/ml_ncaab_*.csv",
          [
@@ -96,14 +96,7 @@ def run():
                     try:
                         american = row[odds_col]
                         base_dec = american_to_decimal(american)
-
-                        if mode == "odds_band":
-                            fav_ud = "favorite" if american < 0 else "underdog"
-                            juice = band_lookup_odds(american, fav_ud, venue, jt)
-                            d = base_dec * (1 + juice)
-                        else:  # probability-binned
-                            d = base_dec * (1 + prob_bin_lookup(row[key_col], jt))
-
+                        d = base_dec * (1 + prob_bin_lookup(row[key_col], jt))
                         return decimal_to_american(d)
                     except Exception:
                         return american
