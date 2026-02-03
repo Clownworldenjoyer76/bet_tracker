@@ -2,6 +2,7 @@ import pandas as pd
 import glob
 from pathlib import Path
 from datetime import datetime
+import math
 
 # ---------- ODDS HELPERS ----------
 
@@ -9,6 +10,8 @@ def american_to_decimal(a):
     return 1 + (a / 100 if a > 0 else 100 / abs(a))
 
 def decimal_to_american(d):
+    if not math.isfinite(d) or d <= 1:
+        raise ValueError("Invalid decimal odds")
     return int(round((d - 1) * 100)) if d >= 2 else int(round(-100 / (d - 1)))
 
 # ---------- JUICE LOOKUPS ----------
@@ -40,7 +43,6 @@ def run():
     today = datetime.utcnow().strftime("%Y%m%d")
 
     JOBS = [
-        # NBA / NCAAB / NHL MONEYLINE
         ("nba", "ml", "config/nba/nba_ml_juice.csv",
          "docs/win/nba/moneyline/ml_nba_*.csv",
          [
@@ -65,7 +67,6 @@ def run():
          ],
          band_lookup),
 
-        # SPREADS
         ("nba", "spreads", "config/nba/nba_spreads_juice.csv",
          "docs/win/nba/spreads/spreads_nba_*.csv",
          [
@@ -90,7 +91,6 @@ def run():
          ],
          band_lookup),
 
-        # TOTALS
         ("nba", "totals", "config/nba/nba_totals_juice.csv",
          "docs/win/nba/totals/ou_nba_*.csv",
          [
@@ -125,23 +125,29 @@ def run():
             df = pd.read_csv(f)
 
             for odds_col, prob_col, side in legs:
+                out_col = odds_col.replace("acceptable_american_odds", "juice_odds")
+
                 def apply(row):
-                    base = american_to_decimal(row[odds_col])
-                    p = row[prob_col]
+                    try:
+                        base = american_to_decimal(row[odds_col])
+                        p = row[prob_col]
 
-                    if lookup == band_lookup:
-                        fav_ud = "fav" if p >= 0.5 else "dog"
-                        return decimal_to_american(base * (1 + lookup(p, fav_ud, side, jt)))
+                        if lookup == band_lookup:
+                            fav_ud = "fav" if p >= 0.5 else "dog"
+                            d = base * (1 + lookup(p, fav_ud, side, jt))
+                        elif lookup == prob_bin_lookup:
+                            d = base * (1 + lookup(p, jt))
+                        elif lookup == spread_lookup:
+                            d = base * (1 + lookup(row[prob_col], jt))
+                        else:
+                            d = base * (1 + lookup(side, jt))
 
-                    if lookup == prob_bin_lookup:
-                        return decimal_to_american(base * (1 + lookup(p, jt)))
+                        return decimal_to_american(d)
 
-                    if lookup == spread_lookup:
-                        return decimal_to_american(base * (1 + lookup(row[prob_col], jt)))
+                    except Exception:
+                        return row[odds_col]
 
-                    return decimal_to_american(base * (1 + lookup(side, jt)))
-
-                df[f"{odds_col.replace('acceptable_american_odds', 'juice_odds')}"] = df.apply(apply, axis=1)
+                df[out_col] = df.apply(apply, axis=1)
 
             out = out_dir / f"juice_{league}_{market}_{today}.csv"
             df.to_csv(out, index=False)
