@@ -53,7 +53,7 @@ CONFIG = {
             "glob": "docs/win/nba/moneyline/ml_nba_*.csv",
             "lookup": lookup_band_juice,
             "cols": {
-                "home_ml_acceptable_american_odd": "home_ml_juice_odds",
+                "home_ml_acceptable_american_odds": "home_ml_juice_odds",
                 "away_ml_acceptable_american_odds": "away_ml_juice_odds",
             },
         },
@@ -82,7 +82,7 @@ CONFIG = {
             "glob": "docs/win/ncaab/moneyline/ml_ncaab_*.csv",
             "lookup": lookup_prob_bin_juice,
             "cols": {
-                "home_ml_acceptable_american_odd": "home_ml_juice_odds",
+                "home_ml_acceptable_american_odds": "home_ml_juice_odds",
                 "away_ml_acceptable_american_odds": "away_ml_juice_odds",
             },
         },
@@ -111,7 +111,7 @@ CONFIG = {
             "glob": "docs/win/nhl/moneyline/ml_nhl_*.csv",
             "lookup": lookup_band_juice,
             "cols": {
-                "home_ml_acceptable_american_odd": "home_ml_juice_odds",
+                "home_ml_acceptable_american_odds": "home_ml_juice_odds",
                 "away_ml_acceptable_american_odds": "away_ml_juice_odds",
             },
         },
