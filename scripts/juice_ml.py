@@ -28,7 +28,7 @@ def normalize_date(val):
 
 def run():
     JOBS = [
-        # NBA ML — probability-based
+        # NBA ML — probability-based (uses lookup_type == "prob")
         ("nba", "ml", "config/nba/nba_ml_juice.csv",
          "docs/win/nba/moneyline/ml_nba_*.csv",
          [
@@ -36,7 +36,7 @@ def run():
              ("away_ml_acceptable_american_odds", "away_team_moneyline_win_prob"),
          ]),
 
-        # NHL ML — probability-based
+        # NHL ML — probability-based (unchanged)
         ("nhl", "ml", "config/nhl/nhl_ml_juice.csv",
          "docs/win/nhl/moneyline/ml_nhl_*.csv",
          [
@@ -44,7 +44,7 @@ def run():
              ("away_ml_acceptable_american_odds", "away_team_moneyline_win_prob"),
          ]),
 
-        # NCAAB ML — probability-based
+        # NCAAB ML — probability-based (unchanged)
         ("ncaab", "ml", "config/ncaab/ncaab_ml_juice.csv",
          "docs/win/ncaab/moneyline/ml_ncaab_*.csv",
          [
@@ -55,6 +55,11 @@ def run():
 
     for league, market, juice_file, pattern, legs in JOBS:
         jt = pd.read_csv(juice_file)
+
+        # ONLY NBA filters to prob rows
+        if league == "nba" and "lookup_type" in jt.columns:
+            jt = jt[jt.lookup_type == "prob"].copy()
+
         out_dir = Path(f"docs/win/juice/{league}/{market}")
         out_dir.mkdir(parents=True, exist_ok=True)
 
