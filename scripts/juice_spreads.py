@@ -78,5 +78,14 @@ def run():
         df = pd.read_csv(f)
         apply_spread_juice(df, ncaab_juice, "ncaab", ncaab_out_dir)
 
+    # ---------- NHL ----------
+    nhl_juice = pd.read_csv("config/nhl/nhl_spreads_juice.csv")
+    nhl_out_dir = Path("docs/win/juice/nhl/spreads")
+    nhl_out_dir.mkdir(parents=True, exist_ok=True)
+
+    for f in glob.glob("docs/win/nhl/spreads/spreads_nhl_*.csv"):
+        df = pd.read_csv(f)
+        apply_spread_juice(df, nhl_juice, "nhl", nhl_out_dir)
+
 if __name__ == "__main__":
     run()
