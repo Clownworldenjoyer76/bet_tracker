@@ -52,7 +52,7 @@ def normalize_date(val):
 
 def run():
     JOBS = [
-        # NBA / NHL MONEYLINE (ODDS-BANDED)
+        # NBA / NHL MONEYLINE
         ("nba", "ml", "config/nba/nba_ml_juice.csv",
          "docs/win/nba/moneyline/ml_nba_*.csv",
          [
@@ -69,7 +69,7 @@ def run():
          ],
          "odds_band"),
 
-        # NCAAB MONEYLINE (PROBABILITY-BINNED)
+        # NCAAB MONEYLINE
         ("ncaab", "ml", "config/ncaab/ncaab_ml_juice.csv",
          "docs/win/ncaab/moneyline/ml_ncaab_*.csv",
          [
@@ -78,7 +78,7 @@ def run():
          ],
          "prob"),
 
-        # NBA SPREADS (SPREAD-SIZE-BANDED)
+        # NBA SPREADS (FIXED)
         ("nba", "spreads", "config/nba/nba_spreads_juice.csv",
          "docs/win/nba/spreads/spreads_nba_*.csv",
          [
@@ -96,7 +96,7 @@ def run():
          ],
          "spread"),
 
-        # NHL SPREADS (unchanged)
+        # NHL SPREADS
         ("nhl", "spreads", "config/nhl/nhl_spreads_juice.csv",
          "docs/win/nhl/spreads/spreads_nhl_*.csv",
          [
@@ -104,31 +104,6 @@ def run():
              ("away_spread_acceptable_american_odds", "away_spread_probability", "away"),
          ],
          "odds_band"),
-
-        # TOTALS
-        ("nba", "totals", "config/nba/nba_totals_juice.csv",
-         "docs/win/nba/totals/ou_nba_*.csv",
-         [
-             ("over_acceptable_american_odds", "over_probability", "over"),
-             ("under_acceptable_american_odds", "under_probability", "under"),
-         ],
-         "side"),
-
-        ("ncaab", "totals", "config/ncaab/ncaab_ou_juice.csv",
-         "docs/win/ncaab/totals/ou_ncaab_*.csv",
-         [
-             ("over_acceptable_american_odds", "over_probability", "over"),
-             ("under_acceptable_american_odds", "under_probability", "under"),
-         ],
-         "side"),
-
-        ("nhl", "totals", "config/nhl/nhl_totals_juice.csv",
-         "docs/win/nhl/totals/ou_nhl_*.csv",
-         [
-             ("over_acceptable_american_odds", "over_probability", "over"),
-             ("under_acceptable_american_odds", "under_probability", "under"),
-         ],
-         "side"),
     ]
 
     for league, market, juice_file, pattern, legs, mode in JOBS:
@@ -140,6 +115,12 @@ def run():
             df = pd.read_csv(f)
             game_date = normalize_date(df["date"].iloc[0])
 
+            # ✅ determine favorite once per game (spread markets only)
+            if mode == "spread_band":
+                # use home spread to decide
+                home_spread = df["home_spread"].iloc[0]
+                favorite_side = "home" if home_spread < 0 else "away"
+
             for odds_col, key_col, venue in legs:
                 out_col = odds_col.replace("acceptable_american_odds", "juice_odds")
 
@@ -148,17 +129,15 @@ def run():
                         base_dec = american_to_decimal(row[odds_col])
 
                         if mode == "spread_band":
-                            spread = row[key_col]
-                            spread_abs = abs(spread)
-                            fav_ud = "favorite" if spread < 0 else "underdog"
+                            spread_abs = abs(row[key_col])
+                            fav_ud = "favorite" if venue == favorite_side else "underdog"
                             juice = band_lookup_spread(spread_abs, fav_ud, venue, jt)
                             d = base_dec * (1 + juice)
 
                         elif mode == "odds_band":
-                            american = row[odds_col]
                             p = row[key_col]
                             fav_ud = "favorite" if p >= 0.5 else "underdog"
-                            juice = band_lookup_odds(american, fav_ud, venue, jt)
+                            juice = band_lookup_odds(row[odds_col], fav_ud, venue, jt)
                             d = base_dec * (1 + juice)
 
                         elif mode == "prob":
