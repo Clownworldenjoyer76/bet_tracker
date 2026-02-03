@@ -1,7 +1,6 @@
 import pandas as pd
 import glob
 from pathlib import Path
-from datetime import datetime
 import math
 
 # ---------- ODDS HELPERS ----------
@@ -16,10 +15,10 @@ def decimal_to_american(d):
 
 # ---------- JUICE LOOKUPS ----------
 
-def band_lookup(p, fav_ud, venue, jt):
+def band_lookup_odds(american_odds, fav_ud, venue, jt):
     r = jt[
-        (jt.band_min <= p) &
-        (p < jt.band_max) &
+        (jt.band_min <= american_odds) &
+        (american_odds < jt.band_max) &
         (jt.fav_ud == fav_ud) &
         (jt.venue == venue)
     ]
@@ -44,21 +43,14 @@ def normalize_date(val):
 
 def run():
     JOBS = [
+        # NBA / NHL MONEYLINE (ODDS-BANDED)
         ("nba", "ml", "config/nba/nba_ml_juice.csv",
          "docs/win/nba/moneyline/ml_nba_*.csv",
          [
              ("home_ml_acceptable_american_odds", "home_team_moneyline_win_prob", "home"),
              ("away_ml_acceptable_american_odds", "away_team_moneyline_win_prob", "away"),
          ],
-         band_lookup),
-
-        ("ncaab", "ml", "config/ncaab/ncaab_ml_juice.csv",
-         "docs/win/ncaab/moneyline/ml_ncaab_*.csv",
-         [
-             ("home_ml_acceptable_american_odds", "home_team_moneyline_win_prob", "home"),
-             ("away_ml_acceptable_american_odds", "away_team_moneyline_win_prob", "away"),
-         ],
-         prob_bin_lookup),
+         "odds_band"),
 
         ("nhl", "ml", "config/nhl/nhl_ml_juice.csv",
          "docs/win/nhl/moneyline/ml_nhl_*.csv",
@@ -66,15 +58,25 @@ def run():
              ("home_ml_acceptable_american_odds", "home_team_moneyline_win_prob", "home"),
              ("away_ml_acceptable_american_odds", "away_team_moneyline_win_prob", "away"),
          ],
-         band_lookup),
+         "odds_band"),
 
+        # NCAAB MONEYLINE (PROBABILITY-BINNED)
+        ("ncaab", "ml", "config/ncaab/ncaab_ml_juice.csv",
+         "docs/win/ncaab/moneyline/ml_ncaab_*.csv",
+         [
+             ("home_ml_acceptable_american_odds", "home_team_moneyline_win_prob", "home"),
+             ("away_ml_acceptable_american_odds", "away_team_moneyline_win_prob", "away"),
+         ],
+         "prob"),
+
+        # SPREADS
         ("nba", "spreads", "config/nba/nba_spreads_juice.csv",
          "docs/win/nba/spreads/spreads_nba_*.csv",
          [
              ("home_spread_acceptable_american_odds", "home_spread_probability", "home"),
              ("away_spread_acceptable_american_odds", "away_spread_probability", "away"),
          ],
-         band_lookup),
+         "odds_band"),
 
         ("ncaab", "spreads", "config/ncaab/ncaab_spreads_juice.csv",
          "docs/win/ncaab/spreads/spreads_ncaab_*.csv",
@@ -82,7 +84,7 @@ def run():
              ("home_spread_acceptable_american_odds", "home_spread", None),
              ("away_spread_acceptable_american_odds", "away_spread", None),
          ],
-         spread_lookup),
+         "spread"),
 
         ("nhl", "spreads", "config/nhl/nhl_spreads_juice.csv",
          "docs/win/nhl/spreads/spreads_nhl_*.csv",
@@ -90,15 +92,16 @@ def run():
              ("home_spread_acceptable_american_odds", "home_spread_probability", "home"),
              ("away_spread_acceptable_american_odds", "away_spread_probability", "away"),
          ],
-         band_lookup),
+         "odds_band"),
 
+        # TOTALS (unchanged)
         ("nba", "totals", "config/nba/nba_totals_juice.csv",
          "docs/win/nba/totals/ou_nba_*.csv",
          [
              ("over_acceptable_american_odds", "over_probability", "over"),
              ("under_acceptable_american_odds", "under_probability", "under"),
          ],
-         totals_side_lookup),
+         "side"),
 
         ("ncaab", "totals", "config/ncaab/ncaab_ou_juice.csv",
          "docs/win/ncaab/totals/ou_ncaab_*.csv",
@@ -106,7 +109,7 @@ def run():
              ("over_acceptable_american_odds", "over_probability", "over"),
              ("under_acceptable_american_odds", "under_probability", "under"),
          ],
-         totals_side_lookup),
+         "side"),
 
         ("nhl", "totals", "config/nhl/nhl_totals_juice.csv",
          "docs/win/nhl/totals/ou_nhl_*.csv",
@@ -114,39 +117,43 @@ def run():
              ("over_acceptable_american_odds", "over_probability", "over"),
              ("under_acceptable_american_odds", "under_probability", "under"),
          ],
-         totals_side_lookup),
+         "side"),
     ]
 
-    for league, market, juice_file, pattern, legs, lookup in JOBS:
+    for league, market, juice_file, pattern, legs, mode in JOBS:
         jt = pd.read_csv(juice_file)
         out_dir = Path(f"docs/win/juice/{league}/{market}")
         out_dir.mkdir(parents=True, exist_ok=True)
 
         for f in glob.glob(pattern):
             df = pd.read_csv(f)
-
-            # ✅ derive filename date from input data
             game_date = normalize_date(df["date"].iloc[0])
 
-            for odds_col, prob_col, side in legs:
+            for odds_col, key_col, side in legs:
                 out_col = odds_col.replace("acceptable_american_odds", "juice_odds")
 
                 def apply(row):
                     try:
-                        base = american_to_decimal(row[odds_col])
-                        p = row[prob_col]
+                        base_dec = american_to_decimal(row[odds_col])
 
-                        if lookup == band_lookup:
-                            fav_ud = "fav" if p >= 0.5 else "dog"
-                            d = base * (1 + lookup(p, fav_ud, side, jt))
-                        elif lookup == prob_bin_lookup:
-                            d = base * (1 + lookup(p, jt))
-                        elif lookup == spread_lookup:
-                            d = base * (1 + lookup(row[prob_col], jt))
+                        if mode == "odds_band":
+                            american = row[odds_col]
+                            p = row[key_col]
+                            fav_ud = "favorite" if p >= 0.5 else "underdog"
+                            juice = band_lookup_odds(american, fav_ud, side, jt)
+                            d = base_dec * (1 + juice)
+
+                        elif mode == "prob":
+                            d = base_dec * (1 + prob_bin_lookup(row[key_col], jt))
+
+                        elif mode == "spread":
+                            d = base_dec * (1 + spread_lookup(row[key_col], jt))
+
                         else:
-                            d = base * (1 + lookup(side, jt))
+                            d = base_dec * (1 + totals_side_lookup(side, jt))
 
                         return decimal_to_american(d)
+
                     except Exception:
                         return row[odds_col]
 
