@@ -52,24 +52,22 @@ def normalize_date(val):
 
 def run():
     JOBS = [
-        # NBA / NHL MONEYLINE
         ("nba", "ml", "config/nba/nba_ml_juice.csv",
          "docs/win/nba/moneyline/ml_nba_*.csv",
          [
-             ("home_ml_acceptable_american_odds", "home_team_moneyline_win_prob", "home"),
-             ("away_ml_acceptable_american_odds", "away_team_moneyline_win_prob", "away"),
+             ("home_ml_acceptable_american_odds", None, "home"),
+             ("away_ml_acceptable_american_odds", None, "away"),
          ],
          "odds_band"),
 
         ("nhl", "ml", "config/nhl/nhl_ml_juice.csv",
          "docs/win/nhl/moneyline/ml_nhl_*.csv",
          [
-             ("home_ml_acceptable_american_odds", "home_team_moneyline_win_prob", "home"),
-             ("away_ml_acceptable_american_odds", "away_team_moneyline_win_prob", "away"),
+             ("home_ml_acceptable_american_odds", None, "home"),
+             ("away_ml_acceptable_american_odds", None, "away"),
          ],
          "odds_band"),
 
-        # NCAAB MONEYLINE
         ("ncaab", "ml", "config/ncaab/ncaab_ml_juice.csv",
          "docs/win/ncaab/moneyline/ml_ncaab_*.csv",
          [
@@ -77,33 +75,6 @@ def run():
              ("away_ml_acceptable_american_odds", "away_team_moneyline_win_prob", "away"),
          ],
          "prob"),
-
-        # NBA SPREADS (FIXED)
-        ("nba", "spreads", "config/nba/nba_spreads_juice.csv",
-         "docs/win/nba/spreads/spreads_nba_*.csv",
-         [
-             ("home_spread_acceptable_american_odds", "home_spread", "home"),
-             ("away_spread_acceptable_american_odds", "away_spread", "away"),
-         ],
-         "spread_band"),
-
-        # NCAAB SPREADS
-        ("ncaab", "spreads", "config/ncaab/ncaab_spreads_juice.csv",
-         "docs/win/ncaab/spreads/spreads_ncaab_*.csv",
-         [
-             ("home_spread_acceptable_american_odds", "home_spread", None),
-             ("away_spread_acceptable_american_odds", "away_spread", None),
-         ],
-         "spread"),
-
-        # NHL SPREADS
-        ("nhl", "spreads", "config/nhl/nhl_spreads_juice.csv",
-         "docs/win/nhl/spreads/spreads_nhl_*.csv",
-         [
-             ("home_spread_acceptable_american_odds", "home_spread_probability", "home"),
-             ("away_spread_acceptable_american_odds", "away_spread_probability", "away"),
-         ],
-         "odds_band"),
     ]
 
     for league, market, juice_file, pattern, legs, mode in JOBS:
@@ -115,44 +86,26 @@ def run():
             df = pd.read_csv(f)
             game_date = normalize_date(df["date"].iloc[0])
 
-            # ✅ determine favorite once per game (spread markets only)
-            if mode == "spread_band":
-                # use home spread to decide
-                home_spread = df["home_spread"].iloc[0]
-                favorite_side = "home" if home_spread < 0 else "away"
-
             for odds_col, key_col, venue in legs:
                 out_col = odds_col.replace("acceptable_american_odds", "juice_odds")
 
                 def apply(row):
                     try:
-                        base_dec = american_to_decimal(row[odds_col])
+                        american = row[odds_col]
+                        base_dec = american_to_decimal(american)
 
-                        if mode == "spread_band":
-                            spread_abs = abs(row[key_col])
-                            fav_ud = "favorite" if venue == favorite_side else "underdog"
-                            juice = band_lookup_spread(spread_abs, fav_ud, venue, jt)
+                        if mode == "odds_band":
+                            fav_ud = "favorite" if american < 0 else "underdog"
+                            juice = band_lookup_odds(american, fav_ud, venue, jt)
                             d = base_dec * (1 + juice)
 
-                        elif mode == "odds_band":
-                            p = row[key_col]
-                            fav_ud = "favorite" if p >= 0.5 else "underdog"
-                            juice = band_lookup_odds(row[odds_col], fav_ud, venue, jt)
-                            d = base_dec * (1 + juice)
-
-                        elif mode == "prob":
+                        else:  # prob-binned (ncaab)
                             d = base_dec * (1 + prob_bin_lookup(row[key_col], jt))
-
-                        elif mode == "spread":
-                            d = base_dec * (1 + spread_lookup(row[key_col], jt))
-
-                        else:
-                            d = base_dec * (1 + totals_side_lookup(venue, jt))
 
                         return decimal_to_american(d)
 
                     except Exception:
-                        return row[odds_col]
+                        return american
 
                 df[out_col] = df.apply(apply, axis=1)
 
