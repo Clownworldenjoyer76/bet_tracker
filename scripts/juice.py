@@ -6,163 +6,146 @@ from datetime import datetime
 # ---------- ODDS HELPERS ----------
 
 def american_to_decimal(a):
-    if a > 0:
-        return 1 + a / 100
-    return 1 + 100 / abs(a)
+    return 1 + (a / 100 if a > 0 else 100 / abs(a))
 
 def decimal_to_american(d):
-    if d >= 2:
-        return int(round((d - 1) * 100))
-    return int(round(-100 / (d - 1)))
+    return int(round((d - 1) * 100)) if d >= 2 else int(round(-100 / (d - 1)))
 
-# ---------- LOOKUPS ----------
+# ---------- JUICE LOOKUPS ----------
 
-def lookup_band_juice(row, jt):
+def band_lookup(p, fav_ud, venue, jt):
     r = jt[
-        (jt.band_min <= row.win_prob) &
-        (row.win_prob < jt.band_max) &
-        (jt.fav_ud == row.fav_ud) &
-        (jt.venue == row.venue)
+        (jt.band_min <= p) &
+        (p < jt.band_max) &
+        (jt.fav_ud == fav_ud) &
+        (jt.venue == venue)
     ]
     return float(r.iloc[0].extra_juice) if not r.empty else 0.0
 
-def lookup_prob_bin_juice(row, jt):
-    r = jt[
-        (jt.prob_bin_min <= row.win_prob) &
-        (row.win_prob < jt.prob_bin_max)
-    ]
+def prob_bin_lookup(p, jt):
+    r = jt[(jt.prob_bin_min <= p) & (p < jt.prob_bin_max)]
     return float(r.iloc[0].extra_juice) if not r.empty else 0.0
 
-def lookup_spread_juice(row, jt):
-    r = jt[jt.spread == row.spread]
+def spread_lookup(spread, jt):
+    r = jt[jt.spread == spread]
     return float(r.iloc[0].extra_juice) if not r.empty else 0.0
 
-def lookup_totals_side_juice(row, jt):
-    r = jt[
-        (jt.side == row.side) &
-        (jt.over_under == row.over_under)
-    ]
+def totals_side_lookup(side, jt):
+    r = jt[jt.side == side]
     return float(r.iloc[0].extra_juice) if not r.empty else 0.0
-
-# ---------- CONFIG ----------
-
-CONFIG = {
-    "nba": {
-        "ml": {
-            "juice": "config/nba/nba_ml_juice.csv",
-            "glob": "docs/win/nba/moneyline/ml_nba_*.csv",
-            "lookup": lookup_band_juice,
-            "cols": {
-                "home_ml_acceptable_american_odds": "home_ml_juice_odds",
-                "away_ml_acceptable_american_odds": "away_ml_juice_odds",
-            },
-        },
-        "spreads": {
-            "juice": "config/nba/nba_spreads_juice.csv",
-            "glob": "docs/win/nba/spreads/spreads_nba_*.csv",
-            "lookup": lookup_band_juice,
-            "cols": {
-                "home_spread_acceptable_american_odds": "home_spread_juice_odds",
-                "away_spread_acceptable_american_odds": "away_spread_juice_odds",
-            },
-        },
-        "totals": {
-            "juice": "config/nba/nba_totals_juice.csv",
-            "glob": "docs/win/nba/totals/ou_nba_*.csv",
-            "lookup": lookup_totals_side_juice,
-            "cols": {
-                "over_acceptable_american_odds": "over_juice_odds",
-                "under_acceptable_american_odds": "under_juice_odds",
-            },
-        },
-    },
-    "ncaab": {
-        "ml": {
-            "juice": "config/ncaab/ncaab_ml_juice.csv",
-            "glob": "docs/win/ncaab/moneyline/ml_ncaab_*.csv",
-            "lookup": lookup_prob_bin_juice,
-            "cols": {
-                "home_ml_acceptable_american_odds": "home_ml_juice_odds",
-                "away_ml_acceptable_american_odds": "away_ml_juice_odds",
-            },
-        },
-        "spreads": {
-            "juice": "config/ncaab/ncaab_spreads_juice.csv",
-            "glob": "docs/win/ncaab/spreads/spreads_ncaab_*.csv",
-            "lookup": lookup_spread_juice,
-            "cols": {
-                "home_spread_acceptable_american_odds": "home_spread_juice_odds",
-                "away_spread_acceptable_american_odds": "away_spread_juice_odds",
-            },
-        },
-        "totals": {
-            "juice": "config/ncaab/ncaab_ou_juice.csv",
-            "glob": "docs/win/ncaab/totals/ou_ncaab_*.csv",
-            "lookup": lookup_totals_side_juice,
-            "cols": {
-                "over_acceptable_american_odds": "over_juice_odds",
-                "under_acceptable_american_odds": "under_juice_odds",
-            },
-        },
-    },
-    "nhl": {
-        "ml": {
-            "juice": "config/nhl/nhl_ml_juice.csv",
-            "glob": "docs/win/nhl/moneyline/ml_nhl_*.csv",
-            "lookup": lookup_band_juice,
-            "cols": {
-                "home_ml_acceptable_american_odds": "home_ml_juice_odds",
-                "away_ml_acceptable_american_odds": "away_ml_juice_odds",
-            },
-        },
-        "spreads": {
-            "juice": "config/nhl/nhl_spreads_juice.csv",
-            "glob": "docs/win/nhl/spreads/spreads_nhl_*.csv",
-            "lookup": lookup_band_juice,
-            "cols": {
-                "home_spread_acceptable_american_odds": "home_spread_juice_odds",
-                "away_spread_acceptable_american_odds": "away_spread_juice_odds",
-            },
-        },
-        "totals": {
-            "juice": "config/nhl/nhl_totals_juice.csv",
-            "glob": "docs/win/nhl/totals/ou_nhl_*.csv",
-            "lookup": lookup_totals_side_juice,
-            "cols": {
-                "over_acceptable_american_odds": "over_juice_odds",
-                "under_acceptable_american_odds": "under_juice_odds",
-            },
-        },
-    },
-}
 
 # ---------- MAIN ----------
 
 def run():
     today = datetime.utcnow().strftime("%Y%m%d")
 
-    for league, markets in CONFIG.items():
-        for market, cfg in markets.items():
-            jt = pd.read_csv(cfg["juice"])
-            files = glob.glob(cfg["glob"])
+    JOBS = [
+        # NBA / NCAAB / NHL MONEYLINE
+        ("nba", "ml", "config/nba/nba_ml_juice.csv",
+         "docs/win/nba/moneyline/ml_nba_*.csv",
+         [
+             ("home_ml_acceptable_american_odds", "home_team_moneyline_win_prob", "home"),
+             ("away_ml_acceptable_american_odds", "away_team_moneyline_win_prob", "away"),
+         ],
+         band_lookup),
 
-            out_dir = Path(f"docs/win/juice/{league}/{market}")
-            out_dir.mkdir(parents=True, exist_ok=True)
+        ("ncaab", "ml", "config/ncaab/ncaab_ml_juice.csv",
+         "docs/win/ncaab/moneyline/ml_ncaab_*.csv",
+         [
+             ("home_ml_acceptable_american_odds", "home_team_moneyline_win_prob", "home"),
+             ("away_ml_acceptable_american_odds", "away_team_moneyline_win_prob", "away"),
+         ],
+         prob_bin_lookup),
 
-            for f in files:
-                df = pd.read_csv(f)
+        ("nhl", "ml", "config/nhl/nhl_ml_juice.csv",
+         "docs/win/nhl/moneyline/ml_nhl_*.csv",
+         [
+             ("home_ml_acceptable_american_odds", "home_team_moneyline_win_prob", "home"),
+             ("away_ml_acceptable_american_odds", "away_team_moneyline_win_prob", "away"),
+         ],
+         band_lookup),
 
-                for src, dst in cfg["cols"].items():
-                    def apply(row):
-                        base = american_to_decimal(row[src])
-                        juice = cfg["lookup"](row, jt)
-                        return decimal_to_american(base * (1 + juice))
+        # SPREADS
+        ("nba", "spreads", "config/nba/nba_spreads_juice.csv",
+         "docs/win/nba/spreads/spreads_nba_*.csv",
+         [
+             ("home_spread_acceptable_american_odds", "home_spread_probability", "home"),
+             ("away_spread_acceptable_american_odds", "away_spread_probability", "away"),
+         ],
+         band_lookup),
 
-                    df[dst] = df.apply(apply, axis=1)
+        ("ncaab", "spreads", "config/ncaab/ncaab_spreads_juice.csv",
+         "docs/win/ncaab/spreads/spreads_ncaab_*.csv",
+         [
+             ("home_spread_acceptable_american_odds", "home_spread", None),
+             ("away_spread_acceptable_american_odds", "away_spread", None),
+         ],
+         spread_lookup),
 
-                out = out_dir / f"juice_{league}_{market}_{today}.csv"
-                df.to_csv(out, index=False)
-                print(f"Wrote {out}")
+        ("nhl", "spreads", "config/nhl/nhl_spreads_juice.csv",
+         "docs/win/nhl/spreads/spreads_nhl_*.csv",
+         [
+             ("home_spread_acceptable_american_odds", "home_spread_probability", "home"),
+             ("away_spread_acceptable_american_odds", "away_spread_probability", "away"),
+         ],
+         band_lookup),
+
+        # TOTALS
+        ("nba", "totals", "config/nba/nba_totals_juice.csv",
+         "docs/win/nba/totals/ou_nba_*.csv",
+         [
+             ("over_acceptable_american_odds", "over_probability", "over"),
+             ("under_acceptable_american_odds", "under_probability", "under"),
+         ],
+         totals_side_lookup),
+
+        ("ncaab", "totals", "config/ncaab/ncaab_ou_juice.csv",
+         "docs/win/ncaab/totals/ou_ncaab_*.csv",
+         [
+             ("over_acceptable_american_odds", "over_probability", "over"),
+             ("under_acceptable_american_odds", "under_probability", "under"),
+         ],
+         totals_side_lookup),
+
+        ("nhl", "totals", "config/nhl/nhl_totals_juice.csv",
+         "docs/win/nhl/totals/ou_nhl_*.csv",
+         [
+             ("over_acceptable_american_odds", "over_probability", "over"),
+             ("under_acceptable_american_odds", "under_probability", "under"),
+         ],
+         totals_side_lookup),
+    ]
+
+    for league, market, juice_file, pattern, legs, lookup in JOBS:
+        jt = pd.read_csv(juice_file)
+        out_dir = Path(f"docs/win/juice/{league}/{market}")
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+        for f in glob.glob(pattern):
+            df = pd.read_csv(f)
+
+            for odds_col, prob_col, side in legs:
+                def apply(row):
+                    base = american_to_decimal(row[odds_col])
+                    p = row[prob_col]
+
+                    if lookup == band_lookup:
+                        fav_ud = "fav" if p >= 0.5 else "dog"
+                        return decimal_to_american(base * (1 + lookup(p, fav_ud, side, jt)))
+
+                    if lookup == prob_bin_lookup:
+                        return decimal_to_american(base * (1 + lookup(p, jt)))
+
+                    if lookup == spread_lookup:
+                        return decimal_to_american(base * (1 + lookup(row[prob_col], jt)))
+
+                    return decimal_to_american(base * (1 + lookup(side, jt)))
+
+                df[f"{odds_col.replace('acceptable_american_odds', 'juice_odds')}"] = df.apply(apply, axis=1)
+
+            out = out_dir / f"juice_{league}_{market}_{today}.csv"
+            df.to_csv(out, index=False)
+            print(f"Wrote {out}")
 
 if __name__ == "__main__":
     run()
