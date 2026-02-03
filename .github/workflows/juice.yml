@@ -1,21 +1,15 @@
-name: 07 Juice
+name: 07 Juice 
 
 on:
-  workflow_dispatch:   # manual only
-
-permissions:
-  contents: write      # required to commit results
+  workflow_dispatch: {}
 
 jobs:
   run-juice:
-    runs-on: ubuntu-22.04
-    timeout-minutes: 30
+    runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout repo
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -27,16 +21,19 @@ jobs:
           python -m pip install --upgrade pip
           pip install pandas
 
-      - name: Run juice script
-        run: |
-          python scripts/juice.py
+      - name: Run moneyline juice
+        run: python scripts/juice_ml.py
 
-      - name: Commit and push results
+      - name: Run totals juice
+        run: python scripts/juice_ou.py
+
+      - name: Run spreads juice
+        run: python scripts/juice_spreads.py
+
+      - name: Commit outputs
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-
-          git status
           git add docs/win/juice
-          git commit -m "Update juice odds tables" || echo "No changes to commit"
+          git commit -m "Update juice outputs" || echo "No changes to commit"
           git push
