@@ -39,9 +39,10 @@ def totals_side_lookup(side, jt):
 
 # ---------- MAIN ----------
 
-def run():
-    today = datetime.utcnow().strftime("%Y%m%d")
+def normalize_date(val):
+    return str(val).replace("-", "_")
 
+def run():
     JOBS = [
         ("nba", "ml", "config/nba/nba_ml_juice.csv",
          "docs/win/nba/moneyline/ml_nba_*.csv",
@@ -124,6 +125,9 @@ def run():
         for f in glob.glob(pattern):
             df = pd.read_csv(f)
 
+            # ✅ derive filename date from input data
+            game_date = normalize_date(df["date"].iloc[0])
+
             for odds_col, prob_col, side in legs:
                 out_col = odds_col.replace("acceptable_american_odds", "juice_odds")
 
@@ -143,13 +147,12 @@ def run():
                             d = base * (1 + lookup(side, jt))
 
                         return decimal_to_american(d)
-
                     except Exception:
                         return row[odds_col]
 
                 df[out_col] = df.apply(apply, axis=1)
 
-            out = out_dir / f"juice_{league}_{market}_{today}.csv"
+            out = out_dir / f"juice_{league}_{market}_{game_date}.csv"
             df.to_csv(out, index=False)
             print(f"Wrote {out}")
 
