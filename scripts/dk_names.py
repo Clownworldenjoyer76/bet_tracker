@@ -97,15 +97,13 @@ def normalize_file(path: Path, team_map: dict):
     df["team"] = df["team"].apply(norm)
     df["opponent"] = df["opponent"].apply(norm)
 
-    before = df[["team", "opponent"]].copy()
+    before_teams = set(df["team"]) | set(df["opponent"])
 
     df["team"] = df["team"].apply(lambda x: league_map.get(x, x))
     df["opponent"] = df["opponent"].apply(lambda x: league_map.get(x, x))
 
     unmapped = sorted(
-        t
-        for t in set(before["team"]) | set(before["opponent"])
-        if t not in league_map or league_map.get(t) == t
+        t for t in before_teams if t not in league_map
     )
 
     if unmapped:
