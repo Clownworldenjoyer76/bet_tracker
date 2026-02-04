@@ -12,6 +12,16 @@ DK_BASE = "docs/win/manual/normalized"
 JUICE_BASE = "docs/win/juice"
 FINAL_BASE = "docs/win/final"
 
+# ---------- helpers ----------
+
+def american_to_decimal(odds):
+    if pd.isna(odds):
+        return None
+    if odds > 0:
+        return 1 + (odds / 100)
+    else:
+        return 1 + (100 / abs(odds))
+
 def extract_date_from_filename(path):
     name = os.path.basename(path)
 
@@ -43,6 +53,8 @@ def load_csvs(pattern):
 
     return pd.concat(dfs, ignore_index=True), dates
 
+# ---------- main ----------
+
 edges = []
 all_dates = set()
 leagues = ["nba", "ncaab", "nhl"]
@@ -70,6 +82,7 @@ for league in leagues:
     ]:
         sub = merged[merged["team"] == merged[team_col]].copy()
         sub["juice_decimal_odds"] = sub[juice_col]
+
         sub = sub[sub["juice_decimal_odds"] > sub["decimal_odds"] + TOLERANCE]
 
         sub["market"] = "ml"
@@ -125,6 +138,7 @@ for league in leagues:
     if dk_df.empty or juice_df.empty:
         continue
 
+    # normalize league (nba_ou → nba)
     juice_df["league"] = juice_df["league"].str.replace("_ou", "", regex=False)
 
     all_dates |= dk_dates | juice_dates
@@ -138,8 +152,10 @@ for league in leagues:
 
     for side in ["over", "under"]:
         sub = merged[merged["side"].str.lower() == side].copy()
+
         sub["juice_decimal_odds"] = sub[f"{side}_juice_odds"]
-        sub["dk_decimal_odds"] = sub[f"dk_{side}_odds"]
+        sub["dk_decimal_odds"] = sub[f"dk_{side}_odds"].apply(american_to_decimal)
+
         sub = sub[sub["juice_decimal_odds"] > sub["dk_decimal_odds"] + TOLERANCE]
 
         sub["market"] = "totals"
@@ -150,6 +166,7 @@ for league in leagues:
 
         edges.append(sub)
 
+# ---------------- OUTPUT ----------------
 if not edges:
     print("No edges found.")
     sys.exit(0)
@@ -158,6 +175,24 @@ final_df = pd.concat(edges, ignore_index=True)
 
 date = select_latest_date(all_dates)
 final_df = final_df[final_df["date"] == date]
+
+final_df = final_df[
+    [
+        "date",
+        "league",
+        "market",
+        "game_id",
+        "time",
+        "away_team",
+        "home_team",
+        "bet_side",
+        "line",
+        "dk_decimal_odds",
+        "juice_decimal_odds",
+        "edge_decimal_diff",
+        "source_file",
+    ]
+]
 
 Path(FINAL_BASE).mkdir(parents=True, exist_ok=True)
 final_df.to_csv(f"{FINAL_BASE}/edges_{date}.csv", index=False)
