@@ -11,7 +11,9 @@ JUICE_BASE = "docs/win/juice"
 FINAL_BASE = "docs/win/final"
 
 def extract_date_from_filename(path):
-    return os.path.basename(path).split("_")[-1].replace(".csv", "")
+    name = os.path.basename(path).replace(".csv", "")
+    parts = name.split("_")
+    return "_".join(parts[-3:])
 
 def ensure_single_date(dates):
     if len(dates) != 1:
@@ -55,13 +57,10 @@ for league in leagues:
         ("home", "home_team", "home_ml_juice_odds"),
         ("away", "away_team", "away_ml_juice_odds"),
     ]:
-        mask = merged["team"] == merged[team_col]
-        sub = merged[mask].copy()
-
+        sub = merged[merged["team"] == merged[team_col]].copy()
         sub["juice_decimal_odds"] = sub[juice_col]
 
-        edge_mask = sub["juice_decimal_odds"] > sub["decimal_odds"] + TOLERANCE
-        sub = sub[edge_mask]
+        sub = sub[sub["juice_decimal_odds"] > sub["decimal_odds"] + TOLERANCE]
 
         sub["market"] = "ml"
         sub["bet_side"] = side
@@ -92,17 +91,13 @@ for league in leagues:
         spread_col = f"{side}_spread"
         juice_col = f"{side}_spread_juice_odds"
 
-        mask = (
+        sub = merged[
             (merged["team"] == merged[f"{side}_team"]) &
             (merged["spread"] == merged[spread_col])
-        )
-
-        sub = merged[mask].copy()
+        ].copy()
 
         sub["juice_decimal_odds"] = sub[juice_col]
-
-        edge_mask = sub["juice_decimal_odds"] > sub["decimal_odds"] + TOLERANCE
-        sub = sub[edge_mask]
+        sub = sub[sub["juice_decimal_odds"] > sub["decimal_odds"] + TOLERANCE]
 
         sub["market"] = "spreads"
         sub["bet_side"] = side
@@ -123,7 +118,6 @@ for league in leagues:
     if dk_df.empty or juice_df.empty:
         continue
 
-    # normalize league (nba_ou -> nba)
     juice_df["league"] = juice_df["league"].str.replace("_ou", "", regex=False)
 
     all_dates |= dk_dates | juice_dates
@@ -139,14 +133,11 @@ for league in leagues:
         ("over", "over_juice_odds", "dk_over_odds"),
         ("under", "under_juice_odds", "dk_under_odds"),
     ]:
-        mask = merged["side"].str.lower() == side
-        sub = merged[mask].copy()
+        sub = merged[merged["side"].str.lower() == side].copy()
 
         sub["juice_decimal_odds"] = sub[juice_col]
         sub["dk_decimal_odds"] = sub[dk_col]
-
-        edge_mask = sub["juice_decimal_odds"] > sub["dk_decimal_odds"] + TOLERANCE
-        sub = sub[edge_mask]
+        sub = sub[sub["juice_decimal_odds"] > sub["dk_decimal_odds"] + TOLERANCE]
 
         sub["market"] = "totals"
         sub["bet_side"] = side
@@ -161,7 +152,6 @@ if not edges:
     sys.exit(0)
 
 final_df = pd.concat(edges, ignore_index=True)
-
 date = ensure_single_date(all_dates)
 
 final_df = final_df[
@@ -183,15 +173,12 @@ final_df = final_df[
 ]
 
 Path(FINAL_BASE).mkdir(parents=True, exist_ok=True)
-
 final_df.to_csv(f"{FINAL_BASE}/edges_{date}.csv", index=False)
 
 for league in final_df["league"].unique():
-    league_dir = f"{FINAL_BASE}/{league}"
-    Path(league_dir).mkdir(parents=True, exist_ok=True)
-
+    Path(f"{FINAL_BASE}/{league}").mkdir(parents=True, exist_ok=True)
     final_df[final_df["league"] == league].to_csv(
-        f"{league_dir}/edges_{league}_{date}.csv",
+        f"{FINAL_BASE}/{league}/edges_{league}_{date}.csv",
         index=False,
     )
 
