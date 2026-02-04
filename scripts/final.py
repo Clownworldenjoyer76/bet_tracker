@@ -1,6 +1,7 @@
 import pandas as pd
 import glob
 import sys
+import re
 from pathlib import Path
 
 TOLERANCE = 0.005
@@ -24,6 +25,10 @@ def american_to_decimal(odds):
 def juice_to_decimal(x):
     if pd.isna(x):
         return None
+    try:
+        x = float(x)
+    except Exception:
+        return None
     # American odds heuristic
     if abs(x) >= 100:
         return american_to_decimal(x)
@@ -37,11 +42,32 @@ def safe_date_for_filename(date_str):
         .strip()
     )
 
+def extract_yyyymmdd_from_filename(path: str):
+    """
+    Extract trailing YYYY_MM_DD from filenames like *_2026_02_04.csv
+    """
+    m = re.search(r"(\d{4}_\d{2}_\d{2})\.csv$", path)
+    if not m:
+        return None
+    return m.group(1)
+
 def load_csvs(pattern):
     files = glob.glob(pattern)
     if not files:
         return pd.DataFrame()
-    return pd.concat([pd.read_csv(f) for f in files], ignore_index=True)
+
+    dfs = []
+    for f in files:
+        df = pd.read_csv(f)
+
+        file_date = extract_yyyymmdd_from_filename(f)
+        if file_date is not None:
+            # FORCE date from filename for reliable joins
+            df["date"] = file_date
+
+        dfs.append(df)
+
+    return pd.concat(dfs, ignore_index=True)
 
 def match_games(dk, juice):
     merged_home = dk.merge(
@@ -151,12 +177,12 @@ for league in leagues:
     log(f"Totals DK rows: {len(dk)}, Juice rows: {len(juice)}")
 
     if not dk.empty and not juice.empty:
-        juice["league"] = juice["league"].str.replace("_ou", "", regex=False)
+        juice["league"] = juice["league"].astype(str).str.replace("_ou", "", regex=False)
         merged = match_games(dk, juice)
         log(f"Totals joined rows: {len(merged)}")
 
         for side in ["over", "under"]:
-            sub = merged[merged["side"].str.lower() == side].copy()
+            sub = merged[merged["side"].astype(str).str.lower() == side].copy()
             sub["juice_decimal_odds"] = sub[f"{side}_juice_odds"].apply(juice_to_decimal)
             sub["dk_decimal_odds"] = sub[f"dk_{side}_odds"].apply(american_to_decimal)
             sub["edge_decimal_diff"] = sub["juice_decimal_odds"] - sub["dk_decimal_odds"]
@@ -195,15 +221,15 @@ columns = [
 final_df = pd.concat(edges, ignore_index=True) if edges else pd.DataFrame(columns=columns)
 near_df = pd.concat(near_misses, ignore_index=True) if near_misses else pd.DataFrame(columns=columns)
 
-# determine date
+# determine date (from loaded file dates)
 if not final_df.empty:
-    raw_date = final_df["date"].sort_values().iloc[-1]
+    raw_date = final_df["date"].astype(str).sort_values().iloc[-1]
 else:
     dk_dates = []
     for league in leagues:
         dk_tmp = load_csvs(f"{DK_BASE}/norm_dk_{league}_*.csv")
         if not dk_tmp.empty and "date" in dk_tmp.columns:
-            dk_dates.append(dk_tmp["date"].max())
+            dk_dates.append(dk_tmp["date"].astype(str).max())
 
     if not dk_dates:
         print("No data available to determine date.")
@@ -213,8 +239,8 @@ else:
 
 safe_date = safe_date_for_filename(raw_date)
 
-final_df = final_df[final_df["date"] == raw_date]
-near_df = near_df[near_df["date"] == raw_date]
+final_df = final_df[final_df["date"].astype(str) == raw_date]
+near_df = near_df[near_df["date"].astype(str) == raw_date]
 
 Path(FINAL_BASE).mkdir(parents=True, exist_ok=True)
 
