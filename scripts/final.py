@@ -69,7 +69,6 @@ for league in leagues:
     ]:
         sub = merged[merged["team"] == merged[team_col]].copy()
         sub["juice_decimal_odds"] = sub[juice_col]
-
         sub = sub[sub["juice_decimal_odds"] > sub["decimal_odds"] + TOLERANCE]
 
         sub["market"] = "ml"
@@ -137,7 +136,6 @@ for league in leagues:
 
         sub["juice_decimal_odds"] = sub[f"{side}_juice_odds"]
         sub["dk_decimal_odds"] = sub[f"dk_{side}_odds"].apply(american_to_decimal)
-
         sub = sub[sub["juice_decimal_odds"] > sub["dk_decimal_odds"] + TOLERANCE]
 
         sub["market"] = "totals"
@@ -154,7 +152,10 @@ if not edges:
 
 final_df = pd.concat(edges, ignore_index=True)
 
-# ✅ select latest VALID date
+if final_df.empty:
+    print("No edges found after comparisons. Exiting cleanly.")
+    sys.exit(0)
+
 date = final_df["date"].sort_values().iloc[-1]
 final_df = final_df[final_df["date"] == date]
 
