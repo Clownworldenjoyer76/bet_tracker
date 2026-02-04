@@ -1,8 +1,6 @@
 import pandas as pd
 import glob
-import os
 import sys
-import re
 from pathlib import Path
 
 TOLERANCE = 0.005
@@ -22,10 +20,31 @@ def load_csvs(pattern):
         return pd.DataFrame()
     return pd.concat([pd.read_csv(f) for f in files], ignore_index=True)
 
+def match_games(dk, juice):
+    """
+    Join DK ↔ Juice on:
+    league + date + (team/opponent ↔ home/away)
+    """
+    merged_home = dk.merge(
+        juice,
+        left_on=["league", "date", "team", "opponent"],
+        right_on=["league", "date", "home_team", "away_team"],
+        how="inner"
+    )
+
+    merged_away = dk.merge(
+        juice,
+        left_on=["league", "date", "team", "opponent"],
+        right_on=["league", "date", "away_team", "home_team"],
+        how="inner"
+    )
+
+    return pd.concat([merged_home, merged_away], ignore_index=True)
+
 edges = []
 leagues = ["nba", "ncaab", "nhl"]
 
-# ---------------- MONEYLINE ----------------
+# ================= MONEYLINE =================
 for league in leagues:
     dk = load_csvs(f"{DK_BASE}/norm_dk_{league}_moneyline_*.csv")
     juice = load_csvs(f"{JUICE_BASE}/{league}/ml/juice_{league}_ml_*.csv")
@@ -33,11 +52,7 @@ for league in leagues:
     if dk.empty or juice.empty:
         continue
 
-    merged = dk.merge(
-        juice,
-        on="game_id",
-        how="inner"
-    )
+    merged = match_games(dk, juice)
 
     for side, team_col, juice_col in [
         ("home", "home_team", "home_ml_juice_odds"),
@@ -56,7 +71,7 @@ for league in leagues:
 
         edges.append(sub)
 
-# ---------------- SPREADS ----------------
+# ================= SPREADS =================
 for league in leagues:
     dk = load_csvs(f"{DK_BASE}/norm_dk_{league}_spreads_*.csv")
     juice = load_csvs(f"{JUICE_BASE}/{league}/spreads/juice_{league}_spreads_*.csv")
@@ -64,19 +79,18 @@ for league in leagues:
     if dk.empty or juice.empty:
         continue
 
-    merged = dk.merge(
-        juice,
-        on="game_id",
-        how="inner"
-    )
+    merged = match_games(dk, juice)
 
     for side in ["home", "away"]:
+        spread_col = f"{side}_spread"
+        juice_col = f"{side}_spread_juice_odds"
+
         sub = merged[
             (merged["team"] == merged[f"{side}_team"]) &
-            (merged["spread"] == merged[f"{side}_spread"])
+            (merged["spread"] == merged[spread_col])
         ].copy()
 
-        sub["juice_decimal_odds"] = sub[f"{side}_spread_juice_odds"]
+        sub["juice_decimal_odds"] = sub[juice_col]
         sub = sub[sub["juice_decimal_odds"] > sub["decimal_odds"] + TOLERANCE]
 
         sub["market"] = "spreads"
@@ -87,7 +101,7 @@ for league in leagues:
 
         edges.append(sub)
 
-# ---------------- TOTALS ----------------
+# ================= TOTALS =================
 for league in leagues:
     dk = load_csvs(f"{DK_BASE}/norm_dk_{league}_totals_*.csv")
     juice = load_csvs(f"{JUICE_BASE}/{league}/totals/juice_{league}_totals_*.csv")
@@ -95,13 +109,10 @@ for league in leagues:
     if dk.empty or juice.empty:
         continue
 
+    # normalize league (nba_ou → nba)
     juice["league"] = juice["league"].str.replace("_ou", "", regex=False)
 
-    merged = dk.merge(
-        juice,
-        on="game_id",
-        how="inner"
-    )
+    merged = match_games(dk, juice)
 
     for side in ["over", "under"]:
         sub = merged[merged["side"].str.lower() == side].copy()
@@ -118,7 +129,7 @@ for league in leagues:
 
         edges.append(sub)
 
-# ---------------- OUTPUT ----------------
+# ================= OUTPUT =================
 if not edges:
     print("No edges found.")
     sys.exit(0)
@@ -129,6 +140,7 @@ if final_df.empty:
     print("No edges found after comparisons.")
     sys.exit(0)
 
+# latest valid date in results
 date = final_df["date"].sort_values().iloc[-1]
 final_df = final_df[final_df["date"] == date]
 
@@ -137,7 +149,6 @@ final_df = final_df[
         "date",
         "league",
         "market",
-        "game_id",
         "time",
         "away_team",
         "home_team",
