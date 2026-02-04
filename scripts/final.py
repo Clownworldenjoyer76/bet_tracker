@@ -1,7 +1,6 @@
 import pandas as pd
 import glob
 import sys
-import re
 from pathlib import Path
 
 TOLERANCE = 0.005
@@ -29,7 +28,6 @@ def juice_to_decimal(x):
         x = float(x)
     except Exception:
         return None
-    # American odds heuristic
     if abs(x) >= 100:
         return american_to_decimal(x)
     return x
@@ -42,32 +40,11 @@ def safe_date_for_filename(date_str):
         .strip()
     )
 
-def extract_yyyymmdd_from_filename(path: str):
-    """
-    Extract trailing YYYY_MM_DD from filenames like *_2026_02_04.csv
-    """
-    m = re.search(r"(\d{4}_\d{2}_\d{2})\.csv$", path)
-    if not m:
-        return None
-    return m.group(1)
-
 def load_csvs(pattern):
     files = glob.glob(pattern)
     if not files:
         return pd.DataFrame()
-
-    dfs = []
-    for f in files:
-        df = pd.read_csv(f)
-
-        file_date = extract_yyyymmdd_from_filename(f)
-        if file_date is not None:
-            # FORCE date from filename for reliable joins
-            df["date"] = file_date
-
-        dfs.append(df)
-
-    return pd.concat(dfs, ignore_index=True)
+    return pd.concat([pd.read_csv(f) for f in files], ignore_index=True)
 
 def match_games(dk, juice):
     merged_home = dk.merge(
@@ -86,6 +63,22 @@ def match_games(dk, juice):
 
     return pd.concat([merged_home, merged_away], ignore_index=True)
 
+def select_edge_columns(df):
+    return df[
+        [
+            "date",
+            "league",
+            "market",
+            "away_team",
+            "home_team",
+            "bet_side",
+            "line",
+            "dk_decimal_odds",
+            "juice_decimal_odds",
+            "edge_decimal_diff",
+        ]
+    ]
+
 edges = []
 near_misses = []
 leagues = ["nba", "ncaab", "nhl"]
@@ -98,11 +91,8 @@ for league in leagues:
     dk = load_csvs(f"{DK_BASE}/norm_dk_{league}_moneyline_*.csv")
     juice = load_csvs(f"{JUICE_BASE}/{league}/ml/juice_{league}_ml_*.csv")
 
-    log(f"ML DK rows: {len(dk)}, Juice rows: {len(juice)}")
-
     if not dk.empty and not juice.empty:
         merged = match_games(dk, juice)
-        log(f"ML joined rows: {len(merged)}")
 
         for side, team_col, juice_col in [
             ("home", "home_team", "home_ml_juice_odds"),
@@ -123,22 +113,19 @@ for league in leagues:
                 edges_sub["market"] = "ml"
                 edges_sub["bet_side"] = side
                 edges_sub["line"] = None
-                edges.append(edges_sub)
+                edges.append(select_edge_columns(edges_sub))
 
             if not near_sub.empty:
                 near_sub["market"] = "ml"
                 near_sub["bet_side"] = side
-                near_misses.append(near_sub)
+                near_misses.append(select_edge_columns(near_sub))
 
     # ---------- SPREADS ----------
     dk = load_csvs(f"{DK_BASE}/norm_dk_{league}_spreads_*.csv")
     juice = load_csvs(f"{JUICE_BASE}/{league}/spreads/juice_{league}_spreads_*.csv")
 
-    log(f"Spreads DK rows: {len(dk)}, Juice rows: {len(juice)}")
-
     if not dk.empty and not juice.empty:
         merged = match_games(dk, juice)
-        log(f"Spreads joined rows: {len(merged)}")
 
         for side in ["home", "away"]:
             spread_col = f"{side}_spread"
@@ -163,23 +150,20 @@ for league in leagues:
                 edges_sub["market"] = "spreads"
                 edges_sub["bet_side"] = side
                 edges_sub["line"] = sub["spread"]
-                edges.append(edges_sub)
+                edges.append(select_edge_columns(edges_sub))
 
             if not near_sub.empty:
                 near_sub["market"] = "spreads"
                 near_sub["bet_side"] = side
-                near_misses.append(near_sub)
+                near_misses.append(select_edge_columns(near_sub))
 
     # ---------- TOTALS ----------
     dk = load_csvs(f"{DK_BASE}/norm_dk_{league}_totals_*.csv")
     juice = load_csvs(f"{JUICE_BASE}/{league}/totals/juice_{league}_totals_*.csv")
 
-    log(f"Totals DK rows: {len(dk)}, Juice rows: {len(juice)}")
-
     if not dk.empty and not juice.empty:
         juice["league"] = juice["league"].astype(str).str.replace("_ou", "", regex=False)
         merged = match_games(dk, juice)
-        log(f"Totals joined rows: {len(merged)}")
 
         for side in ["over", "under"]:
             sub = merged[merged["side"].astype(str).str.lower() == side].copy()
@@ -197,57 +181,33 @@ for league in leagues:
                 edges_sub["market"] = "totals"
                 edges_sub["bet_side"] = side
                 edges_sub["line"] = sub["total"]
-                edges.append(edges_sub)
+                edges.append(select_edge_columns(edges_sub))
 
             if not near_sub.empty:
                 near_sub["market"] = "totals"
                 near_sub["bet_side"] = side
-                near_misses.append(near_sub)
+                near_misses.append(select_edge_columns(near_sub))
 
 # ================= OUTPUT =================
-columns = [
-    "date",
-    "league",
-    "market",
-    "away_team",
-    "home_team",
-    "bet_side",
-    "line",
-    "dk_decimal_odds",
-    "juice_decimal_odds",
-    "edge_decimal_diff",
-]
+final_df = pd.concat(edges, ignore_index=True) if edges else pd.DataFrame()
+near_df = pd.concat(near_misses, ignore_index=True) if near_misses else pd.DataFrame()
 
-final_df = pd.concat(edges, ignore_index=True) if edges else pd.DataFrame(columns=columns)
-near_df = pd.concat(near_misses, ignore_index=True) if near_misses else pd.DataFrame(columns=columns)
+if final_df.empty and near_df.empty:
+    print("No edges or near misses found.")
+    sys.exit(0)
 
-# determine date (from loaded file dates)
-if not final_df.empty:
-    raw_date = final_df["date"].astype(str).sort_values().iloc[-1]
-else:
-    dk_dates = []
-    for league in leagues:
-        dk_tmp = load_csvs(f"{DK_BASE}/norm_dk_{league}_*.csv")
-        if not dk_tmp.empty and "date" in dk_tmp.columns:
-            dk_dates.append(dk_tmp["date"].astype(str).max())
-
-    if not dk_dates:
-        print("No data available to determine date.")
-        sys.exit(0)
-
-    raw_date = max(dk_dates)
-
+raw_date = (final_df["date"] if not final_df.empty else near_df["date"]).sort_values().iloc[-1]
 safe_date = safe_date_for_filename(raw_date)
 
-final_df = final_df[final_df["date"].astype(str) == raw_date]
-near_df = near_df[near_df["date"].astype(str) == raw_date]
+final_df = final_df[final_df["date"] == raw_date]
+near_df = near_df[near_df["date"] == raw_date]
 
 Path(FINAL_BASE).mkdir(parents=True, exist_ok=True)
 
 final_df.to_csv(f"{FINAL_BASE}/edges_{safe_date}.csv", index=False)
 near_df.to_csv(f"{FINAL_BASE}/near_miss_{safe_date}.csv", index=False)
 
-for league in leagues:
+for league in final_df["league"].unique():
     Path(f"{FINAL_BASE}/{league}").mkdir(parents=True, exist_ok=True)
     final_df[final_df["league"] == league].to_csv(
         f"{FINAL_BASE}/{league}/edges_{league}_{safe_date}.csv",
