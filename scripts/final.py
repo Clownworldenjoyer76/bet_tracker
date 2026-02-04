@@ -11,7 +11,6 @@ JUICE_BASE = "docs/win/juice"
 FINAL_BASE = "docs/win/final"
 
 def extract_date_from_filename(path):
-    # expects *_YYYYMMDD.csv
     return os.path.basename(path).split("_")[-1].replace(".csv", "")
 
 def ensure_single_date(dates):
@@ -58,6 +57,7 @@ for league in leagues:
     ]:
         mask = merged["team"] == merged[team_col]
         sub = merged[mask].copy()
+
         sub["juice_decimal_odds"] = sub[juice_col]
 
         edge_mask = sub["juice_decimal_odds"] > sub["decimal_odds"] + TOLERANCE
@@ -98,6 +98,7 @@ for league in leagues:
         )
 
         sub = merged[mask].copy()
+
         sub["juice_decimal_odds"] = sub[juice_col]
 
         edge_mask = sub["juice_decimal_odds"] > sub["decimal_odds"] + TOLERANCE
@@ -115,10 +116,15 @@ for league in leagues:
 # ---------------- TOTALS ----------------
 for league in leagues:
     dk_df, dk_dates = load_csvs(f"{DK_BASE}/norm_dk_{league}_totals_*.csv")
-    juice_df, juice_dates = load_csvs(f"docs/win/{league}/totals/ou_{league}_*.csv")
+    juice_df, juice_dates = load_csvs(
+        f"{JUICE_BASE}/{league}/totals/juice_{league}_totals_*.csv"
+    )
 
     if dk_df.empty or juice_df.empty:
         continue
+
+    # normalize league (nba_ou -> nba)
+    juice_df["league"] = juice_df["league"].str.replace("_ou", "", regex=False)
 
     all_dates |= dk_dates | juice_dates
 
@@ -178,15 +184,13 @@ final_df = final_df[
 
 Path(FINAL_BASE).mkdir(parents=True, exist_ok=True)
 
-final_path = f"{FINAL_BASE}/edges_{date}.csv"
-final_df.to_csv(final_path, index=False)
+final_df.to_csv(f"{FINAL_BASE}/edges_{date}.csv", index=False)
 
 for league in final_df["league"].unique():
     league_dir = f"{FINAL_BASE}/{league}"
     Path(league_dir).mkdir(parents=True, exist_ok=True)
 
-    league_df = final_df[final_df["league"] == league]
-    league_df.to_csv(
+    final_df[final_df["league"] == league].to_csv(
         f"{league_dir}/edges_{league}_{date}.csv",
         index=False,
     )
