@@ -4,7 +4,6 @@ import os
 import sys
 import re
 from pathlib import Path
-from datetime import datetime
 
 TOLERANCE = 0.005
 
@@ -15,51 +14,28 @@ FINAL_BASE = "docs/win/final"
 def american_to_decimal(odds):
     if pd.isna(odds):
         return None
-    if odds > 0:
-        return 1 + (odds / 100)
-    else:
-        return 1 + (100 / abs(odds))
-
-def extract_date_from_filename(path):
-    name = os.path.basename(path)
-
-    m1 = re.search(r"(20\d{2}_\d{2}_\d{2})", name)
-    if m1:
-        return m1.group(1)
-
-    m2 = re.search(r"(20\d{6})", name)
-    if m2:
-        raw = m2.group(1)
-        return f"{raw[:4]}_{raw[4:6]}_{raw[6:8]}"
-
-    raise ValueError(f"No date found in filename: {name}")
+    return 1 + (odds / 100) if odds > 0 else 1 + (100 / abs(odds))
 
 def load_csvs(pattern):
     files = glob.glob(pattern)
     if not files:
-        return pd.DataFrame(), set()
-
-    dfs = []
-    for f in files:
-        dfs.append(pd.read_csv(f))
-
-    return pd.concat(dfs, ignore_index=True), set()
+        return pd.DataFrame()
+    return pd.concat([pd.read_csv(f) for f in files], ignore_index=True)
 
 edges = []
 leagues = ["nba", "ncaab", "nhl"]
 
 # ---------------- MONEYLINE ----------------
 for league in leagues:
-    dk_df, _ = load_csvs(f"{DK_BASE}/norm_dk_{league}_moneyline_*.csv")
-    juice_df, _ = load_csvs(f"{JUICE_BASE}/{league}/ml/juice_{league}_ml_*.csv")
+    dk = load_csvs(f"{DK_BASE}/norm_dk_{league}_moneyline_*.csv")
+    juice = load_csvs(f"{JUICE_BASE}/{league}/ml/juice_{league}_ml_*.csv")
 
-    if dk_df.empty or juice_df.empty:
+    if dk.empty or juice.empty:
         continue
 
-    merged = dk_df.merge(
-        juice_df,
-        left_on=["league", "date", "time"],
-        right_on=["league", "date", "time"],
+    merged = dk.merge(
+        juice,
+        on="game_id",
         how="inner"
     )
 
@@ -69,6 +45,7 @@ for league in leagues:
     ]:
         sub = merged[merged["team"] == merged[team_col]].copy()
         sub["juice_decimal_odds"] = sub[juice_col]
+
         sub = sub[sub["juice_decimal_odds"] > sub["decimal_odds"] + TOLERANCE]
 
         sub["market"] = "ml"
@@ -76,21 +53,20 @@ for league in leagues:
         sub["line"] = None
         sub["dk_decimal_odds"] = sub["decimal_odds"]
         sub["edge_decimal_diff"] = sub["juice_decimal_odds"] - sub["dk_decimal_odds"]
-        sub["source_file"] = f"norm_dk_{league}_moneyline"
 
         edges.append(sub)
 
 # ---------------- SPREADS ----------------
 for league in leagues:
-    dk_df, _ = load_csvs(f"{DK_BASE}/norm_dk_{league}_spreads_*.csv")
-    juice_df, _ = load_csvs(f"{JUICE_BASE}/{league}/spreads/juice_{league}_spreads_*.csv")
+    dk = load_csvs(f"{DK_BASE}/norm_dk_{league}_spreads_*.csv")
+    juice = load_csvs(f"{JUICE_BASE}/{league}/spreads/juice_{league}_spreads_*.csv")
 
-    if dk_df.empty or juice_df.empty:
+    if dk.empty or juice.empty:
         continue
 
-    merged = dk_df.merge(
-        juice_df,
-        on=["league", "date", "time"],
+    merged = dk.merge(
+        juice,
+        on="game_id",
         how="inner"
     )
 
@@ -108,26 +84,22 @@ for league in leagues:
         sub["line"] = sub["spread"]
         sub["dk_decimal_odds"] = sub["decimal_odds"]
         sub["edge_decimal_diff"] = sub["juice_decimal_odds"] - sub["dk_decimal_odds"]
-        sub["source_file"] = f"norm_dk_{league}_spreads"
 
         edges.append(sub)
 
 # ---------------- TOTALS ----------------
 for league in leagues:
-    dk_df, _ = load_csvs(f"{DK_BASE}/norm_dk_{league}_totals_*.csv")
-    juice_df, _ = load_csvs(
-        f"{JUICE_BASE}/{league}/totals/juice_{league}_totals_*.csv"
-    )
+    dk = load_csvs(f"{DK_BASE}/norm_dk_{league}_totals_*.csv")
+    juice = load_csvs(f"{JUICE_BASE}/{league}/totals/juice_{league}_totals_*.csv")
 
-    if dk_df.empty or juice_df.empty:
+    if dk.empty or juice.empty:
         continue
 
-    juice_df["league"] = juice_df["league"].str.replace("_ou", "", regex=False)
+    juice["league"] = juice["league"].str.replace("_ou", "", regex=False)
 
-    merged = dk_df.merge(
-        juice_df,
-        left_on=["league", "date", "time", "total"],
-        right_on=["league", "date", "time", "dk_total"],
+    merged = dk.merge(
+        juice,
+        on="game_id",
         how="inner"
     )
 
@@ -136,16 +108,17 @@ for league in leagues:
 
         sub["juice_decimal_odds"] = sub[f"{side}_juice_odds"]
         sub["dk_decimal_odds"] = sub[f"dk_{side}_odds"].apply(american_to_decimal)
+
         sub = sub[sub["juice_decimal_odds"] > sub["dk_decimal_odds"] + TOLERANCE]
 
         sub["market"] = "totals"
         sub["bet_side"] = side
         sub["line"] = sub["total"]
         sub["edge_decimal_diff"] = sub["juice_decimal_odds"] - sub["dk_decimal_odds"]
-        sub["source_file"] = f"norm_dk_{league}_totals"
 
         edges.append(sub)
 
+# ---------------- OUTPUT ----------------
 if not edges:
     print("No edges found.")
     sys.exit(0)
@@ -153,7 +126,7 @@ if not edges:
 final_df = pd.concat(edges, ignore_index=True)
 
 if final_df.empty:
-    print("No edges found after comparisons. Exiting cleanly.")
+    print("No edges found after comparisons.")
     sys.exit(0)
 
 date = final_df["date"].sort_values().iloc[-1]
@@ -173,7 +146,6 @@ final_df = final_df[
         "dk_decimal_odds",
         "juice_decimal_odds",
         "edge_decimal_diff",
-        "source_file",
     ]
 ]
 
