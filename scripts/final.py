@@ -12,8 +12,6 @@ DK_BASE = "docs/win/manual/normalized"
 JUICE_BASE = "docs/win/juice"
 FINAL_BASE = "docs/win/final"
 
-# ---------- helpers ----------
-
 def american_to_decimal(odds):
     if pd.isna(odds):
         return None
@@ -36,38 +34,27 @@ def extract_date_from_filename(path):
 
     raise ValueError(f"No date found in filename: {name}")
 
-def select_latest_date(dates):
-    parsed = {d: datetime.strptime(d, "%Y_%m_%d") for d in dates}
-    return max(parsed, key=parsed.get)
-
 def load_csvs(pattern):
     files = glob.glob(pattern)
     if not files:
         return pd.DataFrame(), set()
 
     dfs = []
-    dates = set()
     for f in files:
-        dates.add(extract_date_from_filename(f))
         dfs.append(pd.read_csv(f))
 
-    return pd.concat(dfs, ignore_index=True), dates
-
-# ---------- main ----------
+    return pd.concat(dfs, ignore_index=True), set()
 
 edges = []
-all_dates = set()
 leagues = ["nba", "ncaab", "nhl"]
 
 # ---------------- MONEYLINE ----------------
 for league in leagues:
-    dk_df, dk_dates = load_csvs(f"{DK_BASE}/norm_dk_{league}_moneyline_*.csv")
-    juice_df, juice_dates = load_csvs(f"{JUICE_BASE}/{league}/ml/juice_{league}_ml_*.csv")
+    dk_df, _ = load_csvs(f"{DK_BASE}/norm_dk_{league}_moneyline_*.csv")
+    juice_df, _ = load_csvs(f"{JUICE_BASE}/{league}/ml/juice_{league}_ml_*.csv")
 
     if dk_df.empty or juice_df.empty:
         continue
-
-    all_dates |= dk_dates | juice_dates
 
     merged = dk_df.merge(
         juice_df,
@@ -96,13 +83,11 @@ for league in leagues:
 
 # ---------------- SPREADS ----------------
 for league in leagues:
-    dk_df, dk_dates = load_csvs(f"{DK_BASE}/norm_dk_{league}_spreads_*.csv")
-    juice_df, juice_dates = load_csvs(f"{JUICE_BASE}/{league}/spreads/juice_{league}_spreads_*.csv")
+    dk_df, _ = load_csvs(f"{DK_BASE}/norm_dk_{league}_spreads_*.csv")
+    juice_df, _ = load_csvs(f"{JUICE_BASE}/{league}/spreads/juice_{league}_spreads_*.csv")
 
     if dk_df.empty or juice_df.empty:
         continue
-
-    all_dates |= dk_dates | juice_dates
 
     merged = dk_df.merge(
         juice_df,
@@ -130,18 +115,15 @@ for league in leagues:
 
 # ---------------- TOTALS ----------------
 for league in leagues:
-    dk_df, dk_dates = load_csvs(f"{DK_BASE}/norm_dk_{league}_totals_*.csv")
-    juice_df, juice_dates = load_csvs(
+    dk_df, _ = load_csvs(f"{DK_BASE}/norm_dk_{league}_totals_*.csv")
+    juice_df, _ = load_csvs(
         f"{JUICE_BASE}/{league}/totals/juice_{league}_totals_*.csv"
     )
 
     if dk_df.empty or juice_df.empty:
         continue
 
-    # normalize league (nba_ou → nba)
     juice_df["league"] = juice_df["league"].str.replace("_ou", "", regex=False)
-
-    all_dates |= dk_dates | juice_dates
 
     merged = dk_df.merge(
         juice_df,
@@ -166,14 +148,14 @@ for league in leagues:
 
         edges.append(sub)
 
-# ---------------- OUTPUT ----------------
 if not edges:
     print("No edges found.")
     sys.exit(0)
 
 final_df = pd.concat(edges, ignore_index=True)
 
-date = select_latest_date(all_dates)
+# ✅ select latest VALID date
+date = final_df["date"].sort_values().iloc[-1]
 final_df = final_df[final_df["date"] == date]
 
 final_df = final_df[
