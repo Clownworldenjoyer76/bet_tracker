@@ -21,6 +21,14 @@ def american_to_decimal(odds):
         return None
     return 1 + (odds / 100) if odds > 0 else 1 + (100 / abs(odds))
 
+def juice_to_decimal(x):
+    if pd.isna(x):
+        return None
+    # American odds heuristic
+    if abs(x) >= 100:
+        return american_to_decimal(x)
+    return x
+
 def safe_date_for_filename(date_str):
     return (
         str(date_str)
@@ -75,7 +83,7 @@ for league in leagues:
             ("away", "away_team", "away_ml_juice_odds"),
         ]:
             sub = merged[merged["team"] == merged[team_col]].copy()
-            sub["juice_decimal_odds"] = sub[juice_col]
+            sub["juice_decimal_odds"] = sub[juice_col].apply(juice_to_decimal)
             sub["dk_decimal_odds"] = sub["decimal_odds"]
             sub["edge_decimal_diff"] = sub["juice_decimal_odds"] - sub["dk_decimal_odds"]
 
@@ -115,7 +123,7 @@ for league in leagues:
                 (merged["spread"] == merged[spread_col])
             ].copy()
 
-            sub["juice_decimal_odds"] = sub[juice_col]
+            sub["juice_decimal_odds"] = sub[juice_col].apply(juice_to_decimal)
             sub["dk_decimal_odds"] = sub["decimal_odds"]
             sub["edge_decimal_diff"] = sub["juice_decimal_odds"] - sub["dk_decimal_odds"]
 
@@ -149,7 +157,7 @@ for league in leagues:
 
         for side in ["over", "under"]:
             sub = merged[merged["side"].str.lower() == side].copy()
-            sub["juice_decimal_odds"] = sub[f"{side}_juice_odds"]
+            sub["juice_decimal_odds"] = sub[f"{side}_juice_odds"].apply(juice_to_decimal)
             sub["dk_decimal_odds"] = sub[f"dk_{side}_odds"].apply(american_to_decimal)
             sub["edge_decimal_diff"] = sub["juice_decimal_odds"] - sub["dk_decimal_odds"]
 
