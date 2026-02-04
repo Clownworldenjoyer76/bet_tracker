@@ -21,6 +21,14 @@ def american_to_decimal(odds):
         return None
     return 1 + (odds / 100) if odds > 0 else 1 + (100 / abs(odds))
 
+def safe_date_for_filename(date_str):
+    return (
+        str(date_str)
+        .replace("/", "_")
+        .replace("-", "_")
+        .strip()
+    )
+
 def load_csvs(pattern):
     files = glob.glob(pattern)
     if not files:
@@ -42,8 +50,7 @@ def match_games(dk, juice):
         how="inner"
     )
 
-    merged = pd.concat([merged_home, merged_away], ignore_index=True)
-    return merged
+    return pd.concat([merged_home, merged_away], ignore_index=True)
 
 edges = []
 near_misses = []
@@ -182,7 +189,7 @@ near_df = pd.concat(near_misses, ignore_index=True) if near_misses else pd.DataF
 
 # determine date
 if not final_df.empty:
-    date = final_df["date"].sort_values().iloc[-1]
+    raw_date = final_df["date"].sort_values().iloc[-1]
 else:
     dk_dates = []
     for league in leagues:
@@ -194,24 +201,26 @@ else:
         print("No data available to determine date.")
         sys.exit(0)
 
-    date = max(dk_dates)
+    raw_date = max(dk_dates)
 
-final_df = final_df[final_df["date"] == date]
-near_df = near_df[near_df["date"] == date]
+safe_date = safe_date_for_filename(raw_date)
+
+final_df = final_df[final_df["date"] == raw_date]
+near_df = near_df[near_df["date"] == raw_date]
 
 Path(FINAL_BASE).mkdir(parents=True, exist_ok=True)
 
-final_df.to_csv(f"{FINAL_BASE}/edges_{date}.csv", index=False)
-near_df.to_csv(f"{FINAL_BASE}/near_miss_{date}.csv", index=False)
+final_df.to_csv(f"{FINAL_BASE}/edges_{safe_date}.csv", index=False)
+near_df.to_csv(f"{FINAL_BASE}/near_miss_{safe_date}.csv", index=False)
 
 for league in leagues:
     Path(f"{FINAL_BASE}/{league}").mkdir(parents=True, exist_ok=True)
     final_df[final_df["league"] == league].to_csv(
-        f"{FINAL_BASE}/{league}/edges_{league}_{date}.csv",
+        f"{FINAL_BASE}/{league}/edges_{league}_{safe_date}.csv",
         index=False,
     )
 
-print(f"Edges written for date {date}")
+print(f"Edges written for date {safe_date}")
 if DEBUG:
     print(f"Total edges: {len(final_df)}")
     print(f"Near misses: {len(near_df)}")
