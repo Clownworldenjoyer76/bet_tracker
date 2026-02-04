@@ -130,20 +130,46 @@ for league in leagues:
         edges.append(sub)
 
 # ================= OUTPUT =================
-if not edges:
-    print("No edges found.")
-    sys.exit(0)
 
-final_df = pd.concat(edges, ignore_index=True)
+# Build final dataframe (even if empty)
+if edges:
+    final_df = pd.concat(edges, ignore_index=True)
+else:
+    final_df = pd.DataFrame(
+        columns=[
+            "date",
+            "league",
+            "market",
+            "time",
+            "away_team",
+            "home_team",
+            "bet_side",
+            "line",
+            "dk_decimal_odds",
+            "juice_decimal_odds",
+            "edge_decimal_diff",
+        ]
+    )
 
-if final_df.empty:
-    print("No edges found after comparisons.")
-    sys.exit(0)
+# Determine date
+if not final_df.empty:
+    date = final_df["date"].sort_values().iloc[-1]
+    final_df = final_df[final_df["date"] == date]
+else:
+    # fallback: most recent DK date
+    dk_dates = []
+    for league in leagues:
+        dk_tmp = load_csvs(f"{DK_BASE}/norm_dk_{league}_*.csv")
+        if not dk_tmp.empty and "date" in dk_tmp.columns:
+            dk_dates.append(dk_tmp["date"].max())
 
-# latest valid date in results
-date = final_df["date"].sort_values().iloc[-1]
-final_df = final_df[final_df["date"] == date]
+    if not dk_dates:
+        print("No data available to determine date. Exiting.")
+        sys.exit(0)
 
+    date = max(dk_dates)
+
+# Enforce column order
 final_df = final_df[
     [
         "date",
@@ -160,13 +186,23 @@ final_df = final_df[
     ]
 ]
 
+# Write catch-all file
 Path(FINAL_BASE).mkdir(parents=True, exist_ok=True)
 final_df.to_csv(f"{FINAL_BASE}/edges_{date}.csv", index=False)
 
-for league in final_df["league"].unique():
-    Path(f"{FINAL_BASE}/{league}").mkdir(parents=True, exist_ok=True)
-    final_df[final_df["league"] == league].to_csv(
-        f"{FINAL_BASE}/{league}/edges_{league}_{date}.csv",
+# Write league-specific files (always)
+for league in leagues:
+    league_dir = f"{FINAL_BASE}/{league}"
+    Path(league_dir).mkdir(parents=True, exist_ok=True)
+
+    league_df = (
+        final_df[final_df["league"] == league]
+        if not final_df.empty
+        else final_df
+    )
+
+    league_df.to_csv(
+        f"{league_dir}/edges_{league}_{date}.csv",
         index=False,
     )
 
