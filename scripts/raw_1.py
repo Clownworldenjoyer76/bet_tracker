@@ -8,7 +8,11 @@ INPUT_DIR = "docs/win/dump/csvs/"
 OUTPUT_DIR = "docs/win/dump/csvs/cleaned/"
 MAP_PATH = "mappings/team_map.csv"
 
+NEED_MAP_DIR = "mappings/need_map"
+DUMP_NO_MAP_PATH = os.path.join(NEED_MAP_DIR, "dump_no_map.csv")
+
 os.makedirs(OUTPUT_DIR, exist_ok=True)
+os.makedirs(NEED_MAP_DIR, exist_ok=True)
 
 ################################### TEAM NORMALIZATION ###################################
 
@@ -58,6 +62,8 @@ def process_files():
     team_map = load_team_map()
     files = glob.glob(os.path.join(INPUT_DIR, "*.csv"))
 
+    unmapped_rows = []
+
     for file_path in files:
         if "cleaned" in file_path:
             continue
@@ -92,9 +98,24 @@ def process_files():
             away_norm = norm(away_raw)
             home_norm = norm(home_raw)
 
-            # Canonicalize teams using team_map.csv
-            away_team = league_map.get(away_norm, away_norm)
-            home_team = league_map.get(home_norm, home_norm)
+            # Canonicalize teams
+            away_team = league_map.get(away_norm)
+            if away_team is None:
+                away_team = away_norm
+                unmapped_rows.append({
+                    "league": raw_league,
+                    "team": away_norm,
+                    "file": filename,
+                })
+
+            home_team = league_map.get(home_norm)
+            if home_team is None:
+                home_team = home_norm
+                unmapped_rows.append({
+                    "league": raw_league,
+                    "team": home_norm,
+                    "file": filename,
+                })
 
             # Win probabilities
             p_away_pct = float(win_parts[0])
@@ -142,6 +163,16 @@ def process_files():
             clean_league = league.replace("_ml", "")
             out_filename = f"{clean_league}_{d_val}.csv"
             d_grp.to_csv(os.path.join(OUTPUT_DIR, out_filename), index=False)
+
+    # Write dump-side unmapped alerts
+    if unmapped_rows:
+        new_df = pd.DataFrame(unmapped_rows).drop_duplicates()
+
+        if os.path.exists(DUMP_NO_MAP_PATH):
+            old_df = pd.read_csv(DUMP_NO_MAP_PATH, dtype=str)
+            new_df = pd.concat([old_df, new_df], ignore_index=True).drop_duplicates()
+
+        new_df.to_csv(DUMP_NO_MAP_PATH, index=False)
 
 
 if __name__ == "__main__":
