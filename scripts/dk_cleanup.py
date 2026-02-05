@@ -17,6 +17,7 @@ MARKETS = {
     "totals": "ou",
 }
 
+###################################DATE LOGIC###########################################################
 
 def convert_date(date_str: str) -> str:
     """
@@ -24,19 +25,26 @@ def convert_date(date_str: str) -> str:
 
     Accepted inputs:
     - MM/DD/YY
-    - YYYY_MM_DD (already normalized)
+    - MM_DD_YYYY
+    - YYYY_MM_DD
     """
-    if "_" in date_str:
-        # Already normalized
+    # Already correct
+    if len(date_str) == 10 and date_str[4] == "_" and date_str[7] == "_":
         return date_str
 
-    try:
+    # MM/DD/YY
+    if "/" in date_str:
         dt = datetime.strptime(date_str, "%m/%d/%y")
-    except ValueError as e:
-        raise ValueError(f"Unrecognized date format: {date_str}") from e
+        return dt.strftime("%Y_%m_%d")
 
-    return dt.strftime("%Y_%m_%d")
+    # MM_DD_YYYY
+    if date_str.count("_") == 2:
+        dt = datetime.strptime(date_str, "%m_%d_%Y")
+        return dt.strftime("%Y_%m_%d")
 
+    raise ValueError(f"Unrecognized date format: {date_str}")
+
+###########################################
 
 
 
