@@ -46,6 +46,30 @@ def load_team_map() -> dict:
 
     return team_map
 
+
+def canonicalize_team(raw: str, league_map: dict) -> tuple[str, bool]:
+    """
+    Deterministically map a dump team name to canonical_team.
+
+    Strategy (in order):
+    1. Exact match
+    2. Strip mascot (school-only, first 2 words)
+    3. First token only (e.g. Louisiana, Sam)
+    """
+    if raw in league_map:
+        return league_map[raw], True
+
+    parts = raw.split()
+    if len(parts) >= 2:
+        school_only = " ".join(parts[:2])
+        if school_only in league_map:
+            return league_map[school_only], True
+
+    if parts and parts[0] in league_map:
+        return league_map[parts[0]], True
+
+    return raw, False
+
 ################################### ODDS HELPERS ###################################
 
 def conv_american(dec):
@@ -98,19 +122,16 @@ def process_files():
             away_norm = norm(away_raw)
             home_norm = norm(home_raw)
 
-            # Canonicalize teams
-            away_team = league_map.get(away_norm)
-            if away_team is None:
-                away_team = away_norm
+            away_team, ok = canonicalize_team(away_norm, league_map)
+            if not ok:
                 unmapped_rows.append({
                     "league": raw_league,
                     "team": away_norm,
                     "file": filename,
                 })
 
-            home_team = league_map.get(home_norm)
-            if home_team is None:
-                home_team = home_norm
+            home_team, ok = canonicalize_team(home_norm, league_map)
+            if not ok:
                 unmapped_rows.append({
                     "league": raw_league,
                     "team": home_norm,
