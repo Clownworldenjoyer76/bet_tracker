@@ -20,10 +20,12 @@ MARKETS = {
 
 def convert_date(date_str: str) -> str:
     """
-    Convert MM/DD/YY -> MM_DD_YYYY
+    Convert MM/DD/YY -> YYYY_MM_DD
+    Example: 02/04/26 -> 2026_02_04
     """
     dt = datetime.strptime(date_str, "%m/%d/%y")
-    return dt.strftime("%m_%d_%Y")
+    return dt.strftime("%Y_%m_%d")
+
 
 
 def load_juice_index(league: str, market: str) -> Dict[Tuple[str, str], str]:
