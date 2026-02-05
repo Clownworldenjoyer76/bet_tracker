@@ -19,7 +19,7 @@ on:
       olympics:
         description: "Number of simulated Olympics"
         required: true
-        default: "10000"
+        default: "50000"
       lineup:
         description: "Comma-separated 6-country lineup"
         required: true
@@ -28,7 +28,7 @@ on:
 jobs:
   simulate:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
 
     steps:
       - name: Checkout repo
@@ -48,16 +48,38 @@ jobs:
         run: |
           mkdir -p testing/olympics
 
-      - name: Run pool simulation and write CSV
+      - name: Run simulation and write CSV to repo
         run: |
-          python scripts/simulate_pool_winprob.py \
+          OUTPUT=$(python scripts/simulate_pool_winprob.py \
             --opponent_model "${{ github.event.inputs.opponent_model }}" \
             --players "${{ github.event.inputs.players }}" \
             --olympics "${{ github.event.inputs.olympics }}" \
-            --lineup "${{ github.event.inputs.lineup }}" \
-            > testing/olympics/pool_sim_results.csv
+            --lineup "${{ github.event.inputs.lineup }}")
 
-      - name: Upload CSV results
+          PLAYERS=$(echo "$OUTPUT" | grep "Players:" | awk '{print $2}')
+          OLYMPICS=$(echo "$OUTPUT" | grep "Olympics simulated:" | awk '{print $3}')
+          MODEL=$(echo "$OUTPUT" | grep "Opponent model:" | awk '{print $3}')
+          LINEUP=$(echo "$OUTPUT" | grep "My lineup:" | cut -d':' -f2 | xargs | tr ' ' ',')
+          STRICT=$(echo "$OUTPUT" | grep "Strict win probability:" | awk '{print $4}')
+          SHARE=$(echo "$OUTPUT" | grep "Expected win share" | awk '{print $6}')
+
+          CSV=testing/olympics/pool_sim_results.csv
+
+          if [ ! -f "$CSV" ]; then
+            echo "players,olympics,opponent_model,lineup,strict_win_probability,expected_win_share" > "$CSV"
+          fi
+
+          echo "$PLAYERS,$OLYMPICS,$MODEL,\"$LINEUP\",$STRICT,$SHARE" >> "$CSV"
+
+      - name: Commit CSV to repo
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add testing/olympics/pool_sim_results.csv
+          git commit -m "Add pool simulation result"
+          git push
+
+      - name: Upload CSV artifact
         uses: actions/upload-artifact@v4
         with:
           name: pool-simulation-csv
