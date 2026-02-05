@@ -4,8 +4,17 @@ from pathlib import Path
 import pandas as pd
 import re
 
+############################################
+# PATHS
+############################################
+
+# DK manual paths
 CLEAN_DIR = Path("docs/win/manual/cleaned")
 OUT_DIR = Path("docs/win/manual/normalized")
+
+# Dump paths (canonicalized IN PLACE)
+DUMP_DIR = Path("docs/win/dump/csvs/cleaned")
+
 MAP_PATH = Path("mappings/team_map.csv")
 
 NEED_MAP_DIR = Path("mappings/need_map")
@@ -14,6 +23,9 @@ NO_MAP_PATH = NEED_MAP_DIR / "no_map.csv"
 
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
+############################################
+# NORMALIZATION HELPERS
+############################################
 
 def norm(s: str) -> str:
     if pd.isna(s):
@@ -28,6 +40,9 @@ def norm_league(s: str) -> str:
         return s
     return norm(s).lower()
 
+############################################
+# TEAM MAP
+############################################
 
 def load_team_map() -> dict:
     df = pd.read_csv(MAP_PATH, dtype=str)
@@ -47,6 +62,9 @@ def load_team_map() -> dict:
 
     return team_map
 
+############################################
+# UNMAPPED LOGGING
+############################################
 
 def append_no_map(rows: list[dict]):
     if not rows:
@@ -66,8 +84,11 @@ def append_no_map(rows: list[dict]):
     combined = combined.drop_duplicates()
     combined.to_csv(NO_MAP_PATH, index=False)
 
+############################################
+# DK MANUAL NORMALIZATION
+############################################
 
-def parse_filename(path: Path):
+def parse_dk_filename(path: Path):
     parts = path.stem.split("_")
     if len(parts) < 6 or parts[0] != "dk":
         raise ValueError(f"Invalid filename format: {path.name}")
@@ -76,14 +97,11 @@ def parse_filename(path: Path):
     league = parts[1]
     market = "_".join(parts[2:-3])
 
-    if not (year.isdigit() and month.isdigit() and day.isdigit()):
-        raise ValueError(f"Invalid date in filename: {path.name}")
-
     return norm_league(league), market, year, month, day
 
 
-def normalize_file(path: Path, team_map: dict):
-    league, market, year, month, day = parse_filename(path)
+def normalize_dk_file(path: Path, team_map: dict):
+    league, market, year, month, day = parse_dk_filename(path)
 
     df = pd.read_csv(path, dtype=str)
 
@@ -97,27 +115,59 @@ def normalize_file(path: Path, team_map: dict):
     df["team"] = df["team"].apply(norm)
     df["opponent"] = df["opponent"].apply(norm)
 
-    before_teams = set(df["team"]) | set(df["opponent"])
+    before = set(df["team"]) | set(df["opponent"])
 
-    df["team"] = df["team"].apply(lambda x: league_map.get(x, x))
-    df["opponent"] = df["opponent"].apply(lambda x: league_map.get(x, x))
+    df["team"] = df["team"].map(lambda x: league_map.get(x, x))
+    df["opponent"] = df["opponent"].map(lambda x: league_map.get(x, x))
 
-    unmapped = sorted(
-        t for t in before_teams if t not in league_map
-    )
-
+    unmapped = sorted(t for t in before if t not in league_map)
     if unmapped:
         append_no_map([{"league": league, "team": t} for t in unmapped])
 
     out_path = OUT_DIR / f"norm_dk_{league}_{market}_{year}_{month}_{day}.csv"
     df.to_csv(out_path, index=False)
 
+############################################
+# DUMP NORMALIZATION (IN PLACE)
+############################################
+
+def normalize_dump_file(path: Path, team_map: dict):
+    # filename: league_YYYY_MM_DD.csv
+    league = norm_league(path.stem.split("_")[0])
+
+    df = pd.read_csv(path, dtype=str)
+    league_map = team_map.get(league)
+    if not league_map:
+        return
+
+    df["home_team"] = df["home_team"].apply(norm)
+    df["away_team"] = df["away_team"].apply(norm)
+
+    before = set(df["home_team"]) | set(df["away_team"])
+
+    df["home_team"] = df["home_team"].map(lambda x: league_map.get(x, x))
+    df["away_team"] = df["away_team"].map(lambda x: league_map.get(x, x))
+
+    unmapped = sorted(t for t in before if t not in league_map)
+    if unmapped:
+        append_no_map([{"league": league, "team": t} for t in unmapped])
+
+    df.to_csv(path, index=False)
+
+############################################
+# MAIN
+############################################
 
 def main():
     team_map = load_team_map()
-    for file in CLEAN_DIR.glob("dk_*.csv"):
-        normalize_file(file, team_map)
 
+    # 1️⃣ Normalize DK manual files
+    for file in CLEAN_DIR.glob("dk_*.csv"):
+        normalize_dk_file(file, team_map)
+
+    # 2️⃣ Normalize dump cleaned files (authoritative)
+    for file in DUMP_DIR.glob("*.csv"):
+        normalize_dump_file(file, team_map)
 
 if __name__ == "__main__":
     main()
