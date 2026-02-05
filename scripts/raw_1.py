@@ -1,6 +1,3 @@
-#####scripts/raw_1.py
-
-
 import os
 import pandas as pd
 import glob
@@ -86,6 +83,10 @@ def conv_american(dec):
 ################################### MAIN PROCESS ###################################
 
 def process_files():
+    # 🔴 OPTION A: Clear stale cleaned dump files first
+    for f in glob.glob(os.path.join(OUTPUT_DIR, "*.csv")):
+        os.remove(f)
+
     team_map = load_team_map()
     files = glob.glob(os.path.join(INPUT_DIR, "*.csv"))
 
