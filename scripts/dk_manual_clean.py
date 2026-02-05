@@ -58,10 +58,7 @@ def clean_file(path: Path):
     out_path = OUTPUT_DIR / path.name
 
     # Check for changes before writing to avoid unnecessary updates
-    if out_path.exists():
-        old = pd.read_csv(out_path)
-        if old.equals(df):
-            return
+
 
     df.to_csv(out_path, index=False)
 
