@@ -7,9 +7,9 @@ OUTPUT_DIR = INPUT_DIR / "cleaned"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 def normalize_date(date_str: str, year: int) -> str:
-    # "1/26" -> "01/26/26"
     month, day = date_str.split("/")
-    return f"{int(month):02d}/{int(day):02d}/{str(year)[-2:]}"
+    return f"{year}_{int(month):02d}_{int(day):02d}"
+
 
 def normalize_time(time_str: str) -> str:
     # "7:07PM" -> "7:07 PM"
