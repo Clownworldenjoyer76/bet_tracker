@@ -11,19 +11,20 @@ NO_MAP_PATH = NO_MAP_DIR / "dk_no_map.csv"
 NO_MAP_DIR.mkdir(parents=True, exist_ok=True)
 
 def main():
-    # Load mapping
-    team_map_df = pd.read_csv(MAP_PATH, dtype=str)
+    map_df = pd.read_csv(MAP_PATH, dtype=str)
 
-    # Build lookup sets
-    dk_to_canonical = dict(
-        zip(
-            team_map_df["dk_team"].astype(str).str.strip(),
-            team_map_df["canonical_team"].astype(str).str.strip(),
-        )
-    )
-    canonical_set = set(team_map_df["canonical_team"].astype(str).str.strip())
+    # build map: league -> {dk_team: canonical_team}
+    team_map = {}
+    canonical_sets = {}
 
-    unmapped = set()
+    for _, row in map_df.iterrows():
+        lg = row["league"].strip()
+        dk = row["dk_team"].strip()
+        can = row["canonical_team"].strip()
+        team_map.setdefault(lg, {})[dk] = can
+        canonical_sets.setdefault(lg, set()).add(can)
+
+    unmapped_rows = []
 
     for file_path in INPUT_DIR.glob("*.csv"):
         df = pd.read_csv(file_path, dtype=str)
@@ -31,55 +32,29 @@ def main():
         if "league" not in df.columns:
             continue
 
-        # Normalize league → base league only (e.g. ncaab_ml → ncaab)
-        base_league = (
-            df["league"]
-            .astype(str)
-            .str.split("_")
-            .str[0]
-            .iloc[0]
-        )
-
-        # Build league-scoped maps
-        league_df = team_map_df[team_map_df["league"] == base_league]
-        league_dk_to_canonical = dict(
-            zip(
-                league_df["dk_team"].astype(str).str.strip(),
-                league_df["canonical_team"].astype(str).str.strip(),
-            )
-        )
-        league_canonical_set = set(
-            league_df["canonical_team"].astype(str).str.strip()
-        )
-
         for col in ("team", "opponent"):
             if col not in df.columns:
                 continue
 
-            def replace(val):
+            def replace(val, lg):
                 if pd.isna(val):
                     return val
-
-                val = str(val).strip()
-
-                # Already canonical → leave it alone
-                if val in league_canonical_set:
+                base_lg = lg.split("_")[0]
+                if val in canonical_sets.get(base_lg, set()):
                     return val
-
-                # DK alias → replace
-                if val in league_dk_to_canonical:
-                    return league_dk_to_canonical[val]
-
-                # Truly unmapped
-                unmapped.add(val)
+                if val in team_map.get(base_lg, {}):
+                    return team_map[base_lg][val]
+                unmapped_rows.append({"team": val, "league": base_lg})
                 return val
 
-            df[col] = df[col].apply(replace)
+            df[col] = [
+                replace(v, lg) for v, lg in zip(df[col], df["league"])
+            ]
 
         df.to_csv(file_path, index=False)
 
-    if unmapped:
-        pd.DataFrame(sorted(unmapped), columns=["team"]).to_csv(
+    if unmapped_rows:
+        pd.DataFrame(unmapped_rows).drop_duplicates().to_csv(
             NO_MAP_PATH, index=False
         )
 
