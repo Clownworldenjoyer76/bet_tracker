@@ -8,7 +8,7 @@ from typing import Dict, Tuple
 
 
 BASE_DK_PATH = "docs/win/manual/normalized"
-BASE_JUICE_PATH = "docs/win/juice"
+BASE_DUMP_PATH = "docs/win/dump/csvs/cleaned"
 
 LEAGUES = ["nba", "ncaab", "nhl"]
 MARKETS = {
@@ -17,7 +17,7 @@ MARKETS = {
     "totals": "ou",
 }
 
-###################################DATE LOGIC###########################################################
+################################### DATE LOGIC ###################################
 
 def convert_date(date_str: str) -> str:
     """
@@ -44,45 +44,45 @@ def convert_date(date_str: str) -> str:
 
     raise ValueError(f"Unrecognized date format: {date_str}")
 
-###########################################
+################################### GAME ID INDEX ###################################
 
-
-
-def load_juice_index(league: str, market: str) -> Dict[Tuple[str, str], str]:
+def load_dump_index(league: str) -> Dict[Tuple[str, str], str]:
     """
     Build lookup:
     (date, team) -> game_id
     """
-    index = {}
+    index: Dict[Tuple[str, str], str] = {}
 
     pattern = os.path.join(
-        BASE_JUICE_PATH,
-        league,
-        market,
-        f"juice_{league}_{market}_*.csv"
+        BASE_DUMP_PATH,
+        f"{league}_*.csv"
     )
 
     for filepath in glob.glob(pattern):
         with open(filepath, newline="", encoding="utf-8") as f:
             reader = csv.DictReader(f)
             for row in reader:
-                date = row["date"]
                 game_id = row["game_id"]
-
                 home = row["home_team"]
                 away = row["away_team"]
+
+                # Date from filename: league_YYYY_MM_DD.csv
+                stem = os.path.basename(filepath).replace(".csv", "")
+                _, year, month, day = stem.split("_")
+                date = f"{year}_{month}_{day}"
 
                 index[(date, home)] = game_id
                 index[(date, away)] = game_id
 
     return index
 
+################################### DK FILE PROCESSING ###################################
 
 def process_dk_file(
     filepath: str,
     league: str,
     market_suffix: str,
-    juice_index: Dict[Tuple[str, str], str],
+    dump_index: Dict[Tuple[str, str], str],
 ) -> None:
     with open(filepath, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
@@ -97,37 +97,61 @@ def process_dk_file(
 
     new_league_value = f"{league}_{market_suffix}"
 
+    missing_game_ids = []
+
     for row in rows:
         # league rename
         row["league"] = new_league_value
 
-        # date conversion
-        original_date = row["date"]
-        converted_date = convert_date(original_date)
+        # date normalization
+        converted_date = convert_date(row["date"])
         row["date"] = converted_date
 
-        # game_id lookup (use converted date)
+        # game_id lookup
         team = row["team"]
-        row["game_id"] = juice_index.get((converted_date, team), "")
+        game_id = dump_index.get((converted_date, team), "")
+        row["game_id"] = game_id
+
+        if not game_id:
+            missing_game_ids.append(
+                {
+                    "file": os.path.basename(filepath),
+                    "date": converted_date,
+                    "team": team,
+                    "league": league,
+                    "market": market_suffix,
+                }
+            )
+
+    if missing_game_ids:
+        msg_lines = [
+            "ERROR: Missing game_id for DK rows:",
+        ]
+        for m in missing_game_ids:
+            msg_lines.append(
+                f"{m['file']} | {m['league']} | {m['market']} | {m['date']} | {m['team']}"
+            )
+        raise RuntimeError("\n".join(msg_lines))
 
     with open(filepath, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(rows)
 
+################################### MAIN ###################################
 
 def main() -> None:
     for league in LEAGUES:
-        for market, suffix in MARKETS.items():
-            juice_index = load_juice_index(league, market)
+        dump_index = load_dump_index(league)
 
+        for market, suffix in MARKETS.items():
             pattern = os.path.join(
                 BASE_DK_PATH,
                 f"norm_dk_{league}_{market}_*.csv"
             )
 
             for filepath in glob.glob(pattern):
-                process_dk_file(filepath, league, suffix, juice_index)
+                process_dk_file(filepath, league, suffix, dump_index)
 
 
 if __name__ == "__main__":
