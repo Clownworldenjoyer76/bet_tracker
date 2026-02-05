@@ -23,28 +23,30 @@ jobs:
           python -m pip install --upgrade pip
           pip install pandas
 
-      # Run first to create cleaned files
+      # 1. Clean raw DK files -> cleaned
       - name: Run Manual Clean
         run: python scripts/dk_manual_clean.py
 
-      # Run second to normalize names from cleaned files
+      # 2. Normalize team names -> normalized
       - name: Run Team Name Normalization
         run: python scripts/dk_names.py
+
+      # 3. Final DK normalization (dates, league, game_id)
+      - name: Run DK Cleanup
+        run: python scripts/dk_cleanup.py
 
       - name: Commit and Push Changes
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          
-          # Stage all relevant outputs
+
           git add docs/win/manual/cleaned/*.csv
           git add docs/win/manual/normalized/*.csv
           git add mappings/need_map/no_map.csv
-          
-          # Commit only if changes exist
+
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "Manual DK Process: Clean and Normalize"
+            git commit -m "Manual DK Process: clean, normalize, enrich game_id"
             git push
           fi
