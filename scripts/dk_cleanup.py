@@ -20,11 +20,23 @@ MARKETS = {
 
 def convert_date(date_str: str) -> str:
     """
-    Convert MM/DD/YY -> YYYY_MM_DD
-    Example: 02/04/26 -> 2026_02_04
+    Normalize date to YYYY_MM_DD.
+
+    Accepted inputs:
+    - MM/DD/YY
+    - YYYY_MM_DD (already normalized)
     """
-    dt = datetime.strptime(date_str, "%m/%d/%y")
+    if "_" in date_str:
+        # Already normalized
+        return date_str
+
+    try:
+        dt = datetime.strptime(date_str, "%m/%d/%y")
+    except ValueError as e:
+        raise ValueError(f"Unrecognized date format: {date_str}") from e
+
     return dt.strftime("%Y_%m_%d")
+
 
 
 
