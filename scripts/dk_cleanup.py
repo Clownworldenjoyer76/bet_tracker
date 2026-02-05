@@ -1,18 +1,13 @@
 #!/usr/bin/env python3
-#scripts/dk_cleanup.py
 
 import csv
 import glob
 import os
-import re
-import pandas as pd
 from datetime import datetime
 from typing import Dict, Tuple
 
-
 BASE_DK_PATH = "docs/win/manual/normalized"
 BASE_DUMP_PATH = "docs/win/dump/csvs/cleaned"
-TEAM_MAP_PATH = "mappings/team_map.csv"
 
 LEAGUES = ["nba", "ncaab", "nhl"]
 MARKETS = {
@@ -21,48 +16,9 @@ MARKETS = {
     "totals": "ou",
 }
 
-################################### NORMALIZATION ###################################
-
-def norm(s: str) -> str:
-    if s is None:
-        return s
-    s = str(s).replace("\u00A0", " ").strip()
-    s = re.sub(r"\s+", " ", s)
-    return s
-
-
-def load_team_map() -> Dict[str, Dict[str, str]]:
-    """
-    league -> {dk_team: canonical_team}
-    """
-    df = pd.read_csv(TEAM_MAP_PATH, dtype=str)
-
-    df["league"] = df["league"].str.lower()
-    df["dk_team"] = df["dk_team"].apply(norm)
-    df["canonical_team"] = df["canonical_team"].apply(norm)
-
-    team_map: Dict[str, Dict[str, str]] = {}
-    for _, r in df.iterrows():
-        lg = r["league"]
-        dk = r["dk_team"]
-        can = r["canonical_team"]
-        if pd.isna(lg) or pd.isna(dk) or pd.isna(can):
-            continue
-        team_map.setdefault(lg, {})[dk] = can
-
-    return team_map
-
 ################################### DATE LOGIC ###################################
 
 def convert_date(date_str: str) -> str:
-    """
-    Normalize date to YYYY_MM_DD.
-
-    Accepted inputs:
-    - MM/DD/YY
-    - MM_DD_YYYY
-    - YYYY_MM_DD
-    """
     if len(date_str) == 10 and date_str[4] == "_" and date_str[7] == "_":
         return date_str
 
@@ -78,57 +34,28 @@ def convert_date(date_str: str) -> str:
 
 ################################### GAME ID INDEX ###################################
 
-def load_dump_index(
-    league: str,
-    team_map: Dict[str, Dict[str, str]],
-) -> Dict[Tuple[str, str], str]:
-    """
-    Build lookup:
-    (date, canonical_team) -> game_id
-    """
+def load_dump_index(league: str) -> Dict[Tuple[str, str], str]:
     index: Dict[Tuple[str, str], str] = {}
 
-    pattern = os.path.join(
-        BASE_DUMP_PATH,
-        f"{league}_*.csv"
-    )
-
-    league_team_map = team_map.get(league, {})
+    pattern = os.path.join(BASE_DUMP_PATH, f"{league}_*.csv")
 
     for filepath in glob.glob(pattern):
         stem = os.path.basename(filepath).replace(".csv", "")
-        parts = stem.split("_")
-
-        if len(parts) < 4:
-            raise ValueError(f"Unexpected dump filename format: {filepath}")
-
-        year, month, day = parts[-3:]
+        _, year, month, day = stem.split("_")
         date = f"{year}_{month}_{day}"
 
         with open(filepath, newline="", encoding="utf-8") as f:
             reader = csv.DictReader(f)
             for row in reader:
                 game_id = row["game_id"]
-
-                home_raw = norm(row["home_team"])
-                away_raw = norm(row["away_team"])
-
-                home = league_team_map.get(home_raw, home_raw)
-                away = league_team_map.get(away_raw, away_raw)
-
-                index[(date, home)] = game_id
-                index[(date, away)] = game_id
+                index[(date, row["home_team"])] = game_id
+                index[(date, row["away_team"])] = game_id
 
     return index
 
 ################################### DK FILE PROCESSING ###################################
 
-def process_dk_file(
-    filepath: str,
-    league: str,
-    market_suffix: str,
-    dump_index: Dict[Tuple[str, str], str],
-) -> None:
+def process_dk_file(filepath, league, market_suffix, dump_index):
     with open(filepath, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         rows = list(reader)
@@ -141,36 +68,25 @@ def process_dk_file(
         fieldnames.append("game_id")
 
     new_league_value = f"{league}_{market_suffix}"
-    missing_game_ids = []
+    missing = []
 
     for row in rows:
         row["league"] = new_league_value
+        date = convert_date(row["date"])
+        row["date"] = date
 
-        converted_date = convert_date(row["date"])
-        row["date"] = converted_date
-
-        team = norm(row["team"])
-        game_id = dump_index.get((converted_date, team), "")
+        team = row["team"]
+        game_id = dump_index.get((date, team), "")
         row["game_id"] = game_id
 
         if not game_id:
-            missing_game_ids.append(
-                {
-                    "file": os.path.basename(filepath),
-                    "date": converted_date,
-                    "team": team,
-                    "league": league,
-                    "market": market_suffix,
-                }
-            )
+            missing.append((os.path.basename(filepath), league, market_suffix, date, team))
 
-    if missing_game_ids:
-        msg_lines = ["ERROR: Missing game_id for DK rows:"]
-        for m in missing_game_ids:
-            msg_lines.append(
-                f"{m['file']} | {m['league']} | {m['market']} | {m['date']} | {m['team']}"
-            )
-        raise RuntimeError("\n".join(msg_lines))
+    if missing:
+        lines = ["ERROR: Missing game_id for DK rows:"]
+        for m in missing:
+            lines.append(f"{m[0]} | {m[1]} | {m[2]} | {m[3]} | {m[4]}")
+        raise RuntimeError("\n".join(lines))
 
     with open(filepath, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
@@ -179,21 +95,14 @@ def process_dk_file(
 
 ################################### MAIN ###################################
 
-def main() -> None:
-    team_map = load_team_map()
-
+def main():
     for league in LEAGUES:
-        dump_index = load_dump_index(league, team_map)
+        dump_index = load_dump_index(league)
 
         for market, suffix in MARKETS.items():
-            pattern = os.path.join(
-                BASE_DK_PATH,
-                f"norm_dk_{league}_{market}_*.csv"
-            )
-
+            pattern = os.path.join(BASE_DK_PATH, f"norm_dk_{league}_{market}_*.csv")
             for filepath in glob.glob(pattern):
                 process_dk_file(filepath, league, suffix, dump_index)
-
 
 if __name__ == "__main__":
     main()
