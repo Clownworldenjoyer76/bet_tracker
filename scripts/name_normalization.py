@@ -1,3 +1,4 @@
+#scripts/name_normalization.py
 #!/usr/bin/env python3
 
 from pathlib import Path
@@ -12,7 +13,7 @@ import re
 MANUAL_DIR = Path("docs/win/manual")
 DUMP_DIR = Path("docs/win/dump/csvs/cleaned")
 
-MAP_PATH = Path("mappings/team_map.csv")
+MAP_DIR = Path("mappings")
 
 NO_MAP_DIR = Path("mappings/need_map")
 NO_MAP_PATH = NO_MAP_DIR / "no_map.csv"
@@ -24,16 +25,65 @@ NO_MAP_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 # =========================
-# NORMALIZATION (FIX)
+# HELPERS
 # =========================
 
 def norm(s: str) -> str:
     if pd.isna(s):
         return s
-    s = str(s)
-    s = s.replace("\u00A0", " ")
+    s = str(s).replace("\u00A0", " ")
     s = re.sub(r"\s+", " ", s)
     return s.strip()
+
+def base_league(lg: str) -> str:
+    return norm(lg.split("_")[0])
+
+# =========================
+# LOAD MAPS
+# =========================
+
+def load_team_maps():
+    """
+    Loads mappings/team_map_{league}.csv
+    Returns:
+        team_map[league][alias] -> canonical
+        canonical_sets[league] -> set(canonical)
+    """
+    team_map = {}
+    canonical_sets = {}
+
+    for map_file in MAP_DIR.glob("team_map_*.csv"):
+        df = pd.read_csv(map_file, dtype=str)
+
+        for _, row in df.iterrows():
+            lg = base_league(row["league"])
+            alias = norm(row["alias"])
+            canonical = norm(row["canonical_team"])
+
+            team_map.setdefault(lg, {})[alias] = canonical
+            canonical_sets.setdefault(lg, set()).add(canonical)
+
+    return team_map, canonical_sets
+
+# =========================
+# NORMALIZATION CORE
+# =========================
+
+def normalize_value(val, lg, team_map, canonical_sets, unmapped):
+    if pd.isna(val):
+        return val
+
+    lg = base_league(lg)
+    v = norm(val)
+
+    if v in canonical_sets.get(lg, set()):
+        return v
+
+    if v in team_map.get(lg, {}):
+        return team_map[lg][v]
+
+    unmapped.add((v, lg))
+    return v
 
 # =========================
 # MAIN
@@ -41,24 +91,11 @@ def norm(s: str) -> str:
 
 def main():
     try:
-        map_df = pd.read_csv(MAP_PATH, dtype=str)
-
-        team_map = {}
-        canonical_sets = {}
-
-        # normalize mapping keys and values
-        for _, row in map_df.iterrows():
-            lg = norm(row["league"])
-            dk = norm(row["dk_team"])
-            can = norm(row["canonical_team"])
-
-            team_map.setdefault(lg, {})[dk] = can
-            canonical_sets.setdefault(lg, set()).add(can)
-
+        team_map, canonical_sets = load_team_maps()
         unmapped = set()
 
         # ==================================================
-        # 1️⃣ MANUAL FILES
+        # MANUAL FILES (DK)
         # ==================================================
 
         for file_path in MANUAL_DIR.glob("*.csv"):
@@ -71,65 +108,39 @@ def main():
                 if col not in df.columns:
                     continue
 
-                def replace(val, lg):
-                    if pd.isna(val):
-                        return val
-
-                    base_lg = norm(lg.split("_")[0])
-                    v = norm(val)
-
-                    if v in canonical_sets.get(base_lg, set()):
-                        return v
-
-                    if v in team_map.get(base_lg, {}):
-                        return team_map[base_lg][v]
-
-                    unmapped.add((v, base_lg))
-                    return v
-
                 df[col] = [
-                    replace(v, lg) for v, lg in zip(df[col], df["league"])
+                    normalize_value(v, lg, team_map, canonical_sets, unmapped)
+                    for v, lg in zip(df[col], df["league"])
                 ]
 
             df.to_csv(file_path, index=False)
 
         # ==================================================
-        # 2️⃣ DUMP FILES
+        # DUMP FILES
         # ==================================================
 
         for file_path in DUMP_DIR.glob("*.csv"):
             parts = file_path.stem.split("_")
-            if len(parts) < 4:
+            if len(parts) < 2:
                 continue
 
-            base_lg = norm(parts[0])
+            lg = parts[0]
             df = pd.read_csv(file_path, dtype=str)
 
             for col in ("home_team", "away_team"):
                 if col not in df.columns:
                     continue
 
-                def replace_dump(val):
-                    if pd.isna(val):
-                        return val
-
-                    v = norm(val)
-
-                    if v in canonical_sets.get(base_lg, set()):
-                        return v
-
-                    if v in team_map.get(base_lg, {}):
-                        return team_map[base_lg][v]
-
-                    unmapped.add((v, base_lg))
-                    return v
-
-                df[col] = df[col].apply(replace_dump)
+                df[col] = df[col].apply(
+                    lambda v: normalize_value(
+                        v, lg, team_map, canonical_sets, unmapped
+                    )
+                )
 
             df.to_csv(file_path, index=False)
 
         # ==================================================
-        # 3️⃣ WRITE UNMAPPED
+        # WRITE UNMAPPED
         # ==================================================
 
         if unmapped:
@@ -144,6 +155,7 @@ def main():
             f.write(traceback.format_exc())
             f.write("\n" + "-" * 80 + "\n")
 
+# =========================
 
 if __name__ == "__main__":
     main()
