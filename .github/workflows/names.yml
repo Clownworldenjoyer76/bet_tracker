@@ -24,7 +24,7 @@ jobs:
           pip install pandas
 
       - name: Run team name update
-        run: python scripts/names.py
+        run: python scripts/name_normalization.py
 
       - name: Commit and push changes
         run: |
@@ -32,11 +32,12 @@ jobs:
           git config --global user.email "action@github.com"
 
           git add docs/win/manual/*.csv
-          git add mappings/need_map/dk_no_map.csv
+          git add mappings/need_map/*.txt
+          git add docs/win/dump/*
 
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "Normalize DK team names from team_map"
+            git commit -m "Normalize  team names from team_map"
             git push
           fi
