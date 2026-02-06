@@ -1,3 +1,6 @@
+#scripts/dk_text_to_csv.py
+#!/usr/bin/env python3
+
 import csv
 import sys
 import os
@@ -13,37 +16,62 @@ OUT_ML = f"{OUT_DIR}/dk_{LEAGUE}_moneyline_{DATE}.csv"
 OUT_SP = f"{OUT_DIR}/dk_{LEAGUE}_spreads_{DATE}.csv"
 OUT_OU = f"{OUT_DIR}/dk_{LEAGUE}_totals_{DATE}.csv"
 
-with open("raw.txt") as f:
-    lines = [l.strip().replace("opens in a new tab", "") for l in f if l.strip()]
+
+# ======================
+# NORMALIZATION
+# ======================
+
+def clean(line: str) -> str:
+    return (
+        line.replace("opens in a new tab", "")
+            .replace("−", "-")
+            .strip()
+    )
+
+
+with open("raw.txt", encoding="utf-8") as f:
+    lines = [clean(l) for l in f if clean(l)]
+
 
 ml_rows, sp_rows, ou_rows = [], [], []
 
 i = 0
 while i < len(lines):
 
+    # game header
     if "@" not in lines[i]:
         i += 1
         continue
 
     away, home = [x.strip() for x in lines[i].split("@", 1)]
+
+    # date / time
+    if i + 1 >= len(lines):
+        break
+
     date_str, time_str = [x.strip() for x in lines[i + 1].split(",", 1)]
     i += 2
 
+    # markets
     while i < len(lines) and lines[i] in ("Moneyline", "Spread", "Total", "Puck Line"):
         market = lines[i]
         normalized = "Spread" if market == "Puck Line" else market
         i += 1
 
+        # header sanity
         if lines[i:i + 3] != ["Odds", "% Handle", "% Bets"]:
-            raise SystemExit(f"header mismatch after {market}")
+            break
         i += 3
+
+        if i + 7 >= len(lines):
+            break
 
         a = lines[i:i + 4]
         b = lines[i + 4:i + 8]
         i += 8
 
         # ======================
-        # MONEYLINE (FIXED)
+        # MONEYLINE
         # ======================
         if normalized == "Moneyline":
             t1, o1, h1, b1 = a
@@ -62,7 +90,7 @@ while i < len(lines):
             ])
 
         # ======================
-        # SPREAD (UNCHANGED)
+        # SPREAD
         # ======================
         elif normalized == "Spread":
             t1, o1, h1, b1 = a
@@ -83,7 +111,7 @@ while i < len(lines):
             ])
 
         # ======================
-        # TOTALS (UNCHANGED)
+        # TOTALS
         # ======================
         elif normalized == "Total":
             s1, o1, h1, b1 = a
@@ -113,23 +141,25 @@ while i < len(lines):
                 f"{LEAGUE}_totals"
             ])
 
+
 # ======================
 # WRITE FILES
 # ======================
+
 if ml_rows:
-    with open(OUT_ML, "w", newline="") as f:
+    with open(OUT_ML, "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(["date", "time", "team", "opponent", "odds", "handle_pct", "bets_pct", "league"])
         w.writerows(ml_rows)
 
 if sp_rows:
-    with open(OUT_SP, "w", newline="") as f:
+    with open(OUT_SP, "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(["date", "time", "team", "opponent", "spread", "odds", "handle_pct", "bets_pct", "league"])
         w.writerows(sp_rows)
 
 if ou_rows:
-    with open(OUT_OU, "w", newline="") as f:
+    with open(OUT_OU, "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(["date", "time", "team", "opponent", "side", "total", "odds", "handle_pct", "bets_pct", "league"])
         w.writerows(ou_rows)
