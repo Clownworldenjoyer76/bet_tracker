@@ -42,13 +42,28 @@ while i < len(lines):
         b = lines[i + 4:i + 8]
         i += 8
 
+        # ======================
+        # MONEYLINE (FIXED)
+        # ======================
         if normalized == "Moneyline":
             t1, o1, h1, b1 = a
             t2, o2, h2, b2 = b
 
-            ml_rows.append([date_str, time_str, t1, away, o1, h1.rstrip("%"), b1.rstrip("%"), LEAGUE])
-            ml_rows.append([date_str, time_str, t2, home, o2, h2.rstrip("%"), b2.rstrip("%"), LEAGUE])
+            opp1 = home if t1 == away else away
+            opp2 = home if t2 == away else away
 
+            ml_rows.append([
+                date_str, time_str, t1, opp1,
+                o1, h1.rstrip("%"), b1.rstrip("%"), LEAGUE
+            ])
+            ml_rows.append([
+                date_str, time_str, t2, opp2,
+                o2, h2.rstrip("%"), b2.rstrip("%"), LEAGUE
+            ])
+
+        # ======================
+        # SPREAD (UNCHANGED)
+        # ======================
         elif normalized == "Spread":
             t1, o1, h1, b1 = a
             t2, o2, h2, b2 = b
@@ -56,9 +71,20 @@ while i < len(lines):
             team1, spread1 = t1.rsplit(" ", 1)
             team2, spread2 = t2.rsplit(" ", 1)
 
-            sp_rows.append([date_str, time_str, team1, team2, spread1, o1, h1.rstrip("%"), b1.rstrip("%"), f"{LEAGUE}_spreads"])
-            sp_rows.append([date_str, time_str, team2, team1, spread2, o2, h2.rstrip("%"), b2.rstrip("%"), f"{LEAGUE}_spreads"])
+            sp_rows.append([
+                date_str, time_str, team1, team2,
+                spread1, o1, h1.rstrip("%"), b1.rstrip("%"),
+                f"{LEAGUE}_spreads"
+            ])
+            sp_rows.append([
+                date_str, time_str, team2, team1,
+                spread2, o2, h2.rstrip("%"), b2.rstrip("%"),
+                f"{LEAGUE}_spreads"
+            ])
 
+        # ======================
+        # TOTALS (UNCHANGED)
+        # ======================
         elif normalized == "Total":
             s1, o1, h1, b1 = a
             s2, o2, h2, b2 = b
@@ -66,12 +92,30 @@ while i < len(lines):
             side1, total = s1.split(" ", 1)
             side2, _ = s2.split(" ", 1)
 
-            ou_rows.append([date_str, time_str, away, home, side1, total, o1, h1.rstrip("%"), b1.rstrip("%"), f"{LEAGUE}_ou"])
-            ou_rows.append([date_str, time_str, away, home, side2, total, o2, h2.rstrip("%"), b2.rstrip("%"), f"{LEAGUE}_ou"])
-            ou_rows.append([date_str, time_str, home, away, side1, total, o1, h1.rstrip("%"), b1.rstrip("%"), f"{LEAGUE}_ou"])
-            ou_rows.append([date_str, time_str, home, away, side2, total, o2, h2.rstrip("%"), b2.rstrip("%"), f"{LEAGUE}_ou"])
+            ou_rows.append([
+                date_str, time_str, away, home,
+                side1, total, o1, h1.rstrip("%"), b1.rstrip("%"),
+                f"{LEAGUE}_totals"
+            ])
+            ou_rows.append([
+                date_str, time_str, away, home,
+                side2, total, o2, h2.rstrip("%"), b2.rstrip("%"),
+                f"{LEAGUE}_totals"
+            ])
+            ou_rows.append([
+                date_str, time_str, home, away,
+                side1, total, o1, h1.rstrip("%"), b1.rstrip("%"),
+                f"{LEAGUE}_totals"
+            ])
+            ou_rows.append([
+                date_str, time_str, home, away,
+                side2, total, o2, h2.rstrip("%"), b2.rstrip("%"),
+                f"{LEAGUE}_totals"
+            ])
 
+# ======================
 # WRITE FILES
+# ======================
 if ml_rows:
     with open(OUT_ML, "w", newline="") as f:
         w = csv.writer(f)
