@@ -1,4 +1,3 @@
-#scripts/dk_01.py
 #!/usr/bin/env python3
 
 import pandas as pd
@@ -31,6 +30,18 @@ def log_error(msg: str):
 
 
 def normalize_date(date_str: str, year: int) -> str:
+    """
+    Accepts either:
+      - M/D        → normalize using year
+      - YYYY_MM_DD → already normalized, return as-is
+    """
+    date_str = str(date_str).strip()
+
+    # already normalized
+    if "_" in date_str:
+        return date_str
+
+    # legacy format
     month, day = date_str.split("/")
     return f"{year}_{int(month):02d}_{int(day):02d}"
 
@@ -64,18 +75,16 @@ def process_file(path: Path):
         _, league, market, year, month, day = parts
         year = int(year)
 
-        # ---- REQUIRED CHANGE ----
-        # Overwrite league column using filename
+        # overwrite league using filename
         df["league"] = f"{league}_{market}"
-        # -------------------------
 
-        # Date normalization
-        df["date"] = df["date"].apply(lambda x: normalize_date(str(x), year))
+        # Date normalization (SAFE)
+        df["date"] = df["date"].apply(lambda x: normalize_date(x, year))
 
         # Time normalization
         df["time"] = df["time"].apply(normalize_time)
 
-        # Odds normalization (string-level)
+        # Odds normalization
         df["odds"] = (
             df["odds"]
             .astype(str)
@@ -86,12 +95,12 @@ def process_file(path: Path):
         # Decimal odds
         df["decimal_odds"] = df["odds"].astype(float).apply(american_to_decimal)
 
-        # Percent columns -> decimals
+        # Percent columns → decimals
         for col in ("handle_pct", "bets_pct"):
             if col in df.columns:
                 df[col] = df[col].astype(float) / 100.0
 
-        # game_id column (blank)
+        # game_id placeholder
         df["game_id"] = ""
 
         # Write output
