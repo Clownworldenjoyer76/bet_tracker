@@ -1,3 +1,5 @@
+#scripts/raw_clean.py
+
 import os
 import pandas as pd
 import glob
