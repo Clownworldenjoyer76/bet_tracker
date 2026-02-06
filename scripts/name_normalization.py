@@ -1,9 +1,9 @@
-#scripts/name_normalization.py
 #!/usr/bin/env python3
 
 from pathlib import Path
 import pandas as pd
 import traceback
+import re
 
 # =========================
 # PATHS
@@ -24,6 +24,18 @@ NO_MAP_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 # =========================
+# NORMALIZATION (FIX)
+# =========================
+
+def norm(s: str) -> str:
+    if pd.isna(s):
+        return s
+    s = str(s)
+    s = s.replace("\u00A0", " ")
+    s = re.sub(r"\s+", " ", s)
+    return s.strip()
+
+# =========================
 # MAIN
 # =========================
 
@@ -31,25 +43,22 @@ def main():
     try:
         map_df = pd.read_csv(MAP_PATH, dtype=str)
 
-        # Build lookup structures
-        # team_map: league -> {dk_team: canonical_team}
-        # canonical_sets: league -> set(canonical_team)
         team_map = {}
         canonical_sets = {}
 
+        # normalize mapping keys and values
         for _, row in map_df.iterrows():
-            lg = row["league"].strip()
-            dk = row["dk_team"].strip()
-            can = row["canonical_team"].strip()
+            lg = norm(row["league"])
+            dk = norm(row["dk_team"])
+            can = norm(row["canonical_team"])
 
             team_map.setdefault(lg, {})[dk] = can
             canonical_sets.setdefault(lg, set()).add(can)
 
-        # store (team, league)
         unmapped = set()
 
         # ==================================================
-        # 1️⃣ MANUAL FILES (LOGIC UNCHANGED)
+        # 1️⃣ MANUAL FILES
         # ==================================================
 
         for file_path in MANUAL_DIR.glob("*.csv"):
@@ -66,19 +75,17 @@ def main():
                     if pd.isna(val):
                         return val
 
-                    base_lg = lg.split("_")[0]
+                    base_lg = norm(lg.split("_")[0])
+                    v = norm(val)
 
-                    # already canonical
-                    if val in canonical_sets.get(base_lg, set()):
-                        return val
+                    if v in canonical_sets.get(base_lg, set()):
+                        return v
 
-                    # dk_team -> canonical_team
-                    if val in team_map.get(base_lg, {}):
-                        return team_map[base_lg][val]
+                    if v in team_map.get(base_lg, {}):
+                        return team_map[base_lg][v]
 
-                    # no match
-                    unmapped.add((val, base_lg))
-                    return val
+                    unmapped.add((v, base_lg))
+                    return v
 
                 df[col] = [
                     replace(v, lg) for v, lg in zip(df[col], df["league"])
@@ -87,17 +94,15 @@ def main():
             df.to_csv(file_path, index=False)
 
         # ==================================================
-        # 2️⃣ DUMP FILES (SAME MATCHING LOGIC)
+        # 2️⃣ DUMP FILES
         # ==================================================
 
         for file_path in DUMP_DIR.glob("*.csv"):
-            # filename: league_YYYY_MM_DD.csv
             parts = file_path.stem.split("_")
             if len(parts) < 4:
                 continue
 
-            base_lg = parts[0]
-
+            base_lg = norm(parts[0])
             df = pd.read_csv(file_path, dtype=str)
 
             for col in ("home_team", "away_team"):
@@ -108,33 +113,30 @@ def main():
                     if pd.isna(val):
                         return val
 
-                    # already canonical
-                    if val in canonical_sets.get(base_lg, set()):
-                        return val
+                    v = norm(val)
 
-                    # dk_team -> canonical_team
-                    if val in team_map.get(base_lg, {}):
-                        return team_map[base_lg][val]
+                    if v in canonical_sets.get(base_lg, set()):
+                        return v
 
-                    # no match
-                    unmapped.add((val, base_lg))
-                    return val
+                    if v in team_map.get(base_lg, {}):
+                        return team_map[base_lg][v]
+
+                    unmapped.add((v, base_lg))
+                    return v
 
                 df[col] = df[col].apply(replace_dump)
 
             df.to_csv(file_path, index=False)
 
         # ==================================================
-        # 3️⃣ WRITE UNMAPPED (TEAM + LEAGUE)
+        # 3️⃣ WRITE UNMAPPED
         # ==================================================
 
         if unmapped:
             pd.DataFrame(
                 sorted(unmapped),
                 columns=["team", "league"]
-            ).to_csv(
-                NO_MAP_PATH, index=False
-            )
+            ).to_csv(NO_MAP_PATH, index=False)
 
     except Exception as e:
         with open(ERROR_LOG, "a", encoding="utf-8") as f:
