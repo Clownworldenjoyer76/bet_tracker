@@ -1,13 +1,17 @@
 import csv
 import sys
+import os
 from datetime import datetime
 
 LEAGUE = sys.argv[1] if len(sys.argv) > 1 else "ncaab"
 DATE = datetime.now().strftime("%Y_%m_%d")
 
-OUT_ML = f"docs/win/manual/dk_{LEAGUE}_moneyline_{DATE}.csv"
-OUT_SP = f"docs/win/manual/dk_{LEAGUE}_spreads_{DATE}.csv"
-OUT_OU = f"docs/win/manual/dk_{LEAGUE}_totals_{DATE}.csv"
+OUT_DIR = "docs/win/manual/cleaned"
+os.makedirs(OUT_DIR, exist_ok=True)
+
+OUT_ML = f"{OUT_DIR}/dk_{LEAGUE}_moneyline_{DATE}.csv"
+OUT_SP = f"{OUT_DIR}/dk_{LEAGUE}_spreads_{DATE}.csv"
+OUT_OU = f"{OUT_DIR}/dk_{LEAGUE}_totals_{DATE}.csv"
 
 with open("raw.txt") as f:
     lines = [l.strip().replace("opens in a new tab", "") for l in f if l.strip()]
@@ -22,7 +26,7 @@ while i < len(lines):
         continue
 
     away, home = [x.strip() for x in lines[i].split("@", 1)]
-    date_str, time_str = [x.strip() for x in lines[i+1].split(",", 1)]
+    date_str, time_str = [x.strip() for x in lines[i + 1].split(",", 1)]
     i += 2
 
     while i < len(lines) and lines[i] in ("Moneyline", "Spread", "Total", "Puck Line"):
@@ -30,12 +34,12 @@ while i < len(lines):
         normalized = "Spread" if market == "Puck Line" else market
         i += 1
 
-        if lines[i:i+3] != ["Odds", "% Handle", "% Bets"]:
+        if lines[i:i + 3] != ["Odds", "% Handle", "% Bets"]:
             raise SystemExit(f"header mismatch after {market}")
         i += 3
 
-        a = lines[i:i+4]
-        b = lines[i+4:i+8]
+        a = lines[i:i + 4]
+        b = lines[i + 4:i + 8]
         i += 8
 
         if normalized == "Moneyline":
@@ -71,17 +75,17 @@ while i < len(lines):
 if ml_rows:
     with open(OUT_ML, "w", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["date","time","team","opponent","odds","handle_pct","bets_pct","league"])
+        w.writerow(["date", "time", "team", "opponent", "odds", "handle_pct", "bets_pct", "league"])
         w.writerows(ml_rows)
 
 if sp_rows:
     with open(OUT_SP, "w", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["date","time","team","opponent","spread","odds","handle_pct","bets_pct","league"])
+        w.writerow(["date", "time", "team", "opponent", "spread", "odds", "handle_pct", "bets_pct", "league"])
         w.writerows(sp_rows)
 
 if ou_rows:
     with open(OUT_OU, "w", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["date","time","team","opponent","side","total","odds","handle_pct","bets_pct","league"])
+        w.writerow(["date", "time", "team", "opponent", "side", "total", "odds", "handle_pct", "bets_pct", "league"])
         w.writerows(ou_rows)
