@@ -63,6 +63,11 @@ def process_file(path: Path):
         _, league, market, year, month, day = parts
         year = int(year)
 
+        # ---- REQUIRED CHANGE ----
+        # Overwrite league column using filename
+        df["league"] = f"{league}_{market}"
+        # -------------------------
+
         # Date normalization
         df["date"] = df["date"].apply(lambda x: normalize_date(str(x), year))
 
