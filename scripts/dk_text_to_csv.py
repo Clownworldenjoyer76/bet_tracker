@@ -1,4 +1,4 @@
-#scripts/dk_text_to_csv.py
+# scripts/dk_text_to_csv.py
 #!/usr/bin/env python3
 
 import csv
@@ -9,13 +9,12 @@ from datetime import datetime
 LEAGUE = sys.argv[1] if len(sys.argv) > 1 else "ncaab"
 DATE = datetime.now().strftime("%Y_%m_%d")
 
-OUT_DIR = "docs/win/manual/cleaned"
+OUT_DIR = "docs/win/manual/first"
 os.makedirs(OUT_DIR, exist_ok=True)
 
 OUT_ML = f"{OUT_DIR}/dk_{LEAGUE}_moneyline_{DATE}.csv"
 OUT_SP = f"{OUT_DIR}/dk_{LEAGUE}_spreads_{DATE}.csv"
 OUT_OU = f"{OUT_DIR}/dk_{LEAGUE}_totals_{DATE}.csv"
-
 
 # ======================
 # NORMALIZATION
@@ -28,10 +27,8 @@ def clean(line: str) -> str:
             .strip()
     )
 
-
 with open("raw.txt", encoding="utf-8") as f:
     lines = [clean(l) for l in f if clean(l)]
-
 
 ml_rows, sp_rows, ou_rows = [], [], []
 
@@ -140,7 +137,6 @@ while i < len(lines):
                 side2, total, o2, h2.rstrip("%"), b2.rstrip("%"),
                 f"{LEAGUE}_totals"
             ])
-
 
 # ======================
 # WRITE FILES
