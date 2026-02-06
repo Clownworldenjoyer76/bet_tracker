@@ -18,8 +18,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Validate league
         shell: bash
@@ -43,11 +42,22 @@ jobs:
         run: |
           python3 scripts/dk_text_to_csv.py "$LEAGUE"
 
+      - name: Inspect outputs
+        shell: bash
+        run: |
+          echo "=== manual/cleaned ==="
+          ls -lah docs/win/manual/cleaned || true
+          echo "=== manual ==="
+          ls -lah docs/win/manual || true
+
       - name: Commit CSVs
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/win/manual/*.csv
+
+          # IMPORTANT: script writes here
+          git add docs/win/manual/cleaned/*.csv
+
           git diff --cached --quiet || git commit -m "Add DK CSVs (${{ inputs.league }})"
           git push
