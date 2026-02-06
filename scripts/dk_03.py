@@ -1,3 +1,4 @@
+#scripts/dk_03.py
 #!/usr/bin/env python3
 
 import csv
@@ -45,9 +46,13 @@ def process_file(path: Path):
             return
 
         out_rows = []
-
         i = 0
+
         while i < len(rows):
+
+            # ======================
+            # MONEYLINE / SPREADS
+            # ======================
             if market in ("moneyline", "spreads"):
                 away = rows[i]
                 home = rows[i + 1]
@@ -60,11 +65,12 @@ def process_file(path: Path):
                     "game_id": away["game_id"],
                     "away_team": away["team"],
                     "home_team": home["team"],
-                    "handle_pct": away.get("handle_pct"),
-                    "bets_pct": away.get("bets_pct"),
+                    "away_handle_pct": away.get("handle_pct"),
+                    "home_handle_pct": home.get("handle_pct"),
+                    "away_bets_pct": away.get("bets_pct"),
+                    "home_bets_pct": home.get("bets_pct"),
                 }
 
-                # moneyline
                 if market == "moneyline":
                     out.update({
                         "away_odds": away["odds"],
@@ -73,8 +79,7 @@ def process_file(path: Path):
                         "home_decimal_odds": home["decimal_odds"],
                     })
 
-                # spreads
-                elif market == "spreads":
+                else:  # spreads
                     out.update({
                         "away_spread": away["spread"],
                         "home_spread": home["spread"],
@@ -86,14 +91,13 @@ def process_file(path: Path):
 
                 out_rows.append(out)
 
+            # ======================
+            # TOTALS
+            # ======================
             elif market == "totals":
-                r1 = rows[i]
-                r2 = rows[i + 1]
-                r3 = rows[i + 2]
-                r4 = rows[i + 3]
+                r1, r2, r3, r4 = rows[i:i+4]
                 i += 4
 
-                # over / under determined ONLY by side column
                 over_row = next(r for r in (r1, r2, r3, r4) if r["side"].lower() == "over")
                 under_row = next(r for r in (r1, r2, r3, r4) if r["side"].lower() == "under")
 
@@ -104,8 +108,10 @@ def process_file(path: Path):
                     "game_id": r1["game_id"],
                     "away_team": r1["team"],
                     "home_team": r3["team"],
-                    "handle_pct": r1.get("handle_pct"),
-                    "bets_pct": r1.get("bets_pct"),
+                    "away_handle_pct": r1.get("handle_pct"),
+                    "home_handle_pct": r3.get("handle_pct"),
+                    "away_bets_pct": r1.get("bets_pct"),
+                    "home_bets_pct": r3.get("bets_pct"),
                     "total": over_row["total"],
                     "over_odds": over_row["odds"],
                     "under_odds": under_row["odds"],
@@ -118,9 +124,11 @@ def process_file(path: Path):
             else:
                 raise ValueError(f"Unknown market: {market}")
 
-        # Write output
-        out_path = OUTPUT_DIR / path.name
+        # ======================
+        # WRITE OUTPUT
+        # ======================
 
+        out_path = OUTPUT_DIR / path.name
         with open(out_path, "w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=out_rows[0].keys())
             writer.writeheader()
