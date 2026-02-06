@@ -11,7 +11,7 @@ import traceback
 # PATHS
 # =========================
 
-INPUT_DIR = Path("docs/win/manual")
+INPUT_DIR = Path("docs/win/manual/first")
 OUTPUT_DIR = INPUT_DIR / "cleaned"
 ERROR_DIR = Path("docs/win/errors")
 
