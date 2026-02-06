@@ -45,6 +45,7 @@ def main():
             team_map.setdefault(lg, {})[dk] = can
             canonical_sets.setdefault(lg, set()).add(can)
 
+        # store (team, league)
         unmapped = set()
 
         # ==================================================
@@ -76,7 +77,7 @@ def main():
                         return team_map[base_lg][val]
 
                     # no match
-                    unmapped.add(val)
+                    unmapped.add((val, base_lg))
                     return val
 
                 df[col] = [
@@ -116,7 +117,7 @@ def main():
                         return team_map[base_lg][val]
 
                     # no match
-                    unmapped.add(val)
+                    unmapped.add((val, base_lg))
                     return val
 
                 df[col] = df[col].apply(replace_dump)
@@ -124,11 +125,14 @@ def main():
             df.to_csv(file_path, index=False)
 
         # ==================================================
-        # 3️⃣ WRITE UNMAPPED (BOTH SOURCES)
+        # 3️⃣ WRITE UNMAPPED (TEAM + LEAGUE)
         # ==================================================
 
         if unmapped:
-            pd.DataFrame(sorted(unmapped), columns=["team"]).to_csv(
+            pd.DataFrame(
+                sorted(unmapped),
+                columns=["team", "league"]
+            ).to_csv(
                 NO_MAP_PATH, index=False
             )
 
