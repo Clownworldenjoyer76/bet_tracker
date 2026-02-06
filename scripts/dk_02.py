@@ -1,4 +1,3 @@
-#scripts/dk_02.py
 #!/usr/bin/env python3
 
 import csv
@@ -27,6 +26,12 @@ def log_error(msg: str):
         f.write(msg + "\n")
 
 
+def norm(s: str) -> str:
+    if s is None:
+        return ""
+    return " ".join(str(s).split())
+
+
 def load_dump_index(league: str):
     """
     Build lookup:
@@ -51,8 +56,9 @@ def load_dump_index(league: str):
                 if not game_id:
                     continue
 
-                index[(date, row.get("home_team"))] = game_id
-                index[(date, row.get("away_team"))] = game_id
+                # CHANGE 1: normalize dump team keys
+                index[(date, norm(row.get("home_team")))] = game_id
+                index[(date, norm(row.get("away_team")))] = game_id
 
     return index
 
@@ -82,7 +88,8 @@ def process_file(path: Path):
     updated_rows = []
 
     for row in rows:
-        team = row.get("team")
+        # CHANGE 2: normalize DK lookup key
+        team = norm(row.get("team"))
         game_id = dump_index.get((date, team), "")
         row["game_id"] = game_id
 
