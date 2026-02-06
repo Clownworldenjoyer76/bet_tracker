@@ -45,8 +45,8 @@ jobs:
       - name: Inspect outputs
         shell: bash
         run: |
-          echo "=== manual/cleaned ==="
-          ls -lah docs/win/manual/cleaned || true
+          echo "=== manual/first ==="
+          ls -lah docs/win/manual/first || true
           echo "=== manual ==="
           ls -lah docs/win/manual || true
 
@@ -56,8 +56,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # IMPORTANT: script writes here
-          git add docs/win/manual/cleaned/*.csv
+          # UPDATED: new output directory
+          git add docs/win/manual/first/*.csv
 
           git diff --cached --quiet || git commit -m "Add DK CSVs (${{ inputs.league }})"
           git push
