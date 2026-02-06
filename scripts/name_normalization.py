@@ -1,4 +1,3 @@
-#scripts/name_normalization.py
 #!/usr/bin/env python3
 
 from pathlib import Path
@@ -11,6 +10,7 @@ import re
 # =========================
 
 MANUAL_DIR = Path("docs/win/manual")
+FIRST_DIR = Path("docs/win/manual/first")
 DUMP_DIR = Path("docs/win/dump/csvs/cleaned")
 
 MAP_DIR = Path("mappings")
@@ -43,12 +43,6 @@ def base_league(lg: str) -> str:
 # =========================
 
 def load_team_maps():
-    """
-    Loads mappings/team_map_{league}.csv
-    Returns:
-        team_map[league][alias] -> canonical
-        canonical_sets[league] -> set(canonical)
-    """
     team_map = {}
     canonical_sets = {}
 
@@ -89,60 +83,56 @@ def normalize_value(val, lg, team_map, canonical_sets, unmapped):
 # MAIN
 # =========================
 
+def normalize_csv(file_path: Path, league_col: str, team_cols: tuple, lg_from_filename=False):
+    df = pd.read_csv(file_path, dtype=str)
+
+    if lg_from_filename:
+        lg = file_path.stem.split("_")[1]
+        for col in team_cols:
+            if col in df.columns:
+                df[col] = df[col].apply(
+                    lambda v: normalize_value(v, lg, team_map, canonical_sets, unmapped)
+                )
+    else:
+        if league_col not in df.columns:
+            return
+        for col in team_cols:
+            if col in df.columns:
+                df[col] = [
+                    normalize_value(v, lg, team_map, canonical_sets, unmapped)
+                    for v, lg in zip(df[col], df[league_col])
+                ]
+
+    df.to_csv(file_path, index=False)
+
 def main():
     try:
+        global team_map, canonical_sets, unmapped
         team_map, canonical_sets = load_team_maps()
         unmapped = set()
 
-        # ==================================================
-        # MANUAL FILES (DK)
-        # ==================================================
-
+        # MANUAL ROOT
         for file_path in MANUAL_DIR.glob("*.csv"):
-            df = pd.read_csv(file_path, dtype=str)
+            normalize_csv(file_path, "league", ("team", "opponent"))
 
-            if "league" not in df.columns:
-                continue
+        # MANUAL / FIRST  ← THE MISSING PIECE
+        for file_path in FIRST_DIR.glob("*.csv"):
+            normalize_csv(file_path, None, ("team", "opponent"), lg_from_filename=True)
 
-            for col in ("team", "opponent"):
-                if col not in df.columns:
-                    continue
-
-                df[col] = [
-                    normalize_value(v, lg, team_map, canonical_sets, unmapped)
-                    for v, lg in zip(df[col], df["league"])
-                ]
-
-            df.to_csv(file_path, index=False)
-
-        # ==================================================
         # DUMP FILES
-        # ==================================================
-
         for file_path in DUMP_DIR.glob("*.csv"):
-            parts = file_path.stem.split("_")
-            if len(parts) < 2:
-                continue
-
-            lg = parts[0]
+            lg = file_path.stem.split("_")[0]
             df = pd.read_csv(file_path, dtype=str)
 
             for col in ("home_team", "away_team"):
-                if col not in df.columns:
-                    continue
-
-                df[col] = df[col].apply(
-                    lambda v: normalize_value(
-                        v, lg, team_map, canonical_sets, unmapped
+                if col in df.columns:
+                    df[col] = df[col].apply(
+                        lambda v: normalize_value(v, lg, team_map, canonical_sets, unmapped)
                     )
-                )
 
             df.to_csv(file_path, index=False)
 
-        # ==================================================
         # WRITE UNMAPPED
-        # ==================================================
-
         if unmapped:
             pd.DataFrame(
                 sorted(unmapped),
@@ -154,8 +144,6 @@ def main():
             f.write(str(e) + "\n")
             f.write(traceback.format_exc())
             f.write("\n" + "-" * 80 + "\n")
-
-# =========================
 
 if __name__ == "__main__":
     main()
