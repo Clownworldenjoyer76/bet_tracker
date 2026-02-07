@@ -13,6 +13,7 @@ import traceback
 INPUT_DIR = Path("docs/win/manual/first")
 OUTPUT_DIR = INPUT_DIR / "cleaned"
 ERROR_DIR = Path("docs/win/errors")
+MAP_DIR = Path("mappings")
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
@@ -30,18 +31,9 @@ def log_error(msg: str):
 
 
 def normalize_date(date_str: str, year: int) -> str:
-    """
-    Accepts either:
-      - M/D        → normalize using year
-      - YYYY_MM_DD → already normalized, return as-is
-    """
     date_str = str(date_str).strip()
-
-    # already normalized
     if "_" in date_str:
         return date_str
-
-    # legacy format
     month, day = date_str.split("/")
     return f"{year}_{int(month):02d}_{int(day):02d}"
 
@@ -59,6 +51,23 @@ def american_to_decimal(odds: float) -> float:
         return 1 + odds / 100
     return 1 + 100 / abs(odds)
 
+
+# =========================
+# TEAM MAP (MINIMAL)
+# =========================
+
+def load_team_map():
+    team_map = {}
+    for path in MAP_DIR.glob("team_map_*.csv"):
+        df = pd.read_csv(path, dtype=str)
+        for _, r in df.iterrows():
+            lg = r["league"].split("_")[0].strip()
+            team_map.setdefault(lg, {})[r["alias"].strip()] = r["canonical_team"].strip()
+    return team_map
+
+
+TEAM_MAP = load_team_map()
+
 # =========================
 # CORE LOGIC
 # =========================
@@ -67,24 +76,23 @@ def process_file(path: Path):
     try:
         df = pd.read_csv(path)
 
-        # Filename: dk_{league}_{market}_{YYYY}_{MM}_{DD}.csv
+        # dk_{league}_{market}_{YYYY}_{MM}_{DD}.csv
         parts = path.stem.split("_")
         if len(parts) < 6:
             raise ValueError(f"Invalid filename format: {path.name}")
 
         _, league, market, year, month, day = parts
         year = int(year)
+        base_league = league
 
         # overwrite league using filename
         df["league"] = f"{league}_{market}"
 
-        # Date normalization (SAFE)
+        # Date / time
         df["date"] = df["date"].apply(lambda x: normalize_date(x, year))
-
-        # Time normalization
         df["time"] = df["time"].apply(normalize_time)
 
-        # Odds normalization
+        # Odds
         df["odds"] = (
             df["odds"]
             .astype(str)
@@ -92,18 +100,21 @@ def process_file(path: Path):
             .str.lstrip("+")
         )
 
-        # Decimal odds
         df["decimal_odds"] = df["odds"].astype(float).apply(american_to_decimal)
 
-        # Percent columns → decimals
         for col in ("handle_pct", "bets_pct"):
             if col in df.columns:
                 df[col] = df[col].astype(float) / 100.0
 
-        # game_id placeholder
+        # 🔑 TEAM NORMALIZATION (THE FIX)
+        for col in ("team", "opponent"):
+            if col in df.columns and base_league in TEAM_MAP:
+                df[col] = df[col].apply(
+                    lambda v: TEAM_MAP[base_league].get(str(v).strip(), v)
+                )
+
         df["game_id"] = ""
 
-        # Write output
         out_path = OUTPUT_DIR / path.name
         df.to_csv(out_path, index=False)
 
@@ -118,16 +129,13 @@ def process_file(path: Path):
 # =========================
 
 def main():
-    patterns = [
+    for pattern in (
         "dk_*_moneyline_*.csv",
         "dk_*_spreads_*.csv",
         "dk_*_totals_*.csv",
-    ]
-
-    for pattern in patterns:
+    ):
         for file in INPUT_DIR.glob(pattern):
             process_file(file)
-
 
 if __name__ == "__main__":
     main()
