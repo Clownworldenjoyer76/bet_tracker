@@ -3,10 +3,6 @@ import glob
 from pathlib import Path
 from scipy.stats import poisson
 
-# =========================
-# CONSTANTS
-# =========================
-
 CLEANED_DIR = Path("docs/win/dump/csvs/cleaned")
 NORMALIZED_DIR = Path("docs/win/manual/normalized")
 OUTPUT_DIR = Path("docs/win/nba/totals")
@@ -14,20 +10,17 @@ EDGE = 0.05
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-# =========================
-# HELPERS
-# =========================
-
 def to_american(decimal_odds):
-    if pd.isna(decimal_odds) or decimal_odds <= 1:
+    if (
+        pd.isna(decimal_odds)
+        or decimal_odds <= 1
+        or decimal_odds == float("inf")
+        or decimal_odds == float("-inf")
+    ):
         return ""
     if decimal_odds >= 2.0:
         return f"+{int((decimal_odds - 1) * 100)}"
     return f"-{int(100 / (decimal_odds - 1))}"
-
-# =========================
-# CORE
-# =========================
 
 def process_totals():
     projection_files = glob.glob(str(CLEANED_DIR / "nba_*.csv"))
@@ -42,20 +35,14 @@ def process_totals():
         df_proj = pd.read_csv(proj_path)
         df_dk = pd.read_csv(dk_path)
 
-        # 🔑 Drop duplicate non-projection columns BEFORE merge
         df_proj = df_proj.drop(
             columns=["date", "time", "away_team", "home_team"],
             errors="ignore"
         )
 
         merged = pd.merge(df_proj, df_dk, on="game_id", how="inner")
-
         if merged.empty:
             continue
-
-        # =========================
-        # POISSON CALCULATIONS
-        # =========================
 
         merged["under_probability"] = merged.apply(
             lambda x: poisson.cdf(x["total"] - 0.5, x["game_projected_points"]),
@@ -68,10 +55,6 @@ def process_totals():
 
         merged["over_acceptable_american_odds"] = merged["over_acceptable_decimal_odds"].apply(to_american)
         merged["under_acceptable_american_odds"] = merged["under_acceptable_decimal_odds"].apply(to_american)
-
-        # =========================
-        # OUTPUT
-        # =========================
 
         cols = [
             "game_id", "date", "time", "away_team", "home_team",
