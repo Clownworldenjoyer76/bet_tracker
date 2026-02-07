@@ -2,6 +2,7 @@
 
 import csv
 from pathlib import Path
+import re
 
 # =========================
 # PATHS
@@ -12,6 +13,9 @@ INPUT_DIR = Path("docs/win/manual/first")
 # =========================
 # HELPERS
 # =========================
+
+MD_RE = re.compile(r"^\s*(\d{1,2})/(\d{1,2})\s*$")
+YMD_RE = re.compile(r"^\d{4}_\d{2}_\d{2}$")
 
 def extract_year_from_filename(path: Path) -> str:
     """
@@ -25,9 +29,23 @@ def extract_year_from_filename(path: Path) -> str:
 
 def normalize_date(md: str, year: str) -> str:
     """
-    Converts M/D -> YYYY_MM_DD
+    Converts M/D or MM/DD -> YYYY_MM_DD
+    Leaves everything else unchanged
     """
-    month, day = md.split("/")
+    if md is None:
+        return md
+
+    s = str(md).strip()
+
+    # already normalized
+    if YMD_RE.match(s):
+        return s
+
+    m = MD_RE.match(s)
+    if not m:
+        return s
+
+    month, day = m.groups()
     return f"{year}_{month.zfill(2)}_{day.zfill(2)}"
 
 # =========================
