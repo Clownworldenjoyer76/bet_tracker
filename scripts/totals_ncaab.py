@@ -42,26 +42,20 @@ def process_totals():
         df_proj = pd.read_csv(proj_path)
         df_dk = pd.read_csv(dk_path)
 
-        # Merge on game_id (authoritative)
-        merged = pd.merge(
-            df_proj,
-            df_dk,
-            on="game_id",
-            how="inner"
+        df_proj = df_proj.drop(
+            columns=["date", "time", "away_team", "home_team"],
+            errors="ignore"
         )
+
+        merged = pd.merge(df_proj, df_dk, on="game_id", how="inner")
 
         if merged.empty:
             continue
-
-        # =========================
-        # POISSON CALCULATIONS
-        # =========================
 
         merged["under_probability"] = merged.apply(
             lambda x: poisson.cdf(x["total"] - 0.5, x["game_projected_points"]),
             axis=1
         )
-
         merged["over_probability"] = 1 - merged["under_probability"]
 
         merged["over_acceptable_decimal_odds"] = (1 / merged["over_probability"]) * (1 + EDGE)
@@ -69,10 +63,6 @@ def process_totals():
 
         merged["over_acceptable_american_odds"] = merged["over_acceptable_decimal_odds"].apply(to_american)
         merged["under_acceptable_american_odds"] = merged["under_acceptable_decimal_odds"].apply(to_american)
-
-        # =========================
-        # OUTPUT
-        # =========================
 
         cols = [
             "game_id", "date", "time", "away_team", "home_team",
@@ -91,10 +81,6 @@ def process_totals():
         out_path = OUTPUT_DIR / f"ou_ncaab_{date_suffix}.csv"
         output_df.to_csv(out_path, index=False)
         print(f"Saved: {out_path}")
-
-# =========================
-# MAIN
-# =========================
 
 if __name__ == "__main__":
     process_totals()
