@@ -32,7 +32,7 @@ def norm(s: str) -> str:
     return " ".join(str(s).split())
 
 
-def load_dump_index(league: str):
+dump_index = load_dump_index(f"{league}_ml")
     """
     Build lookup:
     (date, team) -> game_id
