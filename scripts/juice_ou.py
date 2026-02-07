@@ -78,9 +78,9 @@ def run():
                 try:
                     base_dec = american_to_decimal(row["over_acceptable_american_odds"])
                     if mode == "band":
-                        juice = band_lookup_total(row["dk_total"], "over", jt)
+                        juice = band_lookup_total(row["total"], "over", jt)
                     else:
-                        juice = exact_lookup_total(row["dk_total"], "over", jt)
+                        juice = exact_lookup_total(row["total"], "over", jt)
                     return decimal_to_american(base_dec * (1 + juice))
                 except Exception:
                     return ""
@@ -89,9 +89,9 @@ def run():
                 try:
                     base_dec = american_to_decimal(row["under_acceptable_american_odds"])
                     if mode == "band":
-                        juice = band_lookup_total(row["dk_total"], "under", jt)
+                        juice = band_lookup_total(row["total"], "under", jt)
                     else:
-                        juice = exact_lookup_total(row["dk_total"], "under", jt)
+                        juice = exact_lookup_total(row["total"], "under", jt)
                     return decimal_to_american(base_dec * (1 + juice))
                 except Exception:
                     return ""
