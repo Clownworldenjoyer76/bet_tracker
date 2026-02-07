@@ -22,7 +22,7 @@ def process_totals():
     
     for proj_path in projection_files:
         date_suffix = "_".join(Path(proj_path).stem.split("_")[1:])
-        dk_file = NORMALIZED_DIR / f"norm_dk_nba_totals_{date_suffix}.csv"
+        dk_file = NORMALIZED_DIR / f"dk_nba_totals_{date_suffix}.csv"
         
         if not dk_file.exists():
             continue
