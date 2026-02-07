@@ -75,7 +75,6 @@ for league in leagues:
         dates.update([dk_date, juice_date])
         m = dk.merge(juice, on="game_id")
 
-        # Normalize team columns to DK
         if "away_team_x" in m.columns:
             m["away_team"] = m["away_team_x"]
             m["home_team"] = m["home_team_x"]
@@ -108,23 +107,29 @@ for league in leagues:
         dates.update([dk_date, juice_date])
         m = dk.merge(juice, on="game_id")
 
-        # Normalize team columns to DK
         if "away_team_x" in m.columns:
             m["away_team"] = m["away_team_x"]
             m["home_team"] = m["home_team_x"]
+
+        # 🔑 normalize spread column
+        if "spread" in m.columns:
+            m["line"] = m["spread"]
+        elif "line" in m.columns:
+            m["line"] = m["line"]
+        else:
+            raise KeyError("No spread/line column found in DK spreads file")
 
         m["file_date"] = dk_date
 
         for side in ["away", "home"]:
             dk_dec = m[f"{side}_decimal_odds"]
             juice_dec = m[f"{side}_spread_juice_odds"].apply(american_to_decimal)
-            line_val = m[f"{side}_spread"]
 
             out = emit(
                 m,
                 market="spreads",
                 side=side,
-                line_val=line_val,
+                line_val=m["line"],
                 dk_dec=dk_dec,
                 juice_dec=juice_dec,
                 league=f"{league}_spreads",
@@ -142,7 +147,6 @@ for league in leagues:
         dates.update([dk_date, juice_date])
         m = dk.merge(juice, on="game_id")
 
-        # Normalize team columns to DK
         if "away_team_x" in m.columns:
             m["away_team"] = m["away_team_x"]
             m["home_team"] = m["home_team_x"]
