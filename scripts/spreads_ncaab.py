@@ -1,6 +1,5 @@
 import pandas as pd
 import glob
-import numpy as np
 from pathlib import Path
 from scipy.stats import norm
 
@@ -37,11 +36,6 @@ def process_spreads():
         df_proj = pd.read_csv(proj_path)
         df_dk = pd.read_csv(dk_path)
 
-        df_proj = df_proj.drop(
-            columns=["date", "time", "away_team", "home_team"],
-            errors="ignore"
-        )
-
         merged = pd.merge(df_proj, df_dk, on="game_id", how="inner")
         if merged.empty:
             continue
@@ -55,7 +49,7 @@ def process_spreads():
             lambda x: 1 - norm.cdf(
                 -x["home_spread"], x["proj_home_margin"], NCAAB_STD_DEV
             ),
-            axis=1
+            axis=1,
         )
         merged["away_spread_probability"] = 1 - merged["home_spread_probability"]
 
@@ -74,6 +68,8 @@ def process_spreads():
             "away_spread_acceptable_decimal_odds"
         ].apply(to_american)
 
+        merged["league"] = "ncaab_spreads"
+
         cols = [
             "game_id", "league", "date", "time",
             "away_team", "home_team",
@@ -90,7 +86,7 @@ def process_spreads():
 
         merged[cols].to_csv(
             OUTPUT_DIR / f"spreads_ncaab_{date_suffix}.csv",
-            index=False
+            index=False,
         )
 
 if __name__ == "__main__":
