@@ -34,51 +34,27 @@ def extract_date(path):
     return m.group(1) if m else None
 
 def load_latest(pattern):
-    files = glob.glob(pattern)
+    files = sorted(glob.glob(pattern))
     if not files:
         return None, None
-    files.sort()
     df = pd.concat([pd.read_csv(f) for f in files], ignore_index=True)
-    date = max(extract_date(f) for f in files)
+    date = max(extract_date(f) for f in files if extract_date(f))
     return df, date
 
-def normalize_identity(df):
-    # DK normalized files are canonical
-    df["league"] = df["league_dk"]
-    df["away_team"] = df["away_team_dk"]
-    df["home_team"] = df["home_team_dk"]
-    return df
-
-def emit(df, market, side, dk_line_col, dk_dec, juice_dec):
-    df = df.copy()
-    df["market"] = market
-    df["bet_side"] = side
-
-    if dk_line_col:
-        df["line"] = df[dk_line_col]
-    else:
-        df["line"] = None
-
-    df["dk_decimal_odds"] = dk_dec
-    df["juice_decimal_odds"] = juice_dec
-    df["edge_decimal_diff"] = df["juice_decimal_odds"] - df["dk_decimal_odds"]
-    return df
-
-def select_cols(df):
-    return df[
-        [
-            "file_date",
-            "league",
-            "market",
-            "away_team",
-            "home_team",
-            "bet_side",
-            "line",
-            "dk_decimal_odds",
-            "juice_decimal_odds",
-            "edge_decimal_diff",
-        ]
-    ]
+def emit(df, market, side, line_val, dk_dec, juice_dec, league):
+    out = pd.DataFrame({
+        "file_date": df["file_date"],
+        "league": league,
+        "market": market,
+        "away_team": df["away_team"],
+        "home_team": df["home_team"],
+        "bet_side": side,
+        "line": line_val,
+        "dk_decimal_odds": dk_dec,
+        "juice_decimal_odds": juice_dec,
+    })
+    out["edge_decimal_diff"] = out["juice_decimal_odds"] - out["dk_decimal_odds"]
+    return out
 
 # ================= MAIN =================
 
@@ -97,9 +73,8 @@ for league in leagues:
 
     if dk is not None and juice is not None:
         dates.update([dk_date, juice_date])
-
-        m = dk.merge(juice, on="game_id", suffixes=("_dk", "_j"))
-        m = normalize_identity(m)
+        m = dk.merge(juice, on="game_id")
+        m["file_date"] = dk_date
 
         for side in ["away", "home"]:
             dk_dec = m[f"{side}_decimal_odds"]
@@ -107,17 +82,16 @@ for league in leagues:
 
             out = emit(
                 m,
-                "ml",
-                side,
-                None,
-                dk_dec,
-                juice_dec,
+                market="ml",
+                side=side,
+                line_val=None,
+                dk_dec=dk_dec,
+                juice_dec=juice_dec,
+                league=f"{league}_moneyline",
             )
 
-            out["file_date"] = dk_date
-
-            edges.append(select_cols(out[out.edge_decimal_diff > TOLERANCE]))
-            near.append(select_cols(out[(out.edge_decimal_diff > 0) & (out.edge_decimal_diff <= NEAR_MISS_MAX)]))
+            edges.append(out[out.edge_decimal_diff > TOLERANCE])
+            near.append(out[(out.edge_decimal_diff > 0) & (out.edge_decimal_diff <= NEAR_MISS_MAX)])
 
     # ================= SPREADS =================
 
@@ -126,27 +100,26 @@ for league in leagues:
 
     if dk is not None and juice is not None:
         dates.update([dk_date, juice_date])
-
-        m = dk.merge(juice, on="game_id", suffixes=("_dk", "_j"))
-        m = normalize_identity(m)
+        m = dk.merge(juice, on="game_id")
+        m["file_date"] = dk_date
 
         for side in ["away", "home"]:
             dk_dec = m[f"{side}_decimal_odds"]
             juice_dec = m[f"{side}_spread_juice_odds"].apply(american_to_decimal)
+            line_val = m[f"{side}_spread"]
 
             out = emit(
                 m,
-                "spreads",
-                side,
-                f"{side}_spread_dk",
-                dk_dec,
-                juice_dec,
+                market="spreads",
+                side=side,
+                line_val=line_val,
+                dk_dec=dk_dec,
+                juice_dec=juice_dec,
+                league=f"{league}_spreads",
             )
 
-            out["file_date"] = dk_date
-
-            edges.append(select_cols(out[out.edge_decimal_diff > TOLERANCE]))
-            near.append(select_cols(out[(out.edge_decimal_diff > 0) & (out.edge_decimal_diff <= NEAR_MISS_MAX)]))
+            edges.append(out[out.edge_decimal_diff > TOLERANCE])
+            near.append(out[(out.edge_decimal_diff > 0) & (out.edge_decimal_diff <= NEAR_MISS_MAX)])
 
     # ================= TOTALS =================
 
@@ -155,9 +128,8 @@ for league in leagues:
 
     if dk is not None and juice is not None:
         dates.update([dk_date, juice_date])
-
-        m = dk.merge(juice, on="game_id", suffixes=("_dk", "_j"))
-        m = normalize_identity(m)
+        m = dk.merge(juice, on="game_id")
+        m["file_date"] = dk_date
 
         for side in ["over", "under"]:
             dk_dec = m[f"{side}_decimal_odds"]
@@ -165,17 +137,16 @@ for league in leagues:
 
             out = emit(
                 m,
-                "totals",
-                side,
-                "total_dk",
-                dk_dec,
-                juice_dec,
+                market="totals",
+                side=side,
+                line_val=m["total"],
+                dk_dec=dk_dec,
+                juice_dec=juice_dec,
+                league=f"{league}_totals",
             )
 
-            out["file_date"] = dk_date
-
-            edges.append(select_cols(out[out.edge_decimal_diff > TOLERANCE]))
-            near.append(select_cols(out[(out.edge_decimal_diff > 0) & (out.edge_decimal_diff <= NEAR_MISS_MAX)]))
+            edges.append(out[out.edge_decimal_diff > TOLERANCE])
+            near.append(out[(out.edge_decimal_diff > 0) & (out.edge_decimal_diff <= NEAR_MISS_MAX)])
 
 # ================= WRITE OUTPUT =================
 
@@ -192,14 +163,6 @@ Path(FINAL_BASE).mkdir(parents=True, exist_ok=True)
 
 final_df.to_csv(f"{FINAL_BASE}/edges_{date}.csv", index=False)
 near_df.to_csv(f"{FINAL_BASE}/near_miss_{date}.csv", index=False)
-
-for lg in final_df["league"].unique():
-    out_dir = Path(f"{FINAL_BASE}/{lg}")
-    out_dir.mkdir(parents=True, exist_ok=True)
-    final_df[final_df.league == lg].to_csv(
-        out_dir / f"edges_{lg}_{date}.csv",
-        index=False
-    )
 
 print(f"Edges written for {date}")
 if DEBUG:
