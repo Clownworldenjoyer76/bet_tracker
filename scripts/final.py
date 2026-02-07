@@ -1,3 +1,5 @@
+# scripts/final.py
+
 import pandas as pd
 import glob
 import sys
@@ -17,10 +19,15 @@ def log(msg):
     if DEBUG:
         print(msg)
 
-def american_to_decimal(odds):
-    if pd.isna(odds):
+# =========================
+# ODDS HELPERS
+# =========================
+
+def american_to_decimal(a):
+    if pd.isna(a):
         return None
-    return 1 + (odds / 100) if odds > 0 else 1 + (100 / abs(odds))
+    a = float(a)
+    return 1 + (a / 100) if a > 0 else 1 + (100 / abs(a))
 
 def juice_to_decimal(x):
     if pd.isna(x):
@@ -33,46 +40,31 @@ def juice_to_decimal(x):
         return american_to_decimal(x)
     return x
 
+# =========================
+# UTILITIES
+# =========================
+
 def extract_date_from_filename(path):
     m = re.search(r"(\d{4}_\d{2}_\d{2})", path)
     return m.group(1) if m else None
 
 def load_csvs(pattern):
     files = glob.glob(pattern)
-    rows = []
-    dates = set()
+    if not files:
+        return pd.DataFrame(), None
+
+    dfs = []
+    dates = []
 
     for f in files:
         df = pd.read_csv(f)
         date = extract_date_from_filename(f)
         if date:
             df["file_date"] = date
-            dates.add(date)
-        rows.append(df)
+            dates.append(date)
+        dfs.append(df)
 
-    if not rows:
-        return pd.DataFrame(), None
-
-    return pd.concat(rows, ignore_index=True), max(dates)
-
-def match_games(dk, juice):
-    h = dk.merge(
-        juice,
-        left_on=["league", "team", "opponent"],
-        right_on=["league", "home_team", "away_team"],
-        how="inner"
-    )
-    a = dk.merge(
-        juice,
-        left_on=["league", "team", "opponent"],
-        right_on=["league", "away_team", "home_team"],
-        how="inner"
-    )
-    return pd.concat([h, a], ignore_index=True)
-
-def stabilize(df, date):
-    df["file_date"] = df.get("file_date", date)
-    return df
+    return pd.concat(dfs, ignore_index=True), max(dates) if dates else None
 
 def select_cols(df):
     return df[
@@ -90,98 +82,102 @@ def select_cols(df):
         ]
     ]
 
+# =========================
+# MAIN
+# =========================
+
 edges = []
 near_misses = []
 dates_seen = set()
 leagues = ["nba", "ncaab", "nhl"]
 
-# ================= MAIN LOOP =================
 for league in leagues:
 
-    # ---------- MONEYLINE ----------
-    dk, dk_date = load_csvs(f"{DK_BASE}/norm_dk_{league}_moneyline_*.csv")
+    # =====================
+    # MONEYLINE
+    # =====================
+
+    dk, dk_date = load_csvs(f"{DK_BASE}/dk_{league}_moneyline_*.csv")
     juice, juice_date = load_csvs(f"{JUICE_BASE}/{league}/ml/juice_{league}_ml_*.csv")
-    if dk.empty or juice.empty:
-        continue
 
-    dates_seen.update([dk_date, juice_date])
-    merged = match_games(dk, juice)
+    if not dk.empty and not juice.empty:
+        merged = dk.merge(juice, on="game_id", how="inner")
+        dates_seen.update([dk_date, juice_date])
 
-    for side, team_col, juice_col in [
-        ("home", "home_team", "home_ml_juice_odds"),
-        ("away", "away_team", "away_ml_juice_odds"),
-    ]:
-        sub = merged[merged["team"] == merged[team_col]].copy()
-        sub["juice_decimal_odds"] = sub[juice_col].apply(juice_to_decimal)
-        sub["dk_decimal_odds"] = sub["decimal_odds"]
-        sub["edge_decimal_diff"] = sub["juice_decimal_odds"] - sub["dk_decimal_odds"]
+        for side in ["away", "home"]:
+            sub = merged.copy()
+            sub["dk_decimal_odds"] = sub[f"{side}_odds"].apply(american_to_decimal)
+            sub["juice_decimal_odds"] = sub[f"{side}_ml_juice_odds"].apply(juice_to_decimal)
+            sub["edge_decimal_diff"] = sub["juice_decimal_odds"] - sub["dk_decimal_odds"]
 
-        for df, bucket in [
-            (sub[sub["edge_decimal_diff"] > TOLERANCE], edges),
-            (sub[(sub["edge_decimal_diff"] > 0) & (sub["edge_decimal_diff"] <= NEAR_MISS_MAX)], near_misses),
-        ]:
-            if not df.empty:
-                df["market"] = "ml"
-                df["bet_side"] = side
-                df["line"] = None
-                bucket.append(select_cols(stabilize(df, dk_date)))
+            for df, bucket in [
+                (sub[sub["edge_decimal_diff"] > TOLERANCE], edges),
+                (sub[(sub["edge_decimal_diff"] > 0) & (sub["edge_decimal_diff"] <= NEAR_MISS_MAX)], near_misses),
+            ]:
+                if not df.empty:
+                    df["market"] = "ml"
+                    df["bet_side"] = side
+                    df["line"] = None
+                    bucket.append(select_cols(df.assign(file_date=dk_date)))
 
-    # ---------- SPREADS ----------
-    dk, dk_date = load_csvs(f"{DK_BASE}/norm_dk_{league}_spreads_*.csv")
+    # =====================
+    # SPREADS
+    # =====================
+
+    dk, dk_date = load_csvs(f"{DK_BASE}/dk_{league}_spreads_*.csv")
     juice, juice_date = load_csvs(f"{JUICE_BASE}/{league}/spreads/juice_{league}_spreads_*.csv")
-    if dk.empty or juice.empty:
-        continue
 
-    dates_seen.update([dk_date, juice_date])
-    merged = match_games(dk, juice)
+    if not dk.empty and not juice.empty:
+        merged = dk.merge(juice, on="game_id", how="inner")
+        dates_seen.update([dk_date, juice_date])
 
-    for side in ["home", "away"]:
-        sub = merged[
-            (merged["team"] == merged[f"{side}_team"]) &
-            (merged["spread"] == merged[f"{side}_spread"])
-        ].copy()
+        for side in ["away", "home"]:
+            sub = merged.copy()
+            sub["dk_decimal_odds"] = sub[f"{side}_odds"].apply(american_to_decimal)
+            sub["juice_decimal_odds"] = sub[f"{side}_spread_juice_odds"].apply(juice_to_decimal)
+            sub["edge_decimal_diff"] = sub["juice_decimal_odds"] - sub["dk_decimal_odds"]
 
-        sub["juice_decimal_odds"] = sub[f"{side}_spread_juice_odds"].apply(juice_to_decimal)
-        sub["dk_decimal_odds"] = sub["decimal_odds"]
-        sub["edge_decimal_diff"] = sub["juice_decimal_odds"] - sub["dk_decimal_odds"]
+            for df, bucket in [
+                (sub[sub["edge_decimal_diff"] > TOLERANCE], edges),
+                (sub[(sub["edge_decimal_diff"] > 0) & (sub["edge_decimal_diff"] <= NEAR_MISS_MAX)], near_misses),
+            ]:
+                if not df.empty:
+                    df["market"] = "spreads"
+                    df["bet_side"] = side
+                    df["line"] = df[f"{side}_spread"]
+                    bucket.append(select_cols(df.assign(file_date=dk_date)))
 
-        for df, bucket in [
-            (sub[sub["edge_decimal_diff"] > TOLERANCE], edges),
-            (sub[(sub["edge_decimal_diff"] > 0) & (sub["edge_decimal_diff"] <= NEAR_MISS_MAX)], near_misses),
-        ]:
-            if not df.empty:
-                df["market"] = "spreads"
-                df["bet_side"] = side
-                df["line"] = df["spread"]
-                bucket.append(select_cols(stabilize(df, dk_date)))
+    # =====================
+    # TOTALS
+    # =====================
 
-    # ---------- TOTALS ----------
-    dk, dk_date = load_csvs(f"{DK_BASE}/norm_dk_{league}_totals_*.csv")
+    dk, dk_date = load_csvs(f"{DK_BASE}/dk_{league}_totals_*.csv")
     juice, juice_date = load_csvs(f"{JUICE_BASE}/{league}/totals/juice_{league}_totals_*.csv")
-    if dk.empty or juice.empty:
-        continue
 
-    juice["league"] = juice["league"].astype(str).str.replace("_ou", "", regex=False)
-    dates_seen.update([dk_date, juice_date])
-    merged = match_games(dk, juice)
+    if not dk.empty and not juice.empty:
+        merged = dk.merge(juice, on="game_id", how="inner")
+        dates_seen.update([dk_date, juice_date])
 
-    for side in ["over", "under"]:
-        sub = merged[merged["side"].astype(str).str.lower() == side].copy()
-        sub["juice_decimal_odds"] = sub[f"{side}_juice_odds"].apply(juice_to_decimal)
-        sub["dk_decimal_odds"] = sub[f"dk_{side}_odds"].apply(american_to_decimal)
-        sub["edge_decimal_diff"] = sub["juice_decimal_odds"] - sub["dk_decimal_odds"]
+        for side in ["over", "under"]:
+            sub = merged.copy()
+            sub["dk_decimal_odds"] = sub[f"{side}_odds"].apply(american_to_decimal)
+            sub["juice_decimal_odds"] = sub[f"{side}_juice_odds"].apply(juice_to_decimal)
+            sub["edge_decimal_diff"] = sub["juice_decimal_odds"] - sub["dk_decimal_odds"]
 
-        for df, bucket in [
-            (sub[sub["edge_decimal_diff"] > TOLERANCE], edges),
-            (sub[(sub["edge_decimal_diff"] > 0) & (sub["edge_decimal_diff"] <= NEAR_MISS_MAX)], near_misses),
-        ]:
-            if not df.empty:
-                df["market"] = "totals"
-                df["bet_side"] = side
-                df["line"] = df["total"]
-                bucket.append(select_cols(stabilize(df, dk_date)))
+            for df, bucket in [
+                (sub[sub["edge_decimal_diff"] > TOLERANCE], edges),
+                (sub[(sub["edge_decimal_diff"] > 0) & (sub["edge_decimal_diff"] <= NEAR_MISS_MAX)], near_misses),
+            ]:
+                if not df.empty:
+                    df["market"] = "totals"
+                    df["bet_side"] = side
+                    df["line"] = df["total"]
+                    bucket.append(select_cols(df.assign(file_date=dk_date)))
 
-# ================= OUTPUT =================
+# =====================
+# OUTPUT
+# =====================
+
 if not edges and not near_misses:
     print("No edges or near misses found.")
     sys.exit(0)
