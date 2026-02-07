@@ -104,6 +104,12 @@ for league in leagues:
     juice, juice_date = load_latest(f"{JUICE_BASE}/{league}/spreads/juice_{league}_spreads_*.csv")
 
     if dk is not None and juice is not None:
+
+        # enforce DK spreads schema
+        if not {"away_spread", "home_spread"}.issubset(dk.columns):
+            log(f"Skipping {league} spreads (missing away_spread/home_spread)")
+            continue
+
         dates.update([dk_date, juice_date])
         m = dk.merge(juice, on="game_id")
 
@@ -111,25 +117,18 @@ for league in leagues:
             m["away_team"] = m["away_team_x"]
             m["home_team"] = m["home_team_x"]
 
-        # 🔑 normalize spread column
-        if "spread" in m.columns:
-            m["line"] = m["spread"]
-        elif "line" in m.columns:
-            m["line"] = m["line"]
-        else:
-            raise KeyError("No spread/line column found in DK spreads file")
-
         m["file_date"] = dk_date
 
         for side in ["away", "home"]:
             dk_dec = m[f"{side}_decimal_odds"]
             juice_dec = m[f"{side}_spread_juice_odds"].apply(american_to_decimal)
+            line_val = m[f"{side}_spread"]
 
             out = emit(
                 m,
                 market="spreads",
                 side=side,
-                line_val=m["line"],
+                line_val=line_val,
                 dk_dec=dk_dec,
                 juice_dec=juice_dec,
                 league=f"{league}_spreads",
