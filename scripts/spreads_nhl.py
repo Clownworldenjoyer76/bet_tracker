@@ -16,12 +16,12 @@ NHL_STD_DEV = 2.0
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-def to_american(decimal_odds):
-    if pd.isna(decimal_odds) or decimal_odds <= 1:
+def to_american(dec):
+    if pd.isna(dec) or dec <= 1:
         return ""
-    if decimal_odds >= 2:
-        return f"+{int((decimal_odds - 1) * 100)}"
-    return f"-{int(100 / (decimal_odds - 1))}"
+    if dec >= 2:
+        return f"+{int((dec - 1) * 100)}"
+    return f"-{int(100 / (dec - 1))}"
 
 def process_spreads():
     projection_files = glob.glob(str(CLEANED_DIR / "nhl_*.csv"))
@@ -37,7 +37,14 @@ def process_spreads():
         df_proj = pd.read_csv(proj_path)
         df_dk = pd.read_csv(dk_path)
 
-        merged = pd.merge(df_proj, df_dk, on="game_id", how="inner")
+        df_proj = df_proj[[
+            "game_id",
+            "away_team_projected_goals",
+            "home_team_projected_goals",
+            "game_projected_goals"
+        ]]
+
+        merged = pd.merge(df_dk, df_proj, on="game_id", how="inner")
         if merged.empty:
             continue
 
@@ -47,10 +54,8 @@ def process_spreads():
         )
 
         merged["home_spread_probability"] = merged.apply(
-            lambda x: 1 - norm.cdf(
-                -x["home_spread"], x["proj_home_margin"], NHL_STD_DEV
-            ),
-            axis=1,
+            lambda x: 1 - norm.cdf(-x["home_spread"], x["proj_home_margin"], NHL_STD_DEV),
+            axis=1
         )
         merged["away_spread_probability"] = 1 - merged["home_spread_probability"]
 
@@ -68,8 +73,6 @@ def process_spreads():
             merged["away_spread_acceptable_decimal_odds"].apply(to_american)
         )
 
-        merged["league"] = "nhl_spreads"
-
         cols = [
             "game_id", "league", "date", "time",
             "away_team", "home_team",
@@ -86,7 +89,7 @@ def process_spreads():
 
         merged[cols].to_csv(
             OUTPUT_DIR / f"spreads_nhl_{date_suffix}.csv",
-            index=False,
+            index=False
         )
 
 if __name__ == "__main__":
