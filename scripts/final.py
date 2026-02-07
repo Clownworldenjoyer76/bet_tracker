@@ -107,12 +107,10 @@ for league in leagues:
         dates.update([dk_date, juice_date])
         m = dk.merge(juice, on="game_id")
 
-        # normalize teams from DK
         if "away_team_x" in m.columns:
             m["away_team"] = m["away_team_x"]
             m["home_team"] = m["home_team_x"]
 
-        # 🔑 normalize spreads from DK
         if "away_spread_x" in m.columns:
             m["away_spread"] = m["away_spread_x"]
             m["home_spread"] = m["home_spread_x"]
@@ -152,6 +150,13 @@ for league in leagues:
         if "away_team_x" in m.columns:
             m["away_team"] = m["away_team_x"]
             m["home_team"] = m["home_team_x"]
+
+        # 🔑 normalize total from DK
+        if "total_x" in m.columns:
+            m["total"] = m["total_x"]
+        else:
+            log(f"Skipping {league} totals (missing DK total)")
+            continue
 
         m["file_date"] = dk_date
 
