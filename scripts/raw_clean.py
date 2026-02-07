@@ -1,4 +1,4 @@
-#scripts/raw_clean.py
+# scripts/raw_clean.py
 
 import os
 import pandas as pd
@@ -31,7 +31,9 @@ def process_files():
 
         filename = os.path.basename(file_path)
         raw_league = filename.split("_")[0].lower()
-        league = f"{raw_league}_ml"
+
+        # 🔧 FIX: remove `_ml`
+        league = raw_league
 
         df = pd.read_csv(file_path)
         processed_data = []
@@ -64,6 +66,8 @@ def process_files():
                 "away_team_moneyline_win_prob": round(p_away_pct / 100, 4),
                 "home_team_moneyline_win_prob": round(p_home_pct / 100, 4),
                 "league": league,
+
+                # 🔧 FIX: game_id no longer contains `_ml`
                 "game_id": f"{league}_{f_date}_{index}",
             }
 
