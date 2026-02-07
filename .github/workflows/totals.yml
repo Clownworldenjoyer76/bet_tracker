@@ -6,14 +6,17 @@ on:
 jobs:
   run-scripts:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.11'
 
       - name: Install dependencies
         run: |
@@ -31,10 +34,16 @@ jobs:
 
       - name: Commit and push changes
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
           git add docs/win/nba/totals/*.csv
           git add docs/win/ncaab/totals/*.csv
           git add docs/win/nhl/totals/*.csv
-          git commit -m "Update O/U totals CSVs" || echo "No changes to commit"
-          git push
+
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update O/U totals CSVs"
+            git push
+          fi
