@@ -5,11 +5,15 @@ import glob
 import sys
 import re
 from pathlib import Path
+import numpy as np
 
 # ================= CONFIG =================
 
 TOLERANCE = 0.005
 NEAR_MISS_MAX = TOLERANCE
+
+MIN_DECIMAL = 1.01
+MAX_DECIMAL = 5.00
 
 DK_BASE = "docs/win/manual/normalized"
 JUICE_BASE = "docs/win/juice"
@@ -25,8 +29,10 @@ def log(msg):
 
 def american_to_decimal(odds):
     if pd.isna(odds):
-        return None
+        return np.nan
     odds = float(odds)
+    if odds == 0:
+        return np.nan
     return 1 + (odds / 100) if odds > 0 else 1 + (100 / abs(odds))
 
 def extract_date(path):
@@ -41,6 +47,14 @@ def load_latest(pattern):
     date = max(extract_date(f) for f in files if extract_date(f))
     return df, date
 
+def filter_realistic(df):
+    return df[
+        df["juice_decimal_odds"].notna()
+        & np.isfinite(df["juice_decimal_odds"])
+        & (df["juice_decimal_odds"] >= MIN_DECIMAL)
+        & (df["juice_decimal_odds"] <= MAX_DECIMAL)
+    ]
+
 def emit(df, market, side, line_val, dk_dec, juice_dec, league):
     out = pd.DataFrame({
         "file_date": df["file_date"],
@@ -53,7 +67,11 @@ def emit(df, market, side, line_val, dk_dec, juice_dec, league):
         "dk_decimal_odds": dk_dec,
         "juice_decimal_odds": juice_dec,
     })
+
     out["edge_decimal_diff"] = out["juice_decimal_odds"] - out["dk_decimal_odds"]
+
+    out = filter_realistic(out)
+
     return out
 
 # ================= MAIN =================
@@ -111,13 +129,11 @@ for league in leagues:
             m["away_team"] = m["away_team_x"]
             m["home_team"] = m["home_team_x"]
 
-        if "away_spread_x" in m.columns:
-            m["away_spread"] = m["away_spread_x"]
-            m["home_spread"] = m["home_spread_x"]
-        else:
-            log(f"Skipping {league} spreads (missing DK spread columns)")
+        if "away_spread_x" not in m.columns:
             continue
 
+        m["away_spread"] = m["away_spread_x"]
+        m["home_spread"] = m["home_spread_x"]
         m["file_date"] = dk_date
 
         for side in ["away", "home"]:
@@ -151,13 +167,10 @@ for league in leagues:
             m["away_team"] = m["away_team_x"]
             m["home_team"] = m["home_team_x"]
 
-        # 🔑 normalize total from DK
-        if "total_x" in m.columns:
-            m["total"] = m["total_x"]
-        else:
-            log(f"Skipping {league} totals (missing DK total)")
+        if "total_x" not in m.columns:
             continue
 
+        m["total"] = m["total_x"]
         m["file_date"] = dk_date
 
         for side in ["over", "under"]:
