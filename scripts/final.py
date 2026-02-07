@@ -104,18 +104,21 @@ for league in leagues:
     juice, juice_date = load_latest(f"{JUICE_BASE}/{league}/spreads/juice_{league}_spreads_*.csv")
 
     if dk is not None and juice is not None:
-
-        # enforce DK spreads schema
-        if not {"away_spread", "home_spread"}.issubset(dk.columns):
-            log(f"Skipping {league} spreads (missing away_spread/home_spread)")
-            continue
-
         dates.update([dk_date, juice_date])
         m = dk.merge(juice, on="game_id")
 
+        # normalize teams from DK
         if "away_team_x" in m.columns:
             m["away_team"] = m["away_team_x"]
             m["home_team"] = m["home_team_x"]
+
+        # 🔑 normalize spreads from DK
+        if "away_spread_x" in m.columns:
+            m["away_spread"] = m["away_spread_x"]
+            m["home_spread"] = m["home_spread_x"]
+        else:
+            log(f"Skipping {league} spreads (missing DK spread columns)")
+            continue
 
         m["file_date"] = dk_date
 
