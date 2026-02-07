@@ -42,7 +42,7 @@ def process_totals():
         df_proj = pd.read_csv(proj_path)
         df_dk = pd.read_csv(dk_path)
 
-        # ✅ Merge on game_id (authoritative key)
+        # ✅ Merge on game_id (single source of truth)
         merged = pd.merge(
             df_proj,
             df_dk,
@@ -58,16 +58,13 @@ def process_totals():
         # POISSON CALCULATIONS
         # =========================
 
-        # Probability total goals are UNDER the market total
         merged["under_probability"] = merged.apply(
-            lambda x: poisson.cdf(x["dk_total"] - 0.5, x["game_projected_goals"]),
+            lambda x: poisson.cdf(x["total"] - 0.5, x["game_projected_goals"]),
             axis=1
         )
 
-        # Probability total goals are OVER the market total
         merged["over_probability"] = 1 - merged["under_probability"]
 
-        # Acceptable odds with edge
         merged["over_acceptable_decimal_odds"] = (1 / merged["over_probability"]) * (1 + EDGE)
         merged["under_acceptable_decimal_odds"] = (1 / merged["under_probability"]) * (1 + EDGE)
 
@@ -82,7 +79,7 @@ def process_totals():
             "game_id", "date", "time", "away_team", "home_team",
             "away_team_projected_goals", "home_team_projected_goals",
             "over_handle_pct", "over_bets_pct", "under_handle_pct", "under_bets_pct",
-            "game_projected_goals", "dk_over_odds", "dk_under_odds", "dk_total",
+            "game_projected_goals", "over_odds", "under_odds", "total",
             "over_probability", "under_probability",
             "over_acceptable_decimal_odds", "over_acceptable_american_odds",
             "under_acceptable_decimal_odds", "under_acceptable_american_odds",
