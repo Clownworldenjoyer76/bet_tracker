@@ -3,10 +3,6 @@ import glob
 from pathlib import Path
 from scipy.stats import poisson
 
-# =========================
-# CONSTANTS
-# =========================
-
 CLEANED_DIR = Path("docs/win/dump/csvs/cleaned")
 NORMALIZED_DIR = Path("docs/win/manual/normalized")
 OUTPUT_DIR = Path("docs/win/nhl/totals")
@@ -14,20 +10,17 @@ EDGE = 0.05
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-# =========================
-# HELPERS
-# =========================
-
 def to_american(decimal_odds):
-    if pd.isna(decimal_odds) or decimal_odds <= 1:
+    if (
+        pd.isna(decimal_odds)
+        or decimal_odds <= 1
+        or decimal_odds == float("inf")
+        or decimal_odds == float("-inf")
+    ):
         return ""
     if decimal_odds >= 2.0:
         return f"+{int((decimal_odds - 1) * 100)}"
     return f"-{int(100 / (decimal_odds - 1))}"
-
-# =========================
-# CORE
-# =========================
 
 def process_totals():
     projection_files = glob.glob(str(CLEANED_DIR / "nhl_*.csv"))
@@ -48,7 +41,6 @@ def process_totals():
         )
 
         merged = pd.merge(df_proj, df_dk, on="game_id", how="inner")
-
         if merged.empty:
             continue
 
