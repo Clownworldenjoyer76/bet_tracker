@@ -55,11 +55,11 @@ def process_totals():
             continue
 
         # =========================
-        # POISSON CALCS
+        # POISSON CALCULATIONS
         # =========================
 
         merged["under_probability"] = merged.apply(
-            lambda x: poisson.cdf(x["dk_total"] - 0.5, x["game_projected_points"]),
+            lambda x: poisson.cdf(x["total"] - 0.5, x["game_projected_points"]),
             axis=1,
         )
         merged["over_probability"] = 1 - merged["under_probability"]
@@ -78,7 +78,7 @@ def process_totals():
             "game_id", "date", "time", "away_team", "home_team",
             "away_team_projected_points", "home_team_projected_points",
             "over_handle_pct", "over_bets_pct", "under_handle_pct", "under_bets_pct",
-            "game_projected_points", "dk_over_odds", "dk_under_odds", "dk_total",
+            "game_projected_points", "over_odds", "under_odds", "total",
             "over_probability", "under_probability",
             "over_acceptable_decimal_odds", "over_acceptable_american_odds",
             "under_acceptable_decimal_odds", "under_acceptable_american_odds",
