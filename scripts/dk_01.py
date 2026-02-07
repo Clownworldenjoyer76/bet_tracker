@@ -10,7 +10,7 @@ import traceback
 # =========================
 
 INPUT_DIR = Path("docs/win/manual/first")
-OUTPUT_DIR = INPUT_DIR / "cleaned"
+OUTPUT_DIR = Path("docs/win/manual/cleaned")
 ERROR_DIR = Path("docs/win/errors")
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
