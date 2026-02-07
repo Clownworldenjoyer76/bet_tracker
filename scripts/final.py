@@ -42,6 +42,16 @@ def load_latest(pattern):
     date = max(extract_date(f) for f in files)
     return df, date
 
+def normalize_identity(df):
+    """
+    DK normalized files are the single source of truth
+    for league / team identity columns.
+    """
+    df["league"] = df["league_dk"]
+    df["away_team"] = df["away_team_dk"]
+    df["home_team"] = df["home_team_dk"]
+    return df
+
 def emit(df, market, side, line_col, dk_dec, juice_dec):
     df = df.copy()
     df["market"] = market
@@ -85,7 +95,9 @@ for league in leagues:
 
     if dk is not None and juice is not None:
         dates.update([dk_date, juice_date])
+
         m = dk.merge(juice, on="game_id", suffixes=("_dk", "_j"))
+        m = normalize_identity(m)
 
         for side in ["away", "home"]:
             dk_dec = m[f"{side}_decimal_odds"]
@@ -103,7 +115,14 @@ for league in leagues:
             out["file_date"] = dk_date
 
             edges.append(select_cols(out[out.edge_decimal_diff > TOLERANCE]))
-            near.append(select_cols(out[(out.edge_decimal_diff > 0) & (out.edge_decimal_diff <= NEAR_MISS_MAX)]))
+            near.append(
+                select_cols(
+                    out[
+                        (out.edge_decimal_diff > 0)
+                        & (out.edge_decimal_diff <= NEAR_MISS_MAX)
+                    ]
+                )
+            )
 
     # ================= SPREADS =================
 
@@ -112,7 +131,9 @@ for league in leagues:
 
     if dk is not None and juice is not None:
         dates.update([dk_date, juice_date])
+
         m = dk.merge(juice, on="game_id", suffixes=("_dk", "_j"))
+        m = normalize_identity(m)
 
         for side in ["away", "home"]:
             dk_dec = m[f"{side}_decimal_odds"]
@@ -130,7 +151,14 @@ for league in leagues:
             out["file_date"] = dk_date
 
             edges.append(select_cols(out[out.edge_decimal_diff > TOLERANCE]))
-            near.append(select_cols(out[(out.edge_decimal_diff > 0) & (out.edge_decimal_diff <= NEAR_MISS_MAX)]))
+            near.append(
+                select_cols(
+                    out[
+                        (out.edge_decimal_diff > 0)
+                        & (out.edge_decimal_diff <= NEAR_MISS_MAX)
+                    ]
+                )
+            )
 
     # ================= TOTALS =================
 
@@ -139,7 +167,9 @@ for league in leagues:
 
     if dk is not None and juice is not None:
         dates.update([dk_date, juice_date])
+
         m = dk.merge(juice, on="game_id", suffixes=("_dk", "_j"))
+        m = normalize_identity(m)
 
         for side in ["over", "under"]:
             dk_dec = m[f"{side}_decimal_odds"]
@@ -157,7 +187,14 @@ for league in leagues:
             out["file_date"] = dk_date
 
             edges.append(select_cols(out[out.edge_decimal_diff > TOLERANCE]))
-            near.append(select_cols(out[(out.edge_decimal_diff > 0) & (out.edge_decimal_diff <= NEAR_MISS_MAX)]))
+            near.append(
+                select_cols(
+                    out[
+                        (out.edge_decimal_diff > 0)
+                        & (out.edge_decimal_diff <= NEAR_MISS_MAX)
+                    ]
+                )
+            )
 
 # ================= WRITE OUTPUT =================
 
@@ -175,12 +212,12 @@ Path(FINAL_BASE).mkdir(parents=True, exist_ok=True)
 final_df.to_csv(f"{FINAL_BASE}/edges_{date}.csv", index=False)
 near_df.to_csv(f"{FINAL_BASE}/near_miss_{date}.csv", index=False)
 
-for league in final_df["league"].unique():
-    out_dir = Path(f"{FINAL_BASE}/{league}")
+for lg in final_df["league"].unique():
+    out_dir = Path(f"{FINAL_BASE}/{lg}")
     out_dir.mkdir(parents=True, exist_ok=True)
-    final_df[final_df.league == league].to_csv(
-        out_dir / f"edges_{league}_{date}.csv",
-        index=False
+    final_df[final_df.league == lg].to_csv(
+        out_dir / f"edges_{lg}_{date}.csv",
+        index=False,
     )
 
 print(f"Edges written for {date}")
