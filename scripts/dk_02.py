@@ -36,16 +36,19 @@ def load_dump_index(league: str):
     """
     Build lookup:
     (date, team) -> game_id
+
+    Reads ANY dump file matching:
+    {league}_*.csv
     """
     index = {}
 
     for path in DUMP_DIR.glob(f"{league}_*.csv"):
-        # filename: league_YYYY_MM_DD.csv
+        # filename: league_YYYY_MM_DD.csv  OR league_market_YYYY_MM_DD.csv
         parts = path.stem.split("_")
         if len(parts) < 4:
             continue
 
-        _, year, month, day = parts
+        year, month, day = parts[-3:]
         date = f"{year}_{month}_{day}"
 
         with open(path, newline="", encoding="utf-8") as f:
@@ -73,8 +76,7 @@ def process_file(path: Path):
     _, league, market, year, month, day = parts
     date = f"{year}_{month}_{day}"
 
-    # 🔴 THIS IS THE FIX
-    dump_index = load_dump_index(f"{league}_ml")
+    dump_index = load_dump_index(league)
 
     with open(path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
