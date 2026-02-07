@@ -42,13 +42,13 @@ def process_totals():
         df_proj = pd.read_csv(proj_path)
         df_dk = pd.read_csv(dk_path)
 
-        # Merge on game_id
-        merged = pd.merge(
-            df_proj,
-            df_dk,
-            on="game_id",
-            how="inner"
+        # 🔑 Drop duplicate non-projection columns BEFORE merge
+        df_proj = df_proj.drop(
+            columns=["date", "time", "away_team", "home_team"],
+            errors="ignore"
         )
+
+        merged = pd.merge(df_proj, df_dk, on="game_id", how="inner")
 
         if merged.empty:
             continue
@@ -61,7 +61,6 @@ def process_totals():
             lambda x: poisson.cdf(x["total"] - 0.5, x["game_projected_points"]),
             axis=1
         )
-
         merged["over_probability"] = 1 - merged["under_probability"]
 
         merged["over_acceptable_decimal_odds"] = (1 / merged["over_probability"]) * (1 + EDGE)
@@ -91,10 +90,6 @@ def process_totals():
         out_path = OUTPUT_DIR / f"ou_nba_{date_suffix}.csv"
         output_df.to_csv(out_path, index=False)
         print(f"Saved: {out_path}")
-
-# =========================
-# MAIN
-# =========================
 
 if __name__ == "__main__":
     process_totals()
