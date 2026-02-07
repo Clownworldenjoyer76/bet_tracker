@@ -1,0 +1,36 @@
+name: Run dk_01 manually
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  dk_01:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas
+
+      - name: Run dk_01
+        run: |
+          python scripts/dk_01.py
+
+      - name: Commit outputs
+        run: |
+          git status
+          git add docs/win/manual/first/cleaned docs/win/errors
+          git commit -m "Run dk_01 manual clean" || echo "No changes to commit"
+          git push
