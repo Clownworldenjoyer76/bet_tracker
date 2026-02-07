@@ -43,23 +43,25 @@ def load_latest(pattern):
     return df, date
 
 def normalize_identity(df):
-    """
-    DK normalized files are the single source of truth
-    for league / team identity columns.
-    """
+    # DK normalized files are canonical
     df["league"] = df["league_dk"]
     df["away_team"] = df["away_team_dk"]
     df["home_team"] = df["home_team_dk"]
     return df
 
-def emit(df, market, side, line_col, dk_dec, juice_dec):
+def emit(df, market, side, dk_line_col, dk_dec, juice_dec):
     df = df.copy()
     df["market"] = market
     df["bet_side"] = side
-    df["line"] = df[line_col] if line_col else None
+
+    if dk_line_col:
+        df["line"] = df[dk_line_col]
+    else:
+        df["line"] = None
+
     df["dk_decimal_odds"] = dk_dec
     df["juice_decimal_odds"] = juice_dec
-    df["edge_decimal_diff"] = juice_dec - dk_dec
+    df["edge_decimal_diff"] = df["juice_decimal_odds"] - df["dk_decimal_odds"]
     return df
 
 def select_cols(df):
@@ -115,14 +117,7 @@ for league in leagues:
             out["file_date"] = dk_date
 
             edges.append(select_cols(out[out.edge_decimal_diff > TOLERANCE]))
-            near.append(
-                select_cols(
-                    out[
-                        (out.edge_decimal_diff > 0)
-                        & (out.edge_decimal_diff <= NEAR_MISS_MAX)
-                    ]
-                )
-            )
+            near.append(select_cols(out[(out.edge_decimal_diff > 0) & (out.edge_decimal_diff <= NEAR_MISS_MAX)]))
 
     # ================= SPREADS =================
 
@@ -143,7 +138,7 @@ for league in leagues:
                 m,
                 "spreads",
                 side,
-                f"{side}_spread",
+                f"{side}_spread_dk",
                 dk_dec,
                 juice_dec,
             )
@@ -151,14 +146,7 @@ for league in leagues:
             out["file_date"] = dk_date
 
             edges.append(select_cols(out[out.edge_decimal_diff > TOLERANCE]))
-            near.append(
-                select_cols(
-                    out[
-                        (out.edge_decimal_diff > 0)
-                        & (out.edge_decimal_diff <= NEAR_MISS_MAX)
-                    ]
-                )
-            )
+            near.append(select_cols(out[(out.edge_decimal_diff > 0) & (out.edge_decimal_diff <= NEAR_MISS_MAX)]))
 
     # ================= TOTALS =================
 
@@ -179,7 +167,7 @@ for league in leagues:
                 m,
                 "totals",
                 side,
-                "total",
+                "total_dk",
                 dk_dec,
                 juice_dec,
             )
@@ -187,14 +175,7 @@ for league in leagues:
             out["file_date"] = dk_date
 
             edges.append(select_cols(out[out.edge_decimal_diff > TOLERANCE]))
-            near.append(
-                select_cols(
-                    out[
-                        (out.edge_decimal_diff > 0)
-                        & (out.edge_decimal_diff <= NEAR_MISS_MAX)
-                    ]
-                )
-            )
+            near.append(select_cols(out[(out.edge_decimal_diff > 0) & (out.edge_decimal_diff <= NEAR_MISS_MAX)]))
 
 # ================= WRITE OUTPUT =================
 
@@ -217,7 +198,7 @@ for lg in final_df["league"].unique():
     out_dir.mkdir(parents=True, exist_ok=True)
     final_df[final_df.league == lg].to_csv(
         out_dir / f"edges_{lg}_{date}.csv",
-        index=False,
+        index=False
     )
 
 print(f"Edges written for {date}")
