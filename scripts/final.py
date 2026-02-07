@@ -74,6 +74,12 @@ for league in leagues:
     if dk is not None and juice is not None:
         dates.update([dk_date, juice_date])
         m = dk.merge(juice, on="game_id")
+
+        # Normalize team columns to DK
+        if "away_team_x" in m.columns:
+            m["away_team"] = m["away_team_x"]
+            m["home_team"] = m["home_team_x"]
+
         m["file_date"] = dk_date
 
         for side in ["away", "home"]:
@@ -101,6 +107,12 @@ for league in leagues:
     if dk is not None and juice is not None:
         dates.update([dk_date, juice_date])
         m = dk.merge(juice, on="game_id")
+
+        # Normalize team columns to DK
+        if "away_team_x" in m.columns:
+            m["away_team"] = m["away_team_x"]
+            m["home_team"] = m["home_team_x"]
+
         m["file_date"] = dk_date
 
         for side in ["away", "home"]:
@@ -129,6 +141,12 @@ for league in leagues:
     if dk is not None and juice is not None:
         dates.update([dk_date, juice_date])
         m = dk.merge(juice, on="game_id")
+
+        # Normalize team columns to DK
+        if "away_team_x" in m.columns:
+            m["away_team"] = m["away_team_x"]
+            m["home_team"] = m["home_team_x"]
+
         m["file_date"] = dk_date
 
         for side in ["over", "under"]:
