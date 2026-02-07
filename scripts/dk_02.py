@@ -32,11 +32,10 @@ def norm(s: str) -> str:
     return " ".join(str(s).split())
 
 
-dump_index = load_dump_index(f"{league}_ml")
+def load_dump_index(league: str):
     """
     Build lookup:
     (date, team) -> game_id
-    where team is either home_team or away_team
     """
     index = {}
 
@@ -56,7 +55,6 @@ dump_index = load_dump_index(f"{league}_ml")
                 if not game_id:
                     continue
 
-                # CHANGE 1: normalize dump team keys
                 index[(date, norm(row.get("home_team")))] = game_id
                 index[(date, norm(row.get("away_team")))] = game_id
 
@@ -75,7 +73,8 @@ def process_file(path: Path):
     _, league, market, year, month, day = parts
     date = f"{year}_{month}_{day}"
 
-    dump_index = load_dump_index(league)
+    # 🔴 THIS IS THE FIX
+    dump_index = load_dump_index(f"{league}_ml")
 
     with open(path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
@@ -88,7 +87,6 @@ def process_file(path: Path):
     updated_rows = []
 
     for row in rows:
-        # CHANGE 2: normalize DK lookup key
         team = norm(row.get("team"))
         game_id = dump_index.get((date, team), "")
         row["game_id"] = game_id
@@ -100,7 +98,6 @@ def process_file(path: Path):
 
         updated_rows.append(row)
 
-    # overwrite file in place
     with open(path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
