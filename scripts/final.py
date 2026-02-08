@@ -1,3 +1,5 @@
+# scripts/final.py
+
 import pandas as pd
 import glob
 import sys
@@ -35,12 +37,22 @@ def normalize_teams(m):
 
 def normalize_spreads(m):
     for side in ["away", "home"]:
-        if f"{side}_spread_x" in m.columns:
-            m[f"{side}_spread"] = m[f"{side}_spread_x"]
-        elif f"{side}_spread" in m.columns:
-            m[f"{side}_spread"] = m[f"{side}_spread"]
+        for col in [f"{side}_spread", f"{side}_spread_x", f"{side}_spread_y"]:
+            if col in m.columns:
+                m[f"{side}_spread"] = m[col]
+                break
         else:
-            raise KeyError(f"{side}_spread not found after merge")
+            raise KeyError(f"{side}_spread not found")
+    return m
+
+def resolve_total_column(m):
+    candidates = [
+        c for c in m.columns
+        if "total" in c.lower() and pd.api.types.is_numeric_dtype(m[c])
+    ]
+    if not candidates:
+        raise KeyError("No numeric total column found after merge")
+    m["total"] = m[candidates[0]]
     return m
 
 def emit(df, market, side, line, dk_dec, juice_dec, league):
@@ -110,6 +122,7 @@ for league in leagues:
 
     if dk is not None and juice is not None:
         m = normalize_teams(dk.merge(juice, on="game_id"))
+        m = resolve_total_column(m)
         m["file_date"] = dk_date
         dates.update([dk_date, juice_date])
 
