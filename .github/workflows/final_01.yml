@@ -39,6 +39,10 @@ jobs:
         run: |
           python scripts/final_04.py
 
+      - name: Run final_05 script
+        run: |
+          python scripts/final_05.py
+
       - name: Commit and push results
         run: |
           git config user.name "github-actions"
@@ -46,7 +50,7 @@ jobs:
 
           if git status --porcelain | grep .; then
             git add docs/win/final/step_1 docs/win/final/step_2
-            git commit -m "Generate final step outputs (steps 1–2)"
+            git commit -m "Generate final step outputs (steps 1–2, decimals)"
             git push
           else
             echo "No changes to commit"
