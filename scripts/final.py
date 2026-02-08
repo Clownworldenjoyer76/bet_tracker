@@ -9,8 +9,6 @@ DK_BASE = "docs/win/manual/normalized"
 JUICE_BASE = "docs/win/juice"
 FINAL_BASE = "docs/win/final"
 
-DEBUG = "--debug" in sys.argv
-
 def american_to_decimal(x):
     if pd.isna(x):
         return np.nan
@@ -33,6 +31,16 @@ def normalize_teams(m):
     if "away_team_x" in m.columns:
         m["away_team"] = m["away_team_x"]
         m["home_team"] = m["home_team_x"]
+    return m
+
+def normalize_spreads(m):
+    for side in ["away", "home"]:
+        if f"{side}_spread_x" in m.columns:
+            m[f"{side}_spread"] = m[f"{side}_spread_x"]
+        elif f"{side}_spread" in m.columns:
+            m[f"{side}_spread"] = m[f"{side}_spread"]
+        else:
+            raise KeyError(f"{side}_spread not found after merge")
     return m
 
 def emit(df, market, side, line, dk_dec, juice_dec, league):
@@ -69,15 +77,9 @@ for league in leagues:
             keep = dk_dec >= juice_dec
 
             plays.append(
-                emit(
-                    m[keep],
-                    "ml",
-                    side,
-                    None,
-                    dk_dec[keep],
-                    juice_dec[keep],
-                    f"{league}_moneyline",
-                )
+                emit(m[keep], "ml", side, None,
+                     dk_dec[keep], juice_dec[keep],
+                     f"{league}_moneyline")
             )
 
     # ===== SPREADS =====
@@ -86,6 +88,7 @@ for league in leagues:
 
     if dk is not None and juice is not None:
         m = normalize_teams(dk.merge(juice, on="game_id"))
+        m = normalize_spreads(m)
         m["file_date"] = dk_date
         dates.update([dk_date, juice_date])
 
@@ -96,15 +99,9 @@ for league in leagues:
             keep = dk_dec >= juice_dec
 
             plays.append(
-                emit(
-                    m[keep],
-                    "spreads",
-                    side,
-                    line[keep],
-                    dk_dec[keep],
-                    juice_dec[keep],
-                    f"{league}_spreads",
-                )
+                emit(m[keep], "spreads", side, line[keep],
+                     dk_dec[keep], juice_dec[keep],
+                     f"{league}_spreads")
             )
 
     # ===== TOTALS =====
@@ -123,15 +120,9 @@ for league in leagues:
             keep = dk_dec >= juice_dec
 
             plays.append(
-                emit(
-                    m[keep],
-                    "totals",
-                    side,
-                    line[keep],
-                    dk_dec[keep],
-                    juice_dec[keep],
-                    f"{league}_totals",
-                )
+                emit(m[keep], "totals", side, line[keep],
+                     dk_dec[keep], juice_dec[keep],
+                     f"{league}_totals")
             )
 
 if not plays:
