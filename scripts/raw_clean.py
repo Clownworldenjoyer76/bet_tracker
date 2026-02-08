@@ -52,7 +52,7 @@ def process_files():
                 dt_obj = datetime.strptime(raw_date, "%m/%d/%Y")
                 f_date = dt_obj.strftime("%Y_%m_%d")
             except Exception:
-                continue  # date is mandatory for games master
+                continue
 
             # ---------- TEAMS ----------
             team_parts = str(row.get("Teams", "")).split("\n")
@@ -62,7 +62,8 @@ def process_files():
             away_team = team_parts[0].split("(")[0].strip()
             home_team = team_parts[1].split("(")[0].strip()
 
-            game_id = f"{league}_{f_date}_{index}"
+            teams_sorted = sorted([away_team, home_team])
+            game_id = f"{league}_{f_date}_{teams_sorted[0]}_{teams_sorted[1]}"
 
             # ---------- ALWAYS ADD TO GAMES MASTER ----------
             all_games_master_rows.append({
@@ -96,6 +97,7 @@ def process_files():
                 score_parts = str(row.get("Points", "")).split("\n")
                 if len(score_parts) < 2:
                     continue
+
                 entry["away_team_projected_points"] = float(score_parts[0])
                 entry["home_team_projected_points"] = float(score_parts[1])
                 entry["game_projected_points"] = round(
@@ -106,6 +108,7 @@ def process_files():
                 score_parts = str(row.get("Goals", "")).split("\n")
                 if len(score_parts) < 2:
                     continue
+
                 entry["away_team_projected_goals"] = float(score_parts[0])
                 entry["home_team_projected_goals"] = float(score_parts[1])
                 entry["game_projected_goals"] = round(
@@ -128,7 +131,7 @@ def process_files():
                 d_grp.to_csv(out_path, index=False)
                 print(f"Saved: {out_path}")
 
-    # ---------- WRITE ONE FILE PER DATE (ALL LEAGUES) ----------
+    # ---------- WRITE ONE GAMES MASTER PER DATE (ALL LEAGUES) ----------
     if not all_games_master_rows:
         raise RuntimeError("No games written to games_master — aborting")
 
