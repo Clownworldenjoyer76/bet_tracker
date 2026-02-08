@@ -31,6 +31,10 @@ jobs:
         run: |
           python scripts/final_02.py
 
+      - name: Run final_03 script
+        run: |
+          python scripts/final_03.py
+
       - name: Commit and push results
         run: |
           git config user.name "github-actions"
@@ -38,7 +42,7 @@ jobs:
 
           if git status --porcelain | grep .; then
             git add docs/win/final/step_1
-            git commit -m "Generate final step 1 CSVs (with handle & bet pct)"
+            git commit -m "Generate final step 1 CSVs (handles, bets, DK odds)"
             git push
           else
             echo "No changes to commit"
