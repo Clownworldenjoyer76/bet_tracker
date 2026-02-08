@@ -24,26 +24,13 @@ def conv_american(dec):
     return int(-100 / (dec - 1))
 
 ###################################
-# GAMES MASTER CREATION
-###################################
-
-def write_games_master(out_df):
-    required_cols = ["date", "league", "game_id", "away_team", "home_team"]
-
-    gm_df = out_df[required_cols].drop_duplicates()
-
-    for d_val, d_grp in gm_df.groupby("date"):
-        gm_filename = f"games_{d_val}.csv"
-        gm_path = os.path.join(GAMES_MASTER_DIR, gm_filename)
-        d_grp.to_csv(gm_path, index=False)
-        print(f"Saved games master: {gm_path}")
-
-###################################
 # MAIN PROCESS
 ###################################
 
 def process_files():
     files = glob.glob(os.path.join(INPUT_DIR, "*.csv"))
+
+    all_games_master_rows = []
 
     for file_path in files:
         if "cleaned" in file_path:
@@ -53,7 +40,7 @@ def process_files():
 
         # league inferred from filename prefix (nba, ncaab, nhl)
         raw_league = filename.split("_")[0].lower()
-        league = raw_league  # explicitly no _ml suffix anywhere
+        league = raw_league
 
         df = pd.read_csv(file_path)
         processed_data = []
@@ -84,11 +71,13 @@ def process_files():
             except Exception:
                 continue
 
+            game_id = f"{league}_{f_date}_{index}"
+
             entry = {
                 "date": f_date,
                 "time": g_time,
                 "league": league,
-                "game_id": f"{league}_{f_date}_{index}",
+                "game_id": game_id,
                 "away_team": away_team,
                 "home_team": home_team,
                 "away_team_moneyline_win_prob": round(p_away_pct / 100, 4),
@@ -132,20 +121,30 @@ def process_files():
 
             processed_data.append(entry)
 
+            # ---------- GAMES MASTER ROW ----------
+            all_games_master_rows.append({
+                "date": f_date,
+                "league": league,
+                "game_id": game_id,
+                "away_team": away_team,
+                "home_team": home_team,
+            })
+
         if not processed_data:
             continue
 
         out_df = pd.DataFrame(processed_data)
 
-        # ---------- WRITE PER-DATE FILES ----------
+        # ---------- WRITE PER-LEAGUE PER-DATE FILES ----------
         for d_val, d_grp in out_df.groupby("date"):
             out_filename = f"{league}_{d_val}.csv"
             out_path = os.path.join(OUTPUT_DIR, out_filename)
             d_grp.to_csv(out_path, index=False)
             print(f"Saved: {out_path}")
 
-        # ---------- WRITE GAMES MASTER ----------
-        write_games_master(out_df)
+    # ---------- WRITE ONE GAMES MASTER PER DATE (ALL LEAGUES) ----------
+    if all_games_master_rows:
+        gm_df = pd.DataFrame(all_games_master_rows).drop_duplicates()
 
-if __name__ == "__main__":
-    process_files()
+        for d_val, d_grp in gm_df.groupby("date"):
+            gm
