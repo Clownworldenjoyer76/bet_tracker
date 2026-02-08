@@ -29,6 +29,12 @@ def load_latest(pattern):
     date = max(extract_date(f) for f in files if extract_date(f))
     return df, date
 
+def normalize_teams(m):
+    if "away_team_x" in m.columns:
+        m["away_team"] = m["away_team_x"]
+        m["home_team"] = m["home_team_x"]
+    return m
+
 def emit(df, market, side, line, dk_dec, juice_dec, league):
     return pd.DataFrame({
         "file_date": df["file_date"],
@@ -53,14 +59,13 @@ for league in leagues:
     juice, juice_date = load_latest(f"{JUICE_BASE}/{league}/ml/juice_{league}_ml_*.csv")
 
     if dk is not None and juice is not None:
-        m = dk.merge(juice, on="game_id")
+        m = normalize_teams(dk.merge(juice, on="game_id"))
         m["file_date"] = dk_date
         dates.update([dk_date, juice_date])
 
         for side in ["away", "home"]:
             dk_dec = m[f"{side}_decimal_odds"]
             juice_dec = m[f"{side}_ml_juice_odds"].apply(american_to_decimal)
-
             keep = dk_dec >= juice_dec
 
             plays.append(
@@ -80,7 +85,7 @@ for league in leagues:
     juice, juice_date = load_latest(f"{JUICE_BASE}/{league}/spreads/juice_{league}_spreads_*.csv")
 
     if dk is not None and juice is not None:
-        m = dk.merge(juice, on="game_id")
+        m = normalize_teams(dk.merge(juice, on="game_id"))
         m["file_date"] = dk_date
         dates.update([dk_date, juice_date])
 
@@ -88,7 +93,6 @@ for league in leagues:
             dk_dec = m[f"{side}_decimal_odds"]
             juice_dec = m[f"{side}_spread_juice_odds"].apply(american_to_decimal)
             line = m[f"{side}_spread"]
-
             keep = dk_dec >= juice_dec
 
             plays.append(
@@ -108,7 +112,7 @@ for league in leagues:
     juice, juice_date = load_latest(f"{JUICE_BASE}/{league}/totals/juice_{league}_totals_*.csv")
 
     if dk is not None and juice is not None:
-        m = dk.merge(juice, on="game_id")
+        m = normalize_teams(dk.merge(juice, on="game_id"))
         m["file_date"] = dk_date
         dates.update([dk_date, juice_date])
 
@@ -116,7 +120,6 @@ for league in leagues:
             dk_dec = m[f"{side}_decimal_odds"]
             juice_dec = m[f"{side}_juice_odds"].apply(american_to_decimal)
             line = m["total"]
-
             keep = dk_dec >= juice_dec
 
             plays.append(
