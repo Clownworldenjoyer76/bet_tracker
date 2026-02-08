@@ -5,12 +5,26 @@ import pandas as pd
 import glob
 from datetime import datetime
 
+# IMPORT NORMALIZATION LOGIC
+from scripts.name_normalization import (
+    load_team_maps,
+    normalize_value,
+    base_league,
+)
+
 INPUT_DIR = "docs/win/dump/csvs/"
 OUTPUT_DIR = "docs/win/dump/csvs/cleaned/"
 GAMES_MASTER_DIR = "docs/win/games_master/"
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 os.makedirs(GAMES_MASTER_DIR, exist_ok=True)
+
+###################################
+# LOAD TEAM MAPS (ONCE)
+###################################
+
+team_map, canonical_sets = load_team_maps()
+unmapped = set()
 
 ###################################
 # ODDS HELPERS
@@ -54,19 +68,28 @@ def process_files():
             except Exception:
                 continue
 
-            # ---------- TEAMS ----------
+            # ---------- TEAMS (RAW → CANONICAL) ----------
             team_parts = str(row.get("Teams", "")).split("\n")
             if len(team_parts) < 2:
                 continue
 
-            away_team = team_parts[0].split("(")[0].strip()
-            home_team = team_parts[1].split("(")[0].strip()
+            away_raw = team_parts[0].split("(")[0].strip()
+            home_raw = team_parts[1].split("(")[0].strip()
+
+            lg = base_league(league)
+
+            away_team = normalize_value(
+                away_raw, lg, team_map, canonical_sets, unmapped
+            )
+            home_team = normalize_value(
+                home_raw, lg, team_map, canonical_sets, unmapped
+            )
 
             teams_sorted = sorted([away_team, home_team])
             game_id = f"{league}_{f_date}_{teams_sorted[0]}_{teams_sorted[1]}"
             game_id = game_id.replace(" ", "_")
 
-            # ---------- ALWAYS ADD TO GAMES MASTER ----------
+            # ---------- GAMES MASTER ----------
             all_games_master_rows.append({
                 "date": f_date,
                 "league": league,
@@ -132,9 +155,8 @@ def process_files():
                 d_grp.to_csv(out_path, index=False)
                 print(f"Saved: {out_path}")
 
-    # ---------- WRITE ONE GAMES MASTER PER DATE (ALL LEAGUES) ----------
     if not all_games_master_rows:
-        raise RuntimeError("No games written to games_master — aborting")
+        raise RuntimeError("No games written to games_master")
 
     gm_df = pd.DataFrame(all_games_master_rows).drop_duplicates()
 
