@@ -1,150 +1,131 @@
-# scripts/final.py
+# scripts/raw_clean.py
 
+import os
 import pandas as pd
 import glob
-import sys
-import re
-from pathlib import Path
-import numpy as np
+from datetime import datetime
 
-DK_BASE = "docs/win/manual/normalized"
-JUICE_BASE = "docs/win/juice"
-FINAL_BASE = "docs/win/final"
+INPUT_DIR = "docs/win/dump/csvs/"
+OUTPUT_DIR = "docs/win/dump/csvs/cleaned/"
 
-def american_to_decimal(x):
-    if pd.isna(x):
-        return np.nan
-    x = float(x)
-    return 1 + (x / 100) if x > 0 else 1 + (100 / abs(x))
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-def extract_date(path):
-    m = re.search(r"(\d{4}_\d{2}_\d{2})", path)
-    return m.group(1) if m else None
+###################################
+# ODDS HELPERS
+###################################
 
-def load_latest(pattern):
-    files = sorted(glob.glob(pattern))
-    if not files:
-        return None, None
-    df = pd.concat([pd.read_csv(f) for f in files], ignore_index=True)
-    date = max(extract_date(f) for f in files if extract_date(f))
-    return df, date
+def conv_american(dec):
+    if dec <= 1.001:
+        return 0
+    if dec >= 2.0:
+        return int((dec - 1) * 100)
+    return int(-100 / (dec - 1))
 
-def normalize_teams(m):
-    if "away_team_x" in m.columns:
-        m["away_team"] = m["away_team_x"]
-        m["home_team"] = m["home_team_x"]
-    return m
+###################################
+# MAIN PROCESS
+###################################
 
-def normalize_spreads(m):
-    for side in ["away", "home"]:
-        if f"{side}_spread_x" in m.columns:
-            m[f"{side}_spread"] = m[f"{side}_spread_x"]
-        elif f"{side}_spread" in m.columns:
-            m[f"{side}_spread"] = m[f"{side}_spread"]
-        else:
-            raise KeyError(f"{side}_spread not found after merge")
-    return m
+def process_files():
+    files = glob.glob(os.path.join(INPUT_DIR, "*.csv"))
 
-def normalize_totals(m):
-    if "total_x" in m.columns:
-        m["total"] = m["total_x"]
-    elif "total" in m.columns:
-        m["total"] = m["total"]
-    else:
-        raise KeyError("total not found after merge")
-    return m
+    for file_path in files:
+        if "cleaned" in file_path:
+            continue
 
-def emit(df, market, side, line, dk_dec, juice_dec, league):
-    return pd.DataFrame({
-        "file_date": df["file_date"],
-        "league": league,
-        "market": market,
-        "away_team": df["away_team"],
-        "home_team": df["home_team"],
-        "bet_side": side,
-        "line": line,
-        "dk_decimal_odds": dk_dec,
-        "juice_decimal_odds": juice_dec,
-    })
+        filename = os.path.basename(file_path)
 
-plays = []
-dates = set()
-leagues = ["nba", "ncaab", "nhl"]
+        # league inferred from filename prefix (nba, ncaab, nhl)
+        raw_league = filename.split("_")[0].lower()
+        league = raw_league  # explicitly no _ml suffix anywhere
 
-for league in leagues:
+        df = pd.read_csv(file_path)
+        processed_data = []
 
-    # ===== MONEYLINE =====
-    dk, dk_date = load_latest(f"{DK_BASE}/dk_{league}_moneyline_*.csv")
-    juice, juice_date = load_latest(f"{JUICE_BASE}/{league}/ml/juice_{league}_ml_*.csv")
+        for index, row in df.iterrows():
+            # ---------- TIME / DATE ----------
+            time_parts = str(row.get("Time", "")).split("\n")
+            raw_date = time_parts[0].strip()
 
-    if dk is not None and juice is not None:
-        m = normalize_teams(dk.merge(juice, on="game_id"))
-        m["file_date"] = dk_date
-        dates.update([dk_date, juice_date])
+            try:
+                dt_obj = datetime.strptime(raw_date, "%m/%d/%Y")
+                f_date = dt_obj.strftime("%Y_%m_%d")
+            except Exception:
+                f_date = raw_date.replace("/", "_")
 
-        for side in ["away", "home"]:
-            dk_dec = m[f"{side}_decimal_odds"]
-            juice_dec = m[f"{side}_ml_juice_odds"].apply(american_to_decimal)
-            keep = dk_dec >= juice_dec
+            g_time = time_parts[1].strip() if len(time_parts) > 1 else ""
 
-            plays.append(
-                emit(m[keep], "ml", side, None,
-                     dk_dec[keep], juice_dec[keep],
-                     f"{league}_moneyline")
-            )
+            # ---------- TEAMS ----------
+            team_parts = str(row.get("Teams", "")).split("\n")
+            away_team = team_parts[0].split("(")[0].strip() if len(team_parts) > 0 else ""
+            home_team = team_parts[1].split("(")[0].strip() if len(team_parts) > 1 else ""
 
-    # ===== SPREADS =====
-    dk, dk_date = load_latest(f"{DK_BASE}/dk_{league}_spreads_*.csv")
-    juice, juice_date = load_latest(f"{JUICE_BASE}/{league}/spreads/juice_{league}_spreads_*.csv")
+            # ---------- WIN PROBABILITIES ----------
+            win_parts = str(row.get("Win", "")).replace("%", "").split("\n")
+            try:
+                p_away_pct = float(win_parts[0])
+                p_home_pct = float(win_parts[1])
+            except Exception:
+                continue
 
-    if dk is not None and juice is not None:
-        m = normalize_teams(dk.merge(juice, on="game_id"))
-        m = normalize_spreads(m)
-        m["file_date"] = dk_date
-        dates.update([dk_date, juice_date])
+            entry = {
+                "date": f_date,
+                "time": g_time,
+                "league": league,
+                "game_id": f"{league}_{f_date}_{index}",
+                "away_team": away_team,
+                "home_team": home_team,
+                "away_team_moneyline_win_prob": round(p_away_pct / 100, 4),
+                "home_team_moneyline_win_prob": round(p_home_pct / 100, 4),
+            }
 
-        for side in ["away", "home"]:
-            dk_dec = m[f"{side}_decimal_odds"]
-            juice_dec = m[f"{side}_spread_juice_odds"].apply(american_to_decimal)
-            line = m[f"{side}_spread"]
-            keep = dk_dec >= juice_dec
+            # ---------- PROJECTIONS ----------
+            if raw_league in ("nba", "ncaab"):
+                score_parts = str(row.get("Points", "")).split("\n")
+                try:
+                    away_pts = float(score_parts[0])
+                    home_pts = float(score_parts[1])
+                except Exception:
+                    continue
 
-            plays.append(
-                emit(m[keep], "spreads", side, line[keep],
-                     dk_dec[keep], juice_dec[keep],
-                     f"{league}_spreads")
-            )
+                entry["away_team_projected_points"] = away_pts
+                entry["home_team_projected_points"] = home_pts
+                entry["game_projected_points"] = round(away_pts + home_pts, 2)
 
-    # ===== TOTALS =====
-    dk, dk_date = load_latest(f"{DK_BASE}/dk_{league}_totals_*.csv")
-    juice, juice_date = load_latest(f"{JUICE_BASE}/{league}/totals/juice_{league}_totals_*.csv")
+            else:  # NHL
+                score_parts = str(row.get("Goals", "")).split("\n")
+                try:
+                    away_goals = float(score_parts[0])
+                    home_goals = float(score_parts[1])
+                except Exception:
+                    continue
 
-    if dk is not None and juice is not None:
-        m = normalize_teams(dk.merge(juice, on="game_id"))
-        m = normalize_totals(m)
-        m["file_date"] = dk_date
-        dates.update([dk_date, juice_date])
+                entry["away_team_projected_goals"] = away_goals
+                entry["home_team_projected_goals"] = home_goals
+                entry["game_projected_goals"] = round(away_goals + home_goals, 2)
 
-        for side in ["over", "under"]:
-            dk_dec = m[f"{side}_decimal_odds"]
-            juice_dec = m[f"{side}_juice_odds"].apply(american_to_decimal)
-            line = m["total"]
-            keep = dk_dec >= juice_dec
+            # ---------- FAIR / ACCEPTABLE ODDS ----------
+            dec_away = round(100 / p_away_pct, 4)
 
-            plays.append(
-                emit(m[keep], "totals", side, line[keep],
-                     dk_dec[keep], juice_dec[keep],
-                     f"{league}_totals")
-            )
+            entry.update({
+                "fair_decimal_odds": dec_away,
+                "fair_american_odds": conv_american(dec_away),
+                "acceptable_decimal_odds": dec_away,
+                "acceptable_american_odds": conv_american(dec_away),
+            })
 
-if not plays:
-    print("No playable bets found.")
-    sys.exit(0)
+            processed_data.append(entry)
 
-date = max(d for d in dates if d)
-final_df = pd.concat(plays, ignore_index=True)
+        if not processed_data:
+            continue
 
-Path(FINAL_BASE).mkdir(parents=True, exist_ok=True)
-final_df.to_csv(f"{FINAL_BASE}/plays_{date}.csv", index=False)
+        out_df = pd.DataFrame(processed_data)
 
-print(f"Plays written for {date}")
+        # ---------- WRITE PER-DATE FILES ----------
+        for d_val, d_grp in out_df.groupby("date"):
+            out_filename = f"{league}_{d_val}.csv"
+            out_path = os.path.join(OUTPUT_DIR, out_filename)
+            d_grp.to_csv(out_path, index=False)
+            print(f"Saved: {out_path}")
+
+if __name__ == "__main__":
+    process_files()
