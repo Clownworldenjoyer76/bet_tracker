@@ -64,6 +64,7 @@ def process_files():
 
             teams_sorted = sorted([away_team, home_team])
             game_id = f"{league}_{f_date}_{teams_sorted[0]}_{teams_sorted[1]}"
+            game_id = game_id.replace(" ", "_")
 
             # ---------- ALWAYS ADD TO GAMES MASTER ----------
             all_games_master_rows.append({
