@@ -19,7 +19,7 @@ VALIDATE_DIRS = [
     Path("docs/win/final"),
 ]
 
-REQUIRED_COLUMNS = {"game_id", "away_team", "home_team"}
+REQUIRED_COLUMNS = {"game_id", "away_team", "home_team", "date"}
 
 # =========================
 # LOAD GAMES MASTER
@@ -53,9 +53,17 @@ def validate_file(path: Path, games_master: pd.DataFrame):
     if not REQUIRED_COLUMNS.issubset(df.columns):
         return []
 
+    games_master_dates = set(games_master["date"].unique())
+
     errors = []
 
     for i, row in df.iterrows():
+        row_date = row.get("date")
+
+        # Skip historical rows not covered by current games_master
+        if row_date not in games_master_dates:
+            continue
+
         gid = row["game_id"]
 
         if gid not in games_master.index:
