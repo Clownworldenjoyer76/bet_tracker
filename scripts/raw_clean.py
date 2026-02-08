@@ -1,4 +1,3 @@
-#scripts/raw_clean.py
 # scripts/raw_clean.py
 
 import os
@@ -8,8 +7,10 @@ from datetime import datetime
 
 INPUT_DIR = "docs/win/dump/csvs/"
 OUTPUT_DIR = "docs/win/dump/csvs/cleaned/"
+GAMES_MASTER_DIR = "docs/win/games_master/"
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
+os.makedirs(GAMES_MASTER_DIR, exist_ok=True)
 
 ###################################
 # ODDS HELPERS
@@ -21,6 +22,21 @@ def conv_american(dec):
     if dec >= 2.0:
         return int((dec - 1) * 100)
     return int(-100 / (dec - 1))
+
+###################################
+# GAMES MASTER CREATION
+###################################
+
+def write_games_master(out_df):
+    required_cols = ["date", "league", "game_id", "away_team", "home_team"]
+
+    gm_df = out_df[required_cols].drop_duplicates()
+
+    for d_val, d_grp in gm_df.groupby("date"):
+        gm_filename = f"games_{d_val}.csv"
+        gm_path = os.path.join(GAMES_MASTER_DIR, gm_filename)
+        d_grp.to_csv(gm_path, index=False)
+        print(f"Saved games master: {gm_path}")
 
 ###################################
 # MAIN PROCESS
@@ -127,6 +143,9 @@ def process_files():
             out_path = os.path.join(OUTPUT_DIR, out_filename)
             d_grp.to_csv(out_path, index=False)
             print(f"Saved: {out_path}")
+
+        # ---------- WRITE GAMES MASTER ----------
+        write_games_master(out_df)
 
 if __name__ == "__main__":
     process_files()
