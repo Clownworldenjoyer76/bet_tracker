@@ -1,11 +1,18 @@
 # scripts/raw_clean.py
 
 import os
+import sys
 import pandas as pd
 import glob
 from datetime import datetime
 
-# IMPORT NORMALIZATION LOGIC
+# -------------------------
+# FIX IMPORT PATH
+# -------------------------
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+ROOT_DIR = os.path.dirname(SCRIPT_DIR)
+sys.path.insert(0, ROOT_DIR)
+
 from scripts.name_normalization import (
     load_team_maps,
     normalize_value,
@@ -86,8 +93,7 @@ def process_files():
             )
 
             teams_sorted = sorted([away_team, home_team])
-            game_id = f"{league}_{f_date}_{teams_sorted[0]}_{teams_sorted[1]}"
-            game_id = game_id.replace(" ", "_")
+            game_id = f"{league}_{f_date}_{teams_sorted[0]}_{teams_sorted[1]}".replace(" ", "_")
 
             # ---------- GAMES MASTER ----------
             all_games_master_rows.append({
