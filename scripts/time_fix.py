@@ -1,4 +1,3 @@
-# scripts/time_fix.py
 #!/usr/bin/env python3
 
 import csv
@@ -121,9 +120,6 @@ def main():
                 f"time_fix aborted: {unrecognized_ratio:.1%} unrecognized date formats"
             )
 
-    if rows_updated == 0:
-        raise RuntimeError("time_fix aborted: zero dates normalized")
-
     # =========================
     # SUMMARY LOG
     # =========================
@@ -137,6 +133,12 @@ def main():
         f.write(f"Rows with dates: {rows_seen}\n")
         f.write(f"Rows normalized: {rows_updated}\n")
         f.write(f"Rows unrecognized: {rows_unrecognized}\n")
+
+        if rows_updated == 0:
+            f.write(
+                "\nWARNING: zero dates normalized "
+                "(all dates already normalized)\n"
+            )
 
 if __name__ == "__main__":
     main()
