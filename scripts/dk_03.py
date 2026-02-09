@@ -29,102 +29,146 @@ def log(msg: str):
     with open(ERROR_LOG, "a", encoding="utf-8") as f:
         f.write(msg + "\n")
 
+def norm(s: str) -> str:
+    return " ".join(str(s).split()) if s else ""
+
 def load_games_master():
-    files = GAMES_MASTER_DIR.glob("games_*.csv")
-    return pd.concat([pd.read_csv(f, dtype=str) for f in files], ignore_index=True)
+    files = list(GAMES_MASTER_DIR.glob("games_*.csv"))
+    if not files:
+        raise RuntimeError("No games_master files found")
+
+    df = pd.concat(
+        [pd.read_csv(f, dtype=str) for f in files],
+        ignore_index=True
+    )
+
+    return df
 
 # =========================
 # CORE
 # =========================
 
-def process_file(path: Path, gm_df):
+def process_file(path: Path, gm_df: pd.DataFrame):
     try:
         df = pd.read_csv(path, dtype=str)
         if df.empty:
+            log(f"{path.name} | EMPTY FILE")
             return
 
         parts = path.stem.split("_")
-        _, league, market, *_ = parts
+        if len(parts) < 6:
+            log(f"{path.name} | BAD FILENAME")
+            return
+
+        _, league, market, year, month, day = parts
+        date = f"{year}_{month}_{day}"
+
+        df["team_norm"] = df["team"].apply(norm)
+
+        gm_slice = gm_df[
+            (gm_df["league"] == league) &
+            (gm_df["date"] == date)
+        ]
 
         out_rows = []
 
-        for gid, gdf in df.groupby("game_id"):
-            if not gid:
-                log(f"EMPTY game_id in {path.name}")
-                continue
+        for _, gm in gm_slice.iterrows():
+            gid = gm["game_id"]
+            away = norm(gm["away_team"])
+            home = norm(gm["home_team"])
 
-            gm = gm_df[gm_df["game_id"] == gid]
-            if gm.empty:
-                log(f"UNKNOWN game_id {gid}")
-                continue
+            game_rows = df[
+                df["team_norm"].isin({away, home})
+            ]
 
-            away = gm.iloc[0]["away_team"]
-            home = gm.iloc[0]["home_team"]
+            rows_found = len(game_rows)
 
+            log(
+                f"{gid} | expected=({away},{home}) | rows_found={rows_found}"
+            )
+
+            # =========================
+            # MONEYLINE / SPREADS
+            # =========================
             if market in ("moneyline", "spreads"):
-                if len(gdf) != 2:
-                    log(f"{gid} expected 2 rows, found {len(gdf)}")
+                if rows_found != 2:
                     continue
 
-                row_map = {r["team"]: r for _, r in gdf.iterrows()}
+                row_map = {
+                    r["team_norm"]: r
+                    for _, r in game_rows.iterrows()
+                }
+
                 if away not in row_map or home not in row_map:
-                    log(f"{gid} team mismatch")
                     continue
+
+                away_row = row_map[away]
+                home_row = row_map[home]
 
                 out = {
-                    "date": gdf.iloc[0]["date"],
-                    "time": gdf.iloc[0]["time"],
-                    "league": gdf.iloc[0]["league"],
+                    "date": away_row["date"],
+                    "time": away_row["time"],
+                    "league": away_row["league"],
                     "game_id": gid,
                     "away_team": away,
                     "home_team": home,
-                    "away_handle_pct": row_map[away].get("handle_pct"),
-                    "home_handle_pct": row_map[home].get("handle_pct"),
-                    "away_bets_pct": row_map[away].get("bets_pct"),
-                    "home_bets_pct": row_map[home].get("bets_pct"),
+                    "away_handle_pct": away_row.get("handle_pct"),
+                    "home_handle_pct": home_row.get("handle_pct"),
+                    "away_bets_pct": away_row.get("bets_pct"),
+                    "home_bets_pct": home_row.get("bets_pct"),
                 }
 
                 if market == "moneyline":
                     out.update({
-                        "away_odds": row_map[away]["odds"],
-                        "home_odds": row_map[home]["odds"],
-                        "away_decimal_odds": row_map[away]["decimal_odds"],
-                        "home_decimal_odds": row_map[home]["decimal_odds"],
+                        "away_odds": away_row["odds"],
+                        "home_odds": home_row["odds"],
+                        "away_decimal_odds": away_row["decimal_odds"],
+                        "home_decimal_odds": home_row["decimal_odds"],
                     })
                 else:
                     out.update({
-                        "away_spread": row_map[away]["spread"],
-                        "home_spread": row_map[home]["spread"],
-                        "away_odds": row_map[away]["odds"],
-                        "home_odds": row_map[home]["odds"],
-                        "away_decimal_odds": row_map[away]["decimal_odds"],
-                        "home_decimal_odds": row_map[home]["decimal_odds"],
+                        "away_spread": away_row["spread"],
+                        "home_spread": home_row["spread"],
+                        "away_odds": away_row["odds"],
+                        "home_odds": home_row["odds"],
+                        "away_decimal_odds": away_row["decimal_odds"],
+                        "home_decimal_odds": home_row["decimal_odds"],
                     })
 
                 out_rows.append(out)
 
+            # =========================
+            # TOTALS
+            # =========================
             elif market == "totals":
-                sides = {r["side"].lower(): r for _, r in gdf.iterrows()}
+                sides = {
+                    r["side"].lower(): r
+                    for _, r in game_rows.iterrows()
+                    if "side" in r and pd.notna(r["side"])
+                }
+
                 if "over" not in sides or "under" not in sides:
-                    log(f"{gid} missing over/under")
                     continue
 
+                over = sides["over"]
+                under = sides["under"]
+
                 out_rows.append({
-                    "date": gdf.iloc[0]["date"],
-                    "time": gdf.iloc[0]["time"],
-                    "league": gdf.iloc[0]["league"],
+                    "date": over["date"],
+                    "time": over["time"],
+                    "league": over["league"],
                     "game_id": gid,
                     "away_team": away,
                     "home_team": home,
-                    "total": sides["over"]["total"],
-                    "over_odds": sides["over"]["odds"],
-                    "under_odds": sides["under"]["odds"],
-                    "over_decimal_odds": sides["over"]["decimal_odds"],
-                    "under_decimal_odds": sides["under"]["decimal_odds"],
+                    "total": over["total"],
+                    "over_odds": over["odds"],
+                    "under_odds": under["odds"],
+                    "over_decimal_odds": over["decimal_odds"],
+                    "under_decimal_odds": under["decimal_odds"],
                 })
 
             else:
-                log(f"UNKNOWN market {market}")
+                log(f"{path.name} | UNKNOWN MARKET {market}")
 
         if out_rows:
             out_path = OUTPUT_DIR / path.name
