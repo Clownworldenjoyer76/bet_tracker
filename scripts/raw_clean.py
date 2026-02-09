@@ -92,8 +92,8 @@ def process_files():
                 home_raw, lg, team_map, canonical_sets, unmapped
             )
 
-            teams_sorted = sorted([away_team, home_team])
-            game_id = f"{league}_{f_date}_{teams_sorted[0]}_{teams_sorted[1]}".replace(" ", "_")
+            # ---------- FIXED GAME_ID ----------
+            game_id = f"{league}_{f_date}_{away_team}_{home_team}".replace(" ", "_")
 
             # ---------- GAMES MASTER ----------
             all_games_master_rows.append({
