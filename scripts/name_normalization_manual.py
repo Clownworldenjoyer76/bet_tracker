@@ -10,7 +10,7 @@ import traceback
 # PATHS
 # =========================
 
-INPUT_DIR = Path("docs/win/manual")
+INPUT_DIR = Path("docs/win/manual/cleaned")
 MAP_DIR = Path("mappings")
 NO_MAP_DIR = Path("mappings/need_map")
 NO_MAP_PATH = NO_MAP_DIR / "dump_no_map.csv"
@@ -69,7 +69,7 @@ def main():
     values_updated = 0
 
     try:
-        for file_path in INPUT_DIR.glob("*.csv"):
+        for file_path in INPUT_DIR.glob("dk_*_*.csv"):
             df = pd.read_csv(file_path, dtype=str)
 
             if "league" not in df.columns:
