@@ -1,3 +1,5 @@
+# scripts/name_normalization.py
+
 #!/usr/bin/env python3
 
 from pathlib import Path
@@ -18,7 +20,7 @@ MAP_DIR = Path("mappings")
 NO_MAP_DIR = Path("mappings/need_map")
 NO_MAP_PATH = NO_MAP_DIR / "no_map.csv"
 
-ERROR_DIR = Path("docs/win/errors")
+ERROR_DIR = Path("docs/win/errors/01_raw/")
 ERROR_LOG = ERROR_DIR / "name_normalization.txt"
 
 NO_MAP_DIR.mkdir(parents=True, exist_ok=True)
