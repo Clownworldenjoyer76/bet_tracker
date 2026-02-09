@@ -37,6 +37,14 @@ jobs:
         run: |
           python scripts/validate_games_master.py
 
+      - name: Upload games master validation errors
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: games_master_validation_errors
+          path: docs/win/errors/games_master_validation_errors.csv
+
+
       - name: Commit and Push Changes
         run: |
           git config --global user.name "GitHub Action"
