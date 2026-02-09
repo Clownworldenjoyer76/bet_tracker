@@ -1,4 +1,5 @@
 # scripts/validate_games_master.py
+
 #!/usr/bin/env python3
 
 from pathlib import Path
@@ -18,7 +19,7 @@ LATEST_ONLY = True  # set False for historical audit mode
 # =========================
 
 GAMES_MASTER_DIR = Path("docs/win/games_master")
-ERROR_DIR = Path("docs/win/errors")
+ERROR_DIR = Path("docs/win/errors/validate_games_master/")
 ERROR_LOG = ERROR_DIR / "games_master_validation.txt"
 ERROR_CSV = ERROR_DIR / "games_master_validation_errors.csv"
 
