@@ -63,9 +63,10 @@ def load_team_maps():
 # NORMALIZATION CORE
 # =========================
 
-def normalize_value(val, lg, team_map, canonical_sets, unmapped, nan_counter):
+def normalize_value(val, lg, team_map, canonical_sets, unmapped, nan_counter=None):
     if pd.isna(val):
-        nan_counter["nan_values"] += 1
+        if nan_counter is not None:
+            nan_counter["nan_values"] += 1
         return val
 
     lg = base_league(lg)
@@ -162,14 +163,14 @@ def main():
 
                 df[col] = df[col].apply(
                     lambda v: normalize_value(
-                        v, lg, team_map, canonical_sets, unmapped, nan_counter
+                        v, lg, team_map, canonical_sets, unmapped
                     )
                 )
 
             df.to_csv(file_path, index=False)
 
         # =========================
-        # WRITE UNMAPPED CSV
+        # WRITE UNMAPPED
         # =========================
 
         if unmapped:
