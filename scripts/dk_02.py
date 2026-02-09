@@ -1,78 +1,51 @@
+# scripts/dk_02.py
+
 #!/usr/bin/env python3
 
 import csv
 from pathlib import Path
-from datetime import datetime
+import pandas as pd
 
 # =========================
 # PATHS
 # =========================
 
 INPUT_DIR = Path("docs/win/manual/cleaned")
-DUMP_DIR = Path("docs/win/dump/csvs/cleaned")
-ERROR_DIR = Path("docs/win/errors")
+GAMES_MASTER_DIR = Path("docs/win/games_master")
+
+ERROR_DIR = Path("docs/win/errors/02_dk_prep")
+ERROR_LOG = ERROR_DIR / "dk_02_game_id.txt"
 
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
-
-TIMESTAMP = datetime.now().strftime("%Y%m%d_%H%M%S")
-ERROR_LOG = ERROR_DIR / f"dk_2_game_id_{TIMESTAMP}.txt"
 
 # =========================
 # HELPERS
 # =========================
 
-def log_error(msg: str):
+def log(msg: str):
     with open(ERROR_LOG, "a", encoding="utf-8") as f:
         f.write(msg + "\n")
 
 def norm(s: str) -> str:
-    if s is None:
-        return ""
-    return " ".join(str(s).split())
+    return " ".join(str(s).split()) if s else ""
 
-def load_dump_index(league: str):
-    """
-    Build lookup:
-    (date, away_team, home_team) -> game_id
-    """
+def load_games_master_index():
+    files = GAMES_MASTER_DIR.glob("games_*.csv")
+    df = pd.concat([pd.read_csv(f, dtype=str) for f in files], ignore_index=True)
+
     index = {}
-
-    for path in DUMP_DIR.glob(f"{league}_*.csv"):
-        parts = path.stem.split("_")
-        if len(parts) < 4:
-            continue
-
-        year, month, day = parts[-3:]
-        date = f"{year}_{month}_{day}"
-
-        with open(path, newline="", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                game_id = row.get("game_id", "")
-                if not game_id:
-                    continue
-
-                away = norm(row.get("away_team"))
-                home = norm(row.get("home_team"))
-
-                index[(date, away, home)] = game_id
+    for _, r in df.iterrows():
+        key = (r["date"], norm(r["away_team"]), norm(r["home_team"]))
+        index[key] = r["game_id"]
 
     return index
 
 # =========================
-# CORE LOGIC
+# CORE
 # =========================
 
-def process_file(path: Path):
-    # dk_{league}_{market}_{YYYY}_{MM}_{DD}.csv
-    parts = path.stem.split("_")
-    if len(parts) < 6:
-        return
-
-    _, league, market, year, month, day = parts
-    date = f"{year}_{month}_{day}"
-
-    dump_index = load_dump_index(league)
+def process_file(path: Path, gm_index):
+    rows_in = rows_matched = 0
 
     with open(path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
@@ -82,41 +55,51 @@ def process_file(path: Path):
     if "game_id" not in fieldnames:
         fieldnames.append("game_id")
 
-    updated_rows = []
+    parts = path.stem.split("_")
+    if len(parts) < 6:
+        log(f"SKIPPED (bad filename): {path.name}")
+        return
+
+    _, league, _, year, month, day = parts
+    date = f"{year}_{month}_{day}"
 
     for row in rows:
+        rows_in += 1
         away = norm(row.get("away_team"))
         home = norm(row.get("home_team"))
 
-        game_id = dump_index.get((date, away, home), "")
-        row["game_id"] = game_id
+        gid = gm_index.get((date, away, home), "")
+        row["game_id"] = gid
 
-        if not game_id:
-            log_error(
-                f"{path.name} | league={league} | date={date} | away={away} | home={home}"
-            )
+        if gid:
+            rows_matched += 1
+        else:
+            log(f"NO_MATCH | {path.name} | {date} | {away} vs {home}")
 
-        updated_rows.append(row)
+    if rows_in and rows_matched / rows_in < 0.9:
+        raise RuntimeError(
+            f"Low game_id match rate in {path.name}: {rows_matched}/{rows_in}"
+        )
 
     with open(path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
-        writer.writerows(updated_rows)
+        writer.writerows(rows)
+
+    log(f"{path.name} | rows={rows_in} matched={rows_matched}")
 
 # =========================
 # MAIN
 # =========================
 
 def main():
-    patterns = [
-        "dk_*_moneyline_*.csv",
-        "dk_*_spreads_*.csv",
-        "dk_*_totals_*.csv",
-    ]
+    log("DK_02 START")
+    gm_index = load_games_master_index()
 
-    for pattern in patterns:
-        for file in INPUT_DIR.glob(pattern):
-            process_file(file)
+    for path in INPUT_DIR.glob("dk_*_*.csv"):
+        process_file(path, gm_index)
+
+    log("DK_02 END\n")
 
 if __name__ == "__main__":
     main()
