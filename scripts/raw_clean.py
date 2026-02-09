@@ -1,5 +1,3 @@
-# scripts/raw_clean.py
-
 import os
 import sys
 import pandas as pd
@@ -22,9 +20,12 @@ from scripts.name_normalization import (
 INPUT_DIR = "docs/win/dump/csvs/"
 OUTPUT_DIR = "docs/win/dump/csvs/cleaned/"
 GAMES_MASTER_DIR = "docs/win/games_master/"
+ERROR_DIR = "docs/win/errors/"
+ERROR_LOG = os.path.join(ERROR_DIR, "raw_clean.txt")
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 os.makedirs(GAMES_MASTER_DIR, exist_ok=True)
+os.makedirs(ERROR_DIR, exist_ok=True)
 
 ###################################
 # LOAD TEAM MAPS (ONCE)
@@ -53,8 +54,13 @@ def process_files():
 
     all_games_master_rows = []
 
+    # --- integrity counters ---
+    bad_date = 0
+    bad_teams = 0
+    bad_probs = 0
+
     for file_path in files:
-        if "cleaned" in file_path:
+        if OUTPUT_DIR in file_path:
             continue
 
         filename = os.path.basename(file_path)
@@ -64,7 +70,7 @@ def process_files():
         df = pd.read_csv(file_path)
         processed_data = []
 
-        for index, row in df.iterrows():
+        for _, row in df.iterrows():
             # ---------- DATE ----------
             time_parts = str(row.get("Time", "")).split("\n")
             raw_date = time_parts[0].strip()
@@ -73,11 +79,13 @@ def process_files():
                 dt_obj = datetime.strptime(raw_date, "%m/%d/%Y")
                 f_date = dt_obj.strftime("%Y_%m_%d")
             except Exception:
+                bad_date += 1
                 continue
 
-            # ---------- TEAMS (RAW → CANONICAL) ----------
+            # ---------- TEAMS ----------
             team_parts = str(row.get("Teams", "")).split("\n")
             if len(team_parts) < 2:
+                bad_teams += 1
                 continue
 
             away_raw = team_parts[0].split("(")[0].strip()
@@ -92,10 +100,8 @@ def process_files():
                 home_raw, lg, team_map, canonical_sets, unmapped
             )
 
-            # ---------- FIXED GAME_ID ----------
             game_id = f"{league}_{f_date}_{away_team}_{home_team}".replace(" ", "_")
 
-            # ---------- GAMES MASTER ----------
             all_games_master_rows.append({
                 "date": f_date,
                 "league": league,
@@ -110,6 +116,7 @@ def process_files():
                 p_away_pct = float(win_parts[0])
                 p_home_pct = float(win_parts[1])
             except Exception:
+                bad_probs += 1
                 continue
 
             entry = {
@@ -123,30 +130,33 @@ def process_files():
             }
 
             # ---------- PROJECTIONS ----------
-            if raw_league in ("nba", "ncaab"):
-                score_parts = str(row.get("Points", "")).split("\n")
-                if len(score_parts) < 2:
-                    continue
+            try:
+                if raw_league in ("nba", "ncaab"):
+                    score_parts = str(row.get("Points", "")).split("\n")
+                    if len(score_parts) < 2:
+                        continue
+                    entry["away_team_projected_points"] = float(score_parts[0])
+                    entry["home_team_projected_points"] = float(score_parts[1])
+                    entry["game_projected_points"] = round(
+                        entry["away_team_projected_points"] +
+                        entry["home_team_projected_points"], 2
+                    )
+                else:
+                    score_parts = str(row.get("Goals", "")).split("\n")
+                    if len(score_parts) < 2:
+                        continue
+                    entry["away_team_projected_goals"] = float(score_parts[0])
+                    entry["home_team_projected_goals"] = float(score_parts[1])
+                    entry["game_projected_goals"] = round(
+                        entry["away_team_projected_goals"] +
+                        entry["home_team_projected_goals"], 2
+                    )
+            except Exception:
+                continue
 
-                entry["away_team_projected_points"] = float(score_parts[0])
-                entry["home_team_projected_points"] = float(score_parts[1])
-                entry["game_projected_points"] = round(
-                    entry["away_team_projected_points"] +
-                    entry["home_team_projected_points"], 2
-                )
-            else:
-                score_parts = str(row.get("Goals", "")).split("\n")
-                if len(score_parts) < 2:
-                    continue
+            # ---------- FAIR ODDS ----------
+            dec_away = round(1 / (p_away_pct / 100), 4)
 
-                entry["away_team_projected_goals"] = float(score_parts[0])
-                entry["home_team_projected_goals"] = float(score_parts[1])
-                entry["game_projected_goals"] = round(
-                    entry["away_team_projected_goals"] +
-                    entry["home_team_projected_goals"], 2
-                )
-
-            dec_away = round(100 / p_away_pct, 4)
             entry["fair_decimal_odds"] = dec_away
             entry["fair_american_odds"] = conv_american(dec_away)
             entry["acceptable_decimal_odds"] = dec_away
@@ -170,6 +180,19 @@ def process_files():
         gm_path = os.path.join(GAMES_MASTER_DIR, f"games_{d_val}.csv")
         d_grp.to_csv(gm_path, index=False)
         print(f"Saved games master: {gm_path}")
+
+    # ---------- ERROR SUMMARY ----------
+    with open(ERROR_LOG, "w") as f:
+        f.write("RAW CLEAN SUMMARY\n")
+        f.write("=================\n")
+        f.write(f"Bad dates: {bad_date}\n")
+        f.write(f"Bad teams: {bad_teams}\n")
+        f.write(f"Bad win probabilities: {bad_probs}\n\n")
+
+        if unmapped:
+            f.write("Unmapped teams:\n")
+            for team in sorted(unmapped):
+                f.write(f"- {team}\n")
 
 if __name__ == "__main__":
     process_files()
