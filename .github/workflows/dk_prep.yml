@@ -24,16 +24,24 @@ jobs:
       - name: DK 01 – raw clean
         run: python scripts/dk_01.py
 
-      - name: DK 02 – Cleaning
+      - name: DK 02 – cleaning (date fix + clear game_id)
         run: python scripts/dk_02.py
 
       - name: DK name normalization
+        run: python scripts/name_normalization_manual.py
+
+      # Intentionally skipped:
+      # - dk_03.py
+      # - validate_games_master.py
+
+      - name: Commit and push changes
         run: |
-          python scripts/name_normalization_manual.py
-            
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
 
-     # - name: DK 03 – normalize by games_master
-     #   run: python scripts/dk_03.py
+          git add docs/win/manual/cleaned/*.csv
+          git add mappings/need_map/
+          git add docs/win/errors/02_dk_prep/
 
-    #  - name: Validate games_master
-     #   run: python scripts/validate_games_master.py
+          git commit -m "DK prep: clean, date fix, name normalization" || exit 0
+          git push
