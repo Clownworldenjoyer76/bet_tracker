@@ -1,4 +1,3 @@
-#scripts/dk_03.py
 #!/usr/bin/env python3
 
 import csv
@@ -54,9 +53,17 @@ def process_file(path: Path):
             # MONEYLINE / SPREADS
             # ======================
             if market in ("moneyline", "spreads"):
-                away = rows[i]
-                home = rows[i + 1]
+                r1 = rows[i]
+                r2 = rows[i + 1]
                 i += 2
+
+                t1 = r1["team"].replace(" ", "_")
+                t2 = r2["team"].replace(" ", "_")
+
+                if r1["game_id"].endswith(f"{t1}_{t2}"):
+                    away, home = r1, r2
+                else:
+                    away, home = r2, r1
 
                 out = {
                     "date": away["date"],
@@ -78,8 +85,7 @@ def process_file(path: Path):
                         "away_decimal_odds": away["decimal_odds"],
                         "home_decimal_odds": home["decimal_odds"],
                     })
-
-                else:  # spreads
+                else:
                     out.update({
                         "away_spread": away["spread"],
                         "home_spread": home["spread"],
@@ -123,10 +129,6 @@ def process_file(path: Path):
 
             else:
                 raise ValueError(f"Unknown market: {market}")
-
-        # ======================
-        # WRITE OUTPUT
-        # ======================
 
         out_path = OUTPUT_DIR / path.name
         with open(out_path, "w", newline="", encoding="utf-8") as f:
