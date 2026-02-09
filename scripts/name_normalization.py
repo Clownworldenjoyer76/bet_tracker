@@ -1,3 +1,5 @@
+#scripts/name_normalization.py
+
 #!/usr/bin/env python3
 
 from pathlib import Path
