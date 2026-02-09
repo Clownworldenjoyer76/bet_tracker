@@ -1,8 +1,9 @@
+# scripts/dk_01.py
+
 #!/usr/bin/env python3
 
 import pandas as pd
 from pathlib import Path
-from datetime import datetime
 import traceback
 
 # =========================
@@ -11,19 +12,18 @@ import traceback
 
 INPUT_DIR = Path("docs/win/manual/first")
 OUTPUT_DIR = Path("docs/win/manual/cleaned")
-ERROR_DIR = Path("docs/win/errors")
+
+ERROR_DIR = Path("docs/win/errors/02_dk_prep")
+ERROR_LOG = ERROR_DIR / "dk_01.txt"
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
-
-TIMESTAMP = datetime.now().strftime("%Y%m%d_%H%M%S")
-ERROR_LOG = ERROR_DIR / f"dk_1_{TIMESTAMP}.txt"
 
 # =========================
 # HELPERS
 # =========================
 
-def log_error(msg: str):
+def log(msg: str):
     with open(ERROR_LOG, "a", encoding="utf-8") as f:
         f.write(msg + "\n")
 
@@ -37,45 +37,48 @@ def american_to_decimal(odds: float) -> float:
 def process_file(path: Path):
     try:
         df = pd.read_csv(path)
+        rows_in = len(df)
 
-        # dk_{league}_{market}_{YYYY}_{MM}_{DD}.csv
-        _, league, market, *_ = path.stem.split("_")
+        parts = path.stem.split("_")
+        if len(parts) < 4:
+            raise ValueError(f"Invalid filename: {path.name}")
 
-        # enforce league
+        _, league, market, *_ = parts
         df["league"] = f"{league}_{market}"
 
-        # odds cleanup
         df["odds"] = (
             df["odds"].astype(str)
             .str.replace("−", "-", regex=False)
             .str.lstrip("+")
         )
-
         df["decimal_odds"] = df["odds"].astype(float).apply(american_to_decimal)
 
-        # percentage normalization
         for col in ("handle_pct", "bets_pct"):
             if col in df.columns:
                 df[col] = df[col].astype(float) / 100.0
 
-        # placeholder
         df["game_id"] = ""
 
-        df.to_csv(OUTPUT_DIR / path.name, index=False)
+        out_path = OUTPUT_DIR / path.name
+        df.to_csv(out_path, index=False)
+
+        log(f"{path.name} | rows_in={rows_in} rows_out={len(df)}")
 
     except Exception as e:
-        log_error(f"FILE: {path}")
-        log_error(str(e))
-        log_error(traceback.format_exc())
-        log_error("-" * 80)
+        log(f"FILE ERROR: {path.name}")
+        log(str(e))
+        log(traceback.format_exc())
+        log("-" * 80)
 
 # =========================
 # MAIN
 # =========================
 
 def main():
+    log("DK_01 START")
     for file in INPUT_DIR.glob("dk_*_*.csv"):
         process_file(file)
+    log("DK_01 END\n")
 
 if __name__ == "__main__":
     main()
