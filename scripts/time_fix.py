@@ -1,3 +1,5 @@
+#scripts/time_fix.py
+
 #!/usr/bin/env python3
 
 import csv
@@ -9,7 +11,7 @@ import re
 # =========================
 
 INPUT_DIR = Path("docs/win/manual/first")
-ERROR_DIR = Path("docs/win/errors")
+ERROR_DIR = Path("docs/win/errors/01_raw/")
 ERROR_LOG = ERROR_DIR / "time_fix.txt"
 
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
