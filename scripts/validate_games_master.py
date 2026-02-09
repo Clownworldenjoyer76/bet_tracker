@@ -1,6 +1,6 @@
+# scripts/validate_games_master.py
 #!/usr/bin/env python3
 
-import sys
 from pathlib import Path
 import pandas as pd
 
@@ -19,7 +19,7 @@ VALIDATE_DIRS = [
     Path("docs/win/final"),
 ]
 
-REQUIRED_COLUMNS = {"game_id", "away_team", "home_team", "date"}
+REQUIRED_COLUMNS = {"game_id", "away_team", "home_team", "date", "league"}
 
 # =========================
 # LOAD GAMES MASTER
@@ -46,32 +46,44 @@ def load_games_master():
 # VALIDATION CORE
 # =========================
 
+def normalize_id_part(s: str) -> str:
+    return s.replace(" ", "_")
+
+def expected_game_id(row):
+    return (
+        f"{row['league']}_{row['date']}_"
+        f"{normalize_id_part(row['away_team'])}_"
+        f"{normalize_id_part(row['home_team'])}"
+    )
+
 def validate_file(path: Path, games_master: pd.DataFrame):
     df = pd.read_csv(path, dtype=str)
 
-    # Skip files that cannot possibly be validated
     if not REQUIRED_COLUMNS.issubset(df.columns):
         return []
 
     latest_date = games_master["date"].max()
-
     errors = []
 
     for i, row in df.iterrows():
-        row_date = row.get("date")
-
-        # Only validate rows for the most recent games_master date
-        if row_date != latest_date:
+        if row["date"] != latest_date:
             continue
 
         gid = row["game_id"]
 
+        # --- game_id existence ---
         if gid not in games_master.index:
             errors.append((path.as_posix(), i, gid, "game_id_not_found"))
             continue
 
         gm = games_master.loc[gid]
 
+        # --- directional enforcement (Option A) ---
+        exp_gid = expected_game_id(row)
+        if gid != exp_gid:
+            errors.append((path.as_posix(), i, gid, "game_id_direction_mismatch"))
+
+        # --- team consistency ---
         if row["away_team"] != gm["away_team"]:
             errors.append((path.as_posix(), i, gid, "away_team_mismatch"))
 
