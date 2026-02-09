@@ -1,5 +1,3 @@
-# scripts/dk_03.py
-
 #!/usr/bin/env python3
 
 import csv
@@ -59,13 +57,14 @@ def process_file(path: Path, gm_df: pd.DataFrame):
             return
 
         _, league, market, year, month, day = parts
+        base_league = league.split("_")[0]
         date = f"{year}_{month}_{day}"
 
         df["team_norm"] = df["team"].apply(norm)
         df["opponent_norm"] = df["opponent"].apply(norm)
 
         gm_slice = gm_df[
-            (gm_df["league"] == league) &
+            (gm_df["league"] == base_league) &
             (gm_df["date"] == date)
         ]
 
@@ -86,9 +85,7 @@ def process_file(path: Path, gm_df: pd.DataFrame):
             rows_found = len(game_rows)
             log(f"{gid} | expected=({away},{home}) | rows_found={rows_found}")
 
-            # =========================
-            # MONEYLINE / SPREADS
-            # =========================
+            # MONEYLINE / SPREADS (2 rows)
             if market in ("moneyline", "spreads"):
                 if rows_found != 2:
                     continue
@@ -132,9 +129,7 @@ def process_file(path: Path, gm_df: pd.DataFrame):
 
                 out_rows.append(out)
 
-            # =========================
-            # TOTALS
-            # =========================
+            # TOTALS (4 rows)
             elif market == "totals":
                 sides = {
                     r["side"].lower(): r
@@ -161,9 +156,6 @@ def process_file(path: Path, gm_df: pd.DataFrame):
                     "over_decimal_odds": over["decimal_odds"],
                     "under_decimal_odds": under["decimal_odds"],
                 })
-
-            else:
-                log(f"{path.name} | UNKNOWN MARKET {market}")
 
         if out_rows:
             out_path = OUTPUT_DIR / path.name
