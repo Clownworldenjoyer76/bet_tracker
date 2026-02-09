@@ -2,19 +2,19 @@ name: 02 DK Prep
 
 on:
   workflow_dispatch:
-
-permissions:
-  contents: write
+  push:
+    paths:
+      - "scripts/**"
+      - ".github/workflows/dk_prep.yml"
+      - "docs/win/team_aliases.csv"
 
 jobs:
-  dk-prep:
+  dk_prep:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout repo
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -26,43 +26,22 @@ jobs:
           python -m pip install --upgrade pip
           pip install pandas
 
-      - name: Run dk_01 (clean + normalize)
+      - name: DK 01 – raw clean
+        run: python scripts/dk_01.py
+
+      - name: DK 02 – assign game_id
+        run: python scripts/dk_02.py
+
+      - name: DK name normalization
         run: |
-          python scripts/dk_01.py
+          python scripts/name_normalization.py \
+            --input docs/win/manual/cleaned \
+            --output docs/win/manual/cleaned \
+            --aliases docs/win/team_aliases.csv \
+            --league-mode base
 
-      - name: Run dk_02 (inject game_id)
-        run: |
-          python scripts/dk_02.py
+      - name: DK 03 – normalize by games_master
+        run: python scripts/dk_03.py
 
-      - name: Run dk_03 (merge on game_id)
-        run: |
-          python scripts/dk_03.py
-
-      - name: Normalize team names
-        run: |
-          python scripts/name_normalization.py
-
-      - name: Validate games master
-        continue-on-error: true
-        run: |
-          python scripts/validate_games_master.py
-
-
-      - name: Commit and push changes
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          # DK prep outputs
-          git add docs/win/manual/cleaned
-          git add docs/win/manual/normalized
-
-          # DK prep error logs
-          git add docs/win/errors/02_dk_prep
-
-          # Shared script error logs
-          git add docs/win/errors/name_normalization/name_normalization.txt
-          git add docs/win/errors/validate_games_master/games_master_validation.txt
-
-          git diff --cached --quiet || git commit -m "Run DK prep (dk_01 + dk_02 + dk_03)"
-          git push
+      - name: Validate games_master
+        run: python scripts/validate_games_master.py
