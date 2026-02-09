@@ -13,7 +13,7 @@ INPUT_DIR = Path("docs/win/manual/cleaned")
 OUTPUT_DIR = Path("docs/win/manual/normalized")
 GAMES_MASTER_DIR = Path("docs/win/games_master")
 
-ERROR_DIR = Path("docs/win/errors/02_dk_prep")
+ERROR_DIR = Path("docs/win/errors/03_dk_iv")
 ERROR_LOG = ERROR_DIR / "dk_03.txt"
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -129,7 +129,7 @@ def process_file(path: Path, gm_df: pd.DataFrame):
 
                 out_rows.append(out)
 
-            # TOTALS (4 rows)
+            # TOTALS (2 rows: over / under)
             elif market == "totals":
                 sides = {
                     r["side"].lower(): r
@@ -177,13 +177,16 @@ def process_file(path: Path, gm_df: pd.DataFrame):
 # =========================
 
 def main():
+    # overwrite log every run
+    ERROR_LOG.write_text("", encoding="utf-8")
+
     log("DK_03 START")
     gm_df = load_games_master()
 
     for path in INPUT_DIR.glob("dk_*_*.csv"):
         process_file(path, gm_df)
 
-    log("DK_03 END\n")
+    log("DK_03 END")
 
 if __name__ == "__main__":
     main()
