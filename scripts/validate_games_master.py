@@ -1,5 +1,3 @@
-# scripts/validate_games_master.py
-
 #!/usr/bin/env python3
 
 from pathlib import Path
@@ -19,7 +17,8 @@ LATEST_ONLY = True  # set False for historical audit mode
 # =========================
 
 GAMES_MASTER_DIR = Path("docs/win/games_master")
-ERROR_DIR = Path("docs/win/errors/validate_games_master/")
+
+ERROR_DIR = Path("docs/win/errors/03_dk_iv")
 ERROR_LOG = ERROR_DIR / "games_master_validation.txt"
 ERROR_CSV = ERROR_DIR / "games_master_validation_errors.csv"
 
@@ -114,6 +113,11 @@ def validate_file(path: Path, games_master: pd.DataFrame, latest_date: str):
 # =========================
 
 def main():
+    # overwrite logs on every run
+    ERROR_LOG.write_text("", encoding="utf-8")
+    if ERROR_CSV.exists():
+        ERROR_CSV.unlink()
+
     games_master = load_games_master()
     latest_date = games_master["date"].max()
 
@@ -154,7 +158,6 @@ def main():
         f.write("===============================\n\n")
         f.write(f"Validation mode: {'LATEST_ONLY' if LATEST_ONLY else 'HISTORICAL'}\n")
         f.write(f"Latest date: {latest_date}\n\n")
-
         f.write(f"Files scanned: {files_scanned}\n")
         f.write(f"Rows checked: {total_rows_checked}\n")
         f.write(f"Rows skipped due to date filter: {total_rows_skipped_date}\n\n")
@@ -183,4 +186,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
