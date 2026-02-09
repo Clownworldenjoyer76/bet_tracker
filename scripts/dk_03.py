@@ -107,17 +107,28 @@ def process_file(path: Path):
                 over_row = next(r for r in (r1, r2, r3, r4) if r["side"].lower() == "over")
                 under_row = next(r for r in (r1, r2, r3, r4) if r["side"].lower() == "under")
 
+                gid = r1["game_id"]
+
+                _, _, _, away_id, home_id = gid.split("_", 4)
+                away_team = away_id.replace("_", " ")
+                home_team = home_id.replace("_", " ")
+
+                team_map = {r["team"]: r for r in (r1, r2, r3, r4)}
+
+                away = team_map[away_team]
+                home = team_map[home_team]
+
                 out = {
                     "date": r1["date"],
                     "time": r1["time"],
                     "league": r1["league"],
-                    "game_id": r1["game_id"],
-                    "away_team": r1["team"],
-                    "home_team": r3["team"],
-                    "away_handle_pct": r1.get("handle_pct"),
-                    "home_handle_pct": r3.get("handle_pct"),
-                    "away_bets_pct": r1.get("bets_pct"),
-                    "home_bets_pct": r3.get("bets_pct"),
+                    "game_id": gid,
+                    "away_team": away_team,
+                    "home_team": home_team,
+                    "away_handle_pct": away.get("handle_pct"),
+                    "home_handle_pct": home.get("handle_pct"),
+                    "away_bets_pct": away.get("bets_pct"),
+                    "home_bets_pct": home.get("bets_pct"),
                     "total": over_row["total"],
                     "over_odds": over_row["odds"],
                     "under_odds": under_row["odds"],
