@@ -30,8 +30,14 @@ def norm(s: str) -> str:
     return " ".join(str(s).split()) if s else ""
 
 def load_games_master_index():
-    files = GAMES_MASTER_DIR.glob("games_*.csv")
-    df = pd.concat([pd.read_csv(f, dtype=str) for f in files], ignore_index=True)
+    files = list(GAMES_MASTER_DIR.glob("games_*.csv"))
+    if not files:
+        raise RuntimeError("No games_master files found")
+
+    df = pd.concat(
+        [pd.read_csv(f, dtype=str) for f in files],
+        ignore_index=True
+    )
 
     index = {}
     for _, r in df.iterrows():
@@ -60,11 +66,17 @@ def process_file(path: Path, gm_index):
         log(f"SKIPPED (bad filename): {path.name}")
         return
 
-    _, league, _, year, month, day = parts
+    _, league, market, year, month, day = parts
     date = f"{year}_{month}_{day}"
 
     for row in rows:
         rows_in += 1
+
+        # spreads / totals do not encode away/home at row level
+        if market != "moneyline":
+            row["game_id"] = ""
+            continue
+
         away = norm(row.get("away_team"))
         home = norm(row.get("home_team"))
 
@@ -76,9 +88,19 @@ def process_file(path: Path, gm_index):
         else:
             log(f"NO_MATCH | {path.name} | {date} | {away} vs {home}")
 
-    if rows_in and rows_matched / rows_in < 0.9:
-        raise RuntimeError(
-            f"Low game_id match rate in {path.name}: {rows_matched}/{rows_in}"
+    # =========================
+    # ENFORCEMENT
+    # =========================
+
+    if market == "moneyline":
+        if rows_in and rows_matched / rows_in < 0.9:
+            raise RuntimeError(
+                f"Low game_id match rate in {path.name}: {rows_matched}/{rows_in}"
+            )
+    else:
+        log(
+            f"{path.name} | non-moneyline file, game_id deferred "
+            f"(matched={rows_matched}/{rows_in})"
         )
 
     with open(path, "w", newline="", encoding="utf-8") as f:
