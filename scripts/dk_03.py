@@ -109,12 +109,12 @@ def process_file(path: Path):
 
                 gid = r1["game_id"]
 
-                _, _, _, away_id, home_id = gid.split("_", 4)
+                # FIX: split from right to preserve team names
+                away_id, home_id = gid.rsplit("_", 2)[-2:]
                 away_team = away_id.replace("_", " ")
                 home_team = home_id.replace("_", " ")
 
                 team_map = {r["team"]: r for r in (r1, r2, r3, r4)}
-
                 away = team_map[away_team]
                 home = team_map[home_team]
 
