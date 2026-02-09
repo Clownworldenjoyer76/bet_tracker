@@ -37,12 +37,10 @@ def load_games_master():
     if not files:
         raise RuntimeError("No games_master files found")
 
-    df = pd.concat(
+    return pd.concat(
         [pd.read_csv(f, dtype=str) for f in files],
         ignore_index=True
     )
-
-    return df
 
 # =========================
 # CORE
@@ -64,6 +62,7 @@ def process_file(path: Path, gm_df: pd.DataFrame):
         date = f"{year}_{month}_{day}"
 
         df["team_norm"] = df["team"].apply(norm)
+        df["opponent_norm"] = df["opponent"].apply(norm)
 
         gm_slice = gm_df[
             (gm_df["league"] == league) &
@@ -78,14 +77,14 @@ def process_file(path: Path, gm_df: pd.DataFrame):
             home = norm(gm["home_team"])
 
             game_rows = df[
-                df["team_norm"].isin({away, home})
+                df.apply(
+                    lambda r: {r["team_norm"], r["opponent_norm"]} == {away, home},
+                    axis=1,
+                )
             ]
 
             rows_found = len(game_rows)
-
-            log(
-                f"{gid} | expected=({away},{home}) | rows_found={rows_found}"
-            )
+            log(f"{gid} | expected=({away},{home}) | rows_found={rows_found}")
 
             # =========================
             # MONEYLINE / SPREADS
@@ -94,11 +93,7 @@ def process_file(path: Path, gm_df: pd.DataFrame):
                 if rows_found != 2:
                     continue
 
-                row_map = {
-                    r["team_norm"]: r
-                    for _, r in game_rows.iterrows()
-                }
-
+                row_map = {r["team_norm"]: r for _, r in game_rows.iterrows()}
                 if away not in row_map or home not in row_map:
                     continue
 
