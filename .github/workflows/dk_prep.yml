@@ -50,8 +50,17 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # DK prep outputs
           git add docs/win/manual/cleaned
           git add docs/win/manual/normalized
-          git add docs/win/errors/
+
+          # DK prep error logs
+          git add docs/win/errors/02_dk_prep
+
+          # Shared script error logs
+          git add docs/win/errors/name_normalization/name_normalization.txt
+          git add docs/win/errors/validate_games_master/games_master_validation.txt
+
           git diff --cached --quiet || git commit -m "Run DK prep (dk_01 + dk_02 + dk_03)"
           git push
