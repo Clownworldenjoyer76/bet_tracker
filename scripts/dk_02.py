@@ -4,14 +4,12 @@
 
 import csv
 from pathlib import Path
-import pandas as pd
 
 # =========================
 # PATHS
 # =========================
 
 INPUT_DIR = Path("docs/win/manual/cleaned")
-GAMES_MASTER_DIR = Path("docs/win/games_master")
 
 ERROR_DIR = Path("docs/win/errors/02_dk_prep")
 ERROR_LOG = ERROR_DIR / "dk_02_game_id.txt"
@@ -26,33 +24,11 @@ def log(msg: str):
     with open(ERROR_LOG, "a", encoding="utf-8") as f:
         f.write(msg + "\n")
 
-def norm(s: str) -> str:
-    return " ".join(str(s).split()) if s else ""
-
-def load_games_master_index():
-    files = list(GAMES_MASTER_DIR.glob("games_*.csv"))
-    if not files:
-        raise RuntimeError("No games_master files found")
-
-    df = pd.concat(
-        [pd.read_csv(f, dtype=str) for f in files],
-        ignore_index=True
-    )
-
-    index = {}
-    for _, r in df.iterrows():
-        key = (r["date"], norm(r["away_team"]), norm(r["home_team"]))
-        index[key] = r["game_id"]
-
-    return index
-
 # =========================
 # CORE
 # =========================
 
-def process_file(path: Path, gm_index):
-    rows_in = rows_matched = 0
-
+def process_file(path: Path):
     with open(path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         rows = list(reader)
@@ -61,65 +37,27 @@ def process_file(path: Path, gm_index):
     if "game_id" not in fieldnames:
         fieldnames.append("game_id")
 
-    parts = path.stem.split("_")
-    if len(parts) < 6:
-        log(f"SKIPPED (bad filename): {path.name}")
-        return
-
-    _, league, market, year, month, day = parts
-    date = f"{year}_{month}_{day}"
-
     for row in rows:
-        rows_in += 1
-
-        # spreads / totals do not encode away/home at row level
-        if market != "moneyline":
-            row["game_id"] = ""
-            continue
-
-        away = norm(row.get("away_team"))
-        home = norm(row.get("home_team"))
-
-        gid = gm_index.get((date, away, home), "")
-        row["game_id"] = gid
-
-        if gid:
-            rows_matched += 1
-        else:
-            log(f"NO_MATCH | {path.name} | {date} | {away} vs {home}")
-
-    # =========================
-    # ENFORCEMENT
-    # =========================
-
-    if market == "moneyline":
-        if rows_in and rows_matched / rows_in < 0.9:
-            raise RuntimeError(
-                f"Low game_id match rate in {path.name}: {rows_matched}/{rows_in}"
-            )
-    else:
-        log(
-            f"{path.name} | non-moneyline file, game_id deferred "
-            f"(matched={rows_matched}/{rows_in})"
-        )
+        # Identity is NOT knowable at row level for DK data.
+        # It is assigned safely at game-group level in dk_03.py.
+        row["game_id"] = ""
 
     with open(path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(rows)
 
-    log(f"{path.name} | rows={rows_in} matched={rows_matched}")
+    log(f"{path.name} | rows={len(rows)} | game_id deferred")
 
 # =========================
 # MAIN
 # =========================
 
 def main():
-    log("DK_02 START")
-    gm_index = load_games_master_index()
+    log("DK_02 START (identity deferred to dk_03)")
 
     for path in INPUT_DIR.glob("dk_*_*.csv"):
-        process_file(path, gm_index)
+        process_file(path)
 
     log("DK_02 END\n")
 
