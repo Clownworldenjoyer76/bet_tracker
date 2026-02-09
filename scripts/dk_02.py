@@ -25,25 +25,19 @@ def log_error(msg: str):
     with open(ERROR_LOG, "a", encoding="utf-8") as f:
         f.write(msg + "\n")
 
-
 def norm(s: str) -> str:
     if s is None:
         return ""
     return " ".join(str(s).split())
 
-
 def load_dump_index(league: str):
     """
     Build lookup:
-    (date, team) -> game_id
-
-    Reads ANY dump file matching:
-    {league}_*.csv
+    (date, away_team, home_team) -> game_id
     """
     index = {}
 
     for path in DUMP_DIR.glob(f"{league}_*.csv"):
-        # filename: league_YYYY_MM_DD.csv  OR league_market_YYYY_MM_DD.csv
         parts = path.stem.split("_")
         if len(parts) < 4:
             continue
@@ -58,8 +52,10 @@ def load_dump_index(league: str):
                 if not game_id:
                     continue
 
-                index[(date, norm(row.get("home_team")))] = game_id
-                index[(date, norm(row.get("away_team")))] = game_id
+                away = norm(row.get("away_team"))
+                home = norm(row.get("home_team"))
+
+                index[(date, away, home)] = game_id
 
     return index
 
@@ -89,13 +85,15 @@ def process_file(path: Path):
     updated_rows = []
 
     for row in rows:
-        team = norm(row.get("team"))
-        game_id = dump_index.get((date, team), "")
+        away = norm(row.get("away_team"))
+        home = norm(row.get("home_team"))
+
+        game_id = dump_index.get((date, away, home), "")
         row["game_id"] = game_id
 
         if not game_id:
             log_error(
-                f"{path.name} | league={league} | date={date} | team={team}"
+                f"{path.name} | league={league} | date={date} | away={away} | home={home}"
             )
 
         updated_rows.append(row)
@@ -119,7 +117,6 @@ def main():
     for pattern in patterns:
         for file in INPUT_DIR.glob(pattern):
             process_file(file)
-
 
 if __name__ == "__main__":
     main()
