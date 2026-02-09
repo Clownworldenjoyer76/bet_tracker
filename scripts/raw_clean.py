@@ -22,7 +22,7 @@ from scripts.name_normalization import (
 INPUT_DIR = "docs/win/dump/csvs/"
 OUTPUT_DIR = "docs/win/dump/csvs/cleaned/"
 GAMES_MASTER_DIR = "docs/win/games_master/"
-ERROR_DIR = "docs/win/errors/"
+ERROR_DIR = "docs/win/errors/01_raw/"
 ERROR_LOG = os.path.join(ERROR_DIR, "raw_clean.txt")
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
