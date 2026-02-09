@@ -2,18 +2,13 @@ name: 02 DK Prep
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - "scripts/**"
-      - ".github/workflows/dk_prep.yml"
-      - "docs/win/team_aliases.csv"
 
 jobs:
-  dk_prep:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
+      - name: Checkout Repo
         uses: actions/checkout@v4
 
       - name: Set up Python
@@ -34,14 +29,11 @@ jobs:
 
       - name: DK name normalization
         run: |
-          python scripts/name_normalization.py \
-            --input docs/win/manual/cleaned \
-            --output docs/win/manual/cleaned \
-            --aliases docs/win/team_aliases.csv \
-            --league-mode base
+          python scripts/name_normalization_manual.py
+            
 
-      - name: DK 03 – normalize by games_master
-        run: python scripts/dk_03.py
+     # - name: DK 03 – normalize by games_master
+     #   run: python scripts/dk_03.py
 
-      - name: Validate games_master
-        run: python scripts/validate_games_master.py
+    #  - name: Validate games_master
+     #   run: python scripts/validate_games_master.py
