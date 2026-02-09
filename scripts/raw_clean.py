@@ -1,3 +1,5 @@
+# scripts/raw_clean.py
+
 import os
 import sys
 import pandas as pd
