@@ -54,9 +54,13 @@ def normalize_id_part(s: str) -> str:
     s = re.sub(r"_+", "_", s)
     return s.strip("_")
 
+def base_league(val: str) -> str:
+    return str(val).split("_", 1)[0]
+
 def expected_game_id(row):
+    lg = base_league(row["league"])
     return (
-        f"{row['league']}_{row['date']}_"
+        f"{lg}_{row['date']}_"
         f"{normalize_id_part(row['away_team'])}_"
         f"{normalize_id_part(row['home_team'])}"
     )
@@ -77,6 +81,10 @@ def validate_file(path: Path, games_master: pd.DataFrame):
     for _, row in df.iterrows():
         rows_checked += 1
         gid = row["game_id"]
+
+        if not gid:
+            errors.append((path.as_posix(), gid, "empty_game_id"))
+            continue
 
         if gid not in games_master.index:
             errors.append((path.as_posix(), gid, "game_id_not_found"))
