@@ -32,9 +32,10 @@ jobs:
       - name: Run NHL Totals
         run: python scripts/totals_nhl.py
 
-      - name: Validate games master (totals only)
+       - name: Validate games master (totals only)
         run: |
           python scripts/validate_games_master.py \
+            --error-dir docs/win/errors/05_totals \
             docs/win/*/totals/*.csv
 
       - name: Commit and push changes
