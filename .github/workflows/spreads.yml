@@ -17,7 +17,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Install Dependencies
         run: |
@@ -33,17 +33,22 @@ jobs:
       - name: Run NHL Spreads
         run: python scripts/spreads_nhl.py
 
-      - name: Validate games master
+      - name: Validate games master (spreads only)
         run: |
-          python scripts/validate_games_master.py
+          python scripts/validate_games_master.py \
+            docs/win/*/spreads/*.csv
 
       - name: Commit and Push Changes
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/win/nba/spreads/*.csv
-          git add docs/win/ncaab/spreads/*.csv
-          git add docs/win/nhl/spreads/*.csv
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add \
+            docs/win/nba/spreads \
+            docs/win/ncaab/spreads \
+            docs/win/nhl/spreads \
+            docs/win/errors/06_spreads || true
+
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
