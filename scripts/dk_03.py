@@ -60,9 +60,6 @@ def process_file(path: Path, gm_df: pd.DataFrame):
         base_league = league.split("_")[0]
         date = f"{year}_{month}_{day}"
 
-        df["team_norm"] = df["team"].apply(norm)
-        df["opponent_norm"] = df["opponent"].apply(norm)
-
         gm_slice = gm_df[
             (gm_df["league"] == base_league) &
             (gm_df["date"] == date)
@@ -72,22 +69,61 @@ def process_file(path: Path, gm_df: pd.DataFrame):
 
         for _, gm in gm_slice.iterrows():
             gid = gm["game_id"]
-            away = norm(gm["away_team"])
-            home = norm(gm["home_team"])
 
-            game_rows = df[
-                df.apply(
-                    lambda r: {r["team_norm"], r["opponent_norm"]} == {away, home},
-                    axis=1,
-                )
-            ]
+            # -------------------------
+            # TOTALS (Over / Under rows)
+            # -------------------------
+            if market == "totals":
+                game_rows = df[df["game_id"].isna() | (df["game_id"] == "")]
 
-            rows_found = len(game_rows)
-            log(f"{gid} | expected=({away},{home}) | rows_found={rows_found}")
+                sides = {
+                    r["side"].lower(): r
+                    for _, r in game_rows.iterrows()
+                    if pd.notna(r.get("side"))
+                }
 
-            # MONEYLINE / SPREADS (2 rows)
-            if market in ("moneyline", "spreads"):
-                if rows_found != 2:
+                if "over" not in sides or "under" not in sides:
+                    continue
+
+                over = sides["over"]
+                under = sides["under"]
+
+                out_rows.append({
+                    "date": over["date"],
+                    "time": over["time"],
+                    "league": over["league"],
+                    "game_id": gid,
+                    "away_team": gm["away_team"],
+                    "home_team": gm["home_team"],
+                    "total": over["total"],
+                    "over_odds": over["odds"],
+                    "under_odds": under["odds"],
+                    "over_decimal_odds": over["decimal_odds"],
+                    "under_decimal_odds": under["decimal_odds"],
+                    "away_handle_pct": over.get("handle_pct"),
+                    "home_handle_pct": under.get("handle_pct"),
+                    "away_bets_pct": over.get("bets_pct"),
+                    "home_bets_pct": under.get("bets_pct"),
+                })
+
+            # -------------------------
+            # MONEYLINE / SPREADS
+            # -------------------------
+            else:
+                df["team_norm"] = df["team"].apply(norm)
+                df["opponent_norm"] = df["opponent"].apply(norm)
+
+                away = norm(gm["away_team"])
+                home = norm(gm["home_team"])
+
+                game_rows = df[
+                    df.apply(
+                        lambda r: {r["team_norm"], r["opponent_norm"]} == {away, home},
+                        axis=1,
+                    )
+                ]
+
+                if len(game_rows) != 2:
                     continue
 
                 row_map = {r["team_norm"]: r for _, r in game_rows.iterrows()}
@@ -129,34 +165,6 @@ def process_file(path: Path, gm_df: pd.DataFrame):
 
                 out_rows.append(out)
 
-            # TOTALS (2 rows: over / under)
-            elif market == "totals":
-                sides = {
-                    r["side"].lower(): r
-                    for _, r in game_rows.iterrows()
-                    if "side" in r and pd.notna(r["side"])
-                }
-
-                if "over" not in sides or "under" not in sides:
-                    continue
-
-                over = sides["over"]
-                under = sides["under"]
-
-                out_rows.append({
-                    "date": over["date"],
-                    "time": over["time"],
-                    "league": over["league"],
-                    "game_id": gid,
-                    "away_team": away,
-                    "home_team": home,
-                    "total": over["total"],
-                    "over_odds": over["odds"],
-                    "under_odds": under["odds"],
-                    "over_decimal_odds": over["decimal_odds"],
-                    "under_decimal_odds": under["decimal_odds"],
-                })
-
         if out_rows:
             out_path = OUTPUT_DIR / path.name
             with open(out_path, "w", newline="", encoding="utf-8") as f:
@@ -177,10 +185,9 @@ def process_file(path: Path, gm_df: pd.DataFrame):
 # =========================
 
 def main():
-    # overwrite log every run
     ERROR_LOG.write_text("", encoding="utf-8")
-
     log("DK_03 START")
+
     gm_df = load_games_master()
 
     for path in INPUT_DIR.glob("dk_*_*.csv"):
