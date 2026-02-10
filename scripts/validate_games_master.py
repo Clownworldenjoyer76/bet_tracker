@@ -3,6 +3,7 @@
 from pathlib import Path
 import pandas as pd
 import re
+import sys
 
 # =========================
 # PATHS
@@ -16,7 +17,6 @@ ERROR_CSV = ERROR_DIR / "games_master_validation_errors.csv"
 
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
-# ONLY validate canonical outputs
 VALIDATE_DIRS = [
     Path("docs/win/manual/normalized"),
     Path("docs/win/final"),
@@ -108,42 +108,42 @@ def validate_file(path: Path, games_master: pd.DataFrame):
 # =========================
 
 def main():
-    # overwrite logs every run
     ERROR_LOG.write_text("", encoding="utf-8")
     if ERROR_CSV.exists():
         ERROR_CSV.unlink()
 
     games_master = load_games_master()
 
+    # NEW: optional file arguments
+    if len(sys.argv) > 1:
+        paths = [Path(p) for p in sys.argv[1:]]
+    else:
+        paths = []
+        for base_dir in VALIDATE_DIRS:
+            if base_dir.exists():
+                paths.extend(base_dir.rglob("*.csv"))
+
     error_rows = []
     skipped_files = []
     files_scanned = 0
     total_rows_checked = 0
 
-    for base_dir in VALIDATE_DIRS:
-        if not base_dir.exists():
+    for csv_path in paths:
+        if not csv_path.exists():
+            continue
+        if "games_master" in csv_path.as_posix():
             continue
 
-        for csv_path in base_dir.rglob("*.csv"):
-            if "games_master" in csv_path.as_posix():
-                continue
+        files_scanned += 1
+        result = validate_file(csv_path, games_master)
 
-            files_scanned += 1
-            result = validate_file(csv_path, games_master)
+        if isinstance(result[1], str):
+            skipped_files.append((csv_path.as_posix(), result[1]))
+            continue
 
-            if isinstance(result[1], str):
-                skipped_files.append((csv_path.as_posix(), result[1]))
-                continue
-
-            errs, rows_checked = result
-            total_rows_checked += rows_checked
-
-            if errs:
-                error_rows.extend(errs)
-
-    # =========================
-    # LOGGING
-    # =========================
+        errs, rows_checked = result
+        total_rows_checked += rows_checked
+        error_rows.extend(errs)
 
     with open(ERROR_LOG, "w", encoding="utf-8") as f:
         f.write("GAMES MASTER VALIDATION SUMMARY\n")
@@ -157,17 +157,12 @@ def main():
             for path, reason in skipped_files:
                 f.write(f"- {path} ({reason})\n")
 
-    # =========================
-    # ERROR OUTPUT
-    # =========================
-
     if error_rows:
         err_df = pd.DataFrame(
             error_rows,
             columns=["file", "game_id", "error"]
         )
         err_df.to_csv(ERROR_CSV, index=False)
-
         raise RuntimeError(
             f"Games master validation failed ({len(err_df)} errors)"
         )
