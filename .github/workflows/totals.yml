@@ -16,7 +16,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Install dependencies
         run: |
@@ -32,22 +32,25 @@ jobs:
       - name: Run NHL Totals
         run: python scripts/totals_nhl.py
 
-      - name: Validate games master
+      - name: Validate games master (totals only)
         run: |
-          python scripts/validate_games_master.py
+          python scripts/validate_games_master.py \
+            docs/win/*/totals/*.csv
 
       - name: Commit and push changes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add docs/win/nba/totals/*.csv
-          git add docs/win/ncaab/totals/*.csv
-          git add docs/win/nhl/totals/*.csv
+          git add \
+            docs/win/nba/totals/*.csv \
+            docs/win/ncaab/totals/*.csv \
+            docs/win/nhl/totals/*.csv \
+            docs/win/errors/04_moneyline
 
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "Update O/U totals CSVs"
+            git commit -m "Update totals CSVs"
             git push
           fi
