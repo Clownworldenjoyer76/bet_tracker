@@ -1,4 +1,4 @@
-name: 07 Juice 
+name: 07 Juice
 
 on:
   workflow_dispatch: {}
@@ -6,6 +6,9 @@ on:
 jobs:
   run-juice:
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout repo
@@ -21,6 +24,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install pandas
 
+      # ---------------------------------
+      # PRE-CLEAN ODDS (NUMERIC ONLY)
+      # ---------------------------------
+      - name: Pre-clean American odds for juice
+        run: python scripts/juice_pre_clean.py
+
+      # ---------------------------------
+      # RUN JUICE SCRIPTS
+      # ---------------------------------
       - name: Run moneyline juice
         run: python scripts/juice_ml.py
 
@@ -30,10 +42,30 @@ jobs:
       - name: Run spreads juice
         run: python scripts/juice_spreads.py
 
+      # ---------------------------------
+      # VALIDATE GAMES MASTER (JUICE ONLY)
+      # ---------------------------------
+      - name: Validate games master (juice outputs only)
+        run: |
+          python scripts/validate_games_master.py \
+            --error-dir docs/win/errors/07_juice \
+            docs/win/juice/**/*.csv
+
+      # ---------------------------------
+      # COMMIT OUTPUTS + ERROR LOGS
+      # ---------------------------------
       - name: Commit outputs
         run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git add docs/win/juice
-          git commit -m "Update juice outputs" || echo "No changes to commit"
-          git push
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add \
+            docs/win/juice \
+            docs/win/errors/07_juice || true
+
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update juice outputs"
+            git push
+          fi
