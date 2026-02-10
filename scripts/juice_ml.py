@@ -86,7 +86,7 @@ def run():
                 out_col = odds_col.replace("acceptable_american_odds", "juice_odds")
 
                 def apply(row):
-                    nonlocal rows_defaulted
+                    global rows_defaulted
                     try:
                         base_dec = american_to_decimal(row[odds_col])
                         juice = prob_bin_lookup(row[prob_col], jt)
