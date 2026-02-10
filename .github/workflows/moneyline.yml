@@ -33,13 +33,18 @@ jobs:
       - name: Validate games master (moneyline only)
         run: |
           python scripts/validate_games_master.py \
+            --error-dir docs/win/errors/04_moneyline \
             docs/win/*/moneyline/*.csv
 
       - name: Commit and Push Changes
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/win/*/moneyline/*.csv docs/win/errors/04_moneyline
+
+          git add \
+            docs/win/*/moneyline/*.csv \
+            docs/win/errors/04_moneyline || true
+
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
