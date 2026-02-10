@@ -31,14 +31,14 @@ def decimal_to_american(d):
         raise ValueError("Invalid decimal odds")
     return int(round((d - 1) * 100)) if d >= 2 else int(round(-100 / (d - 1)))
 
-# ---------- LOOKUP ----------
+# ---------- SPREAD JUICE LOOKUP ----------
 
 def band_lookup_spread(spread_abs, fav_ud, venue, jt):
     r = jt[
-        (jt.band_min <= spread_abs) &
-        (spread_abs < jt.band_max) &
-        (jt.fav_ud == fav_ud) &
-        (jt.venue == venue)
+        (jt["band_min"] <= spread_abs) &
+        (spread_abs < jt["band_max"]) &
+        (jt["fav_ud"] == fav_ud) &
+        (jt["venue"] == venue)
     ]
     return float(r.iloc[0].extra_juice) if not r.empty else 0.0
 
@@ -49,25 +49,28 @@ def normalize_date(val):
 
 def apply_spread_juice(df, jt, league, out_dir):
     global rows_defaulted
+
     game_date = normalize_date(df["date"].iloc[0])
 
     def apply_away(row):
+        global rows_defaulted
         try:
+            spread = row["away_spread"]
+            fav_ud = "favorite" if spread < 0 else "underdog"
             base_dec = american_to_decimal(row["away_spread_acceptable_american_odds"])
-            juice = band_lookup_spread(abs(row["away_spread"]),
-                                       "favorite" if row["away_spread"] < 0 else "underdog",
-                                       "away", jt)
+            juice = band_lookup_spread(abs(spread), fav_ud, "away", jt)
             return decimal_to_american(base_dec * (1 + juice))
         except Exception:
             rows_defaulted += 1
             return row["away_spread_acceptable_american_odds"]
 
     def apply_home(row):
+        global rows_defaulted
         try:
+            spread = row["home_spread"]
+            fav_ud = "favorite" if spread < 0 else "underdog"
             base_dec = american_to_decimal(row["home_spread_acceptable_american_odds"])
-            juice = band_lookup_spread(abs(row["home_spread"]),
-                                       "favorite" if row["home_spread"] < 0 else "underdog",
-                                       "home", jt)
+            juice = band_lookup_spread(abs(spread), fav_ud, "home", jt)
             return decimal_to_american(base_dec * (1 + juice))
         except Exception:
             rows_defaulted += 1
