@@ -2,8 +2,8 @@
 
 import pandas as pd
 from pathlib import Path
-import glob
 import sys
+import re
 
 # =========================
 # CONFIG
@@ -18,7 +18,7 @@ INPUT_PATTERNS = [
     "docs/win/ncaab/totals/*.csv",
 ]
 
-EXPLICIT_ODDS_COLUMNS = {
+EXPLICIT_COLUMNS = {
     "away_odds",
     "home_odds",
     "over_odds",
@@ -33,88 +33,97 @@ EXPLICIT_ODDS_COLUMNS = {
     "home_ml_acceptable_american_odds",
 }
 
+ERROR_DIR = Path("docs/win/errors/07_juice")
+ERROR_LOG = ERROR_DIR / "juice_pre_clean_summary.txt"
+
+ERROR_DIR.mkdir(parents=True, exist_ok=True)
+
 # =========================
 # HELPERS
 # =========================
 
-def is_odds_column(col: str) -> bool:
-    return (
-        "american_odds" in col
-        or col in EXPLICIT_ODDS_COLUMNS
-    )
-
-def normalize_american(val, file, col):
+def normalize_american(val):
+    """
+    Convert '+130', '-110', '130', -110 → int
+    Leave blanks / NaN untouched
+    """
     if pd.isna(val):
         return val
 
-    if isinstance(val, (int, float)):
-        return int(val)
-
     s = str(val).strip()
+    if s == "":
+        return val
 
-    if s.startswith("+"):
-        s = s[1:]
+    # strip leading +
+    s = re.sub(r"^\+", "", s)
 
-    if s.startswith("-"):
-        sign = -1
-        s = s[1:]
-    else:
-        sign = 1
+    try:
+        return int(float(s))
+    except ValueError:
+        return val
 
-    if not s.isdigit():
-        raise ValueError(
-            f"Non-numeric American odds '{val}' "
-            f"in {file} column '{col}'"
-        )
-
-    return sign * int(s)
+def should_normalize(col):
+    return (
+        "american_odds" in col
+        or col in EXPLICIT_COLUMNS
+    )
 
 # =========================
 # MAIN
 # =========================
 
 def main():
-    files = []
-    for pattern in INPUT_PATTERNS:
-        files.extend(glob.glob(pattern))
-
-    if not files:
-        print("juice_pre_clean: no input files found")
-        return
-
     total_files = 0
     total_columns = 0
     total_values = 0
 
-    for file in files:
-        path = Path(file)
-        df = pd.read_csv(path)
+    for pattern in INPUT_PATTERNS:
+        for path in Path().glob(pattern):
+            if not path.exists():
+                continue
 
-        odds_cols = [c for c in df.columns if is_odds_column(c)]
-        if not odds_cols:
-            continue
+            df = pd.read_csv(path)
+            modified = False
 
-        total_files += 1
-        total_columns += len(odds_cols)
+            for col in df.columns:
+                if not should_normalize(col):
+                    continue
 
-        for col in odds_cols:
-            df[col] = df[col].apply(
-                lambda v: normalize_american(v, file, col)
-            )
-            total_values += df[col].notna().sum()
+                total_columns += 1
+                before = df[col].copy()
 
-        df.to_csv(path, index=False)
-        print(f"Normalized odds in {path}")
+                df[col] = df[col].apply(normalize_american)
 
-    print("\nJUICE PRE-CLEAN SUMMARY")
-    print("=======================")
-    print(f"Files processed: {total_files}")
-    print(f"Columns normalized: {total_columns}")
-    print(f"Values normalized: {total_values}")
+                changed = (before != df[col]).sum()
+                if changed > 0:
+                    total_values += int(changed)
+                    modified = True
+
+            if modified:
+                df.to_csv(path, index=False)
+
+            total_files += 1
+
+    summary = (
+        "JUICE PRE-CLEAN SUMMARY\n"
+        "======================\n"
+        f"Files processed: {total_files}\n"
+        f"Columns normalized: {total_columns}\n"
+        f"Values normalized: {total_values}\n"
+    )
+
+    print("\n" + summary)
+    ERROR_LOG.write_text(summary, encoding="utf-8")
+
+# =========================
+# ENTRY
+# =========================
 
 if __name__ == "__main__":
     try:
         main()
     except Exception as e:
-        print(f"juice_pre_clean FAILED: {e}", file=sys.stderr)
+        msg = f"JUICE PRE-CLEAN FAILED\n{e}\n"
+        print(msg, file=sys.stderr)
+        ERROR_LOG.write_text(msg, encoding="utf-8")
         sys.exit(1)
