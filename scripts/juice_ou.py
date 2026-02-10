@@ -31,14 +31,21 @@ def decimal_to_american(d):
         return ""
     return int(round((d - 1) * 100)) if d >= 2 else int(round(-100 / (d - 1)))
 
-# ---------- LOOKUPS ----------
+# ---------- JUICE LOOKUPS ----------
 
 def band_lookup_total(total, side, jt):
-    r = jt[(jt.band_min <= total) & (total < jt.band_max) & (jt.side == side)]
+    r = jt[
+        (jt.band_min <= total) &
+        (total < jt.band_max) &
+        (jt.side == side)
+    ]
     return float(r.iloc[0].extra_juice) if not r.empty else 0.0
 
 def exact_lookup_total(total, side, jt):
-    r = jt[(jt.over_under == total) & (jt.side == side)]
+    r = jt[
+        (jt.over_under == total) &
+        (jt.side == side)
+    ]
     return float(r.iloc[0].extra_juice) if not r.empty else 0.0
 
 # ---------- MAIN ----------
@@ -46,19 +53,43 @@ def exact_lookup_total(total, side, jt):
 def normalize_date(val):
     return str(val).replace("-", "_")
 
+def load_juice_table(path):
+    jt = pd.read_csv(path)
+    jt["extra_juice"] = jt["extra_juice"].replace([math.inf, -math.inf], 2.0)
+    return jt
+
 def run():
     global files_scanned, files_written, rows_processed, rows_defaulted
 
     log(f"\n=== JUICE TOTALS RUN @ {datetime.utcnow().isoformat()}Z ===")
 
     JOBS = [
-        ("nba", "docs/win/nba/totals/ou_nba_*.csv", "config/nba/nba_totals_juice.csv", "band"),
-        ("ncaab", "docs/win/ncaab/totals/ou_ncaab_*.csv", "config/ncaab/ncaab_ou_juice.csv", "exact"),
-        ("nhl", "docs/win/nhl/totals/ou_nhl_*.csv", "config/nhl/nhl_totals_juice.csv", "band"),
+        (
+            "nba",
+            "docs/win/nba/totals/totals_nba_*.csv",
+            "config/nba/nba_totals_juice.csv",
+            "band",
+        ),
+        (
+            "ncaab",
+            "docs/win/ncaab/totals/totals_ncaab_*.csv",
+            "config/ncaab/ncaab_totals_juice.csv",
+            "exact",
+        ),
+        (
+            "nhl",
+            "docs/win/nhl/totals/totals_nhl_*.csv",
+            "config/nhl/nhl_totals_juice.csv",
+            "band",
+        ),
     ]
 
     for league, pattern, juice_file, mode in JOBS:
-        jt = pd.read_csv(juice_file)
+        if not Path(juice_file).exists():
+            continue
+
+        jt = load_juice_table(juice_file)
+
         out_dir = Path(f"docs/win/juice/{league}/totals")
         out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -66,13 +97,18 @@ def run():
             files_scanned += 1
             df = pd.read_csv(f)
             rows_processed += len(df)
+
             game_date = normalize_date(df["date"].iloc[0])
 
             def apply_over(row):
                 global rows_defaulted
                 try:
                     base_dec = american_to_decimal(row["over_acceptable_american_odds"])
-                    juice = band_lookup_total(row["total"], "over", jt) if mode == "band" else exact_lookup_total(row["total"], "over", jt)
+                    juice = (
+                        band_lookup_total(row["total"], "over", jt)
+                        if mode == "band"
+                        else exact_lookup_total(row["total"], "over", jt)
+                    )
                     return decimal_to_american(base_dec * (1 + juice))
                 except Exception:
                     rows_defaulted += 1
@@ -82,7 +118,11 @@ def run():
                 global rows_defaulted
                 try:
                     base_dec = american_to_decimal(row["under_acceptable_american_odds"])
-                    juice = band_lookup_total(row["total"], "under", jt) if mode == "band" else exact_lookup_total(row["total"], "under", jt)
+                    juice = (
+                        band_lookup_total(row["total"], "under", jt)
+                        if mode == "band"
+                        else exact_lookup_total(row["total"], "under", jt)
+                    )
                     return decimal_to_american(base_dec * (1 + juice))
                 except Exception:
                     rows_defaulted += 1
@@ -93,6 +133,7 @@ def run():
 
             out = out_dir / f"juice_{league}_totals_{game_date}.csv"
             df.to_csv(out, index=False)
+
             files_written += 1
             log(f"Wrote {out}")
 
