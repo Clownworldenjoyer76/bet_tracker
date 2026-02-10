@@ -1,4 +1,4 @@
-name: 08 Final Step
+name: 08 Final Pipeline (final_01 → final_06)
 
 on:
   workflow_dispatch:
@@ -20,45 +20,61 @@ jobs:
 
       - name: Install dependencies
         run: |
+          set -euo pipefail
           python -m pip install --upgrade pip
           pip install pandas
 
       - name: Run final_01 script
         run: |
+          set -euo pipefail
+          echo "=== RUNNING final_01 ==="
           python scripts/final_01.py
 
       - name: Run final_02 script
         run: |
+          set -euo pipefail
+          echo "=== RUNNING final_02 ==="
           python scripts/final_02.py
 
       - name: Run final_03 script
         run: |
+          set -euo pipefail
+          echo "=== RUNNING final_03 ==="
           python scripts/final_03.py
 
       - name: Run final_04 script
         run: |
+          set -euo pipefail
+          echo "=== RUNNING final_04 ==="
           python scripts/final_04.py
 
       - name: Run final_05 script
         run: |
+          set -euo pipefail
+          echo "=== RUNNING final_05 ==="
           python scripts/final_05.py
 
       - name: Run final_06 script
         run: |
+          set -euo pipefail
+          echo "=== RUNNING final_06 ==="
           python scripts/final_06.py
 
       - name: Validate games master
         run: |
+          set -euo pipefail
+          echo "=== VALIDATING GAMES MASTER ==="
           python scripts/validate_games_master.py
 
       - name: Commit and push results
         run: |
+          set -euo pipefail
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
 
           if git status --porcelain | grep .; then
-            git add docs/win/final/step_1 docs/win/final/step_2 docs/win/final/step_3
-            git commit -m "Generate final step outputs (steps 1–3, edges)"
+            git add docs/win/final
+            git commit -m "Generate final pipeline outputs"
             git push
           else
             echo "No changes to commit"
