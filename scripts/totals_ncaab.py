@@ -26,6 +26,16 @@ def to_american(decimal_odds):
         return f"+{int((decimal_odds - 1) * 100)}"
     return f"-{int(100 / (decimal_odds - 1))}"
 
+def normalize_shared_columns(df):
+    for col in ["date", "time", "away_team", "home_team"]:
+        if f"{col}_y" in df.columns:
+            df[col] = df[f"{col}_y"]
+        elif f"{col}_x" in df.columns:
+            df[col] = df[f"{col}_x"]
+        elif col not in df.columns:
+            df[col] = ""
+    return df.drop(columns=[c for c in df.columns if c.endswith("_x") or c.endswith("_y")], errors="ignore")
+
 def process_totals():
     projection_files = glob.glob(str(CLEANED_DIR / "ncaab_*.csv"))
 
@@ -52,17 +62,7 @@ def process_totals():
                 log_error(f"No merge rows for {proj_path}")
                 continue
 
-            # ---- merge fix ----
-            merged["date"] = merged["date_y"]
-            merged["time"] = merged.get("time_y", merged.get("time_x"))
-            merged["away_team"] = merged["away_team_y"]
-            merged["home_team"] = merged["home_team_y"]
-
-            merged = merged.drop(
-                columns=[c for c in merged.columns if c.endswith("_x") or c.endswith("_y")],
-                errors="ignore",
-            )
-            # -------------------
+            merged = normalize_shared_columns(merged)
 
             merged["under_probability"] = merged.apply(
                 lambda x: poisson.cdf(x["total"] - 0.5, x["game_projected_points"]),
