@@ -1,5 +1,3 @@
-# scripts/juice_spreads.py
-
 import pandas as pd
 import glob
 from pathlib import Path
@@ -31,7 +29,7 @@ def decimal_to_american(d):
         raise ValueError("Invalid decimal odds")
     return int(round((d - 1) * 100)) if d >= 2 else int(round(-100 / (d - 1)))
 
-# ---------- SPREAD JUICE LOOKUP ----------
+# ---------- SPREAD JUICE LOOKUPS ----------
 
 def band_lookup_spread(spread_abs, fav_ud, venue, jt):
     r = jt[
@@ -41,6 +39,13 @@ def band_lookup_spread(spread_abs, fav_ud, venue, jt):
         (jt["venue"] == venue)
     ]
     return float(r.iloc[0].extra_juice) if not r.empty else 0.0
+
+def exact_lookup_spread(spread, jt):
+    r = jt[jt["spread"] == spread]
+    if r.empty:
+        return 0.0
+    val = r.iloc[0].extra_juice
+    return 2.0 if not math.isfinite(val) else float(val)
 
 # ---------- MAIN ----------
 
@@ -56,9 +61,14 @@ def apply_spread_juice(df, jt, league, out_dir):
         global rows_defaulted
         try:
             spread = row["away_spread"]
-            fav_ud = "favorite" if spread < 0 else "underdog"
             base_dec = american_to_decimal(row["away_spread_acceptable_american_odds"])
-            juice = band_lookup_spread(abs(spread), fav_ud, "away", jt)
+
+            if league == "ncaab":
+                juice = exact_lookup_spread(spread, jt)
+            else:
+                fav_ud = "favorite" if spread < 0 else "underdog"
+                juice = band_lookup_spread(abs(spread), fav_ud, "away", jt)
+
             return decimal_to_american(base_dec * (1 + juice))
         except Exception:
             rows_defaulted += 1
@@ -68,9 +78,14 @@ def apply_spread_juice(df, jt, league, out_dir):
         global rows_defaulted
         try:
             spread = row["home_spread"]
-            fav_ud = "favorite" if spread < 0 else "underdog"
             base_dec = american_to_decimal(row["home_spread_acceptable_american_odds"])
-            juice = band_lookup_spread(abs(spread), fav_ud, "home", jt)
+
+            if league == "ncaab":
+                juice = exact_lookup_spread(spread, jt)
+            else:
+                fav_ud = "favorite" if spread < 0 else "underdog"
+                juice = band_lookup_spread(abs(spread), fav_ud, "home", jt)
+
             return decimal_to_american(base_dec * (1 + juice))
         except Exception:
             rows_defaulted += 1
