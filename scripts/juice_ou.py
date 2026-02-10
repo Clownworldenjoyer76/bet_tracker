@@ -31,7 +31,7 @@ def decimal_to_american(d):
         return ""
     return int(round((d - 1) * 100)) if d >= 2 else int(round(-100 / (d - 1)))
 
-# ---------- JUICE LOOKUPS ----------
+# ---------- LOOKUPS ----------
 
 def band_lookup_total(total, side, jt):
     r = jt[(jt.band_min <= total) & (total < jt.band_max) & (jt.side == side)]
@@ -69,7 +69,7 @@ def run():
             game_date = normalize_date(df["date"].iloc[0])
 
             def apply_over(row):
-                nonlocal rows_defaulted
+                global rows_defaulted
                 try:
                     base_dec = american_to_decimal(row["over_acceptable_american_odds"])
                     juice = band_lookup_total(row["total"], "over", jt) if mode == "band" else exact_lookup_total(row["total"], "over", jt)
@@ -79,7 +79,7 @@ def run():
                     return ""
 
             def apply_under(row):
-                nonlocal rows_defaulted
+                global rows_defaulted
                 try:
                     base_dec = american_to_decimal(row["under_acceptable_american_odds"])
                     juice = band_lookup_total(row["total"], "under", jt) if mode == "band" else exact_lookup_total(row["total"], "under", jt)
