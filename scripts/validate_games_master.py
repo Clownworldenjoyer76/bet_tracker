@@ -4,6 +4,7 @@ from pathlib import Path
 import pandas as pd
 import re
 import sys
+import argparse
 
 # =========================
 # PATHS
@@ -11,11 +12,7 @@ import sys
 
 GAMES_MASTER_DIR = Path("docs/win/games_master")
 
-ERROR_DIR = Path("docs/win/errors/03_dk_iv")
-ERROR_LOG = ERROR_DIR / "games_master_validation.txt"
-ERROR_CSV = ERROR_DIR / "games_master_validation_errors.csv"
-
-ERROR_DIR.mkdir(parents=True, exist_ok=True)
+DEFAULT_ERROR_DIR = Path("docs/win/errors/03_dk_iv")
 
 VALIDATE_DIRS = [
     Path("docs/win/manual/normalized"),
@@ -55,18 +52,10 @@ def normalize_id_part(s: str) -> str:
     return s.strip("_")
 
 def base_league(val: str) -> str:
-    """
-    Strip known market suffixes from league.
-    Examples:
-      nba_moneyline -> nba
-      nhl_totals -> nhl
-      ncaab_spreads -> ncaab
-    """
-    val = str(val)
     for suffix in ("_moneyline", "_totals", "_spreads"):
-        if val.endswith(suffix):
+        if str(val).endswith(suffix):
             return val[: -len(suffix)]
-    return val.split("_", 1)[0]
+    return str(val).split("_", 1)[0]
 
 def expected_game_id(row):
     lg = base_league(row["league"])
@@ -119,14 +108,30 @@ def validate_file(path: Path, games_master: pd.DataFrame):
 # =========================
 
 def main():
-    ERROR_LOG.write_text("", encoding="utf-8")
-    if ERROR_CSV.exists():
-        ERROR_CSV.unlink()
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--error-dir",
+        type=Path,
+        default=DEFAULT_ERROR_DIR,
+        help="Directory to write validation logs and error CSVs",
+    )
+    parser.add_argument("paths", nargs="*")
+    args = parser.parse_args()
+
+    error_dir = args.error_dir
+    error_dir.mkdir(parents=True, exist_ok=True)
+
+    error_log = error_dir / "games_master_validation.txt"
+    error_csv = error_dir / "games_master_validation_errors.csv"
+
+    error_log.write_text("", encoding="utf-8")
+    if error_csv.exists():
+        error_csv.unlink()
 
     games_master = load_games_master()
 
-    if len(sys.argv) > 1:
-        paths = [Path(p) for p in sys.argv[1:]]
+    if args.paths:
+        paths = [Path(p) for p in args.paths]
     else:
         paths = []
         for base_dir in VALIDATE_DIRS:
@@ -155,10 +160,9 @@ def main():
         total_rows_checked += rows_checked
         error_rows.extend(errs)
 
-    with open(ERROR_LOG, "w", encoding="utf-8") as f:
+    with open(error_log, "w", encoding="utf-8") as f:
         f.write("GAMES MASTER VALIDATION SUMMARY\n")
         f.write("===============================\n\n")
-        f.write("Validation mode: CANONICAL OUTPUTS ONLY\n\n")
         f.write(f"Files scanned: {files_scanned}\n")
         f.write(f"Rows checked: {total_rows_checked}\n\n")
 
@@ -172,7 +176,7 @@ def main():
             error_rows,
             columns=["file", "game_id", "error"]
         )
-        err_df.to_csv(ERROR_CSV, index=False)
+        err_df.to_csv(error_csv, index=False)
         raise RuntimeError(
             f"Games master validation failed ({len(err_df)} errors)"
         )
