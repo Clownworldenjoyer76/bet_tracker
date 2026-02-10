@@ -45,12 +45,24 @@ def process_totals():
             df_proj = pd.read_csv(proj_path)
             df_dk = pd.read_csv(dk_path)
 
-            df_proj = df_proj.drop(columns=["date", "time", "away_team", "home_team"], errors="ignore")
+            df_proj = df_proj.drop(columns=["date", "time", "away_team", "home_team", "league"], errors="ignore")
 
             merged = pd.merge(df_proj, df_dk, on="game_id", how="inner")
             if merged.empty:
                 log_error(f"No merge rows for {proj_path}")
                 continue
+
+            # ---- merge fix ----
+            merged["date"] = merged["date_y"]
+            merged["time"] = merged.get("time_y", merged.get("time_x"))
+            merged["away_team"] = merged["away_team_y"]
+            merged["home_team"] = merged["home_team_y"]
+
+            merged = merged.drop(
+                columns=[c for c in merged.columns if c.endswith("_x") or c.endswith("_y")],
+                errors="ignore",
+            )
+            # -------------------
 
             merged["under_probability"] = merged.apply(
                 lambda x: poisson.cdf(x["total"] - 0.5, x["game_projected_points"]),
