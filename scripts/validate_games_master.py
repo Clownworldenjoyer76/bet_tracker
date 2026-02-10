@@ -16,9 +16,9 @@ ERROR_CSV = ERROR_DIR / "games_master_validation_errors.csv"
 
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
+# ONLY validate canonical outputs
 VALIDATE_DIRS = [
-    Path("docs/win/dump"),
-    Path("docs/win/manual"),
+    Path("docs/win/manual/normalized"),
     Path("docs/win/final"),
 ]
 
@@ -148,7 +148,7 @@ def main():
     with open(ERROR_LOG, "w", encoding="utf-8") as f:
         f.write("GAMES MASTER VALIDATION SUMMARY\n")
         f.write("===============================\n\n")
-        f.write("Validation mode: FULL DATASET\n\n")
+        f.write("Validation mode: CANONICAL OUTPUTS ONLY\n\n")
         f.write(f"Files scanned: {files_scanned}\n")
         f.write(f"Rows checked: {total_rows_checked}\n\n")
 
