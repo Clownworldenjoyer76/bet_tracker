@@ -86,14 +86,21 @@ JOBS = [
     ),
 ]
 
+
 def run():
     for subdir, cols in JOBS:
         in_dir = BASE_IN / subdir
         out_dir = BASE_OUT / subdir
         out_dir.mkdir(parents=True, exist_ok=True)
 
+        is_ml = subdir.endswith("/ml")
+
         for f in glob.glob(str(in_dir / "*.csv")):
             df = pd.read_csv(f)
+
+            # ---- ML ONLY: allow missing time ----
+            if is_ml and "time" not in df.columns:
+                df["time"] = "00:00"
 
             missing = [c for c in cols if c not in df.columns]
             if missing:
@@ -105,6 +112,7 @@ def run():
             out_df.to_csv(out_path, index=False)
 
             print(f"Wrote {out_path}")
+
 
 if __name__ == "__main__":
     run()
