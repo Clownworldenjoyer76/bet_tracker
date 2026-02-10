@@ -3,14 +3,6 @@
 from pathlib import Path
 import pandas as pd
 import re
-import sys
-
-# =========================
-# CONFIGURATION
-# =========================
-
-# Validation scope
-LATEST_ONLY = True  # set False for historical audit mode
 
 # =========================
 # PATHS
@@ -73,7 +65,7 @@ def expected_game_id(row):
 # VALIDATION CORE
 # =========================
 
-def validate_file(path: Path, games_master: pd.DataFrame, latest_date: str):
+def validate_file(path: Path, games_master: pd.DataFrame):
     df = pd.read_csv(path, dtype=str)
 
     if not REQUIRED_COLUMNS.issubset(df.columns):
@@ -81,13 +73,8 @@ def validate_file(path: Path, games_master: pd.DataFrame, latest_date: str):
 
     errors = []
     rows_checked = 0
-    rows_skipped_date = 0
 
     for _, row in df.iterrows():
-        if LATEST_ONLY and row["date"] != latest_date:
-            rows_skipped_date += 1
-            continue
-
         rows_checked += 1
         gid = row["game_id"]
 
@@ -106,26 +93,24 @@ def validate_file(path: Path, games_master: pd.DataFrame, latest_date: str):
         if row["home_team"] != gm["home_team"]:
             errors.append((path.as_posix(), gid, "home_team_mismatch"))
 
-    return errors, rows_checked, rows_skipped_date
+    return errors, rows_checked
 
 # =========================
 # MAIN
 # =========================
 
 def main():
-    # overwrite logs on every run
+    # overwrite logs every run
     ERROR_LOG.write_text("", encoding="utf-8")
     if ERROR_CSV.exists():
         ERROR_CSV.unlink()
 
     games_master = load_games_master()
-    latest_date = games_master["date"].max()
 
     error_rows = []
     skipped_files = []
     files_scanned = 0
     total_rows_checked = 0
-    total_rows_skipped_date = 0
 
     for base_dir in VALIDATE_DIRS:
         if not base_dir.exists():
@@ -136,15 +121,14 @@ def main():
                 continue
 
             files_scanned += 1
-            result = validate_file(csv_path, games_master, latest_date)
+            result = validate_file(csv_path, games_master)
 
             if isinstance(result[1], str):
                 skipped_files.append((csv_path.as_posix(), result[1]))
                 continue
 
-            errs, rows_checked, rows_skipped = result
+            errs, rows_checked = result
             total_rows_checked += rows_checked
-            total_rows_skipped_date += rows_skipped
 
             if errs:
                 error_rows.extend(errs)
@@ -156,11 +140,9 @@ def main():
     with open(ERROR_LOG, "w", encoding="utf-8") as f:
         f.write("GAMES MASTER VALIDATION SUMMARY\n")
         f.write("===============================\n\n")
-        f.write(f"Validation mode: {'LATEST_ONLY' if LATEST_ONLY else 'HISTORICAL'}\n")
-        f.write(f"Latest date: {latest_date}\n\n")
+        f.write("Validation mode: FULL DATASET\n\n")
         f.write(f"Files scanned: {files_scanned}\n")
-        f.write(f"Rows checked: {total_rows_checked}\n")
-        f.write(f"Rows skipped due to date filter: {total_rows_skipped_date}\n\n")
+        f.write(f"Rows checked: {total_rows_checked}\n\n")
 
         if skipped_files:
             f.write("Skipped files:\n")
