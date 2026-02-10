@@ -55,7 +55,18 @@ def normalize_id_part(s: str) -> str:
     return s.strip("_")
 
 def base_league(val: str) -> str:
-    return str(val).split("_", 1)[0]
+    """
+    Strip known market suffixes from league.
+    Examples:
+      nba_moneyline -> nba
+      nhl_totals -> nhl
+      ncaab_spreads -> ncaab
+    """
+    val = str(val)
+    for suffix in ("_moneyline", "_totals", "_spreads"):
+        if val.endswith(suffix):
+            return val[: -len(suffix)]
+    return val.split("_", 1)[0]
 
 def expected_game_id(row):
     lg = base_league(row["league"])
@@ -114,7 +125,6 @@ def main():
 
     games_master = load_games_master()
 
-    # NEW: optional file arguments
     if len(sys.argv) > 1:
         paths = [Path(p) for p in sys.argv[1:]]
     else:
