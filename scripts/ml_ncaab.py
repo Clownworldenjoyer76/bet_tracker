@@ -4,12 +4,13 @@ import os
 from pathlib import Path
 from datetime import datetime
 
-# Constants
 EDGE_NCAAB = 0.05
 INPUT_DIR = Path("docs/win/dump/csvs/cleaned")
 OUTPUT_DIR = Path("docs/win/ncaab/moneyline")
-ERROR_DIR = Path("docs/win/errors/04moneyline")
+ERROR_DIR = Path("docs/win/errors/04_moneyline")
+
 ERROR_LOG = ERROR_DIR / "ml_ncaab_errors.txt"
+SUMMARY_LOG = ERROR_DIR / "ml_ncaab_summary.txt"
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
@@ -28,50 +29,58 @@ def log_error(msg):
 def process_ncaab_files():
     files = glob.glob(str(INPUT_DIR / "ncaab_*.csv"))
 
+    files_written = 0
+    rows_processed = 0
+    errors = 0
+
     if not files:
-        log_error(f"No NCAAB files found in {INPUT_DIR}")
-        return
+        log_error("No NCAAB files found")
+        errors += 1
 
     for file_path in files:
         try:
             df = pd.read_csv(file_path)
+            rows_processed += len(df)
 
-            away_prob_col = "away_team_moneyline_win_prob"
-            home_prob_col = "home_team_moneyline_win_prob"
+            away = "away_team_moneyline_win_prob"
+            home = "home_team_moneyline_win_prob"
 
-            if away_prob_col not in df.columns or home_prob_col not in df.columns:
+            if away not in df.columns or home not in df.columns:
                 log_error(f"{file_path} missing probability columns")
+                errors += 1
                 continue
 
-            # Force league value
             df["league"] = "ncaab_moneyline"
 
-            # Away ML
-            df["away_ml_fair_decimal_odds"] = (1 / df[away_prob_col]).round(2)
+            df["away_ml_fair_decimal_odds"] = (1 / df[away]).round(2)
             df["away_ml_fair_american_odds"] = df["away_ml_fair_decimal_odds"].apply(to_american)
-            df["away_ml_acceptable_decimal_odds"] = (df["away_ml_fair_decimal_odds"] * (1.0 + EDGE_NCAAB)).round(2)
+            df["away_ml_acceptable_decimal_odds"] = (df["away_ml_fair_decimal_odds"] * (1 + EDGE_NCAAB)).round(2)
             df["away_ml_acceptable_american_odds"] = df["away_ml_acceptable_decimal_odds"].apply(to_american)
 
-            # Home ML
-            df["home_ml_fair_decimal_odds"] = (1 / df[home_prob_col]).round(2)
+            df["home_ml_fair_decimal_odds"] = (1 / df[home]).round(2)
             df["home_ml_fair_american_odds"] = df["home_ml_fair_decimal_odds"].apply(to_american)
-            df["home_ml_acceptable_decimal_odds"] = (df["home_ml_fair_decimal_odds"] * (1.0 + EDGE_NCAAB)).round(2)
+            df["home_ml_acceptable_decimal_odds"] = (df["home_ml_fair_decimal_odds"] * (1 + EDGE_NCAAB)).round(2)
             df["home_ml_acceptable_american_odds"] = df["home_ml_acceptable_decimal_odds"].apply(to_american)
 
-            cols_to_drop = [
-                "fair_decimal_odds",
-                "fair_american_odds",
-                "acceptable_decimal_odds",
-                "acceptable_american_odds",
-            ]
-            df = df.drop(columns=[c for c in cols_to_drop if c in df.columns])
+            df = df.drop(columns=[c for c in df.columns if c.startswith("fair_") or c.startswith("acceptable_")], errors="ignore")
 
-            base_name = os.path.basename(file_path)
-            output_path = OUTPUT_DIR / f"ml_{base_name}"
-            df.to_csv(output_path, index=False)
+            out = OUTPUT_DIR / f"ml_{os.path.basename(file_path)}"
+            df.to_csv(out, index=False)
+            files_written += 1
 
         except Exception as e:
             log_error(f"{file_path} failed: {e}")
+            errors += 1
+
+    with open(SUMMARY_LOG, "w", encoding="utf-8") as f:
+        f.write(
+            f"script=ml_ncaab\n"
+            f"timestamp={datetime.utcnow().isoformat()}\n"
+            f"files_found={len(files)}\n"
+            f"files_written={files_written}\n"
+            f"rows_processed={rows_processed}\n"
+            f"errors={errors}\n"
+        )
 
 if __name__ == "__main__":
     process_ncaab_files()
