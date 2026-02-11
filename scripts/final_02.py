@@ -5,68 +5,63 @@ from pathlib import Path
 FINAL_BASE = Path("docs/win/final/step_1")
 MANUAL_BASE = Path("docs/win/manual/normalized")
 
-TARGETS = [
-    ("nba", FINAL_BASE / "nba/ml", MANUAL_BASE / "dk_nba_moneyline_*.csv"),
-    ("ncaab", FINAL_BASE / "ncaab/ml", MANUAL_BASE / "dk_ncaab_moneyline_*.csv"),
-]
+COVERAGE_THRESHOLD = 0.80
 
-HANDLE_COLS = [
-    "away_handle_pct",
-    "home_handle_pct",
-    "away_bets_pct",
-    "home_bets_pct",
-]
+FILES_PROCESSED = 0
+TOTAL_ROWS = 0
+TOTAL_FILLED = 0
 
-def load_manual_map(pattern):
-    dfs = []
+def update_files(final_glob, manual_glob, mappings):
+    global FILES_PROCESSED, TOTAL_ROWS, TOTAL_FILLED
 
-    for f in glob.glob(str(pattern)):
+    manual_files = glob.glob(str(manual_glob))
+    if not manual_files:
+        raise RuntimeError(f"No manual files found for {manual_glob}")
+
+    manual = pd.concat([pd.read_csv(f) for f in manual_files])
+    manual["game_id"] = manual["game_id"].astype(str).str.strip()
+    manual = manual.drop_duplicates("game_id").set_index("game_id")
+
+    for f in glob.glob(str(final_glob)):
         df = pd.read_csv(f)
+        FILES_PROCESSED += 1
 
-        required = ["game_id", *HANDLE_COLS]
-        missing = [c for c in required if c not in df.columns]
-        if missing:
-            print(f"Skipping {f} (missing {missing})")
-            continue
+        if "game_id" not in df.columns:
+            raise RuntimeError(f"{f} missing game_id")
 
-        df = df[required].copy()
         df["game_id"] = df["game_id"].astype(str).str.strip()
-        dfs.append(df)
+        rows = len(df)
+        TOTAL_ROWS += rows
 
-    if not dfs:
-        return pd.DataFrame(columns=["game_id", *HANDLE_COLS])
+        filled = 0
+        for out_col, src_col in mappings.items():
+            df[out_col] = df["game_id"].map(manual[src_col])
+            filled += df[out_col].notna().sum()
 
-    out = pd.concat(dfs, ignore_index=True)
-    return out.drop_duplicates(subset="game_id", keep="last")
+        TOTAL_FILLED += filled
+        df.to_csv(f, index=False)
 
+        print(f"Updated {f} | rows={rows} | filled={filled}")
 
 def run():
-    for league, final_dir, manual_pattern in TARGETS:
-        manual_df = load_manual_map(manual_pattern)
+    update_files(
+        FINAL_BASE / "nba/ml/*.csv",
+        MANUAL_BASE / "dk_nba_moneyline_*.csv",
+        {"dk_away_odds": "away_odds", "dk_home_odds": "home_odds"},
+    )
 
-        if manual_df.empty:
-            print(f"No manual data found for {league}")
-            continue
+    coverage = TOTAL_FILLED / TOTAL_ROWS if TOTAL_ROWS else 0
 
-        manual_df = manual_df.set_index("game_id")
+    print("\n=== FINAL_02 SUMMARY ===")
+    print(f"Files processed: {FILES_PROCESSED}")
+    print(f"Total rows: {TOTAL_ROWS}")
+    print(f"Coverage: {coverage:.2%}")
 
-        for f in glob.glob(str(final_dir / "juice_*.csv")):
-            df = pd.read_csv(f)
+    if FILES_PROCESSED == 0:
+        raise RuntimeError("final_02: 0 files processed")
 
-            if "game_id" not in df.columns:
-                print(f"Skipping {f} (no game_id)")
-                continue
-
-            df["game_id"] = df["game_id"].astype(str).str.strip()
-
-            updated = 0
-            for col in HANDLE_COLS:
-                df[col] = df["game_id"].map(manual_df[col])
-                updated += df[col].notna().sum()
-
-            df.to_csv(f, index=False)
-            print(f"Updated {f} | rows filled: {updated}")
-
+    if coverage < COVERAGE_THRESHOLD:
+        raise RuntimeError(f"Manual coverage below threshold: {coverage:.2%}")
 
 if __name__ == "__main__":
     run()
