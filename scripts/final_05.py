@@ -5,42 +5,57 @@ import math
 
 BASE = Path("docs/win/final/step_2")
 
+INVALID_THRESHOLD = 0.20  # fail if >20% invalid conversions
 
-# ---------- ODDS CONVERSION ----------
+FILES_PROCESSED = 0
+TOTAL_ROWS = 0
+TOTAL_INVALID = 0
+
 
 def american_to_decimal(a):
-    """
-    Convert American odds to decimal odds.
-    Returns NaN for invalid / missing values.
-    """
     try:
         a = float(a)
+
         if not math.isfinite(a) or a == 0:
             return pd.NA
+
         return 1 + (a / 100 if a > 0 else 100 / abs(a))
+
     except Exception:
         return pd.NA
 
 
 def apply_decimal_columns(files, mapping):
+    global FILES_PROCESSED, TOTAL_ROWS, TOTAL_INVALID
+
     for f in files:
         df = pd.read_csv(f)
 
-        added = 0
+        FILES_PROCESSED += 1
+        rows = len(df)
+        TOTAL_ROWS += rows
+
+        file_invalid = 0
+
         for src_col, out_col in mapping.items():
             if src_col not in df.columns:
-                print(f"Skipping column {src_col} in {f}")
                 continue
 
             df[out_col] = df[src_col].apply(american_to_decimal)
-            added += 1
+
+            invalid = df[out_col].isna().sum()
+            file_invalid += invalid
+
+        TOTAL_INVALID += file_invalid
 
         df.to_csv(f, index=False)
-        print(f"Updated {f} | decimal cols added: {added}")
+
+        print(
+            f"Updated {f} | rows={rows} | invalid_conversions={file_invalid}"
+        )
 
 
 def run():
-    # ---------- MONEYLINE ----------
     apply_decimal_columns(
         glob.glob(str(BASE / "*/ml/juice_*_ml_*.csv")),
         {
@@ -51,7 +66,6 @@ def run():
         },
     )
 
-    # ---------- SPREADS ----------
     apply_decimal_columns(
         glob.glob(str(BASE / "*/spreads/juice_*_spreads_*.csv")),
         {
@@ -62,7 +76,6 @@ def run():
         },
     )
 
-    # ---------- TOTALS ----------
     apply_decimal_columns(
         glob.glob(str(BASE / "*/totals/juice_*_totals_*.csv")),
         {
@@ -72,6 +85,25 @@ def run():
             "dk_under_odds": "deci_dk_under_odds",
         },
     )
+
+    invalid_rate = TOTAL_INVALID / TOTAL_ROWS if TOTAL_ROWS else 0
+
+    print("\n=== FINAL_05 SUMMARY ===")
+    print(f"Files processed: {FILES_PROCESSED}")
+    print(f"Total rows: {TOTAL_ROWS}")
+    print(f"Total invalid conversions: {TOTAL_INVALID}")
+    print(f"Invalid rate: {invalid_rate:.2%}")
+
+    if FILES_PROCESSED == 0:
+        raise RuntimeError("final_05: 0 files processed")
+
+    if TOTAL_ROWS == 0:
+        raise RuntimeError("final_05: 0 rows processed")
+
+    if invalid_rate > INVALID_THRESHOLD:
+        raise RuntimeError(
+            f"final_05: Invalid conversion rate too high ({invalid_rate:.2%})"
+        )
 
 
 if __name__ == "__main__":
