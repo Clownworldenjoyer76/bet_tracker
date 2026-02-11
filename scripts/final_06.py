@@ -2,139 +2,61 @@ import pandas as pd
 import glob
 from pathlib import Path
 
-STEP1 = Path("docs/win/final/step_1")
 STEP2 = Path("docs/win/final/step_2")
 STEP3 = Path("docs/win/final/step_3")
 
+FILES = 0
+ROWS_IN = 0
+ROWS_OUT = 0
 
-def ensure_dir(path: Path):
-    path.mkdir(parents=True, exist_ok=True)
+def run():
+    global FILES, ROWS_IN, ROWS_OUT
 
-
-def write_filtered(
-    step2_pattern,
-    step1_pattern,
-    out_base,
-    juice_dk_pairs,
-    keep_cols,
-    extra_merge_cols=None,
-):
-    step1_map = {}
-
-    # load step_1 data if needed (for spreads / totals)
-    if step1_pattern:
-        for f in glob.glob(str(step1_pattern)):
-            df = pd.read_csv(f)
-            df["game_id"] = df["game_id"].astype(str)
-            step1_map[Path(f).name] = df
-
-    for f in glob.glob(str(step2_pattern)):
+    for f in glob.glob(str(STEP2 / "**/*.csv"), recursive=True):
         df = pd.read_csv(f)
-        df["game_id"] = df["game_id"].astype(str)
+        FILES += 1
+        ROWS_IN += len(df)
 
-        # apply juice > dk condition
-        mask = False
-        for juice_col, dk_col in juice_dk_pairs:
-            if juice_col in df.columns and dk_col in df.columns:
-                mask = mask | (df[juice_col] > df[dk_col])
-
-        df = df[mask].copy()
         if df.empty:
             continue
 
-        # merge extra values from step_1 (spread / total)
-        if extra_merge_cols:
-            step1_file = Path(f).name
-            if step1_file in step1_map:
-                step1_df = step1_map[step1_file][
-                    ["game_id"] + extra_merge_cols
-                ]
-                df = df.merge(step1_df, on="game_id", how="left")
+        mask = pd.Series(False, index=df.index)  # FIXED
 
-        out_df = df[keep_cols]
-
-        out_path = STEP3 / Path(f).relative_to(STEP2)
-        ensure_dir(out_path.parent)
-        out_df.to_csv(out_path, index=False)
-
-        print(f"Wrote {out_path}")
-
-
-def run():
-    # ---------- ML ----------
-    write_filtered(
-        STEP2 / "*/ml/juice_*_ml_*.csv",
-        None,
-        STEP3,
-        [
+        pairs = [
             ("deci_home_ml_juice_odds", "deci_dk_home_odds"),
             ("deci_away_ml_juice_odds", "deci_dk_away_odds"),
-        ],
-        [
-            "date",
-            "time",
-            "away_team",
-            "home_team",
-            "league",
-            "game_id",
-            "deci_home_ml_juice_odds",
-            "deci_away_ml_juice_odds",
-            "deci_dk_away_odds",
-            "deci_dk_home_odds",
-        ],
-    )
+        ]
 
-    # ---------- SPREADS ----------
-    write_filtered(
-        STEP2 / "*/spreads/juice_*_spreads_*.csv",
-        STEP1 / "*/spreads/juice_*_spreads_*.csv",
-        STEP3,
-        [
-            ("deci_away_spread_juice_odds", "deci_dk_away_odds"),
-            ("deci_home_spread_juice_odds", "deci_dk_home_odds"),
-        ],
-        [
-            "date",
-            "time",
-            "away_team",
-            "home_team",
-            "league",
-            "game_id",
-            "deci_away_spread_juice_odds",
-            "deci_home_spread_juice_odds",
-            "deci_dk_away_odds",
-            "deci_dk_home_odds",
-            "away_spread",
-            "home_spread",
-        ],
-        extra_merge_cols=["away_spread", "home_spread"],
-    )
+        for juice_col, dk_col in pairs:
+            if juice_col in df.columns and dk_col in df.columns:
+                valid = df[juice_col].notna() & df[dk_col].notna()
+                mask |= valid & (df[juice_col] > df[dk_col])
 
-    # ---------- TOTALS ----------
-    write_filtered(
-        STEP2 / "*/totals/juice_*_totals_*.csv",
-        STEP1 / "*/totals/juice_*_totals_*.csv",
-        STEP3,
-        [
-            ("deci_over_juice_odds", "deci_dk_over_odds"),
-            ("deci_under_juice_odds", "deci_dk_under_odds"),
-        ],
-        [
-            "date",
-            "time",
-            "away_team",
-            "home_team",
-            "league",
-            "game_id",
-            "deci_over_juice_odds",
-            "deci_under_juice_odds",
-            "deci_dk_over_odds",
-            "deci_dk_under_odds",
-            "total",
-        ],
-        extra_merge_cols=["total"],
-    )
+        filtered = df[mask].copy()
 
+        rel = Path(f).relative_to(STEP2)
+        out = STEP3 / rel
+        out.parent.mkdir(parents=True, exist_ok=True)
+
+        filtered.to_csv(out, index=False)
+        ROWS_OUT += len(filtered)
+
+        print(f"Wrote {out} | kept={len(filtered)} of {len(df)}")
+
+    print("\n=== FINAL_06 SUMMARY ===")
+    print(f"Files: {FILES}")
+    print(f"Rows in: {ROWS_IN}")
+    print(f"Rows out (value edges): {ROWS_OUT}")
+
+    if FILES == 0:
+        raise RuntimeError("final_06: 0 files processed")
+
+    if ROWS_OUT == 0:
+        raise RuntimeError("final_06: 0 value rows produced")
+
+    # FINAL INTEGRITY CHECK
+    if ROWS_OUT > ROWS_IN:
+        raise RuntimeError("Integrity error: rows_out > rows_in")
 
 if __name__ == "__main__":
     run()
