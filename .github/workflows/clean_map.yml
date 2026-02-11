@@ -30,10 +30,10 @@ jobs:
         run: |
           python scripts/cleanmap.py
 
-      - name: Commit updated mapping files
+      - name: Commit updated mapping file
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
           git add mappings/team_map_ncaab.csv
-          git commit -m "Normalize NCAAB team maps to single canonical per school" || echo "No changes to commit"
+          git commit -m "Normalize NCAAB team map to single canonical per school" || echo "No changes to commit"
           git push
