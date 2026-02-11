@@ -1,0 +1,39 @@
+name: Clean Mapping Files
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  clean-maps:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas
+
+      - name: Run cleanmap script
+        run: |
+          python scripts/cleanmap.py
+
+      - name: Commit updated mapping files
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add mappings/team_map_ncaab_*.csv
+          git commit -m "Normalize NCAAB team maps to single canonical per school" || echo "No changes to commit"
+          git push
