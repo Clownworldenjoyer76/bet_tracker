@@ -18,7 +18,6 @@ sys.path.insert(0, ROOT_DIR)
 from scripts.name_normalization import (
     load_team_maps,
     normalize_value,
-    base_league,
 )
 
 # =========================
@@ -97,12 +96,13 @@ def process_file(path: Path):
         rows_unrecognized = 0
         rows_team_normalized = 0
 
-        raw_league = path.stem.split("_")[1].lower()
-        league = raw_league
-        lg = base_league(league)
+        # FULL league including market (e.g., ncaab_moneyline)
+        parts = path.stem.split("_")
+        league = f"{parts[1]}_{parts[2]}".lower()
 
         for row in rows:
 
+            # ---- DATE FIX ----
             if "date" in row:
                 raw_date = row.get("date")
                 if raw_date is not None:
@@ -114,10 +114,11 @@ def process_file(path: Path):
                     elif unrecognized:
                         rows_unrecognized += 1
 
+            # ---- TEAM NORMALIZATION ----
             if "away_team" in row and row["away_team"]:
                 original = row["away_team"]
                 normalized = normalize_value(
-                    original, lg, team_map, canonical_sets, unmapped
+                    original, league, team_map, canonical_sets, unmapped
                 )
                 if normalized != original:
                     rows_team_normalized += 1
@@ -126,7 +127,7 @@ def process_file(path: Path):
             if "home_team" in row and row["home_team"]:
                 original = row["home_team"]
                 normalized = normalize_value(
-                    original, lg, team_map, canonical_sets, unmapped
+                    original, league, team_map, canonical_sets, unmapped
                 )
                 if normalized != original:
                     rows_team_normalized += 1
@@ -161,7 +162,7 @@ def process_file(path: Path):
 # =========================
 
 def main():
-    # overwrite log file at start of each run
+    # overwrite log file each run
     with open(ERROR_LOG, "w", encoding="utf-8") as f:
         f.write("")
 
