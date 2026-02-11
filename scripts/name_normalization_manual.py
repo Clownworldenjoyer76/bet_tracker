@@ -104,10 +104,9 @@ def main():
             if "league" not in df.columns:
                 continue
 
-            raw_league = str(df["league"].iloc[0]).strip()
-            base_league = raw_league.split("_")[0]
+            league = str(df["league"].iloc[0]).strip()
 
-            team_map, canonical_set = load_team_map_for_league(base_league)
+            team_map, canonical_set = load_team_map_for_league(league)
 
             updated = False
 
@@ -118,7 +117,7 @@ def main():
                 new_vals = []
                 for v in df[col]:
                     new_v = normalize_team(
-                        v, team_map, canonical_set, unmapped, base_league
+                        v, team_map, canonical_set, unmapped, league
                     )
                     if new_v != v:
                         values_updated += 1
