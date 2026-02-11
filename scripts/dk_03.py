@@ -26,10 +26,8 @@ ERROR_DIR.mkdir(parents=True, exist_ok=True)
 # =========================
 
 def log(msg: str):
-    ERROR_DIR.mkdir(parents=True, exist_ok=True)
     with open(ERROR_LOG, "a", encoding="utf-8") as f:
-        f.write(str(msg) + "\n")
-        f.flush()
+        f.write(msg + "\n")
 
 def norm(s: str) -> str:
     return " ".join(str(s).split()) if s else ""
@@ -69,15 +67,23 @@ def process_file(path: Path, gm_df: pd.DataFrame):
             (gm_df["date"] == date)
         ]
 
+        if gm_slice.empty:
+            log(f"{path.name} | NO GAMES_MASTER MATCH FOR {base_league} {date}")
+            return
+
         out_rows = []
+        unmatched = 0
 
         for _, gm in gm_slice.iterrows():
             gid = gm["game_id"]
+            away = norm(gm["away_team"])
+            home = norm(gm["home_team"])
 
             # -------------------------
-            # TOTALS (Over / Under rows)
+            # TOTALS
             # -------------------------
             if market == "totals":
+
                 game_rows = df[df["game_id"].isna() | (df["game_id"] == "")]
 
                 sides = {
@@ -87,6 +93,8 @@ def process_file(path: Path, gm_df: pd.DataFrame):
                 }
 
                 if "over" not in sides or "under" not in sides:
+                    log(f"{path.name} | DROP TOTALS: {away} vs {home} | missing over/under")
+                    unmatched += 1
                     continue
 
                 over = sides["over"]
@@ -97,8 +105,8 @@ def process_file(path: Path, gm_df: pd.DataFrame):
                     "time": over["time"],
                     "league": over["league"],
                     "game_id": gid,
-                    "away_team": gm["away_team"],
-                    "home_team": gm["home_team"],
+                    "away_team": away,
+                    "home_team": home,
                     "total": over["total"],
                     "over_odds": over["odds"],
                     "under_odds": under["odds"],
@@ -114,11 +122,9 @@ def process_file(path: Path, gm_df: pd.DataFrame):
             # MONEYLINE / SPREADS
             # -------------------------
             else:
+
                 df["team_norm"] = df["team"].apply(norm)
                 df["opponent_norm"] = df["opponent"].apply(norm)
-
-                away = norm(gm["away_team"])
-                home = norm(gm["home_team"])
 
                 game_rows = df[
                     df.apply(
@@ -128,10 +134,15 @@ def process_file(path: Path, gm_df: pd.DataFrame):
                 ]
 
                 if len(game_rows) != 2:
+                    log(f"{path.name} | DROP {market.upper()}: {away} vs {home} | matched_rows={len(game_rows)}")
+                    unmatched += 1
                     continue
 
                 row_map = {r["team_norm"]: r for _, r in game_rows.iterrows()}
+
                 if away not in row_map or home not in row_map:
+                    log(f"{path.name} | DROP {market.upper()}: {away} vs {home} | away/home not in row_map")
+                    unmatched += 1
                     continue
 
                 away_row = row_map[away]
@@ -176,7 +187,7 @@ def process_file(path: Path, gm_df: pd.DataFrame):
                 writer.writeheader()
                 writer.writerows(out_rows)
 
-        log(f"{path.name} | games_out={len(out_rows)}")
+        log(f"{path.name} | games_out={len(out_rows)} | dropped={unmatched}")
 
     except Exception as e:
         log(f"FILE ERROR: {path.name}")
@@ -189,28 +200,15 @@ def process_file(path: Path, gm_df: pd.DataFrame):
 # =========================
 
 def main():
-    ERROR_DIR.mkdir(parents=True, exist_ok=True)
-
-    # Hard reset log file every run
-    with open(ERROR_LOG, "w", encoding="utf-8") as f:
-        f.write("")
-
+    ERROR_LOG.write_text("", encoding="utf-8")
     log("DK_03 START")
 
-    try:
-        gm_df = load_games_master()
+    gm_df = load_games_master()
 
-        for path in INPUT_DIR.glob("dk_*_*.csv"):
-            process_file(path, gm_df)
+    for path in INPUT_DIR.glob("dk_*_*.csv"):
+        process_file(path, gm_df)
 
-        log("DK_03 END")
-
-    except Exception as e:
-        log("FATAL ERROR IN MAIN")
-        log(str(e))
-        log(traceback.format_exc())
-        log("-" * 80)
-        raise
+    log("DK_03 END")
 
 if __name__ == "__main__":
     main()
