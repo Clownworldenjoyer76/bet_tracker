@@ -31,53 +31,66 @@ jobs:
 
       - name: Run final_01 script
         run: |
-          set -euo pipefail
           echo "=== RUNNING final_01 ==="
-          python scripts/final_01.py \
-            > docs/win/errors/08_Final_Pipeline/final_01.txt 2>&1
+          set +e
+          python scripts/final_01.py > docs/win/errors/08_Final_Pipeline/final_01.txt 2>&1
+          EXIT_CODE=$?
+          set -e
+          echo $EXIT_CODE > /tmp/final_status
+          if [ $EXIT_CODE -ne 0 ]; then exit $EXIT_CODE; fi
 
       - name: Run final_02 script
         run: |
-          set -euo pipefail
           echo "=== RUNNING final_02 ==="
-          python scripts/final_02.py \
-            > docs/win/errors/08_Final_Pipeline/final_02.txt 2>&1
+          set +e
+          python scripts/final_02.py > docs/win/errors/08_Final_Pipeline/final_02.txt 2>&1
+          EXIT_CODE=$?
+          set -e
+          echo $EXIT_CODE > /tmp/final_status
+          if [ $EXIT_CODE -ne 0 ]; then exit $EXIT_CODE; fi
 
       - name: Run final_03 script
         run: |
-          set -euo pipefail
           echo "=== RUNNING final_03 ==="
-          python scripts/final_03.py \
-            > docs/win/errors/08_Final_Pipeline/final_03.txt 2>&1
+          set +e
+          python scripts/final_03.py > docs/win/errors/08_Final_Pipeline/final_03.txt 2>&1
+          EXIT_CODE=$?
+          set -e
+          echo $EXIT_CODE > /tmp/final_status
+          if [ $EXIT_CODE -ne 0 ]; then exit $EXIT_CODE; fi
 
       - name: Run final_04 script
         run: |
-          set -euo pipefail
           echo "=== RUNNING final_04 ==="
-          python scripts/final_04.py \
-            > docs/win/errors/08_Final_Pipeline/final_04.txt 2>&1
+          set +e
+          python scripts/final_04.py > docs/win/errors/08_Final_Pipeline/final_04.txt 2>&1
+          EXIT_CODE=$?
+          set -e
+          echo $EXIT_CODE > /tmp/final_status
+          if [ $EXIT_CODE -ne 0 ]; then exit $EXIT_CODE; fi
 
       - name: Run final_05 script
         run: |
-          set -euo pipefail
           echo "=== RUNNING final_05 ==="
-          python scripts/final_05.py \
-            > docs/win/errors/08_Final_Pipeline/final_05.txt 2>&1
+          set +e
+          python scripts/final_05.py > docs/win/errors/08_Final_Pipeline/final_05.txt 2>&1
+          EXIT_CODE=$?
+          set -e
+          echo $EXIT_CODE > /tmp/final_status
+          if [ $EXIT_CODE -ne 0 ]; then exit $EXIT_CODE; fi
 
       - name: Run final_06 script
         run: |
-          set -euo pipefail
           echo "=== RUNNING final_06 ==="
-          python scripts/final_06.py \
-            > docs/win/errors/08_Final_Pipeline/final_06.txt 2>&1
-
-   #   - name: Validate games master
-   #     run: |
-   #       set -euo pipefail
-   #       echo "=== VALIDATING GAMES MASTER ==="
-   #       python scripts/validate_games_master.py
+          set +e
+          python scripts/final_06.py > docs/win/errors/08_Final_Pipeline/final_06.txt 2>&1
+          EXIT_CODE=$?
+          set -e
+          echo $EXIT_CODE > /tmp/final_status
+          if [ $EXIT_CODE -ne 0 ]; then exit $EXIT_CODE; fi
 
       - name: Commit and push results
+        if: always()
         run: |
           set -euo pipefail
           git config user.name "github-actions"
