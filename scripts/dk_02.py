@@ -96,7 +96,6 @@ def process_file(path: Path):
         rows_unrecognized = 0
         rows_team_normalized = 0
 
-        # FULL league including market (e.g., ncaab_moneyline)
         parts = path.stem.split("_")
         league = f"{parts[1]}_{parts[2]}".lower()
 
@@ -114,24 +113,24 @@ def process_file(path: Path):
                     elif unrecognized:
                         rows_unrecognized += 1
 
-            # ---- TEAM NORMALIZATION ----
-            if "away_team" in row and row["away_team"]:
-                original = row["away_team"]
+            # ---- TEAM NORMALIZATION (team / opponent) ----
+            if "team" in row and row["team"]:
+                original = row["team"]
                 normalized = normalize_value(
                     original, league, team_map, canonical_sets, unmapped
                 )
                 if normalized != original:
                     rows_team_normalized += 1
-                row["away_team"] = normalized
+                row["team"] = normalized
 
-            if "home_team" in row and row["home_team"]:
-                original = row["home_team"]
+            if "opponent" in row and row["opponent"]:
+                original = row["opponent"]
                 normalized = normalize_value(
                     original, league, team_map, canonical_sets, unmapped
                 )
                 if normalized != original:
                     rows_team_normalized += 1
-                row["home_team"] = normalized
+                row["opponent"] = normalized
 
             row["game_id"] = ""
 
@@ -162,7 +161,6 @@ def process_file(path: Path):
 # =========================
 
 def main():
-    # overwrite log file each run
     with open(ERROR_LOG, "w", encoding="utf-8") as f:
         f.write("")
 
