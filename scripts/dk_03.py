@@ -1,3 +1,5 @@
+# scripts/dk_03
+
 #!/usr/bin/env python3
 
 import csv
@@ -24,8 +26,10 @@ ERROR_DIR.mkdir(parents=True, exist_ok=True)
 # =========================
 
 def log(msg: str):
+    ERROR_DIR.mkdir(parents=True, exist_ok=True)
     with open(ERROR_LOG, "a", encoding="utf-8") as f:
-        f.write(msg + "\n")
+        f.write(str(msg) + "\n")
+        f.flush()
 
 def norm(s: str) -> str:
     return " ".join(str(s).split()) if s else ""
@@ -185,15 +189,28 @@ def process_file(path: Path, gm_df: pd.DataFrame):
 # =========================
 
 def main():
-    ERROR_LOG.write_text("", encoding="utf-8")
+    ERROR_DIR.mkdir(parents=True, exist_ok=True)
+
+    # Hard reset log file every run
+    with open(ERROR_LOG, "w", encoding="utf-8") as f:
+        f.write("")
+
     log("DK_03 START")
 
-    gm_df = load_games_master()
+    try:
+        gm_df = load_games_master()
 
-    for path in INPUT_DIR.glob("dk_*_*.csv"):
-        process_file(path, gm_df)
+        for path in INPUT_DIR.glob("dk_*_*.csv"):
+            process_file(path, gm_df)
 
-    log("DK_03 END")
+        log("DK_03 END")
+
+    except Exception as e:
+        log("FATAL ERROR IN MAIN")
+        log(str(e))
+        log(traceback.format_exc())
+        log("-" * 80)
+        raise
 
 if __name__ == "__main__":
     main()
