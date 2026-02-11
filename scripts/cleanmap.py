@@ -1,11 +1,9 @@
-# scripts/cleanmap.py
-
 #!/usr/bin/env python3
 
 from pathlib import Path
 import pandas as pd
 
-MAP_DIR = Path("mappings")
+MAP_PATH = Path("mappings/team_map_ncaab.csv")
 
 def clean_string(s):
     if pd.isna(s):
@@ -16,26 +14,26 @@ def clean_string(s):
     s = " ".join(s.split())
     return s
 
-def process_file(path: Path):
-    print(f"Processing: {path.name}")
-
-    df = pd.read_csv(path, dtype=str)
-
-    if not {"league", "alias", "canonical_team"}.issubset(df.columns):
-        print(f"Skipping {path.name} — missing required columns")
+def main():
+    if not MAP_PATH.exists():
+        print("team_map_ncaab.csv not found.")
         return
 
-    # Clean fields
+    df = pd.read_csv(MAP_PATH, dtype=str)
+
+    if not {"league", "alias", "canonical_team"}.issubset(df.columns):
+        print("Required columns missing.")
+        return
+
     df["alias"] = df["alias"].apply(clean_string)
     df["canonical_team"] = df["canonical_team"].apply(clean_string)
 
-    # Build full set of all names
+    # Build full set of names
     all_names = pd.concat([df["alias"], df["canonical_team"]]).dropna().unique()
 
     canonical_map = {}
 
     for name in all_names:
-        # Find all rows connected to this name
         matches = df[
             (df["alias"] == name) |
             (df["canonical_team"] == name)
@@ -52,36 +50,22 @@ def process_file(path: Path):
         for n in names:
             canonical_map[n] = canonical
 
-    # Rebuild normalized rows
     league_value = df["league"].iloc[0]
 
     new_rows = []
     for alias in sorted(canonical_map.keys()):
-        canonical = canonical_map[alias]
         new_rows.append({
             "league": league_value,
             "alias": alias,
-            "canonical_team": canonical
+            "canonical_team": canonical_map[alias]
         })
 
     new_df = pd.DataFrame(new_rows).drop_duplicates()
 
     # Overwrite original file
-    new_df.to_csv(path, index=False)
+    new_df.to_csv(MAP_PATH, index=False)
 
-    print(f"Normalized and overwritten: {path.name}\n")
-
-def main():
-    files = sorted(MAP_DIR.glob("team_map_ncaab_*.csv"))
-
-    if not files:
-        print("No matching NCAAB mapping files found.")
-        return
-
-    for path in files:
-        process_file(path)
-
-    print("All NCAAB mapping files normalized.")
+    print("Normalized and overwritten team_map_ncaab.csv")
 
 if __name__ == "__main__":
     main()
