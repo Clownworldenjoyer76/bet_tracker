@@ -32,10 +32,12 @@ jobs:
       # =========================
       - name: Validate games_master (cleaned + normalized)
         run: |
+          set +e
           python scripts/validate_games_master.py \
-          docs/win/dump/csvs/cleaned \
-          docs/win/manual/normalized
-
+            docs/win/dump/csvs/cleaned \
+            docs/win/manual/normalized
+          echo "VALIDATION_EXIT_CODE=$?" >> $GITHUB_ENV
+          set -e
 
       # =========================
       # Commit outputs + logs
@@ -52,3 +54,13 @@ jobs:
 
           git commit -m "DK 03: attach game_id + validate games_master" || echo "No changes to commit"
           git push
+
+      # =========================
+      # Fail workflow if validation failed
+      # =========================
+      - name: Fail if validation failed
+        run: |
+          if [ "$VALIDATION_EXIT_CODE" != "0" ]; then
+            echo "Games master validation failed"
+            exit 1
+          fi
