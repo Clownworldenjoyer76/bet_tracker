@@ -30,8 +30,12 @@ jobs:
       # =========================
       # Validate games_master
       # =========================
-      - name: Validate games_master
-        run: python scripts/validate_games_master.py
+      - name: Validate games_master (cleaned + normalized)
+        run: |
+          python scripts/validate_games_master.py \
+          docs/win/dump/csvs/cleaned \
+          docs/win/manual/normalized
+
 
       # =========================
       # Commit outputs + logs
