@@ -27,6 +27,28 @@ TARGET_COLS = ("team", "opponent", "away_team", "home_team")
 # HELPERS
 # =========================
 
+def clean_string(v: str) -> str:
+    """
+    Normalize punctuation and spacing before mapping.
+    """
+    if pd.isna(v):
+        return v
+
+    v = str(v).strip()
+
+    # Normalize unicode dashes to space
+    v = v.replace("–", " ")
+    v = v.replace("—", " ")
+
+    # Replace hyphens with space
+    v = v.replace("-", " ")
+
+    # Collapse whitespace
+    v = " ".join(v.split())
+
+    return v
+
+
 def load_team_map_for_league(league: str):
     map_path = MAP_DIR / f"team_map_{league}.csv"
 
@@ -42,8 +64,8 @@ def load_team_map_for_league(league: str):
     canonical_set = set()
 
     for _, row in df.iterrows():
-        alias = str(row["alias"]).strip()
-        canonical = str(row["canonical_team"]).strip()
+        alias = clean_string(row["alias"])
+        canonical = clean_string(row["canonical_team"])
         team_map[alias] = canonical
         canonical_set.add(canonical)
 
@@ -54,7 +76,7 @@ def normalize_team(val, team_map, canonical_set, unmapped, league):
     if pd.isna(val):
         return val
 
-    v = str(val).strip()
+    v = clean_string(val)
 
     if v in canonical_set:
         return v
@@ -83,8 +105,6 @@ def main():
                 continue
 
             raw_league = str(df["league"].iloc[0]).strip()
-
-            # 🔥 FIX: extract base league (nba_moneyline → nba)
             base_league = raw_league.split("_")[0]
 
             team_map, canonical_set = load_team_map_for_league(base_league)
