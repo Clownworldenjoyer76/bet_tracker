@@ -97,14 +97,12 @@ def process_file(path: Path):
         rows_unrecognized = 0
         rows_team_normalized = 0
 
-        # infer league from filename prefix
         raw_league = path.stem.split("_")[1].lower()
         league = raw_league
         lg = base_league(league)
 
         for row in rows:
 
-            # ---- DATE FIX ----
             if "date" in row:
                 raw_date = row.get("date")
                 if raw_date is not None:
@@ -116,7 +114,6 @@ def process_file(path: Path):
                     elif unrecognized:
                         rows_unrecognized += 1
 
-            # ---- TEAM NORMALIZATION ----
             if "away_team" in row and row["away_team"]:
                 original = row["away_team"]
                 normalized = normalize_value(
@@ -135,7 +132,6 @@ def process_file(path: Path):
                     rows_team_normalized += 1
                 row["home_team"] = normalized
 
-            # ---- identity still deferred ----
             row["game_id"] = ""
 
         with open(path, "w", newline="", encoding="utf-8") as f:
@@ -165,6 +161,10 @@ def process_file(path: Path):
 # =========================
 
 def main():
+    # overwrite log file at start of each run
+    with open(ERROR_LOG, "w", encoding="utf-8") as f:
+        f.write("")
+
     log("DK_02 START (date fix + team normalization + identity deferred)")
 
     for path in INPUT_DIR.glob("dk_*_*.csv"):
