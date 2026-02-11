@@ -1,10 +1,25 @@
 # scripts/dk_02.py
-
 #!/usr/bin/env python3
 
 import csv
 from pathlib import Path
 import re
+import sys
+import os
+
+# =========================
+# FIX IMPORT PATH
+# =========================
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+ROOT_DIR = os.path.dirname(SCRIPT_DIR)
+sys.path.insert(0, ROOT_DIR)
+
+from scripts.name_normalization import (
+    load_team_maps,
+    normalize_value,
+    base_league,
+)
 
 # =========================
 # PATHS
@@ -16,6 +31,13 @@ ERROR_DIR = Path("docs/win/errors/02_dk_prep")
 ERROR_LOG = ERROR_DIR / "dk_02_game_id.txt"
 
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
+
+# =========================
+# LOAD TEAM MAPS (ONCE)
+# =========================
+
+team_map, canonical_sets = load_team_maps()
+unmapped = set()
 
 # =========================
 # REGEX
@@ -73,9 +95,16 @@ def process_file(path: Path):
         rows_seen = 0
         rows_updated = 0
         rows_unrecognized = 0
+        rows_team_normalized = 0
+
+        # infer league from filename prefix
+        raw_league = path.stem.split("_")[1].lower()
+        league = raw_league
+        lg = base_league(league)
 
         for row in rows:
-            # ---- date fix ----
+
+            # ---- DATE FIX ----
             if "date" in row:
                 raw_date = row.get("date")
                 if raw_date is not None:
@@ -87,7 +116,26 @@ def process_file(path: Path):
                     elif unrecognized:
                         rows_unrecognized += 1
 
-            # ---- identity deferred ----
+            # ---- TEAM NORMALIZATION ----
+            if "away_team" in row and row["away_team"]:
+                original = row["away_team"]
+                normalized = normalize_value(
+                    original, lg, team_map, canonical_sets, unmapped
+                )
+                if normalized != original:
+                    rows_team_normalized += 1
+                row["away_team"] = normalized
+
+            if "home_team" in row and row["home_team"]:
+                original = row["home_team"]
+                normalized = normalize_value(
+                    original, lg, team_map, canonical_sets, unmapped
+                )
+                if normalized != original:
+                    rows_team_normalized += 1
+                row["home_team"] = normalized
+
+            # ---- identity still deferred ----
             row["game_id"] = ""
 
         with open(path, "w", newline="", encoding="utf-8") as f:
@@ -98,8 +146,14 @@ def process_file(path: Path):
         log(
             f"{path.name} | rows={len(rows)} | "
             f"dates_seen={rows_seen} dates_fixed={rows_updated} "
-            f"dates_unrecognized={rows_unrecognized} | game_id deferred"
+            f"dates_unrecognized={rows_unrecognized} "
+            f"teams_normalized={rows_team_normalized} | game_id deferred"
         )
+
+        if unmapped:
+            log("Unmapped teams:")
+            for team in sorted(unmapped):
+                log(f"- {team}")
 
     except Exception as e:
         log(f"FILE ERROR: {path.name}")
@@ -111,7 +165,7 @@ def process_file(path: Path):
 # =========================
 
 def main():
-    log("DK_02 START (date fix + identity deferred to dk_03)")
+    log("DK_02 START (date fix + team normalization + identity deferred)")
 
     for path in INPUT_DIR.glob("dk_*_*.csv"):
         process_file(path)
