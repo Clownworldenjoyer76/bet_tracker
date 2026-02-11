@@ -3,7 +3,6 @@
 from pathlib import Path
 import pandas as pd
 import re
-import sys
 import argparse
 
 # =========================
@@ -130,8 +129,20 @@ def main():
 
     games_master = load_games_master()
 
+    # -------------------------
+    # Path resolution fix
+    # -------------------------
     if args.paths:
-        paths = [Path(p) for p in args.paths]
+        paths = []
+        for p in args.paths:
+            path_obj = Path(p)
+
+            if path_obj.is_dir():
+                paths.extend(path_obj.rglob("*.csv"))
+
+            elif path_obj.is_file():
+                paths.append(path_obj)
+
     else:
         paths = []
         for base_dir in VALIDATE_DIRS:
@@ -182,6 +193,7 @@ def main():
         )
 
     print("games_master validation passed")
+
 
 if __name__ == "__main__":
     main()
