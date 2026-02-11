@@ -9,6 +9,7 @@ FILES = 0
 ROWS_IN = 0
 ROWS_OUT = 0
 
+
 def run():
     global FILES, ROWS_IN, ROWS_OUT
 
@@ -17,15 +18,17 @@ def run():
         FILES += 1
         ROWS_IN += len(df)
 
-        rel = Path(f).relative_to(BASE_IN)
-        out = BASE_OUT / rel
-        out.parent.mkdir(parents=True, exist_ok=True)
+        rel_path = Path(f).relative_to(BASE_IN)
+        out_path = BASE_OUT / rel_path
+        out_path.parent.mkdir(parents=True, exist_ok=True)
 
-        df.to_csv(out, index=False)
+        df.to_csv(out_path, index=False)
         ROWS_OUT += len(df)
 
+        print(f"Wrote {out_path} | rows={len(df)}")
+
     print("\n=== FINAL_04 SUMMARY ===")
-    print(f"Files: {FILES}")
+    print(f"Files processed: {FILES}")
     print(f"Rows in: {ROWS_IN}")
     print(f"Rows out: {ROWS_OUT}")
 
@@ -34,6 +37,7 @@ def run():
 
     if ROWS_OUT == 0:
         raise RuntimeError("final_04: 0 rows written")
+
 
 if __name__ == "__main__":
     run()
