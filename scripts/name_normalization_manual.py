@@ -29,10 +29,15 @@ TARGET_COLS = ("team", "opponent", "away_team", "home_team")
 
 def load_team_map_for_league(league: str):
     map_path = MAP_DIR / f"team_map_{league}.csv"
+
     if not map_path.exists():
-        return {}, set()
+        raise RuntimeError(f"No team map file found for league '{league}' at {map_path}")
 
     df = pd.read_csv(map_path, dtype=str)
+
+    if df.empty:
+        raise RuntimeError(f"Team map file exists but is empty: {map_path}")
+
     team_map = {}
     canonical_set = set()
 
@@ -43,6 +48,7 @@ def load_team_map_for_league(league: str):
         canonical_set.add(canonical)
 
     return team_map, canonical_set
+
 
 def normalize_team(val, team_map, canonical_set, unmapped, league):
     if pd.isna(val):
@@ -58,6 +64,7 @@ def normalize_team(val, team_map, canonical_set, unmapped, league):
 
     unmapped.add((v, league))
     return v
+
 
 # =========================
 # MAIN
@@ -75,11 +82,12 @@ def main():
             if "league" not in df.columns:
                 continue
 
-            league = str(df["league"].iloc[0]).strip()
-            team_map, canonical_set = load_team_map_for_league(league)
+            raw_league = str(df["league"].iloc[0]).strip()
 
-            if not team_map:
-                continue
+            # 🔥 FIX: extract base league (nba_moneyline → nba)
+            base_league = raw_league.split("_")[0]
+
+            team_map, canonical_set = load_team_map_for_league(base_league)
 
             updated = False
 
@@ -90,7 +98,7 @@ def main():
                 new_vals = []
                 for v in df[col]:
                     new_v = normalize_team(
-                        v, team_map, canonical_set, unmapped, league
+                        v, team_map, canonical_set, unmapped, base_league
                     )
                     if new_v != v:
                         values_updated += 1
@@ -121,6 +129,8 @@ def main():
         with open(ERROR_LOG, "a", encoding="utf-8") as f:
             f.write(str(e) + "\n")
             f.write(traceback.format_exc())
+        raise
+
 
 if __name__ == "__main__":
     main()
