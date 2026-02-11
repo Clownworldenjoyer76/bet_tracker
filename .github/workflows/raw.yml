@@ -29,20 +29,7 @@ jobs:
         run: |
           python scripts/name_normalization_dump.py
 
-      #- name: Fix DK manual dates
-      #  run: |
-      #    python scripts/time_fix.py
-      
-    #  - name: Validate games master
-     #   run: |
-       #   python scripts/validate_games_master.py
-
-      - name: Upload games master validation errors
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: games_master_validation_errors
-          path: docs/win/errors/games_master_validation_errors.csv
+     
 
 
       - name: Commit and Push Changes
