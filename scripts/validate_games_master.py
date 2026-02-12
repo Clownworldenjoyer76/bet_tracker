@@ -20,6 +20,8 @@ VALIDATE_DIRS = [
 
 REQUIRED_COLUMNS = {"game_id", "away_team", "home_team", "date", "league"}
 
+EXAMPLE_LIMIT = 25
+
 # =========================
 # LOAD GAMES MASTER
 # =========================
@@ -130,7 +132,7 @@ def main():
     games_master = load_games_master()
 
     # -------------------------
-    # Path resolution fix
+    # Path resolution
     # -------------------------
     if args.paths:
         paths = []
@@ -139,10 +141,8 @@ def main():
 
             if path_obj.is_dir():
                 paths.extend(path_obj.rglob("*.csv"))
-
             elif path_obj.is_file():
                 paths.append(path_obj)
-
     else:
         paths = []
         for base_dir in VALIDATE_DIRS:
@@ -171,6 +171,10 @@ def main():
         total_rows_checked += rows_checked
         error_rows.extend(errs)
 
+    # =========================
+    # WRITE LOG OUTPUT
+    # =========================
+
     with open(error_log, "w", encoding="utf-8") as f:
         f.write("GAMES MASTER VALIDATION SUMMARY\n")
         f.write("===============================\n\n")
@@ -181,15 +185,42 @@ def main():
             f.write("Skipped files:\n")
             for path, reason in skipped_files:
                 f.write(f"- {path} ({reason})\n")
+            f.write("\n")
+
+        if error_rows:
+            f.write(f"Total errors: {len(error_rows)}\n\n")
+
+            err_df = pd.DataFrame(
+                error_rows,
+                columns=["file", "game_id", "error"]
+            )
+
+            grouped = err_df["error"].value_counts()
+
+            f.write("Errors by type:\n")
+            for error_type, count in grouped.items():
+                f.write(f"- {error_type}: {count}\n")
+
+            f.write("\nFirst examples:\n")
+            for _, row in err_df.head(EXAMPLE_LIMIT).iterrows():
+                f.write(
+                    f"- {row['error']} | "
+                    f"{row['file']} | "
+                    f"{row['game_id']}\n"
+                )
+
+            err_df.to_csv(error_csv, index=False)
+
+        else:
+            f.write("No validation errors found.\n")
+
+    # =========================
+    # FAIL IF ERRORS
+    # =========================
 
     if error_rows:
-        err_df = pd.DataFrame(
-            error_rows,
-            columns=["file", "game_id", "error"]
-        )
-        err_df.to_csv(error_csv, index=False)
         raise RuntimeError(
-            f"Games master validation failed ({len(err_df)} errors)"
+            f"Games master validation failed ({len(error_rows)} errors)"
         )
 
     print("games_master validation passed")
