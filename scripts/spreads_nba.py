@@ -28,6 +28,9 @@ def to_american(dec):
     return f"-{int(100 / (dec - 1))}"
 
 def process_spreads():
+    with open(ERROR_LOG, "w", encoding="utf-8"):
+        pass
+        
     projection_files = glob.glob(str(CLEANED_DIR / "nba_*.csv"))
 
     if not projection_files:
