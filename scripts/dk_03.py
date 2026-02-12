@@ -72,7 +72,6 @@ def process_file(path: Path, gm_df: pd.DataFrame):
             log(f"{path.name} | NO GAMES_MASTER MATCH FOR {base_league} {date}")
             return
 
-        # Precompute normalized columns once
         df["team_norm"] = df["team"].apply(norm)
         df["opponent_norm"] = df["opponent"].apply(norm)
 
@@ -85,20 +84,41 @@ def process_file(path: Path, gm_df: pd.DataFrame):
             home = norm(gm["home_team"])
 
             # -------------------------
-            # TOTALS
+            # TOTALS (UPDATED MATCHING)
             # -------------------------
             if market == "totals":
 
-                game_rows = df[df["game_id"].isna() | (df["game_id"] == "")]
+                matchup_rows = df[
+                    (
+                        (df["team_norm"] == away) &
+                        (df["opponent_norm"] == home)
+                    ) |
+                    (
+                        (df["team_norm"] == home) &
+                        (df["opponent_norm"] == away)
+                    )
+                ]
+
+                if len(matchup_rows) != 2:
+                    log(
+                        f"{path.name} | DROP TOTALS: "
+                        f"{away} vs {home} | "
+                        f"matchup_rows={len(matchup_rows)}"
+                    )
+                    unmatched += 1
+                    continue
 
                 sides = {
                     r["side"].lower(): r
-                    for _, r in game_rows.iterrows()
+                    for _, r in matchup_rows.iterrows()
                     if pd.notna(r.get("side"))
                 }
 
                 if "over" not in sides or "under" not in sides:
-                    log(f"{path.name} | DROP TOTALS: {away} vs {home} | missing over/under")
+                    log(
+                        f"{path.name} | DROP TOTALS: "
+                        f"{away} vs {home} | missing over/under"
+                    )
                     unmatched += 1
                     continue
 
@@ -127,10 +147,6 @@ def process_file(path: Path, gm_df: pd.DataFrame):
             # MONEYLINE / SPREADS
             # -------------------------
             else:
-
-                # Orientation-agnostic strict matching:
-                # Match exactly one row per team within the matchup,
-                # regardless of which side DK listed first.
 
                 matchup_rows = df[
                     (
