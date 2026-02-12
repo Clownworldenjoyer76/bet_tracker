@@ -64,7 +64,7 @@ def process_file(path: Path, gm_df: pd.DataFrame):
         date = f"{year}_{month}_{day}"
 
         gm_slice = gm_df[
-            (gm_df["league"] == base_league) &
+            (gm_df["league"].str.startswith(base_league)) &
             (gm_df["date"] == date)
         ]
 
@@ -84,7 +84,7 @@ def process_file(path: Path, gm_df: pd.DataFrame):
             home = norm(gm["home_team"])
 
             # -------------------------
-            # TOTALS (FIXED FOR 4-ROW STRUCTURE)
+            # TOTALS
             # -------------------------
             if market == "totals":
 
@@ -123,7 +123,6 @@ def process_file(path: Path, gm_df: pd.DataFrame):
                     unmatched += 1
                     continue
 
-                # Use first occurrence (duplicates are mirrored rows)
                 over = over_rows.iloc[0]
                 under = under_rows.iloc[0]
 
@@ -222,7 +221,6 @@ def process_file(path: Path, gm_df: pd.DataFrame):
 
                 out_rows.append(out)
 
-        # ALWAYS overwrite file
         out_path = OUTPUT_DIR / path.name
         with open(out_path, "w", newline="", encoding="utf-8") as f:
             if out_rows:
