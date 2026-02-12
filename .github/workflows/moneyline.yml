@@ -36,6 +36,13 @@ jobs:
             --error-dir docs/win/errors/04_moneyline \
             docs/win/*/moneyline/*.csv
 
+      - name: Upload validation logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: moneyline-validation-logs
+          path: docs/win/errors/04_moneyline/
+
       - name: Commit and Push Changes
         run: |
           git config --global user.name "github-actions[bot]"
