@@ -45,6 +45,8 @@ def normalize_date(val):
 def run():
     global files_scanned, files_written, rows_processed, rows_defaulted
 
+    LOG_FILE.write_text("", encoding="utf-8")
+
     log(f"\n=== JUICE ML RUN @ {datetime.utcnow().isoformat()}Z ===")
 
     JOBS = [
