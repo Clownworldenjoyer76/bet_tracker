@@ -70,6 +70,7 @@ def write_filtered(step2_pattern, step1_pattern, juice_dk_pairs, keep_cols, extr
 
 
 def run():
+    # ---------------- MONEYLINE ----------------
     write_filtered(
         STEP2 / "*/ml/juice_*_ml_*.csv",
         None,
@@ -81,6 +82,38 @@ def run():
             "date", "time", "away_team", "home_team", "league", "game_id",
             "deci_home_ml_juice_odds", "deci_away_ml_juice_odds",
             "deci_dk_away_odds", "deci_dk_home_odds",
+        ],
+    )
+
+    # ---------------- SPREADS ----------------
+    write_filtered(
+        STEP2 / "*/spreads/juice_*_spreads_*.csv",
+        None,
+        [
+            ("deci_home_spread_juice_odds", "deci_dk_home_odds"),
+            ("deci_away_spread_juice_odds", "deci_dk_away_odds"),
+        ],
+        [
+            "date", "time", "away_team", "home_team", "league", "game_id",
+            "spread",
+            "deci_home_spread_juice_odds", "deci_away_spread_juice_odds",
+            "deci_dk_away_odds", "deci_dk_home_odds",
+        ],
+    )
+
+    # ---------------- TOTALS ----------------
+    write_filtered(
+        STEP2 / "*/totals/juice_*_totals_*.csv",
+        None,
+        [
+            ("deci_over_juice_odds", "deci_dk_over_odds"),
+            ("deci_under_juice_odds", "deci_dk_under_odds"),
+        ],
+        [
+            "date", "time", "away_team", "home_team", "league", "game_id",
+            "total",
+            "deci_over_juice_odds", "deci_under_juice_odds",
+            "deci_dk_over_odds", "deci_dk_under_odds",
         ],
     )
 
