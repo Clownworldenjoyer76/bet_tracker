@@ -37,6 +37,9 @@ def normalize_shared_columns(df):
     return df.drop(columns=[c for c in df.columns if c.endswith("_x") or c.endswith("_y")], errors="ignore")
 
 def process_totals():
+    with open(ERROR_LOG, "w", encoding="utf-8"):
+        pass
+        
     projection_files = glob.glob(str(CLEANED_DIR / "ncaab_*.csv"))
 
     if not projection_files:
