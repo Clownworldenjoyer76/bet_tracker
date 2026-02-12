@@ -97,7 +97,7 @@ def process_file(path: Path):
         rows_team_normalized = 0
 
         parts = path.stem.split("_")
-        league = f"{parts[1]}_{parts[2]}".lower()
+        league = parts[1].lower()  # FIXED: use base league only (e.g., ncaab, nba)
 
         for row in rows:
 
