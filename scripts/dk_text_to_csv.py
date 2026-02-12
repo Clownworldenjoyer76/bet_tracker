@@ -1,6 +1,8 @@
 # scripts/dk_text_to_csv.py
 
-#Parses raw DraftKings text into structured moneyline, spread, and totals CSV files for the given league and current date, and always writes a detailed summary/error log describing games detected, rows written, and any parsing issues.
+## Parses raw DraftKings text into structured moneyline, spread, and totals CSV files 
+## for the given league and current date, and always writes a detailed summary/error log 
+## describing games detected, rows written, and any parsing issues.
 
 #!/usr/bin/env python3
 
