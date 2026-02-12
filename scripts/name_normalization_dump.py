@@ -6,10 +6,6 @@ from pathlib import Path
 import pandas as pd
 import traceback
 
-# =========================
-# PATHS
-# =========================
-
 INPUT_DIR = Path("docs/win/dump/csvs/cleaned")
 MAP_DIR = Path("mappings")
 NO_MAP_DIR = Path("mappings/need_map")
@@ -20,10 +16,6 @@ ERROR_LOG = ERROR_DIR / "name_normalization_dump.txt"
 
 NO_MAP_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
-
-# =========================
-# HELPERS
-# =========================
 
 def load_team_map_for_league(league: str):
     map_path = MAP_DIR / f"team_map_{league}.csv"
@@ -58,14 +50,19 @@ def normalize_team(val, team_map, canonical_set, unmapped, league):
     unmapped.add((v, league))
     return v
 
-# =========================
-# MAIN
-# =========================
-
 def main():
+
+    # Always start fresh
+    ERROR_LOG.write_text(
+        "NAME NORMALIZATION DUMP SUMMARY\n"
+        "===============================\n",
+        encoding="utf-8"
+    )
+
     unmapped = set()
     files_processed = 0
     values_updated = 0
+    crash_error = None
 
     try:
         for file_path in INPUT_DIR.glob("*.csv"):
@@ -109,17 +106,19 @@ def main():
                 columns=["team", "league"]
             ).to_csv(NO_MAP_PATH, index=False)
 
-        with open(ERROR_LOG, "w", encoding="utf-8") as f:
-            f.write("NAME NORMALIZATION DUMP SUMMARY\n")
-            f.write("===============================\n")
-            f.write(f"Files processed: {files_processed}\n")
-            f.write(f"Values updated: {values_updated}\n")
-            f.write(f"Unmapped values: {len(unmapped)}\n")
+    except Exception:
+        crash_error = traceback.format_exc()
 
-    except Exception as e:
-        with open(ERROR_LOG, "a", encoding="utf-8") as f:
-            f.write(str(e) + "\n")
-            f.write(traceback.format_exc())
+    # Always append summary
+    with open(ERROR_LOG, "a", encoding="utf-8") as f:
+        f.write(f"Files processed: {files_processed}\n")
+        f.write(f"Values updated: {values_updated}\n")
+        f.write(f"Unmapped values: {len(unmapped)}\n")
+
+        if crash_error:
+            f.write("\nCRASH DETECTED\n")
+            f.write("----------------\n")
+            f.write(crash_error)
 
 if __name__ == "__main__":
     main()
