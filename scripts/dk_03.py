@@ -60,7 +60,7 @@ def process_file(path: Path, gm_df: pd.DataFrame):
             return
 
         _, league, market, year, month, day = parts
-        base_league = league.split("_")[0]
+        base_league = league  # FIXED: removed split("_")[0]
         date = f"{year}_{month}_{day}"
 
         gm_slice = gm_df[
