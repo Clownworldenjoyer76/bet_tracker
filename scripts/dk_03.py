@@ -72,6 +72,10 @@ def process_file(path: Path, gm_df: pd.DataFrame):
             log(f"{path.name} | NO GAMES_MASTER MATCH FOR {base_league} {date}")
             return
 
+        # Precompute normalized columns once
+        df["team_norm"] = df["team"].apply(norm)
+        df["opponent_norm"] = df["opponent"].apply(norm)
+
         out_rows = []
         unmatched = 0
 
@@ -124,30 +128,56 @@ def process_file(path: Path, gm_df: pd.DataFrame):
             # -------------------------
             else:
 
-                df["team_norm"] = df["team"].apply(norm)
-                df["opponent_norm"] = df["opponent"].apply(norm)
+                # Orientation-agnostic strict matching:
+                # Must find exactly one row for each team in the matchup,
+                # regardless of team/opponent column ordering.
 
-                away_row = df[
+                rows_away = df[
                     (df["team_norm"] == away) &
                     (df["opponent_norm"] == home)
                 ]
 
-                home_row = df[
+                rows_home = df[
                     (df["team_norm"] == home) &
                     (df["opponent_norm"] == away)
                 ]
 
-                if len(away_row) != 1 or len(home_row) != 1:
+                # If reversed orientation in DK file, swap detection
+                if len(rows_away) == 0 and len(rows_home) == 0:
+                    # try reversed orientation
+                    rows_away = df[
+                        (df["team_norm"] == away) |
+                        (df["opponent_norm"] == away)
+                    ]
+                    rows_home = df[
+                        (df["team_norm"] == home) |
+                        (df["opponent_norm"] == home)
+                    ]
+
+                    rows_away = rows_away[
+                        (rows_away["team_norm"] == away) |
+                        (rows_away["opponent_norm"] == away)
+                    ]
+                    rows_home = rows_home[
+                        (rows_home["team_norm"] == home) |
+                        (rows_home["opponent_norm"] == home)
+                    ]
+
+                if len(rows_away) != 1 or len(rows_home) != 1:
                     log(
                         f"{path.name} | DROP {market.upper()}: "
                         f"{away} vs {home} | "
-                        f"away_rows={len(away_row)} home_rows={len(home_row)}"
+                        f"away_rows={len(rows_away)} home_rows={len(rows_home)}"
                     )
                     unmatched += 1
                     continue
 
-                away_row = away_row.iloc[0]
-                home_row = home_row.iloc[0]
+                away_row = rows_away.iloc[0]
+                home_row = rows_home.iloc[0]
+
+                # Ensure correct assignment even if DK orientation was reversed
+                if norm(away_row["team"]) != away:
+                    away_row, home_row = home_row, away_row
 
                 out = {
                     "date": away_row["date"],
