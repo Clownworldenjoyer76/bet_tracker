@@ -1,5 +1,3 @@
-# scripts/ml_ncaab.py
-
 import pandas as pd
 import glob
 import os
@@ -29,6 +27,10 @@ def log_error(msg):
         f.write(f"{datetime.utcnow().isoformat()} | {msg}\n")
 
 def process_ncaab_files():
+    # Overwrite error log at start of run
+    with open(ERROR_LOG, "w", encoding="utf-8"):
+        pass
+
     files = glob.glob(str(INPUT_DIR / "ncaab_*.csv"))
 
     files_written = 0
