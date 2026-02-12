@@ -61,6 +61,8 @@ def load_juice_table(path):
 def run():
     global files_scanned, files_written, rows_processed, rows_defaulted
 
+    LOG_FILE.write_text("", encoding="utf-8")
+    
     log(f"\n=== JUICE TOTALS RUN @ {datetime.utcnow().isoformat()}Z ===")
 
     JOBS = [
