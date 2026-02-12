@@ -50,7 +50,15 @@ def clean_string(v: str) -> str:
 
 
 def load_team_map_for_league(league: str):
-    map_path = MAP_DIR / f"team_map_{league}.csv"
+    # Explicit mapping rules per instruction
+    if league == "ncaab_ml":
+        map_path = MAP_DIR / "team_map_ncaab_moneyline.csv"
+    elif league == "ncaab_ou":
+        map_path = MAP_DIR / "team_map_ncaab_spreads.csv"
+    elif league == "ncaab_spreads":
+        map_path = MAP_DIR / "team_map_ncaab_spreads.csv"
+    else:
+        map_path = MAP_DIR / f"team_map_{league}.csv"
 
     if not map_path.exists():
         raise RuntimeError(f"No team map file found for league '{league}' at {map_path}")
