@@ -36,7 +36,6 @@ def write_filtered(step2_pattern, step1_pattern, juice_dk_pairs, keep_cols, extr
 
         df["game_id"] = df["game_id"].astype(str)
 
-        # FIXED MASK INITIALIZATION
         mask = pd.Series(False, index=df.index)
 
         for juice_col, dk_col in juice_dk_pairs:
@@ -54,6 +53,10 @@ def write_filtered(step2_pattern, step1_pattern, juice_dk_pairs, keep_cols, extr
             if step1_file in step1_map:
                 step1_df = step1_map[step1_file][["game_id"] + extra_merge_cols]
                 filtered = filtered.merge(step1_df, on="game_id", how="left")
+
+        missing = [c for c in keep_cols if c not in filtered.columns]
+        if missing:
+            raise RuntimeError(f"{f} missing required columns: {missing}")
 
         out_df = filtered[keep_cols]
 
