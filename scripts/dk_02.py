@@ -38,6 +38,15 @@ ERROR_DIR.mkdir(parents=True, exist_ok=True)
 team_map, canonical_sets = load_team_maps()
 unmapped = set()
 
+# ---- DEBUG CHECK ----
+print("---- DEBUG CHECK ----")
+print("Hawaii:", "Hawaii" in team_map.get("ncaab", {}))
+print("Louisiana:", "Louisiana" in team_map.get("ncaab", {}))
+print("South Alabama:", "South Alabama" in team_map.get("ncaab", {}))
+print("USC Upstate:", "USC Upstate" in team_map.get("ncaab", {}))
+print("Total ncaab aliases loaded:", len(team_map.get("ncaab", {})))
+print("---------------------")
+
 # =========================
 # REGEX
 # =========================
@@ -97,7 +106,7 @@ def process_file(path: Path):
         rows_team_normalized = 0
 
         parts = path.stem.split("_")
-        league = parts[1].lower()  # FIXED: use base league only (e.g., ncaab, nba)
+        league = parts[1].lower()
 
         for row in rows:
 
@@ -113,7 +122,7 @@ def process_file(path: Path):
                     elif unrecognized:
                         rows_unrecognized += 1
 
-            # ---- TEAM NORMALIZATION (team / opponent) ----
+            # ---- TEAM NORMALIZATION ----
             if "team" in row and row["team"]:
                 original = row["team"]
                 normalized = normalize_value(
