@@ -95,6 +95,7 @@ def update_files(final_glob, manual_glob, mappings, league_key):
 
 
 def run():
+    # ---------------- NBA MONEYLINE ----------------
     update_files(
         FINAL_BASE / "nba/ml/*.csv",
         MANUAL_BASE / "dk_nba_moneyline_*.csv",
@@ -102,10 +103,43 @@ def run():
         league_key="nba",
     )
 
+    # ---------------- NBA SPREADS ----------------
+    update_files(
+        FINAL_BASE / "nba/spreads/*.csv",
+        MANUAL_BASE / "dk_nba_spreads_*.csv",
+        {"dk_away_odds": "away_odds", "dk_home_odds": "home_odds"},
+        league_key="nba",
+    )
+
+    # ---------------- NBA TOTALS ----------------
+    update_files(
+        FINAL_BASE / "nba/totals/*.csv",
+        MANUAL_BASE / "dk_nba_totals_*.csv",
+        {"dk_over_odds": "over_odds", "dk_under_odds": "under_odds"},
+        league_key="nba",
+    )
+
+    # ---------------- NCAAB MONEYLINE ----------------
     update_files(
         FINAL_BASE / "ncaab/ml/*.csv",
         MANUAL_BASE / "dk_ncaab_moneyline_*.csv",
         {"dk_away_odds": "away_odds", "dk_home_odds": "home_odds"},
+        league_key="ncaab",
+    )
+
+    # ---------------- NCAAB SPREADS ----------------
+    update_files(
+        FINAL_BASE / "ncaab/spreads/*.csv",
+        MANUAL_BASE / "dk_ncaab_spreads_*.csv",
+        {"dk_away_odds": "away_odds", "dk_home_odds": "home_odds"},
+        league_key="ncaab",
+    )
+
+    # ---------------- NCAAB TOTALS ----------------
+    update_files(
+        FINAL_BASE / "ncaab/totals/*.csv",
+        MANUAL_BASE / "dk_ncaab_totals_*.csv",
+        {"dk_over_odds": "over_odds", "dk_under_odds": "under_odds"},
         league_key="ncaab",
     )
 
