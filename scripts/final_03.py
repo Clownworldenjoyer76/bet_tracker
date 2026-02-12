@@ -5,11 +5,14 @@ from pathlib import Path
 FINAL_BASE = Path("docs/win/final/step_1")
 MANUAL_BASE = Path("docs/win/manual/normalized")
 
-COVERAGE_THRESHOLD = 0.80
+# League-specific thresholds
+THRESHOLDS = {
+    "nba": 0.80,
+    "ncaab": 0.50,  # allow expected drops
+}
 
 FILES_PROCESSED = 0
 TOTAL_ROWS = 0
-TOTAL_FILLED = 0
 
 
 def load_lookup(pattern, game_col="game_id"):
@@ -34,13 +37,16 @@ def load_lookup(pattern, game_col="game_id"):
     )
 
 
-def update_files(final_glob, manual_glob, mappings):
-    global FILES_PROCESSED, TOTAL_ROWS, TOTAL_FILLED
+def update_files(final_glob, manual_glob, mappings, league_key):
+    global FILES_PROCESSED, TOTAL_ROWS
 
     manual = load_lookup(manual_glob)
 
     if manual.empty:
         raise RuntimeError(f"No manual data found for {manual_glob}")
+
+    league_rows = 0
+    league_filled = 0
 
     for f in glob.glob(str(final_glob)):
         df = pd.read_csv(f)
@@ -53,6 +59,7 @@ def update_files(final_glob, manual_glob, mappings):
 
         rows = len(df)
         TOTAL_ROWS += rows
+        league_rows += rows
 
         for out_col, src_col in mappings.items():
             if src_col not in manual.columns:
@@ -63,11 +70,30 @@ def update_files(final_glob, manual_glob, mappings):
 
         required_cols = list(mappings.keys())
         rows_fully_filled = df[required_cols].notna().all(axis=1).sum()
-
-        TOTAL_FILLED += rows_fully_filled
+        league_filled += rows_fully_filled
 
         df.to_csv(f, index=False)
-        print(f"Updated {f} | rows={rows} | fully_filled_rows={rows_fully_filled}")
+
+        print(
+            f"Updated {f} | rows={rows} | fully_filled_rows={rows_fully_filled}"
+        )
+
+    if league_rows == 0:
+        raise RuntimeError(f"{league_key}: 0 rows processed")
+
+    coverage = league_filled / league_rows
+    threshold = THRESHOLDS[league_key]
+
+    print(
+        f"{league_key.upper()} Coverage: {coverage:.2%} "
+        f"(threshold {threshold:.0%})"
+    )
+
+    if coverage < threshold:
+        raise RuntimeError(
+            f"final_03: {league_key} coverage below threshold "
+            f"({coverage:.2%} < {threshold:.0%})"
+        )
 
 
 def run():
@@ -80,6 +106,7 @@ def run():
             "away_bets_pct": "away_bets_pct",
             "home_bets_pct": "home_bets_pct",
         },
+        league_key="nba",
     )
 
     update_files(
@@ -91,26 +118,18 @@ def run():
             "away_bets_pct": "away_bets_pct",
             "home_bets_pct": "home_bets_pct",
         },
+        league_key="ncaab",
     )
-
-    coverage = TOTAL_FILLED / TOTAL_ROWS if TOTAL_ROWS else 0
 
     print("\n=== FINAL_03 SUMMARY ===")
     print(f"Files processed: {FILES_PROCESSED}")
-    print(f"Total rows: {TOTAL_ROWS}")
-    print(f"Fully filled rows: {TOTAL_FILLED}")
-    print(f"Coverage: {coverage:.2%}")
+    print(f"Total rows processed: {TOTAL_ROWS}")
 
     if FILES_PROCESSED == 0:
         raise RuntimeError("final_03: 0 files processed")
 
     if TOTAL_ROWS == 0:
         raise RuntimeError("final_03: 0 rows processed")
-
-    if coverage < COVERAGE_THRESHOLD:
-        raise RuntimeError(
-            f"final_03: Manual coverage below threshold ({coverage:.2%})"
-        )
 
 
 if __name__ == "__main__":
