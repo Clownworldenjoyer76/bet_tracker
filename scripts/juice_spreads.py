@@ -101,6 +101,8 @@ def apply_spread_juice(df, jt, league, out_dir):
 def run():
     global files_scanned, files_written, rows_processed
 
+    LOG_FILE.write_text("", encoding="utf-8")
+
     log(f"\n=== JUICE SPREADS RUN @ {datetime.utcnow().isoformat()}Z ===")
 
     CONFIGS = [
