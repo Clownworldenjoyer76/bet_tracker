@@ -5,6 +5,21 @@
 from pathlib import Path
 import pandas as pd
 import traceback
+import os
+import sys
+
+# -------------------------
+# FIX IMPORT PATH
+# -------------------------
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+ROOT_DIR = os.path.dirname(SCRIPT_DIR)
+sys.path.insert(0, ROOT_DIR)
+
+from scripts.name_normalization import (
+    load_team_maps,
+    normalize_value,
+    base_league,
+)
 
 INPUT_DIR = Path("docs/win/dump/csvs/cleaned")
 MAP_DIR = Path("mappings")
@@ -17,38 +32,10 @@ ERROR_LOG = ERROR_DIR / "name_normalization_dump.txt"
 NO_MAP_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
-def load_team_map_for_league(league: str):
-    map_path = MAP_DIR / f"team_map_{league}.csv"
-    if not map_path.exists():
-        return {}, set()
-
-    df = pd.read_csv(map_path, dtype=str)
-
-    team_map = {}
-    canonical_set = set()
-
-    for _, row in df.iterrows():
-        alias = row["alias"].strip()
-        canonical = row["canonical_team"].strip()
-        team_map[alias] = canonical
-        canonical_set.add(canonical)
-
-    return team_map, canonical_set
-
-def normalize_team(val, team_map, canonical_set, unmapped, league):
-    if pd.isna(val):
-        return val
-
-    v = str(val).strip()
-
-    if v in canonical_set:
-        return v
-
-    if v in team_map:
-        return team_map[v]
-
-    unmapped.add((v, league))
-    return v
+# -------------------------
+# LOAD TEAM MAPS (ONCE)
+# -------------------------
+team_map, canonical_sets = load_team_maps()
 
 def main():
 
@@ -72,10 +59,7 @@ def main():
                 continue
 
             league = str(df["league"].iloc[0]).strip()
-            team_map, canonical_set = load_team_map_for_league(league)
-
-            if not team_map:
-                continue
+            lg = base_league(league)
 
             updated = False
 
@@ -85,8 +69,12 @@ def main():
 
                 new_vals = []
                 for v in df[col]:
-                    new_v = normalize_team(
-                        v, team_map, canonical_set, unmapped, league
+                    new_v = normalize_value(
+                        v,
+                        lg,
+                        team_map,
+                        canonical_sets,
+                        unmapped
                     )
                     if new_v != v:
                         values_updated += 1
