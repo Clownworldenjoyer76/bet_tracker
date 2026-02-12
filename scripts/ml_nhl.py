@@ -1,3 +1,5 @@
+# scripts/ml_nhl.py
+
 import pandas as pd
 import glob
 import os
