@@ -5,11 +5,12 @@ import math
 
 BASE = Path("docs/win/final/step_2")
 
-INVALID_THRESHOLD = 0.20  # fail if >20% invalid conversions
+INVALID_THRESHOLD = 0.20
 
 FILES_PROCESSED = 0
 TOTAL_ROWS = 0
 TOTAL_INVALID = 0
+TOTAL_CELLS_ATTEMPTED = 0
 
 
 def american_to_decimal(a):
@@ -26,7 +27,7 @@ def american_to_decimal(a):
 
 
 def apply_decimal_columns(files, mapping):
-    global FILES_PROCESSED, TOTAL_ROWS, TOTAL_INVALID
+    global FILES_PROCESSED, TOTAL_ROWS, TOTAL_INVALID, TOTAL_CELLS_ATTEMPTED
 
     for f in files:
         df = pd.read_csv(f)
@@ -45,6 +46,7 @@ def apply_decimal_columns(files, mapping):
 
             invalid = df[out_col].isna().sum()
             file_invalid += invalid
+            TOTAL_CELLS_ATTEMPTED += rows
 
         TOTAL_INVALID += file_invalid
 
@@ -86,12 +88,17 @@ def run():
         },
     )
 
-    invalid_rate = TOTAL_INVALID / TOTAL_ROWS if TOTAL_ROWS else 0
+    invalid_rate = (
+        TOTAL_INVALID / TOTAL_CELLS_ATTEMPTED
+        if TOTAL_CELLS_ATTEMPTED
+        else 0
+    )
 
     print("\n=== FINAL_05 SUMMARY ===")
     print(f"Files processed: {FILES_PROCESSED}")
     print(f"Total rows: {TOTAL_ROWS}")
     print(f"Total invalid conversions: {TOTAL_INVALID}")
+    print(f"Total cells attempted: {TOTAL_CELLS_ATTEMPTED}")
     print(f"Invalid rate: {invalid_rate:.2%}")
 
     if FILES_PROCESSED == 0:
