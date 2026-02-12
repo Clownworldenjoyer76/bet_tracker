@@ -5,7 +5,7 @@ from pathlib import Path
 FINAL_BASE = Path("docs/win/final/step_1")
 MANUAL_BASE = Path("docs/win/manual/normalized")
 
-COVERAGE_THRESHOLD = 0.80  # 80% required coverage
+COVERAGE_THRESHOLD = 0.80
 
 FILES_PROCESSED = 0
 TOTAL_ROWS = 0
@@ -54,25 +54,23 @@ def update_files(final_glob, manual_glob, mappings):
         rows = len(df)
         TOTAL_ROWS += rows
 
-        file_filled = 0
-
         for out_col, src_col in mappings.items():
             if src_col not in manual.columns:
                 raise RuntimeError(
                     f"Manual source column '{src_col}' missing in {manual_glob}"
                 )
-
             df[out_col] = df["game_id"].map(manual[src_col])
-            file_filled += df[out_col].notna().sum()
 
-        TOTAL_FILLED += file_filled
+        required_cols = list(mappings.keys())
+        rows_fully_filled = df[required_cols].notna().all(axis=1).sum()
+
+        TOTAL_FILLED += rows_fully_filled
 
         df.to_csv(f, index=False)
-        print(f"Updated {f} | rows={rows} | filled={file_filled}")
+        print(f"Updated {f} | rows={rows} | fully_filled_rows={rows_fully_filled}")
 
 
 def run():
-    # ---------- MONEYLINE ----------
     update_files(
         FINAL_BASE / "nba/ml/juice_nba_ml_*.csv",
         MANUAL_BASE / "dk_nba_moneyline_*.csv",
@@ -100,7 +98,7 @@ def run():
     print("\n=== FINAL_03 SUMMARY ===")
     print(f"Files processed: {FILES_PROCESSED}")
     print(f"Total rows: {TOTAL_ROWS}")
-    print(f"Total filled values: {TOTAL_FILLED}")
+    print(f"Fully filled rows: {TOTAL_FILLED}")
     print(f"Coverage: {coverage:.2%}")
 
     if FILES_PROCESSED == 0:
