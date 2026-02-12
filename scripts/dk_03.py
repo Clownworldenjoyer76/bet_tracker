@@ -84,7 +84,7 @@ def process_file(path: Path, gm_df: pd.DataFrame):
             home = norm(gm["home_team"])
 
             # -------------------------
-            # TOTALS (UPDATED MATCHING)
+            # TOTALS
             # -------------------------
             if market == "totals":
 
@@ -220,12 +220,17 @@ def process_file(path: Path, gm_df: pd.DataFrame):
 
                 out_rows.append(out)
 
-        if out_rows:
-            out_path = OUTPUT_DIR / path.name
-            with open(out_path, "w", newline="", encoding="utf-8") as f:
+        # ALWAYS overwrite file now
+        out_path = OUTPUT_DIR / path.name
+
+        with open(out_path, "w", newline="", encoding="utf-8") as f:
+            if out_rows:
                 writer = csv.DictWriter(f, fieldnames=out_rows[0].keys())
                 writer.writeheader()
                 writer.writerows(out_rows)
+            else:
+                # Write empty file (no rows matched)
+                f.write("")
 
         log(f"{path.name} | games_out={len(out_rows)} | dropped={unmatched}")
 
