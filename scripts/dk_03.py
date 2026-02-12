@@ -6,6 +6,7 @@ import csv
 from pathlib import Path
 import traceback
 import pandas as pd
+from datetime import datetime
 
 # =========================
 # PATHS
@@ -202,6 +203,7 @@ def process_file(path: Path, gm_df: pd.DataFrame):
 def main():
     ERROR_LOG.write_text("", encoding="utf-8")
     log("DK_03 START")
+    log(f"Run timestamp (UTC): {datetime.utcnow().isoformat()}")
 
     gm_df = load_games_master()
 
