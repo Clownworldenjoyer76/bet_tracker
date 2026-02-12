@@ -41,7 +41,7 @@ def write_filtered(step2_pattern, step1_pattern, juice_dk_pairs, keep_cols, extr
         for juice_col, dk_col in juice_dk_pairs:
             if juice_col in df.columns and dk_col in df.columns:
                 valid = df[juice_col].notna() & df[dk_col].notna()
-                mask |= valid & (df[juice_col] > df[dk_col])
+                mask |= valid & (df[dk_col] > df[juice_col])
 
         filtered = df[mask].copy()
 
