@@ -75,6 +75,10 @@ def process_file(path: Path):
 # =========================
 
 def main():
+    # Overwrite log file at start of run
+    with open(ERROR_LOG, "w", encoding="utf-8") as f:
+        f.write("")
+
     log("DK_01 START")
     for file in INPUT_DIR.glob("dk_*_*.csv"):
         process_file(file)
