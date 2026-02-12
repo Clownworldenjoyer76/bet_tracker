@@ -86,20 +86,22 @@ def run():
     )
 
     # ---------------- SPREADS ----------------
-    write_filtered(
-        STEP2 / "*/spreads/juice_*_spreads_*.csv",
-        None,
-        [
-            ("deci_home_spread_juice_odds", "deci_dk_home_odds"),
-            ("deci_away_spread_juice_odds", "deci_dk_away_odds"),
-        ],
-        [
-            "date", "time", "away_team", "home_team", "league", "game_id",
-            "spread",
-            "deci_home_spread_juice_odds", "deci_away_spread_juice_odds",
-            "deci_dk_away_odds", "deci_dk_home_odds",
-        ],
-    )
+   # ---------------- SPREADS ----------------
+write_filtered(
+    STEP2 / "*/spreads/juice_*_spreads_*.csv",
+    None,
+    [
+        ("deci_home_spread_juice_odds", "deci_dk_home_odds"),
+        ("deci_away_spread_juice_odds", "deci_dk_away_odds"),
+    ],
+    [
+        "date", "time", "away_team", "home_team", "league", "game_id",
+        "away_spread", "home_spread",
+        "deci_home_spread_juice_odds", "deci_away_spread_juice_odds",
+        "deci_dk_away_odds", "deci_dk_home_odds",
+    ],
+)
+
 
     # ---------------- TOTALS ----------------
     write_filtered(
