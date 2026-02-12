@@ -84,7 +84,7 @@ def process_file(path: Path, gm_df: pd.DataFrame):
             home = norm(gm["home_team"])
 
             # -------------------------
-            # TOTALS
+            # TOTALS (FIXED FOR 4-ROW STRUCTURE)
             # -------------------------
             if market == "totals":
 
@@ -99,22 +99,23 @@ def process_file(path: Path, gm_df: pd.DataFrame):
                     )
                 ]
 
-                if len(matchup_rows) != 2:
+                if matchup_rows.empty:
                     log(
                         f"{path.name} | DROP TOTALS: "
-                        f"{away} vs {home} | "
-                        f"matchup_rows={len(matchup_rows)}"
+                        f"{away} vs {home} | matchup_rows=0"
                     )
                     unmatched += 1
                     continue
 
-                sides = {
-                    r["side"].lower(): r
-                    for _, r in matchup_rows.iterrows()
-                    if pd.notna(r.get("side"))
-                }
+                over_rows = matchup_rows[
+                    matchup_rows["side"].str.lower() == "over"
+                ]
 
-                if "over" not in sides or "under" not in sides:
+                under_rows = matchup_rows[
+                    matchup_rows["side"].str.lower() == "under"
+                ]
+
+                if over_rows.empty or under_rows.empty:
                     log(
                         f"{path.name} | DROP TOTALS: "
                         f"{away} vs {home} | missing over/under"
@@ -122,8 +123,9 @@ def process_file(path: Path, gm_df: pd.DataFrame):
                     unmatched += 1
                     continue
 
-                over = sides["over"]
-                under = sides["under"]
+                # Use first occurrence (duplicates are mirrored rows)
+                over = over_rows.iloc[0]
+                under = under_rows.iloc[0]
 
                 out_rows.append({
                     "date": over["date"],
@@ -220,16 +222,14 @@ def process_file(path: Path, gm_df: pd.DataFrame):
 
                 out_rows.append(out)
 
-        # ALWAYS overwrite file now
+        # ALWAYS overwrite file
         out_path = OUTPUT_DIR / path.name
-
         with open(out_path, "w", newline="", encoding="utf-8") as f:
             if out_rows:
                 writer = csv.DictWriter(f, fieldnames=out_rows[0].keys())
                 writer.writeheader()
                 writer.writerows(out_rows)
             else:
-                # Write empty file (no rows matched)
                 f.write("")
 
         log(f"{path.name} | games_out={len(out_rows)} | dropped={unmatched}")
