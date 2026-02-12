@@ -126,27 +126,27 @@ def process_file(path: Path, gm_df: pd.DataFrame):
                 df["team_norm"] = df["team"].apply(norm)
                 df["opponent_norm"] = df["opponent"].apply(norm)
 
-                game_rows = df[
-                    df.apply(
-                        lambda r: {r["team_norm"], r["opponent_norm"]} == {away, home},
-                        axis=1,
-                    )
+                away_row = df[
+                    (df["team_norm"] == away) &
+                    (df["opponent_norm"] == home)
                 ]
 
-                if len(game_rows) != 2:
-                    log(f"{path.name} | DROP {market.upper()}: {away} vs {home} | matched_rows={len(game_rows)}")
+                home_row = df[
+                    (df["team_norm"] == home) &
+                    (df["opponent_norm"] == away)
+                ]
+
+                if len(away_row) != 1 or len(home_row) != 1:
+                    log(
+                        f"{path.name} | DROP {market.upper()}: "
+                        f"{away} vs {home} | "
+                        f"away_rows={len(away_row)} home_rows={len(home_row)}"
+                    )
                     unmatched += 1
                     continue
 
-                row_map = {r["team_norm"]: r for _, r in game_rows.iterrows()}
-
-                if away not in row_map or home not in row_map:
-                    log(f"{path.name} | DROP {market.upper()}: {away} vs {home} | away/home not in row_map")
-                    unmatched += 1
-                    continue
-
-                away_row = row_map[away]
-                home_row = row_map[home]
+                away_row = away_row.iloc[0]
+                home_row = home_row.iloc[0]
 
                 out = {
                     "date": away_row["date"],
