@@ -1,3 +1,5 @@
+# scripts/my_bets_clean_02.py
+
 #!/usr/bin/env python3
 
 import pandas as pd
@@ -56,6 +58,28 @@ def build_league_value(leg_league, leg_type):
         return f"{prefix}{suffix}"
     return ""
 
+def extract_teams_from_description(description):
+    """
+    Example:
+    UC Santa Barbara @ UC Riverside - Over 145.5 - Total
+
+    Returns:
+    away_team, home_team
+    """
+    try:
+        if pd.isna(description):
+            return "", ""
+
+        main_part = str(description).split(" - ")[0]
+
+        if " @ " in main_part:
+            away, home = main_part.split(" @ ", 1)
+            return away.strip(), home.strip()
+
+        return "", ""
+    except Exception:
+        return "", ""
+
 # =========================
 # MAIN
 # =========================
@@ -94,6 +118,17 @@ def process_files():
                 )
             else:
                 df["league"] = ""
+
+            # =========================
+            # POPULATE TEAMS
+            # =========================
+            if "leg_description" in df.columns:
+                teams = df["leg_description"].apply(extract_teams_from_description)
+                df["away_team"] = teams.apply(lambda x: x[0])
+                df["home_team"] = teams.apply(lambda x: x[1])
+            else:
+                df["away_team"] = ""
+                df["home_team"] = ""
 
             # =========================
             # OUTPUT
