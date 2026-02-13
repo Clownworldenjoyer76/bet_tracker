@@ -31,6 +31,8 @@ def parse_filename(path: Path):
     if len(parts) < 6:
         return None
     _, league, market, year, month, day = parts
+    if market != "spreads":
+        return None
     return league, f"{year}_{month}_{day}"
 
 # =========================
@@ -69,13 +71,8 @@ def process_file(norm_path: Path):
             away_team = row.get("away_team")
             home_team = row.get("home_team")
 
-            away_row = cleaned_df[
-                cleaned_df["team"] == away_team
-            ]
-
-            home_row = cleaned_df[
-                cleaned_df["team"] == home_team
-            ]
+            away_row = cleaned_df[cleaned_df["team"] == away_team]
+            home_row = cleaned_df[cleaned_df["team"] == home_team]
 
             if away_row.empty or home_row.empty:
                 missing_rows += 1
@@ -84,9 +81,9 @@ def process_file(norm_path: Path):
             away_row = away_row.iloc[0]
             home_row = home_row.iloc[0]
 
-            # Per spec: copy handle_pct into spread columns
-            norm_df.at[idx, "away_spread"] = away_row.get("handle_pct", "")
-            norm_df.at[idx, "home_spread"] = home_row.get("handle_pct", "")
+            # Copy spread column from cleaned
+            norm_df.at[idx, "away_spread"] = away_row.get("spread", "")
+            norm_df.at[idx, "home_spread"] = home_row.get("spread", "")
 
             matched_rows += 1
 
@@ -112,7 +109,7 @@ def main():
     log("DK_05 START")
     log(f"Run timestamp (UTC): {datetime.utcnow().isoformat()}")
 
-    for norm_path in NORMALIZED_DIR.glob("dk_*_*.csv"):
+    for norm_path in NORMALIZED_DIR.glob("dk_*_spreads_*.csv"):
         process_file(norm_path)
 
     log("DK_05 END")
