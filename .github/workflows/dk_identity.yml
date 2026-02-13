@@ -46,6 +46,12 @@ jobs:
         run: python scripts/dk_04.py
 
       # =========================
+      # DK 05 — inject spread columns
+      # =========================
+      - name: DK 05 – inject spread columns
+        run: python scripts/dk_05.py
+
+      # =========================
       # Commit outputs + logs
       # =========================
       - name: Commit normalized data and logs
@@ -58,7 +64,7 @@ jobs:
 
           git status
 
-          git commit -m "DK 03: attach game_id + validate games_master + DK 04 inject handle/bets %" || echo "No changes to commit"
+          git commit -m "DK 03 attach game_id + validation + DK 04 inject handle/bets % + DK 05 inject spreads" || echo "No changes to commit"
           git push
 
       # =========================
