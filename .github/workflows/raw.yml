@@ -42,6 +42,10 @@ jobs:
         run: |
           python scripts/my_bets_clean_02.py
 
+      - name: Clean My Bets (Step 03 - Game ID Match)
+        run: |
+          python scripts/my_bets_clean_03.py
+
       - name: Commit and Push Changes
         run: |
           git config --global user.name "GitHub Action"
@@ -55,5 +59,5 @@ jobs:
           git add docs/win/errors/01_raw/
           git add docs/win/errors/10_my_bets/
 
-          git commit -m "Raw clean + name normalization + my bets clean (step_01 + step_02)" || exit 0
+          git commit -m "Raw clean + name normalization + my bets clean (step_01 + step_02 + step_03)" || exit 0
           git push
