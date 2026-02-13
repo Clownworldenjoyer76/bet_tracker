@@ -265,6 +265,8 @@ function renderSoccerGames(order, games, totalsByGame) {
 /* ==================================================================== NCAAB =================================================== */
 /* ==================================================================== NCAAB =================================================== */
 
+/* ======================================================== NCAAB (MODERNIZED) ======================================================== */
+
 async function loadNCAABDaily(selectedDate) {
   setStatus("");
   document.getElementById("games").innerHTML = "";
@@ -272,156 +274,168 @@ async function loadNCAABDaily(selectedDate) {
   const [yyyy, mm, dd] = selectedDate.split("-");
   const d = `${yyyy}_${mm}_${dd}`;
 
-  const finalUrl   = `${RAW_BASE}/docs/win/final/final_ncaab_${d}.csv`;
-  const totalsUrl  = `${RAW_BASE}/docs/win/ncaab/edge_ncaab_totals_${d}.csv`;
-  const spreadsUrl = `${RAW_BASE}/docs/win/ncaab/spreads/edge_ncaab_spreads_${d}.csv`;
+  const mlUrl =
+    `${RAW_BASE}/docs/win/final/step_2/ncaab/ml/juice_ncaab_ml_${d}.csv`;
 
-  let rows = [];
-  let totals = [];
+  const spreadsUrl =
+    `${RAW_BASE}/docs/win/final/step_2/ncaab/spreads/juice_ncaab_spreads_${d}.csv`;
+
+  const totalsUrl =
+    `${RAW_BASE}/docs/win/final/step_2/ncaab/totals/juice_ncaab_totals_${d}.csv`;
+
+  const dkUrl =
+    `${RAW_BASE}/docs/win/manual/normalized/dk_ncaab_moneyline_${d}.csv`;
+
+  let mlRows = [];
   let spreads = [];
+  let totals = [];
+  let dkRows = [];
 
   try {
-    rows = parseCSV(await fetchText(finalUrl));
+    mlRows = parseCSV(await fetchText(mlUrl));
   } catch {
-    setStatus("No NCAAB file found for this date.");
+    setStatus("No NCAAB ML file found for this date.");
     return;
   }
 
-  try {
-    totals = parseCSV(await fetchText(totalsUrl));
-  } catch {
-    totals = [];
-  }
+  try { spreads = parseCSV(await fetchText(spreadsUrl)); } catch {}
+  try { totals = parseCSV(await fetchText(totalsUrl)); } catch {}
+  try { dkRows = parseCSV(await fetchText(dkUrl)); } catch {}
 
-  try {
-    spreads = parseCSV(await fetchText(spreadsUrl));
-  } catch {
-    spreads = [];
-  }
-
-  if (!rows.length) {
+  if (!mlRows.length) {
     setStatus("No NCAAB games found for this date.");
     return;
   }
 
+  const spreadsByGame = new Map();
+  for (const s of spreads) spreadsByGame.set(s.game_id, s);
+
   const totalsByGame = new Map();
-  for (const t of totals) {
-    if (t.game_id) totalsByGame.set(t.game_id, t);
-  }
+  for (const t of totals) totalsByGame.set(t.game_id, t);
 
-  // team -> "spread (odds)"
-  const spreadByTeam = new Map();
-  for (const s of spreads) {
-    if (s.team && s.spread && s.acceptable_american_odds) {
-      spreadByTeam.set(
-        s.team,
-        `${s.spread} (${s.acceptable_american_odds})`
-      );
+  const timeByGame = new Map();
+  for (const r of dkRows) {
+    if (r.game_id && r.time) {
+      timeByGame.set(r.game_id, r.time);
     }
   }
 
-  const games = new Map();
-  const order = [];
-
-  for (const r of rows) {
-    if (!games.has(r.game_id)) {
-      games.set(r.game_id, []);
-      order.push(r.game_id);
-    }
-    games.get(r.game_id).push(r);
-  }
-
-  order.sort((a, b) =>
-    timeToMinutes(games.get(a)?.[0]?.time) -
-    timeToMinutes(games.get(b)?.[0]?.time)
+  mlRows.sort((a, b) =>
+    timeToMinutes(timeByGame.get(a.game_id)) -
+    timeToMinutes(timeByGame.get(b.game_id))
   );
 
-  renderNCAABGames(order, games, totalsByGame, spreadByTeam);
+  renderNCAABGamesModern(
+    mlRows,
+    spreadsByGame,
+    totalsByGame,
+    timeByGame
+  );
 }
 
-function renderNCAABGames(order, games, totalsByGame, spreadByTeam) {
+function renderNCAABGamesModern(
+  mlRows,
+  spreadsByGame,
+  totalsByGame,
+  timeByGame
+) {
   const container = document.getElementById("games");
 
-  for (const gid of order) {
-    const rows = games.get(gid);
-    if (rows.length !== 2) continue;
-
-    const a = rows[0];
-    const b = rows[1];
-    const totals = totalsByGame.get(gid) || {};
-    const time = totals.time || a.time || "";
-
-    const hasOU = !!totals.game_id;
-
-    const ouClass =
-      totals.side && totals.side !== "NO PLAY"
-        ? mlClassFromProb(totals.model_probability)
-        : "no-play";
+  for (const g of mlRows) {
+    const spreads = spreadsByGame.get(g.game_id) || {};
+    const totals = totalsByGame.get(g.game_id) || {};
+    const gameTime = timeByGame.get(g.game_id);
 
     const box = document.createElement("div");
     box.className = "game-box";
 
     box.innerHTML = `
       <div class="game-header">
-        ${escapeHtml(a.team)} at ${escapeHtml(b.team)}
-        ${time ? `<span class="cell-muted"> — ${escapeHtml(time)}</span>` : ""}
+        ${escapeHtml(g.away_team)} @ ${escapeHtml(g.home_team)}
+        ${gameTime ? ` — ${escapeHtml(gameTime)}` : ""}
       </div>
 
-      <table class="game-grid">
+      <div class="game-subheader">
+        Projected Total: ${format2(g.game_projected_points)}
+      </div>
+
+      <table class="game-grid large-grid">
         <thead>
           <tr>
             <th></th>
-            <th>Win Probability</th>
-            <th>Projected Pts</th>
-            <th>TAKE O/U AT</th>
-            <th>TAKE ML AT</th>
-            <th>TAKE SPREAD AT</th>
+            <th>Win %</th>
+            <th>Proj Pts</th>
+            <th>Fair ML</th>
+            <th>Accept ML</th>
+            <th>DK ML</th>
+            <th>Spread</th>
+            <th>Spread Accept</th>
+            <th>Handle %</th>
+            <th>Bets %</th>
           </tr>
         </thead>
         <tbody>
+
           <tr>
-            <td><strong>${escapeHtml(a.team)}</strong></td>
-            <td>${formatPct(a.win_probability)}</td>
-            <td>${format2(a.points)}</td>
-            <td>${hasOU ? escapeHtml(totals.market_total) : ""}</td>
-            <td class="${mlClassFromProb(a.win_probability)}">
-              ${escapeHtml(a.personally_acceptable_american_odds)}
-            </td>
-            <td>${escapeHtml(spreadByTeam.get(a.team) || "")}</td>
+            <td><strong>${escapeHtml(g.away_team)}</strong></td>
+            <td>${formatPct(g.away_team_moneyline_win_prob)}</td>
+            <td>${format2(g.away_team_projected_points)}</td>
+            <td>${escapeHtml(g.away_ml_fair_american_odds)}</td>
+            <td>${escapeHtml(g.away_ml_acceptable_american_odds)}</td>
+            <td>${escapeHtml(g.dk_away_odds)}</td>
+            <td>${escapeHtml(spreads.away_spread || "")}</td>
+            <td>${escapeHtml(spreads.away_spread_acceptable_american_odds || "")}</td>
+            <td>${format2(g.away_handle_pct)}</td>
+            <td>${format2(g.away_bets_pct)}</td>
           </tr>
 
           <tr>
-            <td><strong>${escapeHtml(b.team)}</strong></td>
-            <td>${formatPct(b.win_probability)}</td>
-            <td>${format2(b.points)}</td>
-            <td class="${hasOU && totals.side === "NO PLAY" ? "no-play" : ""}">
-              ${hasOU ? escapeHtml(totals.side) : ""}
-            </td>
-            <td class="${mlClassFromProb(b.win_probability)}">
-              ${escapeHtml(b.personally_acceptable_american_odds)}
-            </td>
-            <td>${escapeHtml(spreadByTeam.get(b.team) || "")}</td>
+            <td><strong>${escapeHtml(g.home_team)}</strong></td>
+            <td>${formatPct(g.home_team_moneyline_win_prob)}</td>
+            <td>${format2(g.home_team_projected_points)}</td>
+            <td>${escapeHtml(g.home_ml_fair_american_odds)}</td>
+            <td>${escapeHtml(g.home_ml_acceptable_american_odds)}</td>
+            <td>${escapeHtml(g.dk_home_odds)}</td>
+            <td>${escapeHtml(spreads.home_spread || "")}</td>
+            <td>${escapeHtml(spreads.home_spread_acceptable_american_odds || "")}</td>
+            <td>${format2(g.home_handle_pct)}</td>
+            <td>${format2(g.home_bets_pct)}</td>
           </tr>
 
-          ${hasOU ? `
-          <tr class="draw-row">
-            <td><strong>Over/Under</strong></td>
-            <td>${formatPct(totals.model_probability)}</td>
-            <td></td>
-            <td class="${ouClass}">
-              ${escapeHtml(totals.acceptable_american_odds)}
-            </td>
-            <td></td>
-            <td></td>
-          </tr>` : ""}
         </tbody>
       </table>
+
+      <div class="totals-section">
+        <table class="game-grid large-grid">
+          <thead>
+            <tr>
+              <th>Total</th>
+              <th>Over %</th>
+              <th>Under %</th>
+              <th>Over Accept</th>
+              <th>Under Accept</th>
+              <th>DK Over</th>
+              <th>DK Under</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>${escapeHtml(totals.total || "")}</td>
+              <td>${formatPct(totals.over_probability)}</td>
+              <td>${formatPct(totals.under_probability)}</td>
+              <td>${escapeHtml(totals.over_acceptable_american_odds || "")}</td>
+              <td>${escapeHtml(totals.under_acceptable_american_odds || "")}</td>
+              <td>${escapeHtml(totals.dk_over_odds || "")}</td>
+              <td>${escapeHtml(totals.dk_under_odds || "")}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     `;
 
     container.appendChild(box);
   }
 }
-
 /* ================================================================= NHL =================================================================== */
 /* ================================================================= NHL =================================================================== */
 /* ================================================================= NHL =================================================================== */
