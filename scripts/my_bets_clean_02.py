@@ -35,7 +35,7 @@ COLUMNS_TO_DELETE = [
 
 LEAGUE_PREFIX_MAP = {
     "NBA": "nba_",
-    "CBB": "ncaam_",
+    "CBB": "ncaab_",
 }
 
 LEG_TYPE_SUFFIX_MAP = {
