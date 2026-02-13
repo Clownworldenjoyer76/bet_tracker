@@ -3,6 +3,13 @@
   --foreground: #e6e6e6;
   --accent: #03fc20;
   --border: #1f1f1f;
+
+  /* Override styles.css light theme */
+  --bg-page: #000000;
+  --bg-card: #0a0a0a;
+  --border-soft: #1f1f1f;
+  --text-main: #e6e6e6;
+  --text-muted: #9ca3af;
 }
 
 body {
@@ -34,21 +41,24 @@ h1, h2, h3, th {
 /* ===== GAME BOX ===== */
 
 .game-box {
-  background-color: #0a0a0a;
-  border: 1px solid var(--border);
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-soft);
   padding: 20px;
   margin-bottom: 28px;
+  border-radius: 12px;
 }
 
 .game-header {
   font-size: 18px;
   margin-bottom: 6px;
   color: var(--accent);
+  border-bottom: 1px solid var(--border-soft);
+  padding-bottom: 6px;
 }
 
 .game-subheader {
   margin-bottom: 14px;
-  color: #999;
+  color: var(--text-muted);
 }
 
 /* ===== TABLES ===== */
@@ -57,32 +67,39 @@ h1, h2, h3, th {
   width: 100%;
   border-collapse: collapse;
   margin-bottom: 16px;
-  background-color: #0a0a0a;
+  background-color: var(--bg-card);
 }
 
 .game-grid th,
 .game-grid td {
   padding: 8px 10px;
-  border-bottom: 1px solid var(--border);
-  background-color: #0a0a0a;
-  color: var(--foreground);
+  border-bottom: 1px solid var(--border-soft);
+  background-color: var(--bg-card);
+  color: var(--text-main);
+  font-variant-numeric: tabular-nums;
+}
+
+.game-grid th {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .large-grid th {
+  font-weight: 700;
+}
+
+.draw-row td {
+  background-color: #111111;
+  color: var(--text-muted);
+}
+
+.no-play {
+  background-color: #111111;
+  color: #666666;
   font-weight: 600;
 }
 
 .totals-section {
   margin-top: 12px;
-/* ---- FORCE DARK THEME BY OVERRIDING styles.css VARIABLES ---- */
-
-:root {
-  --bg-page: #000000;
-  --bg-card: #0a0a0a;
-  --border-soft: #1f1f1f;
-
-  --text-main: #e6e6e6;
-  --text-muted: #9ca3af;
-}
-  
 }
