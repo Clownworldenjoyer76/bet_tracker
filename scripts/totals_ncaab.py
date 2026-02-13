@@ -60,12 +60,33 @@ def process_totals():
 
             df_proj = df_proj.drop(columns=["date", "time", "away_team", "home_team", "league"], errors="ignore")
 
-            merged = pd.merge(df_proj, df_dk, on="game_id", how="inner")
+            dk_required_cols = [
+                "game_id",
+                "date",
+                "time",
+                "away_team",
+                "home_team",
+                "over_handle_pct",
+                "under_handle_pct",
+                "over_bets_pct",
+                "under_bets_pct",
+                "over_odds",
+                "under_odds",
+                "total",
+            ]
+
+            df_dk_subset = df_dk[dk_required_cols]
+
+            merged = pd.merge(
+                df_proj,
+                df_dk_subset,
+                on="game_id",
+                how="inner"
+            )
+
             if merged.empty:
                 log_error(f"No merge rows for {proj_path}")
                 continue
-
-            merged = normalize_shared_columns(merged)
 
             merged["under_probability"] = merged.apply(
                 lambda x: poisson.cdf(x["total"] - 0.5, x["game_projected_points"]),
@@ -82,8 +103,8 @@ def process_totals():
             cols = [
                 "game_id", "date", "time", "away_team", "home_team",
                 "away_team_projected_points", "home_team_projected_points",
-                "away_handle_pct", "home_handle_pct",
-                "away_bets_pct", "home_bets_pct",
+                "over_handle_pct", "under_handle_pct",
+                "over_bets_pct", "under_bets_pct",
                 "game_projected_points", "over_odds", "under_odds", "total",
                 "over_probability", "under_probability",
                 "over_acceptable_decimal_odds", "over_acceptable_american_odds",
