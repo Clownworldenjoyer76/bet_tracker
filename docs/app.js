@@ -713,7 +713,3 @@ function renderNBAGamesModern(mlRows, spreadsByGame, totalsByGame) {
     container.appendChild(box);
   }
 }
-
-    container.appendChild(box);
-  }
-}
