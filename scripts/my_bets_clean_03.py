@@ -4,6 +4,7 @@ import pandas as pd
 from pathlib import Path
 from datetime import datetime
 import traceback
+import glob
 
 # =========================
 # PATHS
@@ -11,6 +12,7 @@ import traceback
 
 INPUT_DIR = Path("docs/win/my_bets/step_02")
 GAMES_MASTER_DIR = Path("docs/win/games_master")
+NORMALIZED_DIR = Path("docs/win/manual/normalized")
 ERROR_DIR = Path("docs/win/errors/01_raw")
 ERROR_LOG = ERROR_DIR / "my_bets_clean_03.txt"
 
@@ -31,6 +33,26 @@ def process_files():
         ERROR_LOG.write_text("".join(summary_lines))
         return
 
+    # -------------------------
+    # Load normalized data once
+    # -------------------------
+    normalized_files = glob.glob(str(NORMALIZED_DIR / "*.csv"))
+    normalized_df_list = []
+
+    for nf in normalized_files:
+        try:
+            df = pd.read_csv(nf)
+            if {"date", "league", "game_id"}.issubset(df.columns):
+                df["league"] = df["league"].astype(str).str.lower()
+                normalized_df_list.append(df[["date", "league", "game_id"]])
+        except Exception:
+            continue
+
+    if normalized_df_list:
+        normalized_all = pd.concat(normalized_df_list, ignore_index=True)
+    else:
+        normalized_all = pd.DataFrame(columns=["date", "league", "game_id"])
+
     for file_path in files:
         try:
             bets_df = pd.read_csv(file_path)
@@ -48,14 +70,12 @@ def process_files():
             # Normalize league to base (nba, ncaab, etc.)
             bets_df["league_base"] = bets_df["league"].astype(str).str.split("_").str[0].str.lower()
 
-            # All rows should be same date (by design)
             unique_dates = bets_df["date"].dropna().unique()
 
             if len(unique_dates) != 1:
                 raise ValueError(f"Expected exactly one date per file. Found: {unique_dates}")
 
             file_date = unique_dates[0]
-
             games_file = GAMES_MASTER_DIR / f"games_{file_date}.csv"
 
             if not games_file.exists():
@@ -63,11 +83,8 @@ def process_files():
                 continue
 
             games_df = pd.read_csv(games_file)
-
-            # Normalize league casing in games_master
             games_df["league"] = games_df["league"].astype(str).str.lower()
 
-            # Perform strict merge
             merged = bets_df.merge(
                 games_df,
                 left_on=["date", "league_base", "away_team", "home_team"],
@@ -76,22 +93,38 @@ def process_files():
                 suffixes=("", "_gm"),
             )
 
-            # Count matches
             matched = merged["game_id_gm"].notna().sum()
             unmatched = rows_in - matched
 
-            # Detect duplicate matches
             duplicate_matches = merged.duplicated(
                 subset=["books_bet_id"], keep=False
             ).sum()
 
-            # Assign game_id
             bets_df["game_id"] = merged["game_id_gm"]
-
-            # Drop helper column
             bets_df.drop(columns=["league_base"], inplace=True)
 
-            # Write file back (overwrite)
+            # -------------------------------------------------
+            # NEW: Overwrite date from normalized by game_id
+            # -------------------------------------------------
+
+            if not normalized_all.empty and "game_id" in bets_df.columns:
+                bets_df["league_lower"] = bets_df["league"].astype(str).str.lower()
+
+                date_merge = bets_df.merge(
+                    normalized_all,
+                    left_on=["game_id", "league_lower"],
+                    right_on=["game_id", "league"],
+                    how="left",
+                    suffixes=("", "_norm"),
+                )
+
+                updated_dates = date_merge["date_norm"].notna().sum()
+
+                bets_df["date"] = date_merge["date_norm"].combine_first(bets_df["date"])
+                bets_df.drop(columns=["league_lower"], inplace=True)
+
+                summary_lines.append(f"{file_path.name} | date_updates={updated_dates}\n")
+
             bets_df.to_csv(file_path, index=False)
 
             summary_lines.append(
