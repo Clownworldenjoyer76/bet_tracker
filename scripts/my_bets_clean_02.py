@@ -7,6 +7,7 @@ import glob
 from pathlib import Path
 from datetime import datetime
 import traceback
+import re
 
 # =========================
 # PATHS
@@ -18,8 +19,13 @@ OUTPUT_DIR = Path("docs/win/my_bets/step_02")
 ERROR_DIR = Path("docs/win/errors/01_raw")
 ERROR_LOG = ERROR_DIR / "my_bets_clean_02.txt"
 
+MAP_DIR = Path("mappings")
+NO_MAP_DIR = Path("mappings/need_map")
+NO_MAP_PATH = NO_MAP_DIR / "no_map.csv"
+
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
+NO_MAP_DIR.mkdir(parents=True, exist_ok=True)
 
 # =========================
 # CONSTANTS
@@ -50,22 +56,59 @@ LEG_TYPE_SUFFIX_MAP = {
 # HELPERS
 # =========================
 
+def norm(s: str) -> str:
+    if pd.isna(s):
+        return s
+    s = str(s).replace("\u00A0", " ")
+    s = re.sub(r"\s+", " ", s)
+    return s.strip()
+
+def base_league(lg: str) -> str:
+    if pd.isna(lg):
+        return ""
+    return norm(str(lg).split("_")[0])
+
+def load_team_maps():
+    team_map = {}
+    canonical_sets = {}
+
+    for map_file in MAP_DIR.glob("team_map_*.csv"):
+        df = pd.read_csv(map_file, dtype=str)
+
+        for _, row in df.iterrows():
+            lg = base_league(row["league"])
+            alias = norm(row["alias"])
+            canonical = norm(row["canonical_team"])
+
+            team_map.setdefault(lg, {})[alias] = canonical
+            canonical_sets.setdefault(lg, set()).add(canonical)
+
+    return team_map, canonical_sets
+
+def normalize_value(val, lg, team_map, canonical_sets, unmapped):
+    if pd.isna(val):
+        return val
+
+    lg = base_league(lg)
+    v = norm(val)
+
+    if v in canonical_sets.get(lg, set()):
+        return v
+
+    if v in team_map.get(lg, {}):
+        return team_map[lg][v]
+
+    unmapped.add((v, lg))
+    return v
+
 def build_league_value(leg_league, leg_type):
     prefix = LEAGUE_PREFIX_MAP.get(str(leg_league).strip(), "")
     suffix = LEG_TYPE_SUFFIX_MAP.get(str(leg_type).strip(), "")
-
     if prefix and suffix:
         return f"{prefix}{suffix}"
     return ""
 
 def extract_teams_from_description(description):
-    """
-    Example:
-    UC Santa Barbara @ UC Riverside - Over 145.5 - Total
-
-    Returns:
-    away_team, home_team
-    """
     try:
         if pd.isna(description):
             return "", ""
@@ -88,6 +131,9 @@ def process_files():
 
     summary = []
     summary.append(f"=== MY_BETS_CLEAN_02 RUN @ {datetime.utcnow().isoformat()}Z ===")
+
+    team_map, canonical_sets = load_team_maps()
+    unmapped = set()
 
     input_files = glob.glob(str(INPUT_DIR / "*.csv"))
 
@@ -131,6 +177,20 @@ def process_files():
                 df["home_team"] = ""
 
             # =========================
+            # NORMALIZE TEAMS
+            # =========================
+            if "league" in df.columns:
+                df["away_team"] = [
+                    normalize_value(v, lg, team_map, canonical_sets, unmapped)
+                    for v, lg in zip(df["away_team"], df["league"])
+                ]
+
+                df["home_team"] = [
+                    normalize_value(v, lg, team_map, canonical_sets, unmapped)
+                    for v, lg in zip(df["home_team"], df["league"])
+                ]
+
+            # =========================
             # OUTPUT
             # =========================
             output_path = OUTPUT_DIR / Path(file_path).name
@@ -142,6 +202,15 @@ def process_files():
         except Exception:
             summary.append(f"ERROR processing {file_path}")
             summary.append(traceback.format_exc())
+
+    # =========================
+    # WRITE UNMAPPED
+    # =========================
+    if unmapped:
+        pd.DataFrame(
+            sorted(unmapped),
+            columns=["team", "league"]
+        ).to_csv(NO_MAP_PATH, index=False)
 
     summary.append(f"Files processed: {files_processed}")
     summary.append(f"Rows processed: {rows_processed}")
