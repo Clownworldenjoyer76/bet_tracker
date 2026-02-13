@@ -39,19 +39,18 @@ COLUMNS_TO_DROP = [
 def parse_date_time(date_placed_value):
     """
     Input example:
-    2026-02-10 11:31:42.477+00
+    2026-02-10 11:31:42.477+00  (UTC)
 
-    Returns:
-    file_date = 2026_02_10
-    date = 2026_02_10
-    time = 11:31:42
+    Converts to America/New_York before extracting date.
     """
     try:
-        base = str(date_placed_value).split("+")[0]
-        dt = datetime.strptime(base, "%Y-%m-%d %H:%M:%S.%f")
-        file_date = dt.strftime("%Y_%m_%d")
-        date_str = dt.strftime("%Y_%m_%d")
-        time_str = dt.strftime("%H:%M:%S")
+        dt_utc = pd.to_datetime(date_placed_value, utc=True)
+        dt_local = dt_utc.tz_convert("America/New_York")
+
+        file_date = dt_local.strftime("%Y_%m_%d")
+        date_str = dt_local.strftime("%Y_%m_%d")
+        time_str = dt_local.strftime("%H:%M:%S")
+
         return file_date, date_str, time_str
     except Exception:
         return None, None, None
