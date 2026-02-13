@@ -31,9 +31,7 @@ def parse_filename(path: Path):
     if len(parts) < 6:
         return None
     _, league, market, year, month, day = parts
-    if market != "spreads":
-        return None
-    return league, f"{year}_{month}_{day}"
+    return league, market, f"{year}_{month}_{day}"
 
 # =========================
 # CORE
@@ -45,9 +43,14 @@ def process_file(norm_path: Path):
         if not parsed:
             return
 
-        league, date = parsed
+        league, market, date = parsed
 
-        cleaned_path = CLEANED_DIR / f"dk_{league}_spreads_{date}.csv"
+        if market == "spreads":
+            cleaned_path = CLEANED_DIR / f"dk_{league}_spreads_{date}.csv"
+        elif market == "moneyline":
+            cleaned_path = CLEANED_DIR / f"dk_{league}_moneyline_{date}.csv"
+        else:
+            return
 
         if not cleaned_path.exists():
             log(f"{norm_path.name} | CLEANED FILE NOT FOUND: {cleaned_path.name}")
@@ -60,12 +63,15 @@ def process_file(norm_path: Path):
             log(f"{norm_path.name} | EMPTY NORMALIZED FILE")
             return
 
-        # Ensure spread columns exist
-        norm_df["away_spread"] = ""
-        norm_df["home_spread"] = ""
-
         matched_rows = 0
         missing_rows = 0
+
+        if market == "spreads":
+            norm_df["away_spread"] = ""
+            norm_df["home_spread"] = ""
+        elif market == "moneyline":
+            norm_df["away_odds"] = ""
+            norm_df["home_odds"] = ""
 
         for idx, row in norm_df.iterrows():
             away_team = row.get("away_team")
@@ -81,9 +87,12 @@ def process_file(norm_path: Path):
             away_row = away_row.iloc[0]
             home_row = home_row.iloc[0]
 
-            # Copy spread column from cleaned
-            norm_df.at[idx, "away_spread"] = away_row.get("spread", "")
-            norm_df.at[idx, "home_spread"] = home_row.get("spread", "")
+            if market == "spreads":
+                norm_df.at[idx, "away_spread"] = away_row.get("spread", "")
+                norm_df.at[idx, "home_spread"] = home_row.get("spread", "")
+            elif market == "moneyline":
+                norm_df.at[idx, "away_odds"] = away_row.get("odds", "")
+                norm_df.at[idx, "home_odds"] = home_row.get("odds", "")
 
             matched_rows += 1
 
@@ -109,7 +118,7 @@ def main():
     log("DK_05 START")
     log(f"Run timestamp (UTC): {datetime.utcnow().isoformat()}")
 
-    for norm_path in NORMALIZED_DIR.glob("dk_*_spreads_*.csv"):
+    for norm_path in NORMALIZED_DIR.glob("dk_*_*.csv"):
         process_file(norm_path)
 
     log("DK_05 END")
