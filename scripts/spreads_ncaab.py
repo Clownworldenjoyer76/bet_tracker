@@ -49,14 +49,12 @@ def process_spreads():
             df_proj = pd.read_csv(proj_path)
             df_dk = pd.read_csv(dk_path)
 
-            # Explicitly ensure required DK columns exist (including away_odds, home_odds)
             dk_required_cols = [
                 "game_id", "league", "date", "time",
                 "away_team", "home_team",
                 "away_spread", "home_spread",
                 "away_handle_pct", "home_handle_pct",
                 "away_bets_pct", "home_bets_pct",
-                "away_odds", "home_odds",
             ]
 
             df_dk_subset = df_dk[dk_required_cols]
@@ -108,7 +106,6 @@ def process_spreads():
                 "away_spread", "home_spread",
                 "away_handle_pct", "home_handle_pct",
                 "away_bets_pct", "home_bets_pct",
-                "away_odds", "home_odds",
                 "away_spread_probability", "home_spread_probability",
                 "away_spread_acceptable_decimal_odds", "away_spread_acceptable_american_odds",
                 "home_spread_acceptable_decimal_odds", "home_spread_acceptable_american_odds",
