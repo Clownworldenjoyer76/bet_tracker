@@ -1,3 +1,5 @@
+# scripts/totals_nba.py
+
 import pandas as pd
 import glob
 from pathlib import Path
@@ -39,6 +41,7 @@ def normalize_shared_columns(df):
 def process_totals():
     with open(ERROR_LOG, "w", encoding="utf-8"):
         pass
+
     projection_files = glob.glob(str(CLEANED_DIR / "nba_*.csv"))
 
     if not projection_files:
@@ -59,12 +62,39 @@ def process_totals():
 
             df_proj = df_proj.drop(columns=["date", "time", "away_team", "home_team", "league"], errors="ignore")
 
-            merged = pd.merge(df_proj, df_dk, on="game_id", how="inner")
+            # -------------------------------------------------
+            # UPDATED MERGE SECTION
+            # Explicitly pull required DK columns
+            # -------------------------------------------------
+
+            dk_required_cols = [
+                "game_id",
+                "date",
+                "time",
+                "away_team",
+                "home_team",
+                "away_handle_pct",
+                "home_handle_pct",
+                "away_bets_pct",
+                "home_bets_pct",
+                "over_odds",
+                "under_odds",
+            ]
+
+            df_dk_subset = df_dk[dk_required_cols]
+
+            merged = pd.merge(
+                df_proj,
+                df_dk_subset,
+                on="game_id",
+                how="inner"
+            )
+
             if merged.empty:
                 log_error(f"No merge rows for {proj_path}")
                 continue
 
-            merged = normalize_shared_columns(merged)
+            # -------------------------------------------------
 
             merged["under_probability"] = merged.apply(
                 lambda x: poisson.cdf(x["total"] - 0.5, x["game_projected_points"]),
