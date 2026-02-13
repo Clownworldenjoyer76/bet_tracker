@@ -1,5 +1,3 @@
-# scripts/dk_03
-
 #!/usr/bin/env python3
 
 import csv
@@ -60,7 +58,7 @@ def process_file(path: Path, gm_df: pd.DataFrame):
             return
 
         _, league, market, year, month, day = parts
-        base_league = league  # FIXED: removed split("_")[0]
+        base_league = league
         date = f"{year}_{month}_{day}"
 
         gm_slice = gm_df[
@@ -77,6 +75,7 @@ def process_file(path: Path, gm_df: pd.DataFrame):
 
         out_rows = []
         unmatched = 0
+        matched_game_ids = set()
 
         for _, gm in gm_slice.iterrows():
             gid = gm["game_id"]
@@ -125,6 +124,8 @@ def process_file(path: Path, gm_df: pd.DataFrame):
 
                 over = over_rows.iloc[0]
                 under = under_rows.iloc[0]
+
+                matched_game_ids.add(gid)
 
                 out_rows.append({
                     "date": over["date"],
@@ -189,6 +190,8 @@ def process_file(path: Path, gm_df: pd.DataFrame):
                 away_row = away_row.iloc[0]
                 home_row = home_row.iloc[0]
 
+                matched_game_ids.add(gid)
+
                 out = {
                     "date": away_row["date"],
                     "time": away_row["time"],
@@ -220,6 +223,22 @@ def process_file(path: Path, gm_df: pd.DataFrame):
                     })
 
                 out_rows.append(out)
+
+        # -------------------------
+        # REVERSE CHECK: MASTER -> DK
+        # -------------------------
+
+        master_game_ids = set(gm_slice["game_id"])
+        missing_from_dk = master_game_ids - matched_game_ids
+
+        if missing_from_dk:
+            for gid in missing_from_dk:
+                gm_row = gm_slice[gm_slice["game_id"] == gid].iloc[0]
+                log(
+                    f"{path.name} | MASTER NOT IN DK: "
+                    f"{gm_row['away_team']} vs {gm_row['home_team']} | "
+                    f"game_id={gid}"
+                )
 
         out_path = OUTPUT_DIR / path.name
         with open(out_path, "w", newline="", encoding="utf-8") as f:
