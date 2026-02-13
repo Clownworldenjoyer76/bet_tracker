@@ -564,8 +564,6 @@ function renderNHLGames(spreads, mlByTeam, ouByGame) {
 /* ======================================================== NBA ======================================================================= */
 /* ======================================================== NBA ======================================================================= */
 /* ======================================================== NBA ======================================================================= */
-
-
 /* ======================================================== NBA (MODERNIZED) ======================================================== */
 
 async function loadNBADaily(selectedDate) {
@@ -584,9 +582,13 @@ async function loadNBADaily(selectedDate) {
   const totalsUrl =
     `${RAW_BASE}/docs/win/final/step_2/nba/totals/juice_nba_totals_${d}.csv`;
 
+  const dkUrl =
+    `${RAW_BASE}/docs/win/manual/normalized/dk_nba_moneyline_${d}.csv`;
+
   let mlRows = [];
   let spreads = [];
   let totals = [];
+  let dkRows = [];
 
   try {
     mlRows = parseCSV(await fetchText(mlUrl));
@@ -597,6 +599,7 @@ async function loadNBADaily(selectedDate) {
 
   try { spreads = parseCSV(await fetchText(spreadsUrl)); } catch {}
   try { totals = parseCSV(await fetchText(totalsUrl)); } catch {}
+  try { dkRows = parseCSV(await fetchText(dkUrl)); } catch {}
 
   if (!mlRows.length) {
     setStatus("No NBA games found for this date.");
@@ -609,19 +612,33 @@ async function loadNBADaily(selectedDate) {
   const totalsByGame = new Map();
   for (const t of totals) totalsByGame.set(t.game_id, t);
 
+  const timeByGame = new Map();
+  for (const r of dkRows) {
+    if (r.game_id && r.time) {
+      timeByGame.set(r.game_id, r.time);
+    }
+  }
+
   mlRows.sort((a, b) =>
-    timeToMinutes(a.time) - timeToMinutes(b.time)
+    timeToMinutes(timeByGame.get(a.game_id)) -
+    timeToMinutes(timeByGame.get(b.game_id))
   );
 
-  renderNBAGamesModern(mlRows, spreadsByGame, totalsByGame);
+  renderNBAGamesModern(mlRows, spreadsByGame, totalsByGame, timeByGame);
 }
 
-function renderNBAGamesModern(mlRows, spreadsByGame, totalsByGame) {
+function renderNBAGamesModern(
+  mlRows,
+  spreadsByGame,
+  totalsByGame,
+  timeByGame
+) {
   const container = document.getElementById("games");
 
   for (const g of mlRows) {
     const spreads = spreadsByGame.get(g.game_id) || {};
     const totals = totalsByGame.get(g.game_id) || {};
+    const gameTime = timeByGame.get(g.game_id);
 
     const box = document.createElement("div");
     box.className = "game-box";
@@ -629,7 +646,7 @@ function renderNBAGamesModern(mlRows, spreadsByGame, totalsByGame) {
     box.innerHTML = `
       <div class="game-header">
         ${escapeHtml(g.away_team)} @ ${escapeHtml(g.home_team)}
-        ${g.time ? ` — ${escapeHtml(g.time)}` : ""}
+        ${gameTime ? ` — ${escapeHtml(gameTime)}` : ""}
       </div>
 
       <div class="game-subheader">
