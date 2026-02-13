@@ -27,7 +27,7 @@ import pandas as pd
 NORMALIZED_DIR = Path("docs/win/manual/normalized")
 CLEANED_DIR = Path("docs/win/manual/cleaned")
 
-ERROR_DIR = Path("docs/win/errors/04_dk_v")
+ERROR_DIR = Path("docs/win/errors/03_dk_iv/")
 ERROR_LOG = ERROR_DIR / "dk_04.txt"
 
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
