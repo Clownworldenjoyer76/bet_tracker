@@ -49,6 +49,18 @@ def process_spreads():
             df_proj = pd.read_csv(proj_path)
             df_dk = pd.read_csv(dk_path)
 
+            # Explicitly ensure required DK columns exist (including away_odds, home_odds)
+            dk_required_cols = [
+                "game_id", "league", "date", "time",
+                "away_team", "home_team",
+                "away_spread", "home_spread",
+                "away_handle_pct", "home_handle_pct",
+                "away_bets_pct", "home_bets_pct",
+                "away_odds", "home_odds",
+            ]
+
+            df_dk_subset = df_dk[dk_required_cols]
+
             df_proj = df_proj[
                 [
                     "game_id",
@@ -58,7 +70,7 @@ def process_spreads():
                 ]
             ]
 
-            merged = pd.merge(df_dk, df_proj, on="game_id", how="inner")
+            merged = pd.merge(df_dk_subset, df_proj, on="game_id", how="inner")
             if merged.empty:
                 log_error(f"No merge rows for {proj_path}")
                 continue
