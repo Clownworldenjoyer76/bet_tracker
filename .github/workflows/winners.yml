@@ -3,8 +3,11 @@ name: 09 Winners
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
-  run-winners-01:
+  run-winners:
     runs-on: ubuntu-latest
 
     steps:
@@ -22,6 +25,7 @@ jobs:
         run: |
           set -euo pipefail
           python -m pip install --upgrade pip
+          pip install pandas
 
       - name: Prepare winners error directory
         run: |
@@ -54,7 +58,7 @@ jobs:
           git config user.email "github-actions@github.com"
 
           if git status --porcelain | grep .; then
-            git add docs/win/winners docs/win/errors/09_winners
+            git add docs/win/winners docs/win/winner docs/win/errors/09_winners
             git commit -m "Generate winners files + logs"
             git push
           else
