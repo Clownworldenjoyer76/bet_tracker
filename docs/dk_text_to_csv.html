@@ -3,40 +3,36 @@
 <head>
   <meta charset="UTF-8" />
   <title>DK Text to CSV</title>
-  <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 24px; }
-    label { display:block; margin-top: 14px; font-weight: 600; }
-    select, input, textarea, button { width: 100%; box-sizing: border-box; padding: 10px; margin-top: 6px; }
-    textarea { height: 320px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
-    button { margin-top: 14px; cursor: pointer; }
-    pre { background:#111; color:#eee; padding:12px; white-space:pre-wrap; word-break:break-word; }
-  </style>
+  <link rel="stylesheet" href="css/terminal.css" />
 </head>
 <body>
+  <div class="container">
 
-  <h2>DraftKings Text → CSV</h2>
+    <h2>DraftKings Text → CSV</h2>
 
-  <label for="league">League</label>
-  <select id="league">
-    <option value="">-- select --</option>
-    <option value="nba">nba</option>
-    <option value="ncaab">ncaab</option>
-    <option value="nhl">nhl</option>
-    <option value="nfl">nfl</option>
-    <option value="soc">soc</option>
-    <option value="mls">mls</option>
-    <option value="mlb">mlb</option>
-  </select>
+    <label for="league">League</label>
+    <select id="league">
+      <option value="">-- select --</option>
+      <option value="nba">nba</option>
+      <option value="ncaab">ncaab</option>
+      <option value="nhl">nhl</option>
+      <option value="nfl">nfl</option>
+      <option value="soc">soc</option>
+      <option value="mls">mls</option>
+      <option value="mlb">mlb</option>
+    </select>
 
-  <label for="token">GitHub Token (classic PAT)</label>
-  <input id="token" type="password" placeholder="ghp_..." />
+    <label for="token">GitHub Token (classic PAT)</label>
+    <input id="token" type="password" placeholder="ghp_..." />
 
-  <label for="raw">Raw DK text (any mix of markets)</label>
-  <textarea id="raw" placeholder="Paste the DK text block here..."></textarea>
+    <label for="raw">Raw DK text (any mix of markets)</label>
+    <textarea id="raw" placeholder="Paste the DK text block here..."></textarea>
 
-  <button id="btn" onclick="dispatch()">Run workflow</button>
+    <button id="btn" onclick="dispatch()">Run workflow</button>
 
-  <pre id="out"></pre>
+    <pre id="out"></pre>
+
+  </div>
 
   <script>
     const OWNER = "Clownworldenjoyer76";
