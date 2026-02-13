@@ -110,8 +110,6 @@ def process_files():
             df["away_team"] = ""
             df["home_team"] = ""
             df["game_id"] = ""
-            df["team_1"] = ""
-            df["team_2"] = ""
 
             # Determine output filename from first valid date_placed
             valid_file_dates = [fd for fd in file_dates if fd is not None]
