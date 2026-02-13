@@ -40,6 +40,12 @@ jobs:
           set -e
 
       # =========================
+      # DK 04 — inject handle/bets %
+      # =========================
+      - name: DK 04 – inject handle/bets percentages
+        run: python scripts/dk_04.py
+
+      # =========================
       # Commit outputs + logs
       # =========================
       - name: Commit normalized data and logs
@@ -49,10 +55,11 @@ jobs:
 
           git add docs/win/manual/normalized
           git add docs/win/errors/03_dk_iv/
+          git add docs/win/errors/04_dk_v/
 
           git status
 
-          git commit -m "DK 03: attach game_id + validate games_master" || echo "No changes to commit"
+          git commit -m "DK 03: attach game_id + validate games_master + DK 04 inject handle/bets %" || echo "No changes to commit"
           git push
 
       # =========================
