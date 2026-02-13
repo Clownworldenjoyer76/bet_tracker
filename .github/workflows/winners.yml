@@ -1,4 +1,4 @@
-name: 09 Winners Step 01
+name: 09 Winners
 
 on:
   workflow_dispatch:
@@ -37,6 +37,15 @@ jobs:
           set -e
           if [ $EXIT_CODE -ne 0 ]; then exit $EXIT_CODE; fi
 
+      - name: Run winners_02 script
+        run: |
+          echo "=== RUNNING winners_02 ==="
+          set +e
+          python scripts/winners_02.py > docs/win/errors/09_winners/winners_02.txt 2>&1
+          EXIT_CODE=$?
+          set -e
+          if [ $EXIT_CODE -ne 0 ]; then exit $EXIT_CODE; fi
+
       - name: Commit and push results
         if: always()
         run: |
@@ -46,7 +55,7 @@ jobs:
 
           if git status --porcelain | grep .; then
             git add docs/win/winners docs/win/errors/09_winners
-            git commit -m "Generate winners step 01 files + logs"
+            git commit -m "Generate winners files + logs"
             git push
           else
             echo "No changes to commit"
