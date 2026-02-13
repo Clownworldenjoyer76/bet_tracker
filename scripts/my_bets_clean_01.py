@@ -84,8 +84,6 @@ def process_files():
             if "number_of_legs" in df.columns:
                 df = df[df["number_of_legs"] == 1]
 
-            rows_after_filters = len(df)
-
             # 3. Drop unwanted columns (only if present)
             drop_cols = [c for c in COLUMNS_TO_DROP if c in df.columns]
             df = df.drop(columns=drop_cols, errors="ignore")
@@ -107,6 +105,11 @@ def process_files():
             df["league"] = ""
             df["date"] = date_vals
             df["time"] = time_vals
+
+            # 5. Create empty columns
+            df["away_team"] = ""
+            df["home_team"] = ""
+            df["game_id"] = ""
 
             # Determine output filename from first valid date_placed
             valid_file_dates = [fd for fd in file_dates if fd is not None]
