@@ -13,7 +13,7 @@ import traceback
 INPUT_DIR = Path("docs/win/my_bets/step_01")
 OUTPUT_DIR = Path("docs/win/my_bets/step_02")
 
-ERROR_DIR = Path("docs/win/errors/10_my_bets")
+ERROR_DIR = Path("docs/win/errors/01_raw")
 ERROR_LOG = ERROR_DIR / "my_bets_clean_02.txt"
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
