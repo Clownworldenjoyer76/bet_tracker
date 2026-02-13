@@ -74,6 +74,7 @@ def process_totals():
                 "under_bets_pct",
                 "over_odds",
                 "under_odds",
+                "total",
             ]
 
             df_dk_subset = df_dk[dk_required_cols]
