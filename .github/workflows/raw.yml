@@ -34,18 +34,26 @@ jobs:
         run: |
           python scripts/name_normalization_dump.py
 
-      - name: Clean My Bets
+      - name: Clean My Bets (Step 01)
         run: |
           python scripts/my_bets_clean_01.py
+
+      - name: Clean My Bets (Step 02)
+        run: |
+          python scripts/my_bets_clean_02.py
 
       - name: Commit and Push Changes
         run: |
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
+
           git add docs/win/dump/csvs/cleaned/*.csv
           git add docs/win/games_master/*.csv
           git add mappings/need_map/dump_no_map.csv
           git add docs/win/my_bets/step_01/*.csv
+          git add docs/win/my_bets/step_02/*.csv
           git add docs/win/errors/01_raw/
-          git commit -m "Raw clean + name normalization + my bets clean" || exit 0
+          git add docs/win/errors/10_my_bets/
+
+          git commit -m "Raw clean + name normalization + my bets clean (step_01 + step_02)" || exit 0
           git push
