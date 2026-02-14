@@ -111,11 +111,11 @@ def process_files():
 
                 if all(col in df.columns for col in [
                     "deci_dk_home_odds",
-                    "deci_home_ml_juice_odds_edge"
+                    "deci_home_ml_juice_odds"
                 ]):
                     df["home_ml_edge"] = (
                         df["deci_dk_home_odds"] -
-                        df["deci_home_ml_juice_odds_edge"]
+                        df["deci_home_ml_juice_odds"]
                     )
 
                 if all(col in df.columns for col in [
