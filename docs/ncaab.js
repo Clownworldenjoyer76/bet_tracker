@@ -3,7 +3,7 @@ const GH_REPO = "bet_tracker";
 const GH_BRANCH = "main";
 const RAW_BASE = `https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/${GH_BRANCH}`;
 
-/* ================= SHARED HELPERS (copied exactly from app.js) ================= */
+/* =================================================== SHARED HELPERS (IDENTICAL TO app.js) =================================================== */
 
 function parseCSV(text) {
   const rows = [];
@@ -12,7 +12,6 @@ function parseCSV(text) {
   let inQuotes = false;
 
   const s = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-
   for (let i = 0; i < s.length; i++) {
     const c = s[i];
     const next = s[i + 1];
@@ -22,18 +21,15 @@ function parseCSV(text) {
       i++;
       continue;
     }
-
     if (c === '"') {
       inQuotes = !inQuotes;
       continue;
     }
-
     if (!inQuotes && c === ",") {
       row.push(field);
       field = "";
       continue;
     }
-
     if (!inQuotes && c === "\n") {
       row.push(field);
       rows.push(row);
@@ -41,7 +37,6 @@ function parseCSV(text) {
       field = "";
       continue;
     }
-
     field += c;
   }
 
@@ -50,22 +45,22 @@ function parseCSV(text) {
     rows.push(row);
   }
 
-  if (!rows.length) return [];
+  if (rows.length === 0) return [];
 
-  const headers = rows[0].map(h => (h ?? "").trim().replace(/^\uFEFF/, ""));
+  const headers = rows[0].map(h =>
+    (h ?? "").trim().replace(/^\uFEFF/, "")
+  );
+
   const objects = [];
-
   for (let r = 1; r < rows.length; r++) {
     const values = rows[r];
     if (values.length === 1 && values[0].trim() === "") continue;
-
     const obj = {};
     for (let c = 0; c < headers.length; c++) {
       obj[headers[c]] = (values[c] ?? "").trim();
     }
     objects.push(obj);
   }
-
   return objects;
 }
 
@@ -109,10 +104,9 @@ function timeToMinutes(t) {
   return h * 60 + min;
 }
 
-/* ================= FULL NCAAB LOGIC (UNCHANGED FROM app.js) ================= */
+/* ======================================================== NCAAB (IDENTICAL TO app.js) ======================================================== */
 
 async function loadNCAABDaily(selectedDate) {
-
   const statusEl = document.getElementById("status");
   const gamesEl = document.getElementById("games");
 
@@ -142,7 +136,7 @@ async function loadNCAABDaily(selectedDate) {
   try {
     mlRows = parseCSV(await fetchText(mlUrl));
   } catch {
-    statusEl.textContent = "No NCAAB ML file found for this date.";
+    if (statusEl) statusEl.textContent = "No NCAAB ML file found for this date.";
     return;
   }
 
@@ -151,29 +145,29 @@ async function loadNCAABDaily(selectedDate) {
   try { dkRows = parseCSV(await fetchText(dkUrl)); } catch {}
 
   if (!mlRows.length) {
-    statusEl.textContent = "No NCAAB games found for this date.";
+    if (statusEl) statusEl.textContent = "No NCAAB games found for this date.";
     return;
   }
 
   const spreadsByGame = new Map();
-  spreads.forEach(s => spreadsByGame.set(s.game_id, s));
+  for (const s of spreads) spreadsByGame.set(s.game_id, s);
 
   const totalsByGame = new Map();
-  totals.forEach(t => totalsByGame.set(t.game_id, t));
+  for (const t of totals) totalsByGame.set(t.game_id, t);
 
   const timeByGame = new Map();
-  dkRows.forEach(r => {
+  for (const r of dkRows) {
     if (r.game_id && r.time) {
-      timeByGame.set(r.game_id.trim(), r.time.trim());
+      timeByGame.set(r.game_id, r.time);
     }
-  });
+  }
 
   mlRows.sort((a, b) =>
     timeToMinutes(timeByGame.get(a.game_id)) -
     timeToMinutes(timeByGame.get(b.game_id))
   );
 
-  renderNCAABGames(
+  renderNCAABGamesModern(
     mlRows,
     spreadsByGame,
     totalsByGame,
@@ -182,18 +176,16 @@ async function loadNCAABDaily(selectedDate) {
   );
 }
 
-function renderNCAABGames(
+function renderNCAABGamesModern(
   mlRows,
   spreadsByGame,
   totalsByGame,
   timeByGame,
   d
 ) {
-
   const container = document.getElementById("games");
 
   for (const g of mlRows) {
-
     const spreads = spreadsByGame.get(g.game_id) || {};
     const totals = totalsByGame.get(g.game_id) || {};
     const gameTime = timeByGame.get(g.game_id);
@@ -202,8 +194,7 @@ function renderNCAABGames(
     box.className = "game-box";
     box.style.cursor = "pointer";
     box.onclick = () =>
-      window.location.href =
-        `ncaab-game.html?date=${d}&game_id=${g.game_id}`;
+      window.location.href = `ncaab-game.html?date=${d}&game_id=${g.game_id}`;
 
     box.innerHTML = `
       <div class="game-header">
