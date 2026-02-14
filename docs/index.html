@@ -11,14 +11,7 @@
 
     <h1>Bet Tracker</h1>
 
-    <nav class="nav">
-      <a href="index.html">Home</a>
-      <a href="ncaab.html">NCAAB</a>
-      <a href="nba.html">NBA</a>
-      <a href="nhl.html">NHL</a>
-      <a href="soccer.html">Soccer</a>
-      <a href="tracker.html">Bet Tracker</a>
-    </nav>
+    <div id="nav-placeholder"></div>
 
     <section>
       <h2>Overview</h2>
@@ -32,5 +25,14 @@
     </section>
 
   </div>
+
+  <script>
+    fetch("nav.html")
+      .then(res => res.text())
+      .then(data => {
+        document.getElementById("nav-placeholder").innerHTML = data;
+      });
+  </script>
+
 </body>
 </html>
