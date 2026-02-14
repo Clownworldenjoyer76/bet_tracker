@@ -11,14 +11,7 @@
 
     <h1>NCAA Men’s Basketball</h1>
 
-    <nav class="nav">
-      <a href="index.html">Home</a>
-      <a href="ncaab.html">NCAAB</a>
-      <a href="nba.html">NBA</a>
-      <a href="nhl.html">NHL</a>
-      <a href="soccer.html">Soccer</a>
-      <a href="tracker.html">Bet Tracker</a>
-    </nav>
+    <div id="nav-placeholder"></div>
 
     <section class="controls">
       <label for="ncaab-date" class="control-label">Date:</label>
@@ -32,7 +25,14 @@
   </div>
 
   <script src="app.js"></script>
+
   <script>
+    fetch("nav.html")
+      .then(res => res.text())
+      .then(data => {
+        document.getElementById("nav-placeholder").innerHTML = data;
+      });
+
     const dateInput = document.getElementById("ncaab-date");
     const now = new Date();
     const yyyy = now.getFullYear();
