@@ -3,7 +3,7 @@ import glob
 from pathlib import Path
 
 FINAL_BASE = Path("docs/win/final/step_1")
-MANUAL_BASE = Path("docs/win/manual/normalized")
+MANUAL_BASE = Path("docs/win/manual/cleaned")
 
 # League-specific thresholds
 THRESHOLDS = {
@@ -15,7 +15,7 @@ FILES_PROCESSED = 0
 TOTAL_ROWS = 0
 
 
-def load_lookup(pattern):
+def load_spread_lookup(pattern):
     files = glob.glob(str(pattern))
     if not files:
         raise RuntimeError(f"No manual files found for {pattern}")
@@ -23,25 +23,28 @@ def load_lookup(pattern):
     dfs = []
     for f in files:
         df = pd.read_csv(f)
-        if "game_id" not in df.columns:
+
+        required = {"game_id", "team", "odds"}
+        if not required.issubset(df.columns):
             continue
+
         df["game_id"] = df["game_id"].astype(str).str.strip()
-        dfs.append(df)
+        df["team"] = df["team"].astype(str).str.strip()
+
+        dfs.append(df[["game_id", "team", "odds"]])
 
     if not dfs:
-        raise RuntimeError(f"Manual files missing game_id for {pattern}")
+        raise RuntimeError(f"Manual files missing required columns for {pattern}")
 
-    return (
-        pd.concat(dfs, ignore_index=True)
-        .drop_duplicates(subset="game_id", keep="last")
-        .set_index("game_id")
-    )
+    combined = pd.concat(dfs, ignore_index=True)
+
+    return combined
 
 
-def update_files(final_glob, manual_glob, mappings, league_key):
+def update_spreads(final_glob, manual_glob, league_key):
     global FILES_PROCESSED, TOTAL_ROWS
 
-    manual = load_lookup(manual_glob)
+    manual = load_spread_lookup(manual_glob)
 
     league_rows = 0
     league_filled = 0
@@ -50,24 +53,35 @@ def update_files(final_glob, manual_glob, mappings, league_key):
         df = pd.read_csv(f)
         FILES_PROCESSED += 1
 
-        if "game_id" not in df.columns:
-            raise RuntimeError(f"{f} missing game_id")
+        required_cols = {"game_id", "away_team", "home_team"}
+        if not required_cols.issubset(df.columns):
+            raise RuntimeError(f"{f} missing required columns")
 
         df["game_id"] = df["game_id"].astype(str).str.strip()
+        df["away_team"] = df["away_team"].astype(str).str.strip()
+        df["home_team"] = df["home_team"].astype(str).str.strip()
 
         rows = len(df)
         TOTAL_ROWS += rows
         league_rows += rows
 
-        for out_col, src_col in mappings.items():
-            if src_col not in manual.columns:
-                raise RuntimeError(
-                    f"Manual source column '{src_col}' missing in {manual_glob}"
-                )
-            df[out_col] = df["game_id"].map(manual[src_col])
+        # Merge for away team
+        away_lookup = manual.rename(columns={"team": "away_team", "odds": "dk_away_odds"})
+        df = df.merge(
+            away_lookup,
+            on=["game_id", "away_team"],
+            how="left",
+        )
 
-        required_cols = list(mappings.keys())
-        rows_fully_filled = df[required_cols].notna().all(axis=1).sum()
+        # Merge for home team
+        home_lookup = manual.rename(columns={"team": "home_team", "odds": "dk_home_odds"})
+        df = df.merge(
+            home_lookup,
+            on=["game_id", "home_team"],
+            how="left",
+        )
+
+        rows_fully_filled = df[["dk_away_odds", "dk_home_odds"]].notna().all(axis=1).sum()
         league_filled += rows_fully_filled
 
         df.to_csv(f, index=False)
@@ -95,51 +109,17 @@ def update_files(final_glob, manual_glob, mappings, league_key):
 
 
 def run():
-    # ---------------- NBA MONEYLINE ----------------
-    update_files(
-        FINAL_BASE / "nba/ml/*.csv",
-        MANUAL_BASE / "dk_nba_moneyline_*.csv",
-        {"dk_away_odds": "decimal_odds", "dk_home_odds": "decimal_odds"},
-        league_key="nba",
-    )
-
     # ---------------- NBA SPREADS ----------------
-    update_files(
+    update_spreads(
         FINAL_BASE / "nba/spreads/*.csv",
         MANUAL_BASE / "dk_nba_spreads_*.csv",
-        {"dk_away_odds": "decimal_odds", "dk_home_odds": "decimal_odds"},
         league_key="nba",
-    )
-
-    # ---------------- NBA TOTALS ----------------
-    update_files(
-        FINAL_BASE / "nba/totals/*.csv",
-        MANUAL_BASE / "dk_nba_totals_*.csv",
-        {"dk_over_odds": "decimal_odds", "dk_under_odds": "decimal_odds"},
-        league_key="nba",
-    )
-
-    # ---------------- NCAAB MONEYLINE ----------------
-    update_files(
-        FINAL_BASE / "ncaab/ml/*.csv",
-        MANUAL_BASE / "dk_ncaab_moneyline_*.csv",
-        {"dk_away_odds": "decimal_odds", "dk_home_odds": "decimal_odds"},
-        league_key="ncaab",
     )
 
     # ---------------- NCAAB SPREADS ----------------
-    update_files(
+    update_spreads(
         FINAL_BASE / "ncaab/spreads/*.csv",
         MANUAL_BASE / "dk_ncaab_spreads_*.csv",
-        {"dk_away_odds": "decimal_odds", "dk_home_odds": "decimal_odds"},
-        league_key="ncaab",
-    )
-
-    # ---------------- NCAAB TOTALS ----------------
-    update_files(
-        FINAL_BASE / "ncaab/totals/*.csv",
-        MANUAL_BASE / "dk_ncaab_totals_*.csv",
-        {"dk_over_odds": "decimal_odds", "dk_under_odds": "decimal_odds"},
         league_key="ncaab",
     )
 
