@@ -804,3 +804,66 @@ function renderTopPicks(rows) {
     container.appendChild(box);
   }
 }
+
+async function loadNCAABAltSpreads() {
+
+  const params = new URLSearchParams(window.location.search);
+  const date = params.get("date");
+  const gameId = params.get("game_id");
+
+  const container = document.getElementById("alt-spreads");
+
+  if (!date || !gameId) {
+    container.innerText = "Missing game data.";
+    return;
+  }
+
+  const url =
+    `${RAW_BASE}/docs/win/juice/spreads_alt/ncaab_altspreads_${date}.csv`;
+
+  let rows;
+
+  try {
+    rows = parseCSV(await fetchText(url));
+  } catch {
+    container.innerText = "Alt spreads file not found.";
+    return;
+  }
+
+  const filtered = rows.filter(r => r.game_id === gameId);
+
+  if (!filtered.length) {
+    container.innerText = "No alt spreads available.";
+    return;
+  }
+
+  const table = document.createElement("table");
+  table.className = "game-grid large-grid";
+
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th>Team</th>
+        <th>Spread</th>
+        <th>Fair</th>
+        <th>Accept</th>
+        <th>DK</th>
+        <th>Edge</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${filtered.map(r => `
+        <tr>
+          <td>${escapeHtml(r.team)}</td>
+          <td>${escapeHtml(r.spread)}</td>
+          <td>${escapeHtml(r.fair_american_odds)}</td>
+          <td>${escapeHtml(r.acceptable_american_odds)}</td>
+          <td>${escapeHtml(r.dk_odds)}</td>
+          <td>${format2(r.edge)}</td>
+        </tr>
+      `).join("")}
+    </tbody>
+  `;
+
+  container.appendChild(table);
+}
