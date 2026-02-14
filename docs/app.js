@@ -744,3 +744,63 @@ function renderNBAGamesModern(
     container.appendChild(box);
   }
 }
+
+/* ======================================================== TOP PICKS ======================================================== */
+/* ======================================================== TOP PICKS ======================================================== */
+/* ======================================================== TOP PICKS ======================================================== */
+/* ======================================================== TOP PICKS ======================================================== */
+/* ======================================================== TOP PICKS ======================================================== */
+/* ======================================================== TOP PICKS ======================================================== */
+/* ======================================================== TOP PICKS ======================================================== */
+/* ======================================================== TOP PICKS ======================================================== */
+/* ======================================================== TOP PICKS ======================================================== */
+/* ======================================================== TOP PICKS ======================================================== */
+/* ======================================================== TOP PICKS ======================================================== */
+
+async function loadTopPicks(selectedDate) {
+  setStatus("");
+  document.getElementById("games").innerHTML = "";
+
+  const [yyyy, mm, dd] = selectedDate.split("-");
+  const d = `${yyyy}_${mm}_${dd}`;
+
+  const url =
+    `${RAW_BASE}/docs/win/winners/step_02/top_picks_${d}.csv`;
+
+  let rows = [];
+
+  try {
+    rows = parseCSV(await fetchText(url));
+  } catch {
+    setStatus("No Top Picks file found for this date.");
+    return;
+  }
+
+  if (!rows.length) {
+    setStatus("No Top Picks found.");
+    return;
+  }
+
+  renderTopPicks(rows);
+}
+
+function renderTopPicks(rows) {
+  const container = document.getElementById("games");
+
+  for (const r of rows) {
+    const box = document.createElement("div");
+    box.className = "game-box";
+
+    box.innerHTML = `
+      <div class="game-header">
+        ${escapeHtml(r.league)} — ${escapeHtml(r.market)}
+      </div>
+
+      <div>
+        ${escapeHtml(r.away_team)} @ ${escapeHtml(r.home_team)}
+      </div>
+    `;
+
+    container.appendChild(box);
+  }
+}
