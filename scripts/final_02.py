@@ -24,21 +24,22 @@ def load_spread_lookup(pattern):
     for f in files:
         df = pd.read_csv(f)
 
-        required = {"game_id", "team", "odds"}
+        required = {"team", "odds"}
         if not required.issubset(df.columns):
             continue
 
-        df["game_id"] = df["game_id"].astype(str).str.strip()
         df["team"] = df["team"].astype(str).str.strip()
-
-        dfs.append(df[["game_id", "team", "odds"]])
+        dfs.append(df[["team", "odds"]])
 
     if not dfs:
         raise RuntimeError(f"Manual files missing required columns for {pattern}")
 
     combined = pd.concat(dfs, ignore_index=True)
 
-    return combined
+    # If duplicates exist, keep last occurrence
+    combined = combined.drop_duplicates(subset=["team"], keep="last")
+
+    return combined.set_index("team")
 
 
 def update_spreads(final_glob, manual_glob, league_key):
@@ -53,11 +54,10 @@ def update_spreads(final_glob, manual_glob, league_key):
         df = pd.read_csv(f)
         FILES_PROCESSED += 1
 
-        required_cols = {"game_id", "away_team", "home_team"}
+        required_cols = {"away_team", "home_team"}
         if not required_cols.issubset(df.columns):
             raise RuntimeError(f"{f} missing required columns")
 
-        df["game_id"] = df["game_id"].astype(str).str.strip()
         df["away_team"] = df["away_team"].astype(str).str.strip()
         df["home_team"] = df["home_team"].astype(str).str.strip()
 
@@ -65,21 +65,8 @@ def update_spreads(final_glob, manual_glob, league_key):
         TOTAL_ROWS += rows
         league_rows += rows
 
-        # Merge for away team
-        away_lookup = manual.rename(columns={"team": "away_team", "odds": "dk_away_odds"})
-        df = df.merge(
-            away_lookup,
-            on=["game_id", "away_team"],
-            how="left",
-        )
-
-        # Merge for home team
-        home_lookup = manual.rename(columns={"team": "home_team", "odds": "dk_home_odds"})
-        df = df.merge(
-            home_lookup,
-            on=["game_id", "home_team"],
-            how="left",
-        )
+        df["dk_away_odds"] = df["away_team"].map(manual["odds"])
+        df["dk_home_odds"] = df["home_team"].map(manual["odds"])
 
         rows_fully_filled = df[["dk_away_odds", "dk_home_odds"]].notna().all(axis=1).sum()
         league_filled += rows_fully_filled
