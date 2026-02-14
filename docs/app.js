@@ -348,6 +348,10 @@ function renderNCAABGamesModern(
 
     const box = document.createElement("div");
     box.className = "game-box";
+    box.onclick = () => window.location.href = \ncaab-game.html?date=${g.file_date}&game_id=${g.game_id}`;`
+
+    
+
 
     box.innerHTML = `
       <div class="game-header">
