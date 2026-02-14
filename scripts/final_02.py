@@ -99,7 +99,7 @@ def run():
     update_files(
         FINAL_BASE / "nba/ml/*.csv",
         MANUAL_BASE / "dk_nba_moneyline_*.csv",
-        {"dk_away_odds": "away_odds", "dk_home_odds": "home_odds"},
+        {"dk_away_odds": "decimal_odds", "dk_home_odds": "decimal_odds"},
         league_key="nba",
     )
 
@@ -107,7 +107,7 @@ def run():
     update_files(
         FINAL_BASE / "nba/spreads/*.csv",
         MANUAL_BASE / "dk_nba_spreads_*.csv",
-        {"dk_away_odds": "away_spread", "dk_home_odds": "home_spread"},
+        {"dk_away_odds": "decimal_odds", "dk_home_odds": "decimal_odds"},
         league_key="nba",
     )
 
@@ -115,7 +115,7 @@ def run():
     update_files(
         FINAL_BASE / "nba/totals/*.csv",
         MANUAL_BASE / "dk_nba_totals_*.csv",
-        {"dk_over_odds": "over_odds", "dk_under_odds": "under_odds"},
+        {"dk_over_odds": "decimal_odds", "dk_under_odds": "decimal_odds"},
         league_key="nba",
     )
 
@@ -123,7 +123,7 @@ def run():
     update_files(
         FINAL_BASE / "ncaab/ml/*.csv",
         MANUAL_BASE / "dk_ncaab_moneyline_*.csv",
-        {"dk_away_odds": "away_odds", "dk_home_odds": "home_odds"},
+        {"dk_away_odds": "decimal_odds", "dk_home_odds": "decimal_odds"},
         league_key="ncaab",
     )
 
@@ -131,7 +131,7 @@ def run():
     update_files(
         FINAL_BASE / "ncaab/spreads/*.csv",
         MANUAL_BASE / "dk_ncaab_spreads_*.csv",
-        {"dk_away_odds": "away_spread", "dk_home_odds": "home_spread"},
+        {"dk_away_odds": "decimal_odds", "dk_home_odds": "decimal_odds"},
         league_key="ncaab",
     )
 
@@ -139,7 +139,7 @@ def run():
     update_files(
         FINAL_BASE / "ncaab/totals/*.csv",
         MANUAL_BASE / "dk_ncaab_totals_*.csv",
-        {"dk_over_odds": "over_odds", "dk_under_odds": "under_odds"},
+        {"dk_over_odds": "decimal_odds", "dk_under_odds": "decimal_odds"},
         league_key="ncaab",
     )
 
