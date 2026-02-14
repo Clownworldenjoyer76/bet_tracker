@@ -329,7 +329,8 @@ async function loadNCAABDaily(selectedDate) {
     mlRows,
     spreadsByGame,
     totalsByGame,
-    timeByGame
+    timeByGame,
+    d
   );
 }
 
@@ -337,7 +338,8 @@ function renderNCAABGamesModern(
   mlRows,
   spreadsByGame,
   totalsByGame,
-  timeByGame
+  timeByGame,
+  d
 ) {
   const container = document.getElementById("games");
 
@@ -348,10 +350,9 @@ function renderNCAABGamesModern(
 
     const box = document.createElement("div");
     box.className = "game-box";
-    box.onclick = () => window.location.href = `ncaab-game.html?date=${d}&game_id=${g.game_id}`;
-
-    
-
+    box.style.cursor = "pointer";
+    box.onclick = () =>
+      window.location.href = `ncaab-game.html?date=${d}&game_id=${g.game_id}`;
 
     box.innerHTML = `
       <div class="game-header">
