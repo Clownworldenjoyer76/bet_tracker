@@ -1,3 +1,5 @@
+# scripts/spreads_ncaab.py
+
 import pandas as pd
 import glob
 from pathlib import Path
@@ -11,14 +13,16 @@ ERROR_DIR = Path("docs/win/errors/06_spreads")
 ERROR_LOG = ERROR_DIR / "spreads_ncaab_errors.txt"
 
 EDGE = 0.05
-NCAAB_STD_DEV = 11
+NCAAB_STD_DEV = 15  # raised from 11 to 15
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
+
 def log_error(msg):
     with open(ERROR_LOG, "a", encoding="utf-8") as f:
         f.write(f"{datetime.utcnow().isoformat()} | {msg}\n")
+
 
 def to_american(dec):
     if pd.isna(dec) or dec <= 1:
@@ -27,10 +31,15 @@ def to_american(dec):
         return f"+{int((dec - 1) * 100)}"
     return f"-{int(100 / (dec - 1))}"
 
+
+def clamp_probability(p):
+    return min(max(p, 0.05), 0.95)
+
+
 def process_spreads():
     with open(ERROR_LOG, "w", encoding="utf-8"):
         pass
-        
+
     projection_files = glob.glob(str(CLEANED_DIR / "ncaab_*.csv"))
 
     if not projection_files:
@@ -79,9 +88,19 @@ def process_spreads():
             )
 
             merged["home_spread_probability"] = merged.apply(
-                lambda x: 1 - norm.cdf(-x["home_spread"], x["proj_home_margin"], NCAAB_STD_DEV),
+                lambda x: 1 - norm.cdf(
+                    -x["home_spread"],
+                    x["proj_home_margin"],
+                    NCAAB_STD_DEV,
+                ),
                 axis=1,
             )
+
+            # Clamp probabilities
+            merged["home_spread_probability"] = merged[
+                "home_spread_probability"
+            ].apply(clamp_probability)
+
             merged["away_spread_probability"] = 1 - merged["home_spread_probability"]
 
             merged["home_spread_acceptable_decimal_odds"] = (
@@ -94,6 +113,7 @@ def process_spreads():
             merged["home_spread_acceptable_american_odds"] = merged[
                 "home_spread_acceptable_decimal_odds"
             ].apply(to_american)
+
             merged["away_spread_acceptable_american_odds"] = merged[
                 "away_spread_acceptable_decimal_odds"
             ].apply(to_american)
@@ -118,6 +138,7 @@ def process_spreads():
 
         except Exception as e:
             log_error(f"{proj_path} failed: {e}")
+
 
 if __name__ == "__main__":
     process_spreads()
