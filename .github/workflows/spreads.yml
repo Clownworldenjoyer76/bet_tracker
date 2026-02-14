@@ -33,6 +33,9 @@ jobs:
       - name: Run NHL Spreads
         run: python scripts/spreads_nhl.py
 
+      - name: Run Alt Spreads (NBA + NCAAB)
+        run: python scripts/spreads_alt.py
+
       - name: Validate games master (spreads only)
         run: |
           python scripts/validate_games_master.py \
@@ -51,11 +54,13 @@ jobs:
             docs/win/nba/spreads \
             docs/win/ncaab/spreads \
             docs/win/nhl/spreads \
-            docs/win/errors/06_spreads || true
+            docs/win/juice/spreads_alt \
+            docs/win/errors/06_spreads \
+            docs/win/errors/07_spreads_alt || true
 
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "Update NBA/NCAAB/NHL spreads"
+            git commit -m "Update spreads + alt spreads"
             git push
           fi
