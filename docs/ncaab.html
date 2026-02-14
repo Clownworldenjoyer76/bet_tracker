@@ -2,14 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>NCAAB Games</title>
 
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="css/terminal.css" />
 </head>
 <body>
-
   <div class="container">
 
     <h1>NCAA Men’s Basketball</h1>
@@ -27,19 +26,23 @@
 
   </div>
 
-  <!-- Load NCAAB logic only -->
-  <script src="ncaab.js"></script>
-
+  <!-- NAV -->
   <script>
-    // Load nav
     fetch("nav.html")
       .then(res => res.text())
       .then(data => {
-        document.getElementById("nav-placeholder").innerHTML = data;
-      });
+        const el = document.getElementById("nav-placeholder");
+        if (el) el.innerHTML = data;
+      })
+      .catch(() => {});
+  </script>
 
-    // Default to today
+  <!-- NCAAB ONLY -->
+  <script src="ncaab.js"></script>
+
+  <script>
     const dateInput = document.getElementById("ncaab-date");
+
     const now = new Date();
     const yyyy = now.getFullYear();
     const mm = String(now.getMonth() + 1).padStart(2, "0");
@@ -49,13 +52,14 @@
     function runLoad() {
       if (typeof loadNCAABDaily === "function") {
         loadNCAABDaily(dateInput.value);
+      } else {
+        const statusEl = document.getElementById("status");
+        if (statusEl) statusEl.textContent = "loadNCAABDaily() not found (ncaab.js not loaded).";
       }
     }
 
     dateInput.addEventListener("change", runLoad);
-
     runLoad();
   </script>
-
 </body>
 </html>
