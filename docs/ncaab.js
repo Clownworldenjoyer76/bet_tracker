@@ -3,7 +3,7 @@ const GH_REPO = "bet_tracker";
 const GH_BRANCH = "main";
 const RAW_BASE = `https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/${GH_BRANCH}`;
 
-/* ================= CSV PARSER ================= */
+/* ================= SHARED HELPERS (copied exactly from app.js) ================= */
 
 function parseCSV(text) {
   const rows = [];
@@ -69,8 +69,6 @@ function parseCSV(text) {
   return objects;
 }
 
-/* ================= HELPERS ================= */
-
 function format2(n) {
   const x = Number(n);
   return Number.isFinite(x) ? x.toFixed(2) : "";
@@ -111,7 +109,7 @@ function timeToMinutes(t) {
   return h * 60 + min;
 }
 
-/* ================= NCAAB ================= */
+/* ================= FULL NCAAB LOGIC (UNCHANGED FROM app.js) ================= */
 
 async function loadNCAABDaily(selectedDate) {
 
@@ -144,7 +142,7 @@ async function loadNCAABDaily(selectedDate) {
   try {
     mlRows = parseCSV(await fetchText(mlUrl));
   } catch {
-    statusEl.textContent = "No NCAAB ML file found.";
+    statusEl.textContent = "No NCAAB ML file found for this date.";
     return;
   }
 
@@ -153,7 +151,7 @@ async function loadNCAABDaily(selectedDate) {
   try { dkRows = parseCSV(await fetchText(dkUrl)); } catch {}
 
   if (!mlRows.length) {
-    statusEl.textContent = "No NCAAB games found.";
+    statusEl.textContent = "No NCAAB games found for this date.";
     return;
   }
 
@@ -175,7 +173,13 @@ async function loadNCAABDaily(selectedDate) {
     timeToMinutes(timeByGame.get(b.game_id))
   );
 
-  renderNCAABGames(mlRows, spreadsByGame, totalsByGame, timeByGame, d);
+  renderNCAABGames(
+    mlRows,
+    spreadsByGame,
+    totalsByGame,
+    timeByGame,
+    d
+  );
 }
 
 function renderNCAABGames(
@@ -188,7 +192,7 @@ function renderNCAABGames(
 
   const container = document.getElementById("games");
 
-  mlRows.forEach(g => {
+  for (const g of mlRows) {
 
     const spreads = spreadsByGame.get(g.game_id) || {};
     const totals = totalsByGame.get(g.game_id) || {};
@@ -210,8 +214,81 @@ function renderNCAABGames(
       <div class="game-subheader">
         Projected Total: ${format2(g.game_projected_points)}
       </div>
+
+      <table class="game-grid large-grid">
+        <thead>
+          <tr>
+            <th></th>
+            <th>Win %</th>
+            <th>Proj Pts</th>
+            <th>Fair ML</th>
+            <th>Accept ML</th>
+            <th>DK ML</th>
+            <th>Spread</th>
+            <th>Spread Accept</th>
+            <th>Handle %</th>
+            <th>Bets %</th>
+          </tr>
+        </thead>
+        <tbody>
+
+          <tr>
+            <td><strong>${escapeHtml(g.away_team)}</strong></td>
+            <td>${formatPct(g.away_team_moneyline_win_prob)}</td>
+            <td>${format2(g.away_team_projected_points)}</td>
+            <td>${escapeHtml(g.away_ml_fair_american_odds)}</td>
+            <td>${escapeHtml(g.away_ml_acceptable_american_odds)}</td>
+            <td>${escapeHtml(g.dk_away_odds)}</td>
+            <td>${escapeHtml(spreads.away_spread || "")}</td>
+            <td>${escapeHtml(spreads.away_spread_acceptable_american_odds || "")}</td>
+            <td>${format2(g.away_handle_pct)}</td>
+            <td>${format2(g.away_bets_pct)}</td>
+          </tr>
+
+          <tr>
+            <td><strong>${escapeHtml(g.home_team)}</strong></td>
+            <td>${formatPct(g.home_team_moneyline_win_prob)}</td>
+            <td>${format2(g.home_team_projected_points)}</td>
+            <td>${escapeHtml(g.home_ml_fair_american_odds)}</td>
+            <td>${escapeHtml(g.home_ml_acceptable_american_odds)}</td>
+            <td>${escapeHtml(g.dk_home_odds)}</td>
+            <td>${escapeHtml(spreads.home_spread || "")}</td>
+            <td>${escapeHtml(spreads.home_spread_acceptable_american_odds || "")}</td>
+            <td>${format2(g.home_handle_pct)}</td>
+            <td>${format2(g.home_bets_pct)}</td>
+          </tr>
+
+        </tbody>
+      </table>
+
+      <div class="totals-section">
+        <table class="game-grid large-grid">
+          <thead>
+            <tr>
+              <th>Total</th>
+              <th>Over %</th>
+              <th>Under %</th>
+              <th>Over Accept</th>
+              <th>Under Accept</th>
+              <th>DK Over</th>
+              <th>DK Under</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>${escapeHtml(totals.total || "")}</td>
+              <td>${formatPct(totals.over_probability)}</td>
+              <td>${formatPct(totals.under_probability)}</td>
+              <td>${escapeHtml(totals.over_acceptable_american_odds || "")}</td>
+              <td>${escapeHtml(totals.under_acceptable_american_odds || "")}</td>
+              <td>${escapeHtml(totals.dk_over_odds || "")}</td>
+              <td>${escapeHtml(totals.dk_under_odds || "")}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     `;
 
     container.appendChild(box);
-  });
+  }
 }
