@@ -38,10 +38,10 @@ def write_filtered(step2_pattern, step1_pattern, juice_dk_pairs, keep_cols, extr
 
         mask = pd.Series(False, index=df.index)
 
-        for juice_col, dk_col in juice_dk_pairs:
-            if juice_col in df.columns and dk_col in df.columns:
-                valid = df[juice_col].notna() & df[dk_col].notna()
-                mask |= valid & (df[dk_col] > df[juice_col])
+        for juice_col, comp_col in juice_dk_pairs:
+            if juice_col in df.columns and comp_col in df.columns:
+                valid = df[juice_col].notna() & df[comp_col].notna()
+                mask |= valid & (df[comp_col] > df[juice_col])
 
         filtered = df[mask].copy()
 
@@ -75,13 +75,13 @@ def run():
         STEP2 / "*/ml/juice_*_ml_*.csv",
         None,
         [
-            ("deci_home_ml_juice_odds", "deci_dk_home_odds"),
-            ("deci_away_ml_juice_odds", "deci_dk_away_odds"),
+            ("deci_home_ml_juice_odds", "home_ml_acceptable_decimal_odds"),
+            ("deci_away_ml_juice_odds", "away_ml_acceptable_decimal_odds"),
         ],
         [
             "date", "time", "away_team", "home_team", "league", "game_id",
             "deci_home_ml_juice_odds", "deci_away_ml_juice_odds",
-            "deci_dk_away_odds", "deci_dk_home_odds",
+            "home_ml_acceptable_decimal_odds", "away_ml_acceptable_decimal_odds",
         ],
     )
 
