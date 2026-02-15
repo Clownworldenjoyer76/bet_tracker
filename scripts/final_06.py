@@ -106,14 +106,14 @@ def run():
         STEP2 / "*/totals/juice_*_totals_*.csv",
         None,
         [
-            ("deci_over_juice_odds", "deci_dk_over_odds"),
-            ("deci_under_juice_odds", "deci_dk_under_odds"),
+            ("deci_over_juice_odds", "over_acceptable_decimal_odds"),
+            ("deci_under_juice_odds", "under_acceptable_decimal_odds"),
         ],
         [
             "date", "time", "away_team", "home_team", "league", "game_id",
             "total",
             "deci_over_juice_odds", "deci_under_juice_odds",
-            "deci_dk_over_odds", "deci_dk_under_odds",
+            "over_acceptable_decimal_odds", "under_acceptable_decimal_odds",
         ],
     )
 
