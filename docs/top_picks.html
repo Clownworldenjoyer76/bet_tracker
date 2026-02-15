@@ -11,7 +11,6 @@
 
     <h1>Top Picks</h1>
 
-    <!-- Nav Placeholder -->
     <div id="nav-placeholder"></div>
 
     <section class="controls">
@@ -27,23 +26,144 @@
   <script src="app.js"></script>
 
   <script>
-    // Load shared nav
+    // ===============================
+    // Load Shared Nav
+    // ===============================
     fetch("nav.html")
-      .then(response => response.text())
+      .then(res => res.text())
       .then(data => {
         document.getElementById("nav-placeholder").innerHTML = data;
       });
 
+    // ===============================
+    // Date Handling
+    // ===============================
     const dateInput = document.getElementById("tp-date");
     const now = new Date();
     dateInput.value = now.toLocaleDateString("en-CA");
 
-    function runLoad() {
-      loadTopPicks(dateInput.value);
+    dateInput.addEventListener("change", loadPage);
+
+    loadPage();
+
+    // ===============================
+    // Main Loader
+    // ===============================
+    function loadPage() {
+      const date = dateInput.value.replaceAll("-", "_");
+      const filePath = `win/winners/step_03/winners_${date}.csv`;
+
+      document.getElementById("status").textContent = "Loading...";
+      document.getElementById("games").innerHTML = "";
+
+      fetch(filePath)
+        .then(res => {
+          if (!res.ok) throw new Error("File not found");
+          return res.text();
+        })
+        .then(csv => {
+          const rows = parseCSV(csv);
+          renderGames(rows);
+          document.getElementById("status").textContent = `${rows.length} picks found`;
+        })
+        .catch(() => {
+          document.getElementById("status").textContent = "No picks found for selected date.";
+        });
     }
 
-    dateInput.addEventListener("change", runLoad);
-    runLoad();
+    // ===============================
+    // CSV Parser
+    // ===============================
+    function parseCSV(csv) {
+      const lines = csv.trim().split("\n");
+      const headers = lines[0].split(",");
+
+      return lines.slice(1).map(line => {
+        const values = line.split(",");
+        let obj = {};
+        headers.forEach((h, i) => obj[h] = values[i]);
+        return obj;
+      });
+    }
+
+    // ===============================
+    // Render Picks
+    // ===============================
+    function renderGames(rows) {
+      const container = document.getElementById("games");
+      container.innerHTML = "";
+
+      rows.forEach(row => {
+
+        const betType = row.bet;
+
+        let market = "";
+        let line = "";
+        let odds = "";
+        let edge = "";
+
+        // Moneyline
+        if (betType === "home_ml") {
+          market = "Moneyline";
+          line = row.home_team;
+          odds = row.home_ml_odds;
+          edge = row.home_ml_edge;
+        }
+
+        if (betType === "away_ml") {
+          market = "Moneyline";
+          line = row.away_team;
+          odds = row.away_ml_odds;
+          edge = row.away_ml_edge;
+        }
+
+        // Spread
+        if (betType === "home_spread") {
+          market = "Spread";
+          line = `${row.home_team} ${row.home_spread}`;
+          odds = row.home_spread_odds;
+          edge = row.home_spread_edge;
+        }
+
+        if (betType === "away_spread") {
+          market = "Spread";
+          line = `${row.away_team} ${row.away_spread}`;
+          odds = row.away_spread_odds;
+          edge = row.away_spread_edge;
+        }
+
+        // Totals
+        if (betType === "over") {
+          market = "Total";
+          line = `Over ${row.total}`;
+          odds = row.over_odds;
+          edge = row.over_edge;
+        }
+
+        if (betType === "under") {
+          market = "Total";
+          line = `Under ${row.total}`;
+          odds = row.under_odds;
+          edge = row.under_edge;
+        }
+
+        const gameDiv = document.createElement("div");
+        gameDiv.className = "game-card";
+
+        gameDiv.innerHTML = `
+          <div class="game-time">${row.time}</div>
+          <div class="game-matchup">${row.away_team} @ ${row.home_team}</div>
+          <div class="game-league">${row.league}</div>
+          <div class="game-market">${market}</div>
+          <div class="game-line">${line}</div>
+          <div class="game-odds">Odds: ${odds}</div>
+          <div class="game-edge">Edge: ${parseFloat(edge).toFixed(3)}</div>
+        `;
+
+        container.appendChild(gameDiv);
+      });
+    }
+
   </script>
 </body>
 </html>
