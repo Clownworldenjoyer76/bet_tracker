@@ -85,33 +85,54 @@
     titleEl.textContent =
       `${g.away_team} @ ${g.home_team}`;
 
+    // ===============================
+    // BUILD ALT SPREAD TABLE (PAIRED)
+    // ===============================
+
     let altSection = "";
 
     if (altRows.length > 0) {
-      let altRowsHtml = "";
 
-      altRows.forEach(a => {
+      // group rows by alt_spread
+      const grouped = {};
 
-        // Away team row
-        altRowsHtml += `
-          <tr>
-            <td>${escapeHtml(a.away_team)}</td>
-            <td>${escapeHtml(a.alt_spread)}</td>
-            <td>${formatPct(a.away_probability)}</td>
-            <td>${escapeHtml(a.away_acceptable_american_odds)}</td>
-          </tr>
-        `;
-
-        // Home team row
-        altRowsHtml += `
-          <tr>
-            <td>${escapeHtml(a.home_team)}</td>
-            <td>${escapeHtml("-" + a.alt_spread)}</td>
-            <td>${formatPct(a.home_probability)}</td>
-            <td>${escapeHtml(a.home_acceptable_american_odds)}</td>
-          </tr>
-        `;
+      altRows.forEach(row => {
+        const spreadValue = row.alt_spread;
+        if (!grouped[spreadValue]) {
+          grouped[spreadValue] = [];
+        }
+        grouped[spreadValue].push(row);
       });
+
+      const rowsHtml = Object.keys(grouped).map(spreadValue => {
+
+        const pair = grouped[spreadValue];
+
+        const homeRow = pair.find(p => p.home_probability);
+        const awayRow = pair.find(p => p.away_probability);
+
+        const homeSpread = spreadValue.startsWith("-")
+          ? spreadValue
+          : "-" + spreadValue;
+
+        const awaySpread = spreadValue.startsWith("-")
+          ? "+" + spreadValue.replace("-", "")
+          : "+" + spreadValue;
+
+        return `
+          <tr>
+            <td>${escapeHtml(spreadValue)}</td>
+
+            <td>${escapeHtml(g.away_team)}</td>
+            <td>${formatPct(awayRow?.away_probability)}</td>
+            <td>${escapeHtml(awayRow?.away_acceptable_american_odds || "")}</td>
+
+            <td>${escapeHtml(g.home_team)}</td>
+            <td>${formatPct(homeRow?.home_probability)}</td>
+            <td>${escapeHtml(homeRow?.home_acceptable_american_odds || "")}</td>
+          </tr>
+        `;
+      }).join("");
 
       altSection = `
         <div class="totals-section">
@@ -119,19 +140,31 @@
           <table class="game-grid large-grid">
             <thead>
               <tr>
-                <th>Team</th>
                 <th>Spread</th>
+                <th colspan="3">${escapeHtml(g.away_team)}</th>
+                <th colspan="3">${escapeHtml(g.home_team)}</th>
+              </tr>
+              <tr>
+                <th></th>
+                <th>Team</th>
                 <th>Win %</th>
-                <th>Acceptable Odds</th>
+                <th>Accept</th>
+                <th>Team</th>
+                <th>Win %</th>
+                <th>Accept</th>
               </tr>
             </thead>
             <tbody>
-              ${altRowsHtml}
+              ${rowsHtml}
             </tbody>
           </table>
         </div>
       `;
     }
+
+    // ===============================
+    // MAIN GAME HTML
+    // ===============================
 
     gameEl.innerHTML = `
       <div class="game-box">
