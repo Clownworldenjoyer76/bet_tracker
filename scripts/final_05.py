@@ -83,8 +83,8 @@ def run():
         {
             "over_juice_odds": "deci_over_juice_odds",
             "under_juice_odds": "deci_under_juice_odds",
-            "dk_over_odds": "deci_dk_over_odds",
-            "dk_under_odds": "deci_dk_under_odds",
+            "over_odds": "deci_dk_over_odds",
+            "under_odds": "deci_dk_under_odds",
         },
     )
 
