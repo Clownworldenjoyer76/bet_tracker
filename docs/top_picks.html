@@ -6,7 +6,7 @@
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="css/terminal.css" />
 </head>
-<body>
+<body class="top-picks-page">
   <div class="container">
 
     <h1>Top Picks</h1>
@@ -26,18 +26,12 @@
   <script src="app.js"></script>
 
   <script>
-    // ===============================
-    // Load Shared Nav
-    // ===============================
     fetch("nav.html")
       .then(res => res.text())
       .then(data => {
         document.getElementById("nav-placeholder").innerHTML = data;
       });
 
-    // ===============================
-    // Date Handling
-    // ===============================
     const dateInput = document.getElementById("tp-date");
     const now = new Date();
     dateInput.value = now.toLocaleDateString("en-CA");
@@ -45,9 +39,6 @@
     dateInput.addEventListener("change", loadPage);
     loadPage();
 
-    // ===============================
-    // Load CSV
-    // ===============================
     function loadPage() {
       const date = dateInput.value.replaceAll("-", "_");
       const filePath = `win/winners/step_03/winners_${date}.csv`;
@@ -62,10 +53,7 @@
         })
         .then(csv => {
           const rows = parseCSV(csv);
-
-          // ✅ SORT BY TIME (earliest → latest)
           rows.sort((a, b) => parseGameTime(a.time) - parseGameTime(b.time));
-
           renderGames(rows);
           document.getElementById("status").textContent = `${rows.length} picks found`;
         })
@@ -74,9 +62,6 @@
         });
     }
 
-    // ===============================
-    // Proper Header-Based Parser
-    // ===============================
     function parseCSV(csv) {
       const lines = csv.trim().split(/\r?\n/);
       const headers = lines[0].split(",");
@@ -84,28 +69,21 @@
       return lines.slice(1).map(line => {
         const values = line.split(",");
         const row = {};
-
         headers.forEach((header, index) => {
           row[header] = values[index] ?? "";
         });
-
         return row;
       });
     }
 
-    // ===============================
-    // Convert Game Time to Comparable Value
-    // ===============================
     function parseGameTime(timeStr) {
       if (!timeStr) return 0;
 
-      // Handle "00:00" format
       if (!timeStr.includes("AM") && !timeStr.includes("PM")) {
         const [h, m] = timeStr.split(":").map(Number);
         return h * 60 + m;
       }
 
-      // Handle "02:00PM" format
       const match = timeStr.match(/(\d+):(\d+)(AM|PM)/i);
       if (!match) return 0;
 
@@ -119,9 +97,6 @@
       return hour * 60 + minute;
     }
 
-    // ===============================
-    // Render Picks
-    // ===============================
     function renderGames(rows) {
       const container = document.getElementById("games");
       container.innerHTML = "";
@@ -136,7 +111,6 @@
         let edge = "";
 
         switch (betType) {
-
           case "home_ml":
             market = "Moneyline";
             line = row.home_team;
