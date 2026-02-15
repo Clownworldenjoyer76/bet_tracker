@@ -50,6 +50,15 @@ jobs:
           set -e
           if [ $EXIT_CODE -ne 0 ]; then exit $EXIT_CODE; fi
 
+      - name: Run winners_03 script
+        run: |
+          echo "=== RUNNING winners_03 ==="
+          set +e
+          python scripts/winners_03.py > docs/win/errors/09_winners/winners_03.txt 2>&1
+          EXIT_CODE=$?
+          set -e
+          if [ $EXIT_CODE -ne 0 ]; then exit $EXIT_CODE; fi
+
       - name: Commit and push results
         if: always()
         run: |
@@ -59,7 +68,7 @@ jobs:
 
           if git status --porcelain | grep .; then
             git add docs/win/winners docs/win/errors/09_winners
-            git commit -m "Generate winners step_01 + step_02 files and logs"
+            git commit -m "Generate winners step_01 + step_02 + step_03 files and logs"
             git push
           else
             echo "No changes to commit"
