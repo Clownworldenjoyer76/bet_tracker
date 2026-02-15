@@ -6,9 +6,18 @@ BASE_IN = Path("docs/win/juice")
 BASE_OUT = Path("docs/win/final/step_1")
 DK_NORMALIZED = Path("docs/win/manual/normalized")
 
+ERROR_DIR = Path("docs/win/errors/final_01")
+ERROR_LOG = ERROR_DIR / "final_01_missing_dk_merge.txt"
+
 FILES_PROCESSED = 0
 ROWS_IN = 0
 ROWS_OUT = 0
+
+
+def log_error(message: str):
+    ERROR_DIR.mkdir(parents=True, exist_ok=True)
+    with open(ERROR_LOG, "a") as f:
+        f.write(message + "\n")
 
 
 def run():
@@ -35,52 +44,48 @@ def run():
             ROWS_IN += len(df)
 
             if is_ml:
-                # Ensure time column exists
                 if "time" not in df.columns:
                     df["time"] = "00:00"
 
-                # Require game_id for merge
                 if "game_id" not in df.columns:
-                    raise RuntimeError(f"{f} missing game_id for DK merge")
+                    log_error(f"{f} missing game_id — skipping DK merge")
+                else:
+                    df["game_id"] = df["game_id"].astype(str)
 
-                df["game_id"] = df["game_id"].astype(str)
+                    stem = Path(f).stem
+                    parts = stem.split("_")
+                    if len(parts) >= 4:
+                        date_suffix = "_".join(parts[-3:])
+                        dk_pattern = DK_NORMALIZED / f"dk_{league}_moneyline_{date_suffix}.csv"
+                        dk_files = glob.glob(str(dk_pattern))
 
-                # Determine date from filename (expects YYYY_MM_DD pattern)
-                stem = Path(f).stem
-                parts = stem.split("_")
-                if len(parts) < 4:
-                    raise RuntimeError(f"Unable to parse date from filename: {f}")
+                        if dk_files:
+                            dk_df = pd.read_csv(dk_files[0])
 
-                date_suffix = "_".join(parts[-3:])
+                            if {"game_id", "away_odds", "home_odds"}.issubset(dk_df.columns):
+                                dk_df["game_id"] = dk_df["game_id"].astype(str)
 
-                dk_pattern = DK_NORMALIZED / f"dk_{league}_moneyline_{date_suffix}.csv"
-                dk_files = glob.glob(str(dk_pattern))
+                                dk_df = dk_df[["game_id", "away_odds", "home_odds"]].rename(
+                                    columns={
+                                        "away_odds": "dk_away_odds",
+                                        "home_odds": "dk_home_odds",
+                                    }
+                                )
 
-                if not dk_files:
-                    raise RuntimeError(f"Missing DK normalized file: {dk_pattern}")
+                                df = df.merge(dk_df, on="game_id", how="left")
 
-                dk_df = pd.read_csv(dk_files[0])
-
-                required_cols = {"game_id", "away_odds", "home_odds"}
-                missing_cols = required_cols - set(dk_df.columns)
-                if missing_cols:
-                    raise RuntimeError(
-                        f"{dk_files[0]} missing required columns: {missing_cols}"
-                    )
-
-                dk_df["game_id"] = dk_df["game_id"].astype(str)
-
-                dk_df = dk_df[["game_id", "away_odds", "home_odds"]].rename(
-                    columns={
-                        "away_odds": "dk_away_odds",
-                        "home_odds": "dk_home_odds",
-                    }
-                )
-
-                df = df.merge(dk_df, on="game_id", how="left")
-
-                if df["dk_away_odds"].isna().any() or df["dk_home_odds"].isna().any():
-                    raise RuntimeError(f"DK odds merge incomplete for {f}")
+                                missing_mask = df["dk_away_odds"].isna() | df["dk_home_odds"].isna()
+                                if missing_mask.any():
+                                    missing_ids = df.loc[missing_mask, "game_id"].tolist()
+                                    log_error(
+                                        f"{f} — missing DK match for game_ids: {missing_ids}"
+                                    )
+                            else:
+                                log_error(f"{dk_files[0]} missing required DK columns")
+                        else:
+                            log_error(f"Missing DK normalized file: {dk_pattern}")
+                    else:
+                        log_error(f"Unable to parse date from filename: {f}")
 
             out_path = out_dir / Path(f).name
             df.to_csv(out_path, index=False)
