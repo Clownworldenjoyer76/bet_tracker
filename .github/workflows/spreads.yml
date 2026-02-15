@@ -41,7 +41,7 @@ jobs:
           python scripts/validate_games_master.py \
             --error-dir docs/win/errors/06_spreads \
             docs/win/*/spreads/*.csv
-   
+
       - name: Validation summary
         run: echo "Spreads validation completed"
 
@@ -55,8 +55,7 @@ jobs:
             docs/win/ncaab/spreads \
             docs/win/nhl/spreads \
             docs/win/juice/spreads_alt \
-            docs/win/errors/06_spreads \
-            docs/win/errors/06_spreads_alt || true
+            docs/win/errors/06_spreads || true
 
           if git diff --staged --quiet; then
             echo "No changes to commit"
