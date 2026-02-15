@@ -43,7 +43,6 @@
     dateInput.value = now.toLocaleDateString("en-CA");
 
     dateInput.addEventListener("change", loadPage);
-
     loadPage();
 
     // ===============================
@@ -72,17 +71,42 @@
     }
 
     // ===============================
-    // CSV Parser
+    // SAFE CSV Parser (Position Based)
     // ===============================
     function parseCSV(csv) {
       const lines = csv.trim().split("\n");
-      const headers = lines[0].split(",");
 
       return lines.slice(1).map(line => {
-        const values = line.split(",");
-        let obj = {};
-        headers.forEach((h, i) => obj[h] = values[i]);
-        return obj;
+        const v = line.split(",");
+
+        return {
+          date: v[0],
+          time: v[1],
+          away_team: v[2],
+          home_team: v[3],
+          league: v[4],
+          game_id: v[5],
+
+          home_ml_edge: v[6],
+          away_ml_edge: v[7],
+          away_ml_odds: v[8],
+          home_ml_odds: v[9],
+
+          away_spread: v[10],
+          home_spread: v[11],
+          home_spread_edge: v[12],
+          away_spread_edge: v[13],
+          away_spread_odds: v[14],
+          home_spread_odds: v[15],
+
+          over_edge: v[16],
+          under_edge: v[17],
+          over_odds: v[18],
+          under_odds: v[19],
+
+          total: v[22],
+          bet: v[23]
+        };
       });
     }
 
@@ -96,7 +120,6 @@
       rows.forEach(row => {
 
         const betType = row.bet;
-
         let market = "";
         let line = "";
         let odds = "";
@@ -147,6 +170,12 @@
           edge = row.under_edge;
         }
 
+        const edgeDisplay = edge && !isNaN(edge)
+          ? (parseFloat(edge) * 100).toFixed(2) + "%"
+          : "-";
+
+        const oddsDisplay = odds && odds !== "" ? odds : "-";
+
         const gameDiv = document.createElement("div");
         gameDiv.className = "game-card";
 
@@ -156,8 +185,8 @@
           <div class="game-league">${row.league}</div>
           <div class="game-market">${market}</div>
           <div class="game-line">${line}</div>
-          <div class="game-odds">Odds: ${odds}</div>
-          <div class="game-edge">Edge: ${parseFloat(edge).toFixed(3)}</div>
+          <div class="game-odds">Odds: ${oddsDisplay}</div>
+          <div class="game-edge">Edge: ${edgeDisplay}</div>
         `;
 
         container.appendChild(gameDiv);
