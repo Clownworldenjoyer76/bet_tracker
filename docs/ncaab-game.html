@@ -50,10 +50,14 @@
     const dkUrl =
       `${RAW_BASE}/docs/win/manual/normalized/dk_ncaab_moneyline_${date}.csv`;
 
+    const altSpreadsUrl =
+      `${RAW_BASE}/docs/win/juice/spreads_alt/ncaab_altspreads_${date}.csv`;
+
     let mlRows = [];
     let spreads = [];
     let totals = [];
     let dkRows = [];
+    let altSpreads = [];
 
     try {
       mlRows = parseCSV(await fetchText(mlUrl));
@@ -65,6 +69,7 @@
     try { spreads = parseCSV(await fetchText(spreadsUrl)); } catch {}
     try { totals = parseCSV(await fetchText(totalsUrl)); } catch {}
     try { dkRows = parseCSV(await fetchText(dkUrl)); } catch {}
+    try { altSpreads = parseCSV(await fetchText(altSpreadsUrl)); } catch {}
 
     const g = mlRows.find(r => r.game_id === game_id);
     if (!g) {
@@ -75,9 +80,38 @@
     const spread = spreads.find(s => s.game_id === game_id) || {};
     const total = totals.find(t => t.game_id === game_id) || {};
     const dkRow = dkRows.find(r => r.game_id === game_id) || {};
+    const altRows = altSpreads.filter(a => a.game_id === game_id);
 
     titleEl.textContent =
       `${g.away_team} @ ${g.home_team}`;
+
+    let altSection = "";
+
+    if (altRows.length > 0) {
+      altSection = `
+        <div class="totals-section">
+          <h3>Alternate Spreads</h3>
+          <table class="game-grid large-grid">
+            <thead>
+              <tr>
+                <th>Team</th>
+                <th>Spread</th>
+                <th>DK Odds</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${altRows.map(row => `
+                <tr>
+                  <td>${escapeHtml(row.team || "")}</td>
+                  <td>${escapeHtml(row.spread || "")}</td>
+                  <td>${escapeHtml(row.dk_odds || "")}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
 
     gameEl.innerHTML = `
       <div class="game-box">
@@ -131,32 +165,7 @@
           </tbody>
         </table>
 
-        <div class="totals-section">
-          <table class="game-grid large-grid">
-            <thead>
-              <tr>
-                <th>Total</th>
-                <th>Over %</th>
-                <th>Under %</th>
-                <th>Over Accept</th>
-                <th>Under Accept</th>
-                <th>DK Over</th>
-                <th>DK Under</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>${escapeHtml(total.total || "")}</td>
-                <td>${formatPct(total.over_probability)}</td>
-                <td>${formatPct(total.under_probability)}</td>
-                <td>${escapeHtml(total.over_acceptable_american_odds || "")}</td>
-                <td>${escapeHtml(total.under_acceptable_american_odds || "")}</td>
-                <td>${escapeHtml(total.dk_over_odds || "")}</td>
-                <td>${escapeHtml(total.dk_under_odds || "")}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        ${altSection}
 
       </div>
     `;
