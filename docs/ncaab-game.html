@@ -88,6 +88,31 @@
     let altSection = "";
 
     if (altRows.length > 0) {
+      let altRowsHtml = "";
+
+      altRows.forEach(a => {
+
+        // Away team row
+        altRowsHtml += `
+          <tr>
+            <td>${escapeHtml(a.away_team)}</td>
+            <td>${escapeHtml(a.alt_spread)}</td>
+            <td>${formatPct(a.away_probability)}</td>
+            <td>${escapeHtml(a.away_acceptable_american_odds)}</td>
+          </tr>
+        `;
+
+        // Home team row
+        altRowsHtml += `
+          <tr>
+            <td>${escapeHtml(a.home_team)}</td>
+            <td>${escapeHtml("-" + a.alt_spread)}</td>
+            <td>${formatPct(a.home_probability)}</td>
+            <td>${escapeHtml(a.home_acceptable_american_odds)}</td>
+          </tr>
+        `;
+      });
+
       altSection = `
         <div class="totals-section">
           <h3>Alternate Spreads</h3>
@@ -96,17 +121,12 @@
               <tr>
                 <th>Team</th>
                 <th>Spread</th>
-                <th>DK Odds</th>
+                <th>Win %</th>
+                <th>Acceptable Odds</th>
               </tr>
             </thead>
             <tbody>
-              ${altRows.map(row => `
-                <tr>
-                  <td>${escapeHtml(row.team || "")}</td>
-                  <td>${escapeHtml(row.spread || "")}</td>
-                  <td>${escapeHtml(row.dk_odds || "")}</td>
-                </tr>
-              `).join("")}
+              ${altRowsHtml}
             </tbody>
           </table>
         </div>
