@@ -11,15 +11,8 @@
 
     <h1>Top Picks</h1>
 
-    <nav class="nav">
-      <a href="index.html">Home</a>
-      <a href="ncaab.html">NCAAB</a>
-      <a href="nba.html">NBA</a>
-      <a href="nhl.html">NHL</a>
-      <a href="soccer.html">Soccer</a>
-      <a href="tracker.html">Bet Tracker</a>
-      <a href="top_picks.html">Top Picks</a>
-    </nav>
+    <!-- Nav Placeholder -->
+    <div id="nav-placeholder"></div>
 
     <section class="controls">
       <label for="tp-date" class="control-label">Date:</label>
@@ -32,7 +25,15 @@
   </div>
 
   <script src="app.js"></script>
+
   <script>
+    // Load shared nav
+    fetch("nav.html")
+      .then(response => response.text())
+      .then(data => {
+        document.getElementById("nav-placeholder").innerHTML = data;
+      });
+
     const dateInput = document.getElementById("tp-date");
     const now = new Date();
     dateInput.value = now.toLocaleDateString("en-CA");
