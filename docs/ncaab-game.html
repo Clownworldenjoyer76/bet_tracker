@@ -1,17 +1,168 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>NCAAB Alt Spreads</title>
-  <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NCAAB Game</title>
+
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="css/terminal.css" />
 </head>
 <body>
 
-<h2 id="title"></h2>
-<div id="alt-spreads"></div>
+<div class="container">
+  <h2 id="title"></h2>
+  <div id="status" class="status"></div>
+  <div id="game"></div>
+</div>
 
-<script src="app.js"></script>
+<script src="ncaab.js"></script>
+
 <script>
-  loadNCAABAltSpreads();
+  function getParams() {
+    const p = new URLSearchParams(window.location.search);
+    return {
+      date: p.get("date"),
+      game_id: p.get("game_id")
+    };
+  }
+
+  async function loadSingleGame() {
+    const { date, game_id } = getParams();
+    const statusEl = document.getElementById("status");
+    const gameEl = document.getElementById("game");
+    const titleEl = document.getElementById("title");
+
+    if (!date || !game_id) {
+      statusEl.textContent = "Missing date or game_id.";
+      return;
+    }
+
+    const mlUrl =
+      `${RAW_BASE}/docs/win/final/step_2/ncaab/ml/juice_ncaab_ml_${date}.csv`;
+
+    const spreadsUrl =
+      `${RAW_BASE}/docs/win/final/step_2/ncaab/spreads/juice_ncaab_spreads_${date}.csv`;
+
+    const totalsUrl =
+      `${RAW_BASE}/docs/win/final/step_2/ncaab/totals/juice_ncaab_totals_${date}.csv`;
+
+    const dkUrl =
+      `${RAW_BASE}/docs/win/manual/normalized/dk_ncaab_moneyline_${date}.csv`;
+
+    let mlRows = [];
+    let spreads = [];
+    let totals = [];
+    let dkRows = [];
+
+    try {
+      mlRows = parseCSV(await fetchText(mlUrl));
+    } catch {
+      statusEl.textContent = "No ML file found.";
+      return;
+    }
+
+    try { spreads = parseCSV(await fetchText(spreadsUrl)); } catch {}
+    try { totals = parseCSV(await fetchText(totalsUrl)); } catch {}
+    try { dkRows = parseCSV(await fetchText(dkUrl)); } catch {}
+
+    const g = mlRows.find(r => r.game_id === game_id);
+    if (!g) {
+      statusEl.textContent = "Game not found.";
+      return;
+    }
+
+    const spread = spreads.find(s => s.game_id === game_id) || {};
+    const total = totals.find(t => t.game_id === game_id) || {};
+    const dkRow = dkRows.find(r => r.game_id === game_id) || {};
+
+    titleEl.textContent =
+      `${g.away_team} @ ${g.home_team}`;
+
+    gameEl.innerHTML = `
+      <div class="game-box">
+
+        <div class="game-header">
+          ${escapeHtml(g.away_team)} @ ${escapeHtml(g.home_team)}
+          ${dkRow.time ? ` — ${escapeHtml(dkRow.time)}` : ""}
+        </div>
+
+        <div class="game-subheader">
+          Projected Total: ${format2(g.game_projected_points)}
+        </div>
+
+        <table class="game-grid large-grid">
+          <thead>
+            <tr>
+              <th></th>
+              <th>Win %</th>
+              <th>Proj Pts</th>
+              <th>Fair ML</th>
+              <th>Accept ML</th>
+              <th>DK ML</th>
+              <th>Spread</th>
+              <th>Spread Accept</th>
+            </tr>
+          </thead>
+          <tbody>
+
+            <tr>
+              <td><strong>${escapeHtml(g.away_team)}</strong></td>
+              <td>${formatPct(g.away_team_moneyline_win_prob)}</td>
+              <td>${format2(g.away_team_projected_points)}</td>
+              <td>${escapeHtml(g.away_ml_fair_american_odds)}</td>
+              <td>${escapeHtml(g.away_ml_acceptable_american_odds)}</td>
+              <td>${escapeHtml(g.dk_away_odds)}</td>
+              <td>${escapeHtml(spread.away_spread || "")}</td>
+              <td>${escapeHtml(spread.away_spread_acceptable_american_odds || "")}</td>
+            </tr>
+
+            <tr>
+              <td><strong>${escapeHtml(g.home_team)}</strong></td>
+              <td>${formatPct(g.home_team_moneyline_win_prob)}</td>
+              <td>${format2(g.home_team_projected_points)}</td>
+              <td>${escapeHtml(g.home_ml_fair_american_odds)}</td>
+              <td>${escapeHtml(g.home_ml_acceptable_american_odds)}</td>
+              <td>${escapeHtml(g.dk_home_odds)}</td>
+              <td>${escapeHtml(spread.home_spread || "")}</td>
+              <td>${escapeHtml(spread.home_spread_acceptable_american_odds || "")}</td>
+            </tr>
+
+          </tbody>
+        </table>
+
+        <div class="totals-section">
+          <table class="game-grid large-grid">
+            <thead>
+              <tr>
+                <th>Total</th>
+                <th>Over %</th>
+                <th>Under %</th>
+                <th>Over Accept</th>
+                <th>Under Accept</th>
+                <th>DK Over</th>
+                <th>DK Under</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>${escapeHtml(total.total || "")}</td>
+                <td>${formatPct(total.over_probability)}</td>
+                <td>${formatPct(total.under_probability)}</td>
+                <td>${escapeHtml(total.over_acceptable_american_odds || "")}</td>
+                <td>${escapeHtml(total.under_acceptable_american_odds || "")}</td>
+                <td>${escapeHtml(total.dk_over_odds || "")}</td>
+                <td>${escapeHtml(total.dk_under_odds || "")}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    `;
+  }
+
+  loadSingleGame();
 </script>
 
 </body>
