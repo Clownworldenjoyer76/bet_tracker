@@ -11,6 +11,9 @@
 <body>
 
 <div class="container">
+
+  <div id="nav-placeholder"></div>
+
   <h2 id="title"></h2>
   <div id="status" class="status"></div>
   <div id="game"></div>
@@ -19,6 +22,15 @@
 <script src="ncaab.js"></script>
 
 <script>
+  // ===============================
+  // Load Shared Nav
+  // ===============================
+  fetch("nav.html")
+    .then(res => res.text())
+    .then(data => {
+      document.getElementById("nav-placeholder").innerHTML = data;
+    });
+
   function getParams() {
     const p = new URLSearchParams(window.location.search);
     return {
@@ -85,15 +97,10 @@
     titleEl.textContent =
       `${g.away_team} @ ${g.home_team}`;
 
-    // ===============================
-    // BUILD ALT SPREAD TABLE (PAIRED)
-    // ===============================
-
     let altSection = "";
 
     if (altRows.length > 0) {
 
-      // group rows by alt_spread
       const grouped = {};
 
       altRows.forEach(row => {
@@ -110,14 +117,6 @@
 
         const homeRow = pair.find(p => p.home_probability);
         const awayRow = pair.find(p => p.away_probability);
-
-        const homeSpread = spreadValue.startsWith("-")
-          ? spreadValue
-          : "-" + spreadValue;
-
-        const awaySpread = spreadValue.startsWith("-")
-          ? "+" + spreadValue.replace("-", "")
-          : "+" + spreadValue;
 
         return `
           <tr>
@@ -161,10 +160,6 @@
         </div>
       `;
     }
-
-    // ===============================
-    // MAIN GAME HTML
-    // ===============================
 
     gameEl.innerHTML = `
       <div class="game-box">
