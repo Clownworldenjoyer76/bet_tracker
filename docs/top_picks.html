@@ -71,41 +71,44 @@
     }
 
     // ===============================
-    // SAFE CSV Parser (Position Based)
+    // Robust CSV Parser
     // ===============================
     function parseCSV(csv) {
       const lines = csv.trim().split("\n");
+      const headers = lines[0].split(",");
+
+      const colIndex = {};
+      headers.forEach((h, i) => {
+        if (!(h in colIndex)) colIndex[h] = i;
+      });
 
       return lines.slice(1).map(line => {
         const v = line.split(",");
 
         return {
-          date: v[0],
-          time: v[1],
-          away_team: v[2],
-          home_team: v[3],
-          league: v[4],
-          game_id: v[5],
+          time: v[colIndex["time"]] || "",
+          away_team: v[colIndex["away_team"]] || "",
+          home_team: v[colIndex["home_team"]] || "",
+          league: v[colIndex["league"]] || "",
+          bet: v[colIndex["bet"]] || "",
+          total: v[colIndex["total"]] || "",
 
-          home_ml_edge: v[6],
-          away_ml_edge: v[7],
-          away_ml_odds: v[8],
-          home_ml_odds: v[9],
+          home_ml_edge: v[colIndex["home_ml_edge"]] || "",
+          away_ml_edge: v[colIndex["away_ml_edge"]] || "",
+          away_ml_odds: v[colIndex["away_ml_odds"]] || "",
+          home_ml_odds: v[colIndex["home_ml_odds"]] || "",
 
-          away_spread: v[10],
-          home_spread: v[11],
-          home_spread_edge: v[12],
-          away_spread_edge: v[13],
-          away_spread_odds: v[14],
-          home_spread_odds: v[15],
+          home_spread: v[colIndex["home_spread"]] || "",
+          away_spread: v[colIndex["away_spread"]] || "",
+          home_spread_edge: v[colIndex["home_spread_edge"]] || "",
+          away_spread_edge: v[colIndex["away_spread_edge"]] || "",
+          home_spread_odds: v[colIndex["home_spread_odds"]] || "",
+          away_spread_odds: v[colIndex["away_spread_odds"]] || "",
 
-          over_edge: v[16],
-          under_edge: v[17],
-          over_odds: v[18],
-          under_odds: v[19],
-
-          total: v[22],
-          bet: v[23]
+          over_edge: v[colIndex["over_edge"]] || "",
+          under_edge: v[colIndex["under_edge"]] || "",
+          over_odds: v[colIndex["over_odds"]] || "",
+          under_odds: v[colIndex["under_odds"]] || ""
         };
       });
     }
@@ -119,55 +122,53 @@
 
       rows.forEach(row => {
 
-        const betType = row.bet;
         let market = "";
         let line = "";
         let odds = "";
         let edge = "";
 
-        // Moneyline
-        if (betType === "home_ml") {
-          market = "Moneyline";
-          line = row.home_team;
-          odds = row.home_ml_odds;
-          edge = row.home_ml_edge;
-        }
+        switch (row.bet) {
+          case "home_ml":
+            market = "Moneyline";
+            line = row.home_team;
+            odds = row.home_ml_odds;
+            edge = row.home_ml_edge;
+            break;
 
-        if (betType === "away_ml") {
-          market = "Moneyline";
-          line = row.away_team;
-          odds = row.away_ml_odds;
-          edge = row.away_ml_edge;
-        }
+          case "away_ml":
+            market = "Moneyline";
+            line = row.away_team;
+            odds = row.away_ml_odds;
+            edge = row.away_ml_edge;
+            break;
 
-        // Spread
-        if (betType === "home_spread") {
-          market = "Spread";
-          line = `${row.home_team} ${row.home_spread}`;
-          odds = row.home_spread_odds;
-          edge = row.home_spread_edge;
-        }
+          case "home_spread":
+            market = "Spread";
+            line = `${row.home_team} ${row.home_spread}`;
+            odds = row.home_spread_odds;
+            edge = row.home_spread_edge;
+            break;
 
-        if (betType === "away_spread") {
-          market = "Spread";
-          line = `${row.away_team} ${row.away_spread}`;
-          odds = row.away_spread_odds;
-          edge = row.away_spread_edge;
-        }
+          case "away_spread":
+            market = "Spread";
+            line = `${row.away_team} ${row.away_spread}`;
+            odds = row.away_spread_odds;
+            edge = row.away_spread_edge;
+            break;
 
-        // Totals
-        if (betType === "over") {
-          market = "Total";
-          line = `Over ${row.total}`;
-          odds = row.over_odds;
-          edge = row.over_edge;
-        }
+          case "over":
+            market = "Total";
+            line = `Over ${row.total}`;
+            odds = row.over_odds;
+            edge = row.over_edge;
+            break;
 
-        if (betType === "under") {
-          market = "Total";
-          line = `Under ${row.total}`;
-          odds = row.under_odds;
-          edge = row.under_edge;
+          case "under":
+            market = "Total";
+            line = `Under ${row.total}`;
+            odds = row.under_odds;
+            edge = row.under_edge;
+            break;
         }
 
         const edgeDisplay = edge && !isNaN(edge)
@@ -192,7 +193,6 @@
         container.appendChild(gameDiv);
       });
     }
-
   </script>
 </body>
 </html>
