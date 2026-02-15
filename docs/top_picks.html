@@ -62,6 +62,10 @@
         })
         .then(csv => {
           const rows = parseCSV(csv);
+
+          // ✅ SORT BY TIME (earliest → latest)
+          rows.sort((a, b) => parseGameTime(a.time) - parseGameTime(b.time));
+
           renderGames(rows);
           document.getElementById("status").textContent = `${rows.length} picks found`;
         })
@@ -87,6 +91,32 @@
 
         return row;
       });
+    }
+
+    // ===============================
+    // Convert Game Time to Comparable Value
+    // ===============================
+    function parseGameTime(timeStr) {
+      if (!timeStr) return 0;
+
+      // Handle "00:00" format
+      if (!timeStr.includes("AM") && !timeStr.includes("PM")) {
+        const [h, m] = timeStr.split(":").map(Number);
+        return h * 60 + m;
+      }
+
+      // Handle "02:00PM" format
+      const match = timeStr.match(/(\d+):(\d+)(AM|PM)/i);
+      if (!match) return 0;
+
+      let hour = parseInt(match[1]);
+      const minute = parseInt(match[2]);
+      const period = match[3].toUpperCase();
+
+      if (period === "PM" && hour !== 12) hour += 12;
+      if (period === "AM" && hour === 12) hour = 0;
+
+      return hour * 60 + minute;
     }
 
     // ===============================
@@ -135,14 +165,14 @@
             edge = row.away_spread_edge;
             break;
 
-          case "over":
+          case "over_bet":
             market = "Total";
             line = `Over ${row.total}`;
             odds = row.over_odds;
             edge = row.over_edge;
             break;
 
-          case "under":
+          case "under_bet":
             market = "Total";
             line = `Under ${row.total}`;
             odds = row.under_odds;
