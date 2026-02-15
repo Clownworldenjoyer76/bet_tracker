@@ -26,18 +26,12 @@
   <script src="app.js"></script>
 
   <script>
-    // ===============================
-    // Load Shared Nav
-    // ===============================
     fetch("nav.html")
       .then(res => res.text())
       .then(data => {
         document.getElementById("nav-placeholder").innerHTML = data;
       });
 
-    // ===============================
-    // Date Handling
-    // ===============================
     const dateInput = document.getElementById("tp-date");
     const now = new Date();
     dateInput.value = now.toLocaleDateString("en-CA");
@@ -45,9 +39,6 @@
     dateInput.addEventListener("change", loadPage);
     loadPage();
 
-    // ===============================
-    // Main Loader
-    // ===============================
     function loadPage() {
       const date = dateInput.value.replaceAll("-", "_");
       const filePath = `win/winners/step_03/winners_${date}.csv`;
@@ -70,52 +61,41 @@
         });
     }
 
-    // ===============================
-    // Robust CSV Parser
-    // ===============================
     function parseCSV(csv) {
       const lines = csv.trim().split("\n");
-      const headers = lines[0].split(",");
-
-      const colIndex = {};
-      headers.forEach((h, i) => {
-        if (!(h in colIndex)) colIndex[h] = i;
-      });
 
       return lines.slice(1).map(line => {
         const v = line.split(",");
 
         return {
-          time: v[colIndex["time"]] || "",
-          away_team: v[colIndex["away_team"]] || "",
-          home_team: v[colIndex["home_team"]] || "",
-          league: v[colIndex["league"]] || "",
-          bet: v[colIndex["bet"]] || "",
-          total: v[colIndex["total"]] || "",
+          time: v[1],
+          away_team: v[2],
+          home_team: v[3],
+          league: v[4],
 
-          home_ml_edge: v[colIndex["home_ml_edge"]] || "",
-          away_ml_edge: v[colIndex["away_ml_edge"]] || "",
-          away_ml_odds: v[colIndex["away_ml_odds"]] || "",
-          home_ml_odds: v[colIndex["home_ml_odds"]] || "",
+          home_ml_edge: v[6],
+          away_ml_edge: v[7],
+          away_ml_odds: v[8],
+          home_ml_odds: v[9],
 
-          home_spread: v[colIndex["home_spread"]] || "",
-          away_spread: v[colIndex["away_spread"]] || "",
-          home_spread_edge: v[colIndex["home_spread_edge"]] || "",
-          away_spread_edge: v[colIndex["away_spread_edge"]] || "",
-          home_spread_odds: v[colIndex["home_spread_odds"]] || "",
-          away_spread_odds: v[colIndex["away_spread_odds"]] || "",
+          away_spread: v[10],
+          home_spread: v[11],
+          home_spread_edge: v[12],
+          away_spread_edge: v[13],
+          away_spread_odds: v[14],
+          home_spread_odds: v[15],
 
-          over_edge: v[colIndex["over_edge"]] || "",
-          under_edge: v[colIndex["under_edge"]] || "",
-          over_odds: v[colIndex["over_odds"]] || "",
-          under_odds: v[colIndex["under_odds"]] || ""
+          over_edge: v[16],
+          under_edge: v[17],
+          over_odds: v[18],
+          under_odds: v[19],
+
+          total: v[v.length - 2],   // always second to last
+          bet: v[v.length - 1]      // always last column
         };
       });
     }
 
-    // ===============================
-    // Render Picks
-    // ===============================
     function renderGames(rows) {
       const container = document.getElementById("games");
       container.innerHTML = "";
@@ -128,6 +108,7 @@
         let edge = "";
 
         switch (row.bet) {
+
           case "home_ml":
             market = "Moneyline";
             line = row.home_team;
