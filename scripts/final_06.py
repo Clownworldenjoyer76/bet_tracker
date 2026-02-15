@@ -75,13 +75,13 @@ def run():
         STEP2 / "*/ml/juice_*_ml_*.csv",
         None,
         [
-            ("deci_home_ml_juice_odds", "home_ml_acceptable_decimal_odds"),
-            ("deci_away_ml_juice_odds", "away_ml_acceptable_decimal_odds"),
+            ("deci_home_ml_juice_odds", "deci_dk_home_odds"),
+            ("deci_away_ml_juice_odds", "deci_dk_away_odds"),
         ],
         [
             "date", "time", "away_team", "home_team", "league", "game_id",
             "deci_home_ml_juice_odds", "deci_away_ml_juice_odds",
-            "home_ml_acceptable_decimal_odds", "away_ml_acceptable_decimal_odds",
+            "deci_dk_home_odds", "deci_dk_away_odds",
         ],
     )
 
