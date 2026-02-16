@@ -34,7 +34,7 @@ def log(msg):
         f.write(msg + "\n")
 
 # =========================
-# LOAD WINNERS (NO DEDUPE)
+# LOAD WINNERS
 # =========================
 
 def load_winners():
@@ -55,9 +55,9 @@ def load_winners():
 
     combined = pd.concat(dfs, ignore_index=True)
 
-    required_cols = {"game_id", "market"}
+    required_cols = {"game_id", "league"}
     if not required_cols.issubset(combined.columns):
-        log("ERROR: winners files missing required columns (game_id, market)")
+        log("ERROR: winners files missing required columns (game_id, league)")
         return pd.DataFrame()
 
     return combined
@@ -142,16 +142,15 @@ def process():
             rows = len(df)
             total_rows += rows
 
-            if "game_id" not in df.columns or "leg_type" not in df.columns:
+            if "game_id" not in df.columns or "league" not in df.columns:
                 log(f"ERROR: {file_path} missing required columns")
                 total_unmatched += rows
                 continue
 
-            # Merge on game_id + market (leg_type)
+            # MERGE ON game_id + league
             merged = df.merge(
                 winners_df,
-                left_on=["game_id", "leg_type"],
-                right_on=["game_id", "market"],
+                on=["game_id", "league"],
                 how="left",
                 suffixes=("", "_w")
             )
@@ -162,14 +161,10 @@ def process():
                 if col_w in merged.columns:
                     merged[col] = merged[col_w]
 
-            # Match count
-            if "market" in merged.columns:
-                matched_mask = merged["market"].notna()
-                matched = int(matched_mask.sum())
-                unmatched = rows - matched
-            else:
-                matched = 0
-                unmatched = rows
+            # Count matches
+            matched_mask = merged["home_ml_edge_w"].notna() if "home_ml_edge_w" in merged.columns else merged["league"].notna()
+            matched = int(matched_mask.sum())
+            unmatched = rows - matched
 
             total_matched += matched
             total_unmatched += unmatched
