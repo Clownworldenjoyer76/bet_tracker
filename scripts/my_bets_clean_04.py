@@ -14,7 +14,7 @@ import traceback
 INPUT_DIR = Path("docs/win/my_bets/step_03")
 MAPPINGS_DIR = Path("mappings")
 ERROR_DIR = Path("docs/win/errors/01_raw")
-ERROR_LOG = ERROR_DIR / "my_bets_clean_04.txt"  # per spec (overwrite)
+ERROR_LOG = ERROR_DIR / "my_bets_clean_04.txt"  # overwrite
 
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -46,7 +46,6 @@ def process_files():
 
                 map_df = pd.read_csv(map_file)
 
-                # Build alias lookup dict
                 alias_to_canonical = dict(
                     zip(
                         map_df["alias"].astype(str).str.strip(),
@@ -72,7 +71,22 @@ def process_files():
                         f"{league_value} | home_team no match in mapping file: {home}"
                     )
 
-            # Overwrite same file (per spec)
+                # Normalize bet_on
+                bet_on_value = str(row.get("bet_on", "")).strip()
+
+                if bet_on_value == "Over":
+                    df.at[idx, "bet_on"] = "over"
+                elif bet_on_value == "Under":
+                    df.at[idx, "bet_on"] = "under"
+                else:
+                    if bet_on_value in alias_to_canonical:
+                        df.at[idx, "bet_on"] = alias_to_canonical[bet_on_value]
+                    else:
+                        no_match_records.append(
+                            f"{league_value} | bet_on no match in mapping file: {bet_on_value}"
+                        )
+
+            # Overwrite same file
             df.to_csv(file_path, index=False)
 
             files_processed += 1
