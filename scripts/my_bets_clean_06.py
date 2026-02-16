@@ -34,7 +34,7 @@ def log(msg):
         f.write(msg + "\n")
 
 # =========================
-# LOAD WINNERS
+# LOAD WINNERS (NO DEDUPE)
 # =========================
 
 def load_winners():
@@ -55,10 +55,11 @@ def load_winners():
 
     combined = pd.concat(dfs, ignore_index=True)
 
-    if "game_id" not in combined.columns:
+    required_cols = {"game_id", "market"}
+    if not required_cols.issubset(combined.columns):
+        log("ERROR: winners files missing required columns (game_id, market)")
         return pd.DataFrame()
 
-    combined = combined.drop_duplicates(subset=["game_id"])
     return combined
 
 # =========================
@@ -69,7 +70,7 @@ def process():
     winners_df = load_winners()
 
     if winners_df.empty:
-        log("No winners files found or empty.")
+        log("No valid winners files found.")
         return
 
     input_files = glob.glob(str(INPUT_DIR / "juiceReelBets_*.csv"))
@@ -141,28 +142,29 @@ def process():
             rows = len(df)
             total_rows += rows
 
-            if "game_id" not in df.columns:
-                log(f"ERROR: {file_path} missing game_id column")
+            if "game_id" not in df.columns or "leg_type" not in df.columns:
+                log(f"ERROR: {file_path} missing required columns")
                 total_unmatched += rows
                 continue
 
+            # Merge on game_id + market (leg_type)
             merged = df.merge(
                 winners_df,
-                on="game_id",
+                left_on=["game_id", "leg_type"],
+                right_on=["game_id", "market"],
                 how="left",
                 suffixes=("", "_w")
             )
 
-            # overwrite fields from winners
+            # Overwrite from winners
             for col in winners_fields:
                 col_w = f"{col}_w"
                 if col_w in merged.columns:
                     merged[col] = merged[col_w]
 
-            # count matched (at least one winners field populated)
-            existing = [c for c in winners_fields if c in merged.columns]
-            if existing:
-                matched_mask = merged[existing].notna().any(axis=1)
+            # Match count
+            if "market" in merged.columns:
+                matched_mask = merged["market"].notna()
                 matched = int(matched_mask.sum())
                 unmatched = rows - matched
             else:
@@ -172,7 +174,7 @@ def process():
             total_matched += matched
             total_unmatched += unmatched
 
-            # ensure schema
+            # Ensure schema
             for col in output_cols:
                 if col not in merged.columns:
                     merged[col] = ""
