@@ -3,8 +3,9 @@
 #!/usr/bin/env python3
 
 import pandas as pd
+import glob
 from pathlib import Path
-from datetime import datetime
+from datetime import timedelta
 import traceback
 
 # =========================
@@ -20,117 +21,123 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 # =========================
-# CONSTANTS
+# OUTPUT HEADERS (STRICT ORDER)
 # =========================
 
-COLUMNS_TO_DROP = [
-    "date_settled",
-    "date_synced",
-    "if_freeplay_then_amount_actually_at_risk",
-    "is_odds_boosted",
-    "if_duration_bet",
-    "bet_tag_details",
+OUTPUT_COLUMNS = [
+    "date",
+    "game_id",
+    "juice_bet_id",
+    "risk_amount",
+    "max_potential_win",
+    "bet_result",
+    "amount_won_or_lost",
+    "odds_american",
+    "number_of_legs",
+    "date_placed",
+    "clv_percent",
+    "leg_type",
+    "bet_on",
+    "bet_on_spread_total_number",
+    "leg_sport",
+    "leg_league",
+    "leg_vig",
+    "leg_description",
+    "long_description_of_leg",
+    "event_start_date",
+    "event_name",
 ]
-
-# =========================
-# HELPERS
-# =========================
-
-def parse_date_time(date_placed_value):
-    """
-    Input example:
-    2026-02-10 11:31:42.477+00  (UTC)
-
-    Converts to America/New_York before extracting date.
-    """
-    try:
-        dt_utc = pd.to_datetime(date_placed_value, utc=True)
-        dt_local = dt_utc.tz_convert("America/New_York")
-
-        file_date = dt_local.strftime("%Y_%m_%d")
-        date_str = dt_local.strftime("%Y_%m_%d")
-        time_str = dt_local.strftime("%H:%M:%S")
-
-        return file_date, date_str, time_str
-    except Exception:
-        return None, None, None
 
 # =========================
 # MAIN
 # =========================
 
+def convert_utc_to_est(series):
+    """
+    Convert UTC timestamp string to EST (UTC-5).
+    Hard subtract 5 hours per spec.
+    """
+    dt = pd.to_datetime(series, errors="coerce", utc=True)
+    dt_est = dt - timedelta(hours=5)
+    return dt_est.dt.strftime("%Y-%m-%d %H:%M:%S")
+
+
 def process_files():
-    summary_lines = []
-    summary_lines.append(f"=== MY_BETS_CLEAN_01 RUN @ {datetime.utcnow().isoformat()}Z ===\n")
+    files = glob.glob(str(INPUT_DIR / "juiceReelBets_*.csv"))
 
-    files = sorted(INPUT_DIR.glob("*.csv"))
-
-    if not files:
-        summary_lines.append("No input files found.\n")
-        ERROR_LOG.write_text("".join(summary_lines))
-        return
+    files_processed = 0
+    rows_in_total = 0
+    rows_out_total = 0
+    rows_dropped_legs = 0
 
     for file_path in files:
         try:
             df = pd.read_csv(file_path)
             rows_in = len(df)
+            rows_in_total += rows_in
 
-            # 1. Remove sportsbook = Fliff
-            if "sportsbook" in df.columns:
-                df = df[df["sportsbook"] != "Fliff"]
+            # Keep ONLY single-leg bets
+            df = df[df["number_of_legs"].astype(str) == "1"].copy()
+            rows_after_filter = len(df)
+            rows_dropped_legs += (rows_in - rows_after_filter)
 
-            # 2. Remove number_of_legs != 1
-            if "number_of_legs" in df.columns:
-                df = df[df["number_of_legs"] == 1]
+            # Convert event_start_date to EST (UTC-5)
+            df["event_start_date"] = convert_utc_to_est(df["event_start_date"])
 
-            # 3. Drop unwanted columns (only if present)
-            drop_cols = [c for c in COLUMNS_TO_DROP if c in df.columns]
-            df = df.drop(columns=drop_cols, errors="ignore")
+            # Build output dataframe
+            out = pd.DataFrame()
 
-            # 4. Create league, date, time columns
-            if "date_placed" not in df.columns:
-                raise ValueError("Missing required column: date_placed")
+            # Blank columns
+            out["date"] = ""
+            out["game_id"] = ""
 
-            file_dates = []
-            date_vals = []
-            time_vals = []
+            # Copied columns
+            out["juice_bet_id"] = df["juice_bet_id"]
+            out["risk_amount"] = df["risk_amount"]
+            out["max_potential_win"] = df["max_potential_win"]
+            out["bet_result"] = df["bet_result"]
+            out["amount_won_or_lost"] = df["amount_won_or_lost"]
+            out["odds_american"] = df["odds_american"]
+            out["number_of_legs"] = df["number_of_legs"]
+            out["date_placed"] = df["date_placed"]
+            out["clv_percent"] = df["clv_percent"]
+            out["leg_type"] = df["leg_type"]
+            out["bet_on"] = df["bet_on"]
+            out["bet_on_spread_total_number"] = df["bet_on_spread_total_number"]
+            out["leg_sport"] = df["leg_sport"]
+            out["leg_league"] = df["leg_league"]
+            out["leg_vig"] = df["leg_vig"]
+            out["leg_description"] = df["leg_description"]
+            out["long_description_of_leg"] = df["long_description_of_leg"]
+            out["event_start_date"] = df["event_start_date"]
+            out["event_name"] = df["event_name"]
 
-            for val in df["date_placed"]:
-                file_date, date_str, time_str = parse_date_time(val)
-                file_dates.append(file_date)
-                date_vals.append(date_str)
-                time_vals.append(time_str)
+            # Enforce strict column order
+            out = out[OUTPUT_COLUMNS]
 
-            df["league"] = ""
-            df["date"] = date_vals
-            df["time"] = time_vals
+            # Write output
+            input_filename = Path(file_path).name
+            output_path = OUTPUT_DIR / input_filename
+            out.to_csv(output_path, index=False)
 
-            # 5. Create empty columns
-            df["away_team"] = ""
-            df["home_team"] = ""
-            df["game_id"] = ""
-
-            # Determine output filename from first valid date_placed
-            valid_file_dates = [fd for fd in file_dates if fd is not None]
-            if not valid_file_dates:
-                raise ValueError("Unable to parse any date_placed values.")
-
-            output_date = valid_file_dates[0]
-            output_filename = f"{output_date}_bets.csv"
-            output_path = OUTPUT_DIR / output_filename
-
-            df.to_csv(output_path, index=False)
-
-            summary_lines.append(
-                f"{file_path.name} | rows_in={rows_in} rows_out={len(df)} -> {output_filename}\n"
-            )
+            rows_out_total += len(out)
+            files_processed += 1
 
         except Exception as e:
-            summary_lines.append(f"ERROR processing {file_path.name}\n")
-            summary_lines.append(str(e) + "\n")
-            summary_lines.append(traceback.format_exc() + "\n")
+            with open(ERROR_LOG, "w") as log:
+                log.write("ERROR DURING PROCESSING\n")
+                log.write(str(e) + "\n")
+                log.write(traceback.format_exc())
+            return
 
-    ERROR_LOG.write_text("".join(summary_lines))
+    # Write summary log (ALWAYS overwrite)
+    with open(ERROR_LOG, "w") as log:
+        log.write("MY_BETS_CLEAN_01 SUMMARY\n")
+        log.write("=========================\n\n")
+        log.write(f"Files processed: {files_processed}\n")
+        log.write(f"Rows in: {rows_in_total}\n")
+        log.write(f"Rows out: {rows_out_total}\n")
+        log.write(f"Rows dropped (multi-leg): {rows_dropped_legs}\n")
 
 
 if __name__ == "__main__":
