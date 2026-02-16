@@ -1,14 +1,21 @@
 ERROR DURING PROCESSING
-You are trying to merge on float64 and object columns for key 'game_id'. If you wish to proceed you should use pd.concat
+'game_id'
 Traceback (most recent call last):
-  File "/home/runner/work/bet_tracker/bet_tracker/scripts/my_bets_clean_05.py", line 105, in process_files
-    merged = merged.merge(
-  File "/opt/hostedtoolcache/Python/3.10.19/x64/lib/python3.10/site-packages/pandas/core/frame.py", line 10859, in merge
-    return merge(
-  File "/opt/hostedtoolcache/Python/3.10.19/x64/lib/python3.10/site-packages/pandas/core/reshape/merge.py", line 170, in merge
-    op = _MergeOperation(
-  File "/opt/hostedtoolcache/Python/3.10.19/x64/lib/python3.10/site-packages/pandas/core/reshape/merge.py", line 807, in __init__
-    self._maybe_coerce_merge_keys()
-  File "/opt/hostedtoolcache/Python/3.10.19/x64/lib/python3.10/site-packages/pandas/core/reshape/merge.py", line 1509, in _maybe_coerce_merge_keys
-    raise ValueError(msg)
-ValueError: You are trying to merge on float64 and object columns for key 'game_id'. If you wish to proceed you should use pd.concat
+  File "/opt/hostedtoolcache/Python/3.10.19/x64/lib/python3.10/site-packages/pandas/core/indexes/base.py", line 3812, in get_loc
+    return self._engine.get_loc(casted_key)
+  File "pandas/_libs/index.pyx", line 167, in pandas._libs.index.IndexEngine.get_loc
+  File "pandas/_libs/index.pyx", line 196, in pandas._libs.index.IndexEngine.get_loc
+  File "pandas/_libs/hashtable_class_helper.pxi", line 7088, in pandas._libs.hashtable.PyObjectHashTable.get_item
+  File "pandas/_libs/hashtable_class_helper.pxi", line 7096, in pandas._libs.hashtable.PyObjectHashTable.get_item
+KeyError: 'game_id'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/runner/work/bet_tracker/bet_tracker/scripts/my_bets_clean_05.py", line 92, in process_files
+    merged["game_id"] = merged["game_id"].astype(str)
+  File "/opt/hostedtoolcache/Python/3.10.19/x64/lib/python3.10/site-packages/pandas/core/frame.py", line 4113, in __getitem__
+    indexer = self.columns.get_loc(key)
+  File "/opt/hostedtoolcache/Python/3.10.19/x64/lib/python3.10/site-packages/pandas/core/indexes/base.py", line 3819, in get_loc
+    raise KeyError(key) from err
+KeyError: 'game_id'
