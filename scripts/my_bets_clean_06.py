@@ -50,11 +50,16 @@ def load_winners():
         except Exception as e:
             log(f"ERROR loading winners file {file}: {e}")
 
-    if dfs:
-        combined = pd.concat(dfs, ignore_index=True)
-        combined = combined.drop_duplicates(subset=["game_id"])
-        return combined
-    return pd.DataFrame()
+    if not dfs:
+        return pd.DataFrame()
+
+    combined = pd.concat(dfs, ignore_index=True)
+
+    if "game_id" not in combined.columns:
+        return pd.DataFrame()
+
+    combined = combined.drop_duplicates(subset=["game_id"])
+    return combined
 
 # =========================
 # MAIN
@@ -74,12 +79,72 @@ def process():
     total_matched = 0
     total_unmatched = 0
 
+    winners_fields = [
+        "home_ml_edge",
+        "away_ml_edge",
+        "away_ml_odds",
+        "home_ml_odds",
+        "away_spread",
+        "home_spread",
+        "home_spread_edge",
+        "away_spread_edge",
+        "away_spread_odds",
+        "home_spread_odds",
+        "over_edge",
+        "under_edge",
+        "over_odds",
+        "under_odds",
+        "total",
+        "bet"
+    ]
+
+    output_cols = [
+        "date",
+        "game_id",
+        "risk_amount",
+        "max_potential_win",
+        "bet_result",
+        "amount_won_or_lost",
+        "odds_american",
+        "clv_percent",
+        "leg_type",
+        "bet_on",
+        "bet_on_spread_total_number",
+        "leg_sport",
+        "leg_league",
+        "leg_vig",
+        "away_team",
+        "home_team",
+        "league",
+        "home_ml_edge",
+        "away_ml_edge",
+        "away_ml_odds",
+        "home_ml_odds",
+        "away_spread",
+        "home_spread",
+        "home_spread_edge",
+        "away_spread_edge",
+        "away_spread_odds",
+        "home_spread_odds",
+        "over_edge",
+        "under_edge",
+        "over_odds",
+        "under_odds",
+        "total",
+        "bet"
+    ]
+
     for file_path in input_files:
         try:
             total_files += 1
             df = pd.read_csv(file_path)
             rows = len(df)
             total_rows += rows
+
+            if "game_id" not in df.columns:
+                log(f"ERROR: {file_path} missing game_id column")
+                total_unmatched += rows
+                continue
 
             merged = df.merge(
                 winners_df,
@@ -88,48 +153,26 @@ def process():
                 suffixes=("", "_w")
             )
 
-            matched = merged["game_id"].notna().sum()
-            unmatched = merged["home_ml_edge"].isna().sum() if "home_ml_edge" in merged.columns else rows
+            # overwrite fields from winners
+            for col in winners_fields:
+                col_w = f"{col}_w"
+                if col_w in merged.columns:
+                    merged[col] = merged[col_w]
+
+            # count matched (at least one winners field populated)
+            existing = [c for c in winners_fields if c in merged.columns]
+            if existing:
+                matched_mask = merged[existing].notna().any(axis=1)
+                matched = int(matched_mask.sum())
+                unmatched = rows - matched
+            else:
+                matched = 0
+                unmatched = rows
 
             total_matched += matched
             total_unmatched += unmatched
 
-            output_cols = [
-                "date",
-                "game_id",
-                "risk_amount",
-                "max_potential_win",
-                "bet_result",
-                "amount_won_or_lost",
-                "odds_american",
-                "clv_percent",
-                "leg_type",
-                "bet_on",
-                "bet_on_spread_total_number",
-                "leg_sport",
-                "leg_league",
-                "leg_vig",
-                "away_team",
-                "home_team",
-                "league",
-                "home_ml_edge",
-                "away_ml_edge",
-                "away_ml_odds",
-                "home_ml_odds",
-                "away_spread",
-                "home_spread",
-                "home_spread_edge",
-                "away_spread_edge",
-                "away_spread_odds",
-                "home_spread_odds",
-                "over_edge",
-                "under_edge",
-                "over_odds",
-                "under_odds",
-                "total",
-                "bet"
-            ]
-
+            # ensure schema
             for col in output_cols:
                 if col not in merged.columns:
                     merged[col] = ""
@@ -139,7 +182,7 @@ def process():
             output_path = OUTPUT_DIR / Path(file_path).name
             merged.to_csv(output_path, index=False)
 
-            log(f"Wrote {output_path} | rows={rows}")
+            log(f"Wrote {output_path} | rows={rows} matched={matched} unmatched={unmatched}")
 
         except Exception:
             log(f"ERROR processing {file_path}")
@@ -147,7 +190,7 @@ def process():
 
     log(f"Files processed: {total_files}")
     log(f"Rows processed: {total_rows}")
-    log(f"Rows matched (by game_id): {total_matched}")
+    log(f"Rows matched: {total_matched}")
     log(f"Rows unmatched: {total_unmatched}")
 
 # =========================
