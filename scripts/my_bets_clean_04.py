@@ -14,7 +14,7 @@ import traceback
 INPUT_DIR = Path("docs/win/my_bets/step_03")
 MAPPINGS_DIR = Path("mappings")
 ERROR_DIR = Path("docs/win/errors/01_raw")
-ERROR_LOG = ERROR_DIR / "my_bets_clean_03.txt"  # per spec (overwrite)
+ERROR_LOG = ERROR_DIR / "my_bets_clean_04.txt"  # per spec (overwrite)
 
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
