@@ -4,13 +4,14 @@
 
 import pandas as pd
 from pathlib import Path
+import glob
 import traceback
 
 # =========================
 # PATHS
 # =========================
 
-INPUT_FILE = Path("docs/win/my_bets/step_01/juiceReelBets_1771242741236.csv")
+INPUT_DIR = Path("docs/win/my_bets/step_01")
 OUTPUT_DIR = Path("docs/win/my_bets/step_02")
 ERROR_DIR = Path("docs/win/errors/01_raw")
 ERROR_LOG = ERROR_DIR / "my_bets_clean_02.txt"
@@ -70,71 +71,70 @@ def extract_teams(description):
 # MAIN
 # =========================
 
-def process_file():
+def process_files():
+    files = glob.glob(str(INPUT_DIR / "juiceReelBets_*.csv"))
+
+    files_processed = 0
+    rows_in_total = 0
+    rows_out_total = 0
+
     try:
-        df = pd.read_csv(INPUT_FILE)
+        for file_path in files:
+            df = pd.read_csv(file_path)
+            rows_in = len(df)
+            rows_in_total += rows_in
 
-        rows_in = len(df)
+            # =========================
+            # TRANSFORMATIONS
+            # =========================
 
-        # =========================
-        # TRANSFORMATIONS
-        # =========================
+            df["date"] = extract_date_from_event_start(df["event_start_date"])
+            df["time"] = ""
+            df["game_id"] = ""
 
-        # date from event_start_date
-        df["date"] = extract_date_from_event_start(df["event_start_date"])
+            df["leg_type"] = df["leg_type"].apply(map_leg_type)
+            df["leg_league"] = df["leg_league"].apply(map_leg_league)
 
-        # time blank
-        df["time"] = ""
+            teams = df["leg_description"].apply(extract_teams)
+            df["away_team"] = teams.apply(lambda x: x[0])
+            df["home_team"] = teams.apply(lambda x: x[1])
 
-        # game_id blank
-        df["game_id"] = ""
+            # =========================
+            # BUILD OUTPUT
+            # =========================
 
-        # map leg_type
-        df["leg_type"] = df["leg_type"].apply(map_leg_type)
+            output_columns = [
+                "date",
+                "time",
+                "game_id",
+                "risk_amount",
+                "max_potential_win",
+                "bet_result",
+                "amount_won_or_lost",
+                "odds_american",
+                "clv_percent",
+                "leg_type",
+                "bet_on",
+                "bet_on_spread_total_number",
+                "leg_sport",
+                "leg_league",
+                "leg_vig",
+                "away_team",
+                "home_team",
+                "event_start_date",
+            ]
 
-        # map league
-        df["leg_league"] = df["leg_league"].apply(map_leg_league)
+            out = df[output_columns].copy()
 
-        # extract teams
-        teams = df["leg_description"].apply(extract_teams)
-        df["away_team"] = teams.apply(lambda x: x[0])
-        df["home_team"] = teams.apply(lambda x: x[1])
+            # =========================
+            # WRITE OUTPUT
+            # =========================
 
-        # =========================
-        # BUILD OUTPUT
-        # =========================
+            output_path = OUTPUT_DIR / Path(file_path).name
+            out.to_csv(output_path, index=False)
 
-        output_columns = [
-            "date",
-            "time",
-            "game_id",
-            "risk_amount",
-            "max_potential_win",
-            "bet_result",
-            "amount_won_or_lost",
-            "odds_american",
-            "clv_percent",
-            "leg_type",
-            "bet_on",
-            "bet_on_spread_total_number",
-            "leg_sport",
-            "leg_league",
-            "leg_vig",
-            "away_team",
-            "home_team",
-            "event_start_date",
-        ]
-
-        out = df[output_columns].copy()
-
-        # =========================
-        # WRITE OUTPUT
-        # =========================
-
-        output_path = OUTPUT_DIR / INPUT_FILE.name
-        out.to_csv(output_path, index=False)
-
-        rows_out = len(out)
+            rows_out_total += len(out)
+            files_processed += 1
 
         # =========================
         # WRITE SUMMARY LOG (OVERWRITE)
@@ -143,9 +143,9 @@ def process_file():
         with open(ERROR_LOG, "w") as log:
             log.write("MY_BETS_CLEAN_02 SUMMARY\n")
             log.write("=========================\n\n")
-            log.write(f"Input file: {INPUT_FILE.name}\n")
-            log.write(f"Rows in: {rows_in}\n")
-            log.write(f"Rows out: {rows_out}\n")
+            log.write(f"Files processed: {files_processed}\n")
+            log.write(f"Rows in: {rows_in_total}\n")
+            log.write(f"Rows out: {rows_out_total}\n")
 
     except Exception as e:
         with open(ERROR_LOG, "w") as log:
@@ -155,4 +155,4 @@ def process_file():
 
 
 if __name__ == "__main__":
-    process_file()
+    process_files()
