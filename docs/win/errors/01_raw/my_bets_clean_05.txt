@@ -1,7 +1,14 @@
-MY_BETS_CLEAN_05 SUMMARY
-=========================
-
-Files processed: 2
-Rows processed: 37
-Rows matched to games_master: 37
-Rows NOT matched: 0
+ERROR DURING PROCESSING
+You are trying to merge on float64 and object columns for key 'game_id'. If you wish to proceed you should use pd.concat
+Traceback (most recent call last):
+  File "/home/runner/work/bet_tracker/bet_tracker/scripts/my_bets_clean_05.py", line 105, in process_files
+    merged = merged.merge(
+  File "/opt/hostedtoolcache/Python/3.10.19/x64/lib/python3.10/site-packages/pandas/core/frame.py", line 10859, in merge
+    return merge(
+  File "/opt/hostedtoolcache/Python/3.10.19/x64/lib/python3.10/site-packages/pandas/core/reshape/merge.py", line 170, in merge
+    op = _MergeOperation(
+  File "/opt/hostedtoolcache/Python/3.10.19/x64/lib/python3.10/site-packages/pandas/core/reshape/merge.py", line 807, in __init__
+    self._maybe_coerce_merge_keys()
+  File "/opt/hostedtoolcache/Python/3.10.19/x64/lib/python3.10/site-packages/pandas/core/reshape/merge.py", line 1509, in _maybe_coerce_merge_keys
+    raise ValueError(msg)
+ValueError: You are trying to merge on float64 and object columns for key 'game_id'. If you wish to proceed you should use pd.concat
