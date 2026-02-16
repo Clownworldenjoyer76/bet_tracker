@@ -26,43 +26,47 @@ ERROR_DIR.mkdir(parents=True, exist_ok=True)
 # LOG (OVERWRITE ALWAYS)
 # =========================
 
+with open(ERROR_LOG, "w", encoding="utf-8") as f:
+    f.write(f"=== MY_BETS_CLEAN_05 RUN @ {datetime.utcnow().isoformat()}Z ===\n")
+
 def log(msg):
     with open(ERROR_LOG, "a", encoding="utf-8") as f:
         f.write(msg + "\n")
 
-with open(ERROR_LOG, "w", encoding="utf-8") as f:
-    f.write(f"=== MY_BETS_CLEAN_05 RUN @ {datetime.utcnow().isoformat()}Z ===\n")
-
 # =========================
-# LOAD GAMES MASTER
+# LOAD GAMES MASTER LOOKUP
 # =========================
 
-def load_games_master():
+def build_lookup():
     files = glob.glob(str(GAMES_MASTER_DIR / "games_*.csv"))
-    if not files:
-        return pd.DataFrame()
+    records = []
 
-    dfs = []
     for file in files:
         try:
             df = pd.read_csv(file)
-            dfs.append(df[["date", "away_team", "home_team", "game_id"]])
+            df = df[["date", "away_team", "home_team", "game_id"]]
+            records.append(df)
         except Exception as e:
-            log(f"ERROR loading games master file {file}: {e}")
-    if dfs:
-        return pd.concat(dfs, ignore_index=True)
-    return pd.DataFrame()
+            log(f"ERROR loading {file}: {e}")
+
+    if not records:
+        return {}
+
+    all_games = pd.concat(records, ignore_index=True)
+
+    lookup = {
+        (row["date"], row["away_team"], row["home_team"]): row["game_id"]
+        for _, row in all_games.iterrows()
+    }
+
+    return lookup
 
 # =========================
 # MAIN
 # =========================
 
 def process():
-    games_df = load_games_master()
-
-    if games_df.empty:
-        log("No games_master files found or empty.")
-        return
+    lookup = build_lookup()
 
     input_files = glob.glob(str(INPUT_DIR / "juiceReelBets_*.csv"))
 
@@ -75,27 +79,33 @@ def process():
         try:
             total_files += 1
             df = pd.read_csv(file_path)
+            rows = len(df)
+            total_rows += rows
 
-            original_rows = len(df)
-            total_rows += original_rows
+            # overwrite game_id using lookup
+            matched = 0
+            unmatched = 0
 
-            merged = df.merge(
-                games_df,
-                on=["date", "away_team", "home_team"],
-                how="left"
-            )
+            def get_game_id(row):
+                key = (row["date"], row["away_team"], row["home_team"])
+                if key in lookup:
+                    nonlocal matched
+                    matched += 1
+                    return lookup[key]
+                else:
+                    nonlocal unmatched
+                    unmatched += 1
+                    return ""
 
-            matched = merged["game_id"].notna().sum()
-            unmatched = merged["game_id"].isna().sum()
+            df["game_id"] = df.apply(get_game_id, axis=1)
 
             total_matched += matched
             total_unmatched += unmatched
 
-            # Drop time column if exists
-            if "time" in merged.columns:
-                merged = merged.drop(columns=["time"])
+            # drop time column
+            if "time" in df.columns:
+                df = df.drop(columns=["time"])
 
-            # Output schema
             output_cols = [
                 "date",
                 "game_id",
@@ -133,15 +143,15 @@ def process():
             ]
 
             for col in output_cols:
-                if col not in merged.columns:
-                    merged[col] = ""
+                if col not in df.columns:
+                    df[col] = ""
 
-            merged = merged[output_cols]
+            df = df[output_cols]
 
             output_path = OUTPUT_DIR / Path(file_path).name
-            merged.to_csv(output_path, index=False)
+            df.to_csv(output_path, index=False)
 
-            log(f"Wrote {output_path} | rows={original_rows} matched={matched} unmatched={unmatched}")
+            log(f"Wrote {output_path} | rows={rows} matched={matched} unmatched={unmatched}")
 
         except Exception:
             log(f"ERROR processing {file_path}")
