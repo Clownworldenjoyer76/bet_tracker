@@ -27,13 +27,19 @@ ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 def load_games_master():
     files = glob.glob(str(GAMES_MASTER_DIR / "games_*.csv"))
-    frames = [pd.read_csv(f) for f in files]
+    frames = []
+    for f in files:
+        df = pd.read_csv(f, dtype={"game_id": str})
+        frames.append(df)
     return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
 
 
 def load_winners():
     files = glob.glob(str(WINNERS_DIR / "winners_*.csv"))
-    frames = [pd.read_csv(f) for f in files]
+    frames = []
+    for f in files:
+        df = pd.read_csv(f, dtype={"game_id": str})
+        frames.append(df)
     return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
 
 
@@ -63,6 +69,15 @@ def process_files():
             if "time" in df.columns:
                 df = df.drop(columns=["time"])
 
+            # Ensure merge keys are strings
+            df["date"] = df["date"].astype(str)
+            df["away_team"] = df["away_team"].astype(str)
+            df["home_team"] = df["home_team"].astype(str)
+
+            games_master["date"] = games_master["date"].astype(str)
+            games_master["away_team"] = games_master["away_team"].astype(str)
+            games_master["home_team"] = games_master["home_team"].astype(str)
+
             # =========================
             # STEP 1: MATCH TO GAMES_MASTER
             # =========================
@@ -70,15 +85,17 @@ def process_files():
             merged = df.merge(
                 games_master[["date", "away_team", "home_team", "game_id"]],
                 how="left",
-                on=["date", "away_team", "home_team"],
-                suffixes=("", "_gm")
+                on=["date", "away_team", "home_team"]
             )
 
-            rows_matched_games += merged["game_id"].notna().sum()
-            rows_unmatched_games += merged["game_id"].isna().sum()
+            # Force game_id to string (prevents float issues)
+            merged["game_id"] = merged["game_id"].astype(str)
+
+            rows_matched_games += merged["game_id"].ne("nan").sum()
+            rows_unmatched_games += merged["game_id"].eq("nan").sum()
 
             # =========================
-            # STEP 2: MATCH TO WINNERS ON game_id
+            # STEP 2: MATCH TO WINNERS
             # =========================
 
             edge_fields = [
@@ -100,13 +117,13 @@ def process_files():
                 "bet",
             ]
 
-            winners_subset = winners[["game_id"] + edge_fields]
+            winners_subset = winners[["game_id"] + edge_fields].copy()
+            winners_subset["game_id"] = winners_subset["game_id"].astype(str)
 
             merged = merged.merge(
                 winners_subset,
                 how="left",
-                on="game_id",
-                suffixes=("", "_win")
+                on="game_id"
             )
 
             rows_matched_winners += merged["home_ml_edge"].notna().sum()
@@ -161,7 +178,7 @@ def process_files():
             files_processed += 1
 
         # =========================
-        # SUMMARY LOG (OVERWRITE)
+        # SUMMARY LOG
         # =========================
 
         with open(ERROR_LOG, "w") as log:
