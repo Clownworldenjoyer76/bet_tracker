@@ -13,6 +13,7 @@ import traceback
 
 INPUT_DIR = Path("docs/win/my_bets/step_03")
 GAMES_MASTER_DIR = Path("docs/win/games_master")
+WINNERS_DIR = Path("docs/win/winners/step_03")
 OUTPUT_DIR = Path("docs/win/my_bets/step_04")
 ERROR_DIR = Path("docs/win/errors/01_raw")
 ERROR_LOG = ERROR_DIR / "my_bets_clean_05.txt"
@@ -21,23 +22,19 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 # =========================
-# LOAD ALL GAMES MASTER FILES
+# LOAD HELPERS
 # =========================
 
 def load_games_master():
     files = glob.glob(str(GAMES_MASTER_DIR / "games_*.csv"))
-    all_games = []
+    frames = [pd.read_csv(f) for f in files]
+    return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
 
-    for file_path in files:
-        df = pd.read_csv(file_path)
-        all_games.append(df)
 
-    if all_games:
-        master = pd.concat(all_games, ignore_index=True)
-    else:
-        master = pd.DataFrame()
-
-    return master
+def load_winners():
+    files = glob.glob(str(WINNERS_DIR / "winners_*.csv"))
+    frames = [pd.read_csv(f) for f in files]
+    return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
 
 
 # =========================
@@ -46,39 +43,45 @@ def load_games_master():
 
 def process_files():
     files = glob.glob(str(INPUT_DIR / "juiceReelBets_*.csv"))
-    master = load_games_master()
+
+    games_master = load_games_master()
+    winners = load_winners()
 
     files_processed = 0
     rows_total = 0
-    rows_matched = 0
-    rows_unmatched = 0
+    rows_matched_games = 0
+    rows_matched_winners = 0
+    rows_unmatched_games = 0
+    rows_unmatched_winners = 0
 
     try:
         for file_path in files:
             df = pd.read_csv(file_path)
             rows_total += len(df)
 
-            # Drop time column
+            # Remove time column
             if "time" in df.columns:
                 df = df.drop(columns=["time"])
 
-            # Merge on date, away_team, home_team
+            # =========================
+            # STEP 1: MATCH TO GAMES_MASTER
+            # =========================
+
             merged = df.merge(
-                master,
+                games_master[["date", "away_team", "home_team", "game_id"]],
                 how="left",
                 on=["date", "away_team", "home_team"],
                 suffixes=("", "_gm")
             )
 
-            # Count matches
-            rows_matched += merged["game_id_gm"].notna().sum()
-            rows_unmatched += merged["game_id_gm"].isna().sum()
+            rows_matched_games += merged["game_id"].notna().sum()
+            rows_unmatched_games += merged["game_id"].isna().sum()
 
-            # Fill game_id
-            merged["game_id"] = merged["game_id_gm"]
+            # =========================
+            # STEP 2: MATCH TO WINNERS ON game_id
+            # =========================
 
-            # Columns to pull from games_master after match
-            fields_to_fill = [
+            edge_fields = [
                 "home_ml_edge",
                 "away_ml_edge",
                 "away_ml_odds",
@@ -97,15 +100,22 @@ def process_files():
                 "bet",
             ]
 
-            for field in fields_to_fill:
-                if f"{field}_gm" in merged.columns:
-                    merged[field] = merged[f"{field}_gm"]
+            winners_subset = winners[["game_id"] + edge_fields]
 
-            # Remove helper columns from games_master
-            drop_cols = [col for col in merged.columns if col.endswith("_gm")]
-            merged = merged.drop(columns=drop_cols)
+            merged = merged.merge(
+                winners_subset,
+                how="left",
+                on="game_id",
+                suffixes=("", "_win")
+            )
 
-            # Strict output order
+            rows_matched_winners += merged["home_ml_edge"].notna().sum()
+            rows_unmatched_winners += merged["home_ml_edge"].isna().sum()
+
+            # =========================
+            # OUTPUT ORDER
+            # =========================
+
             output_columns = [
                 "date",
                 "game_id",
@@ -151,16 +161,18 @@ def process_files():
             files_processed += 1
 
         # =========================
-        # WRITE SUMMARY LOG (OVERWRITE)
+        # SUMMARY LOG (OVERWRITE)
         # =========================
 
         with open(ERROR_LOG, "w") as log:
             log.write("MY_BETS_CLEAN_05 SUMMARY\n")
             log.write("=========================\n\n")
             log.write(f"Files processed: {files_processed}\n")
-            log.write(f"Rows processed: {rows_total}\n")
-            log.write(f"Rows matched to games_master: {rows_matched}\n")
-            log.write(f"Rows NOT matched: {rows_unmatched}\n")
+            log.write(f"Rows processed: {rows_total}\n\n")
+            log.write(f"Rows matched to games_master: {rows_matched_games}\n")
+            log.write(f"Rows NOT matched to games_master: {rows_unmatched_games}\n\n")
+            log.write(f"Rows matched to winners: {rows_matched_winners}\n")
+            log.write(f"Rows NOT matched to winners: {rows_unmatched_winners}\n")
 
     except Exception as e:
         with open(ERROR_LOG, "w") as log:
