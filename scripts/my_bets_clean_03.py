@@ -1,148 +1,159 @@
+# scripts/my_bets_clean_03.py
+
 #!/usr/bin/env python3
 
 import pandas as pd
 from pathlib import Path
-from datetime import datetime
-import traceback
 import glob
+import traceback
 
 # =========================
 # PATHS
 # =========================
 
 INPUT_DIR = Path("docs/win/my_bets/step_02")
-GAMES_MASTER_DIR = Path("docs/win/games_master")
-NORMALIZED_DIR = Path("docs/win/manual/normalized")
+OUTPUT_DIR = Path("docs/win/my_bets/step_03")
 ERROR_DIR = Path("docs/win/errors/01_raw")
 ERROR_LOG = ERROR_DIR / "my_bets_clean_03.txt"
 
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
+
+# =========================
+# HELPERS
+# =========================
+
+def format_date(series):
+    """
+    Convert YYYY-MM-DD → YYYY_MM_DD
+    """
+    dt = pd.to_datetime(series, errors="coerce")
+    return dt.dt.strftime("%Y_%m_%d")
+
 
 # =========================
 # MAIN
 # =========================
 
 def process_files():
-    summary_lines = []
-    summary_lines.append(f"=== MY_BETS_CLEAN_03 RUN @ {datetime.utcnow().isoformat()}Z ===\n")
+    files = glob.glob(str(INPUT_DIR / "juiceReelBets_*.csv"))
 
-    files = sorted(INPUT_DIR.glob("*_bets.csv"))
+    files_processed = 0
+    rows_in_total = 0
+    rows_out_total = 0
 
-    if not files:
-        summary_lines.append("No input files found.\n")
-        ERROR_LOG.write_text("".join(summary_lines))
-        return
+    try:
+        for file_path in files:
+            df = pd.read_csv(file_path)
+            rows_in = len(df)
+            rows_in_total += rows_in
 
-    # -------------------------
-    # Load normalized data once
-    # -------------------------
-    normalized_files = glob.glob(str(NORMALIZED_DIR / "*.csv"))
-    normalized_df_list = []
+            # =========================
+            # TRANSFORMATIONS
+            # =========================
 
-    for nf in normalized_files:
-        try:
-            df = pd.read_csv(nf)
-            if {"date", "league", "game_id"}.issubset(df.columns):
-                df["league"] = df["league"].astype(str).str.lower()
-                normalized_df_list.append(df[["date", "league", "game_id"]])
-        except Exception:
-            continue
+            # Date format update
+            df["date"] = format_date(df["date"])
 
-    if normalized_df_list:
-        normalized_all = pd.concat(normalized_df_list, ignore_index=True)
-    else:
-        normalized_all = pd.DataFrame(columns=["date", "league", "game_id"])
+            # Create league column
+            df["league"] = df["leg_league"].astype(str) + "_" + df["leg_type"].astype(str)
 
-    for file_path in files:
-        try:
-            bets_df = pd.read_csv(file_path)
-            rows_in = len(bets_df)
+            # Blank required fields
+            df["time"] = ""
+            df["game_id"] = ""
 
-            if rows_in == 0:
-                summary_lines.append(f"{file_path.name} | empty file\n")
-                continue
+            # Create empty betting metric columns
+            new_blank_columns = [
+                "home_ml_edge",
+                "away_ml_edge",
+                "away_ml_odds",
+                "home_ml_odds",
+                "away_spread",
+                "home_spread",
+                "home_spread_edge",
+                "away_spread_edge",
+                "away_spread_odds",
+                "home_spread_odds",
+                "over_edge",
+                "under_edge",
+                "over_odds",
+                "under_odds",
+                "total",
+                "bet",
+            ]
 
-            required_cols = ["date", "league", "away_team", "home_team"]
-            for col in required_cols:
-                if col not in bets_df.columns:
-                    raise ValueError(f"Missing required column: {col}")
+            for col in new_blank_columns:
+                df[col] = ""
 
-            # Normalize league to base (nba, ncaab, etc.)
-            bets_df["league_base"] = bets_df["league"].astype(str).str.split("_").str[0].str.lower()
+            # =========================
+            # BUILD OUTPUT (STRICT ORDER)
+            # =========================
 
-            unique_dates = bets_df["date"].dropna().unique()
+            output_columns = [
+                "date",
+                "time",
+                "game_id",
+                "risk_amount",
+                "max_potential_win",
+                "bet_result",
+                "amount_won_or_lost",
+                "odds_american",
+                "clv_percent",
+                "leg_type",
+                "bet_on",
+                "bet_on_spread_total_number",
+                "leg_sport",
+                "leg_league",
+                "leg_vig",
+                "away_team",
+                "home_team",
+                "league",
+                "home_ml_edge",
+                "away_ml_edge",
+                "away_ml_odds",
+                "home_ml_odds",
+                "away_spread",
+                "home_spread",
+                "home_spread_edge",
+                "away_spread_edge",
+                "away_spread_odds",
+                "home_spread_odds",
+                "over_edge",
+                "under_edge",
+                "over_odds",
+                "under_odds",
+                "total",
+                "bet",
+            ]
 
-            if len(unique_dates) != 1:
-                raise ValueError(f"Expected exactly one date per file. Found: {unique_dates}")
+            out = df[output_columns].copy()
 
-            file_date = unique_dates[0]
-            games_file = GAMES_MASTER_DIR / f"games_{file_date}.csv"
+            # =========================
+            # WRITE OUTPUT
+            # =========================
 
-            if not games_file.exists():
-                summary_lines.append(f"{file_path.name} | games file not found: games_{file_date}.csv\n")
-                continue
+            output_path = OUTPUT_DIR / Path(file_path).name
+            out.to_csv(output_path, index=False)
 
-            games_df = pd.read_csv(games_file)
-            games_df["league"] = games_df["league"].astype(str).str.lower()
+            rows_out_total += len(out)
+            files_processed += 1
 
-            merged = bets_df.merge(
-                games_df,
-                left_on=["date", "league_base", "away_team", "home_team"],
-                right_on=["date", "league", "away_team", "home_team"],
-                how="left",
-                suffixes=("", "_gm"),
-            )
+        # =========================
+        # WRITE SUMMARY LOG (OVERWRITE)
+        # =========================
 
-            matched = merged["game_id_gm"].notna().sum()
-            unmatched = rows_in - matched
+        with open(ERROR_LOG, "w") as log:
+            log.write("MY_BETS_CLEAN_03 SUMMARY\n")
+            log.write("=========================\n\n")
+            log.write(f"Files processed: {files_processed}\n")
+            log.write(f"Rows in: {rows_in_total}\n")
+            log.write(f"Rows out: {rows_out_total}\n")
 
-            duplicate_matches = merged.duplicated(
-                subset=["books_bet_id"], keep=False
-            ).sum()
-
-            bets_df["game_id"] = merged["game_id_gm"]
-            bets_df.drop(columns=["league_base"], inplace=True)
-
-            # -------------------------------------------------
-            # NEW: Overwrite date from normalized by game_id
-            # -------------------------------------------------
-
-            if not normalized_all.empty and "game_id" in bets_df.columns:
-                bets_df["league_lower"] = bets_df["league"].astype(str).str.lower()
-
-                date_merge = bets_df.merge(
-                    normalized_all,
-                    left_on=["game_id", "league_lower"],
-                    right_on=["game_id", "league"],
-                    how="left",
-                    suffixes=("", "_norm"),
-                )
-
-                updated_dates = date_merge["date_norm"].notna().sum()
-
-                bets_df["date"] = date_merge["date_norm"].combine_first(bets_df["date"])
-                bets_df.drop(columns=["league_lower"], inplace=True)
-
-                summary_lines.append(f"{file_path.name} | date_updates={updated_dates}\n")
-
-            bets_df.to_csv(file_path, index=False)
-
-            summary_lines.append(
-                f"{file_path.name} | rows={rows_in} matched={matched} unmatched={unmatched}\n"
-            )
-
-            if unmatched > 0:
-                summary_lines.append(f"  -> WARNING: {unmatched} unmatched rows\n")
-
-            if duplicate_matches > 0:
-                summary_lines.append(f"  -> WARNING: {duplicate_matches} duplicate merge rows detected\n")
-
-        except Exception as e:
-            summary_lines.append(f"ERROR processing {file_path.name}\n")
-            summary_lines.append(str(e) + "\n")
-            summary_lines.append(traceback.format_exc() + "\n")
-
-    ERROR_LOG.write_text("".join(summary_lines))
+    except Exception as e:
+        with open(ERROR_LOG, "w") as log:
+            log.write("ERROR DURING PROCESSING\n")
+            log.write(str(e) + "\n")
+            log.write(traceback.format_exc())
 
 
 if __name__ == "__main__":
