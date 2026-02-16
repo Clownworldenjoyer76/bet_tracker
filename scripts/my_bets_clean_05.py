@@ -21,8 +21,15 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 # =========================
-# LOAD GAMES MASTER
+# HELPERS
 # =========================
+
+def normalize_string(series):
+    return (
+        series.astype(str)
+        .str.strip()
+        .str.replace(r"\s+", " ", regex=True)
+    )
 
 def load_games_master():
     files = glob.glob(str(GAMES_MASTER_DIR / "games_*.csv"))
@@ -30,8 +37,15 @@ def load_games_master():
     for f in files:
         df = pd.read_csv(f)
         frames.append(df)
-    return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+    if not frames:
+        return pd.DataFrame()
+    gm = pd.concat(frames, ignore_index=True)
 
+    for col in ["date", "away_team", "home_team"]:
+        if col in gm.columns:
+            gm[col] = normalize_string(gm[col])
+
+    return gm
 
 # =========================
 # MAIN
@@ -54,18 +68,12 @@ def process_files():
             df = pd.read_csv(file_path)
             rows_total += len(df)
 
-            # Remove time column
             if "time" in df.columns:
                 df = df.drop(columns=["time"])
 
-            # Ensure merge keys are strings
             for col in ["date", "away_team", "home_team"]:
-                df[col] = df[col].astype(str)
-                games_master[col] = games_master[col].astype(str)
-
-            # =========================
-            # MATCH TO GAMES_MASTER
-            # =========================
+                if col in df.columns:
+                    df[col] = normalize_string(df[col])
 
             merged = df.merge(
                 games_master[["date", "away_team", "home_team", "game_id"]],
@@ -80,10 +88,6 @@ def process_files():
 
             rows_matched += (merged["game_id"] != "").sum()
             rows_unmatched += (merged["game_id"] == "").sum()
-
-            # =========================
-            # OUTPUT ORDER (UNCHANGED)
-            # =========================
 
             output_columns = [
                 "date",
@@ -121,22 +125,16 @@ def process_files():
                 "bet",
             ]
 
-            # Ensure columns exist
             for col in output_columns:
                 if col not in merged.columns:
                     merged[col] = ""
 
             merged = merged[output_columns]
 
-            # Write output
             output_path = OUTPUT_DIR / Path(file_path).name
             merged.to_csv(output_path, index=False)
 
             files_processed += 1
-
-        # =========================
-        # SUMMARY LOG
-        # =========================
 
         with open(ERROR_LOG, "w") as log:
             log.write("MY_BETS_CLEAN_05 SUMMARY\n")
