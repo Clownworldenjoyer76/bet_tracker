@@ -3,221 +3,156 @@
 #!/usr/bin/env python3
 
 import pandas as pd
-import glob
 from pathlib import Path
-from datetime import datetime
 import traceback
-import re
 
 # =========================
 # PATHS
 # =========================
 
-INPUT_DIR = Path("docs/win/my_bets/step_01")
+INPUT_FILE = Path("docs/win/my_bets/step_01/juiceReelBets_1771242741236.csv")
 OUTPUT_DIR = Path("docs/win/my_bets/step_02")
-
 ERROR_DIR = Path("docs/win/errors/01_raw")
 ERROR_LOG = ERROR_DIR / "my_bets_clean_02.txt"
 
-MAP_DIR = Path("mappings")
-NO_MAP_DIR = Path("mappings/need_map")
-NO_MAP_PATH = NO_MAP_DIR / "no_map.csv"
-
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
-NO_MAP_DIR.mkdir(parents=True, exist_ok=True)
-
-# =========================
-# CONSTANTS
-# =========================
-
-COLUMNS_TO_DELETE = [
-    "juice_bet_id",
-    "sportsbook",
-    "number_of_legs",
-    "bet_leg_id",
-    "long_description_of_leg",
-    "event_start_date",
-    "event_name",
-]
-
-LEAGUE_PREFIX_MAP = {
-    "NBA": "nba_",
-    "CBB": "ncaab_",
-}
-
-LEG_TYPE_SUFFIX_MAP = {
-    "Moneyline": "moneyline",
-    "GameOu": "totals",
-    "Spread": "spreads",
-}
 
 # =========================
 # HELPERS
 # =========================
 
-def norm(s: str) -> str:
-    if pd.isna(s):
-        return s
-    s = str(s).replace("\u00A0", " ")
-    s = re.sub(r"\s+", " ", s)
-    return s.strip()
+def extract_date_from_event_start(series):
+    dt = pd.to_datetime(series, errors="coerce")
+    return dt.dt.strftime("%Y-%m-%d")
 
-def base_league(lg: str) -> str:
-    if pd.isna(lg):
-        return ""
-    return norm(str(lg).split("_")[0])
 
-def load_team_maps():
-    team_map = {}
-    canonical_sets = {}
+def map_leg_type(value):
+    if value == "GameOu":
+        return "totals"
+    if value == "Spread":
+        return "spreads"
+    if value == "Moneyline":
+        return "moneyline"
+    return value
 
-    for map_file in MAP_DIR.glob("team_map_*.csv"):
-        df = pd.read_csv(map_file, dtype=str)
 
-        for _, row in df.iterrows():
-            lg = base_league(row["league"])
-            alias = norm(row["alias"])
-            canonical = norm(row["canonical_team"])
+def map_leg_league(value):
+    if value == "CBB":
+        return "ncaab"
+    if value == "NBA":
+        return "nba"
+    if value == "NHL":
+        return "nhl"
+    return value
 
-            team_map.setdefault(lg, {})[alias] = canonical
-            canonical_sets.setdefault(lg, set()).add(canonical)
 
-    return team_map, canonical_sets
+def extract_teams(description):
+    """
+    Extract away and home from:
+    'Away Team @ Home Team - ...'
+    """
+    if not isinstance(description, str):
+        return "", ""
 
-def normalize_value(val, lg, team_map, canonical_sets, unmapped):
-    if pd.isna(val):
-        return val
-
-    lg = base_league(lg)
-    v = norm(val)
-
-    if v in canonical_sets.get(lg, set()):
-        return v
-
-    if v in team_map.get(lg, {}):
-        return team_map[lg][v]
-
-    unmapped.add((v, lg))
-    return v
-
-def build_league_value(leg_league, leg_type):
-    prefix = LEAGUE_PREFIX_MAP.get(str(leg_league).strip(), "")
-    suffix = LEG_TYPE_SUFFIX_MAP.get(str(leg_type).strip(), "")
-    if prefix and suffix:
-        return f"{prefix}{suffix}"
-    return ""
-
-def extract_teams_from_description(description):
     try:
-        if pd.isna(description):
-            return "", ""
-
-        main_part = str(description).split(" - ")[0]
-
-        if " @ " in main_part:
-            away, home = main_part.split(" @ ", 1)
+        matchup_part = description.split(" - ")[0]
+        if " @ " in matchup_part:
+            away, home = matchup_part.split(" @ ", 1)
             return away.strip(), home.strip()
+    except:
+        pass
 
-        return "", ""
-    except Exception:
-        return "", ""
+    return "", ""
+
 
 # =========================
 # MAIN
 # =========================
 
-def process_files():
+def process_file():
+    try:
+        df = pd.read_csv(INPUT_FILE)
 
-    summary = []
-    summary.append(f"=== MY_BETS_CLEAN_02 RUN @ {datetime.utcnow().isoformat()}Z ===")
+        rows_in = len(df)
 
-    team_map, canonical_sets = load_team_maps()
-    unmapped = set()
+        # =========================
+        # TRANSFORMATIONS
+        # =========================
 
-    input_files = glob.glob(str(INPUT_DIR / "*.csv"))
+        # date from event_start_date
+        df["date"] = extract_date_from_event_start(df["event_start_date"])
 
-    files_processed = 0
-    rows_processed = 0
+        # time blank
+        df["time"] = ""
 
-    for file_path in input_files:
-        try:
-            df = pd.read_csv(file_path)
+        # game_id blank
+        df["game_id"] = ""
 
-            # =========================
-            # DELETE COLUMNS
-            # =========================
-            for col in COLUMNS_TO_DELETE:
-                if col in df.columns:
-                    df = df.drop(columns=[col])
+        # map leg_type
+        df["leg_type"] = df["leg_type"].apply(map_leg_type)
 
-            # =========================
-            # CREATE LEAGUE COLUMN
-            # =========================
-            if "leg_league" in df.columns and "leg_type" in df.columns:
-                df["league"] = df.apply(
-                    lambda row: build_league_value(
-                        row["leg_league"],
-                        row["leg_type"]
-                    ),
-                    axis=1
-                )
-            else:
-                df["league"] = ""
+        # map league
+        df["leg_league"] = df["leg_league"].apply(map_leg_league)
 
-            # =========================
-            # POPULATE TEAMS
-            # =========================
-            if "leg_description" in df.columns:
-                teams = df["leg_description"].apply(extract_teams_from_description)
-                df["away_team"] = teams.apply(lambda x: x[0])
-                df["home_team"] = teams.apply(lambda x: x[1])
-            else:
-                df["away_team"] = ""
-                df["home_team"] = ""
+        # extract teams
+        teams = df["leg_description"].apply(extract_teams)
+        df["away_team"] = teams.apply(lambda x: x[0])
+        df["home_team"] = teams.apply(lambda x: x[1])
 
-            # =========================
-            # NORMALIZE TEAMS
-            # =========================
-            if "league" in df.columns:
-                df["away_team"] = [
-                    normalize_value(v, lg, team_map, canonical_sets, unmapped)
-                    for v, lg in zip(df["away_team"], df["league"])
-                ]
+        # =========================
+        # BUILD OUTPUT
+        # =========================
 
-                df["home_team"] = [
-                    normalize_value(v, lg, team_map, canonical_sets, unmapped)
-                    for v, lg in zip(df["home_team"], df["league"])
-                ]
+        output_columns = [
+            "date",
+            "time",
+            "game_id",
+            "risk_amount",
+            "max_potential_win",
+            "bet_result",
+            "amount_won_or_lost",
+            "odds_american",
+            "clv_percent",
+            "leg_type",
+            "bet_on",
+            "bet_on_spread_total_number",
+            "leg_sport",
+            "leg_league",
+            "leg_vig",
+            "away_team",
+            "home_team",
+            "event_start_date",
+        ]
 
-            # =========================
-            # OUTPUT
-            # =========================
-            output_path = OUTPUT_DIR / Path(file_path).name
-            df.to_csv(output_path, index=False)
+        out = df[output_columns].copy()
 
-            files_processed += 1
-            rows_processed += len(df)
+        # =========================
+        # WRITE OUTPUT
+        # =========================
 
-        except Exception:
-            summary.append(f"ERROR processing {file_path}")
-            summary.append(traceback.format_exc())
+        output_path = OUTPUT_DIR / INPUT_FILE.name
+        out.to_csv(output_path, index=False)
 
-    # =========================
-    # WRITE UNMAPPED
-    # =========================
-    if unmapped:
-        pd.DataFrame(
-            sorted(unmapped),
-            columns=["team", "league"]
-        ).to_csv(NO_MAP_PATH, index=False)
+        rows_out = len(out)
 
-    summary.append(f"Files processed: {files_processed}")
-    summary.append(f"Rows processed: {rows_processed}")
+        # =========================
+        # WRITE SUMMARY LOG (OVERWRITE)
+        # =========================
 
-    with open(ERROR_LOG, "w") as f:
-        f.write("\n".join(summary))
+        with open(ERROR_LOG, "w") as log:
+            log.write("MY_BETS_CLEAN_02 SUMMARY\n")
+            log.write("=========================\n\n")
+            log.write(f"Input file: {INPUT_FILE.name}\n")
+            log.write(f"Rows in: {rows_in}\n")
+            log.write(f"Rows out: {rows_out}\n")
+
+    except Exception as e:
+        with open(ERROR_LOG, "w") as log:
+            log.write("ERROR DURING PROCESSING\n")
+            log.write(str(e) + "\n")
+            log.write(traceback.format_exc())
 
 
 if __name__ == "__main__":
-    process_files()
+    process_file()
