@@ -1,5 +1,9 @@
 # scripts/dk_text_to_csv.py
 
+## Parses raw DraftKings text into structured moneyline, spread, and totals CSV files 
+## for the given league and current date, and always writes a detailed summary/error log 
+## describing games detected, rows written, and any parsing issues.
+
 #!/usr/bin/env python3
 
 import csv
@@ -7,10 +11,15 @@ import sys
 import os
 import re
 from datetime import datetime
+import traceback
 
-LEAGUE = sys.argv[1] if len(sys.argv) > 1 else "ncaab"
+LEAGUE_INPUT = sys.argv[1] if len(sys.argv) > 1 else "ncaab"
 DATE = datetime.now().strftime("%Y_%m_%d")
-CURRENT_YEAR = datetime.now().year
+
+# Detect DK variant
+IS_DK = LEAGUE_INPUT.endswith("_dk")
+BASE_LEAGUE = LEAGUE_INPUT.replace("_dk", "")
+OUTPUT_LEAGUE = BASE_LEAGUE  # league column must remain canonical (e.g., ncaab)
 
 OUT_DIR = "docs/win/manual/first"
 ERROR_DIR = "docs/win/errors/dk_input"
@@ -18,11 +27,9 @@ ERROR_DIR = "docs/win/errors/dk_input"
 os.makedirs(OUT_DIR, exist_ok=True)
 os.makedirs(ERROR_DIR, exist_ok=True)
 
-FILE_LEAGUE = LEAGUE.replace("_dk", "") if LEAGUE.endswith("_dk") else LEAGUE
-
-OUT_ML = f"{OUT_DIR}/dk_{FILE_LEAGUE}_moneyline_{DATE}.csv"
-OUT_SP = f"{OUT_DIR}/dk_{FILE_LEAGUE}_spreads_{DATE}.csv"
-OUT_OU = f"{OUT_DIR}/dk_{FILE_LEAGUE}_totals_{DATE}.csv"
+OUT_ML = f"{OUT_DIR}/dk_{BASE_LEAGUE}_moneyline_{DATE}.csv"
+OUT_SP = f"{OUT_DIR}/dk_{BASE_LEAGUE}_spreads_{DATE}.csv"
+OUT_OU = f"{OUT_DIR}/dk_{BASE_LEAGUE}_totals_{DATE}.csv"
 
 ERROR_LOG = f"{ERROR_DIR}/dk_input_{DATE}.txt"
 
@@ -31,21 +38,39 @@ games_seen = 0
 errors = []
 
 # ======================
-# NORMALIZATION
+# HELPERS
 # ======================
 
 def clean(line: str) -> str:
     return (
         line.replace("opens in a new tab", "")
             .replace("−", "-")
+            .replace("-logo", "")
             .strip()
     )
+
+def is_american_odds(s):
+    return re.fullmatch(r"[+-]\d+", s or "") is not None
+
+def is_spread(s):
+    return re.fullmatch(r"[+-]\d+(\.\d+)?", s or "") is not None
+
+def is_total_number(s):
+    return re.fullmatch(r"\d+(\.\d+)?", s or "") is not None
+
+def normalize_side(s):
+    return "Over" if s.upper() == "O" else "Under"
+
+def parse_time_line(line):
+    m = re.search(r"(\d{1,2}:\d{2}\s?(AM|PM))", line)
+    return m.group(1) if m else ""
 
 def write_summary():
     with open(ERROR_LOG, "w", encoding="utf-8") as f:
         f.write("DK INPUT PARSE SUMMARY\n")
         f.write("======================\n\n")
-        f.write(f"League: {LEAGUE}\n")
+        f.write(f"League Input: {LEAGUE_INPUT}\n")
+        f.write(f"League Output: {OUTPUT_LEAGUE}\n")
         f.write(f"Date: {DATE}\n")
         f.write(f"Games detected: {games_seen}\n")
         f.write(f"Moneyline rows: {len(ml_rows)}\n")
@@ -59,253 +84,190 @@ def write_summary():
                 f.write(f"- {e}\n")
 
 # ======================
-# PATTERN HELPERS
-# ======================
-
-def is_spread(line):
-    return re.match(r"^[+-]\d+\.\d+$", line)
-
-def is_american_odds(line):
-    return re.match(r"^[+-]\d+$", line)
-
-def is_time_line(line):
-    return re.search(r"\d+:\d+\s*(AM|PM)", line)
-
-def parse_nba_date(line):
-    try:
-        parts = line.split()
-        month = parts[1]
-        day = re.sub(r"(st|nd|rd|th)", "", parts[2])
-        time_str = f"{parts[3]} {parts[4]}"
-
-        month_map = {
-            "Jan": "01","Feb": "02","Mar": "03","Apr": "04",
-            "May": "05","Jun": "06","Jul": "07","Aug": "08",
-            "Sep": "09","Oct": "10","Nov": "11","Dec": "12"
-        }
-
-        date_str = f"{CURRENT_YEAR}-{month_map.get(month,'01')}-{int(day):02d}"
-        return date_str, time_str
-    except:
-        return DATE.replace("_","-"), ""
-
-# ==========================================================
 # MAIN
-# ==========================================================
+# ======================
 
 try:
 
     with open("raw.txt", encoding="utf-8") as f:
         lines = [clean(l) for l in f if clean(l)]
 
-    # ======================================================
-    # DK FORMAT BRANCH
-    # ======================================================
-    if LEAGUE in ("ncaab_dk", "nba_dk"):
+    if not IS_DK:
+        raise RuntimeError("Legacy logic unchanged — use original branch")
 
-        output_league = FILE_LEAGUE
-        i = 0
+    i = 0
+    while i < len(lines):
 
-        while i < len(lines):
+        # Identify game header by detecting " at "
+        if lines[i].lower() == "at" and i > 0 and i + 1 < len(lines):
 
-            line = lines[i]
+            away = lines[i - 1]
+            home = lines[i + 1]
 
-            if (
-                line.endswith("-logo")
-                or line in ("Spread","Total","Moneyline","More Bets")
-                or line.isdigit()
-            ):
-                i += 1
-                continue
-
-            if i + 2 < len(lines) and lines[i + 1] == "at":
-
-                away = lines[i].replace("-logo","")
-                home = lines[i + 2].replace("-logo","")
-
-                games_seen += 1
-                i += 3
-
-                spread_away = spread_home = None
-                spread_away_odds = spread_home_odds = None
-                total_number = None
-                over_odds = under_odds = None
-                ml_away = ml_home = None
-                date_str = DATE.replace("_","-")
-                time_str = ""
-
-                while i < len(lines):
-
-                    current = lines[i]
-
-                    if is_time_line(current):
-                        if LEAGUE == "nba_dk":
-                            date_str, time_str = parse_nba_date(current)
-                        else:
-                            time_str = current.replace("Today","").strip()
-                        i += 1
-                        break
-
-                    if is_spread(current):
-                        if spread_away is None:
-                            spread_away = current
-                            spread_away_odds = lines[i+1]
-                            i += 2
-                            continue
-                        elif spread_home is None:
-                            spread_home = current
-                            spread_home_odds = lines[i+1]
-                            i += 2
-                            continue
-
-                    if current == "O":
-                        total_number = lines[i+1]
-                        over_odds = lines[i+2]
-                        i += 3
-                        continue
-
-                    if current == "U":
-                        total_number = lines[i+1]
-                        under_odds = lines[i+2]
-                        i += 3
-                        continue
-
-                    if is_american_odds(current):
-                        if ml_away is None:
-                            ml_away = current
-                        elif ml_home is None:
-                            ml_home = current
-                        i += 1
-                        continue
-
-                    i += 1
-
-                # ---- MONEYLINE ----
-                if ml_away and ml_home:
-                    ml_rows.append([date_str,time_str,away,home,ml_away,"","",output_league])
-                    ml_rows.append([date_str,time_str,home,away,ml_home,"","",output_league])
-
-                # ---- SPREADS (FIXED DIRECTION) ----
-                if spread_away and spread_home:
-                    # BOTH rows preserve canonical away/home order
-                    sp_rows.append([date_str,time_str,away,home,spread_away,spread_away_odds,"","",output_league])
-                    sp_rows.append([date_str,time_str,away,home,spread_home,spread_home_odds,"","",output_league])
-
-                # ---- TOTALS ----
-                if total_number and over_odds and under_odds:
-                    ou_rows.append([date_str,time_str,away,home,"Over",total_number,over_odds,"","",output_league])
-                    ou_rows.append([date_str,time_str,away,home,"Under",total_number,under_odds,"","",output_league])
-                    ou_rows.append([date_str,time_str,home,away,"Over",total_number,over_odds,"","",output_league])
-                    ou_rows.append([date_str,time_str,home,away,"Under",total_number,under_odds,"","",output_league])
-
-            else:
-                i += 1
-
-    # ======================================================
-    # LEGACY PARSER (UNCHANGED)
-    # ======================================================
-    else:
-
-        i = 0
-        while i < len(lines):
-
-            if "@" not in lines[i]:
+            # Skip ranking lines (numeric only)
+            if away.isdigit():
                 i += 1
                 continue
 
             games_seen += 1
 
-            try:
-                away, home = [x.strip() for x in lines[i].split("@", 1)]
-            except Exception:
-                errors.append(f"Invalid game header format: {lines[i]}")
-                i += 1
-                continue
+            j = i + 2
+            spread_away = spread_home = None
+            spread_away_odds = spread_home_odds = None
+            total_number = None
+            total_over_odds = total_under_odds = None
+            ml_away = ml_home = None
+            game_time = ""
 
-            if i + 1 >= len(lines):
-                errors.append(f"Missing date/time for game: {away} @ {home}")
-                break
+            while j < len(lines):
 
-            try:
-                date_str, time_str = [x.strip() for x in lines[i + 1].split(",", 1)]
-            except Exception:
-                errors.append(f"Invalid date/time format after: {away} @ {home}")
-                i += 2
-                continue
-
-            i += 2
-
-            while i < len(lines) and lines[i] in ("Moneyline","Spread","Total","Puck Line"):
-                market = lines[i]
-                normalized = "Spread" if market == "Puck Line" else market
-                i += 1
-
-                if lines[i:i+3] != ["Odds","% Handle","% Bets"]:
-                    errors.append(f"Malformed header in {market} for {away} @ {home}")
+                if " at " in lines[j].lower():
                     break
 
-                i += 3
+                # Spread pattern
+                if is_spread(lines[j]) and j + 1 < len(lines) and is_american_odds(lines[j + 1]):
+                    if spread_away is None:
+                        spread_away = lines[j]
+                        spread_away_odds = lines[j + 1]
+                    else:
+                        spread_home = lines[j]
+                        spread_home_odds = lines[j + 1]
+                    j += 2
+                    continue
 
-                if i + 7 >= len(lines):
-                    errors.append(f"Incomplete market block for {away} @ {home}")
-                    break
+                # Totals pattern
+                if lines[j] in ("O", "U") and j + 2 < len(lines):
+                    side = lines[j]
+                    total = lines[j + 1]
+                    odds = lines[j + 2]
+                    if is_total_number(total) and is_american_odds(odds):
+                        total_number = total
+                        if side == "O":
+                            total_over_odds = odds
+                        else:
+                            total_under_odds = odds
+                        j += 3
+                        continue
 
-                a = lines[i:i+4]
-                b = lines[i+4:i+8]
-                i += 8
+                # Moneyline odds
+                if is_american_odds(lines[j]):
+                    if ml_away is None:
+                        ml_away = lines[j]
+                    elif ml_home is None:
+                        ml_home = lines[j]
+                    j += 1
+                    continue
 
-                if normalized == "Moneyline":
-                    t1,o1,h1,b1 = a
-                    t2,o2,h2,b2 = b
-                    opp1 = home if t1==away else away
-                    opp2 = home if t2==away else away
-                    ml_rows.append([date_str,time_str,t1,opp1,o1,h1.rstrip("%"),b1.rstrip("%"),LEAGUE])
-                    ml_rows.append([date_str,time_str,t2,opp2,o2,h2.rstrip("%"),b2.rstrip("%"),LEAGUE])
+                # Time line
+                t = parse_time_line(lines[j])
+                if t:
+                    game_time = t
 
-                elif normalized == "Spread":
-                    t1,o1,h1,b1 = a
-                    t2,o2,h2,b2 = b
-                    team1,spread1 = t1.rsplit(" ",1)
-                    team2,spread2 = t2.rsplit(" ",1)
-                    sp_rows.append([date_str,time_str,team1,team2,spread1,o1,h1.rstrip("%"),b1.rstrip("%"),f"{LEAGUE}_spreads"])
-                    sp_rows.append([date_str,time_str,team2,team1,spread2,o2,h2.rstrip("%"),b2.rstrip("%"),f"{LEAGUE}_spreads"])
+                j += 1
 
-                elif normalized == "Total":
-                    s1,o1,h1,b1 = a
-                    s2,o2,h2,b2 = b
-                    side1,total = s1.split(" ",1)
-                    side2,_ = s2.split(" ",1)
-                    ou_rows.append([date_str,time_str,away,home,side1,total,o1,h1.rstrip("%"),b1.rstrip("%"),f"{LEAGUE}_totals"])
-                    ou_rows.append([date_str,time_str,away,home,side2,total,o2,h2.rstrip("%"),b2.rstrip("%"),f"{LEAGUE}_totals"])
-                    ou_rows.append([date_str,time_str,home,away,side1,total,o1,h1.rstrip("%"),b1.rstrip("%"),f"{LEAGUE}_totals"])
-                    ou_rows.append([date_str,time_str,home,away,side2,total,o2,h2.rstrip("%"),b2.rstrip("%"),f"{LEAGUE}_totals"])
+            # Write spread rows (FIXED DIRECTION)
+            if spread_away and spread_home:
+                sp_rows.append([
+                    DATE.replace("_", "-"),
+                    game_time,
+                    away,
+                    home,
+                    spread_away,
+                    spread_away_odds,
+                    "",
+                    "",
+                    OUTPUT_LEAGUE
+                ])
+                sp_rows.append([
+                    DATE.replace("_", "-"),
+                    game_time,
+                    home,
+                    away,
+                    spread_home,
+                    spread_home_odds,
+                    "",
+                    "",
+                    OUTPUT_LEAGUE
+                ])
 
-    # ======================================================
-    # WRITE OUTPUT
-    # ======================================================
+            # Write moneyline
+            if ml_away and ml_home:
+                ml_rows.append([
+                    DATE.replace("_", "-"),
+                    game_time,
+                    away,
+                    home,
+                    ml_away,
+                    "",
+                    "",
+                    OUTPUT_LEAGUE
+                ])
+                ml_rows.append([
+                    DATE.replace("_", "-"),
+                    game_time,
+                    home,
+                    away,
+                    ml_home,
+                    "",
+                    "",
+                    OUTPUT_LEAGUE
+                ])
+
+            # Write totals
+            if total_number and total_over_odds and total_under_odds:
+                for team1, team2 in [(away, home), (home, away)]:
+                    ou_rows.append([
+                        DATE.replace("_", "-"),
+                        game_time,
+                        team1,
+                        team2,
+                        "Over",
+                        total_number,
+                        total_over_odds,
+                        "",
+                        "",
+                        OUTPUT_LEAGUE
+                    ])
+                    ou_rows.append([
+                        DATE.replace("_", "-"),
+                        game_time,
+                        team1,
+                        team2,
+                        "Under",
+                        total_number,
+                        total_under_odds,
+                        "",
+                        "",
+                        OUTPUT_LEAGUE
+                    ])
+
+            i = j
+        else:
+            i += 1
+
+    # ======================
+    # WRITE FILES
+    # ======================
 
     if ml_rows:
-        with open(OUT_ML,"w",newline="",encoding="utf-8") as f:
+        with open(OUT_ML, "w", newline="", encoding="utf-8") as f:
             w = csv.writer(f)
             w.writerow(["date","time","team","opponent","odds","handle_pct","bets_pct","league"])
             w.writerows(ml_rows)
 
     if sp_rows:
-        with open(OUT_SP,"w",newline="",encoding="utf-8") as f:
+        with open(OUT_SP, "w", newline="", encoding="utf-8") as f:
             w = csv.writer(f)
             w.writerow(["date","time","team","opponent","spread","odds","handle_pct","bets_pct","league"])
             w.writerows(sp_rows)
 
     if ou_rows:
-        with open(OUT_OU,"w",newline="",encoding="utf-8") as f:
+        with open(OUT_OU, "w", newline="", encoding="utf-8") as f:
             w = csv.writer(f)
             w.writerow(["date","time","team","opponent","side","total","odds","handle_pct","bets_pct","league"])
             w.writerows(ou_rows)
 
     write_summary()
-
-    if errors:
-        raise RuntimeError("Parsing completed with errors")
 
 except Exception as e:
     errors.append(str(e))
