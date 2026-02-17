@@ -52,7 +52,8 @@ print("---------------------")
 # =========================
 
 MD_RE = re.compile(r"^\s*(\d{1,2})/(\d{1,2})\s*$")
-YMD_RE = re.compile(r"^\d{4}_\d{2}_\d{2}$")
+YMD_UNDERSCORE_RE = re.compile(r"^\d{4}_\d{2}_\d{2}$")
+YMD_DASH_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 # =========================
 # HELPERS
@@ -74,15 +75,22 @@ def normalize_date(md: str, year: str):
 
     s = str(md).strip()
 
-    if YMD_RE.match(s):
+    # Already normalized YYYY_MM_DD
+    if YMD_UNDERSCORE_RE.match(s):
         return s, False, False
 
-    m = MD_RE.match(s)
-    if not m:
-        return s, False, True
+    # Handle YYYY-MM-DD → convert to YYYY_MM_DD
+    if YMD_DASH_RE.match(s):
+        return s.replace("-", "_"), True, False
 
-    month, day = m.groups()
-    return f"{year}_{month.zfill(2)}_{day.zfill(2)}", True, False
+    # Handle MM/DD → convert to YYYY_MM_DD
+    m = MD_RE.match(s)
+    if m:
+        month, day = m.groups()
+        return f"{year}_{month.zfill(2)}_{day.zfill(2)}", True, False
+
+    # Unrecognized format
+    return s, False, True
 
 # =========================
 # CORE
