@@ -38,6 +38,17 @@ jobs:
             docs/win/manual/normalized
           echo "VALIDATION_EXIT_CODE=$?" >> $GITHUB_ENV
           set -e
+      # =========================
+      # Print Validate games_master LOG
+      # =========================
+      - name: Print validation log
+        if: always()
+        run: |
+          echo "==== VALIDATION TXT ===="
+          cat docs/win/errors/03_dk_iv/games_master_validation.txt || true
+          echo ""
+          echo "==== VALIDATION CSV ===="
+          cat docs/win/errors/03_dk_iv/games_master_validation_errors.csv || true
 
       # =========================
       # Stop immediately if validation failed
