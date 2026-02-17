@@ -9,11 +9,12 @@
 import csv
 import sys
 import os
+import re
 from datetime import datetime
-import traceback
 
 LEAGUE = sys.argv[1] if len(sys.argv) > 1 else "ncaab"
 DATE = datetime.now().strftime("%Y_%m_%d")
+CURRENT_YEAR = datetime.now().year
 
 OUT_DIR = "docs/win/manual/first"
 ERROR_DIR = "docs/win/errors/dk_input"
@@ -21,8 +22,8 @@ ERROR_DIR = "docs/win/errors/dk_input"
 os.makedirs(OUT_DIR, exist_ok=True)
 os.makedirs(ERROR_DIR, exist_ok=True)
 
-# filenames must remain standard (ncaab, not ncaab_dk)
-FILE_LEAGUE = "ncaab" if LEAGUE == "ncaab_dk" else LEAGUE
+# Preserve legacy filenames (no _dk in filename)
+FILE_LEAGUE = LEAGUE.replace("_dk", "") if LEAGUE.endswith("_dk") else LEAGUE
 
 OUT_ML = f"{OUT_DIR}/dk_{FILE_LEAGUE}_moneyline_{DATE}.csv"
 OUT_SP = f"{OUT_DIR}/dk_{FILE_LEAGUE}_spreads_{DATE}.csv"
@@ -62,33 +63,60 @@ def write_summary():
             for e in errors[:10]:
                 f.write(f"- {e}\n")
 
+def parse_month_date_line(line):
+    """
+    Example:
+    Thu Feb 19th 7:00 PM
+    Returns: (YYYY-MM-DD, "7:00 PM")
+    """
+    try:
+        parts = line.split()
+        month = parts[1]
+        day = re.sub(r"(st|nd|rd|th)", "", parts[2])
+        time_str = f"{parts[3]} {parts[4]}"
+
+        month_map = {
+            "Jan": "01", "Feb": "02", "Mar": "03", "Apr": "04",
+            "May": "05", "Jun": "06", "Jul": "07", "Aug": "08",
+            "Sep": "09", "Oct": "10", "Nov": "11", "Dec": "12"
+        }
+
+        month_num = month_map.get(month, "01")
+        date_str = f"{CURRENT_YEAR}-{month_num}-{int(day):02d}"
+        return date_str, time_str
+    except Exception:
+        return DATE.replace("_", "-"), ""
+
+# ==========================================================
+# MAIN
+# ==========================================================
+
 try:
 
     with open("raw.txt", encoding="utf-8") as f:
         lines = [clean(l) for l in f if clean(l)]
 
-    # ==========================================================
-    # NEW FORMAT: ncaab_dk
-    # ==========================================================
-    if LEAGUE == "ncaab_dk":
+    # ======================================================
+    # DK FORMAT BRANCH (ncaab_dk / nba_dk)
+    # ======================================================
+    if LEAGUE in ("ncaab_dk", "nba_dk"):
+
+        output_league = FILE_LEAGUE  # write as nba or ncaab
 
         i = 0
         while i < len(lines):
 
-            if lines[i].endswith("-logo"):
+            if lines[i].endswith("-logo") or lines[i] in (
+                "Spread", "Total", "Moneyline", "More Bets"
+            ):
                 i += 1
                 continue
 
-            if lines[i] in ("Spread", "Total", "Moneyline", "More Bets", "Today"):
-                i += 1
-                continue
-
-            # detect team pattern: TeamA, at, TeamB
+            # detect team pattern
             if i + 2 < len(lines) and lines[i + 1] == "at":
                 away = lines[i]
                 home = lines[i + 2]
 
-                # ignore numeric ranking lines before team
                 if away.isdigit():
                     i += 1
                     continue
@@ -97,65 +125,58 @@ try:
                 i += 3
 
                 try:
-                    # Spread (away)
                     spread_away = lines[i]
                     spread_away_odds = lines[i + 1]
 
-                    # Over
-                    over_marker = lines[i + 2]  # should be O
+                    total_marker = lines[i + 2]  # O
                     total_number = lines[i + 3]
                     over_odds = lines[i + 4]
 
-                    # Moneyline away
                     ml_away = lines[i + 5]
 
-                    # Spread (home)
                     spread_home = lines[i + 6]
                     spread_home_odds = lines[i + 7]
 
-                    # Under
-                    under_marker = lines[i + 8]  # should be U
-                    total_number_2 = lines[i + 9]
+                    total_marker2 = lines[i + 8]  # U
+                    total_number2 = lines[i + 9]
                     under_odds = lines[i + 10]
 
-                    # Moneyline home
                     ml_home = lines[i + 11]
 
-                    # Time line
-                    time_line = lines[i + 12]
-                    if "Today" in time_line:
-                        time_str = time_line.replace("Today", "").strip()
+                    date_line = lines[i + 12]
+
+                    if LEAGUE == "nba_dk":
+                        date_str, time_str = parse_month_date_line(date_line)
                     else:
-                        time_str = ""
+                        # ncaab_dk uses system date and strips Today
+                        date_str = DATE.replace("_", "-")
+                        time_str = date_line.replace("Today", "").strip()
 
-                    date_str = DATE.replace("_", "-")
+                    # Moneyline
+                    ml_rows.append([date_str, time_str, away, home, ml_away, "", "", output_league])
+                    ml_rows.append([date_str, time_str, home, away, ml_home, "", "", output_league])
 
-                    # Moneyline rows
-                    ml_rows.append([date_str, time_str, away, home, ml_away, "", "", "ncaab"])
-                    ml_rows.append([date_str, time_str, home, away, ml_home, "", "", "ncaab"])
+                    # Spread
+                    sp_rows.append([date_str, time_str, away, home, spread_away, spread_away_odds, "", "", output_league])
+                    sp_rows.append([date_str, time_str, home, away, spread_home, spread_home_odds, "", "", output_league])
 
-                    # Spread rows
-                    sp_rows.append([date_str, time_str, away, home, spread_away, spread_away_odds, "", "", "ncaab"])
-                    sp_rows.append([date_str, time_str, home, away, spread_home, spread_home_odds, "", "", "ncaab"])
-
-                    # Totals rows (4 rows like original logic)
-                    ou_rows.append([date_str, time_str, away, home, "O", total_number, over_odds, "", "", "ncaab"])
-                    ou_rows.append([date_str, time_str, away, home, "U", total_number, under_odds, "", "", "ncaab"])
-                    ou_rows.append([date_str, time_str, home, away, "O", total_number, over_odds, "", "", "ncaab"])
-                    ou_rows.append([date_str, time_str, home, away, "U", total_number, under_odds, "", "", "ncaab"])
+                    # Totals (4 rows like legacy)
+                    ou_rows.append([date_str, time_str, away, home, "O", total_number, over_odds, "", "", output_league])
+                    ou_rows.append([date_str, time_str, away, home, "U", total_number, under_odds, "", "", output_league])
+                    ou_rows.append([date_str, time_str, home, away, "O", total_number, over_odds, "", "", output_league])
+                    ou_rows.append([date_str, time_str, home, away, "U", total_number, under_odds, "", "", output_league])
 
                     i += 13
 
                 except Exception:
                     errors.append(f"Incomplete block for game: {away} @ {home}")
                     i += 1
-
             else:
                 i += 1
 
-    # ==========================================================
-    # ORIGINAL FORMAT (UNCHANGED)
-    # ==========================================================
+    # ======================================================
+    # LEGACY PARSER (UNCHANGED)
+    # ======================================================
     else:
 
         i = 0
@@ -238,9 +259,9 @@ try:
                     ou_rows.append([date_str, time_str, home, away, side1, total, o1, h1.rstrip("%"), b1.rstrip("%"), f"{LEAGUE}_totals"])
                     ou_rows.append([date_str, time_str, home, away, side2, total, o2, h2.rstrip("%"), b2.rstrip("%"), f"{LEAGUE}_totals"])
 
-    # ==========================================================
-    # WRITE OUTPUT FILES
-    # ==========================================================
+    # ======================================================
+    # WRITE OUTPUT
+    # ======================================================
 
     if ml_rows:
         with open(OUT_ML, "w", newline="", encoding="utf-8") as f:
