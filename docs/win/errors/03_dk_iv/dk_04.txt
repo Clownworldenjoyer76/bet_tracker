@@ -1,4 +1,4 @@
-=== DK_04 RUN @ 2026-02-17T17:30:52.170582Z ===
+=== DK_04 RUN @ 2026-02-17T18:25:00.467422Z ===
 OK   dk_nba_moneyline_2026_02_10.csv | cleaned=dk_nba_moneyline_2026_02_10.csv | rows=4 matched_away=4 matched_home=4
 OK   dk_nba_moneyline_2026_02_12.csv | cleaned=dk_nba_moneyline_2026_02_12.csv | rows=3 matched_away=3 matched_home=3
 OK   dk_nba_spreads_2026_02_10.csv | cleaned=dk_nba_spreads_2026_02_10.csv | rows=4 matched_away=4 matched_home=4
@@ -18,7 +18,30 @@ OK   dk_ncaab_spreads_2026_02_13.csv | cleaned=dk_ncaab_spreads_2026_02_13.csv |
 OK   dk_ncaab_spreads_2026_02_14.csv | cleaned=dk_ncaab_spreads_2026_02_14.csv | rows=48 matched_away=48 matched_home=48
 OK   dk_ncaab_spreads_2026_02_15.csv | cleaned=dk_ncaab_spreads_2026_02_15.csv | rows=32 matched_away=32 matched_home=32
 OK   dk_ncaab_spreads_2026_02_16.csv | cleaned=dk_ncaab_spreads_2026_02_16.csv | rows=23 matched_away=23 matched_home=23
-OK   dk_ncaab_spreads_2026_02_17.csv | cleaned=dk_ncaab_spreads_2026_02_17.csv | rows=30 matched_away=0 matched_home=0
+ERROR dk_ncaab_spreads_2026_02_17.csv
+No columns to parse from file
+Traceback (most recent call last):
+  File "/home/runner/work/bet_tracker/bet_tracker/scripts/dk_04.py", line 285, in process_files
+    norm_df = pd.read_csv(nf)
+              ^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/pandas/io/parsers/readers.py", line 873, in read_csv
+    return _read(filepath_or_buffer, kwds)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/pandas/io/parsers/readers.py", line 300, in _read
+    parser = TextFileReader(filepath_or_buffer, **kwds)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/pandas/io/parsers/readers.py", line 1645, in __init__
+    self._engine = self._make_engine(f, self.engine)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/pandas/io/parsers/readers.py", line 1922, in _make_engine
+    return mapping[engine](f, **self.options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/pandas/io/parsers/c_parser_wrapper.py", line 95, in __init__
+    self._reader = parsers.TextReader(src, **kwds)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "pandas/_libs/parsers.pyx", line 575, in pandas._libs.parsers.TextReader.__cinit__
+pandas.errors.EmptyDataError: No columns to parse from file
+
 OK   dk_ncaab_totals_2026_02_10.csv | cleaned=dk_ncaab_totals_2026_02_10.csv | rows=22 matched_over=22 matched_under=22
 OK   dk_ncaab_totals_2026_02_12.csv | cleaned=dk_ncaab_totals_2026_02_12.csv | rows=49 matched_over=49 matched_under=49
 OK   dk_ncaab_totals_2026_02_13.csv | cleaned=dk_ncaab_totals_2026_02_13.csv | rows=15 matched_over=15 matched_under=15
@@ -27,6 +50,6 @@ OK   dk_ncaab_totals_2026_02_15.csv | cleaned=dk_ncaab_totals_2026_02_15.csv | r
 OK   dk_ncaab_totals_2026_02_16.csv | cleaned=dk_ncaab_totals_2026_02_16.csv | rows=23 matched_over=23 matched_under=23
 OK   dk_ncaab_totals_2026_02_17.csv | cleaned=dk_ncaab_totals_2026_02_17.csv | rows=30 matched_over=30 matched_under=30
 
-Files processed: 27
+Files processed: 26
 Files skipped:   0
-Files errored:   0
+Files errored:   1
