@@ -62,16 +62,11 @@ def write_summary():
 # PATTERN HELPERS
 # ======================
 
-# Spread MUST contain decimal (fix)
 def is_spread(line):
     return re.match(r"^[+-]\d+\.\d+$", line)
 
-# Moneyline = integer only
 def is_american_odds(line):
     return re.match(r"^[+-]\d+$", line)
-
-def is_total_number(line):
-    return re.match(r"^\d+\.\d+$", line)
 
 def is_time_line(line):
     return re.search(r"\d+:\d+\s*(AM|PM)", line)
@@ -185,14 +180,18 @@ try:
 
                     i += 1
 
+                # ---- MONEYLINE ----
                 if ml_away and ml_home:
                     ml_rows.append([date_str,time_str,away,home,ml_away,"","",output_league])
                     ml_rows.append([date_str,time_str,home,away,ml_home,"","",output_league])
 
+                # ---- SPREADS (FIXED DIRECTION) ----
                 if spread_away and spread_home:
+                    # BOTH rows preserve canonical away/home order
                     sp_rows.append([date_str,time_str,away,home,spread_away,spread_away_odds,"","",output_league])
-                    sp_rows.append([date_str,time_str,home,away,spread_home,spread_home_odds,"","",output_league])
+                    sp_rows.append([date_str,time_str,away,home,spread_home,spread_home_odds,"","",output_league])
 
+                # ---- TOTALS ----
                 if total_number and over_odds and under_odds:
                     ou_rows.append([date_str,time_str,away,home,"Over",total_number,over_odds,"","",output_league])
                     ou_rows.append([date_str,time_str,away,home,"Under",total_number,under_odds,"","",output_league])
