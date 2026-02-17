@@ -17,3 +17,89 @@ So when your model says 25%, you treat it like 20% before pricing the bet.
 In simple terms:
 
 Extra juice = how much you downgrade your probability to stay safe.
+
+########
+Good. Let’s make this very simple.
+
+You already have:
+	•	p_model → your model’s win probability
+	•	extra_juice → the safety adjustment from the band
+	•	Sportsbook decimal odds
+
+Here is exactly how you implement it.
+
+⸻
+
+Step 1 — Get Your Model Probability
+
+Example:
+
+p_model = 0.27
+
+
+⸻
+
+Step 2 — Find the Band
+
+If your config says:
+
+0.25–0.30 band
+extra_juice = 0.03
+
+That means outcomes in this range historically underperform by 3%.
+
+⸻
+
+Step 3 — Adjust the Probability
+
+Subtract the extra juice:
+
+p_adjusted = p_model - extra_juice
+
+So:
+
+p_adjusted = 0.27 - 0.03 = 0.24
+
+You now treat this as a 24% bet, not 27%.
+
+⸻
+
+Step 4 — Convert to Acceptable Odds
+
+acceptable_decimal = 1 / p_adjusted
+
+So:
+
+1 / 0.24 = 4.17
+
+That means:
+
+You only bet if the sportsbook offers odds higher than 4.17.
+
+⸻
+
+Step 5 — Compare to Market
+
+If sportsbook offers:
+
+4.40 → BET
+3.90 → NO BET
+
+
+⸻
+
+That’s It
+
+You are not modifying the sportsbook odds.
+
+You are modifying your required probability threshold before betting.
+
+⸻
+
+In one sentence:
+
+Extra juice lowers your probability before you convert it to acceptable odds.
+
+⸻
+
+If you want, I can show the exact 3-line formula to drop into your engine.
