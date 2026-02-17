@@ -103,3 +103,98 @@ Extra juice lowers your probability before you convert it to acceptable odds.
 ⸻
 
 If you want, I can show the exact 3-line formula to drop into your engine.
+______________
+Good. Let’s apply this directly to your real input.
+
+You have:
+
+Win: 73.7%
+Draw: 10.7%
+Away: 15.6%
+
+Convert to decimals:
+
+p_home = 0.737
+p_draw = 0.107
+p_away = 0.156
+
+
+⸻
+
+Step 1 — Find the Band
+
+For home:
+
+p_home = 0.737
+
+That falls into the 0.70–0.75 band (for example).
+
+Assume your config says:
+
+side = home
+band = 0.70–0.75
+extra_juice = 0.02
+
+
+⸻
+
+Step 2 — Adjust Probability
+
+Subtract the extra juice:
+
+p_home_adjusted = 0.737 - 0.02
+                 = 0.717
+
+You now treat Newcastle as a 71.7% team — not 73.7%.
+
+⸻
+
+Step 3 — Convert to Acceptable Odds
+
+acceptable_decimal = 1 / 0.717
+                   = 1.39
+
+That means:
+
+You only bet Newcastle if the sportsbook offers greater than 1.39.
+
+⸻
+
+Same Logic For Draw
+
+If draw band says:
+
+extra_juice = 0.04
+
+Then:
+
+p_draw_adjusted = 0.107 - 0.04 = 0.067
+acceptable_decimal = 1 / 0.067 = 14.93
+
+You now demand 14.93 before betting draw.
+
+⸻
+
+The Entire Logic In One Block
+
+For each outcome:
+
+1. Take model probability
+2. Look up band
+3. Subtract extra_juice
+4. acceptable_odds = 1 / adjusted_probability
+5. Bet only if sportsbook_odds > acceptable_odds
+
+That is it.
+
+⸻
+
+You are not modifying the sportsbook price.
+You are raising your required threshold.
+
+⸻
+
+If you want, I can now show you:
+
+• Why subtraction is correct (and when to add instead)
+• Or how to integrate this cleanly into your existing edge pipeline
