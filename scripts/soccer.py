@@ -10,7 +10,7 @@ import glob
 # PATHS
 # =========================
 
-INPUT_DIR = Path("bets/soccer/bets/soccer/French Ligue 1/.csv")
+INPUT_DIR = Path("INPUT_DIR = Path("bets/soccer/French Ligue 1")
 OUTPUT_DIR = Path("bets/soccer/calibration")
 OUTPUT_FILE = OUTPUT_DIR / "soccer_calibration_master.csv"
 
@@ -116,7 +116,7 @@ def main():
                 master_rows.append({
                     "date": date,
                     "season": season,
-                    "league": ligue1,
+                    "league": LEAGUE_NAME,
                     "home_team": home,
                     "away_team": away,
                     "market": market_name,
