@@ -114,7 +114,7 @@ def main():
                 master_rows.append({
                     "date": date,
                     "season": season,
-                    "league": LEAGUE_NAME,
+                    "league": ligue1,
                     "home_team": home,
                     "away_team": away,
                     "market": market_name,
