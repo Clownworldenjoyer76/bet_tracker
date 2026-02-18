@@ -1,0 +1,113 @@
+<!-- docs/manual_data.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Manual Data Dump</title>
+  <link rel="stylesheet" href="css/terminal.css" />
+  <style>
+    /* minimal layout help without touching your terminal theme */
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 900px) { .row { grid-template-columns: 1fr; } }
+    .hint { opacity: 0.8; font-size: 0.95em; margin-top: -6px; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <h2>Manual Data Dump (League → Markets)</h2>
+
+    <div class="row">
+      <div>
+        <label for="league">League</label>
+        <select id="league" onchange="onLeagueChange()">
+          <option value="">-- select --</option>
+          <optgroup label="Core (legacy)">
+            <option value="nba">nba</option>
+            <option value="ncaab">ncaab</option>
+            <option value="nhl">nhl</option>
+            <option value="nfl">nfl</option>
+            <option value="soc">soc</option>
+            <option value="mls">mls</option>
+            <option value="mlb">mlb</option>
+          </optgroup>
+
+          <optgroup label="DraftKings mode">
+            <option value="nba_dk">nba_dk</option>
+            <option value="ncaab_dk">ncaab_dk</option>
+            <option value="nhl_dk">nhl_dk</option>
+            <option value="nfl_dk">nfl_dk</option>
+            <option value="mlb_dk">mlb_dk</option>
+            <option value="soccer_dk">soccer_dk</option>
+            <option value="mls_dk">mls_dk</option>
+          </optgroup>
+        </select>
+        <div class="hint" id="leagueHint">Select a league to see available markets.</div>
+      </div>
+
+      <div>
+        <label for="markets">Markets (preview)</label>
+        <select id="markets" multiple size="8"></select>
+        <div class="hint" id="marketHint">Hold Ctrl/⌘ to multi-select. This is UI-only for now.</div>
+      </div>
+    </div>
+
+    <label for="token">GitHub Token (classic PAT)</label>
+    <input id="token" type="password" placeholder="ghp_..." />
+
+    <label for="raw">Raw text (any mix of markets)</label>
+    <textarea id="raw" placeholder="Paste the text block here..."></textarea>
+
+    <button id="btn" onclick="dispatch()">Run workflow</button>
+
+    <pre id="out"></pre>
+
+  </div>
+
+  <script>
+    const OWNER = "Clownworldenjoyer76";
+    const REPO  = "bet_tracker";
+    const WORKFLOW_FILE = "dk_text_to_csv.yml";
+    const REF = "main";
+
+    // UI-only preview of what you'll *eventually* support by league.
+    // This does NOT change parsing yet — it's just to visualize league → market structure.
+    const LEAGUE_MARKETS = {
+      nba: ["moneyline", "spreads", "totals"],
+      ncaab: ["moneyline", "spreads", "totals", "alt_spreads"],
+      nhl: ["moneyline", "puck_line", "totals"],
+      nfl: ["moneyline", "spreads", "totals", "team_totals"],
+      mlb: ["moneyline", "run_line", "totals"],
+      soc: ["win/draw/win", "totals"],
+
+      nba_dk: ["moneyline", "spreads", "totals"],
+      ncaab_dk: ["moneyline", "spreads", "totals", "alt_spreads"],
+      nhl_dk: ["moneyline", "puck_line", "totals"],
+      nfl_dk: ["moneyline", "spreads", "totals", "team_totals"],
+      mlb_dk: ["moneyline", "run_line", "totals"],
+      soccer_dk: ["win/draw/win", "totals", "double_chance", "draw_no_bet", "btts"],
+      mls_dk: ["win/draw/win", "totals", "double_chance", "draw_no_bet", "btts"]
+    };
+
+    function onLeagueChange() {
+      const league = document.getElementById("league").value.trim();
+      const marketsEl = document.getElementById("markets");
+      const leagueHint = document.getElementById("leagueHint");
+
+      marketsEl.innerHTML = "";
+
+      if (!league) {
+        leagueHint.textContent = "Select a league to see available markets.";
+        return;
+      }
+
+      const markets = LEAGUE_MARKETS[league] || [];
+      leagueHint.textContent = markets.length
+        ? `Preview markets for: ${league}`
+        : `No market preview configured for: ${league}`;
+
+      for (const m of markets) {
+        const opt = document.createElement("option");
+        opt.value = m;
+        opt.textContent = m;
+        opt.selected = true; // preselect all as a
