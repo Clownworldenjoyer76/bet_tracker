@@ -1,3 +1,5 @@
+# scripts/soccer.py
+
 #!/usr/bin/env python3
 
 import pandas as pd
