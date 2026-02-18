@@ -10,7 +10,7 @@ import glob
 # PATHS
 # =========================
 
-INPUT_DIR = Path("INPUT_DIR = Path("bets/soccer/French Ligue 1")
+INPUT_DIR = Path("INPUT_DIR = Path("bets/soccer/French_Ligue_1")
 OUTPUT_DIR = Path("bets/soccer/calibration")
 OUTPUT_FILE = OUTPUT_DIR / "soccer_calibration_master.csv"
 
