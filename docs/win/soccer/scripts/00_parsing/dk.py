@@ -66,31 +66,36 @@ MONTH_MAP = {
     "SEP": 9, "OCT": 10, "NOV": 11, "DEC": 12,
 }
 
-RE_HEADER_DATE = re.compile(r"(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d{1,2})(?:st|nd|rd|th)?", re.IGNORECASE)
+RE_HEADER_DATE = re.compile(
+    r"(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d{1,2})(?:st|nd|rd|th)?",
+    re.IGNORECASE
+)
 
 # =========================
 # DATE DETECTION
 # =========================
 
-match_date = None
 today = datetime.today()
+match_date_dt = None
 
 for line in raw_text.splitlines():
     line_clean = line.strip().upper()
 
     if "TODAY" in line_clean:
-        match_date = today.strftime("%m/%d/%Y")
+        match_date_dt = today
         break
 
     m = RE_HEADER_DATE.search(line_clean)
     if m:
         month = MONTH_MAP[m.group(1)[:3].upper()]
         day = int(m.group(2))
-        match_date = datetime(today.year, month, day).strftime("%m/%d/%Y")
+        match_date_dt = datetime(today.year, month, day)
         break
 
-if not match_date:
-    match_date = today.strftime("%m/%d/%Y")
+if not match_date_dt:
+    match_date_dt = today
+
+match_date = match_date_dt.strftime("%Y_%m_%d")
 
 # =========================
 # PARSE MATCHES
@@ -152,7 +157,7 @@ if not rows:
 # UPSERT INTO DAILY FILE
 # =========================
 
-file_date = match_date.replace("/", "_")
+file_date = match_date
 output_dir = Path("docs/win/soccer/00_intake/sportsbook")
 output_dir.mkdir(parents=True, exist_ok=True)
 outfile = output_dir / f"soccer_{file_date}.csv"
