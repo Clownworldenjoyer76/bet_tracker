@@ -1,0 +1,43 @@
+name: Soccer Merge Intake
+
+on:
+  workflow_dispatch:
+    inputs:
+      slate_date:
+        required: true
+        type: string
+        description: "YYYY_MM_DD"
+
+permissions:
+  contents: write
+
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run merge
+        run: |
+          python docs/win/soccer/scripts/01_merge/merge_intake.py \
+            "${{ github.event.inputs.slate_date }}"
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+          git add docs/win/soccer/01_merge/
+          git add docs/win/soccer/errors/01_merge/
+
+          git commit -m "Soccer merge: ${{ github.event.inputs.slate_date }}" || echo "No changes"
+          git push
