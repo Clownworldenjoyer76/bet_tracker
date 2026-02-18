@@ -2,14 +2,14 @@
 """
 scripts/soccer_generate_juice.py
 
-Builds a production-grade French Ligue 1 1X2 juice config
+Builds a production-grade Bundesliga 1X2 juice config
 from the master calibration output.
 
 Input:
   bets/soccer/calibration/soccer_calibration_master.csv
 
 Output:
-  config/soccer/ligue1_1x2_juice.csv
+  config/soccer/bundesliga_1x2_juice.csv
 """
 
 import pandas as pd
@@ -22,7 +22,7 @@ from pathlib import Path
 
 MASTER_FILE = Path("bets/soccer/calibration/soccer_calibration_master.csv")
 OUTPUT_DIR = Path("config/soccer")
-OUTPUT_FILE = OUTPUT_DIR / "ligue1_1x2_juice.csv"
+OUTPUT_FILE = OUTPUT_DIR / "bundesliga_1x2_juice.csv"
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -30,7 +30,7 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 # CONFIG
 # =========================
 
-LEAGUE_FILTER = "LIGUE1"
+LEAGUE_FILTER = "BUNDESLIGA"
 BASE_BUCKET_WIDTH = 0.05
 MIN_SAMPLE = 250
 MAX_ABS_JUICE = 0.05
