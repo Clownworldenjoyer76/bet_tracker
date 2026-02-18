@@ -4,7 +4,6 @@
 
 import pandas as pd
 from pathlib import Path
-import glob
 
 # =========================
 # PATHS
@@ -60,19 +59,19 @@ def compute_implied_probs(h_odds, d_odds, a_odds):
 # =========================
 
 def main():
-    all_files = glob.glob(str(INPUT_DIR / "*.csv"))
+    all_files = list(INPUT_DIR.glob("*.csv"))
     master_rows = []
 
     if not all_files:
-        print("No CSV files found in", INPUT_DIR)
+        print(f"No CSV files found in {INPUT_DIR}")
         return
 
     for file_path in all_files:
-        filename = Path(file_path).name
+        filename = file_path.name
         print(f"Processing {filename}")
 
         df = pd.read_csv(file_path)
-        df.columns = df.columns.str.strip()  # <-- FIX: normalize headers
+        df.columns = df.columns.str.strip()
 
         required_cols = ["Date", "HomeTeam", "AwayTeam", "FTR"]
         if not all(col in df.columns for col in required_cols):
