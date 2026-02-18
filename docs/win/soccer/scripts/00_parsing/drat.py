@@ -37,15 +37,9 @@ if not market:
     raise ValueError("Invalid soccer market")
 
 FIELDNAMES = [
-    "league",
-    "market",
-    "match_date",
-    "match_time",
-    "home_team",
-    "away_team",
-    "home_prob",
-    "draw_prob",
-    "away_prob",
+    "league","market","match_date","match_time",
+    "home_team","away_team",
+    "home_prob","draw_prob","away_prob",
 ]
 
 RE_DATE = re.compile(r"^(\d{2})/(\d{2})/(\d{4})$")
@@ -67,12 +61,8 @@ while i < n:
         continue
 
     mm, dd, yyyy = date_match.groups()
-    original_date = lines[i]
-
-    # match_date stored as YYYY_MM_DD
     formatted_date = f"{yyyy}_{mm}_{dd}"
-
-    dates_seen.add(original_date)
+    dates_seen.add(lines[i])
     i += 1
 
     if i >= n or not RE_TIME.match(lines[i]):
@@ -91,7 +81,6 @@ while i < n:
     i += 2
 
     pct_vals = []
-
     for m in RE_PCT.finditer(home_line):
         pct_vals.append(float(m.group(1)) / 100.0)
 
@@ -129,54 +118,36 @@ if len(dates_seen) != 1:
     raise ValueError("Invalid slate")
 
 mm, dd, yyyy = RE_DATE.match(list(dates_seen)[0]).groups()
-
-# filename now YYYY_MM_DD
 file_date = f"{yyyy}_{mm}_{dd}"
 
 output_dir = Path("docs/win/soccer/00_intake/predictions")
 output_dir.mkdir(parents=True, exist_ok=True)
 outfile = output_dir / f"soccer_{file_date}.csv"
 
-existing_rows = []
-
+# --- LOAD + SELF-DEDUP EXISTING ---
+existing_rows = {}
 if outfile.exists():
     with open(outfile, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
-
-        if reader.fieldnames != FIELDNAMES:
-            log("WARNING: Invalid header detected. Rebuilding clean.")
-        else:
+        if reader.fieldnames == FIELDNAMES:
             for row in reader:
                 if all(k in row for k in FIELDNAMES):
-                    existing_rows.append(row)
+                    key = (row["match_date"],row["market"],row["home_team"],row["away_team"])
+                    existing_rows[key] = row
+        else:
+            log("WARNING: Invalid header detected. Rebuilding clean.")
 
+# --- UPSERT ---
 for new_row in rows:
-    key = (
-        new_row["match_date"],
-        new_row["market"],
-        new_row["home_team"],
-        new_row["away_team"],
-    )
-
-    existing_rows = [
-        r for r in existing_rows
-        if (
-            r["match_date"],
-            r["market"],
-            r["home_team"],
-            r["away_team"],
-        ) != key
-    ]
-
-    existing_rows.append(new_row)
+    key = (new_row["match_date"],new_row["market"],new_row["home_team"],new_row["away_team"])
+    existing_rows[key] = new_row
 
 temp_file = outfile.with_suffix(".tmp")
-
-with open(temp_file, "w", newline="", encoding="utf-8") as f:
-    writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
+with open(temp_file,"w",newline="",encoding="utf-8") as f:
+    writer = csv.DictWriter(f,fieldnames=FIELDNAMES)
     writer.writeheader()
-    for r in existing_rows:
-        writer.writerow({k: r.get(k, "") for k in FIELDNAMES})
+    for r in existing_rows.values():
+        writer.writerow({k:r.get(k,"") for k in FIELDNAMES})
 
 temp_file.replace(outfile)
 
