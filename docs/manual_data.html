@@ -3,62 +3,39 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Manual Data Dump</title>
+  <title>Manual Data</title>
   <link rel="stylesheet" href="css/terminal.css" />
-  <style>
-    /* minimal layout help without touching your terminal theme */
-    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-    @media (max-width: 900px) { .row { grid-template-columns: 1fr; } }
-    .hint { opacity: 0.8; font-size: 0.95em; margin-top: -6px; margin-bottom: 10px; }
-  </style>
 </head>
 <body>
   <div class="container">
 
-    <h2>Manual Data Dump (League → Markets)</h2>
+    <h2>Manual Data Input</h2>
 
-    <div class="row">
-      <div>
-        <label for="league">League</label>
-        <select id="league" onchange="onLeagueChange()">
-          <option value="">-- select --</option>
-          <optgroup label="Core (legacy)">
-            <option value="nba">nba</option>
-            <option value="ncaab">ncaab</option>
-            <option value="nhl">nhl</option>
-            <option value="nfl">nfl</option>
-            <option value="soc">soc</option>
-            <option value="mls">mls</option>
-            <option value="mlb">mlb</option>
-          </optgroup>
+    <label for="league">League</label>
+    <select id="league" onchange="updateMarkets()">
+      <option value="">-- select --</option>
+      <option value="nba_dk">NBA</option>
+      <option value="ncaab_dk">NCAAB</option>
+      <option value="nhl_dk">NHL</option>
+      <option value="mlb_dk">MLB</option>
 
-          <optgroup label="DraftKings mode">
-            <option value="nba_dk">nba_dk</option>
-            <option value="ncaab_dk">ncaab_dk</option>
-            <option value="nhl_dk">nhl_dk</option>
-            <option value="nfl_dk">nfl_dk</option>
-            <option value="mlb_dk">mlb_dk</option>
-            <option value="soccer_dk">soccer_dk</option>
-            <option value="mls_dk">mls_dk</option>
-          </optgroup>
-        </select>
-        <div class="hint" id="leagueHint">Select a league to see available markets.</div>
-      </div>
+      <option value="soc_epl_dk">Soccer – EPL</option>
+      <option value="soc_laliga_dk">Soccer – La Liga</option>
+      <option value="soc_seriea_dk">Soccer – Serie A</option>
+      <option value="soc_bundesliga_dk">Soccer – Bundesliga</option>
+      <option value="soc_ligue1_dk">Soccer – Ligue 1</option>
+    </select>
 
-      <div>
-        <label for="markets">Markets (preview)</label>
-        <select id="markets" multiple size="8"></select>
-        <div class="hint" id="marketHint">Hold Ctrl/⌘ to multi-select. This is UI-only for now.</div>
-      </div>
-    </div>
+    <label for="market">Market</label>
+    <select id="market"></select>
 
-    <label for="token">GitHub Token (classic PAT)</label>
+    <label for="token">GitHub Token</label>
     <input id="token" type="password" placeholder="ghp_..." />
 
-    <label for="raw">Raw text (any mix of markets)</label>
-    <textarea id="raw" placeholder="Paste the text block here..."></textarea>
+    <label for="raw">Raw Text</label>
+    <textarea id="raw" placeholder="Paste raw text..."></textarea>
 
-    <button id="btn" onclick="dispatch()">Run workflow</button>
+    <button id="btn" onclick="dispatch()">Run</button>
 
     <pre id="out"></pre>
 
@@ -70,44 +47,83 @@
     const WORKFLOW_FILE = "dk_text_to_csv.yml";
     const REF = "main";
 
-    // UI-only preview of what you'll *eventually* support by league.
-    // This does NOT change parsing yet — it's just to visualize league → market structure.
-    const LEAGUE_MARKETS = {
-      nba: ["moneyline", "spreads", "totals"],
-      ncaab: ["moneyline", "spreads", "totals", "alt_spreads"],
-      nhl: ["moneyline", "puck_line", "totals"],
-      nfl: ["moneyline", "spreads", "totals", "team_totals"],
-      mlb: ["moneyline", "run_line", "totals"],
-      soc: ["win/draw/win", "totals"],
-
+    const MARKET_MAP = {
       nba_dk: ["moneyline", "spreads", "totals"],
       ncaab_dk: ["moneyline", "spreads", "totals", "alt_spreads"],
       nhl_dk: ["moneyline", "puck_line", "totals"],
-      nfl_dk: ["moneyline", "spreads", "totals", "team_totals"],
       mlb_dk: ["moneyline", "run_line", "totals"],
-      soccer_dk: ["win/draw/win", "totals", "double_chance", "draw_no_bet", "btts"],
-      mls_dk: ["win/draw/win", "totals", "double_chance", "draw_no_bet", "btts"]
+
+      soc_epl_dk: ["win_draw_win", "totals", "double_chance", "draw_no_bet", "btts"],
+      soc_laliga_dk: ["win_draw_win", "totals", "double_chance", "draw_no_bet", "btts"],
+      soc_seriea_dk: ["win_draw_win", "totals", "double_chance", "draw_no_bet", "btts"],
+      soc_bundesliga_dk: ["win_draw_win", "totals", "double_chance", "draw_no_bet", "btts"],
+      soc_ligue1_dk: ["win_draw_win", "totals", "double_chance", "draw_no_bet", "btts"]
     };
 
-    function onLeagueChange() {
-      const league = document.getElementById("league").value.trim();
-      const marketsEl = document.getElementById("markets");
-      const leagueHint = document.getElementById("leagueHint");
+    function updateMarkets() {
+      const league = document.getElementById("league").value;
+      const marketSelect = document.getElementById("market");
+      marketSelect.innerHTML = "";
 
-      marketsEl.innerHTML = "";
+      if (!league || !MARKET_MAP[league]) return;
 
-      if (!league) {
-        leagueHint.textContent = "Select a league to see available markets.";
-        return;
-      }
-
-      const markets = LEAGUE_MARKETS[league] || [];
-      leagueHint.textContent = markets.length
-        ? `Preview markets for: ${league}`
-        : `No market preview configured for: ${league}`;
-
-      for (const m of markets) {
+      for (const m of MARKET_MAP[league]) {
         const opt = document.createElement("option");
         opt.value = m;
         opt.textContent = m;
-        opt.selected = true; // preselect all as a
+        marketSelect.appendChild(opt);
+      }
+    }
+
+    async function dispatch() {
+      const league = document.getElementById("league").value.trim();
+      const market = document.getElementById("market").value.trim();
+      const token  = document.getElementById("token").value.trim();
+      const raw    = document.getElementById("raw").value;
+      const out    = document.getElementById("out");
+      const btn    = document.getElementById("btn");
+
+      out.textContent = "";
+
+      if (!league) { out.textContent = "ERROR: league required"; return; }
+      if (!market) { out.textContent = "ERROR: market required"; return; }
+      if (!token)  { out.textContent = "ERROR: token required"; return; }
+      if (!raw.trim()) { out.textContent = "ERROR: raw text required"; return; }
+
+      btn.disabled = true;
+      btn.textContent = "Submitting...";
+
+      try {
+        const url = `https://api.github.com/repos/${OWNER}/${REPO}/actions/workflows/${WORKFLOW_FILE}/dispatches`;
+        const res = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Accept": "application/vnd.github+json",
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            ref: REF,
+            inputs: {
+              league: league,
+              market: market,
+              raw_text: raw
+            }
+          })
+        });
+
+        const text = await res.text();
+        out.textContent = `HTTP ${res.status}\n${text || ""}`;
+      } catch (e) {
+        out.textContent = `ERROR: ${String(e)}`;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Run";
+      }
+    }
+
+    updateMarkets();
+  </script>
+
+</body>
+</html>
