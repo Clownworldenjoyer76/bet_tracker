@@ -12,28 +12,30 @@
     <h2>Manual Data Input</h2>
 
     <label for="league">League</label>
-    <select id="league" onchange="updateMarkets()">
+    <select id="league">
       <option value="">-- select --</option>
-      <option value="nba_dk">NBA</option>
-      <option value="ncaab_dk">NCAAB</option>
-      <option value="nhl_dk">NHL</option>
-      <option value="mlb_dk">MLB</option>
 
-      <option value="soc_epl_dk">Soccer – EPL</option>
-      <option value="soc_laliga_dk">Soccer – La Liga</option>
-      <option value="soc_seriea_dk">Soccer – Serie A</option>
-      <option value="soc_bundesliga_dk">Soccer – Bundesliga</option>
-      <option value="soc_ligue1_dk">Soccer – Ligue 1</option>
+      <!-- Basketball -->
+      <option value="nba_dk">NBA (DK)</option>
+      <option value="ncaab_dk">NCAAB (DK)</option>
+
+      <!-- Hockey / Baseball -->
+      <option value="nhl_dk">NHL (DK)</option>
+      <option value="mlb_dk">MLB (DK)</option>
+
+      <!-- Soccer -->
+      <option value="soc_epl_dk">Soccer – EPL (DK)</option>
+      <option value="soc_laliga_dk">Soccer – La Liga (DK)</option>
+      <option value="soc_seriea_dk">Soccer – Serie A (DK)</option>
+      <option value="soc_bundesliga_dk">Soccer – Bundesliga (DK)</option>
+      <option value="soc_ligue1_dk">Soccer – Ligue 1 (DK)</option>
     </select>
-
-    <label for="market">Market</label>
-    <select id="market"></select>
 
     <label for="token">GitHub Token</label>
     <input id="token" type="password" placeholder="ghp_..." />
 
-    <label for="raw">Raw Text</label>
-    <textarea id="raw" placeholder="Paste raw text..."></textarea>
+    <label for="raw">Raw Text (mixed markets allowed)</label>
+    <textarea id="raw" placeholder="Paste DK text block here..."></textarea>
 
     <button id="btn" onclick="dispatch()">Run</button>
 
@@ -47,37 +49,8 @@
     const WORKFLOW_FILE = "dk_text_to_csv.yml";
     const REF = "main";
 
-    const MARKET_MAP = {
-      nba_dk: ["moneyline", "spreads", "totals"],
-      ncaab_dk: ["moneyline", "spreads", "totals", "alt_spreads"],
-      nhl_dk: ["moneyline", "puck_line", "totals"],
-      mlb_dk: ["moneyline", "run_line", "totals"],
-
-      soc_epl_dk: ["win_draw_win", "totals", "double_chance", "draw_no_bet", "btts"],
-      soc_laliga_dk: ["win_draw_win", "totals", "double_chance", "draw_no_bet", "btts"],
-      soc_seriea_dk: ["win_draw_win", "totals", "double_chance", "draw_no_bet", "btts"],
-      soc_bundesliga_dk: ["win_draw_win", "totals", "double_chance", "draw_no_bet", "btts"],
-      soc_ligue1_dk: ["win_draw_win", "totals", "double_chance", "draw_no_bet", "btts"]
-    };
-
-    function updateMarkets() {
-      const league = document.getElementById("league").value;
-      const marketSelect = document.getElementById("market");
-      marketSelect.innerHTML = "";
-
-      if (!league || !MARKET_MAP[league]) return;
-
-      for (const m of MARKET_MAP[league]) {
-        const opt = document.createElement("option");
-        opt.value = m;
-        opt.textContent = m;
-        marketSelect.appendChild(opt);
-      }
-    }
-
     async function dispatch() {
       const league = document.getElementById("league").value.trim();
-      const market = document.getElementById("market").value.trim();
       const token  = document.getElementById("token").value.trim();
       const raw    = document.getElementById("raw").value;
       const out    = document.getElementById("out");
@@ -86,7 +59,6 @@
       out.textContent = "";
 
       if (!league) { out.textContent = "ERROR: league required"; return; }
-      if (!market) { out.textContent = "ERROR: market required"; return; }
       if (!token)  { out.textContent = "ERROR: token required"; return; }
       if (!raw.trim()) { out.textContent = "ERROR: raw text required"; return; }
 
@@ -106,7 +78,6 @@
             ref: REF,
             inputs: {
               league: league,
-              market: market,
               raw_text: raw
             }
           })
@@ -121,8 +92,6 @@
         btn.textContent = "Run";
       }
     }
-
-    updateMarkets();
   </script>
 
 </body>
