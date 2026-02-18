@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# docs/win/soccer/scripts/00_parsing/drat.py
 
 import sys
 import re
@@ -7,17 +6,17 @@ import csv
 from pathlib import Path
 from datetime import datetime
 
-# =========================
-# ARGUMENTS
-# =========================
+ERROR_DIR = Path("docs/win/soccer/errors")
+ERROR_DIR.mkdir(parents=True, exist_ok=True)
+LOG_FILE = ERROR_DIR / "drat_log.txt"
+
+def log(msg):
+    with open(LOG_FILE, "a", encoding="utf-8") as f:
+        f.write(f"{datetime.utcnow().isoformat()} | {msg}\n")
 
 league_input = sys.argv[1].strip()
 market_input = sys.argv[2].strip()
 raw_text = sys.argv[3]
-
-# =========================
-# NORMALIZE LEAGUE / MARKET
-# =========================
 
 league = "soccer"
 
@@ -34,120 +33,57 @@ market = market_map.get(market_input)
 if not market:
     raise ValueError("Invalid soccer market")
 
-# =========================
-# REGEX
-# =========================
-
 RE_DATE = re.compile(r"^\d{2}/\d{2}/\d{4}$")
-RE_TIME = re.compile(r"^\d{1,2}:\d{2}\s*(AM|PM)$", re.IGNORECASE)
+RE_TIME = re.compile(r"^\d{1,2}:\d{2}\s*(AM|PM)$")
 RE_PCT = re.compile(r"(\d+(?:\.\d+)?)%")
 
-# =========================
-# HELPERS
-# =========================
-
-def clean_line(s: str) -> str:
-    return s.replace("\u2212", "-").strip()
-
-def is_header_noise(s: str) -> bool:
-    if not s:
-        return True
-    low = s.lower()
-    return (
-        low.startswith("time\tteams") or
-        low.startswith("time teams") or
-        low in {"time", "teams", "win", "draw", "best", "ml", "goals", "total", "o/u", "bet", "value", "more details"} or
-        "more details" in low
-    )
-
-def pct_to_prob(p: str) -> str:
-    try:
-        v = float(p) / 100.0
-        if v < 0:
-            v = 0.0
-        if v > 1:
-            v = 1.0
-        return f"{v:.6f}"
-    except Exception:
-        return ""
-
-# =========================
-# PREP LINES
-# =========================
-
-raw_lines = []
-for ln in raw_text.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
-    ln = clean_line(ln)
-    if not ln:
-        continue
-    if is_header_noise(ln):
-        continue
-    raw_lines.append(ln)
-
-# =========================
-# PARSE
-# =========================
-
 rows = []
+dates_seen = set()
+errors = 0
+
+lines = [l.strip() for l in raw_text.splitlines() if l.strip()]
 i = 0
-n = len(raw_lines)
+n = len(lines)
 
 while i < n:
-    line = raw_lines[i]
-
-    # Locate date
-    if not RE_DATE.match(line):
+    if not RE_DATE.match(lines[i]):
         i += 1
         continue
 
-    match_date = line
+    match_date = lines[i]
+    dates_seen.add(match_date)
     i += 1
-    if i >= n:
-        break
 
-    # Locate time
-    match_time = raw_lines[i]
-    if not RE_TIME.match(match_time):
-        recovered_time = ""
-        for j in range(i, min(i + 4, n)):
-            if RE_TIME.match(raw_lines[j]):
-                recovered_time = raw_lines[j]
-                i = j + 1
-                break
-        if not recovered_time:
-            i += 1
-            continue
-        match_time = recovered_time
-    else:
-        i += 1
+    if i >= n or not RE_TIME.match(lines[i]):
+        log("ERROR: Missing time after date")
+        errors += 1
+        continue
+
+    match_time = lines[i]
+    i += 1
 
     if i + 1 >= n:
         break
 
-    home_team = raw_lines[i]
-    away_team = raw_lines[i + 1]
+    home_team = lines[i]
+    away_team = lines[i + 1]
     i += 2
 
-    # Collect window until next date
-    window = []
-    j = i
-    while j < n and not RE_DATE.match(raw_lines[j]) and len(window) < 40:
-        window.append(raw_lines[j])
-        j += 1
-
-    # Extract first 3 percentages
     pct_vals = []
-    for w in window:
-        for m in RE_PCT.finditer(w):
-            pct_vals.append(m.group(1))
-            if len(pct_vals) >= 3:
-                break
-        if len(pct_vals) >= 3:
-            break
+    while i < n and len(pct_vals) < 3:
+        for m in RE_PCT.finditer(lines[i]):
+            pct_vals.append(float(m.group(1)) / 100.0)
+        i += 1
 
-    home_prob = pct_to_prob(pct_vals[0]) if len(pct_vals) >= 1 else ""
-    draw_prob = pct_to_prob(pct_vals[1]) if len(pct_vals) >= 2 else ""
-    away_prob = pct_to_prob(pct_vals[2]) if len(pct_vals) >= 3 else ""
+    if len(pct_vals) != 3:
+        log(f"ERROR: Missing probabilities for {home_team} vs {away_team}")
+        errors += 1
+        continue
+
+    total = sum(pct_vals)
+    if abs(total - 1.0) > 0.02:
+        log(f"ERROR: Probabilities do not sum to 1 ({total}) for {home_team} vs {away_team}")
+        raise ValueError("Probability validation failed")
 
     rows.append([
         league,
@@ -156,16 +92,15 @@ while i < n:
         match_time,
         home_team,
         away_team,
-        home_prob,
-        draw_prob,
-        away_prob,
+        f"{pct_vals[0]:.6f}",
+        f"{pct_vals[1]:.6f}",
+        f"{pct_vals[2]:.6f}",
     ])
 
-    i = j
-
-# =========================
-# OUTPUT
-# =========================
+# One-slate protection
+if len(dates_seen) > 1:
+    log("ERROR: Multiple match_dates detected in intake")
+    raise ValueError("Multiple match dates detected — aborting intake")
 
 output_dir = Path("docs/win/soccer/00_intake/predictions")
 output_dir.mkdir(parents=True, exist_ok=True)
@@ -188,4 +123,5 @@ with open(outfile, "w", newline="", encoding="utf-8") as f:
     ])
     writer.writerows(rows)
 
+log(f"SUMMARY: wrote {len(rows)} rows, {errors} errors")
 print(f"Wrote {outfile} ({len(rows)} rows)")
