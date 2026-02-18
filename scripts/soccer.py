@@ -10,7 +10,7 @@ import glob
 # PATHS
 # =========================
 
-INPUT_DIR = Path("INPUT_DIR = Path("bets/soccer/French Ligue 1")
+INPUT_DIR = Path("bets/soccer/French_Ligue_1")
 OUTPUT_DIR = Path("bets/soccer/calibration")
 OUTPUT_FILE = OUTPUT_DIR / "soccer_calibration_master.csv"
 
@@ -72,13 +72,13 @@ def main():
         print(f"Processing {filename}")
 
         df = pd.read_csv(file_path)
+        df.columns = df.columns.str.strip()  # <-- FIX: normalize headers
 
         required_cols = ["Date", "HomeTeam", "AwayTeam", "FTR"]
         if not all(col in df.columns for col in required_cols):
             print(f"Skipping {filename} - missing base columns")
             continue
 
-        # Strict division filter
         if "Div" in df.columns:
             df = df[df["Div"] == DIVISION_CODE]
 
