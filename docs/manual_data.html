@@ -48,6 +48,15 @@
           <option value="">-- placeholder --</option>
         </select>
       </div>
+
+      <div>
+        <label for="source">Source</label>
+        <select id="source">
+          <option value="">-- select --</option>
+          <option value="DraftKings">DraftKings</option>
+          <option value="Predictions">Predictions</option>
+        </select>
+      </div>
     </div>
 
     <label for="token">Magic</label>
@@ -100,6 +109,7 @@
     async function dispatch() {
       const league = document.getElementById("league").value.trim();
       const market = document.getElementById("market").value.trim();
+      const source = document.getElementById("source").value.trim();
       const token  = document.getElementById("token").value.trim();
       const raw    = document.getElementById("raw").value;
       const out    = document.getElementById("out");
@@ -107,7 +117,7 @@
 
       out.textContent = "";
 
-      if (!league || !token || !raw.trim()) {
+      if (!league || !source || !token || !raw.trim()) {
         out.textContent = "Major Failure Bro";
         return;
       }
@@ -130,6 +140,7 @@
             inputs: {
               league: league,
               market: market,
+              source: source,
               raw_text: raw
             }
           })
