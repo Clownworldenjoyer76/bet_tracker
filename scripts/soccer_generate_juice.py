@@ -2,13 +2,13 @@
 """
 scripts/soccer_generate_juice.py
 
-Builds a production-grade La Liga 1X2 juice config from the most recent master calibration output.
+Builds a production-grade Serie A 1X2 juice config from the most recent master calibration output.
 
 Input:
   bets/soccer/calibration/soccer_calibration_master.csv
 
 Output:
-  config/soccer/laliga_1x2_juice.csv
+  config/soccer/seriea_1x2_juice.csv
 """
 
 import pandas as pd
@@ -70,6 +70,7 @@ def _pav_isotonic_increasing(y: np.ndarray, w: np.ndarray) -> np.ndarray:
 
     return y_hat
 
+
 def isotonic_fit(x: np.ndarray, y: np.ndarray, w: np.ndarray, increasing: bool) -> np.ndarray:
     if len(y) == 0:
         return y
@@ -101,6 +102,7 @@ def make_base_bins(df: pd.DataFrame, width: float) -> pd.DataFrame:
     g["delta"] = g["avg_prob"] - g["actual_win_rate"]
     return g.sort_values(["band_min", "band_max"]).reset_index(drop=True)
 
+
 def collapse_sparse_tails(bins_df: pd.DataFrame, min_n: int) -> pd.DataFrame:
     if bins_df.empty:
         return bins_df
@@ -110,6 +112,7 @@ def collapse_sparse_tails(bins_df: pd.DataFrame, min_n: int) -> pd.DataFrame:
     def merge_rows(a, b):
         n1, n2 = float(a["n"]), float(b["n"])
         nt = n1 + n2
+
         avg_prob = (a["avg_prob"] * n1 + b["avg_prob"] * n2) / nt
         actual = (a["actual_win_rate"] * n1 + b["actual_win_rate"] * n2) / nt
 
@@ -123,14 +126,14 @@ def collapse_sparse_tails(bins_df: pd.DataFrame, min_n: int) -> pd.DataFrame:
         return out
 
     while len(bins) >= 2 and int(bins.loc[0, "n"]) < min_n:
-        bins.iloc[0] = merge_rows(bins.loc[0], bins.loc[1])
-        bins = bins.drop(index=1).reset_index(drop=True)
+        merged = merge_rows(bins.loc[0], bins.loc[1])
+        bins = pd.concat([pd.DataFrame([merged]), bins.iloc[2:]], ignore_index=True)
 
     while len(bins) >= 2 and int(bins.loc[len(bins)-1, "n"]) < min_n:
-        bins.iloc[len(bins)-2] = merge_rows(bins.loc[len(bins)-2], bins.loc[len(bins)-1])
-        bins = bins.drop(index=len(bins)-1).reset_index(drop=True)
+        merged = merge_rows(bins.loc[len(bins)-2], bins.loc[len(bins)-1])
+        bins = pd.concat([bins.iloc[:-2], pd.DataFrame([merged])], ignore_index=True)
 
-    return bins
+    return bins.reset_index(drop=True)
 
 # =========================
 # BUILD CURVE PER SIDE
@@ -202,6 +205,7 @@ def main():
 
     out.to_csv(OUTPUT_FILE, index=False)
     print(f"Wrote {OUTPUT_FILE} ({len(out)} rows)")
+
 
 if __name__ == "__main__":
     main()
