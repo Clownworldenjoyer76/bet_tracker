@@ -6,18 +6,21 @@
   <title>Data Dump</title>
   <link rel="stylesheet" href="css/terminal.css" />
   <style>
+    textarea {
+      width: 100%;
+      height: 200px;        /* fixed height ≈ 10 rows */
+      resize: none;
+      overflow-y: auto;
+      box-sizing: border-box;
+    }
+
     .row {
       display: flex;
       gap: 16px;
-      align-items: flex-end;
-      flex-wrap: wrap;
     }
 
-    textarea {
-      width: 100%;
-      height: auto;
-      resize: none;
-      overflow-y: auto;
+    .row > div {
+      flex: 1;
     }
   </style>
 </head>
@@ -31,18 +34,18 @@
         <label for="league">League</label>
         <select id="league">
           <option value="">-- select --</option>
-          <option value="basketball_dk">Basketball</option>
-          <option value="football_dk">Football</option>
-          <option value="baseball_dk">Baseball</option>
-          <option value="hockey_dk">Hockey</option>
-          <option value="soccer_dk">Soccer</option>
+          <option value="basketball">Basketball</option>
+          <option value="football">Football</option>
+          <option value="baseball">Baseball</option>
+          <option value="hockey">Hockey</option>
+          <option value="soccer">Soccer</option>
         </select>
       </div>
 
       <div>
         <label for="market">Market</label>
         <select id="market">
-          <option value="">-- market placeholder --</option>
+          <option value="">-- placeholder --</option>
         </select>
       </div>
     </div>
@@ -75,9 +78,10 @@
 
       out.textContent = "";
 
-      if (!league) { out.textContent = "Major Failure Bro"; return; }
-      if (!token)  { out.textContent = "Major Failure Bro"; return; }
-      if (!raw.trim()) { out.textContent = "Major Failure Bro"; return; }
+      if (!league || !token || !raw.trim()) {
+        out.textContent = "Major Failure Bro";
+        return;
+      }
 
       btn.disabled = true;
       btn.textContent = "Submitting...";
