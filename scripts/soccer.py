@@ -72,13 +72,13 @@ def main():
         print(f"Processing {filename}")
 
         df = pd.read_csv(file_path)
+        df.columns = df.columns.str.strip()  # <-- FIX: normalize headers
 
         required_cols = ["Date", "HomeTeam", "AwayTeam", "FTR"]
         if not all(col in df.columns for col in required_cols):
             print(f"Skipping {filename} - missing base columns")
             continue
 
-        # Strict division filter
         if "Div" in df.columns:
             df = df[df["Div"] == DIVISION_CODE]
 
