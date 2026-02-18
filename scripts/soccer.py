@@ -9,7 +9,7 @@ from pathlib import Path
 # PATHS
 # =========================
 
-INPUT_DIR = Path("bets/soccer/French_Ligue_1")
+INPUT_DIR = Path("bets/soccer/de_bundesliga")
 OUTPUT_DIR = Path("bets/soccer/calibration")
 OUTPUT_FILE = OUTPUT_DIR / "soccer_calibration_master.csv"
 
@@ -19,8 +19,8 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 # CONFIG
 # =========================
 
-LEAGUE_NAME = "LIGUE1"
-DIVISION_CODE = "F1"
+LEAGUE_NAME = "BUNDESLIGA"
+DIVISION_CODE = "D1"
 
 # =========================
 # HELPERS
