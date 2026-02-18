@@ -6,21 +6,17 @@ import csv
 from pathlib import Path
 from datetime import datetime
 
-# =========================
-# PATHS
-# =========================
-
 ERROR_DIR = Path("docs/win/soccer/errors")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE = ERROR_DIR / "dk_log.txt"
 
+# Overwrite log each run
+with open(LOG_FILE, "w", encoding="utf-8") as f:
+    f.write("")
+
 def log(msg):
     with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write(f"{datetime.utcnow().isoformat()} | {msg}\n")
-
-# =========================
-# ARGUMENTS
-# =========================
 
 league_input = sys.argv[1].strip()
 market_input = sys.argv[2].strip()
@@ -41,19 +37,11 @@ market = market_map.get(market_input)
 if not market:
     raise ValueError("Invalid soccer market")
 
-# =========================
-# HELPERS
-# =========================
-
 def clean_team(name):
     return name.replace("-logo", "").strip()
 
 def normalize_odds(o):
     return o.replace("−", "-").strip()
-
-# =========================
-# PARSE
-# =========================
 
 blocks = raw_text.split("More Bets")
 rows = []
@@ -97,15 +85,34 @@ for block in blocks:
         log(f"ERROR parsing block: {str(e)}")
         errors += 1
 
-# =========================
-# OUTPUT
-# =========================
+if not rows:
+    log("SUMMARY: wrote 0 rows, errors encountered")
+    sys.exit()
 
+# Use today's UTC date for sportsbook file grouping
+file_date = datetime.utcnow().strftime("%m_%d_%Y")
 output_dir = Path("docs/win/soccer/00_intake/sportsbook")
 output_dir.mkdir(parents=True, exist_ok=True)
 
-timestamp = datetime.utcnow().strftime("%Y_%m_%d_%H%M%S")
-outfile = output_dir / f"{market}_dk_{timestamp}.csv"
+outfile = output_dir / f"soccer_{file_date}.csv"
+
+existing_keys = set()
+existing_rows = []
+
+if outfile.exists():
+    with open(outfile, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            key = (row["home_team"], row["away_team"])
+            existing_keys.add(key)
+            existing_rows.append(row)
+
+new_rows = []
+for r in rows:
+    key = (r[3], r[4])
+    if key not in existing_keys:
+        new_rows.append(r)
+        existing_keys.add(key)
 
 with open(outfile, "w", newline="", encoding="utf-8") as f:
     writer = csv.writer(f)
@@ -119,7 +126,8 @@ with open(outfile, "w", newline="", encoding="utf-8") as f:
         "dk_draw_american",
         "dk_away_american",
     ])
-    writer.writerows(rows)
+    writer.writerows(existing_rows)
+    writer.writerows(new_rows)
 
-log(f"SUMMARY: wrote {len(rows)} rows, {errors} errors")
-print(f"Wrote {outfile} ({len(rows)} rows)")
+log(f"SUMMARY: wrote {len(new_rows)} new rows, {errors} errors")
+print(f"Wrote {outfile} ({len(new_rows)} new rows)")
