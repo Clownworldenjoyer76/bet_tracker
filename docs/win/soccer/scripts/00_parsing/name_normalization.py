@@ -20,6 +20,10 @@ ERROR_DIR = Path("docs/win/soccer/errors")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE = ERROR_DIR / "name_normalization_log.txt"
 
+# Overwrite log each run
+with open(LOG_FILE, "w", encoding="utf-8") as f:
+    f.write("")
+
 def log(msg):
     with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write(f"{datetime.utcnow().isoformat()} | {msg}\n")
@@ -49,10 +53,10 @@ rows_processed = 0
 rows_updated = 0
 
 # =========================
-# PROCESS FILES
+# PROCESS FILES (RECURSIVE)
 # =========================
 
-for csv_file in INTAKE_DIR.glob("*.csv"):
+for csv_file in INTAKE_DIR.rglob("*.csv"):
     files_processed += 1
     updated_rows = []
     modified = False
@@ -75,11 +79,11 @@ for csv_file in INTAKE_DIR.glob("*.csv"):
                         modified = True
                         rows_updated += 1
                 else:
-                    unmapped.add((market, team))
+                    if team:
+                        unmapped.add((market, team))
 
             updated_rows.append(row)
 
-    # overwrite file only if changes occurred
     if modified:
         with open(csv_file, "w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames)
@@ -87,7 +91,7 @@ for csv_file in INTAKE_DIR.glob("*.csv"):
             writer.writerows(updated_rows)
 
 # =========================
-# WRITE UNMAPPED (ALWAYS CREATE FILE)
+# WRITE UNMAPPED
 # =========================
 
 existing = set()
@@ -110,9 +114,11 @@ with open(NO_MAP_FILE, "w", newline="", encoding="utf-8") as f:
 # LOG SUMMARY
 # =========================
 
-log(f"SUMMARY: files_processed={files_processed}, "
+log(
+    f"SUMMARY: files_processed={files_processed}, "
     f"rows_processed={rows_processed}, "
     f"rows_updated={rows_updated}, "
-    f"unmapped_found={len(unmapped)}")
+    f"unmapped_found={len(unmapped)}"
+)
 
 print("Name normalization complete.")
