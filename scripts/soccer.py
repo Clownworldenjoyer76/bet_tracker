@@ -8,7 +8,7 @@ import glob
 # PATHS
 # =========================
 
-INPUT_DIR = Path("bets/soccer/bundesliga")
+INPUT_DIR = Path("bets/soccer/ligue1")
 OUTPUT_DIR = Path("bets/soccer/calibration")
 OUTPUT_FILE = OUTPUT_DIR / "soccer_calibration_master.csv"
 
@@ -18,7 +18,8 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 # CONFIG
 # =========================
 
-LEAGUE_NAME = "BUNDESLIGA"
+LEAGUE_NAME = "LIGUE1"
+DIVISION_CODE = "F1"
 
 # =========================
 # HELPERS
@@ -29,10 +30,6 @@ def extract_season_from_filename(filename: str):
     return digits if digits else ""
 
 def detect_odds_columns(df):
-    """
-    Detect which odds columns exist in file.
-    Returns tuple: (home_col, draw_col, away_col) or None
-    """
     if all(col in df.columns for col in ["AvgH", "AvgD", "AvgA"]):
         return "AvgH", "AvgD", "AvgA"
     elif all(col in df.columns for col in ["BbAvH", "BbAvD", "BbAvA"]):
@@ -78,6 +75,10 @@ def main():
         if not all(col in df.columns for col in required_cols):
             print(f"Skipping {filename} - missing base columns")
             continue
+
+        # Strict division filter
+        if "Div" in df.columns:
+            df = df[df["Div"] == DIVISION_CODE]
 
         odds_cols = detect_odds_columns(df)
         if odds_cols is None:
@@ -132,7 +133,6 @@ def main():
 
     master_df.to_csv(OUTPUT_FILE, index=False)
     print(f"Wrote {OUTPUT_FILE} ({len(master_df)} rows)")
-
 
 if __name__ == "__main__":
     main()
