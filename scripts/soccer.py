@@ -103,7 +103,7 @@ def main():
                 master_rows.append({
                     "date": date,
                     "season": season,
-                    "league": "LALIGA",  # Change if running different league
+                    "league": "SERIEA",  # Change if running different league
                     "home_team": home,
                     "away_team": away,
                     "market": market_name,
