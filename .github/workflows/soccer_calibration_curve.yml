@@ -1,6 +1,4 @@
-# .github/workflows/soccer_calibration_curve.yml
-
-name: Soccer Calibration Curve Build
+name: Bundesliga Calibration Curve Build
 
 on:
   workflow_dispatch:
@@ -28,7 +26,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install pandas numpy
 
-      - name: Run calibration curve script
+      - name: Run Bundesliga calibration curve script
         run: |
           python scripts/soccer_calibration_curve.py
 
@@ -36,6 +34,6 @@ jobs:
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
-          git add bets/soccer/calibration/soccer_calibration_curve.csv || true
-          git commit -m "Update soccer calibration curve" || echo "No changes to commit"
+          git add bets/soccer/calibration/soccer_calibration_curve_bundesliga.csv || true
+          git commit -m "Update Bundesliga calibration curve" || echo "No changes to commit"
           git push
