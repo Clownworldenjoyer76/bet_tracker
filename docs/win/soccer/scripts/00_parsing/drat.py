@@ -10,6 +10,10 @@ ERROR_DIR = Path("docs/win/soccer/errors")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE = ERROR_DIR / "drat_log.txt"
 
+# Overwrite log at start of each run
+with open(LOG_FILE, "w", encoding="utf-8") as f:
+    f.write("")
+
 def log(msg):
     with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write(f"{datetime.utcnow().isoformat()} | {msg}\n")
@@ -76,7 +80,7 @@ while i < n:
 
     pct_vals = []
 
-    # Extract any % on away line (home probability may be here)
+    # Extract any % on away line
     for m in RE_PCT.finditer(away_line):
         pct_vals.append(float(m.group(1)) / 100.0)
 
