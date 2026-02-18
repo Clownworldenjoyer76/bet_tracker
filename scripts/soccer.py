@@ -8,11 +8,17 @@ import glob
 # PATHS
 # =========================
 
-INPUT_DIR = Path("bets/soccer")
+INPUT_DIR = Path("bets/soccer/bundesliga")
 OUTPUT_DIR = Path("bets/soccer/calibration")
 OUTPUT_FILE = OUTPUT_DIR / "soccer_calibration_master.csv"
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+# =========================
+# CONFIG
+# =========================
+
+LEAGUE_NAME = "BUNDESLIGA"
 
 # =========================
 # HELPERS
@@ -36,9 +42,9 @@ def detect_odds_columns(df):
 
 def compute_implied_probs(h_odds, d_odds, a_odds):
     try:
-        pH_raw = 1 / h_odds
-        pD_raw = 1 / d_odds
-        pA_raw = 1 / a_odds
+        pH_raw = 1 / float(h_odds)
+        pD_raw = 1 / float(d_odds)
+        pA_raw = 1 / float(a_odds)
 
         overround = pH_raw + pD_raw + pA_raw
 
@@ -57,6 +63,10 @@ def compute_implied_probs(h_odds, d_odds, a_odds):
 def main():
     all_files = glob.glob(str(INPUT_DIR / "*.csv"))
     master_rows = []
+
+    if not all_files:
+        print("No CSV files found in", INPUT_DIR)
+        return
 
     for file_path in all_files:
         filename = Path(file_path).name
@@ -103,7 +113,7 @@ def main():
                 master_rows.append({
                     "date": date,
                     "season": season,
-                    "league": "SERIEA",  # Change if running different league
+                    "league": LEAGUE_NAME,
                     "home_team": home,
                     "away_team": away,
                     "market": market_name,
