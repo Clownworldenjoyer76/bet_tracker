@@ -68,6 +68,8 @@ while i < n:
 
     mm, dd, yyyy = date_match.groups()
     original_date = lines[i]
+
+    # match_date stored as YYYY_MM_DD
     formatted_date = f"{yyyy}_{mm}_{dd}"
 
     dates_seen.add(original_date)
@@ -127,7 +129,9 @@ if len(dates_seen) != 1:
     raise ValueError("Invalid slate")
 
 mm, dd, yyyy = RE_DATE.match(list(dates_seen)[0]).groups()
-file_date = f"{mm}_{dd}_{yyyy}"
+
+# filename now YYYY_MM_DD
+file_date = f"{yyyy}_{mm}_{dd}"
 
 output_dir = Path("docs/win/soccer/00_intake/predictions")
 output_dir.mkdir(parents=True, exist_ok=True)
