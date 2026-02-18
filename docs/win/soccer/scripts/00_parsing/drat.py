@@ -41,17 +41,15 @@ if not market:
 RE_DATE = re.compile(r"^\d{2}/\d{2}/\d{4}$")
 RE_TIME = re.compile(r"^\d{1,2}:\d{2}\s*(AM|PM)$", re.IGNORECASE)
 RE_PCT = re.compile(r"(\d+(?:\.\d+)?)%")
-RE_AMER = re.compile(r"^[+\-−]\d{2,5}$")
 
 # =========================
 # HELPERS
 # =========================
 
 def clean_line(s: str) -> str:
-    return s.replace("\u2212", "-").strip()  # normalize unicode minus
+    return s.replace("\u2212", "-").strip()
 
 def is_header_noise(s: str) -> bool:
-    # common header fragments from the exported table/paste
     if not s:
         return True
     low = s.lower()
@@ -82,13 +80,12 @@ for ln in raw_text.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
     ln = clean_line(ln)
     if not ln:
         continue
-    # preserve tab-bearing lines as-is; they can contain % and odds
     if is_header_noise(ln):
         continue
     raw_lines.append(ln)
 
 # =========================
-# PARSE (STATE MACHINE)
+# PARSE
 # =========================
 
 rows = []
@@ -98,7 +95,7 @@ n = len(raw_lines)
 while i < n:
     line = raw_lines[i]
 
-    # locate a date
+    # Locate date
     if not RE_DATE.match(line):
         i += 1
         continue
@@ -108,11 +105,9 @@ while i < n:
     if i >= n:
         break
 
-    # next meaningful line should be time
+    # Locate time
     match_time = raw_lines[i]
     if not RE_TIME.match(match_time):
-        # sometimes time may be embedded like "02/18/2026 12:45 PM" (rare)
-        # try to recover by scanning forward a couple lines
         recovered_time = ""
         for j in range(i, min(i + 4, n)):
             if RE_TIME.match(raw_lines[j]):
@@ -133,14 +128,14 @@ while i < n:
     away_team = raw_lines[i + 1]
     i += 2
 
-    # collect next chunk until next date or limited window
+    # Collect window until next date
     window = []
     j = i
     while j < n and not RE_DATE.match(raw_lines[j]) and len(window) < 40:
         window.append(raw_lines[j])
         j += 1
 
-    # find first 3 percentages in window (home/draw/away)
+    # Extract first 3 percentages
     pct_vals = []
     for w in window:
         for m in RE_PCT.finditer(w):
@@ -154,24 +149,6 @@ while i < n:
     draw_prob = pct_to_prob(pct_vals[1]) if len(pct_vals) >= 2 else ""
     away_prob = pct_to_prob(pct_vals[2]) if len(pct_vals) >= 3 else ""
 
-    # find first 3 american odds tokens in window (optional)
-    amer_vals = []
-    for w in window:
-        # split on whitespace/tabs to isolate tokens like -261 +660
-        for tok in re.split(r"\s+|\t+", w.replace("\u2212", "-").strip()):
-            if not tok:
-                continue
-            if RE_AMER.match(tok):
-                amer_vals.append(tok)
-                if len(amer_vals) >= 3:
-                    break
-        if len(amer_vals) >= 3:
-            break
-
-    best_home_american = amer_vals[0] if len(amer_vals) >= 1 else ""
-    best_draw_american = amer_vals[1] if len(amer_vals) >= 2 else ""
-    best_away_american = amer_vals[2] if len(amer_vals) >= 3 else ""
-
     rows.append([
         league,
         market,
@@ -182,12 +159,8 @@ while i < n:
         home_prob,
         draw_prob,
         away_prob,
-        best_home_american,
-        best_draw_american,
-        best_away_american,
     ])
 
-    # advance to next record
     i = j
 
 # =========================
@@ -212,9 +185,6 @@ with open(outfile, "w", newline="", encoding="utf-8") as f:
         "home_prob",
         "draw_prob",
         "away_prob",
-        "best_home_american",
-        "best_draw_american",
-        "best_away_american",
     ])
     writer.writerows(rows)
 
