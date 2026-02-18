@@ -3,41 +3,57 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Manual Data</title>
+  <title>Data Dump</title>
   <link rel="stylesheet" href="css/terminal.css" />
+  <style>
+    .row {
+      display: flex;
+      gap: 16px;
+      align-items: flex-end;
+      flex-wrap: wrap;
+    }
+
+    textarea {
+      width: 100%;
+      height: auto;
+      resize: none;
+      overflow-y: auto;
+    }
+  </style>
 </head>
 <body>
   <div class="container">
 
-    <h2>Manual Data Input</h2>
+    <h2>Data Dump</h2>
 
-    <label for="league">League</label>
-    <select id="league">
-      <option value="">-- select --</option>
+    <div class="row">
+      <div>
+        <label for="league">League</label>
+        <select id="league">
+          <option value="">-- select --</option>
+          <option value="basketball_dk">Basketball</option>
+          <option value="football_dk">Football</option>
+          <option value="baseball_dk">Baseball</option>
+          <option value="hockey_dk">Hockey</option>
+          <option value="soccer_dk">Soccer</option>
+        </select>
+      </div>
 
-      <!-- Basketball -->
-      <option value="nba_dk">NBA (DK)</option>
-      <option value="ncaab_dk">NCAAB (DK)</option>
+      <div>
+        <label for="market">Market</label>
+        <select id="market">
+          <option value="">-- market placeholder --</option>
+        </select>
+      </div>
+    </div>
 
-      <!-- Hockey / Baseball -->
-      <option value="nhl_dk">NHL (DK)</option>
-      <option value="mlb_dk">MLB (DK)</option>
-
-      <!-- Soccer -->
-      <option value="soc_epl_dk">Soccer – EPL (DK)</option>
-      <option value="soc_laliga_dk">Soccer – La Liga (DK)</option>
-      <option value="soc_seriea_dk">Soccer – Serie A (DK)</option>
-      <option value="soc_bundesliga_dk">Soccer – Bundesliga (DK)</option>
-      <option value="soc_ligue1_dk">Soccer – Ligue 1 (DK)</option>
-    </select>
-
-    <label for="token">GitHub Token</label>
+    <label for="token">Magic</label>
     <input id="token" type="password" placeholder="ghp_..." />
 
-    <label for="raw">Raw Text (mixed markets allowed)</label>
-    <textarea id="raw" placeholder="Paste DK text block here..."></textarea>
+    <label for="raw">Raw Text</label>
+    <textarea id="raw" rows="10" placeholder="Paste text here..."></textarea>
 
-    <button id="btn" onclick="dispatch()">Run</button>
+    <button id="btn" onclick="dispatch()">Create File</button>
 
     <pre id="out"></pre>
 
@@ -51,6 +67,7 @@
 
     async function dispatch() {
       const league = document.getElementById("league").value.trim();
+      const market = document.getElementById("market").value.trim();
       const token  = document.getElementById("token").value.trim();
       const raw    = document.getElementById("raw").value;
       const out    = document.getElementById("out");
@@ -58,15 +75,16 @@
 
       out.textContent = "";
 
-      if (!league) { out.textContent = "ERROR: league required"; return; }
-      if (!token)  { out.textContent = "ERROR: token required"; return; }
-      if (!raw.trim()) { out.textContent = "ERROR: raw text required"; return; }
+      if (!league) { out.textContent = "Major Failure Bro"; return; }
+      if (!token)  { out.textContent = "Major Failure Bro"; return; }
+      if (!raw.trim()) { out.textContent = "Major Failure Bro"; return; }
 
       btn.disabled = true;
       btn.textContent = "Submitting...";
 
       try {
         const url = `https://api.github.com/repos/${OWNER}/${REPO}/actions/workflows/${WORKFLOW_FILE}/dispatches`;
+
         const res = await fetch(url, {
           method: "POST",
           headers: {
@@ -78,18 +96,23 @@
             ref: REF,
             inputs: {
               league: league,
+              market: market,
               raw_text: raw
             }
           })
         });
 
-        const text = await res.text();
-        out.textContent = `HTTP ${res.status}\n${text || ""}`;
+        if (res.status === 204) {
+          out.textContent = "Successfully Submitted";
+        } else {
+          out.textContent = "Major Failure Bro";
+        }
+
       } catch (e) {
-        out.textContent = `ERROR: ${String(e)}`;
+        out.textContent = "Major Failure Bro";
       } finally {
         btn.disabled = false;
-        btn.textContent = "Run";
+        btn.textContent = "Create File";
       }
     }
   </script>
