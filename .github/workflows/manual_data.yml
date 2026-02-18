@@ -56,11 +56,15 @@ jobs:
         run: |
           python docs/win/soccer/scripts/00_parsing/name_normalization.py
 
-      - name: Commit and push
+      - name: Commit and push changes
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
+
           git add docs/win/soccer/00_intake/
           git add mappings/soccer/no_map/
-          git commit -m "Soccer intake: ${{ github.event.inputs.market }} - ${{ github.event.inputs.source }}" || echo "No changes"
+          git add docs/win/soccer/errors/
+
+          git commit -m "Soccer intake: ${{ github.event.inputs.market }} - ${{ github.event.inputs.source }}" || echo "No changes to commit"
+
           git push
