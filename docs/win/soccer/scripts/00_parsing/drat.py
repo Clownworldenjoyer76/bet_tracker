@@ -6,6 +6,10 @@ import csv
 from pathlib import Path
 from datetime import datetime
 
+# =========================
+# PATHS / LOG
+# =========================
+
 ERROR_DIR = Path("docs/win/soccer/errors")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE = ERROR_DIR / "drat_log.txt"
@@ -16,6 +20,10 @@ with open(LOG_FILE, "w", encoding="utf-8") as f:
 def log(msg):
     with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write(f"{datetime.utcnow().isoformat()} | {msg}\n")
+
+# =========================
+# ARGS
+# =========================
 
 league_input = sys.argv[1].strip()
 market_input = sys.argv[2].strip()
@@ -36,9 +44,29 @@ market = market_map.get(market_input)
 if not market:
     raise ValueError("Invalid soccer market")
 
+# =========================
+# CONSTANTS
+# =========================
+
+FIELDNAMES = [
+    "league",
+    "market",
+    "match_date",
+    "match_time",
+    "home_team",
+    "away_team",
+    "home_prob",
+    "draw_prob",
+    "away_prob",
+]
+
 RE_DATE = re.compile(r"^\d{2}/\d{2}/\d{4}$")
 RE_TIME = re.compile(r"^\d{1,2}:\d{2}\s*(AM|PM)$")
 RE_PCT = re.compile(r"(\d+(?:\.\d+)?)%")
+
+# =========================
+# PARSE
+# =========================
 
 rows = []
 dates_seen = set()
@@ -68,11 +96,13 @@ while i < n:
     if i + 1 >= n:
         break
 
+    # Predictions format: first team = AWAY, second team = HOME (+ first %)
     away_team = lines[i]
     home_line = lines[i + 1]
     i += 2
 
     pct_vals = []
+
     for m in RE_PCT.finditer(home_line):
         pct_vals.append(float(m.group(1)) / 100.0)
 
@@ -88,17 +118,22 @@ while i < n:
         errors += 1
         continue
 
-    rows.append([
-        league,
-        market,
-        match_date,
-        match_time,
-        home_team,
-        away_team,
-        f"{pct_vals[0]:.6f}",
-        f"{pct_vals[1]:.6f}",
-        f"{pct_vals[2]:.6f}",
-    ])
+    total = sum(pct_vals)
+    if abs(total - 1.0) > 0.02:
+        log(f"ERROR: Probabilities do not sum to 1 ({total}) for {home_team} vs {away_team}")
+        raise ValueError("Probability validation failed")
+
+    rows.append({
+        "league": league,
+        "market": market,
+        "match_date": match_date,
+        "match_time": match_time,
+        "home_team": home_team,
+        "away_team": away_team,
+        "home_prob": f"{pct_vals[0]:.6f}",
+        "draw_prob": f"{pct_vals[1]:.6f}",
+        "away_prob": f"{pct_vals[2]:.6f}",
+    })
 
 if len(dates_seen) != 1:
     log("ERROR: Multiple or zero match_dates detected")
@@ -107,42 +142,63 @@ if len(dates_seen) != 1:
 file_date = list(dates_seen)[0].replace("/", "_")
 output_dir = Path("docs/win/soccer/00_intake/predictions")
 output_dir.mkdir(parents=True, exist_ok=True)
-
 outfile = output_dir / f"soccer_{file_date}.csv"
 
-existing_keys = set()
+# =========================
+# LOAD EXISTING (STRICT VALIDATION)
+# =========================
+
 existing_rows = []
 
 if outfile.exists():
     with open(outfile, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
-        for row in reader:
-            key = (row["match_date"], row["home_team"], row["away_team"])
-            existing_keys.add(key)
-            existing_rows.append(row)
 
-new_rows = []
-for r in rows:
-    key = (r[2], r[4], r[5])
-    if key not in existing_keys:
-        new_rows.append(r)
-        existing_keys.add(key)
+        if reader.fieldnames != FIELDNAMES:
+            log("WARNING: Invalid header detected. Rebuilding clean.")
+        else:
+            for row in reader:
+                if not all(k in row for k in FIELDNAMES):
+                    continue
+                existing_rows.append(row)
 
-with open(outfile, "w", newline="", encoding="utf-8") as f:
-    writer = csv.writer(f)
-    writer.writerow([
-        "league",
-        "market",
-        "match_date",
-        "match_time",
-        "home_team",
-        "away_team",
-        "home_prob",
-        "draw_prob",
-        "away_prob",
-    ])
-    writer.writerows(existing_rows)
-    writer.writerows(new_rows)
+# =========================
+# UPSERT (DEDUP INCLUDES MARKET)
+# =========================
 
-log(f"SUMMARY: wrote {len(new_rows)} new rows, {errors} errors")
-print(f"Wrote {outfile} ({len(new_rows)} new rows)")
+for new_row in rows:
+    key = (
+        new_row["match_date"],
+        new_row["market"],
+        new_row["home_team"],
+        new_row["away_team"],
+    )
+
+    existing_rows = [
+        r for r in existing_rows
+        if (
+            r["match_date"],
+            r["market"],
+            r["home_team"],
+            r["away_team"],
+        ) != key
+    ]
+
+    existing_rows.append(new_row)
+
+# =========================
+# ATOMIC WRITE
+# =========================
+
+temp_file = outfile.with_suffix(".tmp")
+
+with open(temp_file, "w", newline="", encoding="utf-8") as f:
+    writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
+    writer.writeheader()
+    for r in existing_rows:
+        writer.writerow({k: r.get(k, "") for k in FIELDNAMES})
+
+temp_file.replace(outfile)
+
+log(f"SUMMARY: upserted {len(rows)} rows, {errors} errors")
+print(f"Wrote {outfile} ({len(rows)} rows processed)")
