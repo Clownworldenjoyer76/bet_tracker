@@ -1,3 +1,5 @@
+# scripts/final_03.py
+
 import pandas as pd
 import glob
 from pathlib import Path
@@ -68,8 +70,7 @@ def update_files(final_glob, manual_glob, mappings, league_key):
                 )
             df[out_col] = df["game_id"].map(manual[src_col])
 
-        required_cols = list(mappings.keys())
-        rows_fully_filled = df[required_cols].notna().all(axis=1).sum()
+        rows_fully_filled = len(df)
         league_filled += rows_fully_filled
 
         df.to_csv(f, index=False)
