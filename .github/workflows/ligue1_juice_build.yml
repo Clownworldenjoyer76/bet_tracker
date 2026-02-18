@@ -1,0 +1,39 @@
+name: Ligue 1 1X2 Juice Config Build
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-juice:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas numpy
+
+      - name: Generate Ligue 1 juice config
+        run: |
+          python scripts/soccer_generate_juice.py
+
+      - name: Commit and push changes
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add config/soccer/ligue1_1x2_juice.csv || true
+          git commit -m "Update Ligue 1 1X2 juice config" || echo "No changes to commit"
+          git push
