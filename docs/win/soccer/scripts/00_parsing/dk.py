@@ -7,6 +7,18 @@ from pathlib import Path
 from datetime import datetime
 
 # =========================
+# PATHS
+# =========================
+
+ERROR_DIR = Path("docs/win/soccer/errors")
+ERROR_DIR.mkdir(parents=True, exist_ok=True)
+LOG_FILE = ERROR_DIR / "dk_log.txt"
+
+def log(msg):
+    with open(LOG_FILE, "a", encoding="utf-8") as f:
+        f.write(f"{datetime.utcnow().isoformat()} | {msg}\n")
+
+# =========================
 # ARGUMENTS
 # =========================
 
@@ -37,38 +49,33 @@ def clean_team(name):
     return name.replace("-logo", "").strip()
 
 def normalize_odds(o):
-    o = o.replace("−", "-").replace("+", "+").strip()
-    return o
+    return o.replace("−", "-").strip()
 
 # =========================
-# SPLIT MATCHES
+# PARSE
 # =========================
 
 blocks = raw_text.split("More Bets")
 rows = []
+errors = 0
 
 for block in blocks:
     lines = [l.strip() for l in block.splitlines() if l.strip()]
-
     if "vs" not in lines:
         continue
 
     try:
         vs_index = lines.index("vs")
-
         home_team = clean_team(lines[vs_index - 1])
         away_team = clean_team(lines[vs_index + 2])
 
-        # Odds are first 3 +/− numbers found
         odds = [normalize_odds(x) for x in lines if re.match(r"[+\-−]\d+", x)]
-        if len(odds) < 3:
+
+        if len(odds) != 3:
+            log(f"ERROR: Expected 3 odds but found {len(odds)} for {home_team} vs {away_team}")
+            errors += 1
             continue
 
-        dk_home = odds[0]
-        dk_draw = odds[1]
-        dk_away = odds[2]
-
-        # Time line contains "Today" and "PM/AM"
         match_time = ""
         for l in lines:
             if "Today" in l and ("AM" in l or "PM" in l):
@@ -81,13 +88,14 @@ for block in blocks:
             match_time,
             home_team,
             away_team,
-            dk_home,
-            dk_draw,
-            dk_away
+            odds[0],
+            odds[1],
+            odds[2],
         ])
 
-    except Exception:
-        continue
+    except Exception as e:
+        log(f"ERROR parsing block: {str(e)}")
+        errors += 1
 
 # =========================
 # OUTPUT
@@ -109,8 +117,9 @@ with open(outfile, "w", newline="", encoding="utf-8") as f:
         "away_team",
         "dk_home_american",
         "dk_draw_american",
-        "dk_away_american"
+        "dk_away_american",
     ])
     writer.writerows(rows)
 
+log(f"SUMMARY: wrote {len(rows)} rows, {errors} errors")
 print(f"Wrote {outfile} ({len(rows)} rows)")
