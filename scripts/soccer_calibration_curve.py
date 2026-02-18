@@ -1,3 +1,5 @@
+# scripts/soccer_calibration_curve.py
+
 #!/usr/bin/env python3
 
 import pandas as pd
@@ -42,11 +44,12 @@ def main():
     df = df[(df["implied_prob_fair"] > 0) & (df["implied_prob_fair"] < 1)]
 
     # =========================
-    # BUILD BUCKETS
+    # BUILD BUCKETS (vectorized)
     # =========================
 
-    df["bucket"] = (df["implied_prob_fair"] / BUCKET_WIDTH).apply(np.floor) * BUCKET_WIDTH
-    df["bucket"] = df["bucket"].round(2)
+    df["bucket"] = (
+        np.floor(df["implied_prob_fair"] / BUCKET_WIDTH) * BUCKET_WIDTH
+    ).round(2)
 
     # =========================
     # AGGREGATION
@@ -72,8 +75,12 @@ def main():
     # Required adjusted probability (historical realized)
     grouped["adjusted_probability"] = grouped["actual_win_rate"]
 
-    # Personally acceptable decimal odds
-    grouped["acceptable_decimal_odds"] = 1 / grouped["adjusted_probability"]
+    # Personally acceptable decimal odds (safe division)
+    grouped["acceptable_decimal_odds"] = np.where(
+        grouped["adjusted_probability"] > 0,
+        1 / grouped["adjusted_probability"],
+        np.nan
+    )
 
     # Sort
     grouped = grouped.sort_values("bucket")
