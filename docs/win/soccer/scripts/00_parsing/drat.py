@@ -41,7 +41,7 @@ rows = []
 dates_seen = set()
 errors = 0
 
-lines = [l.strip() for l in raw_text.splitlines() if l.strip()]
+lines = [l.replace("−", "-").strip() for l in raw_text.splitlines() if l.strip()]
 i = 0
 n = len(lines)
 
@@ -62,14 +62,28 @@ while i < n:
     match_time = lines[i]
     i += 1
 
-    if i + 1 >= n:
+    if i >= n:
         break
 
     home_team = lines[i]
-    away_team = lines[i + 1]
-    i += 2
+    i += 1
+
+    if i >= n:
+        break
+
+    away_line = lines[i]
+    i += 1
 
     pct_vals = []
+
+    # Extract any % on away line (home probability may be here)
+    for m in RE_PCT.finditer(away_line):
+        pct_vals.append(float(m.group(1)) / 100.0)
+
+    # Remove % tokens from away team line
+    away_team = RE_PCT.sub("", away_line).strip()
+
+    # Continue collecting probabilities until we have 3
     while i < n and len(pct_vals) < 3:
         for m in RE_PCT.finditer(lines[i]):
             pct_vals.append(float(m.group(1)) / 100.0)
