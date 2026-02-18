@@ -66,28 +66,22 @@ while i < n:
     match_time = lines[i]
     i += 1
 
-    if i >= n:
+    if i + 1 >= n:
         break
 
-    home_team = lines[i]
-    i += 1
-
-    if i >= n:
-        break
-
-    away_line = lines[i]
-    i += 1
+    # Predictions: first team = AWAY, second team = HOME
+    away_team = lines[i]
+    home_line = lines[i + 1]
+    i += 2
 
     pct_vals = []
 
-    # Extract any % on away line
-    for m in RE_PCT.finditer(away_line):
+    # Extract % from home_line (may contain first probability)
+    for m in RE_PCT.finditer(home_line):
         pct_vals.append(float(m.group(1)) / 100.0)
 
-    # Remove % tokens from away team line
-    away_team = RE_PCT.sub("", away_line).strip()
+    home_team = RE_PCT.sub("", home_line).strip()
 
-    # Continue collecting probabilities until we have 3
     while i < n and len(pct_vals) < 3:
         for m in RE_PCT.finditer(lines[i]):
             pct_vals.append(float(m.group(1)) / 100.0)
@@ -115,7 +109,6 @@ while i < n:
         f"{pct_vals[2]:.6f}",
     ])
 
-# One-slate protection
 if len(dates_seen) > 1:
     log("ERROR: Multiple match_dates detected in intake")
     raise ValueError("Multiple match dates detected — aborting intake")
