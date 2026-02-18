@@ -60,7 +60,7 @@ FIELDNAMES = [
     "away_prob",
 ]
 
-RE_DATE = re.compile(r"^\d{2}/\d{2}/\d{4}$")
+RE_DATE = re.compile(r"^(\d{2})/(\d{2})/(\d{4})$")
 RE_TIME = re.compile(r"^\d{1,2}:\d{2}\s*(AM|PM)$")
 RE_PCT = re.compile(r"(\d+(?:\.\d+)?)%")
 
@@ -77,12 +77,16 @@ i = 0
 n = len(lines)
 
 while i < n:
-    if not RE_DATE.match(lines[i]):
+    date_match = RE_DATE.match(lines[i])
+    if not date_match:
         i += 1
         continue
 
-    match_date = lines[i]
-    dates_seen.add(match_date)
+    mm, dd, yyyy = date_match.groups()
+    original_date = lines[i]
+    formatted_date = f"{yyyy}_{dd}_{mm}"
+
+    dates_seen.add(original_date)
     i += 1
 
     if i >= n or not RE_TIME.match(lines[i]):
@@ -96,7 +100,6 @@ while i < n:
     if i + 1 >= n:
         break
 
-    # Predictions format: first team = AWAY, second team = HOME (+ first %)
     away_team = lines[i]
     home_line = lines[i + 1]
     i += 2
@@ -126,7 +129,7 @@ while i < n:
     rows.append({
         "league": league,
         "market": market,
-        "match_date": match_date,
+        "match_date": formatted_date,
         "match_time": match_time,
         "home_team": home_team,
         "away_team": away_team,
@@ -139,13 +142,16 @@ if len(dates_seen) != 1:
     log("ERROR: Multiple or zero match_dates detected")
     raise ValueError("Invalid slate")
 
-file_date = list(dates_seen)[0].replace("/", "_")
+# filename remains MM_DD_YYYY for compatibility
+mm, dd, yyyy = list(RE_DATE.match(list(dates_seen)[0]).groups())
+file_date = f"{mm}_{dd}_{yyyy}"
+
 output_dir = Path("docs/win/soccer/00_intake/predictions")
 output_dir.mkdir(parents=True, exist_ok=True)
 outfile = output_dir / f"soccer_{file_date}.csv"
 
 # =========================
-# LOAD EXISTING (STRICT VALIDATION)
+# LOAD EXISTING
 # =========================
 
 existing_rows = []
@@ -158,12 +164,11 @@ if outfile.exists():
             log("WARNING: Invalid header detected. Rebuilding clean.")
         else:
             for row in reader:
-                if not all(k in row for k in FIELDNAMES):
-                    continue
-                existing_rows.append(row)
+                if all(k in row for k in FIELDNAMES):
+                    existing_rows.append(row)
 
 # =========================
-# UPSERT (DEDUP INCLUDES MARKET)
+# UPSERT
 # =========================
 
 for new_row in rows:
