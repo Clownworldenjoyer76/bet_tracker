@@ -21,7 +21,7 @@ from pathlib import Path
 
 MASTER_FILE = Path("bets/soccer/calibration/soccer_calibration_master.csv")
 OUTPUT_DIR = Path("config/soccer")
-OUTPUT_FILE = OUTPUT_DIR / "laliga_1x2_juice.csv"
+OUTPUT_FILE = OUTPUT_DIR / "seriea_1x2_juice.csv"
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
