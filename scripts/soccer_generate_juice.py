@@ -29,7 +29,7 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 # CONFIG
 # =========================
 
-LEAGUE_FILTER = "LALIGA"
+LEAGUE_FILTER = "SERIEA"
 BASE_BUCKET_WIDTH = 0.05
 MIN_SAMPLE = 250
 MAX_ABS_JUICE = 0.05
