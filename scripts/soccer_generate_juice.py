@@ -2,13 +2,14 @@
 """
 scripts/soccer_generate_juice.py
 
-Builds a production-grade Serie A 1X2 juice config from the most recent master calibration output.
+Builds a production-grade French Ligue 1 1X2 juice config
+from the master calibration output.
 
 Input:
   bets/soccer/calibration/soccer_calibration_master.csv
 
 Output:
-  config/soccer/seriea_1x2_juice.csv
+  config/soccer/ligue1_1x2_juice.csv
 """
 
 import pandas as pd
@@ -21,7 +22,7 @@ from pathlib import Path
 
 MASTER_FILE = Path("bets/soccer/calibration/soccer_calibration_master.csv")
 OUTPUT_DIR = Path("config/soccer")
-OUTPUT_FILE = OUTPUT_DIR / "seriea_1x2_juice.csv"
+OUTPUT_FILE = OUTPUT_DIR / "ligue1_1x2_juice.csv"
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -29,7 +30,7 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 # CONFIG
 # =========================
 
-LEAGUE_FILTER = "SERIEA"
+LEAGUE_FILTER = "LIGUE1"
 BASE_BUCKET_WIDTH = 0.05
 MIN_SAMPLE = 250
 MAX_ABS_JUICE = 0.05
@@ -152,14 +153,10 @@ def build_side_curve(df_master: pd.DataFrame, market: str) -> pd.DataFrame:
     y = bins["delta"].to_numpy()
     w = bins["n"].to_numpy()
 
-    if ENFORCE_NONINCREASING:
-        y_hat = isotonic_fit(x, y, w, increasing=False)
-    else:
-        y_hat = isotonic_fit(x, y, w, increasing=True)
-
+    y_hat = isotonic_fit(x, y, w, increasing=not ENFORCE_NONINCREASING)
     y_hat = np.clip(y_hat, -MAX_ABS_JUICE, MAX_ABS_JUICE)
-    bins["extra_juice"] = y_hat
 
+    bins["extra_juice"] = y_hat
     return bins.sort_values(["band_min", "band_max"]).reset_index(drop=True)
 
 # =========================
