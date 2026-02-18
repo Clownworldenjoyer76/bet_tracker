@@ -7,14 +7,13 @@ from pathlib import Path
 from datetime import datetime
 
 # =========================
-# PATHS
+# PATHS / LOG
 # =========================
 
 ERROR_DIR = Path("docs/win/soccer/errors")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE = ERROR_DIR / "dk_log.txt"
 
-# Overwrite log each run
 with open(LOG_FILE, "w", encoding="utf-8") as f:
     f.write("")
 
@@ -23,7 +22,7 @@ def log(msg):
         f.write(f"{datetime.utcnow().isoformat()} | {msg}\n")
 
 # =========================
-# ARGUMENTS
+# ARGS
 # =========================
 
 league_input = sys.argv[1].strip()
@@ -61,10 +60,40 @@ FIELDNAMES = [
     "dk_away_american",
 ]
 
-RE_DATE = re.compile(r"^\d{2}/\d{2}/\d{4}$")
+MONTH_MAP = {
+    "JAN": 1, "FEB": 2, "MAR": 3, "APR": 4,
+    "MAY": 5, "JUN": 6, "JUL": 7, "AUG": 8,
+    "SEP": 9, "OCT": 10, "NOV": 11, "DEC": 12,
+}
+
+RE_HEADER_DATE = re.compile(r"(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d{1,2})(?:st|nd|rd|th)?", re.IGNORECASE)
 
 # =========================
-# HELPERS
+# DATE DETECTION
+# =========================
+
+match_date = None
+today = datetime.today()
+
+for line in raw_text.splitlines():
+    line_clean = line.strip().upper()
+
+    if "TODAY" in line_clean:
+        match_date = today.strftime("%m/%d/%Y")
+        break
+
+    m = RE_HEADER_DATE.search(line_clean)
+    if m:
+        month = MONTH_MAP[m.group(1)[:3].upper()]
+        day = int(m.group(2))
+        match_date = datetime(today.year, month, day).strftime("%m/%d/%Y")
+        break
+
+if not match_date:
+    match_date = today.strftime("%m/%d/%Y")
+
+# =========================
+# PARSE MATCHES
 # =========================
 
 def clean_team(name):
@@ -73,14 +102,9 @@ def clean_team(name):
 def normalize_odds(o):
     return o.replace("−", "-").strip()
 
-# =========================
-# PARSE
-# =========================
-
 blocks = raw_text.split("More Bets")
 rows = []
 errors = 0
-match_date = None
 
 for block in blocks:
     lines = [l.strip() for l in block.splitlines() if l.strip()]
@@ -88,12 +112,6 @@ for block in blocks:
         continue
 
     try:
-        # Extract match_date from block if present
-        for l in lines:
-            if RE_DATE.match(l):
-                match_date = l
-                break
-
         vs_index = lines.index("vs")
         home_team = clean_team(lines[vs_index - 1])
         away_team = clean_team(lines[vs_index + 2])
@@ -106,14 +124,14 @@ for block in blocks:
 
         match_time = ""
         for l in lines:
-            if "Today" in l or ("AM" in l or "PM" in l):
+            if "AM" in l or "PM" in l:
                 match_time = l
                 break
 
         rows.append({
             "league": league,
             "market": market,
-            "match_date": match_date if match_date else "",
+            "match_date": match_date,
             "match_time": match_time,
             "home_team": home_team,
             "away_team": away_team,
@@ -127,59 +145,38 @@ for block in blocks:
         errors += 1
 
 if not rows:
-    log("SUMMARY: wrote 0 rows, errors encountered")
+    log("SUMMARY: wrote 0 rows")
     sys.exit()
 
-if not match_date:
-    raise ValueError("Match date not found in DK input")
+# =========================
+# UPSERT INTO DAILY FILE
+# =========================
 
 file_date = match_date.replace("/", "_")
-
 output_dir = Path("docs/win/soccer/00_intake/sportsbook")
 output_dir.mkdir(parents=True, exist_ok=True)
 outfile = output_dir / f"soccer_{file_date}.csv"
 
-# =========================
-# LOAD EXISTING (STRICT VALIDATION)
-# =========================
-
 existing_rows = []
-existing_keys = set()
 
 if outfile.exists():
     with open(outfile, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
-
-        if reader.fieldnames != FIELDNAMES:
-            log("WARNING: Invalid header detected. Rebuilding file clean.")
-        else:
+        if reader.fieldnames == FIELDNAMES:
             for row in reader:
-                if not all(k in row for k in FIELDNAMES):
-                    continue
+                if all(k in row for k in FIELDNAMES):
+                    existing_rows.append(row)
+        else:
+            log("WARNING: Invalid header detected. Rebuilding clean.")
 
-                key = (
-                    row["match_date"],
-                    row["market"],
-                    row["home_team"],
-                    row["away_team"],
-                )
-
-                existing_keys.add(key)
-                existing_rows.append(row)
-
-# =========================
-# UPSERT LOGIC
-# =========================
-
-for row in rows:
+for new_row in rows:
     key = (
-        row["match_date"],
-        row["market"],
-        row["home_team"],
-        row["away_team"],
+        new_row["match_date"],
+        new_row["market"],
+        new_row["home_team"],
+        new_row["away_team"],
     )
 
-    # Remove existing if present (upsert)
     existing_rows = [
         r for r in existing_rows
         if (
@@ -190,12 +187,7 @@ for row in rows:
         ) != key
     ]
 
-    existing_rows.append(row)
-    existing_keys.add(key)
-
-# =========================
-# ATOMIC WRITE
-# =========================
+    existing_rows.append(new_row)
 
 temp_file = outfile.with_suffix(".tmp")
 
