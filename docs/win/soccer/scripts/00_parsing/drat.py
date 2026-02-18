@@ -6,10 +6,6 @@ import csv
 from pathlib import Path
 from datetime import datetime
 
-# =========================
-# PATHS / LOG
-# =========================
-
 ERROR_DIR = Path("docs/win/soccer/errors")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE = ERROR_DIR / "drat_log.txt"
@@ -20,10 +16,6 @@ with open(LOG_FILE, "w", encoding="utf-8") as f:
 def log(msg):
     with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write(f"{datetime.utcnow().isoformat()} | {msg}\n")
-
-# =========================
-# ARGS
-# =========================
 
 league_input = sys.argv[1].strip()
 market_input = sys.argv[2].strip()
@@ -44,10 +36,6 @@ market = market_map.get(market_input)
 if not market:
     raise ValueError("Invalid soccer market")
 
-# =========================
-# CONSTANTS
-# =========================
-
 FIELDNAMES = [
     "league",
     "market",
@@ -63,10 +51,6 @@ FIELDNAMES = [
 RE_DATE = re.compile(r"^(\d{2})/(\d{2})/(\d{4})$")
 RE_TIME = re.compile(r"^\d{1,2}:\d{2}\s*(AM|PM)$")
 RE_PCT = re.compile(r"(\d+(?:\.\d+)?)%")
-
-# =========================
-# PARSE
-# =========================
 
 rows = []
 dates_seen = set()
@@ -84,7 +68,7 @@ while i < n:
 
     mm, dd, yyyy = date_match.groups()
     original_date = lines[i]
-    formatted_date = f"{yyyy}_{dd}_{mm}"
+    formatted_date = f"{yyyy}_{mm}_{dd}"
 
     dates_seen.add(original_date)
     i += 1
@@ -142,17 +126,12 @@ if len(dates_seen) != 1:
     log("ERROR: Multiple or zero match_dates detected")
     raise ValueError("Invalid slate")
 
-# filename remains MM_DD_YYYY for compatibility
-mm, dd, yyyy = list(RE_DATE.match(list(dates_seen)[0]).groups())
+mm, dd, yyyy = RE_DATE.match(list(dates_seen)[0]).groups()
 file_date = f"{mm}_{dd}_{yyyy}"
 
 output_dir = Path("docs/win/soccer/00_intake/predictions")
 output_dir.mkdir(parents=True, exist_ok=True)
 outfile = output_dir / f"soccer_{file_date}.csv"
-
-# =========================
-# LOAD EXISTING
-# =========================
 
 existing_rows = []
 
@@ -166,10 +145,6 @@ if outfile.exists():
             for row in reader:
                 if all(k in row for k in FIELDNAMES):
                     existing_rows.append(row)
-
-# =========================
-# UPSERT
-# =========================
 
 for new_row in rows:
     key = (
@@ -190,10 +165,6 @@ for new_row in rows:
     ]
 
     existing_rows.append(new_row)
-
-# =========================
-# ATOMIC WRITE
-# =========================
 
 temp_file = outfile.with_suffix(".tmp")
 
