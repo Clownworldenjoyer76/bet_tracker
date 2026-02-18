@@ -32,7 +32,7 @@
     <div class="row">
       <div>
         <label for="league">League</label>
-        <select id="league">
+        <select id="league" onchange="updateMarkets()">
           <option value="">-- select --</option>
           <option value="basketball">Basketball</option>
           <option value="football">Football</option>
@@ -45,7 +45,7 @@
       <div>
         <label for="market">Market</label>
         <select id="market">
-          <option value="">-- placeholder for sub markets --</option>
+          <option value="">-- placeholder --</option>
         </select>
       </div>
     </div>
@@ -67,6 +67,35 @@
     const REPO  = "bet_tracker";
     const WORKFLOW_FILE = "dk_text_to_csv.yml";
     const REF = "main";
+
+    const MARKET_MAP = {
+      basketball: ["NBA", "NCAA Men"],
+      football: ["NFL", "NCAA", "CFL"],
+      baseball: ["MLB"],
+      hockey: ["NHL"],
+      soccer: ["MLS", "EPL", "Ligue 1", "Serie A", "La Liga", "Bundesliga"]
+    };
+
+    function updateMarkets() {
+      const league = document.getElementById("league").value;
+      const marketSelect = document.getElementById("market");
+      marketSelect.innerHTML = "";
+
+      if (!league || !MARKET_MAP[league]) {
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = "-- placeholder --";
+        marketSelect.appendChild(opt);
+        return;
+      }
+
+      for (const m of MARKET_MAP[league]) {
+        const opt = document.createElement("option");
+        opt.value = m;
+        opt.textContent = m;
+        marketSelect.appendChild(opt);
+      }
+    }
 
     async function dispatch() {
       const league = document.getElementById("league").value.trim();
