@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
+# docs/win/soccer/scripts/00_parsing/drat.py
 
 import sys
+import re
+import csv
 from pathlib import Path
 from datetime import datetime
 
@@ -13,7 +16,7 @@ market_input = sys.argv[2].strip()
 raw_text = sys.argv[3]
 
 # =========================
-# NORMALIZE HEADERS
+# NORMALIZE LEAGUE / MARKET
 # =========================
 
 league = "soccer"
@@ -28,29 +31,191 @@ market_map = {
 }
 
 market = market_map.get(market_input)
-
 if not market:
     raise ValueError("Invalid soccer market")
 
 # =========================
-# OUTPUT PATH
+# REGEX
 # =========================
 
-base_dir = Path("docs/win/soccer/00_intake/predictions")
-base_dir.mkdir(parents=True, exist_ok=True)
+RE_DATE = re.compile(r"^\d{2}/\d{2}/\d{4}$")
+RE_TIME = re.compile(r"^\d{1,2}:\d{2}\s*(AM|PM)$", re.IGNORECASE)
+RE_PCT = re.compile(r"(\d+(?:\.\d+)?)%")
+RE_AMER = re.compile(r"^[+\-−]\d{2,5}$")
+
+# =========================
+# HELPERS
+# =========================
+
+def clean_line(s: str) -> str:
+    return s.replace("\u2212", "-").strip()  # normalize unicode minus
+
+def is_header_noise(s: str) -> bool:
+    # common header fragments from the exported table/paste
+    if not s:
+        return True
+    low = s.lower()
+    return (
+        low.startswith("time\tteams") or
+        low.startswith("time teams") or
+        low in {"time", "teams", "win", "draw", "best", "ml", "goals", "total", "o/u", "bet", "value", "more details"} or
+        "more details" in low
+    )
+
+def pct_to_prob(p: str) -> str:
+    try:
+        v = float(p) / 100.0
+        if v < 0:
+            v = 0.0
+        if v > 1:
+            v = 1.0
+        return f"{v:.6f}"
+    except Exception:
+        return ""
+
+# =========================
+# PREP LINES
+# =========================
+
+raw_lines = []
+for ln in raw_text.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
+    ln = clean_line(ln)
+    if not ln:
+        continue
+    # preserve tab-bearing lines as-is; they can contain % and odds
+    if is_header_noise(ln):
+        continue
+    raw_lines.append(ln)
+
+# =========================
+# PARSE (STATE MACHINE)
+# =========================
+
+rows = []
+i = 0
+n = len(raw_lines)
+
+while i < n:
+    line = raw_lines[i]
+
+    # locate a date
+    if not RE_DATE.match(line):
+        i += 1
+        continue
+
+    match_date = line
+    i += 1
+    if i >= n:
+        break
+
+    # next meaningful line should be time
+    match_time = raw_lines[i]
+    if not RE_TIME.match(match_time):
+        # sometimes time may be embedded like "02/18/2026 12:45 PM" (rare)
+        # try to recover by scanning forward a couple lines
+        recovered_time = ""
+        for j in range(i, min(i + 4, n)):
+            if RE_TIME.match(raw_lines[j]):
+                recovered_time = raw_lines[j]
+                i = j + 1
+                break
+        if not recovered_time:
+            i += 1
+            continue
+        match_time = recovered_time
+    else:
+        i += 1
+
+    if i + 1 >= n:
+        break
+
+    home_team = raw_lines[i]
+    away_team = raw_lines[i + 1]
+    i += 2
+
+    # collect next chunk until next date or limited window
+    window = []
+    j = i
+    while j < n and not RE_DATE.match(raw_lines[j]) and len(window) < 40:
+        window.append(raw_lines[j])
+        j += 1
+
+    # find first 3 percentages in window (home/draw/away)
+    pct_vals = []
+    for w in window:
+        for m in RE_PCT.finditer(w):
+            pct_vals.append(m.group(1))
+            if len(pct_vals) >= 3:
+                break
+        if len(pct_vals) >= 3:
+            break
+
+    home_prob = pct_to_prob(pct_vals[0]) if len(pct_vals) >= 1 else ""
+    draw_prob = pct_to_prob(pct_vals[1]) if len(pct_vals) >= 2 else ""
+    away_prob = pct_to_prob(pct_vals[2]) if len(pct_vals) >= 3 else ""
+
+    # find first 3 american odds tokens in window (optional)
+    amer_vals = []
+    for w in window:
+        # split on whitespace/tabs to isolate tokens like -261 +660
+        for tok in re.split(r"\s+|\t+", w.replace("\u2212", "-").strip()):
+            if not tok:
+                continue
+            if RE_AMER.match(tok):
+                amer_vals.append(tok)
+                if len(amer_vals) >= 3:
+                    break
+        if len(amer_vals) >= 3:
+            break
+
+    best_home_american = amer_vals[0] if len(amer_vals) >= 1 else ""
+    best_draw_american = amer_vals[1] if len(amer_vals) >= 2 else ""
+    best_away_american = amer_vals[2] if len(amer_vals) >= 3 else ""
+
+    rows.append([
+        league,
+        market,
+        match_date,
+        match_time,
+        home_team,
+        away_team,
+        home_prob,
+        draw_prob,
+        away_prob,
+        best_home_american,
+        best_draw_american,
+        best_away_american,
+    ])
+
+    # advance to next record
+    i = j
+
+# =========================
+# OUTPUT
+# =========================
+
+output_dir = Path("docs/win/soccer/00_intake/predictions")
+output_dir.mkdir(parents=True, exist_ok=True)
 
 timestamp = datetime.utcnow().strftime("%Y_%m_%d_%H%M%S")
-outfile = base_dir / f"{market}_pred_raw_{timestamp}.txt"
+outfile = output_dir / f"{market}_pred_{timestamp}.csv"
 
-# =========================
-# WRITE RAW TEXT
-# =========================
+with open(outfile, "w", newline="", encoding="utf-8") as f:
+    writer = csv.writer(f)
+    writer.writerow([
+        "league",
+        "market",
+        "match_date",
+        "match_time",
+        "home_team",
+        "away_team",
+        "home_prob",
+        "draw_prob",
+        "away_prob",
+        "best_home_american",
+        "best_draw_american",
+        "best_away_american",
+    ])
+    writer.writerows(rows)
 
-with open(outfile, "w", encoding="utf-8") as f:
-    f.write(f"league={league}\n")
-    f.write(f"market={market}\n")
-    f.write("source=predictions\n")
-    f.write("----RAW----\n")
-    f.write(raw_text)
-
-print(f"Wrote {outfile}")
+print(f"Wrote {outfile} ({len(rows)} rows)")
