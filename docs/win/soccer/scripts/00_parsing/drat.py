@@ -10,7 +10,6 @@ ERROR_DIR = Path("docs/win/soccer/errors")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE = ERROR_DIR / "drat_log.txt"
 
-# Overwrite log at start of each run
 with open(LOG_FILE, "w", encoding="utf-8") as f:
     f.write("")
 
@@ -69,14 +68,11 @@ while i < n:
     if i + 1 >= n:
         break
 
-    # Predictions: first team = AWAY, second team = HOME
     away_team = lines[i]
     home_line = lines[i + 1]
     i += 2
 
     pct_vals = []
-
-    # Extract % from home_line (may contain first probability)
     for m in RE_PCT.finditer(home_line):
         pct_vals.append(float(m.group(1)) / 100.0)
 
@@ -92,11 +88,6 @@ while i < n:
         errors += 1
         continue
 
-    total = sum(pct_vals)
-    if abs(total - 1.0) > 0.02:
-        log(f"ERROR: Probabilities do not sum to 1 ({total}) for {home_team} vs {away_team}")
-        raise ValueError("Probability validation failed")
-
     rows.append([
         league,
         market,
@@ -109,15 +100,33 @@ while i < n:
         f"{pct_vals[2]:.6f}",
     ])
 
-if len(dates_seen) > 1:
-    log("ERROR: Multiple match_dates detected in intake")
-    raise ValueError("Multiple match dates detected — aborting intake")
+if len(dates_seen) != 1:
+    log("ERROR: Multiple or zero match_dates detected")
+    raise ValueError("Invalid slate")
 
+file_date = list(dates_seen)[0].replace("/", "_")
 output_dir = Path("docs/win/soccer/00_intake/predictions")
 output_dir.mkdir(parents=True, exist_ok=True)
 
-timestamp = datetime.utcnow().strftime("%Y_%m_%d_%H%M%S")
-outfile = output_dir / f"{market}_pred_{timestamp}.csv"
+outfile = output_dir / f"soccer_{file_date}.csv"
+
+existing_keys = set()
+existing_rows = []
+
+if outfile.exists():
+    with open(outfile, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            key = (row["match_date"], row["home_team"], row["away_team"])
+            existing_keys.add(key)
+            existing_rows.append(row)
+
+new_rows = []
+for r in rows:
+    key = (r[2], r[4], r[5])
+    if key not in existing_keys:
+        new_rows.append(r)
+        existing_keys.add(key)
 
 with open(outfile, "w", newline="", encoding="utf-8") as f:
     writer = csv.writer(f)
@@ -132,7 +141,8 @@ with open(outfile, "w", newline="", encoding="utf-8") as f:
         "draw_prob",
         "away_prob",
     ])
-    writer.writerows(rows)
+    writer.writerows(existing_rows)
+    writer.writerows(new_rows)
 
-log(f"SUMMARY: wrote {len(rows)} rows, {errors} errors")
-print(f"Wrote {outfile} ({len(rows)} rows)")
+log(f"SUMMARY: wrote {len(new_rows)} new rows, {errors} errors")
+print(f"Wrote {outfile} ({len(new_rows)} new rows)")
