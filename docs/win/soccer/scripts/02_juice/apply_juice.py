@@ -4,6 +4,7 @@ import pandas as pd
 from pathlib import Path
 import glob
 import traceback
+import sys
 from datetime import datetime
 
 # =========================
@@ -104,59 +105,65 @@ def process_side(df, side, juice_tables, summary):
 
 def main():
 
-    with open(ERROR_LOG, "w") as log:
-
+    # OVERWRITE LOG IMMEDIATELY
+    with open(ERROR_LOG, "w", encoding="utf-8") as log:
         log.write("=== APPLY JUICE RUN ===\n")
         log.write(f"Timestamp: {datetime.utcnow().isoformat()}Z\n\n")
 
-        try:
-            input_files = glob.glob(str(INPUT_DIR / "soccer_*.csv"))
+    try:
+        input_files = glob.glob(str(INPUT_DIR / "soccer_*.csv"))
 
-            if not input_files:
+        if not input_files:
+            with open(ERROR_LOG, "a", encoding="utf-8") as log:
                 log.write("No input files found.\n")
-                return
+            return
 
-            summary = {
-                "files_processed": 0,
-                "rows_processed": 0,
-                "rows_skipped": 0
-            }
+        summary = {
+            "files_processed": 0,
+            "rows_processed": 0,
+            "rows_skipped": 0
+        }
 
-            for file_path in input_files:
-                input_path = Path(file_path)
-                df = pd.read_csv(input_path)
+        for file_path in input_files:
+            input_path = Path(file_path)
+            df = pd.read_csv(input_path)
 
-                if "market" not in df.columns:
-                    raise ValueError("Missing 'market' column")
-                if "home_prob" not in df.columns:
-                    raise ValueError("Missing probability columns")
+            if "market" not in df.columns:
+                raise ValueError("Missing 'market' column")
+            if "home_prob" not in df.columns:
+                raise ValueError("Missing probability columns")
 
-                unique_markets = df["market"].unique()
-                juice_tables = {}
+            unique_markets = df["market"].unique()
+            juice_tables = {}
 
-                for m in unique_markets:
-                    if m not in JUICE_MAP:
-                        raise ValueError(f"No juice config mapped for market: {m}")
-                    juice_tables[m] = pd.read_csv(JUICE_MAP[m])
+            for m in unique_markets:
+                if m not in JUICE_MAP:
+                    raise ValueError(f"No juice config mapped for market: {m}")
+                juice_tables[m] = pd.read_csv(JUICE_MAP[m])
 
-                for side in ["home", "draw", "away"]:
-                    df = process_side(df, side, juice_tables, summary)
+            for side in ["home", "draw", "away"]:
+                df = process_side(df, side, juice_tables, summary)
 
-                output_path = OUTPUT_DIR / input_path.name
-                df.to_csv(output_path, index=False)
+            output_path = OUTPUT_DIR / input_path.name
+            df.to_csv(output_path, index=False)
 
+            with open(ERROR_LOG, "a", encoding="utf-8") as log:
                 log.write(f"Wrote {output_path}\n")
-                summary["files_processed"] += 1
 
+            summary["files_processed"] += 1
+
+        with open(ERROR_LOG, "a", encoding="utf-8") as log:
             log.write("\n=== SUMMARY ===\n")
             log.write(f"Files processed: {summary['files_processed']}\n")
             log.write(f"Rows processed: {summary['rows_processed']}\n")
             log.write(f"Rows skipped: {summary['rows_skipped']}\n")
 
-        except Exception as e:
+    except Exception as e:
+        with open(ERROR_LOG, "a", encoding="utf-8") as log:
             log.write("\n=== ERROR ===\n")
             log.write(str(e) + "\n\n")
             log.write(traceback.format_exc())
+        sys.exit(1)
 
 
 if __name__ == "__main__":
