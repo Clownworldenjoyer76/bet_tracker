@@ -16,7 +16,7 @@ NO_MAP_DIR = Path("mappings/soccer/no_map")
 NO_MAP_DIR.mkdir(parents=True, exist_ok=True)
 NO_MAP_FILE = NO_MAP_DIR / "no_map_soccer.csv"
 
-ERROR_DIR = Path("docs/win/soccer/errors")
+ERROR_DIR = Path("docs/win/soccer/errors/00_intake")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE = ERROR_DIR / "name_normalization_log.txt"
 
