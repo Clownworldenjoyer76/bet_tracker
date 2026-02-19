@@ -7,7 +7,7 @@ from datetime import datetime
 import traceback
 
 # =========================
-# PATHS
+# PATHS (EXACTLY AS GIVEN)
 # =========================
 
 INPUT_DIR = Path("docs/win/winners/step_02_1")
@@ -19,162 +19,149 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_LOG.parent.mkdir(parents=True, exist_ok=True)
 
 # =========================
-# HELPERS
+# BUILD PROJECTION MAP
 # =========================
 
-def norm(x):
-    if pd.isna(x):
-        return ""
-    return str(x).strip()
-
-def to_float(x):
-    try:
-        if pd.isna(x):
-            return None
-        s = str(x).strip()
-        if s == "":
-            return None
-        return float(s)
-    except Exception:
-        return None
-
 def build_projection_map(log):
-    """
-    Build:
-        { game_id : game_projected_points }
-    From all cleaned/*.csv files.
-    Skip files without game_projected_points column.
-    """
 
     projection_map = {}
 
-    files = sorted(glob.glob(str(CLEANED_DIR / "*.csv")))
+    cleaned_files = sorted(glob.glob(str(CLEANED_DIR / "*.csv")))
 
-    files_scanned = 0
-    files_used = 0
-    rows_loaded = 0
-    files_skipped_no_column = 0
+    log.write(f"Cleaned files discovered: {len(cleaned_files)}\n")
 
-    for path in files:
-        files_scanned += 1
+    files_with_projection_column = 0
+    total_projection_rows_loaded = 0
+
+    for file_path in cleaned_files:
         try:
-            df = pd.read_csv(path)
-
-            if "game_id" not in df.columns:
-                continue
+            df = pd.read_csv(file_path)
 
             if "game_projected_points" not in df.columns:
-                files_skipped_no_column += 1
+                log.write(f"SKIPPED (no game_projected_points column): {file_path}\n")
                 continue
 
-            files_used += 1
+            files_with_projection_column += 1
 
             for _, row in df.iterrows():
-                gid = norm(row.get("game_id", ""))
-                proj = to_float(row.get("game_projected_points", None))
+                if "game_id" in df.columns:
+                    gid = str(row["game_id"]).strip()
+                    proj = row["game_projected_points"]
 
-                if gid and proj is not None:
-                    projection_map[gid] = proj
-                    rows_loaded += 1
+                    if pd.notna(gid) and pd.notna(proj):
+                        projection_map[gid] = float(proj)
+                        total_projection_rows_loaded += 1
 
-        except Exception:
-            log.write(f"\nERROR reading cleaned file: {path}\n")
-            log.write(traceback.format_exc())
-            log.write("\n")
+        except Exception as e:
+            log.write(f"\nERROR reading cleaned file: {file_path}\n")
+            log.write(str(e) + "\n")
+            log.write(traceback.format_exc() + "\n")
 
-    log.write(f"Cleaned files scanned: {files_scanned}\n")
-    log.write(f"Cleaned files used (have game_projected_points): {files_used}\n")
-    log.write(f"Cleaned files skipped (no game_projected_points): {files_skipped_no_column}\n")
-    log.write(f"Projection rows loaded: {rows_loaded}\n\n")
+    log.write(f"\nFiles containing game_projected_points: {files_with_projection_column}\n")
+    log.write(f"Total projection rows loaded: {total_projection_rows_loaded}\n\n")
 
     return projection_map
 
+
 # =========================
-# CORE
+# MAIN PROCESS
 # =========================
 
-def process_files():
+def process():
 
     timestamp = datetime.utcnow().isoformat() + "Z"
 
     with open(ERROR_LOG, "w") as log:
 
-        log.write(f"=== WINNERS_04 RUN @ {timestamp} ===\n\n")
+        log.write("=== WINNERS_04 RUN START ===\n")
+        log.write(f"Timestamp: {timestamp}\n\n")
 
         projection_map = build_projection_map(log)
 
         winners_files = sorted(glob.glob(str(INPUT_DIR / "winners_*.csv")))
 
-        log.write(f"Winners files found: {len(winners_files)}\n\n")
+        log.write(f"Winners files discovered: {len(winners_files)}\n\n")
 
         files_processed = 0
-        rows_processed = 0
-        rows_candidate = 0
-        rows_updated = 0
+        total_rows_processed = 0
+        eligible_rows = 0
+        rows_with_projection_match = 0
         rows_missing_projection = 0
         rows_missing_total = 0
-        rows_bad_total = 0
-        errors = 0
+        rows_updated = 0
 
         for file_path in winners_files:
+
             try:
                 df = pd.read_csv(file_path)
 
-                if "proj_total" not in df.columns:
-                    df["proj_total"] = ""
+                # ADD COLUMNS (ALWAYS CREATED)
+                df["proj_total"] = ""
+                df["total_diff"] = ""
 
-                if "total_diff" not in df.columns:
-                    df["total_diff"] = ""
+                log.write(f"\nProcessing file: {file_path}\n")
+                log.write(f"Rows in file: {len(df)}\n")
 
                 for idx, row in df.iterrows():
-                    rows_processed += 1
 
-                    bet_value = norm(row.get("bet", ""))
+                    total_rows_processed += 1
 
-                    if bet_value not in ("over_bet", "under_bet"):
-                        continue
+                    bet_value = str(row["bet"]).strip()
 
-                    rows_candidate += 1
+                    if bet_value == "over_bet" or bet_value == "under_bet":
 
-                    game_id = norm(row.get("game_id", ""))
-                    proj_total = projection_map.get(game_id)
+                        eligible_rows += 1
 
-                    if proj_total is None:
-                        rows_missing_projection += 1
-                        continue
+                        game_id = str(row["game_id"]).strip()
 
-                    total_val = to_float(row.get("total", None))
-                    if total_val is None:
-                        rows_missing_total += 1
-                        continue
+                        if game_id in projection_map:
 
-                    df.at[idx, "proj_total"] = proj_total
-                    df.at[idx, "total_diff"] = total_val - proj_total
-                    rows_updated += 1
+                            proj_total = projection_map[game_id]
+                            df.at[idx, "proj_total"] = proj_total
+                            rows_with_projection_match += 1
+
+                            total_value = row["total"]
+
+                            if pd.notna(total_value):
+                                try:
+                                    total_float = float(total_value)
+                                    df.at[idx, "total_diff"] = total_float - proj_total
+                                    rows_updated += 1
+                                except:
+                                    rows_missing_total += 1
+                            else:
+                                rows_missing_total += 1
+
+                        else:
+                            rows_missing_projection += 1
 
                 df.to_csv(file_path, index=False)
 
                 files_processed += 1
-                log.write(f"Processed: {file_path} | rows={len(df)}\n")
 
-            except Exception:
-                errors += 1
-                log.write(f"\nERROR processing {file_path}\n")
-                log.write(traceback.format_exc())
-                log.write("\n")
+            except Exception as e:
+                log.write(f"\nERROR processing winners file: {file_path}\n")
+                log.write(str(e) + "\n")
+                log.write(traceback.format_exc() + "\n")
+
+        # =========================
+        # FINAL SUMMARY
+        # =========================
 
         log.write("\n=== SUMMARY ===\n")
         log.write(f"Files processed: {files_processed}\n")
-        log.write(f"Rows processed: {rows_processed}\n")
-        log.write(f"Rows eligible (over_bet/under_bet): {rows_candidate}\n")
-        log.write(f"Rows updated: {rows_updated}\n")
+        log.write(f"Total rows processed: {total_rows_processed}\n")
+        log.write(f"Eligible rows (over_bet/under_bet): {eligible_rows}\n")
+        log.write(f"Rows with projection match: {rows_with_projection_match}\n")
         log.write(f"Rows missing projection match: {rows_missing_projection}\n")
-        log.write(f"Rows missing total value: {rows_missing_total}\n")
-        log.write(f"Errors: {errors}\n")
+        log.write(f"Rows missing/invalid total: {rows_missing_total}\n")
+        log.write(f"Rows fully updated (proj_total + total_diff): {rows_updated}\n")
+        log.write("\n=== RUN COMPLETE ===\n")
+
 
 # =========================
-# ENTRY
+# ENTRY POINT
 # =========================
 
 if __name__ == "__main__":
-    process_files()
+    process()
