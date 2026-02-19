@@ -66,18 +66,20 @@ def process_side(df, side, juice_tables, summary):
             summary["rows_skipped"] += 1
             continue
 
-        league = row["league"]
-        juice_df = juice_tables[league]
+        # USE MARKET (competition) NOT league
+        competition = row["market"]
 
-        # Fair decimal
+        if competition not in juice_tables:
+            raise ValueError(f"No juice config mapped for competition: {competition}")
+
+        juice_df = juice_tables[competition]
+
         fair_decimal = 1 / prob
 
-        # Find band
         band_row = find_band(prob, juice_df)
         extra_juice = band_row["extra_juice"]
         band_label = f"{band_row['band_min']}-{band_row['band_max']}"
 
-        # Apply juice
         adjusted_prob = prob + extra_juice
         if adjusted_prob >= 0.999:
             adjusted_prob = 0.999
@@ -125,16 +127,16 @@ def main():
                 input_path = Path(file_path)
                 df = pd.read_csv(input_path)
 
-                if "league" not in df.columns:
-                    raise ValueError("Input file missing 'league' column")
+                if "market" not in df.columns:
+                    raise ValueError("Input file missing 'market' column")
 
-                leagues = df["league"].unique()
+                competitions = df["market"].unique()
                 juice_tables = {}
 
-                for league in leagues:
-                    if league not in JUICE_MAP:
-                        raise ValueError(f"No juice config mapped for league: {league}")
-                    juice_tables[league] = pd.read_csv(JUICE_MAP[league])
+                for comp in competitions:
+                    if comp not in JUICE_MAP:
+                        raise ValueError(f"No juice config mapped for competition: {comp}")
+                    juice_tables[comp] = pd.read_csv(JUICE_MAP[comp])
 
                 for side in ["home", "draw", "away"]:
                     if f"{side}_prob" not in df.columns:
