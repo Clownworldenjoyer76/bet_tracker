@@ -125,9 +125,15 @@ def process():
             try:
                 df = pd.read_csv(fp)
 
-                # FIX: force numeric dtype for new columns
-                df["proj_total"] = pd.Series(dtype="float64")
-                df["total_diff"] = pd.Series(dtype="float64")
+                # Ensure columns exist
+                if "proj_total" not in df.columns:
+                    df["proj_total"] = pd.NA
+                if "total_diff" not in df.columns:
+                    df["total_diff"] = pd.NA
+
+                # FORCE dtype to float64 (this fixes the crash)
+                df["proj_total"] = pd.to_numeric(df["proj_total"], errors="coerce")
+                df["total_diff"] = pd.to_numeric(df["total_diff"], errors="coerce")
 
                 file_rows = len(df)
                 file_eligible = 0
