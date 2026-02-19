@@ -4,8 +4,12 @@ import pandas as pd
 from pathlib import Path
 import glob
 import traceback
-from datetime import datetime
 import sys
+from datetime import datetime
+
+# =========================
+# PATHS
+# =========================
 
 INPUT_DIR = Path("docs/win/soccer/01_merge")
 OUTPUT_DIR = Path("docs/win/soccer/02_juice")
@@ -24,13 +28,16 @@ JUICE_MAP = {
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
+# =========================
+# HELPERS
+# =========================
 
-def decimal_to_american(d):
-    if pd.isna(d) or d <= 1:
+def decimal_to_american(decimal_odds):
+    if pd.isna(decimal_odds) or decimal_odds <= 1:
         return ""
-    if d >= 2.0:
-        return f"+{int(round((d - 1) * 100))}"
-    return f"-{int(round(100 / (d - 1)))}"
+    if decimal_odds >= 2.0:
+        return f"+{int(round((decimal_odds - 1) * 100))}"
+    return f"-{int(round(100 / (decimal_odds - 1)))}"
 
 
 def find_band(prob, juice_df):
@@ -43,80 +50,122 @@ def find_band(prob, juice_df):
     return band.iloc[0]
 
 
+def process_side(df, side, juice_tables, summary):
+    prob_col = f"{side}_prob"
+
+    # Numeric columns
+    df[f"{side}_fair_decimal"] = pd.NA
+    df[f"{side}_adjusted_prob"] = pd.NA
+    df[f"{side}_adjusted_decimal"] = pd.NA
+
+    # String columns
+    df[f"{side}_juice_band"] = ""
+    df[f"{side}_extra_juice"] = pd.NA
+    df[f"{side}_adjusted_american"] = ""
+
+    for idx, row in df.iterrows():
+        prob = row[prob_col]
+
+        if pd.isna(prob) or prob <= 0 or prob >= 1:
+            summary["rows_skipped"] += 1
+            continue
+
+        market = row["market"]
+
+        if market not in juice_tables:
+            raise ValueError(f"No juice config mapped for market: {market}")
+
+        juice_df = juice_tables[market]
+
+        fair_decimal = 1 / prob
+
+        band_row = find_band(prob, juice_df)
+        extra_juice = band_row["extra_juice"]
+        band_label = f"{band_row['band_min']}-{band_row['band_max']}"
+
+        adjusted_prob = prob + extra_juice
+        if adjusted_prob >= 0.999:
+            adjusted_prob = 0.999
+
+        adjusted_decimal = 1 / adjusted_prob
+        adjusted_american = decimal_to_american(adjusted_decimal)
+
+        df.at[idx, f"{side}_fair_decimal"] = float(fair_decimal)
+        df.at[idx, f"{side}_juice_band"] = band_label
+        df.at[idx, f"{side}_extra_juice"] = float(extra_juice)
+        df.at[idx, f"{side}_adjusted_prob"] = float(adjusted_prob)
+        df.at[idx, f"{side}_adjusted_decimal"] = float(adjusted_decimal)
+        df.at[idx, f"{side}_adjusted_american"] = adjusted_american
+
+        summary["rows_processed"] += 1
+
+    return df
+
+
+# =========================
+# CORE
+# =========================
+
 def main():
 
-    with open(ERROR_LOG, "w") as log:
-
+    with open(ERROR_LOG, "w", encoding="utf-8") as log:
         log.write("=== APPLY JUICE RUN ===\n")
         log.write(f"Timestamp: {datetime.utcnow().isoformat()}Z\n\n")
 
-        try:
-            files = glob.glob(str(INPUT_DIR / "soccer_*.csv"))
-            if not files:
+    try:
+        input_files = glob.glob(str(INPUT_DIR / "soccer_*.csv"))
+
+        if not input_files:
+            with open(ERROR_LOG, "a", encoding="utf-8") as log:
                 log.write("No input files found.\n")
-                return
+            return
 
-            total_rows = 0
+        summary = {
+            "files_processed": 0,
+            "rows_processed": 0,
+            "rows_skipped": 0
+        }
 
-            for file_path in files:
-                df = pd.read_csv(file_path)
+        for file_path in input_files:
+            input_path = Path(file_path)
+            df = pd.read_csv(input_path)
 
-                if "market" not in df.columns:
-                    raise ValueError("Missing 'market' column")
+            if "market" not in df.columns:
+                raise ValueError("Missing 'market' column")
+            if "home_prob" not in df.columns:
+                raise ValueError("Missing probability columns")
 
-                for market in df["market"].unique():
-                    if market not in JUICE_MAP:
-                        raise ValueError(f"No juice config mapped for market: {market}")
+            unique_markets = df["market"].unique()
+            juice_tables = {}
 
-                juice_tables = {
-                    m: pd.read_csv(JUICE_MAP[m])
-                    for m in df["market"].unique()
-                }
+            for m in unique_markets:
+                if m not in JUICE_MAP:
+                    raise ValueError(f"No juice config mapped for market: {m}")
+                juice_tables[m] = pd.read_csv(JUICE_MAP[m])
 
-                for side in ["home", "draw", "away"]:
+            for side in ["home", "draw", "away"]:
+                df = process_side(df, side, juice_tables, summary)
 
-                    prob_col = f"{side}_prob"
+            output_path = OUTPUT_DIR / input_path.name
+            df.to_csv(output_path, index=False)
 
-                    df[f"{side}_fair_decimal"] = ""
-                    df[f"{side}_adjusted_decimal"] = ""
-                    df[f"{side}_adjusted_american"] = ""
-
-                    for idx, row in df.iterrows():
-
-                        prob = row[prob_col]
-
-                        if pd.isna(prob) or prob <= 0 or prob >= 1:
-                            continue
-
-                        market = row["market"]
-                        juice_df = juice_tables[market]
-
-                        fair_decimal = 1 / prob
-                        band_row = find_band(prob, juice_df)
-                        adjusted_prob = min(prob + band_row["extra_juice"], 0.999)
-
-                        adjusted_decimal = 1 / adjusted_prob
-                        adjusted_american = decimal_to_american(adjusted_decimal)
-
-                        df.at[idx, f"{side}_fair_decimal"] = fair_decimal
-                        df.at[idx, f"{side}_adjusted_decimal"] = adjusted_decimal
-                        df.at[idx, f"{side}_adjusted_american"] = adjusted_american
-
-                        total_rows += 1
-
-                output_path = OUTPUT_DIR / Path(file_path).name
-                df.to_csv(output_path, index=False)
+            with open(ERROR_LOG, "a", encoding="utf-8") as log:
                 log.write(f"Wrote {output_path}\n")
 
+            summary["files_processed"] += 1
+
+        with open(ERROR_LOG, "a", encoding="utf-8") as log:
             log.write("\n=== SUMMARY ===\n")
-            log.write(f"Rows processed: {total_rows}\n")
+            log.write(f"Files processed: {summary['files_processed']}\n")
+            log.write(f"Rows processed: {summary['rows_processed']}\n")
+            log.write(f"Rows skipped: {summary['rows_skipped']}\n")
 
-        except Exception:
+    except Exception as e:
+        with open(ERROR_LOG, "a", encoding="utf-8") as log:
             log.write("\n=== ERROR ===\n")
+            log.write(str(e) + "\n\n")
             log.write(traceback.format_exc())
-
-    # Always exit 0 so workflow can commit log
-    sys.exit(0)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
