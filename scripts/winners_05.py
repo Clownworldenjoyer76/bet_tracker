@@ -11,7 +11,7 @@ import traceback
 
 INPUT_DIR = Path("docs/win/winners/step_02_1")
 OUTPUT_DIR = Path("docs/win/winners/step_03")
-ERROR_LOG = Path("docs/win/errors/winners_04.txt")
+ERROR_LOG = Path("docs/win/errors/step_03/winners_05.txt")
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_LOG.parent.mkdir(parents=True, exist_ok=True)
