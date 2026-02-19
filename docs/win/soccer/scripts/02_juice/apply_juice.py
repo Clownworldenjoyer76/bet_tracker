@@ -18,10 +18,10 @@ ERROR_LOG = ERROR_DIR / "01_apply_juice.txt"
 
 JUICE_MAP = {
     "epl": Path("config/soccer/epl/epl_1x2_juice.csv"),
-    "la_liga": Path("config/soccer/la_liga/laliga_1x2_juice.csv"),
+    "laliga": Path("config/soccer/la_liga/laliga_1x2_juice.csv"),
     "bundesliga": Path("config/soccer/bundesliga/bundesliga_1x2_juice.csv"),
     "ligue1": Path("config/soccer/ligue1/ligue1_1x2_juice.csv"),
-    "serie_a": Path("config/soccer/serie_a/seriea_1x2_juice.csv"),
+    "seriea": Path("config/soccer/serie_a/seriea_1x2_juice.csv"),
 }
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -40,13 +40,13 @@ def decimal_to_american(decimal_odds):
 
 
 def find_band(prob, juice_df):
-    match = juice_df[
+    band = juice_df[
         (juice_df["band_min"] <= prob) &
         (prob < juice_df["band_max"])
     ]
-    if match.empty:
+    if band.empty:
         raise ValueError(f"No juice band found for probability {prob}")
-    return match.iloc[0]
+    return band.iloc[0]
 
 
 def process_side(df, side, juice_tables, summary):
@@ -66,12 +66,12 @@ def process_side(df, side, juice_tables, summary):
             summary["rows_skipped"] += 1
             continue
 
-        competition = row["market"]
+        market = row["market"]
 
-        if competition not in juice_tables:
-            raise ValueError(f"No juice config mapped for competition: {competition}")
+        if market not in juice_tables:
+            raise ValueError(f"No juice config mapped for market: {market}")
 
-        juice_df = juice_tables[competition]
+        juice_df = juice_tables[market]
 
         fair_decimal = 1 / prob
 
@@ -127,19 +127,19 @@ def main():
                 df = pd.read_csv(input_path)
 
                 if "market" not in df.columns:
-                    raise ValueError("Input file missing 'market' column")
+                    raise ValueError("Missing 'market' column")
+                if "home_prob" not in df.columns:
+                    raise ValueError("Missing probability columns")
 
-                competitions = df["market"].unique()
+                unique_markets = df["market"].unique()
                 juice_tables = {}
 
-                for comp in competitions:
-                    if comp not in JUICE_MAP:
-                        raise ValueError(f"No juice config mapped for competition: {comp}")
-                    juice_tables[comp] = pd.read_csv(JUICE_MAP[comp])
+                for m in unique_markets:
+                    if m not in JUICE_MAP:
+                        raise ValueError(f"No juice config mapped for market: {m}")
+                    juice_tables[m] = pd.read_csv(JUICE_MAP[m])
 
                 for side in ["home", "draw", "away"]:
-                    if f"{side}_prob" not in df.columns:
-                        raise ValueError(f"Missing column: {side}_prob")
                     df = process_side(df, side, juice_tables, summary)
 
                 output_path = OUTPUT_DIR / input_path.name
