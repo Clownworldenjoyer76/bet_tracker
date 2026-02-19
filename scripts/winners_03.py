@@ -17,7 +17,7 @@ import pandas as pd
 # =========================
 
 STEP_02_DIR = Path("docs/win/winners/step_02")
-STEP_03_DIR = Path("docs/win/winners/step_03")
+STEP_03_DIR = Path("docs/win/winners/step_02_1")
 
 ERROR_DIR = Path("docs/win/errors/09_winners")
 ERROR_LOG = ERROR_DIR / "winners_03.txt"
