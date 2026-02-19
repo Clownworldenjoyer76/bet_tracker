@@ -1,3 +1,5 @@
+# scripts/winners_04.py
+
 #!/usr/bin/env python3
 
 import os
@@ -123,8 +125,9 @@ def process():
             try:
                 df = pd.read_csv(fp)
 
-                df["proj_total"] = ""
-                df["total_diff"] = ""
+                # FIX: force numeric dtype for new columns
+                df["proj_total"] = pd.Series(dtype="float64")
+                df["total_diff"] = pd.Series(dtype="float64")
 
                 file_rows = len(df)
                 file_eligible = 0
