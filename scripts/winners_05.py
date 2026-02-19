@@ -54,12 +54,20 @@ def process_files():
                 if col not in df.columns:
                     df[col] = 0
 
-            # Convert to numeric safely
-            for col in EDGE_COLUMNS:
+            # Ensure required columns exist
+            for col in ["league", "bet", "total", "diff"]:
+                if col not in df.columns:
+                    df[col] = None
+
+            # Convert numeric columns safely
+            for col in EDGE_COLUMNS + ["total", "diff"]:
                 df[col] = safe_float(df[col])
 
-            # Filter rows where ANY edge > threshold
-            mask = (
+            # =========================
+            # BASE EDGE FILTER (ALL ROWS)
+            # =========================
+
+            base_mask = (
                 (df["home_ml_edge"] > EDGE_THRESHOLD) |
                 (df["away_ml_edge"] > EDGE_THRESHOLD) |
                 (df["home_spread_edge"] > EDGE_THRESHOLD) |
@@ -68,7 +76,41 @@ def process_files():
                 (df["under_edge"] > EDGE_THRESHOLD)
             )
 
-            filtered_df = df[mask].copy()
+            # =========================
+            # CUSTOM NCAAB TOTALS OVER LOGIC
+            # =========================
+
+            is_ncaab_over = (
+                (df["league"] == "ncaab_totals") &
+                (df["bet"] == "over_bet")
+            )
+
+            under_150_mask = (
+                (df["total"] < 150) &
+                (df["over_edge"] >= 0.40) &
+                (df["diff"] >= 4)
+            )
+
+            over_150_mask = (
+                (df["total"] > 150) &
+                (df["diff"] >= 2)
+            )
+
+            custom_mask = is_ncaab_over & (under_150_mask | over_150_mask)
+
+            # =========================
+            # FINAL MASK
+            # =========================
+
+            # For NCAAB totals over → must pass custom rule
+            # For everything else → must pass base edge rule
+
+            final_mask = (
+                (is_ncaab_over & (under_150_mask | over_150_mask)) |
+                (~is_ncaab_over & base_mask)
+            )
+
+            filtered_df = df[final_mask].copy()
 
             # Write output with same filename
             output_path = OUTPUT_DIR / Path(file_path).name
@@ -78,7 +120,7 @@ def process_files():
 
         except Exception as e:
             with open(ERROR_LOG, "w") as f:
-                f.write("WINNERS_04 ERROR\n")
+                f.write("WINNERS_05 ERROR\n")
                 f.write(traceback.format_exc())
             print(f"ERROR processing {file_path}")
             raise e
