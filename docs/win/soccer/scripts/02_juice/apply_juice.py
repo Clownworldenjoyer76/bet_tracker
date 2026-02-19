@@ -3,6 +3,7 @@
 import pandas as pd
 from pathlib import Path
 import glob
+import traceback
 from datetime import datetime
 
 # =========================
@@ -12,15 +13,19 @@ from datetime import datetime
 INPUT_DIR = Path("docs/win/soccer/01_merge")
 OUTPUT_DIR = Path("docs/win/soccer/02_juice")
 
+ERROR_DIR = Path("docs/win/soccer/errors/02_juice")
+ERROR_LOG = ERROR_DIR / "01_apply_juice.txt"
+
 JUICE_MAP = {
     "epl": Path("config/soccer/epl/epl_1x2_juice.csv"),
     "la_liga": Path("config/soccer/la_liga/laliga_1x2_juice.csv"),
     "bundesliga": Path("config/soccer/bundesliga/bundesliga_1x2_juice.csv"),
-    "ligue1": Path("config/soccer/ligue1/ligue1_juice.csv"),
+    "ligue1": Path("config/soccer/ligue1/ligue1_1x2_juice.csv"),
     "serie_a": Path("config/soccer/serie_a/seriea_1x2_juice.csv"),
 }
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 # =========================
 # HELPERS
@@ -44,7 +49,7 @@ def find_band(prob, juice_df):
     return match.iloc[0]
 
 
-def process_side(df, side, juice_tables):
+def process_side(df, side, juice_tables, summary):
     prob_col = f"{side}_prob"
 
     df[f"{side}_fair_decimal"] = ""
@@ -58,6 +63,7 @@ def process_side(df, side, juice_tables):
         prob = row[prob_col]
 
         if pd.isna(prob) or prob <= 0 or prob >= 1:
+            summary["rows_skipped"] += 1
             continue
 
         league = row["league"]
@@ -86,6 +92,8 @@ def process_side(df, side, juice_tables):
         df.at[idx, f"{side}_adjusted_decimal"] = adjusted_decimal
         df.at[idx, f"{side}_adjusted_american"] = adjusted_american
 
+        summary["rows_processed"] += 1
+
     return df
 
 
@@ -94,34 +102,60 @@ def process_side(df, side, juice_tables):
 # =========================
 
 def main():
-    input_files = glob.glob(str(INPUT_DIR / "soccer_*.csv"))
 
-    for file_path in input_files:
-        input_path = Path(file_path)
-        df = pd.read_csv(input_path)
+    with open(ERROR_LOG, "w") as log:
 
-        if "league" not in df.columns:
-            raise ValueError("Input file missing 'league' column")
+        log.write("=== APPLY JUICE RUN ===\n")
+        log.write(f"Timestamp: {datetime.utcnow().isoformat()}Z\n\n")
 
-        # Load juice tables per league
-        leagues = df["league"].unique()
-        juice_tables = {}
+        try:
+            input_files = glob.glob(str(INPUT_DIR / "soccer_*.csv"))
 
-        for league in leagues:
-            if league not in JUICE_MAP:
-                raise ValueError(f"No juice config mapped for league: {league}")
-            juice_tables[league] = pd.read_csv(JUICE_MAP[league])
+            if not input_files:
+                log.write("No input files found.\n")
+                return
 
-        # Process sides
-        for side in ["home", "draw", "away"]:
-            if f"{side}_prob" not in df.columns:
-                raise ValueError(f"Missing column: {side}_prob")
-            df = process_side(df, side, juice_tables)
+            summary = {
+                "files_processed": 0,
+                "rows_processed": 0,
+                "rows_skipped": 0
+            }
 
-        # Output
-        output_path = OUTPUT_DIR / input_path.name
-        df.to_csv(output_path, index=False)
-        print(f"Wrote {output_path}")
+            for file_path in input_files:
+                input_path = Path(file_path)
+                df = pd.read_csv(input_path)
+
+                if "league" not in df.columns:
+                    raise ValueError("Input file missing 'league' column")
+
+                leagues = df["league"].unique()
+                juice_tables = {}
+
+                for league in leagues:
+                    if league not in JUICE_MAP:
+                        raise ValueError(f"No juice config mapped for league: {league}")
+                    juice_tables[league] = pd.read_csv(JUICE_MAP[league])
+
+                for side in ["home", "draw", "away"]:
+                    if f"{side}_prob" not in df.columns:
+                        raise ValueError(f"Missing column: {side}_prob")
+                    df = process_side(df, side, juice_tables, summary)
+
+                output_path = OUTPUT_DIR / input_path.name
+                df.to_csv(output_path, index=False)
+
+                log.write(f"Wrote {output_path}\n")
+                summary["files_processed"] += 1
+
+            log.write("\n=== SUMMARY ===\n")
+            log.write(f"Files processed: {summary['files_processed']}\n")
+            log.write(f"Rows processed: {summary['rows_processed']}\n")
+            log.write(f"Rows skipped: {summary['rows_skipped']}\n")
+
+        except Exception as e:
+            log.write("\n=== ERROR ===\n")
+            log.write(str(e) + "\n\n")
+            log.write(traceback.format_exc())
 
 
 if __name__ == "__main__":
