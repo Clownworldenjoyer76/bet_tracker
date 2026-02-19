@@ -10,7 +10,7 @@ import pandas as pd
 
 INPUT_DIR = Path("docs/win/winners/step_02_1")
 OUTPUT_DIR = Path("docs/win/winners/step_02_1")
-ERROR_LOG = Path("docs/win/errors/winners_04.txt")
+ERROR_LOG = Path("docs/win/errors/09_winners/winners_04.txt")
 
 CLEANED_DIR = Path("docs/win/dump/csvs/cleaned")
 
