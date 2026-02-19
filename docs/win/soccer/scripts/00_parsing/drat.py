@@ -6,7 +6,7 @@ import csv
 from pathlib import Path
 from datetime import datetime
 
-ERROR_DIR = Path("docs/win/soccer/errors")
+ERROR_DIR = Path("docs/win/soccer/errors/00_intake")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE = ERROR_DIR / "drat_log.txt"
 
