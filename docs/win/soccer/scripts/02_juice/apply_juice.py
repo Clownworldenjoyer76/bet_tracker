@@ -66,7 +66,6 @@ def process_side(df, side, juice_tables, summary):
             summary["rows_skipped"] += 1
             continue
 
-        # USE MARKET (competition) NOT league
         competition = row["market"]
 
         if competition not in juice_tables:
