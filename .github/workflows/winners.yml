@@ -59,6 +59,15 @@ jobs:
           set -e
           if [ $EXIT_CODE -ne 0 ]; then exit $EXIT_CODE; fi
 
+      - name: Run winners_04 script
+        run: |
+          echo "=== RUNNING winners_03 ==="
+          set +e
+          python scripts/winners_04.py > docs/win/errors/09_winners/winners_04.txt 2>&1
+          EXIT_CODE=$?
+          set -e
+          if [ $EXIT_CODE -ne 0 ]; then exit $EXIT_CODE; fi
+
       - name: Commit and push results
         if: always()
         run: |
