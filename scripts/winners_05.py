@@ -55,16 +55,16 @@ def process_files():
                     df[col] = 0
 
             # Ensure required columns exist
-            for col in ["league", "bet", "total", "diff"]:
+            for col in ["league", "bet", "total", "total_diff"]:
                 if col not in df.columns:
                     df[col] = None
 
             # Convert numeric columns safely
-            for col in EDGE_COLUMNS + ["total", "diff"]:
+            for col in EDGE_COLUMNS + ["total", "total_diff"]:
                 df[col] = safe_float(df[col])
 
             # =========================
-            # BASE EDGE FILTER (ALL ROWS)
+            # BASE EDGE FILTER
             # =========================
 
             base_mask = (
@@ -85,25 +85,18 @@ def process_files():
                 (df["bet"] == "over_bet")
             )
 
+            abs_diff = df["total_diff"].abs()
+
             under_150_mask = (
                 (df["total"] < 150) &
                 (df["over_edge"] >= 0.40) &
-                (df["diff"] >= 4)
+                (abs_diff >= 4)
             )
 
             over_150_mask = (
                 (df["total"] > 150) &
-                (df["diff"] >= 2)
+                (abs_diff >= 2)
             )
-
-            custom_mask = is_ncaab_over & (under_150_mask | over_150_mask)
-
-            # =========================
-            # FINAL MASK
-            # =========================
-
-            # For NCAAB totals over → must pass custom rule
-            # For everything else → must pass base edge rule
 
             final_mask = (
                 (is_ncaab_over & (under_150_mask | over_150_mask)) |
@@ -112,7 +105,6 @@ def process_files():
 
             filtered_df = df[final_mask].copy()
 
-            # Write output with same filename
             output_path = OUTPUT_DIR / Path(file_path).name
             filtered_df.to_csv(output_path, index=False)
 
