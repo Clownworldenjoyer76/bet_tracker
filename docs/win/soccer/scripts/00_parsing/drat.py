@@ -79,7 +79,7 @@ while i < n:
     if i + 1 >= n:
         break
 
-    # FORMAT CONFIRMED:
+    # FORMAT:
     # Date
     # Time
     # Team A
@@ -94,9 +94,18 @@ while i < n:
 
     pct_vals = []
 
+    # Strictly collect next lines until exactly 3 percentages found
     while i < n and len(pct_vals) < 3:
+        line_pcts = []
         for m in RE_PCT.finditer(lines[i]):
-            pct_vals.append(float(m.group(1)) / 100.0)
+            line_pcts.append(float(m.group(1)) / 100.0)
+
+        pct_vals.extend(line_pcts)
+
+        if len(pct_vals) >= 3:
+            pct_vals = pct_vals[:3]
+            break
+
         i += 1
 
     if len(pct_vals) != 3:
@@ -109,9 +118,9 @@ while i < n:
         log(f"ERROR: Probabilities do not sum to 1 ({total}) for {home_team} vs {away_team}")
         raise ValueError("Probability validation failed")
 
-    # Confirmed mapping:
-    # pct_vals[0] = away win (Team A)
-    # pct_vals[1] = home win (Team B)
+    # Mapping:
+    # pct_vals[0] = away win
+    # pct_vals[1] = home win
     # pct_vals[2] = draw
 
     rows.append({
@@ -126,6 +135,8 @@ while i < n:
         "away_prob": f"{pct_vals[0]:.6f}",
     })
 
+    i += 1
+
 if len(dates_seen) != 1:
     log("ERROR: Multiple or zero match_dates detected")
     raise ValueError("Invalid slate")
@@ -137,7 +148,7 @@ output_dir = Path("docs/win/soccer/00_intake/predictions")
 output_dir.mkdir(parents=True, exist_ok=True)
 outfile = output_dir / f"soccer_{file_date}.csv"
 
-# --- LOAD + SELF-DEDUP EXISTING ---
+# LOAD + SELF-DEDUP
 existing_rows = {}
 
 if outfile.exists():
@@ -155,7 +166,7 @@ if outfile.exists():
         else:
             log("WARNING: Invalid header detected. Rebuilding clean.")
 
-# --- UPSERT ---
+# UPSERT
 for new_row in rows:
     key = (
         new_row["match_date"],
