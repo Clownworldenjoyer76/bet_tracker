@@ -27,15 +27,13 @@ def log(msg: str) -> None:
 # ARGS / INPUT
 # =========================
 
-USAGE = (
-    "Usage:\n"
-    "  drat.py <league> <market> <raw_text>\n"
-    "  drat.py <league> <market> -            (read raw_text from stdin)\n"
-    "  drat.py <league> <market> <path.txt>   (read raw_text from file)\n"
-)
-
 if len(sys.argv) < 3:
-    raise ValueError(USAGE)
+    raise ValueError(
+        "Usage:\n"
+        "  drat.py <league> <market> <raw_text>\n"
+        "  drat.py <league> <market> -\n"
+        "  drat.py <league> <market> <path.txt>\n"
+    )
 
 league_arg = sys.argv[1].strip()
 market_input = sys.argv[2].strip()
@@ -48,7 +46,6 @@ if len(sys.argv) >= 4:
     if third == "-":
         raw_text = sys.stdin.read()
         log("Read raw_text from stdin.")
-
     else:
         p = Path(third)
         if p.exists() and p.is_file():
@@ -93,20 +90,24 @@ FIELDNAMES = [
 ]
 
 # =========================
-# REGEX
+# REGEX (FIXED)
 # =========================
 
-RE_DATE = re.compile(r"(\d{2})/(\d{2})/(\d{4})")
+RE_DATE = re.compile(r"(\d{1,2})/(\d{1,2})/(\d{4})")
 RE_TIME = re.compile(r"\b\d{1,2}:\d{2}(?:\s*(AM|PM))?\b", re.IGNORECASE)
 RE_PCT  = re.compile(r"(\d+(?:\.\d+)?)%")
 
 # =========================
-# NORMALIZE LINES
+# NORMALIZE LINES (BOM SAFE)
 # =========================
 
 lines = []
 for l in raw_text.splitlines():
-    s = l.replace("−", "-").strip()
+    s = (
+        l.replace("−", "-")
+         .replace("\ufeff", "")
+         .strip()
+    )
     if s:
         lines.append(s)
 
@@ -114,11 +115,10 @@ n = len(lines)
 log(f"lines_count={n}")
 
 # =========================
-# PARSE (DATE-ANCHORED — ROBUST)
+# PARSE
 # =========================
 
 rows_by_date = defaultdict(list)
-dates_seen = set()
 
 def strip_pct(text: str) -> str:
     return RE_PCT.sub("", text).strip()
@@ -130,8 +130,7 @@ for idx, line in enumerate(lines):
         continue
 
     mm, dd, yyyy = dm.groups()
-    file_date = f"{yyyy}_{mm}_{dd}"
-    dates_seen.add(file_date)
+    file_date = f"{yyyy}_{mm.zfill(2)}_{dd.zfill(2)}"
 
     # Find first time AFTER this date
     t_idx = None
@@ -141,7 +140,6 @@ for idx, line in enumerate(lines):
             break
 
     if t_idx is None:
-        log(f"No time found after date at idx={idx}")
         continue
 
     if t_idx + 2 >= n:
@@ -153,7 +151,6 @@ for idx, line in enumerate(lines):
     team_b = strip_pct(lines[t_idx + 2])
 
     if not team_a or not team_b:
-        log(f"Teams missing after date {file_date}")
         continue
 
     away_team = team_a
@@ -171,10 +168,8 @@ for idx, line in enumerate(lines):
             break
 
     if len(pct_vals) != 3:
-        log(f"Incomplete pct block for {home_team} vs {away_team}")
         continue
 
-    # Team A %, Team B %, Draw %
     away_prob = pct_vals[0]
     home_prob = pct_vals[1]
     draw_prob = pct_vals[2]
@@ -196,7 +191,7 @@ for idx, line in enumerate(lines):
 # =========================
 
 total_rows = sum(len(v) for v in rows_by_date.values())
-log(f"dates_seen={sorted(dates_seen)} total_rows={total_rows}")
+log(f"total_rows={total_rows}")
 
 if total_rows == 0:
     raise ValueError("No rows parsed from raw_text.")
