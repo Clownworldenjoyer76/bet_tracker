@@ -57,6 +57,7 @@ i = 0
 n = len(lines)
 
 while i < n:
+
     date_match = RE_DATE.match(lines[i])
     if not date_match:
         i += 1
@@ -78,17 +79,20 @@ while i < n:
     if i + 1 >= n:
         break
 
+    # FORMAT CONFIRMED:
+    # Date
+    # Time
+    # Team A
+    # Team B
+    # Team A %
+    # Team B %
+    # Draw %
+
     away_team = lines[i]
-    home_line = lines[i + 1]
+    home_team = lines[i + 1]
     i += 2
 
     pct_vals = []
-
-    # Extract percentages from home_line and following lines
-    for m in RE_PCT.finditer(home_line):
-        pct_vals.append(float(m.group(1)) / 100.0)
-
-    home_team = RE_PCT.sub("", home_line).strip()
 
     while i < n and len(pct_vals) < 3:
         for m in RE_PCT.finditer(lines[i]):
@@ -105,9 +109,9 @@ while i < n:
         log(f"ERROR: Probabilities do not sum to 1 ({total}) for {home_team} vs {away_team}")
         raise ValueError("Probability validation failed")
 
-    # Correct mapping:
-    # pct_vals[0] = away win
-    # pct_vals[1] = home win
+    # Confirmed mapping:
+    # pct_vals[0] = away win (Team A)
+    # pct_vals[1] = home win (Team B)
     # pct_vals[2] = draw
 
     rows.append({
@@ -115,8 +119,8 @@ while i < n:
         "market": market,
         "match_date": formatted_date,
         "match_time": match_time,
-        "home_team": home_team,
-        "away_team": away_team,
+        "home_team": home_team.strip(),
+        "away_team": away_team.strip(),
         "home_prob": f"{pct_vals[1]:.6f}",
         "draw_prob": f"{pct_vals[2]:.6f}",
         "away_prob": f"{pct_vals[0]:.6f}",
@@ -135,28 +139,39 @@ outfile = output_dir / f"soccer_{file_date}.csv"
 
 # --- LOAD + SELF-DEDUP EXISTING ---
 existing_rows = {}
+
 if outfile.exists():
     with open(outfile, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         if reader.fieldnames == FIELDNAMES:
             for row in reader:
-                if all(k in row for k in FIELDNAMES):
-                    key = (row["match_date"],row["market"],row["home_team"],row["away_team"])
-                    existing_rows[key] = row
+                key = (
+                    row["match_date"],
+                    row["market"],
+                    row["home_team"],
+                    row["away_team"]
+                )
+                existing_rows[key] = row
         else:
             log("WARNING: Invalid header detected. Rebuilding clean.")
 
 # --- UPSERT ---
 for new_row in rows:
-    key = (new_row["match_date"],new_row["market"],new_row["home_team"],new_row["away_team"])
+    key = (
+        new_row["match_date"],
+        new_row["market"],
+        new_row["home_team"],
+        new_row["away_team"]
+    )
     existing_rows[key] = new_row
 
 temp_file = outfile.with_suffix(".tmp")
-with open(temp_file,"w",newline="",encoding="utf-8") as f:
-    writer = csv.DictWriter(f,fieldnames=FIELDNAMES)
+
+with open(temp_file, "w", newline="", encoding="utf-8") as f:
+    writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
     writer.writeheader()
     for r in existing_rows.values():
-        writer.writerow({k:r.get(k,"") for k in FIELDNAMES})
+        writer.writerow({k: r.get(k, "") for k in FIELDNAMES})
 
 temp_file.replace(outfile)
 
