@@ -115,6 +115,10 @@ for block in blocks:
         log(f"ERROR parsing block: {str(e)}")
         errors+=1
 
+print("PARSED ROWS:")
+for r in rows:
+    print(r)
+    
 if not rows:
     log("SUMMARY: wrote 0 rows")
     sys.exit()
