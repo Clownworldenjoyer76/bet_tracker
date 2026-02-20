@@ -50,7 +50,6 @@ RE_DATE = re.compile(r"^(\d{2})/(\d{2})/(\d{4})$")
 RE_TIME = re.compile(r"^\d{1,2}:\d{2}\s*(AM|PM)$", re.IGNORECASE)
 RE_PCT  = re.compile(r"(\d+(?:\.\d+)?)%")
 
-# normalize lines (strip ends; drop blanks)
 lines = [l.replace("−", "-").strip() for l in raw_text.splitlines() if l.strip()]
 n = len(lines)
 
@@ -84,18 +83,13 @@ while i < n:
     if i + 1 >= n:
         break
 
-    # Teams are the next two lines:
-    # In the dump, Team A is listed first (away), Team B second (home).
-    team_a_line = lines[i]
-    team_b_line = lines[i + 1]
+    # Dump order: away team line, then home team line
+    away_team = strip_pcts(lines[i])
+    home_team = strip_pcts(lines[i + 1])
     i += 2
 
-    away_team = strip_pcts(team_a_line)
-    home_team = strip_pcts(team_b_line)
-
-    # Collect the NEXT THREE percentages that appear after the teams.
-    # DraftKings "Win / Draw / Best" section appears as:
-    #   AwayWin%, HomeWin%, Draw%
+    # IMPORTANT:
+    # Only collect the NEXT THREE percentages AFTER the two team lines.
     pct_vals = []
     j = i
     while j < n and not RE_DATE.match(lines[j]) and len(pct_vals) < 3:
@@ -105,13 +99,15 @@ while i < n:
                 break
         j += 1
 
-    i = j  # advance
+    i = j  # advance pointer
 
     if len(pct_vals) < 3:
         log(f"ERROR: Could not extract 3 probabilities for {away_team} vs {home_team} | got={pct_vals}")
         errors += 1
         continue
 
+    # Your dump order is:
+    # Away Win %, Home Win %, Draw %
     away_prob = pct_vals[0]
     home_prob = pct_vals[1]
     draw_prob = pct_vals[2]
