@@ -5,10 +5,6 @@ import csv
 from pathlib import Path
 from datetime import datetime
 
-# =========================
-# PATHS
-# =========================
-
 INTAKE_DIR = Path("docs/win/soccer/00_intake")
 MAP_FILE = Path("mappings/soccer/team_map_soccer.csv")
 
@@ -20,7 +16,6 @@ ERROR_DIR = Path("docs/win/soccer/errors/00_intake")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE = ERROR_DIR / "name_normalization_log.txt"
 
-# Overwrite log each run
 with open(LOG_FILE, "w", encoding="utf-8") as f:
     f.write("")
 
@@ -29,7 +24,7 @@ def log(msg):
         f.write(f"{datetime.utcnow().isoformat()} | {msg}\n")
 
 # =========================
-# LOAD TEAM MAP
+# LOAD TEAM MAP (CASE INSENSITIVE)
 # =========================
 
 team_map = {}
@@ -38,14 +33,13 @@ if MAP_FILE.exists():
     with open(MAP_FILE, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            key = (row["market"].strip(), row["alias"].strip())
+            key = (
+                row["market"].strip().lower(),
+                row["alias"].strip().lower(),
+            )
             team_map[key] = row["canonical_team"].strip()
 else:
     log("WARNING: team_map_soccer.csv not found")
-
-# =========================
-# TRACK UNMAPPED
-# =========================
 
 unmapped = set()
 files_processed = 0
@@ -53,7 +47,7 @@ rows_processed = 0
 rows_updated = 0
 
 # =========================
-# PROCESS FILES (RECURSIVE)
+# PROCESS FILES
 # =========================
 
 for csv_file in INTAKE_DIR.rglob("*.csv"):
@@ -67,15 +61,16 @@ for csv_file in INTAKE_DIR.rglob("*.csv"):
 
         for row in reader:
             rows_processed += 1
-            market = row.get("market", "").strip()
+            market = row.get("market", "").strip().lower()
 
             for side in ["home_team", "away_team"]:
                 team = row.get(side, "").strip()
-                key = (market, team)
+                key = (market, team.lower())
 
                 if key in team_map:
-                    if row[side] != team_map[key]:
-                        row[side] = team_map[key]
+                    canonical = team_map[key]
+                    if row[side] != canonical:
+                        row[side] = canonical
                         modified = True
                         rows_updated += 1
                 else:
@@ -109,10 +104,6 @@ with open(NO_MAP_FILE, "w", newline="", encoding="utf-8") as f:
     writer.writerow(["market", "team"])
     for market, team in sorted(combined):
         writer.writerow([market, team])
-
-# =========================
-# LOG SUMMARY
-# =========================
 
 log(
     f"SUMMARY: files_processed={files_processed}, "
