@@ -1,3 +1,5 @@
+# docs/win/soccer/scripts/00_parsing/dk.py
+
 #!/usr/bin/env python3
 
 import sys
