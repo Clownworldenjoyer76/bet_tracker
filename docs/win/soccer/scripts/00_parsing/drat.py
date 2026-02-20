@@ -48,10 +48,11 @@ RE_DATE = re.compile(r"^(\d{2})/(\d{2})/(\d{4})$")
 RE_TIME = re.compile(r"^\d{1,2}:\d{2}\s*(AM|PM)$")
 RE_PCT = re.compile(r"(\d+(?:\.\d+)?)%")
 
+lines = [l.replace("−", "-").strip() for l in raw_text.splitlines() if l.strip()]
+
 rows = []
 dates_seen = set()
 
-lines = [l.replace("−", "-").strip() for l in raw_text.splitlines() if l.strip()]
 i = 0
 n = len(lines)
 
@@ -68,8 +69,7 @@ while i < n:
     i += 1
 
     if i >= n or not RE_TIME.match(lines[i]):
-        log("ERROR: Missing time after date")
-        raise ValueError("Invalid format")
+        raise ValueError("Missing time after date")
 
     match_time = lines[i]
     i += 1
@@ -77,49 +77,59 @@ while i < n:
     if i + 1 >= n:
         break
 
-    away_team = lines[i]
-    home_team = lines[i + 1]
+    # Team lines may contain percentages — strip them
+    away_line = lines[i]
+    home_line = lines[i + 1]
+
+    away_team = RE_PCT.sub("", away_line).strip()
+    home_team = RE_PCT.sub("", home_line).strip()
+
     i += 2
 
+    # Collect percentages strictly until we have 3
     pct_vals = []
-    j = i
+    start_idx = i
 
-    while j < n and len(pct_vals) < 3:
-        matches = RE_PCT.findall(lines[j])
+    while i < n and len(pct_vals) < 3:
+        # Stop if next match begins
+        if RE_DATE.match(lines[i]):
+            break
+
+        matches = RE_PCT.findall(lines[i])
         for m in matches:
             pct_vals.append(float(m) / 100.0)
-        j += 1
+
+        i += 1
 
     if len(pct_vals) != 3:
-        log(f"ERROR: Missing probabilities for {home_team} vs {away_team}")
+        log(f"ERROR: Could not extract 3 probabilities for {home_team} vs {away_team}")
         raise ValueError("Probability extraction failed")
 
     total = sum(pct_vals)
+
     if abs(total - 1.0) > 0.03:
-        log(f"ERROR: Probabilities do not sum to 1 ({total})")
+        log(f"ERROR: Probability sum invalid ({total}) for {home_team} vs {away_team}")
         raise ValueError("Probability validation failed")
 
-    # Correct mapping based on raw format:
-    # pct_vals[0] = Team A win (away)
+    # Raw format:
+    # pct_vals[0] = Team A (away)
     # pct_vals[1] = Draw
-    # pct_vals[2] = Team B win (home)
+    # pct_vals[2] = Team B (home)
 
     rows.append({
         "league": league,
         "market": market,
         "match_date": formatted_date,
         "match_time": match_time,
-        "home_team": home_team.strip(),
-        "away_team": away_team.strip(),
+        "home_team": home_team,
+        "away_team": away_team,
         "home_prob": f"{pct_vals[2]:.6f}",
         "draw_prob": f"{pct_vals[1]:.6f}",
         "away_prob": f"{pct_vals[0]:.6f}",
     })
 
-    i = j
-
 if len(dates_seen) != 1:
-    raise ValueError("Invalid slate")
+    raise ValueError("Invalid slate — multiple or zero dates detected")
 
 file_date = formatted_date
 
