@@ -81,6 +81,8 @@ while i < n:
     i += 2
 
     pct_vals = []
+
+    # Extract percentages from home_line and following lines
     for m in RE_PCT.finditer(home_line):
         pct_vals.append(float(m.group(1)) / 100.0)
 
@@ -101,6 +103,11 @@ while i < n:
         log(f"ERROR: Probabilities do not sum to 1 ({total}) for {home_team} vs {away_team}")
         raise ValueError("Probability validation failed")
 
+    # Correct mapping:
+    # pct_vals[0] = away win
+    # pct_vals[1] = home win
+    # pct_vals[2] = draw
+
     rows.append({
         "league": league,
         "market": market,
@@ -108,9 +115,9 @@ while i < n:
         "match_time": match_time,
         "home_team": home_team,
         "away_team": away_team,
-        "home_prob": f"{pct_vals[0]:.6f}",
-        "draw_prob": f"{pct_vals[1]:.6f}",
-        "away_prob": f"{pct_vals[2]:.6f}",
+        "home_prob": f"{pct_vals[1]:.6f}",
+        "draw_prob": f"{pct_vals[2]:.6f}",
+        "away_prob": f"{pct_vals[0]:.6f}",
     })
 
 if len(dates_seen) != 1:
