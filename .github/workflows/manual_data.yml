@@ -40,16 +40,19 @@ jobs:
 
       - name: Route to correct parser
         run: |
+          # Write multiline raw_text safely to file (preserves formatting)
+          printf "%s" "${{ github.event.inputs.raw_text }}" > dump.txt
+
           if [ "${{ github.event.inputs.source }}" = "DraftKings" ]; then
             python docs/win/soccer/scripts/00_parsing/dk.py \
               "${{ github.event.inputs.league }}" \
               "${{ github.event.inputs.market }}" \
-              "${{ github.event.inputs.raw_text }}"
+              dump.txt
           else
             python docs/win/soccer/scripts/00_parsing/drat.py \
               "${{ github.event.inputs.league }}" \
               "${{ github.event.inputs.market }}" \
-              "${{ github.event.inputs.raw_text }}"
+              dump.txt
           fi
 
       - name: Normalize team names
