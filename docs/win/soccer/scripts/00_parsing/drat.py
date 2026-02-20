@@ -15,9 +15,12 @@ LOG_FILE = ERROR_DIR / "drat_log.txt"
 with open(LOG_FILE, "w", encoding="utf-8") as f:
     f.write("")
 
-def log(msg):
+def log(msg: str) -> None:
     with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write(f"{datetime.utcnow().isoformat()} | {msg}\n")
+
+if len(sys.argv) < 4:
+    raise ValueError("Usage: drat.py <league> <market> <raw_text>")
 
 league_input = sys.argv[1].strip()
 market_input = sys.argv[2].strip()
@@ -45,31 +48,36 @@ FIELDNAMES = [
 ]
 
 RE_DATE = re.compile(r"^(\d{2})/(\d{2})/(\d{4})$")
-RE_TIME = re.compile(r"^\d{1,2}:\d{2}\s*(AM|PM)$")
-RE_PCT = re.compile(r"(\d+(?:\.\d+)?)%")
+RE_TIME = re.compile(r"^\d{1,2}:\d{2}\s*(AM|PM)$", re.IGNORECASE)
+RE_PCT  = re.compile(r"(\d+(?:\.\d+)?)%")
 
+# normalize lines (keep tabs; strip ends; drop blanks)
 lines = [l.replace("−", "-").strip() for l in raw_text.splitlines() if l.strip()]
+n = len(lines)
 
 rows = []
 dates_seen = set()
+errors = 0
+
+def strip_pcts(s: str) -> str:
+    return RE_PCT.sub("", s).strip()
 
 i = 0
-n = len(lines)
-
 while i < n:
-
-    date_match = RE_DATE.match(lines[i])
-    if not date_match:
+    m = RE_DATE.match(lines[i])
+    if not m:
         i += 1
         continue
 
-    mm, dd, yyyy = date_match.groups()
-    formatted_date = f"{yyyy}_{mm}_{dd}"
+    mm, dd, yyyy = m.groups()
+    file_date = f"{yyyy}_{mm}_{dd}"
     dates_seen.add(lines[i])
     i += 1
 
     if i >= n or not RE_TIME.match(lines[i]):
-        raise ValueError("Missing time after date")
+        log(f"ERROR: Missing/invalid time after date {file_date} (got: {lines[i] if i < n else 'EOF'})")
+        errors += 1
+        continue
 
     match_time = lines[i]
     i += 1
@@ -77,92 +85,99 @@ while i < n:
     if i + 1 >= n:
         break
 
-    # Team lines may contain percentages — strip them
-    away_line = lines[i]
-    home_line = lines[i + 1]
-
-    away_team = RE_PCT.sub("", away_line).strip()
-    home_team = RE_PCT.sub("", home_line).strip()
-
+    # Teams are the next two lines (may contain a % on the 2nd line)
+    team_a_line = lines[i]
+    team_b_line = lines[i + 1]
     i += 2
 
-    # Collect percentages strictly until we have 3
+    # Collect % from team lines + subsequent lines until next date
     pct_vals = []
-    start_idx = i
+    for s in (team_a_line, team_b_line):
+        for v in RE_PCT.findall(s):
+            pct_vals.append(float(v) / 100.0)
 
-    while i < n and len(pct_vals) < 3:
-        # Stop if next match begins
-        if RE_DATE.match(lines[i]):
+    # scan forward until next date, collecting any additional % values
+    j = i
+    while j < n and not RE_DATE.match(lines[j]):
+        for v in RE_PCT.findall(lines[j]):
+            pct_vals.append(float(v) / 100.0)
+        j += 1
+
+        # stop early if we already have at least 3
+        if len(pct_vals) >= 3:
             break
 
-        matches = RE_PCT.findall(lines[i])
-        for m in matches:
-            pct_vals.append(float(m) / 100.0)
+    # advance pointer to where we stopped scanning (so we don’t re-walk the same block)
+    i = j
 
-        i += 1
+    # Need at least 3; if more, take first 3 (raw sometimes includes extra % elsewhere)
+    if len(pct_vals) < 3:
+        log(f"ERROR: Could not extract 3 probabilities for teams: '{strip_pcts(team_a_line)}' vs '{strip_pcts(team_b_line)}' | got={pct_vals}")
+        errors += 1
+        continue
 
-    if len(pct_vals) != 3:
-        log(f"ERROR: Could not extract 3 probabilities for {home_team} vs {away_team}")
-        raise ValueError("Probability extraction failed")
+    pct_vals = pct_vals[:3]
 
     total = sum(pct_vals)
+    if abs(total - 1.0) > 0.05:
+        log(f"ERROR: Prob sum invalid ({total}) for {strip_pcts(team_a_line)} vs {strip_pcts(team_b_line)} | pcts={pct_vals}")
+        errors += 1
+        continue
 
-    if abs(total - 1.0) > 0.03:
-        log(f"ERROR: Probability sum invalid ({total}) for {home_team} vs {away_team}")
-        raise ValueError("Probability validation failed")
+    # Your raw layout is: Team A, Team B, then: Team A win %, Draw %, Team B win %
+    away_team = strip_pcts(team_a_line)
+    home_team = strip_pcts(team_b_line)
 
-    # Raw format:
-    # pct_vals[0] = Team A (away)
-    # pct_vals[1] = Draw
-    # pct_vals[2] = Team B (home)
+    away_prob = pct_vals[0]
+    draw_prob = pct_vals[1]
+    home_prob = pct_vals[2]
 
     rows.append({
         "league": league,
         "market": market,
-        "match_date": formatted_date,
+        "match_date": file_date,
         "match_time": match_time,
         "home_team": home_team,
         "away_team": away_team,
-        "home_prob": f"{pct_vals[2]:.6f}",
-        "draw_prob": f"{pct_vals[1]:.6f}",
-        "away_prob": f"{pct_vals[0]:.6f}",
+        "home_prob": f"{home_prob:.6f}",
+        "draw_prob": f"{draw_prob:.6f}",
+        "away_prob": f"{away_prob:.6f}",
     })
 
 if len(dates_seen) != 1:
-    raise ValueError("Invalid slate — multiple or zero dates detected")
+    log(f"ERROR: Invalid slate (dates_seen={sorted(dates_seen)})")
+    raise ValueError("Invalid slate")
 
-file_date = formatted_date
+if not rows:
+    log(f"SUMMARY: upserted 0 rows, {errors} errors")
+    raise ValueError("No rows parsed from raw_text")
+
+# use the single date we saw
+mm, dd, yyyy = RE_DATE.match(list(dates_seen)[0]).groups()
+outfile_date = f"{yyyy}_{mm}_{dd}"
 
 output_dir = Path("docs/win/soccer/00_intake/predictions")
 output_dir.mkdir(parents=True, exist_ok=True)
-outfile = output_dir / f"soccer_{file_date}.csv"
+outfile = output_dir / f"soccer_{outfile_date}.csv"
 
+# --- LOAD + SELF-DEDUP EXISTING ---
 existing_rows = {}
-
 if outfile.exists():
     with open(outfile, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         if reader.fieldnames == FIELDNAMES:
-            for row in reader:
-                key = (
-                    row["match_date"],
-                    row["market"],
-                    row["home_team"],
-                    row["away_team"]
-                )
-                existing_rows[key] = row
+            for r in reader:
+                key = (r["match_date"], r["market"], r["home_team"], r["away_team"])
+                existing_rows[key] = r
+        else:
+            log("WARNING: Invalid header detected. Rebuilding clean.")
 
-for new_row in rows:
-    key = (
-        new_row["match_date"],
-        new_row["market"],
-        new_row["home_team"],
-        new_row["away_team"]
-    )
-    existing_rows[key] = new_row
+# --- UPSERT (newest overwrites) ---
+for r in rows:
+    key = (r["match_date"], r["market"], r["home_team"], r["away_team"])
+    existing_rows[key] = r
 
 temp_file = outfile.with_suffix(".tmp")
-
 with open(temp_file, "w", newline="", encoding="utf-8") as f:
     writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
     writer.writeheader()
@@ -171,4 +186,5 @@ with open(temp_file, "w", newline="", encoding="utf-8") as f:
 
 temp_file.replace(outfile)
 
+log(f"SUMMARY: upserted {len(rows)} rows, {errors} errors")
 print(f"Wrote {outfile} ({len(rows)} rows processed)")
