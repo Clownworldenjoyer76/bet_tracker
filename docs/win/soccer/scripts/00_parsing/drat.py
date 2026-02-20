@@ -1,6 +1,5 @@
-# docs/win/soccer/scripts/00_parsing/drat.py
-
 #!/usr/bin/env python3
+# docs/win/soccer/scripts/00_parsing/drat.py
 
 import sys
 import re
@@ -51,7 +50,7 @@ RE_DATE = re.compile(r"^(\d{2})/(\d{2})/(\d{4})$")
 RE_TIME = re.compile(r"^\d{1,2}:\d{2}\s*(AM|PM)$", re.IGNORECASE)
 RE_PCT  = re.compile(r"(\d+(?:\.\d+)?)%")
 
-# normalize lines (keep tabs; strip ends; drop blanks)
+# normalize lines (strip ends; drop blanks)
 lines = [l.replace("−", "-").strip() for l in raw_text.splitlines() if l.strip()]
 n = len(lines)
 
@@ -85,52 +84,43 @@ while i < n:
     if i + 1 >= n:
         break
 
-    # Teams are the next two lines (may contain a % on the 2nd line)
+    # Teams are the next two lines:
+    # In the dump, Team A is listed first (away), Team B second (home).
     team_a_line = lines[i]
     team_b_line = lines[i + 1]
     i += 2
 
-    # Collect % from team lines + subsequent lines until next date
-    pct_vals = []
-    for s in (team_a_line, team_b_line):
-        for v in RE_PCT.findall(s):
-            pct_vals.append(float(v) / 100.0)
-
-    # scan forward until next date, collecting any additional % values
-    j = i
-    while j < n and not RE_DATE.match(lines[j]):
-        for v in RE_PCT.findall(lines[j]):
-            pct_vals.append(float(v) / 100.0)
-        j += 1
-
-        # stop early if we already have at least 3
-        if len(pct_vals) >= 3:
-            break
-
-    # advance pointer to where we stopped scanning (so we don’t re-walk the same block)
-    i = j
-
-    # Need at least 3; if more, take first 3 (raw sometimes includes extra % elsewhere)
-    if len(pct_vals) < 3:
-        log(f"ERROR: Could not extract 3 probabilities for teams: '{strip_pcts(team_a_line)}' vs '{strip_pcts(team_b_line)}' | got={pct_vals}")
-        errors += 1
-        continue
-
-    pct_vals = pct_vals[:3]
-
-    total = sum(pct_vals)
-    if abs(total - 1.0) > 0.05:
-        log(f"ERROR: Prob sum invalid ({total}) for {strip_pcts(team_a_line)} vs {strip_pcts(team_b_line)} | pcts={pct_vals}")
-        errors += 1
-        continue
-
-    # Your raw layout is: Team A, Team B, then: Team A win %, Draw %, Team B win %
     away_team = strip_pcts(team_a_line)
     home_team = strip_pcts(team_b_line)
 
+    # Collect the NEXT THREE percentages that appear after the teams.
+    # DraftKings "Win / Draw / Best" section appears as:
+    #   AwayWin%, HomeWin%, Draw%
+    pct_vals = []
+    j = i
+    while j < n and not RE_DATE.match(lines[j]) and len(pct_vals) < 3:
+        for v in RE_PCT.findall(lines[j]):
+            pct_vals.append(float(v) / 100.0)
+            if len(pct_vals) >= 3:
+                break
+        j += 1
+
+    i = j  # advance
+
+    if len(pct_vals) < 3:
+        log(f"ERROR: Could not extract 3 probabilities for {away_team} vs {home_team} | got={pct_vals}")
+        errors += 1
+        continue
+
     away_prob = pct_vals[0]
-    draw_prob = pct_vals[1]
-    home_prob = pct_vals[2]
+    home_prob = pct_vals[1]
+    draw_prob = pct_vals[2]
+
+    total = away_prob + home_prob + draw_prob
+    if abs(total - 1.0) > 0.05:
+        log(f"ERROR: Prob sum invalid ({total}) for {away_team} vs {home_team} | pcts={pct_vals}")
+        errors += 1
+        continue
 
     rows.append({
         "league": league,
@@ -152,7 +142,6 @@ if not rows:
     log(f"SUMMARY: upserted 0 rows, {errors} errors")
     raise ValueError("No rows parsed from raw_text")
 
-# use the single date we saw
 mm, dd, yyyy = RE_DATE.match(list(dates_seen)[0]).groups()
 outfile_date = f"{yyyy}_{mm}_{dd}"
 
