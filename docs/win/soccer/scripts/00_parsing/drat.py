@@ -1,3 +1,5 @@
+# docs/win/soccer/scripts/00_parsing/drat.py
+
 #!/usr/bin/env python3
 
 import sys
@@ -80,8 +82,8 @@ while i < n:
     i += 2
 
     pct_vals = []
-
     j = i
+
     while j < n and len(pct_vals) < 3:
         matches = RE_PCT.findall(lines[j])
         for m in matches:
@@ -97,6 +99,11 @@ while i < n:
         log(f"ERROR: Probabilities do not sum to 1 ({total})")
         raise ValueError("Probability validation failed")
 
+    # Correct mapping based on raw format:
+    # pct_vals[0] = Team A win (away)
+    # pct_vals[1] = Draw
+    # pct_vals[2] = Team B win (home)
+
     rows.append({
         "league": league,
         "market": market,
@@ -104,12 +111,12 @@ while i < n:
         "match_time": match_time,
         "home_team": home_team.strip(),
         "away_team": away_team.strip(),
-        "home_prob": f"{pct_vals[1]:.6f}",
-        "draw_prob": f"{pct_vals[2]:.6f}",
+        "home_prob": f"{pct_vals[2]:.6f}",
+        "draw_prob": f"{pct_vals[1]:.6f}",
         "away_prob": f"{pct_vals[0]:.6f}",
     })
 
-    i = j  # advance pointer correctly
+    i = j
 
 if len(dates_seen) != 1:
     raise ValueError("Invalid slate")
