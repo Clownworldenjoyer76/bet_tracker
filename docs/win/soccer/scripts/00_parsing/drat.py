@@ -40,37 +40,32 @@ if len(sys.argv) < 3:
 league_arg = sys.argv[1].strip()
 market_input = sys.argv[2].strip()
 
-# IMPORTANT:
-# Passing multiline dumps via argv is fragile (spaces/newlines split arguments).
-# We support:
-# - stdin via "-"
-# - file path
-# - fallback: join remaining argv tokens
 raw_text = ""
+
 if len(sys.argv) >= 4:
     third = sys.argv[3]
+
     if third == "-":
         raw_text = sys.stdin.read()
         log("Read raw_text from stdin.")
+
     else:
         p = Path(third)
         if p.exists() and p.is_file():
             raw_text = p.read_text(encoding="utf-8", errors="replace")
             log(f"Read raw_text from file: {p}")
         else:
-            # Fallback: join all remaining args (handles spaces if caller didn't quote correctly)
             raw_text = " ".join(sys.argv[3:])
             log("Read raw_text from joined argv tokens (fallback).")
 else:
-    # No raw_text arg provided; allow stdin as a last resort
     raw_text = sys.stdin.read()
-    log("No raw_text arg; read from stdin as fallback.")
+    log("No raw_text arg; read from stdin fallback.")
 
 if not raw_text or not raw_text.strip():
-    log("ERROR: raw_text is empty after ingestion.")
-    raise ValueError("raw_text is empty. Provide stdin (-), a file path, or a properly quoted raw_text argument.")
+    log("ERROR: raw_text empty after ingestion.")
+    raise ValueError("raw_text is empty.")
 
-log(f"raw_text_len={len(raw_text)} preview={raw_text[:120].replace(chr(10), ' | ')}")
+log(f"raw_text_len={len(raw_text)}")
 
 # =========================
 # MARKET MAP
@@ -89,7 +84,6 @@ market = market_map.get(market_input)
 if not market:
     raise ValueError(f"Invalid soccer market: {market_input!r}")
 
-# For output, you said league is always "soccer"
 league = "soccer"
 
 FIELDNAMES = [
@@ -103,11 +97,8 @@ FIELDNAMES = [
 # =========================
 
 RE_DATE = re.compile(r"(\d{2})/(\d{2})/(\d{4})")
-# Support:
-#  - 9:00 AM / 09:00 AM / 9:00AM
-#  - 14:45 (24h) just in case some dumps omit AM/PM
-RE_TIME = re.compile(r"\b(\d{1,2}:\d{2})(?:\s*(AM|PM))?\b", re.IGNORECASE)
-RE_PCT = re.compile(r"(\d+(?:\.\d+)?)%")
+RE_TIME = re.compile(r"\b\d{1,2}:\d{2}(?:\s*(AM|PM))?\b", re.IGNORECASE)
+RE_PCT  = re.compile(r"(\d+(?:\.\d+)?)%")
 
 # =========================
 # NORMALIZE LINES
@@ -123,87 +114,67 @@ n = len(lines)
 log(f"lines_count={n}")
 
 # =========================
-# PARSE
+# PARSE (DATE-ANCHORED — ROBUST)
 # =========================
 
 rows_by_date = defaultdict(list)
 dates_seen = set()
 
-def next_idx_with_time(start_idx: int, max_lookahead: int = 5) -> int:
-    """
-    Find the next line index containing a time, within a limited lookahead.
-    Returns index if found, else -1.
-    """
-    end = min(n, start_idx + max_lookahead)
-    for j in range(start_idx, end):
-        if RE_TIME.search(lines[j]):
-            return j
-    return -1
-
 def strip_pct(text: str) -> str:
     return RE_PCT.sub("", text).strip()
 
-i = 0
-while i < n:
-    dm = RE_DATE.search(lines[i])
+for idx, line in enumerate(lines):
+
+    dm = RE_DATE.search(line)
     if not dm:
-        i += 1
         continue
 
     mm, dd, yyyy = dm.groups()
     file_date = f"{yyyy}_{mm}_{dd}"
     dates_seen.add(file_date)
 
-    # Look for time within next few lines (dump headers / noise can sometimes appear)
-    t_idx = next_idx_with_time(i + 1, max_lookahead=6)
-    if t_idx == -1:
-        log(f"DATE found but no TIME near it: idx={i} line={lines[i]!r}")
-        i += 1
+    # Find first time AFTER this date
+    t_idx = None
+    for j in range(idx + 1, n):
+        if RE_TIME.search(lines[j]):
+            t_idx = j
+            break
+
+    if t_idx is None:
+        log(f"No time found after date at idx={idx}")
         continue
 
-    match_time = lines[t_idx].strip()
+    if t_idx + 2 >= n:
+        continue
 
-    # Teams should be the next two non-empty lines after the time line (we already removed empties)
-    team_a_idx = t_idx + 1
-    team_b_idx = t_idx + 2
-    if team_b_idx >= n:
-        break
+    match_time = lines[t_idx]
 
-    team_a = strip_pct(lines[team_a_idx])
-    team_b = strip_pct(lines[team_b_idx])
+    team_a = strip_pct(lines[t_idx + 1])
+    team_b = strip_pct(lines[t_idx + 2])
 
     if not team_a or not team_b:
-        log(f"Missing teams after date/time: date_idx={i} time_idx={t_idx} team_a={team_a!r} team_b={team_b!r}")
-        i = team_b_idx + 1
+        log(f"Teams missing after date {file_date}")
         continue
 
-    # Your existing assumption: Team A then Team B
     away_team = team_a
     home_team = team_b
 
-    # Collect next 3 percentages from subsequent lines (starting after the 2 team lines)
+    # Collect next 3 percentages
     pct_vals = []
-    j = team_b_idx + 1
-    while j < n and len(pct_vals) < 3:
-        found = RE_PCT.findall(lines[j])
+    for k in range(t_idx + 3, n):
+        found = RE_PCT.findall(lines[k])
         for v in found:
-            try:
-                pct_vals.append(float(v) / 100.0)
-            except Exception:
-                pass
+            pct_vals.append(float(v) / 100.0)
             if len(pct_vals) == 3:
                 break
-        j += 1
+        if len(pct_vals) == 3:
+            break
 
     if len(pct_vals) != 3:
-        log(
-            f"Incomplete pct block: date={file_date} time={match_time!r} "
-            f"away={away_team!r} home={home_team!r} pct_found={pct_vals}"
-        )
-        i = j
+        log(f"Incomplete pct block for {home_team} vs {away_team}")
         continue
 
-    # Per your instruction: Team A %, Team B %, Draw %
+    # Team A %, Team B %, Draw %
     away_prob = pct_vals[0]
     home_prob = pct_vals[1]
     draw_prob = pct_vals[2]
@@ -220,24 +191,19 @@ while i < n:
         "away_prob": f"{away_prob:.6f}",
     })
 
-    # Move pointer forward to continue scanning after the percentages block we just consumed
-    i = j
-
 # =========================
-# WRITE OUTPUT(S)
+# WRITE OUTPUT
 # =========================
 
 total_rows = sum(len(v) for v in rows_by_date.values())
 log(f"dates_seen={sorted(dates_seen)} total_rows={total_rows}")
 
 if total_rows == 0:
-    raise ValueError("No rows parsed from raw_text (likely raw_text ingestion/quoting issue). See drat_log.txt for details.")
+    raise ValueError("No rows parsed from raw_text.")
 
 outdir = Path("docs/win/soccer/00_intake/predictions")
 outdir.mkdir(parents=True, exist_ok=True)
 
-# If multiple dates appear, write one file per date (safer and avoids silent mixing)
-written = 0
 for d in sorted(rows_by_date.keys()):
     outfile = outdir / f"soccer_{d}.csv"
     with open(outfile, "w", newline="", encoding="utf-8") as f:
@@ -245,6 +211,3 @@ for d in sorted(rows_by_date.keys()):
         writer.writeheader()
         writer.writerows(rows_by_date[d])
     print(f"Wrote {outfile} ({len(rows_by_date[d])} rows)")
-    written += 1
-
-log(f"files_written={written}")
