@@ -1,3 +1,5 @@
+# docs/win/soccer/scripts/03_edges/compute_edges.py
+
 #!/usr/bin/env python3
 
 import sys
