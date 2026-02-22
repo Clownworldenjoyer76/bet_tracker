@@ -156,9 +156,9 @@ for idx, line in enumerate(lines):
     away_team = team_a
     home_team = team_b
 
-    # Collect next 3 percentages (INCLUDING team_b line)
+    # Collect next 3 percentages
     pct_vals = []
-    for k in range(t_idx + 2, n):
+    for k in range(t_idx + 1, n):
         found = RE_PCT.findall(lines[k])
         for v in found:
             pct_vals.append(float(v) / 100.0)
@@ -171,8 +171,8 @@ for idx, line in enumerate(lines):
         continue
 
     away_prob = pct_vals[0]
-    home_prob = pct_vals[1]
-    draw_prob = pct_vals[2]
+    draw_prob = pct_vals[1]
+    home_prob = pct_vals[2]
 
     rows_by_date[file_date].append({
         "league": league,
@@ -200,7 +200,7 @@ outdir = Path("docs/win/soccer/00_intake/predictions")
 outdir.mkdir(parents=True, exist_ok=True)
 
 for d in sorted(rows_by_date.keys()):
-    outfile = outdir / f"soccer_{d}.csv"
+    outfile = outdir / f"soccer_{d}_{market}.csv"
     with open(outfile, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
         writer.writeheader()
