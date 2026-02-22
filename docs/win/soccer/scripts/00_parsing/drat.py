@@ -171,8 +171,8 @@ for idx, line in enumerate(lines):
         continue
 
     away_prob = pct_vals[0]
-    draw_prob = pct_vals[1]
-    home_prob = pct_vals[2]
+    home_prob = pct_vals[1]
+    draw = pct_vals[2]
 
     rows_by_date[file_date].append({
         "league": league,
