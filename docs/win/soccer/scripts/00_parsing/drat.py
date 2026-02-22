@@ -156,16 +156,16 @@ for idx, line in enumerate(lines):
     away_team = team_a
     home_team = team_b
 
-    # Collect next 3 percentages
-    pct_vals = []
-    for k in range(t_idx + 3, n):
-        found = RE_PCT.findall(lines[k])
-        for v in found:
-            pct_vals.append(float(v) / 100.0)
-            if len(pct_vals) == 3:
-                break
+    # Collect next 3 percentages (INCLUDING team_b line)
+pct_vals = []
+for k in range(t_idx + 2, n):   # changed from +3 to +2
+    found = RE_PCT.findall(lines[k])
+    for v in found:
+        pct_vals.append(float(v) / 100.0)
         if len(pct_vals) == 3:
             break
+    if len(pct_vals) == 3:
+        break
 
     if len(pct_vals) != 3:
         continue
