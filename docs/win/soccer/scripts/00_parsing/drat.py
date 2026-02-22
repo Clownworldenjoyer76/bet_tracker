@@ -90,7 +90,7 @@ FIELDNAMES = [
 ]
 
 # =========================
-# REGEX (FIXED)
+# REGEX
 # =========================
 
 RE_DATE = re.compile(r"(\d{1,2})/(\d{1,2})/(\d{4})")
@@ -98,7 +98,7 @@ RE_TIME = re.compile(r"\b\d{1,2}:\d{2}(?:\s*(AM|PM))?\b", re.IGNORECASE)
 RE_PCT  = re.compile(r"(\d+(?:\.\d+)?)%")
 
 # =========================
-# NORMALIZE LINES (BOM SAFE)
+# NORMALIZE LINES
 # =========================
 
 lines = []
@@ -157,15 +157,15 @@ for idx, line in enumerate(lines):
     home_team = team_b
 
     # Collect next 3 percentages (INCLUDING team_b line)
-pct_vals = []
-for k in range(t_idx + 2, n):   # changed from +3 to +2
-    found = RE_PCT.findall(lines[k])
-    for v in found:
-        pct_vals.append(float(v) / 100.0)
+    pct_vals = []
+    for k in range(t_idx + 2, n):
+        found = RE_PCT.findall(lines[k])
+        for v in found:
+            pct_vals.append(float(v) / 100.0)
+            if len(pct_vals) == 3:
+                break
         if len(pct_vals) == 3:
             break
-    if len(pct_vals) == 3:
-        break
 
     if len(pct_vals) != 3:
         continue
