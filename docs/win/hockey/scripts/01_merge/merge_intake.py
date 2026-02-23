@@ -117,61 +117,71 @@ for key, p in pred_data.items():
 
     d = dk_data[key]
 
+    # -------- VALIDATE TEAM ALIGNMENT --------
+    if d.get("home_team") != p.get("home_team") or d.get("away_team") != p.get("away_team"):
+        log(f"TEAM MISMATCH: {p.get('home_team')} vs {p.get('away_team')}")
+        continue
+
+    # -------- VALIDATE PUCK LINE SYMMETRY --------
+    try:
+        home_pl = float(d.get("home_puck_line", 0))
+        away_pl = float(d.get("away_puck_line", 0))
+        if home_pl != -away_pl:
+            log(f"PUCK LINE IMBALANCE: {p.get('home_team')} vs {p.get('away_team')}")
+    except:
+        pass
+
     game_id = f"{p['game_date']}_{p['home_team']}_{p['away_team']}"
 
     base = {
-        "league": p["league"],
-        "game_date": p["game_date"],
-        "game_time": p["game_time"],
-        "home_team": p["home_team"],
-        "away_team": p["away_team"],
+        "league": p.get("league", ""),
+        "game_date": p.get("game_date", ""),
+        "game_time": p.get("game_time", ""),
+        "home_team": p.get("home_team", ""),
+        "away_team": p.get("away_team", ""),
         "game_id": game_id,
 
-        # model projections (apply to all bet_types)
+        # model (game-level — filled everywhere)
+        "home_prob": p.get("home_prob", ""),
+        "away_prob": p.get("away_prob", ""),
         "away_projected_goals": p.get("away_projected_goals", ""),
         "home_projected_goals": p.get("home_projected_goals", ""),
         "total_projected_goals": p.get("total_projected_goals", ""),
-    }
 
-    # ---------------------
-    # MONEYLINE
-    # ---------------------
-    ml_key = (p["game_date"], "moneyline", p["home_team"], p["away_team"])
-
-    merged_rows[ml_key] = {
-        **base,
-        "bet_type": "moneyline",
-        "home_prob": p.get("home_prob", ""),
-        "away_prob": p.get("away_prob", ""),
+        # sportsbook (game-level — filled everywhere)
+        "away_puck_line": d.get("away_puck_line", ""),
+        "home_puck_line": d.get("home_puck_line", ""),
+        "total": d.get("total", ""),
+        "away_dk_puck_line_american": d.get("away_dk_puck_line_american", ""),
+        "home_dk_puck_line_american": d.get("home_dk_puck_line_american", ""),
+        "dk_total_over_american": d.get("dk_total_over_american", ""),
+        "dk_total_under_american": d.get("dk_total_under_american", ""),
         "away_dk_moneyline_american": d.get("away_dk_moneyline_american", ""),
         "home_dk_moneyline_american": d.get("home_dk_moneyline_american", ""),
     }
 
     # ---------------------
+    # MONEYLINE
+    # ---------------------
+    merged_rows[(p["game_date"], "moneyline", p["home_team"], p["away_team"])] = {
+        **base,
+        "bet_type": "moneyline",
+    }
+
+    # ---------------------
     # TOTALS
     # ---------------------
-    total_key = (p["game_date"], "totals", p["home_team"], p["away_team"])
-
-    merged_rows[total_key] = {
+    merged_rows[(p["game_date"], "totals", p["home_team"], p["away_team"])] = {
         **base,
         "bet_type": "totals",
-        "total": d.get("total", ""),
-        "dk_total_over_american": d.get("dk_total_over_american", ""),
-        "dk_total_under_american": d.get("dk_total_under_american", ""),
     }
 
     # ---------------------
     # PUCK LINE
     # ---------------------
-    pl_key = (p["game_date"], "puck_line", p["home_team"], p["away_team"])
-
-    merged_rows[pl_key] = {
+    merged_rows[(p["game_date"], "puck_line", p["home_team"], p["away_team"])] = {
         **base,
         "bet_type": "puck_line",
-        "away_puck_line": d.get("away_puck_line", ""),
-        "home_puck_line": d.get("home_puck_line", ""),
-        "away_dk_puck_line_american": d.get("away_dk_puck_line_american", ""),
-        "home_dk_puck_line_american": d.get("home_dk_puck_line_american", ""),
     }
 
 if not merged_rows:
@@ -212,7 +222,7 @@ temp_file = OUTFILE.with_suffix(".tmp")
 with open(temp_file, "w", newline="", encoding="utf-8") as f:
     writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
     writer.writeheader()
-    for r in existing.values():
+    for r in sorted(existing.values(), key=lambda x: (x["game_date"], x["home_team"], x["bet_type"])):
         writer.writerow({k: r.get(k, "") for k in FIELDNAMES})
 
 temp_file.replace(OUTFILE)
