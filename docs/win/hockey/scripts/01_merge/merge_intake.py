@@ -1,4 +1,4 @@
-# docs/win/soccer/scripts/01_merge/merge_intake.py
+# docs/win/hockey/scripts/01_merge/merge_intake.py
 
 #!/usr/bin/env python3
 
@@ -20,18 +20,22 @@ slate_date = sys.argv[1].strip()
 # PATHS
 # =========================
 
-INTAKE_DIR = Path("docs/win/soccer/00_intake")
-SPORTSBOOK_FILE = INTAKE_DIR / "sportsbook" / f"soccer_{slate_date}.csv"
-PRED_FILE = INTAKE_DIR / "predictions" / f"soccer_{slate_date}.csv"
+INTAKE_DIR = Path("docs/win/hockey/00_intake")
 
-MERGE_DIR = Path("docs/win/soccer/01_merge")
+PRED_FILE = INTAKE_DIR / "predictions" / f"hockey_{slate_date}.csv"
+SPORTSBOOK_FILE = INTAKE_DIR / "sportsbook" / f"hockey_{slate_date}.csv"
+
+MERGE_DIR = Path("docs/win/hockey/01_merge")
 MERGE_DIR.mkdir(parents=True, exist_ok=True)
-OUTFILE = MERGE_DIR / f"soccer_{slate_date}.csv"
 
-ERROR_DIR = Path("docs/win/soccer/errors/01_merge")
+OUTFILE = MERGE_DIR / f"hockey_{slate_date}.csv"
+
+ERROR_DIR = Path("docs/win/hockey/errors/01_merge")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
+
 LOG_FILE = ERROR_DIR / "merge_intake.txt"
 
+# reset log each run
 with open(LOG_FILE, "w", encoding="utf-8") as f:
     f.write("")
 
@@ -43,14 +47,14 @@ def log(msg):
 # VALIDATE INPUT FILES
 # =========================
 
-if not SPORTSBOOK_FILE.exists():
-    raise FileNotFoundError(f"Missing sportsbook file: {SPORTSBOOK_FILE}")
-
 if not PRED_FILE.exists():
     raise FileNotFoundError(f"Missing predictions file: {PRED_FILE}")
 
+if not SPORTSBOOK_FILE.exists():
+    raise FileNotFoundError(f"Missing sportsbook file: {SPORTSBOOK_FILE}")
+
 # =========================
-# LOAD + DEDUPE INTAKE
+# LOAD + DEDUPE
 # =========================
 
 def load_dedupe(path, key_fields):
@@ -62,52 +66,119 @@ def load_dedupe(path, key_fields):
             data[key] = r  # overwrite duplicates
     return data
 
-pred_key_fields = ["match_date", "market", "home_team", "away_team"]
-dk_key_fields = ["match_date", "market", "home_team", "away_team"]
+key_fields = ["game_date", "home_team", "away_team"]
 
-pred_data = load_dedupe(PRED_FILE, pred_key_fields)
-dk_data = load_dedupe(SPORTSBOOK_FILE, dk_key_fields)
+pred_data = load_dedupe(PRED_FILE, key_fields)
+dk_data = load_dedupe(SPORTSBOOK_FILE, key_fields)
+
+# =========================
+# FIELDNAMES
+# =========================
+
+FIELDNAMES = [
+    "league",
+    "bet_type",
+    "game_date",
+    "game_time",
+    "home_team",
+    "away_team",
+    "game_id",
+
+    # model
+    "home_prob",
+    "away_prob",
+    "away_projected_goals",
+    "home_projected_goals",
+    "total_projected_goals",
+
+    # sportsbook lines
+    "away_puck_line",
+    "home_puck_line",
+    "total",
+
+    # sportsbook odds
+    "away_dk_puck_line_american",
+    "home_dk_puck_line_american",
+    "dk_total_over_american",
+    "dk_total_under_american",
+    "away_dk_moneyline_american",
+    "home_dk_moneyline_american",
+]
 
 # =========================
 # MERGE
 # =========================
 
-FIELDNAMES = [
-    "league","market","match_date","match_time",
-    "home_team","away_team",
-    "home_prob","draw_prob","away_prob",
-    "home_american","draw_american","away_american",
-    "game_id"
-]
-
 merged_rows = {}
 
 for key, p in pred_data.items():
+
     if key not in dk_data:
-        continue
+        continue  # AND-only behavior
 
     d = dk_data[key]
 
-    game_id = f"{p['match_date']}_{p['home_team']}_{p['away_team']}"
+    game_id = f"{p['game_date']}_{p['home_team']}_{p['away_team']}"
 
-    merged_rows[key] = {
+    base = {
         "league": p["league"],
-        "market": p["market"],
-        "match_date": p["match_date"],
-        "match_time": p["match_time"],
+        "game_date": p["game_date"],
+        "game_time": p["game_time"],
         "home_team": p["home_team"],
         "away_team": p["away_team"],
-        "home_prob": p["home_prob"],
-        "draw_prob": p["draw_prob"],
-        "away_prob": p["away_prob"],
-        "home_american": d["dk_home_american"],
-        "draw_american": d["dk_draw_american"],
-        "away_american": d["dk_away_american"],
         "game_id": game_id,
     }
 
+    # ---------------------
+    # MONEYLINE ROW
+    # ---------------------
+    ml_key = (p["game_date"], "moneyline", p["home_team"], p["away_team"])
+
+    merged_rows[ml_key] = {
+        **base,
+        "bet_type": "moneyline",
+
+        "home_prob": p.get("home_prob", ""),
+        "away_prob": p.get("away_prob", ""),
+
+        "away_dk_moneyline_american": d.get("away_dk_moneyline_american", ""),
+        "home_dk_moneyline_american": d.get("home_dk_moneyline_american", ""),
+    }
+
+    # ---------------------
+    # TOTALS ROW
+    # ---------------------
+    total_key = (p["game_date"], "totals", p["home_team"], p["away_team"])
+
+    merged_rows[total_key] = {
+        **base,
+        "bet_type": "totals",
+
+        "total_projected_goals": p.get("total_projected_goals", ""),
+
+        "total": d.get("total", ""),
+        "dk_total_over_american": d.get("dk_total_over_american", ""),
+        "dk_total_under_american": d.get("dk_total_under_american", ""),
+    }
+
+    # ---------------------
+    # PUCK LINE ROW
+    # ---------------------
+    pl_key = (p["game_date"], "puck_line", p["home_team"], p["away_team"])
+
+    merged_rows[pl_key] = {
+        **base,
+        "bet_type": "puck_line",
+
+        "away_puck_line": d.get("away_puck_line", ""),
+        "home_puck_line": d.get("home_puck_line", ""),
+
+        "away_dk_puck_line_american": d.get("away_dk_puck_line_american", ""),
+        "home_dk_puck_line_american": d.get("home_dk_puck_line_american", ""),
+    }
+
 # =========================
-# LOAD EXISTING (HEADER VALIDATION)
+# LOAD EXISTING (UPSERT SAFE)
 # =========================
 
 existing = {}
@@ -116,22 +187,19 @@ if OUTFILE.exists():
     with open(OUTFILE, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
 
-        if reader.fieldnames != FIELDNAMES:
-            log("WARNING: Invalid header detected. Rebuilding clean.")
-        else:
+        if reader.fieldnames == FIELDNAMES:
             for r in reader:
                 key = (
-                    r["match_date"],
-                    r["market"],
+                    r["game_date"],
+                    r["bet_type"],
                     r["home_team"],
                     r["away_team"],
                 )
                 existing[key] = r
+        else:
+            log("WARNING: Header mismatch detected. Rebuilding clean.")
 
-# =========================
-# UPSERT (APPEND-ONLY BEHAVIOR)
-# =========================
-
+# upsert
 for key, row in merged_rows.items():
     existing[key] = row
 
