@@ -1,5 +1,4 @@
-# docs/win/soccer/scripts/00_parsing/dedupe.py
-
+# docs/win/hockey/scripts/00_parsing/dedupe.py
 #!/usr/bin/env python3
 
 import csv
