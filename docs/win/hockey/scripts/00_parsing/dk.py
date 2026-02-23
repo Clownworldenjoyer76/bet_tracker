@@ -81,16 +81,11 @@ RE_DATE_HEADER = re.compile(
     re.IGNORECASE
 )
 
-RE_DATE_INLINE = re.compile(
-    r"\b(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+(\d{1,2})",
-    re.IGNORECASE
-)
-
 RE_TIME = re.compile(r"\b(\d{1,2}:\d{2}\s*[AP]M)\b", re.IGNORECASE)
 
-RE_ODDS = re.compile(r"^[+\-−]\d+$")  # includes unicode minus
-RE_SPREAD = re.compile(r"^[+\-]\d+(?:\.\d+)?$")  # +1.5 / -1.5
-RE_TOTAL_NUM = re.compile(r"^\d+(?:\.\d+)?$")     # 5.5
+RE_ODDS = re.compile(r"^[+\-−]\d+$")
+RE_SPREAD = re.compile(r"^[+\-]\d+(?:\.\d+)?$")
+RE_TOTAL_NUM = re.compile(r"^\d+(?:\.\d+)?$")
 
 def clean_line(s: str) -> str:
     return s.strip()
@@ -101,22 +96,20 @@ def is_logo_line(s: str) -> bool:
 def normalize_odds(s: str) -> str:
     return s.replace("−", "-").strip()
 
-def parse_game_date(lines: list[str]) -> str:
-    """
-    Priority:
-      - line containing TODAY -> today
-      - line containing TOMORROW -> today+1
-      - header like 'WED FEB 25th' (uses system year)
-      - fallback: today
-    """
-    today = datetime.today()
+# =========================
+# GLOBAL DATE PARSE (ONCE)
+# =========================
 
-    for raw in lines[:15]:
-        u = raw.strip().upper()
-        if not u:
-            continue
+def parse_global_game_date(text: str) -> str:
+    today = datetime.today()
+    lines = [l.strip() for l in text.splitlines() if l.strip()]
+
+    for raw in lines:
+        u = raw.upper()
+
         if "TODAY" in u:
             return today.strftime("%Y_%m_%d")
+
         if "TOMORROW" in u:
             return (today + timedelta(days=1)).strftime("%Y_%m_%d")
 
@@ -130,6 +123,12 @@ def parse_game_date(lines: list[str]) -> str:
     # fallback
     return today.strftime("%Y_%m_%d")
 
+GLOBAL_GAME_DATE = parse_global_game_date(raw_text)
+
+# =========================
+# EXTRACTION FUNCTIONS
+# =========================
+
 def extract_time(lines: list[str]) -> str:
     for raw in lines:
         m = RE_TIME.search(raw)
@@ -138,62 +137,34 @@ def extract_time(lines: list[str]) -> str:
     return ""
 
 def extract_teams(lines: list[str]) -> tuple[str, str]:
-    """
-    Pattern:
-      [away_logo] (optional)
-      away_team
-      at
-      [home_logo] (optional)
-      home_team
-    """
-    # remove empty and normalize
     cleaned = [clean_line(x) for x in lines if clean_line(x)]
-    # locate "at"
+
     try:
         at_i = next(i for i, x in enumerate(cleaned) if x.lower() == "at")
     except StopIteration:
         raise ValueError("Missing 'at' delimiter")
 
-    # away_team: nearest non-logo line before "at"
     away_team = ""
     for j in range(at_i - 1, -1, -1):
         if not is_logo_line(cleaned[j]) and cleaned[j].lower() not in ("puck line", "total", "moneyline"):
             away_team = cleaned[j]
             break
-    if not away_team:
-        raise ValueError("Could not determine away_team")
 
-    # home_team: first non-logo line after "at"
     home_team = ""
     for j in range(at_i + 1, len(cleaned)):
         if not is_logo_line(cleaned[j]) and cleaned[j].lower() not in ("puck line", "total", "moneyline"):
             home_team = cleaned[j]
             break
-    if not home_team:
-        raise ValueError("Could not determine home_team")
+
+    if not away_team or not home_team:
+        raise ValueError("Could not determine teams")
 
     return away_team, home_team
 
 def parse_numbers(lines: list[str]) -> dict:
-    """
-    Expected NHL ordering within a block (after teams):
-      away_puck_line
-      away_puck_line_odds
-      O
-      total
-      over_odds
-      away_moneyline
-      home_puck_line
-      home_puck_line_odds
-      U
-      total (repeat) [ignored]
-      under_odds
-      home_moneyline
-    """
     cleaned = [clean_line(x) for x in lines if clean_line(x)]
     tokens = []
 
-    # keep only the relevant tokens and keep order
     for x in cleaned:
         xl = x.strip()
         if xl.upper() in ("O", "U"):
@@ -222,13 +193,12 @@ def parse_numbers(lines: list[str]) -> dict:
     }
 
     i = 0
-    # away puck line + odds
+
     if i < len(tokens) and RE_SPREAD.match(tokens[i]):
         out["away_puck_line"] = tokens[i]; i += 1
     if i < len(tokens) and RE_ODDS.match(tokens[i]):
         out["away_dk_puck_line_american"] = tokens[i]; i += 1
 
-    # over total + odds
     if i < len(tokens) and tokens[i] == "O":
         i += 1
     if i < len(tokens) and RE_TOTAL_NUM.match(tokens[i]):
@@ -236,33 +206,28 @@ def parse_numbers(lines: list[str]) -> dict:
     if i < len(tokens) and RE_ODDS.match(tokens[i]):
         out["dk_total_over_american"] = tokens[i]; i += 1
 
-    # away moneyline odds
     if i < len(tokens) and RE_ODDS.match(tokens[i]):
         out["away_dk_moneyline_american"] = tokens[i]; i += 1
 
-    # home puck line + odds
     if i < len(tokens) and RE_SPREAD.match(tokens[i]):
         out["home_puck_line"] = tokens[i]; i += 1
     if i < len(tokens) and RE_ODDS.match(tokens[i]):
         out["home_dk_puck_line_american"] = tokens[i]; i += 1
 
-    # under total + odds
     if i < len(tokens) and tokens[i] == "U":
         i += 1
-    # possible repeated total number; ignore if present
     if i < len(tokens) and RE_TOTAL_NUM.match(tokens[i]):
         i += 1
     if i < len(tokens) and RE_ODDS.match(tokens[i]):
         out["dk_total_under_american"] = tokens[i]; i += 1
 
-    # home moneyline odds
     if i < len(tokens) and RE_ODDS.match(tokens[i]):
         out["home_dk_moneyline_american"] = tokens[i]; i += 1
 
     return out
 
 # =========================
-# PARSE
+# PARSE BLOCKS
 # =========================
 
 blocks = raw_text.split("More Bets")
@@ -274,24 +239,18 @@ for block in blocks:
     if not lines:
         continue
 
-    # must contain "at" and at least 2 team names
     if not any(l.lower() == "at" for l in lines):
         continue
 
     try:
-        game_date = parse_game_date(lines)
         game_time = extract_time(lines)
         away_team, home_team = extract_teams(lines)
         nums = parse_numbers(lines)
 
-        # minimal validation (must at least have teams + date)
-        if not away_team or not home_team or not game_date:
-            raise ValueError("Missing required fields")
-
         rows.append({
             "league": league,
             "market": market,
-            "game_date": game_date,
+            "game_date": GLOBAL_GAME_DATE,
             "game_time": game_time,
             "home_team": home_team,
             "away_team": away_team,
@@ -306,15 +265,14 @@ if not rows:
     log("SUMMARY: wrote 0 rows")
     sys.exit()
 
-# file per date (use date of first parsed row)
-file_date = rows[0]["game_date"]
+file_date = GLOBAL_GAME_DATE
 
 output_dir = Path("docs/win/hockey/00_intake/sportsbook")
 output_dir.mkdir(parents=True, exist_ok=True)
 outfile = output_dir / f"hockey_{file_date}.csv"
 
 # =========================
-# LOAD + SELF-DEDUP EXISTING
+# LOAD + SELF-DEDUP
 # =========================
 
 existing_rows = {}
@@ -324,15 +282,10 @@ if outfile.exists():
         reader = csv.DictReader(f)
         if reader.fieldnames == FIELDNAMES:
             for row in reader:
-                if all(k in row for k in FIELDNAMES):
-                    key = (row["game_date"], row["market"], row["home_team"], row["away_team"])
-                    existing_rows[key] = row
+                key = (row["game_date"], row["market"], row["home_team"], row["away_team"])
+                existing_rows[key] = row
         else:
             log("WARNING: Invalid header detected. Rebuilding clean.")
-
-# =========================
-# UPSERT
-# =========================
 
 for new_row in rows:
     key = (new_row["game_date"], new_row["market"], new_row["home_team"], new_row["away_team"])
