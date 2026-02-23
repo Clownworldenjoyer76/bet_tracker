@@ -76,6 +76,7 @@ dk_data = load_dedupe(SPORTSBOOK_FILE, key_fields)
 
 FIELDNAMES = [
     "league",
+    "market",  # NEW COLUMN
     "game_date",
     "game_time",
     "home_team",
@@ -134,6 +135,7 @@ for key, p in pred_data.items():
 
     merged_rows[key] = {
         "league": p.get("league", ""),
+        "market": p.get("market", ""),  # CARRY OVER FROM INPUT
         "game_date": p.get("game_date", ""),
         "game_time": p.get("game_time", ""),
         "home_team": p.get("home_team", ""),
