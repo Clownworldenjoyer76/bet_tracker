@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-# docs/win/soccer/scripts/00_parsing/name_normalization.py
-
+#docs/win/hockey/scripts/00_parsing/name_normalization.py
 import csv
 from pathlib import Path
 from datetime import datetime
