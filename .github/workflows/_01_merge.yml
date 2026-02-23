@@ -1,4 +1,4 @@
-name: Soccer 01 Merge Intake
+name: _01 Merge Intake
 
 on:
   workflow_dispatch:
@@ -26,7 +26,12 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Run merge
+      - name: Run Soccer merge
+        run: |
+          python docs/win/soccer/scripts/01_merge/merge_intake.py \
+            "${{ github.event.inputs.slate_date }}"
+
+      - name: Run Hockey merge
         run: |
           python docs/win/soccer/scripts/01_merge/merge_intake.py \
             "${{ github.event.inputs.slate_date }}"
@@ -38,6 +43,8 @@ jobs:
 
           git add docs/win/soccer/01_merge/
           git add docs/win/soccer/errors/01_merge/
+          git add docs/win/hockey/01_merge/
+          git add docs/win/hockey/errors/01_merge/
 
-          git commit -m "Soccer merge: ${{ github.event.inputs.slate_date }}" || echo "No changes"
+          git commit -m "Merge: ${{ github.event.inputs.slate_date }}" || echo "No changes"
           git push
