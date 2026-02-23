@@ -1,5 +1,5 @@
-# docs/win/hockey/scripts/00_parsing/dedupe.py
 #!/usr/bin/env python3
+# docs/win/hockey/scripts/00_parsing/dedupe.py
 
 import csv
 from pathlib import Path
@@ -9,11 +9,11 @@ from datetime import datetime
 # PATHS
 # =========================
 
-BASE_DIR = Path("docs/win/soccer/00_intake")
+BASE_DIR = Path("docs/win/hockey/00_intake")
 PRED_DIR = BASE_DIR / "predictions"
 SPORTSBOOK_DIR = BASE_DIR / "sportsbook"
 
-ERROR_DIR = Path("docs/win/soccer/errors/00_intake")
+ERROR_DIR = Path("docs/win/hockey/errors/00_intake")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE = ERROR_DIR / "dedupe.txt"
 
@@ -40,8 +40,8 @@ def dedupe_file(csv_file: Path):
 
         rows = list(reader)
 
-    # determine key fields
-    required_fields = ["match_date", "market", "home_team", "away_team"]
+    # determine key fields (hockey uses game_date)
+    required_fields = ["game_date", "market", "home_team", "away_team"]
     if not all(k in fieldnames for k in required_fields):
         log(f"SKIP: {csv_file} missing required columns")
         return
@@ -52,7 +52,7 @@ def dedupe_file(csv_file: Path):
 
     for r in rows:
         key = (
-            r.get("match_date", ""),
+            r.get("game_date", ""),
             r.get("market", ""),
             r.get("home_team", ""),
             r.get("away_team", ""),
@@ -93,4 +93,4 @@ for directory in [PRED_DIR, SPORTSBOOK_DIR]:
         dedupe_file(csv_file)
 
 log(f"SUMMARY: files_processed={files_processed}")
-print("Dedupe complete.")
+print("Hockey dedupe complete.")
