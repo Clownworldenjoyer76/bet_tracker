@@ -71,12 +71,11 @@ pred_data = load_dedupe(PRED_FILE, key_fields)
 dk_data = load_dedupe(SPORTSBOOK_FILE, key_fields)
 
 # =========================
-# FIELDNAMES
+# FIELDNAMES (ONE ROW PER GAME)
 # =========================
 
 FIELDNAMES = [
     "league",
-    "bet_type",
     "game_date",
     "game_time",
     "home_team",
@@ -117,12 +116,12 @@ for key, p in pred_data.items():
 
     d = dk_data[key]
 
-    # -------- VALIDATE TEAM ALIGNMENT --------
+    # -------- TEAM VALIDATION --------
     if d.get("home_team") != p.get("home_team") or d.get("away_team") != p.get("away_team"):
         log(f"TEAM MISMATCH: {p.get('home_team')} vs {p.get('away_team')}")
         continue
 
-    # -------- VALIDATE PUCK LINE SYMMETRY --------
+    # -------- PUCK LINE SYMMETRY VALIDATION --------
     try:
         home_pl = float(d.get("home_puck_line", 0))
         away_pl = float(d.get("away_puck_line", 0))
@@ -133,7 +132,7 @@ for key, p in pred_data.items():
 
     game_id = f"{p['game_date']}_{p['home_team']}_{p['away_team']}"
 
-    base = {
+    merged_rows[key] = {
         "league": p.get("league", ""),
         "game_date": p.get("game_date", ""),
         "game_time": p.get("game_time", ""),
@@ -141,14 +140,14 @@ for key, p in pred_data.items():
         "away_team": p.get("away_team", ""),
         "game_id": game_id,
 
-        # model (game-level — filled everywhere)
+        # model
         "home_prob": p.get("home_prob", ""),
         "away_prob": p.get("away_prob", ""),
         "away_projected_goals": p.get("away_projected_goals", ""),
         "home_projected_goals": p.get("home_projected_goals", ""),
         "total_projected_goals": p.get("total_projected_goals", ""),
 
-        # sportsbook (game-level — filled everywhere)
+        # sportsbook
         "away_puck_line": d.get("away_puck_line", ""),
         "home_puck_line": d.get("home_puck_line", ""),
         "total": d.get("total", ""),
@@ -158,30 +157,6 @@ for key, p in pred_data.items():
         "dk_total_under_american": d.get("dk_total_under_american", ""),
         "away_dk_moneyline_american": d.get("away_dk_moneyline_american", ""),
         "home_dk_moneyline_american": d.get("home_dk_moneyline_american", ""),
-    }
-
-    # ---------------------
-    # MONEYLINE
-    # ---------------------
-    merged_rows[(p["game_date"], "moneyline", p["home_team"], p["away_team"])] = {
-        **base,
-        "bet_type": "moneyline",
-    }
-
-    # ---------------------
-    # TOTALS
-    # ---------------------
-    merged_rows[(p["game_date"], "totals", p["home_team"], p["away_team"])] = {
-        **base,
-        "bet_type": "totals",
-    }
-
-    # ---------------------
-    # PUCK LINE
-    # ---------------------
-    merged_rows[(p["game_date"], "puck_line", p["home_team"], p["away_team"])] = {
-        **base,
-        "bet_type": "puck_line",
     }
 
 if not merged_rows:
@@ -202,7 +177,6 @@ if OUTFILE.exists():
             for r in reader:
                 key = (
                     r["game_date"],
-                    r["bet_type"],
                     r["home_team"],
                     r["away_team"],
                 )
@@ -222,10 +196,10 @@ temp_file = OUTFILE.with_suffix(".tmp")
 with open(temp_file, "w", newline="", encoding="utf-8") as f:
     writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
     writer.writeheader()
-    for r in sorted(existing.values(), key=lambda x: (x["game_date"], x["home_team"], x["bet_type"])):
+    for r in sorted(existing.values(), key=lambda x: (x["game_date"], x["game_time"], x["home_team"])):
         writer.writerow({k: r.get(k, "") for k in FIELDNAMES})
 
 temp_file.replace(OUTFILE)
 
-log(f"SUMMARY: merged {len(merged_rows)} rows for slate {slate_date}")
+log(f"SUMMARY: merged {len(merged_rows)} games for slate {slate_date}")
 print(f"Wrote {OUTFILE}")
