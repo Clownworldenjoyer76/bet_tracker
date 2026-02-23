@@ -1,5 +1,5 @@
+# docs/win/hockey/scripts/00_parsing/drat.py
 #!/usr/bin/env python3
-# docs/win/soccer/scripts/00_parsing/drat.py
 
 import sys
 import re
