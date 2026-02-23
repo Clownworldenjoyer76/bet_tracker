@@ -32,6 +32,7 @@ ERROR_DIR = Path("docs/win/soccer/errors/01_merge")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE = ERROR_DIR / "merge_intake.txt"
 
+# reset log each run
 with open(LOG_FILE, "w", encoding="utf-8") as f:
     f.write("")
 
@@ -40,14 +41,13 @@ def log(msg):
         f.write(f"{datetime.utcnow().isoformat()} | {msg}\n")
 
 # =========================
-# VALIDATE INPUT FILES
+# SAFE INPUT VALIDATION
 # =========================
 
-if not SPORTSBOOK_FILE.exists():
-    raise FileNotFoundError(f"Missing sportsbook file: {SPORTSBOOK_FILE}")
-
-if not PRED_FILE.exists():
-    raise FileNotFoundError(f"Missing predictions file: {PRED_FILE}")
+if not SPORTSBOOK_FILE.exists() or not PRED_FILE.exists():
+    log(f"No soccer slate found for {slate_date}. Skipping merge.")
+    print(f"No soccer slate found for {slate_date}. Skipping.")
+    sys.exit(0)
 
 # =========================
 # LOAD + DEDUPE INTAKE
@@ -106,6 +106,12 @@ for key, p in pred_data.items():
         "game_id": game_id,
     }
 
+# If nothing matched, skip writing
+if not merged_rows:
+    log(f"No matching rows to merge for slate {slate_date}.")
+    print(f"No matching rows to merge for slate {slate_date}.")
+    sys.exit(0)
+
 # =========================
 # LOAD EXISTING (HEADER VALIDATION)
 # =========================
@@ -129,7 +135,7 @@ if OUTFILE.exists():
                 existing[key] = r
 
 # =========================
-# UPSERT (APPEND-ONLY BEHAVIOR)
+# UPSERT
 # =========================
 
 for key, row in merged_rows.items():
