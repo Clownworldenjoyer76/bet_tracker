@@ -44,14 +44,13 @@ def log(msg):
         f.write(f"{datetime.utcnow().isoformat()} | {msg}\n")
 
 # =========================
-# VALIDATE INPUT FILES
+# SAFE INPUT VALIDATION
 # =========================
 
-if not PRED_FILE.exists():
-    raise FileNotFoundError(f"Missing predictions file: {PRED_FILE}")
-
-if not SPORTSBOOK_FILE.exists():
-    raise FileNotFoundError(f"Missing sportsbook file: {SPORTSBOOK_FILE}")
+if not PRED_FILE.exists() or not SPORTSBOOK_FILE.exists():
+    log(f"No hockey slate found for {slate_date}. Skipping merge.")
+    print(f"No hockey slate found for {slate_date}. Skipping.")
+    sys.exit(0)
 
 # =========================
 # LOAD + DEDUPE
@@ -176,6 +175,12 @@ for key, p in pred_data.items():
         "away_dk_puck_line_american": d.get("away_dk_puck_line_american", ""),
         "home_dk_puck_line_american": d.get("home_dk_puck_line_american", ""),
     }
+
+# If nothing matched, skip writing
+if not merged_rows:
+    log(f"No matching rows to merge for slate {slate_date}.")
+    print(f"No matching rows to merge for slate {slate_date}.")
+    sys.exit(0)
 
 # =========================
 # LOAD EXISTING (UPSERT SAFE)
