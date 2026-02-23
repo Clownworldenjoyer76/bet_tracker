@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
-#docs/win/hockey/scripts/00_parsing/name_normalization.py
+# docs/win/hockey/scripts/00_parsing/name_normalization.py
+
 import csv
 from pathlib import Path
 from datetime import datetime
 
-INTAKE_DIR = Path("docs/win/soccer/00_intake")
-MAP_FILE = Path("mappings/soccer/team_map_soccer.csv")
+INTAKE_DIR = Path("docs/win/hockey/00_intake")
+MAP_FILE = Path("mappings/hockey/team_map_hockey.csv")
 
-NO_MAP_DIR = Path("mappings/soccer/no_map")
+NO_MAP_DIR = Path("mappings/hockey/no_map")
 NO_MAP_DIR.mkdir(parents=True, exist_ok=True)
-NO_MAP_FILE = NO_MAP_DIR / "no_map_soccer.csv"
+NO_MAP_FILE = NO_MAP_DIR / "no_map_hockey.csv"
 
-ERROR_DIR = Path("docs/win/soccer/errors/00_intake")
+ERROR_DIR = Path("docs/win/hockey/errors/00_intake")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE = ERROR_DIR / "name_normalization_log.txt"
 
@@ -28,6 +29,7 @@ def log(msg: str) -> None:
 # =========================
 
 team_map = {}
+
 if MAP_FILE.exists():
     with open(MAP_FILE, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
@@ -40,13 +42,13 @@ if MAP_FILE.exists():
             if key[0] and key[1] and canonical:
                 team_map[key] = canonical
 else:
-    log("WARNING: team_map_soccer.csv not found")
+    log("WARNING: team_map_hockey.csv not found")
 
 # =========================
 # PROCESS FILES
 # =========================
 
-unmapped = set()  # (market_lower, team_original)
+unmapped = set()
 files_processed = 0
 rows_processed = 0
 rows_updated = 0
@@ -70,9 +72,10 @@ for csv_file in INTAKE_DIR.rglob("*.csv"):
                     continue
 
                 key = (market, team.lower())
+
                 if key in team_map:
                     canonical = team_map[key]
-                    if row.get(side, "") != canonical:
+                    if row.get(side) != canonical:
                         row[side] = canonical
                         modified = True
                         rows_updated += 1
@@ -88,16 +91,15 @@ for csv_file in INTAKE_DIR.rglob("*.csv"):
             writer.writerows(updated_rows)
 
 # =========================
-# WRITE UNMAPPED (AND COUNT NEW)
+# WRITE UNMAPPED
 # =========================
 
-existing = set()  # (market_lower, team_original)
+existing = set()
 
 if NO_MAP_FILE.exists():
     with open(NO_MAP_FILE, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
-        # tolerate wrong/empty headers
-        if reader.fieldnames and ("market" in reader.fieldnames) and ("team" in reader.fieldnames):
+        if reader.fieldnames and "market" in reader.fieldnames and "team" in reader.fieldnames:
             for row in reader:
                 m = (row.get("market") or "").strip().lower()
                 t = (row.get("team") or "").strip()
@@ -125,4 +127,4 @@ log(
     f"unmapped_new_added={len(new_only)}"
 )
 
-print("Name normalization complete.")
+print("Hockey name normalization complete.")
