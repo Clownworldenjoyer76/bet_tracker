@@ -62,7 +62,7 @@ def load_dedupe(path, key_fields):
         reader = csv.DictReader(f)
         for r in reader:
             key = tuple(r[k] for k in key_fields)
-            data[key] = r  # overwrite duplicates
+            data[key] = r
     return data
 
 key_fields = ["game_date", "home_team", "away_team"]
@@ -113,7 +113,7 @@ merged_rows = {}
 for key, p in pred_data.items():
 
     if key not in dk_data:
-        continue  # AND-only behavior
+        continue
 
     d = dk_data[key]
 
@@ -126,57 +126,54 @@ for key, p in pred_data.items():
         "home_team": p["home_team"],
         "away_team": p["away_team"],
         "game_id": game_id,
+
+        # model projections (apply to all bet_types)
+        "away_projected_goals": p.get("away_projected_goals", ""),
+        "home_projected_goals": p.get("home_projected_goals", ""),
+        "total_projected_goals": p.get("total_projected_goals", ""),
     }
 
     # ---------------------
-    # MONEYLINE ROW
+    # MONEYLINE
     # ---------------------
     ml_key = (p["game_date"], "moneyline", p["home_team"], p["away_team"])
 
     merged_rows[ml_key] = {
         **base,
         "bet_type": "moneyline",
-
         "home_prob": p.get("home_prob", ""),
         "away_prob": p.get("away_prob", ""),
-
         "away_dk_moneyline_american": d.get("away_dk_moneyline_american", ""),
         "home_dk_moneyline_american": d.get("home_dk_moneyline_american", ""),
     }
 
     # ---------------------
-    # TOTALS ROW
+    # TOTALS
     # ---------------------
     total_key = (p["game_date"], "totals", p["home_team"], p["away_team"])
 
     merged_rows[total_key] = {
         **base,
         "bet_type": "totals",
-
-        "total_projected_goals": p.get("total_projected_goals", ""),
-
         "total": d.get("total", ""),
         "dk_total_over_american": d.get("dk_total_over_american", ""),
         "dk_total_under_american": d.get("dk_total_under_american", ""),
     }
 
     # ---------------------
-    # PUCK LINE ROW
+    # PUCK LINE
     # ---------------------
     pl_key = (p["game_date"], "puck_line", p["home_team"], p["away_team"])
 
     merged_rows[pl_key] = {
         **base,
         "bet_type": "puck_line",
-
         "away_puck_line": d.get("away_puck_line", ""),
         "home_puck_line": d.get("home_puck_line", ""),
-
         "away_dk_puck_line_american": d.get("away_dk_puck_line_american", ""),
         "home_dk_puck_line_american": d.get("home_dk_puck_line_american", ""),
     }
 
-# If nothing matched, skip writing
 if not merged_rows:
     log(f"No matching rows to merge for slate {slate_date}.")
     print(f"No matching rows to merge for slate {slate_date}.")
@@ -191,7 +188,6 @@ existing = {}
 if OUTFILE.exists():
     with open(OUTFILE, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
-
         if reader.fieldnames == FIELDNAMES:
             for r in reader:
                 key = (
@@ -204,7 +200,6 @@ if OUTFILE.exists():
         else:
             log("WARNING: Header mismatch detected. Rebuilding clean.")
 
-# upsert
 for key, row in merged_rows.items():
     existing[key] = row
 
