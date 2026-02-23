@@ -1,125 +1,202 @@
 #!/usr/bin/env python3
-# scripts/parsing_combine.py
+# docs/win/hockey/scripts/00_parsing/drat.py
 
+import sys
+import re
 import csv
 from pathlib import Path
-from collections import defaultdict
 from datetime import datetime
-
-# =========================
-# PATHS
-# =========================
-
-INPUT_DIR = Path("docs/win/soccer/00_intake/predictions")
-ERROR_DIR = Path("docs/win/soccer/errors/00_intake")
-ERROR_DIR.mkdir(parents=True, exist_ok=True)
-
-LOG_FILE = ERROR_DIR / "parsing_combine.txt"
-
-FIELDNAMES = [
-    "league",
-    "market",
-    "match_date",
-    "match_time",
-    "home_team",
-    "away_team",
-    "home_prob",
-    "draw_prob",
-    "away_prob",
-]
+from collections import defaultdict
 
 # =========================
 # LOGGING
 # =========================
 
-with open(LOG_FILE, "w", encoding="utf-8") as f:
-    f.write(f"=== parsing_combine run @ {datetime.utcnow().isoformat()} ===\n")
+ERROR_DIR = Path("docs/win/hockey/errors/00_intake")
+ERROR_DIR.mkdir(parents=True, exist_ok=True)
+LOG_FILE = ERROR_DIR / "drat_log.txt"
 
-def log(msg: str):
+with open(LOG_FILE, "w", encoding="utf-8") as f:
+    f.write(f"=== drat run @ {datetime.utcnow().isoformat()} ===\n")
+
+def log(msg: str) -> None:
     with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write(msg + "\n")
 
 # =========================
-# COLLECT FILES
+# ARGS / INPUT
 # =========================
 
-files = list(INPUT_DIR.glob("soccer_*_*.csv"))
+if len(sys.argv) < 3:
+    raise ValueError("Usage: drat.py <league> <market> <dump.txt>")
 
-if not files:
-    log("No input files found.")
-    raise ValueError("No soccer_{date}_{market}.csv files found.")
+league_input = sys.argv[1].strip()
+market_input = sys.argv[2].strip()
+
+raw_text = ""
+
+if len(sys.argv) >= 4:
+    p = Path(sys.argv[3])
+    if p.exists() and p.is_file():
+        raw_text = p.read_text(encoding="utf-8", errors="replace")
+        log(f"Read raw_text from file: {p}")
+    else:
+        raw_text = " ".join(sys.argv[3:])
+        log("Read raw_text from argv fallback.")
+else:
+    raw_text = sys.stdin.read()
+    log("Read raw_text from stdin fallback.")
+
+if not raw_text.strip():
+    raise ValueError("raw_text is empty.")
+
+league = "hockey"
+
+market_map = {
+    "NHL": "NHL",
+}
+
+market = market_map.get(market_input)
+if not market:
+    raise ValueError(f"Invalid hockey market: {market_input!r}")
+
+FIELDNAMES = [
+    "league",
+    "market",
+    "game_date",
+    "game_time",
+    "home_team",
+    "away_team",
+    "home_prob",
+    "away_prob",
+    "away_projected_goals",
+    "home_projected_goals",
+    "total_projected_goals",
+]
+
+# =========================
+# REGEX
+# =========================
+
+RE_DATE = re.compile(r"(\d{1,2})/(\d{1,2})/(\d{4})")
+RE_TIME = re.compile(r"\b\d{1,2}:\d{2}\s*[AP]M\b", re.IGNORECASE)
+RE_PCT  = re.compile(r"(\d+(?:\.\d+)?)%")
+RE_FLOAT = re.compile(r"\d+\.\d+")
+
+# =========================
+# NORMALIZE LINES
+# =========================
+
+lines = []
+for l in raw_text.splitlines():
+    s = l.replace("−", "-").replace("\ufeff", "").strip()
+    if s:
+        lines.append(s)
+
+n = len(lines)
+log(f"lines_count={n}")
+
+# =========================
+# PARSE
+# =========================
 
 rows_by_date = defaultdict(list)
-files_processed = 0
-rows_processed = 0
-rows_skipped = 0
 
-for file_path in files:
-    name = file_path.stem  # soccer_YYYY_MM_DD_market
+def clean_team(name: str) -> str:
+    name = re.sub(r"\(.*?\)", "", name).strip()
+    name = name.split("\t")[0].strip()
+    return name
 
-    parts = name.split("_")
-    if len(parts) < 5:
-        log(f"Skipped malformed filename: {file_path.name}")
-        rows_skipped += 1
+i = 0
+while i < n:
+
+    dm = RE_DATE.match(lines[i])
+    if not dm:
+        i += 1
         continue
 
-    # Extract YYYY_MM_DD
-    date_key = "_".join(parts[1:4])
+    mm, dd, yyyy = dm.groups()
+    file_date = f"{yyyy}_{mm.zfill(2)}_{dd.zfill(2)}"
 
-    try:
-        with open(file_path, newline="", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
+    # Time must follow
+    if i + 1 >= n or not RE_TIME.search(lines[i + 1]):
+        i += 1
+        continue
 
-                # Validate headers
-                if not all(h in row for h in FIELDNAMES):
-                    rows_skipped += 1
-                    continue
+    game_time = lines[i + 1]
 
-                rows_by_date[date_key].append({
-                    "league": row["league"],
-                    "market": row["market"],
-                    "match_date": row["match_date"],
-                    "match_time": row["match_time"],
-                    "home_team": row["home_team"],
-                    "away_team": row["away_team"],
-                    "home_prob": row["home_prob"],
-                    "draw_prob": row["draw_prob"],
-                    "away_prob": row["away_prob"],
-                })
+    if i + 3 >= n:
+        break
 
-                rows_processed += 1
+    away_team = clean_team(lines[i + 2])
+    home_team = clean_team(lines[i + 3])
 
-        files_processed += 1
+    # Collect probabilities
+    probs = []
+    j = i + 4
+    while j < n and len(probs) < 2:
+        found = RE_PCT.findall(lines[j])
+        for v in found:
+            probs.append(float(v) / 100.0)
+            if len(probs) == 2:
+                break
+        j += 1
 
-    except Exception as e:
-        log(f"Error reading {file_path.name}: {e}")
-        rows_skipped += 1
+    if len(probs) != 2:
+        i += 1
+        continue
+
+    away_prob = probs[0]
+    home_prob = probs[1]
+
+    # Collect projected goals
+    floats = []
+    while j < n and len(floats) < 3:
+        found = RE_FLOAT.findall(lines[j])
+        for val in found:
+            floats.append(val)
+            if len(floats) == 3:
+                break
+        j += 1
+
+    if len(floats) != 3:
+        i += 1
+        continue
+
+    away_proj = floats[0]
+    home_proj = floats[1]
+    total_proj = floats[2]
+
+    rows_by_date[file_date].append({
+        "league": league,
+        "market": market,
+        "game_date": file_date,
+        "game_time": game_time,
+        "home_team": home_team,
+        "away_team": away_team,
+        "home_prob": f"{home_prob:.6f}",
+        "away_prob": f"{away_prob:.6f}",
+        "away_projected_goals": away_proj,
+        "home_projected_goals": home_proj,
+        "total_projected_goals": total_proj,
+    })
+
+    i = j
 
 # =========================
-# WRITE COMBINED FILES
+# WRITE OUTPUT
 # =========================
 
 if not rows_by_date:
-    log("No valid rows found to combine.")
-    raise ValueError("No rows combined.")
+    raise ValueError("No rows parsed from raw_text.")
 
-for date_key, rows in rows_by_date.items():
-    outfile = INPUT_DIR / f"soccer_{date_key}.csv"
+outdir = Path("docs/win/hockey/00_intake/predictions")
+outdir.mkdir(parents=True, exist_ok=True)
 
+for d in sorted(rows_by_date.keys()):
+    outfile = outdir / f"hockey_{d}_{market}.csv"
     with open(outfile, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
         writer.writeheader()
-        writer.writerows(rows)
-
-    log(f"Wrote {outfile.name} ({len(rows)} rows)")
-
-# =========================
-# SUMMARY
-# =========================
-
-log("---- SUMMARY ----")
-log(f"Files processed: {files_processed}")
-log(f"Rows processed: {rows_processed}")
-log(f"Rows skipped: {rows_skipped}")
-log("Done.")
+        writer.writerows(rows_by_date[d])
+    print(f"Wrote {outfile} ({len(rows_by_date[d])} rows)")
