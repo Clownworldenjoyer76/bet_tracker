@@ -1,0 +1,86 @@
+Hockey system
+############################################
+##########**********STEP 1**********########
+
+Raw data input is run through .github/workflows/manual_data.yml
+
+Workflow runs these scripts in order:
+
+docs/win/{league}/scripts/00_parsing/dk.py [sportsbook odds]
+OR
+docs/win/{league}/scripts/00_parsing/drat.py [predictions]
+
+docs/win/{league}/scripts/00_parsing/parsing_combine.py
+docs/win/{league}/scripts/00_parsing/name_normalization.py
+docs/win/{league}/scripts/00_parsing/dedupe.py
+
+######################docs/win/{league}/scripts/00_parsing/dk.py
+dk raw input layout:
+
+And here is what should be done with each part of the block:
+
+WED FEB 25th [this is the 'game_date' value. it should be in YYYY_MM_DD format ie 2026_02_22. If this line instead shows 'Today' then game_date = system date in YYYY_MM_DD FORMAT.  If this line instead shows 'Tomorrow' then game_date = system date + 1 day in YYYY_MM_DD FORMAT.]
+
+Puck Line [this is a header for the scrape and can be ignored] 
+
+Total [this is a header for the scrape and can be ignored]
+
+Moneyline [this is a header for the scrape and can be ignored]
+
+BUF Sabres-logo [this is a logo from the scrape and can be ignored]
+BUF Sabres [value for 'away_team']
+at [this line indicates the next team listed is the home team]
+NJ Devils-logo [this is a logo from the scrape and can be ignored]
+
+NJ Devils [value for 'home_team']
+
++1.5 [this is the 'away_puck_line' value]
+
+
+−258 [value for 'away_dk_puck_line_american']
+
+O [this is a header for the scrape and can be ignored]
+5.5 [this is the 'total' value]
+
+−135 [this is the value for 'dk_total_over_american']
+
+−102 [value for 'away_dk_moneyline_american']
+
+
+-1.5[this is the 'home_puck_line' value]
+
++210 [this is the home_dk_puck_line_american]
+
+
+U [this is a header for the scrape and can be ignored]
+
+5.5 [this is a header for the scrape and can be ignored]
+
++114 [this is 'dk_total_under_american']
+
+−118 [this is home_dk_moneyline_american]
+Wed Feb 25th 7:00 PM [this line you can ignore the {day of week} which in this case is 'Wed'. 'Feb 25th' could be used as a backup confirmation of date but woould need to be converted into the correct format [ie 2026_02_25 for this case] and lastly '7:00 PM' is the value for 'game_time'
+More Bets [indicates end of game block]
+
+---------------------
+output file will be: docs/win/hockey/00_intake/sportsbook/hockey_2026_02_22.csv
+
+with these headers:
+league	[value = {league}]
+market	[value = {market}]
+game_date	
+game_time	
+home_team	
+away_team
+away_puck_line
+home_puck_line
+total
+away_dk_puck_line_american
+home_dk_puck_line_american
+dk_total_over_american
+dk_total_under_american
+away_dk_moneyline_american
+home_dk_moneyline_american
+
+
+######################docs/win/{league}/scripts/00_parsing/drat.py [predictions]
