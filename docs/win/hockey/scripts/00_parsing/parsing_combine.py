@@ -47,22 +47,21 @@ def log(msg: str):
 
 files = list(INPUT_DIR.glob("hockey_*_*.csv"))
 
-if not files:
-    log("No input files found.")
-    raise ValueError("No hockey_{date}_{market}.csv files found.")
+# If zero or one market file → nothing to combine
+if len(files) <= 1:
+    log("Combine skipped (0 or 1 market file present).")
+    print("Combine skipped.")
+    exit(0)
 
 rows_by_date = defaultdict(list)
 files_processed = 0
 rows_processed = 0
-rows_skipped = 0
 
 for file_path in files:
-    name = file_path.stem  # hockey_YYYY_MM_DD_market
+    name = file_path.stem
     parts = name.split("_")
 
     if len(parts) < 5:
-        log(f"Skipped malformed filename: {file_path.name}")
-        rows_skipped += 1
         continue
 
     date_key = "_".join(parts[1:4])
@@ -71,40 +70,26 @@ for file_path in files:
         with open(file_path, newline="", encoding="utf-8") as f:
             reader = csv.DictReader(f)
             for row in reader:
-
                 if not all(h in row for h in FIELDNAMES):
-                    rows_skipped += 1
                     continue
 
-                rows_by_date[date_key].append({
-                    "league": row["league"],
-                    "market": row["market"],
-                    "game_date": row["game_date"],
-                    "game_time": row["game_time"],
-                    "home_team": row["home_team"],
-                    "away_team": row["away_team"],
-                    "home_prob": row["home_prob"],
-                    "away_prob": row["away_prob"],
-                    "away_projected_goals": row["away_projected_goals"],
-                    "home_projected_goals": row["home_projected_goals"],
-                    "total_projected_goals": row["total_projected_goals"],
-                })
-
+                rows_by_date[date_key].append(row)
                 rows_processed += 1
 
         files_processed += 1
 
     except Exception as e:
         log(f"Error reading {file_path.name}: {e}")
-        rows_skipped += 1
+
+# If nothing valid found → skip safely
+if not rows_by_date:
+    log("No rows found to combine. Skipping.")
+    print("No combine needed.")
+    exit(0)
 
 # =========================
 # WRITE COMBINED FILES
 # =========================
-
-if not rows_by_date:
-    log("No valid rows found to combine.")
-    raise ValueError("No rows combined.")
 
 for date_key, rows in rows_by_date.items():
     outfile = INPUT_DIR / f"hockey_{date_key}.csv"
@@ -116,12 +101,5 @@ for date_key, rows in rows_by_date.items():
 
     log(f"Wrote {outfile.name} ({len(rows)} rows)")
 
-# =========================
-# SUMMARY
-# =========================
-
-log("---- SUMMARY ----")
-log(f"Files processed: {files_processed}")
-log(f"Rows processed: {rows_processed}")
-log(f"Rows skipped: {rows_skipped}")
-log("Done.")
+log(f"SUMMARY: files_processed={files_processed}, rows_processed={rows_processed}")
+print("Combine complete.")
