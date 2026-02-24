@@ -20,21 +20,22 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def find_juice_row(juice_df, decimal_odds, fav_ud, venue):
+def find_juice_row(juice_df, puck_line_value, fav_ud, venue):
     band = juice_df[
-        (juice_df["band_min"] <= decimal_odds) &
-        (decimal_odds < juice_df["band_max"]) &
+        (juice_df["band_min"] <= puck_line_value) &
+        (puck_line_value < juice_df["band_max"]) &
         (juice_df["fav_ud"] == fav_ud) &
         (juice_df["venue"] == venue)
     ]
     if band.empty:
-        raise ValueError(f"No puck juice band for {decimal_odds}, {fav_ud}, {venue}")
-    return band.iloc[0]["extra_juice"]
+        return 0.0
+    return float(band.iloc[0]["extra_juice"])
 
 
 def apply_side(df, side, juice_df):
     dk_col = f"{side}_dk_puck_line_decimal"
     fair_col = f"{side}_fair_puck_line_decimal"
+    puck_col = f"{side}_puck_line"
 
     df[f"{side}_juiced_prob_puck_line"] = pd.NA
     df[f"{side}_juiced_decimal_puck_line"] = pd.NA
@@ -42,14 +43,15 @@ def apply_side(df, side, juice_df):
     for idx, row in df.iterrows():
         dk_decimal = float(row[dk_col])
         fair_decimal = float(row[fair_col])
+        puck_line_value = abs(float(row[puck_col]))
 
-        fav_ud = "favorite" if dk_decimal < row[
-            "home_dk_puck_line_decimal" if side == "away" else "away_dk_puck_line_decimal"
-        ] else "underdog"
+        other_side = "home" if side == "away" else "away"
+        other_decimal = float(row[f"{other_side}_dk_puck_line_decimal"])
 
+        fav_ud = "favorite" if dk_decimal < other_decimal else "underdog"
         venue = side
 
-        extra_juice = find_juice_row(juice_df, dk_decimal, fav_ud, venue)
+        extra_juice = find_juice_row(juice_df, puck_line_value, fav_ud, venue)
 
         fair_prob = 1 / fair_decimal
         juiced_prob = fair_prob + extra_juice
