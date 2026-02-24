@@ -1,3 +1,5 @@
+# scripts/totals_ncaab.py
+
 import pandas as pd
 import glob
 from pathlib import Path
