@@ -41,6 +41,11 @@ jobs:
           python docs/win/hockey/scripts/01_merge/merge_intake.py \
             "${{ github.event.inputs.slate_date }}"
 
+      - name: Run Basketball merge
+        run: |
+          python docs/win/basketball/scripts/01_merge/merge_intake.py \
+            "${{ github.event.inputs.slate_date }}"
+
       - name: Build Hockey Juice Files
         run: |
           python docs/win/hockey/scripts/01_merge/build_juice_files.py
@@ -54,6 +59,8 @@ jobs:
           git add docs/win/soccer/errors/01_merge/
           git add docs/win/hockey/01_merge/
           git add docs/win/hockey/errors/01_merge/
+          git add docs/win/basketball/01_merge/
+          git add docs/win/basketball/errors/01_merge/
 
-          git commit -m "Merge + Hockey Juice: ${{ github.event.inputs.slate_date }}" || echo "No changes"
+          git commit -m "Merge + Hockey + Basketball: ${{ github.event.inputs.slate_date }}" || echo "No changes"
           git push
