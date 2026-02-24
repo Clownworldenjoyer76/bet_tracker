@@ -1,114 +1,193 @@
-# docs/win/hockey/scripts/04_select/select_bets.py
 #!/usr/bin/env python3
+# docs/win/hockey/scripts/04_select/select_bets.py
 
 import pandas as pd
 from pathlib import Path
 from datetime import datetime
 import traceback
 
-INPUT_DIR = Path("docs/win/soccer/03_edges")
-OUTPUT_DIR = Path("docs/win/soccer/04_select")
-ERROR_DIR = Path("docs/win/soccer/errors/04_select")
+# =========================
+# PATHS
+# =========================
+
+INPUT_DIR = Path("docs/win/hockey/03_edges")
+OUTPUT_DIR = Path("docs/win/hockey/04_select")
+ERROR_DIR = Path("docs/win/hockey/errors/04_select")
 ERROR_LOG = ERROR_DIR / "select_bets.txt"
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
+# =========================
+# RULES
+# =========================
+
 MIN_EDGE_PCT = 0.03
-DRAW_MIN_EDGE_PCT = 0.05
-DRAW_MIN_PROB = 0.22
-DRAW_DOMINANCE_MARGIN = 0.03
+
+ML_MIN_PROB = 0.33
+PL_MIN_PROB = 0.38
+TOTAL_MIN_PROB = 0.45
+
+# =========================
+# HELPERS
+# =========================
+
+def valid_edge(edge_pct):
+    return pd.notna(edge_pct) and edge_pct >= MIN_EDGE_PCT
+
+def select_side(row, side, market_type, min_prob):
+    """
+    Returns selection dict or None
+    """
+    edge_pct = row.get(f"{side}_edge_pct")
+    edge_dec = row.get(f"{side}_edge_decimal")
+    model_prob = row.get(f"{side}_prob")
+
+    if not valid_edge(edge_pct):
+        return None
+    if pd.isna(model_prob) or model_prob < min_prob:
+        return None
+
+    return {
+        "game_id": row["game_id"],
+        "take_bet": f"{side}_{market_type}",
+        "take_bet_prob": model_prob,
+        "take_bet_edge_decimal": edge_dec,
+        "take_bet_edge_pct": edge_pct,
+    }
+
+# =========================
+# MAIN
+# =========================
 
 def main():
-
     with open(ERROR_LOG, "w") as log:
 
-        log.write("=== SELECT BETS RUN (STRICT) ===\n")
+        log.write("=== NHL SELECT BETS RUN (STRICT) ===\n")
         log.write(f"Timestamp: {datetime.utcnow().isoformat()}Z\n\n")
 
         try:
 
-            input_files = sorted(INPUT_DIR.glob("soccer_*.csv"))
+            moneyline_files = sorted(INPUT_DIR.glob("*_NHL_moneyline.csv"))
+            puckline_files = sorted(INPUT_DIR.glob("*_NHL_puck_line.csv"))
+            total_files = sorted(INPUT_DIR.glob("*_NHL_total.csv"))
 
-            if not input_files:
+            if not (moneyline_files or puckline_files or total_files):
                 log.write("No input files found.\n")
                 return
 
-            for input_path in input_files:
+            # Group by slate date (based on filename prefix)
+            all_files = moneyline_files + puckline_files + total_files
+            slates = {}
 
-                df = pd.read_csv(input_path)
+            for f in all_files:
+                slate_key = f.name.replace("_NHL_moneyline.csv", "") \
+                                  .replace("_NHL_puck_line.csv", "") \
+                                  .replace("_NHL_total.csv", "")
+                slates.setdefault(slate_key, []).append(f)
 
-                required_cols = [
-                    "game_id",
-                    "home_prob", "draw_prob", "away_prob",
-                    "home_edge_decimal", "draw_edge_decimal", "away_edge_decimal",
-                    "home_edge_pct", "draw_edge_pct", "away_edge_pct"
-                ]
+            for slate_key, files in slates.items():
 
-                for col in required_cols:
-                    if col not in df.columns:
-                        raise ValueError(f"Missing column: {col}")
+                selections = {}
 
-                selections = []
+                # ---- MONEYLINE ----
+                ml_path = INPUT_DIR / f"{slate_key}_NHL_moneyline.csv"
+                if ml_path.exists():
+                    df = pd.read_csv(ml_path)
 
-                for _, row in df.iterrows():
+                    for _, row in df.iterrows():
+                        game_id = row["game_id"]
 
-                    edges = {
-                        "home": row["home_edge_pct"],
-                        "draw": row["draw_edge_pct"],
-                        "away": row["away_edge_pct"]
-                    }
+                        home_sel = select_side(row, "home", "moneyline", ML_MIN_PROB)
+                        away_sel = select_side(row, "away", "moneyline", ML_MIN_PROB)
 
-                    probs = {
-                        "home": row["home_prob"],
-                        "draw": row["draw_prob"],
-                        "away": row["away_prob"]
-                    }
+                        best_ml = None
+                        if home_sel and away_sel:
+                            best_ml = max([home_sel, away_sel],
+                                          key=lambda x: x["take_bet_edge_pct"])
+                        elif home_sel:
+                            best_ml = home_sel
+                        elif away_sel:
+                            best_ml = away_sel
 
-                    for k in list(edges.keys()):
-                        if pd.isna(edges[k]):
-                            edges[k] = -999
+                        if best_ml:
+                            selections.setdefault(game_id, {})["ml_pl"] = best_ml
 
-                    # Remove negative edges entirely
-                    positive_edges = {k: v for k, v in edges.items() if v >= MIN_EDGE_PCT}
+                # ---- PUCK LINE ----
+                pl_path = INPUT_DIR / f"{slate_key}_NHL_puck_line.csv"
+                if pl_path.exists():
+                    df = pd.read_csv(pl_path)
 
-                    if not positive_edges:
-                        continue  # no valid bet
+                    for _, row in df.iterrows():
+                        game_id = row["game_id"]
 
-                    best_side = max(positive_edges, key=positive_edges.get)
-                    best_edge = positive_edges[best_side]
+                        home_sel = select_side(row, "home", "puck_line", PL_MIN_PROB)
+                        away_sel = select_side(row, "away", "puck_line", PL_MIN_PROB)
 
-                    # Draw suppression
-                    if best_side == "draw":
-                        sorted_edges = sorted(edges.values(), reverse=True)
-                        second_best = sorted_edges[1] if len(sorted_edges) > 1 else -999
+                        best_pl = None
+                        if home_sel and away_sel:
+                            best_pl = max([home_sel, away_sel],
+                                          key=lambda x: x["take_bet_edge_pct"])
+                        elif home_sel:
+                            best_pl = home_sel
+                        elif away_sel:
+                            best_pl = away_sel
 
-                        if (
-                            best_edge < DRAW_MIN_EDGE_PCT
-                            or probs["draw"] < DRAW_MIN_PROB
-                            or (best_edge - second_best) < DRAW_DOMINANCE_MARGIN
-                        ):
-                            non_draw_positive = {
-                                k: v for k, v in positive_edges.items() if k != "draw"
-                            }
-                            if not non_draw_positive:
-                                continue
-                            best_side = max(non_draw_positive, key=non_draw_positive.get)
-                            best_edge = non_draw_positive[best_side]
+                        if best_pl:
+                            selections.setdefault(game_id, {})["pl"] = best_pl
 
-                    selections.append({
-                        "game_id": row["game_id"],
-                        "take_bet": best_side,
-                        "take_bet_prob": row[f"{best_side}_prob"],
-                        "take_bet_edge_decimal": row[f"{best_side}_edge_decimal"],
-                        "take_bet_edge_pct": row[f"{best_side}_edge_pct"],
-                    })
+                # ---- TOTALS ----
+                total_path = INPUT_DIR / f"{slate_key}_NHL_total.csv"
+                if total_path.exists():
+                    df = pd.read_csv(total_path)
 
-                sel_df = pd.DataFrame(selections)
-                output_path = OUTPUT_DIR / input_path.name
-                sel_df.to_csv(output_path, index=False)
+                    for _, row in df.iterrows():
+                        game_id = row["game_id"]
 
-                log.write(f"Wrote {output_path}\n")
+                        over_sel = select_side(row, "over", "total", TOTAL_MIN_PROB)
+                        under_sel = select_side(row, "under", "total", TOTAL_MIN_PROB)
+
+                        best_total = None
+                        if over_sel and under_sel:
+                            best_total = max([over_sel, under_sel],
+                                             key=lambda x: x["take_bet_edge_pct"])
+                        elif over_sel:
+                            best_total = over_sel
+                        elif under_sel:
+                            best_total = under_sel
+
+                        if best_total:
+                            selections.setdefault(game_id, {})["total"] = best_total
+
+                # ---- FINAL DECISION PER GAME ----
+                final_rows = []
+
+                for game_id, markets in selections.items():
+
+                    # Moneyline vs Puck Line conflict resolution
+                    ml_pl_choice = None
+                    if "ml_pl" in markets and "pl" in markets:
+                        ml_pl_choice = max(
+                            [markets["ml_pl"], markets["pl"]],
+                            key=lambda x: x["take_bet_edge_pct"]
+                        )
+                    elif "ml_pl" in markets:
+                        ml_pl_choice = markets["ml_pl"]
+                    elif "pl" in markets:
+                        ml_pl_choice = markets["pl"]
+
+                    if ml_pl_choice:
+                        final_rows.append(ml_pl_choice)
+
+                    # Totals (only one side already enforced)
+                    if "total" in markets:
+                        final_rows.append(markets["total"])
+
+                out_df = pd.DataFrame(final_rows)
+                output_path = OUTPUT_DIR / f"{slate_key}_NHL.csv"
+                out_df.to_csv(output_path, index=False)
+
+                log.write(f"Wrote {output_path} | rows={len(out_df)}\n")
 
         except Exception as e:
             log.write("\n=== ERROR ===\n")
