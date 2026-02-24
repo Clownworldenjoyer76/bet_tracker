@@ -1,4 +1,4 @@
-name: Soccer 03 Compute Edges
+name: _03 Compute Edges
 
 on:
   workflow_dispatch:
@@ -30,6 +30,10 @@ jobs:
         run: |
           python docs/win/soccer/scripts/03_edges/compute_edges.py
 
+      - name: Run compute_edges.py
+        run: |
+          python docs/win/hockey/scripts/03_edges/compute_edges.py
+     
       - name: Commit and push changes
         run: |
           git config user.name "github-actions"
@@ -37,7 +41,9 @@ jobs:
 
           git add docs/win/soccer/03_edges/
           git add docs/win/soccer/errors/03_edges/
-
+          git add docs/win/hockey/03_edges/
+          git add docs/win/hockey/errors/03_edges/
+          
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
