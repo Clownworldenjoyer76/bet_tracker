@@ -1,4 +1,4 @@
-name: Soccer 04 Select Bets
+name:  _04 Select Bets
 
 on:
   workflow_dispatch:
@@ -30,6 +30,10 @@ jobs:
         run: |
           python docs/win/soccer/scripts/04_select/select_bets.py
 
+      - name: Run 04 Select Script
+        run: |
+          python docs/win/hockey/scripts/04_select/select_bets.py
+     
       - name: Commit and push results
         run: |
           git config user.name "github-actions"
@@ -37,6 +41,8 @@ jobs:
 
           git add docs/win/soccer/04_select/*.csv || true
           git add docs/win/soccer/errors/04_select/select_bets.txt || true
-
+          git add docs/win/hockey/04_select/*.csv || true
+          git add docs/win/hockey/errors/04_select/select_bets.txt || true
+          
           git commit -m "Soccer 04 select bets run" || echo "No changes to commit"
           git push
