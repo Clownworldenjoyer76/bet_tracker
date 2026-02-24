@@ -40,51 +40,59 @@ jobs:
 
       - name: Route to correct parser
         run: |
-          # Write multiline raw_text safely to file (preserves formatting)
+          # Normalize league to lowercase for filesystem paths
+          LEAGUE=$(echo "${{ github.event.inputs.league }}" | tr '[:upper:]' '[:lower:]')
+          SOURCE="${{ github.event.inputs.source }}"
+          MARKET="${{ github.event.inputs.market }}"
+
+          # Write multiline raw_text safely
           printf "%s" "${{ github.event.inputs.raw_text }}" > dump.txt
 
-          BASE="docs/win/${{ github.event.inputs.league }}/scripts/00_parsing"
+          BASE="docs/win/$LEAGUE/scripts/00_parsing"
 
-          if [ "${{ github.event.inputs.source }}" = "DraftKings" ]; then
+          if [ "$SOURCE" = "DraftKings" ]; then
             python "$BASE/dk.py" \
-              "${{ github.event.inputs.league }}" \
-              "${{ github.event.inputs.market }}" \
+              "$LEAGUE" \
+              "$MARKET" \
               dump.txt
           else
             python "$BASE/drat.py" \
-              "${{ github.event.inputs.league }}" \
-              "${{ github.event.inputs.market }}" \
+              "$LEAGUE" \
+              "$MARKET" \
               dump.txt
           fi
 
       - name: Combine markets (Soccer only)
-        if: ${{ github.event.inputs.league == 'soccer' }}
         run: |
-          BASE="docs/win/${{ github.event.inputs.league }}/scripts/00_parsing"
-          python "$BASE/parsing_combine.py"
+          LEAGUE=$(echo "${{ github.event.inputs.league }}" | tr '[:upper:]' '[:lower:]')
+          if [ "$LEAGUE" = "soccer" ]; then
+            BASE="docs/win/$LEAGUE/scripts/00_parsing"
+            python "$BASE/parsing_combine.py"
+          fi
 
       - name: Normalize team names
         run: |
-          BASE="docs/win/${{ github.event.inputs.league }}/scripts/00_parsing"
+          LEAGUE=$(echo "${{ github.event.inputs.league }}" | tr '[:upper:]' '[:lower:]')
+          BASE="docs/win/$LEAGUE/scripts/00_parsing"
           python "$BASE/name_normalization.py"
 
       - name: Dedupe intake files
         run: |
-          BASE="docs/win/${{ github.event.inputs.league }}/scripts/00_parsing"
+          LEAGUE=$(echo "${{ github.event.inputs.league }}" | tr '[:upper:]' '[:lower:]')
+          BASE="docs/win/$LEAGUE/scripts/00_parsing"
           python "$BASE/dedupe.py"
 
       - name: Commit and push changes
         run: |
+          LEAGUE=$(echo "${{ github.event.inputs.league }}" | tr '[:upper:]' '[:lower:]')
+
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
 
-          # Intake outputs
-          git add "docs/win/${{ github.event.inputs.league }}/00_intake/"
+          git add "docs/win/$LEAGUE/00_intake/" || true
+          git add "mappings/$LEAGUE/no_map/" || true
+          git add "docs/win/$LEAGUE/errors/" || true
 
-          # Basketball-specific mappings + errors (ensures write tracking)
-          git add "mappings/${{ github.event.inputs.league }}/no_map/" || true
-          git add "docs/win/${{ github.event.inputs.league }}/errors/" || true
-
-          git commit -m "${{ github.event.inputs.league }} intake: ${{ github.event.inputs.market }} - ${{ github.event.inputs.source }}" || echo "No changes to commit"
+          git commit -m "$LEAGUE intake: ${{ github.event.inputs.market }} - ${{ github.event.inputs.source }}" || echo "No changes to commit"
 
           git push
