@@ -26,14 +26,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install pandas
 
-      - name: Run compute_edges.py
+      - name: Run soccer compute_edges.py
         run: |
           python docs/win/soccer/scripts/03_edges/compute_edges.py
 
-      - name: Run compute_edges.py
+      - name: Run hockey compute_edges.py
         run: |
           python docs/win/hockey/scripts/03_edges/compute_edges.py
-     
+
       - name: Commit and push changes
         run: |
           git config user.name "github-actions"
@@ -43,10 +43,10 @@ jobs:
           git add docs/win/soccer/errors/03_edges/
           git add docs/win/hockey/03_edges/
           git add docs/win/hockey/errors/03_edges/
-          
+
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "Soccer 03 Compute Edges - automated run"
+            git commit -m "03 Compute Edges - automated run"
             git push
           fi
