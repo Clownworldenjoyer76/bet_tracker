@@ -1,165 +1,92 @@
-<!-- docs/manual_data.html -->
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Data Dump</title>
-  <link rel="stylesheet" href="css/terminal.css" />
-  <style>
-    .row {
-      display: flex;
-      gap: 16px;
-    }
+name: _00 Manual Data Text Intake
 
-    .row > div {
-      flex: 1;
-    }
+on:
+  workflow_dispatch:
+    inputs:
+      league:
+        required: true
+        type: string
+      market:
+        required: true
+        type: string
+      source:
+        required: true
+        type: string
+      raw_text:
+        required: true
+        type: string
 
-    #raw {
-      width: 100%;
-      height: 200px;          /* fixed size ~10 rows */
-      overflow-y: auto;       /* scrollable */
-      resize: none;           /* fixed size */
-      box-sizing: border-box;
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
+permissions:
+  contents: write
 
-    <h2>Data Dump</h2>
+jobs:
+  intake:
+    runs-on: ubuntu-latest
 
-    <div class="row">
-      <div>
-        <label for="league">League</label>
-        <select id="league" onchange="updateMarkets()">
-          <option value="">-- select --</option>
-          <option value="basketball">Basketball</option>
-          <option value="football">Football</option>
-          <option value="baseball">Baseball</option>
-          <option value="hockey">Hockey</option>
-          <option value="soccer">Soccer</option>
-        </select>
-      </div>
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      <div>
-        <label for="market">Market</label>
-        <select id="market">
-          <option value="">-- placeholder --</option>
-        </select>
-      </div>
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-      <div>
-        <label for="source">Source</label>
-        <select id="source">
-          <option value="">-- select --</option>
-          <option value="DraftKings">DraftKings</option>
-          <option value="Predictions">Predictions</option>
-        </select>
-      </div>
-    </div>
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
 
-    <label for="token">Magic</label>
-    <input id="token" type="password" placeholder="Enter Magic Here" />
+      - name: Route to correct parser
+        run: |
+          LEAGUE_RAW="${{ github.event.inputs.league }}"
+          LEAGUE=$(echo "$LEAGUE_RAW" | tr '[:upper:]' '[:lower:]')
+          MARKET="${{ github.event.inputs.market }}"
+          SOURCE="${{ github.event.inputs.source }}"
 
-    <label for="raw">Raw Text</label>
-    <textarea id="raw" rows="10" placeholder="Paste text here..."></textarea>
+          printf "%s" "${{ github.event.inputs.raw_text }}" > dump.txt
 
-    <button id="btn" onclick="dispatch()">Create File</button>
+          BASE="docs/win/$LEAGUE/scripts/00_parsing"
 
-    <pre id="out"></pre>
+          if [ "$SOURCE" = "DraftKings" ]; then
+            python "$BASE/dk.py" "$LEAGUE" "$MARKET" dump.txt
+          else
+            python "$BASE/drat.py" "$LEAGUE" "$MARKET" dump.txt
+          fi
 
-  </div>
+      - name: Combine markets (Soccer only)
+        run: |
+          LEAGUE=$(echo "${{ github.event.inputs.league }}" | tr '[:upper:]' '[:lower:]')
+          if [ "$LEAGUE" = "soccer" ]; then
+            BASE="docs/win/$LEAGUE/scripts/00_parsing"
+            python "$BASE/parsing_combine.py"
+          fi
 
-  <script>
-    const OWNER = "Clownworldenjoyer76";
-    const REPO  = "bet_tracker";
-    const WORKFLOW_FILE = "_00_manual_data.yml";
-    const REF = "main";
+      - name: Normalize team names
+        run: |
+          LEAGUE=$(echo "${{ github.event.inputs.league }}" | tr '[:upper:]' '[:lower:]')
+          BASE="docs/win/$LEAGUE/scripts/00_parsing"
+          python "$BASE/name_normalization.py"
 
-    const MARKET_MAP = {
-      basketball: ["NBA", "NCAA Men"],
-      football: ["NFL", "NCAA", "CFL"],
-      baseball: ["MLB"],
-      hockey: ["NHL"],
-      soccer: ["MLS", "EPL", "Ligue 1", "Serie A", "La Liga", "Bundesliga"]
-    };
+      - name: Dedupe intake files
+        run: |
+          LEAGUE=$(echo "${{ github.event.inputs.league }}" | tr '[:upper:]' '[:lower:]')
+          BASE="docs/win/$LEAGUE/scripts/00_parsing"
+          python "$BASE/dedupe.py"
 
-    function updateMarkets() {
-      const league = document.getElementById("league").value;
-      const marketSelect = document.getElementById("market");
-      marketSelect.innerHTML = "";
+      - name: Commit and push changes
+        run: |
+          LEAGUE_RAW="${{ github.event.inputs.league }}"
+          LEAGUE=$(echo "$LEAGUE_RAW" | tr '[:upper:]' '[:lower:]')
 
-      if (!league || !MARKET_MAP[league]) {
-        const opt = document.createElement("option");
-        opt.value = "";
-        opt.textContent = "-- placeholder --";
-        marketSelect.appendChild(opt);
-        return;
-      }
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
 
-      for (const m of MARKET_MAP[league]) {
-        const opt = document.createElement("option");
-        opt.value = m;
-        opt.textContent = m;
-        marketSelect.appendChild(opt);
-      }
-    }
+          git add "docs/win/$LEAGUE/00_intake/" || true
+          git add "mappings/$LEAGUE/no_map/" || true
+          git add "docs/win/$LEAGUE/errors/" || true
 
-    async function dispatch() {
-      const league = document.getElementById("league").value.trim();
-      const market = document.getElementById("market").value.trim();
-      const source = document.getElementById("source").value.trim();
-      const token  = document.getElementById("token").value.trim();
-      const raw    = document.getElementById("raw").value;
-      const out    = document.getElementById("out");
-      const btn    = document.getElementById("btn");
+          git commit -m "$LEAGUE_RAW intake: ${{ github.event.inputs.market }} - ${{ github.event.inputs.source }}" || echo "No changes to commit"
 
-      out.textContent = "";
-
-      if (!league || !source || !token || !raw.trim()) {
-        out.textContent = "Major Failure Bro";
-        return;
-      }
-
-      btn.disabled = true;
-      btn.textContent = "Submitting...";
-
-      try {
-        const url = `https://api.github.com/repos/${OWNER}/${REPO}/actions/workflows/${WORKFLOW_FILE}/dispatches`;
-
-        const res = await fetch(url, {
-          method: "POST",
-          headers: {
-            "Accept": "application/vnd.github+json",
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            ref: REF,
-            inputs: {
-              league: league,
-              market: market,
-              source: source,
-              raw_text: raw
-            }
-          })
-        });
-
-        if (res.status === 204) {
-          out.textContent = "Successfully Submitted";
-        } else {
-          out.textContent = "Major Failure Bro";
-        }
-
-      } catch (e) {
-        out.textContent = "Major Failure Bro";
-      } finally {
-        btn.disabled = false;
-        btn.textContent = "Create File";
-      }
-    }
-  </script>
-
-</body>
-</html>
+          git push
