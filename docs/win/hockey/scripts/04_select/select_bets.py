@@ -36,9 +36,6 @@ def valid_edge(edge_pct):
     return pd.notna(edge_pct) and edge_pct >= MIN_EDGE_PCT
 
 def select_side(row, side, market_type, min_prob):
-    """
-    Returns selection dict or None
-    """
     edge_pct = row.get(f"{side}_edge_pct")
     edge_dec = row.get(f"{side}_edge_decimal")
     model_prob = row.get(f"{side}_prob")
@@ -55,6 +52,17 @@ def select_side(row, side, market_type, min_prob):
         "take_bet_edge_decimal": edge_dec,
         "take_bet_edge_pct": edge_pct,
     }
+
+def select_puck_side(row, side):
+    """
+    Only allow +1.5 puck lines.
+    """
+    puck_line = row.get(f"{side}_puck_line")
+
+    if pd.isna(puck_line) or puck_line <= 0:
+        return None
+
+    return select_side(row, side, "puck_line", PL_MIN_PROB)
 
 # =========================
 # MAIN
@@ -76,7 +84,6 @@ def main():
                 log.write("No input files found.\n")
                 return
 
-            # Group by slate date (based on filename prefix)
             all_files = moneyline_files + puckline_files + total_files
             slates = {}
 
@@ -86,7 +93,7 @@ def main():
                                   .replace("_NHL_total.csv", "")
                 slates.setdefault(slate_key, []).append(f)
 
-            for slate_key, files in slates.items():
+            for slate_key in slates.keys():
 
                 selections = {}
 
@@ -111,7 +118,7 @@ def main():
                             best_ml = away_sel
 
                         if best_ml:
-                            selections.setdefault(game_id, {})["ml_pl"] = best_ml
+                            selections.setdefault(game_id, {})["ml"] = best_ml
 
                 # ---- PUCK LINE ----
                 pl_path = INPUT_DIR / f"{slate_key}_NHL_puck_line.csv"
@@ -121,8 +128,8 @@ def main():
                     for _, row in df.iterrows():
                         game_id = row["game_id"]
 
-                        home_sel = select_side(row, "home", "puck_line", PL_MIN_PROB)
-                        away_sel = select_side(row, "away", "puck_line", PL_MIN_PROB)
+                        home_sel = select_puck_side(row, "home")
+                        away_sel = select_puck_side(row, "away")
 
                         best_pl = None
                         if home_sel and away_sel:
@@ -164,22 +171,17 @@ def main():
 
                 for game_id, markets in selections.items():
 
-                    # Moneyline vs Puck Line conflict resolution
+                    # PRIORITY: +1.5 puck line always beats moneyline
                     ml_pl_choice = None
-                    if "ml_pl" in markets and "pl" in markets:
-                        ml_pl_choice = max(
-                            [markets["ml_pl"], markets["pl"]],
-                            key=lambda x: x["take_bet_edge_pct"]
-                        )
-                    elif "ml_pl" in markets:
-                        ml_pl_choice = markets["ml_pl"]
-                    elif "pl" in markets:
+
+                    if "pl" in markets:
                         ml_pl_choice = markets["pl"]
+                    elif "ml" in markets:
+                        ml_pl_choice = markets["ml"]
 
                     if ml_pl_choice:
                         final_rows.append(ml_pl_choice)
 
-                    # Totals (only one side already enforced)
                     if "total" in markets:
                         final_rows.append(markets["total"])
 
