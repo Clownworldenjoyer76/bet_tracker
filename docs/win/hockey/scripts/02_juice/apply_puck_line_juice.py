@@ -11,7 +11,7 @@ import sys
 
 INPUT_DIR = Path("docs/win/hockey/01_merge")
 OUTPUT_DIR = Path("docs/win/hockey/02_juice")
-JUICE_FILE = Path("config/hockey/nhl/nhl_puck_line_juice.csv")
+JUICE_FILE = Path("config/hockey/nhl/nhl_puck_runline_bands.csv")
 
 ERROR_DIR = Path("docs/win/hockey/errors/02_juice")
 LOG_FILE = ERROR_DIR / "apply_puck_line_juice.txt"
@@ -20,10 +20,9 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def find_row(juice_df, puck_line_value, fav_ud, venue):
+def find_row(juice_df, fav_ud, venue):
     band = juice_df[
-        (juice_df["band_min"] <= puck_line_value) &
-        (puck_line_value < juice_df["band_max"]) &
+        (juice_df["band"] == "1 to 1.5") &
         (juice_df["fav_ud"] == fav_ud) &
         (juice_df["venue"] == venue)
     ]
@@ -40,18 +39,24 @@ def apply_side(df, side, juice_df):
     df[f"{side}_juiced_decimal_puck_line"] = pd.NA
 
     for idx, row in df.iterrows():
-        puck_line_value = abs(float(row[puck_col]))
+        try:
+            puck_line_value = float(row[puck_col])
+        except Exception:
+            continue
 
-        other_side = "home" if side == "away" else "away"
-        dk_decimal = float(row[dk_col])
-        other_decimal = float(row[f"{other_side}_dk_puck_line_decimal"])
+        # Determine favorite/underdog strictly by puck line sign
+        if puck_line_value == -1.5:
+            fav_ud = "favorite"
+        elif puck_line_value == 1.5:
+            fav_ud = "underdog"
+        else:
+            continue
 
-        fav_ud = "favorite" if dk_decimal < other_decimal else "underdog"
         venue = side
 
-        band_row = find_row(juice_df, puck_line_value, fav_ud, venue)
+        band_row = find_row(juice_df, fav_ud, venue)
 
-        if band_row is None or "win_pct" not in band_row:
+        if band_row is None:
             continue
 
         juiced_prob = float(band_row["win_pct"])
@@ -70,6 +75,11 @@ def main():
     try:
         juice_df = pd.read_csv(JUICE_FILE)
         files = glob.glob(str(INPUT_DIR / "*_NHL_puck_line.csv"))
+
+        if not files:
+            with open(LOG_FILE, "a") as log:
+                log.write("No NHL puck line files found\n")
+            return
 
         for file_path in files:
             df = pd.read_csv(file_path)
