@@ -1,4 +1,4 @@
-name: Soccer 02 Apply Juice
+name: _02 Apply Juice
 
 on:
   workflow_dispatch:
@@ -26,10 +26,31 @@ jobs:
           python -m pip install --upgrade pip
           pip install pandas
 
-      - name: Run apply_juice.py
+      # -----------------------
+      # Soccer Juice
+      # -----------------------
+      - name: Run Soccer apply_juice.py
         run: |
           python docs/win/soccer/scripts/02_juice/apply_juice.py
 
+      # -----------------------
+      # Hockey Juice
+      # -----------------------
+      - name: Run Hockey Moneyline Juice
+        run: |
+          python docs/win/hockey/scripts/02_juice/apply_moneyline_juice.py
+
+      - name: Run Hockey Total Juice
+        run: |
+          python docs/win/hockey/scripts/02_juice/apply_total_juice.py
+
+      - name: Run Hockey Puck Line Juice
+        run: |
+          python docs/win/hockey/scripts/02_juice/apply_puck_line_juice.py
+
+      # -----------------------
+      # Commit + Push
+      # -----------------------
       - name: Commit and push changes
         run: |
           git config user.name "github-actions"
@@ -38,9 +59,12 @@ jobs:
           git add docs/win/soccer/02_juice/
           git add docs/win/soccer/errors/02_juice/
 
+          git add docs/win/hockey/02_juice/
+          git add docs/win/hockey/errors/02_juice/
+
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "Soccer 02 Apply Juice - automated run"
+            git commit -m "02 Apply Juice - automated run"
             git push
           fi
