@@ -22,7 +22,6 @@ ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 def find_row(juice_df, fav_ud, venue):
     band = juice_df[
-        (juice_df["band"] == "1 to 1.5") &
         (juice_df["fav_ud"] == fav_ud) &
         (juice_df["venue"] == venue)
     ]
@@ -32,7 +31,6 @@ def find_row(juice_df, fav_ud, venue):
 
 
 def apply_side(df, side, juice_df):
-    dk_col = f"{side}_dk_puck_line_decimal"
     puck_col = f"{side}_puck_line"
 
     df[f"{side}_juiced_prob_puck_line"] = pd.NA
@@ -74,6 +72,11 @@ def main():
 
     try:
         juice_df = pd.read_csv(JUICE_FILE)
+
+        # Normalize whitespace just in case
+        juice_df["fav_ud"] = juice_df["fav_ud"].str.strip()
+        juice_df["venue"] = juice_df["venue"].str.strip()
+
         files = glob.glob(str(INPUT_DIR / "*_NHL_puck_line.csv"))
 
         if not files:
