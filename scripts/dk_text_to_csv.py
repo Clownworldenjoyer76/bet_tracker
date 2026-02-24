@@ -51,18 +51,11 @@ def is_spread(s):
 def is_total_number(s):
     return re.fullmatch(r"\d+(\.\d+)?", s or "") is not None
 
-def normalize_side(s):
-    return "Over" if s.upper() == "O" else "Under"
-
 def parse_time_line(line):
     m = re.search(r"(\d{1,2}:\d{2}\s?(AM|PM))", line)
     return m.group(1) if m else ""
 
 def is_game_boundary(lines, idx):
-    """
-    Detect start of next game by:
-    team line followed by 'at'
-    """
     if idx + 1 >= len(lines):
         return False
     return lines[idx + 1].lower() == "at"
@@ -96,26 +89,17 @@ try:
     with open("raw.txt", encoding="utf-8") as f:
         lines = [clean(l) for l in f if clean(l)]
 
-    # =========================
-    # LEGACY (UNCHANGED)
-    # =========================
     if not IS_DK:
         raise RuntimeError("Legacy logic preserved — use original branch")
-
-    # =========================
-    # DK PARSER
-    # =========================
 
     i = 0
     while i < len(lines):
 
-        # Detect away @ home structure
         if lines[i].lower() == "at" and i > 0 and i + 1 < len(lines):
 
             away = lines[i - 1]
             home = lines[i + 1]
 
-            # Skip ranking lines
             if away.isdigit():
                 i += 1
                 continue
@@ -132,12 +116,15 @@ try:
 
             while j < len(lines):
 
-                # Proper boundary detection
                 if is_game_boundary(lines, j):
                     break
 
                 # Spread detection
-                if is_spread(lines[j]) and j + 1 < len(lines) and is_american_odds(lines[j + 1]):
+                if (
+                    is_spread(lines[j]) and
+                    j + 1 < len(lines) and
+                    is_american_odds(lines[j + 1])
+                ):
                     if spread_away is None:
                         spread_away = lines[j]
                         spread_away_odds = lines[j + 1]
@@ -161,16 +148,21 @@ try:
                         j += 3
                         continue
 
-                # Moneyline detection
-                if is_american_odds(lines[j]):
-                    if ml_away is None:
-                        ml_away = lines[j]
-                    elif ml_home is None:
-                        ml_home = lines[j]
-                    j += 1
+                # Moneyline detection (FIXED)
+                if (
+                    spread_away is not None and
+                    spread_home is not None and
+                    ml_away is None and
+                    j + 1 < len(lines) and
+                    is_american_odds(lines[j]) and
+                    is_american_odds(lines[j + 1])
+                ):
+                    ml_away = lines[j]
+                    ml_home = lines[j + 1]
+                    j += 2
                     continue
 
-                # Time
+                # Time detection
                 t = parse_time_line(lines[j])
                 if t:
                     game_time = t
@@ -178,7 +170,7 @@ try:
                 j += 1
 
             # =========================
-            # WRITE (FORCED LEGACY DIRECTION)
+            # WRITE OUTPUT
             # =========================
 
             if spread_away and spread_home:
@@ -257,10 +249,6 @@ try:
             i = j
         else:
             i += 1
-
-    # ======================
-    # WRITE FILES (HEADERS GUARANTEED)
-    # ======================
 
     write_csv(
         OUT_ML,
