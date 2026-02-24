@@ -57,7 +57,8 @@ jobs:
               dump.txt
           fi
 
-      - name: Combine markets
+      - name: Combine markets (Soccer only)
+        if: ${{ github.event.inputs.league == 'soccer' }}
         run: |
           BASE="docs/win/${{ github.event.inputs.league }}/scripts/00_parsing"
           python "$BASE/parsing_combine.py"
@@ -77,9 +78,12 @@ jobs:
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
 
+          # Intake outputs
           git add "docs/win/${{ github.event.inputs.league }}/00_intake/"
-          git add "mappings/${{ github.event.inputs.league }}/no_map/"
-          git add "docs/win/${{ github.event.inputs.league }}/errors/"
+
+          # Basketball-specific mappings + errors (ensures write tracking)
+          git add "mappings/${{ github.event.inputs.league }}/no_map/" || true
+          git add "docs/win/${{ github.event.inputs.league }}/errors/" || true
 
           git commit -m "${{ github.event.inputs.league }} intake: ${{ github.event.inputs.market }} - ${{ github.event.inputs.source }}" || echo "No changes to commit"
 
