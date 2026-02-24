@@ -42,20 +42,21 @@ def clean(line: str) -> str:
             .strip()
     )
 
-def is_american_odds(s):
+def is_american_odds(s: str) -> bool:
     return re.fullmatch(r"[+-]\d+", s or "") is not None
 
-def is_spread(s):
+def is_spread(s: str) -> bool:
     return re.fullmatch(r"[+-]\d+(\.\d+)?", s or "") is not None
 
-def is_total_number(s):
+def is_total_number(s: str) -> bool:
     return re.fullmatch(r"\d+(\.\d+)?", s or "") is not None
 
-def parse_time_line(line):
+def parse_time_line(line: str) -> str:
     m = re.search(r"(\d{1,2}:\d{2}\s?(AM|PM))", line)
     return m.group(1) if m else ""
 
-def is_game_boundary(lines, idx):
+def is_game_boundary(lines, idx: int) -> bool:
+    # Detect start of next game by: team line followed by 'at'
     if idx + 1 >= len(lines):
         return False
     return lines[idx + 1].lower() == "at"
@@ -80,26 +81,74 @@ def write_summary():
         f.write(f"Total rows: {len(ou_rows)}\n\n")
         f.write(f"Total errors: {len(errors)}\n")
 
+def looks_like_noise_token(s: str) -> bool:
+    # Tokens that often appear in the DK copy/paste and should not be treated as odds contexts
+    if not s:
+        return True
+    low = s.lower()
+    return low in {
+        "today", "tomorrow", "spread", "total", "totals", "moneyline", "more bets", "at"
+    }
+
+def can_be_moneyline_token(lines, idx: int) -> bool:
+    """
+    Moneyline in your raw looks like a standalone American odds value inserted after totals,
+    e.g. after 'O total odds' comes '-575' (away ML), and after 'U total odds' comes '+425' (home ML).
+    This helper says whether lines[idx] can be treated as that standalone ML token.
+    """
+    if idx < 0 or idx >= len(lines):
+        return False
+    token = lines[idx]
+    if not is_american_odds(token):
+        return False
+
+    # Exclude if next boundary starts a new game immediately
+    if is_game_boundary(lines, idx):
+        return False
+
+    # Exclude if it’s obviously followed by a spread/total marker (then it's part of next market)
+    if idx + 1 < len(lines):
+        nxt = lines[idx + 1]
+        if nxt in ("O", "U"):
+            return False
+        if is_spread(nxt):
+            return False
+        if parse_time_line(nxt):
+            return False
+        if looks_like_noise_token(nxt):
+            # "More Bets", "Today 6:30 PM" etc. handled above via time; keep conservative
+            pass
+
+    return True
+
 # ======================
 # MAIN
 # ======================
 
 try:
-
     with open("raw.txt", encoding="utf-8") as f:
         lines = [clean(l) for l in f if clean(l)]
 
+    # =========================
+    # LEGACY (UNCHANGED)
+    # =========================
     if not IS_DK:
         raise RuntimeError("Legacy logic preserved — use original branch")
+
+    # =========================
+    # DK PARSER
+    # =========================
 
     i = 0
     while i < len(lines):
 
+        # Detect away @ home structure
         if lines[i].lower() == "at" and i > 0 and i + 1 < len(lines):
 
             away = lines[i - 1]
             home = lines[i + 1]
 
+            # Skip ranking lines
             if away.isdigit():
                 i += 1
                 continue
@@ -116,15 +165,12 @@ try:
 
             while j < len(lines):
 
+                # Proper boundary detection
                 if is_game_boundary(lines, j):
                     break
 
                 # Spread detection
-                if (
-                    is_spread(lines[j]) and
-                    j + 1 < len(lines) and
-                    is_american_odds(lines[j + 1])
-                ):
+                if is_spread(lines[j]) and j + 1 < len(lines) and is_american_odds(lines[j + 1]):
                     if spread_away is None:
                         spread_away = lines[j]
                         spread_away_odds = lines[j + 1]
@@ -134,7 +180,7 @@ try:
                     j += 2
                     continue
 
-                # Totals detection
+                # Totals detection (+ inline moneyline capture from your raw format)
                 if lines[j] in ("O", "U") and j + 2 < len(lines):
                     side = lines[j]
                     total = lines[j + 1]
@@ -145,24 +191,23 @@ try:
                             total_over_odds = odds
                         else:
                             total_under_odds = odds
+
                         j += 3
+
+                        # --- KEY FIX: capture standalone moneyline token that appears right after totals odds ---
+                        # Your raw format commonly does:
+                        #   O, total, odds, <AWAY_ML>, spread, odds, U, total, odds, <HOME_ML>, time...
+                        if j < len(lines) and can_be_moneyline_token(lines, j):
+                            if side == "O" and ml_away is None:
+                                ml_away = lines[j]
+                                j += 1
+                            elif side == "U" and ml_home is None:
+                                ml_home = lines[j]
+                                j += 1
+
                         continue
 
-                # Moneyline detection (FIXED)
-                if (
-                    spread_away is not None and
-                    spread_home is not None and
-                    ml_away is None and
-                    j + 1 < len(lines) and
-                    is_american_odds(lines[j]) and
-                    is_american_odds(lines[j + 1])
-                ):
-                    ml_away = lines[j]
-                    ml_home = lines[j + 1]
-                    j += 2
-                    continue
-
-                # Time detection
+                # Time
                 t = parse_time_line(lines[j])
                 if t:
                     game_time = t
@@ -170,7 +215,7 @@ try:
                 j += 1
 
             # =========================
-            # WRITE OUTPUT
+            # WRITE (FORCED LEGACY DIRECTION)
             # =========================
 
             if spread_away and spread_home:
@@ -249,6 +294,10 @@ try:
             i = j
         else:
             i += 1
+
+    # ======================
+    # WRITE FILES (HEADERS GUARANTEED)
+    # ======================
 
     write_csv(
         OUT_ML,
