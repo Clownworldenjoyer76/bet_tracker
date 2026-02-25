@@ -1,10 +1,7 @@
-# docs/win/basketball/scripts/02_juice/apply_moneyline_juice.py
-
-#!/usr/bin/env python3
+# docs/win/basketball/scripts/02_juice/#!/usr/bin/env python3
 
 import pandas as pd
 from pathlib import Path
-import glob
 import math
 
 INPUT_DIR = Path("docs/win/basketball/01_merge")
@@ -29,6 +26,7 @@ def decimal_to_american(d):
 
 
 def apply_nba(df):
+
     jt = pd.read_csv(NBA_CONFIG)
     jt = jt[jt["lookup_type"] == "band"].copy()
 
@@ -60,6 +58,7 @@ def apply_nba(df):
 
 
 def apply_ncaab(df):
+
     jt = pd.read_csv(NCAAB_CONFIG)
 
     def lookup(prob):
@@ -83,21 +82,19 @@ def apply_ncaab(df):
 
 def main():
 
-    # ONLY process files that contain acceptable moneyline columns
-    files = glob.glob(str(INPUT_DIR / "*moneyline*.csv"))
+    for f in INPUT_DIR.iterdir():
 
-    for f in files:
+        name = f.name
 
-        df = pd.read_csv(f)
-        date = df["game_date"].iloc[0]
-
-        if df["market"].iloc[0] == "NBA":
+        if name.endswith("_NBA_moneyline.csv"):
+            df = pd.read_csv(f)
             df = apply_nba(df)
-            df.to_csv(OUTPUT_DIR / f"{date}_NBA_moneyline.csv", index=False)
+            df.to_csv(OUTPUT_DIR / name, index=False)
 
-        elif df["market"].iloc[0] == "NCAAB":
+        elif name.endswith("_NCAAB_moneyline.csv"):
+            df = pd.read_csv(f)
             df = apply_ncaab(df)
-            df.to_csv(OUTPUT_DIR / f"{date}_NCAAB_moneyline.csv", index=False)
+            df.to_csv(OUTPUT_DIR / name, index=False)
 
 
 if __name__ == "__main__":
