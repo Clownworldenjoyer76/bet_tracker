@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# docs/win/basketball/scripts/03_edges/compute_edges.py
+# docs/win/hockey/scripts/03_edges/compute_edges.py
 
 import pandas as pd
 from pathlib import Path
@@ -10,9 +10,9 @@ import traceback
 # PATHS
 # =========================
 
-INPUT_DIR = Path("docs/win/basketball/02_juice")
-OUTPUT_DIR = Path("docs/win/basketball/03_edges")
-ERROR_DIR = Path("docs/win/basketball/errors/03_edges")
+INPUT_DIR = Path("docs/win/hockey/02_juice")
+OUTPUT_DIR = Path("docs/win/hockey/03_edges")
+ERROR_DIR = Path("docs/win/hockey/errors/03_edges")
 ERROR_LOG = ERROR_DIR / "compute_edges.txt"
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -28,6 +28,10 @@ def validate_columns(df: pd.DataFrame, required_cols: list[str]) -> None:
         raise ValueError(f"Missing required columns: {missing}")
 
 def safe_edge_pct(dk: pd.Series, juiced: pd.Series) -> pd.Series:
+    """
+    edge_pct = (dk / juiced) - 1
+    Returns NaN when dk/juiced invalid (NaN, juiced<=0).
+    """
     dk_num = pd.to_numeric(dk, errors="coerce")
     j_num = pd.to_numeric(juiced, errors="coerce")
     out = (dk_num / j_num) - 1
@@ -40,6 +44,10 @@ def safe_edge_decimal(dk: pd.Series, juiced: pd.Series) -> pd.Series:
     return dk_num - j_num
 
 def upsert_dedup_by_game_id(new_df: pd.DataFrame, output_path: Path) -> pd.DataFrame:
+    """
+    If output exists, append then dedupe by game_id (keep last).
+    Always returns the final combined df.
+    """
     if output_path.exists():
         existing = pd.read_csv(output_path)
         combined = pd.concat([existing, new_df], ignore_index=True)
@@ -75,47 +83,50 @@ def compute_moneyline_edges(df: pd.DataFrame) -> pd.DataFrame:
     df["away_edge_pct"] = safe_edge_pct(df["away_dk_decimal_moneyline"], df["away_juiced_decimal_moneyline"])
     df["away_play"] = df["away_edge_decimal"] > 0
 
-    return df.drop_duplicates(subset=["game_id"], keep="last")
+    df = df.drop_duplicates(subset=["game_id"], keep="last")
+    return df
 
-def compute_spread_edges(df: pd.DataFrame) -> pd.DataFrame:
+def compute_puck_line_edges(df: pd.DataFrame) -> pd.DataFrame:
     required = [
         "game_id",
-        "home_dk_spread_decimal",
-        "away_dk_spread_decimal",
-        "home_spread_juice_odds",
-        "away_spread_juice_odds",
+        "home_dk_puck_line_decimal",
+        "away_dk_puck_line_decimal",
+        "home_juiced_decimal_puck_line",
+        "away_juiced_decimal_puck_line",
     ]
     validate_columns(df, required)
 
-    df["home_edge_decimal"] = safe_edge_decimal(df["home_dk_spread_decimal"], df["home_spread_juice_odds"])
-    df["home_edge_pct"] = safe_edge_pct(df["home_dk_spread_decimal"], df["home_spread_juice_odds"])
+    df["home_edge_decimal"] = safe_edge_decimal(df["home_dk_puck_line_decimal"], df["home_juiced_decimal_puck_line"])
+    df["home_edge_pct"] = safe_edge_pct(df["home_dk_puck_line_decimal"], df["home_juiced_decimal_puck_line"])
     df["home_play"] = df["home_edge_decimal"] > 0
 
-    df["away_edge_decimal"] = safe_edge_decimal(df["away_dk_spread_decimal"], df["away_spread_juice_odds"])
-    df["away_edge_pct"] = safe_edge_pct(df["away_dk_spread_decimal"], df["away_spread_juice_odds"])
+    df["away_edge_decimal"] = safe_edge_decimal(df["away_dk_puck_line_decimal"], df["away_juiced_decimal_puck_line"])
+    df["away_edge_pct"] = safe_edge_pct(df["away_dk_puck_line_decimal"], df["away_juiced_decimal_puck_line"])
     df["away_play"] = df["away_edge_decimal"] > 0
 
-    return df.drop_duplicates(subset=["game_id"], keep="last")
+    df = df.drop_duplicates(subset=["game_id"], keep="last")
+    return df
 
 def compute_total_edges(df: pd.DataFrame) -> pd.DataFrame:
     required = [
         "game_id",
         "dk_total_over_decimal",
         "dk_total_under_decimal",
-        "total_over_juice_odds",
-        "total_under_juice_odds",
+        "juiced_total_over_decimal",
+        "juiced_total_under_decimal",
     ]
     validate_columns(df, required)
 
-    df["over_edge_decimal"] = safe_edge_decimal(df["dk_total_over_decimal"], df["total_over_juice_odds"])
-    df["over_edge_pct"] = safe_edge_pct(df["dk_total_over_decimal"], df["total_over_juice_odds"])
+    df["over_edge_decimal"] = safe_edge_decimal(df["dk_total_over_decimal"], df["juiced_total_over_decimal"])
+    df["over_edge_pct"] = safe_edge_pct(df["dk_total_over_decimal"], df["juiced_total_over_decimal"])
     df["over_play"] = df["over_edge_decimal"] > 0
 
-    df["under_edge_decimal"] = safe_edge_decimal(df["dk_total_under_decimal"], df["total_under_juice_odds"])
-    df["under_edge_pct"] = safe_edge_pct(df["dk_total_under_decimal"], df["total_under_juice_odds"])
+    df["under_edge_decimal"] = safe_edge_decimal(df["dk_total_under_decimal"], df["juiced_total_under_decimal"])
+    df["under_edge_pct"] = safe_edge_pct(df["dk_total_under_decimal"], df["juiced_total_under_decimal"])
     df["under_play"] = df["under_edge_decimal"] > 0
 
-    return df.drop_duplicates(subset=["game_id"], keep="last")
+    df = df.drop_duplicates(subset=["game_id"], keep="last")
+    return df
 
 def process_pattern(log, pattern: str, compute_fn, label: str, summary: dict) -> None:
     input_files = sorted(INPUT_DIR.glob(pattern))
@@ -125,6 +136,8 @@ def process_pattern(log, pattern: str, compute_fn, label: str, summary: dict) ->
 
     for input_path in input_files:
         df = pd.read_csv(input_path)
+
+        # compute edges
         out_df = compute_fn(df)
 
         output_path = OUTPUT_DIR / input_path.name
@@ -138,31 +151,45 @@ def process_pattern(log, pattern: str, compute_fn, label: str, summary: dict) ->
 
 def main() -> None:
     with open(ERROR_LOG, "w") as log:
-        log.write("=== BASKETBALL COMPUTE EDGES RUN ===\n")
+        log.write("=== NHL COMPUTE EDGES RUN ===\n")
         log.write(f"Timestamp: {datetime.utcnow().isoformat()}Z\n\n")
 
         summary = {
             "files_processed": 0,
             "rows_processed": 0,
             "moneyline_files": 0,
-            "spread_files": 0,
+            "puck_line_files": 0,
             "total_files": 0,
         }
 
         try:
-            process_pattern(log, "*_NBA_moneyline.csv", compute_moneyline_edges, "moneyline", summary)
-            process_pattern(log, "*_NBA_spread.csv", compute_spread_edges, "spread", summary)
-            process_pattern(log, "*_NBA_total.csv", compute_total_edges, "total", summary)
-
-            process_pattern(log, "*_NCAAB_moneyline.csv", compute_moneyline_edges, "moneyline", summary)
-            process_pattern(log, "*_NCAAB_spread.csv", compute_spread_edges, "spread", summary)
-            process_pattern(log, "*_NCAAB_total.csv", compute_total_edges, "total", summary)
+            process_pattern(
+                log=log,
+                pattern="*_NHL_moneyline.csv",
+                compute_fn=compute_moneyline_edges,
+                label="moneyline",
+                summary=summary,
+            )
+            process_pattern(
+                log=log,
+                pattern="*_NHL_puck_line.csv",
+                compute_fn=compute_puck_line_edges,
+                label="puck_line",
+                summary=summary,
+            )
+            process_pattern(
+                log=log,
+                pattern="*_NHL_total.csv",
+                compute_fn=compute_total_edges,
+                label="total",
+                summary=summary,
+            )
 
             log.write("\n=== SUMMARY ===\n")
             log.write(f"Files processed: {summary['files_processed']}\n")
             log.write(f"Rows processed (this run, pre-upsert): {summary['rows_processed']}\n")
             log.write(f"Moneyline files: {summary['moneyline_files']}\n")
-            log.write(f"Spread files: {summary['spread_files']}\n")
+            log.write(f"Puck line files: {summary['puck_line_files']}\n")
             log.write(f"Total files: {summary['total_files']}\n")
 
         except Exception as e:
