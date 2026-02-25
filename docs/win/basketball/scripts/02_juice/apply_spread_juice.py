@@ -1,10 +1,7 @@
-# docs/win/basketball/scripts/02_juice/apply_spread_juice.py
-
-#!/usr/bin/env python3
+# docs/win/basketball/scripts/02_juice/#!/usr/bin/env python3
 
 import pandas as pd
 from pathlib import Path
-import glob
 import math
 
 INPUT_DIR = Path("docs/win/basketball/01_merge")
@@ -28,95 +25,90 @@ def decimal_to_american(d):
     return f"-{int(round(100 / (d - 1)))}"
 
 
+# ===============================
+# NBA — Band Lookup
+# ===============================
+
+def apply_nba(df):
+
+    jt = pd.read_csv(NBA_CONFIG)
+
+    def process(row, side):
+
+        spread = float(row[f"{side}_spread"])
+        odds = float(row[f"{side}_acceptable_spread_american"])
+
+        fav_ud = "favorite" if spread < 0 else "underdog"
+
+        band = jt[
+            (jt["band_min"] <= abs(spread)) &
+            (abs(spread) <= jt["band_max"]) &
+            (jt["fav_ud"] == fav_ud) &
+            (jt["venue"] == side)
+        ]
+
+        if band.empty:
+            return odds
+
+        extra = band.iloc[0]["extra_juice"]
+        if not math.isfinite(extra):
+            extra = 2.0
+
+        base = american_to_decimal(odds)
+        return decimal_to_american(base * (1 + extra))
+
+    for side in ["home", "away"]:
+        df[f"{side}_spread_juice_odds"] = df.apply(lambda r: process(r, side), axis=1)
+
+    return df
+
+
+# ===============================
+# NCAAB — Exact Lookup (Rounded)
+# ===============================
+
+def apply_ncaab(df):
+
+    jt = pd.read_csv(NCAAB_CONFIG)
+
+    def process(row, side):
+
+        spread = round(float(row[f"{side}_spread"]) * 2) / 2
+        odds = float(row[f"{side}_acceptable_spread_american"])
+
+        match = jt[jt["spread"] == spread]
+
+        if match.empty:
+            return odds
+
+        extra = match.iloc[0]["extra_juice"]
+        if not math.isfinite(extra):
+            extra = 2.0
+
+        base = american_to_decimal(odds)
+        return decimal_to_american(base * (1 + extra))
+
+    for side in ["home", "away"]:
+        df[f"{side}_spread_juice_odds"] = df.apply(lambda r: process(r, side), axis=1)
+
+    return df
+
+
 def main():
 
-    files = glob.glob(str(INPUT_DIR / "*.csv"))
+    for f in INPUT_DIR.iterdir():
 
-    for f in files:
+        name = f.name
 
-        df = pd.read_csv(f)
-        date = df["game_date"].iloc[0]
+        if name.endswith("_NBA_spread.csv"):
+            df = pd.read_csv(f)
+            df = apply_nba(df)
+            df.to_csv(OUTPUT_DIR / name, index=False)
 
-        nba_df = df[df["market"] == "NBA"].copy()
-        ncaab_df = df[df["market"] == "NCAAB"].copy()
-
-        # =========================
-        # NBA SPREAD
-        # =========================
-        if not nba_df.empty:
-
-            jt = pd.read_csv(NBA_CONFIG)
-
-            def nba_row(row, side):
-
-                spread = float(row[f"{side}_spread"])
-                odds = float(row[f"{side}_acceptable_spread_american"])
-
-                spread_abs = abs(spread)
-                fav_ud = "favorite" if spread < 0 else "underdog"
-
-                band = jt[
-                    (jt["band_min"] <= spread_abs) &
-                    (spread_abs < jt["band_max"]) &
-                    (jt["fav_ud"] == fav_ud) &
-                    (jt["venue"] == side)
-                ]
-
-                if band.empty:
-                    return odds
-
-                extra = band.iloc[0]["extra_juice"]
-                if not math.isfinite(extra):
-                    extra = 2.0
-
-                base_dec = american_to_decimal(odds)
-                return decimal_to_american(base_dec * (1 + extra))
-
-            for side in ["home", "away"]:
-                nba_df[f"{side}_spread_juice_odds"] = nba_df.apply(
-                    lambda r: nba_row(r, side), axis=1
-                )
-
-            nba_df.to_csv(
-                OUTPUT_DIR / f"{date}_NBA_spread.csv",
-                index=False
-            )
-
-        # =========================
-        # NCAAB SPREAD
-        # =========================
-        if not ncaab_df.empty:
-
-            jt = pd.read_csv(NCAAB_CONFIG)
-
-            def ncaab_row(row, side):
-
-                spread = float(row[f"{side}_spread"])
-                spread = round(spread * 2) / 2  # force .5 precision
-
-                odds = float(row[f"{side}_acceptable_spread_american"])
-
-                band = jt[jt["spread"] == spread]
-
-                if band.empty:
-                    return odds
-
-                extra = band.iloc[0]["extra_juice"]
-                if not math.isfinite(extra):
-                    extra = 2.0
-
-                base_dec = american_to_decimal(odds)
-                return decimal_to_american(base_dec * (1 + extra))
-
-            for side in ["home", "away"]:
-                ncaab_df[f"{side}_spread_juice_odds"] = ncaab_df.apply(
-                    lambda r: ncaab_row(r, side), axis=1
-                )
-
-            ncaab_df.to_csv(
-                OUTPUT_DIR / f"{date}_NCAAB_spread.csv",
-                index=False
-            )
+        elif name.endswith("_NCAAB_spread.csv"):
+            df = pd.read_csv(f)
+            df = apply_ncaab(df)
+            df.to_csv(OUTPUT_DIR / name, index=False)
 
 
 if __name__ == "__main__":
