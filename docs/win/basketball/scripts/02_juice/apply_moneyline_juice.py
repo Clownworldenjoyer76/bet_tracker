@@ -28,8 +28,13 @@ def decimal_to_american(d):
     return f"-{int(round(100 / (d - 1)))}"
 
 
-def apply_nba(df, jt):
+# ===============================
+# NBA — Market Odds Band Driven
+# ===============================
 
+def apply_nba(df):
+
+    jt = pd.read_csv(NBA_CONFIG)
     jt = jt[jt["lookup_type"] == "band"].copy()
 
     def process(row, side):
@@ -51,10 +56,8 @@ def apply_nba(df, jt):
         if not math.isfinite(extra):
             extra = 2.0
 
-        base = american_to_decimal(odds)
-        new = base * (1 + extra)
-
-        return decimal_to_american(new)
+        base_dec = american_to_decimal(odds)
+        return decimal_to_american(base_dec * (1 + extra))
 
     for side in ["home", "away"]:
         df[f"{side}_juice_odds"] = df.apply(lambda r: process(r, side), axis=1)
@@ -62,7 +65,13 @@ def apply_nba(df, jt):
     return df
 
 
-def apply_ncaab(df, jt):
+# ===============================
+# NCAAB — Probability Bin Driven
+# ===============================
+
+def apply_ncaab(df):
+
+    jt = pd.read_csv(NCAAB_CONFIG)
 
     def lookup(prob):
         band = jt[(jt["prob_bin_min"] <= prob) & (prob < jt["prob_bin_max"])]
@@ -77,10 +86,8 @@ def apply_ncaab(df, jt):
 
         extra = lookup(prob)
 
-        base = american_to_decimal(odds)
-        new = base * (1 + extra)
-
-        return decimal_to_american(new)
+        base_dec = american_to_decimal(odds)
+        return decimal_to_american(base_dec * (1 + extra))
 
     for side in ["home", "away"]:
         df[f"{side}_juice_odds"] = df.apply(lambda r: process(r, side), axis=1)
@@ -90,23 +97,22 @@ def apply_ncaab(df, jt):
 
 def main():
 
-    files = glob.glob(str(INPUT_DIR / "*.csv"))
+    nba_files = glob.glob(str(INPUT_DIR / "basketball_NBA_*.csv"))
+    ncaab_files = glob.glob(str(INPUT_DIR / "basketball_NCAAB_*.csv"))
 
-    for f in files:
-
+    # NBA
+    for f in nba_files:
         df = pd.read_csv(f)
         date = df["game_date"].iloc[0]
+        df = apply_nba(df)
+        df.to_csv(OUTPUT_DIR / f"{date}_NBA_moneyline.csv", index=False)
 
-        nba_df = df[df["market"] == "NBA"].copy()
-        ncaab_df = df[df["market"] == "NCAAB"].copy()
-
-        if not nba_df.empty:
-            nba_df = apply_nba(nba_df, pd.read_csv(NBA_CONFIG))
-            nba_df.to_csv(OUTPUT_DIR / f"{date}_NBA_moneyline.csv", index=False)
-
-        if not ncaab_df.empty:
-            ncaab_df = apply_ncaab(ncaab_df, pd.read_csv(NCAAB_CONFIG))
-            ncaab_df.to_csv(OUTPUT_DIR / f"{date}_NCAAB_moneyline.csv", index=False)
+    # NCAAB
+    for f in ncaab_files:
+        df = pd.read_csv(f)
+        date = df["game_date"].iloc[0]
+        df = apply_ncaab(df)
+        df.to_csv(OUTPUT_DIR / f"{date}_NCAAB_moneyline.csv", index=False)
 
 
 if __name__ == "__main__":
