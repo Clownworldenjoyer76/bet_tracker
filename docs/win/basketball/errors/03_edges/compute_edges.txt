@@ -1,9 +1,18 @@
-=== COMPUTE EDGES RUN ===
-Timestamp: 2026-02-22T17:20:32.044773Z
+=== BASKETBALL COMPUTE EDGES RUN ===
+Timestamp: 2026-02-25T03:54:26.425726Z
 
-Wrote docs/win/soccer/03_edges/soccer_2026_02_22.csv
-Wrote docs/win/soccer/03_edges/soccer_2026_02_23.csv
 
-=== SUMMARY ===
-Files processed: 2
-Rows processed: 9
+=== ERROR ===
+Missing required columns: ['home_juiced_decimal_moneyline', 'away_juiced_decimal_moneyline']
+
+Traceback (most recent call last):
+  File "/home/runner/work/bet_tracker/bet_tracker/docs/win/hockey/scripts/03_edges/compute_edges.py", line 153, in main
+    process_pattern(log, "*_NBA_moneyline.csv", compute_moneyline_edges, "moneyline", summary)
+  File "/home/runner/work/bet_tracker/bet_tracker/docs/win/hockey/scripts/03_edges/compute_edges.py", line 128, in process_pattern
+    out_df = compute_fn(df)
+             ^^^^^^^^^^^^^^
+  File "/home/runner/work/bet_tracker/bet_tracker/docs/win/hockey/scripts/03_edges/compute_edges.py", line 68, in compute_moneyline_edges
+    validate_columns(df, required)
+  File "/home/runner/work/bet_tracker/bet_tracker/docs/win/hockey/scripts/03_edges/compute_edges.py", line 28, in validate_columns
+    raise ValueError(f"Missing required columns: {missing}")
+ValueError: Missing required columns: ['home_juiced_decimal_moneyline', 'away_juiced_decimal_moneyline']
