@@ -28,23 +28,13 @@ def decimal_to_american(d):
     return f"-{int(round(100 / (d - 1)))}"
 
 
-def apply_nba_ml(df, jt):
+def apply_nba(df, jt):
 
     jt = jt[jt["lookup_type"] == "band"].copy()
 
-    def process_row(row, side):
+    def process(row, side):
 
-        col = f"{side}_acceptable_american_moneyline"
-
-        if col not in row:
-            return ""
-
-        odds = row[col]
-        if pd.isna(odds):
-            return ""
-
-        odds = float(odds)
-
+        odds = float(row[f"{side}_acceptable_american_moneyline"])
         fav_ud = "favorite" if odds < 0 else "underdog"
 
         band = jt[
@@ -61,37 +51,39 @@ def apply_nba_ml(df, jt):
         if not math.isfinite(extra):
             extra = 2.0
 
-        base_dec = american_to_decimal(odds)
-        new_dec = base_dec * (1 + extra)
+        base = american_to_decimal(odds)
+        new = base * (1 + extra)
 
-        return decimal_to_american(new_dec)
+        return decimal_to_american(new)
 
     for side in ["home", "away"]:
-        df[f"{side}_juice_odds"] = df.apply(lambda r: process_row(r, side), axis=1)
+        df[f"{side}_juice_odds"] = df.apply(lambda r: process(r, side), axis=1)
 
     return df
 
 
-def apply_ncaab_ml(df, jt):
+def apply_ncaab(df, jt):
 
     def lookup(prob):
         band = jt[(jt["prob_bin_min"] <= prob) & (prob < jt["prob_bin_max"])]
-        return 0 if band.empty else band.iloc[0]["extra_juice"]
+        if band.empty:
+            return 0
+        return band.iloc[0]["extra_juice"]
 
-    def process_row(row, side):
+    def process(row, side):
 
         prob = float(row[f"{side}_prob"])
         odds = float(row[f"{side}_acceptable_american_moneyline"])
 
         extra = lookup(prob)
 
-        base_dec = american_to_decimal(odds)
-        new_dec = base_dec * (1 + extra)
+        base = american_to_decimal(odds)
+        new = base * (1 + extra)
 
-        return decimal_to_american(new_dec)
+        return decimal_to_american(new)
 
     for side in ["home", "away"]:
-        df[f"{side}_juice_odds"] = df.apply(lambda r: process_row(r, side), axis=1)
+        df[f"{side}_juice_odds"] = df.apply(lambda r: process(r, side), axis=1)
 
     return df
 
@@ -109,11 +101,11 @@ def main():
         ncaab_df = df[df["market"] == "NCAAB"].copy()
 
         if not nba_df.empty:
-            nba_df = apply_nba_ml(nba_df, pd.read_csv(NBA_CONFIG))
+            nba_df = apply_nba(nba_df, pd.read_csv(NBA_CONFIG))
             nba_df.to_csv(OUTPUT_DIR / f"{date}_NBA_moneyline.csv", index=False)
 
         if not ncaab_df.empty:
-            ncaab_df = apply_ncaab_ml(ncaab_df, pd.read_csv(NCAAB_CONFIG))
+            ncaab_df = apply_ncaab(ncaab_df, pd.read_csv(NCAAB_CONFIG))
             ncaab_df.to_csv(OUTPUT_DIR / f"{date}_NCAAB_moneyline.csv", index=False)
 
 
