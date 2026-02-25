@@ -49,6 +49,21 @@ jobs:
           python docs/win/hockey/scripts/02_juice/apply_puck_line_juice.py
 
       # -----------------------
+      # Basketball Juice
+      # -----------------------
+      - name: Run Basketball Moneyline Juice
+        run: |
+          python docs/win/basketball/scripts/02_juice/apply_moneyline_juice.py
+
+      - name: Run Basketball Spread Juice
+        run: |
+          python docs/win/basketball/scripts/02_juice/apply_spread_juice.py
+
+      - name: Run Basketball Total Juice
+        run: |
+          python docs/win/basketball/scripts/02_juice/apply_total_juice.py
+
+      # -----------------------
       # Commit + Push
       # -----------------------
       - name: Commit and push changes
@@ -61,6 +76,9 @@ jobs:
 
           git add docs/win/hockey/02_juice/
           git add docs/win/hockey/errors/02_juice/
+
+          git add docs/win/basketball/02_juice/
+          git add docs/win/basketball/errors/02_juice/
 
           if git diff --cached --quiet; then
             echo "No changes to commit"
