@@ -1,6 +1,3 @@
-
-# docs/win/soccer/scripts/02_juice/apply_juice.py
-
 #!/usr/bin/env python3
 
 import pandas as pd
@@ -9,6 +6,7 @@ import glob
 import traceback
 import sys
 from datetime import datetime
+import math
 
 # =========================
 # PATHS
@@ -36,7 +34,7 @@ ERROR_DIR.mkdir(parents=True, exist_ok=True)
 # =========================
 
 def decimal_to_american(decimal_odds):
-    if pd.isna(decimal_odds) or decimal_odds <= 1:
+    if pd.isna(decimal_odds) or decimal_odds <= 1 or not math.isfinite(decimal_odds):
         return ""
     if decimal_odds >= 2.0:
         return f"+{int(round((decimal_odds - 1) * 100))}"
@@ -56,20 +54,26 @@ def find_band(prob, juice_df):
 def process_side(df, side, juice_tables, summary):
     prob_col = f"{side}_prob"
 
-    # Numeric columns
     df[f"{side}_fair_decimal"] = pd.NA
     df[f"{side}_adjusted_prob"] = pd.NA
     df[f"{side}_adjusted_decimal"] = pd.NA
 
-    # String columns
     df[f"{side}_juice_band"] = ""
     df[f"{side}_extra_juice"] = pd.NA
     df[f"{side}_adjusted_american"] = ""
 
     for idx, row in df.iterrows():
+
         prob = row[prob_col]
 
-        if pd.isna(prob) or prob <= 0 or prob >= 1:
+        # Strict probability validation
+        if pd.isna(prob):
+            summary["rows_skipped"] += 1
+            continue
+
+        prob = float(prob)
+
+        if prob <= 0 or prob >= 1:
             summary["rows_skipped"] += 1
             continue
 
@@ -80,24 +84,32 @@ def process_side(df, side, juice_tables, summary):
 
         juice_df = juice_tables[market]
 
-        fair_decimal = 1 / prob
+        fair_decimal = 1.0 / prob
 
         band_row = find_band(prob, juice_df)
-        extra_juice = band_row["extra_juice"]
+
+        extra_juice = float(band_row["extra_juice"])
+        if not math.isfinite(extra_juice):
+            extra_juice = 2.0  # hard cap protection
+
         band_label = f"{band_row['band_min']}-{band_row['band_max']}"
 
         adjusted_prob = prob + extra_juice
+
+        # Clamp adjusted probability safely
+        if adjusted_prob <= 0.0001:
+            adjusted_prob = 0.0001
         if adjusted_prob >= 0.999:
             adjusted_prob = 0.999
 
-        adjusted_decimal = 1 / adjusted_prob
+        adjusted_decimal = 1.0 / adjusted_prob
         adjusted_american = decimal_to_american(adjusted_decimal)
 
-        df.at[idx, f"{side}_fair_decimal"] = float(fair_decimal)
+        df.at[idx, f"{side}_fair_decimal"] = round(fair_decimal, 6)
         df.at[idx, f"{side}_juice_band"] = band_label
-        df.at[idx, f"{side}_extra_juice"] = float(extra_juice)
-        df.at[idx, f"{side}_adjusted_prob"] = float(adjusted_prob)
-        df.at[idx, f"{side}_adjusted_decimal"] = float(adjusted_decimal)
+        df.at[idx, f"{side}_extra_juice"] = round(extra_juice, 6)
+        df.at[idx, f"{side}_adjusted_prob"] = round(adjusted_prob, 6)
+        df.at[idx, f"{side}_adjusted_decimal"] = round(adjusted_decimal, 6)
         df.at[idx, f"{side}_adjusted_american"] = adjusted_american
 
         summary["rows_processed"] += 1
@@ -133,10 +145,10 @@ def main():
             input_path = Path(file_path)
             df = pd.read_csv(input_path)
 
-            if "market" not in df.columns:
-                raise ValueError("Missing 'market' column")
-            if "home_prob" not in df.columns:
-                raise ValueError("Missing probability columns")
+            required_columns = {"market", "home_prob", "draw_prob", "away_prob"}
+            missing = required_columns - set(df.columns)
+            if missing:
+                raise ValueError(f"Missing required columns: {missing}")
 
             unique_markets = df["market"].unique()
             juice_tables = {}
