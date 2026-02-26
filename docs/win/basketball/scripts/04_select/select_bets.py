@@ -25,6 +25,9 @@ ERROR_DIR.mkdir(parents=True, exist_ok=True)
 MIN_EDGE_DECIMAL = 0.05
 MIN_EDGE_PCT = 0.02
 
+MIN_TOTAL_EDGE_DECIMAL = 0.12
+MIN_TOTAL_EDGE_PCT = 0.06
+
 # =========================
 # HELPERS
 # =========================
@@ -35,6 +38,14 @@ def valid_edge(edge_dec, edge_pct):
         and pd.notna(edge_pct)
         and edge_dec >= MIN_EDGE_DECIMAL
         and edge_pct >= MIN_EDGE_PCT
+    )
+
+def valid_total_edge(edge_dec, edge_pct):
+    return (
+        pd.notna(edge_dec)
+        and pd.notna(edge_pct)
+        and edge_dec >= MIN_TOTAL_EDGE_DECIMAL
+        and edge_pct >= MIN_TOTAL_EDGE_PCT
     )
 
 def infer_market_from_filename(filename: str):
@@ -131,50 +142,13 @@ def main():
 
                     elif market == "total":
 
-                        total = row.get("total")
-                        total_diff = row.get("total_diff")
-
                         over_dec = row.get("over_edge_decimal")
                         over_pct = row.get("over_edge_pct")
 
                         under_dec = row.get("under_edge_decimal")
                         under_pct = row.get("under_edge_pct")
 
-                        is_ncaab = "ncaab" in league
-
-                        if is_ncaab:
-
-                            if (
-                                pd.notna(total)
-                                and pd.notna(total_diff)
-                                and pd.notna(over_dec)
-                            ):
-
-                                abs_diff = abs(total_diff)
-
-                                if total < 150:
-                                    if over_dec >= 0.40 and abs_diff >= 4:
-                                        selections.append({
-                                            "game_id": game_id,
-                                            "league": row.get("league"),
-                                            "market": market,
-                                            "take_bet": "over_bet",
-                                            "take_bet_edge_decimal": over_dec,
-                                            "take_bet_edge_pct": over_pct,
-                                        })
-
-                                elif total > 150:
-                                    if abs_diff >= 2:
-                                        selections.append({
-                                            "game_id": game_id,
-                                            "league": row.get("league"),
-                                            "market": market,
-                                            "take_bet": "over_bet",
-                                            "take_bet_edge_decimal": over_dec,
-                                            "take_bet_edge_pct": over_pct,
-                                        })
-
-                        if valid_edge(over_dec, over_pct):
+                        if valid_total_edge(over_dec, over_pct):
                             selections.append({
                                 "game_id": game_id,
                                 "league": row.get("league"),
@@ -184,7 +158,7 @@ def main():
                                 "take_bet_edge_pct": over_pct,
                             })
 
-                        if valid_edge(under_dec, under_pct):
+                        if valid_total_edge(under_dec, under_pct):
                             selections.append({
                                 "game_id": game_id,
                                 "league": row.get("league"),
