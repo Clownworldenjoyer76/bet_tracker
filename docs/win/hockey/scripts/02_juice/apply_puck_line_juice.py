@@ -11,7 +11,7 @@ import sys
 
 INPUT_DIR = Path("docs/win/hockey/01_merge")
 OUTPUT_DIR = Path("docs/win/hockey/02_juice")
-JUICE_FILE = Path("config/hockey/nhl/nhl_puck_runline_bands.csv")
+JUICE_FILE = Path("config/hockey/nhl/nhl_puck_line_juice.csv")
 
 ERROR_DIR = Path("docs/win/hockey/errors/02_juice")
 LOG_FILE = ERROR_DIR / "apply_puck_line_juice.txt"
@@ -20,75 +20,44 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def find_row(juice_df, fav_ud, venue):
+def find_band_row(juice_df, puck_line, fav_ud, venue):
     band = juice_df[
+        (juice_df["band_min"] <= puck_line) &
+        (puck_line <= juice_df["band_max"]) &
         (juice_df["fav_ud"] == fav_ud) &
         (juice_df["venue"] == venue)
     ]
+
     if band.empty:
-        return None
-    return band.iloc[0]
+        raise ValueError(f"No puck line juice band for {puck_line}, {fav_ud}, {venue}")
+
+    return band.iloc[0]["extra_juice"]
 
 
-def apply_side(df, side, juice_df):
+def process_side(df, juice_df, side):
     puck_col = f"{side}_puck_line"
+    fair_col = f"{side}_fair_puck_line_decimal"
 
-    df[f"{side}_juiced_prob_puck_line"] = pd.NA
-    df[f"{side}_juiced_decimal_puck_line"] = pd.NA
+    juiced_decimal_col = f"{side}_juiced_decimal_puck_line"
+    juiced_prob_col = f"{side}_juiced_prob_puck_line"
+
+    df[juiced_decimal_col] = pd.NA
+    df[juiced_prob_col] = pd.NA
 
     for idx, row in df.iterrows():
-        try:
-            puck_line_value = float(row[puck_col])
-        except Exception:
-            continue
+        puck_line = float(row[puck_col])
+        fair_decimal = float(row[fair_col])
 
-        if puck_line_value == -1.5:
-            fav_ud = "favorite"
-        elif puck_line_value == 1.5:
-            fav_ud = "underdog"
-        else:
-            continue
-
+        fav_ud = "favorite" if puck_line == -1.5 else "underdog"
         venue = side
-        band_row = find_row(juice_df, fav_ud, venue)
 
-        if band_row is None:
-            continue
+        extra = find_band_row(juice_df, puck_line, fav_ud, venue)
 
-        juiced_prob = float(band_row["win_pct"])
-        juiced_decimal = 1 / juiced_prob if juiced_prob > 0 else pd.NA
+        juiced_decimal = fair_decimal + extra
+        juiced_prob = 1 / juiced_decimal
 
-        df.at[idx, f"{side}_juiced_prob_puck_line"] = juiced_prob
-        df.at[idx, f"{side}_juiced_decimal_puck_line"] = juiced_decimal
-
-    return df
-
-
-def compute_edges(df, side):
-    dk_col = f"{side}_dk_puck_line_decimal"
-    juiced_col = f"{side}_juiced_decimal_puck_line"
-
-    edge_decimal_col = f"{side}_edge_decimal"
-    edge_pct_col = f"{side}_edge_pct"
-
-    df[edge_decimal_col] = pd.NA
-    df[edge_pct_col] = pd.NA
-
-    for idx, row in df.iterrows():
-        try:
-            dk_decimal = float(row[dk_col])
-            juiced_decimal = float(row[juiced_col])
-        except Exception:
-            continue
-
-        if dk_decimal <= 0:
-            continue
-
-        edge_decimal = juiced_decimal - dk_decimal
-        edge_pct = edge_decimal / dk_decimal
-
-        df.at[idx, edge_decimal_col] = edge_decimal
-        df.at[idx, edge_pct_col] = edge_pct
+        df.at[idx, juiced_decimal_col] = juiced_decimal
+        df.at[idx, juiced_prob_col] = juiced_prob
 
     return df
 
@@ -99,25 +68,13 @@ def main():
 
     try:
         juice_df = pd.read_csv(JUICE_FILE)
-
-        juice_df["fav_ud"] = juice_df["fav_ud"].str.strip()
-        juice_df["venue"] = juice_df["venue"].str.strip()
-
         files = glob.glob(str(INPUT_DIR / "*_NHL_puck_line.csv"))
-
-        if not files:
-            with open(LOG_FILE, "a") as log:
-                log.write("No NHL puck line files found\n")
-            return
 
         for file_path in files:
             df = pd.read_csv(file_path)
 
-            df = apply_side(df, "home", juice_df)
-            df = apply_side(df, "away", juice_df)
-
-            df = compute_edges(df, "home")
-            df = compute_edges(df, "away")
+            df = process_side(df, juice_df, "home")
+            df = process_side(df, juice_df, "away")
 
             output_path = OUTPUT_DIR / Path(file_path).name
             df.to_csv(output_path, index=False)
