@@ -1,4 +1,4 @@
-# docs/win/basketball/scripts/02_juice/#!/usr/bin/env python3
+#!/usr/bin/env python3
 
 import pandas as pd
 from pathlib import Path
@@ -31,6 +31,7 @@ def apply_nba(df):
     jt = jt[jt["lookup_type"] == "band"].copy()
 
     def process(row, side):
+
         odds = float(row[f"{side}_acceptable_american_moneyline"])
         fav_ud = "favorite" if odds < 0 else "underdog"
 
@@ -41,18 +42,21 @@ def apply_nba(df):
             (jt["venue"] == side)
         ]
 
-        if band.empty:
-            return odds
-
-        extra = band.iloc[0]["extra_juice"]
+        extra = band.iloc[0]["extra_juice"] if not band.empty else 0.0
         if not math.isfinite(extra):
-            extra = 2.0
+            extra = 0.0
 
-        base = american_to_decimal(odds)
-        return decimal_to_american(base * (1 + extra))
+        base_decimal = american_to_decimal(odds)
+        final_decimal = base_decimal * (1 + extra)
+
+        return final_decimal, decimal_to_american(final_decimal)
 
     for side in ["home", "away"]:
-        df[f"{side}_juice_odds"] = df.apply(lambda r: process(r, side), axis=1)
+        df[[f"{side}_juice_decimal_moneyline",
+            f"{side}_juice_odds"]] = \
+            df.apply(lambda r: process(r, side),
+                     axis=1,
+                     result_type="expand")
 
     return df
 
@@ -63,19 +67,25 @@ def apply_ncaab(df):
 
     def lookup(prob):
         band = jt[(jt["prob_bin_min"] <= prob) & (prob < jt["prob_bin_max"])]
-        if band.empty:
-            return 0
-        return band.iloc[0]["extra_juice"]
+        return band.iloc[0]["extra_juice"] if not band.empty else 0.0
 
     def process(row, side):
+
         prob = float(row[f"{side}_prob"])
         odds = float(row[f"{side}_acceptable_american_moneyline"])
         extra = lookup(prob)
-        base = american_to_decimal(odds)
-        return decimal_to_american(base * (1 + extra))
+
+        base_decimal = american_to_decimal(odds)
+        final_decimal = base_decimal * (1 + extra)
+
+        return final_decimal, decimal_to_american(final_decimal)
 
     for side in ["home", "away"]:
-        df[f"{side}_juice_odds"] = df.apply(lambda r: process(r, side), axis=1)
+        df[[f"{side}_juice_decimal_moneyline",
+            f"{side}_juice_odds"]] = \
+            df.apply(lambda r: process(r, side),
+                     axis=1,
+                     result_type="expand")
 
     return df
 
