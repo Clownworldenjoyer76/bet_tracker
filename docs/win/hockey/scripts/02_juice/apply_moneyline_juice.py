@@ -42,49 +42,37 @@ def main():
         for file_path in files:
             df = pd.read_csv(file_path)
 
-            # Ensure columns exist and overwrite fresh
-            df["home_juiced_prob_moneyline"] = pd.NA
-            df["away_juiced_prob_moneyline"] = pd.NA
             df["home_juiced_decimal_moneyline"] = pd.NA
             df["away_juiced_decimal_moneyline"] = pd.NA
 
             for idx, row in df.iterrows():
 
-                # ---- HOME SIDE ----
+                # ---- HOME ----
                 home_american = float(row["home_dk_moneyline_american"])
                 home_fair_decimal = float(row["home_fair_decimal_moneyline"])
 
                 home_fav_ud = "favorite" if home_american < 0 else "underdog"
                 home_extra = find_juice_row(juice_df, home_american, home_fav_ud, "home")
 
-                home_fair_prob = 1 / home_fair_decimal
-                home_juiced_prob = home_fair_prob + home_extra
+                # Apply juice directly to decimal
+                home_juiced_decimal = home_fair_decimal + home_extra
+                if home_juiced_decimal <= 1.001:
+                    home_juiced_decimal = 1.001
 
-                # ---- AWAY SIDE ----
+                df.at[idx, "home_juiced_decimal_moneyline"] = home_juiced_decimal
+
+                # ---- AWAY ----
                 away_american = float(row["away_dk_moneyline_american"])
                 away_fair_decimal = float(row["away_fair_decimal_moneyline"])
 
                 away_fav_ud = "favorite" if away_american < 0 else "underdog"
                 away_extra = find_juice_row(juice_df, away_american, away_fav_ud, "away")
 
-                away_fair_prob = 1 / away_fair_decimal
-                away_juiced_prob = away_fair_prob + away_extra
+                away_juiced_decimal = away_fair_decimal + away_extra
+                if away_juiced_decimal <= 1.001:
+                    away_juiced_decimal = 1.001
 
-                # ---- NORMALIZE ----
-                total = home_juiced_prob + away_juiced_prob
-
-                if total <= 0:
-                    continue
-
-                home_juiced_prob /= total
-                away_juiced_prob /= total
-
-                # ---- WRITE NORMALIZED ----
-                df.at[idx, "home_juiced_prob_moneyline"] = home_juiced_prob
-                df.at[idx, "away_juiced_prob_moneyline"] = away_juiced_prob
-
-                df.at[idx, "home_juiced_decimal_moneyline"] = 1 / home_juiced_prob
-                df.at[idx, "away_juiced_decimal_moneyline"] = 1 / away_juiced_prob
+                df.at[idx, "away_juiced_decimal_moneyline"] = away_juiced_decimal
 
             output_path = OUTPUT_DIR / Path(file_path).name
             df.to_csv(output_path, index=False)
