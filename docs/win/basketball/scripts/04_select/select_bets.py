@@ -1,5 +1,5 @@
-# docs/win/basketball/scripts/04_select/select_bets.py
 #!/usr/bin/env python3
+# docs/win/basketball/scripts/04_select/select_bets.py
 
 import pandas as pd
 from pathlib import Path
@@ -20,6 +20,9 @@ MIN_EDGE_PCT = 0.02
 MIN_TOTAL_EDGE_DECIMAL = 0.12
 MIN_TOTAL_EDGE_PCT = 0.06
 
+# NEW: totals odds gate (-150 or better)
+MIN_TOTAL_ODDS = -150
+
 
 def valid_edge(edge_dec, edge_pct):
     return (
@@ -37,6 +40,11 @@ def valid_total_edge(edge_dec, edge_pct):
         and edge_dec >= MIN_TOTAL_EDGE_DECIMAL
         and edge_pct >= MIN_TOTAL_EDGE_PCT
     )
+
+
+def valid_total_odds(odds):
+    odds_num = pd.to_numeric(odds, errors="coerce")
+    return pd.notna(odds_num) and odds_num >= MIN_TOTAL_ODDS
 
 
 def infer_market_from_filename(filename: str):
@@ -143,28 +151,31 @@ def main():
 
                         total_value = row.get("total")
 
-                        if valid_total_edge(over_dec, over_pct):
+                        odds_over = row.get("total_over_juice_odds")
+                        odds_under = row.get("total_under_juice_odds")
+
+                        if valid_total_edge(over_dec, over_pct) and valid_total_odds(odds_over):
 
                             selections.append({
                                 "game_id": game_id,
                                 "league": row.get("league"),
                                 "market": market,
                                 "take_bet": "over_bet",
-                                "take_odds": row.get("total_over_juice_odds"),
+                                "take_odds": odds_over,
                                 "take_team": "over",
                                 "value": total_value,
                                 "take_bet_edge_decimal": over_dec,
                                 "take_bet_edge_pct": over_pct,
                             })
 
-                        if valid_total_edge(under_dec, under_pct):
+                        if valid_total_edge(under_dec, under_pct) and valid_total_odds(odds_under):
 
                             selections.append({
                                 "game_id": game_id,
                                 "league": row.get("league"),
                                 "market": market,
                                 "take_bet": "under_bet",
-                                "take_odds": row.get("total_under_juice_odds"),
+                                "take_odds": odds_under,
                                 "take_team": "under",
                                 "value": total_value,
                                 "take_bet_edge_decimal": under_dec,
