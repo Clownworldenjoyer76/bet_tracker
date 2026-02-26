@@ -34,6 +34,10 @@ jobs:
         run: |
           python docs/win/hockey/scripts/04_select/select_bets.py
 
+      - name: Run Basketball 04 Select Script
+        run: |
+          python docs/win/basketball/scripts/04_select/select_bets.py
+
       - name: Commit and push results
         run: |
           git config user.name "github-actions"
@@ -41,8 +45,12 @@ jobs:
 
           git add docs/win/soccer/04_select/*.csv || true
           git add docs/win/soccer/errors/04_select/select_bets.txt || true
+
           git add docs/win/hockey/04_select/*.csv || true
           git add docs/win/hockey/errors/04_select/select_bets.txt || true
+
+          git add docs/win/basketball/04_select/*.csv || true
+          git add docs/win/basketball/errors/04_select/select_bets.txt || true
 
           if git diff --cached --quiet; then
             echo "No changes to commit"
