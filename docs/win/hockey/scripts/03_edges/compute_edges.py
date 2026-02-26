@@ -107,7 +107,6 @@ def compute_puck_line_edges(df: pd.DataFrame) -> pd.DataFrame:
     ]
     validate_columns(df, required)
 
-    # NEW: create American odds from juiced decimal puck line
     df["home_juiced_american_puck_line"] = decimal_to_american(
         df["home_juiced_decimal_puck_line"]
     )
@@ -147,6 +146,14 @@ def compute_total_edges(df: pd.DataFrame) -> pd.DataFrame:
         "juiced_total_under_decimal",
     ]
     validate_columns(df, required)
+
+    # NEW: convert juiced totals decimal to American
+    df["juiced_total_over_american"] = decimal_to_american(
+        df["juiced_total_over_decimal"]
+    )
+    df["juiced_total_under_american"] = decimal_to_american(
+        df["juiced_total_under_decimal"]
+    )
 
     df["over_edge_decimal"] = safe_edge_decimal(
         df["dk_total_over_decimal"],
