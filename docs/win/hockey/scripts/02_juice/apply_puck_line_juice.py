@@ -4,11 +4,11 @@
 
 import pandas as pd
 from pathlib import Path
-from datetime import datetime
 
 INPUT_FILE = Path("docs/win/hockey/01_merge/2026_02_26_NHL_puck_line.csv")
 OUTPUT_FILE = Path("docs/win/hockey/02_juice/2026_02_26_NHL_puck_line.csv")
 JUICE_FILE = Path("config/hockey/nhl/nhl_puck_line_juice.csv")
+
 
 def find_band_row(juice_df, puck_line, venue):
     band_low = juice_df[["band_min", "band_max"]].min(axis=1)
@@ -25,6 +25,7 @@ def find_band_row(juice_df, puck_line, venue):
 
     return float(band.iloc[0]["extra_juice"])
 
+
 def process_side(df, juice_df, side):
     puck_col = f"{side}_puck_line"
     fair_col = f"{side}_fair_puck_line_decimal"
@@ -40,7 +41,6 @@ def process_side(df, juice_df, side):
         fair_decimal = float(row[fair_col])
 
         extra = find_band_row(juice_df, puck_line, side)
-
         if extra is None:
             continue
 
@@ -51,6 +51,7 @@ def process_side(df, juice_df, side):
         df.at[idx, juiced_prob_col] = juiced_prob
 
     return df
+
 
 def main():
     juice_df = pd.read_csv(JUICE_FILE)
@@ -65,6 +66,7 @@ def main():
 
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(OUTPUT_FILE, index=False)
+
 
 if __name__ == "__main__":
     main()
