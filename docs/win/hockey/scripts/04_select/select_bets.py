@@ -25,7 +25,6 @@ ERROR_DIR.mkdir(parents=True, exist_ok=True)
 MIN_EDGE_PCT = 0.03
 
 ML_MIN_PROB = 0.33
-PL_MIN_PROB = 0.38
 TOTAL_MIN_PROB = 0.45
 
 # =========================
@@ -35,13 +34,19 @@ TOTAL_MIN_PROB = 0.45
 def valid_edge(edge_pct):
     return pd.notna(edge_pct) and edge_pct >= MIN_EDGE_PCT
 
-def select_side(row, side, market_type, min_prob):
+
+def select_side(row, side, market_type, min_prob, prob_column=None):
     edge_pct = row.get(f"{side}_edge_pct")
     edge_dec = row.get(f"{side}_edge_decimal")
-    model_prob = row.get(f"{side}_prob")
+
+    if prob_column:
+        model_prob = row.get(prob_column)
+    else:
+        model_prob = row.get(f"{side}_prob")
 
     if not valid_edge(edge_pct):
         return None
+
     if pd.isna(model_prob) or model_prob < min_prob:
         return None
 
@@ -53,16 +58,32 @@ def select_side(row, side, market_type, min_prob):
         "take_bet_edge_pct": edge_pct,
     }
 
+
 def select_puck_side(row, side):
     """
     Only allow +1.5 puck lines.
+    No probability floor (Option A).
     """
     puck_line = row.get(f"{side}_puck_line")
 
     if pd.isna(puck_line) or puck_line <= 0:
         return None
 
-    return select_side(row, side, "puck_line", PL_MIN_PROB)
+    edge_pct = row.get(f"{side}_edge_pct")
+    edge_dec = row.get(f"{side}_edge_decimal")
+    model_prob = row.get(f"{side}_prob")
+
+    if not valid_edge(edge_pct):
+        return None
+
+    return {
+        "game_id": row["game_id"],
+        "take_bet": f"{side}_puck_line",
+        "take_bet_prob": model_prob,
+        "take_bet_edge_decimal": edge_dec,
+        "take_bet_edge_pct": edge_pct,
+    }
+
 
 # =========================
 # MAIN
@@ -151,8 +172,21 @@ def main():
                     for _, row in df.iterrows():
                         game_id = row["game_id"]
 
-                        over_sel = select_side(row, "over", "total", TOTAL_MIN_PROB)
-                        under_sel = select_side(row, "under", "total", TOTAL_MIN_PROB)
+                        over_sel = select_side(
+                            row,
+                            "over",
+                            "total",
+                            TOTAL_MIN_PROB,
+                            prob_column="juiced_total_over_prob"
+                        )
+
+                        under_sel = select_side(
+                            row,
+                            "under",
+                            "total",
+                            TOTAL_MIN_PROB,
+                            prob_column="juiced_total_under_prob"
+                        )
 
                         best_total = None
                         if over_sel and under_sel:
@@ -171,7 +205,7 @@ def main():
 
                 for game_id, markets in selections.items():
 
-                    # PRIORITY: +1.5 puck line always beats moneyline
+                    # PRIORITY: +1.5 puck line beats moneyline
                     ml_pl_choice = None
 
                     if "pl" in markets:
@@ -195,6 +229,7 @@ def main():
             log.write("\n=== ERROR ===\n")
             log.write(str(e) + "\n\n")
             log.write(traceback.format_exc())
+
 
 if __name__ == "__main__":
     main()
