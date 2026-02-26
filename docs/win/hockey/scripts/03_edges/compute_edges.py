@@ -27,11 +27,11 @@ def decimal_to_american(series: pd.Series) -> pd.Series:
     dec = pd.to_numeric(series, errors="coerce")
     american = pd.Series(index=dec.index, dtype="float64")
 
-    positive_mask = dec >= 2
-    negative_mask = (dec < 2) & (dec > 1)
+    pos = dec >= 2
+    neg = (dec < 2) & (dec > 1)
 
-    american[positive_mask] = (dec[positive_mask] - 1) * 100
-    american[negative_mask] = -100 / (dec[negative_mask] - 1)
+    american[pos] = (dec[pos] - 1) * 100
+    american[neg] = -100 / (dec[neg] - 1)
 
     return american.round(0)
 
@@ -74,10 +74,6 @@ def compute_moneyline_edges(df: pd.DataFrame) -> pd.DataFrame:
     ]
     validate_columns(df, required)
 
-    # NEW: Convert juiced decimal to American
-    df["home_juiced_american_moneyline"] = decimal_to_american(df["home_juiced_decimal_moneyline"])
-    df["away_juiced_american_moneyline"] = decimal_to_american(df["away_juiced_decimal_moneyline"])
-
     df["home_edge_decimal"] = safe_edge_decimal(
         df["home_dk_decimal_moneyline"],
         df["home_juiced_decimal_moneyline"]
@@ -111,12 +107,32 @@ def compute_puck_line_edges(df: pd.DataFrame) -> pd.DataFrame:
     ]
     validate_columns(df, required)
 
-    df["home_edge_decimal"] = safe_edge_decimal(df["home_dk_puck_line_decimal"], df["home_juiced_decimal_puck_line"])
-    df["home_edge_pct"] = safe_edge_pct(df["home_dk_puck_line_decimal"], df["home_juiced_decimal_puck_line"])
+    # NEW: create American odds from juiced decimal puck line
+    df["home_juiced_american_puck_line"] = decimal_to_american(
+        df["home_juiced_decimal_puck_line"]
+    )
+    df["away_juiced_american_puck_line"] = decimal_to_american(
+        df["away_juiced_decimal_puck_line"]
+    )
+
+    df["home_edge_decimal"] = safe_edge_decimal(
+        df["home_dk_puck_line_decimal"],
+        df["home_juiced_decimal_puck_line"]
+    )
+    df["home_edge_pct"] = safe_edge_pct(
+        df["home_dk_puck_line_decimal"],
+        df["home_juiced_decimal_puck_line"]
+    )
     df["home_play"] = df["home_edge_decimal"] > 0
 
-    df["away_edge_decimal"] = safe_edge_decimal(df["away_dk_puck_line_decimal"], df["away_juiced_decimal_puck_line"])
-    df["away_edge_pct"] = safe_edge_pct(df["away_dk_puck_line_decimal"], df["away_juiced_decimal_puck_line"])
+    df["away_edge_decimal"] = safe_edge_decimal(
+        df["away_dk_puck_line_decimal"],
+        df["away_juiced_decimal_puck_line"]
+    )
+    df["away_edge_pct"] = safe_edge_pct(
+        df["away_dk_puck_line_decimal"],
+        df["away_juiced_decimal_puck_line"]
+    )
     df["away_play"] = df["away_edge_decimal"] > 0
 
     df = df.drop_duplicates(subset=["game_id"], keep="last")
@@ -132,12 +148,24 @@ def compute_total_edges(df: pd.DataFrame) -> pd.DataFrame:
     ]
     validate_columns(df, required)
 
-    df["over_edge_decimal"] = safe_edge_decimal(df["dk_total_over_decimal"], df["juiced_total_over_decimal"])
-    df["over_edge_pct"] = safe_edge_pct(df["dk_total_over_decimal"], df["juiced_total_over_decimal"])
+    df["over_edge_decimal"] = safe_edge_decimal(
+        df["dk_total_over_decimal"],
+        df["juiced_total_over_decimal"]
+    )
+    df["over_edge_pct"] = safe_edge_pct(
+        df["dk_total_over_decimal"],
+        df["juiced_total_over_decimal"]
+    )
     df["over_play"] = df["over_edge_decimal"] > 0
 
-    df["under_edge_decimal"] = safe_edge_decimal(df["dk_total_under_decimal"], df["juiced_total_under_decimal"])
-    df["under_edge_pct"] = safe_edge_pct(df["dk_total_under_decimal"], df["juiced_total_under_decimal"])
+    df["under_edge_decimal"] = safe_edge_decimal(
+        df["dk_total_under_decimal"],
+        df["juiced_total_under_decimal"]
+    )
+    df["under_edge_pct"] = safe_edge_pct(
+        df["dk_total_under_decimal"],
+        df["juiced_total_under_decimal"]
+    )
     df["under_play"] = df["under_edge_decimal"] > 0
 
     df = df.drop_duplicates(subset=["game_id"], keep="last")
