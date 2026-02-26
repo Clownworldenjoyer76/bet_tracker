@@ -31,7 +31,7 @@ def find_band_row(juice_df, puck_line, fav_ud, venue):
     if band.empty:
         raise ValueError(f"No puck line juice band for {puck_line}, {fav_ud}, {venue}")
 
-    return band.iloc[0]["extra_juice"]
+    return float(band.iloc[0]["extra_juice"])
 
 
 def process_side(df, juice_df, side):
@@ -46,9 +46,17 @@ def process_side(df, juice_df, side):
 
     for idx, row in df.iterrows():
         puck_line = float(row[puck_col])
+        puck_line = round(puck_line, 1)
+
         fair_decimal = float(row[fair_col])
 
-        fav_ud = "favorite" if puck_line == -1.5 else "underdog"
+        if puck_line == -1.5:
+            fav_ud = "favorite"
+        elif puck_line == 1.5:
+            fav_ud = "underdog"
+        else:
+            raise ValueError(f"Unexpected puck line value: {puck_line}")
+
         venue = side
 
         extra = find_band_row(juice_df, puck_line, fav_ud, venue)
@@ -68,7 +76,17 @@ def main():
 
     try:
         juice_df = pd.read_csv(JUICE_FILE)
+
+        # Force correct types and strip whitespace
+        juice_df["band_min"] = juice_df["band_min"].astype(float)
+        juice_df["band_max"] = juice_df["band_max"].astype(float)
+        juice_df["fav_ud"] = juice_df["fav_ud"].str.strip()
+        juice_df["venue"] = juice_df["venue"].str.strip()
+
         files = glob.glob(str(INPUT_DIR / "*_NHL_puck_line.csv"))
+
+        if not files:
+            raise ValueError("No NHL puck line files found")
 
         for file_path in files:
             df = pd.read_csv(file_path)
