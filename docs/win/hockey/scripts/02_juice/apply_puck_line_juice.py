@@ -22,8 +22,16 @@ ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 def find_band_row(juice_df, puck_line, venue):
     band = juice_df[
-        (juice_df["band_min"] <= puck_line) &
-        (puck_line <= juice_df["band_max"]) &
+        (
+            (
+                (juice_df["band_min"] <= puck_line) &
+                (puck_line <= juice_df["band_max"])
+            ) |
+            (
+                (juice_df["band_max"] <= puck_line) &
+                (puck_line <= juice_df["band_min"])
+            )
+        ) &
         (juice_df["venue"] == venue)
     ]
 
@@ -44,13 +52,10 @@ def process_side(df, juice_df, side):
     df[juiced_prob_col] = pd.NA
 
     for idx, row in df.iterrows():
-        puck_line = float(row[puck_col])
-        puck_line = round(puck_line, 1)
-
+        puck_line = round(float(row[puck_col]), 1)
         fair_decimal = float(row[fair_col])
-        venue = side
 
-        extra = find_band_row(juice_df, puck_line, venue)
+        extra = find_band_row(juice_df, puck_line, side)
 
         juiced_decimal = fair_decimal + extra
         juiced_prob = 1 / juiced_decimal
