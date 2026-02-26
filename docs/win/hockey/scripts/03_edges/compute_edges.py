@@ -14,14 +14,12 @@ ERROR_LOG = ERROR_DIR / "compute_edges.txt"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
-# =========================
-# HELPERS
-# =========================
 
 def validate_columns(df: pd.DataFrame, required_cols: list[str]) -> None:
     missing = [c for c in required_cols if c not in df.columns]
     if missing:
         raise ValueError(f"Missing required columns: {missing}")
+
 
 def decimal_to_american(series: pd.Series) -> pd.Series:
     dec = pd.to_numeric(series, errors="coerce")
@@ -35,16 +33,19 @@ def decimal_to_american(series: pd.Series) -> pd.Series:
 
     return american.round(0)
 
+
 def safe_edge_pct(dk: pd.Series, juiced: pd.Series) -> pd.Series:
     dk_num = pd.to_numeric(dk, errors="coerce")
     j_num = pd.to_numeric(juiced, errors="coerce")
     out = (dk_num / j_num) - 1
     return out.where(j_num > 0)
 
+
 def safe_edge_decimal(dk: pd.Series, juiced: pd.Series) -> pd.Series:
     dk_num = pd.to_numeric(dk, errors="coerce")
     j_num = pd.to_numeric(juiced, errors="coerce")
     return dk_num - j_num
+
 
 def upsert_dedup_by_game_id(new_df: pd.DataFrame, output_path: Path) -> pd.DataFrame:
     if output_path.exists():
@@ -55,14 +56,12 @@ def upsert_dedup_by_game_id(new_df: pd.DataFrame, output_path: Path) -> pd.DataF
         return combined
     return new_df
 
+
 def atomic_write_csv(df: pd.DataFrame, output_path: Path) -> None:
     tmp = output_path.with_suffix(".tmp")
     df.to_csv(tmp, index=False)
     tmp.replace(output_path)
 
-# =========================
-# CORE COMPUTE
-# =========================
 
 def compute_moneyline_edges(df: pd.DataFrame) -> pd.DataFrame:
     required = [
@@ -74,6 +73,9 @@ def compute_moneyline_edges(df: pd.DataFrame) -> pd.DataFrame:
     ]
     validate_columns(df, required)
 
+    df["home_juiced_american_moneyline"] = decimal_to_american(df["home_juiced_decimal_moneyline"])
+    df["away_juiced_american_moneyline"] = decimal_to_american(df["away_juiced_decimal_moneyline"])
+
     df["home_edge_decimal"] = safe_edge_decimal(
         df["home_dk_decimal_moneyline"],
         df["home_juiced_decimal_moneyline"]
@@ -96,6 +98,7 @@ def compute_moneyline_edges(df: pd.DataFrame) -> pd.DataFrame:
 
     df = df.drop_duplicates(subset=["game_id"], keep="last")
     return df
+
 
 def compute_puck_line_edges(df: pd.DataFrame) -> pd.DataFrame:
     required = [
@@ -107,12 +110,8 @@ def compute_puck_line_edges(df: pd.DataFrame) -> pd.DataFrame:
     ]
     validate_columns(df, required)
 
-    df["home_juiced_american_puck_line"] = decimal_to_american(
-        df["home_juiced_decimal_puck_line"]
-    )
-    df["away_juiced_american_puck_line"] = decimal_to_american(
-        df["away_juiced_decimal_puck_line"]
-    )
+    df["home_juiced_american_puck_line"] = decimal_to_american(df["home_juiced_decimal_puck_line"])
+    df["away_juiced_american_puck_line"] = decimal_to_american(df["away_juiced_decimal_puck_line"])
 
     df["home_edge_decimal"] = safe_edge_decimal(
         df["home_dk_puck_line_decimal"],
@@ -137,6 +136,7 @@ def compute_puck_line_edges(df: pd.DataFrame) -> pd.DataFrame:
     df = df.drop_duplicates(subset=["game_id"], keep="last")
     return df
 
+
 def compute_total_edges(df: pd.DataFrame) -> pd.DataFrame:
     required = [
         "game_id",
@@ -147,13 +147,8 @@ def compute_total_edges(df: pd.DataFrame) -> pd.DataFrame:
     ]
     validate_columns(df, required)
 
-    # NEW: convert juiced totals decimal to American
-    df["juiced_total_over_american"] = decimal_to_american(
-        df["juiced_total_over_decimal"]
-    )
-    df["juiced_total_under_american"] = decimal_to_american(
-        df["juiced_total_under_decimal"]
-    )
+    df["juiced_total_over_american"] = decimal_to_american(df["juiced_total_over_decimal"])
+    df["juiced_total_under_american"] = decimal_to_american(df["juiced_total_under_decimal"])
 
     df["over_edge_decimal"] = safe_edge_decimal(
         df["dk_total_over_decimal"],
@@ -178,6 +173,7 @@ def compute_total_edges(df: pd.DataFrame) -> pd.DataFrame:
     df = df.drop_duplicates(subset=["game_id"], keep="last")
     return df
 
+
 def process_pattern(log, pattern: str, compute_fn, label: str, summary: dict) -> None:
     input_files = sorted(INPUT_DIR.glob(pattern))
     if not input_files:
@@ -196,6 +192,7 @@ def process_pattern(log, pattern: str, compute_fn, label: str, summary: dict) ->
         summary["files_processed"] += 1
         summary["rows_processed"] += len(out_df)
         summary[f"{label}_files"] += 1
+
 
 def main() -> None:
     with open(ERROR_LOG, "w") as log:
@@ -226,6 +223,7 @@ def main() -> None:
             log.write("\n=== ERROR ===\n")
             log.write(str(e) + "\n\n")
             log.write(traceback.format_exc())
+
 
 if __name__ == "__main__":
     main()
