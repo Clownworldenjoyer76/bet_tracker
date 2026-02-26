@@ -48,135 +48,131 @@ def main():
 
             for slate_key in slates.keys():
 
-                selections = {}
-                puck_games_with_edge = set()
-
-                ml_df = None
-                pl_df = None
-                total_df = None
-
-                ml_path = INPUT_DIR / f"{slate_key}_NHL_moneyline.csv"
-                if ml_path.exists():
-                    ml_df = pd.read_csv(ml_path)
-
-                pl_path = INPUT_DIR / f"{slate_key}_NHL_puck_line.csv"
-                if pl_path.exists():
-                    pl_df = pd.read_csv(pl_path)
-
-                total_path = INPUT_DIR / f"{slate_key}_NHL_total.csv"
-                if total_path.exists():
-                    total_df = pd.read_csv(total_path)
-
-                # =========================
-                # PUCK LINE (priority)
-                # =========================
-                if pl_df is not None:
-                    for _, row in pl_df.iterrows():
-                        game_id = row["game_id"]
-
-                        for side in ["home", "away"]:
-                            puck_line = row.get(f"{side}_puck_line")
-                            edge_pct = row.get(f"{side}_edge_pct")
-                            edge_dec = row.get(f"{side}_edge_decimal")
-
-                            # EXACT instruction:
-                            # puck_line > 0 AND edge_pct > 0
-                            if pd.isna(puck_line) or puck_line <= 0:
-                                continue
-                            if pd.isna(edge_pct) or edge_pct <= 0:
-                                continue
-
-                            sel = {
-                                "game_id": game_id,
-                                "take_bet": f"{side}_puck_line",
-                                "take_bet_prob": row.get(f"{side}_prob"),
-                                "take_bet_edge_decimal": edge_dec,
-                                "take_bet_edge_pct": edge_pct,
-                                "take_team": row.get(f"{side}_team"),
-                                "take_odds": row.get(f"{side}_juiced_american_puck_line"),
-                                "value": puck_line,
-                            }
-
-                            selections.setdefault(game_id, {})["pl"] = sel
-                            puck_games_with_edge.add(game_id)
-
-                # =========================
-                # MONEYLINE (only if no puck edge)
-                # =========================
-                if ml_df is not None:
-                    for _, row in ml_df.iterrows():
-                        game_id = row["game_id"]
-
-                        if game_id in puck_games_with_edge:
-                            continue
-
-                        for side in ["home", "away"]:
-                            edge_pct = row.get(f"{side}_edge_pct")
-                            edge_dec = row.get(f"{side}_edge_decimal")
-                            prob = row.get(f"{side}_prob")
-
-                            if not valid_edge(edge_pct, ML_MIN_EDGE_PCT):
-                                continue
-                            if pd.isna(prob) or prob < ML_MIN_PROB:
-                                continue
-
-                            sel = {
-                                "game_id": game_id,
-                                "take_bet": f"{side}_moneyline",
-                                "take_bet_prob": prob,
-                                "take_bet_edge_decimal": edge_dec,
-                                "take_bet_edge_pct": edge_pct,
-                                "take_team": row.get(f"{side}_team"),
-                                "take_odds": row.get(f"{side}_juiced_american_moneyline"),
-                                "value": row.get(f"{side}_prob"),
-                            }
-
-                            selections.setdefault(game_id, {})["ml"] = sel
-
-                # =========================
-                # TOTALS (independent)
-                # =========================
-                if total_df is not None:
-                    for _, row in total_df.iterrows():
-                        game_id = row["game_id"]
-
-                        for side in ["over", "under"]:
-                            edge_pct = row.get(f"{side}_edge_pct")
-                            edge_dec = row.get(f"{side}_edge_decimal")
-                            prob = row.get(f"juiced_total_{side}_prob")
-
-                            if not valid_edge(edge_pct, TOTAL_MIN_EDGE_PCT):
-                                continue
-                            if pd.isna(prob) or prob < TOTAL_MIN_PROB:
-                                continue
-
-                            sel = {
-                                "game_id": game_id,
-                                "take_bet": f"{side}_total",
-                                "take_bet_prob": prob,
-                                "take_bet_edge_decimal": edge_dec,
-                                "take_bet_edge_pct": edge_pct,
-                                "take_team": side,
-                                "take_odds": row.get(f"juiced_total_{side}_american"),
-                                "value": row.get("total"),
-                            }
-
-                            selections.setdefault(game_id, {})["total"] = sel
-
-                # =========================
-                # FINAL OUTPUT
-                # =========================
                 final_rows = []
 
-                for game_id, markets in selections.items():
+                ml_path = INPUT_DIR / f"{slate_key}_NHL_moneyline.csv"
+                pl_path = INPUT_DIR / f"{slate_key}_NHL_puck_line.csv"
+                total_path = INPUT_DIR / f"{slate_key}_NHL_total.csv"
 
-                    if "pl" in markets:
-                        final_rows.append(markets["pl"])
-                    elif "ml" in markets:
-                        final_rows.append(markets["ml"])
+                ml_df = pd.read_csv(ml_path) if ml_path.exists() else None
+                pl_df = pd.read_csv(pl_path) if pl_path.exists() else None
+                total_df = pd.read_csv(total_path) if total_path.exists() else None
 
-                    if "total" in markets:
-                        final_rows.append(markets["total"])
+                game_ids = set()
+
+                if ml_df is not None:
+                    game_ids.update(ml_df["game_id"].unique())
+                if pl_df is not None:
+                    game_ids.update(pl_df["game_id"].unique())
+                if total_df is not None:
+                    game_ids.update(total_df["game_id"].unique())
+
+                for game_id in game_ids:
+
+                    puck_selected = None
+                    ml_selected = None
+                    total_selected = None
+
+                    # =====================
+                    # PUCK LINE CHECK
+                    # =====================
+                    if pl_df is not None:
+                        game_pl = pl_df[pl_df["game_id"] == game_id]
+
+                        for _, row in game_pl.iterrows():
+                            for side in ["home", "away"]:
+                                puck_line = row.get(f"{side}_puck_line")
+                                edge_pct = row.get(f"{side}_edge_pct")
+
+                                if pd.isna(puck_line) or puck_line <= 0:
+                                    continue
+                                if pd.isna(edge_pct) or edge_pct <= 0:
+                                    continue
+
+                                puck_selected = {
+                                    "game_id": game_id,
+                                    "take_bet": f"{side}_puck_line",
+                                    "take_bet_prob": row.get(f"{side}_prob"),
+                                    "take_bet_edge_decimal": row.get(f"{side}_edge_decimal"),
+                                    "take_bet_edge_pct": edge_pct,
+                                    "take_team": row.get(f"{side}_team"),
+                                    "take_odds": row.get(f"{side}_juiced_american_puck_line"),
+                                    "value": puck_line,
+                                }
+                                break
+                            if puck_selected:
+                                break
+
+                    # =====================
+                    # MONEYLINE CHECK
+                    # =====================
+                    if puck_selected is None and ml_df is not None:
+                        game_ml = ml_df[ml_df["game_id"] == game_id]
+
+                        for _, row in game_ml.iterrows():
+                            for side in ["home", "away"]:
+                                edge_pct = row.get(f"{side}_edge_pct")
+                                prob = row.get(f"{side}_prob")
+
+                                if not valid_edge(edge_pct, ML_MIN_EDGE_PCT):
+                                    continue
+                                if pd.isna(prob) or prob < ML_MIN_PROB:
+                                    continue
+
+                                ml_selected = {
+                                    "game_id": game_id,
+                                    "take_bet": f"{side}_moneyline",
+                                    "take_bet_prob": prob,
+                                    "take_bet_edge_decimal": row.get(f"{side}_edge_decimal"),
+                                    "take_bet_edge_pct": edge_pct,
+                                    "take_team": row.get(f"{side}_team"),
+                                    "take_odds": row.get(f"{side}_juiced_american_moneyline"),
+                                    "value": prob,
+                                }
+                                break
+                            if ml_selected:
+                                break
+
+                    # =====================
+                    # TOTAL CHECK
+                    # =====================
+                    if total_df is not None:
+                        game_total = total_df[total_df["game_id"] == game_id]
+
+                        for _, row in game_total.iterrows():
+                            for side in ["over", "under"]:
+                                edge_pct = row.get(f"{side}_edge_pct")
+                                prob = row.get(f"juiced_total_{side}_prob")
+
+                                if not valid_edge(edge_pct, TOTAL_MIN_EDGE_PCT):
+                                    continue
+                                if pd.isna(prob) or prob < TOTAL_MIN_PROB:
+                                    continue
+
+                                total_selected = {
+                                    "game_id": game_id,
+                                    "take_bet": f"{side}_total",
+                                    "take_bet_prob": prob,
+                                    "take_bet_edge_decimal": row.get(f"{side}_edge_decimal"),
+                                    "take_bet_edge_pct": edge_pct,
+                                    "take_team": side,
+                                    "take_odds": row.get(f"juiced_total_{side}_american"),
+                                    "value": row.get("total"),
+                                }
+                                break
+                            if total_selected:
+                                break
+
+                    # =====================
+                    # APPEND RESULTS
+                    # =====================
+                    if puck_selected:
+                        final_rows.append(puck_selected)
+                    elif ml_selected:
+                        final_rows.append(ml_selected)
+
+                    if total_selected:
+                        final_rows.append(total_selected)
 
                 out_df = pd.DataFrame(final_rows)
                 output_path = OUTPUT_DIR / f"{slate_key}_NHL.csv"
