@@ -14,13 +14,16 @@ ERROR_LOG = ERROR_DIR / "select_bets.txt"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
-MIN_EDGE_PCT = 0.03
+ML_MIN_EDGE_PCT = 0.03
+PUCK_MIN_EDGE_PCT = 0.001
+TOTAL_MIN_EDGE_PCT = 0.03
+
 ML_MIN_PROB = 0.33
 TOTAL_MIN_PROB = 0.45
 
 
-def valid_edge(edge_pct):
-    return pd.notna(edge_pct) and edge_pct >= MIN_EDGE_PCT
+def valid_edge(edge_pct, threshold):
+    return pd.notna(edge_pct) and edge_pct >= threshold
 
 
 def main():
@@ -76,7 +79,7 @@ def main():
                             edge_dec = row.get(f"{side}_edge_decimal")
                             prob = row.get(f"{side}_prob")
 
-                            if not valid_edge(edge_pct):
+                            if not valid_edge(edge_pct, ML_MIN_EDGE_PCT):
                                 continue
                             if pd.isna(prob) or prob < ML_MIN_PROB:
                                 continue
@@ -108,7 +111,7 @@ def main():
 
                             if pd.isna(puck_line) or puck_line <= 0:
                                 continue
-                            if not valid_edge(edge_pct):
+                            if not valid_edge(edge_pct, PUCK_MIN_EDGE_PCT):
                                 continue
 
                             sel = {
@@ -136,7 +139,7 @@ def main():
                             edge_dec = row.get(f"{side}_edge_decimal")
                             prob = row.get(f"juiced_total_{side}_prob")
 
-                            if not valid_edge(edge_pct):
+                            if not valid_edge(edge_pct, TOTAL_MIN_EDGE_PCT):
                                 continue
                             if pd.isna(prob) or prob < TOTAL_MIN_PROB:
                                 continue
