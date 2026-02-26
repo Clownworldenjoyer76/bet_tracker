@@ -37,6 +37,16 @@ def valid_edge(edge_dec, edge_pct):
         and edge_pct >= MIN_EDGE_PCT
     )
 
+def infer_market_from_filename(filename: str):
+    name = filename.lower()
+    if "moneyline" in name:
+        return "moneyline"
+    if "spread" in name:
+        return "spread"
+    if "total" in name:
+        return "total"
+    return None
+
 # =========================
 # MAIN
 # =========================
@@ -61,11 +71,14 @@ def main():
                 df = pd.read_csv(input_path)
                 selections = []
 
+                market = infer_market_from_filename(input_path.name)
+                if market is None:
+                    log.write(f"Skipping {input_path.name} (cannot infer market)\n")
+                    continue
+
                 for _, row in df.iterrows():
 
                     league = str(row.get("league", "")).lower()
-                    market = str(row.get("market", "")).lower()
-
                     game_id = row.get("game_id")
 
                     # =========================
@@ -121,15 +134,12 @@ def main():
                         total = row.get("total")
                         total_diff = row.get("total_diff")
 
-                        # OVER
                         over_dec = row.get("over_edge_decimal")
                         over_pct = row.get("over_edge_pct")
 
-                        # UNDER
                         under_dec = row.get("under_edge_decimal")
                         under_pct = row.get("under_edge_pct")
 
-                        # ---- Special NCAAB totals over logic ----
                         is_ncaab = "ncaab" in league
 
                         if is_ncaab:
@@ -164,9 +174,6 @@ def main():
                                             "take_bet_edge_pct": over_pct,
                                         })
 
-                        # ---- Normal totals logic (all leagues, including under) ----
-
-                        # Over (non-special cases)
                         if valid_edge(over_dec, over_pct):
                             selections.append({
                                 "game_id": game_id,
@@ -177,7 +184,6 @@ def main():
                                 "take_bet_edge_pct": over_pct,
                             })
 
-                        # Under
                         if valid_edge(under_dec, under_pct):
                             selections.append({
                                 "game_id": game_id,
