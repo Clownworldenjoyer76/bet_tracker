@@ -105,11 +105,18 @@ def main():
 
                             if valid_edge(edge_dec, edge_pct):
 
+                                take_team = row.get(f"{side}_team")
+                                take_odds = row.get(f"{side}_juice_odds")
+                                value = row.get(f"{side}_prob")
+
                                 selections.append({
                                     "game_id": game_id,
                                     "league": row.get("league"),
                                     "market": market,
                                     "take_bet": f"{side}_ml",
+                                    "take_odds": take_odds,
+                                    "take_team": take_team,
+                                    "value": value,
                                     "take_bet_edge_decimal": edge_dec,
                                     "take_bet_edge_pct": edge_pct,
                                 })
@@ -127,11 +134,22 @@ def main():
 
                             if valid_edge(edge_dec, edge_pct):
 
+                                take_team = row.get(f"{side}_team")
+                                take_odds = row.get(f"{side}_juice_odds")
+
+                                if side == "away":
+                                    value = row.get("away_spread")
+                                else:
+                                    value = row.get("away_spread")
+
                                 selections.append({
                                     "game_id": game_id,
                                     "league": row.get("league"),
                                     "market": market,
                                     "take_bet": f"{side}_spread",
+                                    "take_odds": take_odds,
+                                    "take_team": take_team,
+                                    "value": value,
                                     "take_bet_edge_decimal": edge_dec,
                                     "take_bet_edge_pct": edge_pct,
                                 })
@@ -148,22 +166,32 @@ def main():
                         under_dec = row.get("under_edge_decimal")
                         under_pct = row.get("under_edge_pct")
 
+                        total_value = row.get("total")
+
                         if valid_total_edge(over_dec, over_pct):
+
                             selections.append({
                                 "game_id": game_id,
                                 "league": row.get("league"),
                                 "market": market,
                                 "take_bet": "over_bet",
+                                "take_odds": row.get("total_over_juice_odds"),
+                                "take_team": "over",
+                                "value": total_value,
                                 "take_bet_edge_decimal": over_dec,
                                 "take_bet_edge_pct": over_pct,
                             })
 
                         if valid_total_edge(under_dec, under_pct):
+
                             selections.append({
                                 "game_id": game_id,
                                 "league": row.get("league"),
                                 "market": market,
                                 "take_bet": "under_bet",
+                                "take_odds": row.get("total_under_juice_odds"),
+                                "take_team": "under",
+                                "value": total_value,
                                 "take_bet_edge_decimal": under_dec,
                                 "take_bet_edge_pct": under_pct,
                             })
