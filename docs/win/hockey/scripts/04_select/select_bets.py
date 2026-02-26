@@ -15,7 +15,6 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 ML_MIN_EDGE_PCT = 0.03
-PUCK_MIN_EDGE_PCT = 0.001
 TOTAL_MIN_EDGE_PCT = 0.03
 
 ML_MIN_PROB = 0.33
@@ -29,7 +28,7 @@ def valid_edge(edge_pct, threshold):
 def main():
     with open(ERROR_LOG, "w") as log:
 
-        log.write("=== NHL SELECT BETS RUN (STRICT) ===\n")
+        log.write("=== NHL SELECT BETS RUN ===\n")
         log.write(f"Timestamp: {datetime.utcnow().isoformat()}Z\n\n")
 
         try:
@@ -68,11 +67,50 @@ def main():
                     total_df = pd.read_csv(total_path)
 
                 # =========================
-                # MONEYLINE
+                # PUCK LINE FIRST
+                # =========================
+                puck_games_with_plus_edge = set()
+
+                if pl_df is not None:
+                    for _, row in pl_df.iterrows():
+                        game_id = row["game_id"]
+
+                        for side in ["home", "away"]:
+                            puck_line = row.get(f"{side}_puck_line")
+                            edge_pct = row.get(f"{side}_edge_pct")
+                            edge_dec = row.get(f"{side}_edge_decimal")
+
+                            # Only +1.5 puck lines
+                            if pd.isna(puck_line) or puck_line != 1.5:
+                                continue
+
+                            # Must have positive edge
+                            if pd.isna(edge_pct) or edge_pct <= 0:
+                                continue
+
+                            sel = {
+                                "game_id": game_id,
+                                "take_bet": f"{side}_puck_line",
+                                "take_bet_prob": row.get(f"{side}_prob"),
+                                "take_bet_edge_decimal": edge_dec,
+                                "take_bet_edge_pct": edge_pct,
+                                "take_team": row.get(f"{side}_team"),
+                                "take_odds": row.get(f"{side}_juiced_american_puck_line"),
+                                "value": puck_line,
+                            }
+
+                            selections.setdefault(game_id, {})["pl"] = sel
+                            puck_games_with_plus_edge.add(game_id)
+
+                # =========================
+                # MONEYLINE (only if no +1.5 PL selected)
                 # =========================
                 if ml_df is not None:
                     for _, row in ml_df.iterrows():
                         game_id = row["game_id"]
+
+                        if game_id in puck_games_with_plus_edge:
+                            continue
 
                         for side in ["home", "away"]:
                             edge_pct = row.get(f"{side}_edge_pct")
@@ -96,36 +134,6 @@ def main():
                             }
 
                             selections.setdefault(game_id, {})["ml"] = sel
-
-                # =========================
-                # PUCK LINE
-                # =========================
-                if pl_df is not None:
-                    for _, row in pl_df.iterrows():
-                        game_id = row["game_id"]
-
-                        for side in ["home", "away"]:
-                            puck_line = row.get(f"{side}_puck_line")
-                            edge_pct = row.get(f"{side}_edge_pct")
-                            edge_dec = row.get(f"{side}_edge_decimal")
-
-                            if pd.isna(puck_line) or puck_line <= 0:
-                                continue
-                            if not valid_edge(edge_pct, PUCK_MIN_EDGE_PCT):
-                                continue
-
-                            sel = {
-                                "game_id": game_id,
-                                "take_bet": f"{side}_puck_line",
-                                "take_bet_prob": row.get(f"{side}_prob"),
-                                "take_bet_edge_decimal": edge_dec,
-                                "take_bet_edge_pct": edge_pct,
-                                "take_team": row.get(f"{side}_team"),
-                                "take_odds": row.get(f"{side}_juiced_american_puck_line"),
-                                "value": row.get(f"{side}_puck_line"),
-                            }
-
-                            selections.setdefault(game_id, {})["pl"] = sel
 
                 # =========================
                 # TOTALS
@@ -164,15 +172,10 @@ def main():
 
                 for game_id, markets in selections.items():
 
-                    ml_pl_choice = None
-
                     if "pl" in markets:
-                        ml_pl_choice = markets["pl"]
+                        final_rows.append(markets["pl"])
                     elif "ml" in markets:
-                        ml_pl_choice = markets["ml"]
-
-                    if ml_pl_choice:
-                        final_rows.append(ml_pl_choice)
+                        final_rows.append(markets["ml"])
 
                     if "total" in markets:
                         final_rows.append(markets["total"])
