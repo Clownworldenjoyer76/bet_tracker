@@ -29,20 +29,6 @@ def validate_columns(df: pd.DataFrame, required_cols: list[str]) -> None:
         raise ValueError(f"Missing required columns: {missing}")
 
 
-def american_to_decimal(series: pd.Series) -> pd.Series:
-    s = pd.to_numeric(series, errors="coerce")
-
-    dec = pd.Series(index=s.index, dtype="float64")
-
-    pos_mask = s > 0
-    neg_mask = s < 0
-
-    dec[pos_mask] = 1 + (s[pos_mask] / 100)
-    dec[neg_mask] = 1 + (100 / abs(s[neg_mask]))
-
-    return dec
-
-
 def edge_decimal(dk: pd.Series, juice_decimal: pd.Series) -> pd.Series:
     dk = pd.to_numeric(dk, errors="coerce")
     j = pd.to_numeric(juice_decimal, errors="coerce")
@@ -76,27 +62,28 @@ def compute_moneyline_edges(df: pd.DataFrame) -> pd.DataFrame:
     required = [
         "home_dk_decimal_moneyline",
         "away_dk_decimal_moneyline",
-        "home_juice_odds",
-        "away_juice_odds",
+        "home_juice_decimal_moneyline",
+        "away_juice_decimal_moneyline",
     ]
     validate_columns(df, required)
 
-    home_juice_decimal = american_to_decimal(df["home_juice_odds"])
-    away_juice_decimal = american_to_decimal(df["away_juice_odds"])
-
     df["home_edge_decimal"] = edge_decimal(
-        df["home_dk_decimal_moneyline"], home_juice_decimal
+        df["home_dk_decimal_moneyline"],
+        df["home_juice_decimal_moneyline"],
     )
     df["home_edge_pct"] = edge_pct(
-        df["home_dk_decimal_moneyline"], home_juice_decimal
+        df["home_dk_decimal_moneyline"],
+        df["home_juice_decimal_moneyline"],
     )
     df["home_play"] = df["home_edge_decimal"] > 0
 
     df["away_edge_decimal"] = edge_decimal(
-        df["away_dk_decimal_moneyline"], away_juice_decimal
+        df["away_dk_decimal_moneyline"],
+        df["away_juice_decimal_moneyline"],
     )
     df["away_edge_pct"] = edge_pct(
-        df["away_dk_decimal_moneyline"], away_juice_decimal
+        df["away_dk_decimal_moneyline"],
+        df["away_juice_decimal_moneyline"],
     )
     df["away_play"] = df["away_edge_decimal"] > 0
 
@@ -107,27 +94,28 @@ def compute_spread_edges(df: pd.DataFrame) -> pd.DataFrame:
     required = [
         "home_dk_spread_decimal",
         "away_dk_spread_decimal",
-        "home_spread_juice_odds",
-        "away_spread_juice_odds",
+        "home_spread_juice_decimal",
+        "away_spread_juice_decimal",
     ]
     validate_columns(df, required)
 
-    home_juice_decimal = american_to_decimal(df["home_spread_juice_odds"])
-    away_juice_decimal = american_to_decimal(df["away_spread_juice_odds"])
-
     df["home_edge_decimal"] = edge_decimal(
-        df["home_dk_spread_decimal"], home_juice_decimal
+        df["home_dk_spread_decimal"],
+        df["home_spread_juice_decimal"],
     )
     df["home_edge_pct"] = edge_pct(
-        df["home_dk_spread_decimal"], home_juice_decimal
+        df["home_dk_spread_decimal"],
+        df["home_spread_juice_decimal"],
     )
     df["home_play"] = df["home_edge_decimal"] > 0
 
     df["away_edge_decimal"] = edge_decimal(
-        df["away_dk_spread_decimal"], away_juice_decimal
+        df["away_dk_spread_decimal"],
+        df["away_spread_juice_decimal"],
     )
     df["away_edge_pct"] = edge_pct(
-        df["away_dk_spread_decimal"], away_juice_decimal
+        df["away_dk_spread_decimal"],
+        df["away_spread_juice_decimal"],
     )
     df["away_play"] = df["away_edge_decimal"] > 0
 
@@ -138,27 +126,28 @@ def compute_total_edges(df: pd.DataFrame) -> pd.DataFrame:
     required = [
         "dk_total_over_decimal",
         "dk_total_under_decimal",
-        "total_over_juice_odds",
-        "total_under_juice_odds",
+        "total_over_juice_decimal",
+        "total_under_juice_decimal",
     ]
     validate_columns(df, required)
 
-    over_juice_decimal = american_to_decimal(df["total_over_juice_odds"])
-    under_juice_decimal = american_to_decimal(df["total_under_juice_odds"])
-
     df["over_edge_decimal"] = edge_decimal(
-        df["dk_total_over_decimal"], over_juice_decimal
+        df["dk_total_over_decimal"],
+        df["total_over_juice_decimal"],
     )
     df["over_edge_pct"] = edge_pct(
-        df["dk_total_over_decimal"], over_juice_decimal
+        df["dk_total_over_decimal"],
+        df["total_over_juice_decimal"],
     )
     df["over_play"] = df["over_edge_decimal"] > 0
 
     df["under_edge_decimal"] = edge_decimal(
-        df["dk_total_under_decimal"], under_juice_decimal
+        df["dk_total_under_decimal"],
+        df["total_under_juice_decimal"],
     )
     df["under_edge_pct"] = edge_pct(
-        df["dk_total_under_decimal"], under_juice_decimal
+        df["dk_total_under_decimal"],
+        df["total_under_juice_decimal"],
     )
     df["under_play"] = df["under_edge_decimal"] > 0
 
