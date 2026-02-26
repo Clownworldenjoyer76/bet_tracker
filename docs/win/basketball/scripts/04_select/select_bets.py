@@ -6,10 +6,6 @@ from pathlib import Path
 from datetime import datetime
 import traceback
 
-# =========================
-# PATHS
-# =========================
-
 INPUT_DIR = Path("docs/win/basketball/03_edges")
 OUTPUT_DIR = Path("docs/win/basketball/04_select")
 ERROR_DIR = Path("docs/win/basketball/errors/04_select")
@@ -18,19 +14,12 @@ ERROR_LOG = ERROR_DIR / "select_bets.txt"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
-# =========================
-# FILTER RULES
-# =========================
-
 MIN_EDGE_DECIMAL = 0.05
 MIN_EDGE_PCT = 0.02
 
 MIN_TOTAL_EDGE_DECIMAL = 0.12
 MIN_TOTAL_EDGE_PCT = 0.06
 
-# =========================
-# HELPERS
-# =========================
 
 def valid_edge(edge_dec, edge_pct):
     return (
@@ -40,6 +29,7 @@ def valid_edge(edge_dec, edge_pct):
         and edge_pct >= MIN_EDGE_PCT
     )
 
+
 def valid_total_edge(edge_dec, edge_pct):
     return (
         pd.notna(edge_dec)
@@ -47,6 +37,7 @@ def valid_total_edge(edge_dec, edge_pct):
         and edge_dec >= MIN_TOTAL_EDGE_DECIMAL
         and edge_pct >= MIN_TOTAL_EDGE_PCT
     )
+
 
 def infer_market_from_filename(filename: str):
     name = filename.lower()
@@ -58,9 +49,6 @@ def infer_market_from_filename(filename: str):
         return "total"
     return None
 
-# =========================
-# MAIN
-# =========================
 
 def main():
 
@@ -89,7 +77,6 @@ def main():
 
                 for _, row in df.iterrows():
 
-                    league = str(row.get("league", "")).lower()
                     game_id = row.get("game_id")
 
                     # =========================
@@ -105,18 +92,14 @@ def main():
 
                             if valid_edge(edge_dec, edge_pct):
 
-                                take_team = row.get(f"{side}_team")
-                                take_odds = row.get(f"{side}_juice_odds")
-                                value = row.get(f"{side}_prob")
-
                                 selections.append({
                                     "game_id": game_id,
                                     "league": row.get("league"),
                                     "market": market,
                                     "take_bet": f"{side}_ml",
-                                    "take_odds": take_odds,
-                                    "take_team": take_team,
-                                    "value": value,
+                                    "take_odds": row.get(f"{side}_juice_odds"),
+                                    "take_team": row.get(f"{side}_team"),
+                                    "value": row.get(f"{side}_prob"),
                                     "take_bet_edge_decimal": edge_dec,
                                     "take_bet_edge_pct": edge_pct,
                                 })
@@ -134,22 +117,14 @@ def main():
 
                             if valid_edge(edge_dec, edge_pct):
 
-                                take_team = row.get(f"{side}_team")
-                                take_odds = row.get(f"{side}_juice_odds")
-
-                                if side == "away":
-                                    value = row.get("away_spread")
-                                else:
-                                    value = row.get("away_spread")
-
                                 selections.append({
                                     "game_id": game_id,
                                     "league": row.get("league"),
                                     "market": market,
                                     "take_bet": f"{side}_spread",
-                                    "take_odds": take_odds,
-                                    "take_team": take_team,
-                                    "value": value,
+                                    "take_odds": row.get(f"{side}_spread_juice_odds"),
+                                    "take_team": row.get(f"{side}_team"),
+                                    "value": row.get("away_spread"),
                                     "take_bet_edge_decimal": edge_dec,
                                     "take_bet_edge_pct": edge_pct,
                                 })
