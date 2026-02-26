@@ -1,5 +1,4 @@
 # docs/win/hockey/scripts/02_juice/apply_moneyline_juice.py
-
 #!/usr/bin/env python3
 
 import pandas as pd
@@ -46,7 +45,6 @@ def apply_side(df, side, juice_df):
     fair_col = f"{side}_fair_decimal_moneyline"
 
     df[f"{side}_juiced_prob_moneyline"] = pd.NA
-    df[f"{side}_juiced_decimal_moneyline"] = pd.NA
 
     for idx, row in df.iterrows():
         american = float(row[american_col])
@@ -59,12 +57,31 @@ def apply_side(df, side, juice_df):
 
         fair_prob = 1 / fair_decimal
         juiced_prob = fair_prob + extra_juice
-        juiced_prob = min(0.999, max(0.000001, juiced_prob))
-
-        juiced_decimal = 1 / juiced_prob
 
         df.at[idx, f"{side}_juiced_prob_moneyline"] = juiced_prob
-        df.at[idx, f"{side}_juiced_decimal_moneyline"] = juiced_decimal
+
+    return df
+
+
+def normalize_probs_and_compute_decimal(df):
+    for idx, row in df.iterrows():
+
+        home_prob = float(row["home_juiced_prob_moneyline"])
+        away_prob = float(row["away_juiced_prob_moneyline"])
+
+        total = home_prob + away_prob
+
+        if total <= 0:
+            continue
+
+        home_prob_norm = home_prob / total
+        away_prob_norm = away_prob / total
+
+        df.at[idx, "home_juiced_prob_moneyline"] = home_prob_norm
+        df.at[idx, "away_juiced_prob_moneyline"] = away_prob_norm
+
+        df.at[idx, "home_juiced_decimal_moneyline"] = 1 / home_prob_norm
+        df.at[idx, "away_juiced_decimal_moneyline"] = 1 / away_prob_norm
 
     return df
 
@@ -82,6 +99,9 @@ def main():
 
             df = apply_side(df, "home", juice_df)
             df = apply_side(df, "away", juice_df)
+
+            # FIX: normalize both sides so probabilities sum to 1
+            df = normalize_probs_and_compute_decimal(df)
 
             output_path = OUTPUT_DIR / Path(file_path).name
             df.to_csv(output_path, index=False)
