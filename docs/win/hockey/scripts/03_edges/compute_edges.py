@@ -34,17 +34,17 @@ def decimal_to_american(series: pd.Series) -> pd.Series:
     return american.round(0)
 
 
-def safe_edge_pct(dk: pd.Series, juiced: pd.Series) -> pd.Series:
-    dk_num = pd.to_numeric(dk, errors="coerce")
-    j_num = pd.to_numeric(juiced, errors="coerce")
-    out = (dk_num / j_num) - 1
-    return out.where(j_num > 0)
-
-
 def safe_edge_decimal(dk: pd.Series, juiced: pd.Series) -> pd.Series:
     dk_num = pd.to_numeric(dk, errors="coerce")
     j_num = pd.to_numeric(juiced, errors="coerce")
-    return dk_num - j_num
+    return j_num - dk_num
+
+
+def safe_edge_pct(dk: pd.Series, juiced: pd.Series) -> pd.Series:
+    dk_num = pd.to_numeric(dk, errors="coerce")
+    j_num = pd.to_numeric(juiced, errors="coerce")
+    edge_decimal = j_num - dk_num
+    return (edge_decimal / dk_num).where(dk_num > 0)
 
 
 def upsert_dedup_by_game_id(new_df: pd.DataFrame, output_path: Path) -> pd.DataFrame:
