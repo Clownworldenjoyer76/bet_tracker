@@ -49,6 +49,7 @@ def main():
             for slate_key in slates.keys():
 
                 selections = {}
+                puck_games_with_edge = set()
 
                 ml_df = None
                 pl_df = None
@@ -67,10 +68,8 @@ def main():
                     total_df = pd.read_csv(total_path)
 
                 # =========================
-                # PUCK LINE FIRST
+                # PUCK LINE (priority)
                 # =========================
-                puck_games_with_plus_edge = set()
-
                 if pl_df is not None:
                     for _, row in pl_df.iterrows():
                         game_id = row["game_id"]
@@ -80,11 +79,10 @@ def main():
                             edge_pct = row.get(f"{side}_edge_pct")
                             edge_dec = row.get(f"{side}_edge_decimal")
 
-                            # Only +1.5 puck lines
-                            if pd.isna(puck_line) or puck_line != 1.5:
+                            # EXACT instruction:
+                            # puck_line > 0 AND edge_pct > 0
+                            if pd.isna(puck_line) or puck_line <= 0:
                                 continue
-
-                            # Must have positive edge
                             if pd.isna(edge_pct) or edge_pct <= 0:
                                 continue
 
@@ -100,16 +98,16 @@ def main():
                             }
 
                             selections.setdefault(game_id, {})["pl"] = sel
-                            puck_games_with_plus_edge.add(game_id)
+                            puck_games_with_edge.add(game_id)
 
                 # =========================
-                # MONEYLINE (only if no +1.5 PL selected)
+                # MONEYLINE (only if no puck edge)
                 # =========================
                 if ml_df is not None:
                     for _, row in ml_df.iterrows():
                         game_id = row["game_id"]
 
-                        if game_id in puck_games_with_plus_edge:
+                        if game_id in puck_games_with_edge:
                             continue
 
                         for side in ["home", "away"]:
@@ -136,7 +134,7 @@ def main():
                             selections.setdefault(game_id, {})["ml"] = sel
 
                 # =========================
-                # TOTALS
+                # TOTALS (independent)
                 # =========================
                 if total_df is not None:
                     for _, row in total_df.iterrows():
