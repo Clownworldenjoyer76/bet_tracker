@@ -1,6 +1,5 @@
-# docs/win/basketball/scripts/03_edges/compute_edges.py
-
 #!/usr/bin/env python3
+# docs/win/basketball/scripts/03_edges/compute_edges.py
 
 import pandas as pd
 from pathlib import Path
@@ -84,6 +83,7 @@ def compute_moneyline_edges(df: pd.DataFrame) -> pd.DataFrame:
 
     return df
 
+
 def compute_spread_edges(df: pd.DataFrame) -> pd.DataFrame:
     required = [
         "game_id",
@@ -111,6 +111,7 @@ def compute_spread_edges(df: pd.DataFrame) -> pd.DataFrame:
     df["away_play"] = df["away_edge_decimal"] > 0
 
     return df
+
 
 def compute_total_edges(df: pd.DataFrame) -> pd.DataFrame:
     required = [
@@ -141,44 +142,31 @@ def compute_total_edges(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 # =========================
-# MAIN
+# MAIN PROCESSING
 # =========================
+
+def process_market_files(files, compute_fn, league: str, market: str):
+    for f in files:
+        df = pd.read_csv(f)
+        df = compute_fn(df)
+
+        date = extract_date_from_filename(f.name)
+
+        output_name = f"{date}_basketball_{league}_{market}.csv"
+        output_path = OUTPUT_DIR / output_name
+
+        atomic_write_csv(df, output_path)
+
 
 def process_league(league: str):
     moneyline_files = sorted(INPUT_DIR.glob(f"*_{league}_moneyline.csv"))
     spread_files = sorted(INPUT_DIR.glob(f"*_{league}_spread.csv"))
     total_files = sorted(INPUT_DIR.glob(f"*_{league}_total.csv"))
 
-    all_frames = []
+    process_market_files(moneyline_files, compute_moneyline_edges, league, "moneyline")
+    process_market_files(spread_files, compute_spread_edges, league, "spread")
+    process_market_files(total_files, compute_total_edges, league, "total")
 
-    for f in moneyline_files:
-        df = pd.read_csv(f)
-        df = compute_moneyline_edges(df)
-        all_frames.append(df)
-
-    for f in spread_files:
-        df = pd.read_csv(f)
-        df = compute_spread_edges(df)
-        all_frames.append(df)
-
-    for f in total_files:
-        df = pd.read_csv(f)
-        df = compute_total_edges(df)
-        all_frames.append(df)
-
-    if not all_frames:
-        return
-
-    combined = pd.concat(all_frames, ignore_index=True)
-
-    date = extract_date_from_filename(all_frames[0]["game_id"].iloc[0])
-    if league == "NBA":
-        output_name = f"basketball_NBA_{date}.csv"
-    else:
-        output_name = f"NCAAB_{date}.csv"
-
-    output_path = OUTPUT_DIR / output_name
-    atomic_write_csv(combined, output_path)
 
 def main():
     with open(ERROR_LOG, "w") as log:
@@ -191,6 +179,7 @@ def main():
             log.write("\n=== ERROR ===\n")
             log.write(str(e) + "\n\n")
             log.write(traceback.format_exc())
+
 
 if __name__ == "__main__":
     main()
