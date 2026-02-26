@@ -6,10 +6,6 @@ from pathlib import Path
 from datetime import datetime
 import traceback
 
-# =========================
-# PATHS
-# =========================
-
 INPUT_DIR = Path("docs/win/hockey/02_juice")
 OUTPUT_DIR = Path("docs/win/hockey/03_edges")
 ERROR_DIR = Path("docs/win/hockey/errors/03_edges")
@@ -27,16 +23,23 @@ def validate_columns(df: pd.DataFrame, required_cols: list[str]) -> None:
     if missing:
         raise ValueError(f"Missing required columns: {missing}")
 
+def decimal_to_american(series: pd.Series) -> pd.Series:
+    dec = pd.to_numeric(series, errors="coerce")
+    american = pd.Series(index=dec.index, dtype="float64")
+
+    positive_mask = dec >= 2
+    negative_mask = (dec < 2) & (dec > 1)
+
+    american[positive_mask] = (dec[positive_mask] - 1) * 100
+    american[negative_mask] = -100 / (dec[negative_mask] - 1)
+
+    return american.round(0)
+
 def safe_edge_pct(dk: pd.Series, juiced: pd.Series) -> pd.Series:
-    """
-    edge_pct = (dk / juiced) - 1
-    Returns NaN when dk/juiced invalid (NaN, juiced<=0).
-    """
     dk_num = pd.to_numeric(dk, errors="coerce")
     j_num = pd.to_numeric(juiced, errors="coerce")
     out = (dk_num / j_num) - 1
-    out = out.where(j_num > 0)
-    return out
+    return out.where(j_num > 0)
 
 def safe_edge_decimal(dk: pd.Series, juiced: pd.Series) -> pd.Series:
     dk_num = pd.to_numeric(dk, errors="coerce")
@@ -44,10 +47,6 @@ def safe_edge_decimal(dk: pd.Series, juiced: pd.Series) -> pd.Series:
     return dk_num - j_num
 
 def upsert_dedup_by_game_id(new_df: pd.DataFrame, output_path: Path) -> pd.DataFrame:
-    """
-    If output exists, append then dedupe by game_id (keep last).
-    Always returns the final combined df.
-    """
     if output_path.exists():
         existing = pd.read_csv(output_path)
         combined = pd.concat([existing, new_df], ignore_index=True)
@@ -75,12 +74,28 @@ def compute_moneyline_edges(df: pd.DataFrame) -> pd.DataFrame:
     ]
     validate_columns(df, required)
 
-    df["home_edge_decimal"] = safe_edge_decimal(df["home_dk_decimal_moneyline"], df["home_juiced_decimal_moneyline"])
-    df["home_edge_pct"] = safe_edge_pct(df["home_dk_decimal_moneyline"], df["home_juiced_decimal_moneyline"])
+    # NEW: Convert juiced decimal to American
+    df["home_juiced_american_moneyline"] = decimal_to_american(df["home_juiced_decimal_moneyline"])
+    df["away_juiced_american_moneyline"] = decimal_to_american(df["away_juiced_decimal_moneyline"])
+
+    df["home_edge_decimal"] = safe_edge_decimal(
+        df["home_dk_decimal_moneyline"],
+        df["home_juiced_decimal_moneyline"]
+    )
+    df["home_edge_pct"] = safe_edge_pct(
+        df["home_dk_decimal_moneyline"],
+        df["home_juiced_decimal_moneyline"]
+    )
     df["home_play"] = df["home_edge_decimal"] > 0
 
-    df["away_edge_decimal"] = safe_edge_decimal(df["away_dk_decimal_moneyline"], df["away_juiced_decimal_moneyline"])
-    df["away_edge_pct"] = safe_edge_pct(df["away_dk_decimal_moneyline"], df["away_juiced_decimal_moneyline"])
+    df["away_edge_decimal"] = safe_edge_decimal(
+        df["away_dk_decimal_moneyline"],
+        df["away_juiced_decimal_moneyline"]
+    )
+    df["away_edge_pct"] = safe_edge_pct(
+        df["away_dk_decimal_moneyline"],
+        df["away_juiced_decimal_moneyline"]
+    )
     df["away_play"] = df["away_edge_decimal"] > 0
 
     df = df.drop_duplicates(subset=["game_id"], keep="last")
@@ -136,8 +151,6 @@ def process_pattern(log, pattern: str, compute_fn, label: str, summary: dict) ->
 
     for input_path in input_files:
         df = pd.read_csv(input_path)
-
-        # compute edges
         out_df = compute_fn(df)
 
         output_path = OUTPUT_DIR / input_path.name
@@ -163,27 +176,9 @@ def main() -> None:
         }
 
         try:
-            process_pattern(
-                log=log,
-                pattern="*_NHL_moneyline.csv",
-                compute_fn=compute_moneyline_edges,
-                label="moneyline",
-                summary=summary,
-            )
-            process_pattern(
-                log=log,
-                pattern="*_NHL_puck_line.csv",
-                compute_fn=compute_puck_line_edges,
-                label="puck_line",
-                summary=summary,
-            )
-            process_pattern(
-                log=log,
-                pattern="*_NHL_total.csv",
-                compute_fn=compute_total_edges,
-                label="total",
-                summary=summary,
-            )
+            process_pattern(log, "*_NHL_moneyline.csv", compute_moneyline_edges, "moneyline", summary)
+            process_pattern(log, "*_NHL_puck_line.csv", compute_puck_line_edges, "puck_line", summary)
+            process_pattern(log, "*_NHL_total.csv", compute_total_edges, "total", summary)
 
             log.write("\n=== SUMMARY ===\n")
             log.write(f"Files processed: {summary['files_processed']}\n")
