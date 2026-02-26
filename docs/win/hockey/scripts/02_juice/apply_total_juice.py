@@ -20,37 +20,39 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def find_band(juice_df, total, side):
+def find_band_row(juice_df, total, side):
     band = juice_df[
         (juice_df["band_min"] <= total) &
-        (total < juice_df["band_max"]) &
+        (total <= juice_df["band_max"]) &
         (juice_df["side"] == side)
     ]
+
     if band.empty:
         raise ValueError(f"No total juice band for {total}, {side}")
+
     return band.iloc[0]["extra_juice"]
 
 
-def apply_side(df, side, juice_df):
+def process_side(df, juice_df, side):
     fair_col = f"fair_total_{side}_decimal"
 
-    df[f"juiced_total_{side}_prob"] = pd.NA
-    df[f"juiced_total_{side}_decimal"] = pd.NA
+    juiced_decimal_col = f"juiced_total_{side}_decimal"
+    juiced_prob_col = f"juiced_total_{side}_prob"
+
+    df[juiced_decimal_col] = pd.NA
+    df[juiced_prob_col] = pd.NA
 
     for idx, row in df.iterrows():
         total = float(row["total"])
         fair_decimal = float(row[fair_col])
 
-        extra_juice = find_band(juice_df, total, side)
+        extra = find_band_row(juice_df, total, side)
 
-        fair_prob = 1 / fair_decimal
-        juiced_prob = fair_prob + extra_juice
-        juiced_prob = min(0.999, max(0.000001, juiced_prob))
+        juiced_decimal = fair_decimal + extra
+        juiced_prob = 1 / juiced_decimal
 
-        juiced_decimal = 1 / juiced_prob
-
-        df.at[idx, f"juiced_total_{side}_prob"] = juiced_prob
-        df.at[idx, f"juiced_total_{side}_decimal"] = juiced_decimal
+        df.at[idx, juiced_decimal_col] = juiced_decimal
+        df.at[idx, juiced_prob_col] = juiced_prob
 
     return df
 
@@ -66,8 +68,8 @@ def main():
         for file_path in files:
             df = pd.read_csv(file_path)
 
-            df = apply_side(df, "over", juice_df)
-            df = apply_side(df, "under", juice_df)
+            df = process_side(df, juice_df, "over")
+            df = process_side(df, juice_df, "under")
 
             output_path = OUTPUT_DIR / Path(file_path).name
             df.to_csv(output_path, index=False)
