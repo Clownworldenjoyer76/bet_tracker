@@ -32,12 +32,9 @@ def find_row(juice_df, fav_ud, venue):
 
 def apply_side(df, side, juice_df):
     puck_col = f"{side}_puck_line"
-    dk_decimal_col = f"{side}_dk_puck_line_decimal"
 
     df[f"{side}_juiced_prob_puck_line"] = pd.NA
     df[f"{side}_juiced_decimal_puck_line"] = pd.NA
-    df[f"{side}_edge_decimal"] = pd.NA
-    df[f"{side}_edge_pct"] = pd.NA
 
     for idx, row in df.iterrows():
         try:
@@ -45,7 +42,6 @@ def apply_side(df, side, juice_df):
         except Exception:
             continue
 
-        # Determine favorite/underdog strictly by puck line sign
         if puck_line_value == -1.5:
             fav_ud = "favorite"
         elif puck_line_value == 1.5:
@@ -54,8 +50,8 @@ def apply_side(df, side, juice_df):
             continue
 
         venue = side
-
         band_row = find_row(juice_df, fav_ud, venue)
+
         if band_row is None:
             continue
 
@@ -65,19 +61,34 @@ def apply_side(df, side, juice_df):
         df.at[idx, f"{side}_juiced_prob_puck_line"] = juiced_prob
         df.at[idx, f"{side}_juiced_decimal_puck_line"] = juiced_decimal
 
-        # -------------------------
-        # EDGE CALCULATION
-        # -------------------------
-        try:
-            dk_decimal = float(row[dk_decimal_col])
-            if juiced_decimal and dk_decimal > 0:
-                edge_decimal = juiced_decimal - dk_decimal
-                edge_pct = edge_decimal / dk_decimal
+    return df
 
-                df.at[idx, f"{side}_edge_decimal"] = edge_decimal
-                df.at[idx, f"{side}_edge_pct"] = edge_pct
+
+def compute_edges(df, side):
+    dk_col = f"{side}_dk_puck_line_decimal"
+    juiced_col = f"{side}_juiced_decimal_puck_line"
+
+    edge_decimal_col = f"{side}_edge_decimal"
+    edge_pct_col = f"{side}_edge_pct"
+
+    df[edge_decimal_col] = pd.NA
+    df[edge_pct_col] = pd.NA
+
+    for idx, row in df.iterrows():
+        try:
+            dk_decimal = float(row[dk_col])
+            juiced_decimal = float(row[juiced_col])
         except Exception:
             continue
+
+        if dk_decimal <= 0:
+            continue
+
+        edge_decimal = juiced_decimal - dk_decimal
+        edge_pct = edge_decimal / dk_decimal
+
+        df.at[idx, edge_decimal_col] = edge_decimal
+        df.at[idx, edge_pct_col] = edge_pct
 
     return df
 
@@ -104,6 +115,9 @@ def main():
 
             df = apply_side(df, "home", juice_df)
             df = apply_side(df, "away", juice_df)
+
+            df = compute_edges(df, "home")
+            df = compute_edges(df, "away")
 
             output_path = OUTPUT_DIR / Path(file_path).name
             df.to_csv(output_path, index=False)
