@@ -44,24 +44,28 @@ def main():
 
             df["home_juiced_decimal_moneyline"] = pd.NA
             df["away_juiced_decimal_moneyline"] = pd.NA
+            df["home_juiced_prob_moneyline"] = pd.NA
+            df["away_juiced_prob_moneyline"] = pd.NA
 
             for idx, row in df.iterrows():
 
-                # ---- HOME ----
+                # ----- HOME -----
                 home_american = float(row["home_dk_moneyline_american"])
                 home_fair_decimal = float(row["home_fair_decimal_moneyline"])
 
                 home_fav_ud = "favorite" if home_american < 0 else "underdog"
                 home_extra = find_juice_row(juice_df, home_american, home_fav_ud, "home")
 
-                # Apply juice directly to decimal
                 home_juiced_decimal = home_fair_decimal + home_extra
                 if home_juiced_decimal <= 1.001:
                     home_juiced_decimal = 1.001
 
-                df.at[idx, "home_juiced_decimal_moneyline"] = home_juiced_decimal
+                home_juiced_prob = 1 / home_juiced_decimal
 
-                # ---- AWAY ----
+                df.at[idx, "home_juiced_decimal_moneyline"] = home_juiced_decimal
+                df.at[idx, "home_juiced_prob_moneyline"] = home_juiced_prob
+
+                # ----- AWAY -----
                 away_american = float(row["away_dk_moneyline_american"])
                 away_fair_decimal = float(row["away_fair_decimal_moneyline"])
 
@@ -72,7 +76,10 @@ def main():
                 if away_juiced_decimal <= 1.001:
                     away_juiced_decimal = 1.001
 
+                away_juiced_prob = 1 / away_juiced_decimal
+
                 df.at[idx, "away_juiced_decimal_moneyline"] = away_juiced_decimal
+                df.at[idx, "away_juiced_prob_moneyline"] = away_juiced_prob
 
             output_path = OUTPUT_DIR / Path(file_path).name
             df.to_csv(output_path, index=False)
