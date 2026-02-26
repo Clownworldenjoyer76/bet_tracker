@@ -20,18 +20,15 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def find_band_row(juice_df, puck_line, fav_ud, venue):
-    puck_abs = abs(puck_line)
-
+def find_band_row(juice_df, puck_line, venue):
     band = juice_df[
-        (juice_df["band_min"] <= puck_abs) &
-        (puck_abs <= juice_df["band_max"]) &
-        (juice_df["fav_ud"] == fav_ud) &
+        (juice_df["band_min"] <= puck_line) &
+        (puck_line <= juice_df["band_max"]) &
         (juice_df["venue"] == venue)
     ]
 
     if band.empty:
-        raise ValueError(f"No puck line juice band for {puck_line}, {fav_ud}, {venue}")
+        raise ValueError(f"No puck line juice band for {puck_line}, {venue}")
 
     return float(band.iloc[0]["extra_juice"])
 
@@ -51,17 +48,9 @@ def process_side(df, juice_df, side):
         puck_line = round(puck_line, 1)
 
         fair_decimal = float(row[fair_col])
-
-        if puck_line < 0:
-            fav_ud = "favorite"
-        elif puck_line > 0:
-            fav_ud = "underdog"
-        else:
-            raise ValueError(f"Unexpected puck line value: {puck_line}")
-
         venue = side
 
-        extra = find_band_row(juice_df, puck_line, fav_ud, venue)
+        extra = find_band_row(juice_df, puck_line, venue)
 
         juiced_decimal = fair_decimal + extra
         juiced_prob = 1 / juiced_decimal
@@ -81,7 +70,6 @@ def main():
 
         juice_df["band_min"] = juice_df["band_min"].astype(float)
         juice_df["band_max"] = juice_df["band_max"].astype(float)
-        juice_df["fav_ud"] = juice_df["fav_ud"].str.strip()
         juice_df["venue"] = juice_df["venue"].str.strip()
 
         files = glob.glob(str(INPUT_DIR / "*_NHL_puck_line.csv"))
