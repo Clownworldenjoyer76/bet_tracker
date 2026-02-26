@@ -32,9 +32,12 @@ def find_row(juice_df, fav_ud, venue):
 
 def apply_side(df, side, juice_df):
     puck_col = f"{side}_puck_line"
+    dk_decimal_col = f"{side}_dk_puck_line_decimal"
 
     df[f"{side}_juiced_prob_puck_line"] = pd.NA
     df[f"{side}_juiced_decimal_puck_line"] = pd.NA
+    df[f"{side}_edge_decimal"] = pd.NA
+    df[f"{side}_edge_pct"] = pd.NA
 
     for idx, row in df.iterrows():
         try:
@@ -53,7 +56,6 @@ def apply_side(df, side, juice_df):
         venue = side
 
         band_row = find_row(juice_df, fav_ud, venue)
-
         if band_row is None:
             continue
 
@@ -62,6 +64,20 @@ def apply_side(df, side, juice_df):
 
         df.at[idx, f"{side}_juiced_prob_puck_line"] = juiced_prob
         df.at[idx, f"{side}_juiced_decimal_puck_line"] = juiced_decimal
+
+        # -------------------------
+        # EDGE CALCULATION
+        # -------------------------
+        try:
+            dk_decimal = float(row[dk_decimal_col])
+            if juiced_decimal and dk_decimal > 0:
+                edge_decimal = juiced_decimal - dk_decimal
+                edge_pct = edge_decimal / dk_decimal
+
+                df.at[idx, f"{side}_edge_decimal"] = edge_decimal
+                df.at[idx, f"{side}_edge_pct"] = edge_pct
+        except Exception:
+            continue
 
     return df
 
@@ -73,7 +89,6 @@ def main():
     try:
         juice_df = pd.read_csv(JUICE_FILE)
 
-        # Normalize whitespace just in case
         juice_df["fav_ud"] = juice_df["fav_ud"].str.strip()
         juice_df["venue"] = juice_df["venue"].str.strip()
 
