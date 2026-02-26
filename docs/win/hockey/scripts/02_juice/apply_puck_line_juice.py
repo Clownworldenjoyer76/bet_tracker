@@ -21,9 +21,11 @@ ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def find_band_row(juice_df, puck_line, fav_ud, venue):
+    puck_abs = abs(puck_line)
+
     band = juice_df[
-        (juice_df["band_min"] <= puck_line) &
-        (puck_line <= juice_df["band_max"]) &
+        (juice_df["band_min"] <= puck_abs) &
+        (puck_abs <= juice_df["band_max"]) &
         (juice_df["fav_ud"] == fav_ud) &
         (juice_df["venue"] == venue)
     ]
@@ -50,9 +52,9 @@ def process_side(df, juice_df, side):
 
         fair_decimal = float(row[fair_col])
 
-        if puck_line == -1.5:
+        if puck_line < 0:
             fav_ud = "favorite"
-        elif puck_line == 1.5:
+        elif puck_line > 0:
             fav_ud = "underdog"
         else:
             raise ValueError(f"Unexpected puck line value: {puck_line}")
@@ -77,7 +79,6 @@ def main():
     try:
         juice_df = pd.read_csv(JUICE_FILE)
 
-        # Force correct types and strip whitespace
         juice_df["band_min"] = juice_df["band_min"].astype(float)
         juice_df["band_max"] = juice_df["band_max"].astype(float)
         juice_df["fav_ud"] = juice_df["fav_ud"].str.strip()
