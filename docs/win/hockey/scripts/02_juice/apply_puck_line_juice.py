@@ -4,9 +4,10 @@
 
 import pandas as pd
 from pathlib import Path
+import glob
 
-INPUT_FILE = Path("docs/win/hockey/01_merge/2026_02_26_NHL_puck_line.csv")
-OUTPUT_FILE = Path("docs/win/hockey/02_juice/2026_02_26_NHL_puck_line.csv")
+INPUT_DIR = Path("docs/win/hockey/01_merge")
+OUTPUT_DIR = Path("docs/win/hockey/02_juice")
 JUICE_FILE = Path("config/hockey/nhl/nhl_puck_line_juice.csv")
 
 
@@ -59,13 +60,17 @@ def main():
     juice_df["band_max"] = juice_df["band_max"].astype(float)
     juice_df["venue"] = juice_df["venue"].str.strip()
 
-    df = pd.read_csv(INPUT_FILE)
+    files = glob.glob(str(INPUT_DIR / "*_NHL_puck_line.csv"))
 
-    df = process_side(df, juice_df, "home")
-    df = process_side(df, juice_df, "away")
+    for file_path in files:
+        df = pd.read_csv(file_path)
 
-    OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(OUTPUT_FILE, index=False)
+        df = process_side(df, juice_df, "home")
+        df = process_side(df, juice_df, "away")
+
+        output_path = OUTPUT_DIR / Path(file_path).name
+        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        df.to_csv(output_path, index=False)
 
 
 if __name__ == "__main__":
