@@ -28,22 +28,39 @@ def validate_columns(df: pd.DataFrame, required_cols: list[str]) -> None:
     if missing:
         raise ValueError(f"Missing required columns: {missing}")
 
-def safe_edge_pct(dk: pd.Series, juiced: pd.Series) -> pd.Series:
-    dk_num = pd.to_numeric(dk, errors="coerce")
-    j_num = pd.to_numeric(juiced, errors="coerce")
-    out = (dk_num / j_num) - 1
-    out = out.where(j_num > 0)
-    return out
 
-def safe_edge_decimal(dk: pd.Series, juiced: pd.Series) -> pd.Series:
-    dk_num = pd.to_numeric(dk, errors="coerce")
-    j_num = pd.to_numeric(juiced, errors="coerce")
-    return dk_num - j_num
+def american_to_decimal(series: pd.Series) -> pd.Series:
+    s = pd.to_numeric(series, errors="coerce")
+
+    dec = pd.Series(index=s.index, dtype="float64")
+
+    pos_mask = s > 0
+    neg_mask = s < 0
+
+    dec[pos_mask] = 1 + (s[pos_mask] / 100)
+    dec[neg_mask] = 1 + (100 / abs(s[neg_mask]))
+
+    return dec
+
+
+def edge_decimal(dk: pd.Series, juice_decimal: pd.Series) -> pd.Series:
+    dk = pd.to_numeric(dk, errors="coerce")
+    j = pd.to_numeric(juice_decimal, errors="coerce")
+    return dk - j
+
+
+def edge_pct(dk: pd.Series, juice_decimal: pd.Series) -> pd.Series:
+    dk = pd.to_numeric(dk, errors="coerce")
+    j = pd.to_numeric(juice_decimal, errors="coerce")
+    out = (dk - j) / j
+    return out.where(j > 0)
+
 
 def atomic_write_csv(df: pd.DataFrame, output_path: Path) -> None:
     tmp = output_path.with_suffix(".tmp")
     df.to_csv(tmp, index=False)
     tmp.replace(output_path)
+
 
 def extract_date_from_filename(filename: str) -> str:
     match = re.search(r"\d{4}_\d{2}_\d{2}", filename)
@@ -57,7 +74,6 @@ def extract_date_from_filename(filename: str) -> str:
 
 def compute_moneyline_edges(df: pd.DataFrame) -> pd.DataFrame:
     required = [
-        "game_id",
         "home_dk_decimal_moneyline",
         "away_dk_decimal_moneyline",
         "home_juice_odds",
@@ -65,19 +81,22 @@ def compute_moneyline_edges(df: pd.DataFrame) -> pd.DataFrame:
     ]
     validate_columns(df, required)
 
-    df["home_edge_decimal"] = safe_edge_decimal(
-        df["home_dk_decimal_moneyline"], df["home_juice_odds"]
+    home_juice_decimal = american_to_decimal(df["home_juice_odds"])
+    away_juice_decimal = american_to_decimal(df["away_juice_odds"])
+
+    df["home_edge_decimal"] = edge_decimal(
+        df["home_dk_decimal_moneyline"], home_juice_decimal
     )
-    df["home_edge_pct"] = safe_edge_pct(
-        df["home_dk_decimal_moneyline"], df["home_juice_odds"]
+    df["home_edge_pct"] = edge_pct(
+        df["home_dk_decimal_moneyline"], home_juice_decimal
     )
     df["home_play"] = df["home_edge_decimal"] > 0
 
-    df["away_edge_decimal"] = safe_edge_decimal(
-        df["away_dk_decimal_moneyline"], df["away_juice_odds"]
+    df["away_edge_decimal"] = edge_decimal(
+        df["away_dk_decimal_moneyline"], away_juice_decimal
     )
-    df["away_edge_pct"] = safe_edge_pct(
-        df["away_dk_decimal_moneyline"], df["away_juice_odds"]
+    df["away_edge_pct"] = edge_pct(
+        df["away_dk_decimal_moneyline"], away_juice_decimal
     )
     df["away_play"] = df["away_edge_decimal"] > 0
 
@@ -86,7 +105,6 @@ def compute_moneyline_edges(df: pd.DataFrame) -> pd.DataFrame:
 
 def compute_spread_edges(df: pd.DataFrame) -> pd.DataFrame:
     required = [
-        "game_id",
         "home_dk_spread_decimal",
         "away_dk_spread_decimal",
         "home_spread_juice_odds",
@@ -94,19 +112,22 @@ def compute_spread_edges(df: pd.DataFrame) -> pd.DataFrame:
     ]
     validate_columns(df, required)
 
-    df["home_edge_decimal"] = safe_edge_decimal(
-        df["home_dk_spread_decimal"], df["home_spread_juice_odds"]
+    home_juice_decimal = american_to_decimal(df["home_spread_juice_odds"])
+    away_juice_decimal = american_to_decimal(df["away_spread_juice_odds"])
+
+    df["home_edge_decimal"] = edge_decimal(
+        df["home_dk_spread_decimal"], home_juice_decimal
     )
-    df["home_edge_pct"] = safe_edge_pct(
-        df["home_dk_spread_decimal"], df["home_spread_juice_odds"]
+    df["home_edge_pct"] = edge_pct(
+        df["home_dk_spread_decimal"], home_juice_decimal
     )
     df["home_play"] = df["home_edge_decimal"] > 0
 
-    df["away_edge_decimal"] = safe_edge_decimal(
-        df["away_dk_spread_decimal"], df["away_spread_juice_odds"]
+    df["away_edge_decimal"] = edge_decimal(
+        df["away_dk_spread_decimal"], away_juice_decimal
     )
-    df["away_edge_pct"] = safe_edge_pct(
-        df["away_dk_spread_decimal"], df["away_spread_juice_odds"]
+    df["away_edge_pct"] = edge_pct(
+        df["away_dk_spread_decimal"], away_juice_decimal
     )
     df["away_play"] = df["away_edge_decimal"] > 0
 
@@ -115,7 +136,6 @@ def compute_spread_edges(df: pd.DataFrame) -> pd.DataFrame:
 
 def compute_total_edges(df: pd.DataFrame) -> pd.DataFrame:
     required = [
-        "game_id",
         "dk_total_over_decimal",
         "dk_total_under_decimal",
         "total_over_juice_odds",
@@ -123,49 +143,61 @@ def compute_total_edges(df: pd.DataFrame) -> pd.DataFrame:
     ]
     validate_columns(df, required)
 
-    df["over_edge_decimal"] = safe_edge_decimal(
-        df["dk_total_over_decimal"], df["total_over_juice_odds"]
+    over_juice_decimal = american_to_decimal(df["total_over_juice_odds"])
+    under_juice_decimal = american_to_decimal(df["total_under_juice_odds"])
+
+    df["over_edge_decimal"] = edge_decimal(
+        df["dk_total_over_decimal"], over_juice_decimal
     )
-    df["over_edge_pct"] = safe_edge_pct(
-        df["dk_total_over_decimal"], df["total_over_juice_odds"]
+    df["over_edge_pct"] = edge_pct(
+        df["dk_total_over_decimal"], over_juice_decimal
     )
     df["over_play"] = df["over_edge_decimal"] > 0
 
-    df["under_edge_decimal"] = safe_edge_decimal(
-        df["dk_total_under_decimal"], df["total_under_juice_odds"]
+    df["under_edge_decimal"] = edge_decimal(
+        df["dk_total_under_decimal"], under_juice_decimal
     )
-    df["under_edge_pct"] = safe_edge_pct(
-        df["dk_total_under_decimal"], df["total_under_juice_odds"]
+    df["under_edge_pct"] = edge_pct(
+        df["dk_total_under_decimal"], under_juice_decimal
     )
     df["under_play"] = df["under_edge_decimal"] > 0
 
     return df
 
 # =========================
-# MAIN PROCESSING
+# PROCESSING
 # =========================
 
 def process_market_files(files, compute_fn, league: str, market: str):
     for f in files:
         df = pd.read_csv(f)
         df = compute_fn(df)
-
         date = extract_date_from_filename(f.name)
 
         output_name = f"{date}_basketball_{league}_{market}.csv"
         output_path = OUTPUT_DIR / output_name
-
         atomic_write_csv(df, output_path)
 
 
 def process_league(league: str):
-    moneyline_files = sorted(INPUT_DIR.glob(f"*_{league}_moneyline.csv"))
-    spread_files = sorted(INPUT_DIR.glob(f"*_{league}_spread.csv"))
-    total_files = sorted(INPUT_DIR.glob(f"*_{league}_total.csv"))
-
-    process_market_files(moneyline_files, compute_moneyline_edges, league, "moneyline")
-    process_market_files(spread_files, compute_spread_edges, league, "spread")
-    process_market_files(total_files, compute_total_edges, league, "total")
+    process_market_files(
+        sorted(INPUT_DIR.glob(f"*_{league}_moneyline.csv")),
+        compute_moneyline_edges,
+        league,
+        "moneyline"
+    )
+    process_market_files(
+        sorted(INPUT_DIR.glob(f"*_{league}_spread.csv")),
+        compute_spread_edges,
+        league,
+        "spread"
+    )
+    process_market_files(
+        sorted(INPUT_DIR.glob(f"*_{league}_total.csv")),
+        compute_total_edges,
+        league,
+        "total"
+    )
 
 
 def main():
