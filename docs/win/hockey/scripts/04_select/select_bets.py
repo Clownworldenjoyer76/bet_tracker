@@ -48,18 +48,30 @@ def main():
 
                 selections = {}
 
+                ml_df = None
+                pl_df = None
+                total_df = None
+
+                ml_path = INPUT_DIR / f"{slate_key}_NHL_moneyline.csv"
+                if ml_path.exists():
+                    ml_df = pd.read_csv(ml_path)
+
+                pl_path = INPUT_DIR / f"{slate_key}_NHL_puck_line.csv"
+                if pl_path.exists():
+                    pl_df = pd.read_csv(pl_path)
+
+                total_path = INPUT_DIR / f"{slate_key}_NHL_total.csv"
+                if total_path.exists():
+                    total_df = pd.read_csv(total_path)
+
                 # =========================
                 # MONEYLINE
                 # =========================
-                ml_path = INPUT_DIR / f"{slate_key}_NHL_moneyline.csv"
-                if ml_path.exists():
-                    df = pd.read_csv(ml_path)
-
-                    for _, row in df.iterrows():
+                if ml_df is not None:
+                    for _, row in ml_df.iterrows():
                         game_id = row["game_id"]
 
                         for side in ["home", "away"]:
-
                             edge_pct = row.get(f"{side}_edge_pct")
                             edge_dec = row.get(f"{side}_edge_decimal")
                             prob = row.get(f"{side}_prob")
@@ -77,7 +89,7 @@ def main():
                                 "take_bet_edge_pct": edge_pct,
                                 "take_team": row.get(f"{side}_team"),
                                 "take_odds": row.get(f"{side}_juiced_american_moneyline"),
-                                "value": prob,
+                                "value": row.get(f"{side}_prob"),
                             }
 
                             selections.setdefault(game_id, {})["ml"] = sel
@@ -85,19 +97,14 @@ def main():
                 # =========================
                 # PUCK LINE
                 # =========================
-                pl_path = INPUT_DIR / f"{slate_key}_NHL_puck_line.csv"
-                if pl_path.exists():
-                    df = pd.read_csv(pl_path)
-
-                    for _, row in df.iterrows():
+                if pl_df is not None:
+                    for _, row in pl_df.iterrows():
                         game_id = row["game_id"]
 
                         for side in ["home", "away"]:
-
                             puck_line = row.get(f"{side}_puck_line")
                             edge_pct = row.get(f"{side}_edge_pct")
                             edge_dec = row.get(f"{side}_edge_decimal")
-                            prob = row.get(f"{side}_prob")
 
                             if pd.isna(puck_line) or puck_line <= 0:
                                 continue
@@ -107,7 +114,7 @@ def main():
                             sel = {
                                 "game_id": game_id,
                                 "take_bet": f"{side}_puck_line",
-                                "take_bet_prob": prob,
+                                "take_bet_prob": row.get(f"{side}_prob"),
                                 "take_bet_edge_decimal": edge_dec,
                                 "take_bet_edge_pct": edge_pct,
                                 "take_team": row.get(f"{side}_team"),
@@ -120,15 +127,11 @@ def main():
                 # =========================
                 # TOTALS
                 # =========================
-                total_path = INPUT_DIR / f"{slate_key}_NHL_total.csv"
-                if total_path.exists():
-                    df = pd.read_csv(total_path)
-
-                    for _, row in df.iterrows():
+                if total_df is not None:
+                    for _, row in total_df.iterrows():
                         game_id = row["game_id"]
 
                         for side in ["over", "under"]:
-
                             edge_pct = row.get(f"{side}_edge_pct")
                             edge_dec = row.get(f"{side}_edge_decimal")
                             prob = row.get(f"juiced_total_{side}_prob")
