@@ -27,10 +27,6 @@ def decimal_to_american(d):
     return f"-{int(round(100 / (d - 1)))}"
 
 
-# ===============================
-# NBA — Band Lookup
-# ===============================
-
 def apply_nba(df):
 
     jt = pd.read_csv(NBA_CONFIG)
@@ -46,25 +42,23 @@ def apply_nba(df):
             (jt["side"] == side)
         ]
 
-        if band.empty:
-            return odds
-
-        extra = band.iloc[0]["extra_juice"]
+        extra = band.iloc[0]["extra_juice"] if not band.empty else 0.0
         if not math.isfinite(extra):
-            extra = 2.0
+            extra = 0.0
 
-        base = american_to_decimal(odds)
-        return decimal_to_american(base * (1 + extra))
+        base_decimal = american_to_decimal(odds)
+        final_decimal = base_decimal * (1 + extra)
 
-    df["total_over_juice_odds"] = df.apply(lambda r: process(r, "over"), axis=1)
-    df["total_under_juice_odds"] = df.apply(lambda r: process(r, "under"), axis=1)
+        return final_decimal, decimal_to_american(final_decimal)
+
+    df[["total_over_juice_decimal", "total_over_juice_odds"]] = \
+        df.apply(lambda r: process(r, "over"), axis=1, result_type="expand")
+
+    df[["total_under_juice_decimal", "total_under_juice_odds"]] = \
+        df.apply(lambda r: process(r, "under"), axis=1, result_type="expand")
 
     return df
 
-
-# ===============================
-# NCAAB — Exact Match
-# ===============================
 
 def apply_ncaab(df):
 
@@ -80,18 +74,20 @@ def apply_ncaab(df):
             (jt["side"] == side)
         ]
 
-        if match.empty:
-            return odds
-
-        extra = match.iloc[0]["extra_juice"]
+        extra = match.iloc[0]["extra_juice"] if not match.empty else 0.0
         if not math.isfinite(extra):
-            extra = 2.0
+            extra = 0.0
 
-        base = american_to_decimal(odds)
-        return decimal_to_american(base * (1 + extra))
+        base_decimal = american_to_decimal(odds)
+        final_decimal = base_decimal * (1 + extra)
 
-    df["total_over_juice_odds"] = df.apply(lambda r: process(r, "over"), axis=1)
-    df["total_under_juice_odds"] = df.apply(lambda r: process(r, "under"), axis=1)
+        return final_decimal, decimal_to_american(final_decimal)
+
+    df[["total_over_juice_decimal", "total_over_juice_odds"]] = \
+        df.apply(lambda r: process(r, "over"), axis=1, result_type="expand")
+
+    df[["total_under_juice_decimal", "total_under_juice_odds"]] = \
+        df.apply(lambda r: process(r, "under"), axis=1, result_type="expand")
 
     return df
 
