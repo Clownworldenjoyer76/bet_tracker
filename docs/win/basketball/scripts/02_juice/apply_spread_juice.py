@@ -1,4 +1,6 @@
-# docs/win/basketball/scripts/02_juice/#!/usr/bin/env python3
+# docs/win/basketball/scripts/02_juice/apply_spread_juice.py
+
+#!/usr/bin/env python3
 
 import pandas as pd
 from pathlib import Path
@@ -25,10 +27,6 @@ def decimal_to_american(d):
     return f"-{int(round(100 / (d - 1)))}"
 
 
-# ===============================
-# NBA — Band Lookup
-# ===============================
-
 def apply_nba(df):
 
     jt = pd.read_csv(NBA_CONFIG)
@@ -47,25 +45,24 @@ def apply_nba(df):
             (jt["venue"] == side)
         ]
 
-        if band.empty:
-            return odds
-
-        extra = band.iloc[0]["extra_juice"]
+        extra = band.iloc[0]["extra_juice"] if not band.empty else 0.0
         if not math.isfinite(extra):
-            extra = 2.0
+            extra = 0.0
 
-        base = american_to_decimal(odds)
-        return decimal_to_american(base * (1 + extra))
+        base_decimal = american_to_decimal(odds)
+        final_decimal = base_decimal * (1 + extra)
+
+        return final_decimal, decimal_to_american(final_decimal)
 
     for side in ["home", "away"]:
-        df[f"{side}_spread_juice_odds"] = df.apply(lambda r: process(r, side), axis=1)
+        df[[f"{side}_spread_juice_decimal",
+            f"{side}_spread_juice_odds"]] = \
+            df.apply(lambda r: process(r, side),
+                     axis=1,
+                     result_type="expand")
 
     return df
 
-
-# ===============================
-# NCAAB — Exact Lookup (Rounded)
-# ===============================
 
 def apply_ncaab(df):
 
@@ -78,18 +75,21 @@ def apply_ncaab(df):
 
         match = jt[jt["spread"] == spread]
 
-        if match.empty:
-            return odds
-
-        extra = match.iloc[0]["extra_juice"]
+        extra = match.iloc[0]["extra_juice"] if not match.empty else 0.0
         if not math.isfinite(extra):
-            extra = 2.0
+            extra = 0.0
 
-        base = american_to_decimal(odds)
-        return decimal_to_american(base * (1 + extra))
+        base_decimal = american_to_decimal(odds)
+        final_decimal = base_decimal * (1 + extra)
+
+        return final_decimal, decimal_to_american(final_decimal)
 
     for side in ["home", "away"]:
-        df[f"{side}_spread_juice_odds"] = df.apply(lambda r: process(r, side), axis=1)
+        df[[f"{side}_spread_juice_decimal",
+            f"{side}_spread_juice_odds"]] = \
+            df.apply(lambda r: process(r, side),
+                     axis=1,
+                     result_type="expand")
 
     return df
 
