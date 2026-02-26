@@ -1,4 +1,5 @@
 # docs/win/hockey/scripts/02_juice/apply_moneyline_juice.py
+
 #!/usr/bin/env python3
 
 import pandas as pd
@@ -19,16 +20,46 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def find_juice_row(juice_df, american, fav_ud, venue):
+def find_band_row(juice_df, american, fav_ud, venue):
     band = juice_df[
         (juice_df["band_min"] <= american) &
         (american <= juice_df["band_max"]) &
         (juice_df["fav_ud"] == fav_ud) &
         (juice_df["venue"] == venue)
     ]
+
     if band.empty:
         raise ValueError(f"No juice band for {american}, {fav_ud}, {venue}")
+
     return band.iloc[0]["extra_juice"]
+
+
+def process_side(df, juice_df, side):
+    american_col = f"{side}_dk_moneyline_american"
+    fair_col = f"{side}_fair_decimal_moneyline"
+
+    juiced_decimal_col = f"{side}_juiced_decimal_moneyline"
+    juiced_prob_col = f"{side}_juiced_prob_moneyline"
+
+    df[juiced_decimal_col] = pd.NA
+    df[juiced_prob_col] = pd.NA
+
+    for idx, row in df.iterrows():
+        american = float(row[american_col])
+        fair_decimal = float(row[fair_col])
+
+        fav_ud = "favorite" if american < 0 else "underdog"
+        venue = side
+
+        extra = find_band_row(juice_df, american, fav_ud, venue)
+
+        juiced_decimal = fair_decimal + extra
+        juiced_prob = 1 / juiced_decimal
+
+        df.at[idx, juiced_decimal_col] = juiced_decimal
+        df.at[idx, juiced_prob_col] = juiced_prob
+
+    return df
 
 
 def main():
@@ -42,44 +73,8 @@ def main():
         for file_path in files:
             df = pd.read_csv(file_path)
 
-            df["home_juiced_decimal_moneyline"] = pd.NA
-            df["away_juiced_decimal_moneyline"] = pd.NA
-            df["home_juiced_prob_moneyline"] = pd.NA
-            df["away_juiced_prob_moneyline"] = pd.NA
-
-            for idx, row in df.iterrows():
-
-                # ----- HOME -----
-                home_american = float(row["home_dk_moneyline_american"])
-                home_fair_decimal = float(row["home_fair_decimal_moneyline"])
-
-                home_fav_ud = "favorite" if home_american < 0 else "underdog"
-                home_extra = find_juice_row(juice_df, home_american, home_fav_ud, "home")
-
-                home_juiced_decimal = home_fair_decimal + home_extra
-                if home_juiced_decimal <= 1.001:
-                    home_juiced_decimal = 1.001
-
-                home_juiced_prob = 1 / home_juiced_decimal
-
-                df.at[idx, "home_juiced_decimal_moneyline"] = home_juiced_decimal
-                df.at[idx, "home_juiced_prob_moneyline"] = home_juiced_prob
-
-                # ----- AWAY -----
-                away_american = float(row["away_dk_moneyline_american"])
-                away_fair_decimal = float(row["away_fair_decimal_moneyline"])
-
-                away_fav_ud = "favorite" if away_american < 0 else "underdog"
-                away_extra = find_juice_row(juice_df, away_american, away_fav_ud, "away")
-
-                away_juiced_decimal = away_fair_decimal + away_extra
-                if away_juiced_decimal <= 1.001:
-                    away_juiced_decimal = 1.001
-
-                away_juiced_prob = 1 / away_juiced_decimal
-
-                df.at[idx, "away_juiced_decimal_moneyline"] = away_juiced_decimal
-                df.at[idx, "away_juiced_prob_moneyline"] = away_juiced_prob
+            df = process_side(df, juice_df, "home")
+            df = process_side(df, juice_df, "away")
 
             output_path = OUTPUT_DIR / Path(file_path).name
             df.to_csv(output_path, index=False)
