@@ -9,8 +9,8 @@ import math
 INPUT_DIR = Path("docs/win/basketball/01_merge")
 OUTPUT_DIR = Path("docs/win/basketball/02_juice")
 
-NBA_CONFIG = Path("config/basketball/nba/nba_spreads_juice.csv")
-NCAAB_CONFIG = Path("config/ncaab/ncaab_spreads_juice.csv")
+NBA_CONFIG = Path("config/nba/nba_spreads_juice.csv")
+NCAAB_CONFIG = Path("config/basketball/nba/ncaab/ncaab_spreads_juice.csv")
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -69,12 +69,15 @@ def apply_ncaab(df):
 
     def process(row, side):
 
-        spread = round(float(row[f"{side}_spread"]) * 2) / 2
+        prob = float(row[f"{side}_prob"])
         odds = float(row[f"{side}_acceptable_spread_american"])
 
-        match = jt[jt["spread"] == spread]
+        band = jt[
+            (jt["prob_bin_min"] <= prob) &
+            (prob < jt["prob_bin_max"])
+        ]
 
-        extra = match.iloc[0]["extra_juice"] if not match.empty else 0.0
+        extra = band.iloc[0]["extra_juice"] if not band.empty else 0.0
         if not math.isfinite(extra):
             extra = 0.0
 
