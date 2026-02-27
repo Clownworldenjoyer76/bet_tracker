@@ -30,7 +30,6 @@ def _log(msg: str):
 
 
 def find_band_row(juice_df: pd.DataFrame, puck_line: float, venue: str):
-    # Normalize bounds so order doesn't matter (handles -1.0,-2.0 etc.)
     band_low = juice_df[["band_min", "band_max"]].min(axis=1)
     band_high = juice_df[["band_min", "band_max"]].max(axis=1)
 
@@ -40,7 +39,6 @@ def find_band_row(juice_df: pd.DataFrame, puck_line: float, venue: str):
     if band.empty:
         return None
 
-    # If multiple rows match, take the first but log it
     if len(band) > 1:
         _log(f"[WARN] Multiple juice rows matched puck_line={puck_line}, venue={venue}. Using first.")
     return float(band.iloc[0]["extra_juice"])
@@ -53,7 +51,6 @@ def process_side(df: pd.DataFrame, juice_df: pd.DataFrame, side: str):
     juiced_decimal_col = f"{side}_juiced_decimal_puck_line"
     juiced_prob_col = f"{side}_juiced_prob_puck_line"
 
-    # Always create/overwrite columns
     df[juiced_decimal_col] = pd.NA
     df[juiced_prob_col] = pd.NA
 
@@ -69,7 +66,7 @@ def process_side(df: pd.DataFrame, juice_df: pd.DataFrame, side: str):
     for idx, row in df.iterrows():
         try:
             puck_line = round(float(row[puck_col]), 4)
-            fair_decimal = float(row[fair_col])
+            fair_decimal = float(row[f"{side}_fair_puck_line_decimal"])  # <-- ONLY CHANGE
         except Exception:
             skipped_bad_row += 1
             continue
@@ -94,7 +91,6 @@ def process_side(df: pd.DataFrame, juice_df: pd.DataFrame, side: str):
 
 
 def main():
-    # Fresh log each run
     with open(LOG_FILE, "w", encoding="utf-8") as f:
         f.write(f"=== APPLY PUCK LINE JUICE START {_now()} ===\n")
 
@@ -103,29 +99,24 @@ def main():
         _log(f"[INFO] INPUT_DIR: {INPUT_DIR}")
         _log(f"[INFO] OUTPUT_DIR: {OUTPUT_DIR}")
 
-        # Load config
         juice_df = pd.read_csv(JUICE_FILE)
 
         _log(f"[INFO] Juice columns: {list(juice_df.columns)}")
         _log(f"[INFO] Juice rows: {len(juice_df)}")
 
-        # Validate expected columns for your new config structure
         expected = ["band", "band_min", "band_max", "venue", "extra_juice"]
         missing = [c for c in expected if c not in juice_df.columns]
         if missing:
             raise KeyError(f"JUICE_FILE missing columns: {missing}")
 
-        # Normalize config types/whitespace
         juice_df["band_min"] = juice_df["band_min"].astype(float)
         juice_df["band_max"] = juice_df["band_max"].astype(float)
         juice_df["venue"] = juice_df["venue"].astype(str).str.strip()
         juice_df["extra_juice"] = juice_df["extra_juice"].astype(float)
 
-        # Log normalized config snapshot
         _log("[INFO] Juice config (normalized) preview:")
         _log(juice_df.to_string(index=False))
 
-        # Find input files
         pattern = str(INPUT_DIR / "*_NHL_puck_line.csv")
         files = sorted(glob.glob(pattern))
         _log(f"[INFO] Glob pattern: {pattern}")
@@ -149,42 +140,25 @@ def main():
             _log(f"[INFO] Input rows: {len(df)}")
             _log(f"[INFO] Input columns: {list(df.columns)}")
 
-            # Sanity: count puck line values
             for side in ["home", "away"]:
                 col = f"{side}_puck_line"
                 if col in df.columns:
                     vals = df[col].dropna().astype(float).round(4).value_counts().to_dict()
                     _log(f"[INFO] {col} value_counts: {vals}")
 
-            # Apply juice
             df, home_applied, home_no_band, home_bad = process_side(df, juice_df, "home")
             df, away_applied, away_no_band, away_bad = process_side(df, juice_df, "away")
 
             _log(f"[INFO] Home applied={home_applied} no_band={home_no_band} bad_rows={home_bad}")
             _log(f"[INFO] Away applied={away_applied} no_band={away_no_band} bad_rows={away_bad}")
 
-            # If nothing applied, log sample of rows that missed (first 10)
-            if home_applied == 0 or away_applied == 0:
-                _log("[WARN] Some sides applied 0 rows. Logging first 10 row candidates:")
-                preview_cols = [
-                    "game_id",
-                    "home_puck_line", "away_puck_line",
-                    "home_fair_puck_line_decimal", "away_fair_puck_line_decimal"
-                ]
-                existing_preview_cols = [c for c in preview_cols if c in df.columns]
-                if existing_preview_cols:
-                    _log(df[existing_preview_cols].head(10).to_string(index=False))
-
-            # Write output
             OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
             df.to_csv(out_path, index=False)
 
-            # Verify write by re-reading
             df2 = pd.read_csv(out_path)
             _log(f"[INFO] Wrote output rows: {len(df2)}")
             _log(f"[INFO] Output columns now include: home_juiced_decimal_puck_line={ 'home_juiced_decimal_puck_line' in df2.columns }, away_juiced_decimal_puck_line={ 'away_juiced_decimal_puck_line' in df2.columns }")
 
-            # Log a small sample of new columns
             sample_cols = [c for c in [
                 "game_id",
                 "home_puck_line", "away_puck_line",
