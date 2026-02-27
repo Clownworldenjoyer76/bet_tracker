@@ -1,11 +1,11 @@
-# docs/win/hockey/scripts/02_juice/apply_puck_line_juice.py
-
 #!/usr/bin/env python3
 
 import glob
 import traceback
 from datetime import datetime
 from pathlib import Path
+import sys
+import math
 
 import pandas as pd
 
@@ -41,6 +41,7 @@ def find_band_row(juice_df: pd.DataFrame, puck_line: float, venue: str):
 
     if len(band) > 1:
         _log(f"[WARN] Multiple juice rows matched puck_line={puck_line}, venue={venue}. Using first.")
+
     return float(band.iloc[0]["extra_juice"])
 
 
@@ -66,8 +67,12 @@ def process_side(df: pd.DataFrame, juice_df: pd.DataFrame, side: str):
     for idx, row in df.iterrows():
         try:
             puck_line = round(float(row[puck_col]), 4)
-            fair_decimal = float(row[f"{side}_fair_puck_line_decimal"])  # <-- ONLY CHANGE
+            fair_decimal = float(row[fair_col])
         except Exception:
+            skipped_bad_row += 1
+            continue
+
+        if not math.isfinite(fair_decimal) or fair_decimal <= 1:
             skipped_bad_row += 1
             continue
 
@@ -76,7 +81,13 @@ def process_side(df: pd.DataFrame, juice_df: pd.DataFrame, side: str):
             skipped_no_band += 1
             continue
 
-        juiced_decimal = fair_decimal + extra
+        # Multiplicative ROI adjustment
+        juiced_decimal = fair_decimal * (1 + extra)
+
+        # Safety guard
+        if not math.isfinite(juiced_decimal) or juiced_decimal <= 1:
+            juiced_decimal = 1.0001
+
         try:
             juiced_prob = 1 / juiced_decimal
         except Exception:
@@ -157,7 +168,9 @@ def main():
 
             df2 = pd.read_csv(out_path)
             _log(f"[INFO] Wrote output rows: {len(df2)}")
-            _log(f"[INFO] Output columns now include: home_juiced_decimal_puck_line={ 'home_juiced_decimal_puck_line' in df2.columns }, away_juiced_decimal_puck_line={ 'away_juiced_decimal_puck_line' in df2.columns }")
+            _log(f"[INFO] Output columns now include: "
+                 f"home_juiced_decimal_puck_line={'home_juiced_decimal_puck_line' in df2.columns}, "
+                 f"away_juiced_decimal_puck_line={'away_juiced_decimal_puck_line' in df2.columns}")
 
             sample_cols = [c for c in [
                 "game_id",
@@ -165,6 +178,7 @@ def main():
                 "home_juiced_decimal_puck_line", "home_juiced_prob_puck_line",
                 "away_juiced_decimal_puck_line", "away_juiced_prob_puck_line",
             ] if c in df2.columns]
+
             if sample_cols:
                 _log("[INFO] Output sample (first 10):")
                 _log(df2[sample_cols].head(10).to_string(index=False))
