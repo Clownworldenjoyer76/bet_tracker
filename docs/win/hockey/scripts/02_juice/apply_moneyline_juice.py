@@ -1,5 +1,3 @@
-# docs/win/hockey/scripts/02_juice/apply_moneyline_juice.py
-
 #!/usr/bin/env python3
 
 import pandas as pd
@@ -8,6 +6,7 @@ import glob
 from datetime import datetime
 import traceback
 import sys
+import math
 
 INPUT_DIR = Path("docs/win/hockey/01_merge")
 OUTPUT_DIR = Path("docs/win/hockey/02_juice")
@@ -31,7 +30,7 @@ def find_band_row(juice_df, american, fav_ud, venue):
     if band.empty:
         raise ValueError(f"No juice band for {american}, {fav_ud}, {venue}")
 
-    return band.iloc[0]["extra_juice"]
+    return float(band.iloc[0]["extra_juice"])
 
 
 def process_side(df, juice_df, side):
@@ -48,12 +47,21 @@ def process_side(df, juice_df, side):
         american = float(row[american_col])
         fair_decimal = float(row[fair_col])
 
+        if not math.isfinite(fair_decimal) or fair_decimal <= 1:
+            continue
+
         fav_ud = "favorite" if american < 0 else "underdog"
         venue = side
 
         extra = find_band_row(juice_df, american, fav_ud, venue)
 
-        juiced_decimal = fair_decimal + extra
+        # Multiplicative ROI adjustment
+        juiced_decimal = fair_decimal * (1 + extra)
+
+        # Safety guard
+        if juiced_decimal <= 1:
+            juiced_decimal = 1.0001
+
         juiced_prob = 1 / juiced_decimal
 
         df.at[idx, juiced_decimal_col] = juiced_decimal
