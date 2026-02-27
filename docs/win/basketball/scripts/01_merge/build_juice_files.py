@@ -1,5 +1,3 @@
-# docs/win/basketball/scripts/01_merge/build_juice_files.py
-
 #!/usr/bin/env python3
 
 import pandas as pd
@@ -24,7 +22,8 @@ ERROR_DIR.mkdir(parents=True, exist_ok=True)
 # CONSTANTS
 # =========================
 
-EDGE = 0.05
+EDGE = 0.05                 # Default EDGE (ML + Spread)
+NBA_TOTAL_EDGE = 0.04       # 🔥 Reduced NBA totals EDGE
 
 NBA_TOTAL_STD = 14
 NBA_SPREAD_STD = 12
@@ -156,8 +155,11 @@ def main():
                 fair_under.append(fair_under_dec)
                 fair_over.append(fair_over_dec)
 
-                acc_under_dec = fair_under_dec * (1 + EDGE)
-                acc_over_dec = fair_over_dec * (1 + EDGE)
+                # 🔥 Use reduced EDGE only for NBA totals
+                edge_used = NBA_TOTAL_EDGE if market == "NBA" else EDGE
+
+                acc_under_dec = fair_under_dec * (1 + edge_used)
+                acc_over_dec = fair_over_dec * (1 + edge_used)
 
                 acc_under.append(acc_under_dec)
                 acc_over.append(acc_over_dec)
