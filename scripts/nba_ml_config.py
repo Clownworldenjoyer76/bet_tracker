@@ -12,7 +12,7 @@ OUTPUT_FILE = Path("bets/nba_ml_juice.csv")
 def parse_band(value: str):
     """
     Convert '-324 to -300' or '600 to 999'
-    into numeric (band_min, band_max).
+    into integer (band_min, band_max).
     """
     try:
         if pd.isna(value) or value == "unknown":
@@ -41,8 +41,14 @@ def main():
         df["band_min"] = band_values.apply(lambda x: x[0])
         df["band_max"] = band_values.apply(lambda x: x[1])
 
-        # Reorder: band_min, band_max first, keep everything else
-        cols = ["band_min", "band_max"] + [c for c in df.columns if c not in ["band_min", "band_max"]]
+        # Force integer dtype (preserves blanks for unknown)
+        df["band_min"] = df["band_min"].astype("Int64")
+        df["band_max"] = df["band_max"].astype("Int64")
+
+        # Reorder: band_min, band_max first
+        cols = ["band_min", "band_max"] + [
+            c for c in df.columns if c not in ["band_min", "band_max"]
+        ]
         df = df[cols]
 
         OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
