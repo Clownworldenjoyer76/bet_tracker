@@ -92,7 +92,7 @@ def main():
                                 puck_selected = {
                                     "game_id": game_id,
                                     "take_bet": f"{side}_puck_line",
-                                    "take_bet_prob": row.get(f"{side}_prob"),
+                                    "take_bet_prob": row.get(f"{side}_juiced_prob_puck_line"),
                                     "take_bet_edge_decimal": row.get(f"{side}_edge_decimal"),
                                     "take_bet_edge_pct": edge_pct,
                                     "take_team": row.get(f"{side}_team"),
