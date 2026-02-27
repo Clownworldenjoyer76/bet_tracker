@@ -117,7 +117,7 @@ def main():
             total_df.to_csv(total_output, index=False)
 
             # =========================
-            # PUCK LINE (FIXED SIDE DETECTION)
+            # PUCK LINE
             # =========================
 
             pl_df = df.copy()
@@ -147,12 +147,8 @@ def main():
 
                 # If AWAY is laying -1.5
                 elif away_line == -1.5:
-                    p_away_minus = 1 - skellam.cdf(1, lam_away, lam_home)
-                    p_home_plus = 1 - p_away_minus
-
-                    # Map to consistent variables
-                    p_home_minus = p_home_plus
-                    p_away_plus = p_away_minus
+                    p_home_minus = 1 - skellam.cdf(1, lam_home, lam_away)
+                    p_away_plus = 1 - p_home_minus
 
                 else:
                     fair_home.append("")
