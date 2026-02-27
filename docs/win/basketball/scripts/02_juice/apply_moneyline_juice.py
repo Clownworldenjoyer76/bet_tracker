@@ -1,4 +1,3 @@
-#docs/win/basketball/scripts/02_juice/apply_moneyline_juice.py
 #!/usr/bin/env python3
 
 import pandas as pd
@@ -8,7 +7,7 @@ import math
 INPUT_DIR = Path("docs/win/basketball/01_merge")
 OUTPUT_DIR = Path("docs/win/basketball/02_juice")
 
-NBA_CONFIG = Path("config/nba/nba_ml_juice.csv")
+NBA_CONFIG = Path("config/basketball/nba/nba_ml_juice.csv")
 NCAAB_CONFIG = Path("config/ncaab/ncaab_ml_juice.csv")
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -29,26 +28,27 @@ def decimal_to_american(d):
 def apply_nba(df):
 
     jt = pd.read_csv(NBA_CONFIG)
-    jt = jt[jt["lookup_type"] == "band"].copy()
 
     def process(row, side):
 
-        odds = float(row[f"{side}_acceptable_american_moneyline"])
-        fav_ud = "favorite" if odds < 0 else "underdog"
+        # sportsbook odds determine band
+        book_odds = float(row[f"{side}_dk_moneyline_american"])
+        fav_ud = "favorite" if book_odds < 0 else "underdog"
 
         band = jt[
-            (jt["band_min"] <= odds) &
-            (odds <= jt["band_max"]) &
+            (jt["band_min"] <= book_odds) &
+            (book_odds <= jt["band_max"]) &
             (jt["fav_ud"] == fav_ud) &
             (jt["venue"] == side)
         ]
 
-        extra = band.iloc[0]["extra_juice"] if not band.empty else 0.0
-        if not math.isfinite(extra):
-            extra = 0.0
+        roi = band.iloc[0]["roi"] if not band.empty else 0.0
+        if not math.isfinite(roi):
+            roi = 0.0
 
-        base_decimal = american_to_decimal(odds)
-        final_decimal = base_decimal * (1 + extra)
+        # apply % adjustment to acceptable decimal
+        base_decimal = float(row[f"{side}_acceptable_decimal_moneyline"])
+        final_decimal = base_decimal * (1 - roi)
 
         return final_decimal, decimal_to_american(final_decimal)
 
