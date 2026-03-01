@@ -128,7 +128,7 @@ def main():
 
                                 # 🔴 Extreme Dogs (+300+)
                                 elif odds >= 300:
-                                    if not (edge_dec >= 0.09 and win_prob >= 0.28):
+                                    if not (edge_dec >= 0.15 and win_prob >= 0.33):
                                         continue
 
                                 # 🔵 Small Favorites (-100 to -149)
