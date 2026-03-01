@@ -90,41 +90,45 @@ def looks_like_result_line(s):
     return len(nums) >= 2
 
 
-def extract_abbrev_score_pairs(result_line):
-    # Example: "ATL 119, WSH 98 (OT)"
-    return re.findall(r"([A-Z\.\-]+)\s+(\d+)", result_line)
+def build_team_abbrev(full_name):
+    words = re.findall(r"[A-Za-z]+", full_name.upper())
+    if not words:
+        return ""
+
+    # Single word → first 3 letters
+    if len(words) == 1:
+        return words[0][:3]
+
+    # Multi-word → first letter of each word
+    return "".join(word[0] for word in words)
 
 
 def map_scores_to_teams(result_line, away_team, home_team):
-    pairs = extract_abbrev_score_pairs(result_line)
+    # Example: "ATL 119, WSH 98 (OT)"
+    pairs = re.findall(r"([A-Z\.\-]+)\s+(\d+)", result_line)
 
     if len(pairs) < 2:
         raise ValueError(f"Could not parse result line: {result_line}")
 
     team_scores = {abbr.upper(): int(score) for abbr, score in pairs}
 
-    def team_matches(abbrev, full_name):
-        full = full_name.upper()
-        abbrev = abbrev.upper()
-        # Match first word, common ESPN short forms, etc.
-        return (
-            full.startswith(abbrev)
-            or abbrev in full
-        )
+    away_abbrev = build_team_abbrev(away_team)
+    home_abbrev = build_team_abbrev(home_team)
 
     away_score = None
     home_score = None
 
     for abbr, score in team_scores.items():
-        if team_matches(abbr, away_team):
+        if abbr == away_abbrev:
             away_score = score
-        if team_matches(abbr, home_team):
+        if abbr == home_abbrev:
             home_score = score
 
     if away_score is None or home_score is None:
         raise ValueError(
             f"Could not match abbreviations to teams: {result_line} | "
-            f"Away={away_team} Home={home_team}"
+            f"Away={away_team} ({away_abbrev}) "
+            f"Home={home_team} ({home_abbrev})"
         )
 
     return away_score, home_score
