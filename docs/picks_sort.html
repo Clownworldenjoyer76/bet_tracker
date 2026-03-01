@@ -19,7 +19,9 @@
 
       <label for="league-filter" class="control-label" style="margin-left:20px;">League:</label>
       <select id="league-filter">
-        <option value="all">All</option>
+        <option value="NHL">NHL</option>
+        <option value="NBA">NBA</option>
+        <option value="NCAAB">NCAAB</option>
       </select>
     </section>
 
@@ -44,62 +46,80 @@
     dateInput.value = now.toLocaleDateString("en-CA");
 
     dateInput.addEventListener("change", loadPage);
-    leagueSelect.addEventListener("change", applyLeagueFilter);
+    leagueSelect.addEventListener("change", loadPage);
 
     let allRows = [];
 
     loadPage();
 
-    function loadPage() {
+    async function loadPage() {
       const date = dateInput.value.replaceAll("-", "_");
-      const filePath = `win/picks/step_03/picks_${date}.csv`;
+      const league = leagueSelect.value;
 
       document.getElementById("status").textContent = "Loading...";
       document.getElementById("games").innerHTML = "";
 
-      fetch(filePath)
-        .then(res => {
-          if (!res.ok) throw new Error("File not found");
-          return res.text();
-        })
-        .then(csv => {
+      try {
+
+        let filePaths = [];
+
+        if (league === "NHL") {
+          filePaths = [
+            `win/hockey/04_select/${date}_NHL.csv`
+          ];
+        }
+
+        if (league === "NBA") {
+          filePaths = [
+            `win/basketball/04_select/${date}_basketball_NBA_moneyline.csv`,
+            `win/basketball/04_select/${date}_basketball_NBA_spread.csv`,
+            `win/basketball/04_select/${date}_basketball_NBA_total.csv`
+          ];
+        }
+
+        if (league === "NCAAB") {
+          filePaths = [
+            `win/basketball/04_select/${date}_basketball_NCAAB_moneyline.csv`,
+            `win/basketball/04_select/${date}_basketball_NCAAB_spread.csv`,
+            `win/basketball/04_select/${date}_basketball_NCAAB_total.csv`
+          ];
+        }
+
+        const responses = await Promise.all(
+          filePaths.map(path =>
+            fetch(path).then(res => {
+              if (!res.ok) return null;
+              return res.text();
+            })
+          )
+        );
+
+        let combinedRows = [];
+
+        responses.forEach(csv => {
+          if (!csv) return;
           const rows = parseCSV(csv);
-
-          rows.sort((a, b) => parseGameTime(a.time) - parseGameTime(b.time));
-
-          allRows = rows;
-          populateLeagueDropdown(rows);
-          applyLeagueFilter();
-
-          document.getElementById("status").textContent =
-            `${rows.length} picks found`;
-        })
-        .catch(() => {
-          document.getElementById("status").textContent =
-            "No picks found for selected date.";
+          combinedRows = combinedRows.concat(rows);
         });
-    }
 
-    function populateLeagueDropdown(rows) {
-      const leagues = [...new Set(rows.map(r => r.league))].sort();
-      leagueSelect.innerHTML = '<option value="all">All</option>';
+        if (combinedRows.length === 0) {
+          throw new Error("No files found");
+        }
 
-      leagues.forEach(lg => {
-        const opt = document.createElement("option");
-        opt.value = lg;
-        opt.textContent = lg;
-        leagueSelect.appendChild(opt);
-      });
-    }
+        combinedRows.sort((a, b) =>
+          parseGameTime(a.time) - parseGameTime(b.time)
+        );
 
-    function applyLeagueFilter() {
-      const selected = leagueSelect.value;
+        allRows = combinedRows;
+        renderGames(allRows);
 
-      let filtered = selected === "all"
-        ? allRows
-        : allRows.filter(r => r.league === selected);
+        document.getElementById("status").textContent =
+          `${allRows.length} picks found`;
 
-      renderGames(filtered);
+      } catch (err) {
+        document.getElementById("status").textContent =
+          "No picks found for selected date/league.";
+      }
     }
 
     function parseCSV(csv) {
@@ -199,9 +219,9 @@
         gameDiv.className = "game-card";
 
         gameDiv.innerHTML = `
-          <div class="game-time">${row.time}</div>
+          <div class="game-time">${row.time || "-"}</div>
           <div class="game-matchup">${row.away_team} @ ${row.home_team}</div>
-          <div class="game-league">${row.league}</div>
+          <div class="game-league">${leagueSelect.value}</div>
           <div class="game-market">${market}</div>
           <div class="game-line">${line}</div>
           <div class="game-odds">Odds: ${oddsDisplay}</div>
