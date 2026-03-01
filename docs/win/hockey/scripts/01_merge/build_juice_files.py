@@ -1,5 +1,3 @@
-# docs/win/hockey/scripts/01_merge/build_juice_files.py
-
 #!/usr/bin/env python3
 
 import pandas as pd
@@ -117,7 +115,7 @@ def main():
             total_df.to_csv(total_output, index=False)
 
             # =========================
-            # PUCK LINE
+            # PUCK LINE (CONSISTENT LAMBDAS - OPTION B)
             # =========================
 
             pl_df = df.copy()
@@ -129,31 +127,53 @@ def main():
             fair_away = []
 
             for _, row in pl_df.iterrows():
-                lam_home = row["home_projected_goals"]
-                lam_away = row["away_projected_goals"]
 
-                if lam_home <= 0 or lam_away <= 0:
+                mu = float(row["total_projected_goals"])
+                p_home_target = float(row["home_prob"])
+
+                if mu <= 0 or p_home_target <= 0 or p_home_target >= 1:
                     fair_home.append("")
                     fair_away.append("")
                     continue
 
+                # Solve lambda_home via bisection
+                def win_prob_from_lambda(lambda_home):
+                    lambda_away = mu - lambda_home
+                    if lambda_away <= 0:
+                        return 0
+
+                    p_reg_win = 1 - skellam.cdf(0, lambda_home, lambda_away)
+                    p_tie = skellam.pmf(0, lambda_home, lambda_away)
+                    p_ot_home = lambda_home / mu
+
+                    return p_reg_win + p_tie * p_ot_home
+
+                low = 1e-6
+                high = mu - 1e-6
+
+                for _ in range(60):
+                    mid = (low + high) / 2
+                    if win_prob_from_lambda(mid) > p_home_target:
+                        high = mid
+                    else:
+                        low = mid
+
+                lambda_home = (low + high) / 2
+                lambda_away = mu - lambda_home
+
                 home_line = float(row["home_puck_line"])
                 away_line = float(row["away_puck_line"])
 
-                # HOME laying -1.5 (home must win by 2+)
                 if home_line == -1.5:
-                    p_home_minus = 1 - skellam.cdf(1, lam_home, lam_away)
+                    p_home_minus = 1 - skellam.cdf(1, lambda_home, lambda_away)
                     p_away_plus = 1 - p_home_minus
 
-                # AWAY laying -1.5 (away must win by 2+)
                 elif away_line == -1.5:
-                    # D = home_goals - away_goals
-                    # away wins by 2+ <=> D <= -2
-                    p_away_minus = skellam.cdf(-2, lam_home, lam_away)
+                    p_away_minus = skellam.cdf(-2, lambda_home, lambda_away)
                     p_home_plus = 1 - p_away_minus
 
-                    p_home_minus = p_home_plus      # home +1.5
-                    p_away_plus = p_away_minus     # away -1.5
+                    p_home_minus = p_home_plus
+                    p_away_plus = p_away_minus
 
                 else:
                     fair_home.append("")
