@@ -103,13 +103,23 @@ const key=gameDate+"|"+homeTeam+"|"+awayTeam;
 const pred=predMap[key]||{};
 const book=bookMap[key]||{};
 
-return {...sel,...pred,...book};
+return {...sel,...pred,...book, __key:key};
 });
 
-/* SORT BY SPORTSBOOK TIME */
-merged.sort((a,b)=>parseTime(a.game_time)-parseTime(b.game_time));
+/* GROUP BY GAME */
+const grouped={};
+merged.forEach(r=>{
+if(!grouped[r.__key]) grouped[r.__key]=[];
+grouped[r.__key].push(r);
+});
 
-renderGames(merged,league);
+/* SORT GAMES BY SPORTSBOOK TIME */
+const sortedGameKeys=Object.keys(grouped).sort((a,b)=>{
+return parseTime(grouped[a][0].game_time)-
+parseTime(grouped[b][0].game_time);
+});
+
+renderGames(grouped,sortedGameKeys,league);
 
 document.getElementById("status").textContent=
 merged.length+" picks found";
@@ -152,7 +162,6 @@ return parseCSV(txt);
 function parseCSV(text){
 const lines=text.trim().split(/\r?\n/);
 const headers=lines[0].split(",").map(h=>h.trim());
-
 return lines.slice(1).map(line=>{
 const values=line.split(",");
 let obj={};
@@ -170,16 +179,22 @@ map[key]=r;
 return map;
 }
 
-function renderGames(rows,league){
+function renderGames(grouped,gameKeys,league){
 
 const container=document.getElementById("games");
 container.innerHTML="";
 
-rows.forEach(r=>{
+gameKeys.forEach(key=>{
 
-const edge=r.take_bet_edge_pct
-? (parseFloat(r.take_bet_edge_pct)*100).toFixed(2)+"%"
-: "-";
+const picks=grouped[key];
+
+/* sort picks by edge descending */
+picks.sort((a,b)=>
+parseFloat(b.take_bet_edge_pct||0)-
+parseFloat(a.take_bet_edge_pct||0)
+);
+
+const r=picks[0]; /* representative row for game data */
 
 const isHockey=league==="NHL";
 
@@ -192,19 +207,31 @@ const spreadHome=isHockey?r.home_puck_line:r.home_spread;
 const spreadAwayOdds=isHockey?r.away_dk_puck_line_american:r.away_dk_spread_american;
 const spreadHomeOdds=isHockey?r.home_dk_puck_line_american:r.home_dk_spread_american;
 
+let picksHtml="";
+
+picks.forEach(p=>{
+
+const edge=p.take_bet_edge_pct
+? (parseFloat(p.take_bet_edge_pct)*100).toFixed(2)+"%"
+: "-";
+
+picksHtml+=`
+<div class="pick-block">
+<div class="game-market">${p.take_bet||"-"}</div>
+<div class="game-line">${p.take_team||"-"}</div>
+<div class="game-odds">Odds: ${p.take_odds||"-"}</div>
+<div class="game-edge">Edge: ${edge}</div>
+<div class="game-value">Value: ${p.value||"-"}</div>
+</div>
+`;
+});
+
 const card=document.createElement("div");
 card.className="game-card";
 
 card.innerHTML=`
 <div class="game-time">${r.game_time||"-"}</div>
 <div class="game-matchup">${r.away_team||"-"} @ ${r.home_team||"-"}</div>
-<div class="game-league">Bet</div>
-
-<div class="game-market">${r.take_bet||"-"}</div>
-<div class="game-line">${r.take_team||"-"}</div>
-<div class="game-odds">Odds: ${r.take_odds||"-"}</div>
-<div class="game-edge">Edge: ${edge}</div>
-<div class="game-value">Value: ${r.value||"-"}</div>
 
 <div class="game-proj">
 Proj: ${projAway||"-"} - ${projHome||"-"}
@@ -219,6 +246,10 @@ Line: ${spreadAway||"-"} (${spreadAwayOdds||"-"})
 <br>
 Total: ${r.total||"-"} (O ${r.dk_total_over_american||"-"} / U ${r.dk_total_under_american||"-"})
 </div>
+
+<hr style="margin:10px 0; opacity:.2">
+
+${picksHtml}
 `;
 
 container.appendChild(card);
