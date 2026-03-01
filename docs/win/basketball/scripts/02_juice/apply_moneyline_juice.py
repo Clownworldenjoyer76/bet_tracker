@@ -9,7 +9,7 @@ INPUT_DIR = Path("docs/win/basketball/01_merge")
 OUTPUT_DIR = Path("docs/win/basketball/02_juice")
 
 NBA_CONFIG = Path("config/basketball/nba/nba_ml_juice.csv")
-NCAAB_CONFIG = Path("config/ncaab/ncaab_ml_juice.csv")
+NCAAB_CONFIG = Path("config/basketball/ncaab/ncaab_ml_juice.csv")
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
