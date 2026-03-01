@@ -81,18 +81,21 @@ def process_side(df: pd.DataFrame, juice_df: pd.DataFrame, side: str):
             skipped_no_band += 1
             continue
 
-        # Multiplicative ROI adjustment
-        juiced_decimal = fair_decimal * (1 + extra)
-
-        # Safety guard
-        if not math.isfinite(juiced_decimal) or juiced_decimal <= 1:
-            juiced_decimal = 1.0001
-
+        # ✅ Corrected: Probability-based adjustment
         try:
-            juiced_prob = 1 / juiced_decimal
+            fair_prob = 1 / fair_decimal
+            juiced_prob = fair_prob * (1 - extra)
+
+            if not math.isfinite(juiced_prob) or juiced_prob <= 0:
+                juiced_prob = 1e-6
+
+            juiced_decimal = 1 / juiced_prob
         except Exception:
             skipped_bad_row += 1
             continue
+
+        if not math.isfinite(juiced_decimal) or juiced_decimal <= 1:
+            juiced_decimal = 1.0001
 
         df.at[idx, juiced_decimal_col] = juiced_decimal
         df.at[idx, juiced_prob_col] = juiced_prob
