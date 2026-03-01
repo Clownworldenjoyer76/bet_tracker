@@ -10,6 +10,8 @@ import traceback
 
 OUT_DIR = Path("docs/win/final_scores")
 ERR_DIR = OUT_DIR / "errors"
+MAP_DIR = OUT_DIR / "team_maps"
+
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 ERR_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -28,39 +30,6 @@ HEADERS = [
     "home_puck_line",
 ]
 
-NBA_ABBREV_MAP = {
-    "Atlanta": "ATL",
-    "Boston": "BOS",
-    "Brooklyn": "BKN",
-    "Charlotte": "CHA",
-    "Chicago": "CHI",
-    "Cleveland": "CLE",
-    "Dallas": "DAL",
-    "Denver": "DEN",
-    "Detroit": "DET",
-    "Golden State": "GS",
-    "Houston": "HOU",
-    "Indiana": "IND",
-    "Los Angeles": "LAL",
-    "LA": "LAC",
-    "Memphis": "MEM",
-    "Miami": "MIA",
-    "Milwaukee": "MIL",
-    "Minnesota": "MIN",
-    "New Orleans": "NO",
-    "New York": "NY",
-    "Oklahoma City": "OKC",
-    "Orlando": "ORL",
-    "Philadelphia": "PHI",
-    "Phoenix": "PHX",
-    "Portland": "POR",
-    "Sacramento": "SAC",
-    "San Antonio": "SA",
-    "Toronto": "TOR",
-    "Utah": "UTA",
-    "Washington": "WSH",
-}
-
 
 def normalize_market(market: str) -> str:
     m = (market or "").strip().upper()
@@ -73,6 +42,38 @@ def normalize_market(market: str) -> str:
 
 def league_from_market(market: str) -> str:
     return "Basketball" if market in {"NBA", "NCAAB"} else "Hockey"
+
+
+def get_map_path(market: str) -> Path:
+    if market == "NBA":
+        return MAP_DIR / "team_map_nba.csv"
+    if market == "NCAAB":
+        return MAP_DIR / "team_map_ncaab.csv"
+    if market == "NHL":
+        return MAP_DIR / "team_map_nhl.csv"
+    raise ValueError("Invalid market")
+
+
+def load_team_map(market: str) -> dict:
+    path = get_map_path(market)
+
+    if not path.exists():
+        raise FileNotFoundError(f"Team map not found: {path}")
+
+    team_map = {}
+
+    with path.open("r", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        if "team_name" not in reader.fieldnames or "abbreviation" not in reader.fieldnames:
+            raise ValueError(f"Invalid headers in {path}. Required: team_name,abbreviation")
+
+        for row in reader:
+            team = row["team_name"].strip()
+            abbr = row["abbreviation"].strip()
+            if team:
+                team_map[team] = abbr
+
+    return team_map
 
 
 def parse_game_date(lines):
@@ -120,25 +121,25 @@ def extract_pairs(result_line):
     return re.findall(r"([A-Z]+)\s+(\d+)", result_line)
 
 
-def get_team_abbrev(team, market):
-    if market == "NBA" and team in NBA_ABBREV_MAP:
-        return NBA_ABBREV_MAP[team]
-    return re.sub(r"[^A-Z]", "", team.upper())[:3]
-
-
-def map_scores(result_line, away_team, home_team, market):
+def map_scores(result_line, away_team, home_team, team_map):
     pairs = extract_pairs(result_line)
     if len(pairs) < 2:
         raise ValueError(f"Invalid result line: {result_line}")
 
     score_map = {abbr: int(score) for abbr, score in pairs}
 
-    away_abbrev = get_team_abbrev(away_team, market)
-    home_abbrev = get_team_abbrev(home_team, market)
+    if away_team not in team_map:
+        raise ValueError(f"Team not found in map: {away_team}")
+
+    if home_team not in team_map:
+        raise ValueError(f"Team not found in map: {home_team}")
+
+    away_abbrev = team_map[away_team]
+    home_abbrev = team_map[home_team]
 
     if away_abbrev not in score_map or home_abbrev not in score_map:
         raise ValueError(
-            f"Could not match abbreviations: {result_line} | "
+            f"Abbreviation mismatch: {result_line} | "
             f"Away={away_team}({away_abbrev}) "
             f"Home={home_team}({home_abbrev})"
         )
@@ -146,7 +147,7 @@ def map_scores(result_line, away_team, home_team, market):
     return score_map[away_abbrev], score_map[home_abbrev]
 
 
-def parse_games(lines, game_date, market):
+def parse_games(lines, game_date, market, team_map):
     rows = []
     is_basketball = market in {"NBA", "NCAAB"}
     is_hockey = market == "NHL"
@@ -176,17 +177,16 @@ def parse_games(lines, game_date, market):
             result_line,
             away_team,
             home_team,
-            market
+            team_map
         )
 
         total = away_score + home_score
+        margin = home_score - away_score
 
         away_spread = ""
         home_spread = ""
         away_puck_line = ""
         home_puck_line = ""
-
-        margin = home_score - away_score
 
         if is_basketball:
             away_spread = str(margin)
@@ -233,7 +233,10 @@ def main():
     try:
         lines = input_path.read_text(encoding="utf-8", errors="replace").splitlines()
         game_date = parse_game_date(lines)
-        rows = parse_games(lines, game_date, market)
+
+        team_map = load_team_map(market)
+
+        rows = parse_games(lines, game_date, market, team_map)
 
         out_path = OUT_DIR / f"{game_date}_final_scores_{market}.csv"
         write_csv(out_path, rows)
