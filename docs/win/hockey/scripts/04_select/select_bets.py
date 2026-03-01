@@ -38,9 +38,11 @@ def main():
             slates = {}
 
             for f in all_files:
-                slate_key = f.name.replace("_NHL_moneyline.csv", "") \
-                                  .replace("_NHL_puck_line.csv", "") \
-                                  .replace("_NHL_total.csv", "")
+                slate_key = (
+                    f.name.replace("_NHL_moneyline.csv", "")
+                    .replace("_NHL_puck_line.csv", "")
+                    .replace("_NHL_total.csv", "")
+                )
                 slates.setdefault(slate_key, []).append(f)
 
             for slate_key in slates.keys():
@@ -71,7 +73,7 @@ def main():
                 for game_id in game_ids:
 
                     # =====================
-                    # PUCK LINE (UNCHANGED)
+                    # PUCK LINE
                     # =====================
                     if pl_df is not None:
                         game_pl = pl_df[pl_df["game_id"] == game_id]
@@ -101,13 +103,14 @@ def main():
                                 "take_bet_edge_decimal": row.get(f"{side}_edge_decimal"),
                                 "take_bet_edge_pct": row.get(f"{side}_edge_pct"),
                                 "take_team": row.get(f"{side}_team"),
-                                "take_odds": row.get(f"{side}_juiced_american_puck_line"),
+                                # ✅ sportsbook odds (NOT juiced)
+                                "take_odds": row.get(f"{side}_dk_puck_line_american"),
                                 "value": row.get(f"{side}_puck_line"),
                             })
                             puck_count += 1
 
                     # =====================
-                    # MONEYLINE (UPDATED LOGIC)
+                    # MONEYLINE
                     # =====================
                     if ml_df is not None:
                         game_ml = ml_df[ml_df["game_id"] == game_id]
@@ -119,7 +122,8 @@ def main():
 
                                 edge_pct = row.get(f"{side}_edge_pct")
                                 prob = row.get(f"{side}_prob")
-                                american_odds = row.get(f"{side}_juiced_american_moneyline")
+                                # ✅ use sportsbook odds for tier logic
+                                american_odds = row.get(f"{side}_dk_moneyline_american")
 
                                 if pd.isna(edge_pct) or pd.isna(prob) or pd.isna(american_odds):
                                     continue
@@ -161,13 +165,14 @@ def main():
                                 "take_bet_edge_decimal": row.get(f"{side}_edge_decimal"),
                                 "take_bet_edge_pct": row.get(f"{side}_edge_pct"),
                                 "take_team": row.get(f"{side}_team"),
-                                "take_odds": row.get(f"{side}_juiced_american_moneyline"),
+                                # ✅ sportsbook odds (NOT juiced)
+                                "take_odds": row.get(f"{side}_dk_moneyline_american"),
                                 "value": row.get(f"{side}_prob"),
                             })
                             ml_count += 1
 
                     # =====================
-                    # TOTAL (UNCHANGED)
+                    # TOTAL
                     # =====================
                     if total_df is not None:
                         game_total = total_df[total_df["game_id"] == game_id]
@@ -197,7 +202,8 @@ def main():
                                 "take_bet_edge_decimal": row.get(f"{side}_edge_decimal"),
                                 "take_bet_edge_pct": row.get(f"{side}_edge_pct"),
                                 "take_team": side,
-                                "take_odds": row.get(f"juiced_total_{side}_american"),
+                                # ✅ sportsbook odds (NOT juiced)
+                                "take_odds": row.get(f"dk_total_{side}_american"),
                                 "value": row.get("total"),
                             })
                             total_count += 1
