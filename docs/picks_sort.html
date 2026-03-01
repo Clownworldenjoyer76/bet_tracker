@@ -9,19 +9,19 @@
 <body class="top-picks-page">
   <div class="container">
 
-    <h1>Picks (Sortable by League)</h1>
+    <h1>Picks (Full Game Data)</h1>
 
     <div id="nav-placeholder"></div>
 
     <section class="controls">
-      <label for="p-date" class="control-label">Date:</label>
+      <label>Date:</label>
       <input id="p-date" type="date" />
 
-      <label for="league-filter" class="control-label" style="margin-left:20px;">League:</label>
+      <label style="margin-left:20px;">League:</label>
       <select id="league-filter">
-        <option value="NHL">NHL</option>
         <option value="NBA">NBA</option>
         <option value="NCAAB">NCAAB</option>
+        <option value="NHL">NHL</option>
       </select>
     </section>
 
@@ -30,136 +30,171 @@
 
   </div>
 
-  <script src="app.js"></script>
+<script>
+fetch("nav.html")
+  .then(res => res.text())
+  .then(data => {
+    document.getElementById("nav-placeholder").innerHTML = data;
+  });
 
-  <script>
-    fetch("nav.html")
-      .then(res => res.text())
-      .then(data => {
-        document.getElementById("nav-placeholder").innerHTML = data;
-      });
+const dateInput = document.getElementById("p-date");
+const leagueSelect = document.getElementById("league-filter");
 
-    const dateInput = document.getElementById("p-date");
-    const leagueSelect = document.getElementById("league-filter");
+dateInput.value = new Date().toLocaleDateString("en-CA");
 
-    const now = new Date();
-    dateInput.value = now.toLocaleDateString("en-CA");
+dateInput.addEventListener("change", loadPage);
+leagueSelect.addEventListener("change", loadPage);
 
-    dateInput.addEventListener("change", loadPage);
-    leagueSelect.addEventListener("change", loadPage);
+loadPage();
 
-    loadPage();
+async function loadPage() {
 
-    async function loadPage() {
-      const date = dateInput.value.replaceAll("-", "_");
-      const league = leagueSelect.value;
+  const date = dateInput.value.replaceAll("-", "_");
+  const league = leagueSelect.value;
 
-      document.getElementById("status").textContent = "Loading...";
-      document.getElementById("games").innerHTML = "";
+  document.getElementById("status").textContent = "Loading...";
+  document.getElementById("games").innerHTML = "";
 
-      try {
+  try {
 
-        let filePaths = [];
+    let selectFiles = [];
+    let predFile = "";
+    let bookFile = "";
 
-        if (league === "NHL") {
-          filePaths = [
-            `win/hockey/04_select/${date}_NHL.csv`
-          ];
-        }
-
-        if (league === "NBA") {
-          filePaths = [
-            `win/basketball/04_select/${date}_basketball_NBA_moneyline.csv`,
-            `win/basketball/04_select/${date}_basketball_NBA_spread.csv`,
-            `win/basketball/04_select/${date}_basketball_NBA_total.csv`
-          ];
-        }
-
-        if (league === "NCAAB") {
-          filePaths = [
-            `win/basketball/04_select/${date}_basketball_NCAAB_moneyline.csv`,
-            `win/basketball/04_select/${date}_basketball_NCAAB_spread.csv`,
-            `win/basketball/04_select/${date}_basketball_NCAAB_total.csv`
-          ];
-        }
-
-        const responses = await Promise.all(
-          filePaths.map(path =>
-            fetch(path).then(res => {
-              if (!res.ok) return null;
-              return res.text();
-            })
-          )
-        );
-
-        let combinedRows = [];
-
-        responses.forEach(csv => {
-          if (!csv) return;
-          const rows = parseTSV(csv);
-          combinedRows = combinedRows.concat(rows);
-        });
-
-        if (combinedRows.length === 0) {
-          throw new Error("No files found");
-        }
-
-        // Sort by edge % descending
-        combinedRows.sort((a, b) =>
-          parseFloat(b.take_bet_edge_pct || 0) -
-          parseFloat(a.take_bet_edge_pct || 0)
-        );
-
-        renderGames(combinedRows);
-
-        document.getElementById("status").textContent =
-          `${combinedRows.length} picks found`;
-
-      } catch (err) {
-        document.getElementById("status").textContent =
-          "No picks found for selected date/league.";
-      }
+    if (league === "NBA") {
+      selectFiles = [
+        `win/basketball/04_select/${date}_basketball_NBA_moneyline.csv`,
+        `win/basketball/04_select/${date}_basketball_NBA_spread.csv`,
+        `win/basketball/04_select/${date}_basketball_NBA_total.csv`
+      ];
+      predFile = `win/basketball/00_intake/predictions/basketball_NBA_${date}.csv`;
+      bookFile = `win/basketball/00_intake/sportsbook/basketball_NBA_${date}.csv`;
     }
 
-    function parseTSV(csv) {
-      const lines = csv.trim().split(/\r?\n/);
-      const headers = lines[0].split("\t");
-
-      return lines.slice(1).map(line => {
-        const values = line.split("\t");
-        const row = {};
-        headers.forEach((header, index) => {
-          row[header.trim()] = values[index] ?? "";
-        });
-        return row;
-      });
+    if (league === "NCAAB") {
+      selectFiles = [
+        `win/basketball/04_select/${date}_basketball_NCAAB_moneyline.csv`,
+        `win/basketball/04_select/${date}_basketball_NCAAB_spread.csv`,
+        `win/basketball/04_select/${date}_basketball_NCAAB_total.csv`
+      ];
+      predFile = `win/basketball/00_intake/predictions/basketball_NCAAB_${date}.csv`;
+      bookFile = `win/basketball/00_intake/sportsbook/basketball_NCAAB_${date}.csv`;
     }
 
-    function renderGames(rows) {
-      const container = document.getElementById("games");
-      container.innerHTML = "";
-
-      rows.forEach(row => {
-
-        const edgePct = row.take_bet_edge_pct
-          ? (parseFloat(row.take_bet_edge_pct) * 100).toFixed(2) + "%"
-          : "-";
-
-        const gameDiv = document.createElement("div");
-        gameDiv.className = "game-card";
-
-        gameDiv.innerHTML = `
-          <div class="game-league">${row.league || leagueSelect.value}</div>
-          <div class="game-market">${row.market || "-"}</div>
-          <div class="game-line">${row.take_team || "-"}</div>
-          <div class="game-odds">Odds: ${row.take_odds || "-"}</div>
-          <div class="game-edge">Edge: ${edgePct}</div>
-          <div class="game-value">Value: ${row.value || "-"}</div>
-        `;
-
-        container.appendChild(gameDiv);
-      });
+    if (league === "NHL") {
+      selectFiles = [
+        `win/hockey/04_select/${date}_NHL.csv`
+      ];
+      predFile = `win/hockey/00_intake/predictions/hockey_${date}.csv`;
+      bookFile = `win/hockey/00_intake/sportsbook/hockey_${date}.csv`;
     }
-  </script>
+
+    const selectData = await fetchMultiple(selectFiles, "csv");
+    const predictions = await fetchSingle(predFile, "tsv");
+    const sportsbook = await fetchSingle(bookFile, "csv");
+
+    const merged = mergeData(selectData, predictions, sportsbook);
+
+    merged.sort((a,b)=>
+      parseFloat(b.take_bet_edge_pct||0) -
+      parseFloat(a.take_bet_edge_pct||0)
+    );
+
+    renderGames(merged);
+
+    document.getElementById("status").textContent =
+      `${merged.length} picks found`;
+
+  } catch {
+    document.getElementById("status").textContent =
+      "No data found for selected date.";
+  }
+}
+
+async function fetchMultiple(paths, type) {
+  let rows = [];
+  for (let p of paths) {
+    const r = await fetch(p);
+    if (!r.ok) continue;
+    const txt = await r.text();
+    rows = rows.concat(parse(txt, type));
+  }
+  return rows;
+}
+
+async function fetchSingle(path, type) {
+  const r = await fetch(path);
+  if (!r.ok) return [];
+  const txt = await r.text();
+  return parse(txt, type);
+}
+
+function parse(text, type) {
+  const lines = text.trim().split(/\r?\n/);
+  const delimiter = type === "tsv" ? "\t" : ",";
+  const headers = lines[0].split(delimiter);
+
+  return lines.slice(1).map(line => {
+    const values = line.split(delimiter);
+    let obj = {};
+    headers.forEach((h,i)=> obj[h.trim()] = values[i] ?? "");
+    return obj;
+  });
+}
+
+function mergeData(selectRows, predRows, bookRows) {
+
+  return selectRows.map(sel => {
+
+    const pred = predRows.find(p =>
+      p.home_team === sel.home_team ||
+      p.away_team === sel.away_team
+    );
+
+    const book = bookRows.find(b =>
+      b.home_team === sel.home_team ||
+      b.away_team === sel.away_team
+    );
+
+    return { ...sel, ...pred, ...book };
+  });
+}
+
+function renderGames(rows) {
+
+  const container = document.getElementById("games");
+  container.innerHTML = "";
+
+  rows.forEach(r => {
+
+    const edge = r.take_bet_edge_pct
+      ? (parseFloat(r.take_bet_edge_pct)*100).toFixed(2)+"%"
+      : "-";
+
+    const card = document.createElement("div");
+    card.className = "game-card";
+
+    card.innerHTML = `
+      <div class="game-time">${r.game_time || "-"}</div>
+      <div class="game-matchup">${r.away_team || "-"} @ ${r.home_team || "-"}</div>
+      <div class="game-market">${r.market || "-"}</div>
+      <div class="game-line">${r.take_team || "-"}</div>
+      <div class="game-odds">Odds: ${r.take_odds || "-"}</div>
+      <div class="game-edge">Edge: ${edge}</div>
+      <div class="game-proj">
+        Proj: ${r.away_projected_points || r.away_projected_goals || "-"}
+        -
+        ${r.home_projected_points || r.home_projected_goals || "-"}
+      </div>
+      <div class="game-book">
+        ML: ${r.away_dk_moneyline_american || "-"} /
+        ${r.home_dk_moneyline_american || "-"}
+      </div>
+    `;
+
+    container.appendChild(card);
+  });
+}
+</script>
 </body>
 </html>
