@@ -34,17 +34,40 @@ def decimal_to_american(series: pd.Series) -> pd.Series:
     return american.round(0)
 
 
-def safe_edge_decimal(dk: pd.Series, juiced: pd.Series) -> pd.Series:
-    dk_num = pd.to_numeric(dk, errors="coerce")
-    j_num = pd.to_numeric(juiced, errors="coerce")
-    return j_num - dk_num
+def safe_edge_decimal(dk_decimal: pd.Series, fair_decimal: pd.Series) -> pd.Series:
+    """
+    Returns expected value (EV) per $1 staked using market decimal price and fair probability:
+      EV = p_fair * dk_decimal - 1
+    Positive => +EV.
+    """
+    dk_num = pd.to_numeric(dk_decimal, errors="coerce")
+    fair_num = pd.to_numeric(fair_decimal, errors="coerce")
+
+    dk_ok = dk_num > 1
+    fair_ok = fair_num > 1
+
+    fair_prob = (1 / fair_num).where(fair_ok)
+    ev = (fair_prob * dk_num - 1).where(dk_ok & fair_ok)
+    return ev
 
 
-def safe_edge_pct(dk: pd.Series, juiced: pd.Series) -> pd.Series:
-    dk_num = pd.to_numeric(dk, errors="coerce")
-    j_num = pd.to_numeric(juiced, errors="coerce")
-    edge_decimal = j_num - dk_num
-    return (edge_decimal / dk_num).where(dk_num > 0)
+def safe_edge_pct(dk_decimal: pd.Series, fair_decimal: pd.Series) -> pd.Series:
+    """
+    Returns probability edge:
+      edge_pct = p_fair - p_market
+    Positive => fair probability higher than implied market probability.
+    """
+    dk_num = pd.to_numeric(dk_decimal, errors="coerce")
+    fair_num = pd.to_numeric(fair_decimal, errors="coerce")
+
+    dk_ok = dk_num > 1
+    fair_ok = fair_num > 1
+
+    p_market = (1 / dk_num).where(dk_ok)
+    p_fair = (1 / fair_num).where(fair_ok)
+
+    edge = (p_fair - p_market).where(dk_ok & fair_ok)
+    return edge
 
 
 def upsert_dedup_by_game_id(new_df: pd.DataFrame, output_path: Path) -> pd.DataFrame:
@@ -78,21 +101,21 @@ def compute_moneyline_edges(df: pd.DataFrame) -> pd.DataFrame:
 
     df["home_edge_decimal"] = safe_edge_decimal(
         df["home_dk_decimal_moneyline"],
-        df["home_juiced_decimal_moneyline"]
+        df["home_juiced_decimal_moneyline"],
     )
     df["home_edge_pct"] = safe_edge_pct(
         df["home_dk_decimal_moneyline"],
-        df["home_juiced_decimal_moneyline"]
+        df["home_juiced_decimal_moneyline"],
     )
     df["home_play"] = df["home_edge_decimal"] > 0
 
     df["away_edge_decimal"] = safe_edge_decimal(
         df["away_dk_decimal_moneyline"],
-        df["away_juiced_decimal_moneyline"]
+        df["away_juiced_decimal_moneyline"],
     )
     df["away_edge_pct"] = safe_edge_pct(
         df["away_dk_decimal_moneyline"],
-        df["away_juiced_decimal_moneyline"]
+        df["away_juiced_decimal_moneyline"],
     )
     df["away_play"] = df["away_edge_decimal"] > 0
 
@@ -115,21 +138,21 @@ def compute_puck_line_edges(df: pd.DataFrame) -> pd.DataFrame:
 
     df["home_edge_decimal"] = safe_edge_decimal(
         df["home_dk_puck_line_decimal"],
-        df["home_juiced_decimal_puck_line"]
+        df["home_juiced_decimal_puck_line"],
     )
     df["home_edge_pct"] = safe_edge_pct(
         df["home_dk_puck_line_decimal"],
-        df["home_juiced_decimal_puck_line"]
+        df["home_juiced_decimal_puck_line"],
     )
     df["home_play"] = df["home_edge_decimal"] > 0
 
     df["away_edge_decimal"] = safe_edge_decimal(
         df["away_dk_puck_line_decimal"],
-        df["away_juiced_decimal_puck_line"]
+        df["away_juiced_decimal_puck_line"],
     )
     df["away_edge_pct"] = safe_edge_pct(
         df["away_dk_puck_line_decimal"],
-        df["away_juiced_decimal_puck_line"]
+        df["away_juiced_decimal_puck_line"],
     )
     df["away_play"] = df["away_edge_decimal"] > 0
 
@@ -152,21 +175,21 @@ def compute_total_edges(df: pd.DataFrame) -> pd.DataFrame:
 
     df["over_edge_decimal"] = safe_edge_decimal(
         df["dk_total_over_decimal"],
-        df["juiced_total_over_decimal"]
+        df["juiced_total_over_decimal"],
     )
     df["over_edge_pct"] = safe_edge_pct(
         df["dk_total_over_decimal"],
-        df["juiced_total_over_decimal"]
+        df["juiced_total_over_decimal"],
     )
     df["over_play"] = df["over_edge_decimal"] > 0
 
     df["under_edge_decimal"] = safe_edge_decimal(
         df["dk_total_under_decimal"],
-        df["juiced_total_under_decimal"]
+        df["juiced_total_under_decimal"],
     )
     df["under_edge_pct"] = safe_edge_pct(
         df["dk_total_under_decimal"],
-        df["juiced_total_under_decimal"]
+        df["juiced_total_under_decimal"],
     )
     df["under_play"] = df["under_edge_decimal"] > 0
 
