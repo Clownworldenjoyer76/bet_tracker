@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 # docs/win/final_scores/scripts/00_parsing/dedupe.py
 
-import sys
+import csv
 from pathlib import Path
-import pandas as pd
 import traceback
 
 BASE_DIR = Path("docs/win/final_scores")
@@ -22,32 +21,35 @@ def main():
                 return
 
             for path in files:
-                df = pd.read_csv(path)
 
-                if df.empty:
+                with path.open("r", newline="", encoding="utf-8") as f:
+                    reader = list(csv.DictReader(f))
+
+                if not reader:
                     log.write(f"{path.name}: empty file\n")
                     continue
 
-                before = len(df)
+                seen = set()
+                deduped = []
 
-                # Define dedupe key
-                key_cols = [
-                    "game_date",
-                    "market",
-                    "away_team",
-                    "home_team"
-                ]
+                for row in reader:
+                    key = (
+                        row.get("game_date"),
+                        row.get("market"),
+                        row.get("away_team"),
+                        row.get("home_team"),
+                    )
 
-                # Only use columns that exist (safety)
-                key_cols = [c for c in key_cols if c in df.columns]
+                    if key not in seen:
+                        seen.add(key)
+                        deduped.append(row)
 
-                df = df.drop_duplicates(subset=key_cols, keep="last")
+                with path.open("w", newline="", encoding="utf-8") as f:
+                    writer = csv.DictWriter(f, fieldnames=reader[0].keys())
+                    writer.writeheader()
+                    writer.writerows(deduped)
 
-                after = len(df)
-
-                df.to_csv(path, index=False)
-
-                log.write(f"{path.name}: {before} -> {after} rows\n")
+                log.write(f"{path.name}: {len(reader)} -> {len(deduped)} rows\n")
 
         except Exception as e:
             log.write("\n=== ERROR ===\n")
