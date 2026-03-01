@@ -13,7 +13,6 @@ ERR_DIR = OUT_DIR / "errors"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 ERR_DIR.mkdir(parents=True, exist_ok=True)
 
-
 HEADERS = [
     "game_date",
     "league",
@@ -47,8 +46,7 @@ def league_from_market(market: str) -> str:
     return ""
 
 
-def parse_game_date(lines: list[str]) -> str:
-    # Expect: "Tuesday, February 24, 2026"
+def parse_game_date(lines):
     for line in lines[:20]:
         s = line.strip()
         if not s:
@@ -58,10 +56,10 @@ def parse_game_date(lines: list[str]) -> str:
             return dt.strftime("%Y_%m_%d")
         except Exception:
             continue
-    raise ValueError("Could not find/parse game date line like 'Tuesday, February 24, 2026'")
+    raise ValueError("Could not find/parse game date line.")
 
 
-def next_non_empty(lines: list[str], start_idx: int) -> tuple[int, str]:
+def next_non_empty(lines, start_idx):
     i = start_idx
     while i < len(lines):
         s = lines[i].strip()
@@ -71,7 +69,7 @@ def next_non_empty(lines: list[str], start_idx: int) -> tuple[int, str]:
     return len(lines), ""
 
 
-def prev_non_empty(lines: list[str], start_idx: int) -> tuple[int, str]:
+def prev_non_empty(lines, start_idx):
     i = start_idx
     while i >= 0:
         s = lines[i].strip()
@@ -81,28 +79,58 @@ def prev_non_empty(lines: list[str], start_idx: int) -> tuple[int, str]:
     return -1, ""
 
 
-def is_at_line(s: str) -> bool:
+def is_at_line(s):
     return s.strip() == "@"
 
 
-def looks_like_result_line(s: str) -> bool:
-    # Must contain comma and at least two integers
+def looks_like_result_line(s):
     if "," not in s:
         return False
     nums = re.findall(r"\d+", s)
     return len(nums) >= 2
 
 
-def parse_scores_from_result_line(s: str) -> tuple[int, int]:
-    nums = re.findall(r"\d+", s)
-    if len(nums) < 2:
-        raise ValueError(f"Could not parse two scores from result line: {s}")
-    away_score = int(nums[0])
-    home_score = int(nums[1])
+def extract_abbrev_score_pairs(result_line):
+    # Example: "ATL 119, WSH 98 (OT)"
+    return re.findall(r"([A-Z\.\-]+)\s+(\d+)", result_line)
+
+
+def map_scores_to_teams(result_line, away_team, home_team):
+    pairs = extract_abbrev_score_pairs(result_line)
+
+    if len(pairs) < 2:
+        raise ValueError(f"Could not parse result line: {result_line}")
+
+    team_scores = {abbr.upper(): int(score) for abbr, score in pairs}
+
+    def team_matches(abbrev, full_name):
+        full = full_name.upper()
+        abbrev = abbrev.upper()
+        # Match first word, common ESPN short forms, etc.
+        return (
+            full.startswith(abbrev)
+            or abbrev in full
+        )
+
+    away_score = None
+    home_score = None
+
+    for abbr, score in team_scores.items():
+        if team_matches(abbr, away_team):
+            away_score = score
+        if team_matches(abbr, home_team):
+            home_score = score
+
+    if away_score is None or home_score is None:
+        raise ValueError(
+            f"Could not match abbreviations to teams: {result_line} | "
+            f"Away={away_team} Home={home_team}"
+        )
+
     return away_score, home_score
 
 
-def parse_games(lines: list[str], game_date: str, market: str) -> list[dict]:
+def parse_games(lines, game_date, market):
     rows = []
     is_basketball = market in {"NBA", "NCAAB"}
     is_hockey = market == "NHL"
@@ -118,9 +146,8 @@ def parse_games(lines: list[str], game_date: str, market: str) -> list[dict]:
         if not away_team or not home_team:
             continue
 
-        # Find the next result line after home team
-        j, candidate = next_non_empty(lines, i + 2)
-        # Some pages have extra tokens before result; scan forward a bit
+        j, _ = next_non_empty(lines, i + 2)
+
         scan_limit = min(len(lines), j + 20)
         result_line = ""
         k = j
@@ -134,7 +161,12 @@ def parse_games(lines: list[str], game_date: str, market: str) -> list[dict]:
         if not result_line:
             continue
 
-        away_score, home_score = parse_scores_from_result_line(result_line)
+        away_score, home_score = map_scores_to_teams(
+            result_line,
+            away_team,
+            home_team
+        )
+
         total = away_score + home_score
 
         away_spread = ""
@@ -168,7 +200,7 @@ def parse_games(lines: list[str], game_date: str, market: str) -> list[dict]:
     return rows
 
 
-def write_csv(path: Path, rows: list[dict]) -> None:
+def write_csv(path, rows):
     with path.open("w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=HEADERS)
         w.writeheader()
@@ -176,14 +208,13 @@ def write_csv(path: Path, rows: list[dict]) -> None:
             w.writerow({h: r.get(h, "") for h in HEADERS})
 
 
-def main() -> int:
+def main():
     if len(sys.argv) != 3:
         print("Usage: espn.py <market: NBA|NCAAB|NHL> <input_text_file>")
         return 2
 
     market = normalize_market(sys.argv[1])
     input_path = Path(sys.argv[2])
-
     err_path = ERR_DIR / f"espn_{market}.txt"
 
     try:
@@ -196,7 +227,6 @@ def main() -> int:
         out_path = OUT_DIR / f"{game_date}_final_scores_{market}.csv"
         write_csv(out_path, rows)
 
-        # Minimal stdout for workflow logs
         print(f"Wrote {out_path} | rows={len(rows)}")
         return 0
 
