@@ -1,269 +1,158 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Picks (Full Game Data)</title>
-  <link rel="stylesheet" href="styles.css" />
-  <link rel="stylesheet" href="css/terminal.css" />
+<meta charset="UTF-8">
+<title>NHL Picks</title>
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="css/terminal.css">
 </head>
+
 <body class="top-picks-page">
-  <div class="container">
+<div class="container">
 
-    <h1>Picks (Full Game Data)</h1>
+<h1>NHL Picks</h1>
 
-    <div id="nav-placeholder"></div>
+<div id="nav-placeholder"></div>
 
-    <section class="controls">
-      <label for="p-date" class="control-label">Date:</label>
-      <input id="p-date" type="date" />
+<section class="controls">
+<label>Date:</label>
+<input id="p-date" type="date">
+</section>
 
-      <label for="league-filter" class="control-label" style="margin-left:20px;">League:</label>
-      <select id="league-filter">
-        <option value="NBA">NBA</option>
-        <option value="NCAAB">NCAAB</option>
-        <option value="NHL">NHL</option>
-      </select>
-    </section>
+<div id="status" class="status"></div>
+<div id="games" class="games"></div>
 
-    <div id="status" class="status"></div>
-    <div id="games" class="games"></div>
+</div>
 
-  </div>
+<script>
+fetch("nav.html")
+.then(r=>r.text())
+.then(d=>document.getElementById("nav-placeholder").innerHTML=d);
 
-  <script>
-    fetch("nav.html")
-      .then(res => res.text())
-      .then(data => {
-        document.getElementById("nav-placeholder").innerHTML = data;
-      });
+const dateInput=document.getElementById("p-date");
+dateInput.value=new Date().toLocaleDateString("en-CA");
+dateInput.addEventListener("change",loadPage);
 
-    const dateInput = document.getElementById("p-date");
-    const leagueSelect = document.getElementById("league-filter");
+loadPage();
 
-    dateInput.value = new Date().toLocaleDateString("en-CA");
+async function loadPage(){
 
-    dateInput.addEventListener("change", loadPage);
-    leagueSelect.addEventListener("change", loadPage);
+const date=dateInput.value.replaceAll("-","_");
 
-    loadPage();
+document.getElementById("status").textContent="Loading...";
+document.getElementById("games").innerHTML="";
 
-    async function loadPage() {
-      const date = dateInput.value.replaceAll("-", "_");
-      const league = leagueSelect.value;
+const selectFile=`win/hockey/04_select/${date}_NHL.csv`;
+const predFile=`win/hockey/00_intake/predictions/hockey_${date}.csv`;
+const bookFile=`win/hockey/00_intake/sportsbook/hockey_${date}.csv`;
 
-      document.getElementById("status").textContent = "Loading...";
-      document.getElementById("games").innerHTML = "";
+try{
 
-      try {
-        let selectFiles = [];
-        let predFile = "";
-        let bookFile = "";
+const selectRows=await fetchCSV(selectFile);
+const predRows=await fetchCSV(predFile);
+const bookRows=await fetchCSV(bookFile);
 
-        if (league === "NBA") {
-          selectFiles = [
-            `win/basketball/04_select/${date}_basketball_NBA_moneyline.csv`,
-            `win/basketball/04_select/${date}_basketball_NBA_spread.csv`,
-            `win/basketball/04_select/${date}_basketball_NBA_total.csv`
-          ];
-          predFile = `win/basketball/00_intake/predictions/basketball_NBA_${date}.csv`;
-          bookFile = `win/basketball/00_intake/sportsbook/basketball_NBA_${date}.csv`;
-        }
+const predMap=buildGameMap(predRows);
+const bookMap=buildGameMap(bookRows);
 
-        if (league === "NCAAB") {
-          selectFiles = [
-            `win/basketball/04_select/${date}_basketball_NCAAB_moneyline.csv`,
-            `win/basketball/04_select/${date}_basketball_NCAAB_spread.csv`,
-            `win/basketball/04_select/${date}_basketball_NCAAB_total.csv`
-          ];
-          predFile = `win/basketball/00_intake/predictions/basketball_NCAAB_${date}.csv`;
-          bookFile = `win/basketball/00_intake/sportsbook/basketball_NCAAB_${date}.csv`;
-        }
+const merged=selectRows.map(sel=>{
 
-        if (league === "NHL") {
-          selectFiles = [
-            `win/hockey/04_select/${date}_NHL.csv`
-          ];
-          predFile = `win/hockey/00_intake/predictions/hockey_${date}.csv`;
-          bookFile = `win/hockey/00_intake/sportsbook/hockey_${date}.csv`;
-        }
+const idParts=sel.game_id.split("_");
 
-        const selectRows = await fetchMultiple(selectFiles, "csv");
-        const predRows = await fetchSingle(predFile, "tsv");
-        const bookRows = await fetchSingle(bookFile, "csv");
+const gameDate=idParts.slice(0,3).join("_");
+const homeTeam=idParts.slice(3,-1).join(" ");
+const awayTeam=idParts.slice(-1)[0];
 
-        // Build maps keyed by canonical signature:
-        // YYYY_MM_DD_away_team_underscored_home_team_underscored  (lowercase)
-        const predMap = buildCanonicalMap(predRows);
-        const bookMap = buildCanonicalMap(bookRows);
+const key=gameDate+"|"+homeTeam+"|"+awayTeam;
 
-        // Merge: canonical extracted from select.game_id (drops prefix)
-        const merged = selectRows.map(sel => {
-          const selCanon = canonicalFromSelectGameId(sel.game_id);
-          const pred = predMap[selCanon] || {};
-          const book = bookMap[selCanon] || {};
-          return { ...sel, ...pred, ...book, __canon: selCanon };
-        });
+const pred=predMap[key]||{};
+const book=bookMap[key]||{};
 
-        // Sort by edge % descending
-        merged.sort((a, b) =>
-          parseFloat(b.take_bet_edge_pct || 0) - parseFloat(a.take_bet_edge_pct || 0)
-        );
+return {...sel,...pred,...book};
+});
 
-        renderGames(merged, league);
+renderGames(merged);
 
-        document.getElementById("status").textContent =
-          `${merged.length} picks found`;
+document.getElementById("status").textContent=
+merged.length+" picks found";
 
-      } catch (e) {
-        document.getElementById("status").textContent =
-          "No data found for selected date.";
-      }
-    }
+}catch{
+document.getElementById("status").textContent=
+"No data found.";
+}
+}
 
-    async function fetchMultiple(paths, type) {
-      let rows = [];
-      for (const p of paths) {
-        const r = await fetch(p);
-        if (!r.ok) continue;
-        const txt = await r.text();
-        rows = rows.concat(parseDelimited(txt, type));
-      }
-      return rows;
-    }
+async function fetchCSV(path){
+const r=await fetch(path);
+if(!r.ok) return [];
+const txt=await r.text();
+return parseCSV(txt);
+}
 
-    async function fetchSingle(path, type) {
-      const r = await fetch(path);
-      if (!r.ok) return [];
-      const txt = await r.text();
-      return parseDelimited(txt, type);
-    }
+function parseCSV(text){
+const lines=text.trim().split(/\r?\n/);
+const headers=lines[0].split(",").map(h=>h.trim());
 
-    function parseDelimited(text, type) {
-      const lines = text.trim().split(/\r?\n/);
-      if (lines.length < 2) return [];
+return lines.slice(1).map(line=>{
+const values=line.split(",");
+let obj={};
+headers.forEach((h,i)=>obj[h]=values[i]??"");
+return obj;
+});
+}
 
-      const delimiter = type === "tsv" ? "\t" : ",";
-      const headers = lines[0].split(delimiter).map(h => h.trim());
+function buildGameMap(rows){
+let map={};
+rows.forEach(r=>{
+const key=r.game_date+"|"+r.home_team+"|"+r.away_team;
+map[key]=r;
+});
+return map;
+}
 
-      return lines.slice(1).map(line => {
-        const values = line.split(delimiter);
-        const obj = {};
-        headers.forEach((h, i) => obj[h] = (values[i] ?? "").trim());
-        return obj;
-      });
-    }
+function renderGames(rows){
 
-    function teamToId(s) {
-      return (s || "")
-        .trim()
-        .toLowerCase()
-        .replace(/&/g, "and")
-        .replace(/[^a-z0-9]+/g, "_")
-        .replace(/^_+|_+$/g, "")
-        .replace(/_+/g, "_");
-    }
+const container=document.getElementById("games");
+container.innerHTML="";
 
-    function canonicalFromRow(r) {
-      const d = (r.game_date || "").trim();
-      const away = teamToId(r.away_team);
-      const home = teamToId(r.home_team);
-      if (!d || !away || !home) return "";
-      return `${d}_${away}_${home}`.toLowerCase();
-    }
+rows.forEach(r=>{
 
-    function buildCanonicalMap(rows) {
-      const map = {};
-      rows.forEach(r => {
-        const key = canonicalFromRow(r);
-        if (!key) return;
-        map[key] = r;
-      });
-      return map;
-    }
+const edge=r.take_bet_edge_pct
+? (parseFloat(r.take_bet_edge_pct)*100).toFixed(2)+"%"
+: "-";
 
-    function canonicalFromSelectGameId(gameId) {
-      const gid = (gameId || "").trim();
-      if (!gid) return "";
+const card=document.createElement("div");
+card.className="game-card";
 
-      // Find the YYYY_MM_DD inside the game_id, then take everything from there.
-      // Example: "nba_2026_02_22_Charlotte_Hornets_Washington_Wizards"
-      // -> "2026_02_22_charlotte_hornets_washington_wizards"
-      const m = gid.match(/(\d{4}_\d{2}_\d{2}_.+)$/);
-      if (!m) {
-        // Fallback: normalize whole thing
-        return gid.toLowerCase();
-      }
+card.innerHTML=`
+<div class="game-time">${r.game_time||"-"}</div>
+<div class="game-matchup">${r.away_team||"-"} @ ${r.home_team||"-"}</div>
+<div class="game-league">NHL</div>
 
-      // The part after date still has underscores (team names), which is what we want.
-      // Normalize to match teamToId rules (lowercase, non-alnum -> underscore)
-      return m[1]
-        .toLowerCase()
-        .replace(/&/g, "and")
-        .replace(/[^a-z0-9_]+/g, "_")
-        .replace(/^_+|_+$/g, "")
-        .replace(/_+/g, "_");
-    }
+<div class="game-market">${r.market||"-"}</div>
+<div class="game-line">${r.take_team||"-"}</div>
+<div class="game-odds">Odds: ${r.take_odds||"-"}</div>
+<div class="game-edge">Edge: ${edge}</div>
+<div class="game-value">Value: ${r.value||"-"}</div>
 
-    function formatEdgePct(x) {
-      if (!x || isNaN(x)) return "-";
-      return (parseFloat(x) * 100).toFixed(2) + "%";
-    }
+<div class="game-proj">
+Proj: ${r.away_projected_goals||"-"} - ${r.home_projected_goals||"-"}
+(Total: ${r.total_projected_goals||"-"})
+</div>
 
-    function renderGames(rows, leagueSelected) {
-      const container = document.getElementById("games");
-      container.innerHTML = "";
+<div class="game-book">
+ML: ${r.away_dk_moneyline_american||"-"} / ${r.home_dk_moneyline_american||"-"}
+<br>
+Line: ${r.away_puck_line||"-"} (${r.away_dk_puck_line_american||"-"})
+/ ${r.home_puck_line||"-"} (${r.home_dk_puck_line_american||"-"})
+<br>
+Total: ${r.total||"-"} (O ${r.dk_total_over_american||"-"} / U ${r.dk_total_under_american||"-"})
+</div>
+`;
 
-      rows.forEach(r => {
-        const league = r.league || leagueSelected || "-";
-        const market = (r.market || "").toLowerCase() || "-";
-
-        // Projections
-        const awayProj = r.away_projected_points || r.away_projected_goals || "";
-        const homeProj = r.home_projected_points || r.home_projected_goals || "";
-        const totalProj = r.total_projected_points || r.total_projected_goals || "";
-
-        // Sportsbook fields differ for NHL (puck line) vs basketball (spread)
-        const awaySpread = r.away_spread || r.away_puck_line || "";
-        const homeSpread = r.home_spread || r.home_puck_line || "";
-
-        const awaySpreadOdds = r.away_dk_spread_american || r.away_dk_puck_line_american || "";
-        const homeSpreadOdds = r.home_dk_spread_american || r.home_dk_puck_line_american || "";
-
-        const mlAway = r.away_dk_moneyline_american || "";
-        const mlHome = r.home_dk_moneyline_american || "";
-
-        const tot = r.total || "";
-        const overOdds = r.dk_total_over_american || "";
-        const underOdds = r.dk_total_under_american || "";
-
-        const card = document.createElement("div");
-        card.className = "game-card";
-
-        card.innerHTML = `
-          <div class="game-time">${r.game_time || "-"}</div>
-          <div class="game-matchup">${r.away_team || "-"} @ ${r.home_team || "-"}</div>
-          <div class="game-league">${league}</div>
-
-          <div class="game-market">${market}</div>
-          <div class="game-line">${r.take_team || "-"}</div>
-          <div class="game-odds">Odds: ${r.take_odds || "-"}</div>
-          <div class="game-edge">Edge: ${formatEdgePct(r.take_bet_edge_pct)}</div>
-          <div class="game-value">Value: ${r.value || "-"}</div>
-
-          <div class="game-proj">
-            Proj: ${awayProj || "-"} - ${homeProj || "-"}${totalProj ? ` (Total: ${totalProj})` : ""}
-          </div>
-
-          <div class="game-book">
-            <div>ML: ${mlAway || "-"} / ${mlHome || "-"}</div>
-            <div>Line: ${awaySpread || "-"} (${awaySpreadOdds || "-"}) / ${homeSpread || "-"} (${homeSpreadOdds || "-"})</div>
-            <div>Total: ${tot || "-"} (O ${overOdds || "-"} / U ${underOdds || "-"})</div>
-          </div>
-        `;
-
-        container.appendChild(card);
-      });
-    }
-  </script>
+container.appendChild(card);
+});
+}
+</script>
 </body>
 </html>
