@@ -55,13 +55,13 @@ const bookRows=await fetchCSV(bookFile);
 const predMap=buildGameMap(predRows);
 const bookMap=buildGameMap(bookRows);
 
-const merged=selectRows.map(sel=>{
+let merged=selectRows.map(sel=>{
 
-const idParts=sel.game_id.split("_");
+const parts=sel.game_id.split("_");
 
-const gameDate=idParts.slice(0,3).join("_");
-const homeTeam=idParts.slice(3,-1).join(" ");
-const awayTeam=idParts.slice(-1)[0];
+const gameDate=parts.slice(0,3).join("_");
+const homeTeam=parts.slice(3,-1).join(" ");
+const awayTeam=parts.slice(-1)[0];
 
 const key=gameDate+"|"+homeTeam+"|"+awayTeam;
 
@@ -69,6 +69,11 @@ const pred=predMap[key]||{};
 const book=bookMap[key]||{};
 
 return {...sel,...pred,...book};
+});
+
+/* SORT BY SPORTSBOOK GAME TIME */
+merged.sort((a,b)=>{
+return parseTime(a.game_time)-parseTime(b.game_time);
 });
 
 renderGames(merged);
@@ -80,6 +85,18 @@ merged.length+" picks found";
 document.getElementById("status").textContent=
 "No data found.";
 }
+}
+
+function parseTime(t){
+if(!t) return 0;
+const m=t.match(/(\d+):(\d+)\s*(AM|PM)/i);
+if(!m) return 0;
+let h=parseInt(m[1]);
+const min=parseInt(m[2]);
+const p=m[3].toUpperCase();
+if(p==="PM" && h!==12) h+=12;
+if(p==="AM" && h===12) h=0;
+return h*60+min;
 }
 
 async function fetchCSV(path){
@@ -127,9 +144,9 @@ card.className="game-card";
 card.innerHTML=`
 <div class="game-time">${r.game_time||"-"}</div>
 <div class="game-matchup">${r.away_team||"-"} @ ${r.home_team||"-"}</div>
-<div class="game-league">NHL</div>
+<div class="game-league">Bet</div>
 
-<div class="game-market">${r.market||"-"}</div>
+<div class="game-market">${r.take_bet||"-"}</div>
 <div class="game-line">${r.take_team||"-"}</div>
 <div class="game-odds">Odds: ${r.take_odds||"-"}</div>
 <div class="game-edge">Edge: ${edge}</div>
