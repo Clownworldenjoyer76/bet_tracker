@@ -140,15 +140,20 @@ def main():
                 home_line = float(row["home_puck_line"])
                 away_line = float(row["away_puck_line"])
 
-                # If HOME is laying -1.5
+                # HOME laying -1.5 (home must win by 2+)
                 if home_line == -1.5:
                     p_home_minus = 1 - skellam.cdf(1, lam_home, lam_away)
                     p_away_plus = 1 - p_home_minus
 
-                # If AWAY is laying -1.5
+                # AWAY laying -1.5 (away must win by 2+)
                 elif away_line == -1.5:
-                    p_home_minus = 1 - skellam.cdf(1, lam_home, lam_away)
-                    p_away_plus = 1 - p_home_minus
+                    # D = home_goals - away_goals
+                    # away wins by 2+ <=> D <= -2
+                    p_away_minus = skellam.cdf(-2, lam_home, lam_away)
+                    p_home_plus = 1 - p_away_minus
+
+                    p_home_minus = p_home_plus      # home +1.5
+                    p_away_plus = p_away_minus     # away -1.5
 
                 else:
                     fair_home.append("")
