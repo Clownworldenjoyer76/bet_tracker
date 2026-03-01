@@ -121,21 +121,42 @@ def extract_pairs(result_line):
     return re.findall(r"([A-Z]+)\s+(\d+)", result_line)
 
 
+def resolve_team_by_abbrev(result_abbrev, team_map):
+    """
+    Reverse lookup: abbreviation -> team_name.
+    Needed for NHL New York conflicts (NYI / NYR).
+    """
+    for team, abbr in team_map.items():
+        if abbr == result_abbrev:
+            return team
+    return None
+
+
 def map_scores(result_line, away_team, home_team, team_map):
     pairs = extract_pairs(result_line)
     if len(pairs) < 2:
         raise ValueError(f"Invalid result line: {result_line}")
 
     score_map = {abbr: int(score) for abbr, score in pairs}
+    result_abbrevs = list(score_map.keys())
 
-    if away_team not in team_map:
-        raise ValueError(f"Team not found in map: {away_team}")
+    # Attempt direct lookup from map
+    away_abbrev = team_map.get(away_team)
+    home_abbrev = team_map.get(home_team)
 
-    if home_team not in team_map:
-        raise ValueError(f"Team not found in map: {home_team}")
+    # If ambiguous or mismatch (ex: NHL New York)
+    if away_abbrev not in score_map or home_abbrev not in score_map:
+        if len(result_abbrevs) >= 2:
+            resolved_away = resolve_team_by_abbrev(result_abbrevs[0], team_map)
+            resolved_home = resolve_team_by_abbrev(result_abbrevs[1], team_map)
 
-    away_abbrev = team_map[away_team]
-    home_abbrev = team_map[home_team]
+            if resolved_away:
+                away_team = resolved_away
+                away_abbrev = result_abbrevs[0]
+
+            if resolved_home:
+                home_team = resolved_home
+                home_abbrev = result_abbrevs[1]
 
     if away_abbrev not in score_map or home_abbrev not in score_map:
         raise ValueError(
