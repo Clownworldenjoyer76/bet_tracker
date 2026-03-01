@@ -28,6 +28,40 @@ HEADERS = [
     "home_puck_line",
 ]
 
+# ✅ Official ESPN NBA abbreviations
+NBA_ABBREV_MAP = {
+    "Atlanta": "ATL",
+    "Boston": "BOS",
+    "Brooklyn": "BKN",
+    "Charlotte": "CHA",
+    "Chicago": "CHI",
+    "Cleveland": "CLE",
+    "Dallas": "DAL",
+    "Denver": "DEN",
+    "Detroit": "DET",
+    "Golden State": "GS",
+    "Houston": "HOU",
+    "Indiana": "IND",
+    "Los Angeles": "LAL",   # Lakers default; Clippers still match by result line
+    "LA": "LAC",            # fallback if needed
+    "Memphis": "MEM",
+    "Miami": "MIA",
+    "Milwaukee": "MIL",
+    "Minnesota": "MIN",
+    "New Orleans": "NO",
+    "New York": "NY",
+    "Oklahoma City": "OKC",
+    "Orlando": "ORL",
+    "Philadelphia": "PHI",
+    "Phoenix": "PHX",
+    "Portland": "POR",
+    "Sacramento": "SAC",
+    "San Antonio": "SA",
+    "Toronto": "TOR",
+    "Utah": "UTA",
+    "Washington": "WSH",
+}
+
 
 def normalize_market(market: str) -> str:
     m = (market or "").strip().upper()
@@ -39,11 +73,7 @@ def normalize_market(market: str) -> str:
 
 
 def league_from_market(market: str) -> str:
-    if market in {"NBA", "NCAAB"}:
-        return "Basketball"
-    if market == "NHL":
-        return "Hockey"
-    return ""
+    return "Basketball" if market in {"NBA", "NCAAB"} else "Hockey"
 
 
 def parse_game_date(lines):
@@ -56,7 +86,7 @@ def parse_game_date(lines):
             return dt.strftime("%Y_%m_%d")
         except Exception:
             continue
-    raise ValueError("Could not find/parse game date line.")
+    raise ValueError("Could not parse game date.")
 
 
 def next_non_empty(lines, start_idx):
@@ -84,54 +114,39 @@ def is_at_line(s):
 
 
 def looks_like_result_line(s):
-    if "," not in s:
-        return False
-    nums = re.findall(r"\d+", s)
-    return len(nums) >= 2
+    return "," in s and len(re.findall(r"\d+", s)) >= 2
 
 
-def build_team_abbrev(full_name):
-    words = re.findall(r"[A-Za-z]+", full_name.upper())
-    if not words:
-        return ""
-
-    # Single word → first 3 letters
-    if len(words) == 1:
-        return words[0][:3]
-
-    # Multi-word → first letter of each word
-    return "".join(word[0] for word in words)
+def extract_pairs(result_line):
+    return re.findall(r"([A-Z]+)\s+(\d+)", result_line)
 
 
-def map_scores_to_teams(result_line, away_team, home_team):
-    # Example: "ATL 119, WSH 98 (OT)"
-    pairs = re.findall(r"([A-Z\.\-]+)\s+(\d+)", result_line)
+def get_team_abbrev(team, market):
+    if market == "NBA":
+        if team in NBA_ABBREV_MAP:
+            return NBA_ABBREV_MAP[team]
+    # fallback: first 3 letters
+    return re.sub(r"[^A-Z]", "", team.upper())[:3]
 
+
+def map_scores(result_line, away_team, home_team, market):
+    pairs = extract_pairs(result_line)
     if len(pairs) < 2:
-        raise ValueError(f"Could not parse result line: {result_line}")
+        raise ValueError(f"Invalid result line: {result_line}")
 
-    team_scores = {abbr.upper(): int(score) for abbr, score in pairs}
+    score_map = {abbr: int(score) for abbr, score in pairs}
 
-    away_abbrev = build_team_abbrev(away_team)
-    home_abbrev = build_team_abbrev(home_team)
+    away_abbrev = get_team_abbrev(away_team, market)
+    home_abbrev = get_team_abbrev(home_team, market)
 
-    away_score = None
-    home_score = None
-
-    for abbr, score in team_scores.items():
-        if abbr == away_abbrev:
-            away_score = score
-        if abbr == home_abbrev:
-            home_score = score
-
-    if away_score is None or home_score is None:
+    if away_abbrev not in score_map or home_abbrev not in score_map:
         raise ValueError(
-            f"Could not match abbreviations to teams: {result_line} | "
-            f"Away={away_team} ({away_abbrev}) "
-            f"Home={home_team} ({home_abbrev})"
+            f"Could not match abbreviations: {result_line} | "
+            f"Away={away_team}({away_abbrev}) "
+            f"Home={home_team}({home_abbrev})"
         )
 
-    return away_score, home_score
+    return score_map[away_abbrev], score_map[home_abbrev]
 
 
 def parse_games(lines, game_date, market):
@@ -140,8 +155,7 @@ def parse_games(lines, game_date, market):
     is_hockey = market == "NHL"
 
     for i, raw in enumerate(lines):
-        s = raw.strip()
-        if not is_at_line(s):
+        if not is_at_line(raw.strip()):
             continue
 
         _, away_team = prev_non_empty(lines, i - 1)
@@ -152,23 +166,20 @@ def parse_games(lines, game_date, market):
 
         j, _ = next_non_empty(lines, i + 2)
 
-        scan_limit = min(len(lines), j + 20)
         result_line = ""
-        k = j
-        while k < scan_limit:
-            cand = lines[k].strip()
-            if looks_like_result_line(cand):
-                result_line = cand
+        for k in range(j, min(len(lines), j + 20)):
+            if looks_like_result_line(lines[k].strip()):
+                result_line = lines[k].strip()
                 break
-            k += 1
 
         if not result_line:
             continue
 
-        away_score, home_score = map_scores_to_teams(
+        away_score, home_score = map_scores(
             result_line,
             away_team,
-            home_team
+            home_team,
+            market
         )
 
         total = away_score + home_score
@@ -206,10 +217,9 @@ def parse_games(lines, game_date, market):
 
 def write_csv(path, rows):
     with path.open("w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=HEADERS)
-        w.writeheader()
-        for r in rows:
-            w.writerow({h: r.get(h, "") for h in HEADERS})
+        writer = csv.DictWriter(f, fieldnames=HEADERS)
+        writer.writeheader()
+        writer.writerows(rows)
 
 
 def main():
@@ -222,9 +232,7 @@ def main():
     err_path = ERR_DIR / f"espn_{market}.txt"
 
     try:
-        raw = input_path.read_text(encoding="utf-8", errors="replace")
-        lines = raw.splitlines()
-
+        lines = input_path.read_text(encoding="utf-8", errors="replace").splitlines()
         game_date = parse_game_date(lines)
         rows = parse_games(lines, game_date, market)
 
