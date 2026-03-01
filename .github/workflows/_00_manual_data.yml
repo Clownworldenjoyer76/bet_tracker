@@ -80,6 +80,18 @@ jobs:
           python "$BASE/name_normalization.py"
           python "$BASE/dedupe.py"
 
+      - name: Run Final Scores
+        if: ${{ github.event.inputs.league == 'final_scores' }}
+        run: |
+          printf "%s" "${{ github.event.inputs.raw_text }}" > dump.txt
+
+          BASE="docs/win/final_scores/scripts/00_parsing"
+
+          # ESPN only
+          python "$BASE/espn.py" "${{ github.event.inputs.market }}" dump.txt
+
+          python "$BASE/dedupe.py"
+          
       - name: Commit Basketball
         if: ${{ github.event.inputs.league == 'basketball' }}
         run: |
@@ -111,4 +123,14 @@ jobs:
           git add mappings/soccer/no_map/
           git add docs/win/soccer/errors/
           git commit -m "soccer intake" || echo "No changes"
+          git push
+
+      - name: Commit Final Scores
+        if: ${{ github.event.inputs.league == 'final_scores' }}
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add docs/win/final_scores/
+          git add docs/win/final_scores/errors/
+          git commit -m "final scores intake" || echo "No changes"
           git push
