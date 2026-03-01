@@ -28,7 +28,6 @@ HEADERS = [
     "home_puck_line",
 ]
 
-# ✅ Official ESPN NBA abbreviations
 NBA_ABBREV_MAP = {
     "Atlanta": "ATL",
     "Boston": "BOS",
@@ -42,8 +41,8 @@ NBA_ABBREV_MAP = {
     "Golden State": "GS",
     "Houston": "HOU",
     "Indiana": "IND",
-    "Los Angeles": "LAL",   # Lakers default; Clippers still match by result line
-    "LA": "LAC",            # fallback if needed
+    "Los Angeles": "LAL",
+    "LA": "LAC",
     "Memphis": "MEM",
     "Miami": "MIA",
     "Milwaukee": "MIL",
@@ -122,10 +121,8 @@ def extract_pairs(result_line):
 
 
 def get_team_abbrev(team, market):
-    if market == "NBA":
-        if team in NBA_ABBREV_MAP:
-            return NBA_ABBREV_MAP[team]
-    # fallback: first 3 letters
+    if market == "NBA" and team in NBA_ABBREV_MAP:
+        return NBA_ABBREV_MAP[team]
     return re.sub(r"[^A-Z]", "", team.upper())[:3]
 
 
@@ -190,12 +187,14 @@ def parse_games(lines, game_date, market):
         home_puck_line = ""
 
         if is_basketball:
-            away_spread = str(away_score - home_score)
-            home_spread = str(home_score - away_score)
+            margin = home_score - away_score
+            away_spread = str(margin)
+            home_spread = str(-margin)
 
         if is_hockey:
-            away_puck_line = str(away_score - home_score)
-            home_puck_line = str(home_score - away_score)
+            margin = home_score - away_score
+            away_puck_line = str(margin)
+            home_puck_line = str(-margin)
 
         rows.append({
             "game_date": game_date,
