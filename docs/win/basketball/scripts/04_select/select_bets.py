@@ -86,6 +86,7 @@ def main():
                 for _, row in df.iterrows():
 
                     game_id = row.get("game_id")
+                    league = row.get("league")
 
                     # =========================
                     # MONEYLINE
@@ -97,23 +98,76 @@ def main():
 
                             edge_dec = row.get(f"{side}_edge_decimal")
                             edge_pct = row.get(f"{side}_edge_pct")
+                            win_prob = row.get(f"{side}_prob")
+                            american_odds = row.get(f"{side}_juice_odds")
 
-                            if valid_edge(edge_dec, edge_pct):
+                            if pd.isna(edge_dec) or pd.isna(edge_pct) or pd.isna(win_prob):
+                                continue
 
-                                selections.append({
-                                    "game_id": game_id,
-                                    "league": row.get("league"),
-                                    "market": market,
-                                    "take_bet": f"{side}_ml",
-                                    "take_odds": row.get(f"{side}_juice_odds"),
-                                    "take_team": row.get(f"{side}_team"),
-                                    "value": row.get(f"{side}_prob"),
-                                    "take_bet_edge_decimal": edge_dec,
-                                    "take_bet_edge_pct": edge_pct,
-                                })
+                            # ---- APPLY NBA FILTER ONLY ----
+                            if str(league).upper() == "NBA":
+
+                                odds = pd.to_numeric(american_odds, errors="coerce")
+                                if pd.isna(odds):
+                                    continue
+
+                                # 🟢 Small Dogs (+100 to +149)
+                                if 100 <= odds <= 149:
+                                    if not (edge_dec >= 0.05 and win_prob >= 0.42):
+                                        continue
+
+                                # 🟢 Mid Dogs (+150 to +199)
+                                elif 150 <= odds <= 199:
+                                    if not (edge_dec >= 0.06 and win_prob >= 0.38):
+                                        continue
+
+                                # 🟡 Large Dogs (+200 to +299)
+                                elif 200 <= odds <= 299:
+                                    if not (edge_dec >= 0.07 and win_prob >= 0.33):
+                                        continue
+
+                                # 🔴 Extreme Dogs (+300+)
+                                elif odds >= 300:
+                                    if not (edge_dec >= 0.09 and win_prob >= 0.28):
+                                        continue
+
+                                # 🔵 Small Favorites (-100 to -149)
+                                elif -149 <= odds <= -100:
+                                    if not (edge_dec >= 0.05 and win_prob >= 0.58):
+                                        continue
+
+                                # 🔵 Medium Favorites (-150 to -249)
+                                elif -249 <= odds <= -150:
+                                    if not (edge_dec >= 0.06 and win_prob >= 0.62):
+                                        continue
+
+                                # 🔵 Large Favorites (-250+)
+                                elif odds <= -250:
+                                    if not (edge_dec >= 0.07 and win_prob >= 0.70):
+                                        continue
+
+                                else:
+                                    continue
+
+                            # ---- NCAAB (UNCHANGED LOGIC) ----
+                            else:
+                                if not valid_edge(edge_dec, edge_pct):
+                                    continue
+
+                            selections.append({
+                                "game_id": game_id,
+                                "league": league,
+                                "market": market,
+                                "take_bet": f"{side}_ml",
+                                "take_odds": american_odds,
+                                "take_team": row.get(f"{side}_team"),
+                                "value": win_prob,
+                                "take_bet_edge_decimal": edge_dec,
+                                "take_bet_edge_pct": edge_pct,
+                            })
 
                     # =========================
-                    # SPREAD
+                    # SPREAD (UNCHANGED)
                     # =========================
 
                     elif market == "spread":
@@ -127,18 +181,18 @@ def main():
 
                                 selections.append({
                                     "game_id": game_id,
-                                    "league": row.get("league"),
+                                    "league": league,
                                     "market": market,
                                     "take_bet": f"{side}_spread",
                                     "take_odds": row.get(f"{side}_spread_juice_odds"),
                                     "take_team": row.get(f"{side}_team"),
-                                    "value": row.get(f"{side}_spread"),  # ✅ FIXED
+                                    "value": row.get(f"{side}_spread"),
                                     "take_bet_edge_decimal": edge_dec,
                                     "take_bet_edge_pct": edge_pct,
                                 })
 
                     # =========================
-                    # TOTALS
+                    # TOTALS (UNCHANGED)
                     # =========================
 
                     elif market == "total":
@@ -158,7 +212,7 @@ def main():
 
                             selections.append({
                                 "game_id": game_id,
-                                "league": row.get("league"),
+                                "league": league,
                                 "market": market,
                                 "take_bet": "over_bet",
                                 "take_odds": odds_over,
@@ -172,7 +226,7 @@ def main():
 
                             selections.append({
                                 "game_id": game_id,
-                                "league": row.get("league"),
+                                "league": league,
                                 "market": market,
                                 "take_bet": "under_bet",
                                 "take_odds": odds_under,
