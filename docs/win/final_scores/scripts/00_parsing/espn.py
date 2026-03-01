@@ -118,7 +118,7 @@ def looks_like_result_line(s):
 
 
 def extract_pairs(result_line):
-    return re.findall(r"([A-Z]+)\s+(\d+)", result_line)
+    return re.findall(r"([A-Z\-]+)\s+(\d+)", result_line)
 
 
 def resolve_team_by_abbrev(result_abbrev, team_map):
