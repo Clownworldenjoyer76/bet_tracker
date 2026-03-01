@@ -14,10 +14,7 @@ ERROR_LOG = ERROR_DIR / "select_bets.txt"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
-ML_MIN_EDGE_PCT = 0.03
 TOTAL_MIN_EDGE_PCT = 0.03
-
-ML_MIN_PROB = 0.33
 TOTAL_MIN_PROB = 0.45
 
 
@@ -74,7 +71,7 @@ def main():
                 for game_id in game_ids:
 
                     # =====================
-                    # PUCK LINE (Highest Edge Side)
+                    # PUCK LINE (UNCHANGED)
                     # =====================
                     if pl_df is not None:
                         game_pl = pl_df[pl_df["game_id"] == game_id]
@@ -110,7 +107,7 @@ def main():
                             puck_count += 1
 
                     # =====================
-                    # MONEYLINE (Highest Edge Side)
+                    # MONEYLINE (UPDATED LOGIC)
                     # =====================
                     if ml_df is not None:
                         game_ml = ml_df[ml_df["game_id"] == game_id]
@@ -119,12 +116,36 @@ def main():
 
                         for _, row in game_ml.iterrows():
                             for side in ["home", "away"]:
+
                                 edge_pct = row.get(f"{side}_edge_pct")
                                 prob = row.get(f"{side}_prob")
+                                american_odds = row.get(f"{side}_juiced_american_moneyline")
 
-                                if not valid_edge(edge_pct, ML_MIN_EDGE_PCT):
+                                if pd.isna(edge_pct) or pd.isna(prob) or pd.isna(american_odds):
                                     continue
-                                if pd.isna(prob) or prob < ML_MIN_PROB:
+
+                                # --- Tier 1: +200 to +225 ---
+                                if 200 <= american_odds <= 225:
+                                    if edge_pct >= 0.05 and prob >= 0.35:
+                                        pass
+                                    else:
+                                        continue
+
+                                # --- Tier 2: +1 to +199 ---
+                                elif 1 <= american_odds <= 199:
+                                    if edge_pct >= 0.05 and prob >= 0.38:
+                                        pass
+                                    else:
+                                        continue
+
+                                # --- Tier 3: Favorites (-1 to -999) ---
+                                elif -1 >= american_odds >= -999:
+                                    if edge_pct >= 0.04 and prob >= 0.55:
+                                        pass
+                                    else:
+                                        continue
+
+                                else:
                                     continue
 
                                 if edge_pct > best_edge:
@@ -146,7 +167,7 @@ def main():
                             ml_count += 1
 
                     # =====================
-                    # TOTAL (Highest Edge Side)
+                    # TOTAL (UNCHANGED)
                     # =====================
                     if total_df is not None:
                         game_total = total_df[total_df["game_id"] == game_id]
