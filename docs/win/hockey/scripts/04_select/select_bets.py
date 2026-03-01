@@ -106,7 +106,7 @@ def main():
                     # =====================
                     # MONEYLINE CHECK
                     # =====================
-                    if puck_selected is None and ml_df is not None:
+                    if ml_df is not None:
                         game_ml = ml_df[ml_df["game_id"] == game_id]
 
                         for _, row in game_ml.iterrows():
@@ -164,11 +164,12 @@ def main():
                                 break
 
                     # =====================
-                    # APPEND RESULTS
+                    # APPEND RESULTS (Independent)
                     # =====================
                     if puck_selected:
                         final_rows.append(puck_selected)
-                    elif ml_selected:
+
+                    if ml_selected:
                         final_rows.append(ml_selected)
 
                     if total_selected:
