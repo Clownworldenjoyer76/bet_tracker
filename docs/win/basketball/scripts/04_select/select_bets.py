@@ -20,7 +20,7 @@ MIN_EDGE_PCT = 0.02
 MIN_TOTAL_EDGE_DECIMAL = 0.12
 MIN_TOTAL_EDGE_PCT = 0.06
 
-# NEW: totals odds gate (-150 or better)
+# Totals odds gate (-150 or better)
 MIN_TOTAL_ODDS = -150
 
 
@@ -132,7 +132,7 @@ def main():
                                     "take_bet": f"{side}_spread",
                                     "take_odds": row.get(f"{side}_spread_juice_odds"),
                                     "take_team": row.get(f"{side}_team"),
-                                    "value": row.get("away_spread"),
+                                    "value": row.get(f"{side}_spread"),  # ✅ FIXED
                                     "take_bet_edge_decimal": edge_dec,
                                     "take_bet_edge_pct": edge_pct,
                                 })
