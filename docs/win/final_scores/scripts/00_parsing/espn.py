@@ -186,13 +186,13 @@ def parse_games(lines, game_date, market):
         away_puck_line = ""
         home_puck_line = ""
 
+        margin = home_score - away_score
+
         if is_basketball:
-            margin = home_score - away_score
             away_spread = str(margin)
             home_spread = str(-margin)
 
         if is_hockey:
-            margin = home_score - away_score
             away_puck_line = str(margin)
             home_puck_line = str(-margin)
 
