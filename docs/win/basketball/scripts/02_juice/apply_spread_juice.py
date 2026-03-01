@@ -11,7 +11,7 @@ OUTPUT_DIR = Path("docs/win/basketball/02_juice")
 
 # ✅ Corrected NBA config path
 NBA_CONFIG = Path("config/basketball/nba/nba_spreads_juice.csv")
-NCAAB_CONFIG = Path("config/basketball/ncaab/ncaab_spreads_juice.csv")
+NCAAB_CONFIG = Path("config/basketball/nba/ncaab/ncaab_spreads_juice.csv")
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
