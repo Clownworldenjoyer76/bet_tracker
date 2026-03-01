@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Picks (Sortable)</title>
+  <title>Picks (Full Game Data)</title>
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="css/terminal.css" />
 </head>
@@ -32,10 +32,8 @@
 
 <script>
 fetch("nav.html")
-  .then(res => res.text())
-  .then(data => {
-    document.getElementById("nav-placeholder").innerHTML = data;
-  });
+  .then(r=>r.text())
+  .then(d=>document.getElementById("nav-placeholder").innerHTML=d);
 
 const dateInput = document.getElementById("p-date");
 const leagueSelect = document.getElementById("league-filter");
@@ -89,11 +87,19 @@ async function loadPage() {
       bookFile = `win/hockey/00_intake/sportsbook/hockey_${date}.csv`;
     }
 
-    const selectData = await fetchMultiple(selectFiles, "csv");
-    const predictions = await fetchSingle(predFile, "tsv");
-    const sportsbook = await fetchSingle(bookFile, "csv");
+    const selectRows = await fetchMultiple(selectFiles, "csv");
+    const predRows = await fetchSingle(predFile, "tsv");
+    const bookRows = await fetchSingle(bookFile, "csv");
 
-    const merged = mergeData(selectData, predictions, sportsbook);
+    // Build lookup maps by game_id
+    const predMap = buildPredictionMap(predRows);
+    const bookMap = buildSportsbookMap(bookRows);
+
+    const merged = selectRows.map(sel => {
+      const pred = predMap[sel.game_id] || {};
+      const book = bookMap[sel.game_id] || {};
+      return { ...sel, ...pred, ...book };
+    });
 
     merged.sort((a,b)=>
       parseFloat(b.take_bet_edge_pct||0) -
@@ -142,22 +148,27 @@ function parse(text, type) {
   });
 }
 
-function mergeData(selectRows, predRows, bookRows) {
-
-  return selectRows.map(sel => {
-
-    const pred = predRows.find(p =>
-      p.home_team === sel.home_team ||
-      p.away_team === sel.away_team
-    );
-
-    const book = bookRows.find(b =>
-      b.home_team === sel.home_team ||
-      b.away_team === sel.away_team
-    );
-
-    return { ...sel, ...pred, ...book };
+function buildPredictionMap(rows) {
+  let map = {};
+  rows.forEach(r => {
+    const id = buildGameId(r);
+    map[id] = r;
   });
+  return map;
+}
+
+function buildSportsbookMap(rows) {
+  let map = {};
+  rows.forEach(r => {
+    const id = buildGameId(r);
+    map[id] = r;
+  });
+  return map;
+}
+
+function buildGameId(r) {
+  if (r.game_id) return r.game_id;
+  return `${r.game_date}_${r.away_team}_${r.home_team}`;
 }
 
 function renderGames(rows) {
@@ -182,8 +193,8 @@ function renderGames(rows) {
       <div class="game-odds">Odds: ${r.take_odds || "-"}</div>
       <div class="game-edge">Edge: ${edge}</div>
       <div class="game-proj">
-        Proj: ${r.away_projected_points || r.away_projected_goals || "-"}
-        -
+        Proj: 
+        ${r.away_projected_points || r.away_projected_goals || "-"} -
         ${r.home_projected_points || r.home_projected_goals || "-"}
       </div>
       <div class="game-book">
