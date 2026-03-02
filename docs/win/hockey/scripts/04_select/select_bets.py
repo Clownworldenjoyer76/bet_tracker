@@ -17,6 +17,9 @@ ERROR_DIR.mkdir(parents=True, exist_ok=True)
 TOTAL_MIN_EDGE_PCT = 0.03
 TOTAL_MIN_PROB = 0.45
 
+# ✅ NEW: puck line minimum edge threshold
+PUCKLINE_MIN_EDGE_PCT = 0.01
+
 LEAGUE_CODE = "NHL"
 
 REQUIRED_GAME_COLS = ["game_date", "away_team", "home_team"]
@@ -131,9 +134,11 @@ def main():
                                 puck_line = row.get(f"{side}_puck_line")
                                 edge_pct = row.get(f"{side}_edge_pct")
 
-                                if pd.isna(puck_line) or puck_line <= 0:
+                                # ✅ REMOVED: puck_line must be > 0 restriction
+                                # ✅ NEW: keep only puck lines with edge_pct >= 0.01
+                                if pd.isna(puck_line):
                                     continue
-                                if pd.isna(edge_pct) or edge_pct <= 0:
+                                if not valid_edge(edge_pct, PUCKLINE_MIN_EDGE_PCT):
                                     continue
 
                                 if edge_pct > best_edge:
