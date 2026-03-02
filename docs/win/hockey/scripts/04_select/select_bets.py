@@ -34,12 +34,11 @@ def parse_game_id(game_id: str):
 
     parts = game_id.split("_")
     if len(parts) < 5:
-        # Not enough parts to reliably parse
         return "", "", ""
 
     game_date = "_".join(parts[0:3])
     away_team = parts[3]
-    home_team = "_".join(parts[4:])  # safer in case home team contains underscores someday
+    home_team = "_".join(parts[4:])
 
     return game_date, away_team, home_team
 
@@ -121,6 +120,7 @@ def main():
                         if best_row:
                             row, side = best_row
                             line_val = row.get(f"{side}_puck_line")
+                            selection_team = row.get(f"{side}_team")
 
                             final_rows.append({
                                 # join keys / normalization
@@ -132,13 +132,16 @@ def main():
                                 "bet_side": side,
                                 "line": line_val,
 
+                                # Option A: selection label in take_team + keep actual team separately
+                                "selection_team": selection_team,
+
                                 # existing output fields (kept)
                                 "game_id": game_id,
                                 "take_bet": f"{side}_puck_line",
                                 "take_bet_prob": row.get(f"{side}_juiced_prob_puck_line"),
                                 "take_bet_edge_decimal": row.get(f"{side}_edge_decimal"),
                                 "take_bet_edge_pct": row.get(f"{side}_edge_pct"),
-                                "take_team": row.get(f"{side}_team"),
+                                "take_team": side,  # ✅ label only (home/away)
                                 # ✅ sportsbook odds (NOT juiced)
                                 "take_odds": row.get(f"{side}_dk_puck_line_american"),
                                 "value": line_val,
@@ -158,7 +161,6 @@ def main():
 
                                 edge_pct = row.get(f"{side}_edge_pct")
                                 prob = row.get(f"{side}_prob")
-                                # ✅ use sportsbook odds for tier logic
                                 american_odds = row.get(f"{side}_dk_moneyline_american")
 
                                 if pd.isna(edge_pct) or pd.isna(prob) or pd.isna(american_odds):
@@ -166,23 +168,17 @@ def main():
 
                                 # --- Tier 1: +200 to +225 ---
                                 if 200 <= american_odds <= 225:
-                                    if edge_pct >= 0.05 and prob >= 0.35:
-                                        pass
-                                    else:
+                                    if not (edge_pct >= 0.05 and prob >= 0.35):
                                         continue
 
                                 # --- Tier 2: +1 to +199 ---
                                 elif 1 <= american_odds <= 199:
-                                    if edge_pct >= 0.05 and prob >= 0.38:
-                                        pass
-                                    else:
+                                    if not (edge_pct >= 0.05 and prob >= 0.38):
                                         continue
 
                                 # --- Tier 3: Favorites (-1 to -999) ---
                                 elif -1 >= american_odds >= -999:
-                                    if edge_pct >= 0.04 and prob >= 0.55:
-                                        pass
-                                    else:
+                                    if not (edge_pct >= 0.04 and prob >= 0.55):
                                         continue
 
                                 else:
@@ -194,6 +190,7 @@ def main():
 
                         if best_row:
                             row, side = best_row
+                            selection_team = row.get(f"{side}_team")
 
                             final_rows.append({
                                 # join keys / normalization
@@ -205,14 +202,16 @@ def main():
                                 "bet_side": side,
                                 "line": "",
 
+                                # Option A: selection label in take_team + keep actual team separately
+                                "selection_team": selection_team,
+
                                 # existing output fields (kept)
                                 "game_id": game_id,
                                 "take_bet": f"{side}_moneyline",
                                 "take_bet_prob": row.get(f"{side}_prob"),
                                 "take_bet_edge_decimal": row.get(f"{side}_edge_decimal"),
                                 "take_bet_edge_pct": row.get(f"{side}_edge_pct"),
-                                "take_team": row.get(f"{side}_team"),
-                                # ✅ sportsbook odds (NOT juiced)
+                                "take_team": side,  # ✅ label only (home/away)
                                 "take_odds": row.get(f"{side}_dk_moneyline_american"),
                                 "value": row.get(f"{side}_prob"),
                             })
@@ -254,14 +253,16 @@ def main():
                                 "bet_side": side,
                                 "line": line_val,
 
+                                # totals don't have a team selection
+                                "selection_team": "",
+
                                 # existing output fields (kept)
                                 "game_id": game_id,
                                 "take_bet": f"{side}_total",
                                 "take_bet_prob": row.get(f"juiced_total_{side}_prob"),
                                 "take_bet_edge_decimal": row.get(f"{side}_edge_decimal"),
                                 "take_bet_edge_pct": row.get(f"{side}_edge_pct"),
-                                "take_team": side,
-                                # ✅ sportsbook odds (NOT juiced)
+                                "take_team": side,  # ✅ label only (over/under)
                                 "take_odds": row.get(f"dk_total_{side}_american"),
                                 "value": line_val,
                             })
