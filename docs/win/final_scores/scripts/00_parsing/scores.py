@@ -29,17 +29,13 @@ HEADERS = [
 ]
 
 
-# =========================
-# HELPERS
-# =========================
-
 def normalize_market(market: str) -> str:
     m = (market or "").strip().upper()
     if m in {"NBA", "NCAAB", "NCAAM"}:
         return "NCAAB" if m in {"NCAAB", "NCAAM"} else "NBA"
     if m == "NHL":
         return "NHL"
-    raise ValueError("market must be one of: NBA, NCAAB, NHL")
+    raise ValueError("market must be NBA, NCAAB, or NHL")
 
 
 def league_from_market(market: str) -> str:
@@ -47,11 +43,8 @@ def league_from_market(market: str) -> str:
 
 
 def is_date_line(s: str) -> bool:
-    s = s.strip()
-    if len(s) != 10:
-        return False
     try:
-        datetime.strptime(s, "%m/%d/%Y")
+        datetime.strptime(s.strip(), "%m/%d/%Y")
         return True
     except:
         return False
@@ -66,15 +59,6 @@ def first_field(line: str) -> str:
     return line.split("\t")[0].strip()
 
 
-def first_field_is_int(line: str) -> bool:
-    f = first_field(line)
-    return f.isdigit()
-
-
-# =========================
-# CORE PARSER
-# =========================
-
 def parse_games(lines, market):
     rows = []
     i = 0
@@ -83,76 +67,83 @@ def parse_games(lines, market):
 
         line = lines[i].strip()
 
-        # New game block starts at date
-        if is_date_line(line):
-
-            game_date = to_output_date(line)
-
-            # Next line = time + away
+        # 1. DATE LINE
+        if not is_date_line(line):
             i += 1
-            if i >= len(lines):
-                break
+            continue
 
-            away_line = lines[i]
-            away_team = away_line.split("\t")[1].strip()
+        game_date = to_output_date(line)
 
-            # Next line = home
+        # 2. TIME + AWAY TEAM
+        i += 1
+        if i >= len(lines):
+            break
+
+        away_line = lines[i]
+        parts = away_line.split("\t")
+        if len(parts) < 2:
             i += 1
-            if i >= len(lines):
-                break
+            continue
 
-            home_line = lines[i]
-            home_team = first_field(home_line)
+        away_team = parts[1].strip()
 
-            # Move forward until we hit away_score
+        # 3. HOME TEAM
+        i += 1
+        if i >= len(lines):
+            break
+
+        home_line = lines[i]
+        home_team = first_field(home_line)
+
+        # 4. FIND AWAY SCORE
+        i += 1
+        while i < len(lines) and not first_field(lines[i]).isdigit():
             i += 1
-            while i < len(lines) and not first_field_is_int(lines[i]):
-                i += 1
+        if i >= len(lines):
+            break
 
-            if i >= len(lines):
-                break
+        away_score = int(first_field(lines[i]))
 
-            away_score = int(first_field(lines[i]))
-
-            # Next line must contain home_score
+        # 5. HOME SCORE (next numeric line)
+        i += 1
+        while i < len(lines) and not first_field(lines[i]).isdigit():
             i += 1
-            if i >= len(lines):
-                break
+        if i >= len(lines):
+            break
 
-            home_score = int(first_field(lines[i]))
+        home_score = int(first_field(lines[i]))
 
-            total = away_score + home_score
+        total = away_score + home_score
 
-            away_spread = ""
-            home_spread = ""
-            away_puck_line = ""
-            home_puck_line = ""
+        away_spread = ""
+        home_spread = ""
+        away_puck_line = ""
+        home_puck_line = ""
 
-            if market in {"NBA", "NCAAB"}:
-                away_spread = str(away_score - home_score)
-                home_spread = str(home_score - away_score)
+        if market in {"NBA", "NCAAB"}:
+            away_spread = str(away_score - home_score)
+            home_spread = str(home_score - away_score)
 
-            if market == "NHL":
-                away_puck_line = str(away_score - home_score)
-                home_puck_line = str(home_score - away_score)
+        if market == "NHL":
+            away_puck_line = str(away_score - home_score)
+            home_puck_line = str(home_score - away_score)
 
-            rows.append({
-                "game_date": game_date,
-                "league": league_from_market(market),
-                "market": market,
-                "away_team": away_team,
-                "home_team": home_team,
-                "away_score": str(away_score),
-                "home_score": str(home_score),
-                "total": str(total),
-                "away_spread": away_spread,
-                "home_spread": home_spread,
-                "away_puck_line": away_puck_line,
-                "home_puck_line": home_puck_line,
-            })
+        rows.append({
+            "game_date": game_date,
+            "league": league_from_market(market),
+            "market": market,
+            "away_team": away_team,
+            "home_team": home_team,
+            "away_score": str(away_score),
+            "home_score": str(home_score),
+            "total": str(total),
+            "away_spread": away_spread,
+            "home_spread": home_spread,
+            "away_puck_line": away_puck_line,
+            "home_puck_line": home_puck_line,
+        })
 
-        else:
-            i += 1
+        i += 1
 
     if not rows:
         raise ValueError("No games parsed from input.")
@@ -160,20 +151,12 @@ def parse_games(lines, market):
     return rows
 
 
-# =========================
-# CSV WRITER
-# =========================
-
 def write_csv(path, rows):
     with path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=HEADERS)
         writer.writeheader()
         writer.writerows(rows)
 
-
-# =========================
-# MAIN
-# =========================
 
 def main():
     if len(sys.argv) != 3:
