@@ -122,8 +122,8 @@ def parse_games(lines, market):
             home_spread = str(away_score - home_score)
 
         if market == "NHL":
-            away_puck_line = str(home_score - away_score)
-            home_puck_line = str(away_score - home_score)
+            away_puck_line = str(away_score - home_score)
+            home_puck_line = str(home_score - away_score)
 
         rows.append({
             "game_date": game_date,
