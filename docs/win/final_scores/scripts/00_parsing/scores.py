@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# docs/win/final_scores/scripts/00_parsing/espn.py
+# docs/win/final_scores/scripts/00_parsing/scores.py
 
 import sys
 import re
