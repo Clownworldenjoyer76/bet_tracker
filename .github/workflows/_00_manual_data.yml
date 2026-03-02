@@ -87,11 +87,9 @@ jobs:
 
           BASE="docs/win/final_scores/scripts/00_parsing"
 
-          # ESPN only
-          python "$BASE/espn.py" "${{ github.event.inputs.market }}" dump.txt
-
+          python "$BASE/scores.py" "${{ github.event.inputs.market }}" dump.txt
           python "$BASE/dedupe.py"
-          
+
       - name: Commit Basketball
         if: ${{ github.event.inputs.league == 'basketball' }}
         run: |
