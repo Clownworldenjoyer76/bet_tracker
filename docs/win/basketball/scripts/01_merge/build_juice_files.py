@@ -89,6 +89,10 @@ def main():
             if df.empty:
                 continue
 
+            # FIX: ensure probabilities are numeric
+            df["home_prob"] = pd.to_numeric(df["home_prob"], errors="coerce")
+            df["away_prob"] = pd.to_numeric(df["away_prob"], errors="coerce")
+
             game_date = df["game_date"].iloc[0]
             market = df["market"].iloc[0]
 
