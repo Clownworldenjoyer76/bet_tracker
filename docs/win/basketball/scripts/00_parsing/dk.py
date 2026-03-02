@@ -45,6 +45,7 @@ league_out = "Basketball"
 market_map = {
     "NBA": "NBA",
     "NCAA Men": "NCAAB",
+    "NCAAB": "NCAAB",
 }
 market_out = market_map.get(market_input)
 if not market_out:
