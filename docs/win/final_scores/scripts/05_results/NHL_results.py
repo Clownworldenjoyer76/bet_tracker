@@ -1,68 +1,60 @@
 import pandas as pd
 import os
+import glob
+import re
 
-def check_nhl_bets(date_str):
-    # Construct Paths
-    scores_path = f"docs/win/final_scores/{date_str}_final_scores_NHL.csv"
-    bets_path = f"docs/win/hockey/04_select/{date_str}_NHL.csv"
+def process_all_nhl_results():
+    scores_dir = "docs/win/final_scores"
+    bets_dir = "docs/win/hockey/04_select"
     output_dir = "docs/win/final_scores/results"
-    output_path = f"{output_dir}/{date_str}_results_NHL.csv"
-
-    # Create output directory
+    
     os.makedirs(output_dir, exist_ok=True)
 
-    # Load data
-    try:
-        scores = pd.read_csv(scores_path)
-        bets = pd.read_csv(bets_path)
-    except FileNotFoundError as e:
-        return f"Error: File not found. {e}"
-
-    # Merge bets and scores
-    df = pd.merge(bets, scores, on=['away_team', 'home_team', 'game_date'], suffixes=('', '_scorefile'))
-
-    def determine_outcome(row):
-        m_type = row['market_type']
-        side = row['bet_side']
-        line = row['line']
-        away, home = row['away_score'], row['home_score']
-        total = away + home
-
-        # Total Logic
-        if m_type == 'total':
-            if side == 'under':
-                return 'Win' if total < line else ('Push' if total == line else 'Loss')
-            return 'Win' if total > line else ('Push' if total == line else 'Loss')
-
-        # Moneyline Logic
-        if m_type == 'moneyline':
-            if side == 'away':
-                return 'Win' if away > home else 'Loss'
-            return 'Win' if home > away else 'Loss'
-
-        # Spread / Puck Line Logic
-        if m_type in ['spread', 'puck_line']:
-            if side == 'away':
-                diff = (away + line) - home
-                return 'Win' if diff > 0 else ('Push' if diff == 0 else 'Loss')
-            diff = (home + line) - away
-            return 'Win' if diff > 0 else ('Push' if diff == 0 else 'Loss')
-
-        return 'Unknown'
-
-    # Apply calculation
-    df['bet_result'] = df.apply(determine_outcome, axis=1)
-
-    # Final Output selection
-    output_cols = [
-        'game_date', 'away_team', 'home_team', 'market_type', 'bet_side', 
-        'line', 'away_score', 'home_score', 'bet_result'
-    ]
-    results_df = df[output_cols]
+    # Get all bet files from the directory
+    bet_files = glob.glob(os.path.join(bets_dir, "*_NHL.csv"))
     
-    # Save to file
-    results_df.to_csv(output_path, index=False)
-    return f"Success: Saved to {output_path}"
+    for bet_file in bet_files:
+        # Extract date from filename (e.g., 2026_03_01)
+        filename = os.path.basename(bet_file)
+        date_match = re.search(r"(\d{4}_\d{2}_\d{2})", filename)
+        
+        if not date_match:
+            continue
+            
+        date_str = date_match.group(1)
+        score_file = os.path.join(scores_dir, f"{date_str}_final_scores_NHL.csv")
+        output_path = os.path.join(output_dir, f"{date_str}_results_NHL.csv")
 
-# Example usage for the provided date
-print(check_nhl_bets("2026_03_01"))
+        # Skip if scores aren't available yet
+        if not os.path.exists(score_file):
+            print(f"Skipping {date_str}: Score file not found.")
+            continue
+
+        # Load and process
+        bets_df = pd.read_csv(bet_file)
+        scores_df = pd.read_csv(score_file)
+        df = pd.merge(bets_df, scores_df, on=['away_team', 'home_team', 'game_date'], suffixes=('', '_scorefile'))
+
+        def determine_outcome(row):
+            m_type, side, line = row['market_type'], row['bet_side'], row['line']
+            away, home = row['away_score'], row['home_score']
+            total = away + home
+
+            if m_type == 'total':
+                return 'Win' if (total < line if side == 'under' else total > line) else ('Push' if total == line else 'Loss')
+            if m_type == 'moneyline':
+                return 'Win' if (away > home if side == 'away' else home > away) else 'Loss'
+            if m_type in ['spread', 'puck_line']:
+                diff = (away + line) - home if side == 'away' else (home + line) - away
+                return 'Win' if diff > 0 else ('Push' if diff == 0 else 'Loss')
+            return 'Unknown'
+
+        df['bet_result'] = df.apply(determine_outcome, axis=1)
+        
+        # Save output
+        output_cols = ['game_date', 'away_team', 'home_team', 'market_type', 'bet_side', 'line', 'away_score', 'home_score', 'bet_result']
+        df[output_cols].to_csv(output_path, index=False)
+        print(f"Processed: {date_str}")
+
+if __name__ == "__main__":
+    process_all_nhl_results()
