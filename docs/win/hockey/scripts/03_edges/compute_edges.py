@@ -35,11 +35,6 @@ def decimal_to_american(series: pd.Series) -> pd.Series:
 
 
 def safe_edge_decimal(dk_decimal: pd.Series, fair_decimal: pd.Series) -> pd.Series:
-    """
-    Returns expected value (EV) per $1 staked using market decimal price and fair probability:
-      EV = p_fair * dk_decimal - 1
-    Positive => +EV.
-    """
     dk_num = pd.to_numeric(dk_decimal, errors="coerce")
     fair_num = pd.to_numeric(fair_decimal, errors="coerce")
 
@@ -52,11 +47,6 @@ def safe_edge_decimal(dk_decimal: pd.Series, fair_decimal: pd.Series) -> pd.Seri
 
 
 def safe_edge_pct(dk_decimal: pd.Series, fair_decimal: pd.Series) -> pd.Series:
-    """
-    Returns probability edge:
-      edge_pct = p_fair - p_market
-    Positive => fair probability higher than implied market probability.
-    """
     dk_num = pd.to_numeric(dk_decimal, errors="coerce")
     fair_num = pd.to_numeric(fair_decimal, errors="coerce")
 
@@ -68,16 +58,6 @@ def safe_edge_pct(dk_decimal: pd.Series, fair_decimal: pd.Series) -> pd.Series:
 
     edge = (p_fair - p_market).where(dk_ok & fair_ok)
     return edge
-
-
-def upsert_dedup_by_game_id(new_df: pd.DataFrame, output_path: Path) -> pd.DataFrame:
-    if output_path.exists():
-        existing = pd.read_csv(output_path)
-        combined = pd.concat([existing, new_df], ignore_index=True)
-        if "game_id" in combined.columns:
-            combined = combined.drop_duplicates(subset=["game_id"], keep="last")
-        return combined
-    return new_df
 
 
 def atomic_write_csv(df: pd.DataFrame, output_path: Path) -> None:
@@ -119,7 +99,6 @@ def compute_moneyline_edges(df: pd.DataFrame) -> pd.DataFrame:
     )
     df["away_play"] = df["away_edge_decimal"] > 0
 
-    df = df.drop_duplicates(subset=["game_id"], keep="last")
     return df
 
 
@@ -156,7 +135,6 @@ def compute_puck_line_edges(df: pd.DataFrame) -> pd.DataFrame:
     )
     df["away_play"] = df["away_edge_decimal"] > 0
 
-    df = df.drop_duplicates(subset=["game_id"], keep="last")
     return df
 
 
@@ -193,7 +171,6 @@ def compute_total_edges(df: pd.DataFrame) -> pd.DataFrame:
     )
     df["under_play"] = df["under_edge_decimal"] > 0
 
-    df = df.drop_duplicates(subset=["game_id"], keep="last")
     return df
 
 
@@ -208,10 +185,9 @@ def process_pattern(log, pattern: str, compute_fn, label: str, summary: dict) ->
         out_df = compute_fn(df)
 
         output_path = OUTPUT_DIR / input_path.name
-        final_df = upsert_dedup_by_game_id(out_df, output_path)
-        atomic_write_csv(final_df, output_path)
+        atomic_write_csv(out_df, output_path)
 
-        log.write(f"Wrote {output_path} | rows={len(final_df)}\n")
+        log.write(f"Wrote {output_path} | rows={len(out_df)}\n")
         summary["files_processed"] += 1
         summary["rows_processed"] += len(out_df)
         summary[f"{label}_files"] += 1
@@ -237,7 +213,7 @@ def main() -> None:
 
             log.write("\n=== SUMMARY ===\n")
             log.write(f"Files processed: {summary['files_processed']}\n")
-            log.write(f"Rows processed (this run, pre-upsert): {summary['rows_processed']}\n")
+            log.write(f"Rows processed: {summary['rows_processed']}\n")
             log.write(f"Moneyline files: {summary['moneyline_files']}\n")
             log.write(f"Puck line files: {summary['puck_line_files']}\n")
             log.write(f"Total files: {summary['total_files']}\n")
