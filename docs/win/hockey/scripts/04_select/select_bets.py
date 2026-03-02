@@ -120,10 +120,9 @@ def main():
                         if best_row:
                             row, side = best_row
                             line_val = row.get(f"{side}_puck_line")
-                            selection_team = row.get(f"{side}_team")
 
                             final_rows.append({
-                                # join keys / normalization
+                                # normalization / join keys
                                 "game_date": game_date,
                                 "league": LEAGUE_CODE,
                                 "away_team": away_team,
@@ -132,16 +131,16 @@ def main():
                                 "bet_side": side,
                                 "line": line_val,
 
-                                # Option A: selection label in take_team + keep actual team separately
-                                "selection_team": selection_team,
-
                                 # existing output fields (kept)
                                 "game_id": game_id,
                                 "take_bet": f"{side}_puck_line",
                                 "take_bet_prob": row.get(f"{side}_juiced_prob_puck_line"),
                                 "take_bet_edge_decimal": row.get(f"{side}_edge_decimal"),
                                 "take_bet_edge_pct": row.get(f"{side}_edge_pct"),
-                                "take_team": side,  # ✅ label only (home/away)
+
+                                # ✅ Option A: label only
+                                "take_team": side,
+
                                 # ✅ sportsbook odds (NOT juiced)
                                 "take_odds": row.get(f"{side}_dk_puck_line_american"),
                                 "value": line_val,
@@ -190,10 +189,9 @@ def main():
 
                         if best_row:
                             row, side = best_row
-                            selection_team = row.get(f"{side}_team")
 
                             final_rows.append({
-                                # join keys / normalization
+                                # normalization / join keys
                                 "game_date": game_date,
                                 "league": LEAGUE_CODE,
                                 "away_team": away_team,
@@ -202,16 +200,17 @@ def main():
                                 "bet_side": side,
                                 "line": "",
 
-                                # Option A: selection label in take_team + keep actual team separately
-                                "selection_team": selection_team,
-
                                 # existing output fields (kept)
                                 "game_id": game_id,
                                 "take_bet": f"{side}_moneyline",
                                 "take_bet_prob": row.get(f"{side}_prob"),
                                 "take_bet_edge_decimal": row.get(f"{side}_edge_decimal"),
                                 "take_bet_edge_pct": row.get(f"{side}_edge_pct"),
-                                "take_team": side,  # ✅ label only (home/away)
+
+                                # ✅ Option A: label only
+                                "take_team": side,
+
+                                # ✅ sportsbook odds (NOT juiced)
                                 "take_odds": row.get(f"{side}_dk_moneyline_american"),
                                 "value": row.get(f"{side}_prob"),
                             })
@@ -244,7 +243,7 @@ def main():
                             line_val = row.get("total")
 
                             final_rows.append({
-                                # join keys / normalization
+                                # normalization / join keys
                                 "game_date": game_date,
                                 "league": LEAGUE_CODE,
                                 "away_team": away_team,
@@ -253,16 +252,17 @@ def main():
                                 "bet_side": side,
                                 "line": line_val,
 
-                                # totals don't have a team selection
-                                "selection_team": "",
-
                                 # existing output fields (kept)
                                 "game_id": game_id,
                                 "take_bet": f"{side}_total",
                                 "take_bet_prob": row.get(f"juiced_total_{side}_prob"),
                                 "take_bet_edge_decimal": row.get(f"{side}_edge_decimal"),
                                 "take_bet_edge_pct": row.get(f"{side}_edge_pct"),
-                                "take_team": side,  # ✅ label only (over/under)
+
+                                # ✅ Option A: label only
+                                "take_team": side,
+
+                                # ✅ sportsbook odds (NOT juiced)
                                 "take_odds": row.get(f"dk_total_{side}_american"),
                                 "value": line_val,
                             })
