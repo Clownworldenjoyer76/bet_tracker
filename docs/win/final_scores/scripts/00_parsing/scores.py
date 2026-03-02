@@ -53,7 +53,6 @@ def league_from_market(market: str) -> str:
 
 DATE_REGEX = re.compile(r"^\d{2}/\d{2}/\d{4}$")
 TIME_REGEX = re.compile(r"^\d{2}:\d{2}\s*(AM|PM)$")
-INTEGER_REGEX = re.compile(r"^\d+$")
 
 
 def is_date_line(s: str) -> bool:
@@ -61,10 +60,6 @@ def is_date_line(s: str) -> bool:
 
 
 def is_time_prefix_line(s: str) -> bool:
-    """
-    Detect lines like:
-    07:00 PM    Buffalo Bulls
-    """
     parts = s.split("\t")
     if not parts:
         return False
@@ -80,7 +75,6 @@ def extract_away_team(line: str) -> str:
     parts = line.split("\t")
     if len(parts) > 1:
         return parts[1].strip()
-    # fallback remove time if no tab
     return re.sub(r"^\d{2}:\d{2}\s*(AM|PM)\s*", "", line).strip()
 
 
@@ -88,8 +82,15 @@ def extract_home_team(line: str) -> str:
     return line.split("\t")[0].strip()
 
 
-def is_integer_line(s: str) -> bool:
-    return bool(INTEGER_REGEX.match(s.strip()))
+def first_field_is_integer(line: str) -> bool:
+    if not line.strip():
+        return False
+    first = line.split("\t")[0].strip()
+    return first.isdigit()
+
+
+def extract_first_integer(line: str) -> int:
+    return int(line.split("\t")[0].strip())
 
 
 # =========================
@@ -99,28 +100,26 @@ def is_integer_line(s: str) -> bool:
 def parse_games(lines, market):
     rows = []
     i = 0
-    current_date = None
 
     while i < len(lines):
         line = lines[i].strip()
 
-        # Detect new game block by date
+        # Start of new game block
         if is_date_line(line):
-            current_date = parse_date_to_output_format(line)
+            game_date = parse_date_to_output_format(line)
 
-            # Expect next line = time + away team
+            # Next line: time + away team
             i += 1
             if i >= len(lines):
                 break
 
             away_line = lines[i].strip()
             if not is_time_prefix_line(away_line):
-                i += 1
                 continue
 
             away_team = extract_away_team(away_line)
 
-            # Next line = home team
+            # Next line: home team
             i += 1
             if i >= len(lines):
                 break
@@ -128,14 +127,14 @@ def parse_games(lines, market):
             home_line = lines[i].strip()
             home_team = extract_home_team(home_line)
 
-            # Now scan forward for first two pure integer lines (scores)
+            # Find away_score and home_score
             scores = []
             j = i + 1
 
             while j < len(lines) and len(scores) < 2:
                 candidate = lines[j].strip()
-                if is_integer_line(candidate):
-                    scores.append(int(candidate))
+                if first_field_is_integer(candidate):
+                    scores.append(extract_first_integer(candidate))
                 j += 1
 
             if len(scores) != 2:
@@ -161,7 +160,7 @@ def parse_games(lines, market):
                 home_puck_line = str(home_score - away_score)
 
             rows.append({
-                "game_date": current_date,
+                "game_date": game_date,
                 "league": league_from_market(market),
                 "market": market,
                 "away_team": away_team,
