@@ -1,0 +1,42 @@
+name: _05_Run NHL Results Script
+
+on:
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Date to process (format: YYYY_MM_DD)'
+        required: true
+        default: '2026_03_01'
+
+jobs:
+  update-results:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Allows the action to write to your repo
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Pandas
+        run: pip install pandas
+
+      - name: Run Script
+        run: |
+          python -c "
+          from your_script_filename import check_nhl_bets
+          check_nhl_bets('${{ github.event.inputs.date }}')
+          "
+
+      - name: Commit and Push Results
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add docs/win/final_scores/results/*.csv
+          git commit -m "Auto-update: NHL results for ${{ github.event.inputs.date }}" || echo "No changes to commit"
+          git push
