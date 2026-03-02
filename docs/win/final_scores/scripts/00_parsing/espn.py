@@ -93,7 +93,7 @@ def next_non_empty(lines, start_idx):
     i = start_idx
     while i < len(lines):
         s = lines[i].strip()
-        if s:
+        if s and not s.isdigit():  # skip ranking-only lines
             return i, s
         i += 1
     return len(lines), ""
@@ -103,7 +103,7 @@ def prev_non_empty(lines, start_idx):
     i = start_idx
     while i >= 0:
         s = lines[i].strip()
-        if s:
+        if s and not s.isdigit():  # skip ranking-only lines
             return i, s
         i -= 1
     return -1, ""
@@ -140,11 +140,9 @@ def map_scores(result_line, away_team, home_team, team_map):
     score_map = {abbr: int(score) for abbr, score in pairs}
     result_abbrevs = list(score_map.keys())
 
-    # Attempt direct lookup from map
     away_abbrev = team_map.get(away_team)
     home_abbrev = team_map.get(home_team)
 
-    # If ambiguous or mismatch (ex: NHL New York)
     if away_abbrev not in score_map or home_abbrev not in score_map:
         if len(result_abbrevs) >= 2:
             resolved_away = resolve_team_by_abbrev(result_abbrevs[0], team_map)
