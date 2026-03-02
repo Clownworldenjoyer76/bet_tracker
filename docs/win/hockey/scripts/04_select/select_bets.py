@@ -17,7 +17,7 @@ ERROR_DIR.mkdir(parents=True, exist_ok=True)
 TOTAL_MIN_EDGE_PCT = 0.03
 TOTAL_MIN_PROB = 0.45
 
-# ✅ NEW: puck line minimum edge threshold
+# ✅ puck line minimum edge threshold
 PUCKLINE_MIN_EDGE_PCT = 0.01
 
 LEAGUE_CODE = "NHL"
@@ -40,7 +40,6 @@ def assert_required_cols(df: pd.DataFrame, df_name: str, log) -> bool:
 
 
 def build_matchups(df: pd.DataFrame) -> pd.DataFrame:
-    # unique matchups by authoritative columns only
     return df[REQUIRED_GAME_COLS].dropna().drop_duplicates()
 
 
@@ -51,7 +50,6 @@ def main():
         log.write(f"Timestamp: {datetime.utcnow().isoformat()}Z\n\n")
 
         try:
-
             moneyline_files = sorted(INPUT_DIR.glob("*_NHL_moneyline.csv"))
             puckline_files = sorted(INPUT_DIR.glob("*_NHL_puck_line.csv"))
             total_files = sorted(INPUT_DIR.glob("*_NHL_total.csv"))
@@ -68,9 +66,7 @@ def main():
                 slates.setdefault(slate_key, []).append(f)
 
             for slate_key in slates.keys():
-
                 final_rows = []
-
                 ml_count = 0
                 puck_count = 0
                 total_count = 0
@@ -83,7 +79,6 @@ def main():
                 pl_df = pd.read_csv(pl_path) if pl_path.exists() else None
                 total_df = pd.read_csv(total_path) if total_path.exists() else None
 
-                # Hard requirement: no parsing from game_id. If inputs lack columns, skip slate.
                 ok = True
                 ok = ok and assert_required_cols(ml_df, ml_path.name, log)
                 ok = ok and assert_required_cols(pl_df, pl_path.name, log)
@@ -93,7 +88,6 @@ def main():
                     log.write(f"Skipping slate {slate_key} due to missing required columns.\n\n")
                     continue
 
-                # Build canonical matchup list from authoritative columns
                 matchup_frames = []
                 if ml_df is not None and not ml_df.empty:
                     matchup_frames.append(build_matchups(ml_df))
@@ -134,10 +128,13 @@ def main():
                                 puck_line = row.get(f"{side}_puck_line")
                                 edge_pct = row.get(f"{side}_edge_pct")
 
-                                # ✅ REMOVED: puck_line must be > 0 restriction
-                                # ✅ NEW: keep only puck lines with edge_pct >= 0.01
                                 if pd.isna(puck_line):
                                     continue
+                                
+                                # ✅ NEW: filter out -1.5 puck line bets
+                                if float(puck_line) == -1.5:
+                                    continue
+
                                 if not valid_edge(edge_pct, PUCKLINE_MIN_EDGE_PCT):
                                     continue
 
@@ -157,13 +154,12 @@ def main():
                                 "market_type": "puck_line",
                                 "bet_side": side,
                                 "line": line_val,
-
                                 "game_id": row.get("game_id"),
                                 "take_bet": f"{side}_puck_line",
                                 "take_bet_prob": row.get(f"{side}_juiced_prob_puck_line"),
                                 "take_bet_edge_decimal": row.get(f"{side}_edge_decimal"),
                                 "take_bet_edge_pct": row.get(f"{side}_edge_pct"),
-                                "take_team": side,  # Option A label only
+                                "take_team": side,
                                 "take_odds": row.get(f"{side}_dk_puck_line_american"),
                                 "value": line_val,
                             })
@@ -209,7 +205,6 @@ def main():
 
                         if best_row:
                             row, side = best_row
-
                             final_rows.append({
                                 "game_date": game_date,
                                 "league": LEAGUE_CODE,
@@ -218,13 +213,12 @@ def main():
                                 "market_type": "moneyline",
                                 "bet_side": side,
                                 "line": "",
-
                                 "game_id": row.get("game_id"),
                                 "take_bet": f"{side}_moneyline",
                                 "take_bet_prob": row.get(f"{side}_prob"),
                                 "take_bet_edge_decimal": row.get(f"{side}_edge_decimal"),
                                 "take_bet_edge_pct": row.get(f"{side}_edge_pct"),
-                                "take_team": side,  # Option A label only
+                                "take_team": side,
                                 "take_odds": row.get(f"{side}_dk_moneyline_american"),
                                 "value": row.get(f"{side}_prob"),
                             })
@@ -269,13 +263,12 @@ def main():
                                 "market_type": "total",
                                 "bet_side": side,
                                 "line": line_val,
-
                                 "game_id": row.get("game_id"),
                                 "take_bet": f"{side}_total",
                                 "take_bet_prob": row.get(f"juiced_total_{side}_prob"),
                                 "take_bet_edge_decimal": row.get(f"{side}_edge_decimal"),
                                 "take_bet_edge_pct": row.get(f"{side}_edge_pct"),
-                                "take_team": side,  # Option A label only
+                                "take_team": side,
                                 "take_odds": row.get(f"dk_total_{side}_american"),
                                 "value": line_val,
                             })
@@ -285,8 +278,6 @@ def main():
 
                 if not out_df.empty:
                     out_df = out_df.sort_values(by="take_bet_edge_pct", ascending=False)
-
-                    # Final safety: prevent mirrored duplicates by matchup columns (no game_id parsing)
                     out_df = out_df.drop_duplicates(
                         subset=["game_date", "league", "away_team", "home_team", "market_type", "bet_side", "line"]
                     )
