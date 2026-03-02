@@ -38,19 +38,32 @@ jobs:
         run: |
           python docs/win/basketball/scripts/04_select/select_bets.py
 
+      # =========================
+      # RUN DK PUCK SCRIPT LAST
+      # =========================
+      - name: Run DK Puck Injection
+        run: |
+          python docs/win/final_scores/scripts/04_select/dk_puck.py
+
       - name: Commit and push results
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
 
+          # Soccer outputs
           git add docs/win/soccer/04_select/*.csv || true
           git add docs/win/soccer/errors/04_select/select_bets.txt || true
 
+          # Hockey outputs
           git add docs/win/hockey/04_select/*.csv || true
           git add docs/win/hockey/errors/04_select/select_bets.txt || true
 
+          # Basketball outputs
           git add docs/win/basketball/04_select/*.csv || true
           git add docs/win/basketball/errors/04_select/select_bets.txt || true
+
+          # Final score updates (from dk_puck.py)
+          git add docs/win/final_scores/*.csv || true
 
           if git diff --cached --quiet; then
             echo "No changes to commit"
