@@ -64,6 +64,10 @@ def main():
             if df.empty:
                 continue
 
+            # FIX: ensure probabilities are numeric
+            df["home_prob"] = pd.to_numeric(df["home_prob"], errors="coerce")
+            df["away_prob"] = pd.to_numeric(df["away_prob"], errors="coerce")
+
             game_date = df["game_date"].iloc[0]
             market = df["market"].iloc[0]
 
@@ -76,8 +80,8 @@ def main():
             ml_df["away_dk_decimal_moneyline"] = ml_df["away_dk_moneyline_american"].apply(american_to_decimal)
             ml_df["home_dk_decimal_moneyline"] = ml_df["home_dk_moneyline_american"].apply(american_to_decimal)
 
-            ml_df["away_fair_decimal_moneyline"] = ml_df["away_prob"].apply(lambda x: 1/x if x > 0 else "")
-            ml_df["home_fair_decimal_moneyline"] = ml_df["home_prob"].apply(lambda x: 1/x if x > 0 else "")
+            ml_df["away_fair_decimal_moneyline"] = ml_df["away_prob"].apply(lambda x: 1/x if pd.notna(x) and x > 0 else "")
+            ml_df["home_fair_decimal_moneyline"] = ml_df["home_prob"].apply(lambda x: 1/x if pd.notna(x) and x > 0 else "")
 
             ml_output = INPUT_DIR / f"{game_date}_{market}_moneyline.csv"
             ml_df.to_csv(ml_output, index=False)
@@ -117,7 +121,7 @@ def main():
             total_df.to_csv(total_output, index=False)
 
             # =========================
-            # PUCK LINE (CONSISTENT LAMBDAS - OPTION B)
+            # PUCK LINE
             # =========================
 
             pl_df = df.copy()
@@ -131,14 +135,13 @@ def main():
             for _, row in pl_df.iterrows():
 
                 mu = float(row["total_projected_goals"])
-                p_home_target = float(row["home_prob"])
+                p_home_target = row["home_prob"]
 
-                if mu <= 0 or p_home_target <= 0 or p_home_target >= 1:
+                if pd.isna(p_home_target) or mu <= 0 or p_home_target <= 0 or p_home_target >= 1:
                     fair_home.append("")
                     fair_away.append("")
                     continue
 
-                # Solve lambda_home via bisection
                 def win_prob_from_lambda(lambda_home):
                     lambda_away = mu - lambda_home
                     if lambda_away <= 0:
