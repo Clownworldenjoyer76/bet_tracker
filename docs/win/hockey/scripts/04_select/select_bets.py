@@ -26,6 +26,7 @@ def valid_edge(edge_pct, threshold):
 
 def parse_game_id(game_id: str):
     """
+    Fallback only.
     Expected format: YYYY_MM_DD_AWAY_TEAM_HOME_TEAM
     Example: 2026_03_01_Utah Mammoth_Chicago Blackhawks
     """
@@ -39,8 +40,44 @@ def parse_game_id(game_id: str):
     game_date = "_".join(parts[0:3])
     away_team = parts[3]
     home_team = "_".join(parts[4:])
-
     return game_date, away_team, home_team
+
+
+def get_game_fields(row: pd.Series):
+    """
+    Prefer explicit columns in the input DF (authoritative).
+    Fallback to parsing game_id only if needed.
+    """
+    game_id = row.get("game_id")
+
+    # Prefer explicit columns if they exist
+    game_date = row.get("game_date")
+    away_team = row.get("away_team")
+    home_team = row.get("home_team")
+
+    # If any of these are missing/blank, fallback to parsing game_id
+    need_fallback = (
+        pd.isna(game_date) or str(game_date).strip() == ""
+        or pd.isna(away_team) or str(away_team).strip() == ""
+        or pd.isna(home_team) or str(home_team).strip() == ""
+    )
+
+    if need_fallback:
+        parsed_date, parsed_away, parsed_home = parse_game_id(game_id)
+
+        if pd.isna(game_date) or str(game_date).strip() == "":
+            game_date = parsed_date
+        if pd.isna(away_team) or str(away_team).strip() == "":
+            away_team = parsed_away
+        if pd.isna(home_team) or str(home_team).strip() == "":
+            home_team = parsed_home
+
+    # Normalize to strings (avoid "nan")
+    game_date = "" if pd.isna(game_date) else str(game_date)
+    away_team = "" if pd.isna(away_team) else str(away_team)
+    home_team = "" if pd.isna(home_team) else str(home_team)
+
+    return game_id, game_date, away_team, home_team
 
 
 def main():
@@ -93,7 +130,27 @@ def main():
 
                 for game_id in game_ids:
 
-                    game_date, away_team, home_team = parse_game_id(game_id)
+                    # Grab an example row from whichever DF has this game_id
+                    sample_row = None
+                    if pl_df is not None:
+                        tmp = pl_df[pl_df["game_id"] == game_id]
+                        if not tmp.empty:
+                            sample_row = tmp.iloc[0]
+                    if sample_row is None and ml_df is not None:
+                        tmp = ml_df[ml_df["game_id"] == game_id]
+                        if not tmp.empty:
+                            sample_row = tmp.iloc[0]
+                    if sample_row is None and total_df is not None:
+                        tmp = total_df[total_df["game_id"] == game_id]
+                        if not tmp.empty:
+                            sample_row = tmp.iloc[0]
+
+                    # ✅ authoritative away/home from columns when available; parse_game_id only as fallback
+                    if sample_row is not None:
+                        _, game_date, away_team, home_team = get_game_fields(sample_row)
+                    else:
+                        # final fallback: parse the game_id itself
+                        game_date, away_team, home_team = parse_game_id(game_id)
 
                     # =====================
                     # PUCK LINE
