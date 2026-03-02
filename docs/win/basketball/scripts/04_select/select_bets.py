@@ -22,6 +22,8 @@ MIN_TOTAL_EDGE_PCT = 0.06
 
 MIN_TOTAL_ODDS = -150
 
+REQUIRED_GAME_COLS = ["game_date", "away_team", "home_team"]
+
 
 def valid_edge(edge_dec, edge_pct):
     return (
@@ -57,59 +59,12 @@ def infer_market_from_filename(filename: str):
     return None
 
 
-def parse_game_id(game_id: str):
-    """
-    Fallback only.
-    Expected format: YYYY_MM_DD_AWAY_TEAM_HOME_TEAM
-    """
-    if not isinstance(game_id, str):
-        return "", "", ""
-
-    parts = game_id.split("_")
-    if len(parts) < 5:
-        return "", "", ""
-
-    game_date = "_".join(parts[0:3])
-    away_team = parts[3]
-    home_team = "_".join(parts[4:])
-    return game_date, away_team, home_team
-
-
-def get_game_fields(row: pd.Series):
-    """
-    Prefer explicit columns in the input DF (authoritative).
-    Fallback to parsing game_id only if needed.
-    """
-    game_id = row.get("game_id")
-
-    # Prefer explicit columns if they exist
-    game_date = row.get("game_date")
-    away_team = row.get("away_team")
-    home_team = row.get("home_team")
-
-    # If any of these are missing/blank, fallback to parsing game_id
-    need_fallback = (
-        pd.isna(game_date) or str(game_date).strip() == ""
-        or pd.isna(away_team) or str(away_team).strip() == ""
-        or pd.isna(home_team) or str(home_team).strip() == ""
-    )
-
-    if need_fallback:
-        parsed_date, parsed_away, parsed_home = parse_game_id(game_id)
-
-        if pd.isna(game_date) or str(game_date).strip() == "":
-            game_date = parsed_date
-        if pd.isna(away_team) or str(away_team).strip() == "":
-            away_team = parsed_away
-        if pd.isna(home_team) or str(home_team).strip() == "":
-            home_team = parsed_home
-
-    # Normalize to strings (avoid "nan")
-    game_date = "" if pd.isna(game_date) else str(game_date)
-    away_team = "" if pd.isna(away_team) else str(away_team)
-    home_team = "" if pd.isna(home_team) else str(home_team)
-
-    return game_id, game_date, away_team, home_team
+def assert_required_cols(df: pd.DataFrame, df_name: str, log) -> bool:
+    missing = [c for c in REQUIRED_GAME_COLS if c not in df.columns]
+    if missing:
+        log.write(f"ERROR: {df_name} missing required columns: {missing}\n")
+        return False
+    return True
 
 
 def main():
@@ -130,19 +85,32 @@ def main():
             for input_path in input_files:
 
                 df = pd.read_csv(input_path)
-                selections = []
 
                 market = infer_market_from_filename(input_path.name)
                 if market is None:
                     log.write(f"Skipping {input_path.name} (cannot infer market)\n")
                     continue
 
+                # Hard requirement: no parsing from game_id
+                if not assert_required_cols(df, input_path.name, log):
+                    log.write(f"Skipping {input_path.name} due to missing required columns.\n\n")
+                    continue
+
+                selections = []
+
                 for _, row in df.iterrows():
 
+                    game_id = row.get("game_id")
                     league = row.get("league")
 
-                    # ✅ authoritative away/home from columns; parse_game_id only as fallback
-                    game_id, game_date, away_team, home_team = get_game_fields(row)
+                    game_date = row.get("game_date")
+                    away_team = row.get("away_team")
+                    home_team = row.get("home_team")
+
+                    # Normalize to strings (avoid nan)
+                    game_date = "" if pd.isna(game_date) else str(game_date)
+                    away_team = "" if pd.isna(away_team) else str(away_team)
+                    home_team = "" if pd.isna(home_team) else str(home_team)
 
                     # =========================
                     # MONEYLINE
@@ -194,7 +162,6 @@ def main():
                                     continue
 
                             selections.append({
-                                # --- normalized columns ---
                                 "game_date": game_date,
                                 "league": league,
                                 "away_team": away_team,
@@ -203,12 +170,11 @@ def main():
                                 "bet_side": side,
                                 "line": "",
 
-                                # --- original columns ---
                                 "game_id": game_id,
                                 "market": market,
                                 "take_bet": f"{side}_ml",
                                 "take_odds": american_odds,
-                                "take_team": side,  # ✅ Option A
+                                "take_team": side,  # Option A label only
                                 "value": win_prob,
                                 "take_bet_edge_decimal": edge_dec,
                                 "take_bet_edge_pct": edge_pct,
@@ -228,7 +194,6 @@ def main():
                             if valid_edge(edge_dec, edge_pct):
 
                                 selections.append({
-                                    # normalized
                                     "game_date": game_date,
                                     "league": league,
                                     "away_team": away_team,
@@ -237,12 +202,11 @@ def main():
                                     "bet_side": side,
                                     "line": spread_val,
 
-                                    # original
                                     "game_id": game_id,
                                     "market": market,
                                     "take_bet": f"{side}_spread",
                                     "take_odds": row.get(f"{side}_spread_juice_odds"),
-                                    "take_team": side,  # ✅ Option A
+                                    "take_team": side,  # Option A label only
                                     "value": spread_val,
                                     "take_bet_edge_decimal": edge_dec,
                                     "take_bet_edge_pct": edge_pct,
@@ -278,7 +242,7 @@ def main():
                                 "market": market,
                                 "take_bet": "over_bet",
                                 "take_odds": odds_over,
-                                "take_team": "over",  # label
+                                "take_team": "over",
                                 "value": total_value,
                                 "take_bet_edge_decimal": over_dec,
                                 "take_bet_edge_pct": over_pct,
@@ -306,6 +270,11 @@ def main():
                             })
 
                 sel_df = pd.DataFrame(selections)
+
+                if not sel_df.empty:
+                    sel_df = sel_df.drop_duplicates(
+                        subset=["game_date", "league", "away_team", "home_team", "market_type", "bet_side", "line", "take_bet"]
+                    )
 
                 output_path = OUTPUT_DIR / input_path.name
                 sel_df.to_csv(output_path, index=False)
