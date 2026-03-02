@@ -54,6 +54,7 @@ log(f"raw_text_len={len(raw_text)}")
 market_map = {
     "NBA": "NBA",
     "NCAA Men": "NCAAB",
+    "NCAAB": "NCAAB",
 }
 
 market_out = market_map.get(market_input)
