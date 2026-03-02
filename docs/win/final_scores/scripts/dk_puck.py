@@ -1,91 +1,113 @@
 #!/usr/bin/env python3
 
-import sys
 import pandas as pd
 from pathlib import Path
-
-# =========================
-# ARGUMENT
-# =========================
-# Usage:
-# python add_dk_lines.py 2026_03_02
-
-if len(sys.argv) != 2:
-    sys.exit(0)
-
-date = sys.argv[1]
+from datetime import datetime
+import traceback
 
 # =========================
 # PATHS
 # =========================
 
-SPORTSBOOK_FILE = Path(f"docs/win/hockey/00_intake/sportsbook/hockey_{date}.csv")
-FINAL_FILE = Path(f"docs/win/final_scores/{date}_final_scores_NHL.csv")
+SPORTSBOOK_DIR = Path("docs/win/hockey/00_intake/sportsbook")
+FINAL_DIR = Path("docs/win/final_scores")
+ERROR_DIR = Path("docs/win/final_scores/errors")
+LOG_FILE = ERROR_DIR / "dk_puck_log.txt"
+
+ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 # =========================
-# SILENT FAIL CONDITIONS
+# LOGGING
 # =========================
 
-if not FINAL_FILE.exists():
-    sys.exit(0)
+def log(message):
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    with open(LOG_FILE, "a") as f:
+        f.write(f"[{timestamp}] {message}\n")
 
-if not SPORTSBOOK_FILE.exists():
-    sys.exit(0)
 
-# =========================
-# LOAD FILES
-# =========================
+log("========== DK PUCK SCRIPT START ==========")
 
-sportsbook_df = pd.read_csv(SPORTSBOOK_FILE)
-final_df = pd.read_csv(FINAL_FILE)
+try:
 
-# =========================
-# RENAME SPORTSBOOK COLUMNS
-# =========================
+    sportsbook_files = sorted(SPORTSBOOK_DIR.glob("hockey_*.csv"))
 
-sportsbook_df = sportsbook_df.rename(columns={
-    "away_puck_line": "dk_away_puck_line",
-    "home_puck_line": "dk_home_puck_line",
-    "total": "dk_total"
-})
+    if not sportsbook_files:
+        log("No sportsbook files found.")
+    else:
+        log(f"Found {len(sportsbook_files)} sportsbook files.")
 
-# =========================
-# REQUIRED MERGE KEY
-# =========================
+    for sb_file in sportsbook_files:
 
-merge_cols = ["game_date", "away_team", "home_team"]
+        try:
+            date_part = sb_file.stem.replace("hockey_", "")
+            final_file = FINAL_DIR / f"{date_part}_final_scores_NHL.csv"
 
-# If merge columns missing, fail silently
-for col in merge_cols:
-    if col not in sportsbook_df.columns:
-        sys.exit(0)
-    if col not in final_df.columns:
-        sys.exit(0)
+            log(f"Processing sportsbook file: {sb_file.name}")
+            log(f"Looking for final file: {final_file.name}")
 
-# =========================
-# SELECT NEEDED COLUMNS
-# =========================
+            if not final_file.exists():
+                log("Final file does NOT exist. Skipping.")
+                continue
 
-sportsbook_subset = sportsbook_df[
-    merge_cols + [
-        "dk_away_puck_line",
-        "dk_home_puck_line",
-        "dk_total"
-    ]
-]
+            sportsbook_df = pd.read_csv(sb_file)
+            final_df = pd.read_csv(final_file)
 
-# =========================
-# MERGE
-# =========================
+            log(f"Sportsbook rows: {len(sportsbook_df)}")
+            log(f"Final rows: {len(final_df)}")
 
-merged_df = final_df.merge(
-    sportsbook_subset,
-    on=merge_cols,
-    how="left"
-)
+            # Validate required columns
+            required_cols = ["game_date", "away_team", "home_team",
+                             "away_puck_line", "home_puck_line", "total"]
 
-# =========================
-# SAVE
-# =========================
+            for col in required_cols:
+                if col not in sportsbook_df.columns:
+                    log(f"Missing column in sportsbook: {col}. Skipping file.")
+                    raise ValueError(f"Missing sportsbook column {col}")
 
-merged_df.to_csv(FINAL_FILE, index=False)
+            merge_cols = ["game_date", "away_team", "home_team"]
+
+            for col in merge_cols:
+                if col not in final_df.columns:
+                    log(f"Missing column in final file: {col}. Skipping file.")
+                    raise ValueError(f"Missing final column {col}")
+
+            # Rename DK columns
+            sportsbook_df = sportsbook_df.rename(columns={
+                "away_puck_line": "dk_away_puck_line",
+                "home_puck_line": "dk_home_puck_line",
+                "total": "dk_total"
+            })
+
+            sportsbook_subset = sportsbook_df[
+                merge_cols + [
+                    "dk_away_puck_line",
+                    "dk_home_puck_line",
+                    "dk_total"
+                ]
+            ]
+
+            merged_df = final_df.merge(
+                sportsbook_subset,
+                on=merge_cols,
+                how="left"
+            )
+
+            # Log match diagnostics
+            dk_nulls = merged_df["dk_total"].isna().sum()
+            log(f"Rows with missing DK match: {dk_nulls}")
+
+            merged_df.to_csv(final_file, index=False)
+
+            log(f"Successfully updated {final_file.name}")
+
+        except Exception as file_error:
+            log(f"ERROR processing {sb_file.name}")
+            log(traceback.format_exc())
+            continue
+
+except Exception as e:
+    log("FATAL ERROR IN DK PUCK SCRIPT")
+    log(traceback.format_exc())
+
+log("========== DK PUCK SCRIPT END ==========\n")
