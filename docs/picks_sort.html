@@ -93,10 +93,11 @@ const bookMap=buildGameMap(bookRows);
 
 let merged=selectRows.map(sel=>{
 
-const parts=sel.game_id.split("_");
-const gameDate=parts.slice(0,3).join("_");
-const homeTeam=parts.slice(3,-1).join(" ");
-const awayTeam=parts.slice(-1)[0];
+// IMPORTANT: do NOT parse game_id. Use actual columns.
+// These must match how buildGameMap() keys are built.
+const gameDate=(sel.game_date||"").trim();
+const homeTeam=(sel.home_team||"").trim();
+const awayTeam=(sel.away_team||"").trim();
 
 const key=gameDate+"|"+homeTeam+"|"+awayTeam;
 
@@ -165,7 +166,7 @@ const headers=lines[0].split(",").map(h=>h.trim());
 return lines.slice(1).map(line=>{
 const values=line.split(",");
 let obj={};
-headers.forEach((h,i)=>obj[h]=values[i]??"");
+headers.forEach((h,i)=>obj[h]=(values[i]??""));
 return obj;
 });
 }
