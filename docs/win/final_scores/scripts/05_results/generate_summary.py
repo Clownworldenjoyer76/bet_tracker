@@ -7,16 +7,13 @@ def generate_reports():
     team_output = "docs/win/final_scores/results/summary_tally.csv"
     market_output = "docs/win/final_scores/results/market_tally.csv"
     
-    # Load all individual result files
     files = glob.glob(os.path.join(results_dir, "*_results_NHL.csv"))
     if not files:
-        print("No result files found.")
         return
 
-    # Combine all results into one dataframe
     all_data = pd.concat([pd.read_csv(f) for f in files], ignore_index=True)
 
-    # --- REPORT 1: TEAM TALLY (Existing Logic) ---
+    # --- REPORT 1: TEAM TALLY ---
     away_stats = all_data[['away_team', 'market_type', 'bet_result']].rename(columns={'away_team': 'team'})
     home_stats = all_data[['home_team', 'market_type', 'bet_result']].rename(columns={'home_team': 'team'})
     combined_teams = pd.concat([away_stats, home_stats], ignore_index=True)
@@ -25,31 +22,30 @@ def generate_reports():
     for col in ['Win', 'Loss', 'Push']:
         if col not in team_tally.columns: team_tally[col] = 0
     
-    team_tally['Win_Pct'] = (team_tally['Win'] / (team_tally['Win'] + team_tally['Loss'])).fillna(0).round(3)
-    team_tally.reset_index().to_csv(team_output, index=False)
+    # Add Total and Calculate Win %
+    team_tally['Total'] = team_tally['Win'] + team_tally['Loss'] + team_tally['Push']
+    team_tally['Win_Pct'] = (team_tally['Win'] / team_tally['Total']).fillna(0).round(3)
+    
+    # Reorder columns: Win, Loss, Push, Total, Win_Pct
+    team_tally = team_tally[['Win', 'Loss', 'Push', 'Total', 'Win_Pct']].reset_index()
+    team_tally.to_csv(team_output, index=False)
 
-    # --- REPORT 2: MARKET TALLY (New Logic) ---
-    # Group only by market_type and outcome
+    # --- REPORT 2: MARKET TALLY ---
     market_tally = all_data.groupby(['market_type', 'bet_result']).size().unstack(fill_value=0)
     
-    # Ensure all 3 required markets exist in the index
     for m in ['moneyline', 'total', 'puck_line']:
-        if m not in market_tally.index:
-            market_tally.loc[m] = 0
-            
-    # Ensure outcome columns exist
+        if m not in market_tally.index: market_tally.loc[m] = 0
     for col in ['Win', 'Loss', 'Push']:
-        if col not in market_tally.columns: 
-            market_tally[col] = 0
+        if col not in market_tally.columns: market_tally[col] = 0
             
-    # Calculate Win % for the markets
-    market_tally['Win_Pct'] = (market_tally['Win'] / (market_tally['Win'] + market_tally['Loss'])).fillna(0).round(3)
+    market_tally['Total'] = market_tally['Win'] + market_tally['Loss'] + market_tally['Push']
+    market_tally['Win_Pct'] = (market_tally['Win'] / market_tally['Total']).fillna(0).round(3)
     
-    # Filter for specifically the 3 requested rows
-    market_tally = market_tally.loc[['moneyline', 'total', 'puck_line']]
-    market_tally.reset_index().to_csv(market_output, index=False)
+    # Reorder and filter for the 3 markets
+    market_tally = market_tally.loc[['moneyline', 'total', 'puck_line'], ['Win', 'Loss', 'Push', 'Total', 'Win_Pct']].reset_index()
+    market_tally.to_csv(market_output, index=False)
     
-    print(f"Reports saved: {team_output}, {market_output}")
+    print(f"Reports saved. Order: Win, Loss, Push.")
 
 if __name__ == "__main__":
     generate_reports()
