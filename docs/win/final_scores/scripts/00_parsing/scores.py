@@ -10,7 +10,6 @@ import traceback
 
 OUT_DIR = Path("docs/win/final_scores")
 ERR_DIR = OUT_DIR / "errors"
-MAP_DIR = OUT_DIR / "team_maps"
 
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 ERR_DIR.mkdir(parents=True, exist_ok=True)
@@ -31,6 +30,10 @@ HEADERS = [
 ]
 
 
+# =========================
+# MARKET / LEAGUE
+# =========================
+
 def normalize_market(market: str) -> str:
     m = (market or "").strip().upper()
     if m in {"NBA", "NCAAB", "NCAAM"}:
@@ -44,214 +47,148 @@ def league_from_market(market: str) -> str:
     return "Basketball" if market in {"NBA", "NCAAB"} else "Hockey"
 
 
-def get_map_path(market: str) -> Path:
-    if market == "NBA":
-        return MAP_DIR / "team_map_nba.csv"
-    if market == "NCAAB":
-        return MAP_DIR / "team_map_ncaab.csv"
-    if market == "NHL":
-        return MAP_DIR / "team_map_nhl.csv"
-    raise ValueError("Invalid market")
+# =========================
+# PARSING HELPERS
+# =========================
+
+DATE_REGEX = re.compile(r"^\d{2}/\d{2}/\d{4}$")
+TIME_REGEX = re.compile(r"^\d{2}:\d{2}\s*(AM|PM)$")
+INTEGER_REGEX = re.compile(r"^\d+$")
 
 
-def load_team_map(market: str) -> dict:
-    path = get_map_path(market)
-
-    if not path.exists():
-        raise FileNotFoundError(f"Team map not found: {path}")
-
-    team_map = {}
-
-    with path.open("r", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        if "team_name" not in reader.fieldnames or "abbreviation" not in reader.fieldnames:
-            raise ValueError(f"Invalid headers in {path}. Required: team_name,abbreviation")
-
-        for row in reader:
-            team = (row.get("team_name") or "").strip()
-            abbr = (row.get("abbreviation") or "").strip()
-            if team:
-                team_map[team] = abbr
-
-    return team_map
+def is_date_line(s: str) -> bool:
+    return bool(DATE_REGEX.match(s.strip()))
 
 
-def parse_game_date(lines):
-    for line in lines[:20]:
-        s = (line or "").replace("\u00a0", " ").strip()
-        if not s:
-            continue
-        try:
-            dt = datetime.strptime(s, "%A, %B %d, %Y")
-            return dt.strftime("%Y_%m_%d")
-        except Exception:
-            continue
-    raise ValueError("Could not parse game date.")
-
-
-def is_valid_team_line(s: str) -> bool:
+def is_time_prefix_line(s: str) -> bool:
     """
-    Valid team lines:
-    - not blank
-    - must contain at least one alphabetic character
-    This removes ranking lines like '1', '11', etc.
+    Detect lines like:
+    07:00 PM    Buffalo Bulls
     """
-    if not s:
+    parts = s.split("\t")
+    if not parts:
         return False
-
-    s = s.replace("\u00a0", " ").strip()
-    if not s:
-        return False
-
-    # Reject lines without letters (e.g. rankings)
-    if not any(ch.isalpha() for ch in s):
-        return False
-
-    return True
+    return bool(TIME_REGEX.match(parts[0].strip()))
 
 
-def next_non_empty(lines, start_idx):
-    i = start_idx
-    while i < len(lines):
-        s = (lines[i] or "").replace("\u00a0", " ").strip()
-        if is_valid_team_line(s):
-            return i, s
-        i += 1
-    return len(lines), ""
+def parse_date_to_output_format(date_str: str) -> str:
+    dt = datetime.strptime(date_str.strip(), "%m/%d/%Y")
+    return dt.strftime("%Y_%m_%d")
 
 
-def prev_non_empty(lines, start_idx):
-    i = start_idx
-    while i >= 0:
-        s = (lines[i] or "").replace("\u00a0", " ").strip()
-        if is_valid_team_line(s):
-            return i, s
-        i -= 1
-    return -1, ""
+def extract_away_team(line: str) -> str:
+    parts = line.split("\t")
+    if len(parts) > 1:
+        return parts[1].strip()
+    # fallback remove time if no tab
+    return re.sub(r"^\d{2}:\d{2}\s*(AM|PM)\s*", "", line).strip()
 
 
-def is_at_line(s):
-    return (s or "").replace("\u00a0", " ").strip() == "@"
+def extract_home_team(line: str) -> str:
+    return line.split("\t")[0].strip()
 
 
-def looks_like_result_line(s):
-    s2 = (s or "").replace("\u00a0", " ").strip()
-    return "," in s2 and len(re.findall(r"\d+", s2)) >= 2
+def is_integer_line(s: str) -> bool:
+    return bool(INTEGER_REGEX.match(s.strip()))
 
 
-def extract_pairs(result_line):
-    s = (result_line or "").replace("\u00a0", " ")
-    return re.findall(r"([A-Z\-]+)\s+(\d+)", s)
+# =========================
+# CORE PARSER
+# =========================
 
-
-def resolve_team_by_abbrev(result_abbrev, team_map):
-    for team, abbr in team_map.items():
-        if abbr == result_abbrev:
-            return team
-    return None
-
-
-def map_scores(result_line, away_team, home_team, team_map):
-    pairs = extract_pairs(result_line)
-    if len(pairs) < 2:
-        raise ValueError(f"Invalid result line: {result_line}")
-
-    score_map = {abbr: int(score) for abbr, score in pairs}
-    result_abbrevs = list(score_map.keys())
-
-    away_abbrev = team_map.get(away_team)
-    home_abbrev = team_map.get(home_team)
-
-    if away_abbrev not in score_map or home_abbrev not in score_map:
-        if len(result_abbrevs) >= 2:
-            resolved_away = resolve_team_by_abbrev(result_abbrevs[0], team_map)
-            resolved_home = resolve_team_by_abbrev(result_abbrevs[1], team_map)
-
-            if resolved_away:
-                away_team = resolved_away
-                away_abbrev = result_abbrevs[0]
-
-            if resolved_home:
-                home_team = resolved_home
-                home_abbrev = result_abbrevs[1]
-
-    if away_abbrev not in score_map or home_abbrev not in score_map:
-        raise ValueError(
-            f"Abbreviation mismatch: {result_line} | "
-            f"Away={away_team}({away_abbrev}) "
-            f"Home={home_team}({home_abbrev})"
-        )
-
-    return score_map[away_abbrev], score_map[home_abbrev]
-
-
-def parse_games(lines, game_date, market, team_map):
+def parse_games(lines, market):
     rows = []
-    is_basketball = market in {"NBA", "NCAAB"}
-    is_hockey = market == "NHL"
+    i = 0
+    current_date = None
 
-    for i, raw in enumerate(lines):
-        if not is_at_line(raw):
-            continue
+    while i < len(lines):
+        line = lines[i].strip()
 
-        _, away_team = prev_non_empty(lines, i - 1)
-        _, home_team = next_non_empty(lines, i + 1)
+        # Detect new game block by date
+        if is_date_line(line):
+            current_date = parse_date_to_output_format(line)
 
-        if not away_team or not home_team:
-            continue
-
-        j, _ = next_non_empty(lines, i + 2)
-
-        result_line = ""
-        for k in range(j, min(len(lines), j + 20)):
-            cand = (lines[k] or "").replace("\u00a0", " ").strip()
-            if looks_like_result_line(cand):
-                result_line = cand
+            # Expect next line = time + away team
+            i += 1
+            if i >= len(lines):
                 break
 
-        if not result_line:
+            away_line = lines[i].strip()
+            if not is_time_prefix_line(away_line):
+                i += 1
+                continue
+
+            away_team = extract_away_team(away_line)
+
+            # Next line = home team
+            i += 1
+            if i >= len(lines):
+                break
+
+            home_line = lines[i].strip()
+            home_team = extract_home_team(home_line)
+
+            # Now scan forward for first two pure integer lines (scores)
+            scores = []
+            j = i + 1
+
+            while j < len(lines) and len(scores) < 2:
+                candidate = lines[j].strip()
+                if is_integer_line(candidate):
+                    scores.append(int(candidate))
+                j += 1
+
+            if len(scores) != 2:
+                i += 1
+                continue
+
+            away_score = scores[0]
+            home_score = scores[1]
+
+            total = away_score + home_score
+
+            away_spread = ""
+            home_spread = ""
+            away_puck_line = ""
+            home_puck_line = ""
+
+            if market in {"NBA", "NCAAB"}:
+                away_spread = str(away_score - home_score)
+                home_spread = str(home_score - away_score)
+
+            if market == "NHL":
+                away_puck_line = str(away_score - home_score)
+                home_puck_line = str(home_score - away_score)
+
+            rows.append({
+                "game_date": current_date,
+                "league": league_from_market(market),
+                "market": market,
+                "away_team": away_team,
+                "home_team": home_team,
+                "away_score": str(away_score),
+                "home_score": str(home_score),
+                "total": str(total),
+                "away_spread": away_spread,
+                "home_spread": home_spread,
+                "away_puck_line": away_puck_line,
+                "home_puck_line": home_puck_line,
+            })
+
+            i = j
             continue
 
-        away_score, home_score = map_scores(
-            result_line,
-            away_team,
-            home_team,
-            team_map
-        )
+        i += 1
 
-        total = away_score + home_score
-        margin = home_score - away_score
-
-        away_spread = ""
-        home_spread = ""
-        away_puck_line = ""
-        home_puck_line = ""
-
-        if is_basketball:
-            away_spread = str(margin)
-            home_spread = str(-margin)
-
-        if is_hockey:
-            away_puck_line = str(margin)
-            home_puck_line = str(-margin)
-
-        rows.append({
-            "game_date": game_date,
-            "league": league_from_market(market),
-            "market": market,
-            "away_team": away_team,
-            "home_team": home_team,
-            "away_score": str(away_score),
-            "home_score": str(home_score),
-            "total": str(total),
-            "away_spread": away_spread,
-            "home_spread": home_spread,
-            "away_puck_line": away_puck_line,
-            "home_puck_line": home_puck_line,
-        })
+    if not rows:
+        raise ValueError("No games parsed from input.")
 
     return rows
 
+
+# =========================
+# CSV WRITER
+# =========================
 
 def write_csv(path, rows):
     with path.open("w", newline="", encoding="utf-8") as f:
@@ -260,24 +197,27 @@ def write_csv(path, rows):
         writer.writerows(rows)
 
 
+# =========================
+# MAIN
+# =========================
+
 def main():
     if len(sys.argv) != 3:
-        print("Usage: espn.py <market: NBA|NCAAB|NHL> <input_text_file>")
+        print("Usage: scores.py <market: NBA|NCAAB|NHL> <input_text_file>")
         return 2
 
     market = normalize_market(sys.argv[1])
     input_path = Path(sys.argv[2])
-    err_path = ERR_DIR / f"espn_{market}.txt"
+    err_path = ERR_DIR / f"scores_{market}.txt"
 
     try:
         lines = input_path.read_text(encoding="utf-8", errors="replace").splitlines()
-        game_date = parse_game_date(lines)
 
-        team_map = load_team_map(market)
+        rows = parse_games(lines, market)
 
-        rows = parse_games(lines, game_date, market, team_map)
-
+        game_date = rows[0]["game_date"]
         out_path = OUT_DIR / f"{game_date}_final_scores_{market}.csv"
+
         write_csv(out_path, rows)
 
         print(f"Wrote {out_path} | rows={len(rows)}")
