@@ -17,9 +17,31 @@ ERROR_DIR.mkdir(parents=True, exist_ok=True)
 TOTAL_MIN_EDGE_PCT = 0.03
 TOTAL_MIN_PROB = 0.45
 
+LEAGUE_CODE = "NHL"
+
 
 def valid_edge(edge_pct, threshold):
     return pd.notna(edge_pct) and edge_pct >= threshold
+
+
+def parse_game_id(game_id: str):
+    """
+    Expected format: YYYY_MM_DD_AWAY_TEAM_HOME_TEAM
+    Example: 2026_03_01_Utah Mammoth_Chicago Blackhawks
+    """
+    if not isinstance(game_id, str) or not game_id:
+        return "", "", ""
+
+    parts = game_id.split("_")
+    if len(parts) < 5:
+        # Not enough parts to reliably parse
+        return "", "", ""
+
+    game_date = "_".join(parts[0:3])
+    away_team = parts[3]
+    home_team = "_".join(parts[4:])  # safer in case home team contains underscores someday
+
+    return game_date, away_team, home_team
 
 
 def main():
@@ -63,14 +85,16 @@ def main():
 
                 game_ids = set()
 
-                if ml_df is not None:
-                    game_ids.update(ml_df["game_id"].unique())
-                if pl_df is not None:
-                    game_ids.update(pl_df["game_id"].unique())
-                if total_df is not None:
-                    game_ids.update(total_df["game_id"].unique())
+                if ml_df is not None and "game_id" in ml_df.columns:
+                    game_ids.update(ml_df["game_id"].dropna().unique())
+                if pl_df is not None and "game_id" in pl_df.columns:
+                    game_ids.update(pl_df["game_id"].dropna().unique())
+                if total_df is not None and "game_id" in total_df.columns:
+                    game_ids.update(total_df["game_id"].dropna().unique())
 
                 for game_id in game_ids:
+
+                    game_date, away_team, home_team = parse_game_id(game_id)
 
                     # =====================
                     # PUCK LINE
@@ -96,7 +120,19 @@ def main():
 
                         if best_row:
                             row, side = best_row
+                            line_val = row.get(f"{side}_puck_line")
+
                             final_rows.append({
+                                # join keys / normalization
+                                "game_date": game_date,
+                                "league": LEAGUE_CODE,
+                                "away_team": away_team,
+                                "home_team": home_team,
+                                "market_type": "puck_line",
+                                "bet_side": side,
+                                "line": line_val,
+
+                                # existing output fields (kept)
                                 "game_id": game_id,
                                 "take_bet": f"{side}_puck_line",
                                 "take_bet_prob": row.get(f"{side}_juiced_prob_puck_line"),
@@ -105,7 +141,7 @@ def main():
                                 "take_team": row.get(f"{side}_team"),
                                 # ✅ sportsbook odds (NOT juiced)
                                 "take_odds": row.get(f"{side}_dk_puck_line_american"),
-                                "value": row.get(f"{side}_puck_line"),
+                                "value": line_val,
                             })
                             puck_count += 1
 
@@ -158,7 +194,18 @@ def main():
 
                         if best_row:
                             row, side = best_row
+
                             final_rows.append({
+                                # join keys / normalization
+                                "game_date": game_date,
+                                "league": LEAGUE_CODE,
+                                "away_team": away_team,
+                                "home_team": home_team,
+                                "market_type": "moneyline",
+                                "bet_side": side,
+                                "line": "",
+
+                                # existing output fields (kept)
                                 "game_id": game_id,
                                 "take_bet": f"{side}_moneyline",
                                 "take_bet_prob": row.get(f"{side}_prob"),
@@ -195,7 +242,19 @@ def main():
 
                         if best_row:
                             row, side = best_row
+                            line_val = row.get("total")
+
                             final_rows.append({
+                                # join keys / normalization
+                                "game_date": game_date,
+                                "league": LEAGUE_CODE,
+                                "away_team": away_team,
+                                "home_team": home_team,
+                                "market_type": "total",
+                                "bet_side": side,
+                                "line": line_val,
+
+                                # existing output fields (kept)
                                 "game_id": game_id,
                                 "take_bet": f"{side}_total",
                                 "take_bet_prob": row.get(f"juiced_total_{side}_prob"),
@@ -204,7 +263,7 @@ def main():
                                 "take_team": side,
                                 # ✅ sportsbook odds (NOT juiced)
                                 "take_odds": row.get(f"dk_total_{side}_american"),
-                                "value": row.get("total"),
+                                "value": line_val,
                             })
                             total_count += 1
 
