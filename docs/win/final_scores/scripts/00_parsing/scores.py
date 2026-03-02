@@ -79,35 +79,35 @@ def parse_games(lines, market):
         if i >= len(lines):
             break
 
-        away_line = lines[i]
-        parts = away_line.split("\t")
-        if len(parts) < 2:
+        away_parts = lines[i].split("\t")
+        if len(away_parts) < 2:
             i += 1
             continue
 
-        away_team = parts[1].strip()
+        away_team = away_parts[1].strip()
 
         # 3. HOME TEAM
         i += 1
         if i >= len(lines):
             break
 
-        home_line = lines[i]
-        home_team = first_field(home_line)
+        home_team = first_field(lines[i])
 
         # 4. FIND AWAY SCORE
         i += 1
         while i < len(lines) and not first_field(lines[i]).isdigit():
             i += 1
+
         if i >= len(lines):
             break
 
         away_score = int(first_field(lines[i]))
 
-        # 5. HOME SCORE (next numeric line)
+        # 5. FIND HOME SCORE
         i += 1
         while i < len(lines) and not first_field(lines[i]).isdigit():
             i += 1
+
         if i >= len(lines):
             break
 
@@ -169,14 +169,12 @@ def main():
 
     try:
         lines = input_path.read_text(encoding="utf-8", errors="replace").splitlines()
-
         rows = parse_games(lines, market)
 
         game_date = rows[0]["game_date"]
         out_path = OUT_DIR / f"{game_date}_final_scores_{market}.csv"
 
         write_csv(out_path, rows)
-
         print(f"Wrote {out_path} | rows={len(rows)}")
         return 0
 
