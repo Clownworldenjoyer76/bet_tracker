@@ -1,6 +1,5 @@
-# docs/win/hockey/scripts/01_merge/merge_intake.py
-
 #!/usr/bin/env python3
+# docs/win/hockey/scripts/01_merge/merge_intake.py
 
 import sys
 import csv
@@ -39,9 +38,11 @@ LOG_FILE = ERROR_DIR / "merge_intake.txt"
 with open(LOG_FILE, "w", encoding="utf-8") as f:
     f.write("")
 
+
 def log(msg):
     with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write(f"{datetime.utcnow().isoformat()} | {msg}\n")
+
 
 # =========================
 # SAFE INPUT VALIDATION
@@ -64,6 +65,7 @@ def load_dedupe(path, key_fields):
             key = tuple(r[k] for k in key_fields)
             data[key] = r
     return data
+
 
 key_fields = ["game_date", "home_team", "away_team"]
 
@@ -131,7 +133,8 @@ for key, p in pred_data.items():
     except:
         pass
 
-    game_id = f"{p['game_date']}_{p['home_team']}_{p['away_team']}"
+    # ✅ Make game_id consistent with explicit away_team/home_team columns
+    game_id = f"{p['game_date']}_{p['away_team']}_{p['home_team']}"
 
     merged_rows[key] = {
         "league": p.get("league", ""),
