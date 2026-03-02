@@ -19,65 +19,26 @@ TOTAL_MIN_PROB = 0.45
 
 LEAGUE_CODE = "NHL"
 
+REQUIRED_GAME_COLS = ["game_date", "away_team", "home_team"]
+
 
 def valid_edge(edge_pct, threshold):
     return pd.notna(edge_pct) and edge_pct >= threshold
 
 
-def parse_game_id(game_id: str):
-    """
-    Fallback only.
-    Expected format: YYYY_MM_DD_AWAY_TEAM_HOME_TEAM
-    Example: 2026_03_01_Utah Mammoth_Chicago Blackhawks
-    """
-    if not isinstance(game_id, str) or not game_id:
-        return "", "", ""
-
-    parts = game_id.split("_")
-    if len(parts) < 5:
-        return "", "", ""
-
-    game_date = "_".join(parts[0:3])
-    away_team = parts[3]
-    home_team = "_".join(parts[4:])
-    return game_date, away_team, home_team
+def assert_required_cols(df: pd.DataFrame, df_name: str, log) -> bool:
+    if df is None:
+        return True
+    missing = [c for c in REQUIRED_GAME_COLS if c not in df.columns]
+    if missing:
+        log.write(f"ERROR: {df_name} missing required columns: {missing}\n")
+        return False
+    return True
 
 
-def get_game_fields(row: pd.Series):
-    """
-    Prefer explicit columns in the input DF (authoritative).
-    Fallback to parsing game_id only if needed.
-    """
-    game_id = row.get("game_id")
-
-    # Prefer explicit columns if they exist
-    game_date = row.get("game_date")
-    away_team = row.get("away_team")
-    home_team = row.get("home_team")
-
-    # If any of these are missing/blank, fallback to parsing game_id
-    need_fallback = (
-        pd.isna(game_date) or str(game_date).strip() == ""
-        or pd.isna(away_team) or str(away_team).strip() == ""
-        or pd.isna(home_team) or str(home_team).strip() == ""
-    )
-
-    if need_fallback:
-        parsed_date, parsed_away, parsed_home = parse_game_id(game_id)
-
-        if pd.isna(game_date) or str(game_date).strip() == "":
-            game_date = parsed_date
-        if pd.isna(away_team) or str(away_team).strip() == "":
-            away_team = parsed_away
-        if pd.isna(home_team) or str(home_team).strip() == "":
-            home_team = parsed_home
-
-    # Normalize to strings (avoid "nan")
-    game_date = "" if pd.isna(game_date) else str(game_date)
-    away_team = "" if pd.isna(away_team) else str(away_team)
-    home_team = "" if pd.isna(home_team) else str(home_team)
-
-    return game_id, game_date, away_team, home_team
+def build_matchups(df: pd.DataFrame) -> pd.DataFrame:
+    # unique matchups by authoritative columns only
+    return df[REQUIRED_GAME_COLS].dropna().drop_duplicates()
 
 
 def main():
@@ -119,44 +80,49 @@ def main():
                 pl_df = pd.read_csv(pl_path) if pl_path.exists() else None
                 total_df = pd.read_csv(total_path) if total_path.exists() else None
 
-                game_ids = set()
+                # Hard requirement: no parsing from game_id. If inputs lack columns, skip slate.
+                ok = True
+                ok = ok and assert_required_cols(ml_df, ml_path.name, log)
+                ok = ok and assert_required_cols(pl_df, pl_path.name, log)
+                ok = ok and assert_required_cols(total_df, total_path.name, log)
 
-                if ml_df is not None and "game_id" in ml_df.columns:
-                    game_ids.update(ml_df["game_id"].dropna().unique())
-                if pl_df is not None and "game_id" in pl_df.columns:
-                    game_ids.update(pl_df["game_id"].dropna().unique())
-                if total_df is not None and "game_id" in total_df.columns:
-                    game_ids.update(total_df["game_id"].dropna().unique())
+                if not ok:
+                    log.write(f"Skipping slate {slate_key} due to missing required columns.\n\n")
+                    continue
 
-                for game_id in game_ids:
+                # Build canonical matchup list from authoritative columns
+                matchup_frames = []
+                if ml_df is not None and not ml_df.empty:
+                    matchup_frames.append(build_matchups(ml_df))
+                if pl_df is not None and not pl_df.empty:
+                    matchup_frames.append(build_matchups(pl_df))
+                if total_df is not None and not total_df.empty:
+                    matchup_frames.append(build_matchups(total_df))
 
-                    # Grab an example row from whichever DF has this game_id
-                    sample_row = None
-                    if pl_df is not None:
-                        tmp = pl_df[pl_df["game_id"] == game_id]
-                        if not tmp.empty:
-                            sample_row = tmp.iloc[0]
-                    if sample_row is None and ml_df is not None:
-                        tmp = ml_df[ml_df["game_id"] == game_id]
-                        if not tmp.empty:
-                            sample_row = tmp.iloc[0]
-                    if sample_row is None and total_df is not None:
-                        tmp = total_df[total_df["game_id"] == game_id]
-                        if not tmp.empty:
-                            sample_row = tmp.iloc[0]
+                if not matchup_frames:
+                    output_path = OUTPUT_DIR / f"{slate_key}_NHL.csv"
+                    pd.DataFrame([]).to_csv(output_path, index=False)
+                    log.write(f"Wrote {output_path} | rows=0\n")
+                    log.write("Moneyline bets: 0\nPuck line bets: 0\nTotal bets: 0\n\n")
+                    continue
 
-                    # ✅ authoritative away/home from columns when available; parse_game_id only as fallback
-                    if sample_row is not None:
-                        _, game_date, away_team, home_team = get_game_fields(sample_row)
-                    else:
-                        # final fallback: parse the game_id itself
-                        game_date, away_team, home_team = parse_game_id(game_id)
+                matchups = pd.concat(matchup_frames, ignore_index=True).drop_duplicates()
+
+                for _, m in matchups.iterrows():
+                    game_date = str(m["game_date"])
+                    away_team = str(m["away_team"])
+                    home_team = str(m["home_team"])
 
                     # =====================
                     # PUCK LINE
                     # =====================
-                    if pl_df is not None:
-                        game_pl = pl_df[pl_df["game_id"] == game_id]
+                    if pl_df is not None and not pl_df.empty:
+                        game_pl = pl_df[
+                            (pl_df["game_date"].astype(str) == game_date)
+                            & (pl_df["away_team"].astype(str) == away_team)
+                            & (pl_df["home_team"].astype(str) == home_team)
+                        ]
+
                         best_row = None
                         best_edge = -float("inf")
 
@@ -179,7 +145,6 @@ def main():
                             line_val = row.get(f"{side}_puck_line")
 
                             final_rows.append({
-                                # normalization / join keys
                                 "game_date": game_date,
                                 "league": LEAGUE_CODE,
                                 "away_team": away_team,
@@ -188,17 +153,12 @@ def main():
                                 "bet_side": side,
                                 "line": line_val,
 
-                                # existing output fields (kept)
-                                "game_id": game_id,
+                                "game_id": row.get("game_id"),
                                 "take_bet": f"{side}_puck_line",
                                 "take_bet_prob": row.get(f"{side}_juiced_prob_puck_line"),
                                 "take_bet_edge_decimal": row.get(f"{side}_edge_decimal"),
                                 "take_bet_edge_pct": row.get(f"{side}_edge_pct"),
-
-                                # ✅ Option A: label only
-                                "take_team": side,
-
-                                # ✅ sportsbook odds (NOT juiced)
+                                "take_team": side,  # Option A label only
                                 "take_odds": row.get(f"{side}_dk_puck_line_american"),
                                 "value": line_val,
                             })
@@ -207,14 +167,18 @@ def main():
                     # =====================
                     # MONEYLINE
                     # =====================
-                    if ml_df is not None:
-                        game_ml = ml_df[ml_df["game_id"] == game_id]
+                    if ml_df is not None and not ml_df.empty:
+                        game_ml = ml_df[
+                            (ml_df["game_date"].astype(str) == game_date)
+                            & (ml_df["away_team"].astype(str) == away_team)
+                            & (ml_df["home_team"].astype(str) == home_team)
+                        ]
+
                         best_row = None
                         best_edge = -float("inf")
 
                         for _, row in game_ml.iterrows():
                             for side in ["home", "away"]:
-
                                 edge_pct = row.get(f"{side}_edge_pct")
                                 prob = row.get(f"{side}_prob")
                                 american_odds = row.get(f"{side}_dk_moneyline_american")
@@ -222,21 +186,15 @@ def main():
                                 if pd.isna(edge_pct) or pd.isna(prob) or pd.isna(american_odds):
                                     continue
 
-                                # --- Tier 1: +200 to +225 ---
                                 if 200 <= american_odds <= 225:
                                     if not (edge_pct >= 0.05 and prob >= 0.35):
                                         continue
-
-                                # --- Tier 2: +1 to +199 ---
                                 elif 1 <= american_odds <= 199:
                                     if not (edge_pct >= 0.05 and prob >= 0.38):
                                         continue
-
-                                # --- Tier 3: Favorites (-1 to -999) ---
                                 elif -1 >= american_odds >= -999:
                                     if not (edge_pct >= 0.04 and prob >= 0.55):
                                         continue
-
                                 else:
                                     continue
 
@@ -248,7 +206,6 @@ def main():
                             row, side = best_row
 
                             final_rows.append({
-                                # normalization / join keys
                                 "game_date": game_date,
                                 "league": LEAGUE_CODE,
                                 "away_team": away_team,
@@ -257,17 +214,12 @@ def main():
                                 "bet_side": side,
                                 "line": "",
 
-                                # existing output fields (kept)
-                                "game_id": game_id,
+                                "game_id": row.get("game_id"),
                                 "take_bet": f"{side}_moneyline",
                                 "take_bet_prob": row.get(f"{side}_prob"),
                                 "take_bet_edge_decimal": row.get(f"{side}_edge_decimal"),
                                 "take_bet_edge_pct": row.get(f"{side}_edge_pct"),
-
-                                # ✅ Option A: label only
-                                "take_team": side,
-
-                                # ✅ sportsbook odds (NOT juiced)
+                                "take_team": side,  # Option A label only
                                 "take_odds": row.get(f"{side}_dk_moneyline_american"),
                                 "value": row.get(f"{side}_prob"),
                             })
@@ -276,8 +228,13 @@ def main():
                     # =====================
                     # TOTAL
                     # =====================
-                    if total_df is not None:
-                        game_total = total_df[total_df["game_id"] == game_id]
+                    if total_df is not None and not total_df.empty:
+                        game_total = total_df[
+                            (total_df["game_date"].astype(str) == game_date)
+                            & (total_df["away_team"].astype(str) == away_team)
+                            & (total_df["home_team"].astype(str) == home_team)
+                        ]
+
                         best_row = None
                         best_edge = -float("inf")
 
@@ -300,7 +257,6 @@ def main():
                             line_val = row.get("total")
 
                             final_rows.append({
-                                # normalization / join keys
                                 "game_date": game_date,
                                 "league": LEAGUE_CODE,
                                 "away_team": away_team,
@@ -309,17 +265,12 @@ def main():
                                 "bet_side": side,
                                 "line": line_val,
 
-                                # existing output fields (kept)
-                                "game_id": game_id,
+                                "game_id": row.get("game_id"),
                                 "take_bet": f"{side}_total",
                                 "take_bet_prob": row.get(f"juiced_total_{side}_prob"),
                                 "take_bet_edge_decimal": row.get(f"{side}_edge_decimal"),
                                 "take_bet_edge_pct": row.get(f"{side}_edge_pct"),
-
-                                # ✅ Option A: label only
-                                "take_team": side,
-
-                                # ✅ sportsbook odds (NOT juiced)
+                                "take_team": side,  # Option A label only
                                 "take_odds": row.get(f"dk_total_{side}_american"),
                                 "value": line_val,
                             })
@@ -329,6 +280,11 @@ def main():
 
                 if not out_df.empty:
                     out_df = out_df.sort_values(by="take_bet_edge_pct", ascending=False)
+
+                    # Final safety: prevent mirrored duplicates by matchup columns (no game_id parsing)
+                    out_df = out_df.drop_duplicates(
+                        subset=["game_date", "league", "away_team", "home_team", "market_type", "bet_side", "line"]
+                    )
 
                 output_path = OUTPUT_DIR / f"{slate_key}_NHL.csv"
                 out_df.to_csv(output_path, index=False)
