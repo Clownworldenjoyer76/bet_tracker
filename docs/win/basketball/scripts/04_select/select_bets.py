@@ -59,6 +59,7 @@ def infer_market_from_filename(filename: str):
 
 def parse_game_id(game_id: str):
     """
+    Fallback only.
     Expected format: YYYY_MM_DD_AWAY_TEAM_HOME_TEAM
     """
     if not isinstance(game_id, str):
@@ -72,6 +73,43 @@ def parse_game_id(game_id: str):
     away_team = parts[3]
     home_team = "_".join(parts[4:])
     return game_date, away_team, home_team
+
+
+def get_game_fields(row: pd.Series):
+    """
+    Prefer explicit columns in the input DF (authoritative).
+    Fallback to parsing game_id only if needed.
+    """
+    game_id = row.get("game_id")
+
+    # Prefer explicit columns if they exist
+    game_date = row.get("game_date")
+    away_team = row.get("away_team")
+    home_team = row.get("home_team")
+
+    # If any of these are missing/blank, fallback to parsing game_id
+    need_fallback = (
+        pd.isna(game_date) or str(game_date).strip() == ""
+        or pd.isna(away_team) or str(away_team).strip() == ""
+        or pd.isna(home_team) or str(home_team).strip() == ""
+    )
+
+    if need_fallback:
+        parsed_date, parsed_away, parsed_home = parse_game_id(game_id)
+
+        if pd.isna(game_date) or str(game_date).strip() == "":
+            game_date = parsed_date
+        if pd.isna(away_team) or str(away_team).strip() == "":
+            away_team = parsed_away
+        if pd.isna(home_team) or str(home_team).strip() == "":
+            home_team = parsed_home
+
+    # Normalize to strings (avoid "nan")
+    game_date = "" if pd.isna(game_date) else str(game_date)
+    away_team = "" if pd.isna(away_team) else str(away_team)
+    home_team = "" if pd.isna(home_team) else str(home_team)
+
+    return game_id, game_date, away_team, home_team
 
 
 def main():
@@ -101,10 +139,10 @@ def main():
 
                 for _, row in df.iterrows():
 
-                    game_id = row.get("game_id")
                     league = row.get("league")
 
-                    game_date, away_team, home_team = parse_game_id(game_id)
+                    # ✅ authoritative away/home from columns; parse_game_id only as fallback
+                    game_id, game_date, away_team, home_team = get_game_fields(row)
 
                     # =========================
                     # MONEYLINE
@@ -240,7 +278,7 @@ def main():
                                 "market": market,
                                 "take_bet": "over_bet",
                                 "take_odds": odds_over,
-                                "take_team": "over",  # already label
+                                "take_team": "over",  # label
                                 "value": total_value,
                                 "take_bet_edge_decimal": over_dec,
                                 "take_bet_edge_pct": over_pct,
