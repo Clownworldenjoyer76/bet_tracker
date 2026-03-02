@@ -104,11 +104,11 @@ def parse_games(lines, market):
     while i < len(lines):
         line = lines[i].strip()
 
-        # Start of new game block
+        # New game block starts at date
         if is_date_line(line):
             game_date = parse_date_to_output_format(line)
 
-            # Next line: time + away team
+            # Next line = time + away team
             i += 1
             if i >= len(lines):
                 break
@@ -119,7 +119,7 @@ def parse_games(lines, market):
 
             away_team = extract_away_team(away_line)
 
-            # Next line: home team
+            # Next line = home team
             i += 1
             if i >= len(lines):
                 break
@@ -127,14 +127,16 @@ def parse_games(lines, market):
             home_line = lines[i].strip()
             home_team = extract_home_team(home_line)
 
-            # Find away_score and home_score
+            # Locate away_score and home_score
             scores = []
+            score_line_indices = []
             j = i + 1
 
             while j < len(lines) and len(scores) < 2:
                 candidate = lines[j].strip()
                 if first_field_is_integer(candidate):
                     scores.append(extract_first_integer(candidate))
+                    score_line_indices.append(j)
                 j += 1
 
             if len(scores) != 2:
@@ -174,7 +176,8 @@ def parse_games(lines, market):
                 "home_puck_line": home_puck_line,
             })
 
-            i = j
+            # Advance exactly to line after home_score
+            i = score_line_indices[-1] + 1
             continue
 
         i += 1
