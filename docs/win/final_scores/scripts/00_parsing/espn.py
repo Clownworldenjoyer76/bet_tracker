@@ -89,11 +89,24 @@ def parse_game_date(lines):
     raise ValueError("Could not parse game date.")
 
 
+def is_valid_team_line(s: str) -> bool:
+    """
+    Valid team lines:
+    - not blank
+    - not purely digits (rankings like '1', '11')
+    """
+    if not s:
+        return False
+    if s.isdigit():
+        return False
+    return True
+
+
 def next_non_empty(lines, start_idx):
     i = start_idx
     while i < len(lines):
         s = lines[i].strip()
-        if s and not s.isdigit():  # skip ranking-only lines
+        if is_valid_team_line(s):
             return i, s
         i += 1
     return len(lines), ""
@@ -103,7 +116,7 @@ def prev_non_empty(lines, start_idx):
     i = start_idx
     while i >= 0:
         s = lines[i].strip()
-        if s and not s.isdigit():  # skip ranking-only lines
+        if is_valid_team_line(s):
             return i, s
         i -= 1
     return -1, ""
@@ -122,10 +135,6 @@ def extract_pairs(result_line):
 
 
 def resolve_team_by_abbrev(result_abbrev, team_map):
-    """
-    Reverse lookup: abbreviation -> team_name.
-    Needed for NHL New York conflicts (NYI / NYR).
-    """
     for team, abbr in team_map.items():
         if abbr == result_abbrev:
             return team
