@@ -2,7 +2,6 @@
 # docs/win/final_scores/scripts/00_parsing/scores.py
 
 import sys
-import re
 import csv
 from pathlib import Path
 from datetime import datetime
@@ -31,7 +30,7 @@ HEADERS = [
 
 
 # =========================
-# MARKET / LEAGUE
+# HELPERS
 # =========================
 
 def normalize_market(market: str) -> str:
@@ -47,50 +46,29 @@ def league_from_market(market: str) -> str:
     return "Basketball" if market in {"NBA", "NCAAB"} else "Hockey"
 
 
-# =========================
-# PARSING HELPERS
-# =========================
-
-DATE_REGEX = re.compile(r"^\d{2}/\d{2}/\d{4}$")
-TIME_REGEX = re.compile(r"^\d{2}:\d{2}\s*(AM|PM)$")
-
-
 def is_date_line(s: str) -> bool:
-    return bool(DATE_REGEX.match(s.strip()))
-
-
-def is_time_prefix_line(s: str) -> bool:
-    parts = s.split("\t")
-    if not parts:
+    s = s.strip()
+    if len(s) != 10:
         return False
-    return bool(TIME_REGEX.match(parts[0].strip()))
+    try:
+        datetime.strptime(s, "%m/%d/%Y")
+        return True
+    except:
+        return False
 
 
-def parse_date_to_output_format(date_str: str) -> str:
-    dt = datetime.strptime(date_str.strip(), "%m/%d/%Y")
+def to_output_date(s: str) -> str:
+    dt = datetime.strptime(s.strip(), "%m/%d/%Y")
     return dt.strftime("%Y_%m_%d")
 
 
-def extract_away_team(line: str) -> str:
-    parts = line.split("\t")
-    if len(parts) > 1:
-        return parts[1].strip()
-    return re.sub(r"^\d{2}:\d{2}\s*(AM|PM)\s*", "", line).strip()
-
-
-def extract_home_team(line: str) -> str:
+def first_field(line: str) -> str:
     return line.split("\t")[0].strip()
 
 
-def first_field_is_integer(line: str) -> bool:
-    if not line.strip():
-        return False
-    first = line.split("\t")[0].strip()
-    return first.isdigit()
-
-
-def extract_first_integer(line: str) -> int:
-    return int(line.split("\t")[0].strip())
+def first_field_is_int(line: str) -> bool:
+    f = first_field(line)
+    return f.isdigit()
 
 
 # =========================
@@ -102,49 +80,46 @@ def parse_games(lines, market):
     i = 0
 
     while i < len(lines):
+
         line = lines[i].strip()
 
         # New game block starts at date
         if is_date_line(line):
-            game_date = parse_date_to_output_format(line)
 
-            # Next line = time + away team
+            game_date = to_output_date(line)
+
+            # Next line = time + away
             i += 1
             if i >= len(lines):
                 break
 
-            away_line = lines[i].strip()
-            if not is_time_prefix_line(away_line):
-                continue
+            away_line = lines[i]
+            away_team = away_line.split("\t")[1].strip()
 
-            away_team = extract_away_team(away_line)
-
-            # Next line = home team
+            # Next line = home
             i += 1
             if i >= len(lines):
                 break
 
-            home_line = lines[i].strip()
-            home_team = extract_home_team(home_line)
+            home_line = lines[i]
+            home_team = first_field(home_line)
 
-            # Locate away_score and home_score
-            scores = []
-            score_line_indices = []
-            j = i + 1
-
-            while j < len(lines) and len(scores) < 2:
-                candidate = lines[j].strip()
-                if first_field_is_integer(candidate):
-                    scores.append(extract_first_integer(candidate))
-                    score_line_indices.append(j)
-                j += 1
-
-            if len(scores) != 2:
+            # Move forward until we hit away_score
+            i += 1
+            while i < len(lines) and not first_field_is_int(lines[i]):
                 i += 1
-                continue
 
-            away_score = scores[0]
-            home_score = scores[1]
+            if i >= len(lines):
+                break
+
+            away_score = int(first_field(lines[i]))
+
+            # Next line must contain home_score
+            i += 1
+            if i >= len(lines):
+                break
+
+            home_score = int(first_field(lines[i]))
 
             total = away_score + home_score
 
@@ -176,11 +151,8 @@ def parse_games(lines, market):
                 "home_puck_line": home_puck_line,
             })
 
-            # Advance exactly to line after home_score
-            i = score_line_indices[-1] + 1
-            continue
-
-        i += 1
+        else:
+            i += 1
 
     if not rows:
         raise ValueError("No games parsed from input.")
