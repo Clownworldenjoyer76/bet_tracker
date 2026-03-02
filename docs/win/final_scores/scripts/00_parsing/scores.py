@@ -66,14 +66,12 @@ def parse_games(lines, market):
     while i < len(lines):
         line = lines[i].strip()
 
-        # 1. DATE LINE
         if not is_date_line(line):
             i += 1
             continue
 
         game_date = to_output_date(line)
 
-        # 2. TIME + AWAY TEAM
         i += 1
         if i >= len(lines):
             break
@@ -85,14 +83,12 @@ def parse_games(lines, market):
 
         away_team = away_parts[1].strip()
 
-        # 3. HOME TEAM
         i += 1
         if i >= len(lines):
             break
 
         home_team = first_field(lines[i])
 
-        # 4. FIND AWAY SCORE
         i += 1
         while i < len(lines) and not first_field(lines[i]).isdigit():
             i += 1
@@ -101,7 +97,6 @@ def parse_games(lines, market):
 
         away_score = int(first_field(lines[i]))
 
-        # 5. FIND HOME SCORE
         i += 1
         while i < len(lines) and not first_field(lines[i]).isdigit():
             i += 1
@@ -117,13 +112,15 @@ def parse_games(lines, market):
         away_puck_line = ""
         home_puck_line = ""
 
+        # Spread logic
         if market in {"NBA", "NCAAB"}:
             away_spread = str(home_score - away_score)
             home_spread = str(away_score - home_score)
 
+        # Puck line uses SAME logic
         if market == "NHL":
-            away_puck_line = str(away_score - home_score)
-            home_puck_line = str(home_score - away_score)
+            away_puck_line = str(home_score - away_score)
+            home_puck_line = str(away_score - home_score)
 
         rows.append({
             "game_date": game_date,
