@@ -68,8 +68,8 @@ def load_team_map(market: str) -> dict:
             raise ValueError(f"Invalid headers in {path}. Required: team_name,abbreviation")
 
         for row in reader:
-            team = row["team_name"].strip()
-            abbr = row["abbreviation"].strip()
+            team = (row.get("team_name") or "").strip()
+            abbr = (row.get("abbreviation") or "").strip()
             if team:
                 team_map[team] = abbr
 
@@ -78,7 +78,7 @@ def load_team_map(market: str) -> dict:
 
 def parse_game_date(lines):
     for line in lines[:20]:
-        s = line.strip()
+        s = (line or "").replace("\u00a0", " ").strip()
         if not s:
             continue
         try:
@@ -93,19 +93,27 @@ def is_valid_team_line(s: str) -> bool:
     """
     Valid team lines:
     - not blank
-    - not purely digits (rankings like '1', '11')
+    - must contain at least one alphabetic character
+    This removes ranking lines like '1', '11', etc.
     """
     if not s:
         return False
-    if s.isdigit():
+
+    s = s.replace("\u00a0", " ").strip()
+    if not s:
         return False
+
+    # Reject lines without letters (e.g. rankings)
+    if not any(ch.isalpha() for ch in s):
+        return False
+
     return True
 
 
 def next_non_empty(lines, start_idx):
     i = start_idx
     while i < len(lines):
-        s = lines[i].strip()
+        s = (lines[i] or "").replace("\u00a0", " ").strip()
         if is_valid_team_line(s):
             return i, s
         i += 1
@@ -115,7 +123,7 @@ def next_non_empty(lines, start_idx):
 def prev_non_empty(lines, start_idx):
     i = start_idx
     while i >= 0:
-        s = lines[i].strip()
+        s = (lines[i] or "").replace("\u00a0", " ").strip()
         if is_valid_team_line(s):
             return i, s
         i -= 1
@@ -123,15 +131,17 @@ def prev_non_empty(lines, start_idx):
 
 
 def is_at_line(s):
-    return s.strip() == "@"
+    return (s or "").replace("\u00a0", " ").strip() == "@"
 
 
 def looks_like_result_line(s):
-    return "," in s and len(re.findall(r"\d+", s)) >= 2
+    s2 = (s or "").replace("\u00a0", " ").strip()
+    return "," in s2 and len(re.findall(r"\d+", s2)) >= 2
 
 
 def extract_pairs(result_line):
-    return re.findall(r"([A-Z\-]+)\s+(\d+)", result_line)
+    s = (result_line or "").replace("\u00a0", " ")
+    return re.findall(r"([A-Z\-]+)\s+(\d+)", s)
 
 
 def resolve_team_by_abbrev(result_abbrev, team_map):
@@ -181,7 +191,7 @@ def parse_games(lines, game_date, market, team_map):
     is_hockey = market == "NHL"
 
     for i, raw in enumerate(lines):
-        if not is_at_line(raw.strip()):
+        if not is_at_line(raw):
             continue
 
         _, away_team = prev_non_empty(lines, i - 1)
@@ -194,8 +204,9 @@ def parse_games(lines, game_date, market, team_map):
 
         result_line = ""
         for k in range(j, min(len(lines), j + 20)):
-            if looks_like_result_line(lines[k].strip()):
-                result_line = lines[k].strip()
+            cand = (lines[k] or "").replace("\u00a0", " ").strip()
+            if looks_like_result_line(cand):
+                result_line = cand
                 break
 
         if not result_line:
