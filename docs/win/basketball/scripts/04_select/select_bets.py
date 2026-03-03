@@ -77,6 +77,29 @@ def infer_market_from_filename(filename: str):
     return None
 
 
+def infer_league(row_league, filename: str) -> str:
+    """
+    Your row 'league' is often generic like 'BASKETBALL'.
+    Your files are typically named with NBA/NCAAB in them (e.g. *_NCAAB_moneyline.csv).
+    This makes sure the correct branch actually runs.
+    """
+    rl = "" if pd.isna(row_league) else str(row_league).strip().upper()
+    fn = filename.lower()
+
+    # Prefer explicit known codes if present in the row
+    if rl in {"NBA", "NCAAB", "NHL", "WNBA", "MLB", "NFL"}:
+        return rl
+
+    # Otherwise infer from filename
+    if "ncaab" in fn or "_ncaa_" in fn or "college" in fn:
+        return "NCAAB"
+    if "nba" in fn:
+        return "NBA"
+
+    # Fallback
+    return rl if rl else "UNKNOWN"
+
+
 def assert_required_cols(df: pd.DataFrame, df_name: str, log) -> bool:
     missing = [c for c in REQUIRED_GAME_COLS if c not in df.columns]
     if missing:
@@ -118,7 +141,7 @@ def main():
                 for _, row in df.iterrows():
 
                     game_id = row.get("game_id")
-                    league = str(row.get("league")).upper()
+                    league = infer_league(row.get("league"), input_path.name)
 
                     game_date = "" if pd.isna(row.get("game_date")) else str(row.get("game_date"))
                     away_team = "" if pd.isna(row.get("away_team")) else str(row.get("away_team"))
@@ -143,16 +166,38 @@ def main():
                             if pd.isna(odds):
                                 continue
 
-                            # NBA (unchanged)
+                            # NBA (keep your original band logic)
                             if league == "NBA":
-                                if not valid_edge(edge_dec, edge_pct):
+
+                                if 100 <= odds <= 149:
+                                    if not (edge_dec >= 0.05 and win_prob >= 0.42):
+                                        continue
+                                elif 150 <= odds <= 199:
+                                    if not (edge_dec >= 0.06 and win_prob >= 0.38):
+                                        continue
+                                elif 200 <= odds <= 299:
+                                    if not (edge_dec >= 0.07 and win_prob >= 0.33):
+                                        continue
+                                elif odds >= 300:
+                                    if not (edge_dec >= 0.15 and win_prob >= 0.33):
+                                        continue
+                                elif -149 <= odds <= -100:
+                                    if not (edge_dec >= 0.05 and win_prob >= 0.58):
+                                        continue
+                                elif -249 <= odds <= -150:
+                                    if not (edge_dec >= 0.06 and win_prob >= 0.62):
+                                        continue
+                                elif odds <= -250:
+                                    if not (edge_dec >= 0.07 and win_prob >= 0.70):
+                                        continue
+                                else:
                                     continue
 
-                            # NCAAB (TIGHTENED)
+                            # NCAAB (TIGHTENED + FIXED TO ACTUALLY RUN)
                             elif league == "NCAAB":
 
                                 # Minimum probability
-                                if win_prob < 0.30:
+                                if float(win_prob) < 0.30:
                                     continue
 
                                 # Kill +300 and higher
@@ -178,10 +223,10 @@ def main():
                                 elif odds < -200:
                                     if not (edge_dec >= 0.07 and edge_pct >= 0.03 and win_prob >= 0.68):
                                         continue
-
                                 else:
                                     continue
 
+                            # Other / fallback
                             else:
                                 if not valid_edge(edge_dec, edge_pct):
                                     continue
@@ -261,16 +306,23 @@ def main():
                         odds_under = row.get("total_under_juice_odds")
 
                         if league == "NCAAB":
-                            total_valid = (
+                            over_valid = (
                                 pd.notna(over_dec)
                                 and pd.notna(over_pct)
                                 and over_dec >= 0.10
                                 and over_pct >= 0.05
                             )
+                            under_valid = (
+                                pd.notna(under_dec)
+                                and pd.notna(under_pct)
+                                and under_dec >= 0.10
+                                and under_pct >= 0.05
+                            )
                         else:
-                            total_valid = valid_total_edge(over_dec, over_pct)
+                            over_valid = valid_total_edge(over_dec, over_pct)
+                            under_valid = valid_total_edge(under_dec, under_pct)
 
-                        if total_valid and valid_total_odds(odds_over):
+                        if over_valid and valid_total_odds(odds_over):
                             selections.append({
                                 "game_date": game_date,
                                 "league": league,
@@ -289,17 +341,7 @@ def main():
                                 "take_bet_edge_pct": over_pct,
                             })
 
-                        if league == "NCAAB":
-                            total_valid_under = (
-                                pd.notna(under_dec)
-                                and pd.notna(under_pct)
-                                and under_dec >= 0.10
-                                and under_pct >= 0.05
-                            )
-                        else:
-                            total_valid_under = valid_total_edge(under_dec, under_pct)
-
-                        if total_valid_under and valid_total_odds(odds_under):
+                        if under_valid and valid_total_odds(odds_under):
                             selections.append({
                                 "game_date": game_date,
                                 "league": league,
