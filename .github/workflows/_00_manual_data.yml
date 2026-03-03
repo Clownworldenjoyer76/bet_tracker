@@ -33,19 +33,18 @@ jobs:
           python-version: "3.11"
 
       - run: python -m pip install --upgrade pip
+      - run: pip install pandas
 
       - name: Run Basketball
         if: ${{ github.event.inputs.league == 'basketball' }}
         run: |
           printf "%s" "${{ github.event.inputs.raw_text }}" > dump.txt
           BASE="docs/win/basketball/scripts/00_parsing"
-
           if [ "${{ github.event.inputs.source }}" = "DraftKings" ]; then
             python "$BASE/dk.py" basketball "${{ github.event.inputs.market }}" dump.txt
           else
             python "$BASE/drat.py" basketball "${{ github.event.inputs.market }}" dump.txt
           fi
-
           python "$BASE/name_normalization.py"
           python "$BASE/dedupe.py"
 
@@ -54,13 +53,11 @@ jobs:
         run: |
           printf "%s" "${{ github.event.inputs.raw_text }}" > dump.txt
           BASE="docs/win/hockey/scripts/00_parsing"
-
           if [ "${{ github.event.inputs.source }}" = "DraftKings" ]; then
             python "$BASE/dk.py" hockey "${{ github.event.inputs.market }}" dump.txt
           else
             python "$BASE/drat.py" hockey "${{ github.event.inputs.market }}" dump.txt
           fi
-
           python "$BASE/name_normalization.py"
           python "$BASE/dedupe.py"
 
@@ -69,13 +66,11 @@ jobs:
         run: |
           printf "%s" "${{ github.event.inputs.raw_text }}" > dump.txt
           BASE="docs/win/soccer/scripts/00_parsing"
-
           if [ "${{ github.event.inputs.source }}" = "DraftKings" ]; then
             python "$BASE/dk.py" soccer "${{ github.event.inputs.market }}" dump.txt
           else
             python "$BASE/drat.py" soccer "${{ github.event.inputs.market }}" dump.txt
           fi
-
           python "$BASE/parsing_combine.py"
           python "$BASE/name_normalization.py"
           python "$BASE/dedupe.py"
@@ -85,11 +80,13 @@ jobs:
         run: |
           printf "%s" "${{ github.event.inputs.raw_text }}" > dump.txt
           BASE="docs/win/final_scores/scripts/00_parsing"
-
-          # scores.py now handles subfolder creation for NBA, NCAAB, and NHL
+          
+          # Parse and dedupe scores
           python "$BASE/scores.py" "${{ github.event.inputs.market }}" dump.txt
-          # dedupe.py now uses rglob to find files in those subfolders
           python "$BASE/dedupe.py"
+          
+          # Inject DK Puck Lines into the newly created scores
+          python "$BASE/dk_puck.py"
 
       - name: Commit Basketball
         if: ${{ github.event.inputs.league == 'basketball' }}
@@ -129,10 +126,7 @@ jobs:
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          
-          # Adds the new results subfolders (nba, ncaab, nhl)
           git add docs/win/final_scores/results/
           git add docs/win/final_scores/errors/
-          
-          git commit -m "final scores intake (structured)" || echo "No changes"
+          git commit -m "final scores intake + dk puck injection" || echo "No changes"
           git push
