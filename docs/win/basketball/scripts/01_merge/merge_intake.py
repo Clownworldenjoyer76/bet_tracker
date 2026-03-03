@@ -31,15 +31,12 @@ ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 LOG_FILE = ERROR_DIR / "merge_intake.txt"
 
-# reset log each run
 with open(LOG_FILE, "w", encoding="utf-8") as f:
     f.write("")
-
 
 def log(msg):
     with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write(f"{datetime.utcnow().isoformat()} | {msg}\n")
-
 
 # =========================
 # HELPERS
@@ -54,7 +51,6 @@ def load_dedupe(path, key_fields):
             data[key] = r
     return data
 
-
 key_fields = ["game_date", "home_team", "away_team"]
 
 FIELDNAMES = [
@@ -65,20 +61,14 @@ FIELDNAMES = [
     "home_team",
     "away_team",
     "game_id",
-
-    # model
     "home_prob",
     "away_prob",
     "away_projected_points",
     "home_projected_points",
     "total_projected_points",
-
-    # sportsbook lines
     "away_spread",
     "home_spread",
     "total",
-
-    # sportsbook odds
     "away_dk_spread_american",
     "home_dk_spread_american",
     "dk_total_over_american",
@@ -105,7 +95,7 @@ for league in LEAGUES:
     pred_data = load_dedupe(PRED_FILE, key_fields)
     dk_data = load_dedupe(SPORTSBOOK_FILE, key_fields)
 
-    merged_rows = {}
+    merged_rows = []
 
     for key, p in pred_data.items():
 
@@ -114,15 +104,13 @@ for league in LEAGUES:
 
         d = dk_data[key]
 
-        # team validation
         if d.get("home_team") != p.get("home_team") or d.get("away_team") != p.get("away_team"):
             log(f"{league} TEAM MISMATCH: {p.get('home_team')} vs {p.get('away_team')}")
             continue
 
-        # ✅ Make game_id consistent with explicit away_team/home_team columns
         game_id = f"{p['game_date']}_{p['away_team']}_{p['home_team']}"
 
-        merged_rows[key] = {
+        merged_rows.append({
             "league": p.get("league", ""),
             "market": p.get("market", ""),
             "game_date": p.get("game_date", ""),
@@ -130,15 +118,11 @@ for league in LEAGUES:
             "home_team": p.get("home_team", ""),
             "away_team": p.get("away_team", ""),
             "game_id": game_id,
-
-            # model
             "home_prob": p.get("home_prob", ""),
             "away_prob": p.get("away_prob", ""),
             "away_projected_points": p.get("away_projected_points", ""),
             "home_projected_points": p.get("home_projected_points", ""),
             "total_projected_points": p.get("total_projected_points", ""),
-
-            # sportsbook
             "away_spread": d.get("away_spread", ""),
             "home_spread": d.get("home_spread", ""),
             "total": d.get("total", ""),
@@ -148,49 +132,22 @@ for league in LEAGUES:
             "dk_total_under_american": d.get("dk_total_under_american", ""),
             "away_dk_moneyline_american": d.get("away_dk_moneyline_american", ""),
             "home_dk_moneyline_american": d.get("home_dk_moneyline_american", ""),
-        }
+        })
 
     if not merged_rows:
         log(f"No matching {league} rows to merge for slate {slate_date}.")
         print(f"No matching {league} rows to merge for slate {slate_date}.")
         continue
 
-    # =========================
-    # UPSERT SAFE
-    # =========================
-
-    existing = {}
-
-    if OUTFILE.exists():
-        with open(OUTFILE, newline="", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            if reader.fieldnames == FIELDNAMES:
-                for r in reader:
-                    key = (
-                        r["game_date"],
-                        r["home_team"],
-                        r["away_team"],
-                    )
-                    existing[key] = r
-            else:
-                log(f"{league} WARNING: Header mismatch detected. Rebuilding clean.")
-
-    for key, row in merged_rows.items():
-        existing[key] = row
-
-    # =========================
-    # ATOMIC WRITE
-    # =========================
-
     temp_file = OUTFILE.with_suffix(".tmp")
 
     with open(temp_file, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
         writer.writeheader()
-        for r in sorted(existing.values(), key=lambda x: (x["game_date"], x["game_time"], x["home_team"])):
+        for r in sorted(merged_rows, key=lambda x: (x["game_date"], x["game_time"], x["home_team"])):
             writer.writerow({k: r.get(k, "") for k in FIELDNAMES})
 
     temp_file.replace(OUTFILE)
 
-    log(f"SUMMARY: merged {len(merged_rows)} {league} games for slate {slate_date}")
+    log(f"SUMMARY: rebuilt {len(merged_rows)} {league} games for slate {slate_date}")
     print(f"Wrote {OUTFILE}")
