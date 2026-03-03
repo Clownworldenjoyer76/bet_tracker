@@ -85,23 +85,12 @@ def main():
                                 elif odds <= -250 and edge_dec >= 0.08 and win_prob >= 0.80: keep_bet = True
 
                             elif league == "NCAAB":
-                                # NCAAB ML Filter: Away teams need higher win probability
                                 if side == "away" and win_prob < 0.65: continue
-                                
                                 if odds >= 300 or win_prob < 0.30: continue
                                 elif 200 <= odds < 300 and edge_dec >= 0.08 and edge_pct >= 0.035: keep_bet = True
                                 elif 100 <= odds < 200 and edge_dec >= 0.06 and edge_pct >= 0.03: keep_bet = True
                                 elif -200 <= odds < -100 and edge_dec >= 0.06 and edge_pct >= 0.03 and win_prob >= 0.60: keep_bet = True
                                 elif odds < -200 and edge_dec >= 0.07 and edge_pct >= 0.03 and win_prob >= 0.72: keep_bet = True
-
-                            if keep_bet:
-                                selections.append({
-                                    "game_date": game_date, "league": league, "away_team": away, "home_team": home,
-                                    "market_type": "moneyline", "bet_side": side, "line": "", "game_id": row.get("game_id"),
-                                    "take_odds": odds, "take_team": side, "take_bet_edge_decimal": edge_dec, "take_bet_edge_pct": edge_pct
-                                })
-                                counts["selected"] += 1
-                                break
 
                     # =========================
                     # SPREAD LOGIC
@@ -114,22 +103,14 @@ def main():
 
                             if pd.isna(edge_dec) or pd.isna(line_val): continue
                             
-                            if league == "NCAAB":
-                                # NCAAB Spread Filter: Max spread of 12.5
+                            if league == "NBA":
+                                # Filter: Max spread 10.5 to avoid high-variance blowouts
+                                if abs(float(line_val)) > 10.5: continue
+                                if edge_dec >= 0.06 and edge_pct >= 0.03: keep_bet = True
+
+                            elif league == "NCAAB":
                                 if abs(float(line_val)) > 12.5: continue
                                 if edge_dec >= 0.055 and edge_pct >= 0.025: keep_bet = True
-                            else: # NBA Default
-                                if edge_dec >= 0.05 and edge_pct >= 0.02: keep_bet = True
-
-                            if keep_bet:
-                                selections.append({
-                                    "game_date": game_date, "league": league, "away_team": away, "home_team": home,
-                                    "market_type": "spread", "bet_side": side, "line": line_val, 
-                                    "game_id": row.get("game_id"), "take_odds": row.get(f"{side}_spread_juice_odds"),
-                                    "take_team": side, "take_bet_edge_decimal": edge_dec, "take_bet_edge_pct": edge_pct
-                                })
-                                counts["selected"] += 1
-                                break
 
                     # =========================
                     # TOTAL LOGIC
@@ -144,23 +125,28 @@ def main():
                             if pd.isna(odds) or pd.isna(total_val) or odds < MIN_TOTAL_ODDS: continue
 
                             if league == "NBA":
-                                if edge_dec >= 0.10: keep_bet = True
+                                # Tighter requirement for NBA due to high variance
+                                if edge_dec >= 0.12: keep_bet = True
+                                
                             elif league == "NCAAB":
-                                # NCAAB Totals Filter: Sweet spot 135 to 155
+                                # Sweet spot 135 to 155
                                 if not (135 <= total_val <= 155): continue
                                 if edge_dec >= 0.10 and edge_pct >= 0.05: keep_bet = True
 
-                            if keep_bet:
-                                selections.append({
-                                    "game_date": game_date, "league": league, "away_team": away, "home_team": home,
-                                    "market_type": "total", "bet_side": side, "line": total_val,
-                                    "game_id": row.get("game_id"), "take_odds": odds, "take_team": side,
-                                    "take_bet_edge_decimal": edge_dec, "take_bet_edge_pct": edge_pct
-                                })
-                                counts["selected"] += 1
-                                break
+                    if keep_bet:
+                        take_odds = row.get(f"{side}_juice_odds") if market == "moneyline" else \
+                                    row.get(f"{side}_spread_juice_odds") if market == "spread" else \
+                                    row.get(f"total_{side}_juice_odds")
+                        
+                        selections.append({
+                            "game_date": game_date, "league": league, "away_team": away, "home_team": home,
+                            "market_type": market, "bet_side": side, "line": line_val if market == "spread" else total_val if market == "total" else "",
+                            "game_id": row.get("game_id"), "take_odds": take_odds, "take_team": side,
+                            "take_bet_edge_decimal": edge_dec, "take_bet_edge_pct": edge_pct
+                        })
+                        counts["selected"] += 1
+                        break
 
-                # Save Results per File
                 if selections:
                     out_df = pd.DataFrame(selections)
                     out_df.to_csv(OUTPUT_DIR / input_path.name, index=False)
