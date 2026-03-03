@@ -4,14 +4,25 @@
 import pandas as pd
 from pathlib import Path
 import math
+from datetime import datetime
+import traceback
+import sys
 
 INPUT_DIR = Path("docs/win/basketball/01_merge")
 OUTPUT_DIR = Path("docs/win/basketball/02_juice")
+ERROR_DIR = Path("docs/win/basketball/errors/02_juice")
 
 NBA_CONFIG = Path("config/basketball/nba/nba_ml_juice.csv")
 NCAAB_CONFIG = Path("config/basketball/ncaab/ncaab_ml_juice.csv")
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+ERROR_DIR.mkdir(parents=True, exist_ok=True)
+
+ERROR_LOG = ERROR_DIR / "apply_moneyline_juice.txt"
+
+def log(msg):
+    with open(ERROR_LOG, "a", encoding="utf-8") as f:
+        f.write(f"{datetime.utcnow().isoformat()} | {msg}\n")
 
 
 def american_to_decimal(a):
@@ -32,7 +43,6 @@ def apply_nba(df):
 
     def process(row, side):
 
-        # sportsbook odds determine band
         book_odds = float(row[f"{side}_dk_moneyline_american"])
         fav_ud = "favorite" if book_odds < 0 else "underdog"
 
@@ -47,7 +57,6 @@ def apply_nba(df):
         if not math.isfinite(roi):
             roi = 0.0
 
-        # apply % adjustment to acceptable decimal
         base_decimal = float(row[f"{side}_acceptable_decimal_moneyline"])
         final_decimal = base_decimal * (1 - roi)
 
@@ -94,19 +103,38 @@ def apply_ncaab(df):
 
 def main():
 
-    for f in INPUT_DIR.iterdir():
+    with open(ERROR_LOG, "w", encoding="utf-8") as f:
+        f.write(f"=== APPLY MONEYLINE JUICE START {datetime.utcnow().isoformat()}Z ===\n")
 
-        name = f.name
+    try:
+        files_found = 0
 
-        if name.endswith("_NBA_moneyline.csv"):
-            df = pd.read_csv(f)
-            df = apply_nba(df)
-            df.to_csv(OUTPUT_DIR / name, index=False)
+        for f in INPUT_DIR.iterdir():
 
-        elif name.endswith("_NCAAB_moneyline.csv"):
-            df = pd.read_csv(f)
-            df = apply_ncaab(df)
-            df.to_csv(OUTPUT_DIR / name, index=False)
+            name = f.name
+
+            if name.endswith("_NBA_moneyline.csv"):
+                df = pd.read_csv(f)
+                df = apply_nba(df)
+                df.to_csv(OUTPUT_DIR / name, index=False)
+                log(f"Processed NBA file: {name}")
+                files_found += 1
+
+            elif name.endswith("_NCAAB_moneyline.csv"):
+                df = pd.read_csv(f)
+                df = apply_ncaab(df)
+                df.to_csv(OUTPUT_DIR / name, index=False)
+                log(f"Processed NCAAB file: {name}")
+                files_found += 1
+
+        log(f"Total files processed: {files_found}")
+        log("=== APPLY MONEYLINE JUICE END ===")
+
+    except Exception as e:
+        log("=== ERROR ===")
+        log(str(e))
+        log(traceback.format_exc())
+        sys.exit(1)
 
 
 if __name__ == "__main__":
