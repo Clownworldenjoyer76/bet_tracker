@@ -24,6 +24,24 @@ MIN_TOTAL_ODDS = -150
 
 REQUIRED_GAME_COLS = ["game_date", "away_team", "home_team"]
 
+EXPECTED_COLUMNS = [
+    "game_date",
+    "league",
+    "away_team",
+    "home_team",
+    "market_type",
+    "bet_side",
+    "line",
+    "game_id",
+    "market",
+    "take_bet",
+    "take_odds",
+    "take_team",
+    "value",
+    "take_bet_edge_decimal",
+    "take_bet_edge_pct",
+]
+
 
 def valid_edge(edge_dec, edge_pct):
     return (
@@ -91,7 +109,6 @@ def main():
                     log.write(f"Skipping {input_path.name} (cannot infer market)\n")
                     continue
 
-                # Hard requirement: no parsing from game_id
                 if not assert_required_cols(df, input_path.name, log):
                     log.write(f"Skipping {input_path.name} due to missing required columns.\n\n")
                     continue
@@ -103,14 +120,9 @@ def main():
                     game_id = row.get("game_id")
                     league = row.get("league")
 
-                    game_date = row.get("game_date")
-                    away_team = row.get("away_team")
-                    home_team = row.get("home_team")
-
-                    # Normalize to strings (avoid nan)
-                    game_date = "" if pd.isna(game_date) else str(game_date)
-                    away_team = "" if pd.isna(away_team) else str(away_team)
-                    home_team = "" if pd.isna(home_team) else str(home_team)
+                    game_date = "" if pd.isna(row.get("game_date")) else str(row.get("game_date"))
+                    away_team = "" if pd.isna(row.get("away_team")) else str(row.get("away_team"))
+                    home_team = "" if pd.isna(row.get("home_team")) else str(row.get("home_team"))
 
                     # =========================
                     # MONEYLINE
@@ -156,7 +168,6 @@ def main():
                                         continue
                                 else:
                                     continue
-
                             else:
                                 if not valid_edge(edge_dec, edge_pct):
                                     continue
@@ -169,12 +180,11 @@ def main():
                                 "market_type": "moneyline",
                                 "bet_side": side,
                                 "line": "",
-
                                 "game_id": game_id,
                                 "market": market,
                                 "take_bet": f"{side}_ml",
                                 "take_odds": american_odds,
-                                "take_team": side,  # Option A label only
+                                "take_team": side,
                                 "value": win_prob,
                                 "take_bet_edge_decimal": edge_dec,
                                 "take_bet_edge_pct": edge_pct,
@@ -201,12 +211,11 @@ def main():
                                     "market_type": "spread",
                                     "bet_side": side,
                                     "line": spread_val,
-
                                     "game_id": game_id,
                                     "market": market,
                                     "take_bet": f"{side}_spread",
                                     "take_odds": row.get(f"{side}_spread_juice_odds"),
-                                    "take_team": side,  # Option A label only
+                                    "take_team": side,
                                     "value": spread_val,
                                     "take_bet_edge_decimal": edge_dec,
                                     "take_bet_edge_pct": edge_pct,
@@ -228,7 +237,6 @@ def main():
                         odds_under = row.get("total_under_juice_odds")
 
                         if valid_total_edge(over_dec, over_pct) and valid_total_odds(odds_over):
-
                             selections.append({
                                 "game_date": game_date,
                                 "league": league,
@@ -237,7 +245,6 @@ def main():
                                 "market_type": "total",
                                 "bet_side": "over",
                                 "line": total_value,
-
                                 "game_id": game_id,
                                 "market": market,
                                 "take_bet": "over_bet",
@@ -249,7 +256,6 @@ def main():
                             })
 
                         if valid_total_edge(under_dec, under_pct) and valid_total_odds(odds_under):
-
                             selections.append({
                                 "game_date": game_date,
                                 "league": league,
@@ -258,7 +264,6 @@ def main():
                                 "market_type": "total",
                                 "bet_side": "under",
                                 "line": total_value,
-
                                 "game_id": game_id,
                                 "market": market,
                                 "take_bet": "under_bet",
@@ -269,11 +274,21 @@ def main():
                                 "take_bet_edge_pct": under_pct,
                             })
 
-                sel_df = pd.DataFrame(selections)
+                # 🔧 CRITICAL FIX — Always enforce headers
+                sel_df = pd.DataFrame(selections, columns=EXPECTED_COLUMNS)
 
                 if not sel_df.empty:
                     sel_df = sel_df.drop_duplicates(
-                        subset=["game_date", "league", "away_team", "home_team", "market_type", "bet_side", "line", "take_bet"]
+                        subset=[
+                            "game_date",
+                            "league",
+                            "away_team",
+                            "home_team",
+                            "market_type",
+                            "bet_side",
+                            "line",
+                            "take_bet",
+                        ]
                     )
 
                 output_path = OUTPUT_DIR / input_path.name
