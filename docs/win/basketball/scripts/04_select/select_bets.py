@@ -42,7 +42,7 @@ def main():
 
                         if side == "over":
                             if line < 150:
-                                if edge >= 0.40 and diff >= 4:
+                                if edge >= 0.50 and diff >= 4:
                                     new_row = row.copy()
                                     new_row["market_type"] = "total"
                                     new_row["bet_side"] = side
@@ -57,7 +57,7 @@ def main():
                                     results.append(new_row)
 
                         else:  # under
-                            if edge >= 0.08:
+                            if edge >= 0.10:
                                 new_row = row.copy()
                                 new_row["market_type"] = "total"
                                 new_row["bet_side"] = side
@@ -87,7 +87,7 @@ def main():
                             results.append(new_row)
 
                     elif league == "NCAAB":
-                        if edge >= 0.07 and spread_abs <= 12.5:
+                        if edge >= 0.07 and spread_abs <= 20:
                             new_row = row.copy()
                             new_row["market_type"] = "spread"
                             new_row["bet_side"] = side
