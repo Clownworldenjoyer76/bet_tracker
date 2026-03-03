@@ -13,12 +13,14 @@ from scipy.stats import norm
 BASE = Path("bets/historic/NCAA MENS BASKETBALL")
 RATINGS_DIR = BASE / "cbb"
 GAMES_FILE = BASE / "games.csv"
-OUTPUT_FILE = BASE / "calibration_summary.csv"
 
-HCA = 3.2  # temporary fixed home court
+SUMMARY_CSV = BASE / "calibration_summary.csv"
+SUMMARY_XLSX = BASE / "calibration_summary.xlsx"
+
+HCA = 3.2
 
 # =========================
-# LOAD RATINGS (ALL SEASONS)
+# LOAD RATINGS
 # =========================
 
 ratings_list = []
@@ -126,24 +128,23 @@ for t in np.arange(1, 6.5, 0.5):
 
 threshold_df = pd.DataFrame(threshold_results)
 
-# =========================
-# BUILD SUMMARY OUTPUT
-# =========================
-
 summary_df = pd.DataFrame([{
     "multiplier": round(multiplier, 6),
     "spread_std": round(spread_std, 6),
     "total_games_used": len(games)
 }])
 
-# Save structured output
-with pd.ExcelWriter(OUTPUT_FILE.replace(".csv", ".xlsx")) as writer:
+# =========================
+# SAVE TO REPO
+# =========================
+
+summary_df.to_csv(SUMMARY_CSV, index=False)
+
+with pd.ExcelWriter(SUMMARY_XLSX) as writer:
     summary_df.to_excel(writer, sheet_name="model_constants", index=False)
     threshold_df.to_excel(writer, sheet_name="threshold_backtest", index=False)
 
-# Also save CSV summary (constants only)
-summary_df.to_csv(OUTPUT_FILE, index=False)
-
 print("Calibration complete.")
-print(f"Summary saved to: {OUTPUT_FILE}")
-print(f"Detailed results saved to: {OUTPUT_FILE.replace('.csv','.xlsx')}")
+print("Files written to repo:")
+print(SUMMARY_CSV)
+print(SUMMARY_XLSX)
