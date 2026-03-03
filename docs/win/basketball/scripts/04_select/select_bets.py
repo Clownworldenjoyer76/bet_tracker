@@ -148,26 +148,40 @@ def main():
                                 if not valid_edge(edge_dec, edge_pct):
                                     continue
 
-                            # NCAAB (UPDATED)
+                            # NCAAB (TIGHTENED)
                             elif league == "NCAAB":
 
+                                # Minimum probability
+                                if win_prob < 0.30:
+                                    continue
+
+                                # Kill +300 and higher
                                 if odds >= 300:
-                                    if not (edge_dec >= 0.10 and win_prob >= 0.28):
+                                    continue
+
+                                # +200 to +299
+                                if 200 <= odds < 300:
+                                    if not (edge_dec >= 0.08 and edge_pct >= 0.035):
                                         continue
-                                elif 150 <= odds < 300:
-                                    if not (edge_dec >= 0.06 and win_prob >= 0.36):
+
+                                # +100 to +199
+                                elif 100 <= odds < 200:
+                                    if not (edge_dec >= 0.06 and edge_pct >= 0.03):
                                         continue
-                                elif 100 <= odds < 150:
-                                    if not (edge_dec >= 0.05 and win_prob >= 0.42):
+
+                                # Small favorites
+                                elif -200 <= odds < -100:
+                                    if not (edge_dec >= 0.06 and edge_pct >= 0.03 and win_prob >= 0.60):
                                         continue
-                                elif -150 <= odds < -100:
-                                    if not (edge_dec >= 0.05 and win_prob >= 0.58):
+
+                                # Heavy favorites
+                                elif odds < -200:
+                                    if not (edge_dec >= 0.07 and edge_pct >= 0.03 and win_prob >= 0.68):
                                         continue
-                                elif odds < -150:
-                                    if not (edge_dec >= 0.06 and win_prob >= 0.64):
-                                        continue
+
                                 else:
                                     continue
+
                             else:
                                 if not valid_edge(edge_dec, edge_pct):
                                     continue
