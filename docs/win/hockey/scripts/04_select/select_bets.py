@@ -16,14 +16,13 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 # Global Thresholds
-TOTAL_MIN_EDGE_PCT = 0.03
-TOTAL_MIN_PROB = 0.45
+TOTAL_MIN_EDGE_PCT = 0.05
+TOTAL_MIN_PROB = 0.52
 
-# Puck Line Specifics
-PL_AWAY_FAV_EDGE = 0.05    # -1.5 Away
-PL_HOME_FAV_EDGE = 0.07    # -1.5 Home
-PL_DOG_EDGE_REQ = 0.02     # +1.5 Any
-PL_MAX_FAV_ODDS = -120     # Odds Cap for -1.5
+# Puck Line Specifics (Updated per 20-year trend data)
+PL_DOG_WIN_PROB_REQ = 0.63   # Prioritize +1.5 with 63%+ Win Prob
+PL_HUGE_FAV_EDGE = 0.15      # Suppress -1.5 unless edge is 15%+
+PL_MAX_FAV_ODDS = -120       # Still applying odds cap for any -1.5 attempt
 
 LEAGUE_CODE = "NHL"
 
@@ -33,7 +32,6 @@ def main():
         log.write(f"Timestamp: {datetime.utcnow().isoformat()}Z\n\n")
 
         try:
-            # Group files by slate (e.g., 2026_03_03)
             all_files = sorted(INPUT_DIR.glob("*_NHL_*.csv"))
             slates = {}
 
@@ -50,7 +48,6 @@ def main():
                 seen_bets = set() 
                 counts = {"moneyline": 0, "puck_line": 0, "total": 0}
                 
-                # Load Market DataFrames
                 ml_path = INPUT_DIR / f"{slate_key}_NHL_moneyline.csv"
                 pl_path = INPUT_DIR / f"{slate_key}_NHL_puck_line.csv"
                 td_path = INPUT_DIR / f"{slate_key}_NHL_total.csv"
@@ -59,9 +56,7 @@ def main():
                 pl_df = pd.read_csv(pl_path) if pl_path.exists() else None
                 td_df = pd.read_csv(td_path) if td_path.exists() else None
 
-                # Use Puck Line file as the anchor for game matchups
                 if pl_df is None or pl_df.empty:
-                    log.write(f"Skipping {slate_key}: No Puck Line file found.\n")
                     continue
                 
                 for _, row in pl_df.iterrows():
@@ -91,27 +86,25 @@ def main():
                                         seen_bets.add(bet_key)
                                         counts["total"] += 1
 
-                    # --- 2. PUCK LINE LOGIC ---
+                    # --- 2. PUCK LINE LOGIC (PRIORITIZING +1.5) ---
                     for side in ["home", "away"]:
                         line = pd.to_numeric(row.get(f"{side}_puck_line"), errors='coerce')
                         edge = pd.to_numeric(row.get(f"{side}_edge_pct"), errors='coerce')
+                        prob = pd.to_numeric(row.get(f"{side}_prob"), errors='coerce')
                         odds = pd.to_numeric(row.get(f"{side}_dk_puck_line_american"), errors='coerce')
                         
-                        keep_pl = False
                         if pd.isna(line): continue
+                        keep_pl = False
 
-                        # Underdogs (+1.5)
+                        # Underdogs (+1.5): The 64-66% Winners
                         if line >= 1.5:
-                            if edge >= PL_DOG_EDGE_REQ:
+                            if prob >= PL_DOG_WIN_PROB_REQ:
                                 keep_pl = True
                         
-                        # Favorites (-1.5)
+                        # Favorites (-1.5): The Money Pit
                         elif line <= -1.5:
-                            # Correlation filter: avoid -1.5 if we bet the Under
                             if selected_total_side == "under": continue
-                            
-                            req_edge = PL_HOME_FAV_EDGE if side == "home" else PL_AWAY_FAV_EDGE
-                            if edge >= req_edge and odds >= PL_MAX_FAV_ODDS:
+                            if edge >= PL_HUGE_FAV_EDGE and odds >= PL_MAX_FAV_ODDS:
                                 keep_pl = True
                         
                         if keep_pl:
@@ -134,7 +127,7 @@ def main():
                                 m_prob = pd.to_numeric(mrow.get(f"{side}_prob"), errors='coerce')
                                 m_odds = pd.to_numeric(mrow.get(f"{side}_dk_moneyline_american"), errors='coerce')
                                 
-                                if m_edge >= 0.05 and m_prob >= 0.40:
+                                if m_edge >= 0.05 and m_prob >= 0.45:
                                     bet_key = f"{game_date}_{away}_{home}_moneyline_{side}"
                                     if bet_key not in seen_bets:
                                         final_rows.append({
@@ -145,7 +138,6 @@ def main():
                                         seen_bets.add(bet_key)
                                         counts["moneyline"] += 1
 
-                # Save the final selections for the slate
                 if final_rows:
                     out_df = pd.DataFrame(final_rows)
                     output_path = OUTPUT_DIR / f"{slate_key}_NHL_selections.csv"
