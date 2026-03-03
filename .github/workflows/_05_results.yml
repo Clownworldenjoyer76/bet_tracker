@@ -1,4 +1,4 @@
-name: _05_Run NHL Results Script
+name: _05_Run All Results Script
 
 on:
   workflow_dispatch: # Manual trigger from the Actions tab
@@ -21,8 +21,8 @@ jobs:
       - name: Install Pandas
         run: pip install pandas
 
-      - name: Run Results Script
-        run: python docs/win/final_scores/scripts/05_results/NHL_results.py
+      - name: Run Combined Results Script
+        run: python docs/win/final_scores/scripts/05_results/results.py
 
       - name: Run Summary Tally Script
         run: python docs/win/final_scores/scripts/05_results/generate_summary.py
@@ -32,9 +32,13 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           
-          # UPDATED: Added the specific NHL results and graded folders
+          # Add all graded files and summary tallies for NHL, NBA, and NCAAB
           git add docs/win/final_scores/results/nhl/*.csv
           git add docs/win/final_scores/results/nhl/graded/*.csv
+          git add docs/win/final_scores/results/nba/*.csv
+          git add docs/win/final_scores/results/nba/graded/*.csv
+          git add docs/win/final_scores/results/ncaab/*.csv
+          git add docs/win/final_scores/results/ncaab/graded/*.csv
           
-          git commit -m "Auto-update: All NHL results and summary tally" || echo "No changes to commit"
+          git commit -m "Auto-update: All Sports results and summary tallies" || echo "No changes to commit"
           git push
