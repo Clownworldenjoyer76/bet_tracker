@@ -21,6 +21,10 @@ def main():
             # =========================
             if "total" in fname:
 
+                line = pd.to_numeric(row.get("total"), errors="coerce")
+                proj = pd.to_numeric(row.get("total_projected_points"), errors="coerce")
+                diff = abs(proj - line) if pd.notna(proj) and pd.notna(line) else 0
+
                 for side in ["over", "under"]:
 
                     edge = row.get(f"{side}_edge_decimal", 0)
@@ -31,10 +35,16 @@ def main():
                             results.append(row)
 
                     elif league == "NCAAB":
+
                         if side == "over":
-                            if edge >= 0.12:
-                                results.append(row)
-                        else:
+                            if line < 150:
+                                if edge >= 0.40 and diff >= 4:
+                                    results.append(row)
+                            elif line > 150:
+                                if diff >= 2:
+                                    results.append(row)
+
+                        else:  # under
                             if edge >= 0.08:
                                 results.append(row)
 
@@ -77,7 +87,6 @@ def main():
                     if odds is None:
                         continue
 
-                    # Correct favorite/dog logic
                     if league == "NBA":
 
                         if odds < 0:  # favorite
