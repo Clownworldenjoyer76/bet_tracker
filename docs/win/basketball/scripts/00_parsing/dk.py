@@ -29,8 +29,8 @@ if len(sys.argv) < 4:
     log("ERROR: Expected args: league market raw_text_file")
     raise SystemExit(1)
 
-league_input = sys.argv[1].strip()   # from workflow input: "basketball"
-market_input = sys.argv[2].strip()   # "NBA" or "NCAA Men"
+league_input = sys.argv[1].strip()
+market_input = sys.argv[2].strip()
 raw_path = sys.argv[3]
 
 try:
@@ -39,7 +39,6 @@ except Exception as e:
     log(f"ERROR: Failed reading raw_text file '{raw_path}': {e}")
     raise
 
-# Output value requirements
 league_out = "Basketball"
 
 market_map = {
@@ -117,7 +116,7 @@ def extract_game_date(text: str) -> str:
 
     return today.strftime("%Y_%m_%d")
 
-def extract_game_time(lines: list[str]) -> str:
+def extract_game_time(lines):
     for l in lines:
         m = RE_TIME.search(l)
         if m:
@@ -147,36 +146,28 @@ for block in blocks:
     if not raw_lines:
         continue
 
-    # Require "at" separator for basketball blocks
     if "at" not in raw_lines:
         continue
 
     try:
         at_idx = raw_lines.index("at")
 
-        # Away team: nearest valid team candidate above "at"
         away_team = ""
         for i in range(at_idx - 1, -1, -1):
-            s = raw_lines[i]
-            if is_team_candidate(s):
-                away_team = clean_team(s)
+            if is_team_candidate(raw_lines[i]):
+                away_team = clean_team(raw_lines[i])
                 break
 
-        # Home team: nearest valid team candidate below "at"
         home_team = ""
         for i in range(at_idx + 1, len(raw_lines)):
-            s = raw_lines[i]
-            if is_team_candidate(s):
-                home_team = clean_team(s)
+            if is_team_candidate(raw_lines[i]):
+                home_team = clean_team(raw_lines[i])
                 break
 
         if not away_team or not home_team:
-            log(f"ERROR: Could not find teams in block (away='{away_team}', home='{home_team}')")
             errors += 1
             continue
 
-        # Find O/U anchors
-        # Use exact "O" and "U" lines as anchors
         o_idx = None
         u_idx = None
         for i, s in enumerate(raw_lines):
@@ -186,52 +177,30 @@ for block in blocks:
                 u_idx = i
 
         if o_idx is None or u_idx is None:
-            log("ERROR: Missing O/U anchors in block")
             errors += 1
             continue
 
-        # Normalize all numeric-ish tokens
         L = [norm_minus(x) for x in raw_lines]
 
-        # Away spread + american: two lines immediately before O
         away_spread = L[o_idx - 2] if o_idx >= 2 else ""
         away_dk_spread_american = L[o_idx - 1] if o_idx >= 1 else ""
 
-        # Total + over american: immediately after O
         total = L[o_idx + 1] if (o_idx + 1) < len(L) else ""
         dk_total_over_american = L[o_idx + 2] if (o_idx + 2) < len(L) else ""
-
-        # Away moneyline: next token after over american
         away_dk_moneyline_american = L[o_idx + 3] if (o_idx + 3) < len(L) else ""
 
-        # Home spread + american: two lines immediately before U
         home_spread = L[u_idx - 2] if u_idx >= 2 else ""
         home_dk_spread_american = L[u_idx - 1] if u_idx >= 1 else ""
-
-        # Under american: immediately after U's total repeat
         dk_total_under_american = L[u_idx + 2] if (u_idx + 2) < len(L) else ""
-
-        # Home moneyline: next token after under american
         home_dk_moneyline_american = L[u_idx + 3] if (u_idx + 3) < len(L) else ""
 
-        # Validate key numeric fields (best-effort)
-        def ok_spread(x: str) -> bool:
-            return bool(RE_SPREAD.match(x))
-
-        def ok_amer(x: str) -> bool:
-            return bool(RE_AMERICAN.match(x))
-
-        def ok_total(x: str) -> bool:
-            return bool(RE_TOTAL.match(x))
-
-        if not (ok_spread(away_spread) and ok_spread(home_spread) and ok_total(total)):
-            log(f"ERROR: Invalid spread/total values: away_spread='{away_spread}', home_spread='{home_spread}', total='{total}'")
+        if not (RE_SPREAD.match(away_spread) and RE_SPREAD.match(home_spread) and RE_TOTAL.match(total)):
             errors += 1
             continue
 
-        if not (ok_amer(away_dk_spread_american) and ok_amer(home_dk_spread_american) and ok_amer(dk_total_over_american)
-                and ok_amer(dk_total_under_american) and ok_amer(away_dk_moneyline_american) and ok_amer(home_dk_moneyline_american)):
-            log("ERROR: Invalid american odds in block")
+        if not (RE_AMERICAN.match(away_dk_spread_american) and RE_AMERICAN.match(home_dk_spread_american)
+                and RE_AMERICAN.match(dk_total_over_american) and RE_AMERICAN.match(dk_total_under_american)
+                and RE_AMERICAN.match(away_dk_moneyline_american) and RE_AMERICAN.match(home_dk_moneyline_american)):
             errors += 1
             continue
 
@@ -255,8 +224,7 @@ for block in blocks:
             "home_dk_moneyline_american": home_dk_moneyline_american,
         })
 
-    except Exception as e:
-        log(f"ERROR parsing block: {e}")
+    except Exception:
         errors += 1
 
 if not rows:
@@ -264,41 +232,18 @@ if not rows:
     raise SystemExit(0)
 
 # ----------------------------
-# Write (upsert)
+# Write (FULL REBUILD FOR DAY)
 # ----------------------------
 out_dir = Path("docs/win/basketball/00_intake/sportsbook")
 out_dir.mkdir(parents=True, exist_ok=True)
 
 outfile = out_dir / f"{league_input}_{market_out}_{game_date}.csv"
 
-existing_rows: dict[tuple[str, str, str, str], dict] = {}
-
-if outfile.exists():
-    try:
-        with open(outfile, newline="", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            if reader.fieldnames == FIELDNAMES:
-                for row in reader:
-                    if all(k in row for k in FIELDNAMES):
-                        key = (row["game_date"], row["market"], row["away_team"], row["home_team"])
-                        existing_rows[key] = row
-            else:
-                log("WARNING: Invalid header detected. Rebuilding clean.")
-    except Exception as e:
-        log(f"WARNING: Failed reading existing file for dedupe: {e}")
-
-for new_row in rows:
-    key = (new_row["game_date"], new_row["market"], new_row["away_team"], new_row["home_team"])
-    existing_rows[key] = new_row
-
-temp_file = outfile.with_suffix(".tmp")
-with open(temp_file, "w", newline="", encoding="utf-8") as f:
+with open(outfile, "w", newline="", encoding="utf-8") as f:
     writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
     writer.writeheader()
-    for r in existing_rows.values():
+    for r in rows:
         writer.writerow({k: r.get(k, "") for k in FIELDNAMES})
 
-temp_file.replace(outfile)
-
-log(f"SUMMARY: upserted {len(rows)} rows, {errors} errors")
-print(f"Wrote {outfile} ({len(rows)} rows processed)")
+log(f"SUMMARY: wrote {len(rows)} rows (full rebuild), {errors} errors")
+print(f"Wrote {outfile} ({len(rows)} rows)")
