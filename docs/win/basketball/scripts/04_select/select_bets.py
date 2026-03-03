@@ -31,12 +31,22 @@ def main():
                     edge = float(edge) if pd.notna(edge) else 0
 
                     if league == "NBA":
-                        if edge >= 0.12:
-                            new_row = row.copy()
-                            new_row["market_type"] = "total"
-                            new_row["bet_side"] = side
-                            new_row["line"] = line
-                            results.append(new_row)
+
+                        if side == "over":
+                            if edge >= 0.15 and diff >= 4:
+                                new_row = row.copy()
+                                new_row["market_type"] = "total"
+                                new_row["bet_side"] = side
+                                new_row["line"] = line
+                                results.append(new_row)
+
+                        else:  # under
+                            if edge >= 0.12 and diff >= 4:
+                                new_row = row.copy()
+                                new_row["market_type"] = "total"
+                                new_row["bet_side"] = side
+                                new_row["line"] = line
+                                results.append(new_row)
 
                     elif league == "NCAAB":
 
@@ -79,12 +89,22 @@ def main():
                     spread_abs = abs(spread_val)
 
                     if league == "NBA":
-                        if edge >= 0.06 and spread_abs <= 10.5:
-                            new_row = row.copy()
-                            new_row["market_type"] = "spread"
-                            new_row["bet_side"] = side
-                            new_row["line"] = spread_val
-                            results.append(new_row)
+
+                        if side == "home":
+                            if edge >= 0.09 and spread_abs <= 7.5:
+                                new_row = row.copy()
+                                new_row["market_type"] = "spread"
+                                new_row["bet_side"] = side
+                                new_row["line"] = spread_val
+                                results.append(new_row)
+
+                        else:
+                            if edge >= 0.08 and spread_abs <= 7.5:
+                                new_row = row.copy()
+                                new_row["market_type"] = "spread"
+                                new_row["bet_side"] = side
+                                new_row["line"] = spread_val
+                                results.append(new_row)
 
                     elif league == "NCAAB":
                         if edge >= 0.07 and spread_abs <= 12.5:
@@ -114,8 +134,8 @@ def main():
 
                     if league == "NBA":
 
-                        if odds < 0:
-                            if edge >= 0.05 and prob >= 0.58:
+                        if side == "home":
+                            if edge >= 0.075 and prob >= 0.58:
                                 new_row = row.copy()
                                 new_row["market_type"] = "moneyline"
                                 new_row["bet_side"] = side
@@ -123,7 +143,7 @@ def main():
                                 results.append(new_row)
 
                         else:
-                            if edge >= 0.05 and prob >= 0.42:
+                            if edge >= 0.06 and prob >= 0.42:
                                 new_row = row.copy()
                                 new_row["market_type"] = "moneyline"
                                 new_row["bet_side"] = side
