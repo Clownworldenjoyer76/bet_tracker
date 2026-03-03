@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # docs/win/hockey/scripts/04_select/select_bets.py
 
 import pandas as pd
@@ -16,8 +17,8 @@ ERROR_DIR.mkdir(parents=True, exist_ok=True)
 # Thresholds
 TOTAL_MIN_EDGE_PCT = 0.03
 TOTAL_MIN_PROB = 0.45
-PUCKLINE_MIN_EDGE_PCT = 0.0001  # Baseline
-PUCKLINE_1_5_THRESHOLD = 0.40   # Specific for -1.5 lines
+PUCKLINE_MIN_EDGE_PCT = 0.0001  # Baseline for +1.5 or other lines
+PUCKLINE_1_5_THRESHOLD = 0.05   # ADJUSTED: Changed from 0.40 to 0.05 to actually catch bets
 
 LEAGUE_CODE = "NHL"
 REQUIRED_GAME_COLS = ["game_date", "away_team", "home_team"]
@@ -93,17 +94,18 @@ def main():
                             for side in ["home", "away"]:
                                 line = row.get(f"{side}_puck_line")
                                 edge = row.get(f"{side}_edge_pct")
+                                odds = row.get(f"{side}_dk_puck_line_american")
                                 
                                 if pd.isna(line) or pd.isna(edge): continue
                                 
-                                # New Requirements
                                 threshold = PUCKLINE_1_5_THRESHOLD if float(line) == -1.5 else PUCKLINE_MIN_EDGE_PCT
                                 
                                 if edge >= threshold:
                                     final_rows.append({
                                         "game_date": game_date, "league": LEAGUE_CODE, "away_team": away, "home_team": home,
                                         "market_type": "puck_line", "bet_side": side, "line": line, "game_id": row.get("game_id"),
-                                        "take_bet_edge_pct": edge, "take_odds": row.get(f"{side}_dk_puck_line_american")
+                                        "take_bet": f"{side}_puck_line",
+                                        "take_bet_edge_pct": edge, "take_odds": odds
                                     })
                                     counts["puck_line"] += 1
                                 else:
@@ -122,13 +124,15 @@ def main():
                                    (1 <= odds <= 199 and edge >= 0.05 and prob >= 0.38) or \
                                    (-1 >= odds >= -999 and edge >= 0.04 and prob >= 0.55):
                                     if edge > best_ml_edge:
-                                        best_ml_edge, best_ml_row = edge, (row, side)
+                                        best_ml_edge, best_ml_row = edge, (row, side, odds)
+                        
                         if best_ml_row:
-                            row, side = best_ml_row
+                            row, side, odds = best_ml_row
                             final_rows.append({
                                 "game_date": game_date, "league": LEAGUE_CODE, "away_team": away, "home_team": home,
                                 "market_type": "moneyline", "bet_side": side, "line": "", "game_id": row.get("game_id"),
-                                "take_bet_edge_pct": edge, "take_odds": odds
+                                "take_bet": f"{side}_moneyline",
+                                "take_bet_edge_pct": best_ml_edge, "take_odds": odds
                             })
                             counts["moneyline"] += 1
 
@@ -142,12 +146,14 @@ def main():
                                 if valid_edge(edge, TOTAL_MIN_EDGE_PCT) and prob >= TOTAL_MIN_PROB:
                                     if edge > best_tot_edge:
                                         best_tot_edge, best_tot_row = edge, (row, side)
+                        
                         if best_tot_row:
                             row, side = best_tot_row
                             final_rows.append({
                                 "game_date": game_date, "league": LEAGUE_CODE, "away_team": away, "home_team": home,
                                 "market_type": "total", "bet_side": side, "line": row.get("total"), "game_id": row.get("game_id"),
-                                "take_bet_edge_pct": edge, "take_odds": row.get(f"dk_total_{side}_american")
+                                "take_bet": f"total_{side}",
+                                "take_bet_edge_pct": best_tot_edge, "take_odds": row.get(f"dk_total_{side}_american")
                             })
                             counts["total"] += 1
 
