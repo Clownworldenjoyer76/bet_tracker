@@ -1,4 +1,3 @@
-# docs/win/basketball/scripts/04_select/select_bets.py
 #!/usr/bin/env python3
 import pandas as pd
 from pathlib import Path
@@ -15,21 +14,36 @@ def main():
         results = []
 
         for _, row in df.iterrows():
-            # --- TOTALS (NBA: 12% Edge | NCAAB: 8% Edge) ---
+            # --- TOTALS ---
             if "total" in fname:
                 for side in ["over", "under"]:
                     edge = row.get(f"{side}_edge_decimal", 0)
-                    if league == "NBA" and edge >= 0.12:
-                        results.append(row)
-                    elif league == "NCAAB" and edge >= 0.08:
-                        results.append(row)
+                    line = pd.to_numeric(row.get("total"), errors='coerce')
+                    diff = abs(pd.to_numeric(row.get("total_diff"), errors='coerce'))
+                    
+                    if league == "NBA":
+                        if edge >= 0.12:
+                            results.append(row)
+                    
+                    elif league == "NCAAB":
+                        # Apply Custom NCAAB Totals Over Logic
+                        if side == "over":
+                            if line < 150:
+                                if edge >= 0.40 and diff >= 4:
+                                    results.append(row)
+                            elif line > 150:
+                                if diff >= 2:
+                                    results.append(row)
+                        # Keep original logic for NCAAB Under
+                        else:
+                            if edge >= 0.08:
+                                results.append(row)
 
-            # --- SPREADS (NBA: 6% Edge | NCAAB: 7% Edge) ---
+            # --- SPREADS ---
             elif "spread" in fname:
                 for side in ["home", "away"]:
                     edge = row.get(f"{side}_edge_decimal", 0)
                     line = abs(float(row.get(f"{side}_spread", 0)))
-                    # NBA Cap at 10.5 to avoid blowout variance
                     if league == "NBA" and edge >= 0.06 and line <= 10.5:
                         results.append(row)
                     elif league == "NCAAB" and edge >= 0.07 and line <= 12.5:
