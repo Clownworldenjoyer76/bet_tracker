@@ -76,16 +76,17 @@ def main():
                             if pd.isna(edge_dec) or pd.isna(win_prob) or pd.isna(odds): continue
 
                             if league == "NBA":
-                                if odds >= 300: continue # SKIP
+                                # NBA MONEYLINE FILTERS
+                                if odds >= 300 or odds <= -250: continue 
                                 elif 100 <= odds <= 149 and edge_dec >= 0.05 and win_prob >= 0.42: keep_bet = True
                                 elif 150 <= odds <= 199 and edge_dec >= 0.06 and win_prob >= 0.40: keep_bet = True
                                 elif 200 <= odds <= 299 and edge_dec >= 0.07 and win_prob >= 0.35: keep_bet = True
-                                elif -149 <= odds <= -100 and edge_dec >= 0.05 and win_prob >= 0.58: keep_bet = True
-                                elif -249 <= odds <= -150 and edge_dec >= 0.06 and win_prob >= 0.62: keep_bet = True
-                                elif odds <= -250 and edge_dec >= 0.08 and win_prob >= 0.80: keep_bet = True
+                                # Increased win_prob requirement for slight favorites
+                                elif -149 <= odds <= -100 and edge_dec >= 0.05 and win_prob >= 0.62: keep_bet = True
+                                elif -249 <= odds <= -150 and edge_dec >= 0.06 and win_prob >= 0.65: keep_bet = True
 
                             elif league == "NCAAB":
-                                if odds >= 300 or win_prob < 0.30: continue # SKIP
+                                if odds >= 300 or win_prob < 0.30: continue 
                                 elif 200 <= odds < 300 and edge_dec >= 0.08 and edge_pct >= 0.035: keep_bet = True
                                 elif 100 <= odds < 200 and edge_dec >= 0.06 and edge_pct >= 0.03: keep_bet = True
                                 elif -200 <= odds < -100 and edge_dec >= 0.06 and edge_pct >= 0.03 and win_prob >= 0.60: keep_bet = True
@@ -98,7 +99,7 @@ def main():
                                     "take_odds": odds, "take_team": side, "take_bet_edge_decimal": edge_dec, "take_bet_edge_pct": edge_pct
                                 })
                                 counts["selected"] += 1
-                                break # Found a bet for this game
+                                break
 
                     # =========================
                     # SPREAD LOGIC
@@ -107,16 +108,22 @@ def main():
                         for side in ["home", "away"]:
                             edge_dec = row.get(f"{side}_edge_decimal")
                             edge_pct = row.get(f"{side}_edge_pct")
+                            line_val = row.get(f"{side}_spread")
                             
-                            if league == "NCAAB":
-                                if edge_dec >= 0.055 and edge_pct >= 0.025: keep_bet = True
-                            else: # NBA Default
+                            if pd.isna(edge_dec) or pd.isna(line_val): continue
+
+                            if league == "NBA":
+                                # NBA SPREAD FILTERS: Ignore lines > 10.5
+                                if abs(float(line_val)) > 10.5: continue
                                 if edge_dec >= 0.05 and edge_pct >= 0.02: keep_bet = True
+
+                            elif league == "NCAAB":
+                                if edge_dec >= 0.055 and edge_pct >= 0.025: keep_bet = True
 
                             if keep_bet:
                                 selections.append({
                                     "game_date": game_date, "league": league, "away_team": away, "home_team": home,
-                                    "market_type": "spread", "bet_side": side, "line": row.get(f"{side}_spread"), 
+                                    "market_type": "spread", "bet_side": side, "line": line_val, 
                                     "game_id": row.get("game_id"), "take_odds": row.get(f"{side}_spread_juice_odds"),
                                     "take_team": side, "take_bet_edge_decimal": edge_dec, "take_bet_edge_pct": edge_pct
                                 })
@@ -130,19 +137,25 @@ def main():
                         for side in ["over", "under"]:
                             edge_dec = row.get(f"{side}_edge_decimal")
                             edge_pct = row.get(f"{side}_edge_pct")
+                            total_val = row.get("total")
                             odds = pd.to_numeric(row.get(f"total_{side}_juice_odds"), errors="coerce")
 
-                            if pd.isna(odds) or odds < MIN_TOTAL_ODDS: continue
+                            if pd.isna(odds) or pd.isna(edge_dec) or odds < MIN_TOTAL_ODDS: continue
 
                             if league == "NBA":
+                                # NBA TOTAL FILTERS
+                                if side == "under" and float(total_val) > 232: continue # Avoid high-pace shootouts
+                                if side == "over" and edge_dec < 0.13: continue # Tighten cushion for Overs
+                                
                                 if edge_dec >= 0.10: keep_bet = True
+
                             elif league == "NCAAB":
                                 if edge_dec >= 0.10 and edge_pct >= 0.05: keep_bet = True
 
                             if keep_bet:
                                 selections.append({
                                     "game_date": game_date, "league": league, "away_team": away, "home_team": home,
-                                    "market_type": "total", "bet_side": side, "line": row.get("total"),
+                                    "market_type": "total", "bet_side": side, "line": total_val,
                                     "game_id": row.get("game_id"), "take_odds": odds, "take_team": side,
                                     "take_bet_edge_decimal": edge_dec, "take_bet_edge_pct": edge_pct
                                 })
