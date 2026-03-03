@@ -11,58 +11,93 @@ def main():
         df = pd.read_csv(csv_file)
         fname = csv_file.name.lower()
         league = "NBA" if "nba" in fname else "NCAAB"
+
         results = []
 
         for _, row in df.iterrows():
-            # --- TOTALS ---
+
+            # =========================
+            # TOTALS
+            # =========================
             if "total" in fname:
+
                 for side in ["over", "under"]:
+
                     edge = row.get(f"{side}_edge_decimal", 0)
-                    line = pd.to_numeric(row.get("total"), errors='coerce')
-                    diff = abs(pd.to_numeric(row.get("total_diff"), errors='coerce'))
-                    
+                    edge = float(edge) if pd.notna(edge) else 0
+
                     if league == "NBA":
                         if edge >= 0.12:
                             results.append(row)
-                    
+
                     elif league == "NCAAB":
-                        # Apply Custom NCAAB Totals Over Logic
                         if side == "over":
-                            if line < 150:
-                                if edge >= 0.40 and diff >= 4:
-                                    results.append(row)
-                            elif line > 150:
-                                if diff >= 2:
-                                    results.append(row)
-                        # Keep original logic for NCAAB Under
+                            if edge >= 0.12:
+                                results.append(row)
                         else:
                             if edge >= 0.08:
                                 results.append(row)
 
-            # --- SPREADS ---
+            # =========================
+            # SPREADS
+            # =========================
             elif "spread" in fname:
-                for side in ["home", "away"]:
-                    edge = row.get(f"{side}_edge_decimal", 0)
-                    line = abs(float(row.get(f"{side}_spread", 0)))
-                    if league == "NBA" and edge >= 0.06 and line <= 10.5:
-                        results.append(row)
-                    elif league == "NCAAB" and edge >= 0.07 and line <= 12.5:
-                        results.append(row)
 
-            # --- MONEYLINE ---
-            elif "moneyline" in fname:
                 for side in ["home", "away"]:
-                    edge, prob = row.get(f"{side}_edge_decimal", 0), row.get(f"{side}_prob", 0)
-                    odds = pd.to_numeric(row.get(f"{side}_juice_odds"), errors='coerce')
+
+                    edge = row.get(f"{side}_edge_decimal", 0)
+                    spread = row.get(f"{side}_spread", 0)
+
+                    edge = float(edge) if pd.notna(edge) else 0
+                    spread = abs(float(spread)) if pd.notna(spread) else 0
+
                     if league == "NBA":
-                        if odds <= 100 and edge >= 0.05 and prob >= 0.58: results.append(row)
-                        elif odds > 100 and edge >= 0.05 and prob >= 0.42: results.append(row)
+                        if edge >= 0.06 and spread <= 10.5:
+                            results.append(row)
+
                     elif league == "NCAAB":
+                        if edge >= 0.07 and spread <= 12.5:
+                            results.append(row)
+
+            # =========================
+            # MONEYLINE
+            # =========================
+            elif "moneyline" in fname:
+
+                for side in ["home", "away"]:
+
+                    edge = row.get(f"{side}_edge_decimal", 0)
+                    prob = row.get(f"{side}_prob", 0)
+                    odds = row.get(f"{side}_juice_odds", None)
+
+                    edge = float(edge) if pd.notna(edge) else 0
+                    prob = float(prob) if pd.notna(prob) else 0
+                    odds = float(odds) if pd.notna(odds) else None
+
+                    if odds is None:
+                        continue
+
+                    # Correct favorite/dog logic
+                    if league == "NBA":
+
+                        if odds < 0:  # favorite
+                            if edge >= 0.05 and prob >= 0.58:
+                                results.append(row)
+
+                        else:  # underdog
+                            if edge >= 0.05 and prob >= 0.42:
+                                results.append(row)
+
+                    elif league == "NCAAB":
+
                         if edge >= 0.06 and prob >= 0.60:
                             results.append(row)
 
         if results:
-            pd.DataFrame(results).drop_duplicates().to_csv(OUTPUT_DIR / csv_file.name, index=False)
+            pd.DataFrame(results).drop_duplicates().to_csv(
+                OUTPUT_DIR / csv_file.name,
+                index=False
+            )
 
 if __name__ == "__main__":
     main()
