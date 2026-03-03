@@ -1,0 +1,28 @@
+name: NCAAB Calibration
+
+on:
+  workflow_dispatch:
+
+jobs:
+  calibrate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install pandas numpy scikit-learn scipy openpyxl
+
+      - name: Run calibration
+        run: python scripts/ncaab_calibrate_full.py
+
+      - name: Upload calibration artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ncaab-calibration-results
+          path: |
+            bets/historic/NCAA MENS BASKETBALL/calibration_summary.csv
+            bets/historic/NCAA MENS BASKETBALL/calibration_summary.xlsx
