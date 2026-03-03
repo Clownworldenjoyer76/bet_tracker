@@ -93,8 +93,6 @@ const bookMap=buildGameMap(bookRows);
 
 let merged=selectRows.map(sel=>{
 
-// IMPORTANT: do NOT parse game_id. Use actual columns.
-// These must match how buildGameMap() keys are built.
 const gameDate=(sel.game_date||"").trim();
 const homeTeam=(sel.home_team||"").trim();
 const awayTeam=(sel.away_team||"").trim();
@@ -222,7 +220,7 @@ picksHtml+=`
 <div class="game-line">${p.take_team||"-"}</div>
 <div class="game-odds">Odds: ${p.take_odds||"-"}</div>
 <div class="game-edge">Edge: ${edge}</div>
-<div class="game-value">Value: ${p.value||"-"}</div>
+<div class="game-value">Value: ${p.line||"-"}</div>
 </div>
 `;
 });
