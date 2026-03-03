@@ -82,7 +82,6 @@ RE_DATE_HEADER = re.compile(
 )
 
 RE_TIME = re.compile(r"\b(\d{1,2}:\d{2}\s*[AP]M)\b", re.IGNORECASE)
-
 RE_ODDS = re.compile(r"^[+\-−]\d+$")
 RE_SPREAD = re.compile(r"^[+\-]\d+(?:\.\d+)?$")
 RE_TOTAL_NUM = re.compile(r"^\d+(?:\.\d+)?$")
@@ -97,7 +96,7 @@ def normalize_odds(s: str) -> str:
     return s.replace("−", "-").strip()
 
 # =========================
-# GLOBAL DATE PARSE (ONCE)
+# GLOBAL DATE PARSE
 # =========================
 
 def parse_global_game_date(text: str) -> str:
@@ -120,7 +119,6 @@ def parse_global_game_date(text: str) -> str:
             dt = datetime(today.year, mon, day)
             return dt.strftime("%Y_%m_%d")
 
-    # fallback
     return today.strftime("%Y_%m_%d")
 
 GLOBAL_GAME_DATE = parse_global_game_date(raw_text)
@@ -129,14 +127,14 @@ GLOBAL_GAME_DATE = parse_global_game_date(raw_text)
 # EXTRACTION FUNCTIONS
 # =========================
 
-def extract_time(lines: list[str]) -> str:
+def extract_time(lines):
     for raw in lines:
         m = RE_TIME.search(raw)
         if m:
             return m.group(1).upper().replace("  ", " ").strip()
     return ""
 
-def extract_teams(lines: list[str]) -> tuple[str, str]:
+def extract_teams(lines):
     cleaned = [clean_line(x) for x in lines if clean_line(x)]
 
     try:
@@ -161,7 +159,7 @@ def extract_teams(lines: list[str]) -> tuple[str, str]:
 
     return away_team, home_team
 
-def parse_numbers(lines: list[str]) -> dict:
+def parse_numbers(lines):
     cleaned = [clean_line(x) for x in lines if clean_line(x)]
     tokens = []
 
@@ -180,17 +178,7 @@ def parse_numbers(lines: list[str]) -> dict:
             tokens.append(normalize_odds(xl))
             continue
 
-    out = {
-        "away_puck_line": "",
-        "home_puck_line": "",
-        "total": "",
-        "away_dk_puck_line_american": "",
-        "home_dk_puck_line_american": "",
-        "dk_total_over_american": "",
-        "dk_total_under_american": "",
-        "away_dk_moneyline_american": "",
-        "home_dk_moneyline_american": "",
-    }
+    out = dict.fromkeys(FIELDNAMES[6:], "")
 
     i = 0
 
@@ -265,40 +253,21 @@ if not rows:
     log("SUMMARY: wrote 0 rows")
     sys.exit()
 
+# =========================
+# WRITE (FULL REBUILD)
+# =========================
+
 file_date = GLOBAL_GAME_DATE
 
 output_dir = Path("docs/win/hockey/00_intake/sportsbook")
 output_dir.mkdir(parents=True, exist_ok=True)
 outfile = output_dir / f"hockey_{file_date}.csv"
 
-# =========================
-# LOAD + SELF-DEDUP
-# =========================
-
-existing_rows = {}
-
-if outfile.exists():
-    with open(outfile, newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        if reader.fieldnames == FIELDNAMES:
-            for row in reader:
-                key = (row["game_date"], row["market"], row["home_team"], row["away_team"])
-                existing_rows[key] = row
-        else:
-            log("WARNING: Invalid header detected. Rebuilding clean.")
-
-for new_row in rows:
-    key = (new_row["game_date"], new_row["market"], new_row["home_team"], new_row["away_team"])
-    existing_rows[key] = new_row
-
-temp_file = outfile.with_suffix(".tmp")
-with open(temp_file, "w", newline="", encoding="utf-8") as f:
+with open(outfile, "w", newline="", encoding="utf-8") as f:
     writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
     writer.writeheader()
-    for r in existing_rows.values():
+    for r in rows:
         writer.writerow({k: r.get(k, "") for k in FIELDNAMES})
 
-temp_file.replace(outfile)
-
-log(f"SUMMARY: upserted {len(rows)} rows, {errors} errors")
-print(f"Wrote {outfile} ({len(rows)} rows processed)")
+log(f"SUMMARY: wrote {len(rows)} rows (full rebuild), {errors} errors")
+print(f"Wrote {outfile} ({len(rows)} rows)")
