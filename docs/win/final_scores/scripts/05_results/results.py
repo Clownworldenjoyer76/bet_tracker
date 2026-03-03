@@ -46,7 +46,7 @@ def process_results():
         output_dir = f"docs/win/final_scores/results/{cfg['scores_sub']}/graded"
         os.makedirs(output_dir, exist_ok=True)
 
-        search_pattern = os.path.join(cfg['bets_dir'], f"*_{cfg['suffix']}*.csv")
+        search_pattern = os.path.join(cfg['bets_dir'], f"*{cfg['suffix']}*.csv")
         bet_files = glob.glob(search_pattern)
 
         dates = set()
@@ -56,14 +56,23 @@ def process_results():
                 dates.add(match.group(1))
 
         for date_str in sorted(dates):
-            score_file = os.path.join(scores_dir, f"{date_str}_final_scores_{cfg['suffix']}.csv")
-            output_path = os.path.join(output_dir, f"{date_str}_results_{cfg['suffix']}.csv")
+            score_file = os.path.join(
+                scores_dir,
+                f"{date_str}_final_scores_{cfg['suffix']}.csv"
+            )
+            output_path = os.path.join(
+                output_dir,
+                f"{date_str}_results_{cfg['suffix']}.csv"
+            )
 
             if not os.path.exists(score_file):
                 print(f"Skipping {cfg['name']} {date_str}: Score file not found.")
                 continue
 
-            daily_bet_files = glob.glob(os.path.join(cfg['bets_dir'], f"{date_str}_*_{cfg['suffix']}*.csv"))
+            # 🔥 FIXED GLOB — now matches 2026_02_25_NHL.csv AND basketball-style names
+            daily_bet_files = glob.glob(
+                os.path.join(cfg['bets_dir'], f"{date_str}*{cfg['suffix']}*.csv")
+            )
 
             valid_dfs = []
 
@@ -106,6 +115,12 @@ def process_results():
                 on=['away_team', 'home_team', 'game_date'],
                 suffixes=('', '_scorefile')
             )
+
+            if df.empty:
+                msg = f"No merged matches for {cfg['name']} {date_str}"
+                print(msg)
+                log_error(msg)
+                continue
 
             def determine_outcome(row):
                 m_type = str(row['market_type']).lower()
