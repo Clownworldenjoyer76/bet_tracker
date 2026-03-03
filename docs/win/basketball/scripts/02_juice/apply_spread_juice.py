@@ -1,16 +1,28 @@
+# docs/win/basketball/scripts/02_juice/apply_spread_juice.py
 #!/usr/bin/env python3
 
 import pandas as pd
 from pathlib import Path
 import math
+from datetime import datetime
+import traceback
+import sys
 
 INPUT_DIR = Path("docs/win/basketball/01_merge")
 OUTPUT_DIR = Path("docs/win/basketball/02_juice")
+ERROR_DIR = Path("docs/win/basketball/errors/02_juice")
 
 NBA_CONFIG = Path("config/basketball/nba/nba_spreads_juice.csv")
 NCAAB_CONFIG = Path("config/basketball/ncaab/ncaab_spreads_juice.csv")
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+ERROR_DIR.mkdir(parents=True, exist_ok=True)
+
+ERROR_LOG = ERROR_DIR / "apply_spread_juice.txt"
+
+def log(msg):
+    with open(ERROR_LOG, "a", encoding="utf-8") as f:
+        f.write(f"{datetime.utcnow().isoformat()} | {msg}\n")
 
 
 def american_to_decimal(a):
@@ -24,10 +36,6 @@ def decimal_to_american(d):
         return f"+{int(round((d - 1) * 100))}"
     return f"-{int(round(100 / (d - 1)))}"
 
-
-# =========================
-# NBA SPREAD JUICE
-# =========================
 
 def apply_nba(df):
 
@@ -65,10 +73,6 @@ def apply_nba(df):
     return df
 
 
-# =========================
-# NCAAB SPREAD JUICE (FIXED)
-# =========================
-
 def apply_ncaab(df):
 
     jt = pd.read_csv(NCAAB_CONFIG)
@@ -78,7 +82,6 @@ def apply_ncaab(df):
         spread = float(row[f"{side}_spread"])
         odds = float(row[f"{side}_acceptable_spread_american"])
 
-        # Direct spread match (matches config structure)
         match = jt[jt["spread"] == spread]
 
         extra = match.iloc[0]["extra_juice"] if not match.empty else 0.0
@@ -100,25 +103,40 @@ def apply_ncaab(df):
     return df
 
 
-# =========================
-# MAIN
-# =========================
-
 def main():
 
-    for f in INPUT_DIR.iterdir():
+    with open(ERROR_LOG, "w", encoding="utf-8") as f:
+        f.write(f"=== APPLY SPREAD JUICE START {datetime.utcnow().isoformat()}Z ===\n")
 
-        name = f.name
+    try:
+        files_found = 0
 
-        if name.endswith("_NBA_spread.csv"):
-            df = pd.read_csv(f)
-            df = apply_nba(df)
-            df.to_csv(OUTPUT_DIR / name, index=False)
+        for f in INPUT_DIR.iterdir():
 
-        elif name.endswith("_NCAAB_spread.csv"):
-            df = pd.read_csv(f)
-            df = apply_ncaab(df)
-            df.to_csv(OUTPUT_DIR / name, index=False)
+            name = f.name
+
+            if name.endswith("_NBA_spread.csv"):
+                df = pd.read_csv(f)
+                df = apply_nba(df)
+                df.to_csv(OUTPUT_DIR / name, index=False)
+                log(f"Processed NBA file: {name}")
+                files_found += 1
+
+            elif name.endswith("_NCAAB_spread.csv"):
+                df = pd.read_csv(f)
+                df = apply_ncaab(df)
+                df.to_csv(OUTPUT_DIR / name, index=False)
+                log(f"Processed NCAAB file: {name}")
+                files_found += 1
+
+        log(f"Total files processed: {files_found}")
+        log("=== APPLY SPREAD JUICE END ===")
+
+    except Exception as e:
+        log("=== ERROR ===")
+        log(str(e))
+        log(traceback.format_exc())
+        sys.exit(1)
 
 
 if __name__ == "__main__":
