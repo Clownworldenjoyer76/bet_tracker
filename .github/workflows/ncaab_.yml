@@ -3,6 +3,9 @@ name: NCAAB Calibration
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   calibrate:
     runs-on: ubuntu-latest
@@ -19,10 +22,11 @@ jobs:
       - name: Run calibration
         run: python scripts/ncaab_calibrate_full.py
 
-      - name: Upload calibration artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: ncaab-calibration-results
-          path: |
-            bets/historic/NCAA MENS BASKETBALL/calibration_summary.csv
-            bets/historic/NCAA MENS BASKETBALL/calibration_summary.xlsx
+      - name: Commit calibration output
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add bets/historic/NCAA\ MENS\ BASKETBALL/calibration_summary.csv
+          git add bets/historic/NCAA\ MENS\ BASKETBALL/calibration_summary.xlsx
+          git commit -m "Update NCAAB calibration results" || echo "No changes"
+          git push
