@@ -22,6 +22,7 @@ def generate_reports():
         team_output = os.path.join(output_base, "summary_tally.csv")
         market_output = os.path.join(output_base, "market_tally.csv")
         txt_output = os.path.join(output_base, "performance_report.txt")
+        txt_output_xtra = os.path.join(output_base, "performance_report-xtra.txt")
         
         os.makedirs(output_base, exist_ok=True)
         
@@ -35,7 +36,6 @@ def generate_reports():
         all_data = pd.concat([pd.read_csv(f) for f in files], ignore_index=True)
 
         # --- DEDUPLICATION STEP ---
-        # Ensures that even if the same bet is in multiple files, it only appears once
         all_data = all_data.drop_duplicates(subset=['game_date', 'away_team', 'home_team', 'market_type', 'bet_side', 'line'])
 
         # --- REPORT 1: TEAM TALLY (CSV) ---
@@ -62,7 +62,6 @@ def generate_reports():
         market_tally['Total'] = market_tally['Win'] + market_tally['Loss'] + market_tally['Push']
         market_tally['Win_Pct'] = (market_tally['Win'] / market_tally['Total']).fillna(0).round(3)
         
-        # Ensure only the required markets are in the tally
         existing_markets = [m for m in required_markets if m in market_tally.index]
         market_tally = market_tally.loc[existing_markets, ['Win', 'Loss', 'Push', 'Total', 'Win_Pct']].reset_index()
         market_tally.to_csv(market_output, index=False)
@@ -80,7 +79,6 @@ def generate_reports():
                     f.write("No recorded bets for this market.\n\n")
                     continue
 
-                # Detail every game
                 for _, row in market_data.sort_values('game_date', ascending=False).iterrows():
                     res = str(row['bet_result']).upper().ljust(5)
                     date = row['game_date']
@@ -90,13 +88,117 @@ def generate_reports():
                     
                     f.write(f"[{res}] {date} | {matchup.ljust(45)} | {details.ljust(20)} | {score}\n")
 
-                # Market Summary line
                 stats_rows = market_tally[market_tally['market_type'] == market]
                 if not stats_rows.empty:
                     stats = stats_rows.iloc[0]
                     f.write(f"\n{market.upper()} SUMMARY: {stats['Win']}W - {stats['Loss']}L - {stats['Push']}P")
                     f.write(f" | Win Rate: {stats['Win_Pct']*100:.1f}%\n")
                 f.write("-" * 90 + "\n\n")
+
+        # ---------------------------------------------------------------------
+        # --- REPORT 4: EXTRA PERFORMANCE ANALYTICS (NEW FILE) ---
+        # ---------------------------------------------------------------------
+
+        with open(txt_output_xtra, "w") as f:
+
+            f.write(f"=== {suffix.upper()} PERFORMANCE REPORT (EXTRA) ===\n")
+            f.write(f"Generated on: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+
+            wins = (all_data['bet_result'] == 'Win').sum()
+            losses = (all_data['bet_result'] == 'Loss').sum()
+            pushes = (all_data['bet_result'] == 'Push').sum()
+            total = wins + losses + pushes
+            win_rate = (wins / total) if total else 0
+
+            f.write("OVERALL RECORD\n")
+            f.write(f"Wins: {wins}\n")
+            f.write(f"Losses: {losses}\n")
+            f.write(f"Pushes: {pushes}\n")
+            f.write(f"Win Rate: {win_rate*100:.2f}%\n\n")
+
+            # Home / Away split
+            home_data = all_data[all_data['bet_side'] == 'home']
+            away_data = all_data[all_data['bet_side'] == 'away']
+
+            def record(df):
+                w = (df['bet_result'] == 'Win').sum()
+                l = (df['bet_result'] == 'Loss').sum()
+                p = (df['bet_result'] == 'Push').sum()
+                return w, l, p
+
+            hw, hl, hp = record(home_data)
+            aw, al, ap = record(away_data)
+
+            f.write("HOME / AWAY SPLIT\n")
+            f.write(f"Home bets: {hw}W - {hl}L - {hp}P\n")
+            f.write(f"Away bets: {aw}W - {al}L - {ap}P\n\n")
+
+            # Totals split
+            totals = all_data[all_data['market_type'] == 'total']
+            overs = totals[totals['bet_side'] == 'over']
+            unders = totals[totals['bet_side'] == 'under']
+
+            ow, ol, op = record(overs)
+            uw, ul, up = record(unders)
+
+            f.write("OVER / UNDER SPLIT\n")
+            f.write(f"Overs: {ow}W - {ol}L - {op}P\n")
+            f.write(f"Unders: {uw}W - {ul}L - {up}P\n\n")
+
+            f.write("="*90 + "\n\n")
+
+            for market in required_markets:
+
+                f.write(f"--- MARKET: {market.upper()} ---\n")
+
+                mdata = all_data[all_data['market_type'] == market]
+
+                if mdata.empty:
+                    f.write("No bets recorded.\n\n")
+                    continue
+
+                biggest_win = None
+                biggest_loss = None
+
+                for _, row in mdata.iterrows():
+
+                    away = float(row['away_score'])
+                    home = float(row['home_score'])
+
+                    margin = None
+
+                    if market == "moneyline":
+                        margin = abs(away - home)
+
+                    elif market in ["spread", "puck_line"]:
+                        line = float(row['line'])
+                        if row['bet_side'] == 'away':
+                            margin = (away + line) - home
+                        else:
+                            margin = (home + line) - away
+
+                    elif market == "total":
+                        line = float(row['line'])
+                        total_score = away + home
+                        margin = total_score - line
+
+                    if margin is not None:
+                        if biggest_win is None or margin > biggest_win:
+                            biggest_win = margin
+                        if biggest_loss is None or margin < biggest_loss:
+                            biggest_loss = margin
+
+                mw, ml, mp = record(mdata)
+
+                f.write(f"Record: {mw}W - {ml}L - {mp}P\n")
+
+                if biggest_win is not None:
+                    f.write(f"Largest Positive Margin: {round(biggest_win,2)}\n")
+
+                if biggest_loss is not None:
+                    f.write(f"Largest Negative Margin: {round(biggest_loss,2)}\n")
+
+                f.write("\n")
 
         print(f"Reports saved for {suffix} to {output_base}/")
 
