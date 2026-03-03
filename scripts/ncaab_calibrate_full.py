@@ -1,150 +1,66 @@
 #!/usr/bin/env python3
 
 import pandas as pd
-import numpy as np
 from pathlib import Path
-from sklearn.linear_model import LinearRegression
-from scipy.stats import norm
 
 # =========================
 # PATHS
 # =========================
 
-BASE = Path("bets/historic/NCAA MENS BASKETBALL")
-RATINGS_DIR = BASE / "cbb"
-GAMES_FILE = BASE / "games.csv"
-
-SUMMARY_CSV = BASE / "calibration_summary.csv"
-SUMMARY_XLSX = BASE / "calibration_summary.xlsx"
-
-HCA = 3.2
+INPUT_FILE = Path("bets/historic/NCAA MENS BASKETBALL/spread_history_since2003.csv")
+OUTPUT_FILE = Path("bets/historic/NCAA MENS BASKETBALL/ncaab_spreads_juice.csv")
 
 # =========================
-# LOAD RATINGS
+# SETTINGS
 # =========================
 
-ratings_list = []
+MIN_GAMES = 50     # below this → juice = 0
+K = 200            # Bayesian shrink strength
 
-for file in RATINGS_DIR.glob("*.csv"):
-    df = pd.read_csv(file)
-
-    season_digits = ''.join(filter(str.isdigit, file.name))
-    if season_digits:
-        season = int("20" + season_digits[-2:])
-    else:
-        season = None
-
-    df["season"] = season
-    df.rename(columns={"TEAM": "team", "Team": "team"}, inplace=True)
-
-    ratings_list.append(df)
-
-ratings = pd.concat(ratings_list, ignore_index=True)
 
 # =========================
-# LOAD GAMES
+# MAIN
 # =========================
 
-games = pd.read_csv(GAMES_FILE)
+def main():
 
-# =========================
-# MERGE RATINGS
-# =========================
+    df = pd.read_csv(INPUT_FILE)
 
-games = games.merge(
-    ratings.add_prefix("home_"),
-    left_on=["season", "home_team"],
-    right_on=["home_season", "home_team"],
-    how="left"
-)
+    required_cols = [
+        "closing_spread",
+        "game_count",
+        "cover_pct"
+    ]
 
-games = games.merge(
-    ratings.add_prefix("away_"),
-    left_on=["season", "away_team"],
-    right_on=["away_season", "away_team"],
-    how="left"
-)
+    for col in required_cols:
+        if col not in df.columns:
+            raise ValueError(f"Missing required column: {col}")
 
-games = games.dropna(subset=["home_ADJOE", "away_ADJOE"])
+    def compute_juice(row):
 
-# =========================
-# BUILD RAW PROJECTION
-# =========================
+        spread = float(row["closing_spread"])
+        n = int(row["game_count"])
+        cover_pct = float(row["cover_pct"])
 
-games["raw_proj"] = (
-    (games["home_ADJOE"] - games["away_ADJDE"])
-    -
-    (games["away_ADJOE"] - games["home_ADJDE"])
-    + HCA
-)
+        if n < MIN_GAMES:
+            return 0.0
 
-games["actual_margin"] = games["home_score"] - games["away_score"]
+        # Bayesian shrink toward 0.50
+        p_adj = ((cover_pct * n) + (0.5 * K)) / (n + K)
 
-# =========================
-# FIT MULTIPLIER
-# =========================
+        return round(p_adj - 0.5, 6)
 
-X = games[["raw_proj"]].values
-y = games["actual_margin"].values
+    df["extra_juice"] = df.apply(compute_juice, axis=1)
 
-model = LinearRegression(fit_intercept=False)
-model.fit(X, y)
+    output = df[["closing_spread", "extra_juice"]].copy()
+    output.columns = ["spread", "extra_juice"]
 
-multiplier = model.coef_[0]
+    output = output.sort_values("spread").reset_index(drop=True)
 
-games["scaled_proj"] = games["raw_proj"] * multiplier
+    output.to_csv(OUTPUT_FILE, index=False)
 
-# =========================
-# RESIDUAL STD
-# =========================
+    print(f"Created: {OUTPUT_FILE}")
 
-games["residual"] = games["actual_margin"] - games["scaled_proj"]
-spread_std = games["residual"].std()
 
-# =========================
-# EDGE TESTING
-# =========================
-
-games["edge"] = games["scaled_proj"] - games["closing_spread"]
-
-threshold_results = []
-
-for t in np.arange(1, 6.5, 0.5):
-    subset = games[np.abs(games["edge"]) >= t]
-    if len(subset) < 200:
-        continue
-
-    correct = np.sign(subset["edge"]) == np.sign(
-        subset["actual_margin"] - subset["closing_spread"]
-    )
-
-    win_rate = correct.mean()
-
-    threshold_results.append({
-        "edge_threshold": round(t, 2),
-        "bets": len(subset),
-        "win_rate": round(win_rate, 4)
-    })
-
-threshold_df = pd.DataFrame(threshold_results)
-
-summary_df = pd.DataFrame([{
-    "multiplier": round(multiplier, 6),
-    "spread_std": round(spread_std, 6),
-    "total_games_used": len(games)
-}])
-
-# =========================
-# SAVE TO REPO
-# =========================
-
-summary_df.to_csv(SUMMARY_CSV, index=False)
-
-with pd.ExcelWriter(SUMMARY_XLSX) as writer:
-    summary_df.to_excel(writer, sheet_name="model_constants", index=False)
-    threshold_df.to_excel(writer, sheet_name="threshold_backtest", index=False)
-
-print("Calibration complete.")
-print("Files written to repo:")
-print(SUMMARY_CSV)
-print(SUMMARY_XLSX)
+if __name__ == "__main__":
+    main()
