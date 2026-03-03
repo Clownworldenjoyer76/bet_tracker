@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-# docs/win/hockey/scripts/04_select/select_bets.py
-
 import pandas as pd
 from pathlib import Path
 from datetime import datetime
@@ -14,39 +11,35 @@ ERROR_LOG = ERROR_DIR / "select_bets.txt"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
+# Thresholds
 TOTAL_MIN_EDGE_PCT = 0.03
 TOTAL_MIN_PROB = 0.45
-
-PUCKLINE_MIN_EDGE_PCT = 0.01
+PUCKLINE_MIN_EDGE_PCT = 0.0001  # Baseline
+PUCKLINE_1_5_THRESHOLD = 0.40   # Specific for -1.5 lines
 
 LEAGUE_CODE = "NHL"
-
 REQUIRED_GAME_COLS = ["game_date", "away_team", "home_team"]
-
 
 def valid_edge(edge_pct, threshold):
     return pd.notna(edge_pct) and edge_pct >= threshold
-
 
 def assert_required_cols(df: pd.DataFrame, df_name: str, log) -> bool:
     if df is None:
         return True
     missing = [c for c in REQUIRED_GAME_COLS if c not in df.columns]
     if missing:
-        log.write(f"ERROR: {df_name} missing required columns: {missing}\n")
+        log.write(f"[COL ERROR] {df_name} missing: {missing}\n")
         return False
     return True
-
 
 def build_matchups(df: pd.DataFrame) -> pd.DataFrame:
     return df[REQUIRED_GAME_COLS].dropna().drop_duplicates()
 
-
 def main():
     with open(ERROR_LOG, "w") as log:
-
         log.write("=== NHL SELECT BETS RUN ===\n")
-        log.write(f"Timestamp: {datetime.utcnow().isoformat()}Z\n\n")
+        log.write(f"Timestamp: {datetime.utcnow().isoformat()}Z\n")
+        log.write(f"Settings: PL Min Edge {PUCKLINE_MIN_EDGE_PCT}, PL-1.5 Threshold {PUCKLINE_1_5_THRESHOLD}\n\n")
 
         try:
             moneyline_files = sorted(INPUT_DIR.glob("*_NHL_moneyline.csv"))
@@ -57,18 +50,17 @@ def main():
             slates = {}
 
             for f in all_files:
-                slate_key = (
-                    f.name.replace("_NHL_moneyline.csv", "")
-                    .replace("_NHL_puck_line.csv", "")
-                    .replace("_NHL_total.csv", "")
-                )
+                slate_key = f.name.replace("_NHL_moneyline.csv", "").replace("_NHL_puck_line.csv", "").replace("_NHL_total.csv", "")
                 slates.setdefault(slate_key, []).append(f)
+
+            if not slates:
+                log.write("No slates found to process.\n")
+                return
 
             for slate_key in slates.keys():
                 final_rows = []
-                ml_count = 0
-                puck_count = 0
-                total_count = 0
+                counts = {"moneyline": 0, "puck_line": 0, "total": 0}
+                skipped_pl = 0
 
                 ml_path = INPUT_DIR / f"{slate_key}_NHL_moneyline.csv"
                 pl_path = INPUT_DIR / f"{slate_key}_NHL_puck_line.csv"
@@ -78,212 +70,98 @@ def main():
                 pl_df = pd.read_csv(pl_path) if pl_path.exists() else None
                 total_df = pd.read_csv(total_path) if total_path.exists() else None
 
-                ok = True
-                ok = ok and assert_required_cols(ml_df, ml_path.name, log)
-                ok = ok and assert_required_cols(pl_df, pl_path.name, log)
-                ok = ok and assert_required_cols(total_df, total_path.name, log)
-
-                if not ok:
-                    log.write(f"Skipping slate {slate_key} due to missing required columns.\n\n")
+                if not assert_required_cols(ml_df, "ML", log) or not assert_required_cols(pl_df, "PL", log) or not assert_required_cols(total_df, "Total", log):
+                    log.write(f"Skipping slate {slate_key} | Column mismatch\n")
                     continue
 
-                matchup_frames = []
-                if ml_df is not None and not ml_df.empty:
-                    matchup_frames.append(build_matchups(ml_df))
-                if pl_df is not None and not pl_df.empty:
-                    matchup_frames.append(build_matchups(pl_df))
-                if total_df is not None and not total_df.empty:
-                    matchup_frames.append(build_matchups(total_df))
-
+                matchup_frames = [build_matchups(df) for df in [ml_df, pl_df, total_df] if df is not None and not df.empty]
                 if not matchup_frames:
-                    output_path = OUTPUT_DIR / f"{slate_key}_NHL.csv"
-                    pd.DataFrame([]).to_csv(output_path, index=False)
-                    log.write(f"Wrote {output_path} | rows=0\n")
-                    log.write("Moneyline bets: 0\nPuck line bets: 0\nTotal bets: 0\n\n")
+                    log.write(f"Slate {slate_key} | No data found in files.\n")
                     continue
 
                 matchups = pd.concat(matchup_frames, ignore_index=True).drop_duplicates()
 
                 for _, m in matchups.iterrows():
-                    game_date = str(m["game_date"])
-                    away_team = str(m["away_team"])
-                    home_team = str(m["home_team"])
+                    game_date, away, home = str(m["game_date"]), str(m["away_team"]), str(m["home_team"])
 
-                    # =====================
-                    # PUCK LINE (SELECT ALL THAT PASS)
-                    # =====================
-                    if pl_df is not None and not pl_df.empty:
-                        game_pl = pl_df[
-                            (pl_df["game_date"].astype(str) == game_date)
-                            & (pl_df["away_team"].astype(str) == away_team)
-                            & (pl_df["home_team"].astype(str) == home_team)
-                        ]
-
+                    # PUCK LINE LOGIC
+                    if pl_df is not None:
+                        game_pl = pl_df[(pl_df["game_date"].astype(str) == game_date) & (pl_df["away_team"] == away) & (pl_df["home_team"] == home)]
                         for _, row in game_pl.iterrows():
                             for side in ["home", "away"]:
-                                puck_line = row.get(f"{side}_puck_line")
-                                edge_pct = row.get(f"{side}_edge_pct")
+                                line = row.get(f"{side}_puck_line")
+                                edge = row.get(f"{side}_edge_pct")
+                                
+                                if pd.isna(line) or pd.isna(edge): continue
+                                
+                                # New Requirements
+                                threshold = PUCKLINE_1_5_THRESHOLD if float(line) == -1.5 else PUCKLINE_MIN_EDGE_PCT
+                                
+                                if edge >= threshold:
+                                    final_rows.append({
+                                        "game_date": game_date, "league": LEAGUE_CODE, "away_team": away, "home_team": home,
+                                        "market_type": "puck_line", "bet_side": side, "line": line, "game_id": row.get("game_id"),
+                                        "take_bet_edge_pct": edge, "take_odds": row.get(f"{side}_dk_puck_line_american")
+                                    })
+                                    counts["puck_line"] += 1
+                                else:
+                                    skipped_pl += 1
 
-                                if pd.isna(puck_line):
-                                    continue
-
-                                if float(puck_line) == -1.5:
-                                    continue
-
-                                if not valid_edge(edge_pct, PUCKLINE_MIN_EDGE_PCT):
-                                    continue
-
-                                line_val = puck_line
-
-                                final_rows.append({
-                                    "game_date": game_date,
-                                    "league": LEAGUE_CODE,
-                                    "away_team": away_team,
-                                    "home_team": home_team,
-                                    "market_type": "puck_line",
-                                    "bet_side": side,
-                                    "line": line_val,
-                                    "game_id": row.get("game_id"),
-                                    "take_bet": f"{side}_puck_line",
-                                    "take_bet_prob": row.get(f"{side}_juiced_prob_puck_line"),
-                                    "take_bet_edge_decimal": row.get(f"{side}_edge_decimal"),
-                                    "take_bet_edge_pct": row.get(f"{side}_edge_pct"),
-                                    "take_team": side,
-                                    "take_odds": row.get(f"{side}_dk_puck_line_american"),
-                                    "value": line_val,
-                                })
-                                puck_count += 1
-
-                    # =====================
-                    # MONEYLINE (UNCHANGED)
-                    # =====================
-                    if ml_df is not None and not ml_df.empty:
-                        game_ml = ml_df[
-                            (ml_df["game_date"].astype(str) == game_date)
-                            & (ml_df["away_team"].astype(str) == away_team)
-                            & (ml_df["home_team"].astype(str) == home_team)
-                        ]
-
-                        best_row = None
-                        best_edge = -float("inf")
-
+                    # MONEYLINE LOGIC
+                    if ml_df is not None:
+                        game_ml = ml_df[(ml_df["game_date"].astype(str) == game_date) & (ml_df["away_team"] == away) & (ml_df["home_team"] == home)]
+                        best_ml_row, best_ml_edge = None, -float('inf')
                         for _, row in game_ml.iterrows():
                             for side in ["home", "away"]:
-                                edge_pct = row.get(f"{side}_edge_pct")
-                                prob = row.get(f"{side}_prob")
-                                american_odds = row.get(f"{side}_dk_moneyline_american")
+                                edge, prob, odds = row.get(f"{side}_edge_pct"), row.get(f"{side}_prob"), row.get(f"{side}_dk_moneyline_american")
+                                if pd.isna(edge) or pd.isna(prob) or pd.isna(odds): continue
 
-                                if pd.isna(edge_pct) or pd.isna(prob) or pd.isna(american_odds):
-                                    continue
-
-                                if 200 <= american_odds <= 225:
-                                    if not (edge_pct >= 0.05 and prob >= 0.35):
-                                        continue
-                                elif 1 <= american_odds <= 199:
-                                    if not (edge_pct >= 0.05 and prob >= 0.38):
-                                        continue
-                                elif -1 >= american_odds >= -999:
-                                    if not (edge_pct >= 0.04 and prob >= 0.55):
-                                        continue
-                                else:
-                                    continue
-
-                                if edge_pct > best_edge:
-                                    best_edge = edge_pct
-                                    best_row = (row, side)
-
-                        if best_row:
-                            row, side = best_row
+                                if (200 <= odds <= 225 and edge >= 0.05 and prob >= 0.35) or \
+                                   (1 <= odds <= 199 and edge >= 0.05 and prob >= 0.38) or \
+                                   (-1 >= odds >= -999 and edge >= 0.04 and prob >= 0.55):
+                                    if edge > best_ml_edge:
+                                        best_ml_edge, best_ml_row = edge, (row, side)
+                        if best_ml_row:
+                            row, side = best_ml_row
                             final_rows.append({
-                                "game_date": game_date,
-                                "league": LEAGUE_CODE,
-                                "away_team": away_team,
-                                "home_team": home_team,
-                                "market_type": "moneyline",
-                                "bet_side": side,
-                                "line": "",
-                                "game_id": row.get("game_id"),
-                                "take_bet": f"{side}_moneyline",
-                                "take_bet_prob": row.get(f"{side}_prob"),
-                                "take_bet_edge_decimal": row.get(f"{side}_edge_decimal"),
-                                "take_bet_edge_pct": row.get(f"{side}_edge_pct"),
-                                "take_team": side,
-                                "take_odds": row.get(f"{side}_dk_moneyline_american"),
-                                "value": row.get(f"{side}_prob"),
+                                "game_date": game_date, "league": LEAGUE_CODE, "away_team": away, "home_team": home,
+                                "market_type": "moneyline", "bet_side": side, "line": "", "game_id": row.get("game_id"),
+                                "take_bet_edge_pct": edge, "take_odds": odds
                             })
-                            ml_count += 1
+                            counts["moneyline"] += 1
 
-                    # =====================
-                    # TOTAL (UNCHANGED)
-                    # =====================
-                    if total_df is not None and not total_df.empty:
-                        game_total = total_df[
-                            (total_df["game_date"].astype(str) == game_date)
-                            & (total_df["away_team"].astype(str) == away_team)
-                            & (total_df["home_team"].astype(str) == home_team)
-                        ]
-
-                        best_row = None
-                        best_edge = -float("inf")
-
-                        for _, row in game_total.iterrows():
+                    # TOTAL LOGIC
+                    if total_df is not None:
+                        game_tot = total_df[(total_df["game_date"].astype(str) == game_date) & (total_df["away_team"] == away) & (total_df["home_team"] == home)]
+                        best_tot_row, best_tot_edge = None, -float('inf')
+                        for _, row in game_tot.iterrows():
                             for side in ["over", "under"]:
-                                edge_pct = row.get(f"{side}_edge_pct")
-                                prob = row.get(f"juiced_total_{side}_prob")
-
-                                if not valid_edge(edge_pct, TOTAL_MIN_EDGE_PCT):
-                                    continue
-                                if pd.isna(prob) or prob < TOTAL_MIN_PROB:
-                                    continue
-
-                                if edge_pct > best_edge:
-                                    best_edge = edge_pct
-                                    best_row = (row, side)
-
-                        if best_row:
-                            row, side = best_row
-                            line_val = row.get("total")
-
+                                edge, prob = row.get(f"{side}_edge_pct"), row.get(f"juiced_total_{side}_prob")
+                                if valid_edge(edge, TOTAL_MIN_EDGE_PCT) and prob >= TOTAL_MIN_PROB:
+                                    if edge > best_tot_edge:
+                                        best_tot_edge, best_tot_row = edge, (row, side)
+                        if best_tot_row:
+                            row, side = best_tot_row
                             final_rows.append({
-                                "game_date": game_date,
-                                "league": LEAGUE_CODE,
-                                "away_team": away_team,
-                                "home_team": home_team,
-                                "market_type": "total",
-                                "bet_side": side,
-                                "line": line_val,
-                                "game_id": row.get("game_id"),
-                                "take_bet": f"{side}_total",
-                                "take_bet_prob": row.get(f"juiced_total_{side}_prob"),
-                                "take_bet_edge_decimal": row.get(f"{side}_edge_decimal"),
-                                "take_bet_edge_pct": row.get(f"{side}_edge_pct"),
-                                "take_team": side,
-                                "take_odds": row.get(f"dk_total_{side}_american"),
-                                "value": line_val,
+                                "game_date": game_date, "league": LEAGUE_CODE, "away_team": away, "home_team": home,
+                                "market_type": "total", "bet_side": side, "line": row.get("total"), "game_id": row.get("game_id"),
+                                "take_bet_edge_pct": edge, "take_odds": row.get(f"dk_total_{side}_american")
                             })
-                            total_count += 1
+                            counts["total"] += 1
 
+                # Save Results
                 out_df = pd.DataFrame(final_rows)
-
                 if not out_df.empty:
-                    out_df = out_df.sort_values(by="take_bet_edge_pct", ascending=False)
-                    out_df = out_df.drop_duplicates(
-                        subset=["game_date", "league", "away_team", "home_team", "market_type", "bet_side", "line"]
-                    )
-
-                output_path = OUTPUT_DIR / f"{slate_key}_NHL.csv"
-                out_df.to_csv(output_path, index=False)
-
-                log.write(f"Wrote {output_path} | rows={len(out_df)}\n")
-                log.write(f"Moneyline bets: {ml_count}\n")
-                log.write(f"Puck line bets: {puck_count}\n")
-                log.write(f"Total bets: {total_count}\n\n")
+                    out_df = out_df.drop_duplicates(subset=["game_date", "away_team", "home_team", "market_type", "bet_side", "line"])
+                    out_df.to_csv(OUTPUT_DIR / f"{slate_key}_NHL.csv", index=False)
+                
+                log.write(f"Processed Slate: {slate_key}\n")
+                log.write(f"  - Moneyline: {counts['moneyline']} bets\n")
+                log.write(f"  - Puck Line: {counts['puck_line']} bets (Skipped {skipped_pl} due to thresholds)\n")
+                log.write(f"  - Totals:    {counts['total']} bets\n\n")
 
         except Exception as e:
-            log.write("\n=== ERROR ===\n")
-            log.write(str(e) + "\n\n")
-            log.write(traceback.format_exc())
-
+            log.write(f"\nCRITICAL ERROR: {str(e)}\n{traceback.format_exc()}\n")
 
 if __name__ == "__main__":
     main()
