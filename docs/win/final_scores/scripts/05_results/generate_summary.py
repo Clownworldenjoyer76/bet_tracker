@@ -34,6 +34,10 @@ def generate_reports():
         # Load all data for this sport
         all_data = pd.concat([pd.read_csv(f) for f in files], ignore_index=True)
 
+        # --- DEDUPLICATION STEP ---
+        # Ensures that even if the same bet is in multiple files, it only appears once
+        all_data = all_data.drop_duplicates(subset=['game_date', 'away_team', 'home_team', 'market_type', 'bet_side', 'line'])
+
         # --- REPORT 1: TEAM TALLY (CSV) ---
         away_stats = all_data[['away_team', 'market_type', 'bet_result']].rename(columns={'away_team': 'team'})
         home_stats = all_data[['home_team', 'market_type', 'bet_result']].rename(columns={'home_team': 'team'})
@@ -57,7 +61,10 @@ def generate_reports():
                 
         market_tally['Total'] = market_tally['Win'] + market_tally['Loss'] + market_tally['Push']
         market_tally['Win_Pct'] = (market_tally['Win'] / market_tally['Total']).fillna(0).round(3)
-        market_tally = market_tally.loc[required_markets, ['Win', 'Loss', 'Push', 'Total', 'Win_Pct']].reset_index()
+        
+        # Ensure only the required markets are in the tally
+        existing_markets = [m for m in required_markets if m in market_tally.index]
+        market_tally = market_tally.loc[existing_markets, ['Win', 'Loss', 'Push', 'Total', 'Win_Pct']].reset_index()
         market_tally.to_csv(market_output, index=False)
 
         # --- REPORT 3: PERFORMANCE LOG (TXT) ---
@@ -84,9 +91,11 @@ def generate_reports():
                     f.write(f"[{res}] {date} | {matchup.ljust(45)} | {details.ljust(20)} | {score}\n")
 
                 # Market Summary line
-                stats = market_tally[market_tally['market_type'] == market].iloc[0]
-                f.write(f"\n{market.upper()} SUMMARY: {stats['Win']}W - {stats['Loss']}L - {stats['Push']}P")
-                f.write(f" | Win Rate: {stats['Win_Pct']*100:.1f}%\n")
+                stats_rows = market_tally[market_tally['market_type'] == market]
+                if not stats_rows.empty:
+                    stats = stats_rows.iloc[0]
+                    f.write(f"\n{market.upper()} SUMMARY: {stats['Win']}W - {stats['Loss']}L - {stats['Push']}P")
+                    f.write(f" | Win Rate: {stats['Win_Pct']*100:.1f}%\n")
                 f.write("-" * 90 + "\n\n")
 
         print(f"Reports saved for {suffix} to {output_base}/")
