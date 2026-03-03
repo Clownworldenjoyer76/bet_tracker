@@ -17,7 +17,6 @@ ERROR_DIR.mkdir(parents=True, exist_ok=True)
 TOTAL_MIN_EDGE_PCT = 0.03
 TOTAL_MIN_PROB = 0.45
 
-# ✅ puck line minimum edge threshold
 PUCKLINE_MIN_EDGE_PCT = 0.01
 
 LEAGUE_CODE = "NHL"
@@ -111,7 +110,7 @@ def main():
                     home_team = str(m["home_team"])
 
                     # =====================
-                    # PUCK LINE
+                    # PUCK LINE (SELECT ALL THAT PASS)
                     # =====================
                     if pl_df is not None and not pl_df.empty:
                         game_pl = pl_df[
@@ -120,9 +119,6 @@ def main():
                             & (pl_df["home_team"].astype(str) == home_team)
                         ]
 
-                        best_row = None
-                        best_edge = -float("inf")
-
                         for _, row in game_pl.iterrows():
                             for side in ["home", "away"]:
                                 puck_line = row.get(f"{side}_puck_line")
@@ -130,43 +126,36 @@ def main():
 
                                 if pd.isna(puck_line):
                                     continue
-                                
-                                # ✅ NEW: filter out -1.5 puck line bets
+
                                 if float(puck_line) == -1.5:
                                     continue
 
                                 if not valid_edge(edge_pct, PUCKLINE_MIN_EDGE_PCT):
                                     continue
 
-                                if edge_pct > best_edge:
-                                    best_edge = edge_pct
-                                    best_row = (row, side)
+                                line_val = puck_line
 
-                        if best_row:
-                            row, side = best_row
-                            line_val = row.get(f"{side}_puck_line")
-
-                            final_rows.append({
-                                "game_date": game_date,
-                                "league": LEAGUE_CODE,
-                                "away_team": away_team,
-                                "home_team": home_team,
-                                "market_type": "puck_line",
-                                "bet_side": side,
-                                "line": line_val,
-                                "game_id": row.get("game_id"),
-                                "take_bet": f"{side}_puck_line",
-                                "take_bet_prob": row.get(f"{side}_juiced_prob_puck_line"),
-                                "take_bet_edge_decimal": row.get(f"{side}_edge_decimal"),
-                                "take_bet_edge_pct": row.get(f"{side}_edge_pct"),
-                                "take_team": side,
-                                "take_odds": row.get(f"{side}_dk_puck_line_american"),
-                                "value": line_val,
-                            })
-                            puck_count += 1
+                                final_rows.append({
+                                    "game_date": game_date,
+                                    "league": LEAGUE_CODE,
+                                    "away_team": away_team,
+                                    "home_team": home_team,
+                                    "market_type": "puck_line",
+                                    "bet_side": side,
+                                    "line": line_val,
+                                    "game_id": row.get("game_id"),
+                                    "take_bet": f"{side}_puck_line",
+                                    "take_bet_prob": row.get(f"{side}_juiced_prob_puck_line"),
+                                    "take_bet_edge_decimal": row.get(f"{side}_edge_decimal"),
+                                    "take_bet_edge_pct": row.get(f"{side}_edge_pct"),
+                                    "take_team": side,
+                                    "take_odds": row.get(f"{side}_dk_puck_line_american"),
+                                    "value": line_val,
+                                })
+                                puck_count += 1
 
                     # =====================
-                    # MONEYLINE
+                    # MONEYLINE (UNCHANGED)
                     # =====================
                     if ml_df is not None and not ml_df.empty:
                         game_ml = ml_df[
@@ -225,7 +214,7 @@ def main():
                             ml_count += 1
 
                     # =====================
-                    # TOTAL
+                    # TOTAL (UNCHANGED)
                     # =====================
                     if total_df is not None and not total_df.empty:
                         game_total = total_df[
