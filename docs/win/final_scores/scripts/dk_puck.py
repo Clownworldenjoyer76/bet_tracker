@@ -10,7 +10,8 @@ import traceback
 # =========================
 
 SPORTSBOOK_DIR = Path("docs/win/hockey/00_intake/sportsbook")
-FINAL_DIR = Path("docs/win/final_scores")
+# UPDATED: Pointing to the new NHL-specific score directory
+FINAL_DIR = Path("docs/win/final_scores/results/nhl/final_scores")
 ERROR_DIR = Path("docs/win/final_scores/errors")
 LOG_FILE = ERROR_DIR / "dk_puck_log.txt"
 
@@ -29,7 +30,6 @@ def log(message):
 log("========== DK PUCK SCRIPT START ==========")
 
 try:
-
     sportsbook_files = sorted(SPORTSBOOK_DIR.glob("hockey_*.csv"))
 
     if not sportsbook_files:
@@ -38,8 +38,8 @@ try:
         log(f"Found {len(sportsbook_files)} sportsbook files.")
 
     for sb_file in sportsbook_files:
-
         try:
+            # Extract date from filename (e.g., hockey_2026_03_01.csv -> 2026_03_01)
             date_part = sb_file.stem.replace("hockey_", "")
             final_file = FINAL_DIR / f"{date_part}_final_scores_NHL.csv"
 
@@ -47,7 +47,7 @@ try:
             log(f"Looking for final file: {final_file.name}")
 
             if not final_file.exists():
-                log("Final file does NOT exist. Skipping.")
+                log(f"Final file {final_file.name} does NOT exist in {FINAL_DIR}. Skipping.")
                 continue
 
             sportsbook_df = pd.read_csv(sb_file)
@@ -72,7 +72,7 @@ try:
                     log(f"Missing column in final file: {col}. Skipping file.")
                     raise ValueError(f"Missing final column {col}")
 
-            # Rename DK columns
+            # Rename DK columns to distinguish them from final results
             sportsbook_df = sportsbook_df.rename(columns={
                 "away_puck_line": "dk_away_puck_line",
                 "home_puck_line": "dk_home_puck_line",
@@ -87,6 +87,7 @@ try:
                 ]
             ]
 
+            # Left merge adds DK info to your existing score file
             merged_df = final_df.merge(
                 sportsbook_subset,
                 on=merge_cols,
@@ -97,6 +98,7 @@ try:
             dk_nulls = merged_df["dk_total"].isna().sum()
             log(f"Rows with missing DK match: {dk_nulls}")
 
+            # Overwrite the original score file with the new merged data
             merged_df.to_csv(final_file, index=False)
 
             log(f"Successfully updated {final_file.name}")
