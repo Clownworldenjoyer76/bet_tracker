@@ -76,17 +76,19 @@ def main():
                             if pd.isna(edge_dec) or pd.isna(win_prob) or pd.isna(odds): continue
 
                             if league == "NBA":
-                                # NBA MONEYLINE FILTERS
-                                if odds >= 300 or odds <= -250: continue 
+                                if odds >= 300: continue
                                 elif 100 <= odds <= 149 and edge_dec >= 0.05 and win_prob >= 0.42: keep_bet = True
                                 elif 150 <= odds <= 199 and edge_dec >= 0.06 and win_prob >= 0.40: keep_bet = True
                                 elif 200 <= odds <= 299 and edge_dec >= 0.07 and win_prob >= 0.35: keep_bet = True
-                                # Increased win_prob requirement for slight favorites
-                                elif -149 <= odds <= -100 and edge_dec >= 0.05 and win_prob >= 0.62: keep_bet = True
-                                elif -249 <= odds <= -150 and edge_dec >= 0.06 and win_prob >= 0.65: keep_bet = True
+                                elif -149 <= odds <= -100 and edge_dec >= 0.05 and win_prob >= 0.58: keep_bet = True
+                                elif -249 <= odds <= -150 and edge_dec >= 0.06 and win_prob >= 0.62: keep_bet = True
+                                elif odds <= -250 and edge_dec >= 0.08 and win_prob >= 0.80: keep_bet = True
 
                             elif league == "NCAAB":
-                                if odds >= 300 or win_prob < 0.30: continue 
+                                # NCAAB ML Filter: Away teams need higher win probability
+                                if side == "away" and win_prob < 0.65: continue
+                                
+                                if odds >= 300 or win_prob < 0.30: continue
                                 elif 200 <= odds < 300 and edge_dec >= 0.08 and edge_pct >= 0.035: keep_bet = True
                                 elif 100 <= odds < 200 and edge_dec >= 0.06 and edge_pct >= 0.03: keep_bet = True
                                 elif -200 <= odds < -100 and edge_dec >= 0.06 and edge_pct >= 0.03 and win_prob >= 0.60: keep_bet = True
@@ -109,16 +111,15 @@ def main():
                             edge_dec = row.get(f"{side}_edge_decimal")
                             edge_pct = row.get(f"{side}_edge_pct")
                             line_val = row.get(f"{side}_spread")
-                            
+
                             if pd.isna(edge_dec) or pd.isna(line_val): continue
-
-                            if league == "NBA":
-                                # NBA SPREAD FILTERS: Ignore lines > 10.5
-                                if abs(float(line_val)) > 10.5: continue
-                                if edge_dec >= 0.05 and edge_pct >= 0.02: keep_bet = True
-
-                            elif league == "NCAAB":
+                            
+                            if league == "NCAAB":
+                                # NCAAB Spread Filter: Max spread of 12.5
+                                if abs(float(line_val)) > 12.5: continue
                                 if edge_dec >= 0.055 and edge_pct >= 0.025: keep_bet = True
+                            else: # NBA Default
+                                if edge_dec >= 0.05 and edge_pct >= 0.02: keep_bet = True
 
                             if keep_bet:
                                 selections.append({
@@ -137,19 +138,16 @@ def main():
                         for side in ["over", "under"]:
                             edge_dec = row.get(f"{side}_edge_decimal")
                             edge_pct = row.get(f"{side}_edge_pct")
-                            total_val = row.get("total")
+                            total_val = pd.to_numeric(row.get("total"), errors="coerce")
                             odds = pd.to_numeric(row.get(f"total_{side}_juice_odds"), errors="coerce")
 
-                            if pd.isna(odds) or pd.isna(edge_dec) or odds < MIN_TOTAL_ODDS: continue
+                            if pd.isna(odds) or pd.isna(total_val) or odds < MIN_TOTAL_ODDS: continue
 
                             if league == "NBA":
-                                # NBA TOTAL FILTERS
-                                if side == "under" and float(total_val) > 232: continue # Avoid high-pace shootouts
-                                if side == "over" and edge_dec < 0.13: continue # Tighten cushion for Overs
-                                
                                 if edge_dec >= 0.10: keep_bet = True
-
                             elif league == "NCAAB":
+                                # NCAAB Totals Filter: Sweet spot 135 to 155
+                                if not (135 <= total_val <= 155): continue
                                 if edge_dec >= 0.10 and edge_pct >= 0.05: keep_bet = True
 
                             if keep_bet:
