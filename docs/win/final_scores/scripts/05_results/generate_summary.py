@@ -18,20 +18,23 @@ def generate_reports():
         results_dir = f"docs/win/final_scores/results/{sport_name}/graded"
         output_base = f"docs/win/final_scores/results/{sport_name}"
         
+        # Output file paths
         team_output = os.path.join(output_base, "summary_tally.csv")
         market_output = os.path.join(output_base, "market_tally.csv")
+        txt_output = os.path.join(output_base, "performance_report.txt")
         
         os.makedirs(output_base, exist_ok=True)
         
-        # Find files for this specific sport
+        # Find graded results files
         files = glob.glob(os.path.join(results_dir, f"*_results_{suffix}.csv"))
         if not files:
             print(f"No files found for {suffix} in {results_dir}")
             continue
 
+        # Load all data for this sport
         all_data = pd.concat([pd.read_csv(f) for f in files], ignore_index=True)
 
-        # --- REPORT 1: TEAM TALLY ---
+        # --- REPORT 1: TEAM TALLY (CSV) ---
         away_stats = all_data[['away_team', 'market_type', 'bet_result']].rename(columns={'away_team': 'team'})
         home_stats = all_data[['home_team', 'market_type', 'bet_result']].rename(columns={'home_team': 'team'})
         combined_teams = pd.concat([away_stats, home_stats], ignore_index=True)
@@ -42,28 +45,50 @@ def generate_reports():
         
         team_tally['Total'] = team_tally['Win'] + team_tally['Loss'] + team_tally['Push']
         team_tally['Win_Pct'] = (team_tally['Win'] / team_tally['Total']).fillna(0).round(3)
-        
         team_tally = team_tally[['Win', 'Loss', 'Push', 'Total', 'Win_Pct']].reset_index()
         team_tally.to_csv(team_output, index=False)
 
-        # --- REPORT 2: MARKET TALLY ---
+        # --- REPORT 2: MARKET TALLY (CSV) ---
         market_tally = all_data.groupby(['market_type', 'bet_result']).size().unstack(fill_value=0)
-        
-        # Ensure specific sport markets exist in index
         for m in required_markets:
             if m not in market_tally.index: market_tally.loc[m] = 0
-            
-        # Ensure all result columns exist
         for col in ['Win', 'Loss', 'Push']:
             if col not in market_tally.columns: market_tally[col] = 0
                 
         market_tally['Total'] = market_tally['Win'] + market_tally['Loss'] + market_tally['Push']
         market_tally['Win_Pct'] = (market_tally['Win'] / market_tally['Total']).fillna(0).round(3)
-        
-        # Reorder based on sport-specific markets
         market_tally = market_tally.loc[required_markets, ['Win', 'Loss', 'Push', 'Total', 'Win_Pct']].reset_index()
         market_tally.to_csv(market_output, index=False)
-        
+
+        # --- REPORT 3: PERFORMANCE LOG (TXT) ---
+        with open(txt_output, "w") as f:
+            f.write(f"=== {suffix.upper()} DETAILED PERFORMANCE LOG ===\n")
+            f.write(f"Generated on: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+
+            for market in required_markets:
+                market_data = all_data[all_data['market_type'] == market]
+                
+                f.write(f"--- MARKET: {market.upper()} ---\n")
+                if market_data.empty:
+                    f.write("No recorded bets for this market.\n\n")
+                    continue
+
+                # Detail every game
+                for _, row in market_data.sort_values('game_date', ascending=False).iterrows():
+                    res = str(row['bet_result']).upper().ljust(5)
+                    date = row['game_date']
+                    matchup = f"{row['away_team']} @ {row['home_team']}"
+                    details = f"Side: {row['bet_side']} ({row['line']})"
+                    score = f"Score: {row['away_score']}-{row['home_score']}"
+                    
+                    f.write(f"[{res}] {date} | {matchup.ljust(45)} | {details.ljust(20)} | {score}\n")
+
+                # Market Summary line
+                stats = market_tally[market_tally['market_type'] == market].iloc[0]
+                f.write(f"\n{market.upper()} SUMMARY: {stats['Win']}W - {stats['Loss']}L - {stats['Push']}P")
+                f.write(f" | Win Rate: {stats['Win_Pct']*100:.1f}%\n")
+                f.write("-" * 90 + "\n\n")
+
         print(f"Reports saved for {suffix} to {output_base}/")
 
 if __name__ == "__main__":
