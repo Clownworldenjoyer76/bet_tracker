@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 from sklearn.linear_model import LinearRegression
+from scipy.stats import norm
 
 # =========================
 # PATHS
@@ -12,21 +13,28 @@ from sklearn.linear_model import LinearRegression
 BASE = Path("bets/historic/NCAA MENS BASKETBALL")
 RATINGS_DIR = BASE / "cbb"
 GAMES_FILE = BASE / "games.csv"
+OUTPUT_FILE = BASE / "calibration_summary.csv"
 
-HCA = 3.2  # temporary, will be indirectly calibrated
+HCA = 3.2  # temporary fixed home court
 
 # =========================
-# LOAD RATINGS
+# LOAD RATINGS (ALL SEASONS)
 # =========================
 
 ratings_list = []
 
 for file in RATINGS_DIR.glob("*.csv"):
     df = pd.read_csv(file)
+
     season_digits = ''.join(filter(str.isdigit, file.name))
-    season = int("20" + season_digits[-2:])
+    if season_digits:
+        season = int("20" + season_digits[-2:])
+    else:
+        season = None
+
     df["season"] = season
-    df.rename(columns={"TEAM": "team"}, inplace=True)
+    df.rename(columns={"TEAM": "team", "Team": "team"}, inplace=True)
+
     ratings_list.append(df)
 
 ratings = pd.concat(ratings_list, ignore_index=True)
@@ -55,7 +63,6 @@ games = games.merge(
     how="left"
 )
 
-# Drop missing merges
 games = games.dropna(subset=["home_ADJOE", "away_ADJOE"])
 
 # =========================
@@ -85,9 +92,6 @@ multiplier = model.coef_[0]
 
 games["scaled_proj"] = games["raw_proj"] * multiplier
 
-print("\n=== CALIBRATED MULTIPLIER ===")
-print(multiplier)
-
 # =========================
 # RESIDUAL STD
 # =========================
@@ -95,28 +99,51 @@ print(multiplier)
 games["residual"] = games["actual_margin"] - games["scaled_proj"]
 spread_std = games["residual"].std()
 
-print("\n=== TRUE SPREAD STD ===")
-print(spread_std)
-
 # =========================
-# EDGE CALCULATION
+# EDGE TESTING
 # =========================
 
 games["edge"] = games["scaled_proj"] - games["closing_spread"]
 
-print("\n=== THRESHOLD BACKTEST ===")
+threshold_results = []
 
-for t in np.arange(1, 6, 0.5):
+for t in np.arange(1, 6.5, 0.5):
     subset = games[np.abs(games["edge"]) >= t]
     if len(subset) < 200:
         continue
-    
+
     correct = np.sign(subset["edge"]) == np.sign(
         subset["actual_margin"] - subset["closing_spread"]
     )
-    
-    win_rate = correct.mean()
-    
-    print(f"Edge ≥ {t:.1f}  |  Bets: {len(subset)}  |  Win%: {win_rate:.3f}")
 
-print("\nDone.\n")
+    win_rate = correct.mean()
+
+    threshold_results.append({
+        "edge_threshold": round(t, 2),
+        "bets": len(subset),
+        "win_rate": round(win_rate, 4)
+    })
+
+threshold_df = pd.DataFrame(threshold_results)
+
+# =========================
+# BUILD SUMMARY OUTPUT
+# =========================
+
+summary_df = pd.DataFrame([{
+    "multiplier": round(multiplier, 6),
+    "spread_std": round(spread_std, 6),
+    "total_games_used": len(games)
+}])
+
+# Save structured output
+with pd.ExcelWriter(OUTPUT_FILE.replace(".csv", ".xlsx")) as writer:
+    summary_df.to_excel(writer, sheet_name="model_constants", index=False)
+    threshold_df.to_excel(writer, sheet_name="threshold_backtest", index=False)
+
+# Also save CSV summary (constants only)
+summary_df.to_csv(OUTPUT_FILE, index=False)
+
+print("Calibration complete.")
+print(f"Summary saved to: {OUTPUT_FILE}")
+print(f"Detailed results saved to: {OUTPUT_FILE.replace('.csv','.xlsx')}")
