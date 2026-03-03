@@ -10,23 +10,22 @@ ERROR_DIR = BASE_DIR / "errors"
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_LOG = ERROR_DIR / "dedupe.txt"
 
-
 def main():
     with open(ERROR_LOG, "w") as log:
         try:
-            files = sorted(BASE_DIR.glob("*_final_scores_*.csv"))
+            # CHANGE HERE: Use rglob to search all subfolders
+            files = sorted(BASE_DIR.rglob("*_final_scores_*.csv"))
 
             if not files:
-                log.write("No final score files found.\n")
+                log.write("No final score files found in subdirectories.\n")
                 return
 
             for path in files:
-
                 with path.open("r", newline="", encoding="utf-8") as f:
                     reader = list(csv.DictReader(f))
 
                 if not reader:
-                    log.write(f"{path.name}: empty file\n")
+                    log.write(f"{path.relative_to(BASE_DIR)}: empty file\n")
                     continue
 
                 seen = set()
@@ -49,13 +48,13 @@ def main():
                     writer.writeheader()
                     writer.writerows(deduped)
 
-                log.write(f"{path.name}: {len(reader)} -> {len(deduped)} rows\n")
+                # Log the relative path so you know which sport folder it was in
+                log.write(f"{path.relative_to(BASE_DIR)}: {len(reader)} -> {len(deduped)} rows\n")
 
         except Exception as e:
             log.write("\n=== ERROR ===\n")
             log.write(str(e) + "\n\n")
             log.write(traceback.format_exc())
-
 
 if __name__ == "__main__":
     main()
