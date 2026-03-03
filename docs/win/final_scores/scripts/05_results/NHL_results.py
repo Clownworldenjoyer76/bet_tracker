@@ -4,9 +4,12 @@ import glob
 import re
 
 def process_all_nhl_results():
-    scores_dir = "docs/win/final_scores"
+    # Folder where your raw scores are kept
+    scores_dir = "docs/win/final_scores/results/nhl/final_scores"
+    # Folder where your picks/bets are kept
     bets_dir = "docs/win/hockey/04_select"
-    output_dir = "docs/win/final_scores/results"
+    # UPDATED: Changed output folder to 'graded'
+    output_dir = "docs/win/final_scores/results/nhl/graded"
     
     os.makedirs(output_dir, exist_ok=True)
 
@@ -14,7 +17,7 @@ def process_all_nhl_results():
     bet_files = glob.glob(os.path.join(bets_dir, "*_NHL.csv"))
     
     for bet_file in bet_files:
-        # Extract date from filename (e.g., 2026_03_01)
+        # Extract date from filename
         filename = os.path.basename(bet_file)
         date_match = re.search(r"(\d{4}_\d{2}_\d{2})", filename)
         
@@ -23,16 +26,19 @@ def process_all_nhl_results():
             
         date_str = date_match.group(1)
         score_file = os.path.join(scores_dir, f"{date_str}_final_scores_NHL.csv")
+        # UPDATED: Output path now points to the 'graded' folder
         output_path = os.path.join(output_dir, f"{date_str}_results_NHL.csv")
 
         # Skip if scores aren't available yet
         if not os.path.exists(score_file):
-            print(f"Skipping {date_str}: Score file not found.")
+            print(f"Skipping {date_str}: Score file not found at {score_file}")
             continue
 
         # Load and process
         bets_df = pd.read_csv(bet_file)
         scores_df = pd.read_csv(score_file)
+        
+        # Merge datasets
         df = pd.merge(bets_df, scores_df, on=['away_team', 'home_team', 'game_date'], suffixes=('', '_scorefile'))
 
         def determine_outcome(row):
@@ -54,7 +60,7 @@ def process_all_nhl_results():
         # Save output
         output_cols = ['game_date', 'away_team', 'home_team', 'market_type', 'bet_side', 'line', 'away_score', 'home_score', 'bet_result']
         df[output_cols].to_csv(output_path, index=False)
-        print(f"Processed: {date_str}")
+        print(f"Processed: {date_str} -> {output_path}")
 
 if __name__ == "__main__":
     process_all_nhl_results()
