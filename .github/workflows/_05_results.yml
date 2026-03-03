@@ -12,6 +12,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -31,18 +33,12 @@ jobs:
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          
-          # NHL Updates
-          git add docs/win/final_scores/results/nhl/*.csv
-          git add docs/win/final_scores/results/nhl/graded/*.csv
-          
-          # NBA Updates
-          git add docs/win/final_scores/results/nba/*.csv
-          git add docs/win/final_scores/results/nba/graded/*.csv
-          
-          # NCAAB Updates
-          git add docs/win/final_scores/results/ncaab/*.csv
-          git add docs/win/final_scores/results/ncaab/graded/*.csv
-          
+
+          # Stage entire final_scores results tree (handles all subfolders)
+          git add docs/win/final_scores/results/
+
+          # Stage any errors if created
+          git add docs/win/final_scores/errors/ || true
+
           git commit -m "Auto-update: All Sports results and summary tallies" || echo "No changes to commit"
           git push
