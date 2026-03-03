@@ -20,8 +20,8 @@ TOTAL_MIN_EDGE_PCT = 0.05
 TOTAL_MIN_PROB = 0.52
 
 # Puck Line Specifics
-PL_DOG_WIN_PROB_REQ = 0.63
-PL_HUGE_FAV_EDGE = 0.15
+PL_DOG_WIN_PROB_REQ = 0.45
+PL_HUGE_FAV_EDGE = 0.20
 PL_MAX_FAV_ODDS = -120
 
 LEAGUE_CODE = "NHL"
@@ -145,7 +145,7 @@ def main():
                                 m_prob = pd.to_numeric(mrow.get(f"{side}_prob"), errors='coerce')
                                 m_odds = pd.to_numeric(mrow.get(f"{side}_dk_moneyline_american"), errors='coerce')
 
-                                if m_edge >= 0.05 and m_prob >= 0.45:
+                                if m_edge >= 0.03 and m_prob >= 0.45:
                                     bet_key = f"{game_date}_{away}_{home}_moneyline_{side}"
                                     if bet_key not in seen_bets:
                                         final_rows.append({
