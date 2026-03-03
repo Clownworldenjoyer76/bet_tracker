@@ -118,7 +118,7 @@ def main():
                 for _, row in df.iterrows():
 
                     game_id = row.get("game_id")
-                    league = row.get("league")
+                    league = str(row.get("league")).upper()
 
                     game_date = "" if pd.isna(row.get("game_date")) else str(row.get("game_date"))
                     away_team = "" if pd.isna(row.get("away_team")) else str(row.get("away_team"))
@@ -139,32 +139,32 @@ def main():
                             if pd.isna(edge_dec) or pd.isna(edge_pct) or pd.isna(win_prob):
                                 continue
 
-                            if str(league).upper() == "NBA":
+                            odds = pd.to_numeric(american_odds, errors="coerce")
+                            if pd.isna(odds):
+                                continue
 
-                                odds = pd.to_numeric(american_odds, errors="coerce")
-                                if pd.isna(odds):
+                            # NBA (unchanged)
+                            if league == "NBA":
+                                if not valid_edge(edge_dec, edge_pct):
                                     continue
 
-                                if 100 <= odds <= 149:
+                            # NCAAB (UPDATED)
+                            elif league == "NCAAB":
+
+                                if odds >= 300:
+                                    if not (edge_dec >= 0.10 and win_prob >= 0.28):
+                                        continue
+                                elif 150 <= odds < 300:
+                                    if not (edge_dec >= 0.06 and win_prob >= 0.36):
+                                        continue
+                                elif 100 <= odds < 150:
                                     if not (edge_dec >= 0.05 and win_prob >= 0.42):
                                         continue
-                                elif 150 <= odds <= 199:
-                                    if not (edge_dec >= 0.06 and win_prob >= 0.38):
-                                        continue
-                                elif 200 <= odds <= 299:
-                                    if not (edge_dec >= 0.07 and win_prob >= 0.33):
-                                        continue
-                                elif odds >= 300:
-                                    if not (edge_dec >= 0.15 and win_prob >= 0.33):
-                                        continue
-                                elif -149 <= odds <= -100:
+                                elif -150 <= odds < -100:
                                     if not (edge_dec >= 0.05 and win_prob >= 0.58):
                                         continue
-                                elif -249 <= odds <= -150:
-                                    if not (edge_dec >= 0.06 and win_prob >= 0.62):
-                                        continue
-                                elif odds <= -250:
-                                    if not (edge_dec >= 0.07 and win_prob >= 0.70):
+                                elif odds < -150:
+                                    if not (edge_dec >= 0.06 and win_prob >= 0.64):
                                         continue
                                 else:
                                     continue
@@ -201,25 +201,35 @@ def main():
                             edge_pct = row.get(f"{side}_edge_pct")
                             spread_val = row.get(f"{side}_spread")
 
-                            if valid_edge(edge_dec, edge_pct):
+                            if league == "NCAAB":
+                                if not (
+                                    pd.notna(edge_dec)
+                                    and pd.notna(edge_pct)
+                                    and edge_dec >= 0.055
+                                    and edge_pct >= 0.025
+                                ):
+                                    continue
+                            else:
+                                if not valid_edge(edge_dec, edge_pct):
+                                    continue
 
-                                selections.append({
-                                    "game_date": game_date,
-                                    "league": league,
-                                    "away_team": away_team,
-                                    "home_team": home_team,
-                                    "market_type": "spread",
-                                    "bet_side": side,
-                                    "line": spread_val,
-                                    "game_id": game_id,
-                                    "market": market,
-                                    "take_bet": f"{side}_spread",
-                                    "take_odds": row.get(f"{side}_spread_juice_odds"),
-                                    "take_team": side,
-                                    "value": spread_val,
-                                    "take_bet_edge_decimal": edge_dec,
-                                    "take_bet_edge_pct": edge_pct,
-                                })
+                            selections.append({
+                                "game_date": game_date,
+                                "league": league,
+                                "away_team": away_team,
+                                "home_team": home_team,
+                                "market_type": "spread",
+                                "bet_side": side,
+                                "line": spread_val,
+                                "game_id": game_id,
+                                "market": market,
+                                "take_bet": f"{side}_spread",
+                                "take_odds": row.get(f"{side}_spread_juice_odds"),
+                                "take_team": side,
+                                "value": spread_val,
+                                "take_bet_edge_decimal": edge_dec,
+                                "take_bet_edge_pct": edge_pct,
+                            })
 
                     # =========================
                     # TOTAL
@@ -236,7 +246,17 @@ def main():
                         under_pct = row.get("under_edge_pct")
                         odds_under = row.get("total_under_juice_odds")
 
-                        if valid_total_edge(over_dec, over_pct) and valid_total_odds(odds_over):
+                        if league == "NCAAB":
+                            total_valid = (
+                                pd.notna(over_dec)
+                                and pd.notna(over_pct)
+                                and over_dec >= 0.10
+                                and over_pct >= 0.05
+                            )
+                        else:
+                            total_valid = valid_total_edge(over_dec, over_pct)
+
+                        if total_valid and valid_total_odds(odds_over):
                             selections.append({
                                 "game_date": game_date,
                                 "league": league,
@@ -255,7 +275,17 @@ def main():
                                 "take_bet_edge_pct": over_pct,
                             })
 
-                        if valid_total_edge(under_dec, under_pct) and valid_total_odds(odds_under):
+                        if league == "NCAAB":
+                            total_valid_under = (
+                                pd.notna(under_dec)
+                                and pd.notna(under_pct)
+                                and under_dec >= 0.10
+                                and under_pct >= 0.05
+                            )
+                        else:
+                            total_valid_under = valid_total_edge(under_dec, under_pct)
+
+                        if total_valid_under and valid_total_odds(odds_under):
                             selections.append({
                                 "game_date": game_date,
                                 "league": league,
@@ -274,7 +304,6 @@ def main():
                                 "take_bet_edge_pct": under_pct,
                             })
 
-                # 🔧 CRITICAL FIX — Always enforce headers
                 sel_df = pd.DataFrame(selections, columns=EXPECTED_COLUMNS)
 
                 if not sel_df.empty:
