@@ -2,9 +2,24 @@ import pandas as pd
 import os
 import glob
 import re
+from pathlib import Path
+import traceback
+
+ERROR_DIR = Path("docs/win/final_scores/errors")
+ERROR_DIR.mkdir(parents=True, exist_ok=True)
+ERROR_LOG = ERROR_DIR / "results_errors.txt"
+
+
+def log_error(message):
+    with open(ERROR_LOG, "a", encoding="utf-8") as f:
+        f.write(message + "\n")
+
 
 def process_results():
-    # Configuration for all sports
+    # Reset error log each run
+    with open(ERROR_LOG, "w", encoding="utf-8") as f:
+        f.write("=== Results Script Log ===\n\n")
+
     configs = [
         {
             "name": "NHL",
@@ -31,10 +46,9 @@ def process_results():
         output_dir = f"docs/win/final_scores/results/{cfg['scores_sub']}/graded"
         os.makedirs(output_dir, exist_ok=True)
 
-        # Find unique dates from bet files in the specific sport's bet directory
         search_pattern = os.path.join(cfg['bets_dir'], f"*_{cfg['suffix']}*.csv")
         bet_files = glob.glob(search_pattern)
-        
+
         dates = set()
         for f in bet_files:
             match = re.search(r"(\d{4}_\d{2}_\d{2})", os.path.basename(f))
@@ -49,21 +63,49 @@ def process_results():
                 print(f"Skipping {cfg['name']} {date_str}: Score file not found.")
                 continue
 
-            # Find all market files for this date and sport (handles both hockey and basketball naming)
             daily_bet_files = glob.glob(os.path.join(cfg['bets_dir'], f"{date_str}_*_{cfg['suffix']}*.csv"))
-            
+
             valid_dfs = []
+
             for bf in daily_bet_files:
-                valid_dfs.append(pd.read_csv(bf))
-            
+                try:
+                    df_temp = pd.read_csv(bf)
+
+                    if df_temp.empty:
+                        msg = f"EMPTY BET FILE: {bf}"
+                        print(msg)
+                        log_error(msg)
+                        continue
+
+                    valid_dfs.append(df_temp)
+
+                except pd.errors.EmptyDataError:
+                    msg = f"EMPTY BET FILE (no columns): {bf}"
+                    print(msg)
+                    log_error(msg)
+                    continue
+
+                except Exception:
+                    msg = f"ERROR READING FILE: {bf}\n{traceback.format_exc()}"
+                    print(msg)
+                    log_error(msg)
+                    continue
+
             if not valid_dfs:
+                msg = f"No valid bet data for {cfg['name']} {date_str}"
+                print(msg)
+                log_error(msg)
                 continue
 
             bets_df = pd.concat(valid_dfs, ignore_index=True)
             scores_df = pd.read_csv(score_file)
-            
-            # Merge
-            df = pd.merge(bets_df, scores_df, on=['away_team', 'home_team', 'game_date'], suffixes=('', '_scorefile'))
+
+            df = pd.merge(
+                bets_df,
+                scores_df,
+                on=['away_team', 'home_team', 'game_date'],
+                suffixes=('', '_scorefile')
+            )
 
             def determine_outcome(row):
                 m_type = str(row['market_type']).lower()
@@ -73,24 +115,38 @@ def process_results():
                 total = away + home
 
                 if m_type == 'total':
-                    return 'Win' if (total < line if side == 'under' else total > line) else ('Push' if total == line else 'Loss')
-                
+                    if total == line:
+                        return 'Push'
+                    return 'Win' if (total < line if side == 'under' else total > line) else 'Loss'
+
                 if m_type == 'moneyline':
                     return 'Win' if (away > home if side == 'away' else home > away) else 'Loss'
-                
-                # Handles both 'spread' (NBA) and 'puck_line' (NHL)
+
                 if m_type in ['spread', 'puck_line']:
                     diff = (away + line) - home if side == 'away' else (home + line) - away
-                    return 'Win' if diff > 0 else ('Push' if diff == 0 else 'Loss')
-                
+                    if diff == 0:
+                        return 'Push'
+                    return 'Win' if diff > 0 else 'Loss'
+
                 return 'Unknown'
 
             df['bet_result'] = df.apply(determine_outcome, axis=1)
-            
-            # Save output
-            output_cols = ['game_date', 'away_team', 'home_team', 'market_type', 'bet_side', 'line', 'away_score', 'home_score', 'bet_result']
+
+            output_cols = [
+                'game_date',
+                'away_team',
+                'home_team',
+                'market_type',
+                'bet_side',
+                'line',
+                'away_score',
+                'home_score',
+                'bet_result'
+            ]
+
             df[output_cols].to_csv(output_path, index=False)
             print(f"Processed {cfg['name']}: {date_str} -> {output_path}")
+
 
 if __name__ == "__main__":
     process_results()
