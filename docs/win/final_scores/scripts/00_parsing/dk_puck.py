@@ -1,9 +1,65 @@
 #!/usr/bin/env python3
+# docs/win/final_scores/scripts/00_parsing/dk_puck_merge.py
 
 import pandas as pd
 from pathlib import Path
 from datetime import datetime
 import traceback
+import sys
+
+# =========================
+# LOGGER UTILITY
+# =========================
+
+def audit(log_path, stage, status, msg="", df=None):
+    ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    log_path = Path(log_path)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # 1. EXHAUSTIVE LOG (TXT)
+    log_mode = "w" if not log_path.exists() else "a"
+
+    with open(log_path, log_mode) as f:
+        f.write(f"\n[{ts}] [{stage}] {status}\n")
+        if msg:
+            f.write(f"  MSG: {msg}\n")
+        if df is not None and isinstance(df, pd.DataFrame):
+            f.write(f"  STATS: {len(df)} rows | {len(df.columns)} cols\n")
+            f.write(f"  NULLS: {df.isnull().sum().sum()} total\n")
+            f.write(f"  SAMPLE:\n{df.head(3).to_string(index=False)}\n")
+        f.write("-" * 40 + "\n")
+
+    # 2. CONDENSED SUMMARY (TXT)
+    if df is not None and isinstance(df, pd.DataFrame):
+        summary_path = log_path.parent / "condensed_summary.txt"
+
+        # Identify active plays based on your headers
+        play_cols = [c for c in ['home_play', 'away_play', 'over_play', 'under_play'] if c in df.columns]
+
+        if play_cols:
+            signals = df[df[play_cols].any(axis=1)].copy()
+
+            if not signals.empty:
+                summary_mode = "w" if not summary_path.exists() else "a"
+
+                with open(summary_path, summary_mode) as f:
+                    f.write(f"\n--- BETTING SIGNALS: {ts} ---\n")
+
+                    # Filter identifying columns and edge columns
+                    base_cols = ['game_date', 'home_team', 'away_team']
+                    edge_cols = [c for c in df.columns if 'edge_pct' in c]
+
+                    final_cols = [c for c in base_cols + edge_cols if c in signals.columns]
+
+                    f.write(signals[final_cols].to_string(index=False))
+                    f.write("\n" + "=" * 30 + "\n")
+
+# =========================
+# ORIGINAL SCRIPT
+# =========================
+
+# Audit Log Location
+AUDIT_LOG = Path("docs/win/final_scores/scripts/00_parsing/dk_puck_audit.txt")
 
 # =========================
 # PATHS
@@ -100,16 +156,23 @@ try:
 
             # Overwrite the original score file with the new merged data
             merged_df.to_csv(final_file, index=False)
+            
+            # Audit successful update
+            audit(AUDIT_LOG, "DK_MERGE", "SUCCESS", msg=f"Merged {sb_file.name} into {final_file.name}", df=merged_df)
 
             log(f"Successfully updated {final_file.name}")
 
         except Exception as file_error:
-            log(f"ERROR processing {sb_file.name}")
+            msg = f"ERROR processing {sb_file.name}: {str(file_error)}"
+            log(msg)
             log(traceback.format_exc())
+            audit(AUDIT_LOG, "DK_MERGE", "ERROR", msg=msg)
             continue
 
 except Exception as e:
-    log("FATAL ERROR IN DK PUCK SCRIPT")
+    msg = f"FATAL ERROR IN DK PUCK SCRIPT: {str(e)}"
+    log(msg)
     log(traceback.format_exc())
+    audit(AUDIT_LOG, "DK_MERGE", "FATAL", msg=msg)
 
 log("========== DK PUCK SCRIPT END ==========\n")
