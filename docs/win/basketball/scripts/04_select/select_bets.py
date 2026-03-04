@@ -28,33 +28,39 @@ def main():
 
                 if league == "NBA":
 
+                    # IMPORTANT: Use edge_pct (relative edge) to avoid underdog/longshot bias
                     edges = {
-                        "over": float(row.get("over_edge_decimal",0)),
-                        "under": float(row.get("under_edge_decimal",0))
+                        "over": float(row.get("over_edge_pct", 0) or 0),
+                        "under": float(row.get("under_edge_pct", 0) or 0),
                     }
 
                     # only allow positive edges
-                    valid_edges = {k:v for k,v in edges.items() if v > 0}
+                    valid_edges = {k: v for k, v in edges.items() if pd.notna(v) and v > 0}
                     if not valid_edges:
                         continue
 
                     side = max(valid_edges, key=valid_edges.get)
                     edge = valid_edges[side]
 
-                    edge_required = 0.16
+                    # base threshold for NBA totals using edge_pct
+                    edge_required = 0.07  # ~7% relative edge
 
-                    if line <= 205 and side == "over":
-                        edge_required -= 0.04
+                    # your existing logic, translated to edge_pct world
+                    if pd.notna(line) and line <= 205 and side == "over":
+                        edge_required -= 0.02  # slightly easier for low totals overs
 
-                    if line <= 205 and side == "under":
+                    if pd.notna(line) and line <= 205 and side == "under":
                         continue
 
-                    # extreme totals historically unstable
-                    if line > 245:
+                    if pd.notna(line) and line > 245:
                         continue
 
-                    # sanity check projected difference
+                    # sanity check projected total difference
                     if diff < 3:
+                        continue
+
+                    # guardrail: if edge_pct is absurdly high, it's usually bad inputs
+                    if edge > 0.35:
                         continue
 
                     if edge >= edge_required:
@@ -102,21 +108,23 @@ def main():
 
                 if league == "NBA":
 
+                    # IMPORTANT: Use edge_pct (relative edge)
                     edges = {
-                        "home": float(row.get("home_edge_decimal",0)),
-                        "away": float(row.get("away_edge_decimal",0))
+                        "home": float(row.get("home_edge_pct", 0) or 0),
+                        "away": float(row.get("away_edge_pct", 0) or 0),
                     }
 
-                    valid_edges = {k:v for k,v in edges.items() if v > 0}
+                    valid_edges = {k: v for k, v in edges.items() if pd.notna(v) and v > 0}
                     if not valid_edges:
                         continue
 
                     side = max(valid_edges, key=valid_edges.get)
                     edge = valid_edges[side]
 
-                    if edge >= 0.10:
+                    # threshold in edge_pct terms
+                    if edge >= 0.06:
 
-                        spread_val = float(row.get(f"{side}_spread"))
+                        spread_val = float(row.get(f"{side}_spread")) if pd.notna(row.get(f"{side}_spread")) else 0.0
                         spread_abs = abs(spread_val)
                         venue = side
 
@@ -159,19 +167,20 @@ def main():
 
                 if league == "NBA":
 
+                    # IMPORTANT: Use edge_pct (relative edge) to stop big-dog bias
                     edges = {
-                        "home": float(row.get("home_edge_decimal",0)),
-                        "away": float(row.get("away_edge_decimal",0))
+                        "home": float(row.get("home_edge_pct", 0) or 0),
+                        "away": float(row.get("away_edge_pct", 0) or 0),
                     }
 
-                    valid_edges = {k:v for k,v in edges.items() if v > 0}
+                    valid_edges = {k: v for k, v in edges.items() if pd.notna(v) and v > 0}
                     if not valid_edges:
                         continue
 
                     side = max(valid_edges, key=valid_edges.get)
                     edge = valid_edges[side]
 
-                    odds = float(row.get(f"{side}_juice_odds",0))
+                    odds = float(row.get(f"{side}_juice_odds", 0) or 0)
                     venue = side
                     fav_ud = "favorite" if odds < 0 else "underdog"
 
@@ -186,20 +195,26 @@ def main():
                     if fav_ud == "underdog" and odds >= 350:
                         continue
 
+                    # edge_pct thresholds
                     if fav_ud == "favorite":
-                        edge_required = 0.08
+                        edge_required = 0.06
                     else:
-                        edge_required = 0.07
+                        edge_required = 0.06
 
                     if fav_ud == "favorite" and venue == "home":
-                        edge_required = 0.10
+                        edge_required = 0.08
 
-                    # strong historical edge band
+                    # historically good band: away dogs +130 to +160
                     if fav_ud == "underdog" and venue == "away" and 130 <= odds <= 160:
                         edge_required = 0.05
 
+                    # extra penalty for home sides generally
                     if venue == "home":
-                        edge_required += 0.02
+                        edge_required += 0.01
+
+                    # guardrail: if edge_pct is absurdly high, it's often bad inputs
+                    if edge > 0.35:
+                        continue
 
                     if edge < edge_required:
                         continue
