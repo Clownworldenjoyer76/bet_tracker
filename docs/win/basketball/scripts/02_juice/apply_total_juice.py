@@ -20,6 +20,7 @@ ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 ERROR_LOG = ERROR_DIR / "apply_total_juice.txt"
 
+
 def log(msg):
     with open(ERROR_LOG, "a", encoding="utf-8") as f:
         f.write(f"{datetime.utcnow().isoformat()} | {msg}\n")
@@ -40,6 +41,10 @@ def decimal_to_american(d):
 def apply_nba(df):
 
     jt = pd.read_csv(NBA_CONFIG)
+
+    # Ensure numeric band comparisons
+    jt["band_min"] = pd.to_numeric(jt["band_min"], errors="coerce")
+    jt["band_max"] = pd.to_numeric(jt["band_max"], errors="coerce")
 
     def process(row, side):
 
