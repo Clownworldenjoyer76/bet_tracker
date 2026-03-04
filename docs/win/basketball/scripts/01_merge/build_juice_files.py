@@ -64,8 +64,8 @@ ERROR_DIR.mkdir(parents=True, exist_ok=True)
 EDGE = 0.05                 # Default EDGE (ML + Spread)
 NBA_TOTAL_EDGE = 0.04       # 🔥 Reduced NBA totals EDGE
 
-NBA_TOTAL_STD = 18
-NBA_SPREAD_STD = 16
+NBA_TOTAL_STD = 14
+NBA_SPREAD_STD = 15
 
 NCAAB_TOTAL_STD = 12
 NCAAB_SPREAD_STD = 15   # YOUR WINNING VALUE
