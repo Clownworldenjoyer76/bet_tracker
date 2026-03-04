@@ -35,6 +35,13 @@ def edge_decimal(dk: pd.Series, juice_decimal: pd.Series) -> pd.Series:
     return dk - j
 
 
+# NBA FIX — probability edge instead of decimal difference
+def edge_decimal_nba(dk: pd.Series, juice_decimal: pd.Series) -> pd.Series:
+    dk = pd.to_numeric(dk, errors="coerce")
+    j = pd.to_numeric(juice_decimal, errors="coerce")
+    return (1 / j) - (1 / dk)
+
+
 def edge_pct(dk: pd.Series, juice_decimal: pd.Series) -> pd.Series:
     dk = pd.to_numeric(dk, errors="coerce")
     j = pd.to_numeric(juice_decimal, errors="coerce")
@@ -58,7 +65,7 @@ def extract_date_from_filename(filename: str) -> str:
 # EDGE COMPUTATION
 # =========================
 
-def compute_moneyline_edges(df: pd.DataFrame) -> pd.DataFrame:
+def compute_moneyline_edges(df: pd.DataFrame, league: str) -> pd.DataFrame:
     required = [
         "home_dk_decimal_moneyline",
         "away_dk_decimal_moneyline",
@@ -67,7 +74,9 @@ def compute_moneyline_edges(df: pd.DataFrame) -> pd.DataFrame:
     ]
     validate_columns(df, required)
 
-    df["home_edge_decimal"] = edge_decimal(
+    edge_fn = edge_decimal_nba if league == "NBA" else edge_decimal
+
+    df["home_edge_decimal"] = edge_fn(
         df["home_dk_decimal_moneyline"],
         df["home_juice_decimal_moneyline"],
     )
@@ -77,7 +86,7 @@ def compute_moneyline_edges(df: pd.DataFrame) -> pd.DataFrame:
     )
     df["home_play"] = df["home_edge_decimal"] > 0
 
-    df["away_edge_decimal"] = edge_decimal(
+    df["away_edge_decimal"] = edge_fn(
         df["away_dk_decimal_moneyline"],
         df["away_juice_decimal_moneyline"],
     )
@@ -90,7 +99,7 @@ def compute_moneyline_edges(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def compute_spread_edges(df: pd.DataFrame) -> pd.DataFrame:
+def compute_spread_edges(df: pd.DataFrame, league: str) -> pd.DataFrame:
     required = [
         "home_dk_spread_decimal",
         "away_dk_spread_decimal",
@@ -99,7 +108,9 @@ def compute_spread_edges(df: pd.DataFrame) -> pd.DataFrame:
     ]
     validate_columns(df, required)
 
-    df["home_edge_decimal"] = edge_decimal(
+    edge_fn = edge_decimal_nba if league == "NBA" else edge_decimal
+
+    df["home_edge_decimal"] = edge_fn(
         df["home_dk_spread_decimal"],
         df["home_spread_juice_decimal"],
     )
@@ -109,7 +120,7 @@ def compute_spread_edges(df: pd.DataFrame) -> pd.DataFrame:
     )
     df["home_play"] = df["home_edge_decimal"] > 0
 
-    df["away_edge_decimal"] = edge_decimal(
+    df["away_edge_decimal"] = edge_fn(
         df["away_dk_spread_decimal"],
         df["away_spread_juice_decimal"],
     )
@@ -122,7 +133,7 @@ def compute_spread_edges(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def compute_total_edges(df: pd.DataFrame) -> pd.DataFrame:
+def compute_total_edges(df: pd.DataFrame, league: str) -> pd.DataFrame:
     required = [
         "dk_total_over_decimal",
         "dk_total_under_decimal",
@@ -131,7 +142,9 @@ def compute_total_edges(df: pd.DataFrame) -> pd.DataFrame:
     ]
     validate_columns(df, required)
 
-    df["over_edge_decimal"] = edge_decimal(
+    edge_fn = edge_decimal_nba if league == "NBA" else edge_decimal
+
+    df["over_edge_decimal"] = edge_fn(
         df["dk_total_over_decimal"],
         df["total_over_juice_decimal"],
     )
@@ -141,7 +154,7 @@ def compute_total_edges(df: pd.DataFrame) -> pd.DataFrame:
     )
     df["over_play"] = df["over_edge_decimal"] > 0
 
-    df["under_edge_decimal"] = edge_decimal(
+    df["under_edge_decimal"] = edge_fn(
         df["dk_total_under_decimal"],
         df["total_under_juice_decimal"],
     )
@@ -160,7 +173,7 @@ def compute_total_edges(df: pd.DataFrame) -> pd.DataFrame:
 def process_market_files(files, compute_fn, league: str, market: str):
     for f in files:
         df = pd.read_csv(f)
-        df = compute_fn(df)
+        df = compute_fn(df, league)
         date = extract_date_from_filename(f.name)
 
         output_name = f"{date}_basketball_{league}_{market}.csv"
