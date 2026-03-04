@@ -1,10 +1,65 @@
 # docs/win/final_scores/scripts/05_results/name_normalization.py
-
 #!/usr/bin/env python3
 
 import pandas as pd
 import glob
 from pathlib import Path
+from datetime import datetime
+import sys
+
+# =========================
+# LOGGER UTILITY
+# =========================
+
+def audit(log_path, stage, status, msg="", df=None):
+    ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    log_path = Path(log_path)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # 1. EXHAUSTIVE LOG (TXT)
+    log_mode = "w" if not log_path.exists() else "a"
+
+    with open(log_path, log_mode) as f:
+        f.write(f"\n[{ts}] [{stage}] {status}\n")
+        if msg:
+            f.write(f"  MSG: {msg}\n")
+        if df is not None and isinstance(df, pd.DataFrame):
+            f.write(f"  STATS: {len(df)} rows | {len(df.columns)} cols\n")
+            f.write(f"  NULLS: {df.isnull().sum().sum()} total\n")
+            f.write(f"  SAMPLE:\n{df.head(3).to_string(index=False)}\n")
+        f.write("-" * 40 + "\n")
+
+    # 2. CONDENSED SUMMARY (TXT)
+    if df is not None and isinstance(df, pd.DataFrame):
+        summary_path = log_path.parent / "condensed_summary.txt"
+
+        # Identify active plays based on your headers
+        play_cols = [c for c in ['home_play', 'away_play', 'over_play', 'under_play'] if c in df.columns]
+
+        if play_cols:
+            signals = df[df[play_cols].any(axis=1)].copy()
+
+            if not signals.empty:
+                summary_mode = "w" if not summary_path.exists() else "a"
+
+                with open(summary_path, summary_mode) as f:
+                    f.write(f"\n--- BETTING SIGNALS: {ts} ---\n")
+
+                    # Filter identifying columns and edge columns
+                    base_cols = ['game_date', 'home_team', 'away_team']
+                    edge_cols = [c for c in df.columns if 'edge_pct' in c]
+
+                    final_cols = [c for c in base_cols + edge_cols if c in signals.columns]
+
+                    f.write(signals[final_cols].to_string(index=False))
+                    f.write("\n" + "=" * 30 + "\n")
+
+# =========================
+# ORIGINAL SCRIPT
+# =========================
+
+# Error log location as requested
+ERROR_LOG = Path("docs/win/final_scores/scripts/05_results/normalization_audit.txt")
 
 # -----------------------------
 # DIRECTORIES
@@ -88,9 +143,11 @@ def normalize_file(file_path, market, team_map, missing):
 
         if updated:
             df.to_csv(file_path, index=False)
+            audit(ERROR_LOG, "NORMALIZE", "SUCCESS", msg=f"Normalized {file_path}", df=df)
 
     except Exception as e:
         print(f"Error processing {file_path}: {e}")
+        audit(ERROR_LOG, "NORMALIZE", "ERROR", msg=f"Error processing {file_path}: {str(e)}")
 
 
 # -----------------------------
@@ -132,6 +189,7 @@ def main():
             df_missing = pd.concat([existing, df_missing]).drop_duplicates()
 
         df_missing.to_csv(NO_MAP_FILE, index=False)
+        audit(ERROR_LOG, "MISSING_MAPS", "INFO", msg="Updated no_team_map.csv", df=df_missing)
 
 
 if __name__ == "__main__":
