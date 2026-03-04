@@ -1,5 +1,5 @@
-# docs/win/basketball/scripts/02_juice/apply_moneyline_juice.py
 #!/usr/bin/env python3
+# docs/win/basketball/scripts/02_juice/apply_moneyline_juice.py
 
 import pandas as pd
 from pathlib import Path
@@ -7,6 +7,48 @@ import math
 from datetime import datetime
 import traceback
 import sys
+
+# =========================
+# LOGGER UTILITY
+# =========================
+
+def audit(log_path, stage, status, msg="", df=None):
+    ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    log_path = Path(log_path)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    # 1. EXHAUSTIVE LOG (TXT)
+    with open(log_path, "a") as f:
+        f.write(f"\n[{ts}] [{stage}] {status}\n")
+        if msg: f.write(f"  MSG: {msg}\n")
+        if df is not None and isinstance(df, pd.DataFrame):
+            f.write(f"  STATS: {len(df)} rows | {len(df.columns)} cols\n")
+            f.write(f"  NULLS: {df.isnull().sum().sum()} total\n")
+            f.write(f"  SAMPLE:\n{df.head(3).to_string(index=False)}\n")
+        f.write("-" * 40 + "\n")
+
+    # 2. CONDENSED SUMMARY (TXT)
+    if df is not None and isinstance(df, pd.DataFrame):
+        summary_path = log_path.parent / "condensed_summary.txt"
+        
+        play_cols = [c for c in ['home_play', 'away_play', 'over_play', 'under_play'] if c in df.columns]
+        
+        if play_cols:
+            signals = df[df[play_cols].any(axis=1)].copy()
+            
+            if not signals.empty:
+                with open(summary_path, "a") as f:
+                    f.write(f"\n--- BETTING SIGNALS: {ts} ---\n")
+                    base_cols = ['game_date', 'home_team', 'away_team']
+                    edge_cols = [c for c in df.columns if 'edge_pct' in c]
+                    
+                    final_cols = [c for c in base_cols + edge_cols if c in signals.columns]
+                    f.write(signals[final_cols].to_string(index=False))
+                    f.write("\n" + "="*30 + "\n")
+
+# =========================
+# PATHS
+# =========================
 
 INPUT_DIR = Path("docs/win/basketball/01_merge")
 OUTPUT_DIR = Path("docs/win/basketball/02_juice")
@@ -118,6 +160,7 @@ def main():
                 df = apply_nba(df)
                 df.to_csv(OUTPUT_DIR / name, index=False)
                 log(f"Processed NBA file: {name}")
+                audit(ERROR_LOG, "JUICE_ML_NBA", "SUCCESS", msg=f"Applied NBA Juice to {name}", df=df)
                 files_found += 1
 
             elif name.endswith("_NCAAB_moneyline.csv"):
@@ -125,6 +168,7 @@ def main():
                 df = apply_ncaab(df)
                 df.to_csv(OUTPUT_DIR / name, index=False)
                 log(f"Processed NCAAB file: {name}")
+                audit(ERROR_LOG, "JUICE_ML_NCAAB", "SUCCESS", msg=f"Applied NCAAB Juice to {name}", df=df)
                 files_found += 1
 
         log(f"Total files processed: {files_found}")
@@ -134,6 +178,7 @@ def main():
         log("=== ERROR ===")
         log(str(e))
         log(traceback.format_exc())
+        audit(ERROR_LOG, "JUICE_ML_CRITICAL", "FAILED", msg=str(e))
         sys.exit(1)
 
 
