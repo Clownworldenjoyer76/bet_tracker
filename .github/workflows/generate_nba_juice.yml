@@ -1,0 +1,39 @@
+name: Generate NBA Juice Tables
+
+on:
+  workflow_dispatch:
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install pandas numpy
+
+      - name: Generate juice tables
+        run: |
+          python bets/historic/scripts/generate_nba_juice_tables.py
+
+      - name: Commit results
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "actions@github.com"
+
+          git add config/basketball/nba/*.csv
+
+          git commit -m "Update NBA juice tables" || echo "No changes"
+
+          git push
