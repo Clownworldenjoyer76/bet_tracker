@@ -1,0 +1,163 @@
+NBA BET SELECTION
+---------------------------------------------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------------------------------------------------
+
+# -----------------------------
+# GLOBAL EDGE SELECTION
+# -----------------------------
+
+edges = {
+    "home": float(row.get("home_edge_decimal",0)),
+    "away": float(row.get("away_edge_decimal",0))
+}
+
+side = max(edges, key=edges.get)
+edge = edges[side]
+
+venue = side
+odds = float(row.get(f"{side}_dk_american",0))
+fav_ud = "favorite" if odds < 0 else "underdog"
+
+
+# -----------------------------
+# STRUCTURAL MARKET FILTERS
+# -----------------------------
+
+# Fade overpriced home favorites
+if fav_ud == "favorite" and venue == "home" and -180 <= odds <= -150:
+    continue
+
+# Avoid massive favorites
+if fav_ud == "favorite" and odds <= -500:
+    continue
+
+# Avoid extreme longshot underdogs
+if fav_ud == "underdog" and odds >= 350:
+    continue
+
+
+# -----------------------------
+# EDGE REQUIREMENTS
+# -----------------------------
+
+if fav_ud == "favorite":
+    edge_required = 0.08
+else:
+    edge_required = 0.07
+
+# Reduce exposure to home favorites
+if fav_ud == "favorite" and venue == "home":
+    edge_required = 0.10
+
+# Boost away underdogs
+if fav_ud == "underdog" and venue == "away" and 130 <= odds <= 170:
+    edge_required = 0.06
+
+# Home court penalty
+if venue == "home":
+    edge_required += 0.02
+
+if edge < edge_required:
+    continue
+---------------------------------------------------------------------------------------------------------------------------------------------------
+TOTALS SELECTION
+---------------------------------------------------------------------------------------------------------------------------------------------------
+edges = {
+    "over": float(row.get("over_edge_decimal",0)),
+    "under": float(row.get("under_edge_decimal",0))
+}
+
+side = max(edges, key=edges.get)
+edge = edges[side]
+
+line = float(row.get("total",0))
+
+edge_required = 0.16
+
+# Boost low total overs
+if line <= 205 and side == "over":
+    edge_required -= 0.04
+
+# Avoid low total unders
+if line <= 205 and side == "under":
+    continue
+
+# Avoid extreme totals
+if line > 245:
+    continue
+
+if edge >= edge_required:
+    new_row = row.copy()
+    new_row["market_type"] = "total"
+    new_row["bet_side"] = side
+    results.append(new_row)
+---------------------------------------------------------------------------------------------------------------------------------------------------
+  SPREAD SELECTION
+---------------------------------------------------------------------------------------------------------------------------------------------------
+  edges = {
+    "home": float(row.get("home_edge_decimal",0)),
+    "away": float(row.get("away_edge_decimal",0))
+}
+
+side = max(edges, key=edges.get)
+edge = edges[side]
+
+if edge >= 0.10:
+
+    spread_val = float(row.get(f"{side}_spread"))
+    spread_abs = abs(spread_val)
+    venue = side
+
+    # Avoid extreme spreads
+    if spread_abs > 15:
+        continue
+
+    # Fade large home favorites
+    if spread_val <= -7.5 and venue == "home":
+        continue
+
+    if spread_abs <= 10.5:
+        new_row = row.copy()
+        new_row["market_type"] = "spread"
+        new_row["bet_side"] = side
+        results.append(new_row)
+
+---------------------------------------------------------------------------------------------------------------------------------------------------
+  MONEYLINE SELECTION
+---------------------------------------------------------------------------------------------------------------------------------------------------
+edges = {
+    "home": float(row.get("home_edge_decimal",0)),
+    "away": float(row.get("away_edge_decimal",0))
+}
+
+side = max(edges, key=edges.get)
+edge = edges[side]
+
+if edge >= 0.07:
+    new_row = row.copy()
+    new_row["market_type"] = "moneyline"
+    new_row["bet_side"] = side
+    results.append(new_row)
+---------------------------------------------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------------------------------------------------------------------
+Key Rules Embedded
+
+Always bet the strongest edge
+Spread threshold = 0.10
+Total threshold = 0.16
+Moneyline threshold = 0.07
+
+Structural filters:
+
+Fade home favorites -180 to -150
+Avoid favorites worse than -500
+Avoid underdogs above +350
+Boost away dogs +130 to +170
+Penalty on all home bets
+Avoid spreads > 15
+Avoid totals > 245
+Prefer overs ≤205
+    
+    
