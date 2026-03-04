@@ -35,11 +35,11 @@ def edge_decimal(dk: pd.Series, juice_decimal: pd.Series) -> pd.Series:
     return dk - j
 
 
-# NBA FIX — probability edge instead of decimal difference
+# NBA FIX — EV based edge
 def edge_decimal_nba(dk: pd.Series, juice_decimal: pd.Series) -> pd.Series:
     dk = pd.to_numeric(dk, errors="coerce")
     j = pd.to_numeric(juice_decimal, errors="coerce")
-    return (1 / j) - (1 / dk)
+    return (dk / j) - 1
 
 
 def edge_pct(dk: pd.Series, juice_decimal: pd.Series) -> pd.Series:
