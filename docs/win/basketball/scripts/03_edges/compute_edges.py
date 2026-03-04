@@ -6,6 +6,15 @@ from pathlib import Path
 from datetime import datetime
 import traceback
 import re
+import sys
+
+# --- DYNAMIC PATH SETUP ---
+# Ensures the script can find the 'utils' folder regardless of where it's called from
+SCRIPTS_ROOT = Path(__file__).resolve().parents[2] 
+if str(SCRIPTS_ROOT) not in sys.path:
+    sys.path.append(str(SCRIPTS_ROOT))
+
+from utils.logger import audit
 
 # =========================
 # PATHS
@@ -160,10 +169,9 @@ def compute_total_edges(df: pd.DataFrame, league: str) -> pd.DataFrame:
 # PROCESSING
 # =========================
 
-def process_market_files(files, compute_fn, league: str, market: str, log):
-    log.write(f"\n--- Market Segment: {market.upper()} ---\n")
+def process_market_files(files, compute_fn, league: str, market: str):
     if not files:
-        log.write("  STATUS: No files found matching pattern.\n")
+        audit(ERROR_LOG, f"{league}_{market.upper()}", "SKIPPED", "No files found matching pattern.")
         return
 
     for f in files:
@@ -172,64 +180,32 @@ def process_market_files(files, compute_fn, league: str, market: str, log):
             df = compute_fn(df, league)
             date = extract_date_from_filename(f.name)
 
-            # --- EXTENSIVE DATA AUDIT ---
-            total_rows = len(df)
-            play_cols = [c for c in df.columns if "_play" in c]
-            edge_cols = [c for c in df.columns if "_edge_pct" in c]
-            
-            total_plays = df[play_cols].sum().sum()
-            avg_edge = df[edge_cols].mean().mean()
-            null_count = df[edge_cols].isna().sum().sum()
-
             output_name = f"{date}_basketball_{league}_{market}.csv"
             output_path = OUTPUT_DIR / output_name
             atomic_write_csv(df, output_path)
 
-            log.write(f"  FILE: {f.name}\n")
-            log.write(f"    [Metrics] Rows: {total_rows} | Total Plays: {int(total_plays)} | Avg Edge: {avg_edge:.2%} | Nulls: {null_count}\n")
-            log.write(f"    [Output]  Saved to -> {output_name}\n")
-            log.write(f"    [Sample Data Preview]\n")
-            # Log first 2 rows of pertinent columns
-            preview = df.head(2).to_string(index=False, justify='left')
-            log.write(f"{'      ' + preview.replace(chr(10), chr(10) + '      ')}\n\n")
+            # SUCCESS TRIGGER: Captures rows, nulls, and sample rows
+            audit(ERROR_LOG, f"{league}_{market.upper()}", "SUCCESS", f"File: {f.name}", df=df)
 
-        except Exception as e:
-            log.write(f"  !!! FAILED FILE: {f.name} !!!\n")
-            log.write(f"    Reason: {str(e)}\n")
-            log.write(f"    Trace: {traceback.format_exc().splitlines()[-1]}\n\n")
+        except Exception:
+            # FAILURE TRIGGER: Captures full traceback and line numbers
+            audit(ERROR_LOG, f"{league}_{market.upper()}", "FAILED", msg=traceback.format_exc())
 
 
-def process_league(league: str, log):
-    log.write(f"\n{'#'*60}\n")
-    log.write(f"### LEAGUE AUDIT: {league}\n")
-    log.write(f"{'#'*60}\n")
-    
-    process_market_files(sorted(INPUT_DIR.glob(f"*_{league}_moneyline.csv")), compute_moneyline_edges, league, "moneyline", log)
-    process_market_files(sorted(INPUT_DIR.glob(f"*_{league}_spread.csv")), compute_spread_edges, league, "spread", log)
-    process_market_files(sorted(INPUT_DIR.glob(f"*_{league}_total.csv")), compute_total_edges, league, "total", log)
+def process_league(league: str):
+    process_market_files(sorted(INPUT_DIR.glob(f"*_{league}_moneyline.csv")), compute_moneyline_edges, league, "moneyline")
+    process_market_files(sorted(INPUT_DIR.glob(f"*_{league}_spread.csv")), compute_spread_edges, league, "spread")
+    process_market_files(sorted(INPUT_DIR.glob(f"*_{league}_total.csv")), compute_total_edges, league, "total")
 
 
 def main():
-    with open(ERROR_LOG, "w") as log:
-        log.write("============================================================\n")
-        log.write("         BASKETBALL EDGES: EXHAUSTIVE SYSTEM AUDIT\n")
-        log.write("============================================================\n")
-        log.write(f"Run Initiated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-        log.write(f"Source:        {INPUT_DIR.resolve()}\n")
-        log.write(f"Destination:   {OUTPUT_DIR.resolve()}\n")
-        
-        try:
-            process_league("NBA", log)
-            process_league("NCAAB", log)
-            log.write("\n============================================================\n")
-            log.write("SYSTEM STATUS: SUCCESSFUL COMPLETION\n")
-        except Exception as e:
-            log.write("\n!!! CRITICAL PIPELINE FAILURE !!!\n")
-            log.write(traceback.format_exc())
-        finally:
-            log.write(f"Run Concluded: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-            log.write("============================================================\n")
-
+    audit(ERROR_LOG, "SYSTEM", "STARTING RUN")
+    try:
+        process_league("NBA")
+        process_league("NCAAB")
+        audit(ERROR_LOG, "SYSTEM", "SUCCESSFUL COMPLETION")
+    except Exception:
+        audit(ERROR_LOG, "SYSTEM", "CRITICAL FAILURE", msg=traceback.format_exc())
 
 if __name__ == "__main__":
     main()
