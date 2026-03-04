@@ -38,7 +38,6 @@ def edge_decimal(dk: pd.Series, juice_decimal: pd.Series) -> pd.Series:
 # =========================
 # NBA EDGE (UPDATED)
 # =========================
-# Compare prices directly (consistent with rest of pipeline)
 
 def edge_decimal_nba(dk: pd.Series, juice_decimal: pd.Series) -> pd.Series:
     dk = pd.to_numeric(dk, errors="coerce")
@@ -93,24 +92,12 @@ def compute_moneyline_edges(df: pd.DataFrame, league: str) -> pd.DataFrame:
         edge_fn = edge_decimal
         pct_fn = edge_pct
 
-    df["home_edge_decimal"] = edge_fn(
-        df["home_dk_decimal_moneyline"],
-        df["home_juice_decimal_moneyline"],
-    )
-    df["home_edge_pct"] = pct_fn(
-        df["home_dk_decimal_moneyline"],
-        df["home_juice_decimal_moneyline"],
-    )
+    df["home_edge_decimal"] = edge_fn(df["home_dk_decimal_moneyline"], df["home_juice_decimal_moneyline"])
+    df["home_edge_pct"] = pct_fn(df["home_dk_decimal_moneyline"], df["home_juice_decimal_moneyline"])
     df["home_play"] = df["home_edge_decimal"] > 0
 
-    df["away_edge_decimal"] = edge_fn(
-        df["away_dk_decimal_moneyline"],
-        df["away_juice_decimal_moneyline"],
-    )
-    df["away_edge_pct"] = pct_fn(
-        df["away_dk_decimal_moneyline"],
-        df["away_juice_decimal_moneyline"],
-    )
+    df["away_edge_decimal"] = edge_fn(df["away_dk_decimal_moneyline"], df["away_juice_decimal_moneyline"])
+    df["away_edge_pct"] = pct_fn(df["away_dk_decimal_moneyline"], df["away_juice_decimal_moneyline"])
     df["away_play"] = df["away_edge_decimal"] > 0
 
     return df
@@ -132,24 +119,12 @@ def compute_spread_edges(df: pd.DataFrame, league: str) -> pd.DataFrame:
         edge_fn = edge_decimal
         pct_fn = edge_pct
 
-    df["home_edge_decimal"] = edge_fn(
-        df["home_dk_spread_decimal"],
-        df["home_spread_juice_decimal"],
-    )
-    df["home_edge_pct"] = pct_fn(
-        df["home_dk_spread_decimal"],
-        df["home_spread_juice_decimal"],
-    )
+    df["home_edge_decimal"] = edge_fn(df["home_dk_spread_decimal"], df["home_spread_juice_decimal"])
+    df["home_edge_pct"] = pct_fn(df["home_dk_spread_decimal"], df["home_spread_juice_decimal"])
     df["home_play"] = df["home_edge_decimal"] > 0
 
-    df["away_edge_decimal"] = edge_fn(
-        df["away_dk_spread_decimal"],
-        df["away_spread_juice_decimal"],
-    )
-    df["away_edge_pct"] = pct_fn(
-        df["away_dk_spread_decimal"],
-        df["away_spread_juice_decimal"],
-    )
+    df["away_edge_decimal"] = edge_fn(df["away_dk_spread_decimal"], df["away_spread_juice_decimal"])
+    df["away_edge_pct"] = pct_fn(df["away_dk_spread_decimal"], df["away_spread_juice_decimal"])
     df["away_play"] = df["away_edge_decimal"] > 0
 
     return df
@@ -171,25 +146,12 @@ def compute_total_edges(df: pd.DataFrame, league: str) -> pd.DataFrame:
         edge_fn = edge_decimal
         pct_fn = edge_pct
 
-    df["over_edge_decimal"] = edge_fn(
-        df["dk_total_over_decimal"],
-        # Fix: using total_over_juice_decimal (matched from juice script)
-        df["total_over_juice_decimal"],
-    )
-    df["over_edge_pct"] = pct_fn(
-        df["dk_total_over_decimal"],
-        df["total_over_juice_decimal"],
-    )
+    df["over_edge_decimal"] = edge_fn(df["dk_total_over_decimal"], df["total_over_juice_decimal"])
+    df["over_edge_pct"] = pct_fn(df["dk_total_over_decimal"], df["total_over_juice_decimal"])
     df["over_play"] = df["over_edge_decimal"] > 0
 
-    df["under_edge_decimal"] = edge_fn(
-        df["dk_total_under_decimal"],
-        df["total_under_juice_decimal"],
-    )
-    df["under_edge_pct"] = pct_fn(
-        df["dk_total_under_decimal"],
-        df["total_under_juice_decimal"],
-    )
+    df["under_edge_decimal"] = edge_fn(df["dk_total_under_decimal"], df["total_under_juice_decimal"])
+    df["under_edge_pct"] = pct_fn(df["dk_total_under_decimal"], df["total_under_juice_decimal"])
     df["under_play"] = df["under_edge_decimal"] > 0
 
     return df
@@ -199,72 +161,74 @@ def compute_total_edges(df: pd.DataFrame, league: str) -> pd.DataFrame:
 # =========================
 
 def process_market_files(files, compute_fn, league: str, market: str, log):
-    log.write(f"--- Market: {market} ---\n")
+    log.write(f"\n--- Market Segment: {market.upper()} ---\n")
     if not files:
-        log.write("  No files found.\n")
+        log.write("  STATUS: No files found matching pattern.\n")
         return
 
     for f in files:
         try:
             df = pd.read_csv(f)
-            row_count = len(df)
             df = compute_fn(df, league)
             date = extract_date_from_filename(f.name)
+
+            # --- EXTENSIVE DATA AUDIT ---
+            total_rows = len(df)
+            play_cols = [c for c in df.columns if "_play" in c]
+            edge_cols = [c for c in df.columns if "_edge_pct" in c]
+            
+            total_plays = df[play_cols].sum().sum()
+            avg_edge = df[edge_cols].mean().mean()
+            null_count = df[edge_cols].isna().sum().sum()
 
             output_name = f"{date}_basketball_{league}_{market}.csv"
             output_path = OUTPUT_DIR / output_name
             atomic_write_csv(df, output_path)
-            log.write(f"  SUCCESS: {f.name} -> {output_name} ({row_count} rows)\n")
+
+            log.write(f"  FILE: {f.name}\n")
+            log.write(f"    [Metrics] Rows: {total_rows} | Total Plays: {int(total_plays)} | Avg Edge: {avg_edge:.2%} | Nulls: {null_count}\n")
+            log.write(f"    [Output]  Saved to -> {output_name}\n")
+            log.write(f"    [Sample Data Preview]\n")
+            # Log first 2 rows of pertinent columns
+            preview = df.head(2).to_string(index=False, justify='left')
+            log.write(f"{'      ' + preview.replace(chr(10), chr(10) + '      ')}\n\n")
+
         except Exception as e:
-            log.write(f"  FAILED: {f.name}\n")
-            log.write(f"    Error: {str(e)}\n")
+            log.write(f"  !!! FAILED FILE: {f.name} !!!\n")
+            log.write(f"    Reason: {str(e)}\n")
+            log.write(f"    Trace: {traceback.format_exc().splitlines()[-1]}\n\n")
 
 
 def process_league(league: str, log):
-    log.write(f"\n=== LEAGUE: {league} ===\n")
-    process_market_files(
-        sorted(INPUT_DIR.glob(f"*_{league}_moneyline.csv")),
-        compute_moneyline_edges,
-        league,
-        "moneyline",
-        log
-    )
-    process_market_files(
-        sorted(INPUT_DIR.glob(f"*_{league}_spread.csv")),
-        compute_spread_edges,
-        league,
-        "spread",
-        log
-    )
-    process_market_files(
-        sorted(INPUT_DIR.glob(f"*_{league}_total.csv")),
-        compute_total_edges,
-        league,
-        "total",
-        log
-    )
+    log.write(f"\n{'#'*60}\n")
+    log.write(f"### LEAGUE AUDIT: {league}\n")
+    log.write(f"{'#'*60}\n")
+    
+    process_market_files(sorted(INPUT_DIR.glob(f"*_{league}_moneyline.csv")), compute_moneyline_edges, league, "moneyline", log)
+    process_market_files(sorted(INPUT_DIR.glob(f"*_{league}_spread.csv")), compute_spread_edges, league, "spread", log)
+    process_market_files(sorted(INPUT_DIR.glob(f"*_{league}_total.csv")), compute_total_edges, league, "total", log)
 
 
 def main():
     with open(ERROR_LOG, "w") as log:
-        log.write("==========================================\n")
-        log.write("   BASKETBALL COMPUTE EDGES SUMMARY\n")
-        log.write("==========================================\n")
-        log.write(f"Run Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-        log.write(f"Input Dir:   {INPUT_DIR.absolute()}\n")
-        log.write(f"Output Dir:  {OUTPUT_DIR.absolute()}\n\n")
+        log.write("============================================================\n")
+        log.write("         BASKETBALL EDGES: EXHAUSTIVE SYSTEM AUDIT\n")
+        log.write("============================================================\n")
+        log.write(f"Run Initiated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        log.write(f"Source:        {INPUT_DIR.resolve()}\n")
+        log.write(f"Destination:   {OUTPUT_DIR.resolve()}\n")
         
         try:
             process_league("NBA", log)
             process_league("NCAAB", log)
-            log.write("\n==========================================\n")
-            log.write("PROCESS COMPLETED NORMALLY\n")
+            log.write("\n============================================================\n")
+            log.write("SYSTEM STATUS: SUCCESSFUL COMPLETION\n")
         except Exception as e:
-            log.write("\nCritical script failure!\n")
-            log.write(f"Error: {str(e)}\n")
+            log.write("\n!!! CRITICAL PIPELINE FAILURE !!!\n")
             log.write(traceback.format_exc())
         finally:
-            log.write(f"\nRun Ended: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            log.write(f"Run Concluded: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            log.write("============================================================\n")
 
 
 if __name__ == "__main__":
