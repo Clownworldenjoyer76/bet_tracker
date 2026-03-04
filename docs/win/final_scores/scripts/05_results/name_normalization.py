@@ -1,3 +1,5 @@
+# docs/win/final_scores/scripts/05_results/name_normalization.py
+
 #!/usr/bin/env python3
 
 import pandas as pd
