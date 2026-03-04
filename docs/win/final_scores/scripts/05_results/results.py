@@ -71,7 +71,7 @@ def process_results():
                 print(f"Skipping {cfg['name']} {date_str}: Score file not found.")
                 continue
 
-            # 🔥 FIXED GLOB — now matches 2026_02_25_NHL.csv AND basketball-style names
+            # Fixed glob
             daily_bet_files = glob.glob(
                 os.path.join(cfg['bets_dir'], f"{date_str}*{cfg['suffix']}*.csv")
             )
@@ -165,7 +165,12 @@ def process_results():
                 'under_edge_decimal'
             ]
 
-            df[output_cols].to_csv(output_path, index=False)
+            # FIX: prevent KeyError if certain edge columns do not exist
+            existing_cols = [c for c in output_cols if c in df.columns]
+            df = df[existing_cols]
+
+            df.to_csv(output_path, index=False)
+
             print(f"Processed {cfg['name']}: {date_str} -> {output_path}")
 
 
