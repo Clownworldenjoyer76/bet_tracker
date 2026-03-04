@@ -1,3 +1,4 @@
+# docs/win/basketball/scripts/04_select/select_bets.py
 #!/usr/bin/env python3
 import pandas as pd
 from pathlib import Path
@@ -25,20 +26,40 @@ def main():
                 proj = pd.to_numeric(row.get("total_projected_points"), errors="coerce")
                 diff = abs(proj - line) if pd.notna(proj) and pd.notna(line) else 0
 
-                for side in ["over", "under"]:
+                if league == "NBA":
 
-                    edge = row.get(f"{side}_edge_decimal", 0)
-                    edge = float(edge) if pd.notna(edge) else 0
+                    edges = {
+                        "over": float(row.get("over_edge_decimal",0)),
+                        "under": float(row.get("under_edge_decimal",0))
+                    }
 
-                    if league == "NBA":
-                        if edge >= 0.16 and diff >= 4:
-                            new_row = row.copy()
-                            new_row["market_type"] = "total"
-                            new_row["bet_side"] = side
-                            new_row["line"] = line
-                            results.append(new_row)
+                    side = max(edges, key=edges.get)
+                    edge = edges[side]
 
-                    elif league == "NCAAB":
+                    edge_required = 0.16
+
+                    if line <= 205 and side == "over":
+                        edge_required -= 0.04
+
+                    if line <= 205 and side == "under":
+                        continue
+
+                    if line > 245:
+                        continue
+
+                    if edge >= edge_required:
+                        new_row = row.copy()
+                        new_row["market_type"] = "total"
+                        new_row["bet_side"] = side
+                        new_row["line"] = line
+                        results.append(new_row)
+
+                elif league == "NCAAB":
+
+                    for side in ["over", "under"]:
+
+                        edge = row.get(f"{side}_edge_decimal", 0)
+                        edge = float(edge) if pd.notna(edge) else 0
 
                         if side == "over":
                             if line < 150:
@@ -56,7 +77,7 @@ def main():
                                     new_row["line"] = line
                                     results.append(new_row)
 
-                        else:  # under
+                        else:
                             if edge >= 0.10:
                                 new_row = row.copy()
                                 new_row["market_type"] = "total"
@@ -69,24 +90,46 @@ def main():
             # =========================
             elif "spread" in fname:
 
-                for side in ["home", "away"]:
+                if league == "NBA":
 
-                    edge = row.get(f"{side}_edge_decimal", 0)
-                    spread = row.get(f"{side}_spread", 0)
+                    edges = {
+                        "home": float(row.get("home_edge_decimal",0)),
+                        "away": float(row.get("away_edge_decimal",0))
+                    }
 
-                    edge = float(edge) if pd.notna(edge) else 0
-                    spread_val = float(row.get(f"{side}_spread")) if pd.notna(row.get(f"{side}_spread")) else 0
-                    spread_abs = abs(spread_val)
+                    side = max(edges, key=edges.get)
+                    edge = edges[side]
 
-                    if league == "NBA":
-                        if edge >= 0.10 and spread_abs <= 7.5:
+                    if edge >= 0.10:
+
+                        spread_val = float(row.get(f"{side}_spread"))
+                        spread_abs = abs(spread_val)
+                        venue = side
+
+                        if spread_abs > 15:
+                            continue
+
+                        if spread_val <= -7.5 and venue == "home":
+                            continue
+
+                        if spread_abs <= 10.5:
                             new_row = row.copy()
                             new_row["market_type"] = "spread"
                             new_row["bet_side"] = side
                             new_row["line"] = spread_val
                             results.append(new_row)
 
-                    elif league == "NCAAB":
+                elif league == "NCAAB":
+
+                    for side in ["home", "away"]:
+
+                        edge = row.get(f"{side}_edge_decimal", 0)
+                        spread = row.get(f"{side}_spread", 0)
+
+                        edge = float(edge) if pd.notna(edge) else 0
+                        spread_val = float(row.get(f"{side}_spread")) if pd.notna(row.get(f"{side}_spread")) else 0
+                        spread_abs = abs(spread_val)
+
                         if edge >= 0.07 and spread_abs <= 20:
                             new_row = row.copy()
                             new_row["market_type"] = "spread"
@@ -99,38 +142,62 @@ def main():
             # =========================
             elif "moneyline" in fname:
 
-                for side in ["home", "away"]:
+                if league == "NBA":
 
-                    edge = row.get(f"{side}_edge_decimal", 0)
-                    prob = row.get(f"{side}_prob", 0)
-                    odds = row.get(f"{side}_juice_odds", None)
+                    edges = {
+                        "home": float(row.get("home_edge_decimal",0)),
+                        "away": float(row.get("away_edge_decimal",0))
+                    }
 
-                    edge = float(edge) if pd.notna(edge) else 0
-                    prob = float(prob) if pd.notna(prob) else 0
-                    odds = float(odds) if pd.notna(odds) else None
+                    side = max(edges, key=edges.get)
+                    edge = edges[side]
 
-                    if odds is None:
+                    odds = float(row.get(f"{side}_juice_odds",0))
+                    venue = side
+                    fav_ud = "favorite" if odds < 0 else "underdog"
+
+                    if fav_ud == "favorite" and venue == "home" and -180 <= odds <= -150:
                         continue
 
-                    if league == "NBA":
+                    if fav_ud == "favorite" and odds <= -500:
+                        continue
 
-                        if odds < 0:
-                            if edge >= 0.07 and prob >= 0.60 and odds >= -180:
-                                new_row = row.copy()
-                                new_row["market_type"] = "moneyline"
-                                new_row["bet_side"] = side
-                                new_row["line"] = 0
-                                results.append(new_row)
+                    if fav_ud == "underdog" and odds >= 350:
+                        continue
 
-                        else:
-                            if edge >= 0.08 and prob >= 0.44 and odds >= 120:
-                                new_row = row.copy()
-                                new_row["market_type"] = "moneyline"
-                                new_row["bet_side"] = side
-                                new_row["line"] = 0
-                                results.append(new_row)
+                    if fav_ud == "favorite":
+                        edge_required = 0.08
+                    else:
+                        edge_required = 0.07
 
-                    elif league == "NCAAB":
+                    if fav_ud == "favorite" and venue == "home":
+                        edge_required = 0.10
+
+                    if fav_ud == "underdog" and venue == "away" and 130 <= odds <= 170:
+                        edge_required = 0.06
+
+                    if venue == "home":
+                        edge_required += 0.02
+
+                    if edge < edge_required:
+                        continue
+
+                    new_row = row.copy()
+                    new_row["market_type"] = "moneyline"
+                    new_row["bet_side"] = side
+                    new_row["line"] = 0
+                    results.append(new_row)
+
+                elif league == "NCAAB":
+
+                    for side in ["home", "away"]:
+
+                        edge = row.get(f"{side}_edge_decimal", 0)
+                        prob = row.get(f"{side}_prob", 0)
+
+                        edge = float(edge) if pd.notna(edge) else 0
+                        prob = float(prob) if pd.notna(prob) else 0
+
                         if edge >= 0.06 and prob >= 0.60:
                             new_row = row.copy()
                             new_row["market_type"] = "moneyline"
