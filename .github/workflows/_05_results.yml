@@ -1,15 +1,18 @@
 name: _05_Run All Results Script
 
 on:
-  workflow_dispatch: # Manual trigger from the Actions tab
+  workflow_dispatch:
 
 jobs:
   run-batch-process:
+
     runs-on: ubuntu-latest
+
     permissions:
       contents: write
 
     steps:
+
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
@@ -18,27 +21,37 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: "3.10"
 
-      - name: Install Pandas
-        run: pip install pandas
+      - name: Install Dependencies
+        run: |
+          pip install pandas numpy
 
       - name: Run Combined Results Script
-        run: python docs/win/final_scores/scripts/05_results/results.py
+        run: |
+          python docs/win/final_scores/scripts/05_results/results.py
 
       - name: Run Summary Tally Script
-        run: python docs/win/final_scores/scripts/05_results/generate_summary.py
+        run: |
+          python docs/win/final_scores/scripts/05_results/generate_summary.py
+
+      - name: Show Git Changes (debug)
+        run: |
+          echo "---- GIT STATUS ----"
+          git status
+          echo "---- GIT DIFF ----"
+          git diff || true
 
       - name: Commit and Push All Changes
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
 
-          # Stage entire final_scores results tree (handles all subfolders)
-          git add docs/win/final_scores/results/
+          # Stage all modified / new files
+          git add -A
 
-          # Stage any errors if created
-          git add docs/win/final_scores/errors/ || true
+          # Commit if anything changed
+          git diff --staged --quiet || git commit -m "Auto-update: All Sports results and summary tallies"
 
-          git commit -m "Auto-update: All Sports results and summary tallies" || echo "No changes to commit"
+          # Push changes
           git push
