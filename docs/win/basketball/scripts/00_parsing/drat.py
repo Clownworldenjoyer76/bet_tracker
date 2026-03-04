@@ -4,9 +4,48 @@
 import sys
 import re
 import csv
+import pandas as pd
 from pathlib import Path
 from datetime import datetime
 from collections import defaultdict
+
+# =========================
+# LOGGER UTILITY
+# =========================
+
+def audit(log_path, stage, status, msg="", df=None):
+    ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    log_path = Path(log_path)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    # 1. EXHAUSTIVE LOG (TXT)
+    with open(log_path, "a") as f:
+        f.write(f"\n[{ts}] [{stage}] {status}\n")
+        if msg: f.write(f"  MSG: {msg}\n")
+        if df is not None and isinstance(df, pd.DataFrame):
+            f.write(f"  STATS: {len(df)} rows | {len(df.columns)} cols\n")
+            f.write(f"  NULLS: {df.isnull().sum().sum()} total\n")
+            f.write(f"  SAMPLE:\n{df.head(3).to_string(index=False)}\n")
+        f.write("-" * 40 + "\n")
+
+    # 2. CONDENSED SUMMARY (TXT)
+    if df is not None and isinstance(df, pd.DataFrame):
+        summary_path = log_path.parent / "condensed_summary.txt"
+        
+        play_cols = [c for c in ['home_play', 'away_play', 'over_play', 'under_play'] if c in df.columns]
+        
+        if play_cols:
+            signals = df[df[play_cols].any(axis=1)].copy()
+            
+            if not signals.empty:
+                with open(summary_path, "a") as f:
+                    f.write(f"\n--- BETTING SIGNALS: {ts} ---\n")
+                    base_cols = ['game_date', 'home_team', 'away_team']
+                    edge_cols = [c for c in df.columns if 'edge_pct' in c]
+                    
+                    final_cols = [c for c in base_cols + edge_cols if c in signals.columns]
+                    f.write(signals[final_cols].to_string(index=False))
+                    f.write("\n" + "="*30 + "\n")
 
 # =========================
 # LOGGING
@@ -103,7 +142,6 @@ def team_name_only(s: str) -> str:
     m = RE_TEAM_REC.match(s)
     if m:
         return m.group(1).strip()
-    # If record format differs, still strip trailing parentheses if present
     s = re.sub(r"\s*\([^)]*\)\s*$", "", s).strip()
     return s
 
@@ -131,7 +169,6 @@ while i < n:
     mm, dd, yyyy = dm.groups()
     game_date = f"{yyyy}_{mm.zfill(2)}_{dd.zfill(2)}"
 
-    # Expect time next (scan forward a bit)
     t_idx = None
     for j in range(i + 1, min(i + 10, n)):
         if RE_TIME.match(tokens[j].strip()):
@@ -152,11 +189,8 @@ while i < n:
     away_team = team_name_only(tokens[t_idx + 1])
     home_team = team_name_only(tokens[t_idx + 2])
 
-    # Next two percentage tokens (away_prob, home_prob)
     away_prob = ""
     home_prob = ""
-
-    # Percent tokens can appear immediately after home team (often tab-separated)
     pct_vals = []
     scan_start = t_idx + 1
     scan_end = min(t_idx + 30, n)
@@ -175,17 +209,14 @@ while i < n:
         i = t_idx + 1
         continue
 
-    # Find next 3 float tokens for projected points: away, home, total
     floats = []
     float_scan_start = t_idx + 1
     float_scan_end = min(t_idx + 80, n)
 
     for k in range(float_scan_start, float_scan_end):
         tok = tokens[k].strip()
-        # ignore percentages
         if RE_PCT.match(tok):
             continue
-        # keep pure floats like 119.8 / 231.5
         if RE_FLOAT.match(tok):
             floats.append(tok)
             if len(floats) == 3:
@@ -214,7 +245,6 @@ while i < n:
         "total_projected_points": total_proj,
     })
 
-    # Advance to continue after this block (next date token will restart)
     i = t_idx + 1
 
 total_rows = sum(len(v) for v in rows_by_date.values())
@@ -230,9 +260,10 @@ if total_rows == 0:
 outdir = Path("docs/win/basketball/00_intake/predictions")
 outdir.mkdir(parents=True, exist_ok=True)
 
+all_processed_rows = []
+
 for d in sorted(rows_by_date.keys()):
     outfile = outdir / f"{league_input}_{market_out}_{d}.csv"
-
     existing_rows: dict[tuple[str, str, str, str], dict] = {}
 
     if outfile.exists():
@@ -252,6 +283,7 @@ for d in sorted(rows_by_date.keys()):
     for new_row in rows_by_date[d]:
         key = (new_row["game_date"], new_row["market"], new_row["away_team"], new_row["home_team"])
         existing_rows[key] = new_row
+        all_processed_rows.append(new_row)
 
     temp_file = outfile.with_suffix(".tmp")
     with open(temp_file, "w", newline="", encoding="utf-8") as f:
@@ -262,3 +294,7 @@ for d in sorted(rows_by_date.keys()):
 
     temp_file.replace(outfile)
     print(f"Wrote {outfile} ({len(rows_by_date[d])} rows)")
+
+# Final Audit Call
+df_parsed = pd.DataFrame(all_processed_rows)
+audit(LOG_FILE, "PREDICTION_PARSING", "SUCCESS", msg=f"Parsed {market_out} predictions", df=df_parsed)
