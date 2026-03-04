@@ -86,7 +86,7 @@ def main():
                                     new_row["line"] = line
                                     results.append(new_row)
                             elif line > 150:
-                                if diff >= 2:
+                                if edge > 0.001 and diff >= 2:
                                     new_row = row.copy()
                                     new_row["market_type"] = "total"
                                     new_row["bet_side"] = side
