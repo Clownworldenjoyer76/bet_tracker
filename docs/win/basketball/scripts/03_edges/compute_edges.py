@@ -173,6 +173,7 @@ def compute_total_edges(df: pd.DataFrame, league: str) -> pd.DataFrame:
 
     df["over_edge_decimal"] = edge_fn(
         df["dk_total_over_decimal"],
+        # Fix: using total_over_juice_decimal (matched from juice script)
         df["total_over_juice_decimal"],
     )
     df["over_edge_pct"] = pct_fn(
@@ -197,49 +198,73 @@ def compute_total_edges(df: pd.DataFrame, league: str) -> pd.DataFrame:
 # PROCESSING
 # =========================
 
-def process_market_files(files, compute_fn, league: str, market: str):
+def process_market_files(files, compute_fn, league: str, market: str, log):
+    log.write(f"--- Market: {market} ---\n")
+    if not files:
+        log.write("  No files found.\n")
+        return
+
     for f in files:
-        df = pd.read_csv(f)
-        df = compute_fn(df, league)
-        date = extract_date_from_filename(f.name)
+        try:
+            df = pd.read_csv(f)
+            row_count = len(df)
+            df = compute_fn(df, league)
+            date = extract_date_from_filename(f.name)
 
-        output_name = f"{date}_basketball_{league}_{market}.csv"
-        output_path = OUTPUT_DIR / output_name
-        atomic_write_csv(df, output_path)
+            output_name = f"{date}_basketball_{league}_{market}.csv"
+            output_path = OUTPUT_DIR / output_name
+            atomic_write_csv(df, output_path)
+            log.write(f"  SUCCESS: {f.name} -> {output_name} ({row_count} rows)\n")
+        except Exception as e:
+            log.write(f"  FAILED: {f.name}\n")
+            log.write(f"    Error: {str(e)}\n")
 
 
-def process_league(league: str):
+def process_league(league: str, log):
+    log.write(f"\n=== LEAGUE: {league} ===\n")
     process_market_files(
         sorted(INPUT_DIR.glob(f"*_{league}_moneyline.csv")),
         compute_moneyline_edges,
         league,
-        "moneyline"
+        "moneyline",
+        log
     )
     process_market_files(
         sorted(INPUT_DIR.glob(f"*_{league}_spread.csv")),
         compute_spread_edges,
         league,
-        "spread"
+        "spread",
+        log
     )
     process_market_files(
         sorted(INPUT_DIR.glob(f"*_{league}_total.csv")),
         compute_total_edges,
         league,
-        "total"
+        "total",
+        log
     )
 
 
 def main():
     with open(ERROR_LOG, "w") as log:
-        log.write("=== BASKETBALL COMPUTE EDGES RUN ===\n")
-        log.write(f"Timestamp: {datetime.utcnow().isoformat()}Z\n\n")
+        log.write("==========================================\n")
+        log.write("   BASKETBALL COMPUTE EDGES SUMMARY\n")
+        log.write("==========================================\n")
+        log.write(f"Run Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        log.write(f"Input Dir:   {INPUT_DIR.absolute()}\n")
+        log.write(f"Output Dir:  {OUTPUT_DIR.absolute()}\n\n")
+        
         try:
-            process_league("NBA")
-            process_league("NCAAB")
+            process_league("NBA", log)
+            process_league("NCAAB", log)
+            log.write("\n==========================================\n")
+            log.write("PROCESS COMPLETED NORMALLY\n")
         except Exception as e:
-            log.write("\n=== ERROR ===\n")
-            log.write(str(e) + "\n\n")
+            log.write("\nCritical script failure!\n")
+            log.write(f"Error: {str(e)}\n")
             log.write(traceback.format_exc())
+        finally:
+            log.write(f"\nRun Ended: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
 
 
 if __name__ == "__main__":
