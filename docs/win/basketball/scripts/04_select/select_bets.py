@@ -33,8 +33,13 @@ def main():
                         "under": float(row.get("under_edge_decimal",0))
                     }
 
-                    side = max(edges, key=edges.get)
-                    edge = edges[side]
+                    # only allow positive edges
+                    valid_edges = {k:v for k,v in edges.items() if v > 0}
+                    if not valid_edges:
+                        continue
+
+                    side = max(valid_edges, key=valid_edges.get)
+                    edge = valid_edges[side]
 
                     edge_required = 0.16
 
@@ -44,7 +49,12 @@ def main():
                     if line <= 205 and side == "under":
                         continue
 
+                    # extreme totals historically unstable
                     if line > 245:
+                        continue
+
+                    # sanity check projected difference
+                    if diff < 3:
                         continue
 
                     if edge >= edge_required:
@@ -97,8 +107,12 @@ def main():
                         "away": float(row.get("away_edge_decimal",0))
                     }
 
-                    side = max(edges, key=edges.get)
-                    edge = edges[side]
+                    valid_edges = {k:v for k,v in edges.items() if v > 0}
+                    if not valid_edges:
+                        continue
+
+                    side = max(valid_edges, key=valid_edges.get)
+                    edge = valid_edges[side]
 
                     if edge >= 0.10:
 
@@ -109,6 +123,7 @@ def main():
                         if spread_abs > 15:
                             continue
 
+                        # remove overpriced large home favorites
                         if spread_val <= -7.5 and venue == "home":
                             continue
 
@@ -149,19 +164,25 @@ def main():
                         "away": float(row.get("away_edge_decimal",0))
                     }
 
-                    side = max(edges, key=edges.get)
-                    edge = edges[side]
+                    valid_edges = {k:v for k,v in edges.items() if v > 0}
+                    if not valid_edges:
+                        continue
+
+                    side = max(valid_edges, key=valid_edges.get)
+                    edge = valid_edges[side]
 
                     odds = float(row.get(f"{side}_juice_odds",0))
                     venue = side
                     fav_ud = "favorite" if odds < 0 else "underdog"
 
-                    if fav_ud == "favorite" and venue == "home" and -180 <= odds <= -150:
+                    # avoid overpriced home favorites
+                    if fav_ud == "favorite" and venue == "home" and -180 <= odds <= -140:
                         continue
 
                     if fav_ud == "favorite" and odds <= -500:
                         continue
 
+                    # avoid massive dogs
                     if fav_ud == "underdog" and odds >= 350:
                         continue
 
@@ -173,8 +194,9 @@ def main():
                     if fav_ud == "favorite" and venue == "home":
                         edge_required = 0.10
 
-                    if fav_ud == "underdog" and venue == "away" and 130 <= odds <= 170:
-                        edge_required = 0.06
+                    # strong historical edge band
+                    if fav_ud == "underdog" and venue == "away" and 130 <= odds <= 160:
+                        edge_required = 0.05
 
                     if venue == "home":
                         edge_required += 0.02
@@ -185,7 +207,7 @@ def main():
                     new_row = row.copy()
                     new_row["market_type"] = "moneyline"
                     new_row["bet_side"] = side
-                    new_row["line"] = 0
+                    new_row["line"] = odds
                     results.append(new_row)
 
                 elif league == "NCAAB":
