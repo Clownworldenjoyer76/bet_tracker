@@ -177,9 +177,7 @@ function buildGameMap(rows){
 }
 
 function formatMarket(market){
-
   if(!market) return "-";
-
   return market
     .toLowerCase()
     .replaceAll("_"," ")
@@ -212,11 +210,6 @@ function renderGames(grouped,gameKeys,league){
 
     const picks=grouped[key];
 
-    picks.sort((a,b)=>
-      parseFloat(b.take_bet_edge_pct||0)-
-      parseFloat(a.take_bet_edge_pct||0)
-    );
-
     const r=picks[0];
 
     const isHockey=league==="NHL";
@@ -234,18 +227,35 @@ function renderGames(grouped,gameKeys,league){
 
     picks.forEach(p=>{
 
-      const edge=p.take_bet_edge_pct!=="" && p.take_bet_edge_pct!=null
-        ? (parseFloat(p.take_bet_edge_pct)*100).toFixed(2)+"%"
-        : "-";
+      let market="";
+      let line=p.line;
+      let odds="-";
+      let edge="-";
 
-      const formattedMarket=formatMarket(p.take_bet);
-      const formattedLine=formatLine(p.line || p.value, p.take_bet);
+      if(p.take_bet){
+        market=p.take_bet;
+        odds=p.take_odds||"-";
+        edge=p.take_bet_edge_pct ? (parseFloat(p.take_bet_edge_pct)*100).toFixed(2)+"%" : "-";
+      }else{
+        market=p.market_type+" "+p.bet_side;
+
+        if(p.bet_side==="home") edge=p.home_edge_decimal;
+        if(p.bet_side==="away") edge=p.away_edge_decimal;
+        if(p.bet_side==="over") edge=p.over_edge_decimal;
+        if(p.bet_side==="under") edge=p.under_edge_decimal;
+
+        if(edge!=="" && edge!=null) edge=(parseFloat(edge)*100).toFixed(2)+"%";
+        else edge="-";
+      }
+
+      const formattedMarket=formatMarket(market);
+      const formattedLine=formatLine(line, market);
 
       picksHtml+=`
         <div class="pick-block">
           <div class="game-market">${formattedMarket}</div>
           <div class="game-line">${formattedLine}</div>
-          <div class="game-odds">Odds: ${p.take_odds||"-"}</div>
+          <div class="game-odds">Odds: ${odds}</div>
           <div class="game-edge">Edge: ${edge}</div>
         </div>
       `;
