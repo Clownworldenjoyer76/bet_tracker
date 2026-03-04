@@ -176,7 +176,6 @@ function buildGameMap(rows){
   return map;
 }
 
-
 /* FORMAT HELPERS */
 
 function formatMarket(market){
@@ -189,7 +188,9 @@ function formatMarket(market){
     .replace(/\b\w/g,c=>c.toUpperCase());
 }
 
-function formatLine(line){
+/* UPDATED ONLY HERE */
+
+function formatLine(line,market){
 
   if(line===""||line==null) return "-";
 
@@ -197,11 +198,14 @@ function formatLine(line){
 
   if(isNaN(num)) return line;
 
+  if(market && market.toLowerCase().includes("total")){
+    return num.toString();
+  }
+
   if(num>0) return "+"+num;
 
   return num.toString();
 }
-
 
 function renderGames(grouped,gameKeys,league){
 
@@ -239,7 +243,7 @@ function renderGames(grouped,gameKeys,league){
         : "-";
 
       const formattedMarket=formatMarket(p.take_bet);
-      const formattedLine=formatLine(p.line || p.value);
+      const formattedLine=formatLine(p.line || p.value, p.take_bet);
 
       const shownValue = (p.value!=="" && p.value!=null) ? p.value : "-";
 
