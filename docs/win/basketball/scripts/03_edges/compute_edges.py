@@ -36,24 +36,22 @@ def edge_decimal(dk: pd.Series, juice_decimal: pd.Series) -> pd.Series:
 
 
 # =========================
-# NBA EDGE (ONLY NBA CHANGED)
+# NBA EDGE (UPDATED)
 # =========================
-# Use implied-probability advantage (bounded, stable):
-# edge = P(model price) - P(book price) = (1/juice) - (1/dk)
+# Compare prices directly (consistent with rest of pipeline)
+
 def edge_decimal_nba(dk: pd.Series, juice_decimal: pd.Series) -> pd.Series:
     dk = pd.to_numeric(dk, errors="coerce")
     j = pd.to_numeric(juice_decimal, errors="coerce")
-    out = (1 / j) - (1 / dk)
+    out = dk - j
     return out.where((dk > 0) & (j > 0))
 
 
-# NBA percent edge relative to model-implied probability:
-# edge_pct = ((1/juice) - (1/dk)) / (1/juice) = 1 - (juice/dk)
 def edge_pct_nba(dk: pd.Series, juice_decimal: pd.Series) -> pd.Series:
     dk = pd.to_numeric(dk, errors="coerce")
     j = pd.to_numeric(juice_decimal, errors="coerce")
-    out = 1 - (j / dk)
-    return out.where((dk > 0) & (j > 0))
+    out = (dk - j) / j
+    return out.where(j > 0)
 
 
 def edge_pct(dk: pd.Series, juice_decimal: pd.Series) -> pd.Series:
