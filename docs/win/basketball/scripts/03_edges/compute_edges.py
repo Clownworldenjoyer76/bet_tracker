@@ -9,10 +9,12 @@ import re
 import sys
 
 # --- DYNAMIC PATH SETUP ---
-# Ensures the script can find the 'utils' folder regardless of where it's called from
-SCRIPTS_ROOT = Path(__file__).resolve().parents[2] 
-if str(SCRIPTS_ROOT) not in sys.path:
-    sys.path.append(str(SCRIPTS_ROOT))
+# File is in: docs/win/basketball/scripts/03_edges/
+# Utils is in: docs/win/basketball/scripts/utils/
+# We need to add the 'scripts' folder (one level up) to sys.path
+SCRIPTS_DIR = str(Path(__file__).resolve().parent.parent)
+if SCRIPTS_DIR not in sys.path:
+    sys.path.append(SCRIPTS_DIR)
 
 from utils.logger import audit
 
