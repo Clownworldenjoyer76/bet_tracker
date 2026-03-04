@@ -53,12 +53,12 @@ def apply_nba(df):
             (jt["venue"] == side)
         ]
 
-        roi = band.iloc[0]["roi"] if not band.empty else 0.0
-        if not math.isfinite(roi):
-            roi = 0.0
+        extra = band.iloc[0]["extra_juice"] if not band.empty else 0.0
+        if not math.isfinite(extra):
+            extra = 0.0
 
         base_decimal = float(row[f"{side}_acceptable_decimal_moneyline"])
-        final_decimal = base_decimal * (1 - roi)
+        final_decimal = base_decimal * (1 + extra)
 
         return final_decimal, decimal_to_american(final_decimal)
 
