@@ -1,4 +1,4 @@
-# docs/win/basketball/scripts/utils/logger.py
+# docs/win/final_scores/scripts/utils/logger.py
 
 import pandas as pd
 from datetime import datetime
