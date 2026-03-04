@@ -1,6 +1,5 @@
-# docs/win/basketball/scripts/01_merge/build_juice_files.py
-
 #!/usr/bin/env python3
+# docs/win/basketball/scripts/01_merge/build_juice_files.py
 
 import pandas as pd
 import glob
@@ -9,6 +8,44 @@ import traceback
 from pathlib import Path
 from datetime import datetime
 from scipy.stats import norm, poisson
+
+# =========================
+# LOGGER UTILITY
+# =========================
+
+def audit(log_path, stage, status, msg="", df=None):
+    ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    log_path = Path(log_path)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    # 1. EXHAUSTIVE LOG (TXT)
+    with open(log_path, "a") as f:
+        f.write(f"\n[{ts}] [{stage}] {status}\n")
+        if msg: f.write(f"  MSG: {msg}\n")
+        if df is not None and isinstance(df, pd.DataFrame):
+            f.write(f"  STATS: {len(df)} rows | {len(df.columns)} cols\n")
+            f.write(f"  NULLS: {df.isnull().sum().sum()} total\n")
+            f.write(f"  SAMPLE:\n{df.head(3).to_string(index=False)}\n")
+        f.write("-" * 40 + "\n")
+
+    # 2. CONDENSED SUMMARY (TXT)
+    if df is not None and isinstance(df, pd.DataFrame):
+        summary_path = log_path.parent / "condensed_summary.txt"
+        
+        play_cols = [c for c in ['home_play', 'away_play', 'over_play', 'under_play'] if c in df.columns]
+        
+        if play_cols:
+            signals = df[df[play_cols].any(axis=1)].copy()
+            
+            if not signals.empty:
+                with open(summary_path, "a") as f:
+                    f.write(f"\n--- BETTING SIGNALS: {ts} ---\n")
+                    base_cols = ['game_date', 'home_team', 'away_team']
+                    edge_cols = [c for c in df.columns if 'edge_pct' in c]
+                    
+                    final_cols = [c for c in base_cols + edge_cols if c in signals.columns]
+                    f.write(signals[final_cols].to_string(index=False))
+                    f.write("\n" + "="*30 + "\n")
 
 # =========================
 # PATHS
@@ -127,6 +164,7 @@ def main():
 
             ml_output = INPUT_DIR / f"{game_date}_{market}_moneyline.csv"
             ml_df.to_csv(ml_output, index=False)
+            audit(ERROR_LOG, "JUICE_ML", "SUCCESS", msg=f"Built ML for {file_path}", df=ml_df)
 
             # =========================
             # TOTALS
@@ -188,6 +226,7 @@ def main():
 
             total_output = INPUT_DIR / f"{game_date}_{market}_total.csv"
             total_df.to_csv(total_output, index=False)
+            audit(ERROR_LOG, "JUICE_TOTALS", "SUCCESS", msg=f"Built Totals for {file_path}", df=total_df)
 
             # =========================
             # SPREAD
@@ -241,6 +280,7 @@ def main():
 
             spread_output = INPUT_DIR / f"{game_date}_{market}_spread.csv"
             spread_df.to_csv(spread_output, index=False)
+            audit(ERROR_LOG, "JUICE_SPREAD", "SUCCESS", msg=f"Built Spread for {file_path}", df=spread_df)
 
             with open(ERROR_LOG, "a", encoding="utf-8") as log:
                 log.write(f"Processed {file_path}\n")
