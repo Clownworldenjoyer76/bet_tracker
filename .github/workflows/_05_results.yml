@@ -27,14 +27,30 @@ jobs:
         run: |
           pip install pandas numpy
 
+      # -----------------------------
+      # Normalize team names first
+      # -----------------------------
+      - name: Run Team Name Normalization
+        run: |
+          python docs/win/final_scores/scripts/05_results/name_normalization.py
+
+      # -----------------------------
+      # Grade results
+      # -----------------------------
       - name: Run Combined Results Script
         run: |
           python docs/win/final_scores/scripts/05_results/results.py
 
+      # -----------------------------
+      # Generate summaries
+      # -----------------------------
       - name: Run Summary Tally Script
         run: |
           python docs/win/final_scores/scripts/05_results/generate_summary.py
 
+      # -----------------------------
+      # Debug Git changes
+      # -----------------------------
       - name: Show Git Changes (debug)
         run: |
           echo "---- GIT STATUS ----"
@@ -42,16 +58,24 @@ jobs:
           echo "---- GIT DIFF ----"
           git diff || true
 
+      # -----------------------------
+      # Commit & push
+      # -----------------------------
       - name: Commit and Push All Changes
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
 
-          # Stage all modified / new files
+          # Stage relevant folders explicitly
+          git add docs/win/basketball/04_select || true
+          git add docs/win/hockey/04_select || true
+          git add docs/win/final_scores/results || true
+          git add mappings/05_no_map || true
+
+          # Also stage anything else changed
           git add -A
 
-          # Commit if anything changed
-          git diff --staged --quiet || git commit -m "Auto-update: All Sports results and summary tallies"
+          # Commit only if something changed
+          git diff --staged --quiet || git commit -m "Auto-update: Normalize teams, grade results, update summaries"
 
-          # Push changes
           git push
