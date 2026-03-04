@@ -51,7 +51,8 @@ def apply_nba(df):
         band = jt[
             (jt["band_min"] <= abs(spread)) &
             (abs(spread) <= jt["band_max"]) &
-            (jt["fav_ud"] == fav_ud)
+            (jt["fav_ud"] == fav_ud) &
+            (jt["venue"] == side)
         ]
 
         extra = band.iloc[0]["extra_juice"] if not band.empty else 0.0
