@@ -158,7 +158,11 @@ def process_results():
                 'line',
                 'away_score',
                 'home_score',
-                'bet_result'
+                'bet_result',
+                'home_edge_decimal',
+                'away_edge_decimal',
+                'over_edge_decimal',
+                'under_edge_decimal'
             ]
 
             df[output_cols].to_csv(output_path, index=False)
