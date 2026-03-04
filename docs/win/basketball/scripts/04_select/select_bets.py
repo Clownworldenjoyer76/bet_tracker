@@ -1,11 +1,56 @@
-# docs/win/basketball/scripts/04_select/select_bets.py
 #!/usr/bin/env python3
+# docs/win/basketball/scripts/04_select/select_bets.py
+
 import pandas as pd
 from pathlib import Path
+from datetime import datetime
+
+# =========================
+# LOGGER UTILITY
+# =========================
+
+def audit(log_path, stage, status, msg="", df=None):
+    ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    log_path = Path(log_path)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    # 1. EXHAUSTIVE LOG (TXT)
+    with open(log_path, "a") as f:
+        f.write(f"\n[{ts}] [{stage}] {status}\n")
+        if msg: f.write(f"  MSG: {msg}\n")
+        if df is not None and isinstance(df, pd.DataFrame):
+            f.write(f"  STATS: {len(df)} rows | {len(df.columns)} cols\n")
+            f.write(f"  NULLS: {df.isnull().sum().sum()} total\n")
+            f.write(f"  SAMPLE:\n{df.head(3).to_string(index=False)}\n")
+        f.write("-" * 40 + "\n")
+
+    # 2. CONDENSED SUMMARY (TXT)
+    if df is not None and isinstance(df, pd.DataFrame):
+        summary_path = log_path.parent / "condensed_summary.txt"
+        
+        # Identification for 'select_bets' output
+        is_selection = 'bet_side' in df.columns
+        
+        if is_selection:
+            with open(summary_path, "a") as f:
+                f.write(f"\n--- BET SELECTIONS: {ts} ---\n")
+                cols = ['game_date', 'home_team', 'away_team', 'market_type', 'bet_side', 'line']
+                final_cols = [c for c in cols if c in df.columns]
+                f.write(df[final_cols].to_string(index=False))
+                f.write("\n" + "="*30 + "\n")
+
+# =========================
+# PATHS
+# =========================
 
 INPUT_DIR = Path("docs/win/basketball/03_edges")
 OUTPUT_DIR = Path("docs/win/basketball/04_select")
+ERROR_DIR = Path("docs/win/basketball/errors/04_select")
+
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+ERROR_DIR.mkdir(parents=True, exist_ok=True)
+
+LOG_FILE = ERROR_DIR / "select_bets_audit.txt"
 
 def main():
     for csv_file in INPUT_DIR.glob("*.csv"):
@@ -243,10 +288,14 @@ def main():
                             results.append(new_row)
 
         if results:
-            pd.DataFrame(results).drop_duplicates().to_csv(
+            res_df = pd.DataFrame(results).drop_duplicates()
+            res_df.to_csv(
                 OUTPUT_DIR / csv_file.name,
                 index=False
             )
+            audit(LOG_FILE, "SELECTION", "SUCCESS", msg=f"Selected {len(res_df)} bets from {csv_file.name}", df=res_df)
+        else:
+            audit(LOG_FILE, "SELECTION", "INFO", msg=f"No bets selected from {csv_file.name}")
 
 if __name__ == "__main__":
     main()
