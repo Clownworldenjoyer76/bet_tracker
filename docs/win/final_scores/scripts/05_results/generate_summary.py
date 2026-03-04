@@ -1,3 +1,4 @@
+# docs/win/final_scores/scripts/05_results/generate_summary.py
 import pandas as pd
 import glob
 import os
@@ -96,7 +97,7 @@ def generate_reports():
                 f.write("-" * 90 + "\n\n")
 
         # ---------------------------------------------------------------------
-        # --- REPORT 4: EXTRA PERFORMANCE ANALYTICS (NEW FILE) ---
+        # --- REPORT 4: EXTRA PERFORMANCE ANALYTICS ---
         # ---------------------------------------------------------------------
 
         with open(txt_output_xtra, "w") as f:
@@ -116,6 +117,45 @@ def generate_reports():
             f.write(f"Pushes: {pushes}\n")
             f.write(f"Win Rate: {win_rate*100:.2f}%\n\n")
 
+            # -------------------------------------------------------------
+            # EDGE DIAGNOSTIC (NEW)
+            # -------------------------------------------------------------
+
+            f.write("EDGE DIAGNOSTIC\n")
+
+            def extract_edge(row):
+                try:
+                    if row['bet_side'] == 'home':
+                        return float(row.get('home_edge_decimal', 0))
+                    if row['bet_side'] == 'away':
+                        return float(row.get('away_edge_decimal', 0))
+                    if row['bet_side'] == 'over':
+                        return float(row.get('over_edge_decimal', 0))
+                    if row['bet_side'] == 'under':
+                        return float(row.get('under_edge_decimal', 0))
+                except:
+                    return None
+                return None
+
+            all_data['edge_used'] = all_data.apply(extract_edge, axis=1)
+
+            win_edges = all_data[all_data['bet_result'] == 'Win']['edge_used'].dropna()
+            loss_edges = all_data[all_data['bet_result'] == 'Loss']['edge_used'].dropna()
+            push_edges = all_data[all_data['bet_result'] == 'Push']['edge_used'].dropna()
+
+            win_avg = win_edges.mean() if not win_edges.empty else 0
+            loss_avg = loss_edges.mean() if not loss_edges.empty else 0
+            push_avg = push_edges.mean() if not push_edges.empty else 0
+
+            f.write(f"Average edge (wins): {round(win_avg,4)}\n")
+            f.write(f"Average edge (losses): {round(loss_avg,4)}\n")
+            f.write(f"Average edge (pushes): {round(push_avg,4)}\n")
+
+            if win_avg > loss_avg:
+                f.write("Edge signal direction: CORRECT (wins have higher edges)\n\n")
+            else:
+                f.write("Edge signal direction: INVERTED (losses have higher edges)\n\n")
+
             # Home / Away split
             home_data = all_data[all_data['bet_side'] == 'home']
             away_data = all_data[all_data['bet_side'] == 'away']
@@ -133,7 +173,6 @@ def generate_reports():
             f.write(f"Home bets: {hw}W - {hl}L - {hp}P\n")
             f.write(f"Away bets: {aw}W - {al}L - {ap}P\n\n")
 
-            # Totals split
             totals = all_data[all_data['market_type'] == 'total']
             overs = totals[totals['bet_side'] == 'over']
             unders = totals[totals['bet_side'] == 'under']
