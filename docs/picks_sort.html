@@ -176,8 +176,6 @@ function buildGameMap(rows){
   return map;
 }
 
-/* FORMAT HELPERS */
-
 function formatMarket(market){
 
   if(!market) return "-";
@@ -187,8 +185,6 @@ function formatMarket(market){
     .replaceAll("_"," ")
     .replace(/\b\w/g,c=>c.toUpperCase());
 }
-
-/* UPDATED ONLY HERE */
 
 function formatLine(line,market){
 
@@ -245,15 +241,12 @@ function renderGames(grouped,gameKeys,league){
       const formattedMarket=formatMarket(p.take_bet);
       const formattedLine=formatLine(p.line || p.value, p.take_bet);
 
-      const shownValue = (p.value!=="" && p.value!=null) ? p.value : "-";
-
       picksHtml+=`
         <div class="pick-block">
           <div class="game-market">${formattedMarket}</div>
           <div class="game-line">${formattedLine}</div>
           <div class="game-odds">Odds: ${p.take_odds||"-"}</div>
           <div class="game-edge">Edge: ${edge}</div>
-          <div class="game-value">Value: ${shownValue}</div>
         </div>
       `;
     });
