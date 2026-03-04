@@ -96,6 +96,15 @@ def main():
             game_date = df["game_date"].iloc[0]
             market = df["market"].iloc[0]
 
+            # =========================
+            # NBA PROBABILITY NORMALIZATION (ONLY NBA)
+            # =========================
+
+            if market == "NBA":
+                prob_sum = df["home_prob"] + df["away_prob"]
+                df["home_prob"] = df["home_prob"] / prob_sum
+                df["away_prob"] = df["away_prob"] / prob_sum
+
             total_std, spread_std = get_stds(market)
 
             # =========================
