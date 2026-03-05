@@ -2,39 +2,6 @@ name: Model Parameter Test
 
 on:
   workflow_dispatch:
-    inputs:
-
-      EDGE:
-        description: "Edge values"
-        default: "0.04,0.05,0.06"
-
-      NBA_TOTAL_STD:
-        description: "NBA total std values"
-        default: "13,14,15"
-
-      NCAAB_TOTAL_STD:
-        description: "NCAAB total std values"
-        default: "11,12,13"
-
-      EDGE_MIN:
-        description: "Minimum edge for bet selection"
-        default: "0.08,0.09,0.10"
-
-      SPREAD_MAX:
-        description: "Maximum spread to allow"
-        default: "12,15,18"
-
-      TOTAL_MIN:
-        description: "Minimum totals line for NCAAB under filter"
-        default: "135,140,145"
-
-      ML_RANGE:
-        description: "Skip ML range (low:high)"
-        default: "-180:-150,-200:-140"
-
-      MAX_RUNS:
-        description: "Maximum combinations to test"
-        default: "20"
 
 jobs:
 
@@ -63,15 +30,7 @@ jobs:
 
       - name: Run parameter testing script
         run: |
-          python docs/win/basketball/scripts/model_testing/run_parameter_tests.py \
-          "${{ github.event.inputs.EDGE }}" \
-          "${{ github.event.inputs.NBA_TOTAL_STD }}" \
-          "${{ github.event.inputs.NCAAB_TOTAL_STD }}" \
-          "${{ github.event.inputs.EDGE_MIN }}" \
-          "${{ github.event.inputs.SPREAD_MAX }}" \
-          "${{ github.event.inputs.TOTAL_MIN }}" \
-          "${{ github.event.inputs.ML_RANGE }}" \
-          "${{ github.event.inputs.MAX_RUNS }}"
+          python docs/win/basketball/scripts/model_testing/run_parameter_tests.py
 
       - name: Show Git Changes
         run: |
