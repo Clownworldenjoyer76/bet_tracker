@@ -28,29 +28,6 @@ def audit(log_path, stage, status, msg="", df=None):
             f.write(f"  SAMPLE:\n{df.head(3).to_string(index=False)}\n")
         f.write("-" * 40 + "\n")
 
-    if df is not None and isinstance(df, pd.DataFrame):
-        summary_path = log_path.parent / "condensed_summary.txt"
-
-        play_cols = [c for c in ['home_play', 'away_play', 'over_play', 'under_play'] if c in df.columns]
-
-        if play_cols:
-            signals = df[df[play_cols].any(axis=1)].copy()
-
-            if not signals.empty:
-                summary_mode = "w" if not summary_path.exists() else "a"
-
-                with open(summary_path, summary_mode) as f:
-                    f.write(f"\n--- BETTING SIGNALS: {ts} ---\n")
-
-                    base_cols = ['game_date', 'home_team', 'away_team']
-                    edge_cols = [c for c in df.columns if 'edge_pct' in c]
-
-                    final_cols = [c for c in base_cols + edge_cols if c in signals.columns]
-
-                    f.write(signals[final_cols].to_string(index=False))
-                    f.write("\n" + "=" * 30 + "\n")
-
-
 # =========================
 # CONFIGURATION
 # =========================
@@ -58,7 +35,7 @@ def audit(log_path, stage, status, msg="", df=None):
 ERROR_LOG = Path("docs/win/final_scores/scripts/05_results/normalization_audit.txt")
 
 TARGET_DIRS = [
-    "docs/win/basketball/04_select",
+    "docs/win/basketball/04_select/daily_slate",
     "docs/win/hockey/04_select",
     "docs/win/final_scores/results/nba/final_scores",
     "docs/win/final_scores/results/ncaab/final_scores",
@@ -182,10 +159,6 @@ def main():
             team_map = team_maps.get(market)
 
             normalize_file(file_path, market, team_map, missing)
-
-    # -----------------------------
-    # WRITE MISSING TEAM MAPS
-    # -----------------------------
 
     if missing:
 
