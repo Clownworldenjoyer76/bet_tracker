@@ -14,28 +14,25 @@ def audit(log_path, stage, status, msg="", df=None):
     log_path = Path(log_path)
     log_path.parent.mkdir(parents=True, exist_ok=True)
     
-    # 1. EXHAUSTIVE LOG (TXT)
     with open(log_path, "a") as f:
         f.write(f"\n[{ts}] [{stage}] {status}\n")
-        if msg: f.write(f"  MSG: {msg}\n")
+        if msg:
+            f.write(f"  MSG: {msg}\n")
         if df is not None and isinstance(df, pd.DataFrame):
             f.write(f"  STATS: {len(df)} rows | {len(df.columns)} cols\n")
             f.write(f"  NULLS: {df.isnull().sum().sum()} total\n")
             f.write(f"  SAMPLE:\n{df.head(3).to_string(index=False)}\n")
         f.write("-" * 40 + "\n")
 
-    # 2. CONDENSED SUMMARY (TXT)
     if df is not None and isinstance(df, pd.DataFrame):
         summary_path = log_path.parent / "condensed_summary.txt"
-        
-        is_selection = 'bet_side' in df.columns
-        
-        if is_selection:
+
+        if "bet_side" in df.columns:
             with open(summary_path, "a") as f:
                 f.write(f"\n--- BET SELECTIONS: {ts} ---\n")
-                cols = ['game_date', 'home_team', 'away_team', 'market_type', 'bet_side', 'line']
-                final_cols = [c for c in cols if c in df.columns]
-                f.write(df[final_cols].to_string(index=False))
+                cols = ['game_date','home_team','away_team','market_type','bet_side','line']
+                cols = [c for c in cols if c in df.columns]
+                f.write(df[cols].to_string(index=False))
                 f.write("\n" + "="*30 + "\n")
 
 # =========================
@@ -51,254 +48,203 @@ ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 LOG_FILE = ERROR_DIR / "select_bets_audit.txt"
 
+# =========================
+# MAIN
+# =========================
+
 def main():
+
+    all_candidates = []
+
     for csv_file in INPUT_DIR.glob("*.csv"):
+
         df = pd.read_csv(csv_file)
         fname = csv_file.name.lower()
         league = "NBA" if "nba" in fname else "NCAAB"
 
-        results = []
-
         for _, row in df.iterrows():
+
+            game_key = (
+                row.get("game_date"),
+                row.get("away_team"),
+                row.get("home_team")
+            )
 
             # =========================
             # TOTALS
             # =========================
+
             if "total" in fname:
 
                 line = pd.to_numeric(row.get("total"), errors="coerce")
                 proj = pd.to_numeric(row.get("total_projected_points"), errors="coerce")
                 diff = abs(proj - line) if pd.notna(proj) and pd.notna(line) else 0
 
-                if league == "NBA":
+                edges = {
+                    "over": float(row.get("over_edge_decimal",0) or 0),
+                    "under": float(row.get("under_edge_decimal",0) or 0)
+                }
 
-                    edges = {
-                        "over": float(row.get("over_edge_decimal", 0) or 0),
-                        "under": float(row.get("under_edge_decimal", 0) or 0),
-                    }
+                for side, edge in edges.items():
 
-                    valid_edges = {k: v for k, v in edges.items() if pd.notna(v) and v > 0}
-                    if not valid_edges:
-                        continue
-
-                    side = max(valid_edges, key=valid_edges.get)
-                    edge = valid_edges[side]
-
-                    odds = float(row.get(f"total_{side}_juice_odds", 0) or 0)
+                    odds = float(row.get(f"total_{side}_juice_odds",0) or 0)
                     if odds <= -300:
                         continue
 
-                    edge_required = 0.07
+                    if league == "NBA":
 
-                    if pd.notna(line) and line <= 205 and side == "over":
-                        edge_required -= 0.02
+                        edge_required = 0.07
 
-                    if pd.notna(line) and line <= 205 and side == "under":
-                        continue
+                        if pd.notna(line) and line <= 205 and side == "over":
+                            edge_required -= 0.02
 
-                    if pd.notna(line) and line > 245:
-                        continue
-
-                    if diff < 3:
-                        continue
-
-                    if edge > 0.35:
-                        continue
-
-                    if edge >= edge_required:
-                        new_row = row.copy()
-                        new_row["market_type"] = "total"
-                        new_row["bet_side"] = side
-                        new_row["line"] = line
-                        results.append(new_row)
-
-                elif league == "NCAAB":
-
-                    for side in ["over", "under"]:
-
-                        edge = row.get(f"{side}_edge_decimal", 0)
-                        edge = float(edge) if pd.notna(edge) else 0
-
-                        odds = float(row.get(f"total_{side}_juice_odds", 0) or 0)
-                        if odds <= -300:
+                        if pd.notna(line) and line <= 205 and side == "under":
                             continue
+
+                        if pd.notna(line) and line > 245:
+                            continue
+
+                        if diff < 3:
+                            continue
+
+                        if edge > 0.35:
+                            continue
+
+                        if edge < edge_required:
+                            continue
+
+                    elif league == "NCAAB":
 
                         if side == "over":
-                            if line < 150:
-                                if edge >= 0.02 and diff >= 4:
-                                    new_row = row.copy()
-                                    new_row["market_type"] = "total"
-                                    new_row["bet_side"] = side
-                                    new_row["line"] = line
-                                    results.append(new_row)
-                            elif line > 150:
-                                if edge > 0.001 and diff >= 2:
-                                    new_row = row.copy()
-                                    new_row["market_type"] = "total"
-                                    new_row["bet_side"] = side
-                                    new_row["line"] = line
-                                    results.append(new_row)
+                            if line < 150 and not (edge >= 0.02 and diff >= 4):
+                                continue
+                            if line >= 150 and not (edge > 0.001 and diff >= 2):
+                                continue
 
-                        else:
-                            if edge >= 0.10:
-                                new_row = row.copy()
-                                new_row["market_type"] = "total"
-                                new_row["bet_side"] = side
-                                new_row["line"] = line
-                                results.append(new_row)
+                        if side == "under":
+                            if edge < 0.10:
+                                continue
+
+                    new_row = row.copy()
+                    new_row["market_type"] = "total"
+                    new_row["bet_side"] = side
+                    new_row["line"] = line
+                    new_row["candidate_edge"] = edge
+                    new_row["game_key"] = game_key
+
+                    all_candidates.append(new_row)
 
             # =========================
-            # SPREADS
+            # SPREAD
             # =========================
+
             elif "spread" in fname:
 
-                if league == "NBA":
+                for side in ["home","away"]:
 
-                    edges = {
-                        "home": float(row.get("home_edge_decimal", 0) or 0),
-                        "away": float(row.get("away_edge_decimal", 0) or 0),
-                    }
+                    edge = float(row.get(f"{side}_edge_decimal",0) or 0)
+                    spread = float(row.get(f"{side}_spread",0) or 0)
 
-                    valid_edges = {k: v for k, v in edges.items() if pd.notna(v) and v > 0}
-                    if not valid_edges:
-                        continue
-
-                    side = max(valid_edges, key=valid_edges.get)
-                    edge = valid_edges[side]
-
-                    odds = float(row.get(f"{side}_spread_juice_odds", 0) or 0)
+                    odds = float(row.get(f"{side}_spread_juice_odds",0) or 0)
                     if odds <= -300:
                         continue
 
-                    if edge >= 0.06:
+                    if league == "NBA":
 
-                        spread_val = float(row.get(f"{side}_spread")) if pd.notna(row.get(f"{side}_spread")) else 0.0
-                        spread_abs = abs(spread_val)
-                        venue = side
-
-                        if spread_abs > 15:
+                        if edge < 0.06:
                             continue
 
-                        if spread_val <= -7.5 and venue == "home":
+                        if abs(spread) > 15:
                             continue
 
-                        if spread_abs <= 10.5:
-                            new_row = row.copy()
-                            new_row["market_type"] = "spread"
-                            new_row["bet_side"] = side
-                            new_row["line"] = spread_val
-                            results.append(new_row)
+                    elif league == "NCAAB":
 
-                elif league == "NCAAB":
-
-                    for side in ["home", "away"]:
-
-                        edge = row.get(f"{side}_edge_decimal", 0)
-                        spread = row.get(f"{side}_spread", 0)
-
-                        edge = float(edge) if pd.notna(edge) else 0
-                        spread_val = float(row.get(f"{side}_spread")) if pd.notna(row.get(f"{side}_spread")) else 0
-                        spread_abs = abs(spread_val)
-
-                        odds = float(row.get(f"{side}_spread_juice_odds", 0) or 0)
-                        if odds <= -300:
+                        if edge < 0.07 or abs(spread) > 20:
                             continue
 
-                        if edge >= 0.07 and spread_abs <= 20:
-                            new_row = row.copy()
-                            new_row["market_type"] = "spread"
-                            new_row["bet_side"] = side
-                            new_row["line"] = spread_val
-                            results.append(new_row)
+                    new_row = row.copy()
+                    new_row["market_type"] = "spread"
+                    new_row["bet_side"] = side
+                    new_row["line"] = spread
+                    new_row["candidate_edge"] = edge
+                    new_row["game_key"] = game_key
+
+                    all_candidates.append(new_row)
 
             # =========================
             # MONEYLINE
             # =========================
+
             elif "moneyline" in fname:
 
-                if league == "NBA":
+                for side in ["home","away"]:
 
-                    edges = {
-                        "home": float(row.get("home_edge_decimal", 0) or 0),
-                        "away": float(row.get("away_edge_decimal", 0) or 0),
-                    }
+                    edge = float(row.get(f"{side}_edge_decimal",0) or 0)
+                    prob = float(row.get(f"{side}_prob",0) or 0)
 
-                    valid_edges = {k: v for k, v in edges.items() if pd.notna(v) and v > 0}
-                    if not valid_edges:
-                        continue
-
-                    side = max(valid_edges, key=valid_edges.get)
-                    edge = valid_edges[side]
-
-                    odds = float(row.get(f"{side}_juice_odds", 0) or 0)
+                    odds = float(row.get(f"{side}_juice_odds",0) or 0)
                     if odds <= -300:
                         continue
 
-                    venue = side
-                    fav_ud = "favorite" if odds < 0 else "underdog"
+                    if league == "NBA":
 
-                    if fav_ud == "favorite" and venue == "home" and -180 <= odds <= -140:
-                        continue
+                        if edge < 0.06:
+                            continue
 
-                    if fav_ud == "underdog" and odds >= 350:
-                        continue
+                    elif league == "NCAAB":
 
-                    if fav_ud == "favorite":
-                        edge_required = 0.06
-                    else:
-                        edge_required = 0.06
-
-                    if fav_ud == "favorite" and venue == "home":
-                        edge_required = 0.08
-
-                    if fav_ud == "underdog" and venue == "away" and 130 <= odds <= 160:
-                        edge_required = 0.05
-
-                    if venue == "home":
-                        edge_required += 0.01
-
-                    if edge > 0.35:
-                        continue
-
-                    if edge < edge_required:
-                        continue
+                        if edge < 0.06 or prob < 0.60:
+                            continue
 
                     new_row = row.copy()
                     new_row["market_type"] = "moneyline"
                     new_row["bet_side"] = side
                     new_row["line"] = odds
-                    results.append(new_row)
+                    new_row["candidate_edge"] = edge
+                    new_row["game_key"] = game_key
 
-                elif league == "NCAAB":
+                    all_candidates.append(new_row)
 
-                    for side in ["home", "away"]:
+    # =========================
+    # POST FILTER RULES
+    # =========================
 
-                        edge = row.get(f"{side}_edge_decimal", 0)
-                        prob = row.get(f"{side}_prob", 0)
+    df = pd.DataFrame(all_candidates)
 
-                        edge = float(edge) if pd.notna(edge) else 0
-                        prob = float(prob) if pd.notna(prob) else 0
+    final_rows = []
 
-                        odds = float(row.get(f"{side}_juice_odds", 0) or 0)
-                        if odds <= -300:
-                            continue
+    for game, g in df.groupby("game_key"):
 
-                        if edge >= 0.06 and prob >= 0.60:
-                            new_row = row.copy()
-                            new_row["market_type"] = "moneyline"
-                            new_row["bet_side"] = side
-                            new_row["line"] = odds
-                            results.append(new_row)
+        totals = g[g.market_type=="total"]
+        sides = g[g.market_type.isin(["spread","moneyline"])]
 
-        if results:
-            res_df = pd.DataFrame(results).drop_duplicates()
-            res_df.to_csv(
-                OUTPUT_DIR / csv_file.name,
-                index=False
-            )
-            audit(LOG_FILE, "SELECTION", "SUCCESS", msg=f"Selected {len(res_df)} bets from {csv_file.name}", df=res_df)
-        else:
-            audit(LOG_FILE, "SELECTION", "INFO", msg=f"No bets selected from {csv_file.name}")
+        chosen_total = None
+        chosen_side = None
+
+        if not totals.empty:
+            chosen_total = totals.sort_values("candidate_edge",ascending=False).iloc[0]
+
+        if not sides.empty:
+            chosen_side = sides.sort_values("candidate_edge",ascending=False).iloc[0]
+
+        if chosen_total is not None:
+            final_rows.append(chosen_total)
+
+        if chosen_side is not None:
+            final_rows.append(chosen_side)
+
+    res_df = pd.DataFrame(final_rows).drop_duplicates()
+
+    if not res_df.empty:
+        res_df.drop(columns=["candidate_edge","game_key"],errors="ignore").to_csv(
+            OUTPUT_DIR / "selected_bets.csv",
+            index=False
+        )
+
+        audit(LOG_FILE,"SELECTION","SUCCESS",msg=f"Selected {len(res_df)} bets",df=res_df)
+
+    else:
+        audit(LOG_FILE,"SELECTION","INFO",msg="No bets selected")
 
 if __name__ == "__main__":
     main()
