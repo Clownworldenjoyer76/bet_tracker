@@ -28,3 +28,102 @@ _04_select.yml [selects and filters bets for the day]
 
 
 _05_results.yml [grades bets based on true final scores and computes historic win/loss data over time]
+
+
+
+#############testing###############
+2️⃣ Required addition to select_bets.py
+
+At the top of the script add:
+
+from docs.win.basketball.model_testing.rule_config import *
+
+Then replace your rules with:
+
+edge >= EDGE_MIN
+abs(spread) <= SPREAD_MAX
+total >= TOTAL_MIN
+skip ML if ML_LOW <= odds <= ML_HIGH
+
+This allows the optimizer to control the selector dynamically.
+
+3️⃣ Optional addition to build_juice_files.py
+
+If you also want to test model constants like:
+
+EDGE
+NBA_TOTAL_STD
+NCAAB_TOTAL_STD
+
+Add near the top of that script:
+
+try:
+    from docs.win.basketball.model_testing.rule_config import *
+except:
+    pass
+
+This allows the optimizer to override constants when present.
+
+4️⃣ Output
+
+The optimizer produces:
+
+docs/win/basketball/model_testing/rule_test_results.csv
+
+Example:
+
+EDGE_MIN SPREAD_MAX TOTAL_MIN ML_RANGE NBA_SPREAD_WIN_PCT
+0.10     15         140      (-180,-150) 0.557
+0.09     12         135      (-200,-140) 0.551
+0.11     15         140      (-160,-130) 0.549
+
+You instantly see which rule set wins historically.
+
+5️⃣ How to change parameters
+
+Edit these at the top of the optimizer:
+
+EDGE_MIN_VALUES
+SPREAD_MAX_VALUES
+TOTAL_MIN_VALUES
+ML_SKIP_RANGES
+MAX_RUNS
+
+Example:
+
+EDGE_MIN_VALUES = [0.09,0.10,0.11]
+6️⃣ Avoid GitHub throttling
+
+Always limit runs:
+
+MAX_RUNS = 20
+
+Even if the grid creates 200 combos, the script randomly samples 20.
+
+One GitHub run = 20 full pipeline tests.
+
+This avoids workflow throttling.
+
+7️⃣ Typical workflow
+
+Run optimizer manually:
+
+workflow_dispatch → rule_optimizer.py
+
+After run completes check:
+
+docs/win/basketball/model_testing/rule_test_results.csv
+
+Then apply the best rule set to your selector.
+
+Final note
+
+Once this exists your system becomes self-optimizing.
+
+You will be able to answer questions like:
+
+Should edge be 0.09 or 0.11?
+Should we skip totals <140?
+Should we skip ML favorites -150 to -180?
+
+with data instead of guesswork.
