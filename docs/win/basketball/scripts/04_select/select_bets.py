@@ -13,27 +13,16 @@ def audit(log_path, stage, status, msg="", df=None):
     ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     log_path = Path(log_path)
     log_path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     with open(log_path, "a") as f:
         f.write(f"\n[{ts}] [{stage}] {status}\n")
         if msg:
             f.write(f"  MSG: {msg}\n")
         if df is not None and isinstance(df, pd.DataFrame):
             f.write(f"  STATS: {len(df)} rows | {len(df.columns)} cols\n")
-            f.write(f"  NULLS: {df.isnull().sum().sum()} total\n")
             f.write(f"  SAMPLE:\n{df.head(3).to_string(index=False)}\n")
         f.write("-" * 40 + "\n")
 
-    if df is not None and isinstance(df, pd.DataFrame):
-        summary_path = log_path.parent / "condensed_summary.txt"
-
-        if "bet_side" in df.columns:
-            with open(summary_path, "a") as f:
-                f.write(f"\n--- BET SELECTIONS: {ts} ---\n")
-                cols = ['game_date','home_team','away_team','market_type','bet_side','line']
-                cols = [c for c in cols if c in df.columns]
-                f.write(df[cols].to_string(index=False))
-                f.write("\n" + "="*30 + "\n")
 
 # =========================
 # PATHS
@@ -47,6 +36,7 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 LOG_FILE = ERROR_DIR / "select_bets_audit.txt"
+
 
 # =========================
 # MAIN
@@ -71,7 +61,7 @@ def main():
             )
 
             # =========================
-            # TOTALS
+            # TOTAL FILE
             # =========================
 
             if "total" in fname:
@@ -81,15 +71,40 @@ def main():
                 diff = abs(proj - line) if pd.notna(proj) and pd.notna(line) else 0
 
                 edges = {
-                    "over": float(row.get("over_edge_decimal",0) or 0),
-                    "under": float(row.get("under_edge_decimal",0) or 0)
+                    "over": float(row.get("over_edge_decimal", 0) or 0),
+                    "under": float(row.get("under_edge_decimal", 0) or 0)
                 }
 
                 for side, edge in edges.items():
 
-                    odds = float(row.get(f"total_{side}_juice_odds",0) or 0)
+                    odds = float(row.get(f"total_{side}_juice_odds", 0) or 0)
                     if odds <= -300:
                         continue
+
+                    # =========================
+                    # NCAAB TOTAL
+                    # =========================
+
+                    if league == "NCAAB":
+
+                        if edge > 0.30:
+                            continue
+
+                        if edge < 0.10:
+                            continue
+
+                        if side == "under" and pd.notna(line) and line < 140:
+                            continue
+
+                        if side == "over":
+                            if line < 150 and not (edge >= 0.02 and diff >= 4):
+                                continue
+                            if line >= 150 and not (edge > 0.001 and diff >= 2):
+                                continue
+
+                    # =========================
+                    # NBA TOTAL
+                    # =========================
 
                     if league == "NBA":
 
@@ -113,34 +128,6 @@ def main():
                         if edge < edge_required:
                             continue
 
-                    elif league == "NCAAB":
-
-                        # -------------------------
-                        # ADDED NCAAB RULES (ONLY)
-                        # 4) SKIP edges > 0.30
-                        # 5) Require edge >= 0.10 for all bets
-                        # 3) [totals] Skip UNDER when total line < 140
-                        # -------------------------
-
-                        if edge > 0.30:
-                            continue
-
-                        if edge < 0.10:
-                            continue
-
-                        if side == "under" and pd.notna(line) and line < 140:
-                            continue
-
-                        if side == "over":
-                            if line < 150 and not (edge >= 0.02 and diff >= 4):
-                                continue
-                            if line >= 150 and not (edge > 0.001 and diff >= 2):
-                                continue
-
-                        if side == "under":
-                            if edge < 0.10:
-                                continue
-
                     new_row = row.copy()
                     new_row["market_type"] = "total"
                     new_row["bet_side"] = side
@@ -151,36 +138,25 @@ def main():
                     all_candidates.append(new_row)
 
             # =========================
-            # SPREAD
+            # SPREAD FILE
             # =========================
 
             elif "spread" in fname:
 
-                for side in ["home","away"]:
+                for side in ["home", "away"]:
 
-                    edge = float(row.get(f"{side}_edge_decimal",0) or 0)
-                    spread = float(row.get(f"{side}_spread",0) or 0)
+                    edge = float(row.get(f"{side}_edge_decimal", 0) or 0)
+                    spread = float(row.get(f"{side}_spread", 0) or 0)
 
-                    odds = float(row.get(f"{side}_spread_juice_odds",0) or 0)
+                    odds = float(row.get(f"{side}_spread_juice_odds", 0) or 0)
                     if odds <= -300:
                         continue
 
-                    if league == "NBA":
+                    # =========================
+                    # NCAAB SPREAD
+                    # =========================
 
-                        if edge < 0.06:
-                            continue
-
-                        if abs(spread) > 15:
-                            continue
-
-                    elif league == "NCAAB":
-
-                        # -------------------------
-                        # ADDED NCAAB RULES (ONLY)
-                        # 4) SKIP edges > 0.30
-                        # 5) Require edge >= 0.10 for all bets
-                        # 2) [Away spreads] If bet_side = away → require edge ≥ 0.10
-                        # -------------------------
+                    if league == "NCAAB":
 
                         if edge > 0.30:
                             continue
@@ -191,7 +167,19 @@ def main():
                         if side == "away" and edge < 0.10:
                             continue
 
-                        if edge < 0.07 or abs(spread) > 20:
+                        if abs(spread) > 20:
+                            continue
+
+                    # =========================
+                    # NBA SPREAD
+                    # =========================
+
+                    if league == "NBA":
+
+                        if edge < 0.06:
+                            continue
+
+                        if abs(spread) > 15:
                             continue
 
                     new_row = row.copy()
@@ -204,33 +192,25 @@ def main():
                     all_candidates.append(new_row)
 
             # =========================
-            # MONEYLINE
+            # MONEYLINE FILE
             # =========================
 
             elif "moneyline" in fname:
 
-                for side in ["home","away"]:
+                for side in ["home", "away"]:
 
-                    edge = float(row.get(f"{side}_edge_decimal",0) or 0)
-                    prob = float(row.get(f"{side}_prob",0) or 0)
+                    edge = float(row.get(f"{side}_edge_decimal", 0) or 0)
+                    prob = float(row.get(f"{side}_prob", 0) or 0)
+                    odds = float(row.get(f"{side}_juice_odds", 0) or 0)
 
-                    odds = float(row.get(f"{side}_juice_odds",0) or 0)
                     if odds <= -300:
                         continue
 
-                    if league == "NBA":
+                    # =========================
+                    # NCAAB MONEYLINE
+                    # =========================
 
-                        if edge < 0.06:
-                            continue
-
-                    elif league == "NCAAB":
-
-                        # -------------------------
-                        # ADDED NCAAB RULES (ONLY)
-                        # 4) SKIP edges > 0.30
-                        # 5) Require edge >= 0.10 for all bets
-                        # 1) [MONEYLINE] Skip home ML between -150 and -180
-                        # -------------------------
+                    if league == "NCAAB":
 
                         if edge > 0.30:
                             continue
@@ -241,7 +221,16 @@ def main():
                         if side == "home" and (-180 <= odds <= -150):
                             continue
 
-                        if edge < 0.06 or prob < 0.60:
+                        if prob < 0.60:
+                            continue
+
+                    # =========================
+                    # NBA MONEYLINE
+                    # =========================
+
+                    if league == "NBA":
+
+                        if edge < 0.06:
                             continue
 
                     new_row = row.copy()
@@ -263,17 +252,17 @@ def main():
 
     for game, g in df.groupby("game_key"):
 
-        totals = g[g.market_type=="total"]
-        sides = g[g.market_type.isin(["spread","moneyline"])]
+        totals = g[g.market_type == "total"]
+        sides = g[g.market_type.isin(["spread", "moneyline"])]
 
         chosen_total = None
         chosen_side = None
 
         if not totals.empty:
-            chosen_total = totals.sort_values("candidate_edge",ascending=False).iloc[0]
+            chosen_total = totals.sort_values("candidate_edge", ascending=False).iloc[0]
 
         if not sides.empty:
-            chosen_side = sides.sort_values("candidate_edge",ascending=False).iloc[0]
+            chosen_side = sides.sort_values("candidate_edge", ascending=False).iloc[0]
 
         if chosen_total is not None:
             final_rows.append(chosen_total)
@@ -284,15 +273,16 @@ def main():
     res_df = pd.DataFrame(final_rows).drop_duplicates()
 
     if not res_df.empty:
-        res_df.drop(columns=["candidate_edge","game_key"],errors="ignore").to_csv(
+        res_df.drop(columns=["candidate_edge", "game_key"], errors="ignore").to_csv(
             OUTPUT_DIR / "selected_bets.csv",
             index=False
         )
 
-        audit(LOG_FILE,"SELECTION","SUCCESS",msg=f"Selected {len(res_df)} bets",df=res_df)
+        audit(LOG_FILE, "SELECTION", "SUCCESS", msg=f"Selected {len(res_df)} bets", df=res_df)
 
     else:
-        audit(LOG_FILE,"SELECTION","INFO",msg="No bets selected")
+        audit(LOG_FILE, "SELECTION", "INFO", msg="No bets selected")
+
 
 if __name__ == "__main__":
     main()
