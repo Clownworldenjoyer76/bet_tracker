@@ -11,29 +11,41 @@ from pathlib import Path
 # =========================================
 
 EDGE_MIN_VALUES = [0.08, 0.09, 0.10, 0.11]
-
 SPREAD_MAX_VALUES = [12, 15, 18]
-
 TOTAL_MIN_VALUES = [135, 140, 145]
 
 ML_SKIP_RANGES = [
-    (-180,-150),
-    (-200,-140),
-    (-160,-130)
+    (-180, -150),
+    (-200, -140),
+    (-160, -130)
 ]
 
 MAX_RUNS = 20
 
 # =========================================
-# PIPELINE PATHS
+# PIPELINES
 # =========================================
 
-PIPELINE = [
+# run once (expensive)
+BASE_PIPELINE = [
 
+"docs/win/basketball/scripts/01_merge/merge_intake.py",
 "docs/win/basketball/scripts/01_merge/build_juice_files.py",
-"docs/win/basketball/scripts/02_apply_juice/apply_juice.py",
-"docs/win/basketball/scripts/03_compute_edges/compute_edges.py",
+
+"docs/win/basketball/scripts/02_juice/apply_moneyline_juice.py",
+"docs/win/basketball/scripts/02_juice/apply_spread_juice.py",
+"docs/win/basketball/scripts/02_juice/apply_total_juice.py",
+
+"docs/win/basketball/scripts/03_edges/compute_edges.py"
+
+]
+
+# run every rule set (fast)
+RULE_PIPELINE = [
+
 "docs/win/basketball/scripts/04_select/select_bets.py",
+"docs/win/basketball/scripts/04_select/combine_trim_basketball.py",
+
 "docs/win/final_scores/scripts/05_results/results.py"
 
 ]
@@ -42,7 +54,7 @@ OUTPUT = Path(
 "docs/win/basketball/model_testing/rule_test_results.csv"
 )
 
-OUTPUT.parent.mkdir(parents=True,exist_ok=True)
+OUTPUT.parent.mkdir(parents=True, exist_ok=True)
 
 # =========================================
 # GENERATE RULE COMBINATIONS
@@ -58,20 +70,31 @@ ML_SKIP_RANGES
 ))
 
 if len(grid) > MAX_RUNS:
+    grid = random.sample(grid, MAX_RUNS)
 
-    grid = random.sample(grid,MAX_RUNS)
+print("Running", len(grid), "rule tests")
 
-print("Running",len(grid),"rule tests")
+# =========================================
+# RUN BASE PIPELINE ONCE
+# =========================================
 
-results = []
+print("Running base pipeline...")
+
+for script in BASE_PIPELINE:
+    print("Running:", script)
+    subprocess.run(["python", script], check=True)
+
+print("Base pipeline complete")
 
 # =========================================
 # TEST LOOP
 # =========================================
 
-for EDGE_MIN,SPREAD_MAX,TOTAL_MIN,ML_RANGE in grid:
+results = []
 
-    print("Testing:",EDGE_MIN,SPREAD_MAX,TOTAL_MIN,ML_RANGE)
+for EDGE_MIN, SPREAD_MAX, TOTAL_MIN, ML_RANGE in grid:
+
+    print("Testing:", EDGE_MIN, SPREAD_MAX, TOTAL_MIN, ML_RANGE)
 
     config_file = Path(
     "docs/win/basketball/model_testing/rule_config.py"
@@ -85,9 +108,9 @@ for EDGE_MIN,SPREAD_MAX,TOTAL_MIN,ML_RANGE in grid:
         f.write(f"ML_LOW = {ML_RANGE[0]}\n")
         f.write(f"ML_HIGH = {ML_RANGE[1]}\n")
 
-    # run pipeline
+    # run rule pipeline
 
-    for script in PIPELINE:
+    for script in RULE_PIPELINE:
 
         subprocess.run(["python",script],check=True)
 
@@ -125,6 +148,10 @@ for EDGE_MIN,SPREAD_MAX,TOTAL_MIN,ML_RANGE in grid:
         "NCAAB_SPREAD_WIN_PCT":ncaab_spread
 
     })
+
+# =========================================
+# OUTPUT RESULTS
+# =========================================
 
 df = pd.DataFrame(results)
 
