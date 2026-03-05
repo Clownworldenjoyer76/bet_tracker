@@ -10,6 +10,38 @@ from datetime import datetime
 from scipy.stats import norm, poisson
 
 # =========================
+# OPTIONAL OVERRIDE CONFIG
+# =========================
+# If this exists, we can override model constants for testing:
+#   docs/win/basketball/model_testing/rule_config.py
+#
+# Example content:
+#   EDGE = 0.05
+#   NBA_TOTAL_EDGE = 0.05
+#   NBA_TOTAL_STD = 14
+#   NBA_SPREAD_STD = 15
+#   NCAAB_TOTAL_STD = 12
+#   NCAAB_SPREAD_STD = 15
+
+OVERRIDE_CONFIG_PATH = Path("docs/win/basketball/model_testing/rule_config.py")
+
+
+def load_override_config():
+    if not OVERRIDE_CONFIG_PATH.exists():
+        return {}
+
+    scope = {}
+    try:
+        content = OVERRIDE_CONFIG_PATH.read_text(encoding="utf-8")
+        exec(compile(content, str(OVERRIDE_CONFIG_PATH), "exec"), {}, scope)
+        return {k: v for k, v in scope.items() if not k.startswith("__")}
+    except Exception:
+        return {}
+
+
+OVR = load_override_config()
+
+# =========================
 # LOGGER UTILITY
 # =========================
 
@@ -17,11 +49,12 @@ def audit(log_path, stage, status, msg="", df=None):
     ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     log_path = Path(log_path)
     log_path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     # 1. EXHAUSTIVE LOG (TXT)
     with open(log_path, "a") as f:
         f.write(f"\n[{ts}] [{stage}] {status}\n")
-        if msg: f.write(f"  MSG: {msg}\n")
+        if msg:
+            f.write(f"  MSG: {msg}\n")
         if df is not None and isinstance(df, pd.DataFrame):
             f.write(f"  STATS: {len(df)} rows | {len(df.columns)} cols\n")
             f.write(f"  NULLS: {df.isnull().sum().sum()} total\n")
@@ -31,21 +64,21 @@ def audit(log_path, stage, status, msg="", df=None):
     # 2. CONDENSED SUMMARY (TXT)
     if df is not None and isinstance(df, pd.DataFrame):
         summary_path = log_path.parent / "condensed_summary.txt"
-        
+
         play_cols = [c for c in ['home_play', 'away_play', 'over_play', 'under_play'] if c in df.columns]
-        
+
         if play_cols:
             signals = df[df[play_cols].any(axis=1)].copy()
-            
+
             if not signals.empty:
                 with open(summary_path, "a") as f:
                     f.write(f"\n--- BETTING SIGNALS: {ts} ---\n")
                     base_cols = ['game_date', 'home_team', 'away_team']
                     edge_cols = [c for c in df.columns if 'edge_pct' in c]
-                    
+
                     final_cols = [c for c in base_cols + edge_cols if c in signals.columns]
                     f.write(signals[final_cols].to_string(index=False))
-                    f.write("\n" + "="*30 + "\n")
+                    f.write("\n" + "=" * 30 + "\n")
 
 # =========================
 # PATHS
@@ -58,17 +91,39 @@ ERROR_LOG = ERROR_DIR / "build_juice_files.txt"
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 # =========================
-# CONSTANTS
+# CONSTANTS (default values)
 # =========================
 
 EDGE = 0.05                 # Default EDGE (ML + Spread)
-NBA_TOTAL_EDGE = 0.05       # 🔥 Reduced NBA totals EDGE
+NBA_TOTAL_EDGE = 0.05       # Reduced NBA totals EDGE
 
 NBA_TOTAL_STD = 14
 NBA_SPREAD_STD = 15
 
 NCAAB_TOTAL_STD = 12
-NCAAB_SPREAD_STD = 15   # YOUR WINNING VALUE
+NCAAB_SPREAD_STD = 15       # YOUR WINNING VALUE
+
+# =========================
+# APPLY OVERRIDES (if present)
+# =========================
+
+if "EDGE" in OVR:
+    EDGE = float(OVR["EDGE"])
+
+if "NBA_TOTAL_EDGE" in OVR:
+    NBA_TOTAL_EDGE = float(OVR["NBA_TOTAL_EDGE"])
+
+if "NBA_TOTAL_STD" in OVR:
+    NBA_TOTAL_STD = float(OVR["NBA_TOTAL_STD"])
+
+if "NBA_SPREAD_STD" in OVR:
+    NBA_SPREAD_STD = float(OVR["NBA_SPREAD_STD"])
+
+if "NCAAB_TOTAL_STD" in OVR:
+    NCAAB_TOTAL_STD = float(OVR["NCAAB_TOTAL_STD"])
+
+if "NCAAB_SPREAD_STD" in OVR:
+    NCAAB_SPREAD_STD = float(OVR["NCAAB_SPREAD_STD"])
 
 # =========================
 # HELPERS
@@ -99,7 +154,6 @@ def get_stds(market):
     if market == "NBA":
         return NBA_TOTAL_STD, NBA_SPREAD_STD
     return NCAAB_TOTAL_STD, NCAAB_SPREAD_STD
-
 
 # =========================
 # MAIN
@@ -208,7 +262,7 @@ def main():
                 fair_under.append(fair_under_dec)
                 fair_over.append(fair_over_dec)
 
-                # 🔥 Use reduced EDGE only for NBA totals
+                # Reduced EDGE only for NBA totals
                 edge_used = NBA_TOTAL_EDGE if market == "NBA" else EDGE
 
                 acc_under_dec = fair_under_dec * (1 + edge_used)
@@ -248,7 +302,7 @@ def main():
 
                 try:
                     home_line = float(row["home_spread"])
-                except:
+                except Exception:
                     fair_home.append("")
                     fair_away.append("")
                     acc_home.append("")
