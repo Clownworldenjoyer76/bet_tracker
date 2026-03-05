@@ -1,0 +1,48 @@
+name: Model Parameter Test
+
+on:
+  workflow_dispatch:
+    inputs:
+
+      EDGE:
+        description: "Edge values"
+        default: "0.04,0.05,0.06"
+
+      NBA_TOTAL_STD:
+        description: "NBA total std values"
+        default: "13,14,15"
+
+      NCAAB_TOTAL_STD:
+        description: "NCAAB total std values"
+        default: "11,12,13"
+
+      MAX_RUNS:
+        description: "Maximum combinations to test"
+        default: "20"
+
+jobs:
+
+  test-parameters:
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install pandas numpy
+
+      - name: Run parameter testing script
+        run: |
+          python docs/win/basketball/model_testing/run_parameter_tests.py \
+          "${{ github.event.inputs.EDGE }}" \
+          "${{ github.event.inputs.NBA_TOTAL_STD }}" \
+          "${{ github.event.inputs.NCAAB_TOTAL_STD }}" \
+          "${{ github.event.inputs.MAX_RUNS }}"
