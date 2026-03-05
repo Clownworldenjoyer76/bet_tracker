@@ -5,21 +5,20 @@ import pandas as pd
 from pathlib import Path
 
 SELECT_DIR = Path("docs/win/basketball/04_select")
-DAILY_DIR = SELECT_DIR / "daily_slate"
-DAILY_DIR.mkdir(parents=True, exist_ok=True)
+OUTPUT_DIR = SELECT_DIR / "daily_slate"
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def compute_edge(row):
-    """Return the relevant edge for ranking bets"""
     if row["market_type"] == "total":
         return max(
             float(row.get("over_edge_decimal", 0) or 0),
-            float(row.get("under_edge_decimal", 0) or 0)
+            float(row.get("under_edge_decimal", 0) or 0),
         )
     else:
         return max(
             float(row.get("home_edge_decimal", 0) or 0),
-            float(row.get("away_edge_decimal", 0) or 0)
+            float(row.get("away_edge_decimal", 0) or 0),
         )
 
 
@@ -27,7 +26,7 @@ def trim_games(df):
 
     cleaned = []
 
-    for game, g in df.groupby(["game_date", "away_team", "home_team"]):
+    for _, g in df.groupby(["game_date", "away_team", "home_team"]):
 
         totals = g[g.market_type == "total"].copy()
         sides = g[g.market_type.isin(["spread", "moneyline"])].copy()
@@ -56,22 +55,17 @@ def main():
 
     files = list(SELECT_DIR.glob("*.csv"))
 
-    if not files:
-        print("No select files found.")
-        return
-
     dfs = []
-
     for f in files:
         try:
             df = pd.read_csv(f)
             if not df.empty:
                 dfs.append(df)
-        except Exception as e:
-            print(f"Error reading {f}: {e}")
+        except:
+            continue
 
     if not dfs:
-        print("No data to process.")
+        print("No data found.")
         return
 
     df = pd.concat(dfs, ignore_index=True)
@@ -82,15 +76,17 @@ def main():
     nba_final = trim_games(nba_df)
     ncaab_final = trim_games(ncaab_df)
 
-    nba_out = DAILY_DIR / "nba_selected.csv"
-    ncaab_out = DAILY_DIR / "ncaab_selected.csv"
+    # master files
+    nba_final.to_csv(OUTPUT_DIR / "nba_selected.csv", index=False)
+    ncaab_final.to_csv(OUTPUT_DIR / "ncaab_selected.csv", index=False)
 
-    nba_final.to_csv(nba_out, index=False)
-    ncaab_final.to_csv(ncaab_out, index=False)
+    # daily files
+    for date, g in nba_final.groupby("game_date"):
+        g.to_csv(OUTPUT_DIR / f"{date}_nba.csv", index=False)
 
-    print(f"NBA bets: {len(nba_final)} → {nba_out}")
-    print(f"NCAAB bets: {len(ncaab_final)} → {ncaab_out}")
+    for date, g in ncaab_final.groupby("game_date"):
+        g.to_csv(OUTPUT_DIR / f"{date}_ncaab.csv", index=False)
 
 
-if __name__ == "__main__":
+if name == "main":
     main()
