@@ -16,6 +16,22 @@ on:
         description: "NCAAB total std values"
         default: "11,12,13"
 
+      EDGE_MIN:
+        description: "Minimum edge for bet selection"
+        default: "0.08,0.09,0.10"
+
+      SPREAD_MAX:
+        description: "Maximum spread to allow"
+        default: "12,15,18"
+
+      TOTAL_MIN:
+        description: "Minimum totals line for NCAAB under filter"
+        default: "135,140,145"
+
+      ML_RANGE:
+        description: "Skip ML range (low:high)"
+        default: "-180:-150,-200:-140"
+
       MAX_RUNS:
         description: "Maximum combinations to test"
         default: "20"
@@ -37,7 +53,7 @@ jobs:
         with:
           python-version: "3.11"
 
-      - run: pip install pandas numpy
+      - run: pip install pandas numpy scipy
 
       - name: Run parameter testing script
         run: |
@@ -45,4 +61,8 @@ jobs:
           "${{ github.event.inputs.EDGE }}" \
           "${{ github.event.inputs.NBA_TOTAL_STD }}" \
           "${{ github.event.inputs.NCAAB_TOTAL_STD }}" \
+          "${{ github.event.inputs.EDGE_MIN }}" \
+          "${{ github.event.inputs.SPREAD_MAX }}" \
+          "${{ github.event.inputs.TOTAL_MIN }}" \
+          "${{ github.event.inputs.ML_RANGE }}" \
           "${{ github.event.inputs.MAX_RUNS }}"
