@@ -4,9 +4,22 @@ import pandas as pd
 from datetime import datetime
 from pathlib import Path
 
+# ---------------------------------
+# Force ALL logs into this folder
+# ---------------------------------
+BASE_ERROR_DIR = Path("docs/win/final_scores/errors")
+BASE_ERROR_DIR.mkdir(parents=True, exist_ok=True)
+
+
 def audit(log_path, stage, status, msg="", df=None):
+
     ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    # --------------------------------------------------
+    # Force log_path into docs/win/final_scores/errors
+    # --------------------------------------------------
     log_path = Path(log_path)
+    log_path = BASE_ERROR_DIR / log_path.name
     log_path.parent.mkdir(parents=True, exist_ok=True)
 
     # -----------------------------
@@ -14,40 +27,52 @@ def audit(log_path, stage, status, msg="", df=None):
     # -----------------------------
     log_mode = "w" if not log_path.exists() else "a"
 
-    with open(log_path, log_mode) as f:
+    with open(log_path, log_mode, encoding="utf-8") as f:
         f.write(f"\n[{ts}] [{stage}] {status}\n")
+
         if msg:
             f.write(f"  MSG: {msg}\n")
+
         if df is not None and isinstance(df, pd.DataFrame):
             f.write(f"  STATS: {len(df)} rows | {len(df.columns)} cols\n")
             f.write(f"  NULLS: {df.isnull().sum().sum()} total\n")
             f.write(f"  SAMPLE:\n{df.head(3).to_string(index=False)}\n")
+
         f.write("-" * 40 + "\n")
 
     # -----------------------------
     # 2. CONDENSED SUMMARY (TXT)
     # -----------------------------
     if df is not None and isinstance(df, pd.DataFrame):
-        summary_path = log_path.parent / "condensed_summary.txt"
+
+        summary_path = BASE_ERROR_DIR / "condensed_summary.txt"
 
         # Identify active plays based on your headers
-        play_cols = [c for c in ['home_play', 'away_play', 'over_play', 'under_play'] if c in df.columns]
+        play_cols = [
+            c for c in ['home_play', 'away_play', 'over_play', 'under_play']
+            if c in df.columns
+        ]
 
         if play_cols:
+
             signals = df[df[play_cols].any(axis=1)].copy()
 
             if not signals.empty:
 
                 summary_mode = "w" if not summary_path.exists() else "a"
 
-                with open(summary_path, summary_mode) as f:
+                with open(summary_path, summary_mode, encoding="utf-8") as f:
+
                     f.write(f"\n--- BETTING SIGNALS: {ts} ---\n")
 
                     # Filter identifying columns and edge columns
                     base_cols = ['game_date', 'home_team', 'away_team']
                     edge_cols = [c for c in df.columns if 'edge_pct' in c]
 
-                    final_cols = [c for c in base_cols + edge_cols if c in signals.columns]
+                    final_cols = [
+                        c for c in base_cols + edge_cols
+                        if c in signals.columns
+                    ]
 
                     f.write(signals[final_cols].to_string(index=False))
                     f.write("\n" + "=" * 30 + "\n")
