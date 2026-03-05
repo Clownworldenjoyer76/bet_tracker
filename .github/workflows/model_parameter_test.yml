@@ -47,13 +47,19 @@ jobs:
 
     steps:
 
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - uses: actions/setup-python@v5
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - run: pip install pandas numpy scipy
+      - name: Install Dependencies
+        run: |
+          pip install pandas numpy scipy
 
       - name: Run parameter testing script
         run: |
@@ -66,3 +72,19 @@ jobs:
           "${{ github.event.inputs.TOTAL_MIN }}" \
           "${{ github.event.inputs.ML_RANGE }}" \
           "${{ github.event.inputs.MAX_RUNS }}"
+
+      - name: Show Git Changes
+        run: |
+          git status
+          git diff || true
+
+      - name: Commit and Push Results
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+          git add docs/win/basketball/model_testing || true
+
+          git diff --staged --quiet || git commit -m "Auto-update: model parameter test results"
+
+          git push
