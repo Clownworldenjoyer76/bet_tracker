@@ -14,23 +14,23 @@ if (!window.REPO_CONFIG) {
 
 init();
 
-function init() {
+function init(){
 
   dateInput.value = new Date().toLocaleDateString("en-CA");
 
-  dateInput.addEventListener("change", loadPage);
+  dateInput.addEventListener("change",loadPage);
 
-  modal.addEventListener("click", e => {
-    if (e.target === modal) modal.classList.remove("open");
+  modal.addEventListener("click",e=>{
+    if(e.target===modal) modal.classList.remove("open");
   });
 
   loadPage();
 
 }
 
-async function loadPage() {
+async function loadPage(){
 
-  const date = (dateInput.value || "").replaceAll("-", "_");
+  const date = (dateInput.value || "").replaceAll("-","_");
 
   statusEl.textContent = "Loading...";
   gamesEl.innerHTML = "";
@@ -39,59 +39,61 @@ async function loadPage() {
 
   let totalPicks = 0;
 
-  for (const league of leagues) {
+  for(const league of leagues){
 
     const cfg = REPO_CONFIG[league];
 
-    const column = document.createElement("div");
-    column.className = "league-column";
+    const column=document.createElement("div");
+    column.className="league-column";
 
-    const header = document.createElement("div");
-    header.className = "league-header";
-    header.textContent = league;
+    const header=document.createElement("div");
+    header.className="league-header";
+    header.textContent=league;
 
     column.appendChild(header);
 
-    try {
+    try{
 
-      const selectRows = await fetchMultiple(cfg.selectFiles(date));
-      const predRows = await fetchCSV(cfg.predFile(date));
-      const bookRows = await fetchCSV(cfg.bookFile(date));
+      const selectRows=await fetchMultiple(cfg.selectFiles(date));
+      const predRows=await fetchCSV(cfg.predFile(date));
+      const bookRows=await fetchCSV(cfg.bookFile(date));
 
-      const predMap = buildGameMap(predRows);
-      const bookMap = buildGameMap(bookRows);
+      const predMap=buildGameMap(predRows);
+      const bookMap=buildGameMap(bookRows);
 
-      const merged = selectRows.map(sel => {
-        const key = makeKey(sel);
-        return { ...sel, ...(predMap[key]||{}), ...(bookMap[key]||{}), __key:key };
+      const merged=selectRows.map(sel=>{
+        const key=makeKey(sel);
+        return {...sel,...(predMap[key]||{}),...(bookMap[key]||{}),__key:key};
       });
 
-      const grouped = {};
+      const grouped={};
 
       merged.forEach(r=>{
         if(!grouped[r.__key]) grouped[r.__key]=[];
         grouped[r.__key].push(r);
       });
 
-      const keys = Object.keys(grouped).sort((a,b)=>{
-        return parseTime(grouped[a][0].game_time) - parseTime(grouped[b][0].game_time);
+      const keys=Object.keys(grouped).sort((a,b)=>{
+        return parseTime(grouped[a][0].game_time)-parseTime(grouped[b][0].game_time);
       });
 
       keys.forEach(key=>{
-        const picks = grouped[key];
-        const r = picks[0];
+
+        const picks=grouped[key];
+        const r=picks[0];
 
         picks.forEach(p=>{
-          const card = document.createElement("div");
-          card.className = "pick-card";
 
-          const bet = buildBetText(p);
+          const card=document.createElement("div");
+          card.className="pick-card";
+
+          const betText = buildBetText(p,r,cfg);
           const edge = extractEdge(p);
 
-          card.innerHTML = `
+          card.innerHTML=`
             <div class="pick-time">${r.game_time||"-"}</div>
             <div class="pick-matchup">${r.away_team||"-"} @ ${r.home_team||"-"}</div>
-            <div class="pick-bet">${bet}</div>
+            <div class="pick-bet">${betText}</div>
             <div class="pick-edge">${edgeIcon(edge)}</div>
           `;
 
@@ -102,16 +104,72 @@ async function loadPage() {
           column.appendChild(card);
 
           totalPicks++;
+
         });
+
       });
 
-    } catch {}
+    }catch{}
 
     gamesEl.appendChild(column);
 
   }
 
   statusEl.textContent = totalPicks + " picks found";
+
+}
+
+function buildBetText(p,r,cfg){
+
+  const market = p.market_type || "";
+  const side = p.bet_side || "";
+  const line = p.line || "";
+  const odds = p.take_odds || "";
+
+  if(cfg.isHockey){
+
+    if(market==="total"){
+
+      if(side==="under") return `Under ${line} ${odds}`.trim();
+      if(side==="over") return `Over ${line} ${odds}`.trim();
+
+    }
+
+    if(market==="puck_line"){
+
+      if(side==="away") return `${r.away_team} ${formatSpread(line)} ${odds}`.trim();
+      if(side==="home") return `${r.home_team} ${formatSpread(line)} ${odds}`.trim();
+
+    }
+
+    if(market==="moneyline"){
+
+      if(side==="away") return `${r.away_team} ${odds}`.trim();
+      if(side==="home") return `${r.home_team} ${odds}`.trim();
+
+    }
+
+  }
+
+  if(p.take_bet){
+    return `${p.take_bet} ${line} ${odds}`.trim();
+  }
+
+  return `${side} ${line}`.trim();
+
+}
+
+function formatSpread(line){
+
+  if(line==="1.5") return "+1.5";
+  if(line==="-1.5") return "-1.5";
+
+  const num=parseFloat(line);
+  if(isNaN(num)) return line;
+
+  if(num>0) return "+"+num;
+
+  return num.toString();
 
 }
 
@@ -203,24 +261,6 @@ function makeKey(r){
   const awayTeam=(r.away_team||"").trim();
 
   return gameDate+"|"+homeTeam+"|"+awayTeam;
-
-}
-
-function buildBetText(p){
-
-  if(p.take_bet){
-
-    const line=p.line||"";
-    const odds=p.take_odds||"";
-
-    return `${p.take_bet} ${line} ${odds}`.trim();
-
-  }
-
-  const side=p.bet_side||"";
-  const line=p.line||"";
-
-  return `${side} ${line}`;
 
 }
 
