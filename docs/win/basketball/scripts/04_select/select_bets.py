@@ -28,7 +28,6 @@ def audit(log_path, stage, status, msg="", df=None):
     if df is not None and isinstance(df, pd.DataFrame):
         summary_path = log_path.parent / "condensed_summary.txt"
         
-        # Identification for 'select_bets' output
         is_selection = 'bet_side' in df.columns
         
         if is_selection:
@@ -73,13 +72,11 @@ def main():
 
                 if league == "NBA":
 
-                    # IMPORTANT: Use edge_pct (relative edge) to avoid underdog/longshot bias
                     edges = {
-                        "over": float(row.get("over_edge_pct", 0) or 0),
-                        "under": float(row.get("under_edge_pct", 0) or 0),
+                        "over": float(row.get("over_edge_decimal", 0) or 0),
+                        "under": float(row.get("under_edge_decimal", 0) or 0),
                     }
 
-                    # only allow positive edges
                     valid_edges = {k: v for k, v in edges.items() if pd.notna(v) and v > 0}
                     if not valid_edges:
                         continue
@@ -87,12 +84,10 @@ def main():
                     side = max(valid_edges, key=valid_edges.get)
                     edge = valid_edges[side]
 
-                    # base threshold for NBA totals using edge_pct
-                    edge_required = 0.07  # ~7% relative edge
+                    edge_required = 0.07
 
-                    # your existing logic, translated to edge_pct world
                     if pd.notna(line) and line <= 205 and side == "over":
-                        edge_required -= 0.02  # slightly easier for low totals overs
+                        edge_required -= 0.02
 
                     if pd.notna(line) and line <= 205 and side == "under":
                         continue
@@ -100,11 +95,9 @@ def main():
                     if pd.notna(line) and line > 245:
                         continue
 
-                    # sanity check projected total difference
                     if diff < 3:
                         continue
 
-                    # guardrail: if edge_pct is absurdly high, it's usually bad inputs
                     if edge > 0.35:
                         continue
 
@@ -153,10 +146,9 @@ def main():
 
                 if league == "NBA":
 
-                    # IMPORTANT: Use edge_pct (relative edge)
                     edges = {
-                        "home": float(row.get("home_edge_pct", 0) or 0),
-                        "away": float(row.get("away_edge_pct", 0) or 0),
+                        "home": float(row.get("home_edge_decimal", 0) or 0),
+                        "away": float(row.get("away_edge_decimal", 0) or 0),
                     }
 
                     valid_edges = {k: v for k, v in edges.items() if pd.notna(v) and v > 0}
@@ -166,7 +158,6 @@ def main():
                     side = max(valid_edges, key=valid_edges.get)
                     edge = valid_edges[side]
 
-                    # threshold in edge_pct terms
                     if edge >= 0.06:
 
                         spread_val = float(row.get(f"{side}_spread")) if pd.notna(row.get(f"{side}_spread")) else 0.0
@@ -176,7 +167,6 @@ def main():
                         if spread_abs > 15:
                             continue
 
-                        # remove overpriced large home favorites
                         if spread_val <= -7.5 and venue == "home":
                             continue
 
@@ -212,10 +202,9 @@ def main():
 
                 if league == "NBA":
 
-                    # IMPORTANT: Use edge_pct (relative edge) to stop big-dog bias
                     edges = {
-                        "home": float(row.get("home_edge_pct", 0) or 0),
-                        "away": float(row.get("away_edge_pct", 0) or 0),
+                        "home": float(row.get("home_edge_decimal", 0) or 0),
+                        "away": float(row.get("away_edge_decimal", 0) or 0),
                     }
 
                     valid_edges = {k: v for k, v in edges.items() if pd.notna(v) and v > 0}
@@ -229,18 +218,15 @@ def main():
                     venue = side
                     fav_ud = "favorite" if odds < 0 else "underdog"
 
-                    # avoid overpriced home favorites
                     if fav_ud == "favorite" and venue == "home" and -180 <= odds <= -140:
                         continue
 
                     if fav_ud == "favorite" and odds <= -500:
                         continue
 
-                    # avoid massive dogs
                     if fav_ud == "underdog" and odds >= 350:
                         continue
 
-                    # edge_pct thresholds
                     if fav_ud == "favorite":
                         edge_required = 0.06
                     else:
@@ -249,15 +235,12 @@ def main():
                     if fav_ud == "favorite" and venue == "home":
                         edge_required = 0.08
 
-                    # historically good band: away dogs +130 to +160
                     if fav_ud == "underdog" and venue == "away" and 130 <= odds <= 160:
                         edge_required = 0.05
 
-                    # extra penalty for home sides generally
                     if venue == "home":
                         edge_required += 0.01
 
-                    # guardrail: if edge_pct is absurdly high, it's often bad inputs
                     if edge > 0.35:
                         continue
 
