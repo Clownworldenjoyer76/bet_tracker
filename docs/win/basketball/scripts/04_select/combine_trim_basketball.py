@@ -10,6 +10,7 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def compute_edge(row):
+    """Return the relevant edge used for ranking bets"""
     if row["market_type"] == "total":
         return max(
             float(row.get("over_edge_decimal", 0) or 0),
@@ -23,13 +24,21 @@ def compute_edge(row):
 
 
 def trim_games(df):
+    """
+    Enforce betting rules per game:
+    - Maximum 2 bets per game
+    - Only ONE of: spread OR moneyline
+    - Only ONE of: over OR under
+    """
 
-    cleaned = []
+    cleaned_rows = []
 
-    for _, g in df.groupby(["game_date", "away_team", "home_team"]):
+    grouped = df.groupby(["game_date", "away_team", "home_team"])
 
-        totals = g[g.market_type == "total"].copy()
-        sides = g[g.market_type.isin(["spread", "moneyline"])].copy()
+    for _, game_df in grouped:
+
+        totals = game_df[game_df["market_type"] == "total"].copy()
+        sides = game_df[game_df["market_type"].isin(["spread", "moneyline"])].copy()
 
         best_total = None
         best_side = None
@@ -43,29 +52,37 @@ def trim_games(df):
             best_side = sides.sort_values("edge", ascending=False).iloc[0]
 
         if best_side is not None:
-            cleaned.append(best_side)
+            cleaned_rows.append(best_side)
 
         if best_total is not None:
-            cleaned.append(best_total)
+            cleaned_rows.append(best_total)
 
-    return pd.DataFrame(cleaned)
+    if not cleaned_rows:
+        return pd.DataFrame()
+
+    return pd.DataFrame(cleaned_rows)
 
 
 def main():
 
     files = list(SELECT_DIR.glob("*.csv"))
 
+    if not files:
+        print("No select files found.")
+        return
+
     dfs = []
+
     for f in files:
         try:
             df = pd.read_csv(f)
             if not df.empty:
                 dfs.append(df)
-        except:
-            continue
+        except Exception as e:
+            print(f"Error reading {f}: {e}")
 
     if not dfs:
-        print("No data found.")
+        print("No data to process.")
         return
 
     df = pd.concat(dfs, ignore_index=True)
@@ -73,20 +90,32 @@ def main():
     nba_df = df[df["market"].str.contains("NBA", na=False)]
     ncaab_df = df[df["market"].str.contains("NCAAB", na=False)]
 
-    nba_final = trim_games(nba_df)
-    ncaab_final = trim_games(ncaab_df)
+    nba_trimmed = trim_games(nba_df)
+    ncaab_trimmed = trim_games(ncaab_df)
 
-    # master files
-    nba_final.to_csv(OUTPUT_DIR / "nba_selected.csv", index=False)
-    ncaab_final.to_csv(OUTPUT_DIR / "ncaab_selected.csv", index=False)
+    # ---------- MASTER FILES ----------
 
-    # daily files
-    for date, g in nba_final.groupby("game_date"):
-        g.to_csv(OUTPUT_DIR / f"{date}_nba.csv", index=False)
+    nba_master = OUTPUT_DIR / "nba_selected.csv"
+    ncaab_master = OUTPUT_DIR / "ncaab_selected.csv"
 
-    for date, g in ncaab_final.groupby("game_date"):
-        g.to_csv(OUTPUT_DIR / f"{date}_ncaab.csv", index=False)
+    nba_trimmed.to_csv(nba_master, index=False)
+    ncaab_trimmed.to_csv(ncaab_master, index=False)
+
+    print(f"NBA master: {nba_master}")
+    print(f"NCAAB master: {ncaab_master}")
+
+    # ---------- DAILY FILES ----------
+
+    for date, g in nba_trimmed.groupby("game_date"):
+        path = OUTPUT_DIR / f"{date}_nba.csv"
+        g.to_csv(path, index=False)
+
+    for date, g in ncaab_trimmed.groupby("game_date"):
+        path = OUTPUT_DIR / f"{date}_ncaab.csv"
+        g.to_csv(path, index=False)
+
+    print("Daily slate files created.")
 
 
-if name == "main":
+if __name__ == "__main__":
     main()
