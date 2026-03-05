@@ -115,6 +115,22 @@ def main():
 
                     elif league == "NCAAB":
 
+                        # -------------------------
+                        # ADDED NCAAB RULES (ONLY)
+                        # 4) SKIP edges > 0.30
+                        # 5) Require edge >= 0.10 for all bets
+                        # 3) [totals] Skip UNDER when total line < 140
+                        # -------------------------
+
+                        if edge > 0.30:
+                            continue
+
+                        if edge < 0.10:
+                            continue
+
+                        if side == "under" and pd.notna(line) and line < 140:
+                            continue
+
                         if side == "over":
                             if line < 150 and not (edge >= 0.02 and diff >= 4):
                                 continue
@@ -159,6 +175,22 @@ def main():
 
                     elif league == "NCAAB":
 
+                        # -------------------------
+                        # ADDED NCAAB RULES (ONLY)
+                        # 4) SKIP edges > 0.30
+                        # 5) Require edge >= 0.10 for all bets
+                        # 2) [Away spreads] If bet_side = away → require edge ≥ 0.10
+                        # -------------------------
+
+                        if edge > 0.30:
+                            continue
+
+                        if edge < 0.10:
+                            continue
+
+                        if side == "away" and edge < 0.10:
+                            continue
+
                         if edge < 0.07 or abs(spread) > 20:
                             continue
 
@@ -192,6 +224,22 @@ def main():
                             continue
 
                     elif league == "NCAAB":
+
+                        # -------------------------
+                        # ADDED NCAAB RULES (ONLY)
+                        # 4) SKIP edges > 0.30
+                        # 5) Require edge >= 0.10 for all bets
+                        # 1) [MONEYLINE] Skip home ML between -150 and -180
+                        # -------------------------
+
+                        if edge > 0.30:
+                            continue
+
+                        if edge < 0.10:
+                            continue
+
+                        if side == "home" and (-180 <= odds <= -150):
+                            continue
 
                         if edge < 0.06 or prob < 0.60:
                             continue
