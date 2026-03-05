@@ -108,11 +108,11 @@ def determine_outcome(row) -> str:
 def write_market_master(cfg: dict, output_dir: Path) -> None:
     """
     Combine all per-date graded results for a market into one master file:
-      docs/win/final_scores/results/<market>/graded/<MARKET>_final.csb
+      docs/win/final_scores/results/<market>/graded/<MARKET>_final.csv
     """
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    master_path = output_dir / f"{cfg['name']}_final.csb"
+    master_path = output_dir / f"{cfg['name']}_final.csv"
 
     # Only include per-date results files, exclude the master file itself.
     pattern = str(output_dir / f"*_results_{cfg['suffix']}.csv")
