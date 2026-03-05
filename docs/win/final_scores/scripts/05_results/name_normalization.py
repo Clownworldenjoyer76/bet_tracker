@@ -8,217 +8,200 @@ from pathlib import Path
 from datetime import datetime
 
 # =========================
-
 # LOGGER UTILITY
-
 # =========================
 
 def audit(log_path, stage, status, msg="", df=None):
-ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-log_path = Path(log_path)
-log_path.parent.mkdir(parents=True, exist_ok=True)
+    ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    log_path = Path(log_path)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
 
-```
-log_mode = "w" if not log_path.exists() else "a"
+    log_mode = "w" if not log_path.exists() else "a"
 
-with open(log_path, log_mode) as f:  
-    f.write(f"\n[{ts}] [{stage}] {status}\n")  
-    if msg:  
-        f.write(f"  MSG: {msg}\n")  
-    if df is not None and isinstance(df, pd.DataFrame):  
-        f.write(f"  STATS: {len(df)} rows | {len(df.columns)} cols\n")  
-        f.write(f"  NULLS: {df.isnull().sum().sum()} total\n")  
-        f.write(f"  SAMPLE:\n{df.head(3).to_string(index=False)}\n")  
-    f.write("-" * 40 + "\n")
+    with open(log_path, log_mode) as f:
+        f.write(f"\n[{ts}] [{stage}] {status}\n")
+        if msg:
+            f.write(f"  MSG: {msg}\n")
+        if df is not None and isinstance(df, pd.DataFrame):
+            f.write(f"  STATS: {len(df)} rows | {len(df.columns)} cols\n")
+            f.write(f"  NULLS: {df.isnull().sum().sum()} total\n")
+            f.write(f"  SAMPLE:\n{df.head(3).to_string(index=False)}\n")
+        f.write("-" * 40 + "\n")
 
-if df is not None and isinstance(df, pd.DataFrame):  
-    summary_path = log_path.parent / "condensed_summary.txt"
+    if df is not None and isinstance(df, pd.DataFrame):
+        summary_path = log_path.parent / "condensed_summary.txt"
 
-    play_cols = [c for c in ['home_play', 'away_play', 'over_play', 'under_play'] if c in df.columns]
+        play_cols = [c for c in ['home_play', 'away_play', 'over_play', 'under_play'] if c in df.columns]
 
-    if play_cols:  
-        signals = df[df[play_cols].any(axis=1)].copy()
+        if play_cols:
+            signals = df[df[play_cols].any(axis=1)].copy()
 
-        if not signals.empty:  
-            summary_mode = "w" if not summary_path.exists() else "a"
+            if not signals.empty:
+                summary_mode = "w" if not summary_path.exists() else "a"
 
-            with open(summary_path, summary_mode) as f:  
-                f.write(f"\n--- BETTING SIGNALS: {ts} ---\n")
+                with open(summary_path, summary_mode) as f:
+                    f.write(f"\n--- BETTING SIGNALS: {ts} ---\n")
 
-                base_cols = ['game_date', 'home_team', 'away_team']  
-                edge_cols = [c for c in df.columns if 'edge_pct' in c]
+                    base_cols = ['game_date', 'home_team', 'away_team']
+                    edge_cols = [c for c in df.columns if 'edge_pct' in c]
 
-                final_cols = [c for c in base_cols + edge_cols if c in signals.columns]
+                    final_cols = [c for c in base_cols + edge_cols if c in signals.columns]
 
-                f.write(signals[final_cols].to_string(index=False))  
-                f.write("\n" + "=" * 30 + "\n")
-```
+                    f.write(signals[final_cols].to_string(index=False))
+                    f.write("\n" + "=" * 30 + "\n")
+
 
 # =========================
-
 # CONFIGURATION
-
 # =========================
 
 ERROR_LOG = Path("docs/win/final_scores/scripts/05_results/normalization_audit.txt")
 
 TARGET_DIRS = [
-"docs/win/basketball/04_select",
-"docs/win/hockey/04_select",
-"docs/win/final_scores/results/nba/final_scores",
-"docs/win/final_scores/results/ncaab/final_scores",
-"docs/win/final_scores/results/nhl/final_scores",
+    "docs/win/basketball/04_select",
+    "docs/win/hockey/04_select",
+    "docs/win/final_scores/results/nba/final_scores",
+    "docs/win/final_scores/results/ncaab/final_scores",
+    "docs/win/final_scores/results/nhl/final_scores",
 ]
 
 MAP_FILES = {
-"NBA": "mappings/basketball/team_map_nba.csv",
-"NCAAB": "mappings/basketball/team_map_ncaab.csv",
-"NHL": "mappings/hockey/team_map_hockey.csv",
+    "NBA": "mappings/basketball/team_map_nba.csv",
+    "NCAAB": "mappings/basketball/team_map_ncaab.csv",
+    "NHL": "mappings/hockey/team_map_hockey.csv",
 }
 
 NO_MAP_FILE = Path("mappings/05_no_map/no_team_map.csv")
 NO_MAP_FILE.parent.mkdir(parents=True, exist_ok=True)
 
 # =========================
-
 # LOAD TEAM MAPS
-
 # =========================
 
 def load_maps():
 
-```
-maps = {}
+    maps = {}
 
-for market, path in MAP_FILES.items():
+    for market, path in MAP_FILES.items():
 
-    df = pd.read_csv(path)
+        df = pd.read_csv(path)
 
-    df["alias"] = df["alias"].str.strip().str.lower()  
-    df["canonical_team"] = df["canonical_team"].str.strip()
+        df["alias"] = df["alias"].str.strip().str.lower()
+        df["canonical_team"] = df["canonical_team"].str.strip()
 
-    maps[market] = dict(zip(df["alias"], df["canonical_team"]))
+        maps[market] = dict(zip(df["alias"], df["canonical_team"]))
 
-return maps
-```
+    return maps
+
 
 # =========================
-
 # DETECT MARKET FROM FILE
-
 # =========================
 
 def detect_market(file_path):
 
-```
-name = Path(file_path).name.lower()
+    name = Path(file_path).name.lower()
 
-if "nba" in name:
-    return "NBA"
-elif "ncaab" in name:
-    return "NCAAB"
-elif "nhl" in name:
-    return "NHL"
+    if "nba" in name:
+        return "NBA"
+    elif "ncaab" in name:
+        return "NCAAB"
+    elif "nhl" in name:
+        return "NHL"
 
-return None
-```
+    return None
+
 
 # =========================
-
 # NORMALIZE FILE
-
 # =========================
 
 def normalize_file(file_path, market, team_map, missing):
 
-```
-try:
+    try:
 
-    df = pd.read_csv(file_path)
+        df = pd.read_csv(file_path)
 
-    if "away_team" not in df.columns or "home_team" not in df.columns:
-        return
+        if "away_team" not in df.columns or "home_team" not in df.columns:
+            return
 
-    updated = False
+        updated = False
 
-    for col in ["away_team", "home_team"]:
+        for col in ["away_team", "home_team"]:
 
-        normalized = []
+            normalized = []
 
-        for team in df[col]:
+            for team in df[col]:
 
-            if pd.isna(team):
-                normalized.append(team)
-                continue
+                if pd.isna(team):
+                    normalized.append(team)
+                    continue
 
-            alias = str(team).strip().lower()
+                alias = str(team).strip().lower()
 
-            if alias in team_map:
-                normalized.append(team_map[alias])
-                updated = True
-            else:
-                normalized.append(team)
-                missing.add((market, alias))
+                if alias in team_map:
+                    normalized.append(team_map[alias])
+                    updated = True
+                else:
+                    normalized.append(team)
+                    missing.add((market, alias))
 
-        df[col] = normalized
+            df[col] = normalized
 
-    if updated:
-        df.to_csv(file_path, index=False)
-        audit(ERROR_LOG, "NORMALIZE", "SUCCESS", msg=f"Normalized {file_path}", df=df)
+        if updated:
+            df.to_csv(file_path, index=False)
+            audit(ERROR_LOG, "NORMALIZE", "SUCCESS", msg=f"Normalized {file_path}", df=df)
 
-except Exception as e:
+    except Exception as e:
 
-    print(f"Error processing {file_path}: {e}")
-    audit(ERROR_LOG, "NORMALIZE", "ERROR", msg=f"Error processing {file_path}: {str(e)}")
-```
+        print(f"Error processing {file_path}: {e}")
+        audit(ERROR_LOG, "NORMALIZE", "ERROR", msg=f"Error processing {file_path}: {str(e)}")
+
 
 # =========================
-
 # MAIN
-
 # =========================
 
 def main():
 
-```
-team_maps = load_maps()
+    team_maps = load_maps()
 
-missing = set()
+    missing = set()
 
-for directory in TARGET_DIRS:
+    for directory in TARGET_DIRS:
 
-    files = glob.glob(f"{directory}/*.csv")
+        files = glob.glob(f"{directory}/*.csv")
 
-    for file_path in files:
+        for file_path in files:
 
-        market = detect_market(file_path)
+            market = detect_market(file_path)
 
-        if not market:
-            continue
+            if not market:
+                continue
 
-        team_map = team_maps.get(market)
+            team_map = team_maps.get(market)
 
-        normalize_file(file_path, market, team_map, missing)
+            normalize_file(file_path, market, team_map, missing)
 
-# -----------------------------
-# WRITE MISSING TEAM MAPS
-# -----------------------------
+    # -----------------------------
+    # WRITE MISSING TEAM MAPS
+    # -----------------------------
 
-if missing:
+    if missing:
 
-    df_missing = pd.DataFrame(
-        sorted(list(missing)),
-        columns=["market", "alias"]
-    )
+        df_missing = pd.DataFrame(
+            sorted(list(missing)),
+            columns=["market", "alias"]
+        )
 
-    if NO_MAP_FILE.exists():
-        existing = pd.read_csv(NO_MAP_FILE)
-        df_missing = pd.concat([existing, df_missing]).drop_duplicates()
+        if NO_MAP_FILE.exists():
+            existing = pd.read_csv(NO_MAP_FILE)
+            df_missing = pd.concat([existing, df_missing]).drop_duplicates()
 
-    df_missing.to_csv(NO_MAP_FILE, index=False)
+        df_missing.to_csv(NO_MAP_FILE, index=False)
 
-    audit(ERROR_LOG, "MISSING_MAPS", "INFO", msg="Updated no_team_map.csv", df=df_missing)
-```
+        audit(ERROR_LOG, "MISSING_MAPS", "INFO", msg="Updated no_team_map.csv", df=df_missing)
 
-if **name** == "**main**":
-main()
+
+if __name__ == "__main__":
+    main()
