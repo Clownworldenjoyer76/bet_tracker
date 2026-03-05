@@ -1,4 +1,5 @@
 # docs/win/final_scores/scripts/05_results/results.py
+
 import pandas as pd
 import os
 import glob
@@ -38,115 +39,141 @@ def log_error(message):
         f.write(message + "\n")
 
 def process_results():
+
     with open(ERROR_LOG, "w", encoding="utf-8") as f:
         f.write("=== Results Script Log ===\n\n")
 
     configs = [
-        {"name": "NHL", "scores_sub": "nhl", "bets_dir": "docs/win/hockey/04_select", "suffix": "NHL"},
-        {"name": "NBA", "scores_sub": "nba", "bets_dir": "docs/win/basketball/04_select", "suffix": "NBA"},
-        {"name": "NCAAB", "scores_sub": "ncaab", "bets_dir": "docs/win/basketball/04_select", "suffix": "NCAAB"}
+        {
+            "name": "NHL",
+            "scores_sub": "nhl",
+            "bets_dir": "docs/win/hockey/04_select",
+            "suffix": "NHL",
+            "pattern": "*NHL*.csv"
+        },
+        {
+            "name": "NBA",
+            "scores_sub": "nba",
+            "bets_dir": "docs/win/basketball/04_select/daily_slate",
+            "suffix": "NBA",
+            "pattern": "*_nba.csv"
+        },
+        {
+            "name": "NCAAB",
+            "scores_sub": "ncaab",
+            "bets_dir": "docs/win/basketball/04_select/daily_slate",
+            "suffix": "NCAAB",
+            "pattern": "*_ncaab.csv"
+        }
     ]
 
     for cfg in configs:
+
         scores_dir = f"docs/win/final_scores/results/{cfg['scores_sub']}/final_scores"
         output_dir = f"docs/win/final_scores/results/{cfg['scores_sub']}/graded"
         os.makedirs(output_dir, exist_ok=True)
 
-        search_pattern = os.path.join(cfg['bets_dir'], f"*{cfg['suffix']}*.csv")
-        bet_files = glob.glob(search_pattern)
+        bet_files = glob.glob(os.path.join(cfg["bets_dir"], cfg["pattern"]))
 
         dates = set()
+
         for f in bet_files:
             match = re.search(r"(\d{4}_\d{2}_\d{2})", os.path.basename(f))
-            if match: dates.add(match.group(1))
+            if match:
+                dates.add(match.group(1))
 
         for date_str in sorted(dates):
+
             score_file = os.path.join(scores_dir, f"{date_str}_final_scores_{cfg['suffix']}.csv")
             output_path = os.path.join(output_dir, f"{date_str}_results_{cfg['suffix']}.csv")
 
             if not os.path.exists(score_file):
                 continue
 
-            daily_bet_files = glob.glob(os.path.join(cfg['bets_dir'], f"{date_str}*{cfg['suffix']}*.csv"))
+            daily_bet_files = glob.glob(os.path.join(cfg["bets_dir"], f"{date_str}*.csv"))
+
             valid_dfs = []
 
             for bf in daily_bet_files:
                 try:
                     df_temp = pd.read_csv(bf)
-                    if df_temp.empty: continue
-                    valid_dfs.append(df_temp)
+                    if not df_temp.empty:
+                        valid_dfs.append(df_temp)
                 except Exception:
                     log_error(f"ERROR READING {bf}: {traceback.format_exc()}")
-                    continue
 
-            if not valid_dfs: continue
+            if not valid_dfs:
+                continue
 
             bets_df = pd.concat(valid_dfs, ignore_index=True)
             scores_df = pd.read_csv(score_file)
 
-            # Merge on core identifiers
-            df = pd.merge(bets_df, scores_df, on=['away_team', 'home_team', 'game_date'], suffixes=('', '_scorefile'))
-            if df.empty: continue
+            df = pd.merge(
+                bets_df,
+                scores_df,
+                on=["away_team", "home_team", "game_date"],
+                suffixes=("", "_scorefile")
+            )
+
+            if df.empty:
+                continue
 
             def determine_outcome(row):
-                # Data Extraction using REAL HEADERS
-                m_type, side, line = 'unknown', 'unknown', 0.0
-                
-                # 1. Check for explicit headers (NHL or newly updated TOTALS)
-                if 'market_type' in row and pd.notna(row['market_type']):
-                    m_type = str(row['market_type']).lower()
-                    side = str(row['bet_side']).lower()
-                    line = float(row.get('line', 0))
-                
-                # 2. Fallback to Column Inference for Moneyline/Spread (Basketball)
-                else:
-                    # Totals Inference
-                    if 'over_play' in row or 'under_play' in row:
-                        m_type = 'total'
-                        line = float(row.get('total', 0))
-                        side = 'over' if str(row.get('over_play')).lower() == 'true' else 'under'
-                    
-                    # Spread Inference
-                    elif 'home_spread' in row or 'away_spread' in row:
-                        m_type = 'spread'
-                        if str(row.get('home_play')).lower() == 'true':
-                            side, line = 'home', float(row.get('home_spread', 0))
-                        else:
-                            side, line = 'away', float(row.get('away_spread', 0))
 
-                    # Moneyline Inference
-                    elif 'home_play' in row or 'away_play' in row:
-                        m_type = 'moneyline'
-                        side = 'home' if str(row.get('home_play')).lower() == 'true' else 'away'
+                m_type = str(row["market_type"]).lower()
+                side = str(row["bet_side"]).lower()
+                line = float(row.get("line", 0))
 
-                # Grading Logic
-                away_s, home_s = float(row['away_score']), float(row['home_score'])
-                
-                if m_type == 'total':
+                away_s = float(row["away_score"])
+                home_s = float(row["home_score"])
+
+                if m_type == "total":
                     total_score = away_s + home_s
-                    if total_score == line: return 'Push'
-                    return 'Win' if (total_score < line if side == 'under' else total_score > line) else 'Loss'
-                
-                if m_type == 'moneyline':
-                    if away_s == home_s: return 'Push'
-                    return 'Win' if (away_s > home_s if side == 'away' else home_s > away_s) else 'Loss'
-                
-                if m_type in ['spread', 'puck_line']:
-                    diff = (away_s + line) - home_s if side == 'away' else (home_s + line) - away_s
-                    if diff == 0: return 'Push'
-                    return 'Win' if diff > 0 else 'Loss'
-                
-                return 'Unknown'
+                    if total_score == line:
+                        return "Push"
+                    return "Win" if (total_score < line if side == "under" else total_score > line) else "Loss"
 
-            df['bet_result'] = df.apply(determine_outcome, axis=1)
+                if m_type == "moneyline":
+                    if away_s == home_s:
+                        return "Push"
+                    return "Win" if (away_s > home_s if side == "away" else home_s > away_s) else "Loss"
 
-            # Columns to keep in final output
-            core_cols = ['game_date', 'away_team', 'home_team', 'away_score', 'home_score', 'bet_result']
-            extra_cols = ['market', 'market_type', 'bet_side', 'line', 'home_edge_decimal', 'away_edge_decimal', 'over_edge_decimal', 'under_edge_decimal']
+                if m_type in ["spread", "puck_line"]:
+                    diff = (away_s + line) - home_s if side == "away" else (home_s + line) - away_s
+                    if diff == 0:
+                        return "Push"
+                    return "Win" if diff > 0 else "Loss"
+
+                return "Unknown"
+
+            df["bet_result"] = df.apply(determine_outcome, axis=1)
+
+            core_cols = [
+                "game_date",
+                "away_team",
+                "home_team",
+                "away_score",
+                "home_score",
+                "bet_result"
+            ]
+
+            extra_cols = [
+                "market",
+                "market_type",
+                "bet_side",
+                "line",
+                "home_edge_decimal",
+                "away_edge_decimal",
+                "over_edge_decimal",
+                "under_edge_decimal"
+            ]
+
             final_cols = core_cols + [c for c in extra_cols if c in df.columns]
-            
+
             df[final_cols].to_csv(output_path, index=False)
+
             audit(ERROR_LOG, "GRADING", "SUCCESS", msg=f"Graded {cfg['name']} {date_str}", df=df)
+
 
 if __name__ == "__main__":
     process_results()
