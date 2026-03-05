@@ -7,32 +7,62 @@ import random
 from pathlib import Path
 
 # =========================================
-# RUN DATE (merge_intake.py requires this)
+# RUN DATES
 # =========================================
 
-RUN_DATE = "2026_02_24"
+RUN_DATES = [
+    "2026_02_24",
+    "2026_02_26",
+    "2026_02_27",
+    "2026_03_01",
+    "2026_03_02",
+    "2026_03_03",
+    "2026_03_04",
+]
 
 # =========================================
 # PARAMETER RANGES TO TEST
 # =========================================
 
-EDGE_MIN_VALUES = [0.08, 0.09, 0.10, 0.11]
-SPREAD_MAX_VALUES = [12, 15, 18]
-TOTAL_MIN_VALUES = [135, 140, 145]
-
-ML_SKIP_RANGES = [
-    (-180, -150),
-    (-200, -140),
-    (-160, -130),
+EDGE_MIN_VALUES = [
+    0.06,
+    0.07,
+    0.08,
+    0.09,
+    0.10,
+    0.11
 ]
 
-MAX_RUNS = 20
+SPREAD_MAX_VALUES = [
+    10,
+    12,
+    15,
+    18,
+    20
+]
+
+TOTAL_MIN_VALUES = [
+    130,
+    135,
+    140,
+    145,
+    150
+]
+
+ML_SKIP_RANGES = [
+    (-160,-140),
+    (-170,-145),
+    (-180,-150),
+    (-190,-150),
+    (-200,-140)
+]
+
+MAX_RUNS = 300
 
 # =========================================
 # PIPELINES
 # =========================================
 
-# run once (expensive)
 BASE_PIPELINE = [
     "docs/win/basketball/scripts/01_merge/merge_intake.py",
     "docs/win/basketball/scripts/01_merge/build_juice_files.py",
@@ -42,7 +72,6 @@ BASE_PIPELINE = [
     "docs/win/basketball/scripts/03_edges/compute_edges.py",
 ]
 
-# run every rule set (fast)
 RULE_PIPELINE = [
     "docs/win/basketball/scripts/04_select/select_bets.py",
     "docs/win/basketball/scripts/04_select/combine_trim_basketball.py",
@@ -71,23 +100,6 @@ if len(grid) > MAX_RUNS:
 print("Running", len(grid), "rule tests")
 
 # =========================================
-# RUN BASE PIPELINE ONCE
-# =========================================
-
-print("Running base pipeline for date:", RUN_DATE)
-
-for script in BASE_PIPELINE:
-    print("Running:", script)
-
-    # merge_intake.py requires YYYY_MM_DD
-    if script.endswith("merge_intake.py"):
-        subprocess.run(["python", script, RUN_DATE], check=True)
-    else:
-        subprocess.run(["python", script], check=True)
-
-print("Base pipeline complete")
-
-# =========================================
 # TEST LOOP
 # =========================================
 
@@ -95,6 +107,7 @@ results = []
 config_file = Path("docs/win/basketball/model_testing/rule_config.py")
 
 for EDGE_MIN, SPREAD_MAX, TOTAL_MIN, ML_RANGE in grid:
+
     print("Testing:", EDGE_MIN, SPREAD_MAX, TOTAL_MIN, ML_RANGE)
 
     with open(config_file, "w", encoding="utf-8") as f:
@@ -104,37 +117,56 @@ for EDGE_MIN, SPREAD_MAX, TOTAL_MIN, ML_RANGE in grid:
         f.write(f"ML_LOW = {ML_RANGE[0]}\n")
         f.write(f"ML_HIGH = {ML_RANGE[1]}\n")
 
-    # run rule pipeline
-    for script in RULE_PIPELINE:
-        subprocess.run(["python", script], check=True)
+    nba_results = []
+    ncaab_results = []
 
-    # read results
-    nba_spread = None
-    ncaab_spread = None
+    for RUN_DATE in RUN_DATES:
 
-    try:
-        nba = pd.read_csv("docs/win/final_scores/results/nba/market_tally.csv")
-        ncaab = pd.read_csv("docs/win/final_scores/results/ncaab/market_tally.csv")
+        print("Running pipelines for date:", RUN_DATE)
 
-        nba_vals = nba.loc[nba.market_type == "spread", "Win_Pct"].values
-        ncaab_vals = ncaab.loc[ncaab.market_type == "spread", "Win_Pct"].values
+        # BASE PIPELINE
+        for script in BASE_PIPELINE:
 
-        nba_spread = float(nba_vals[0]) if len(nba_vals) else None
-        ncaab_spread = float(ncaab_vals[0]) if len(ncaab_vals) else None
-    except Exception:
-        nba_spread = None
-        ncaab_spread = None
+            if script.endswith("merge_intake.py"):
+                subprocess.run(["python", script, RUN_DATE], check=True)
+            else:
+                subprocess.run(["python", script], check=True)
+
+        # RULE PIPELINE
+        for script in RULE_PIPELINE:
+            subprocess.run(["python", script], check=True)
+
+        # READ RESULTS
+        try:
+
+            nba = pd.read_csv("docs/win/final_scores/results/nba/market_tally.csv")
+            ncaab = pd.read_csv("docs/win/final_scores/results/ncaab/market_tally.csv")
+
+            nba_vals = nba.loc[nba.market_type == "spread", "Win_Pct"].values
+            ncaab_vals = ncaab.loc[ncaab.market_type == "spread", "Win_Pct"].values
+
+            if len(nba_vals):
+                nba_results.append(float(nba_vals[0]))
+
+            if len(ncaab_vals):
+                ncaab_results.append(float(ncaab_vals[0]))
+
+        except Exception:
+            pass
+
+    nba_avg = sum(nba_results) / len(nba_results) if nba_results else None
+    ncaab_avg = sum(ncaab_results) / len(ncaab_results) if ncaab_results else None
 
     results.append(
         {
-            "RUN_DATE": RUN_DATE,
+            "RUN_DATES": f"{RUN_DATES[0]} → {RUN_DATES[-1]}",
             "EDGE_MIN": EDGE_MIN,
             "SPREAD_MAX": SPREAD_MAX,
             "TOTAL_MIN": TOTAL_MIN,
             "ML_LOW": ML_RANGE[0],
             "ML_HIGH": ML_RANGE[1],
-            "NBA_SPREAD_WIN_PCT": nba_spread,
-            "NCAAB_SPREAD_WIN_PCT": ncaab_spread,
+            "NBA_SPREAD_WIN_PCT": nba_avg,
+            "NCAAB_SPREAD_WIN_PCT": ncaab_avg,
         }
     )
 
@@ -144,9 +176,12 @@ for EDGE_MIN, SPREAD_MAX, TOTAL_MIN, ML_RANGE in grid:
 
 df = pd.DataFrame(results)
 
-# Sort safely even if some rows are None
 df["NBA_SPREAD_WIN_PCT_SORT"] = pd.to_numeric(df["NBA_SPREAD_WIN_PCT"], errors="coerce")
-df = df.sort_values("NBA_SPREAD_WIN_PCT_SORT", ascending=False).drop(columns=["NBA_SPREAD_WIN_PCT_SORT"])
+
+df = df.sort_values(
+    "NBA_SPREAD_WIN_PCT_SORT",
+    ascending=False
+).drop(columns=["NBA_SPREAD_WIN_PCT_SORT"])
 
 df.to_csv(OUTPUT, index=False)
 
