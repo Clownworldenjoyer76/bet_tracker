@@ -1,3 +1,5 @@
+# docs/js/app.js
+
 (() => {
   const dateInput = document.getElementById("p-date");
   const leagueSelect = document.getElementById("league-filter");
