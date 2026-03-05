@@ -5,14 +5,12 @@ on:
 
 jobs:
   run-batch-process:
-
     runs-on: ubuntu-latest
 
     permissions:
       contents: write
 
     steps:
-
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
@@ -25,6 +23,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
+          python -m pip install --upgrade pip
           pip install pandas numpy
 
       # -----------------------------
@@ -49,6 +48,13 @@ jobs:
           python docs/win/final_scores/scripts/05_results/generate_summary.py
 
       # -----------------------------
+      # Build sorted/banded summaries (run last)
+      # -----------------------------
+      - name: Run Results Sorted Script
+        run: |
+          python docs/win/final_scores/scripts/05_results/results_sorted.py
+
+      # -----------------------------
       # Debug Git changes
       # -----------------------------
       - name: Show Git Changes (debug)
@@ -62,20 +68,26 @@ jobs:
       # Commit & push
       # -----------------------------
       - name: Commit and Push All Changes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
+
+          # Ensure the workflow can commit/push
+          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 
           # Stage relevant folders explicitly
           git add docs/win/basketball/04_select || true
           git add docs/win/hockey/04_select || true
           git add docs/win/final_scores/results || true
+          git add docs/win/final_scores/errors || true
           git add mappings/05_no_map || true
 
           # Also stage anything else changed
           git add -A
 
           # Commit only if something changed
-          git diff --staged --quiet || git commit -m "Auto-update: Normalize teams, grade results, update summaries"
+          git diff --staged --quiet || git commit -m "Auto-update: Normalize teams, grade results, update summaries, sorted results"
 
           git push
