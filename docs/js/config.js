@@ -1,3 +1,5 @@
+# docs/js/config.js
+
 window.REPO_CONFIG = {
   leagues: ["NHL", "NBA", "NCAAB"],
 
