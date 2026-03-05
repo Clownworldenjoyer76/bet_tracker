@@ -6,6 +6,44 @@ from pathlib import Path
 from datetime import datetime
 
 # =========================
+# OPTIONAL OVERRIDE CONFIG
+# =========================
+# This lets your optimizer write a simple python file:
+#   docs/win/basketball/model_testing/rule_config.py
+# and the selector will automatically pick up those values without editing code.
+
+OVERRIDE_CONFIG_PATH = Path("docs/win/basketball/model_testing/rule_config.py")
+
+
+def load_override_config():
+    """
+    Load override values from rule_config.py if it exists.
+    Expected to contain simple assignments like:
+        EDGE_MIN = 0.10
+        EDGE_MAX = 0.30
+        SPREAD_MAX = 20
+        TOTAL_MIN = 140
+        ML_LOW = -180
+        ML_HIGH = -150
+
+    Returns: dict of variables found, else {}.
+    """
+    if not OVERRIDE_CONFIG_PATH.exists():
+        return {}
+
+    scope = {}
+    try:
+        content = OVERRIDE_CONFIG_PATH.read_text(encoding="utf-8")
+        exec(compile(content, str(OVERRIDE_CONFIG_PATH), "exec"), {}, scope)
+        # remove dunder keys
+        return {k: v for k, v in scope.items() if not k.startswith("__")}
+    except Exception:
+        return {}
+
+
+OVR = load_override_config()
+
+# =========================
 # RULES (easy tuning blocks)
 # =========================
 
@@ -27,6 +65,36 @@ NBA_RULES = {
     "low_total_cutoff": 205,
     "over_low_total_edge_bonus": 0.02,
 }
+
+# =========================
+# APPLY OVERRIDES (if present)
+# =========================
+# These are the ONLY things the optimizer needs to write to control selection:
+#   EDGE_MIN, EDGE_MAX, SPREAD_MAX, TOTAL_MIN, ML_LOW, ML_HIGH
+#
+# Notes:
+# - EDGE_MIN/EDGE_MAX apply to BOTH markets unless you later split them.
+# - TOTAL_MIN applies ONLY to NCAAB "skip_under_below" per your rule.
+# - ML_LOW/ML_HIGH apply to NCAAB "skip_home_ml_range".
+
+if "EDGE_MIN" in OVR:
+    NCAAB_RULES["edge_min"] = float(OVR["EDGE_MIN"])
+    NBA_RULES["edge_min"] = float(OVR["EDGE_MIN"])
+
+if "EDGE_MAX" in OVR:
+    NCAAB_RULES["edge_max"] = float(OVR["EDGE_MAX"])
+    NBA_RULES["edge_max"] = float(OVR["EDGE_MAX"])
+
+if "SPREAD_MAX" in OVR:
+    NCAAB_RULES["spread_max"] = float(OVR["SPREAD_MAX"])
+    NBA_RULES["spread_max"] = float(OVR["SPREAD_MAX"])
+
+if "TOTAL_MIN" in OVR:
+    # Your requested rule: "Skip UNDER when total line < 140"
+    NCAAB_RULES["skip_under_below"] = float(OVR["TOTAL_MIN"])
+
+if "ML_LOW" in OVR and "ML_HIGH" in OVR:
+    NCAAB_RULES["skip_home_ml_range"] = (float(OVR["ML_LOW"]), float(OVR["ML_HIGH"]))
 
 # =========================
 # SAFE FLOAT CONVERTER
@@ -261,6 +329,7 @@ def main():
         audit(LOG_FILE, "SELECTION", "SUCCESS", msg=f"Selected {len(res_df)} bets", df=res_df)
     else:
         audit(LOG_FILE, "SELECTION", "INFO", msg="No bets selected")
+
 
 if __name__ == "__main__":
     main()
