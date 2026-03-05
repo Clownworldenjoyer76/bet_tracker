@@ -6,7 +6,10 @@ from pathlib import Path
 
 SELECT_DIR = Path("docs/win/basketball/04_select")
 OUTPUT_DIR = SELECT_DIR / "daily_slate"
+TOTALS_DIR = OUTPUT_DIR / "totals"
+
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+TOTALS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def compute_edge(row):
@@ -63,6 +66,41 @@ def trim_games(df):
     return pd.DataFrame(cleaned_rows)
 
 
+def build_totals():
+    """
+    Combine all daily slate files into master history files.
+    Excludes nba_selected.csv and ncaab_selected.csv.
+    """
+
+    nba_files = []
+    ncaab_files = []
+
+    for f in OUTPUT_DIR.glob("*.csv"):
+
+        name = f.name
+
+        if name in ["nba_selected.csv", "ncaab_selected.csv"]:
+            continue
+
+        if name.endswith("_nba.csv"):
+            nba_files.append(f)
+
+        if name.endswith("_ncaab.csv"):
+            ncaab_files.append(f)
+
+    if nba_files:
+        nba_dfs = [pd.read_csv(f) for f in sorted(nba_files)]
+        nba_final = pd.concat(nba_dfs, ignore_index=True)
+        nba_final.to_csv(TOTALS_DIR / "NBA_final.csv", index=False)
+
+    if ncaab_files:
+        ncaab_dfs = [pd.read_csv(f) for f in sorted(ncaab_files)]
+        ncaab_final = pd.concat(ncaab_dfs, ignore_index=True)
+        ncaab_final.to_csv(TOTALS_DIR / "NCAAB_final.csv", index=False)
+
+    print("Totals files created.")
+
+
 def main():
 
     files = list(SELECT_DIR.glob("*.csv"))
@@ -93,8 +131,7 @@ def main():
     nba_trimmed = trim_games(nba_df)
     ncaab_trimmed = trim_games(ncaab_df)
 
-    # ---------- MASTER FILES ----------
-
+    # MASTER FILES
     nba_master = OUTPUT_DIR / "nba_selected.csv"
     ncaab_master = OUTPUT_DIR / "ncaab_selected.csv"
 
@@ -104,8 +141,7 @@ def main():
     print(f"NBA master: {nba_master}")
     print(f"NCAAB master: {ncaab_master}")
 
-    # ---------- DAILY FILES ----------
-
+    # DAILY FILES
     for date, g in nba_trimmed.groupby("game_date"):
         path = OUTPUT_DIR / f"{date}_nba.csv"
         g.to_csv(path, index=False)
@@ -115,6 +151,9 @@ def main():
         g.to_csv(path, index=False)
 
     print("Daily slate files created.")
+
+    # BUILD TOTAL HISTORY FILES
+    build_totals()
 
 
 if __name__ == "__main__":
