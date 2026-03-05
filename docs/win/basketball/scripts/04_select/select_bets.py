@@ -84,6 +84,10 @@ def main():
                     side = max(valid_edges, key=valid_edges.get)
                     edge = valid_edges[side]
 
+                    odds = float(row.get(f"total_{side}_juice_odds", 0) or 0)
+                    if odds <= -300:
+                        continue
+
                     edge_required = 0.07
 
                     if pd.notna(line) and line <= 205 and side == "over":
@@ -114,6 +118,10 @@ def main():
 
                         edge = row.get(f"{side}_edge_decimal", 0)
                         edge = float(edge) if pd.notna(edge) else 0
+
+                        odds = float(row.get(f"total_{side}_juice_odds", 0) or 0)
+                        if odds <= -300:
+                            continue
 
                         if side == "over":
                             if line < 150:
@@ -158,6 +166,10 @@ def main():
                     side = max(valid_edges, key=valid_edges.get)
                     edge = valid_edges[side]
 
+                    odds = float(row.get(f"{side}_spread_juice_odds", 0) or 0)
+                    if odds <= -300:
+                        continue
+
                     if edge >= 0.06:
 
                         spread_val = float(row.get(f"{side}_spread")) if pd.notna(row.get(f"{side}_spread")) else 0.0
@@ -188,6 +200,10 @@ def main():
                         spread_val = float(row.get(f"{side}_spread")) if pd.notna(row.get(f"{side}_spread")) else 0
                         spread_abs = abs(spread_val)
 
+                        odds = float(row.get(f"{side}_spread_juice_odds", 0) or 0)
+                        if odds <= -300:
+                            continue
+
                         if edge >= 0.07 and spread_abs <= 20:
                             new_row = row.copy()
                             new_row["market_type"] = "spread"
@@ -215,13 +231,13 @@ def main():
                     edge = valid_edges[side]
 
                     odds = float(row.get(f"{side}_juice_odds", 0) or 0)
+                    if odds <= -300:
+                        continue
+
                     venue = side
                     fav_ud = "favorite" if odds < 0 else "underdog"
 
                     if fav_ud == "favorite" and venue == "home" and -180 <= odds <= -140:
-                        continue
-
-                    if fav_ud == "favorite" and odds <= -500:
                         continue
 
                     if fav_ud == "underdog" and odds >= 350:
@@ -263,11 +279,15 @@ def main():
                         edge = float(edge) if pd.notna(edge) else 0
                         prob = float(prob) if pd.notna(prob) else 0
 
+                        odds = float(row.get(f"{side}_juice_odds", 0) or 0)
+                        if odds <= -300:
+                            continue
+
                         if edge >= 0.06 and prob >= 0.60:
                             new_row = row.copy()
                             new_row["market_type"] = "moneyline"
                             new_row["bet_side"] = side
-                            new_row["line"] = 0
+                            new_row["line"] = odds
                             results.append(new_row)
 
         if results:
