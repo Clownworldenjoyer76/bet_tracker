@@ -5,6 +5,8 @@ import pandas as pd
 from pathlib import Path
 
 SELECT_DIR = Path("docs/win/basketball/04_select")
+DAILY_DIR = SELECT_DIR / "daily_slate"
+DAILY_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def compute_edge(row):
@@ -80,8 +82,8 @@ def main():
     nba_final = trim_games(nba_df)
     ncaab_final = trim_games(ncaab_df)
 
-    nba_out = SELECT_DIR / "nba_selected.csv"
-    ncaab_out = SELECT_DIR / "ncaab_selected.csv"
+    nba_out = DAILY_DIR / "nba_selected.csv"
+    ncaab_out = DAILY_DIR / "ncaab_selected.csv"
 
     nba_final.to_csv(nba_out, index=False)
     ncaab_final.to_csv(ncaab_out, index=False)
