@@ -85,32 +85,43 @@ def win_pct(df):
     return (df["bet_result"] == "Win").mean() if len(df) else 0.0
 
 
-def count(df):
-    return len(df)
+def bucket(series, bins):
+    return pd.cut(series, bins=bins, include_lowest=True)
 
 
-def series_avg(series):
-    s = pd.to_numeric(series, errors="coerce").dropna()
-    return float(s.mean()) if not s.empty else 0.0
+def bucket_table(df, value_col, bins, label):
+
+    if value_col not in df.columns:
+        return pd.DataFrame()
+
+    temp = df.copy()
+    temp[value_col] = pd.to_numeric(temp[value_col], errors="coerce")
+
+    temp = temp.dropna(subset=[value_col])
+
+    if temp.empty:
+        return pd.DataFrame()
+
+    temp["bucket"] = bucket(temp[value_col], bins)
+
+    g = temp.groupby("bucket")
+
+    res = pd.DataFrame({
+        "bucket": g.size().index.astype(str),
+        "bets": g.size().values,
+        "wins": g.apply(lambda x: (x.bet_result == "Win").sum()).values,
+    })
+
+    res["win_pct"] = res["wins"] / res["bets"]
+
+    res.insert(0, "metric", label)
+
+    return res
 
 
-def series_med(series):
-    s = pd.to_numeric(series, errors="coerce").dropna()
-    return float(s.median()) if not s.empty else 0.0
+def compute_analysis_tables(master, league, graded_dir):
 
-
-def series_min(series):
-    s = pd.to_numeric(series, errors="coerce").dropna()
-    return float(s.min()) if not s.empty else 0.0
-
-
-def series_max(series):
-    s = pd.to_numeric(series, errors="coerce").dropna()
-    return float(s.max()) if not s.empty else 0.0
-
-
-def compute_stats(master):
-    stats = {}
+    tables = []
 
     spreads = master[master["market_type"] == "spread"]
     totals = master[master["market_type"] == "total"]
@@ -118,46 +129,40 @@ def compute_stats(master):
 
     ml_home = ml[ml["bet_side"] == "home"]
     ml_away = ml[ml["bet_side"] == "away"]
+
     total_over = totals[totals["bet_side"] == "over"]
     total_under = totals[totals["bet_side"] == "under"]
 
-    stats["SPREAD_WIN_PCT"] = win_pct(spreads)
-    stats["SPREAD_BETS"] = count(spreads)
+    edge_bins = [0, .02, .04, .06, .08, .10, .12, .20, 1]
+    odds_bins = [-1000, -400, -300, -200, -150, -100, 0, 100, 200, 400, 1000]
+    diff_bins = [0, 2, 4, 6, 8, 12, 20]
 
-    stats["TOTAL_WIN_PCT"] = win_pct(totals)
-    stats["TOTAL_BETS"] = count(totals)
-    stats["TOTAL_OVER_WIN_PCT"] = win_pct(total_over)
-    stats["TOTAL_OVER_BETS"] = count(total_over)
-    stats["TOTAL_UNDER_WIN_PCT"] = win_pct(total_under)
-    stats["TOTAL_UNDER_BETS"] = count(total_under)
-    stats["TOTAL_OVER_EDGE_AVG"] = series_avg(total_over["over_edge_decimal"]) if "over_edge_decimal" in total_over.columns else 0.0
-    stats["TOTAL_OVER_EDGE_MEDIAN"] = series_med(total_over["over_edge_decimal"]) if "over_edge_decimal" in total_over.columns else 0.0
-    stats["TOTAL_UNDER_EDGE_AVG"] = series_avg(total_under["under_edge_decimal"]) if "under_edge_decimal" in total_under.columns else 0.0
-    stats["TOTAL_UNDER_EDGE_MEDIAN"] = series_med(total_under["under_edge_decimal"]) if "under_edge_decimal" in total_under.columns else 0.0
+    tables.append(bucket_table(total_over, "over_edge_decimal", edge_bins, f"{league}_TOTAL_OVER_EDGE"))
+    tables.append(bucket_table(total_under, "under_edge_decimal", edge_bins, f"{league}_TOTAL_UNDER_EDGE"))
 
-    stats["MONEYLINE_WIN_PCT"] = win_pct(ml)
-    stats["MONEYLINE_BETS"] = count(ml)
+    tables.append(bucket_table(spreads, "home_edge_decimal", edge_bins, f"{league}_SPREAD_HOME_EDGE"))
+    tables.append(bucket_table(spreads, "away_edge_decimal", edge_bins, f"{league}_SPREAD_AWAY_EDGE"))
 
-    stats["ML_HOME_WIN_PCT"] = win_pct(ml_home)
-    stats["ML_HOME_BETS"] = count(ml_home)
-    stats["ML_HOME_EDGE_AVG"] = series_avg(ml_home["home_edge_decimal"]) if "home_edge_decimal" in ml_home.columns else 0.0
-    stats["ML_HOME_EDGE_MEDIAN"] = series_med(ml_home["home_edge_decimal"]) if "home_edge_decimal" in ml_home.columns else 0.0
-    stats["ML_HOME_ODDS_AVG"] = series_avg(ml_home["line"])
-    stats["ML_HOME_ODDS_MIN"] = series_min(ml_home["line"])
-    stats["ML_HOME_ODDS_MAX"] = series_max(ml_home["line"])
+    tables.append(bucket_table(ml_home, "home_edge_decimal", edge_bins, f"{league}_ML_HOME_EDGE"))
+    tables.append(bucket_table(ml_away, "away_edge_decimal", edge_bins, f"{league}_ML_AWAY_EDGE"))
 
-    stats["ML_AWAY_WIN_PCT"] = win_pct(ml_away)
-    stats["ML_AWAY_BETS"] = count(ml_away)
-    stats["ML_AWAY_EDGE_AVG"] = series_avg(ml_away["away_edge_decimal"]) if "away_edge_decimal" in ml_away.columns else 0.0
-    stats["ML_AWAY_EDGE_MEDIAN"] = series_med(ml_away["away_edge_decimal"]) if "away_edge_decimal" in ml_away.columns else 0.0
-    stats["ML_AWAY_ODDS_AVG"] = series_avg(ml_away["line"])
-    stats["ML_AWAY_ODDS_MIN"] = series_min(ml_away["line"])
-    stats["ML_AWAY_ODDS_MAX"] = series_max(ml_away["line"])
+    tables.append(bucket_table(ml_home, "line", odds_bins, f"{league}_ML_HOME_ODDS"))
+    tables.append(bucket_table(ml_away, "line", odds_bins, f"{league}_ML_AWAY_ODDS"))
 
-    return stats
+    if "total_projected_points" in totals.columns and "line" in totals.columns:
+        totals = totals.copy()
+        totals["proj_diff"] = abs(totals["total_projected_points"] - totals["line"])
+        tables.append(bucket_table(totals, "proj_diff", diff_bins, f"{league}_TOTAL_PROJECTION_DIFF"))
+
+    tables = [t for t in tables if not t.empty]
+
+    if tables:
+        analysis = pd.concat(tables, ignore_index=True)
+        analysis.to_csv(graded_dir / f"{league}_analysis_tables.csv", index=False)
 
 
 def write_master(league, graded_dir):
+
     master_file = graded_dir / f"{league}_final.csv"
     files = sorted(graded_dir.glob("*_results_*.csv"))
 
@@ -175,6 +180,7 @@ def write_master(league, graded_dir):
         return
 
     master = pd.concat(dfs, ignore_index=True).drop_duplicates()
+
     master = master.sort_values(
         ["game_date", "market_type", "away_team", "home_team"],
         ascending=True
@@ -182,14 +188,13 @@ def write_master(league, graded_dir):
 
     master.to_csv(master_file, index=False)
 
-    stats = compute_stats(master)
-    stats["LEAGUE"] = league
+    compute_analysis_tables(master, league, graded_dir)
 
-    pd.DataFrame([stats]).to_csv(graded_dir / f"{league}_stats.csv", index=False)
     audit("MASTER", "SUCCESS", f"Wrote {league} master", master)
 
 
 def grade_league(bets_file, scores_dir, graded_dir, league):
+
     bets_df = safe_read_csv(bets_file)
 
     if bets_df.empty:
@@ -241,6 +246,7 @@ def grade_league(bets_file, scores_dir, graded_dir, league):
             "away_edge_decimal",
             "over_edge_decimal",
             "under_edge_decimal",
+            "total_projected_points",
         ]
 
         out_df = merged[[c for c in cols if c in merged.columns]]
@@ -254,6 +260,7 @@ def grade_league(bets_file, scores_dir, graded_dir, league):
 
 
 def process_results():
+
     with open(ERROR_LOG, "w", encoding="utf-8") as f:
         f.write("=== Basketball Results Log ===\n\n")
 
