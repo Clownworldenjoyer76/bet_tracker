@@ -4,7 +4,6 @@
 import traceback
 from pathlib import Path
 from datetime import datetime
-
 import pandas as pd
 
 ERROR_DIR = Path("docs/win/final_scores/errors")
@@ -100,6 +99,27 @@ def determine_outcome(row):
         return "Unknown"
 
 
+def compute_stats(master):
+
+    stats = {}
+
+    for m in ["spread", "total", "moneyline"]:
+
+        subset = master[master["market_type"] == m]
+
+        bet_count = len(subset)
+
+        if bet_count > 0:
+            win_pct = (subset["bet_result"] == "Win").mean()
+        else:
+            win_pct = 0.0
+
+        stats[f"{m.upper()}_WIN_PCT"] = win_pct
+        stats[f"{m.upper()}_BETS"] = bet_count
+
+    return stats
+
+
 def write_master(league, graded_dir):
 
     master_file = graded_dir / f"{league}_final.csv"
@@ -128,26 +148,11 @@ def write_master(league, graded_dir):
 
     master.to_csv(master_file, index=False)
 
-    # compute spread stats
-    spreads = master[master["market_type"] == "spread"]
+    stats = compute_stats(master)
+    stats["LEAGUE"] = league
 
-    bet_count = len(spreads)
-
-    if bet_count > 0:
-        win_pct = (spreads["bet_result"] == "Win").mean()
-    else:
-        win_pct = 0.0
-
-    stats_df = pd.DataFrame(
-        [{
-            "LEAGUE": league,
-            "SPREAD_WIN_PCT": win_pct,
-            "BET_COUNT": bet_count
-        }]
-    )
-
-    stats_path = graded_dir / f"{league}_stats.csv"
-    stats_df.to_csv(stats_path, index=False)
+    stats_df = pd.DataFrame([stats])
+    stats_df.to_csv(graded_dir / f"{league}_stats.csv", index=False)
 
     audit("MASTER", "SUCCESS", f"Wrote {league} master", master)
 
