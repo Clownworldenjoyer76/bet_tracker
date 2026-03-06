@@ -90,17 +90,24 @@ def bucket_stats(df, col, bins):
         return pd.DataFrame()
 
     temp = df.copy()
+
     temp[col] = pd.to_numeric(temp[col], errors="coerce")
     temp = temp.dropna(subset=[col])
+
+    if temp.empty:
+        return pd.DataFrame()
 
     temp["bucket"] = pd.cut(temp[col], bins=bins, include_lowest=True)
 
     g = temp.groupby("bucket")
 
+    bets = g.size()
+    wins = g["bet_result"].apply(lambda x: (x == "Win").sum())
+
     res = pd.DataFrame({
-        "bucket": g.size().index.astype(str),
-        "bets": g.size().values,
-        "wins": g.apply(lambda x: (x.bet_result == "Win").sum()).values
+        "bucket": bets.index.astype(str),
+        "bets": bets.values,
+        "wins": wins.values
     })
 
     res["win_pct"] = res["wins"] / res["bets"]
