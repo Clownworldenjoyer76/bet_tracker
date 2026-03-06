@@ -128,6 +128,27 @@ def write_master(league, graded_dir):
 
     master.to_csv(master_file, index=False)
 
+    # compute spread stats
+    spreads = master[master["market_type"] == "spread"]
+
+    bet_count = len(spreads)
+
+    if bet_count > 0:
+        win_pct = (spreads["bet_result"] == "Win").mean()
+    else:
+        win_pct = 0.0
+
+    stats_df = pd.DataFrame(
+        [{
+            "LEAGUE": league,
+            "SPREAD_WIN_PCT": win_pct,
+            "BET_COUNT": bet_count
+        }]
+    )
+
+    stats_path = graded_dir / f"{league}_stats.csv"
+    stats_df.to_csv(stats_path, index=False)
+
     audit("MASTER", "SUCCESS", f"Wrote {league} master", master)
 
 
