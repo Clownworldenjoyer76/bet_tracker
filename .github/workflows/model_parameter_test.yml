@@ -4,16 +4,13 @@ on:
   workflow_dispatch:
 
 jobs:
-
   test-parameters:
-
     runs-on: ubuntu-latest
 
     permissions:
       contents: write
 
     steps:
-
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
@@ -44,6 +41,10 @@ jobs:
 
           git add docs/win/basketball/model_testing || true
 
-          git diff --staged --quiet || git commit -m "Auto-update: model parameter test results"
-
-          git push
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Auto-update: model parameter test results"
+            git pull --rebase origin main
+            git push
+          fi
