@@ -10,16 +10,20 @@ from datetime import datetime
 
 import pandas as pd
 
-# =========================
-# LOGGER
-# =========================
-
 ERROR_DIR = Path("docs/win/final_scores/errors")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_LOG = ERROR_DIR / "basketball_results_errors.txt"
 
+# optimizer-safe graded dirs
+NBA_GRADED = Path("docs/win/basketball/model_testing/graded/nba")
+NCAAB_GRADED = Path("docs/win/basketball/model_testing/graded/ncaab")
+
+NBA_GRADED.mkdir(parents=True, exist_ok=True)
+NCAAB_GRADED.mkdir(parents=True, exist_ok=True)
+
 
 def audit(stage, status, msg="", df=None):
+
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     with open(ERROR_LOG, "a", encoding="utf-8") as f:
@@ -31,10 +35,6 @@ def audit(stage, status, msg="", df=None):
             f.write(f"  SAMPLE:\n{df.head(3).to_string(index=False)}\n")
         f.write("-" * 40 + "\n")
 
-
-# =========================
-# SAFE CSV
-# =========================
 
 def safe_read_csv(path):
 
@@ -50,10 +50,6 @@ def safe_read_csv(path):
         return pd.DataFrame()
 
 
-# =========================
-# OUTCOME LOGIC
-# =========================
-
 def determine_outcome(row):
 
     try:
@@ -66,7 +62,6 @@ def determine_outcome(row):
         away = float(row["away_score"])
         home = float(row["home_score"])
 
-        # totals
         if m_type == "total":
 
             total_score = away + home
@@ -80,7 +75,6 @@ def determine_outcome(row):
             if side == "over":
                 return "Win" if total_score > line else "Loss"
 
-        # moneyline
         if m_type == "moneyline":
 
             if away == home:
@@ -92,7 +86,6 @@ def determine_outcome(row):
             if side == "home":
                 return "Win" if home > away else "Loss"
 
-        # spread
         if m_type == "spread":
 
             if side == "away":
@@ -110,10 +103,6 @@ def determine_outcome(row):
     except Exception:
         return "Unknown"
 
-
-# =========================
-# MASTER FILE BUILDER
-# =========================
 
 def write_master(league, graded_dir):
 
@@ -146,10 +135,6 @@ def write_master(league, graded_dir):
     audit("MASTER", "SUCCESS", f"Wrote {league} master", master)
 
 
-# =========================
-# MAIN
-# =========================
-
 def process_results():
 
     with open(ERROR_LOG, "w", encoding="utf-8") as f:
@@ -160,15 +145,17 @@ def process_results():
         {
             "league": "NBA",
             "scores_dir": "docs/win/final_scores/results/nba/final_scores",
-            "bets_dir": "docs/win/basketball/04_select/daily_slate",
-            "pattern": "*_nba.csv"
+            "bets_dir": "docs/win/basketball/04_select",
+            "pattern": "*nba_selected.csv",
+            "graded": NBA_GRADED
         },
 
         {
             "league": "NCAAB",
             "scores_dir": "docs/win/final_scores/results/ncaab/final_scores",
-            "bets_dir": "docs/win/basketball/04_select/daily_slate",
-            "pattern": "*_ncaab.csv"
+            "bets_dir": "docs/win/basketball/04_select",
+            "pattern": "*ncaab_selected.csv",
+            "graded": NCAAB_GRADED
         }
 
     ]
@@ -176,9 +163,7 @@ def process_results():
     for cfg in configs:
 
         scores_dir = Path(cfg["scores_dir"])
-        graded_dir = Path(f"docs/win/final_scores/results/{cfg['league'].lower()}/graded")
-
-        graded_dir.mkdir(parents=True, exist_ok=True)
+        graded_dir = cfg["graded"]
 
         bet_files = glob.glob(os.path.join(cfg["bets_dir"], cfg["pattern"]))
 
