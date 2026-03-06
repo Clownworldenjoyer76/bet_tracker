@@ -4,19 +4,12 @@
 import pandas as pd
 from pathlib import Path
 
-# =========================
-# PATHS
-# =========================
-
 INPUT_DIR = Path("docs/win/basketball/03_edges")
 OUTPUT_FILE = Path("docs/win/basketball/04_select/selected_bets.csv")
+STATS_FILE = Path("docs/win/basketball/model_testing/optimizer_stats.csv")
 
 CONFIG_PATH = Path("docs/win/basketball/model_testing/rule_config.py")
 
-
-# =========================
-# LOAD OPTIMIZER CONFIG
-# =========================
 
 def load_config():
 
@@ -43,10 +36,6 @@ def load_config():
 CFG = load_config()
 
 
-# =========================
-# SAFE FLOAT
-# =========================
-
 def f(x):
     try:
         return float(x)
@@ -54,18 +43,17 @@ def f(x):
         return 0.0
 
 
-# =========================
-# MAIN
-# =========================
-
 def main():
 
-    all_candidates = []
+    total_rows = 0
+    edge_pass = 0
+    odds_pass = 0
+    spread_pass = 0
+    final_candidates = []
 
     for csv_file in INPUT_DIR.glob("*.csv"):
 
         df = pd.read_csv(csv_file)
-
         fname = csv_file.name.lower()
         league = "NBA" if "nba" in fname else "NCAAB"
 
@@ -73,15 +61,13 @@ def main():
 
         for row in records:
 
+            total_rows += 1
+
             game_key = (
                 row.get("game_date"),
                 row.get("away_team"),
                 row.get("home_team")
             )
-
-            # =========================
-            # TOTALS
-            # =========================
 
             if "total" in fname:
 
@@ -96,26 +82,29 @@ def main():
 
                 for side, edge in edges.items():
 
+                    if edge < CFG["EDGE_MIN"] or edge > CFG["EDGE_MAX"]:
+                        continue
+
+                    edge_pass += 1
+
                     odds = f(row.get(f"total_{side}_juice_odds"))
 
                     if odds <= -300:
                         continue
 
-                    if edge < CFG["EDGE_MIN"] or edge > CFG["EDGE_MAX"]:
-                        continue
+                    odds_pass += 1
 
                     if league == "NCAAB":
-
                         if side == "under" and line < CFG["TOTAL_MIN"]:
                             continue
 
                     if league == "NBA":
-
                         if diff < 3:
                             continue
-
                         if line > 245:
                             continue
+
+                    spread_pass += 1
 
                     new_row = row.copy()
 
@@ -125,11 +114,7 @@ def main():
                     new_row["candidate_edge"] = edge
                     new_row["game_key"] = game_key
 
-                    all_candidates.append(new_row)
-
-            # =========================
-            # SPREAD
-            # =========================
+                    final_candidates.append(new_row)
 
             elif "spread" in fname:
 
@@ -139,14 +124,20 @@ def main():
                     spread = f(row.get(f"{side}_spread"))
                     odds = f(row.get(f"{side}_spread_juice_odds"))
 
-                    if odds <= -300:
-                        continue
-
                     if edge < CFG["EDGE_MIN"] or edge > CFG["EDGE_MAX"]:
                         continue
 
+                    edge_pass += 1
+
+                    if odds <= -300:
+                        continue
+
+                    odds_pass += 1
+
                     if abs(spread) > CFG["SPREAD_MAX"]:
                         continue
+
+                    spread_pass += 1
 
                     new_row = row.copy()
 
@@ -156,11 +147,7 @@ def main():
                     new_row["candidate_edge"] = edge
                     new_row["game_key"] = game_key
 
-                    all_candidates.append(new_row)
-
-            # =========================
-            # MONEYLINE
-            # =========================
+                    final_candidates.append(new_row)
 
             elif "moneyline" in fname:
 
@@ -170,11 +157,15 @@ def main():
                     prob = f(row.get(f"{side}_prob"))
                     odds = f(row.get(f"{side}_juice_odds"))
 
+                    if edge < CFG["EDGE_MIN"] or edge > CFG["EDGE_MAX"]:
+                        continue
+
+                    edge_pass += 1
+
                     if odds <= -300:
                         continue
 
-                    if edge < CFG["EDGE_MIN"] or edge > CFG["EDGE_MAX"]:
-                        continue
+                    odds_pass += 1
 
                     if league == "NCAAB":
 
@@ -187,6 +178,8 @@ def main():
                         if prob < 0.60:
                             continue
 
+                    spread_pass += 1
+
                     new_row = row.copy()
 
                     new_row["market_type"] = "moneyline"
@@ -195,13 +188,9 @@ def main():
                     new_row["candidate_edge"] = edge
                     new_row["game_key"] = game_key
 
-                    all_candidates.append(new_row)
+                    final_candidates.append(new_row)
 
-    # =========================
-    # SELECT BEST PER GAME
-    # =========================
-
-    df = pd.DataFrame(all_candidates)
+    df = pd.DataFrame(final_candidates)
 
     if df.empty:
         pd.DataFrame().to_csv(OUTPUT_FILE, index=False)
@@ -230,6 +219,20 @@ def main():
         columns=["candidate_edge", "game_key"],
         errors="ignore"
     ).to_csv(OUTPUT_FILE, index=False)
+
+    stats = pd.DataFrame([{
+        "TOTAL_ROWS": total_rows,
+        "EDGE_FILTER_PASS": edge_pass,
+        "ODDS_FILTER_PASS": odds_pass,
+        "SPREAD_FILTER_PASS": spread_pass,
+        "FINAL_BETS": len(res_df)
+    }])
+
+    if STATS_FILE.exists():
+        prev = pd.read_csv(STATS_FILE)
+        stats = pd.concat([prev, stats], ignore_index=True)
+
+    stats.to_csv(STATS_FILE, index=False)
 
 
 if __name__ == "__main__":
