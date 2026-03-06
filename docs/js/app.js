@@ -109,7 +109,9 @@ async function loadPage(){
 
       });
 
-    }catch{}
+    }catch(e){
+      console.error("League load failed:", league, e);
+    }
 
     gamesEl.appendChild(column);
 
