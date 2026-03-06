@@ -21,33 +21,14 @@ RUN_DATES = [
 ]
 
 # =========================================
-# PARAMETER RANGES TO TEST
+# PARAMETER RANGES
 # =========================================
 
-EDGE_MIN_VALUES = [
-    0.06,
-    0.07,
-    0.08,
-    0.09,
-    0.10,
-    0.11
-]
+EDGE_MIN_VALUES = [0.06,0.07,0.08,0.09,0.10,0.11]
 
-SPREAD_MAX_VALUES = [
-    10,
-    12,
-    15,
-    18,
-    20
-]
+SPREAD_MAX_VALUES = [10,12,15,18,20]
 
-TOTAL_MIN_VALUES = [
-    130,
-    135,
-    140,
-    145,
-    150
-]
+TOTAL_MIN_VALUES = [130,135,140,145,150]
 
 ML_SKIP_RANGES = [
     (-160,-140),
@@ -82,108 +63,96 @@ OUTPUT = Path("docs/win/basketball/model_testing/rule_test_results.csv")
 OUTPUT.parent.mkdir(parents=True, exist_ok=True)
 
 # =========================================
-# GENERATE RULE COMBINATIONS
+# GENERATE RULE GRID
 # =========================================
 
-grid = list(
-    itertools.product(
-        EDGE_MIN_VALUES,
-        SPREAD_MAX_VALUES,
-        TOTAL_MIN_VALUES,
-        ML_SKIP_RANGES,
-    )
-)
+grid = list(itertools.product(
+    EDGE_MIN_VALUES,
+    SPREAD_MAX_VALUES,
+    TOTAL_MIN_VALUES,
+    ML_SKIP_RANGES
+))
 
 if len(grid) > MAX_RUNS:
     grid = random.sample(grid, MAX_RUNS)
 
 print("Running", len(grid), "rule tests")
 
-# =========================================
-# TEST LOOP
-# =========================================
-
-results = []
 config_file = Path("docs/win/basketball/model_testing/rule_config.py")
 
-for EDGE_MIN, SPREAD_MAX, TOTAL_MIN, ML_RANGE in grid:
+results = []
 
-    print("Testing:", EDGE_MIN, SPREAD_MAX, TOTAL_MIN, ML_RANGE)
+# =========================================
+# DATE LOOP (RUN EXPENSIVE PIPELINE ONCE)
+# =========================================
 
-    with open(config_file, "w", encoding="utf-8") as f:
-        f.write(f"EDGE_MIN = {EDGE_MIN}\n")
-        f.write(f"SPREAD_MAX = {SPREAD_MAX}\n")
-        f.write(f"TOTAL_MIN = {TOTAL_MIN}\n")
-        f.write(f"ML_LOW = {ML_RANGE[0]}\n")
-        f.write(f"ML_HIGH = {ML_RANGE[1]}\n")
+for RUN_DATE in RUN_DATES:
 
-    nba_results = []
-    ncaab_results = []
+    print("\nRunning base pipeline for date:", RUN_DATE)
 
-    for RUN_DATE in RUN_DATES:
+    for script in BASE_PIPELINE:
 
-        print("Running pipelines for date:", RUN_DATE)
+        if script.endswith("merge_intake.py"):
+            subprocess.run(["python", script, RUN_DATE], check=True)
+        else:
+            subprocess.run(["python", script], check=True)
 
-        # BASE PIPELINE
-        for script in BASE_PIPELINE:
+    print("Base pipeline complete for", RUN_DATE)
 
-            if script.endswith("merge_intake.py"):
-                subprocess.run(["python", script, RUN_DATE], check=True)
-            else:
-                subprocess.run(["python", script], check=True)
+    # =========================================
+    # RULE LOOP
+    # =========================================
 
-        # RULE PIPELINE
+    for EDGE_MIN, SPREAD_MAX, TOTAL_MIN, ML_RANGE in grid:
+
+        with open(config_file, "w", encoding="utf-8") as f:
+            f.write(f"EDGE_MIN = {EDGE_MIN}\n")
+            f.write(f"SPREAD_MAX = {SPREAD_MAX}\n")
+            f.write(f"TOTAL_MIN = {TOTAL_MIN}\n")
+            f.write(f"ML_LOW = {ML_RANGE[0]}\n")
+            f.write(f"ML_HIGH = {ML_RANGE[1]}\n")
+
         for script in RULE_PIPELINE:
             subprocess.run(["python", script], check=True)
 
-        # READ RESULTS
         try:
 
             nba = pd.read_csv("docs/win/final_scores/results/nba/market_tally.csv")
             ncaab = pd.read_csv("docs/win/final_scores/results/ncaab/market_tally.csv")
 
-            nba_vals = nba.loc[nba.market_type == "spread", "Win_Pct"].values
-            ncaab_vals = ncaab.loc[ncaab.market_type == "spread", "Win_Pct"].values
+            nba_vals = nba.loc[nba.market_type=="spread","Win_Pct"].values
+            ncaab_vals = ncaab.loc[ncaab.market_type=="spread","Win_Pct"].values
 
-            if len(nba_vals):
-                nba_results.append(float(nba_vals[0]))
+            nba_spread = float(nba_vals[0]) if len(nba_vals) else None
+            ncaab_spread = float(ncaab_vals[0]) if len(ncaab_vals) else None
 
-            if len(ncaab_vals):
-                ncaab_results.append(float(ncaab_vals[0]))
+        except:
+            nba_spread = None
+            ncaab_spread = None
 
-        except Exception:
-            pass
-
-    nba_avg = sum(nba_results) / len(nba_results) if nba_results else None
-    ncaab_avg = sum(ncaab_results) / len(ncaab_results) if ncaab_results else None
-
-    results.append(
-        {
-            "RUN_DATES": f"{RUN_DATES[0]} → {RUN_DATES[-1]}",
+        results.append({
+            "RUN_DATE": RUN_DATE,
             "EDGE_MIN": EDGE_MIN,
             "SPREAD_MAX": SPREAD_MAX,
             "TOTAL_MIN": TOTAL_MIN,
             "ML_LOW": ML_RANGE[0],
             "ML_HIGH": ML_RANGE[1],
-            "NBA_SPREAD_WIN_PCT": nba_avg,
-            "NCAAB_SPREAD_WIN_PCT": ncaab_avg,
-        }
-    )
+            "NBA_SPREAD_WIN_PCT": nba_spread,
+            "NCAAB_SPREAD_WIN_PCT": ncaab_spread
+        })
 
 # =========================================
-# OUTPUT RESULTS
+# OUTPUT
 # =========================================
 
 df = pd.DataFrame(results)
 
 df["NBA_SPREAD_WIN_PCT_SORT"] = pd.to_numeric(df["NBA_SPREAD_WIN_PCT"], errors="coerce")
 
-df = df.sort_values(
-    "NBA_SPREAD_WIN_PCT_SORT",
-    ascending=False
-).drop(columns=["NBA_SPREAD_WIN_PCT_SORT"])
+df = df.sort_values("NBA_SPREAD_WIN_PCT_SORT",ascending=False)\
+       .drop(columns=["NBA_SPREAD_WIN_PCT_SORT"])
 
-df.to_csv(OUTPUT, index=False)
+df.to_csv(OUTPUT,index=False)
 
 print("Rule optimization complete")
 print("Results saved:", OUTPUT)
