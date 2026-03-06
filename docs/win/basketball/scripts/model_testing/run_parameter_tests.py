@@ -1,15 +1,11 @@
-# docs/win/basketball/scripts/model_testing/run_parameter_tests.py
 #!/usr/bin/env python3
 
 import itertools
 import subprocess
 import pandas as pd
 import random
+import shutil
 from pathlib import Path
-
-# =========================================
-# RUN DATES
-# =========================================
 
 RUN_DATES = [
     "2026_02_24",
@@ -20,10 +16,6 @@ RUN_DATES = [
     "2026_03_03",
     "2026_03_04",
 ]
-
-# =========================================
-# PARAMETER RANGES
-# =========================================
 
 EDGE_MIN_VALUES = [0.00, 0.20]
 SPREAD_MAX_VALUES = [2, 20]
@@ -38,10 +30,6 @@ ML_SKIP_RANGES = [
 ]
 
 MAX_RUNS = 2
-
-# =========================================
-# PIPELINES
-# =========================================
 
 BASE_PIPELINE = [
     "docs/win/basketball/scripts/model_testing/build_juice_files.py",
@@ -58,13 +46,12 @@ RULE_PIPELINE = [
 ]
 
 OUTPUT = Path("docs/win/basketball/model_testing/rule_test_results.csv")
-OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-
 CONFIG_FILE = Path("docs/win/basketball/model_testing/rule_config.py")
 
-# =========================================
-# GENERATE PARAMETER GRID
-# =========================================
+NBA_RESULTS = Path("docs/win/basketball/model_testing/graded/nba/NBA_final.csv")
+NCAAB_RESULTS = Path("docs/win/basketball/model_testing/graded/ncaab/NCAAB_final.csv")
+
+OUTPUT.parent.mkdir(parents=True, exist_ok=True)
 
 grid = list(itertools.product(
     EDGE_MIN_VALUES,
@@ -80,22 +67,12 @@ print("Running", len(grid), "rule tests")
 
 results = []
 
-# =========================================
-# DATE LOOP
-# =========================================
-
 for RUN_DATE in RUN_DATES:
 
     print("\nRunning base pipeline for:", RUN_DATE)
 
     for script in BASE_PIPELINE:
         subprocess.run(["python", script], check=True)
-
-    print("Base pipeline complete for", RUN_DATE)
-
-    # =========================================
-    # RULE LOOP
-    # =========================================
 
     for EDGE_MIN, SPREAD_MAX, TOTAL_MIN, ML_RANGE in grid:
 
@@ -106,17 +83,16 @@ for RUN_DATE in RUN_DATES:
             f.write(f"ML_LOW = {ML_RANGE[0]}\n")
             f.write(f"ML_HIGH = {ML_RANGE[1]}\n")
 
+        # wipe previous graded outputs
+        shutil.rmtree("docs/win/basketball/model_testing/graded", ignore_errors=True)
+
         for script in RULE_PIPELINE:
             subprocess.run(["python", script], check=True)
 
         try:
 
-            nba = pd.read_csv(
-                "docs/win/final_scores/results/nba/graded/NBA_final.csv"
-            )
-            ncaab = pd.read_csv(
-                "docs/win/final_scores/results/ncaab/graded/NCAAB_final.csv"
-            )
+            nba = pd.read_csv(NBA_RESULTS)
+            ncaab = pd.read_csv(NCAAB_RESULTS)
 
             nba_spreads = nba[nba.market_type == "spread"]
             ncaab_spreads = ncaab[ncaab.market_type == "spread"]
@@ -146,14 +122,9 @@ for RUN_DATE in RUN_DATES:
             "NCAAB_SPREAD_WIN_PCT": ncaab_spread
         })
 
-# =========================================
-# SAVE RESULTS
-# =========================================
-
 df = pd.DataFrame(results)
 
 df["NBA_SORT"] = pd.to_numeric(df["NBA_SPREAD_WIN_PCT"], errors="coerce")
-
 df = df.sort_values("NBA_SORT", ascending=False).drop(columns=["NBA_SORT"])
 
 df.to_csv(OUTPUT, index=False)
