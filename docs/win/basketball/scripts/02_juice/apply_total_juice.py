@@ -16,35 +16,16 @@ def audit(log_path, stage, status, msg="", df=None):
     ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     log_path = Path(log_path)
     log_path.parent.mkdir(parents=True, exist_ok=True)
-    
-    # 1. EXHAUSTIVE LOG (TXT)
+
     with open(log_path, "a") as f:
         f.write(f"\n[{ts}] [{stage}] {status}\n")
-        if msg: f.write(f"  MSG: {msg}\n")
+        if msg:
+            f.write(f"  MSG: {msg}\n")
         if df is not None and isinstance(df, pd.DataFrame):
             f.write(f"  STATS: {len(df)} rows | {len(df.columns)} cols\n")
             f.write(f"  NULLS: {df.isnull().sum().sum()} total\n")
             f.write(f"  SAMPLE:\n{df.head(3).to_string(index=False)}\n")
         f.write("-" * 40 + "\n")
-
-    # 2. CONDENSED SUMMARY (TXT)
-    if df is not None and isinstance(df, pd.DataFrame):
-        summary_path = log_path.parent / "condensed_summary.txt"
-        
-        play_cols = [c for c in ['home_play', 'away_play', 'over_play', 'under_play'] if c in df.columns]
-        
-        if play_cols:
-            signals = df[df[play_cols].any(axis=1)].copy()
-            
-            if not signals.empty:
-                with open(summary_path, "a") as f:
-                    f.write(f"\n--- BETTING SIGNALS: {ts} ---\n")
-                    base_cols = ['game_date', 'home_team', 'away_team']
-                    edge_cols = [c for c in df.columns if 'edge_pct' in c]
-                    
-                    final_cols = [c for c in base_cols + edge_cols if c in signals.columns]
-                    f.write(signals[final_cols].to_string(index=False))
-                    f.write("\n" + "="*30 + "\n")
 
 # =========================
 # PATHS
@@ -68,7 +49,12 @@ def log(msg):
         f.write(f"{datetime.utcnow().isoformat()} | {msg}\n")
 
 
+# =========================
+# ODDS CONVERSION
+# =========================
+
 def american_to_decimal(a):
+    a = float(a)
     return 1 + (a / 100 if a > 0 else 100 / abs(a))
 
 
@@ -80,18 +66,42 @@ def decimal_to_american(d):
     return f"-{int(round(100 / (d - 1)))}"
 
 
+# =========================
+# SAFE COLUMN RESOLUTION
+# =========================
+
+def resolve_total_odds(row, side):
+
+    # preferred column
+    col1 = f"acceptable_total_{side}_american"
+
+    # fallback column
+    col2 = f"dk_total_{side}_american"
+
+    if col1 in row and pd.notna(row[col1]):
+        return float(row[col1])
+
+    if col2 in row and pd.notna(row[col2]):
+        return float(row[col2])
+
+    raise KeyError(f"Missing total odds column for {side}")
+
+
+# =========================
+# NBA PROCESSING
+# =========================
+
 def apply_nba(df):
 
     jt = pd.read_csv(NBA_CONFIG)
 
-    # Ensure numeric band comparisons
     jt["band_min"] = pd.to_numeric(jt["band_min"], errors="coerce")
     jt["band_max"] = pd.to_numeric(jt["band_max"], errors="coerce")
 
     def process(row, side):
 
         total = float(row["total"])
-        odds = float(row[f"acceptable_total_{side}_american"])
+        odds = resolve_total_odds(row, side)
 
         band = jt[
             (jt["band_min"] <= total) &
@@ -117,6 +127,10 @@ def apply_nba(df):
     return df
 
 
+# =========================
+# NCAAB PROCESSING
+# =========================
+
 def apply_ncaab(df):
 
     jt = pd.read_csv(NCAAB_CONFIG)
@@ -124,7 +138,7 @@ def apply_ncaab(df):
     def process(row, side):
 
         total = float(row["total"])
-        odds = float(row[f"acceptable_total_{side}_american"])
+        odds = resolve_total_odds(row, side)
 
         match = jt[
             (jt["over_under"] == total) &
@@ -149,12 +163,17 @@ def apply_ncaab(df):
     return df
 
 
+# =========================
+# MAIN
+# =========================
+
 def main():
 
     with open(ERROR_LOG, "w", encoding="utf-8") as f:
         f.write(f"=== APPLY TOTAL JUICE START {datetime.utcnow().isoformat()}Z ===\n")
 
     try:
+
         files_found = 0
 
         for f in INPUT_DIR.iterdir():
@@ -165,6 +184,7 @@ def main():
                 df = pd.read_csv(f)
                 df = apply_nba(df)
                 df.to_csv(OUTPUT_DIR / name, index=False)
+
                 log(f"Processed NBA file: {name}")
                 audit(ERROR_LOG, "JUICE_TOTAL_NBA", "SUCCESS", msg=f"Applied NBA Totals Juice to {name}", df=df)
                 files_found += 1
@@ -173,6 +193,7 @@ def main():
                 df = pd.read_csv(f)
                 df = apply_ncaab(df)
                 df.to_csv(OUTPUT_DIR / name, index=False)
+
                 log(f"Processed NCAAB file: {name}")
                 audit(ERROR_LOG, "JUICE_TOTAL_NCAAB", "SUCCESS", msg=f"Applied NCAAB Totals Juice to {name}", df=df)
                 files_found += 1
@@ -181,10 +202,13 @@ def main():
         log("=== APPLY TOTAL JUICE END ===")
 
     except Exception as e:
+
         log("=== ERROR ===")
         log(str(e))
         log(traceback.format_exc())
+
         audit(ERROR_LOG, "JUICE_TOTAL_CRITICAL", "FAILED", msg=str(e))
+
         sys.exit(1)
 
 
