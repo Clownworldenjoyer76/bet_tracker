@@ -38,6 +38,7 @@ RULE_PIPELINE = [
     "docs/win/basketball/scripts/model_testing/select_bets_optimizer.py",
     "docs/win/basketball/scripts/model_testing/combine_trim_basketball.py",
     "docs/win/basketball/scripts/model_testing/basketball_results.py",
+    "docs/win/basketball/scripts/model_testing/band_performance_report.py",
 ]
 
 CONFIG_FILE = Path("docs/win/basketball/model_testing/rule_config.py")
