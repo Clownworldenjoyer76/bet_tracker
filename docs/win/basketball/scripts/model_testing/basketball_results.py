@@ -23,232 +23,195 @@ def audit(stage, status, msg="", df=None):
         f.write(f"\n[{ts}] [{stage}] {status}\n")
         if msg:
             f.write(f"  MSG: {msg}\n")
-        if df is not None and isinstance(df, pd.DataFrame):
-            f.write(f"  STATS: {len(df)} rows | {len(df.columns)} cols\n")
-            f.write(f"  SAMPLE:\n{df.head(3).to_string(index=False)}\n")
+        if df is not None:
+            f.write(f"  ROWS: {len(df)}\n")
         f.write("-" * 40 + "\n")
 
 
 def safe_read_csv(path):
     try:
         df = pd.read_csv(path)
-        if df is None or df.empty:
+        if df.empty:
             return pd.DataFrame()
         return df
     except Exception:
-        with open(ERROR_LOG, "a", encoding="utf-8") as f:
-            f.write(f"ERROR READING {path}\n{traceback.format_exc()}\n")
+        with open(ERROR_LOG, "a") as f:
+            f.write(traceback.format_exc())
         return pd.DataFrame()
 
 
 def determine_outcome(row):
-    try:
-        m_type = str(row.get("market_type", "")).lower()
-        side = str(row.get("bet_side", "")).lower()
 
-        line = float(row.get("line", 0))
-        away = float(row["away_score"])
-        home = float(row["home_score"])
+    m = row["market_type"]
+    side = row["bet_side"]
+    line = float(row["line"])
 
-        if m_type == "total":
-            total_score = away + home
-            if total_score == line:
-                return "Push"
-            if side == "under":
-                return "Win" if total_score < line else "Loss"
-            if side == "over":
-                return "Win" if total_score > line else "Loss"
+    away = row["away_score"]
+    home = row["home_score"]
 
-        if m_type == "moneyline":
-            if away == home:
-                return "Push"
-            if side == "away":
-                return "Win" if away > home else "Loss"
-            if side == "home":
-                return "Win" if home > away else "Loss"
+    if m == "moneyline":
 
-        if m_type == "spread":
-            if side == "away":
-                diff = (away + line) - home
-            else:
-                diff = (home + line) - away
-            if diff == 0:
-                return "Push"
-            return "Win" if diff > 0 else "Loss"
+        if side == "home":
+            return "Win" if home > away else "Loss"
+        else:
+            return "Win" if away > home else "Loss"
 
-        return "Unknown"
-    except Exception:
-        return "Unknown"
+    if m == "spread":
+
+        if side == "home":
+            val = (home + line) - away
+        else:
+            val = (away + line) - home
+
+        if val > 0:
+            return "Win"
+        if val < 0:
+            return "Loss"
+        return "Push"
+
+    if m == "total":
+
+        total = home + away
+
+        if total == line:
+            return "Push"
+
+        if side == "over":
+            return "Win" if total > line else "Loss"
+        else:
+            return "Win" if total < line else "Loss"
+
+    return "Unknown"
 
 
-def bucket(series, bins):
-    return pd.cut(series, bins=bins, include_lowest=True)
+def bucket_stats(df, col, bins):
 
-
-def bucket_table(df, value_col, bins, label):
-
-    if value_col not in df.columns:
+    if col not in df.columns:
         return pd.DataFrame()
 
     temp = df.copy()
-    temp[value_col] = pd.to_numeric(temp[value_col], errors="coerce")
-    temp = temp.dropna(subset=[value_col])
+    temp[col] = pd.to_numeric(temp[col], errors="coerce")
+    temp = temp.dropna(subset=[col])
 
-    if temp.empty:
-        return pd.DataFrame()
-
-    temp["bucket"] = bucket(temp[value_col], bins)
+    temp["bucket"] = pd.cut(temp[col], bins=bins, include_lowest=True)
 
     g = temp.groupby("bucket")
 
     res = pd.DataFrame({
         "bucket": g.size().index.astype(str),
         "bets": g.size().values,
-        "wins": g.apply(lambda x: (x.bet_result == "Win").sum()).values,
+        "wins": g.apply(lambda x: (x.bet_result == "Win").sum()).values
     })
 
     res["win_pct"] = res["wins"] / res["bets"]
-    res.insert(0, "metric", label)
 
     return res
 
 
-def compute_analysis_tables(master, league, graded_dir):
+def write_analysis(master, league, out_dir):
 
-    tables = []
+    ml = master[master.market_type == "moneyline"]
+    spreads = master[master.market_type == "spread"]
+    totals = master[master.market_type == "total"]
 
-    spreads = master[master["market_type"] == "spread"]
-    totals = master[master["market_type"] == "total"]
-    ml = master[master["market_type"] == "moneyline"]
+    odds_bins = [-1000,-400,-300,-200,-150,-110,0,100,200,400,1000]
+    spread_bins = [-30,-15,-10,-7,-5,-3,-1,0,1,3,5,7,10,15,30]
+    total_bins = [120,130,135,140,145,150,155,160,165,170,200]
 
-    ml_home = ml[ml["bet_side"] == "home"]
-    ml_away = ml[ml["bet_side"] == "away"]
+    bucket_stats(
+        ml[ml.bet_side=="home"],"line",odds_bins
+    ).to_csv(out_dir/f"{league}_ml_home_odds.csv",index=False)
 
-    total_over = totals[totals["bet_side"] == "over"]
-    total_under = totals[totals["bet_side"] == "under"]
+    bucket_stats(
+        ml[ml.bet_side=="away"],"line",odds_bins
+    ).to_csv(out_dir/f"{league}_ml_away_odds.csv",index=False)
 
-    edge_bins = [0, .02, .04, .06, .08, .10, .12, .20, 1]
-    odds_bins = [-1000, -400, -300, -200, -150, -100, 0, 100, 200, 400, 1000]
-    diff_bins = [0, 2, 4, 6, 8, 12, 20]
+    bucket_stats(
+        spreads[spreads.bet_side=="home"],"line",spread_bins
+    ).to_csv(out_dir/f"{league}_spread_home_band.csv",index=False)
 
-    tables.append(bucket_table(total_over, "over_edge_decimal", edge_bins, f"{league}_TOTAL_OVER_EDGE"))
-    tables.append(bucket_table(total_under, "under_edge_decimal", edge_bins, f"{league}_TOTAL_UNDER_EDGE"))
+    bucket_stats(
+        spreads[spreads.bet_side=="away"],"line",spread_bins
+    ).to_csv(out_dir/f"{league}_spread_away_band.csv",index=False)
 
-    tables.append(bucket_table(spreads, "home_edge_decimal", edge_bins, f"{league}_SPREAD_HOME_EDGE"))
-    tables.append(bucket_table(spreads, "away_edge_decimal", edge_bins, f"{league}_SPREAD_AWAY_EDGE"))
+    bucket_stats(
+        totals[totals.bet_side=="over"],"line",total_bins
+    ).to_csv(out_dir/f"{league}_total_over_band.csv",index=False)
 
-    tables.append(bucket_table(ml_home, "home_edge_decimal", edge_bins, f"{league}_ML_HOME_EDGE"))
-    tables.append(bucket_table(ml_away, "away_edge_decimal", edge_bins, f"{league}_ML_AWAY_EDGE"))
-
-    tables.append(bucket_table(ml_home, "line", odds_bins, f"{league}_ML_HOME_ODDS"))
-    tables.append(bucket_table(ml_away, "line", odds_bins, f"{league}_ML_AWAY_ODDS"))
-
-    tables = [t for t in tables if not t.empty]
-
-    if tables:
-        analysis = pd.concat(tables, ignore_index=True)
-        analysis.to_csv(graded_dir / f"{league}_analysis_tables.csv", index=False)
+    bucket_stats(
+        totals[totals.bet_side=="under"],"line",total_bins
+    ).to_csv(out_dir/f"{league}_total_under_band.csv",index=False)
 
 
 def write_master(league, graded_dir):
 
-    master_file = graded_dir / f"{league}_final.csv"
     files = sorted(graded_dir.glob("*_results_*.csv"))
 
     if not files:
         return
 
-    dfs = []
-
-    for f in files:
-        df = safe_read_csv(f)
-        if not df.empty:
-            dfs.append(df)
-
-    if not dfs:
-        return
+    dfs = [safe_read_csv(f) for f in files]
 
     master = pd.concat(dfs, ignore_index=True).drop_duplicates()
 
     master = master.sort_values(
-        ["game_date", "market_type", "away_team", "home_team"],
-        ascending=True
+        ["game_date","market_type","away_team","home_team"]
     )
 
-    master.to_csv(master_file, index=False)
+    master.to_csv(graded_dir/f"{league}_final.csv",index=False)
 
-    compute_analysis_tables(master, league, graded_dir)
+    write_analysis(master,league,graded_dir)
 
-    audit("MASTER", "SUCCESS", f"Wrote {league} master", master)
+    audit("MASTER","SUCCESS",league,master)
 
 
-def grade_league(bets_file, scores_dir, graded_dir, league):
+def grade_league(bets_file,scores_dir,graded_dir,league):
 
     bets_df = safe_read_csv(bets_file)
 
     if bets_df.empty:
         return
 
-    for date_str in sorted(bets_df["game_date"].unique()):
+    for date in sorted(bets_df.game_date.unique()):
 
-        score_file = Path(scores_dir) / f"{date_str}_final_scores_{league}.csv"
+        score_file = Path(scores_dir)/f"{date}_final_scores_{league}.csv"
 
         if not score_file.exists():
             continue
 
         scores_df = safe_read_csv(score_file)
 
-        if scores_df.empty:
-            continue
+        daily = bets_df[bets_df.game_date==date]
 
-        daily_bets = bets_df[bets_df["game_date"] == date_str]
-
-        try:
-            merged = pd.merge(
-                daily_bets,
-                scores_df,
-                on=["away_team", "home_team", "game_date"]
-            )
-        except Exception:
-            with open(ERROR_LOG, "a", encoding="utf-8") as f:
-                f.write(f"MERGE ERROR {league} {date_str}\n")
-                f.write(traceback.format_exc())
-            continue
+        merged = pd.merge(
+            daily,
+            scores_df,
+            on=["away_team","home_team","game_date"]
+        )
 
         if merged.empty:
             continue
 
-        merged["bet_result"] = merged.apply(determine_outcome, axis=1)
+        merged["bet_result"] = merged.apply(determine_outcome,axis=1)
 
         cols = [
-            "game_date",
-            "away_team",
-            "home_team",
-            "away_score",
-            "home_score",
-            "bet_result",
-            "market",
-            "market_type",
-            "bet_side",
-            "line",
-            "home_edge_decimal",
-            "away_edge_decimal",
-            "over_edge_decimal",
-            "under_edge_decimal",
+            "game_date","away_team","home_team",
+            "away_score","home_score",
+            "bet_result","market_type","bet_side","line"
         ]
 
-        out_df = merged[[c for c in cols if c in merged.columns]]
+        out = merged[cols]
 
-        output_path = graded_dir / f"{date_str}_results_{league}.csv"
-        out_df.to_csv(output_path, index=False)
-
-        audit("GRADING", "SUCCESS", f"{league} {date_str}", out_df)
+        out.to_csv(
+            graded_dir/f"{date}_results_{league}.csv",
+            index=False
+        )
 
 
 def process_results():
 
-    with open(ERROR_LOG, "w", encoding="utf-8") as f:
-        f.write("=== Basketball Results Log ===\n\n")
+    with open(ERROR_LOG,"w") as f:
+        f.write("Basketball grading log\n")
 
     grade_league(
         Path("docs/win/basketball/04_select/nba_selected.csv"),
@@ -263,6 +226,9 @@ def process_results():
         NCAAB_GRADED,
         "NCAAB"
     )
+
+    write_master("NBA",NBA_GRADED)
+    write_master("NCAAB",NCAAB_GRADED)
 
 
 if __name__ == "__main__":
