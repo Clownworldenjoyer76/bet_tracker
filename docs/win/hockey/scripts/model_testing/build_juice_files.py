@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-docs/win/hockey/scripts/model_testing/build_juice_files.py
+# docs/win/hockey/scripts/model_testing/build_juice_files.py
 
 import pandas as pd
 import glob
