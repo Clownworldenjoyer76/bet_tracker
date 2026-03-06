@@ -34,7 +34,7 @@ BASE_PIPELINE = [
     "docs/win/hockey/scripts/02_juice/apply_moneyline_juice.py",
     "docs/win/hockey/scripts/02_juice/apply_puck_line_juice.py",
     "docs/win/hockey/scripts/02_juice/apply_total_juice.py",
-    "docs/win/hockey/scripts/03_edges/compute_edges.py",
+    "docs/win/hockey/scripts/model_testing/compute_edges.py",
 ]
 
 RULE_PIPELINE = [
@@ -90,9 +90,7 @@ for RUN_DATE in RUN_DATES:
             subprocess.run(["python", script], check=True)
 
         try:
-            nhl = pd.read_csv(
-                "docs/win/final_scores/results/nhl/market_tally.csv"
-            )
+            nhl = pd.read_csv("docs/win/final_scores/results/nhl/market_tally.csv")
 
             moneyline = nhl.loc[nhl.market_type=="moneyline","Win_Pct"].values
             puckline = nhl.loc[nhl.market_type=="puck_line","Win_Pct"].values
