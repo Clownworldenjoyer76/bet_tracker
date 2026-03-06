@@ -38,7 +38,7 @@ CFG = load_config()
 def f(x):
     try:
         return float(x)
-    except:
+    except Exception:
         return 0.0
 
 
@@ -59,7 +59,7 @@ def main():
 
         df = pd.read_csv(csv_file)
         fname = csv_file.name.lower()
-        league = "NBA" if "nba" in fname else "NCAAB"
+        league = "NBA" if "_nba_" in fname else "NCAAB"
 
         for _, row in df.iterrows():
 
@@ -110,7 +110,6 @@ def main():
                     total_edges.append(edge)
 
                     new_row = row.copy()
-
                     new_row["market_type"] = "total"
                     new_row["bet_side"] = side
                     new_row["line"] = line
@@ -144,7 +143,6 @@ def main():
                     spread_edges.append(edge)
 
                     new_row = row.copy()
-
                     new_row["market_type"] = "spread"
                     new_row["bet_side"] = side
                     new_row["line"] = spread
@@ -172,7 +170,6 @@ def main():
                     candidates_after_odds += 1
 
                     if league == "NCAAB":
-
                         low = CFG["ML_LOW"]
                         high = CFG["ML_HIGH"]
 
@@ -186,7 +183,6 @@ def main():
                     ml_edges.append(edge)
 
                     new_row = row.copy()
-
                     new_row["market_type"] = "moneyline"
                     new_row["bet_side"] = side
                     new_row["line"] = odds
@@ -199,6 +195,29 @@ def main():
 
     if df.empty:
         pd.DataFrame().to_csv(OUTPUT_FILE, index=False)
+
+        stats_df = pd.DataFrame([{
+            "TOTAL_ROWS": total_rows,
+            "CANDIDATES_AFTER_EDGE": candidates_after_edge,
+            "CANDIDATES_AFTER_ODDS": candidates_after_odds,
+            "CANDIDATES_AFTER_RULES": candidates_after_rules,
+            "FINAL_BETS_TOTAL": 0,
+            "FINAL_BETS_SPREAD": 0,
+            "FINAL_BETS_TOTAL_MARKET": 0,
+            "FINAL_BETS_MONEYLINE": 0,
+            "AVG_EDGE_SPREAD": 0,
+            "MEDIAN_EDGE_SPREAD": 0,
+            "AVG_EDGE_TOTAL": 0,
+            "MEDIAN_EDGE_TOTAL": 0,
+            "AVG_EDGE_ML": 0,
+            "MEDIAN_EDGE_ML": 0
+        }])
+
+        if STATS_FILE.exists():
+            prev = pd.read_csv(STATS_FILE)
+            stats_df = pd.concat([prev, stats_df], ignore_index=True)
+
+        stats_df.to_csv(STATS_FILE, index=False)
         return
 
     final_rows = []
@@ -224,6 +243,29 @@ def main():
         columns=["candidate_edge", "game_key"],
         errors="ignore"
     ).to_csv(OUTPUT_FILE, index=False)
+
+    stats_df = pd.DataFrame([{
+        "TOTAL_ROWS": total_rows,
+        "CANDIDATES_AFTER_EDGE": candidates_after_edge,
+        "CANDIDATES_AFTER_ODDS": candidates_after_odds,
+        "CANDIDATES_AFTER_RULES": candidates_after_rules,
+        "FINAL_BETS_TOTAL": len(res_df),
+        "FINAL_BETS_SPREAD": len(res_df[res_df["market_type"] == "spread"]),
+        "FINAL_BETS_TOTAL_MARKET": len(res_df[res_df["market_type"] == "total"]),
+        "FINAL_BETS_MONEYLINE": len(res_df[res_df["market_type"] == "moneyline"]),
+        "AVG_EDGE_SPREAD": sum(spread_edges) / len(spread_edges) if spread_edges else 0,
+        "MEDIAN_EDGE_SPREAD": pd.Series(spread_edges).median() if spread_edges else 0,
+        "AVG_EDGE_TOTAL": sum(total_edges) / len(total_edges) if total_edges else 0,
+        "MEDIAN_EDGE_TOTAL": pd.Series(total_edges).median() if total_edges else 0,
+        "AVG_EDGE_ML": sum(ml_edges) / len(ml_edges) if ml_edges else 0,
+        "MEDIAN_EDGE_ML": pd.Series(ml_edges).median() if ml_edges else 0
+    }])
+
+    if STATS_FILE.exists():
+        prev = pd.read_csv(STATS_FILE)
+        stats_df = pd.concat([prev, stats_df], ignore_index=True)
+
+    stats_df.to_csv(STATS_FILE, index=False)
 
 
 if __name__ == "__main__":
