@@ -53,7 +53,7 @@ BASE_PIPELINE = [
 RULE_PIPELINE = [
     "docs/win/basketball/scripts/model_testing/select_bets_optimizer.py",
     "docs/win/basketball/scripts/model_testing/combine_trim_basketball.py",
-    "docs/win/final_scores/scripts/05_results/results.py",
+    "docs/win/basketball/scripts/model_testing/basketball_results.py",
 ]
 
 OUTPUT = Path("docs/win/basketball/model_testing/rule_test_results.csv")
@@ -111,17 +111,24 @@ for RUN_DATE in RUN_DATES:
         try:
 
             nba = pd.read_csv(
-                "docs/win/final_scores/results/nba/market_tally.csv"
+                "docs/win/final_scores/results/nba/graded/NBA_final.csv"
             )
             ncaab = pd.read_csv(
-                "docs/win/final_scores/results/ncaab/market_tally.csv"
+                "docs/win/final_scores/results/ncaab/graded/NCAAB_final.csv"
             )
 
-            nba_vals = nba.loc[nba.market_type == "spread", "Win_Pct"].values
-            ncaab_vals = ncaab.loc[ncaab.market_type == "spread", "Win_Pct"].values
+            nba_spreads = nba[nba.market_type == "spread"]
+            ncaab_spreads = ncaab[ncaab.market_type == "spread"]
 
-            nba_spread = float(nba_vals[0]) if len(nba_vals) else None
-            ncaab_spread = float(ncaab_vals[0]) if len(ncaab_vals) else None
+            nba_spread = (
+                (nba_spreads.bet_result == "Win").mean()
+                if not nba_spreads.empty else None
+            )
+
+            ncaab_spread = (
+                (ncaab_spreads.bet_result == "Win").mean()
+                if not ncaab_spreads.empty else None
+            )
 
         except Exception:
             nba_spread = None
