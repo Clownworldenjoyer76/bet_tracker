@@ -25,6 +25,13 @@ jobs:
         run: |
           pip install pandas numpy scipy
 
+      - name: Clear Previous Error Logs
+        run: |
+          rm -f docs/win/basketball/errors/02_juice/*.txt || true
+          rm -f docs/win/basketball/errors/03_edges/*.txt || true
+          rm -f docs/win/basketball/errors/04_select/*.txt || true
+          rm -f docs/win/final_scores/errors/*.txt || true
+
       - name: Run parameter testing script
         run: |
           set -o pipefail
