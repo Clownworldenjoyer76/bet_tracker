@@ -105,6 +105,7 @@ for RUN_DATE in RUN_DATES:
 
     for EDGE_MIN, SPREAD_MAX, TOTAL_MIN, ML_RANGE in grid:
 
+        # write rule config used by select_bets.py
         with open(config_file, "w", encoding="utf-8") as f:
             f.write(f"EDGE_MIN = {EDGE_MIN}\n")
             f.write(f"SPREAD_MAX = {SPREAD_MAX}\n")
@@ -112,21 +113,23 @@ for RUN_DATE in RUN_DATES:
             f.write(f"ML_LOW = {ML_RANGE[0]}\n")
             f.write(f"ML_HIGH = {ML_RANGE[1]}\n")
 
+        # run rule pipeline
         for script in RULE_PIPELINE:
             subprocess.run(["python", script], check=True)
 
+        # read result tallies
         try:
 
             nba = pd.read_csv("docs/win/final_scores/results/nba/market_tally.csv")
             ncaab = pd.read_csv("docs/win/final_scores/results/ncaab/market_tally.csv")
 
-            nba_vals = nba.loc[nba.market_type=="spread","Win_Pct"].values
-            ncaab_vals = ncaab.loc[ncaab.market_type=="spread","Win_Pct"].values
+            nba_vals = nba.loc[nba.market_type == "spread", "Win_Pct"].values
+            ncaab_vals = ncaab.loc[ncaab.market_type == "spread", "Win_Pct"].values
 
             nba_spread = float(nba_vals[0]) if len(nba_vals) else None
             ncaab_spread = float(ncaab_vals[0]) if len(ncaab_vals) else None
 
-        except:
+        except Exception:
             nba_spread = None
             ncaab_spread = None
 
@@ -149,10 +152,10 @@ df = pd.DataFrame(results)
 
 df["NBA_SPREAD_WIN_PCT_SORT"] = pd.to_numeric(df["NBA_SPREAD_WIN_PCT"], errors="coerce")
 
-df = df.sort_values("NBA_SPREAD_WIN_PCT_SORT",ascending=False)\
+df = df.sort_values("NBA_SPREAD_WIN_PCT_SORT", ascending=False) \
        .drop(columns=["NBA_SPREAD_WIN_PCT_SORT"])
 
-df.to_csv(OUTPUT,index=False)
+df.to_csv(OUTPUT, index=False)
 
 print("Rule optimization complete")
 print("Results saved:", OUTPUT)
