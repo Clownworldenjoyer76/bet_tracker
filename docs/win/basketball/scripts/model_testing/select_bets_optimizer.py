@@ -12,7 +12,6 @@ CONFIG_PATH = Path("docs/win/basketball/model_testing/rule_config.py")
 
 
 def load_config():
-
     cfg = {
         "EDGE_MIN": 0.10,
         "EDGE_MAX": 0.30,
@@ -46,10 +45,15 @@ def f(x):
 def main():
 
     total_rows = 0
-    edge_pass = 0
-    odds_pass = 0
-    spread_pass = 0
-    final_candidates = []
+    candidates_after_edge = 0
+    candidates_after_odds = 0
+    candidates_after_rules = 0
+
+    spread_edges = []
+    total_edges = []
+    ml_edges = []
+
+    all_candidates = []
 
     for csv_file in INPUT_DIR.glob("*.csv"):
 
@@ -57,9 +61,7 @@ def main():
         fname = csv_file.name.lower()
         league = "NBA" if "nba" in fname else "NCAAB"
 
-        records = df.to_dict("records")
-
-        for row in records:
+        for _, row in df.iterrows():
 
             total_rows += 1
 
@@ -85,14 +87,14 @@ def main():
                     if edge < CFG["EDGE_MIN"] or edge > CFG["EDGE_MAX"]:
                         continue
 
-                    edge_pass += 1
+                    candidates_after_edge += 1
 
                     odds = f(row.get(f"total_{side}_juice_odds"))
 
                     if odds <= -300:
                         continue
 
-                    odds_pass += 1
+                    candidates_after_odds += 1
 
                     if league == "NCAAB":
                         if side == "under" and line < CFG["TOTAL_MIN"]:
@@ -104,17 +106,17 @@ def main():
                         if line > 245:
                             continue
 
-                    spread_pass += 1
+                    candidates_after_rules += 1
+                    total_edges.append(edge)
 
                     new_row = row.copy()
-
                     new_row["market_type"] = "total"
                     new_row["bet_side"] = side
                     new_row["line"] = line
                     new_row["candidate_edge"] = edge
                     new_row["game_key"] = game_key
 
-                    final_candidates.append(new_row)
+                    all_candidates.append(new_row)
 
             elif "spread" in fname:
 
@@ -127,27 +129,27 @@ def main():
                     if edge < CFG["EDGE_MIN"] or edge > CFG["EDGE_MAX"]:
                         continue
 
-                    edge_pass += 1
+                    candidates_after_edge += 1
 
                     if odds <= -300:
                         continue
 
-                    odds_pass += 1
+                    candidates_after_odds += 1
 
                     if abs(spread) > CFG["SPREAD_MAX"]:
                         continue
 
-                    spread_pass += 1
+                    candidates_after_rules += 1
+                    spread_edges.append(edge)
 
                     new_row = row.copy()
-
                     new_row["market_type"] = "spread"
                     new_row["bet_side"] = side
                     new_row["line"] = spread
                     new_row["candidate_edge"] = edge
                     new_row["game_key"] = game_key
 
-                    final_candidates.append(new_row)
+                    all_candidates.append(new_row)
 
             elif "moneyline" in fname:
 
@@ -160,12 +162,12 @@ def main():
                     if edge < CFG["EDGE_MIN"] or edge > CFG["EDGE_MAX"]:
                         continue
 
-                    edge_pass += 1
+                    candidates_after_edge += 1
 
                     if odds <= -300:
                         continue
 
-                    odds_pass += 1
+                    candidates_after_odds += 1
 
                     if league == "NCAAB":
 
@@ -178,19 +180,19 @@ def main():
                         if prob < 0.60:
                             continue
 
-                    spread_pass += 1
+                    candidates_after_rules += 1
+                    ml_edges.append(edge)
 
                     new_row = row.copy()
-
                     new_row["market_type"] = "moneyline"
                     new_row["bet_side"] = side
                     new_row["line"] = odds
                     new_row["candidate_edge"] = edge
                     new_row["game_key"] = game_key
 
-                    final_candidates.append(new_row)
+                    all_candidates.append(new_row)
 
-    df = pd.DataFrame(final_candidates)
+    df = pd.DataFrame(all_candidates)
 
     if df.empty:
         pd.DataFrame().to_csv(OUTPUT_FILE, index=False)
@@ -220,19 +222,30 @@ def main():
         errors="ignore"
     ).to_csv(OUTPUT_FILE, index=False)
 
-    stats = pd.DataFrame([{
+    stats = {
         "TOTAL_ROWS": total_rows,
-        "EDGE_FILTER_PASS": edge_pass,
-        "ODDS_FILTER_PASS": odds_pass,
-        "SPREAD_FILTER_PASS": spread_pass,
-        "FINAL_BETS": len(res_df)
-    }])
+        "CANDIDATES_AFTER_EDGE": candidates_after_edge,
+        "CANDIDATES_AFTER_ODDS": candidates_after_odds,
+        "CANDIDATES_AFTER_RULES": candidates_after_rules,
+        "FINAL_BETS_TOTAL": len(res_df),
+        "FINAL_BETS_SPREAD": len(res_df[res_df["market_type"] == "spread"]),
+        "FINAL_BETS_TOTAL_MARKET": len(res_df[res_df["market_type"] == "total"]),
+        "FINAL_BETS_MONEYLINE": len(res_df[res_df["market_type"] == "moneyline"]),
+        "AVG_EDGE_SPREAD": sum(spread_edges)/len(spread_edges) if spread_edges else 0,
+        "AVG_EDGE_TOTAL": sum(total_edges)/len(total_edges) if total_edges else 0,
+        "AVG_EDGE_ML": sum(ml_edges)/len(ml_edges) if ml_edges else 0,
+        "MEDIAN_EDGE_SPREAD": pd.Series(spread_edges).median() if spread_edges else 0,
+        "MEDIAN_EDGE_TOTAL": pd.Series(total_edges).median() if total_edges else 0,
+        "MEDIAN_EDGE_ML": pd.Series(ml_edges).median() if ml_edges else 0
+    }
+
+    stats_df = pd.DataFrame([stats])
 
     if STATS_FILE.exists():
         prev = pd.read_csv(STATS_FILE)
-        stats = pd.concat([prev, stats], ignore_index=True)
+        stats_df = pd.concat([prev, stats_df], ignore_index=True)
 
-    stats.to_csv(STATS_FILE, index=False)
+    stats_df.to_csv(STATS_FILE, index=False)
 
 
 if __name__ == "__main__":
