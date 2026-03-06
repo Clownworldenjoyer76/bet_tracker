@@ -24,7 +24,7 @@ NBA_SPREAD_STD_VALUES = [13,15,17]
 NCAAB_TOTAL_STD_VALUES = [10,12,14]
 NCAAB_SPREAD_STD_VALUES = [13,15,17]
 
-MAX_RUNS = 20
+MAX_RUNS = 3
 
 BASE_PIPELINE = [
     "docs/win/basketball/scripts/model_testing/build_juice_files.py",
