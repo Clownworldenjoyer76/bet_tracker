@@ -96,7 +96,6 @@ def bucket_table(df, value_col, bins, label):
 
     temp = df.copy()
     temp[value_col] = pd.to_numeric(temp[value_col], errors="coerce")
-
     temp = temp.dropna(subset=[value_col])
 
     if temp.empty:
@@ -113,7 +112,6 @@ def bucket_table(df, value_col, bins, label):
     })
 
     res["win_pct"] = res["wins"] / res["bets"]
-
     res.insert(0, "metric", label)
 
     return res
@@ -161,6 +159,43 @@ def compute_analysis_tables(master, league, graded_dir):
         analysis.to_csv(graded_dir / f"{league}_analysis_tables.csv", index=False)
 
 
+def compute_stats(master):
+
+    stats = {}
+
+    spreads = master[master["market_type"] == "spread"]
+    totals = master[master["market_type"] == "total"]
+    ml = master[master["market_type"] == "moneyline"]
+
+    ml_home = ml[ml["bet_side"] == "home"]
+    ml_away = ml[ml["bet_side"] == "away"]
+    total_over = totals[totals["bet_side"] == "over"]
+    total_under = totals[totals["bet_side"] == "under"]
+
+    stats["SPREAD_WIN_PCT"] = win_pct(spreads)
+    stats["SPREAD_BETS"] = len(spreads)
+
+    stats["TOTAL_WIN_PCT"] = win_pct(totals)
+    stats["TOTAL_BETS"] = len(totals)
+
+    stats["TOTAL_OVER_WIN_PCT"] = win_pct(total_over)
+    stats["TOTAL_OVER_BETS"] = len(total_over)
+
+    stats["TOTAL_UNDER_WIN_PCT"] = win_pct(total_under)
+    stats["TOTAL_UNDER_BETS"] = len(total_under)
+
+    stats["MONEYLINE_WIN_PCT"] = win_pct(ml)
+    stats["MONEYLINE_BETS"] = len(ml)
+
+    stats["ML_HOME_WIN_PCT"] = win_pct(ml_home)
+    stats["ML_HOME_BETS"] = len(ml_home)
+
+    stats["ML_AWAY_WIN_PCT"] = win_pct(ml_away)
+    stats["ML_AWAY_BETS"] = len(ml_away)
+
+    return stats
+
+
 def write_master(league, graded_dir):
 
     master_file = graded_dir / f"{league}_final.csv"
@@ -189,6 +224,11 @@ def write_master(league, graded_dir):
     master.to_csv(master_file, index=False)
 
     compute_analysis_tables(master, league, graded_dir)
+
+    stats = compute_stats(master)
+    stats["LEAGUE"] = league
+
+    pd.DataFrame([stats]).to_csv(graded_dir / f"{league}_stats.csv", index=False)
 
     audit("MASTER", "SUCCESS", f"Wrote {league} master", master)
 
