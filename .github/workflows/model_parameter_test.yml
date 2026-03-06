@@ -27,7 +27,20 @@ jobs:
 
       - name: Run parameter testing script
         run: |
-          python docs/win/basketball/scripts/model_testing/run_parameter_tests.py
+          set -o pipefail
+          python docs/win/basketball/scripts/model_testing/run_parameter_tests.py 2>&1 | tee workflow_output.log
+
+      - name: Show Error Logs
+        if: failure()
+        run: |
+          echo "===== JUICE ERRORS ====="
+          cat docs/win/basketball/errors/02_juice/*.txt || true
+          echo "===== EDGE ERRORS ====="
+          cat docs/win/basketball/errors/03_edges/*.txt || true
+          echo "===== SELECT ERRORS ====="
+          cat docs/win/basketball/errors/04_select/*.txt || true
+          echo "===== RESULTS ERRORS ====="
+          cat docs/win/final_scores/errors/*.txt || true
 
       - name: Show Git Changes
         run: |
