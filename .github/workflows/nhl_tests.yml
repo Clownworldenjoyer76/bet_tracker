@@ -1,0 +1,56 @@
+name: Hockey Model Test Pipeline
+
+on:
+  workflow_dispatch:
+
+jobs:
+
+  run-hockey-model-test:
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Dependencies
+        run: |
+          pip install pandas numpy scipy
+
+      - name: Run Hockey Pipeline
+        run: |
+          python docs/win/hockey/scripts/model_testing/build_juice_files.py
+          python docs/win/hockey/scripts/02_juice/apply_moneyline_juice.py
+          python docs/win/hockey/scripts/02_juice/apply_puck_line_juice.py
+          python docs/win/hockey/scripts/02_juice/apply_total_juice.py
+          python docs/win/hockey/scripts/model_testing/compute_edges.py
+          python docs/win/hockey/scripts/model_testing/select_bets.py
+          python docs/win/final_scores/scripts/05_results/results.py
+
+      - name: Show Git Changes
+        run: |
+          git status
+          git diff || true
+
+      - name: Commit Results
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+          git add docs/win/hockey/04_select || true
+          git add docs/win/final_scores/results/nhl || true
+
+          git diff --staged --quiet || git commit -m "Auto-update: hockey model pipeline results"
+
+          git push

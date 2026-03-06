@@ -1,0 +1,50 @@
+name: Model Parameter Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-parameters:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Dependencies
+        run: |
+          pip install pandas numpy scipy
+
+      - name: Run parameter testing script
+        run: |
+          python docs/win/basketball/scripts/model_testing/run_parameter_tests.py
+
+      - name: Show Git Changes
+        run: |
+          git status
+          git diff || true
+
+      - name: Commit and Push Results
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+          git add docs/win/basketball/model_testing || true
+
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Auto-update: model parameter test results"
+            git pull --rebase origin main
+            git push
+          fi
