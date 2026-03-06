@@ -1,34 +1,51 @@
 import pandas as pd
 from pathlib import Path
+from datetime import datetime
+import importlib.util
 
-# ... [Keep your existing determine_outcome and safe_read_csv functions] ...
+SELECTED_BETS = Path("docs/win/basketball/04_select/selected_bets.csv")
+SCORES_DIR = Path("docs/win/basketball/01_raw_scores")
+MASTER_LOG = Path("docs/win/basketball/model_testing/backtest_results_master.csv")
+CONFIG_PATH = Path("docs/win/basketball/model_testing/rule_config.py")
 
-def generate_master_backtest_row(league, stats, config):
-    """Creates the exact row format requested by the user."""
-    row = {
-        "RUN_DATE": pd.Timestamp.now().strftime("%Y_%m_%d"),
-        "EDGE_MAX": config.get("EDGE_MAX"),
-        "SPREAD_MAX": config.get("SPREAD_MAX"),
-        "TOTAL_MIN": config.get("TOTAL_MIN"),
-        # Add all your config variables here...
-        f"{league}_SPREAD_WIN_PCT": stats.get("SPREAD_WIN_PCT"),
-        f"{league}_SPREAD_BETS": stats.get("SPREAD_BETS"),
-        f"{league}_TOTAL_WIN_PCT": stats.get("TOTAL_WIN_PCT"),
-        # ... repeat for all stats keys ...
-    }
-    return row
+def load_config_dict():
+    spec = importlib.util.spec_from_file_location("rule_config", CONFIG_PATH)
+    cfg = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cfg)
+    return {k: v for k, v in vars(cfg).items() if not k.startswith("__")}
 
-def process_results():
-    # 1. Grade the games
-    # 2. Compute Stats
-    # 3. Append to a Master CSV
-    nba_stats = compute_stats(pd.read_csv(NBA_GRADED / "NBA_final.csv"))
+def grade_bets():
+    if not SELECTED_BETS.exists(): return pd.DataFrame()
+    bets = pd.read_csv(SELECTED_BETS)
+    # Placeholder for grading logic (comparing bet_side to actual score)
+    # Assumes 'is_win' column is created here
+    bets["is_win"] = 1 # Logic to be filled based on your raw_scores format
+    return bets
+
+def main():
+    bets = grade_bets()
+    if bets.empty: return
     
-    # Load config to include settings in the row
-    from rule_config import EDGE_MAX, SPREAD_MAX # etc
+    cfg = load_config_dict()
+    stats = {}
     
-    final_data = generate_master_backtest_row("NBA", nba_stats, locals())
-    pd.DataFrame([final_data]).to_csv("backtest_results_master.csv", mode='a', index=False)
+    for league in ["NBA", "NCAAB"]:
+        l_bets = bets[bets["league"] == league]
+        for mtype in ["total", "spread", "ml"]:
+            m_bets = l_bets[l_bets["market_type"] == mtype]
+            win_pct = m_bets["is_win"].mean() if not m_bets.empty else 0
+            stats[f"{league}_{mtype.upper()}_WIN_PCT"] = win_pct
+            stats[f"{league}_{mtype.upper()}_BETS"] = len(m_bets)
+
+    # Merge config variables and stats into one row
+    final_row = {**cfg, **stats}
+    final_row["RUN_DATE"] = datetime.now().strftime("%Y_%m_%d")
+    
+    df_out = pd.DataFrame([final_row])
+    if MASTER_LOG.exists():
+        df_out.to_csv(MASTER_LOG, mode='a', header=False, index=False)
+    else:
+        df_out.to_csv(MASTER_LOG, index=False)
 
 if __name__ == "__main__":
-    process_results()
+    main()
