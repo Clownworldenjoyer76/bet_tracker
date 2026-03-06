@@ -24,7 +24,7 @@ NBA_SPREAD_STD_VALUES = [13,15,17]
 NCAAB_TOTAL_STD_VALUES = [10,12,14]
 NCAAB_SPREAD_STD_VALUES = [13,15,17]
 
-MAX_RUNS = 3
+MAX_RUNS = 5
 
 BASE_PIPELINE = [
     "docs/win/basketball/scripts/model_testing/build_juice_files.py",
@@ -44,6 +44,9 @@ CONFIG_FILE = Path("docs/win/basketball/model_testing/rule_config.py")
 
 OUTPUT = Path("docs/win/basketball/model_testing/rule_test_results.csv")
 
+NBA_FINAL = Path("docs/win/basketball/model_testing/graded/nba/NBA_final.csv")
+NCAAB_FINAL = Path("docs/win/basketball/model_testing/graded/ncaab/NCAAB_final.csv")
+
 grid = list(itertools.product(
     NBA_TOTAL_STD_VALUES,
     NBA_SPREAD_STD_VALUES,
@@ -55,6 +58,11 @@ if len(grid) > MAX_RUNS:
     grid = random.sample(grid, MAX_RUNS)
 
 results=[]
+
+def win_pct(df):
+    if df.empty:
+        return 0
+    return (df.bet_result=="Win").mean()
 
 for RUN_DATE in RUN_DATES:
 
@@ -86,8 +94,30 @@ for RUN_DATE in RUN_DATES:
             "NCAAB_SPREAD_STD":NCAAB_SPREAD_STD
         }
 
+        if NBA_FINAL.exists():
+
+            nba=pd.read_csv(NBA_FINAL)
+
+            row["NBA_ML_HOME_WIN_PCT"]=win_pct(nba[(nba.market_type=="moneyline")&(nba.bet_side=="home")])
+            row["NBA_ML_AWAY_WIN_PCT"]=win_pct(nba[(nba.market_type=="moneyline")&(nba.bet_side=="away")])
+
+            row["NBA_TOTAL_WIN_PCT"]=win_pct(nba[nba.market_type=="total"])
+            row["NBA_SPREAD_WIN_PCT"]=win_pct(nba[nba.market_type=="spread"])
+
+        if NCAAB_FINAL.exists():
+
+            ncaa=pd.read_csv(NCAAB_FINAL)
+
+            row["NCAAB_ML_HOME_WIN_PCT"]=win_pct(ncaa[(ncaa.market_type=="moneyline")&(ncaa.bet_side=="home")])
+            row["NCAAB_ML_AWAY_WIN_PCT"]=win_pct(ncaa[(ncaa.market_type=="moneyline")&(ncaa.bet_side=="away")])
+
+            row["NCAAB_TOTAL_WIN_PCT"]=win_pct(ncaa[ncaa.market_type=="total"])
+            row["NCAAB_SPREAD_WIN_PCT"]=win_pct(ncaa[ncaa.market_type=="spread"])
+
         results.append(row)
 
-pd.DataFrame(results).to_csv(OUTPUT,index=False)
+df=pd.DataFrame(results)
+
+df.to_csv(OUTPUT,index=False)
 
 print("Parameter tests complete")
