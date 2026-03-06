@@ -1,5 +1,3 @@
-# docs/win/hockey/scripts/01_merge/build_juice_files.py
-
 #!/usr/bin/env python3
 
 import pandas as pd
@@ -50,7 +48,8 @@ def main():
 
     try:
 
-        input_files = glob.glob(str(INPUT_DIR / "hockey_*.csv"))
+        # FIX: match new filename structure like 2026_02_25_NHL_moneyline.csv
+        input_files = sorted(glob.glob(str(INPUT_DIR / "*_NHL_moneyline.csv")))
 
         if not input_files:
             with open(ERROR_LOG, "a", encoding="utf-8") as log:
@@ -80,8 +79,13 @@ def main():
             ml_df["away_dk_decimal_moneyline"] = ml_df["away_dk_moneyline_american"].apply(american_to_decimal)
             ml_df["home_dk_decimal_moneyline"] = ml_df["home_dk_moneyline_american"].apply(american_to_decimal)
 
-            ml_df["away_fair_decimal_moneyline"] = ml_df["away_prob"].apply(lambda x: 1/x if pd.notna(x) and x > 0 else "")
-            ml_df["home_fair_decimal_moneyline"] = ml_df["home_prob"].apply(lambda x: 1/x if pd.notna(x) and x > 0 else "")
+            ml_df["away_fair_decimal_moneyline"] = ml_df["away_prob"].apply(
+                lambda x: 1/x if pd.notna(x) and x > 0 else ""
+            )
+
+            ml_df["home_fair_decimal_moneyline"] = ml_df["home_prob"].apply(
+                lambda x: 1/x if pd.notna(x) and x > 0 else ""
+            )
 
             ml_output = INPUT_DIR / f"{game_date}_{market}_moneyline.csv"
             ml_df.to_csv(ml_output, index=False)
@@ -99,6 +103,7 @@ def main():
             fair_under = []
 
             for _, row in total_df.iterrows():
+
                 lam = row["home_projected_goals"] + row["away_projected_goals"]
                 T = row["total"]
 
@@ -170,10 +175,12 @@ def main():
                 away_line = float(row["away_puck_line"])
 
                 if home_line == -1.5:
+
                     p_home_minus = 1 - skellam.cdf(1, lambda_home, lambda_away)
                     p_away_plus = 1 - p_home_minus
 
                 elif away_line == -1.5:
+
                     p_away_minus = skellam.cdf(-2, lambda_home, lambda_away)
                     p_home_plus = 1 - p_away_minus
 
@@ -181,6 +188,7 @@ def main():
                     p_away_plus = p_away_minus
 
                 else:
+
                     fair_home.append("")
                     fair_away.append("")
                     continue
@@ -201,10 +209,15 @@ def main():
             log.write("\nCompleted successfully.\n")
 
     except Exception as e:
+
+        print("ERROR:", e)
+        traceback.print_exc()
+
         with open(ERROR_LOG, "a", encoding="utf-8") as log:
             log.write("\n=== ERROR ===\n")
             log.write(str(e) + "\n\n")
             log.write(traceback.format_exc())
+
         sys.exit(1)
 
 
