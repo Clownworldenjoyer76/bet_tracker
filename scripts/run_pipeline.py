@@ -1,11 +1,24 @@
 import subprocess
 import sys
 from datetime import datetime
+from pathlib import Path
+
+# -----------------------
+# Paths
+# -----------------------
+
+LOG_DIR = Path("docs/win/errors")
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+LOG_FILE = LOG_DIR / "pipeline_log.txt"
+
+# overwrite log every run
+log = open(LOG_FILE, "w", encoding="utf-8")
 
 
-def run(cmd):
-    print(f"\nRUNNING: {' '.join(cmd)}\n")
-    subprocess.run(cmd, check=True)
+def write_log(message):
+    print(message)
+    log.write(message + "\n")
 
 
 # -----------------------
@@ -20,8 +33,8 @@ else:
 # Validate format
 datetime.strptime(slate_date, "%Y_%m_%d")
 
-print(f"\nSLATE DATE: {slate_date}\n")
-
+write_log(f"\nPipeline Run: {datetime.now()}")
+write_log(f"Slate Date: {slate_date}\n")
 
 # -----------------------
 # Pipeline definition
@@ -66,12 +79,30 @@ pipeline = [
     ["python", "docs/win/final_scores/scripts/05_results/results_sorted.py"],
 ]
 
-
 # -----------------------
 # Execute pipeline
 # -----------------------
 
-for step in pipeline:
-    run(step)
+failures = 0
 
-print("\nPIPELINE COMPLETE\n")
+for step in pipeline:
+
+    script = step[1]
+
+    try:
+        subprocess.run(step, check=True)
+        write_log(f"✅ {script}")
+
+    except subprocess.CalledProcessError as e:
+        failures += 1
+        write_log(f"❌ {script}")
+        write_log(f"   ERROR: {str(e)}")
+
+write_log("\nPipeline complete")
+
+if failures:
+    write_log(f"\n❌ FAILURES: {failures}")
+else:
+    write_log("\n✅ ALL SCRIPTS SUCCESSFUL")
+
+log.close()
