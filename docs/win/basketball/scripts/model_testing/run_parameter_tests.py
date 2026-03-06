@@ -29,7 +29,7 @@ ML_SKIP_RANGES = [
     (-105, 200),
 ]
 
-MAX_RUNS = 2
+MAX_RUNS = 1
 
 BASE_PIPELINE = [
     "docs/win/basketball/scripts/model_testing/build_juice_files.py",
