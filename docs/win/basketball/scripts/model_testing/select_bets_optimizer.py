@@ -1,56 +1,48 @@
 import pandas as pd
 from pathlib import Path
+import importlib.util
 
 INPUT_DIR = Path("docs/win/basketball/03_edges")
 OUTPUT_FILE = Path("docs/win/basketball/04_select/selected_bets.csv")
-STATS_FILE = Path("docs/win/basketball/model_testing/optimizer_stats.csv")
 CONFIG_PATH = Path("docs/win/basketball/model_testing/rule_config.py")
 
 def load_config():
-    cfg = {
-        "EDGE_MAX": 0.30, "SPREAD_MAX": 20, "TOTAL_MIN": 140,
-        "NBA_TOTAL_STD_MAX": 15, "NBA_SPREAD_STD_MAX": 15, # Added STD
-        "NBA_TOTAL_EDGE_MIN": 0.00, "NCAAB_TOTAL_EDGE_MIN": 0.00,
-        "NBA_SPREAD_EDGE_MIN": 0.00, "NCAAB_SPREAD_EDGE_MIN": 0.00,
-        "NBA_ML_HOME_EDGE_MIN": 0.00, "NBA_ML_AWAY_EDGE_MIN": 0.00,
-        "NBA_ML_HOME_ODDS_MIN": -10000, "NBA_ML_HOME_ODDS_MAX": 10000,
-        "NBA_ML_AWAY_ODDS_MIN": -10000, "NBA_ML_AWAY_ODDS_MAX": 10000,
-    }
-    if CONFIG_PATH.exists():
-        scope = {}
-        exec(CONFIG_PATH.read_text(), {}, scope)
-        cfg.update({k: v for k, v in scope.items() if k in cfg})
+    spec = importlib.util.spec_from_file_location("rule_config", CONFIG_PATH)
+    cfg = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cfg)
     return cfg
 
-CFG = load_config()
-
-def f(x):
-    try: return float(x)
-    except: return 0.0
-
 def main():
-    all_candidates = []
+    cfg = load_config()
+    all_selected = []
+    
     for csv_file in INPUT_DIR.glob("*.csv"):
         df = pd.read_csv(csv_file)
         league = "NBA" if "nba" in csv_file.name.lower() else "NCAAB"
+        market = "total" if "total" in csv_file.name.lower() else "spread" if "spread" in csv_file.name.lower() else "ml"
         
         for _, row in df.iterrows():
-            m_type = "total" if "total" in csv_file.name.lower() else "spread" if "spread" in csv_file.name.lower() else "moneyline"
+            # Apply STD Filters
+            std_val = row.get(f"{market}_std", 0)
+            std_limit = getattr(cfg, f"{league}_{market.upper()}_STD", 99)
+            if std_val > std_limit: continue
             
-            # STD FILTER (New)
-            std = f(row.get(f"{m_type}_std", 0))
-            if std > CFG.get(f"{league}_{m_type.upper()}_STD_MAX", 99): continue
-
-            # EXISTING FILTERS (Edge, Odds, Rules)
-            # ... [Existing logic for market-specific filtering goes here] ...
+            # Apply Market Specific Rules
+            edge = row["edge"]
+            edge_min = getattr(cfg, f"{league}_{market.upper()}_EDGE_MIN", 0.05)
+            if edge < edge_min or edge > cfg.EDGE_MAX: continue
             
-            new_row = row.copy()
-            new_row["market_type"] = m_type
-            new_row["candidate_edge"] = f(row.get("edge")) # Standardized
-            all_candidates.append(new_row)
+            if market == "total" and row["total"] < cfg.TOTAL_MIN: continue
+            if market == "spread" and abs(row["home_spread"]) > cfg.SPREAD_MAX: continue
+            
+            # Capture metadata for results tracking
+            row["league"] = league
+            row["market_type"] = market
+            row["config_edge_min"] = edge_min
+            all_selected.append(row)
 
-    df_final = pd.DataFrame(all_candidates)
-    df_final.to_csv(OUTPUT_FILE, index=False)
+    if all_selected:
+        pd.DataFrame(all_selected).to_csv(OUTPUT_FILE, index=False)
 
 if __name__ == "__main__":
     main()
