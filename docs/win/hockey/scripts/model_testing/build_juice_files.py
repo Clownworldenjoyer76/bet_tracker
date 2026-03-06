@@ -10,10 +10,6 @@ from pathlib import Path
 from datetime import datetime
 from scipy.stats import skellam
 
-# =========================
-# OPTIONAL OVERRIDE CONFIG
-# =========================
-
 OVERRIDE_CONFIG_PATH = Path("docs/win/hockey/model_testing/rule_config.py")
 
 
@@ -32,27 +28,15 @@ def load_override_config():
 
 OVR = load_override_config()
 
-# =========================
-# PATHS
-# =========================
-
 INPUT_DIR = Path("docs/win/hockey/01_merge")
 ERROR_DIR = Path("docs/win/hockey/errors/01_merge")
 ERROR_LOG = ERROR_DIR / "build_juice_files.txt"
 
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
-# =========================
-# DEFAULT MODEL CONSTANTS
-# =========================
-
 HOME_PROB_TOL = 0.0
 PUCK_LINE_BINARY_SEARCH_STEPS = 60
 POISSON_TOTAL_FLOOR_SHIFT = 0.0
-
-# =========================
-# APPLY OVERRIDES
-# =========================
 
 if "HOME_PROB_TOL" in OVR:
     HOME_PROB_TOL = float(OVR["HOME_PROB_TOL"])
@@ -63,9 +47,6 @@ if "PUCK_LINE_BINARY_SEARCH_STEPS" in OVR:
 if "POISSON_TOTAL_FLOOR_SHIFT" in OVR:
     POISSON_TOTAL_FLOOR_SHIFT = float(OVR["POISSON_TOTAL_FLOOR_SHIFT"])
 
-# =========================
-# HELPERS
-# =========================
 
 def american_to_decimal(odds):
     if pd.isna(odds) or odds == "":
@@ -86,10 +67,6 @@ def safe_inverse_probability(x):
     return ""
 
 
-# =========================
-# MAIN
-# =========================
-
 def main():
 
     with open(ERROR_LOG, "w", encoding="utf-8") as log:
@@ -98,8 +75,7 @@ def main():
 
     try:
 
-        # FIXED INPUT PATTERN
-        input_files = glob.glob(str(INPUT_DIR / "*_NHL_*.csv"))
+        input_files = sorted(glob.glob(str(INPUT_DIR / "*_NHL_*.csv")))
 
         if not input_files:
             with open(ERROR_LOG, "a", encoding="utf-8") as log:
@@ -171,7 +147,8 @@ def main():
             pl_df["away_dk_puck_line_decimal"] = pl_df["away_dk_puck_line_american"].apply(american_to_decimal)
             pl_df["home_dk_puck_line_decimal"] = pl_df["home_dk_puck_line_american"].apply(american_to_decimal)
 
-            pl_df.to_csv(INPUT_DIR / f"{game_date}_{market}_puck_line.csv", index=False)
+            pl_output = INPUT_DIR / f"{game_date}_{market}_puck_line.csv"
+            pl_df.to_csv(pl_output, index=False)
 
         with open(ERROR_LOG, "a", encoding="utf-8") as log:
             log.write("\nCompleted successfully.\n")
