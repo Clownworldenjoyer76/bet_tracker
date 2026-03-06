@@ -27,7 +27,7 @@ PL_MAX_FAV_ODDS_VALUES = [-140,-130,-120,-110]
 ML_MIN_EDGE_VALUES = [0.02,0.03,0.04,0.05]
 ML_MIN_PROB_VALUES = [0.42,0.45,0.48,0.50]
 
-MAX_RUNS = 300
+MAX_RUNS = 5
 
 BASE_PIPELINE = [
     "docs/win/hockey/scripts/model_testing/build_juice_files.py",
