@@ -1,130 +1,117 @@
 #!/usr/bin/env python3
 # docs/win/basketball/scripts/model_testing/band_performance_report.py
 
-import pandas as pd
 from pathlib import Path
+
+import pandas as pd
 
 NBA_FILE = Path("docs/win/basketball/model_testing/graded/nba/NBA_final.csv")
 NCAAB_FILE = Path("docs/win/basketball/model_testing/graded/ncaab/NCAAB_final.csv")
-
 OUTPUT = Path("docs/win/basketball/model_testing/band_performance_report.csv")
 
-
-ML_BINS = [-1000,-400,-300,-200,-150,-110,0,100,200,400,1000]
-SPREAD_BINS = [-30,-15,-10,-7,-5,-3,-1,0,1,3,5,7,10,15,30]
-TOTAL_BINS = [120,130,135,140,145,150,155,160,165,170,200]
+ML_BINS = [-1000, -400, -300, -200, -150, -110, 0, 100, 200, 400, 1000]
+SPREAD_BINS = [-30, -15, -10, -7, -5, -3, -1, 0, 1, 3, 5, 7, 10, 15, 30]
+TOTAL_BINS = [120, 130, 135, 140, 145, 150, 155, 160, 165, 170, 200]
 
 
 def bucket(series, bins):
     return pd.cut(series, bins=bins, include_lowest=True)
 
 
-def build_table(df, league):
+def profit_from_row(row):
+    result = row.get("bet_result", "")
+    odds = row.get("take_odds", -110)
 
+    if pd.isna(odds) or odds == "":
+        odds = -110
+
+    odds = float(odds)
+
+    if result == "Win":
+        if odds > 0:
+            return odds / 100.0
+        return 100.0 / abs(odds)
+
+    if result == "Loss":
+        return -1.0
+
+    return 0.0
+
+
+def build_table(df, league):
     rows = []
 
-    # MONEYLINE
-    ml = df[df.market_type == "moneyline"]
+    sections = [
+        ("moneyline", ["home", "away"], ML_BINS),
+        ("spread", ["home", "away"], SPREAD_BINS),
+        ("total", ["over", "under"], TOTAL_BINS),
+    ]
 
-    for side in ["home","away"]:
-        sub = ml[ml.bet_side == side].copy()
-        if sub.empty:
-            continue
+    for market_type, sides, bins in sections:
+        market_df = df[df.market_type == market_type].copy()
 
-        sub["band"] = bucket(sub["line"], ML_BINS)
+        for side in sides:
+            sub = market_df[market_df.bet_side == side].copy()
+            if sub.empty:
+                continue
 
-        g = sub.groupby("band")
+            sub["line"] = pd.to_numeric(sub["line"], errors="coerce")
+            sub = sub.dropna(subset=["line"])
+            if sub.empty:
+                continue
 
-        for band,grp in g:
-            bets=len(grp)
-            wins=(grp.bet_result=="Win").sum()
+            sub["band"] = bucket(sub["line"], bins)
+            sub["profit"] = sub.apply(profit_from_row, axis=1)
 
-            rows.append({
-                "league":league,
-                "market_type":"moneyline",
-                "side":side,
-                "band":str(band),
-                "bets":bets,
-                "wins":wins,
-                "win_pct":wins/bets if bets else 0
-            })
+            grouped = sub.groupby("band", dropna=False)
 
-    # SPREAD
-    sp = df[df.market_type=="spread"].copy()
+            for band, grp in grouped:
+                bets = len(grp)
+                wins = int((grp.bet_result == "Win").sum())
+                losses = int((grp.bet_result == "Loss").sum())
+                pushes = int((grp.bet_result == "Push").sum())
+                profit = float(grp["profit"].sum())
+                risk = float(bets) if bets else 0.0
+                roi = (profit / risk) if risk else 0.0
 
-    for side in ["home","away"]:
-        sub = sp[sp.bet_side==side].copy()
-        if sub.empty:
-            continue
-
-        sub["band"]=bucket(sub["line"],SPREAD_BINS)
-
-        g=sub.groupby("band")
-
-        for band,grp in g:
-
-            bets=len(grp)
-            wins=(grp.bet_result=="Win").sum()
-
-            rows.append({
-                "league":league,
-                "market_type":"spread",
-                "side":side,
-                "band":str(band),
-                "bets":bets,
-                "wins":wins,
-                "win_pct":wins/bets if bets else 0
-            })
-
-    # TOTALS
-    tot=df[df.market_type=="total"].copy()
-
-    for side in ["over","under"]:
-        sub=tot[tot.bet_side==side].copy()
-        if sub.empty:
-            continue
-
-        sub["band"]=bucket(sub["line"],TOTAL_BINS)
-
-        g=sub.groupby("band")
-
-        for band,grp in g:
-
-            bets=len(grp)
-            wins=(grp.bet_result=="Win").sum()
-
-            rows.append({
-                "league":league,
-                "market_type":"total",
-                "side":side,
-                "band":str(band),
-                "bets":bets,
-                "wins":wins,
-                "win_pct":wins/bets if bets else 0
-            })
+                rows.append({
+                    "league": league,
+                    "market_type": market_type,
+                    "side": side,
+                    "band": str(band),
+                    "bets": bets,
+                    "wins": wins,
+                    "losses": losses,
+                    "pushes": pushes,
+                    "win_pct": (wins / bets) if bets else 0.0,
+                    "profit": profit,
+                    "roi": roi,
+                    "avg_odds": float(pd.to_numeric(grp.get("take_odds"), errors="coerce").mean()) if "take_odds" in grp.columns else 0.0,
+                    "avg_edge": float(pd.to_numeric(grp.get("candidate_edge"), errors="coerce").mean()) if "candidate_edge" in grp.columns else 0.0,
+                })
 
     return rows
 
 
 def main():
-
-    rows=[]
+    rows = []
 
     if NBA_FILE.exists():
-        nba=pd.read_csv(NBA_FILE)
-        rows+=build_table(nba,"NBA")
+        nba = pd.read_csv(NBA_FILE)
+        rows += build_table(nba, "NBA")
 
     if NCAAB_FILE.exists():
-        ncaa=pd.read_csv(NCAAB_FILE)
-        rows+=build_table(ncaa,"NCAAB")
+        ncaab = pd.read_csv(NCAAB_FILE)
+        rows += build_table(ncaab, "NCAAB")
 
-    df=pd.DataFrame(rows)
+    df = pd.DataFrame(rows)
+    OUTPUT.parent.mkdir(parents=True, exist_ok=True)
 
     if not df.empty:
-        df=df.sort_values(["league","market_type","side","band"])
+        df = df.sort_values(["league", "market_type", "side", "band"])
 
-    df.to_csv(OUTPUT,index=False)
+    df.to_csv(OUTPUT, index=False)
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
     main()
