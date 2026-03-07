@@ -16,7 +16,7 @@ ERROR_DIR = Path("docs/win/soccer/errors/00_intake")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE = ERROR_DIR / "name_normalization_log.txt"
 
-# Overwrite log each run
+# overwrite log each run
 with open(LOG_FILE, "w", encoding="utf-8") as f:
     f.write("")
 
@@ -24,61 +24,96 @@ def log(msg: str) -> None:
     with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write(f"{datetime.utcnow().isoformat()} | {msg}\n")
 
+
 # =========================
-# LOAD TEAM MAP (CASE INSENSITIVE)
+# LOAD TEAM MAP
 # =========================
 
 team_map = {}
+
 if MAP_FILE.exists():
     with open(MAP_FILE, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            key = (
-                row.get("market", "").strip().lower(),
-                row.get("alias", "").strip().lower(),
-            )
-            canonical = row.get("canonical_team", "").strip()
-            if key[0] and key[1] and canonical:
-                team_map[key] = canonical
+            market = (row.get("market") or "").strip().lower()
+            alias = (row.get("alias") or "").strip().lower()
+            canonical = (row.get("canonical_team") or "").strip()
+
+            if market and alias and canonical:
+                team_map[(market, alias)] = canonical
 else:
     log("WARNING: team_map_soccer.csv not found")
+
+
+# =========================
+# BUILD FILE LIST
+# market files first
+# combined files second
+# =========================
+
+market_files = []
+combined_files = []
+
+for f in INTAKE_DIR.rglob("*.csv"):
+    if "combined" in f.parts:
+        combined_files.append(f)
+    else:
+        market_files.append(f)
+
+files_to_process = sorted(market_files) + sorted(combined_files)
+
 
 # =========================
 # PROCESS FILES
 # =========================
 
-unmapped = set()  # (market_lower, team_original)
+unmapped = set()
+
 files_processed = 0
 rows_processed = 0
 rows_updated = 0
 
-for csv_file in INTAKE_DIR.rglob("*.csv"):
+for csv_file in files_to_process:
+
     files_processed += 1
     updated_rows = []
     modified = False
 
     with open(csv_file, newline="", encoding="utf-8") as f:
+
         reader = csv.DictReader(f)
         fieldnames = reader.fieldnames or []
 
+        # skip files without team columns
+        if "home_team" not in fieldnames or "away_team" not in fieldnames:
+            continue
+
         for row in reader:
+
             rows_processed += 1
-            market = row.get("market", "").strip().lower()
+            market = (row.get("market") or "").strip().lower()
 
             for side in ["home_team", "away_team"]:
-                team = row.get(side, "").strip()
-                if not team:
+
+                team_raw = (row.get(side) or "").strip()
+                team_norm = team_raw.lower().strip()
+
+                if not team_raw:
                     continue
 
-                key = (market, team.lower())
+                key = (market, team_norm)
+
                 if key in team_map:
+
                     canonical = team_map[key]
-                    if row.get(side, "") != canonical:
+
+                    if row[side] != canonical:
                         row[side] = canonical
                         modified = True
                         rows_updated += 1
+
                 else:
-                    unmapped.add((market, team))
+                    unmapped.add((market, team_raw))
 
             updated_rows.append(row)
 
@@ -88,20 +123,25 @@ for csv_file in INTAKE_DIR.rglob("*.csv"):
             writer.writeheader()
             writer.writerows(updated_rows)
 
+
 # =========================
-# WRITE UNMAPPED (AND COUNT NEW)
+# WRITE UNMAPPED
 # =========================
 
-existing = set()  # (market_lower, team_original)
+existing = set()
 
 if NO_MAP_FILE.exists():
+
     with open(NO_MAP_FILE, newline="", encoding="utf-8") as f:
+
         reader = csv.DictReader(f)
-        # tolerate wrong/empty headers
-        if reader.fieldnames and ("market" in reader.fieldnames) and ("team" in reader.fieldnames):
+
+        if reader.fieldnames and "market" in reader.fieldnames and "team" in reader.fieldnames:
+
             for row in reader:
                 m = (row.get("market") or "").strip().lower()
                 t = (row.get("team") or "").strip()
+
                 if m and t:
                     existing.add((m, t))
 
@@ -109,10 +149,13 @@ new_only = unmapped - existing
 combined = existing | unmapped
 
 with open(NO_MAP_FILE, "w", newline="", encoding="utf-8") as f:
+
     writer = csv.writer(f)
     writer.writerow(["market", "team"])
+
     for market, team in sorted(combined):
         writer.writerow([market, team])
+
 
 # =========================
 # LOG SUMMARY
