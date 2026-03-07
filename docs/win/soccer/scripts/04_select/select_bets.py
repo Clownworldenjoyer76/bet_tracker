@@ -18,11 +18,19 @@ DRAW_MIN_EDGE_PCT = 0.05
 DRAW_MIN_PROB = 0.22
 DRAW_DOMINANCE_MARGIN = 0.03
 
+
+def parse_match_time(time_str):
+    try:
+        return datetime.strptime(time_str.strip(), "%I:%M %p")
+    except Exception:
+        return None
+
+
 def main():
 
     with open(ERROR_LOG, "w") as log:
 
-        log.write("=== SELECT BETS RUN (STRICT) ===\n")
+        log.write("=== SELECT BETS RUN ===\n")
         log.write(f"Timestamp: {datetime.utcnow().isoformat()}Z\n\n")
 
         try:
@@ -38,10 +46,12 @@ def main():
                 df = pd.read_csv(input_path)
 
                 required_cols = [
-                    "game_id",
-                    "home_prob", "draw_prob", "away_prob",
-                    "home_edge_decimal", "draw_edge_decimal", "away_edge_decimal",
-                    "home_edge_pct", "draw_edge_pct", "away_edge_pct"
+                    "league","market","match_date","match_time",
+                    "home_team","away_team",
+                    "home_prob","draw_prob","away_prob",
+                    "home_edge_pct","draw_edge_pct","away_edge_pct",
+                    "home_american","draw_american","away_american",
+                    "game_id"
                 ]
 
                 for col in required_cols:
@@ -68,17 +78,16 @@ def main():
                         if pd.isna(edges[k]):
                             edges[k] = -999
 
-                    # Remove negative edges entirely
                     positive_edges = {k: v for k, v in edges.items() if v >= MIN_EDGE_PCT}
 
                     if not positive_edges:
-                        continue  # no valid bet
+                        continue
 
                     best_side = max(positive_edges, key=positive_edges.get)
                     best_edge = positive_edges[best_side]
 
-                    # Draw suppression
                     if best_side == "draw":
+
                         sorted_edges = sorted(edges.values(), reverse=True)
                         second_best = sorted_edges[1] if len(sorted_edges) > 1 else -999
 
@@ -87,23 +96,49 @@ def main():
                             or probs["draw"] < DRAW_MIN_PROB
                             or (best_edge - second_best) < DRAW_DOMINANCE_MARGIN
                         ):
+
                             non_draw_positive = {
                                 k: v for k, v in positive_edges.items() if k != "draw"
                             }
+
                             if not non_draw_positive:
                                 continue
+
                             best_side = max(non_draw_positive, key=non_draw_positive.get)
                             best_edge = non_draw_positive[best_side]
 
                     selections.append({
+
+                        "league": row["league"],
+                        "market": row["market"],
+                        "match_date": row["match_date"],
+                        "match_time": row["match_time"],
+                        "home_team": row["home_team"],
+                        "away_team": row["away_team"],
+
+                        "home_prob": row["home_prob"],
+                        "draw_prob": row["draw_prob"],
+                        "away_prob": row["away_prob"],
+
                         "game_id": row["game_id"],
+
                         "take_bet": best_side,
                         "take_bet_prob": row[f"{best_side}_prob"],
-                        "take_bet_edge_decimal": row[f"{best_side}_edge_decimal"],
                         "take_bet_edge_pct": row[f"{best_side}_edge_pct"],
+
+                        "home_american": row["home_american"],
+                        "draw_american": row["draw_american"],
+                        "away_american": row["away_american"],
                     })
 
                 sel_df = pd.DataFrame(selections)
+
+                if not sel_df.empty:
+
+                    sel_df["_sort_time"] = sel_df["match_time"].apply(parse_match_time)
+                    sel_df = sel_df.sort_values(by="_sort_time")
+                    sel_df = sel_df.drop(columns=["_sort_time"])
+
                 output_path = OUTPUT_DIR / input_path.name
                 sel_df.to_csv(output_path, index=False)
 
@@ -113,6 +148,7 @@ def main():
             log.write("\n=== ERROR ===\n")
             log.write(str(e) + "\n\n")
             log.write(traceback.format_exc())
+
 
 if __name__ == "__main__":
     main()
