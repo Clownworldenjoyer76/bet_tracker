@@ -70,11 +70,13 @@ FIELDNAMES = [
     "league","market","match_date","match_time",
     "home_team","away_team",
     "home_prob","draw_prob","away_prob",
+    "home_xg","away_xg","expected_total_goals"
 ]
 
 RE_DATE = re.compile(r"(\d{1,2})/(\d{1,2})/(\d{4})")
 RE_TIME = re.compile(r"\b\d{1,2}:\d{2}(?:\s*(AM|PM))?\b", re.IGNORECASE)
 RE_PCT  = re.compile(r"(\d+(?:\.\d+)?)%")
+RE_FLOAT = re.compile(r"\d+\.\d+")
 
 def clean_team(text: str) -> str:
     return RE_PCT.sub("", text).strip()
@@ -106,6 +108,10 @@ for idx, line in enumerate(lines):
     away_team = clean_team(lines[t_idx+1])
     home_team = clean_team(lines[t_idx+2])
 
+    # -----------------------------
+    # PROBABILITIES
+    # -----------------------------
+
     pct_vals = []
     for k in range(t_idx+1, n):
         found = RE_PCT.findall(lines[k])
@@ -123,6 +129,35 @@ for idx, line in enumerate(lines):
     home_prob = pct_vals[1]
     draw_prob = pct_vals[2]
 
+    # -----------------------------
+    # xG + EXPECTED TOTAL
+    # -----------------------------
+
+    float_vals = []
+
+    for k in range(t_idx+1, n):
+        found = RE_FLOAT.findall(lines[k])
+        for v in found:
+            val = float(v)
+
+            # skip percentages already captured
+            if abs(val/100 - away_prob) < 0.001:
+                continue
+
+            float_vals.append(val)
+
+            if len(float_vals) == 3:
+                break
+        if len(float_vals) == 3:
+            break
+
+    if len(float_vals) != 3:
+        continue
+
+    away_xg = float_vals[0]
+    home_xg = float_vals[1]
+    expected_total = float_vals[2]
+
     rows_by_date[file_date].append({
         "league":league,
         "market":market,
@@ -133,6 +168,9 @@ for idx, line in enumerate(lines):
         "home_prob":f"{home_prob:.6f}",
         "draw_prob":f"{draw_prob:.6f}",
         "away_prob":f"{away_prob:.6f}",
+        "home_xg":f"{home_xg:.2f}",
+        "away_xg":f"{away_xg:.2f}",
+        "expected_total_goals":f"{expected_total:.2f}",
     })
 
 if not rows_by_date:
