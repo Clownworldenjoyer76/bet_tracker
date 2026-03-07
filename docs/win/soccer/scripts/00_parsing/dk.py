@@ -19,7 +19,14 @@ def log(msg):
 
 league_input = sys.argv[1].strip()
 market_input = sys.argv[2].strip()
-raw_text = sys.argv[3]
+raw_input = sys.argv[3]
+
+# --- FIX: correctly read dump.txt if provided ---
+p = Path(raw_input)
+if p.exists() and p.is_file():
+    raw_text = p.read_text(encoding="utf-8", errors="replace")
+else:
+    raw_text = raw_input
 
 league = "soccer"
 
