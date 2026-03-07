@@ -82,6 +82,19 @@ RE_ODDS = re.compile(r"[+-]\d+")
 def clean_team(text: str) -> str:
     return RE_PCT.sub("", text).strip()
 
+def normalize_time(time_str: str) -> str:
+    """Convert time to 24h HH:MM"""
+    t = time_str.strip().upper()
+
+    try:
+        if "AM" in t or "PM" in t:
+            dt = datetime.strptime(t, "%I:%M %p")
+        else:
+            dt = datetime.strptime(t, "%H:%M")
+        return dt.strftime("%H:%M")
+    except Exception:
+        return t
+
 lines = [l.strip() for l in raw_text.splitlines() if l.strip()]
 n = len(lines)
 
@@ -105,7 +118,8 @@ for idx, line in enumerate(lines):
     if t_idx is None or t_idx+2 >= n:
         continue
 
-    match_time = lines[t_idx]
+    match_time = normalize_time(lines[t_idx])
+
     away_team = clean_team(lines[t_idx+1])
     home_team = clean_team(lines[t_idx+2])
 
@@ -116,6 +130,7 @@ for idx, line in enumerate(lines):
     pct_vals = []
 
     for k in range(t_idx+1, n):
+
         found = RE_PCT.findall(lines[k])
 
         for v in found:
