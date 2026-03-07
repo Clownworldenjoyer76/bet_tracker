@@ -1,5 +1,3 @@
-# docs/win/soccer/scripts/00_parsing/dk.py
-
 #!/usr/bin/env python3
 
 import sys
@@ -92,16 +90,19 @@ for block in blocks:
         vs_index = lines.index("vs")
         home_team = clean_team(lines[vs_index-1])
         away_team = clean_team(lines[vs_index+2])
+
         odds = [normalize_odds(x) for x in lines if re.match(r"[+\-−]\d+",x)]
         if len(odds)!=3:
             log(f"ERROR: Expected 3 odds but found {len(odds)}")
             errors+=1
             continue
+
         match_time=""
         for l in lines:
             if "AM" in l or "PM" in l:
                 match_time=l
                 break
+
         rows.append({
             "league":league,
             "market":market,
@@ -113,6 +114,7 @@ for block in blocks:
             "dk_draw_american":odds[1],
             "dk_away_american":odds[2],
         })
+
     except Exception as e:
         log(f"ERROR parsing block: {str(e)}")
         errors+=1
@@ -120,42 +122,21 @@ for block in blocks:
 print("PARSED ROWS:")
 for r in rows:
     print(r)
-    
+
 if not rows:
     log("SUMMARY: wrote 0 rows")
     sys.exit()
 
-file_date = match_date
 output_dir = Path("docs/win/soccer/00_intake/sportsbook")
 output_dir.mkdir(parents=True,exist_ok=True)
-outfile = output_dir / f"soccer_{file_date}.csv"
 
-# --- LOAD + SELF-DEDUP EXISTING ---
-existing_rows = {}
-if outfile.exists():
-    with open(outfile,newline="",encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        if reader.fieldnames==FIELDNAMES:
-            for row in reader:
-                if all(k in row for k in FIELDNAMES):
-                    key=(row["match_date"],row["market"],row["home_team"],row["away_team"])
-                    existing_rows[key]=row
-        else:
-            log("WARNING: Invalid header detected. Rebuilding clean.")
+outfile = output_dir / f"soccer_{match_date}_{market}.csv"
 
-# --- UPSERT ---
-for new_row in rows:
-    key=(new_row["match_date"],new_row["market"],new_row["home_team"],new_row["away_team"])
-    existing_rows[key]=new_row
-
-temp_file = outfile.with_suffix(".tmp")
-with open(temp_file,"w",newline="",encoding="utf-8") as f:
+with open(outfile,"w",newline="",encoding="utf-8") as f:
     writer=csv.DictWriter(f,fieldnames=FIELDNAMES)
     writer.writeheader()
-    for r in existing_rows.values():
-        writer.writerow({k:r.get(k,"") for k in FIELDNAMES})
+    for r in rows:
+        writer.writerow(r)
 
-temp_file.replace(outfile)
-
-log(f"SUMMARY: upserted {len(rows)} rows, {errors} errors")
-print(f"Wrote {outfile} ({len(rows)} rows processed)")
+log(f"SUMMARY: wrote {len(rows)} rows, {errors} errors")
+print(f"Wrote {outfile} ({len(rows)} rows)")
