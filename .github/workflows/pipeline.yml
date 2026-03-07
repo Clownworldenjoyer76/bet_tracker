@@ -17,22 +17,34 @@ jobs:
 
     steps:
 
+      # -----------------------------
+      # Checkout repository
+      # -----------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      # -----------------------------
+      # Setup Python
+      # -----------------------------
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: "pip"
 
+      # -----------------------------
+      # Install dependencies
+      # -----------------------------
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pandas numpy scipy
+          pip install -r requirements.txt
 
+      # -----------------------------
+      # Run pipeline
+      # -----------------------------
       - name: Run pipeline
         run: |
           if [ -z "${{ github.event.inputs.slate_date }}" ]; then
@@ -41,6 +53,9 @@ jobs:
             python run_pipeline.py "${{ github.event.inputs.slate_date }}"
           fi
 
+      # -----------------------------
+      # Show pipeline log
+      # -----------------------------
       - name: Show pipeline log
         run: |
           echo "------ PIPELINE LOG ------"
@@ -50,6 +65,9 @@ jobs:
             echo "No log file found."
           fi
 
+      # -----------------------------
+      # Commit and push results
+      # -----------------------------
       - name: Commit and push results
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
