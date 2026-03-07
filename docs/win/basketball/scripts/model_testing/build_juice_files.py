@@ -141,6 +141,7 @@ def main():
 
             fair_under.append(fair_under_dec)
             fair_over.append(fair_over_dec)
+
             acc_under.append(fair_under_dec * (1 + total_edge))
             acc_over.append(fair_over_dec * (1 + total_edge))
 
@@ -148,8 +149,6 @@ def main():
         totals["fair_total_under_decimal"] = fair_under
         totals["acceptable_total_over_decimal"] = acc_over
         totals["acceptable_total_under_decimal"] = acc_under
-        totals["acceptable_total_over_american"] = totals["acceptable_total_over_decimal"].apply(to_american)
-        totals["acceptable_total_under_american"] = totals["acceptable_total_under_decimal"].apply(to_american)
 
         totals.to_csv(INPUT_DIR / f"{game_date}_{market}_total.csv", index=False)
 
@@ -182,6 +181,7 @@ def main():
 
             fair_home.append(fair_home_dec)
             fair_away.append(fair_away_dec)
+
             acc_home.append(fair_home_dec * (1 + spread_edge))
             acc_away.append(fair_away_dec * (1 + spread_edge))
 
@@ -189,8 +189,6 @@ def main():
         spreads["away_fair_spread_decimal"] = fair_away
         spreads["home_acceptable_spread_decimal"] = acc_home
         spreads["away_acceptable_spread_decimal"] = acc_away
-        spreads["home_acceptable_spread_american"] = spreads["home_acceptable_spread_decimal"].apply(to_american)
-        spreads["away_acceptable_spread_american"] = spreads["away_acceptable_spread_decimal"].apply(to_american)
 
         spreads.to_csv(INPUT_DIR / f"{game_date}_{market}_spread.csv", index=False)
 

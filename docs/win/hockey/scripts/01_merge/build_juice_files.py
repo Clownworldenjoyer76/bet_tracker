@@ -48,12 +48,12 @@ def main():
 
     try:
 
-        # FIX: match new filename structure like 2026_02_25_NHL_moneyline.csv
-        input_files = sorted(glob.glob(str(INPUT_DIR / "*_NHL_moneyline.csv")))
+        # FIX: only load merged slate files (not market files)
+        input_files = sorted(glob.glob(str(INPUT_DIR / "hockey_*.csv")))
 
         if not input_files:
             with open(ERROR_LOG, "a", encoding="utf-8") as log:
-                log.write("No input files found.\n")
+                log.write("No merged slate files found.\n")
             return
 
         for file_path in input_files:
@@ -63,7 +63,7 @@ def main():
             if df.empty:
                 continue
 
-            # FIX: ensure probabilities are numeric
+            # Ensure probabilities numeric
             df["home_prob"] = pd.to_numeric(df["home_prob"], errors="coerce")
             df["away_prob"] = pd.to_numeric(df["away_prob"], errors="coerce")
 
@@ -203,7 +203,7 @@ def main():
             pl_df.to_csv(pl_output, index=False)
 
             with open(ERROR_LOG, "a", encoding="utf-8") as log:
-                log.write(f"Processed {file_path}\n")
+                log.write(f"Processed merged slate: {file_path}\n")
 
         with open(ERROR_LOG, "a", encoding="utf-8") as log:
             log.write("\nCompleted successfully.\n")

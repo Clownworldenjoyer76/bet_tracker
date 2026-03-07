@@ -1,0 +1,88 @@
+name: 00 Run Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      slate_date:
+        description: "Optional slate date (YYYY_MM_DD). Leave blank for today."
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # -----------------------------
+      # Checkout repository
+      # -----------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # -----------------------------
+      # Setup Python
+      # -----------------------------
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      # -----------------------------
+      # Install dependencies
+      # -----------------------------
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # -----------------------------
+      # Run pipeline
+      # -----------------------------
+      - name: Run pipeline
+        run: |
+          if [ -z "${{ github.event.inputs.slate_date }}" ]; then
+            python scripts/run_pipeline.py
+          else
+            python scripts/run_pipeline.py "${{ github.event.inputs.slate_date }}"
+          fi
+
+      # -----------------------------
+      # Show pipeline log
+      # -----------------------------
+      - name: Show pipeline log
+        run: |
+          echo "------ PIPELINE LOG ------"
+          if [ -f docs/win/errors/pipeline_log.txt ]; then
+            cat docs/win/errors/pipeline_log.txt
+          else
+            echo "No log file found."
+          fi
+
+      # -----------------------------
+      # Commit and push results
+      # -----------------------------
+      - name: Commit and push results
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+          git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git
+
+          git add docs/win || true
+          git add mappings || true
+
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Automated pipeline run"
+            git push
+          fi

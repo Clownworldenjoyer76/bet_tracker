@@ -13,33 +13,18 @@ CONFIG_PATH = Path("docs/win/basketball/model_testing/rule_config.py")
 
 def load_config():
     cfg = {
+        "EDGE_MIN": 0.10,
         "EDGE_MAX": 0.30,
         "SPREAD_MAX": 20,
         "TOTAL_MIN": 140,
-
-        "NBA_TOTAL_EDGE_MIN": 0.00,
-        "NCAAB_TOTAL_EDGE_MIN": 0.00,
-        "NBA_SPREAD_EDGE_MIN": 0.00,
-        "NCAAB_SPREAD_EDGE_MIN": 0.00,
-
-        "NBA_ML_HOME_EDGE_MIN": 0.00,
-        "NBA_ML_AWAY_EDGE_MIN": 0.00,
-        "NCAAB_ML_HOME_EDGE_MIN": 0.00,
-        "NCAAB_ML_AWAY_EDGE_MIN": 0.00,
-
-        "NBA_ML_HOME_ODDS_MIN": -10000,
-        "NBA_ML_HOME_ODDS_MAX": 10000,
-        "NBA_ML_AWAY_ODDS_MIN": -10000,
-        "NBA_ML_AWAY_ODDS_MAX": 10000,
-        "NCAAB_ML_HOME_ODDS_MIN": -10000,
-        "NCAAB_ML_HOME_ODDS_MAX": 10000,
-        "NCAAB_ML_AWAY_ODDS_MIN": -10000,
-        "NCAAB_ML_AWAY_ODDS_MAX": 10000,
+        "ML_LOW": -180,
+        "ML_HIGH": -150
     }
 
     if CONFIG_PATH.exists():
         scope = {}
         exec(CONFIG_PATH.read_text(), {}, scope)
+
         for k in cfg:
             if k in scope:
                 cfg[k] = scope[k]
@@ -57,14 +42,6 @@ def f(x):
         return 0.0
 
 
-def avg(vals):
-    return sum(vals) / len(vals) if vals else 0.0
-
-
-def med(vals):
-    return float(pd.Series(vals).median()) if vals else 0.0
-
-
 def main():
 
     total_rows = 0
@@ -74,10 +51,7 @@ def main():
 
     spread_edges = []
     total_edges = []
-    ml_home_edges = {"NBA": [], "NCAAB": []}
-    ml_away_edges = {"NBA": [], "NCAAB": []}
-    ml_home_odds = {"NBA": [], "NCAAB": []}
-    ml_away_odds = {"NBA": [], "NCAAB": []}
+    ml_edges = []
 
     all_candidates = []
 
@@ -85,17 +59,11 @@ def main():
 
         df = pd.read_csv(csv_file)
         fname = csv_file.name.lower()
-        league = "NBA" if "nba" in fname else "NCAAB"
+        league = "NBA" if "_nba_" in fname else "NCAAB"
 
         for _, row in df.iterrows():
 
             total_rows += 1
-
-            game_key = (
-                row.get("game_date"),
-                row.get("away_team"),
-                row.get("home_team")
-            )
 
             if "total" in fname:
 
@@ -108,11 +76,9 @@ def main():
                     "under": f(row.get("under_edge_decimal"))
                 }
 
-                edge_min = CFG["NBA_TOTAL_EDGE_MIN"] if league == "NBA" else CFG["NCAAB_TOTAL_EDGE_MIN"]
-
                 for side, edge in edges.items():
 
-                    if edge < edge_min or edge > CFG["EDGE_MAX"]:
+                    if edge < CFG["EDGE_MIN"] or edge > CFG["EDGE_MAX"]:
                         continue
 
                     candidates_after_edge += 1
@@ -142,12 +108,10 @@ def main():
                     new_row["bet_side"] = side
                     new_row["line"] = line
                     new_row["candidate_edge"] = edge
-                    new_row["game_key"] = game_key
+
                     all_candidates.append(new_row)
 
             elif "spread" in fname:
-
-                edge_min = CFG["NBA_SPREAD_EDGE_MIN"] if league == "NBA" else CFG["NCAAB_SPREAD_EDGE_MIN"]
 
                 for side in ["home", "away"]:
 
@@ -155,7 +119,7 @@ def main():
                     spread = f(row.get(f"{side}_spread"))
                     odds = f(row.get(f"{side}_spread_juice_odds"))
 
-                    if edge < edge_min or edge > CFG["EDGE_MAX"]:
+                    if edge < CFG["EDGE_MIN"] or edge > CFG["EDGE_MAX"]:
                         continue
 
                     candidates_after_edge += 1
@@ -176,7 +140,7 @@ def main():
                     new_row["bet_side"] = side
                     new_row["line"] = spread
                     new_row["candidate_edge"] = edge
-                    new_row["game_key"] = game_key
+
                     all_candidates.append(new_row)
 
             elif "moneyline" in fname:
@@ -187,16 +151,7 @@ def main():
                     prob = f(row.get(f"{side}_prob"))
                     odds = f(row.get(f"{side}_juice_odds"))
 
-                    if side == "home":
-                        edge_min = CFG[f"{league}_ML_HOME_EDGE_MIN"]
-                        odds_min = CFG[f"{league}_ML_HOME_ODDS_MIN"]
-                        odds_max = CFG[f"{league}_ML_HOME_ODDS_MAX"]
-                    else:
-                        edge_min = CFG[f"{league}_ML_AWAY_EDGE_MIN"]
-                        odds_min = CFG[f"{league}_ML_AWAY_ODDS_MIN"]
-                        odds_max = CFG[f"{league}_ML_AWAY_ODDS_MAX"]
-
-                    if edge < edge_min or edge > CFG["EDGE_MAX"]:
+                    if edge < CFG["EDGE_MIN"] or edge > CFG["EDGE_MAX"]:
                         continue
 
                     candidates_after_edge += 1
@@ -206,105 +161,57 @@ def main():
 
                     candidates_after_odds += 1
 
-                    if not (odds_min <= odds <= odds_max):
-                        continue
+                    if league == "NCAAB":
+                        low = CFG["ML_LOW"]
+                        high = CFG["ML_HIGH"]
 
-                    if league == "NCAAB" and prob < 0.60:
-                        continue
+                        if side == "home" and low <= odds <= high:
+                            continue
+
+                        if prob < 0.60:
+                            continue
 
                     candidates_after_rules += 1
-
-                    if side == "home":
-                        ml_home_edges[league].append(edge)
-                        ml_home_odds[league].append(odds)
-                    else:
-                        ml_away_edges[league].append(edge)
-                        ml_away_odds[league].append(odds)
+                    ml_edges.append(edge)
 
                     new_row = row.copy()
                     new_row["market_type"] = "moneyline"
                     new_row["bet_side"] = side
                     new_row["line"] = odds
                     new_row["candidate_edge"] = edge
-                    new_row["game_key"] = game_key
+
                     all_candidates.append(new_row)
 
     df = pd.DataFrame(all_candidates)
 
     if df.empty:
         pd.DataFrame().to_csv(OUTPUT_FILE, index=False)
-        pd.DataFrame([{
-            "TOTAL_ROWS": total_rows,
-            "CANDIDATES_AFTER_EDGE": 0,
-            "CANDIDATES_AFTER_ODDS": 0,
-            "CANDIDATES_AFTER_RULES": 0,
-            "FINAL_BETS_TOTAL": 0,
-            "FINAL_BETS_SPREAD": 0,
-            "FINAL_BETS_TOTAL_MARKET": 0,
-            "FINAL_BETS_MONEYLINE": 0
-        }]).to_csv(STATS_FILE, index=False)
         return
 
-    final_rows = []
+    df.drop(columns=["candidate_edge"], errors="ignore").to_csv(OUTPUT_FILE, index=False)
 
-    for _, g in df.groupby("game_key"):
-
-        totals = g[g.market_type == "total"]
-        sides = g[g.market_type.isin(["spread", "moneyline"])]
-
-        if not totals.empty:
-            final_rows.append(
-                totals.sort_values("candidate_edge", ascending=False).iloc[0]
-            )
-
-        if not sides.empty:
-            final_rows.append(
-                sides.sort_values("candidate_edge", ascending=False).iloc[0]
-            )
-
-    res_df = pd.DataFrame(final_rows).drop_duplicates()
-
-    res_df.drop(columns=["candidate_edge", "game_key"], errors="ignore").to_csv(OUTPUT_FILE, index=False)
-
-    stats = {
+    stats_df = pd.DataFrame([{
         "TOTAL_ROWS": total_rows,
         "CANDIDATES_AFTER_EDGE": candidates_after_edge,
         "CANDIDATES_AFTER_ODDS": candidates_after_odds,
         "CANDIDATES_AFTER_RULES": candidates_after_rules,
-        "FINAL_BETS_TOTAL": len(res_df),
-        "FINAL_BETS_SPREAD": len(res_df[res_df["market_type"] == "spread"]),
-        "FINAL_BETS_TOTAL_MARKET": len(res_df[res_df["market_type"] == "total"]),
-        "FINAL_BETS_MONEYLINE": len(res_df[res_df["market_type"] == "moneyline"]),
-        "AVG_EDGE_SPREAD": avg(spread_edges),
-        "MEDIAN_EDGE_SPREAD": med(spread_edges),
-        "AVG_EDGE_TOTAL": avg(total_edges),
-        "MEDIAN_EDGE_TOTAL": med(total_edges),
+        "FINAL_BETS_TOTAL": len(df),
+        "FINAL_BETS_SPREAD": len(df[df["market_type"] == "spread"]),
+        "FINAL_BETS_TOTAL_MARKET": len(df[df["market_type"] == "total"]),
+        "FINAL_BETS_MONEYLINE": len(df[df["market_type"] == "moneyline"]),
+        "AVG_EDGE_SPREAD": sum(spread_edges) / len(spread_edges) if spread_edges else 0,
+        "MEDIAN_EDGE_SPREAD": pd.Series(spread_edges).median() if spread_edges else 0,
+        "AVG_EDGE_TOTAL": sum(total_edges) / len(total_edges) if total_edges else 0,
+        "MEDIAN_EDGE_TOTAL": pd.Series(total_edges).median() if total_edges else 0,
+        "AVG_EDGE_ML": sum(ml_edges) / len(ml_edges) if ml_edges else 0,
+        "MEDIAN_EDGE_ML": pd.Series(ml_edges).median() if ml_edges else 0
+    }])
 
-        "NBA_ML_HOME_EDGE_AVG": avg(ml_home_edges["NBA"]),
-        "NBA_ML_HOME_EDGE_MEDIAN": med(ml_home_edges["NBA"]),
-        "NBA_ML_AWAY_EDGE_AVG": avg(ml_away_edges["NBA"]),
-        "NBA_ML_AWAY_EDGE_MEDIAN": med(ml_away_edges["NBA"]),
-        "NCAAB_ML_HOME_EDGE_AVG": avg(ml_home_edges["NCAAB"]),
-        "NCAAB_ML_HOME_EDGE_MEDIAN": med(ml_home_edges["NCAAB"]),
-        "NCAAB_ML_AWAY_EDGE_AVG": avg(ml_away_edges["NCAAB"]),
-        "NCAAB_ML_AWAY_EDGE_MEDIAN": med(ml_away_edges["NCAAB"]),
+    if STATS_FILE.exists():
+        prev = pd.read_csv(STATS_FILE)
+        stats_df = pd.concat([prev, stats_df], ignore_index=True)
 
-        "NBA_ML_HOME_ODDS_AVG": avg(ml_home_odds["NBA"]),
-        "NBA_ML_HOME_ODDS_MIN": min(ml_home_odds["NBA"]) if ml_home_odds["NBA"] else 0.0,
-        "NBA_ML_HOME_ODDS_MAX": max(ml_home_odds["NBA"]) if ml_home_odds["NBA"] else 0.0,
-        "NBA_ML_AWAY_ODDS_AVG": avg(ml_away_odds["NBA"]),
-        "NBA_ML_AWAY_ODDS_MIN": min(ml_away_odds["NBA"]) if ml_away_odds["NBA"] else 0.0,
-        "NBA_ML_AWAY_ODDS_MAX": max(ml_away_odds["NBA"]) if ml_away_odds["NBA"] else 0.0,
-
-        "NCAAB_ML_HOME_ODDS_AVG": avg(ml_home_odds["NCAAB"]),
-        "NCAAB_ML_HOME_ODDS_MIN": min(ml_home_odds["NCAAB"]) if ml_home_odds["NCAAB"] else 0.0,
-        "NCAAB_ML_HOME_ODDS_MAX": max(ml_home_odds["NCAAB"]) if ml_home_odds["NCAAB"] else 0.0,
-        "NCAAB_ML_AWAY_ODDS_AVG": avg(ml_away_odds["NCAAB"]),
-        "NCAAB_ML_AWAY_ODDS_MIN": min(ml_away_odds["NCAAB"]) if ml_away_odds["NCAAB"] else 0.0,
-        "NCAAB_ML_AWAY_ODDS_MAX": max(ml_away_odds["NCAAB"]) if ml_away_odds["NCAAB"] else 0.0,
-    }
-
-    pd.DataFrame([stats]).to_csv(STATS_FILE, index=False)
+    stats_df.to_csv(STATS_FILE, index=False)
 
 
 if __name__ == "__main__":

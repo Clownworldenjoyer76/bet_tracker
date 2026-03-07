@@ -92,7 +92,11 @@ async function loadPage(){
 
           card.innerHTML=`
             <div class="pick-time">${r.game_time||"-"}</div>
-            <div class="pick-matchup">${r.away_team||"-"} @ ${r.home_team||"-"}</div>
+            <div class="pick-matchup">
+            ${r.away_team||"-"}<br>
+            at<br>
+            ${r.home_team||"-"}
+            </div>
             <div class="pick-bet">${betText}</div>
             <div class="pick-edge">${edgeIcon(edge)}</div>
           `;
@@ -109,7 +113,9 @@ async function loadPage(){
 
       });
 
-    }catch{}
+    }catch(e){
+      console.error("League load failed:", league, e);
+    }
 
     gamesEl.appendChild(column);
 
@@ -129,25 +135,44 @@ function buildBetText(p,r,cfg){
   if(cfg.isHockey){
 
     if(market==="total"){
-
       if(side==="under") return `Under ${line} ${odds}`.trim();
       if(side==="over") return `Over ${line} ${odds}`.trim();
-
     }
 
     if(market==="puck_line"){
-
       if(side==="away") return `${r.away_team} ${formatSpread(line)} ${odds}`.trim();
       if(side==="home") return `${r.home_team} ${formatSpread(line)} ${odds}`.trim();
-
     }
 
     if(market==="moneyline"){
-
       if(side==="away") return `${r.away_team} ${odds}`.trim();
       if(side==="home") return `${r.home_team} ${odds}`.trim();
-
     }
+
+  }
+
+  /* NBA / NCAAB custom logic */
+
+  if(!cfg.isHockey){
+
+    let label="";
+    let american="";
+
+    if(side==="home") label=r.home_team;
+    if(side==="away") label=r.away_team;
+    if(side==="over") label="Over";
+    if(side==="under") label="Under";
+
+    if(market==="total" && side==="over") american=r.dk_total_over_american;
+    if(market==="total" && side==="under") american=r.dk_total_under_american;
+
+    if(market==="spread" && side==="away") american=r.away_dk_spread_american;
+    if(market==="spread" && side==="home") american=r.home_dk_spread_american;
+
+    if(market==="moneyline" && side==="home") american=r.home_dk_moneyline_american;
+    if(market==="moneyline" && side==="away") american=r.away_dk_moneyline_american;
+
+    return `${label} ${line} ${american||""}`.trim();
 
   }
 
@@ -279,9 +304,12 @@ function extractEdge(p){
 
 function edgeIcon(edge){
 
-  if(edge>=0.08) return "🟢⬆";
-  if(edge>=0.04) return "🟡⬆";
-
+  if(edge>=0.15) return "🔥🔥🔥🔥🔥";
+  if(edge>=0.10) return "🔥🔥🔥🔥";
+  if(edge>=0.07) return "🔥🔥🔥";
+  if(edge>=0.04) return "🔥🔥";
+  if(edge>=0.001) return "🔥";
+  if(edge<=0.0009) return "⚠️";
   return "";
 
 }

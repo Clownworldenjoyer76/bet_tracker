@@ -1,4 +1,4 @@
-name: Model Parameter Test
+name: Basketball Model Test Pipeline
 
 on:
   workflow_dispatch:
@@ -36,6 +36,11 @@ jobs:
         run: |
           set -o pipefail
           python docs/win/basketball/scripts/model_testing/run_parameter_tests.py 2>&1 | tee workflow_output.log
+
+      - name: Show Band Performance Report
+        run: |
+          echo "===== BAND PERFORMANCE ====="
+          cat docs/win/basketball/model_testing/band_performance_report.csv || true
 
       - name: Show Error Logs
         if: failure()

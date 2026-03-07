@@ -32,6 +32,7 @@
 </div>
 
 <script>
+
 fetch("nav.html")
 .then(r=>r.text())
 .then(d=>document.getElementById("nav-placeholder").innerHTML=d);
@@ -64,47 +65,63 @@ async function loadPage(){
 
   if(league==="NBA"){
     selectFiles=[
-      `win/basketball/04_select/${date}_basketball_NBA_moneyline.csv`,
-      `win/basketball/04_select/${date}_basketball_NBA_spread.csv`,
-      `win/basketball/04_select/${date}_basketball_NBA_total.csv`
+      `win/basketball/04_select/daily_slate/${date}_nba.csv`
     ];
-    predFile=`win/basketball/00_intake/predictions/basketball_NBA_${date}.csv`;
-    bookFile=`win/basketball/00_intake/sportsbook/basketball_NBA_${date}.csv`;
   }
 
   if(league==="NCAAB"){
     selectFiles=[
-      `win/basketball/04_select/${date}_basketball_NCAAB_moneyline.csv`,
-      `win/basketball/04_select/${date}_basketball_NCAAB_spread.csv`,
-      `win/basketball/04_select/${date}_basketball_NCAAB_total.csv`
+      `win/basketball/04_select/daily_slate/${date}_ncaab.csv`
     ];
-    predFile=`win/basketball/00_intake/predictions/basketball_NCAAB_${date}.csv`;
-    bookFile=`win/basketball/00_intake/sportsbook/basketball_NCAAB_${date}.csv`;
   }
 
   try{
+
     const selectRows=await fetchMultiple(selectFiles);
-    const predRows=await fetchCSV(predFile);
-    const bookRows=await fetchCSV(bookFile);
 
-    const predMap=buildGameMap(predRows);
-    const bookMap=buildGameMap(bookRows);
+    let merged=[];
 
-    let merged=selectRows.map(sel=>{
+    if(league==="NHL"){
 
-      const gameDate=(sel.game_date||"").trim();
-      const homeTeam=(sel.home_team||"").trim();
-      const awayTeam=(sel.away_team||"").trim();
+      const predRows=await fetchCSV(predFile);
+      const bookRows=await fetchCSV(bookFile);
 
-      const key=gameDate+"|"+homeTeam+"|"+awayTeam;
+      const predMap=buildGameMap(predRows);
+      const bookMap=buildGameMap(bookRows);
 
-      const pred=predMap[key]||{};
-      const book=bookMap[key]||{};
+      merged=selectRows.map(sel=>{
 
-      return {...sel,...pred,...book, __key:key};
-    });
+        const gameDate=(sel.game_date||"").trim();
+        const homeTeam=(sel.home_team||"").trim();
+        const awayTeam=(sel.away_team||"").trim();
+
+        const key=gameDate+"|"+homeTeam+"|"+awayTeam;
+
+        const pred=predMap[key]||{};
+        const book=bookMap[key]||{};
+
+        return {...sel,...pred,...book,__key:key};
+
+      });
+
+    }else{
+
+      merged=selectRows.map(sel=>{
+
+        const gameDate=(sel.game_date||"").trim();
+        const homeTeam=(sel.home_team||"").trim();
+        const awayTeam=(sel.away_team||"").trim();
+
+        const key=gameDate+"|"+homeTeam+"|"+awayTeam;
+
+        return {...sel,__key:key};
+
+      });
+
+    }
 
     const grouped={};
+
     merged.forEach(r=>{
       if(!grouped[r.__key]) grouped[r.__key]=[];
       grouped[r.__key].push(r);
@@ -120,7 +137,8 @@ async function loadPage(){
     document.getElementById("status").textContent=
       merged.length+" picks found";
 
-  }catch{
+  }catch(e){
+    console.error(e);
     document.getElementById("status").textContent="No data found.";
   }
 }
@@ -209,7 +227,6 @@ function renderGames(grouped,gameKeys,league){
   gameKeys.forEach(key=>{
 
     const picks=grouped[key];
-
     const r=picks[0];
 
     const isHockey=league==="NHL";
@@ -232,21 +249,16 @@ function renderGames(grouped,gameKeys,league){
       let odds="-";
       let edge="-";
 
-      if(p.take_bet){
-        market=p.take_bet;
-        odds=p.take_odds||"-";
-        edge=p.take_bet_edge_pct ? (parseFloat(p.take_bet_edge_pct)*100).toFixed(2)+"%" : "-";
-      }else{
-        market=p.market_type+" "+p.bet_side;
+      market=p.market_type+" "+p.bet_side;
 
-        if(p.bet_side==="home") edge=p.home_edge_decimal;
-        if(p.bet_side==="away") edge=p.away_edge_decimal;
-        if(p.bet_side==="over") edge=p.over_edge_decimal;
-        if(p.bet_side==="under") edge=p.under_edge_decimal;
+      if(p.bet_side==="home") edge=p.home_edge_decimal;
+      if(p.bet_side==="away") edge=p.away_edge_decimal;
+      if(p.bet_side==="over") edge=p.over_edge_decimal;
+      if(p.bet_side==="under") edge=p.under_edge_decimal;
 
-        if(edge!=="" && edge!=null) edge=(parseFloat(edge)*100).toFixed(2)+"%";
-        else edge="-";
-      }
+      if(edge!=="" && edge!=null)
+        edge=(parseFloat(edge)*100).toFixed(2)+"%";
+      else edge="-";
 
       const formattedMarket=formatMarket(market);
       const formattedLine=formatLine(line, market);
@@ -259,6 +271,7 @@ function renderGames(grouped,gameKeys,league){
           <div class="game-edge">Edge: ${edge}</div>
         </div>
       `;
+
     });
 
     const card=document.createElement("div");
@@ -288,8 +301,11 @@ function renderGames(grouped,gameKeys,league){
     `;
 
     container.appendChild(card);
+
   });
+
 }
+
 </script>
 </body>
 </html>
