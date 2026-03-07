@@ -14,7 +14,7 @@ LOG_FILE = ERROR_DIR / "drat_log.txt"
 with open(LOG_FILE, "w", encoding="utf-8") as f:
     f.write("")
 
-def log(msg: str) -> None:
+def log(msg: str):
     with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write(f"{datetime.utcnow().isoformat()} | {msg}\n")
 
@@ -44,10 +44,9 @@ if len(sys.argv) >= 4:
             log(f"Read raw_text from file: {p}")
         else:
             raw_text = " ".join(sys.argv[3:])
-            log("Read raw_text from joined argv tokens (fallback).")
+            log("Read raw_text from argv fallback.")
 else:
     raw_text = sys.stdin.read()
-    log("No raw_text arg; read from stdin fallback.")
 
 if not raw_text.strip():
     raise ValueError("raw_text is empty.")
@@ -80,31 +79,22 @@ RE_PCT  = re.compile(r"(\d+(?:\.\d+)?)%")
 def clean_team(text: str) -> str:
     return RE_PCT.sub("", text).strip()
 
-lines = []
-for l in raw_text.splitlines():
-    s = (
-        l.replace("−","-")
-         .replace("\ufeff","")
-         .strip()
-    )
-    if s:
-        lines.append(s)
-
+lines = [l.strip() for l in raw_text.splitlines() if l.strip()]
 n = len(lines)
 
 rows_by_date = defaultdict(list)
 
-for idx,line in enumerate(lines):
+for idx, line in enumerate(lines):
 
     dm = RE_DATE.search(line)
     if not dm:
         continue
 
-    mm,dd,yyyy = dm.groups()
+    mm, dd, yyyy = dm.groups()
     file_date = f"{yyyy}_{mm.zfill(2)}_{dd.zfill(2)}"
 
     t_idx = None
-    for j in range(idx+1,n):
+    for j in range(idx+1, n):
         if RE_TIME.search(lines[j]):
             t_idx = j
             break
@@ -113,16 +103,11 @@ for idx,line in enumerate(lines):
         continue
 
     match_time = lines[t_idx]
-
     away_team = clean_team(lines[t_idx+1])
     home_team = clean_team(lines[t_idx+2])
 
-    if not away_team or not home_team:
-        continue
-
     pct_vals = []
-
-    for k in range(t_idx+1,n):
+    for k in range(t_idx+1, n):
         found = RE_PCT.findall(lines[k])
         for v in found:
             pct_vals.append(float(v)/100)
@@ -153,37 +138,43 @@ for idx,line in enumerate(lines):
 if not rows_by_date:
     raise ValueError("No rows parsed.")
 
-outdir = Path("docs/win/soccer/00_intake/predictions")
-outdir.mkdir(parents=True,exist_ok=True)
+# -----------------------------
+# WRITE MARKET FILE
+# -----------------------------
+
+output_dir = Path("docs/win/soccer/00_intake/predictions")
+output_dir.mkdir(parents=True, exist_ok=True)
 
 for d in sorted(rows_by_date.keys()):
 
-    # write market file
-    outfile = outdir / f"soccer_{d}_{market}.csv"
+    outfile = output_dir / f"soccer_{d}_{market}.csv"
 
-    with open(outfile,"w",newline="",encoding="utf-8") as f:
-        writer = csv.DictWriter(f,fieldnames=FIELDNAMES)
+    with open(outfile, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
         writer.writeheader()
         writer.writerows(rows_by_date[d])
 
     print(f"Wrote {outfile} ({len(rows_by_date[d])} rows)")
 
-    # build combined master file
-    combined_dir = outdir / "combined"
-    combined_dir.mkdir(parents=True,exist_ok=True)
+    # -----------------------------
+    # BUILD COMBINED FILE
+    # -----------------------------
+
+    combined_dir = output_dir / "combined"
+    combined_dir.mkdir(parents=True, exist_ok=True)
 
     combined_file = combined_dir / f"soccer_{d}.csv"
 
     combined_rows = []
 
-    for fpath in outdir.glob(f"soccer_{d}_*.csv"):
-        with open(fpath,newline="",encoding="utf-8") as rf:
-            reader = csv.DictReader(rf)
+    for f in output_dir.glob(f"soccer_{d}_*.csv"):
+        with open(f, newline="", encoding="utf-8") as r:
+            reader = csv.DictReader(r)
             for row in reader:
                 combined_rows.append(row)
 
-    with open(combined_file,"w",newline="",encoding="utf-8") as f:
-        writer = csv.DictWriter(f,fieldnames=FIELDNAMES)
+    with open(combined_file, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
         writer.writeheader()
         writer.writerows(combined_rows)
 
