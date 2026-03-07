@@ -17,34 +17,22 @@ jobs:
 
     steps:
 
-      # -----------------------------
-      # Checkout repository
-      # -----------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # -----------------------------
-      # Setup Python
-      # -----------------------------
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: "pip"
 
-      # -----------------------------
-      # Install dependencies
-      # -----------------------------
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install pandas numpy scipy
 
-      # -----------------------------
-      # Run pipeline
-      # -----------------------------
       - name: Run pipeline
         run: |
           if [ -z "${{ github.event.inputs.slate_date }}" ]; then
@@ -53,17 +41,15 @@ jobs:
             python run_pipeline.py "${{ github.event.inputs.slate_date }}"
           fi
 
-      # -----------------------------
-      # Show pipeline log (for debugging)
-      # -----------------------------
       - name: Show pipeline log
         run: |
           echo "------ PIPELINE LOG ------"
-          cat docs/win/errors/pipeline_log.txt || true
+          if [ -f docs/win/errors/pipeline_log.txt ]; then
+            cat docs/win/errors/pipeline_log.txt
+          else
+            echo "No log file found."
+          fi
 
-      # -----------------------------
-      # Commit and push results
-      # -----------------------------
       - name: Commit and push results
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -71,15 +57,14 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
 
-          # allow push
           git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git
 
-          # stage everything changed
           git add docs/win || true
           git add mappings || true
-          git add docs/win/errors/pipeline_log.txt || true
 
-          # commit only if changes exist
-          git diff --staged --quiet || git commit -m "Automated pipeline run"
-
-          git push
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Automated pipeline run"
+            git push
+          fi
