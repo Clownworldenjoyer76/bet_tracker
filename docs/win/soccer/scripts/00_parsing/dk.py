@@ -21,7 +21,7 @@ league_input = sys.argv[1].strip()
 market_input = sys.argv[2].strip()
 raw_input = sys.argv[3]
 
-# --- FIX: correctly read dump.txt if provided ---
+# Read dump.txt if provided
 p = Path(raw_input)
 if p.exists() and p.is_file():
     raw_text = p.read_text(encoding="utf-8", errors="replace")
@@ -134,6 +134,10 @@ if not rows:
     log("SUMMARY: wrote 0 rows")
     sys.exit()
 
+# -----------------------------
+# WRITE MARKET FILE
+# -----------------------------
+
 output_dir = Path("docs/win/soccer/00_intake/sportsbook")
 output_dir.mkdir(parents=True,exist_ok=True)
 
@@ -142,8 +146,32 @@ outfile = output_dir / f"soccer_{match_date}_{market}.csv"
 with open(outfile,"w",newline="",encoding="utf-8") as f:
     writer=csv.DictWriter(f,fieldnames=FIELDNAMES)
     writer.writeheader()
-    for r in rows:
-        writer.writerow(r)
+    writer.writerows(rows)
+
+print(f"Wrote {outfile} ({len(rows)} rows)")
+
+# -----------------------------
+# BUILD COMBINED FILE
+# -----------------------------
+
+combined_dir = output_dir / "combined"
+combined_dir.mkdir(parents=True,exist_ok=True)
+
+combined_file = combined_dir / f"soccer_{match_date}.csv"
+
+combined_rows = []
+
+for f in output_dir.glob(f"soccer_{match_date}_*.csv"):
+    with open(f,newline="",encoding="utf-8") as r:
+        reader = csv.DictReader(r)
+        for row in reader:
+            combined_rows.append(row)
+
+with open(combined_file,"w",newline="",encoding="utf-8") as f:
+    writer = csv.DictWriter(f,fieldnames=FIELDNAMES)
+    writer.writeheader()
+    writer.writerows(combined_rows)
+
+print(f"Wrote combined file {combined_file} ({len(combined_rows)} rows)")
 
 log(f"SUMMARY: wrote {len(rows)} rows, {errors} errors")
-print(f"Wrote {outfile} ({len(rows)} rows)")
