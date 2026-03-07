@@ -41,6 +41,15 @@ def validate_columns(df, required_cols):
         if col not in df.columns:
             raise ValueError(f"Missing required column: {col}")
 
+
+def parse_match_time(time_str):
+    """Convert '03:05 PM' → datetime object for sorting"""
+    try:
+        return datetime.strptime(time_str.strip(), "%I:%M %p")
+    except Exception:
+        return None
+
+
 # =========================
 # CORE
 # =========================
@@ -71,6 +80,7 @@ def main():
 
                 required_cols = [
                     "game_id",
+                    "match_time",
                     "home_adjusted_decimal",
                     "draw_adjusted_decimal",
                     "away_adjusted_decimal",
@@ -107,7 +117,15 @@ def main():
                     df[play_col] = df[edge_pct_col] > 0
 
                 # =========================
-                # CLEAN OUTPUT
+                # SORT BY MATCH TIME
+                # =========================
+
+                df["_sort_time"] = df["match_time"].apply(parse_match_time)
+                df = df.sort_values(by="_sort_time")
+                df = df.drop(columns=["_sort_time"])
+
+                # =========================
+                # DEDUPE
                 # =========================
 
                 df = df.drop_duplicates(subset=["game_id"])
@@ -132,6 +150,7 @@ def main():
             log.write(traceback.format_exc())
 
             raise
+
 
 if __name__ == "__main__":
     main()
