@@ -77,6 +77,7 @@ RE_DATE = re.compile(r"(\d{1,2})/(\d{1,2})/(\d{4})")
 RE_TIME = re.compile(r"\b\d{1,2}:\d{2}(?:\s*(AM|PM))?\b", re.IGNORECASE)
 RE_PCT  = re.compile(r"(\d+(?:\.\d+)?)%")
 RE_FLOAT = re.compile(r"\d+\.\d+")
+RE_ODDS = re.compile(r"[+-]\d+")
 
 def clean_team(text: str) -> str:
     return RE_PCT.sub("", text).strip()
@@ -113,12 +114,16 @@ for idx, line in enumerate(lines):
     # -----------------------------
 
     pct_vals = []
+
     for k in range(t_idx+1, n):
         found = RE_PCT.findall(lines[k])
+
         for v in found:
             pct_vals.append(float(v)/100)
+
             if len(pct_vals) == 3:
                 break
+
         if len(pct_vals) == 3:
             break
 
@@ -130,24 +135,41 @@ for idx, line in enumerate(lines):
     draw_prob = pct_vals[2]
 
     # -----------------------------
-    # xG + EXPECTED TOTAL
+    # FIND ML ODDS LOCATION
+    # -----------------------------
+
+    odds_idx = None
+    odds_found = 0
+
+    for k in range(t_idx+1, n):
+
+        if RE_ODDS.match(lines[k]):
+            odds_found += 1
+
+            if odds_found == 2:
+                odds_idx = k
+                break
+
+    if odds_idx is None:
+        continue
+
+    # -----------------------------
+    # EXTRACT xG + TOTAL
     # -----------------------------
 
     float_vals = []
 
-    for k in range(t_idx+1, n):
+    for k in range(odds_idx+1, n):
+
         found = RE_FLOAT.findall(lines[k])
+
         for v in found:
-            val = float(v)
 
-            # skip percentages already captured
-            if abs(val/100 - away_prob) < 0.001:
-                continue
-
-            float_vals.append(val)
+            float_vals.append(float(v))
 
             if len(float_vals) == 3:
                 break
+
         if len(float_vals) == 3:
             break
 
@@ -206,12 +228,16 @@ for d in sorted(rows_by_date.keys()):
     combined_rows = []
 
     for f in output_dir.glob(f"soccer_{d}_*.csv"):
+
         with open(f, newline="", encoding="utf-8") as r:
+
             reader = csv.DictReader(r)
+
             for row in reader:
                 combined_rows.append(row)
 
     with open(combined_file, "w", newline="", encoding="utf-8") as f:
+
         writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
         writer.writeheader()
         writer.writerows(combined_rows)
