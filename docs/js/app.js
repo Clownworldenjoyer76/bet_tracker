@@ -285,10 +285,12 @@ function extractEdge(p){
 
 function edgeIcon(edge){
 
-  if(edge>=0.15) return "🔥🔥🔥";
-  if(edge>=0.10) return "🔥🔥";
-  if(edge>=0.08) return "🟢⬆";
-  if(edge>=0.04) return "🟡⬆";
+  if(edge>=0.15) return "🔥🔥🔥🔥🔥";
+  if(edge>=0.10) return "🔥🔥🔥🔥";
+  if(edge>=0.07) return "🔥🔥🔥";
+  if(edge>=0.04) return "🔥🔥";
+  if(edge>=0.001) return "🔥";
+  if(edge<=0.0009) return "⚠️";
   return "";
 
 }
