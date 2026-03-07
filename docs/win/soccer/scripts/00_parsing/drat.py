@@ -157,6 +157,8 @@ outdir = Path("docs/win/soccer/00_intake/predictions")
 outdir.mkdir(parents=True,exist_ok=True)
 
 for d in sorted(rows_by_date.keys()):
+
+    # write market file
     outfile = outdir / f"soccer_{d}_{market}.csv"
 
     with open(outfile,"w",newline="",encoding="utf-8") as f:
@@ -165,3 +167,24 @@ for d in sorted(rows_by_date.keys()):
         writer.writerows(rows_by_date[d])
 
     print(f"Wrote {outfile} ({len(rows_by_date[d])} rows)")
+
+    # build combined master file
+    combined_dir = outdir / "combined"
+    combined_dir.mkdir(parents=True,exist_ok=True)
+
+    combined_file = combined_dir / f"soccer_{d}.csv"
+
+    combined_rows = []
+
+    for fpath in outdir.glob(f"soccer_{d}_*.csv"):
+        with open(fpath,newline="",encoding="utf-8") as rf:
+            reader = csv.DictReader(rf)
+            for row in reader:
+                combined_rows.append(row)
+
+    with open(combined_file,"w",newline="",encoding="utf-8") as f:
+        writer = csv.DictWriter(f,fieldnames=FIELDNAMES)
+        writer.writeheader()
+        writer.writerows(combined_rows)
+
+    print(f"Wrote combined file {combined_file} ({len(combined_rows)} rows)")
