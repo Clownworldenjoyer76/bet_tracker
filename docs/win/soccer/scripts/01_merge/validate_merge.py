@@ -24,7 +24,6 @@ ERROR_DIR = Path("docs/win/soccer/errors/01_merge")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE = ERROR_DIR / "validate_merge.txt"
 
-# overwrite log each run
 with open(LOG_FILE, "w", encoding="utf-8") as f:
     f.write("")
 
@@ -43,9 +42,14 @@ required_fields = [
     "league","market","match_date","match_time",
     "home_team","away_team",
     "home_prob","draw_prob","away_prob",
-    "home_xg","away_xg","expected_total_goals",
     "home_american","draw_american","away_american",
     "game_id"
+]
+
+optional_fields = [
+    "home_xg",
+    "away_xg",
+    "expected_total_goals"
 ]
 
 rows_checked = 0
@@ -65,6 +69,8 @@ with open(MERGE_FILE, newline="", encoding="utf-8") as f:
             log(f"ERROR: Missing required column {field}")
             raise ValueError("Invalid header structure")
 
+    has_xg = all(f in reader.fieldnames for f in optional_fields)
+
     # -------------------------
     # ROW VALIDATION
     # -------------------------
@@ -73,7 +79,7 @@ with open(MERGE_FILE, newline="", encoding="utf-8") as f:
 
         rows_checked += 1
 
-        # Check probability sum
+        # Probability check
         try:
             hp = float(r["home_prob"])
             dp = float(r["draw_prob"])
@@ -90,27 +96,30 @@ with open(MERGE_FILE, newline="", encoding="utf-8") as f:
             errors += 1
 
         # -------------------------
-        # xG VALIDATION (optional)
+        # Optional xG validation
         # -------------------------
 
-        hxg = r.get("home_xg","")
-        axg = r.get("away_xg","")
-        txg = r.get("expected_total_goals","")
+        if has_xg:
 
-        if hxg and axg and txg:
-            try:
-                hxg = float(hxg)
-                axg = float(axg)
-                txg = float(txg)
+            hxg = r.get("home_xg","")
+            axg = r.get("away_xg","")
+            txg = r.get("expected_total_goals","")
 
-                if abs((hxg + axg) - txg) > 0.25:
-                    log(f"WARNING: xG mismatch row {rows_checked} ({hxg}+{axg}!={txg})")
+            if hxg and axg and txg:
 
-            except:
-                log(f"WARNING: invalid xG values row {rows_checked}")
+                try:
+                    hxg = float(hxg)
+                    axg = float(axg)
+                    txg = float(txg)
+
+                    if abs((hxg + axg) - txg) > 0.25:
+                        log(f"WARNING: xG mismatch row {rows_checked}")
+
+                except:
+                    log(f"WARNING: invalid xG values row {rows_checked}")
 
         # -------------------------
-        # GAME ID UNIQUENESS
+        # game_id uniqueness
         # -------------------------
 
         gid = r["game_id"]
@@ -122,7 +131,7 @@ with open(MERGE_FILE, newline="", encoding="utf-8") as f:
         game_ids.add(gid)
 
 # =========================
-# FINAL RESULT
+# RESULT
 # =========================
 
 if errors > 0:
