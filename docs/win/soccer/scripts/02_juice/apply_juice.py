@@ -1,6 +1,3 @@
-
-# docs/win/soccer/scripts/02_juice/apply_juice.py
-
 #!/usr/bin/env python3
 
 import pandas as pd
@@ -43,30 +40,33 @@ def decimal_to_american(decimal_odds):
     return f"-{int(round(100 / (decimal_odds - 1)))}"
 
 
-def find_band(prob, juice_df):
+def find_band(prob, juice_df, side):
     band = juice_df[
+        (juice_df["side"] == side) &
         (juice_df["band_min"] <= prob) &
         (prob < juice_df["band_max"])
     ]
+
     if band.empty:
-        raise ValueError(f"No juice band found for probability {prob}")
+        raise ValueError(f"No juice band found for probability {prob} side {side}")
+
     return band.iloc[0]
 
 
 def process_side(df, side, juice_tables, summary):
+
     prob_col = f"{side}_prob"
 
-    # Numeric columns
     df[f"{side}_fair_decimal"] = pd.NA
     df[f"{side}_adjusted_prob"] = pd.NA
     df[f"{side}_adjusted_decimal"] = pd.NA
 
-    # String columns
     df[f"{side}_juice_band"] = ""
     df[f"{side}_extra_juice"] = pd.NA
     df[f"{side}_adjusted_american"] = ""
 
     for idx, row in df.iterrows():
+
         prob = row[prob_col]
 
         if pd.isna(prob) or prob <= 0 or prob >= 1:
@@ -82,11 +82,13 @@ def process_side(df, side, juice_tables, summary):
 
         fair_decimal = 1 / prob
 
-        band_row = find_band(prob, juice_df)
+        band_row = find_band(prob, juice_df, side)
+
         extra_juice = band_row["extra_juice"]
         band_label = f"{band_row['band_min']}-{band_row['band_max']}"
 
         adjusted_prob = prob + extra_juice
+
         if adjusted_prob >= 0.999:
             adjusted_prob = 0.999
 
@@ -116,6 +118,7 @@ def main():
         log.write(f"Timestamp: {datetime.utcnow().isoformat()}Z\n\n")
 
     try:
+
         input_files = glob.glob(str(INPUT_DIR / "soccer_*.csv"))
 
         if not input_files:
@@ -130,26 +133,38 @@ def main():
         }
 
         for file_path in input_files:
+
             input_path = Path(file_path)
+
             df = pd.read_csv(input_path)
 
             if "market" not in df.columns:
                 raise ValueError("Missing 'market' column")
+
             if "home_prob" not in df.columns:
                 raise ValueError("Missing probability columns")
 
             unique_markets = df["market"].unique()
+
             juice_tables = {}
 
             for m in unique_markets:
+
                 if m not in JUICE_MAP:
                     raise ValueError(f"No juice config mapped for market: {m}")
-                juice_tables[m] = pd.read_csv(JUICE_MAP[m])
+
+                config_path = JUICE_MAP[m]
+
+                if not config_path.exists():
+                    raise FileNotFoundError(f"Missing juice config: {config_path}")
+
+                juice_tables[m] = pd.read_csv(config_path)
 
             for side in ["home", "draw", "away"]:
                 df = process_side(df, side, juice_tables, summary)
 
             output_path = OUTPUT_DIR / input_path.name
+
             df.to_csv(output_path, index=False)
 
             with open(ERROR_LOG, "a", encoding="utf-8") as log:
@@ -164,10 +179,12 @@ def main():
             log.write(f"Rows skipped: {summary['rows_skipped']}\n")
 
     except Exception as e:
+
         with open(ERROR_LOG, "a", encoding="utf-8") as log:
             log.write("\n=== ERROR ===\n")
             log.write(str(e) + "\n\n")
             log.write(traceback.format_exc())
+
         sys.exit(1)
 
 
