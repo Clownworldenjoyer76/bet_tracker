@@ -92,7 +92,11 @@ async function loadPage(){
 
           card.innerHTML=`
             <div class="pick-time">${r.game_time||"-"}</div>
-            <div class="pick-matchup">${r.away_team||"-"} @ ${r.home_team||"-"}</div>
+            <div class="pick-matchup">
+            ${r.away_team||"-"}<br>
+            at<br>
+            ${r.home_team||"-"}
+            </div>
             <div class="pick-bet">${betText}</div>
             <div class="pick-edge">${edgeIcon(edge)}</div>
           `;
@@ -281,9 +285,10 @@ function extractEdge(p){
 
 function edgeIcon(edge){
 
+  if(edge>=0.15) return "🔥🔥🔥";
+  if(edge>=0.10) return "🔥🔥";
   if(edge>=0.08) return "🟢⬆";
   if(edge>=0.04) return "🟡⬆";
-
   return "";
 
 }
