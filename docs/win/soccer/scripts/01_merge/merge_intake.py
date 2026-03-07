@@ -19,15 +19,18 @@ slate_date = sys.argv[1].strip()
 # =========================
 
 INTAKE_DIR = Path("docs/win/soccer/00_intake")
-SPORTSBOOK_FILE = INTAKE_DIR / "sportsbook" / f"soccer_{slate_date}.csv"
-PRED_FILE = INTAKE_DIR / "predictions" / f"soccer_{slate_date}.csv"
+
+SPORTSBOOK_FILE = INTAKE_DIR / "sportsbook" / "combined" / f"soccer_{slate_date}.csv"
+PRED_FILE = INTAKE_DIR / "predictions" / "combined" / f"soccer_{slate_date}.csv"
 
 MERGE_DIR = Path("docs/win/soccer/01_merge")
 MERGE_DIR.mkdir(parents=True, exist_ok=True)
+
 OUTFILE = MERGE_DIR / f"soccer_{slate_date}.csv"
 
 ERROR_DIR = Path("docs/win/soccer/errors/01_merge")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
+
 LOG_FILE = ERROR_DIR / "merge_intake.txt"
 
 # reset log each run
@@ -42,8 +45,13 @@ def log(msg):
 # SAFE INPUT VALIDATION
 # =========================
 
+if not SPORTSBOOK_FILE.exists():
+    log(f"Missing sportsbook file: {SPORTSBOOK_FILE}")
+
+if not PRED_FILE.exists():
+    log(f"Missing predictions file: {PRED_FILE}")
+
 if not SPORTSBOOK_FILE.exists() or not PRED_FILE.exists():
-    log(f"No soccer slate found for {slate_date}. Skipping merge.")
     print(f"No soccer slate found for {slate_date}. Skipping.")
     sys.exit(0)
 
@@ -52,13 +60,21 @@ if not SPORTSBOOK_FILE.exists() or not PRED_FILE.exists():
 # =========================
 
 def load_dedupe(path, key_fields):
+
     data = {}
+
     with open(path, newline="", encoding="utf-8") as f:
+
         reader = csv.DictReader(f)
+
         for r in reader:
+
             key = tuple(r[k] for k in key_fields)
+
             data[key] = r
+
     return data
+
 
 pred_key_fields = ["match_date", "market", "home_team", "away_team"]
 dk_key_fields = ["match_date", "market", "home_team", "away_team"]
@@ -95,6 +111,7 @@ for key, p in pred_data.items():
         "market": p["market"],
         "match_date": p["match_date"],
         "match_time": p["match_time"],
+
         "home_team": p["home_team"],
         "away_team": p["away_team"],
 
