@@ -77,49 +77,66 @@ RE_DATE = re.compile(r"(\d{1,2})/(\d{1,2})/(\d{4})")
 RE_TIME = re.compile(r"\b\d{1,2}:\d{2}(?:\s*(AM|PM))?\b", re.IGNORECASE)
 RE_PCT  = re.compile(r"(\d+(?:\.\d+)?)%")
 
-lines=[l.strip() for l in raw_text.splitlines() if l.strip()]
-n=len(lines)
+def clean_team(text: str) -> str:
+    return RE_PCT.sub("", text).strip()
 
-rows_by_date=defaultdict(list)
+lines = []
+for l in raw_text.splitlines():
+    s = (
+        l.replace("−","-")
+         .replace("\ufeff","")
+         .strip()
+    )
+    if s:
+        lines.append(s)
+
+n = len(lines)
+
+rows_by_date = defaultdict(list)
 
 for idx,line in enumerate(lines):
 
-    dm=RE_DATE.search(line)
+    dm = RE_DATE.search(line)
     if not dm:
         continue
 
-    mm,dd,yyyy=dm.groups()
-    file_date=f"{yyyy}_{mm.zfill(2)}_{dd.zfill(2)}"
+    mm,dd,yyyy = dm.groups()
+    file_date = f"{yyyy}_{mm.zfill(2)}_{dd.zfill(2)}"
 
-    t_idx=None
+    t_idx = None
     for j in range(idx+1,n):
         if RE_TIME.search(lines[j]):
-            t_idx=j
+            t_idx = j
             break
 
-    if t_idx is None or t_idx+2>=n:
+    if t_idx is None or t_idx+2 >= n:
         continue
 
-    match_time=lines[t_idx]
-    away_team=lines[t_idx+1]
-    home_team=lines[t_idx+2]
+    match_time = lines[t_idx]
 
-    pct_vals=[]
+    away_team = clean_team(lines[t_idx+1])
+    home_team = clean_team(lines[t_idx+2])
+
+    if not away_team or not home_team:
+        continue
+
+    pct_vals = []
+
     for k in range(t_idx+1,n):
-        found=RE_PCT.findall(lines[k])
+        found = RE_PCT.findall(lines[k])
         for v in found:
             pct_vals.append(float(v)/100)
-            if len(pct_vals)==3:
+            if len(pct_vals) == 3:
                 break
-        if len(pct_vals)==3:
+        if len(pct_vals) == 3:
             break
 
-    if len(pct_vals)!=3:
+    if len(pct_vals) != 3:
         continue
 
-    away_prob=pct_vals[0]
-    home_prob=pct_vals[1]
-    draw_prob=pct_vals[2]
+    away_prob = pct_vals[0]
+    home_prob = pct_vals[1]
+    draw_prob = pct_vals[2]
 
     rows_by_date[file_date].append({
         "league":league,
@@ -136,14 +153,14 @@ for idx,line in enumerate(lines):
 if not rows_by_date:
     raise ValueError("No rows parsed.")
 
-outdir=Path("docs/win/soccer/00_intake/predictions")
+outdir = Path("docs/win/soccer/00_intake/predictions")
 outdir.mkdir(parents=True,exist_ok=True)
 
 for d in sorted(rows_by_date.keys()):
-    outfile=outdir/f"soccer_{d}_{market}.csv"
+    outfile = outdir / f"soccer_{d}_{market}.csv"
 
     with open(outfile,"w",newline="",encoding="utf-8") as f:
-        writer=csv.DictWriter(f,fieldnames=FIELDNAMES)
+        writer = csv.DictWriter(f,fieldnames=FIELDNAMES)
         writer.writeheader()
         writer.writerows(rows_by_date[d])
 
