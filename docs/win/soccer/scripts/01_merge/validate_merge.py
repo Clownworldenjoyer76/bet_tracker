@@ -1,5 +1,3 @@
-# docs/win/soccer/scripts/01_merge/validate_merge.py
-
 #!/usr/bin/env python3
 
 import sys
@@ -12,7 +10,7 @@ from datetime import datetime
 # =========================
 
 if len(sys.argv) != 2:
-    raise ValueError("Usage: validate_merge.py YYYY_MM_DD")
+    raise ValueError("Usage: merge_intake.py YYYY_MM_DD")
 
 slate_date = sys.argv[1].strip()
 
@@ -20,13 +18,22 @@ slate_date = sys.argv[1].strip()
 # PATHS
 # =========================
 
-MERGE_FILE = Path(f"docs/win/soccer/01_merge/soccer_{slate_date}.csv")
+INTAKE_DIR = Path("docs/win/soccer/00_intake")
+
+SPORTSBOOK_FILE = INTAKE_DIR / "sportsbook" / "combined" / f"soccer_{slate_date}.csv"
+PRED_FILE = INTAKE_DIR / "predictions" / "combined" / f"soccer_{slate_date}.csv"
+
+MERGE_DIR = Path("docs/win/soccer/01_merge")
+MERGE_DIR.mkdir(parents=True, exist_ok=True)
+
+OUTFILE = MERGE_DIR / f"soccer_{slate_date}.csv"
 
 ERROR_DIR = Path("docs/win/soccer/errors/01_merge")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
-LOG_FILE = ERROR_DIR / "validate_merge.txt"
 
-# overwrite log each run
+LOG_FILE = ERROR_DIR / "merge_intake.txt"
+
+# reset log each run
 with open(LOG_FILE, "w", encoding="utf-8") as f:
     f.write("")
 
@@ -35,13 +42,37 @@ def log(msg):
         f.write(f"{datetime.utcnow().isoformat()} | {msg}\n")
 
 # =========================
-# VALIDATION
+# INPUT VALIDATION
 # =========================
 
-if not MERGE_FILE.exists():
-    raise FileNotFoundError(f"Missing merge file: {MERGE_FILE}")
+if not SPORTSBOOK_FILE.exists() or not PRED_FILE.exists():
+    log(f"No soccer slate found for {slate_date}. Skipping merge.")
+    print(f"No soccer slate found for {slate_date}. Skipping.")
+    sys.exit(0)
 
-required_fields = [
+# =========================
+# LOAD + DEDUPE INTAKE
+# =========================
+
+def load_dedupe(path, key_fields):
+    data = {}
+    with open(path, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for r in reader:
+            key = tuple(r[k] for k in key_fields)
+            data[key] = r
+    return data
+
+key_fields = ["match_date", "market", "home_team", "away_team"]
+
+pred_data = load_dedupe(PRED_FILE, key_fields)
+dk_data = load_dedupe(SPORTSBOOK_FILE, key_fields)
+
+# =========================
+# MERGE
+# =========================
+
+FIELDNAMES = [
     "league","market","match_date","match_time",
     "home_team","away_team",
     "home_prob","draw_prob","away_prob",
@@ -49,51 +80,93 @@ required_fields = [
     "game_id"
 ]
 
-rows_checked = 0
-errors = 0
-game_ids = set()
+merged_rows = {}
 
-with open(MERGE_FILE, newline="", encoding="utf-8") as f:
-    reader = csv.DictReader(f)
+for key, p in pred_data.items():
 
-    if reader.fieldnames != required_fields:
-        log("ERROR: Header mismatch")
-        raise ValueError("Invalid header structure")
+    if key not in dk_data:
+        continue
 
-    for r in reader:
-        rows_checked += 1
+    d = dk_data[key]
 
-        # Check required fields exist
-        if not all(k in r for k in required_fields):
-            log(f"ERROR: Missing fields in row {rows_checked}")
-            errors += 1
-            continue
+    game_id = (
+        f"{p['match_date']}_"
+        f"{p['home_team'].replace(' ','_')}_"
+        f"{p['away_team'].replace(' ','_')}"
+    )
 
-        # Check probability sum
-        try:
-            hp = float(r["home_prob"])
-            dp = float(r["draw_prob"])
-            ap = float(r["away_prob"])
-        except Exception:
-            log(f"ERROR: Invalid probability format in row {rows_checked}")
-            errors += 1
-            continue
+    merged_rows[key] = {
+        "league": p["league"],
+        "market": p["market"],
+        "match_date": p["match_date"],
+        "match_time": p["match_time"],
+        "home_team": p["home_team"],
+        "away_team": p["away_team"],
+        "home_prob": p["home_prob"],
+        "draw_prob": p["draw_prob"],
+        "away_prob": p["away_prob"],
+        "home_american": d["dk_home_american"],
+        "draw_american": d["dk_draw_american"],
+        "away_american": d["dk_away_american"],
+        "game_id": game_id,
+    }
 
-        total = hp + dp + ap
-        if abs(total - 1.0) > 0.02:
-            log(f"ERROR: Prob sum != 1.0 ({total}) in row {rows_checked}")
-            errors += 1
+if not merged_rows:
+    log(f"No matching rows to merge for slate {slate_date}.")
+    print(f"No matching rows to merge for slate {slate_date}.")
+    sys.exit(0)
 
-        # Check game_id uniqueness
-        gid = r["game_id"]
-        if gid in game_ids:
-            log(f"ERROR: Duplicate game_id {gid}")
-            errors += 1
-        game_ids.add(gid)
+# =========================
+# LOAD EXISTING
+# =========================
 
-if errors > 0:
-    log(f"FAILED: {errors} errors detected")
-    raise ValueError("Validation failed")
+existing = {}
 
-log(f"SUCCESS: rows_checked={rows_checked}")
-print(f"Validation passed for {MERGE_FILE}")
+if OUTFILE.exists():
+    with open(OUTFILE, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+
+        if reader.fieldnames != FIELDNAMES:
+            log("WARNING: Invalid header detected. Rebuilding clean.")
+        else:
+            for r in reader:
+                key = (
+                    r["match_date"],
+                    r["market"],
+                    r["home_team"],
+                    r["away_team"],
+                )
+                existing[key] = r
+
+# =========================
+# UPSERT
+# =========================
+
+for key, row in merged_rows.items():
+    existing[key] = row
+
+# =========================
+# ATOMIC WRITE
+# =========================
+
+temp_file = OUTFILE.with_suffix(".tmp")
+
+with open(temp_file, "w", newline="", encoding="utf-8") as f:
+    writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
+    writer.writeheader()
+
+    for r in sorted(
+        existing.values(),
+        key=lambda x: (
+            x["match_date"],
+            x["market"],
+            x["home_team"],
+            x["away_team"],
+        )
+    ):
+        writer.writerow({k: r.get(k, "") for k in FIELDNAMES})
+
+temp_file.replace(OUTFILE)
+
+log(f"SUMMARY: merged {len(merged_rows)} rows for slate {slate_date}")
+print(f"Wrote {OUTFILE}")
