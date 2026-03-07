@@ -135,25 +135,44 @@ function buildBetText(p,r,cfg){
   if(cfg.isHockey){
 
     if(market==="total"){
-
       if(side==="under") return `Under ${line} ${odds}`.trim();
       if(side==="over") return `Over ${line} ${odds}`.trim();
-
     }
 
     if(market==="puck_line"){
-
       if(side==="away") return `${r.away_team} ${formatSpread(line)} ${odds}`.trim();
       if(side==="home") return `${r.home_team} ${formatSpread(line)} ${odds}`.trim();
-
     }
 
     if(market==="moneyline"){
-
       if(side==="away") return `${r.away_team} ${odds}`.trim();
       if(side==="home") return `${r.home_team} ${odds}`.trim();
-
     }
+
+  }
+
+  /* NBA / NCAAB custom logic */
+
+  if(!cfg.isHockey){
+
+    let label="";
+    let american="";
+
+    if(side==="home") label=r.home_team;
+    if(side==="away") label=r.away_team;
+    if(side==="over") label="Over";
+    if(side==="under") label="Under";
+
+    if(market==="total" && side==="over") american=r.dk_total_over_american;
+    if(market==="total" && side==="under") american=r.dk_total_under_american;
+
+    if(market==="spread" && side==="away") american=r.away_dk_spread_american;
+    if(market==="spread" && side==="home") american=r.home_dk_spread_american;
+
+    if(market==="moneyline" && side==="home") american=r.home_dk_moneyline_american;
+    if(market==="moneyline" && side==="away") american=r.away_dk_moneyline_american;
+
+    return `${label} ${line} ${american||""}`.trim();
 
   }
 
