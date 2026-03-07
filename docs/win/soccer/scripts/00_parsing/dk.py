@@ -85,6 +85,10 @@ def clean_team(name):
 def normalize_odds(o):
     return o.replace("−","-").strip()
 
+def clean_time(t):
+    t = re.sub(r"(?i)^today\s*", "", t).strip()
+    return t
+
 blocks = raw_text.split("More Bets")
 rows = []
 errors = 0
@@ -107,7 +111,7 @@ for block in blocks:
         match_time=""
         for l in lines:
             if "AM" in l or "PM" in l:
-                match_time=l
+                match_time = clean_time(l)
                 break
 
         rows.append({
