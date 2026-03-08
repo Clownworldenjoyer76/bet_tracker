@@ -76,7 +76,6 @@ def compute_moneyline_edges(df, league):
         df["away_juice_decimal_moneyline"]
     )
 
-    # Ensure unwanted columns are removed if present
     df = df.drop(columns=["home_play", "away_play"], errors="ignore")
 
     return df
@@ -103,7 +102,6 @@ def compute_spread_edges(df, league):
         df["away_spread_juice_decimal"]
     )
 
-    # Ensure unwanted columns are removed if present
     df = df.drop(columns=["home_play", "away_play"], errors="ignore")
 
     return df
@@ -130,7 +128,6 @@ def compute_total_edges(df, league):
         df["total_under_juice_decimal"]
     )
 
-    # Ensure unwanted columns are removed if present
     df = df.drop(columns=["home_play", "away_play"], errors="ignore")
 
     return df
@@ -171,6 +168,8 @@ def process_market_files(files, compute_fn, league, market):
             df = pd.read_csv(f)
 
             df = compute_fn(df, league)
+
+            df = df.drop(columns=["home_play", "away_play"], errors="ignore")
 
             date = extract_date_from_filename(f.name)
 
@@ -240,6 +239,15 @@ def build_combined_daily():
 
                 key_cols = ["game_id", "game_date", "home_team", "away_team"]
 
+                ml_keep = key_cols + [
+                    "market_type",
+                    "line",
+                    "home_moneyline",
+                    "away_juice_odds",
+                    "home_ml_edge_decimal",
+                    "away_ml_edge_decimal"
+                ]
+
                 spread_keep = key_cols + [
                     "home_spread_edge_decimal",
                     "away_spread_edge_decimal"
@@ -250,7 +258,7 @@ def build_combined_daily():
                     "under_edge_decimal"
                 ]
 
-                combined = ml_df.merge(
+                combined = ml_df[ml_keep].merge(
                     sp_df[spread_keep],
                     on=key_cols,
                     how="left"
@@ -262,7 +270,6 @@ def build_combined_daily():
                     how="left"
                 )
 
-                # FINAL CLEANUP STEP
                 combined = combined.drop(columns=["home_play", "away_play"], errors="ignore")
 
                 combined_path = COMBINED_DIR / f"{date}_basketball_{league}_combined.csv"
