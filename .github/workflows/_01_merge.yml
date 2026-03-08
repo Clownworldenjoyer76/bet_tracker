@@ -2,11 +2,6 @@ name: _01 Merge Intake
 
 on:
   workflow_dispatch:
-    inputs:
-      slate_date:
-        required: true
-        type: string
-        description: "YYYY_MM_DD"
 
 permissions:
   contents: write
@@ -37,13 +32,11 @@ jobs:
 
       - name: Run Soccer merge
         run: |
-          python docs/win/soccer/scripts/01_merge/merge_intake.py \
-            "${{ github.event.inputs.slate_date }}"
+          python docs/win/soccer/scripts/01_merge/merge_intake.py
 
       - name: Validate Soccer merge
         run: |
-          python docs/win/soccer/scripts/01_merge/validate_merge.py \
-            "${{ github.event.inputs.slate_date }}"
+          python docs/win/soccer/scripts/01_merge/validate_merge.py
 
       # =========================
       # HOCKEY
@@ -51,8 +44,7 @@ jobs:
 
       - name: Run Hockey merge
         run: |
-          python docs/win/hockey/scripts/01_merge/merge_intake.py \
-            "${{ github.event.inputs.slate_date }}"
+          python docs/win/hockey/scripts/01_merge/merge_intake.py
 
       - name: Build Hockey Juice Files
         run: |
@@ -82,7 +74,8 @@ jobs:
           git add -A
 
           if ! git diff --cached --quiet; then
-            git commit -m "Merge + Hockey + Basketball Juice: ${{ github.event.inputs.slate_date }}"
+            git commit -m "Merge + Juice rebuild (all sports)"
             git push
           else
             echo "No changes detected"
+          fi
