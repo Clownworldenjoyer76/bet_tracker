@@ -43,6 +43,13 @@ ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 ERROR_LOG = ERROR_DIR / "apply_total_juice.txt"
 
+# =========================
+# PURGE OLD OUTPUT FILES
+# =========================
+
+for f in OUTPUT_DIR.glob("*_total.csv"):
+    f.unlink()
+
 
 def log(msg):
     with open(ERROR_LOG, "a", encoding="utf-8") as f:
@@ -72,10 +79,7 @@ def decimal_to_american(d):
 
 def resolve_total_odds(row, side):
 
-    # preferred column
     col1 = f"acceptable_total_{side}_american"
-
-    # fallback column
     col2 = f"dk_total_{side}_american"
 
     if col1 in row and pd.notna(row[col1]):
