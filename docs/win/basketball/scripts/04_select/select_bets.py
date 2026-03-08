@@ -12,8 +12,12 @@ ERROR_DIR = Path("docs/win/basketball/errors/04_select")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
-LOG_FILE = ERROR_DIR / "select_bets_audit.txt"
+REPORT_FILE = ERROR_DIR / "select_report.txt"
 
+
+###############################################################
+######################## HELPERS ##############################
+###############################################################
 
 def f(x):
     try:
@@ -22,40 +26,27 @@ def f(x):
         return 0.0
 
 
-def audit(stage, status, msg="", df=None):
+def log(msg):
 
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    with open(LOG_FILE, "a", encoding="utf-8") as fh:
+    with open(REPORT_FILE, "a", encoding="utf-8") as fh:
+        fh.write(f"[{ts}] {msg}\n")
 
-        fh.write(f"\n[{ts}] [{stage}] {status}\n")
-
-        if msg:
-            fh.write(f"  MSG: {msg}\n")
-
-        if df is not None and isinstance(df, pd.DataFrame):
-            fh.write(
-                f"  STATS: {len(df)} rows | {len(df.columns)} cols\n"
-            )
-            fh.write(
-                f"  SAMPLE:\n{df.head(3).to_string(index=False)}\n"
-            )
-
-        fh.write("-" * 40 + "\n")
-
-
-###############################################################
-######################## NBA RULES ############################
-###############################################################
 
 def get_moneyline(row, side):
+
     if side == "home":
-        return f(row.get("home_moneyline") or row.get("home_juice_odds"))
+        return f(row.get("home_dk_moneyline_american"))
     else:
-        return f(row.get("away_moneyline") or row.get("away_juice_odds"))
+        return f(row.get("away_dk_moneyline_american"))
 
 
-def allow_nba_moneyline(row):
+###############################################################
+##################### STEP 1 NBA MONEYLINE ####################
+###############################################################
+
+def step1_nba_moneyline(row):
 
     home_edge = f(row.get("home_edge_decimal"))
     away_edge = f(row.get("away_edge_decimal"))
@@ -63,221 +54,244 @@ def allow_nba_moneyline(row):
     home_ml = get_moneyline(row, "home")
     away_ml = get_moneyline(row, "away")
 
-    if home_edge > 0.07 and -180 <= home_ml <= 180:
-        return True
+    cond1_home = home_edge > 0.07
+    cond2_home = -180 <= home_ml <= 180
 
-    if away_edge > 0.07 and -180 <= away_ml <= 180:
-        return True
+    cond1_away = away_edge > 0.07
+    cond2_away = -180 <= away_ml <= 180
 
-    return False
+    if cond1_home and cond2_home:
+        return True, "PASS: HOME meets edge + odds"
+
+    if cond1_away and cond2_away:
+        return True, "PASS: AWAY meets edge + odds"
+
+    return False, "FAIL: Moneyline conditions not met"
 
 
-def allow_nba_spread(row):
+###############################################################
+##################### STEP 2 NBA SPREAD #######################
+###############################################################
 
-    spread = f(row.get("line"))
+def step2_nba_spread(row):
 
     home_edge = f(row.get("home_edge_decimal"))
     away_edge = f(row.get("away_edge_decimal"))
-    edge = max(home_edge, away_edge)
-
-    if edge < 0.07:
-        return False
-
-    if abs(spread) > 15:
-        return False
-
-    if -2 <= spread <= 2:
-        return False
-
-    return True
-
-
-def allow_nba_total(row):
-
-    total = f(row.get("line"))
-    proj = f(row.get("total_projected_points"))
-
-    diff = abs(proj - total)
-
-    home_spread = abs(f(row.get("home_spread")))
-    away_spread = abs(f(row.get("away_spread")))
-    spread = max(home_spread, away_spread)
-
-    over_edge = f(row.get("over_edge_decimal"))
-    under_edge = f(row.get("under_edge_decimal"))
-
-    if total > 245:
-        return False
-
-    if diff < 3:
-        return False
-
-    if spread >= 13 and total >= 240:
-        return False
-
-    if under_edge > over_edge:
-
-        if total <= 205:
-            return False
-
-        if under_edge < 0.06:
-            return False
-
-        if under_edge > 0.40:
-            return False
-
-        return True
-
-    else:
-
-        if total <= 205:
-            if over_edge < 0.04:
-                return False
-        else:
-            if over_edge < 0.06:
-                return False
-
-        if over_edge > 0.35:
-            return False
-
-        return True
-
-
-###############################################################
-######################## NCAAB RULES ##########################
-###############################################################
-
-def allow_ncaab_moneyline(row):
-
-    home_ml = f(row.get("home_moneyline"))
-    away_ml = f(row.get("away_moneyline"))
-
-    if home_ml <= -215:
-        return False
-
-    if away_ml < 0:
-        return True
-
-    return False
-
-
-def allow_ncaab_spread(row):
 
     spread = f(row.get("line"))
 
-    if 1 <= spread <= 3:
-        return False
+    edge_ok = home_edge >= 0.07 or away_edge >= 0.07
 
-    if -10 <= spread <= -5:
-        return False
+    if not edge_ok:
+        return False, "FAIL: Spread edge below threshold"
 
-    if 1 <= abs(spread) <= 7 and spread > 0:
-        return False
+    if -2 <= spread <= 2:
+        return False, "FAIL: Spread inside dead zone (-2 to 2)"
 
-    return True
+    if abs(spread) > 14.6:
+        return False, "FAIL: Spread outside ±14.6"
+
+    return True, "PASS: Spread rules satisfied"
 
 
 ###############################################################
-################ NCAAB TOTAL UPDATED RULES ####################
+##################### STEP 3 NBA TOTAL ########################
 ###############################################################
 
-def allow_ncaab_total(row):
+def step3_nba_total(row):
 
-    total = f(row.get("line"))
-    bet_side = str(row.get("bet_side", "")).lower()
+    line = f(row.get("line"))
+    proj = f(row.get("total_projected_points"))
+
+    home_spread = abs(f(row.get("home_spread")))
+    away_spread = abs(f(row.get("away_spread")))
 
     over_edge = f(row.get("over_edge_decimal"))
     under_edge = f(row.get("under_edge_decimal"))
 
-    ###############################################################
-    # OVER FILTER (ONLY IF BET SIDE IS OVER)
-    ###############################################################
+    diff = abs(proj - line)
 
-    if bet_side == "over":
+    if line > 245:
+        return False, "FAIL: Total exceeds 245"
 
-        if (
-            145 <= total <= 155
-            and 0.12 <= over_edge <= 0.18
-        ):
-            return True
+    if diff < 3:
+        return False, "FAIL: Projection diff < 3"
 
-        return False
+    if max(home_spread, away_spread) >= 13 and line >= 240:
+        return False, "FAIL: Blowout filter triggered"
 
-    ###############################################################
-    # UNDER FILTER (ONLY IF BET SIDE IS UNDER)
-    ###############################################################
+    ###########################################################
+    # UNDER LOGIC
+    ###########################################################
 
-    if bet_side == "under":
+    if under_edge > over_edge:
 
-        if (
-            141 <= total <= 150
-            and 0.10 <= under_edge <= 0.22
-        ):
-            return True
+        if line <= 205:
+            return False, "FAIL: Under requires line > 205"
 
-        return False
+        if not (0.06 <= under_edge <= 0.40):
+            return False, "FAIL: Under edge outside range"
 
-    return False
+        return True, "PASS: NBA UNDER"
+
+    ###########################################################
+    # OVER LOGIC
+    ###########################################################
+
+    else:
+
+        if line <= 205:
+
+            if over_edge < 0.04:
+                return False, "FAIL: Over edge < 0.04"
+
+        else:
+
+            if over_edge < 0.06:
+                return False, "FAIL: Over edge < 0.06"
+
+        if over_edge > 0.35:
+            return False, "FAIL: Over edge > 0.35"
+
+        return True, "PASS: NBA OVER"
 
 
 ###############################################################
-#################### EDGE SELECTION ENGINE ####################
+#################### STEP 4 NCAAB MONEYLINE ###################
 ###############################################################
 
-def process_file(csv_file):
+def step4_ncaab_moneyline(row):
 
-    df = pd.read_csv(csv_file)
+    home_ml = get_moneyline(row, "home")
+    away_ml = get_moneyline(row, "away")
+
+    if away_ml < 0:
+        return True, "PASS: Away favorite"
+
+    if home_ml > -215:
+        return True, "PASS: Home price acceptable"
+
+    return False, "FAIL: NCAAB ML rules"
+
+
+###############################################################
+#################### STEP 5 NCAAB SPREAD ######################
+###############################################################
+
+def step5_ncaab_spread(row):
+
+    line = f(row.get("line"))
+
+    if 1 <= line <= 3:
+        return False, "FAIL: Spread 1–3 blocked"
+
+    if -10 <= line <= -5:
+        return False, "FAIL: Spread -10 to -5 blocked"
+
+    if 1 <= abs(line) <= 7 and line > 0:
+        return False, "FAIL: Positive spread 1–7 blocked"
+
+    return True, "PASS: NCAAB spread allowed"
+
+
+###############################################################
+#################### STEP 6 NCAAB TOTAL #######################
+###############################################################
+
+def step6_ncaab_total(row):
+
+    line = f(row.get("line"))
+
+    over_edge = f(row.get("over_edge_decimal"))
+    under_edge = f(row.get("under_edge_decimal"))
+
+    ###########################################################
+    # OVER SIDE
+    ###########################################################
+
+    if 145 <= line <= 155 and 0.12 <= over_edge <= 0.18:
+        return True, "PASS: NCAAB OVER"
+
+    ###########################################################
+    # UNDER SIDE
+    ###########################################################
+
+    if 141 <= line <= 150 and 0.10 <= under_edge <= 0.22:
+        return True, "PASS: NCAAB UNDER"
+
+    return False, "FAIL: NCAAB total rules"
+
+
+###############################################################
+######################## ENGINE ###############################
+###############################################################
+
+def process_file(file):
+
+    df = pd.read_csv(file)
 
     if df.empty:
         return
 
-    fname = csv_file.name.lower()
+    fname = file.name.lower()
 
     league = "NBA" if "nba" in fname else "NCAAB"
 
-    filtered_rows = []
+    results = []
 
     for _, row in df.iterrows():
 
-        market_type = row.get("market_type")
-
-        allowed = True
+        market = str(row.get("market_type")).lower()
 
         if league == "NBA":
 
-            if market_type == "moneyline":
-                allowed = allow_nba_moneyline(row)
+            if market == "moneyline":
+                passed, reason = step1_nba_moneyline(row)
 
-            elif market_type == "spread":
-                allowed = allow_nba_spread(row)
+            elif market == "spread":
+                passed, reason = step2_nba_spread(row)
 
-            elif market_type == "total":
-                allowed = allow_nba_total(row)
+            elif market == "total":
+                passed, reason = step3_nba_total(row)
+
+            else:
+                continue
 
         else:
 
-            if market_type == "moneyline":
-                allowed = allow_ncaab_moneyline(row)
+            if market == "moneyline":
+                passed, reason = step4_ncaab_moneyline(row)
 
-            elif market_type == "spread":
-                allowed = allow_ncaab_spread(row)
+            elif market == "spread":
+                passed, reason = step5_ncaab_spread(row)
 
-            elif market_type == "total":
-                allowed = allow_ncaab_total(row)
+            elif market == "total":
+                passed, reason = step6_ncaab_total(row)
 
-        if allowed:
-            filtered_rows.append(row)
+            else:
+                continue
 
-    if not filtered_rows:
-        return
+        game = f"{row.get('away_team')} @ {row.get('home_team')}"
 
-    out_df = pd.DataFrame(filtered_rows)
+        if passed:
 
-    out_path = OUTPUT_DIR / csv_file.name
+            results.append(row)
 
-    out_df.to_csv(out_path, index=False)
+            log(f"PASS | {league} | {market} | {game} | {reason}")
 
-    print(f"Selected {len(out_df)} rows -> {out_path.name}")
+        else:
+
+            log(f"FAIL | {league} | {market} | {game} | {reason}")
+
+    if results:
+
+        out_df = pd.DataFrame(results)
+
+        out_path = OUTPUT_DIR / file.name
+
+        out_df.to_csv(out_path, index=False)
+
+        print(f"{file.name} -> {len(out_df)} selections")
 
 
 ###############################################################
@@ -289,18 +303,20 @@ def main():
     files = list(INPUT_DIR.glob("*.csv"))
 
     if not files:
-        audit("SELECT", "INFO", "No input files")
+        log("No input files found")
         return
 
     for f in files:
 
         try:
+
             process_file(f)
 
         except Exception as e:
-            audit("SELECT", "ERROR", f"{f.name} failed: {e}")
 
-    audit("SELECT", "SUCCESS", "Selection complete")
+            log(f"ERROR processing {f.name}: {e}")
+
+    log("Selection run complete")
 
 
 if __name__ == "__main__":
