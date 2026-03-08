@@ -21,20 +21,7 @@ def write_log(message):
     log.write(message + "\n")
 
 
-# -----------------------
-# Determine slate date
-# -----------------------
-
-if len(sys.argv) > 1 and sys.argv[1]:
-    slate_date = sys.argv[1]
-else:
-    slate_date = datetime.now().strftime("%Y_%m_%d")
-
-# Validate format
-datetime.strptime(slate_date, "%Y_%m_%d")
-
-write_log(f"\nPipeline Run: {datetime.now()}")
-write_log(f"Slate Date: {slate_date}\n")
+write_log(f"\nPipeline Run: {datetime.now()}\n")
 
 # -----------------------
 # Pipeline definition
@@ -42,10 +29,10 @@ write_log(f"Slate Date: {slate_date}\n")
 
 pipeline = [
 
-    # 01 MERGE
-    ["python", "docs/win/soccer/scripts/01_merge/merge_intake.py", slate_date],
-    ["python", "docs/win/hockey/scripts/01_merge/merge_intake.py", slate_date],
-    ["python", "docs/win/basketball/scripts/01_merge/merge_intake.py", slate_date],
+    # 01 MERGE (auto-detect all slates)
+    ["python", "docs/win/soccer/scripts/01_merge/merge_intake.py"],
+    ["python", "docs/win/hockey/scripts/01_merge/merge_intake.py"],
+    ["python", "docs/win/basketball/scripts/01_merge/merge_intake.py"],
 
     ["python", "docs/win/hockey/scripts/01_merge/build_juice_files.py"],
     ["python", "docs/win/basketball/scripts/01_merge/build_juice_files.py"],
