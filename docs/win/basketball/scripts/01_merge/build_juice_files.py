@@ -94,11 +94,11 @@ ERROR_DIR.mkdir(parents=True, exist_ok=True)
 # CONSTANTS (default values)
 # =========================
 
-EDGE = 0.05                 # Default EDGE (ML + Spread)
+EDGE = 0.06                # Default EDGE (ML + Spread)
 NBA_TOTAL_EDGE = 0.05       # Reduced NBA totals EDGE
 
-NBA_TOTAL_STD = 14
-NBA_SPREAD_STD = 15
+NBA_TOTAL_STD = 22.7
+NBA_SPREAD_STD = 13.7
 
 NCAAB_TOTAL_STD = 12
 NCAAB_SPREAD_STD = 15       # YOUR WINNING VALUE
