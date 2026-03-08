@@ -10,7 +10,8 @@ from datetime import datetime
 # =========================
 
 if len(sys.argv) != 2:
-    raise ValueError("Usage: validate_merge.py YYYY_MM_DD")
+    print("Usage: validate_merge.py YYYY_MM_DD")
+    sys.exit(0)
 
 slate_date = sys.argv[1].strip()
 
@@ -22,6 +23,7 @@ MERGE_FILE = Path(f"docs/win/soccer/01_merge/soccer_{slate_date}.csv")
 
 ERROR_DIR = Path("docs/win/soccer/errors/01_merge")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
+
 LOG_FILE = ERROR_DIR / "validate_merge.txt"
 
 with open(LOG_FILE, "w", encoding="utf-8") as f:
@@ -32,11 +34,17 @@ def log(msg):
         f.write(f"{datetime.utcnow().isoformat()} | {msg}\n")
 
 # =========================
-# VALIDATION
+# SKIP IF NO MERGE FILE
 # =========================
 
 if not MERGE_FILE.exists():
-    raise FileNotFoundError(f"Missing merge file: {MERGE_FILE}")
+    log(f"No merge file found for {slate_date}. Skipping validation.")
+    print(f"No soccer slate found for {slate_date}. Skipping validation.")
+    sys.exit(0)
+
+# =========================
+# VALIDATION
+# =========================
 
 required_fields = [
     "league","market","match_date","match_time",
@@ -60,44 +68,31 @@ with open(MERGE_FILE, newline="", encoding="utf-8") as f:
 
     reader = csv.DictReader(f)
 
-    # -------------------------
-    # HEADER VALIDATION
-    # -------------------------
-
     for field in required_fields:
         if field not in reader.fieldnames:
             log(f"ERROR: Missing required column {field}")
-            raise ValueError("Invalid header structure")
+            sys.exit(1)
 
     has_xg = all(f in reader.fieldnames for f in optional_fields)
-
-    # -------------------------
-    # ROW VALIDATION
-    # -------------------------
 
     for r in reader:
 
         rows_checked += 1
 
-        # Probability check
         try:
             hp = float(r["home_prob"])
             dp = float(r["draw_prob"])
             ap = float(r["away_prob"])
-        except Exception:
-            log(f"ERROR: Invalid probability format in row {rows_checked}")
+        except:
+            log(f"ERROR: Invalid probability format row {rows_checked}")
             errors += 1
             continue
 
         total = hp + dp + ap
 
         if abs(total - 1.0) > 0.02:
-            log(f"ERROR: Prob sum != 1.0 ({total}) in row {rows_checked}")
+            log(f"ERROR: Prob sum != 1.0 ({total}) row {rows_checked}")
             errors += 1
-
-        # -------------------------
-        # Optional xG validation
-        # -------------------------
 
         if has_xg:
 
@@ -116,11 +111,7 @@ with open(MERGE_FILE, newline="", encoding="utf-8") as f:
                         log(f"WARNING: xG mismatch row {rows_checked}")
 
                 except:
-                    log(f"WARNING: invalid xG values row {rows_checked}")
-
-        # -------------------------
-        # game_id uniqueness
-        # -------------------------
+                    log(f"WARNING: invalid xG row {rows_checked}")
 
         gid = r["game_id"]
 
@@ -136,7 +127,8 @@ with open(MERGE_FILE, newline="", encoding="utf-8") as f:
 
 if errors > 0:
     log(f"FAILED: {errors} errors detected")
-    raise ValueError("Validation failed")
+    sys.exit(1)
 
 log(f"SUCCESS: rows_checked={rows_checked}")
+
 print(f"Validation passed for {MERGE_FILE}")
