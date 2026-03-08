@@ -112,10 +112,10 @@ def allow_nba_total(row):
     if total > 245:
         return False
 
-    if diff < 4:
+    if diff < 3:
         return False
 
-    if spread >= 12 and total >= 240:
+    if spread >=13 and total >= 240:
         return False
 
     if under_edge > over_edge:
@@ -126,7 +126,7 @@ def allow_nba_total(row):
         if under_edge < 0.06:
             return False
 
-        if under_edge > 0.35:
+        if under_edge > 0.40:
             return False
 
         return True
