@@ -9,80 +9,59 @@ from pathlib import Path
 from datetime import datetime
 from scipy.stats import norm, poisson
 
-# =========================
-# OPTIONAL OVERRIDE CONFIG
-# =========================
-# If this exists, we can override model constants for testing:
-#   docs/win/basketball/model_testing/rule_config.py
-#
-# Example content:
-#   EDGE = 0.05
-#   NBA_TOTAL_EDGE = 0.05
-#   NBA_TOTAL_STD = 14
-#   NBA_SPREAD_STD = 15
-#   NCAAB_TOTAL_STD = 12
-#   NCAAB_SPREAD_STD = 15
+# ============================================================
+# SETTINGS
+# ============================================================
 
-OVERRIDE_CONFIG_PATH = Path("docs/win/basketball/model_testing/rule_config.py")
+# ------------------------------------------------------------
+# NBA SETTINGS
+# ------------------------------------------------------------
 
+NBA_EDGE = 0.06
+NBA_TOTAL_EDGE = 0.05
+NBA_SPREAD_EDGE = 0.06
 
-def load_override_config():
-    if not OVERRIDE_CONFIG_PATH.exists():
-        return {}
-
-    scope = {}
-    try:
-        content = OVERRIDE_CONFIG_PATH.read_text(encoding="utf-8")
-        exec(compile(content, str(OVERRIDE_CONFIG_PATH), "exec"), {}, scope)
-        return {k: v for k, v in scope.items() if not k.startswith("__")}
-    except Exception:
-        return {}
+NBA_TOTAL_STD = 22.7
+NBA_SPREAD_STD = 13.7
 
 
-OVR = load_override_config()
+# ------------------------------------------------------------
+# NCAAB SETTINGS
+# ------------------------------------------------------------
 
-# =========================
-# LOGGER UTILITY
-# =========================
+NCAAB_EDGE = 0.06
+NCAAB_TOTAL_EDGE = 0.15
+NCAAB_SPREAD_EDGE = 0.06
+
+NCAAB_TOTAL_STD = 18.6662
+NCAAB_SPREAD_STD = 16.0642
+
+
+# ============================================================
+# LOGGER
+# ============================================================
 
 def audit(log_path, stage, status, msg="", df=None):
+
     ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     log_path = Path(log_path)
     log_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # 1. EXHAUSTIVE LOG (TXT)
     with open(log_path, "a") as f:
         f.write(f"\n[{ts}] [{stage}] {status}\n")
+
         if msg:
-            f.write(f"  MSG: {msg}\n")
-        if df is not None and isinstance(df, pd.DataFrame):
-            f.write(f"  STATS: {len(df)} rows | {len(df.columns)} cols\n")
-            f.write(f"  NULLS: {df.isnull().sum().sum()} total\n")
-            f.write(f"  SAMPLE:\n{df.head(3).to_string(index=False)}\n")
-        f.write("-" * 40 + "\n")
+            f.write(f"MSG: {msg}\n")
 
-    # 2. CONDENSED SUMMARY (TXT)
-    if df is not None and isinstance(df, pd.DataFrame):
-        summary_path = log_path.parent / "condensed_summary.txt"
+        if df is not None:
+            f.write(f"ROWS: {len(df)}\n")
 
-        play_cols = [c for c in ['home_play', 'away_play', 'over_play', 'under_play'] if c in df.columns]
+        f.write("-"*40+"\n")
 
-        if play_cols:
-            signals = df[df[play_cols].any(axis=1)].copy()
 
-            if not signals.empty:
-                with open(summary_path, "a") as f:
-                    f.write(f"\n--- BETTING SIGNALS: {ts} ---\n")
-                    base_cols = ['game_date', 'home_team', 'away_team']
-                    edge_cols = [c for c in df.columns if 'edge_pct' in c]
-
-                    final_cols = [c for c in base_cols + edge_cols if c in signals.columns]
-                    f.write(signals[final_cols].to_string(index=False))
-                    f.write("\n" + "=" * 30 + "\n")
-
-# =========================
+# ============================================================
 # PATHS
-# =========================
+# ============================================================
 
 INPUT_DIR = Path("docs/win/basketball/01_merge")
 ERROR_DIR = Path("docs/win/basketball/errors/01_merge")
@@ -90,78 +69,68 @@ ERROR_LOG = ERROR_DIR / "build_juice_files.txt"
 
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
-# =========================
-# CONSTANTS (default values)
-# =========================
 
-EDGE = 0.06                # Default EDGE (ML + Spread)
-NBA_TOTAL_EDGE = 0.05       # Reduced NBA totals EDGE
-
-NBA_TOTAL_STD = 22.7
-NBA_SPREAD_STD = 13.7
-
-NCAAB_TOTAL_STD = 12
-NCAAB_SPREAD_STD = 15       # YOUR WINNING VALUE
-
-# =========================
-# APPLY OVERRIDES (if present)
-# =========================
-
-if "EDGE" in OVR:
-    EDGE = float(OVR["EDGE"])
-
-if "NBA_TOTAL_EDGE" in OVR:
-    NBA_TOTAL_EDGE = float(OVR["NBA_TOTAL_EDGE"])
-
-if "NBA_TOTAL_STD" in OVR:
-    NBA_TOTAL_STD = float(OVR["NBA_TOTAL_STD"])
-
-if "NBA_SPREAD_STD" in OVR:
-    NBA_SPREAD_STD = float(OVR["NBA_SPREAD_STD"])
-
-if "NCAAB_TOTAL_STD" in OVR:
-    NCAAB_TOTAL_STD = float(OVR["NCAAB_TOTAL_STD"])
-
-if "NCAAB_SPREAD_STD" in OVR:
-    NCAAB_SPREAD_STD = float(OVR["NCAAB_SPREAD_STD"])
-
-# =========================
+# ============================================================
 # HELPERS
-# =========================
+# ============================================================
 
 def american_to_decimal(odds):
+
     if pd.isna(odds) or odds == "":
         return ""
+
     odds = float(odds)
+
     if odds > 0:
         return 1 + (odds / 100)
+
     return 1 + (100 / abs(odds))
 
 
 def to_american(dec):
+
     if pd.isna(dec) or dec <= 1:
         return ""
+
     if dec >= 2:
         return f"+{int((dec - 1) * 100)}"
+
     return f"-{int(100 / (dec - 1))}"
 
 
 def clamp_probability(p):
+
     return min(max(p, 0.05), 0.95)
 
 
-def get_stds(market):
-    if market == "NBA":
-        return NBA_TOTAL_STD, NBA_SPREAD_STD
-    return NCAAB_TOTAL_STD, NCAAB_SPREAD_STD
+def get_market_settings(market):
 
-# =========================
+    if market == "NBA":
+
+        return {
+            "ML_EDGE": NBA_EDGE,
+            "TOTAL_EDGE": NBA_TOTAL_EDGE,
+            "SPREAD_EDGE": NBA_SPREAD_EDGE,
+            "TOTAL_STD": NBA_TOTAL_STD,
+            "SPREAD_STD": NBA_SPREAD_STD
+        }
+
+    return {
+        "ML_EDGE": NCAAB_EDGE,
+        "TOTAL_EDGE": NCAAB_TOTAL_EDGE,
+        "SPREAD_EDGE": NCAAB_SPREAD_EDGE,
+        "TOTAL_STD": NCAAB_TOTAL_STD,
+        "SPREAD_STD": NCAAB_SPREAD_STD
+    }
+
+
+# ============================================================
 # MAIN
-# =========================
+# ============================================================
 
 def main():
 
-    with open(ERROR_LOG, "w", encoding="utf-8") as log:
+    with open(ERROR_LOG, "w") as log:
         log.write("=== BUILD JUICE FILES RUN ===\n")
         log.write(f"{datetime.utcnow().isoformat()}Z\n\n")
 
@@ -170,67 +139,60 @@ def main():
         input_files = glob.glob(str(INPUT_DIR / "basketball_*.csv"))
 
         if not input_files:
-            with open(ERROR_LOG, "a", encoding="utf-8") as log:
-                log.write("No input files found.\n")
+            print("No files found")
             return
 
         for file_path in input_files:
 
             df = pd.read_csv(file_path)
+
             if df.empty:
                 continue
 
-            # FIX: ensure probabilities are numeric
-            df["home_prob"] = pd.to_numeric(df["home_prob"], errors="coerce")
-            df["away_prob"] = pd.to_numeric(df["away_prob"], errors="coerce")
-
-            game_date = df["game_date"].iloc[0]
             market = df["market"].iloc[0]
+            game_date = df["game_date"].iloc[0]
 
-            # =========================
-            # NBA PROBABILITY NORMALIZATION (ONLY NBA)
-            # =========================
+            settings = get_market_settings(market)
 
-            if market == "NBA":
-                prob_sum = df["home_prob"] + df["away_prob"]
-                df["home_prob"] = df["home_prob"] / prob_sum
-                df["away_prob"] = df["away_prob"] / prob_sum
+            ML_EDGE = settings["ML_EDGE"]
+            TOTAL_EDGE = settings["TOTAL_EDGE"]
+            SPREAD_EDGE = settings["SPREAD_EDGE"]
+            TOTAL_STD = settings["TOTAL_STD"]
+            SPREAD_STD = settings["SPREAD_STD"]
 
-            total_std, spread_std = get_stds(market)
-
-            # =========================
+            # =====================================================
             # MONEYLINE
-            # =========================
+            # =====================================================
 
             ml_df = df.copy()
 
-            ml_df["away_dk_decimal_moneyline"] = ml_df["away_dk_moneyline_american"].apply(american_to_decimal)
-            ml_df["home_dk_decimal_moneyline"] = ml_df["home_dk_moneyline_american"].apply(american_to_decimal)
+            ml_df["away_decimal"] = ml_df["away_dk_moneyline_american"].apply(american_to_decimal)
+            ml_df["home_decimal"] = ml_df["home_dk_moneyline_american"].apply(american_to_decimal)
 
-            ml_df["away_fair_decimal_moneyline"] = 1 / ml_df["away_prob"]
-            ml_df["home_fair_decimal_moneyline"] = 1 / ml_df["home_prob"]
+            ml_df["away_fair"] = 1 / ml_df["away_prob"]
+            ml_df["home_fair"] = 1 / ml_df["home_prob"]
 
-            ml_df["away_acceptable_decimal_moneyline"] = ml_df["away_fair_decimal_moneyline"] * (1 + EDGE)
-            ml_df["home_acceptable_decimal_moneyline"] = ml_df["home_fair_decimal_moneyline"] * (1 + EDGE)
+            ml_df["away_acceptable"] = ml_df["away_fair"] * (1 + ML_EDGE)
+            ml_df["home_acceptable"] = ml_df["home_fair"] * (1 + ML_EDGE)
 
-            ml_df["away_acceptable_american_moneyline"] = ml_df["away_acceptable_decimal_moneyline"].apply(to_american)
-            ml_df["home_acceptable_american_moneyline"] = ml_df["home_acceptable_decimal_moneyline"].apply(to_american)
+            ml_df["away_acceptable_american"] = ml_df["away_acceptable"].apply(to_american)
+            ml_df["home_acceptable_american"] = ml_df["home_acceptable"].apply(to_american)
 
             ml_output = INPUT_DIR / f"{game_date}_{market}_moneyline.csv"
-            ml_df.to_csv(ml_output, index=False)
-            audit(ERROR_LOG, "JUICE_ML", "SUCCESS", msg=f"Built ML for {file_path}", df=ml_df)
 
-            # =========================
+            ml_df.to_csv(ml_output, index=False)
+
+            audit(ERROR_LOG, "ML", "SUCCESS", file_path, ml_df)
+
+            # =====================================================
             # TOTALS
-            # =========================
+            # =====================================================
 
             total_df = df.copy()
 
-            total_df["dk_total_over_decimal"] = total_df["dk_total_over_american"].apply(american_to_decimal)
-            total_df["dk_total_under_decimal"] = total_df["dk_total_under_american"].apply(american_to_decimal)
-
             fair_over = []
             fair_under = []
+
             acc_over = []
             acc_under = []
 
@@ -240,17 +202,20 @@ def main():
                 mean = row["total_projected_points"]
 
                 if pd.isna(T):
+
                     fair_over.append("")
                     fair_under.append("")
                     acc_over.append("")
                     acc_under.append("")
                     continue
 
-                # NCAAB uses Poisson
                 if market == "NCAAB":
+
                     p_under = poisson.cdf(T - 0.5, mean)
+
                 else:
-                    z = (T - mean) / total_std
+
+                    z = (T - mean) / TOTAL_STD
                     p_under = norm.cdf(z)
 
                 p_under = clamp_probability(p_under)
@@ -262,37 +227,33 @@ def main():
                 fair_under.append(fair_under_dec)
                 fair_over.append(fair_over_dec)
 
-                # Reduced EDGE only for NBA totals
-                edge_used = NBA_TOTAL_EDGE if market == "NBA" else EDGE
-
-                acc_under_dec = fair_under_dec * (1 + edge_used)
-                acc_over_dec = fair_over_dec * (1 + edge_used)
+                acc_under_dec = fair_under_dec * (1 + TOTAL_EDGE)
+                acc_over_dec = fair_over_dec * (1 + TOTAL_EDGE)
 
                 acc_under.append(acc_under_dec)
                 acc_over.append(acc_over_dec)
 
-            total_df["fair_total_over_decimal"] = fair_over
-            total_df["fair_total_under_decimal"] = fair_under
-            total_df["acceptable_total_over_decimal"] = acc_over
-            total_df["acceptable_total_under_decimal"] = acc_under
-            total_df["acceptable_total_over_american"] = total_df["acceptable_total_over_decimal"].apply(to_american)
-            total_df["acceptable_total_under_american"] = total_df["acceptable_total_under_decimal"].apply(to_american)
+            total_df["fair_over"] = fair_over
+            total_df["fair_under"] = fair_under
+
+            total_df["acceptable_over"] = acc_over
+            total_df["acceptable_under"] = acc_under
 
             total_output = INPUT_DIR / f"{game_date}_{market}_total.csv"
-            total_df.to_csv(total_output, index=False)
-            audit(ERROR_LOG, "JUICE_TOTALS", "SUCCESS", msg=f"Built Totals for {file_path}", df=total_df)
 
-            # =========================
+            total_df.to_csv(total_output, index=False)
+
+            audit(ERROR_LOG, "TOTAL", "SUCCESS", file_path, total_df)
+
+            # =====================================================
             # SPREAD
-            # =========================
+            # =====================================================
 
             spread_df = df.copy()
 
-            spread_df["away_dk_spread_decimal"] = spread_df["away_dk_spread_american"].apply(american_to_decimal)
-            spread_df["home_dk_spread_decimal"] = spread_df["home_dk_spread_american"].apply(american_to_decimal)
-
             fair_home = []
             fair_away = []
+
             acc_home = []
             acc_away = []
 
@@ -302,51 +263,54 @@ def main():
 
                 try:
                     home_line = float(row["home_spread"])
-                except Exception:
+                except:
                     fair_home.append("")
                     fair_away.append("")
                     acc_home.append("")
                     acc_away.append("")
                     continue
 
-                p_home_cover = 1 - norm.cdf(-home_line, mean_margin, spread_std)
-                p_home_cover = clamp_probability(p_home_cover)
-                p_away_cover = 1 - p_home_cover
+                p_home = 1 - norm.cdf(-home_line, mean_margin, SPREAD_STD)
 
-                fair_home_dec = 1 / p_home_cover
-                fair_away_dec = 1 / p_away_cover
+                p_home = clamp_probability(p_home)
+
+                p_away = 1 - p_home
+
+                fair_home_dec = 1 / p_home
+                fair_away_dec = 1 / p_away
 
                 fair_home.append(fair_home_dec)
                 fair_away.append(fair_away_dec)
 
-                acc_home_dec = fair_home_dec * (1 + EDGE)
-                acc_away_dec = fair_away_dec * (1 + EDGE)
+                acc_home_dec = fair_home_dec * (1 + SPREAD_EDGE)
+                acc_away_dec = fair_away_dec * (1 + SPREAD_EDGE)
 
                 acc_home.append(acc_home_dec)
                 acc_away.append(acc_away_dec)
 
-            spread_df["home_fair_spread_decimal"] = fair_home
-            spread_df["away_fair_spread_decimal"] = fair_away
-            spread_df["home_acceptable_spread_decimal"] = acc_home
-            spread_df["away_acceptable_spread_decimal"] = acc_away
-            spread_df["home_acceptable_spread_american"] = spread_df["home_acceptable_spread_decimal"].apply(to_american)
-            spread_df["away_acceptable_spread_american"] = spread_df["away_acceptable_spread_decimal"].apply(to_american)
+            spread_df["home_fair"] = fair_home
+            spread_df["away_fair"] = fair_away
+
+            spread_df["home_acceptable"] = acc_home
+            spread_df["away_acceptable"] = acc_away
 
             spread_output = INPUT_DIR / f"{game_date}_{market}_spread.csv"
+
             spread_df.to_csv(spread_output, index=False)
-            audit(ERROR_LOG, "JUICE_SPREAD", "SUCCESS", msg=f"Built Spread for {file_path}", df=spread_df)
 
-            with open(ERROR_LOG, "a", encoding="utf-8") as log:
-                log.write(f"Processed {file_path}\n")
+            audit(ERROR_LOG, "SPREAD", "SUCCESS", file_path, spread_df)
 
-        with open(ERROR_LOG, "a", encoding="utf-8") as log:
-            log.write("\nCompleted successfully.\n")
+        print("Build juice files complete")
 
     except Exception as e:
-        with open(ERROR_LOG, "a", encoding="utf-8") as log:
-            log.write("\n=== ERROR ===\n")
-            log.write(str(e) + "\n\n")
+
+        with open(ERROR_LOG, "a") as log:
+
+            log.write("\nERROR\n")
+            log.write(str(e))
+            log.write("\n\n")
             log.write(traceback.format_exc())
+
         sys.exit(1)
 
 

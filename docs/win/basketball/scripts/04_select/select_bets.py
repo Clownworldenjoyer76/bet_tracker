@@ -5,26 +5,15 @@ import pandas as pd
 from pathlib import Path
 from datetime import datetime
 
-###############################################################
-######################## CONFIG / PATHS #######################
-###############################################################
-
 INPUT_DIR = Path("docs/win/basketball/03_edges")
 OUTPUT_DIR = Path("docs/win/basketball/04_select")
 ERROR_DIR = Path("docs/win/basketball/errors/04_select")
-
-OVERRIDE_CONFIG_PATH = Path(
-    "docs/win/basketball/model_testing/rule_config.py"
-)
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 LOG_FILE = ERROR_DIR / "select_bets_audit.txt"
 
-###############################################################
-###################### SAFE CONVERTERS ########################
-###############################################################
 
 def f(x):
     try:
@@ -32,9 +21,6 @@ def f(x):
     except:
         return 0.0
 
-###############################################################
-######################### AUDIT LOGGER ########################
-###############################################################
 
 def audit(stage, status, msg="", df=None):
 
@@ -62,18 +48,28 @@ def audit(stage, status, msg="", df=None):
 ######################## NBA RULES ############################
 ###############################################################
 
+def get_moneyline(row, side):
+    """
+    Handles both possible column formats
+    """
+    if side == "home":
+        return f(row.get("home_moneyline") or row.get("home_juice_odds"))
+    else:
+        return f(row.get("away_moneyline") or row.get("away_juice_odds"))
+
+
 def allow_nba_moneyline(row):
 
     home_edge = f(row.get("home_edge_decimal"))
     away_edge = f(row.get("away_edge_decimal"))
 
-    home_ml = f(row.get("home_moneyline"))
-    away_ml = f(row.get("away_moneyline"))
+    home_ml = get_moneyline(row, "home")
+    away_ml = get_moneyline(row, "away")
 
-    if home_edge >= 0.06 and -180 <= home_ml <= 180:
+    if home_edge > 0.07 and -180 <= home_ml <= 180:
         return True
 
-    if away_edge >= 0.06 and -180 <= away_ml <= 180:
+    if away_edge > 0.07 and -180 <= away_ml <= 180:
         return True
 
     return False
@@ -81,13 +77,10 @@ def allow_nba_moneyline(row):
 
 def allow_nba_spread(row):
 
-    home_spread = f(row.get("home_spread"))
-    away_spread = f(row.get("away_spread"))
+    spread = f(row.get("line"))
 
     home_edge = f(row.get("home_edge_decimal"))
     away_edge = f(row.get("away_edge_decimal"))
-
-    spread = home_spread if home_spread != 0 else away_spread
     edge = max(home_edge, away_edge)
 
     if edge < 0.07:
@@ -104,7 +97,7 @@ def allow_nba_spread(row):
 
 def allow_nba_total(row):
 
-    total = f(row.get("total_line"))
+    total = f(row.get("line"))
     proj = f(row.get("total_projected_points"))
 
     diff = abs(proj - total)
@@ -122,7 +115,7 @@ def allow_nba_total(row):
     if diff < 3:
         return False
 
-    if spread >= 12 and total >= 240:
+    if spread >=13 and total >= 240:
         return False
 
     if under_edge > over_edge:
@@ -130,7 +123,7 @@ def allow_nba_total(row):
         if total <= 205:
             return False
 
-        if under_edge < 0.05:
+        if under_edge < 0.06:
             return False
 
         if under_edge > 0.40:
@@ -147,7 +140,7 @@ def allow_nba_total(row):
             if over_edge < 0.06:
                 return False
 
-        if over_edge > 0.40:
+        if over_edge > 0.35:
             return False
 
         return True
@@ -173,16 +166,15 @@ def allow_ncaab_moneyline(row):
 
 def allow_ncaab_spread(row):
 
-    home_spread = f(row.get("home_spread"))
-    away_spread = f(row.get("away_spread"))
+    spread = f(row.get("line"))
 
-    if 1 <= away_spread <= 7:
+    if 1 <= spread <= 3:
         return False
 
-    if 1 <= home_spread <= 3:
+    if -10 <= spread <= -5:
         return False
 
-    if -10 <= home_spread <= -5:
+    if 1 <= abs(spread) <= 7 and spread > 0:
         return False
 
     return True
@@ -190,7 +182,7 @@ def allow_ncaab_spread(row):
 
 def allow_ncaab_total(row):
 
-    total = f(row.get("total_line"))
+    total = f(row.get("line"))
 
     over_edge = f(row.get("over_edge_decimal"))
     under_edge = f(row.get("under_edge_decimal"))
@@ -241,10 +233,6 @@ def process_file(csv_file):
         market_type = row.get("market_type")
 
         allowed = True
-
-        ###################################################
-        # APPLY TEMP FILTER OVERRIDES
-        ###################################################
 
         if league == "NBA":
 
