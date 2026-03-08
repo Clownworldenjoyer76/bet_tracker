@@ -9,6 +9,7 @@ permissions:
 jobs:
   select-bets:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -40,10 +41,6 @@ jobs:
       - name: Combine and Trim Basketball Bets
         run: |
           python docs/win/basketball/scripts/04_select/combine_trim_basketball.py
-
-      - name: Run Basketball Temp Filter Script
-        run: |
-          python docs/win/basketball/scripts/04_select/tempfilter_basketball.py
 
       - name: Commit and push results
         run: |
