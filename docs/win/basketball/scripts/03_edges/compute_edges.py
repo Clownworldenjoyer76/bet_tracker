@@ -231,36 +231,30 @@ def build_combined_daily():
 
                 key_cols = ["game_id", "game_date", "home_team", "away_team"]
 
-                ml_keep = key_cols + [
-                    "home_ml_edge_decimal",
-                    "away_ml_edge_decimal"
-                ]
-
-                sp_keep = key_cols + [
+                spread_keep = key_cols + [
                     "home_spread_edge_decimal",
                     "away_spread_edge_decimal"
                 ]
 
-                tot_keep = key_cols + [
+                total_keep = key_cols + [
                     "over_edge_decimal",
                     "under_edge_decimal"
                 ]
 
-                ml_df = ml_df[ml_keep]
-                sp_df = sp_df[sp_keep]
-                tot_df = tot_df[tot_keep]
-
                 combined = ml_df.merge(
-                    sp_df,
+                    sp_df[spread_keep],
                     on=key_cols,
                     how="left"
                 )
 
                 combined = combined.merge(
-                    tot_df,
+                    tot_df[total_keep],
                     on=key_cols,
                     how="left"
                 )
+
+                # FINAL CLEANUP STEP (as requested)
+                combined = combined.drop(columns=["home_play", "away_play"], errors="ignore")
 
                 combined_path = COMBINED_DIR / f"{date}_basketball_{league}_combined.csv"
 
