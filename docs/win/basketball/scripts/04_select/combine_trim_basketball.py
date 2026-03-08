@@ -1,159 +1,309 @@
 #!/usr/bin/env python3
-# docs/win/basketball/scripts/04_select/combine_trim_basketball.py
+# docs/win/basketball/scripts/04_select/select_bets.py
 
 import pandas as pd
 from pathlib import Path
+from datetime import datetime
 
-SELECT_DIR = Path("docs/win/basketball/04_select")
-OUTPUT_DIR = SELECT_DIR / "daily_slate"
-TOTALS_DIR = OUTPUT_DIR / "totals"
+###############################################################
+######################## CONFIG / PATHS #######################
+###############################################################
+
+INPUT_DIR = Path("docs/win/basketball/03_edges")
+OUTPUT_DIR = Path("docs/win/basketball/04_select")
+ERROR_DIR = Path("docs/win/basketball/errors/04_select")
+
+OVERRIDE_CONFIG_PATH = Path(
+    "docs/win/basketball/model_testing/rule_config.py"
+)
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-TOTALS_DIR.mkdir(parents=True, exist_ok=True)
+ERROR_DIR.mkdir(parents=True, exist_ok=True)
+
+LOG_FILE = ERROR_DIR / "select_bets_audit.txt"
+
+###############################################################
+###################### SAFE CONVERTERS ########################
+###############################################################
+
+def f(x):
+    try:
+        return float(x)
+    except:
+        return 0.0
+
+###############################################################
+######################### AUDIT LOGGER ########################
+###############################################################
+
+def audit(stage, status, msg="", df=None):
+
+    ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    with open(LOG_FILE, "a", encoding="utf-8") as fh:
+
+        fh.write(f"\n[{ts}] [{stage}] {status}\n")
+
+        if msg:
+            fh.write(f"  MSG: {msg}\n")
+
+        if df is not None and isinstance(df, pd.DataFrame):
+            fh.write(
+                f"  STATS: {len(df)} rows | {len(df.columns)} cols\n"
+            )
+            fh.write(
+                f"  SAMPLE:\n{df.head(3).to_string(index=False)}\n"
+            )
+
+        fh.write("-" * 40 + "\n")
 
 
-def compute_edge(row):
-    """Return the relevant edge used for ranking bets"""
-    if row["market_type"] == "total":
-        return max(
-            float(row.get("over_edge_decimal", 0) or 0),
-            float(row.get("under_edge_decimal", 0) or 0),
-        )
+###############################################################
+######################## NBA RULES ############################
+###############################################################
+
+def allow_nba_moneyline(row):
+
+    home_edge = f(row.get("home_edge_decimal"))
+    away_edge = f(row.get("away_edge_decimal"))
+
+    home_ml = f(row.get("home_moneyline"))
+    away_ml = f(row.get("away_moneyline"))
+
+    if home_edge >= 0.06 and -180 <= home_ml <= 180:
+        return True
+
+    if away_edge >= 0.06 and -180 <= away_ml <= 180:
+        return True
+
+    return False
+
+
+def allow_nba_spread(row):
+
+    home_spread = f(row.get("home_spread"))
+    away_spread = f(row.get("away_spread"))
+
+    home_edge = f(row.get("home_edge_decimal"))
+    away_edge = f(row.get("away_edge_decimal"))
+
+    spread = home_spread if home_spread != 0 else away_spread
+    edge = max(home_edge, away_edge)
+
+    if edge < 0.07:
+        return False
+
+    if abs(spread) > 15:
+        return False
+
+    if -2 <= spread <= 2:
+        return False
+
+    return True
+
+
+def allow_nba_total(row):
+
+    total = f(row.get("total_line"))
+    proj = f(row.get("total_projected_points"))
+
+    diff = abs(proj - total)
+
+    home_spread = abs(f(row.get("home_spread")))
+    away_spread = abs(f(row.get("away_spread")))
+    spread = max(home_spread, away_spread)
+
+    over_edge = f(row.get("over_edge_decimal"))
+    under_edge = f(row.get("under_edge_decimal"))
+
+    if total > 245:
+        return False
+
+    if diff < 3:
+        return False
+
+    if spread >= 12 and total >= 240:
+        return False
+
+    if under_edge > over_edge:
+
+        if total <= 205:
+            return False
+
+        if under_edge < 0.05:
+            return False
+
+        if under_edge > 0.40:
+            return False
+
+        return True
+
     else:
-        return max(
-            float(row.get("home_edge_decimal", 0) or 0),
-            float(row.get("away_edge_decimal", 0) or 0),
-        )
+
+        if total <= 205:
+            if over_edge < 0.04:
+                return False
+        else:
+            if over_edge < 0.06:
+                return False
+
+        if over_edge > 0.40:
+            return False
+
+        return True
 
 
-def trim_games(df):
-    """
-    Enforce betting rules per game:
-    - Maximum 2 bets per game
-    - Only ONE of: spread OR moneyline
-    - Only ONE of: over OR under
-    """
+###############################################################
+######################## NCAAB RULES ##########################
+###############################################################
 
-    cleaned_rows = []
+def allow_ncaab_moneyline(row):
 
-    grouped = df.groupby(["game_date", "away_team", "home_team"])
+    home_ml = f(row.get("home_moneyline"))
+    away_ml = f(row.get("away_moneyline"))
 
-    for _, game_df in grouped:
+    if home_ml <= -215:
+        return False
 
-        totals = game_df[game_df["market_type"] == "total"].copy()
-        sides = game_df[game_df["market_type"].isin(["spread", "moneyline"])].copy()
+    if away_ml < 0:
+        return True
 
-        best_total = None
-        best_side = None
-
-        if not totals.empty:
-            totals["edge"] = totals.apply(compute_edge, axis=1)
-            best_total = totals.sort_values("edge", ascending=False).iloc[0]
-
-        if not sides.empty:
-            sides["edge"] = sides.apply(compute_edge, axis=1)
-            best_side = sides.sort_values("edge", ascending=False).iloc[0]
-
-        if best_side is not None:
-            cleaned_rows.append(best_side)
-
-        if best_total is not None:
-            cleaned_rows.append(best_total)
-
-    if not cleaned_rows:
-        return pd.DataFrame()
-
-    return pd.DataFrame(cleaned_rows)
+    return False
 
 
-def build_totals():
-    """
-    Combine all daily slate files into master history files.
-    Excludes nba_selected.csv and ncaab_selected.csv.
-    """
+def allow_ncaab_spread(row):
 
-    nba_files = []
-    ncaab_files = []
+    home_spread = f(row.get("home_spread"))
+    away_spread = f(row.get("away_spread"))
 
-    for f in OUTPUT_DIR.glob("*.csv"):
+    if 1 <= away_spread <= 7:
+        return False
 
-        name = f.name
+    if 1 <= home_spread <= 3:
+        return False
 
-        if name in ["nba_selected.csv", "ncaab_selected.csv"]:
-            continue
+    if -10 <= home_spread <= -5:
+        return False
 
-        if name.endswith("_nba.csv"):
-            nba_files.append(f)
+    return True
 
-        if name.endswith("_ncaab.csv"):
-            ncaab_files.append(f)
 
-    if nba_files:
-        nba_dfs = [pd.read_csv(f) for f in sorted(nba_files)]
-        nba_final = pd.concat(nba_dfs, ignore_index=True)
-        nba_final.to_csv(TOTALS_DIR / "NBA_final.csv", index=False)
+def allow_ncaab_total(row):
 
-    if ncaab_files:
-        ncaab_dfs = [pd.read_csv(f) for f in sorted(ncaab_files)]
-        ncaab_final = pd.concat(ncaab_dfs, ignore_index=True)
-        ncaab_final.to_csv(TOTALS_DIR / "NCAAB_final.csv", index=False)
+    total = f(row.get("total_line"))
 
-    print("Totals files created.")
+    over_edge = f(row.get("over_edge_decimal"))
+    under_edge = f(row.get("under_edge_decimal"))
 
+    if under_edge > over_edge:
+
+        if total <= 140:
+            return False
+
+        if total >= 155:
+            return False
+
+        if 140 < total <= 150:
+            return True
+
+        return False
+
+    else:
+
+        if total < 150:
+            return False
+
+        if 150 <= total <= 160:
+            return True
+
+        return False
+
+
+###############################################################
+#################### EDGE SELECTION ENGINE ####################
+###############################################################
+
+def process_file(csv_file):
+
+    df = pd.read_csv(csv_file)
+
+    if df.empty:
+        return
+
+    fname = csv_file.name.lower()
+
+    league = "NBA" if "nba" in fname else "NCAAB"
+
+    filtered_rows = []
+
+    for _, row in df.iterrows():
+
+        market_type = row.get("market_type")
+
+        allowed = True
+
+        ###################################################
+        # APPLY TEMP FILTER OVERRIDES
+        ###################################################
+
+        if league == "NBA":
+
+            if market_type == "moneyline":
+                allowed = allow_nba_moneyline(row)
+
+            elif market_type == "spread":
+                allowed = allow_nba_spread(row)
+
+            elif market_type == "total":
+                allowed = allow_nba_total(row)
+
+        else:
+
+            if market_type == "moneyline":
+                allowed = allow_ncaab_moneyline(row)
+
+            elif market_type == "spread":
+                allowed = allow_ncaab_spread(row)
+
+            elif market_type == "total":
+                allowed = allow_ncaab_total(row)
+
+        if allowed:
+            filtered_rows.append(row)
+
+    if not filtered_rows:
+        return
+
+    out_df = pd.DataFrame(filtered_rows)
+
+    out_path = OUTPUT_DIR / csv_file.name
+
+    out_df.to_csv(out_path, index=False)
+
+    print(f"Selected {len(out_df)} rows -> {out_path.name}")
+
+
+###############################################################
+############################ MAIN #############################
+###############################################################
 
 def main():
 
-    files = list(SELECT_DIR.glob("*.csv"))
+    files = list(INPUT_DIR.glob("*.csv"))
 
     if not files:
-        print("No select files found.")
+        audit("SELECT", "INFO", "No input files")
         return
-
-    dfs = []
 
     for f in files:
+
         try:
-            df = pd.read_csv(f)
-            if not df.empty:
-                dfs.append(df)
+            process_file(f)
+
         except Exception as e:
-            print(f"Error reading {f}: {e}")
+            audit("SELECT", "ERROR", f"{f.name} failed: {e}")
 
-    if not dfs:
-        print("No data to process.")
-        return
-
-    df = pd.concat(dfs, ignore_index=True)
-
-    nba_df = df[df["market"].str.contains("NBA", na=False)]
-    ncaab_df = df[df["market"].str.contains("NCAAB", na=False)]
-
-    nba_trimmed = trim_games(nba_df)
-    ncaab_trimmed = trim_games(ncaab_df)
-
-    # MASTER FILES
-    nba_master = OUTPUT_DIR / "nba_selected.csv"
-    ncaab_master = OUTPUT_DIR / "ncaab_selected.csv"
-
-    nba_trimmed.to_csv(nba_master, index=False)
-    ncaab_trimmed.to_csv(ncaab_master, index=False)
-
-    print(f"NBA master: {nba_master}")
-    print(f"NCAAB master: {ncaab_master}")
-
-    # DAILY FILES
-    for date, g in nba_trimmed.groupby("game_date"):
-        path = OUTPUT_DIR / f"{date}_nba.csv"
-        g.to_csv(path, index=False)
-
-    for date, g in ncaab_trimmed.groupby("game_date"):
-        path = OUTPUT_DIR / f"{date}_ncaab.csv"
-        g.to_csv(path, index=False)
-
-    print("Daily slate files created.")
-
-    # BUILD TOTAL HISTORY FILES
-    build_totals()
+    audit("SELECT", "SUCCESS", "Selection complete")
 
 
 if __name__ == "__main__":
