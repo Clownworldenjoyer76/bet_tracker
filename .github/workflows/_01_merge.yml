@@ -75,17 +75,16 @@ jobs:
       # COMMIT
       # =========================
 
-      - name: Commit and push
+      - name: Commit and push changes
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
 
-          git add docs/win/soccer/01_merge/
-          git add docs/win/soccer/errors/01_merge/
-          git add docs/win/hockey/01_merge/
-          git add docs/win/hockey/errors/01_merge/
-          git add docs/win/basketball/01_merge/
-          git add docs/win/basketball/errors/01_merge/
+          git add -A
 
-          git commit -m "Merge + Hockey + Basketball Juice: ${{ github.event.inputs.slate_date }}" || echo "No changes"
-          git push
+          if ! git diff --cached --quiet; then
+            git commit -m "Merge + Hockey + Basketball Juice: ${{ github.event.inputs.slate_date }}"
+            git push
+          else
+            echo "No changes detected"
+          fi
