@@ -66,12 +66,12 @@ def compute_moneyline_edges(df, league):
 
     validate_columns(df, required)
 
-    df["home_ml_edge_decimal"] = calculate_edge(
+    df["home_edge_decimal"] = calculate_edge(
         df["home_dk_decimal_moneyline"],
         df["home_juice_decimal_moneyline"]
     )
 
-    df["away_ml_edge_decimal"] = calculate_edge(
+    df["away_edge_decimal"] = calculate_edge(
         df["away_dk_decimal_moneyline"],
         df["away_juice_decimal_moneyline"]
     )
@@ -90,12 +90,12 @@ def compute_spread_edges(df, league):
 
     validate_columns(df, required)
 
-    df["home_spread_edge_decimal"] = calculate_edge(
+    df["home_edge_decimal"] = calculate_edge(
         df["home_dk_spread_decimal"],
         df["home_spread_juice_decimal"]
     )
 
-    df["away_spread_edge_decimal"] = calculate_edge(
+    df["away_edge_decimal"] = calculate_edge(
         df["away_dk_spread_decimal"],
         df["away_spread_juice_decimal"]
     )
@@ -230,6 +230,16 @@ def build_combined_daily():
                 tot_df = pd.read_csv(tot_path)
 
                 key_cols = ["game_id", "game_date", "home_team", "away_team"]
+
+                ml_df = ml_df.rename(columns={
+                    "home_edge_decimal": "home_ml_edge_decimal",
+                    "away_edge_decimal": "away_ml_edge_decimal"
+                })
+
+                sp_df = sp_df.rename(columns={
+                    "home_edge_decimal": "home_spread_edge_decimal",
+                    "away_edge_decimal": "away_spread_edge_decimal"
+                })
 
                 spread_keep = key_cols + [
                     "home_spread_edge_decimal",
