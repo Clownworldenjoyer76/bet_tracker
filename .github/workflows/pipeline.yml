@@ -2,11 +2,6 @@ name: 00 Run Pipeline
 
 on:
   workflow_dispatch:
-    inputs:
-      slate_date:
-        description: "Optional slate date (YYYY_MM_DD). Leave blank for today."
-        required: false
-        type: string
 
 permissions:
   contents: write
@@ -47,11 +42,7 @@ jobs:
       # -----------------------------
       - name: Run pipeline
         run: |
-          if [ -z "${{ github.event.inputs.slate_date }}" ]; then
-            python scripts/run_pipeline.py
-          else
-            python scripts/run_pipeline.py "${{ github.event.inputs.slate_date }}"
-          fi
+          python scripts/run_pipeline.py
 
       # -----------------------------
       # Show pipeline log
