@@ -33,6 +33,7 @@ ERROR_DIR.mkdir(parents=True, exist_ok=True)
 def implied_prob(decimal_odds):
     return (1 / decimal_odds).where(decimal_odds > 1, 0)
 
+
 def calculate_edge(model_decimal, book_decimal):
 
     model_decimal = pd.to_numeric(model_decimal, errors="coerce")
@@ -228,6 +229,9 @@ def build_combined_daily():
                 ml_df = pd.read_csv(ml_path)
                 sp_df = pd.read_csv(sp_path)
                 tot_df = pd.read_csv(tot_path)
+
+                # Remove unused play flags if present
+                ml_df = ml_df.drop(columns=["home_play", "away_play"], errors="ignore")
 
                 key_cols = ["game_id", "game_date", "home_team", "away_team"]
 
