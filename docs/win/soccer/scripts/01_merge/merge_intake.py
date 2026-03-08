@@ -10,7 +10,8 @@ from datetime import datetime
 # =========================
 
 if len(sys.argv) != 2:
-    raise ValueError("Usage: merge_intake.py YYYY_MM_DD")
+    print("Usage: merge_intake.py YYYY_MM_DD")
+    sys.exit(0)
 
 slate_date = sys.argv[1].strip()
 
@@ -33,7 +34,6 @@ ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 LOG_FILE = ERROR_DIR / "merge_intake.txt"
 
-# reset log each run
 with open(LOG_FILE, "w", encoding="utf-8") as f:
     f.write("")
 
@@ -130,7 +130,6 @@ for key, p in pred_data.items():
         "game_id": game_id,
     }
 
-# If nothing matched, skip writing
 if not merged_rows:
     log(f"No matching rows to merge for slate {slate_date}.")
     print(f"No matching rows to merge for slate {slate_date}.")
@@ -148,10 +147,8 @@ if OUTFILE.exists():
 
         reader = csv.DictReader(f)
 
-        if reader.fieldnames != FIELDNAMES:
-            log("WARNING: Invalid header detected. Rebuilding clean.")
+        if reader.fieldnames == FIELDNAMES:
 
-        else:
             for r in reader:
 
                 key = (
