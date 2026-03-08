@@ -136,6 +136,23 @@ def main():
 
     try:
 
+        # ----------------------------------------------------
+        # REMOVE OLD GENERATED FILES
+        # ----------------------------------------------------
+
+        for f in INPUT_DIR.glob("*_moneyline.csv"):
+            f.unlink()
+
+        for f in INPUT_DIR.glob("*_spread.csv"):
+            f.unlink()
+
+        for f in INPUT_DIR.glob("*_total.csv"):
+            f.unlink()
+
+        # ----------------------------------------------------
+        # LOAD INPUT FILES
+        # ----------------------------------------------------
+
         input_files = glob.glob(str(INPUT_DIR / "basketball_*.csv"))
 
         if not input_files:
@@ -172,7 +189,6 @@ def main():
             ml_df["away_fair"] = 1 / ml_df["away_prob"]
             ml_df["home_fair"] = 1 / ml_df["home_prob"]
 
-            # REQUIRED BY apply_moneyline_juice.py
             ml_df["away_acceptable_decimal_moneyline"] = ml_df["away_fair"] * (1 + ML_EDGE)
             ml_df["home_acceptable_decimal_moneyline"] = ml_df["home_fair"] * (1 + ML_EDGE)
 
