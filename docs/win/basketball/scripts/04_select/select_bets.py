@@ -81,13 +81,10 @@ def allow_nba_moneyline(row):
 
 def allow_nba_spread(row):
 
-    home_spread = f(row.get("home_spread"))
-    away_spread = f(row.get("away_spread"))
+    spread = f(row.get("line"))
 
     home_edge = f(row.get("home_edge_decimal"))
     away_edge = f(row.get("away_edge_decimal"))
-
-    spread = home_spread if home_spread != 0 else away_spread
     edge = max(home_edge, away_edge)
 
     if edge < 0.07:
@@ -104,7 +101,7 @@ def allow_nba_spread(row):
 
 def allow_nba_total(row):
 
-    total = f(row.get("total_line"))
+    total = f(row.get("line"))
     proj = f(row.get("total_projected_points"))
 
     diff = abs(proj - total)
@@ -173,16 +170,15 @@ def allow_ncaab_moneyline(row):
 
 def allow_ncaab_spread(row):
 
-    home_spread = f(row.get("home_spread"))
-    away_spread = f(row.get("away_spread"))
+    spread = f(row.get("line"))
 
-    if 1 <= away_spread <= 7:
+    if 1 <= spread <= 3:
         return False
 
-    if 1 <= home_spread <= 3:
+    if -10 <= spread <= -5:
         return False
 
-    if -10 <= home_spread <= -5:
+    if 1 <= abs(spread) <= 7 and spread > 0:
         return False
 
     return True
@@ -190,7 +186,7 @@ def allow_ncaab_spread(row):
 
 def allow_ncaab_total(row):
 
-    total = f(row.get("total_line"))
+    total = f(row.get("line"))
 
     over_edge = f(row.get("over_edge_decimal"))
     under_edge = f(row.get("under_edge_decimal"))
@@ -243,7 +239,7 @@ def process_file(csv_file):
         allowed = True
 
         ###################################################
-        # APPLY TEMP FILTER OVERRIDES
+        # APPLY FILTER RULES
         ###################################################
 
         if league == "NBA":
