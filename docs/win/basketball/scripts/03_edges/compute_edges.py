@@ -33,7 +33,6 @@ ERROR_DIR.mkdir(parents=True, exist_ok=True)
 def implied_prob(decimal_odds):
     return (1 / decimal_odds).where(decimal_odds > 1, 0)
 
-
 def calculate_edge(model_decimal, book_decimal):
 
     model_decimal = pd.to_numeric(model_decimal, errors="coerce")
@@ -230,39 +229,43 @@ def build_combined_daily():
                 sp_df = pd.read_csv(sp_path)
                 tot_df = pd.read_csv(tot_path)
 
-                # Remove unused play flags if present
-                ml_df = ml_df.drop(columns=["home_play", "away_play"], errors="ignore")
-
                 key_cols = ["game_id", "game_date", "home_team", "away_team"]
 
-                ml_df = ml_df.rename(columns={
-                    "home_edge_decimal": "home_ml_edge_decimal",
-                    "away_edge_decimal": "away_ml_edge_decimal"
-                })
-
-                sp_df = sp_df.rename(columns={
-                    "home_edge_decimal": "home_spread_edge_decimal",
-                    "away_edge_decimal": "away_spread_edge_decimal"
-                })
-
-                spread_keep = key_cols + [
-                    "home_spread_edge_decimal",
-                    "away_spread_edge_decimal"
+                ml_keep = key_cols + [
+                    "home_edge_decimal",
+                    "away_edge_decimal"
                 ]
 
-                total_keep = key_cols + [
+                sp_keep = key_cols + [
+                    "home_edge_decimal",
+                    "away_edge_decimal"
+                ]
+
+                tot_keep = key_cols + [
                     "over_edge_decimal",
                     "under_edge_decimal"
                 ]
 
+                ml_df = ml_df[ml_keep].rename(columns={
+                    "home_edge_decimal": "home_ml_edge_decimal",
+                    "away_edge_decimal": "away_ml_edge_decimal"
+                })
+
+                sp_df = sp_df[sp_keep].rename(columns={
+                    "home_edge_decimal": "home_spread_edge_decimal",
+                    "away_edge_decimal": "away_spread_edge_decimal"
+                })
+
+                tot_df = tot_df[tot_keep]
+
                 combined = ml_df.merge(
-                    sp_df[spread_keep],
+                    sp_df,
                     on=key_cols,
                     how="left"
                 )
 
                 combined = combined.merge(
-                    tot_df[total_keep],
+                    tot_df,
                     on=key_cols,
                     how="left"
                 )
