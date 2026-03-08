@@ -172,12 +172,12 @@ def main():
             ml_df["away_fair"] = 1 / ml_df["away_prob"]
             ml_df["home_fair"] = 1 / ml_df["home_prob"]
 
-            ml_df["away_acceptable"] = ml_df["away_fair"] * (1 + ML_EDGE)
-            ml_df["home_acceptable"] = ml_df["home_fair"] * (1 + ML_EDGE)
+            # REQUIRED BY apply_moneyline_juice.py
+            ml_df["away_acceptable_decimal_moneyline"] = ml_df["away_fair"] * (1 + ML_EDGE)
+            ml_df["home_acceptable_decimal_moneyline"] = ml_df["home_fair"] * (1 + ML_EDGE)
 
-            # FIXED COLUMN NAMES
-            ml_df["away_acceptable_american_moneyline"] = ml_df["away_acceptable"].apply(to_american)
-            ml_df["home_acceptable_american_moneyline"] = ml_df["home_acceptable"].apply(to_american)
+            ml_df["away_acceptable_american_moneyline"] = ml_df["away_acceptable_decimal_moneyline"].apply(to_american)
+            ml_df["home_acceptable_american_moneyline"] = ml_df["home_acceptable_decimal_moneyline"].apply(to_american)
 
             ml_output = INPUT_DIR / f"{game_date}_{market}_moneyline.csv"
 
