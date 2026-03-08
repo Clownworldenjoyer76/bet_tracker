@@ -53,8 +53,27 @@ def allow_row(row):
         # MONEYLINE
         ####################################
 
-        if market_type == "moneyline":
-            return False
+        ####################################
+# MONEYLINE
+####################################
+
+if market_type == "moneyline":
+
+    home_edge = float(row.get("home_edge_decimal", 0) or 0)
+    away_edge = float(row.get("away_edge_decimal", 0) or 0)
+
+    home_ml = get_price(row, "home_moneyline")
+    away_ml = get_price(row, "away_moneyline")
+
+    # check home side
+    if home_edge >= 0.06 and -180 <= home_ml <= 180:
+        return True
+
+    # check away side
+    if away_edge >= 0.06 and -180 <= away_ml <= 180:
+        return True
+
+    return False
 
         ####################################
         # SPREAD
