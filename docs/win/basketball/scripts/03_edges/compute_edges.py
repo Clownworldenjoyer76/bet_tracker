@@ -16,12 +16,15 @@ from utils.logger import audit
 # =========================
 # PATHS
 # =========================
+
 INPUT_DIR = Path("docs/win/basketball/02_juice")
 OUTPUT_DIR = Path("docs/win/basketball/03_edges")
+COMBINED_DIR = Path("docs/win/basketball/03_edges/combined_daily")
 ERROR_DIR = Path("docs/win/basketball/errors/03_edges")
 ERROR_LOG = ERROR_DIR / "compute_edges.txt"
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+COMBINED_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 # =========================
@@ -30,7 +33,6 @@ ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 def implied_prob(decimal_odds):
     """Converts decimal odds to implied probability (0.0 to 1.0)."""
-    # Use 0 if odds are 1 or less to avoid infinity/errors
     return (1 / decimal_odds).where(decimal_odds > 1, 0)
 
 def calculate_edge(model_decimal, book_decimal):
@@ -40,11 +42,10 @@ def calculate_edge(model_decimal, book_decimal):
     """
     model_decimal = pd.to_numeric(model_decimal, errors="coerce")
     book_decimal = pd.to_numeric(book_decimal, errors="coerce")
-    
+
     model_p = implied_prob(model_decimal)
     book_p = implied_prob(book_decimal)
-    
-    # Edge = Your Prob - Bookie Prob
+
     return model_p - book_p
 
 def validate_columns(df: pd.DataFrame, required_cols: list[str]) -> None:
@@ -63,12 +64,16 @@ def compute_moneyline_edges(df: pd.DataFrame, league: str) -> pd.DataFrame:
     ]
     validate_columns(df, required)
 
-    # Home Edge
-    df["home_edge_decimal"] = calculate_edge(df["home_dk_decimal_moneyline"], df["home_juice_decimal_moneyline"])
+    df["home_edge_decimal"] = calculate_edge(
+        df["home_dk_decimal_moneyline"],
+        df["home_juice_decimal_moneyline"]
+    )
     df["home_play"] = df["home_edge_decimal"] > 0
 
-    # Away Edge
-    df["away_edge_decimal"] = calculate_edge(df["away_dk_decimal_moneyline"], df["away_juice_decimal_moneyline"])
+    df["away_edge_decimal"] = calculate_edge(
+        df["away_dk_decimal_moneyline"],
+        df["away_juice_decimal_moneyline"]
+    )
     df["away_play"] = df["away_edge_decimal"] > 0
 
     return df
@@ -80,10 +85,16 @@ def compute_spread_edges(df: pd.DataFrame, league: str) -> pd.DataFrame:
     ]
     validate_columns(df, required)
 
-    df["home_edge_decimal"] = calculate_edge(df["home_dk_spread_decimal"], df["home_spread_juice_decimal"])
+    df["home_edge_decimal"] = calculate_edge(
+        df["home_dk_spread_decimal"],
+        df["home_spread_juice_decimal"]
+    )
     df["home_play"] = df["home_edge_decimal"] > 0
 
-    df["away_edge_decimal"] = calculate_edge(df["away_dk_spread_decimal"], df["away_spread_juice_decimal"])
+    df["away_edge_decimal"] = calculate_edge(
+        df["away_dk_spread_decimal"],
+        df["away_spread_juice_decimal"]
+    )
     df["away_play"] = df["away_edge_decimal"] > 0
 
     return df
@@ -95,10 +106,16 @@ def compute_total_edges(df: pd.DataFrame, league: str) -> pd.DataFrame:
     ]
     validate_columns(df, required)
 
-    df["over_edge_decimal"] = calculate_edge(df["dk_total_over_decimal"], df["total_over_juice_decimal"])
+    df["over_edge_decimal"] = calculate_edge(
+        df["dk_total_over_decimal"],
+        df["total_over_juice_decimal"]
+    )
     df["over_play"] = df["over_edge_decimal"] > 0
 
-    df["under_edge_decimal"] = calculate_edge(df["dk_total_under_decimal"], df["total_under_juice_decimal"])
+    df["under_edge_decimal"] = calculate_edge(
+        df["dk_total_under_decimal"],
+        df["total_under_juice_decimal"]
+    )
     df["under_play"] = df["under_edge_decimal"] > 0
 
     return df
@@ -135,15 +152,118 @@ def process_market_files(files, compute_fn, league: str, market: str):
             audit(ERROR_LOG, f"{league}_{market.upper()}", "FAILED", msg=traceback.format_exc())
 
 def process_league(league: str):
-    process_market_files(sorted(INPUT_DIR.glob(f"*_{league}_moneyline.csv")), compute_moneyline_edges, league, "moneyline")
-    process_market_files(sorted(INPUT_DIR.glob(f"*_{league}_spread.csv")), compute_spread_edges, league, "spread")
-    process_market_files(sorted(INPUT_DIR.glob(f"*_{league}_total.csv")), compute_total_edges, league, "total")
+    process_market_files(
+        sorted(INPUT_DIR.glob(f"*_{league}_moneyline.csv")),
+        compute_moneyline_edges,
+        league,
+        "moneyline"
+    )
+    process_market_files(
+        sorted(INPUT_DIR.glob(f"*_{league}_spread.csv")),
+        compute_spread_edges,
+        league,
+        "spread"
+    )
+    process_market_files(
+        sorted(INPUT_DIR.glob(f"*_{league}_total.csv")),
+        compute_total_edges,
+        league,
+        "total"
+    )
+
+# =========================
+# COMBINED DAILY OUTPUT
+# =========================
+
+def build_combined_daily():
+    leagues = ["NBA", "NCAAB"]
+
+    for league in leagues:
+        dates = set()
+
+        for f in OUTPUT_DIR.glob(f"*_{league}_moneyline.csv"):
+            dates.add(extract_date_from_filename(f.name))
+        for f in OUTPUT_DIR.glob(f"*_{league}_spread.csv"):
+            dates.add(extract_date_from_filename(f.name))
+        for f in OUTPUT_DIR.glob(f"*_{league}_total.csv"):
+            dates.add(extract_date_from_filename(f.name))
+
+        for date in sorted(dates):
+            try:
+                ml_path = OUTPUT_DIR / f"{date}_basketball_{league}_moneyline.csv"
+                sp_path = OUTPUT_DIR / f"{date}_basketball_{league}_spread.csv"
+                tot_path = OUTPUT_DIR / f"{date}_basketball_{league}_total.csv"
+
+                if not (ml_path.exists() and sp_path.exists() and tot_path.exists()):
+                    audit(
+                        ERROR_LOG,
+                        f"{league}_COMBINED",
+                        "SKIPPED",
+                        msg=f"Missing one or more market files for {date}"
+                    )
+                    continue
+
+                ml_df = pd.read_csv(ml_path)
+                sp_df = pd.read_csv(sp_path)
+                tot_df = pd.read_csv(tot_path)
+
+                key_cols = ["game_id", "game_date", "home_team", "away_team"]
+
+                spread_keep = key_cols + [
+                    "home_edge_decimal",
+                    "home_play",
+                    "away_edge_decimal",
+                    "away_play",
+                ]
+
+                total_keep = key_cols + [
+                    "over_edge_decimal",
+                    "over_play",
+                    "under_edge_decimal",
+                    "under_play",
+                ]
+
+                combined = ml_df.merge(
+                    sp_df[spread_keep].rename(columns={
+                        "home_edge_decimal": "home_spread_edge_decimal",
+                        "home_play": "home_spread_play",
+                        "away_edge_decimal": "away_spread_edge_decimal",
+                        "away_play": "away_spread_play",
+                    }),
+                    on=key_cols,
+                    how="left"
+                )
+
+                combined = combined.merge(
+                    tot_df[total_keep],
+                    on=key_cols,
+                    how="left"
+                )
+
+                combined_path = COMBINED_DIR / f"{date}_basketball_{league}_combined.csv"
+                atomic_write_csv(combined, combined_path)
+
+                audit(
+                    ERROR_LOG,
+                    f"{league}_COMBINED",
+                    "SUCCESS",
+                    msg=f"Wrote combined daily file for {date}",
+                    df=combined
+                )
+
+            except Exception:
+                audit(ERROR_LOG, f"{league}_COMBINED", "FAILED", msg=traceback.format_exc())
+
+# =========================
+# MAIN
+# =========================
 
 def main():
     audit(ERROR_LOG, "SYSTEM", "STARTING RUN")
     try:
         process_league("NBA")
         process_league("NCAAB")
+        build_combined_daily()
         audit(ERROR_LOG, "SYSTEM", "SUCCESSFUL COMPLETION")
     except Exception:
         audit(ERROR_LOG, "SYSTEM", "CRITICAL FAILURE", msg=traceback.format_exc())
