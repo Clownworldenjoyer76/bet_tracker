@@ -48,13 +48,23 @@ def audit(stage, status, msg="", df=None):
 ######################## NBA RULES ############################
 ###############################################################
 
+def get_moneyline(row, side):
+    """
+    Handles both possible column formats
+    """
+    if side == "home":
+        return f(row.get("home_moneyline") or row.get("home_juice_odds"))
+    else:
+        return f(row.get("away_moneyline") or row.get("away_juice_odds"))
+
+
 def allow_nba_moneyline(row):
 
     home_edge = f(row.get("home_edge_decimal"))
     away_edge = f(row.get("away_edge_decimal"))
 
-    home_ml = f(row.get("home_moneyline"))
-    away_ml = f(row.get("away_moneyline"))
+    home_ml = get_moneyline(row, "home")
+    away_ml = get_moneyline(row, "away")
 
     if home_edge > 0.07 and -180 <= home_ml <= 180:
         return True
