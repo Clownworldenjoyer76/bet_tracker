@@ -184,29 +184,38 @@ def allow_ncaab_spread(row):
 def allow_ncaab_total(row):
 
     total = f(row.get("line"))
+    bet_side = str(row.get("bet_side", "")).lower()
 
     over_edge = f(row.get("over_edge_decimal"))
     under_edge = f(row.get("under_edge_decimal"))
 
     ###############################################################
-    # OVER FILTER
+    # OVER FILTER (ONLY IF BET SIDE IS OVER)
     ###############################################################
 
-    if (
-        145 <= total <= 155
-        and 0.12 <= over_edge <= 0.18
-    ):
-        return True
+    if bet_side == "over":
+
+        if (
+            145 <= total <= 155
+            and 0.12 <= over_edge <= 0.18
+        ):
+            return True
+
+        return False
 
     ###############################################################
-    # UNDER FILTER
+    # UNDER FILTER (ONLY IF BET SIDE IS UNDER)
     ###############################################################
 
-    if (
-        141 <= total <= 150
-        and 0.10 <= under_edge <= 0.22
-    ):
-        return True
+    if bet_side == "under":
+
+        if (
+            141 <= total <= 150
+            and 0.10 <= under_edge <= 0.22
+        ):
+            return True
+
+        return False
 
     return False
 
