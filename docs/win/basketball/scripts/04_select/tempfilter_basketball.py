@@ -118,7 +118,7 @@ def allow_row(row):
                 return False
 
             # projection difference
-            if proj_diff < 4:
+            if proj_diff < 3:
                 return False
 
             # skip large spread + large total
@@ -131,10 +131,10 @@ def allow_row(row):
                 if total <= 205:
                     return False
 
-                if under_edge < 0.06:
+                if under_edge < 0.05:
                     return False
 
-                if under_edge > 0.35:
+                if under_edge > 0.40:
                     return False
 
                 return True
@@ -149,7 +149,7 @@ def allow_row(row):
                     if over_edge < 0.06:
                         return False
 
-                if over_edge > 0.35:
+                if over_edge > 0.40:
                     return False
 
                 return True
@@ -171,7 +171,7 @@ def allow_row(row):
             home_ml = get_price(row, "home_moneyline")
             away_ml = get_price(row, "away_moneyline")
 
-            if home_ml <= -200:
+            if home_ml <= -215:
                 return False
 
             if away_ml < 0:
