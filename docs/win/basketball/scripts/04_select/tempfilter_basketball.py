@@ -9,9 +9,6 @@ OUTPUT_DIR = SELECT_DIR / "daily_slate"
 
 
 def get_price(row, side):
-    """
-    Safely extract moneyline price
-    """
     try:
         return float(row.get(side, 0) or 0)
     except:
@@ -19,9 +16,6 @@ def get_price(row, side):
 
 
 def get_spread(row, side):
-    """
-    Safely extract spread
-    """
     try:
         return float(row.get(side, 0) or 0)
     except:
@@ -31,6 +25,15 @@ def get_spread(row, side):
 def get_total(row):
     try:
         return float(row.get("total_line", 0) or 0)
+    except:
+        return 0
+
+
+def get_projection_diff(row):
+    try:
+        proj = float(row.get("total_projected_points", 0) or 0)
+        line = float(row.get("total_line", 0) or 0)
+        return abs(proj - line)
     except:
         return 0
 
@@ -46,31 +49,95 @@ def allow_row(row):
 
     if "NBA" in market:
 
-        # Shut off NBA moneylines completely
+        ####################################
+        # MONEYLINE
+        ####################################
+
         if market_type == "moneyline":
             return False
 
+        ####################################
+        # SPREAD
+        ####################################
+
         if market_type == "spread":
 
-            home = get_spread(row, "home_spread")
-            away = get_spread(row, "away_spread")
+            home_spread = get_spread(row, "home_spread")
+            away_spread = get_spread(row, "away_spread")
 
-            # avoid coin flip band
-            if -3 <= home <= 3:
+            home_edge = float(row.get("home_edge_decimal", 0) or 0)
+            away_edge = float(row.get("away_edge_decimal", 0) or 0)
+
+            spread = home_spread if home_spread != 0 else away_spread
+            edge = max(home_edge, away_edge)
+
+            if edge < 0.07:
                 return False
 
-            # allowed stronger ranges
-            if -15 <= home <= -7:
+            if abs(spread) > 15:
+                return False
+
+            if -2 <= spread <= 2:
+                return False
+
+            return True
+
+        ####################################
+        # TOTALS
+        ####################################
+
+        if market_type == "total":
+
+            total = get_total(row)
+            proj_diff = get_projection_diff(row)
+
+            home_spread = abs(get_spread(row, "home_spread"))
+            away_spread = abs(get_spread(row, "away_spread"))
+            spread = max(home_spread, away_spread)
+
+            over_edge = float(row.get("over_edge_decimal", 0) or 0)
+            under_edge = float(row.get("under_edge_decimal", 0) or 0)
+
+            # total line limit
+            if total > 245:
+                return False
+
+            # projection difference
+            if proj_diff < 4:
+                return False
+
+            # skip large spread + large total
+            if spread >= 12 and total >= 240:
+                return False
+
+            if under_edge > over_edge:
+
+                # UNDER rules
+                if total <= 205:
+                    return False
+
+                if under_edge < 0.06:
+                    return False
+
+                if under_edge > 0.35:
+                    return False
+
                 return True
 
-            if -15 <= away <= -7:
-                return True
+            else:
 
-            if -7 <= away <= -1:
-                return True
+                # OVER rules
+                if total <= 205:
+                    if over_edge < 0.04:
+                        return False
+                else:
+                    if over_edge < 0.06:
+                        return False
 
-            # otherwise reject
-            return False
+                if over_edge > 0.35:
+                    return False
+
+                return True
 
         return True
 
@@ -89,11 +156,9 @@ def allow_row(row):
             home_ml = get_price(row, "home_moneyline")
             away_ml = get_price(row, "away_moneyline")
 
-            # shut off expensive home ML
             if home_ml <= -200:
                 return False
 
-            # allow away ML favorites only
             if away_ml < 0:
                 return True
 
@@ -107,19 +172,15 @@ def allow_row(row):
             home_spread = get_spread(row, "home_spread")
             away_spread = get_spread(row, "away_spread")
 
-            # ban away dogs +1 to +7
             if 1 <= away_spread <= 7:
                 return False
 
-            # ban home short dogs
             if 1 <= home_spread <= 3:
                 return False
 
-            # ban home mid favorites
             if -10 <= home_spread <= -5:
                 return False
 
-            # prefer home -3 to -1
             if -3 <= home_spread <= -1:
                 return True
 
@@ -136,7 +197,6 @@ def allow_row(row):
             under_edge = float(row.get("under_edge_decimal", 0) or 0)
 
             if under_edge > over_edge:
-                # UNDER filters
 
                 if total <= 140:
                     return False
@@ -150,7 +210,6 @@ def allow_row(row):
                 return False
 
             else:
-                # OVER filters
 
                 if total < 150:
                     return False
