@@ -175,8 +175,9 @@ def main():
             ml_df["away_acceptable"] = ml_df["away_fair"] * (1 + ML_EDGE)
             ml_df["home_acceptable"] = ml_df["home_fair"] * (1 + ML_EDGE)
 
-            ml_df["away_acceptable_american"] = ml_df["away_acceptable"].apply(to_american)
-            ml_df["home_acceptable_american"] = ml_df["home_acceptable"].apply(to_american)
+            # FIXED COLUMN NAMES
+            ml_df["away_acceptable_american_moneyline"] = ml_df["away_acceptable"].apply(to_american)
+            ml_df["home_acceptable_american_moneyline"] = ml_df["home_acceptable"].apply(to_american)
 
             ml_output = INPUT_DIR / f"{game_date}_{market}_moneyline.csv"
 
