@@ -49,9 +49,6 @@ def audit(stage, status, msg="", df=None):
 ###############################################################
 
 def get_moneyline(row, side):
-    """
-    Handles both possible column formats
-    """
     if side == "home":
         return f(row.get("home_moneyline") or row.get("home_juice_odds"))
     else:
@@ -115,7 +112,7 @@ def allow_nba_total(row):
     if diff < 3:
         return False
 
-    if spread >=13 and total >= 240:
+    if spread >= 13 and total >= 240:
         return False
 
     if under_edge > over_edge:
@@ -180,6 +177,10 @@ def allow_ncaab_spread(row):
     return True
 
 
+###############################################################
+################ NCAAB TOTAL UPDATED RULES ####################
+###############################################################
+
 def allow_ncaab_total(row):
 
     total = f(row.get("line"))
@@ -187,28 +188,27 @@ def allow_ncaab_total(row):
     over_edge = f(row.get("over_edge_decimal"))
     under_edge = f(row.get("under_edge_decimal"))
 
-    if under_edge > over_edge:
+    ###############################################################
+    # OVER FILTER
+    ###############################################################
 
-        if total <= 140:
-            return False
+    if (
+        145 <= total <= 155
+        and 0.12 <= over_edge <= 0.18
+    ):
+        return True
 
-        if total >= 155:
-            return False
+    ###############################################################
+    # UNDER FILTER
+    ###############################################################
 
-        if 140 < total <= 150:
-            return True
+    if (
+        141 <= total <= 150
+        and 0.10 <= under_edge <= 0.22
+    ):
+        return True
 
-        return False
-
-    else:
-
-        if total < 150:
-            return False
-
-        if 150 <= total <= 160:
-            return True
-
-        return False
+    return False
 
 
 ###############################################################
