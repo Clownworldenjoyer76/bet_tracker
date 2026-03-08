@@ -76,6 +76,9 @@ def compute_moneyline_edges(df, league):
         df["away_juice_decimal_moneyline"]
     )
 
+    # Ensure unwanted columns are removed if present
+    df = df.drop(columns=["home_play", "away_play"], errors="ignore")
+
     return df
 
 
@@ -100,6 +103,9 @@ def compute_spread_edges(df, league):
         df["away_spread_juice_decimal"]
     )
 
+    # Ensure unwanted columns are removed if present
+    df = df.drop(columns=["home_play", "away_play"], errors="ignore")
+
     return df
 
 
@@ -123,6 +129,9 @@ def compute_total_edges(df, league):
         df["dk_total_under_decimal"],
         df["total_under_juice_decimal"]
     )
+
+    # Ensure unwanted columns are removed if present
+    df = df.drop(columns=["home_play", "away_play"], errors="ignore")
 
     return df
 
@@ -253,7 +262,7 @@ def build_combined_daily():
                     how="left"
                 )
 
-                # FINAL CLEANUP STEP (as requested)
+                # FINAL CLEANUP STEP
                 combined = combined.drop(columns=["home_play", "away_play"], errors="ignore")
 
                 combined_path = COMBINED_DIR / f"{date}_basketball_{league}_combined.csv"
