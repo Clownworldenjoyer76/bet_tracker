@@ -305,11 +305,11 @@ def main():
                 acc_home.append(acc_home_dec)
                 acc_away.append(acc_away_dec)
 
-            spread_df["home_fair"] = fair_home
-            spread_df["away_fair"] = fair_away
+            spread_df["home_acceptable_spread_decimal"] = acc_home
+            spread_df["away_acceptable_spread_decimal"] = acc_away
 
-            spread_df["home_acceptable"] = acc_home
-            spread_df["away_acceptable"] = acc_away
+            spread_df["home_acceptable_spread_american"] = spread_df["home_acceptable_spread_decimal"].apply(to_american)
+            spread_df["away_acceptable_spread_american"] = spread_df["away_acceptable_spread_decimal"].apply(to_american)
 
             spread_output = INPUT_DIR / f"{game_date}_{market}_spread.csv"
 
