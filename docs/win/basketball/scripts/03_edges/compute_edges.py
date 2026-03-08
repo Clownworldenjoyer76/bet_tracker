@@ -66,12 +66,12 @@ def compute_moneyline_edges(df, league):
 
     validate_columns(df, required)
 
-    df["home_edge_decimal"] = calculate_edge(
+    df["home_ml_edge_decimal"] = calculate_edge(
         df["home_dk_decimal_moneyline"],
         df["home_juice_decimal_moneyline"]
     )
 
-    df["away_edge_decimal"] = calculate_edge(
+    df["away_ml_edge_decimal"] = calculate_edge(
         df["away_dk_decimal_moneyline"],
         df["away_juice_decimal_moneyline"]
     )
@@ -90,12 +90,12 @@ def compute_spread_edges(df, league):
 
     validate_columns(df, required)
 
-    df["home_edge_decimal"] = calculate_edge(
+    df["home_spread_edge_decimal"] = calculate_edge(
         df["home_dk_spread_decimal"],
         df["home_spread_juice_decimal"]
     )
 
-    df["away_edge_decimal"] = calculate_edge(
+    df["away_spread_edge_decimal"] = calculate_edge(
         df["away_dk_spread_decimal"],
         df["away_spread_juice_decimal"]
     )
@@ -232,13 +232,13 @@ def build_combined_daily():
                 key_cols = ["game_id", "game_date", "home_team", "away_team"]
 
                 ml_keep = key_cols + [
-                    "home_edge_decimal",
-                    "away_edge_decimal"
+                    "home_ml_edge_decimal",
+                    "away_ml_edge_decimal"
                 ]
 
                 sp_keep = key_cols + [
-                    "home_edge_decimal",
-                    "away_edge_decimal"
+                    "home_spread_edge_decimal",
+                    "away_spread_edge_decimal"
                 ]
 
                 tot_keep = key_cols + [
@@ -246,16 +246,8 @@ def build_combined_daily():
                     "under_edge_decimal"
                 ]
 
-                ml_df = ml_df[ml_keep].rename(columns={
-                    "home_edge_decimal": "home_ml_edge_decimal",
-                    "away_edge_decimal": "away_ml_edge_decimal"
-                })
-
-                sp_df = sp_df[sp_keep].rename(columns={
-                    "home_edge_decimal": "home_spread_edge_decimal",
-                    "away_edge_decimal": "away_spread_edge_decimal"
-                })
-
+                ml_df = ml_df[ml_keep]
+                sp_df = sp_df[sp_keep]
                 tot_df = tot_df[tot_keep]
 
                 combined = ml_df.merge(
