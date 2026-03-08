@@ -35,6 +35,13 @@ ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 ERROR_LOG = ERROR_DIR / "apply_spread_juice.txt"
 
+# =========================
+# PURGE OLD OUTPUT FILES
+# =========================
+
+for f in OUTPUT_DIR.glob("*_spread.csv"):
+    f.unlink()
+
 def log(msg):
     with open(ERROR_LOG, "a", encoding="utf-8") as f:
         f.write(f"{datetime.utcnow().isoformat()} | {msg}\n")
