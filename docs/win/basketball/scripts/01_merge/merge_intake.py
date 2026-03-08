@@ -30,7 +30,6 @@ def audit(log_path, stage, status, msg="", df=None):
     if df is not None and isinstance(df, pd.DataFrame):
         summary_path = log_path.parent / "condensed_summary.txt"
         
-        # Identify active plays based on provided headers
         play_cols = [c for c in ['home_play', 'away_play', 'over_play', 'under_play'] if c in df.columns]
         
         if play_cols:
@@ -45,15 +44,6 @@ def audit(log_path, stage, status, msg="", df=None):
                     final_cols = [c for c in base_cols + edge_cols if c in signals.columns]
                     f.write(signals[final_cols].to_string(index=False))
                     f.write("\n" + "="*30 + "\n")
-
-# =========================
-# ARGS
-# =========================
-
-if len(sys.argv) != 2:
-    raise ValueError("Usage: merge_intake.py YYYY_MM_DD")
-
-slate_date = sys.argv[1].strip()
 
 # =========================
 # CONSTANTS
@@ -118,17 +108,34 @@ FIELDNAMES = [
 ]
 
 # =========================
-# PROCESS EACH LEAGUE
+# AUTO DISCOVER SLATES
 # =========================
 
-for league in LEAGUES:
+prediction_dir = INTAKE_DIR / "predictions"
+sportsbook_dir = INTAKE_DIR / "sportsbook"
 
-    PRED_FILE = INTAKE_DIR / "predictions" / f"basketball_{league}_{slate_date}.csv"
-    SPORTSBOOK_FILE = INTAKE_DIR / "sportsbook" / f"basketball_{league}_{slate_date}.csv"
+prediction_files = list(prediction_dir.glob("basketball_*_*.csv"))
+
+slates = []
+
+for f in prediction_files:
+    parts = f.stem.split("_")
+    league = parts[1]
+    slate_date = "_".join(parts[2:])
+    slates.append((league, slate_date))
+
+# =========================
+# PROCESS EACH SLATE
+# =========================
+
+for league, slate_date in slates:
+
+    PRED_FILE = prediction_dir / f"basketball_{league}_{slate_date}.csv"
+    SPORTSBOOK_FILE = sportsbook_dir / f"basketball_{league}_{slate_date}.csv"
     OUTFILE = MERGE_DIR / f"basketball_{league}_{slate_date}.csv"
 
     if not PRED_FILE.exists() or not SPORTSBOOK_FILE.exists():
-        log(f"No {league} slate found for {slate_date}. Skipping merge.")
+        log(f"No {league} sportsbook or prediction file for {slate_date}. Skipping merge.")
         print(f"No {league} slate found for {slate_date}. Skipping.")
         continue
 
@@ -192,6 +199,5 @@ for league in LEAGUES:
     log(f"SUMMARY: rebuilt {len(merged_rows)} {league} games for slate {slate_date}")
     print(f"Wrote {OUTFILE}")
 
-    # Final Audit Call
     df_merged = pd.DataFrame(merged_rows)
     audit(LOG_FILE, "MERGE_STAGE", "SUCCESS", msg=f"Merged {league} data", df=df_merged)
