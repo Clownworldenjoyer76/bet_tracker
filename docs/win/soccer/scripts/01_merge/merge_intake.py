@@ -6,28 +6,16 @@ from pathlib import Path
 from datetime import datetime
 
 # =========================
-# ARGS
-# =========================
-
-if len(sys.argv) != 2:
-    print("Usage: merge_intake.py YYYY_MM_DD")
-    sys.exit(0)
-
-slate_date = sys.argv[1].strip()
-
-# =========================
 # PATHS
 # =========================
 
 INTAKE_DIR = Path("docs/win/soccer/00_intake")
 
-SPORTSBOOK_FILE = INTAKE_DIR / "sportsbook" / "combined" / f"soccer_{slate_date}.csv"
-PRED_FILE = INTAKE_DIR / "predictions" / "combined" / f"soccer_{slate_date}.csv"
+SPORTSBOOK_DIR = INTAKE_DIR / "sportsbook" / "combined"
+PRED_DIR = INTAKE_DIR / "predictions" / "combined"
 
 MERGE_DIR = Path("docs/win/soccer/01_merge")
 MERGE_DIR.mkdir(parents=True, exist_ok=True)
-
-OUTFILE = MERGE_DIR / f"soccer_{slate_date}.csv"
 
 ERROR_DIR = Path("docs/win/soccer/errors/01_merge")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
@@ -42,21 +30,7 @@ def log(msg):
         f.write(f"{datetime.utcnow().isoformat()} | {msg}\n")
 
 # =========================
-# SAFE INPUT VALIDATION
-# =========================
-
-if not SPORTSBOOK_FILE.exists():
-    log(f"Missing sportsbook file: {SPORTSBOOK_FILE}")
-
-if not PRED_FILE.exists():
-    log(f"Missing predictions file: {PRED_FILE}")
-
-if not SPORTSBOOK_FILE.exists() or not PRED_FILE.exists():
-    print(f"No soccer slate found for {slate_date}. Skipping.")
-    sys.exit(0)
-
-# =========================
-# LOAD + DEDUPE INTAKE
+# HELPERS
 # =========================
 
 def load_dedupe(path, key_fields):
@@ -75,15 +49,8 @@ def load_dedupe(path, key_fields):
 
     return data
 
-
-pred_key_fields = ["match_date", "market", "home_team", "away_team"]
-dk_key_fields = ["match_date", "market", "home_team", "away_team"]
-
-pred_data = load_dedupe(PRED_FILE, pred_key_fields)
-dk_data = load_dedupe(SPORTSBOOK_FILE, dk_key_fields)
-
 # =========================
-# MERGE
+# FIELDNAMES
 # =========================
 
 FIELDNAMES = [
@@ -95,95 +62,143 @@ FIELDNAMES = [
     "game_id"
 ]
 
-merged_rows = {}
+# =========================
+# AUTO DISCOVER SLATES
+# =========================
 
-for key, p in pred_data.items():
+prediction_files = list(PRED_DIR.glob("soccer_*.csv"))
 
-    if key not in dk_data:
-        continue
-
-    d = dk_data[key]
-
-    game_id = f"{p['match_date']}_{p['home_team']}_{p['away_team']}"
-
-    merged_rows[key] = {
-        "league": p["league"],
-        "market": p["market"],
-        "match_date": p["match_date"],
-        "match_time": p["match_time"],
-
-        "home_team": p["home_team"],
-        "away_team": p["away_team"],
-
-        "home_prob": p["home_prob"],
-        "draw_prob": p["draw_prob"],
-        "away_prob": p["away_prob"],
-
-        "home_xg": p.get("home_xg",""),
-        "away_xg": p.get("away_xg",""),
-        "expected_total_goals": p.get("expected_total_goals",""),
-
-        "home_american": d["dk_home_american"],
-        "draw_american": d["dk_draw_american"],
-        "away_american": d["dk_away_american"],
-
-        "game_id": game_id,
-    }
-
-if not merged_rows:
-    log(f"No matching rows to merge for slate {slate_date}.")
-    print(f"No matching rows to merge for slate {slate_date}.")
+if not prediction_files:
+    log("No soccer prediction files found.")
+    print("No soccer prediction files found.")
     sys.exit(0)
 
 # =========================
-# LOAD EXISTING
+# PROCESS EACH SLATE
 # =========================
 
-existing = {}
+for pred_file in prediction_files:
 
-if OUTFILE.exists():
+    slate_date = pred_file.stem.replace("soccer_", "")
 
-    with open(OUTFILE, newline="", encoding="utf-8") as f:
+    SPORTSBOOK_FILE = SPORTSBOOK_DIR / f"soccer_{slate_date}.csv"
+    PRED_FILE = PRED_DIR / f"soccer_{slate_date}.csv"
 
-        reader = csv.DictReader(f)
+    OUTFILE = MERGE_DIR / f"soccer_{slate_date}.csv"
 
-        if reader.fieldnames == FIELDNAMES:
+    if not SPORTSBOOK_FILE.exists():
+        log(f"Missing sportsbook file: {SPORTSBOOK_FILE}")
+        print(f"No soccer sportsbook file for {slate_date}. Skipping.")
+        continue
 
-            for r in reader:
+    if not PRED_FILE.exists():
+        log(f"Missing predictions file: {PRED_FILE}")
+        print(f"No soccer predictions file for {slate_date}. Skipping.")
+        continue
 
-                key = (
-                    r["match_date"],
-                    r["market"],
-                    r["home_team"],
-                    r["away_team"],
-                )
+    # =========================
+    # LOAD + DEDUPE
+    # =========================
 
-                existing[key] = r
+    pred_key_fields = ["match_date", "market", "home_team", "away_team"]
+    dk_key_fields = ["match_date", "market", "home_team", "away_team"]
 
-# =========================
-# UPSERT
-# =========================
+    pred_data = load_dedupe(PRED_FILE, pred_key_fields)
+    dk_data = load_dedupe(SPORTSBOOK_FILE, dk_key_fields)
 
-for key, row in merged_rows.items():
-    existing[key] = row
+    # =========================
+    # MERGE
+    # =========================
 
-# =========================
-# ATOMIC WRITE
-# =========================
+    merged_rows = {}
 
-temp_file = OUTFILE.with_suffix(".tmp")
+    for key, p in pred_data.items():
 
-with open(temp_file, "w", newline="", encoding="utf-8") as f:
+        if key not in dk_data:
+            continue
 
-    writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
+        d = dk_data[key]
 
-    writer.writeheader()
+        game_id = f"{p['match_date']}_{p['home_team']}_{p['away_team']}"
 
-    for r in existing.values():
-        writer.writerow({k: r.get(k, "") for k in FIELDNAMES})
+        merged_rows[key] = {
+            "league": p["league"],
+            "market": p["market"],
+            "match_date": p["match_date"],
+            "match_time": p["match_time"],
 
-temp_file.replace(OUTFILE)
+            "home_team": p["home_team"],
+            "away_team": p["away_team"],
 
-log(f"SUMMARY: merged {len(merged_rows)} rows for slate {slate_date}")
+            "home_prob": p["home_prob"],
+            "draw_prob": p["draw_prob"],
+            "away_prob": p["away_prob"],
 
-print(f"Wrote {OUTFILE}")
+            "home_xg": p.get("home_xg",""),
+            "away_xg": p.get("away_xg",""),
+            "expected_total_goals": p.get("expected_total_goals",""),
+
+            "home_american": d["dk_home_american"],
+            "draw_american": d["dk_draw_american"],
+            "away_american": d["dk_away_american"],
+
+            "game_id": game_id,
+        }
+
+    if not merged_rows:
+        log(f"No matching rows to merge for slate {slate_date}.")
+        print(f"No matching rows to merge for slate {slate_date}.")
+        continue
+
+    # =========================
+    # LOAD EXISTING
+    # =========================
+
+    existing = {}
+
+    if OUTFILE.exists():
+
+        with open(OUTFILE, newline="", encoding="utf-8") as f:
+
+            reader = csv.DictReader(f)
+
+            if reader.fieldnames == FIELDNAMES:
+
+                for r in reader:
+
+                    key = (
+                        r["match_date"],
+                        r["market"],
+                        r["home_team"],
+                        r["away_team"],
+                    )
+
+                    existing[key] = r
+
+    # =========================
+    # UPSERT
+    # =========================
+
+    for key, row in merged_rows.items():
+        existing[key] = row
+
+    # =========================
+    # ATOMIC WRITE
+    # =========================
+
+    temp_file = OUTFILE.with_suffix(".tmp")
+
+    with open(temp_file, "w", newline="", encoding="utf-8") as f:
+
+        writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
+
+        writer.writeheader()
+
+        for r in existing.values():
+            writer.writerow({k: r.get(k, "") for k in FIELDNAMES})
+
+    temp_file.replace(OUTFILE)
+
+    log(f"SUMMARY: merged {len(merged_rows)} rows for slate {slate_date}")
+
+    print(f"Wrote {OUTFILE}")
