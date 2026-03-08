@@ -11,6 +11,8 @@ from scipy.stats import norm, poisson
 
 # ============================================================
 # SETTINGS
+# ============================================================
+
 # ------------------------------------------------------------
 # NBA SETTINGS
 # ------------------------------------------------------------
@@ -34,6 +36,8 @@ NCAAB_SPREAD_EDGE = 0.06
 NCAAB_TOTAL_STD = 12
 NCAAB_SPREAD_STD = 15
 
+
+# ============================================================
 # LOGGER
 # ============================================================
 
@@ -104,15 +108,17 @@ def get_market_settings(market):
     if market == "NBA":
 
         return {
-            "EDGE": NBA_EDGE,
+            "ML_EDGE": NBA_EDGE,
             "TOTAL_EDGE": NBA_TOTAL_EDGE,
+            "SPREAD_EDGE": NBA_SPREAD_EDGE,
             "TOTAL_STD": NBA_TOTAL_STD,
             "SPREAD_STD": NBA_SPREAD_STD
         }
 
     return {
-        "EDGE": NCAAB_EDGE,
-        "TOTAL_EDGE": NCAAB_EDGE,
+        "ML_EDGE": NCAAB_EDGE,
+        "TOTAL_EDGE": NCAAB_TOTAL_EDGE,
+        "SPREAD_EDGE": NCAAB_SPREAD_EDGE,
         "TOTAL_STD": NCAAB_TOTAL_STD,
         "SPREAD_STD": NCAAB_SPREAD_STD
     }
@@ -148,8 +154,9 @@ def main():
 
             settings = get_market_settings(market)
 
-            EDGE = settings["EDGE"]
+            ML_EDGE = settings["ML_EDGE"]
             TOTAL_EDGE = settings["TOTAL_EDGE"]
+            SPREAD_EDGE = settings["SPREAD_EDGE"]
             TOTAL_STD = settings["TOTAL_STD"]
             SPREAD_STD = settings["SPREAD_STD"]
 
@@ -165,8 +172,8 @@ def main():
             ml_df["away_fair"] = 1 / ml_df["away_prob"]
             ml_df["home_fair"] = 1 / ml_df["home_prob"]
 
-            ml_df["away_acceptable"] = ml_df["away_fair"] * (1 + EDGE)
-            ml_df["home_acceptable"] = ml_df["home_fair"] * (1 + EDGE)
+            ml_df["away_acceptable"] = ml_df["away_fair"] * (1 + ML_EDGE)
+            ml_df["home_acceptable"] = ml_df["home_fair"] * (1 + ML_EDGE)
 
             ml_df["away_acceptable_american"] = ml_df["away_acceptable"].apply(to_american)
             ml_df["home_acceptable_american"] = ml_df["home_acceptable"].apply(to_american)
@@ -275,8 +282,8 @@ def main():
                 fair_home.append(fair_home_dec)
                 fair_away.append(fair_away_dec)
 
-                acc_home_dec = fair_home_dec * (1 + EDGE)
-                acc_away_dec = fair_away_dec * (1 + EDGE)
+                acc_home_dec = fair_home_dec * (1 + SPREAD_EDGE)
+                acc_away_dec = fair_away_dec * (1 + SPREAD_EDGE)
 
                 acc_home.append(acc_home_dec)
                 acc_away.append(acc_away_dec)
