@@ -1,4 +1,12 @@
-python3 -c "import pandas as pd; url='https://www.sportsbookreviewsonline.com/scoresoddsarchives/nba-odds-2019-20/'; tables=pd.read_html(url); df=pd.concat(tables, ignore_index=True); df.to_csv('/YOUR/FOLDER/nba_2019_2020_odds.csv', index=False)"
+
+
+
+
+
+python -c "import pandas as pd, requests; from io import StringIO; url='https://www.sportsbookreviewsonline.com/scoresoddsarchives/nhl-odds-2007-08/'; headers={'User-Agent':'Mozilla/5.0'}; html=requests.get(url,headers=headers).text; tables=pd.read_html(StringIO(html)); df=pd.concat(tables,ignore_index=True); df.to_csv(r'C:\Users\ntmal\bet_tracker\docs\win\hockey\history\raw_seasons\NHL\nhl_2007.csv',index=False)"
+
+
+
 
 
 ################################################################################
