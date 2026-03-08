@@ -22,16 +22,25 @@ TOTALS_DIR.mkdir(parents=True, exist_ok=True)
 def compute_edge(row):
     """
     Determine the edge used for ranking bets.
-    Totals use over/under edges.
-    Sides use home/away edges.
+
+    Totals:
+        Use edge that corresponds to bet_side.
+
+    Sides:
+        Use max(home_edge, away_edge)
     """
 
     if row["market_type"] == "total":
 
-        return max(
-            float(row.get("over_edge_decimal", 0) or 0),
-            float(row.get("under_edge_decimal", 0) or 0),
-        )
+        bet_side = str(row.get("bet_side", "")).lower()
+
+        if bet_side == "over":
+            return float(row.get("over_edge_decimal", 0) or 0)
+
+        if bet_side == "under":
+            return float(row.get("under_edge_decimal", 0) or 0)
+
+        return 0
 
     return max(
         float(row.get("home_edge_decimal", 0) or 0),
