@@ -33,8 +33,8 @@ NCAAB_EDGE = 0.06
 NCAAB_TOTAL_EDGE = 0.15
 NCAAB_SPREAD_EDGE = 0.06
 
-NCAAB_TOTAL_STD = 12
-NCAAB_SPREAD_STD = 15
+NCAAB_TOTAL_STD = 18.6662
+NCAAB_SPREAD_STD = 16.0642
 
 
 # ============================================================
