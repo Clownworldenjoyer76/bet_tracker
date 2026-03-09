@@ -31,6 +31,10 @@ jobs:
       # SOCCER
       # =========================
 
+      - name: Ensure soccer model output folder exists
+        run: |
+          mkdir -p docs/win/soccer/01_merge/market_model
+
       - name: Run Soccer merge
         run: |
           python docs/win/soccer/scripts/01_merge/merge_intake.py
@@ -50,6 +54,10 @@ jobs:
           else
             echo "No soccer merge directory found"
           fi
+
+      - name: Run Soccer Market Model
+        run: |
+          python docs/win/soccer/scripts/01_merge/market_model.py
 
       # =========================
       # HOCKEY
@@ -93,6 +101,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "No changes detected"
           else
-            git commit -m "Merge + Juice rebuild (all sports)"
+            git commit -m "Merge + market model rebuild (all sports)"
             git push
           fi
