@@ -82,11 +82,7 @@ def compute_moneyline_edges(df, league, date):
         required = ["game_id", "home_edge_decimal", "away_edge_decimal"]
         validate_columns(edge_df, required)
 
-        df = df.merge(
-            edge_df[required],
-            on="game_id",
-            how="left"
-        )
+        df = df.merge(edge_df[required], on="game_id", how="left")
 
         df["home_ml_edge_decimal"] = df["home_edge_decimal"]
         df["away_ml_edge_decimal"] = df["away_edge_decimal"]
@@ -128,19 +124,13 @@ def compute_spread_edges(df, league, date):
 
         edge_df = pd.read_csv(edge_file)
 
-        required = [
-            "game_id",
-            "home_spread_edge_decimal",
-            "away_spread_edge_decimal",
-        ]
-
+        required = ["game_id", "home_edge_decimal", "away_edge_decimal"]
         validate_columns(edge_df, required)
 
-        df = df.merge(
-            edge_df[required],
-            on="game_id",
-            how="left"
-        )
+        df = df.merge(edge_df[required], on="game_id", how="left")
+
+        df["home_spread_edge_decimal"] = df["home_edge_decimal"]
+        df["away_spread_edge_decimal"] = df["away_edge_decimal"]
 
         return df
 
@@ -217,12 +207,8 @@ def process_market_files(files, compute_fn, league, market):
 
             date = extract_date_from_filename(f.name)
 
-            if market == "moneyline":
+            if market in ("moneyline", "spread"):
                 df = compute_fn(df, league, date)
-
-            elif market == "spread":
-                df = compute_fn(df, league, date)
-
             else:
                 df = compute_fn(df, league)
 
