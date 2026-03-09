@@ -27,6 +27,7 @@ def audit(log_path, stage, status, msg="", df=None):
             f.write(f"  SAMPLE:\n{df.head(3).to_string(index=False)}\n")
         f.write("-" * 40 + "\n")
 
+
 # =========================
 # PATHS
 # =========================
@@ -43,11 +44,15 @@ ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 ERROR_LOG = ERROR_DIR / "apply_total_juice.txt"
 
+
 # =========================
 # PURGE OLD OUTPUT FILES
 # =========================
 
-for f in OUTPUT_DIR.glob("*_total.csv"):
+for f in OUTPUT_DIR.glob("*_NBA_total.csv"):
+    f.unlink()
+
+for f in OUTPUT_DIR.glob("*_NCAAB_total.csv"):
     f.unlink()
 
 
@@ -57,38 +62,81 @@ def log(msg):
 
 
 # =========================
+# CONFIG LOAD (ONCE)
+# =========================
+
+NBA_JUICE = pd.read_csv(NBA_CONFIG)
+NBA_JUICE["band_min"] = pd.to_numeric(NBA_JUICE["band_min"], errors="coerce")
+NBA_JUICE["band_max"] = pd.to_numeric(NBA_JUICE["band_max"], errors="coerce")
+
+NCAAB_JUICE = pd.read_csv(NCAAB_CONFIG)
+NCAAB_JUICE["over_under"] = pd.to_numeric(NCAAB_JUICE["over_under"], errors="coerce")
+
+
+# =========================
 # ODDS CONVERSION
 # =========================
 
+def normalize_american(value):
+
+    if pd.isna(value):
+        return None
+
+    try:
+        value = str(value).replace("+", "").strip()
+        return float(value)
+    except:
+        return None
+
+
 def american_to_decimal(a):
-    a = float(a)
-    return 1 + (a / 100 if a > 0 else 100 / abs(a))
+
+    a = normalize_american(a)
+
+    if a is None:
+        return None
+
+    if a > 0:
+        return 1 + (a / 100)
+
+    return 1 + (100 / abs(a))
 
 
 def decimal_to_american(d):
-    if not math.isfinite(d) or d <= 1:
+
+    if d is None or not math.isfinite(d) or d <= 1:
         return ""
+
     if d >= 2:
         return f"+{int(round((d - 1) * 100))}"
+
     return f"-{int(round(100 / (d - 1)))}"
 
 
 # =========================
-# SAFE COLUMN RESOLUTION
+# COLUMN VALIDATION
+# =========================
+
+def validate_columns(df, cols):
+
+    missing = [c for c in cols if c not in df.columns]
+
+    if missing:
+        raise ValueError(f"Missing required columns: {missing}")
+
+
+# =========================
+# ODDS RESOLUTION
 # =========================
 
 def resolve_total_odds(row, side):
 
-    col1 = f"acceptable_total_{side}_american"
-    col2 = f"dk_total_{side}_american"
+    dk_col = f"dk_total_{side}_american"
 
-    if col1 in row and pd.notna(row[col1]):
-        return float(row[col1])
+    if dk_col in row and pd.notna(row[dk_col]):
+        return normalize_american(row[dk_col])
 
-    if col2 in row and pd.notna(row[col2]):
-        return float(row[col2])
-
-    raise KeyError(f"Missing total odds column for {side}")
+    raise KeyError(f"Missing total odds column: {dk_col}")
 
 
 # =========================
@@ -97,28 +145,33 @@ def resolve_total_odds(row, side):
 
 def apply_nba(df):
 
-    jt = pd.read_csv(NBA_CONFIG)
-
-    jt["band_min"] = pd.to_numeric(jt["band_min"], errors="coerce")
-    jt["band_max"] = pd.to_numeric(jt["band_max"], errors="coerce")
+    validate_columns(df, ["total", "dk_total_over_american", "dk_total_under_american"])
 
     def process(row, side):
 
         total = float(row["total"])
         odds = resolve_total_odds(row, side)
 
-        band = jt[
-            (jt["band_min"] <= total) &
-            (total <= jt["band_max"]) &
-            (jt["side"] == side)
+        band = NBA_JUICE[
+            (NBA_JUICE["band_min"] <= total) &
+            (total <= NBA_JUICE["band_max"]) &
+            (NBA_JUICE["side"] == side)
         ]
 
         extra = band.iloc[0]["extra_juice"] if not band.empty else 0.0
+
         if not math.isfinite(extra):
             extra = 0.0
 
         base_decimal = american_to_decimal(odds)
+
+        if base_decimal is None:
+            return None, ""
+
         final_decimal = base_decimal * (1 + extra)
+
+        if not math.isfinite(final_decimal) or final_decimal <= 1:
+            return None, ""
 
         return final_decimal, decimal_to_american(final_decimal)
 
@@ -127,6 +180,10 @@ def apply_nba(df):
 
     df[["total_under_juice_decimal", "total_under_juice_odds"]] = \
         df.apply(lambda r: process(r, "under"), axis=1, result_type="expand")
+
+    # Replace acceptable totals so edges use juice
+    df["acceptable_over"] = df["total_over_juice_decimal"]
+    df["acceptable_under"] = df["total_under_juice_decimal"]
 
     return df
 
@@ -137,24 +194,32 @@ def apply_nba(df):
 
 def apply_ncaab(df):
 
-    jt = pd.read_csv(NCAAB_CONFIG)
+    validate_columns(df, ["total", "dk_total_over_american", "dk_total_under_american"])
 
     def process(row, side):
 
         total = float(row["total"])
         odds = resolve_total_odds(row, side)
 
-        match = jt[
-            (jt["over_under"] == total) &
-            (jt["side"] == side)
+        match = NCAAB_JUICE[
+            (NCAAB_JUICE["over_under"] == total) &
+            (NCAAB_JUICE["side"] == side)
         ]
 
         extra = match.iloc[0]["extra_juice"] if not match.empty else 0.0
+
         if not math.isfinite(extra):
             extra = 0.0
 
         base_decimal = american_to_decimal(odds)
+
+        if base_decimal is None:
+            return None, ""
+
         final_decimal = base_decimal * (1 + extra)
+
+        if not math.isfinite(final_decimal) or final_decimal <= 1:
+            return None, ""
 
         return final_decimal, decimal_to_american(final_decimal)
 
@@ -163,6 +228,10 @@ def apply_ncaab(df):
 
     df[["total_under_juice_decimal", "total_under_juice_odds"]] = \
         df.apply(lambda r: process(r, "under"), axis=1, result_type="expand")
+
+    # Replace acceptable totals so edges use juice
+    df["acceptable_over"] = df["total_over_juice_decimal"]
+    df["acceptable_under"] = df["total_under_juice_decimal"]
 
     return df
 
@@ -185,25 +254,48 @@ def main():
             name = f.name
 
             if name.endswith("_NBA_total.csv"):
+
                 df = pd.read_csv(f)
                 df = apply_nba(df)
+
                 df.to_csv(OUTPUT_DIR / name, index=False)
 
                 log(f"Processed NBA file: {name}")
-                audit(ERROR_LOG, "JUICE_TOTAL_NBA", "SUCCESS", msg=f"Applied NBA Totals Juice to {name}", df=df)
+
+                audit(
+                    ERROR_LOG,
+                    "JUICE_TOTAL_NBA",
+                    "SUCCESS",
+                    msg=f"Applied NBA Totals Juice to {name}",
+                    df=df
+                )
+
                 files_found += 1
 
+
             elif name.endswith("_NCAAB_total.csv"):
+
                 df = pd.read_csv(f)
                 df = apply_ncaab(df)
+
                 df.to_csv(OUTPUT_DIR / name, index=False)
 
                 log(f"Processed NCAAB file: {name}")
-                audit(ERROR_LOG, "JUICE_TOTAL_NCAAB", "SUCCESS", msg=f"Applied NCAAB Totals Juice to {name}", df=df)
+
+                audit(
+                    ERROR_LOG,
+                    "JUICE_TOTAL_NCAAB",
+                    "SUCCESS",
+                    msg=f"Applied NCAAB Totals Juice to {name}",
+                    df=df
+                )
+
                 files_found += 1
+
 
         log(f"Total files processed: {files_found}")
         log("=== APPLY TOTAL JUICE END ===")
+
 
     except Exception as e:
 
@@ -211,7 +303,12 @@ def main():
         log(str(e))
         log(traceback.format_exc())
 
-        audit(ERROR_LOG, "JUICE_TOTAL_CRITICAL", "FAILED", msg=str(e))
+        audit(
+            ERROR_LOG,
+            "JUICE_TOTAL_CRITICAL",
+            "FAILED",
+            msg=str(e)
+        )
 
         sys.exit(1)
 

@@ -4,6 +4,7 @@ import sys
 import csv
 from pathlib import Path
 from datetime import datetime
+import re
 
 # =========================
 # PATHS
@@ -48,6 +49,16 @@ def load_dedupe(path, key_fields):
             data[key] = r
 
     return data
+
+
+def normalize_id(text):
+    """Normalize strings for safe ID generation"""
+    text = text.lower()
+    text = text.replace("&", "and")
+    text = re.sub(r"\s+", "_", text.strip())
+    text = re.sub(r"[^a-z0-9_]", "", text)
+    return text
+
 
 # =========================
 # FIELDNAMES
@@ -115,11 +126,15 @@ for pred_file in prediction_files:
     for key, p in pred_data.items():
 
         if key not in dk_data:
+            log(f"Missing sportsbook match for {key}")
             continue
 
         d = dk_data[key]
 
-        game_id = f"{p['match_date']}_{p['home_team']}_{p['away_team']}"
+        home_id = normalize_id(p["home_team"])
+        away_id = normalize_id(p["away_team"])
+
+        game_id = f"{p['match_date']}_{home_id}_{away_id}"
 
         merged_rows[key] = {
             "league": p["league"],

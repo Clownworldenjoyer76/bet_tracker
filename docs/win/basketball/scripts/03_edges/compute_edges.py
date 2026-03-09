@@ -38,18 +38,20 @@ def american_to_decimal(odds):
         return 1 + (odds / 100)
     return 1 + (100 / abs(odds))
 
+
 # =========================
 # MATH HELPERS
 # =========================
 
 def implied_prob(decimal_odds):
-    return (1 / decimal_odds).where(decimal_odds > 1, 0)
+    decimal_odds = pd.to_numeric(decimal_odds, errors="coerce")
+    return (1 / decimal_odds).where(decimal_odds > 1)
 
 
 def calculate_edge(model_decimal, book_decimal):
     """
-    Positive edge means the sportsbook offers a better price
-    than the model's acceptable price.
+    Positive edge means model implied probability is higher than
+    sportsbook implied probability.
     """
     model_decimal = pd.to_numeric(model_decimal, errors="coerce")
     book_decimal = pd.to_numeric(book_decimal, errors="coerce")
@@ -65,6 +67,7 @@ def validate_columns(df: pd.DataFrame, required_cols):
     if missing:
         raise ValueError(f"Missing required columns: {missing}")
 
+
 # =========================
 # HELPERS
 # =========================
@@ -74,6 +77,12 @@ def extract_date_from_filename(filename):
     if not match:
         raise ValueError(f"No date found in filename: {filename}")
     return match.group(0)
+
+
+def clear_old_outputs():
+    for f in OUTPUT_DIR.glob("*.csv"):
+        f.unlink(missing_ok=True)
+
 
 # =========================
 # AUTO DECIMAL CREATION
@@ -103,6 +112,7 @@ def ensure_decimal_columns(df):
 
     return df
 
+
 # =========================
 # EDGE COMPUTATION
 # =========================
@@ -113,18 +123,18 @@ def compute_moneyline_edges(df, league, date):
     required = [
         "home_dk_decimal_moneyline",
         "away_dk_decimal_moneyline",
-        "home_acceptable_decimal_moneyline",
-        "away_acceptable_decimal_moneyline",
+        "home_juice_decimal_moneyline",
+        "away_juice_decimal_moneyline",
     ]
     validate_columns(df, required)
 
     df["home_ml_edge_decimal"] = calculate_edge(
-        df["home_acceptable_decimal_moneyline"],
+        df["home_juice_decimal_moneyline"],
         df["home_dk_decimal_moneyline"]
     )
 
     df["away_ml_edge_decimal"] = calculate_edge(
-        df["away_acceptable_decimal_moneyline"],
+        df["away_juice_decimal_moneyline"],
         df["away_dk_decimal_moneyline"]
     )
 
@@ -137,18 +147,18 @@ def compute_spread_edges(df, league, date):
     required = [
         "home_dk_spread_decimal",
         "away_dk_spread_decimal",
-        "home_acceptable_spread_decimal",
-        "away_acceptable_spread_decimal",
+        "home_spread_juice_decimal",
+        "away_spread_juice_decimal",
     ]
     validate_columns(df, required)
 
     df["home_spread_edge_decimal"] = calculate_edge(
-        df["home_acceptable_spread_decimal"],
+        df["home_spread_juice_decimal"],
         df["home_dk_spread_decimal"]
     )
 
     df["away_spread_edge_decimal"] = calculate_edge(
-        df["away_acceptable_spread_decimal"],
+        df["away_spread_juice_decimal"],
         df["away_dk_spread_decimal"]
     )
 
@@ -178,6 +188,7 @@ def compute_total_edges(df, league):
 
     return df
 
+
 # =========================
 # SYSTEM HELPERS
 # =========================
@@ -196,6 +207,7 @@ def process_market_files(files, compute_fn, league, market):
     for f in files:
         try:
             df = pd.read_csv(f)
+            df = ensure_decimal_columns(df)
             date = extract_date_from_filename(f.name)
 
             if market in ("moneyline", "spread"):
@@ -224,6 +236,7 @@ def process_market_files(files, compute_fn, league, market):
                 msg=traceback.format_exc()
             )
 
+
 # =========================
 # LEAGUE PROCESSING
 # =========================
@@ -250,11 +263,13 @@ def process_league(league):
         "total"
     )
 
+
 # =========================
 # MAIN
 # =========================
 
 def main():
+    clear_old_outputs()
     audit(ERROR_LOG, "SYSTEM", "STARTING RUN")
 
     try:

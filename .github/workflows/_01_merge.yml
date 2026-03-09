@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
@@ -36,7 +37,19 @@ jobs:
 
       - name: Validate Soccer merge
         run: |
-          python docs/win/soccer/scripts/01_merge/validate_merge.py
+          MERGE_DIR="docs/win/soccer/01_merge"
+
+          if [ -d "$MERGE_DIR" ]; then
+            for f in $MERGE_DIR/soccer_*.csv; do
+              if [ -f "$f" ]; then
+                DATE=$(basename "$f" | sed 's/soccer_//' | sed 's/.csv//')
+                echo "Validating soccer slate $DATE"
+                python docs/win/soccer/scripts/01_merge/validate_merge.py $DATE
+              fi
+            done
+          else
+            echo "No soccer merge directory found"
+          fi
 
       # =========================
       # HOCKEY
@@ -67,15 +80,19 @@ jobs:
       # =========================
 
       - name: Commit and push changes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
 
+          git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git
+
           git add -A
 
-          if ! git diff --cached --quiet; then
+          if git diff --cached --quiet; then
+            echo "No changes detected"
+          else
             git commit -m "Merge + Juice rebuild (all sports)"
             git push
-          else
-            echo "No changes detected"
           fi

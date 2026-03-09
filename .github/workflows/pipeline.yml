@@ -57,7 +57,7 @@ jobs:
           fi
 
       # -----------------------------
-      # Commit and push results
+      # Commit results
       # -----------------------------
       - name: Commit and push results
         env:
@@ -68,11 +68,10 @@ jobs:
 
           git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git
 
-          # Core outputs
           git add docs/win || true
           git add mappings || true
 
-          if git diff --staged --quiet; then
+          if git diff --cached --quiet; then
             echo "No changes to commit"
           else
             git commit -m "Automated pipeline run"
