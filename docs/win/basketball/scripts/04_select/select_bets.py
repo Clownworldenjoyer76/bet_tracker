@@ -170,9 +170,10 @@ def step2_nba_spread(row):
     return False, "FAIL STEP 2 NBA SPREAD | " + " | ".join(reasons)
 
 
-###############################################################
+##############################################################################################################    
 ##################### STEP 3 NBA TOTAL ########################
-###############################################################
+##############################################################################################################    
+
 
 def step3_nba_total(row):
     line = f(row.get("total"))
@@ -185,19 +186,22 @@ def step3_nba_total(row):
     under_edge = f(row.get("under_edge_decimal"))
     proj_diff = abs(proj - line)
 
+    # Reject extreme totals
     if line > 245:
         return False, (
             f"FAIL STEP 3 NBA TOTAL | total limit failed | "
             f"total={line:.2f} > 245"
         ), ""
 
-    if proj_diff < 3:
+    # Require stronger projection disagreement
+    if proj_diff < 5:
         return False, (
             f"FAIL STEP 3 NBA TOTAL | projection diff failed | "
-            f"abs(total_projected_points - total)={proj_diff:.2f} < 3 | "
+            f"abs(total_projected_points - total)={proj_diff:.2f} < 5 | "
             f"total_projected_points={proj:.2f}, total={line:.2f}"
         ), ""
 
+    # Blowout filter
     if max_spread >= 13 and line >= 240:
         return False, (
             f"FAIL STEP 3 NBA TOTAL | blowout filter failed | "
@@ -205,33 +209,31 @@ def step3_nba_total(row):
             f"and total={line:.2f} >= 240"
         ), ""
 
-    under_pass = False
     over_pass = False
+    under_pass = False
 
-    if line > 205 and 0.06 <= under_edge <= 0.40:
-        under_pass = True
+    ###################################################
+    # PROJECTION DIRECTION CONFIRMATION
+    ###################################################
 
-    if line <= 205:
-        if 0.04 <= over_edge <= 0.35:
+    # Only allow OVER if projection supports it
+    if proj > line:
+        if 0.10 <= over_edge <= 0.35:
             over_pass = True
-    else:
-        if 0.06 <= over_edge <= 0.35:
-            over_pass = True
 
-    if over_pass and under_pass:
-        return True, (
-            f"PASS STEP 3 NBA TOTAL | BOTH passed | "
-            f"total={line:.2f}, total_projected_points={proj:.2f}, "
-            f"proj_diff={proj_diff:.2f}, max_spread={max_spread:.2f}, "
-            f"over_edge_decimal={over_edge:.6f}, under_edge_decimal={under_edge:.6f}"
-        ), "both"
+    # Only allow UNDER if projection supports it
+    if proj < line:
+        if 0.10 <= under_edge <= 0.35:
+            under_pass = True
+
+    ###################################################
 
     if over_pass:
         return True, (
             f"PASS STEP 3 NBA TOTAL | OVER passed | "
             f"total={line:.2f}, total_projected_points={proj:.2f}, "
             f"proj_diff={proj_diff:.2f}, max_spread={max_spread:.2f}, "
-            f"over_edge_decimal={over_edge:.6f}, under_edge_decimal={under_edge:.6f}"
+            f"over_edge_decimal={over_edge:.6f}"
         ), "over"
 
     if under_pass:
@@ -239,7 +241,7 @@ def step3_nba_total(row):
             f"PASS STEP 3 NBA TOTAL | UNDER passed | "
             f"total={line:.2f}, total_projected_points={proj:.2f}, "
             f"proj_diff={proj_diff:.2f}, max_spread={max_spread:.2f}, "
-            f"under_edge_decimal={under_edge:.6f}, over_edge_decimal={over_edge:.6f}"
+            f"under_edge_decimal={under_edge:.6f}"
         ), "under"
 
     return False, (
@@ -248,11 +250,9 @@ def step3_nba_total(row):
         f"proj_diff={proj_diff:.2f}, max_spread={max_spread:.2f}, "
         f"over_edge_decimal={over_edge:.6f}, under_edge_decimal={under_edge:.6f}"
     ), ""
-
-
-##############################################################################################################################
+##############################################################################################################    
 ################### STEP 4 NCAAB MONEYLINE ####################
-###############################################################
+##############################################################################################################    
 
 def step4_ncaab_moneyline(row):
     home_ml = f(row.get("home_dk_moneyline_american"))
