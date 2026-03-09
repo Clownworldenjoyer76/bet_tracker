@@ -1,3 +1,5 @@
+# docs/win/soccer/scripts/00_parsing/drat.py
+
 #!/usr/bin/env python3
 
 import sys
@@ -17,6 +19,10 @@ with open(LOG_FILE, "w", encoding="utf-8") as f:
 def log(msg: str):
     with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write(f"{datetime.utcnow().isoformat()} | {msg}\n")
+
+# =========================
+# ARGS
+# =========================
 
 if len(sys.argv) < 3:
     raise ValueError(
@@ -51,6 +57,10 @@ else:
 if not raw_text.strip():
     raise ValueError("raw_text is empty.")
 
+# =========================
+# MARKET MAP
+# =========================
+
 market_map = {
     "MLS": "mls",
     "EPL": "epl",
@@ -73,19 +83,25 @@ FIELDNAMES = [
     "home_xg","away_xg","expected_total_goals"
 ]
 
+# =========================
+# REGEX
+# =========================
+
 RE_DATE = re.compile(r"(\d{1,2})/(\d{1,2})/(\d{4})")
 RE_TIME = re.compile(r"\b\d{1,2}:\d{2}(?:\s*(AM|PM))?\b", re.IGNORECASE)
 RE_PCT  = re.compile(r"(\d+(?:\.\d+)?)%")
-RE_FLOAT = re.compile(r"\d+\.\d+")
+RE_FLOAT = re.compile(r"\d+(?:\.\d+)?")
 RE_ODDS = re.compile(r"[+-]\d+")
+
+# =========================
+# HELPERS
+# =========================
 
 def clean_team(text: str) -> str:
     return RE_PCT.sub("", text).strip()
 
 def normalize_time(time_str: str) -> str:
-    """Convert time to 24h HH:MM"""
     t = time_str.strip().upper()
-
     try:
         if "AM" in t or "PM" in t:
             dt = datetime.strptime(t, "%I:%M %p")
@@ -95,10 +111,19 @@ def normalize_time(time_str: str) -> str:
     except Exception:
         return t
 
-lines = [l.strip() for l in raw_text.splitlines() if l.strip()]
-n = len(lines)
+# remove tab formatting from sportsbook tables
+lines = [
+    re.sub(r"\s+", " ", l).strip()
+    for l in raw_text.splitlines()
+    if l.strip()
+]
 
+n = len(lines)
 rows_by_date = defaultdict(list)
+
+# =========================
+# MAIN PARSER
+# =========================
 
 for idx, line in enumerate(lines):
 
@@ -109,6 +134,7 @@ for idx, line in enumerate(lines):
     mm, dd, yyyy = dm.groups()
     file_date = f"{yyyy}_{mm.zfill(2)}_{dd.zfill(2)}"
 
+    # find kickoff time
     t_idx = None
     for j in range(idx+1, n):
         if RE_TIME.search(lines[j]):
@@ -123,13 +149,13 @@ for idx, line in enumerate(lines):
     away_team = clean_team(lines[t_idx+1])
     home_team = clean_team(lines[t_idx+2])
 
-    # -----------------------------
+    # =====================
     # PROBABILITIES
-    # -----------------------------
+    # =====================
 
     pct_vals = []
 
-    for k in range(t_idx+1, n):
+    for k in range(t_idx+1, min(t_idx+15, n)):
 
         found = RE_PCT.findall(lines[k])
 
@@ -143,43 +169,44 @@ for idx, line in enumerate(lines):
             break
 
     if len(pct_vals) != 3:
+        log(f"Missing probabilities: {home_team} vs {away_team}")
         continue
 
     away_prob = pct_vals[0]
     home_prob = pct_vals[1]
     draw_prob = pct_vals[2]
 
-    # -----------------------------
-    # FIND ML ODDS LOCATION
-    # -----------------------------
+    # =====================
+    # ML ODDS DETECTION
+    # =====================
 
     odds_idx = None
     odds_found = 0
 
-    for k in range(t_idx+1, n):
+    for k in range(t_idx+1, min(t_idx+20, n)):
 
         if RE_ODDS.match(lines[k]):
             odds_found += 1
 
-            if odds_found == 2:
+            if odds_found == 3:
                 odds_idx = k
                 break
 
     if odds_idx is None:
+        log(f"ML odds not found: {home_team} vs {away_team}")
         continue
 
-    # -----------------------------
-    # EXTRACT xG + TOTAL
-    # -----------------------------
+    # =====================
+    # xG + TOTAL
+    # =====================
 
     float_vals = []
 
-    for k in range(odds_idx+1, n):
+    for k in range(odds_idx+1, min(odds_idx+15, n)):
 
         found = RE_FLOAT.findall(lines[k])
 
         for v in found:
-
             float_vals.append(float(v))
 
             if len(float_vals) == 3:
@@ -189,6 +216,7 @@ for idx, line in enumerate(lines):
             break
 
     if len(float_vals) != 3:
+        log(f"xG not found: {home_team} vs {away_team}")
         continue
 
     away_xg = float_vals[0]
@@ -213,9 +241,9 @@ for idx, line in enumerate(lines):
 if not rows_by_date:
     raise ValueError("No rows parsed.")
 
-# -----------------------------
-# WRITE MARKET FILE
-# -----------------------------
+# =========================
+# WRITE FILES
+# =========================
 
 output_dir = Path("docs/win/soccer/00_intake/predictions")
 output_dir.mkdir(parents=True, exist_ok=True)
@@ -230,31 +258,3 @@ for d in sorted(rows_by_date.keys()):
         writer.writerows(rows_by_date[d])
 
     print(f"Wrote {outfile} ({len(rows_by_date[d])} rows)")
-
-    # -----------------------------
-    # BUILD COMBINED FILE
-    # -----------------------------
-
-    combined_dir = output_dir / "combined"
-    combined_dir.mkdir(parents=True, exist_ok=True)
-
-    combined_file = combined_dir / f"soccer_{d}.csv"
-
-    combined_rows = []
-
-    for f in output_dir.glob(f"soccer_{d}_*.csv"):
-
-        with open(f, newline="", encoding="utf-8") as r:
-
-            reader = csv.DictReader(r)
-
-            for row in reader:
-                combined_rows.append(row)
-
-    with open(combined_file, "w", newline="", encoding="utf-8") as f:
-
-        writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
-        writer.writeheader()
-        writer.writerows(combined_rows)
-
-    print(f"Wrote combined file {combined_file} ({len(combined_rows)} rows)")
