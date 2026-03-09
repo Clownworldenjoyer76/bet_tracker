@@ -4,7 +4,6 @@ import csv
 import sys
 from pathlib import Path
 from datetime import datetime
-from bisect import bisect_left
 
 # =========================
 # PATHS
@@ -24,11 +23,9 @@ LOG_FILE = ERROR_DIR / "market_model.txt"
 with open(LOG_FILE, "w", encoding="utf-8") as f:
     f.write("")
 
-
 def log(msg):
     with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write(f"{datetime.utcnow().isoformat()} | {msg}\n")
-
 
 # =========================
 # CONFIG MAP
@@ -42,9 +39,8 @@ CONFIG_MAP = {
     "seriea": "serie_a",
 }
 
-# DC table cache
+# cache DC tables
 DC_CACHE = {}
-
 
 # =========================
 # LOAD DC TABLE
@@ -53,8 +49,6 @@ DC_CACHE = {}
 def load_dc_table(path):
 
     rows = []
-    lambda_home_vals = set()
-    lambda_away_vals = set()
 
     with open(path, newline="", encoding="utf-8") as f:
 
@@ -63,12 +57,10 @@ def load_dc_table(path):
         for r in reader:
 
             try:
-                lh = float(r["lambda_home"])
-                la = float(r["lambda_away"])
 
                 rows.append({
-                    "lambda_home": lh,
-                    "lambda_away": la,
+                    "lambda_home": float(r["lambda_home"]),
+                    "lambda_away": float(r["lambda_away"]),
                     "home_win": float(r["home_win"]),
                     "draw": float(r["draw"]),
                     "away_win": float(r["away_win"]),
@@ -76,21 +68,11 @@ def load_dc_table(path):
                     "btts_yes": float(r["btts_yes"]),
                 })
 
-                lambda_home_vals.add(lh)
-                lambda_away_vals.add(la)
-
             except:
                 continue
 
-    lambda_home_vals = sorted(lambda_home_vals)
-    lambda_away_vals = sorted(lambda_away_vals)
+    return rows
 
-    return rows, lambda_home_vals, lambda_away_vals
-
-
-# =========================
-# GET DC TABLE (cached)
-# =========================
 
 def get_dc_table(market):
 
@@ -104,83 +86,56 @@ def get_dc_table(market):
         log(f"Missing config file: {dc_file}")
         return None
 
-    rows, lh_vals, la_vals = load_dc_table(dc_file)
+    table = load_dc_table(dc_file)
 
-    DC_CACHE[market] = (rows, lh_vals, la_vals)
+    DC_CACHE[market] = table
 
-    return DC_CACHE[market]
-
-
-# =========================
-# FIND CLOSEST GRID VALUES
-# =========================
-
-def find_bounds(values, x):
-
-    pos = bisect_left(values, x)
-
-    if pos == 0:
-        return values[0], values[0]
-
-    if pos >= len(values):
-        return values[-1], values[-1]
-
-    return values[pos-1], values[pos]
-
+    return table
 
 # =========================
-# LOOKUP GRID VALUE
+# KNN INTERPOLATION
 # =========================
 
-def find_row(table, lh, la):
+def interpolate(table, lh, la, k=6):
+
+    distances = []
 
     for r in table:
-        if r["lambda_home"] == lh and r["lambda_away"] == la:
-            return r
 
-    return None
+        dist = (r["lambda_home"] - lh)**2 + (r["lambda_away"] - la)**2
 
+        distances.append((dist, r))
 
-# =========================
-# BILINEAR INTERPOLATION
-# =========================
+    distances.sort(key=lambda x: x[0])
 
-def interpolate(table, lh_vals, la_vals, lh, la):
+    nearest = distances[:k]
 
-    lh0, lh1 = find_bounds(lh_vals, lh)
-    la0, la1 = find_bounds(la_vals, la)
+    weight_sum = 0
 
-    q11 = find_row(table, lh0, la0)
-    q12 = find_row(table, lh0, la1)
-    q21 = find_row(table, lh1, la0)
-    q22 = find_row(table, lh1, la1)
+    home = draw = away = over25 = btts = 0
 
-    if not all([q11, q12, q21, q22]):
-        return q11 or q12 or q21 or q22
+    for dist, r in nearest:
 
-    def interp(v11, v12, v21, v22):
+        w = 1 / (dist + 1e-9)
 
-        if lh1 == lh0 or la1 == la0:
-            return v11
+        weight_sum += w
 
-        return (
-            v11 * (lh1 - lh) * (la1 - la) +
-            v21 * (lh - lh0) * (la1 - la) +
-            v12 * (lh1 - lh) * (la - la0) +
-            v22 * (lh - lh0) * (la - la0)
-        ) / ((lh1 - lh0) * (la1 - la0))
+        home += r["home_win"] * w
+        draw += r["draw"] * w
+        away += r["away_win"] * w
+        over25 += r["over2_5"] * w
+        btts += r["btts_yes"] * w
 
     return {
-        "home_win": interp(q11["home_win"], q12["home_win"], q21["home_win"], q22["home_win"]),
-        "draw": interp(q11["draw"], q12["draw"], q21["draw"], q22["draw"]),
-        "away_win": interp(q11["away_win"], q12["away_win"], q21["away_win"], q22["away_win"]),
-        "over2_5": interp(q11["over2_5"], q12["over2_5"], q21["over2_5"], q22["over2_5"]),
-        "btts_yes": interp(q11["btts_yes"], q12["btts_yes"], q21["btts_yes"], q22["btts_yes"]),
+        "home_win": home / weight_sum,
+        "draw": draw / weight_sum,
+        "away_win": away / weight_sum,
+        "over2_5": over25 / weight_sum,
+        "btts_yes": btts / weight_sum,
     }
 
-
 # =========================
-# OUTPUT FIELDS
+# FIELDNAMES
 # =========================
 
 FIELDNAMES = [
@@ -197,9 +152,8 @@ FIELDNAMES = [
     "btts_prob",
 ]
 
-
 # =========================
-# PROCESS MERGE FILES
+# LOAD MERGE FILES
 # =========================
 
 merge_files = list(MERGE_DIR.glob("soccer_*.csv"))
@@ -208,6 +162,9 @@ if not merge_files:
     print("No merge files found.")
     sys.exit(0)
 
+# =========================
+# PROCESS SLATES
+# =========================
 
 for merge_file in merge_files:
 
@@ -229,25 +186,21 @@ for merge_file in merge_files:
                 log(f"Unknown market: {market}")
                 continue
 
-            table_data = get_dc_table(market)
+            table = get_dc_table(market)
 
-            if not table_data:
+            if not table:
                 continue
 
-            table, lh_vals, la_vals = table_data
-
             try:
+
                 lh = float(r["home_xg"])
                 la = float(r["away_xg"])
+
             except:
                 log(f"Invalid xG for {r.get('game_id','UNKNOWN')}")
                 continue
 
-            dc_row = interpolate(table, lh_vals, la_vals, lh, la)
-
-            if not dc_row:
-                log(f"No DC row found for {r['game_id']}")
-                continue
+            dc_row = interpolate(table, lh, la)
 
             rows.append({
                 "game_id": r["game_id"],
