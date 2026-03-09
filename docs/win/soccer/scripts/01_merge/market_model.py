@@ -23,9 +23,11 @@ LOG_FILE = ERROR_DIR / "market_model.txt"
 with open(LOG_FILE, "w", encoding="utf-8") as f:
     f.write("")
 
+
 def log(msg):
     with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write(f"{datetime.utcnow().isoformat()} | {msg}\n")
+
 
 # =========================
 # CONFIG MAP
@@ -38,6 +40,10 @@ CONFIG_MAP = {
     "ligue1": "ligue1",
     "seriea": "serie_a",
 }
+
+# cache for DC tables
+DC_CACHE = {}
+
 
 # =========================
 # HELPERS
@@ -53,33 +59,57 @@ def load_dc_table(path):
 
         for r in reader:
 
-            rows.append({
-                "lambda_home": float(r["lambda_home"]),
-                "lambda_away": float(r["lambda_away"]),
-                "home_win": float(r["home_win"]),
-                "draw": float(r["draw"]),
-                "away_win": float(r["away_win"]),
-                "over2_5": float(r["over2_5"]),
-                "btts_yes": float(r["btts_yes"]),
-            })
+            try:
+                rows.append({
+                    "lambda_home": float(r["lambda_home"]),
+                    "lambda_away": float(r["lambda_away"]),
+                    "home_win": float(r["home_win"]),
+                    "draw": float(r["draw"]),
+                    "away_win": float(r["away_win"]),
+                    "over2_5": float(r["over2_5"]),
+                    "btts_yes": float(r["btts_yes"]),
+                })
+            except Exception:
+                continue
 
     return rows
+
+
+def get_dc_table(market):
+
+    if market in DC_CACHE:
+        return DC_CACHE[market]
+
+    config_dir = CONFIG_BASE / CONFIG_MAP[market]
+    dc_file = config_dir / "dc_soccer_pricing_engine.csv"
+
+    if not dc_file.exists():
+        log(f"Missing config file: {dc_file}")
+        return None
+
+    table = load_dc_table(dc_file)
+
+    DC_CACHE[market] = table
+
+    return table
 
 
 def closest_row(table, lh, la):
 
     best = None
-    best_dist = 1e9
+    best_dist = float("inf")
 
     for r in table:
 
-        dist = abs(r["lambda_home"] - lh) + abs(r["lambda_away"] - la)
+        # Euclidean distance (prevents lambda swapping issue)
+        dist = (r["lambda_home"] - lh) ** 2 + (r["lambda_away"] - la) ** 2
 
         if dist < best_dist:
             best_dist = dist
             best = r
 
     return best
+
 
 # =========================
 # FIELDNAMES
@@ -99,6 +129,7 @@ FIELDNAMES = [
     "btts_prob",
 ]
 
+
 # =========================
 # LOAD MERGE FILES
 # =========================
@@ -108,6 +139,7 @@ merge_files = list(MERGE_DIR.glob("soccer_*.csv"))
 if not merge_files:
     print("No merge files found.")
     sys.exit(0)
+
 
 # =========================
 # PROCESS SLATES
@@ -133,21 +165,16 @@ for merge_file in merge_files:
                 log(f"Unknown market: {market}")
                 continue
 
-            config_dir = CONFIG_BASE / CONFIG_MAP[market]
-            dc_file = config_dir / "dc_soccer_pricing_engine.csv"
+            dc_table = get_dc_table(market)
 
-            if not dc_file.exists():
-                log(f"Missing config file: {dc_file}")
+            if not dc_table:
                 continue
-
-            # load dc table
-            dc_table = load_dc_table(dc_file)
 
             try:
                 lh = float(r["home_xg"])
                 la = float(r["away_xg"])
-            except:
-                log(f"Invalid xG for {r['game_id']}")
+            except Exception:
+                log(f"Invalid xG for {r.get('game_id','UNKNOWN')}")
                 continue
 
             dc_row = closest_row(dc_table, lh, la)
