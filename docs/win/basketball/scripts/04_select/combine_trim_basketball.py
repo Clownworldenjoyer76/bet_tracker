@@ -20,24 +20,8 @@ TOTALS_DIR.mkdir(parents=True, exist_ok=True)
 ###############################################################
 
 def compute_edge(row):
-    """
-    Determine the edge used for ranking bets.
-
-    Totals:
-        Use edge that corresponds to bet_side.
-
-    Moneyline:
-        Use max(home_ml_edge_decimal, away_ml_edge_decimal)
-
-    Spread:
-        Use max(home_spread_edge_decimal, away_spread_edge_decimal)
-    """
 
     market_type = str(row.get("market_type", "")).lower()
-
-    ###################################################
-    # TOTALS
-    ###################################################
 
     if market_type == "total":
 
@@ -51,20 +35,12 @@ def compute_edge(row):
 
         return 0
 
-    ###################################################
-    # MONEYLINE
-    ###################################################
-
     if market_type == "moneyline":
 
         return max(
             float(row.get("home_ml_edge_decimal", 0) or 0),
             float(row.get("away_ml_edge_decimal", 0) or 0),
         )
-
-    ###################################################
-    # SPREAD
-    ###################################################
 
     if market_type == "spread":
 
@@ -81,14 +57,6 @@ def compute_edge(row):
 ###############################################################
 
 def trim_games(df):
-    """
-    Apply betting constraints per game.
-
-    Rules:
-    - Maximum 2 bets per game
-    - Only ONE of spread OR moneyline
-    - Only ONE of over OR under
-    """
 
     cleaned_rows = []
 
@@ -152,13 +120,6 @@ def trim_games(df):
 ###############################################################
 
 def build_totals():
-    """
-    Combine daily slate files into historical totals.
-
-    Output:
-        daily_slate/totals/NBA_final.csv
-        daily_slate/totals/NCAAB_final.csv
-    """
 
     nba_files = []
     ncaab_files = []
@@ -167,6 +128,7 @@ def build_totals():
 
         name = f.name
 
+        # Skip master files
         if name in ["nba_selected.csv", "ncaab_selected.csv"]:
             continue
 
@@ -216,10 +178,20 @@ def build_totals():
 def main():
 
     ###################################################
+    # CLEAR OLD DAILY SLATE FILES
+    ###################################################
+
+    for f in OUTPUT_DIR.glob("*.csv"):
+        f.unlink()
+
+    ###################################################
     # LOAD SELECT FILES
     ###################################################
 
-    files = list(SELECT_DIR.glob("*.csv"))
+    files = [
+        f for f in SELECT_DIR.glob("*.csv")
+        if f.name not in ["nba_selected.csv", "ncaab_selected.csv"]
+    ]
 
     if not files:
         print("No select files found.")
