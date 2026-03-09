@@ -66,6 +66,21 @@ def safe_read_csv(path: str):
 
 
 # =========================
+# FORCE FULL REGRADES
+# =========================
+
+def clear_old_results(directory, suffix):
+
+    files = glob.glob(str(directory / f"*_results_{suffix}.csv"))
+
+    for f in files:
+        try:
+            os.remove(f)
+        except Exception:
+            pass
+
+
+# =========================
 # OUTCOME LOGIC
 # =========================
 
@@ -238,6 +253,9 @@ def process_results():
         output_dir = Path(f"docs/win/final_scores/results/{cfg['scores_sub']}/graded")
 
         output_dir.mkdir(parents=True, exist_ok=True)
+
+        # FORCE FULL HISTORICAL REGRADE EVERY RUN
+        clear_old_results(output_dir, cfg["suffix"])
 
         # ONLY LOAD BET FILES FOR THIS LEAGUE
         bet_files = glob.glob(os.path.join(cfg["bets_dir"], cfg["pattern"]))
