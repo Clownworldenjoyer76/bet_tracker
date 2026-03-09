@@ -208,7 +208,10 @@ def write_market_master(cfg, output_dir):
 
     master_df = master_df[cols]
 
-    master_df = master_df.drop_duplicates()
+    # SAFE duplicate removal
+    master_df = master_df.drop_duplicates(
+        subset=["game_date","away_team","home_team","market_type","bet_side","line"]
+    )
 
     master_df = master_df.sort_values(
         ["game_date", "market_type", "away_team", "home_team"],
@@ -219,6 +222,23 @@ def write_market_master(cfg, output_dir):
 
     audit(ERROR_LOG, "MASTER", "SUCCESS",
           msg=f"Wrote {cfg['name']} master", df=master_df)
+
+
+    # =========================
+    # MARKET TALLY
+    # =========================
+
+    tally = master_df.groupby(
+        ["market_type","bet_side","bet_result"]
+    ).size().reset_index(name="count")
+
+    tally_path = output_dir.parent / "market_tally.csv"
+    tally.to_csv(tally_path, index=False)
+
+
+    # console display
+    print(f"\n{cfg['name']} MARKET TALLY")
+    print(tally.sort_values(["market_type","bet_side","bet_result"]).to_string(index=False))
 
 
 # =========================
@@ -254,10 +274,8 @@ def process_results():
 
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        # FORCE FULL HISTORICAL REGRADE EVERY RUN
         clear_old_results(output_dir, cfg["suffix"])
 
-        # ONLY LOAD BET FILES FOR THIS LEAGUE
         bet_files = glob.glob(os.path.join(cfg["bets_dir"], cfg["pattern"]))
 
         dates = set()
@@ -276,7 +294,6 @@ def process_results():
             if not score_file.exists():
                 continue
 
-            # STRICT FILE MATCHING BY LEAGUE
             daily_bets = glob.glob(
                 os.path.join(cfg["bets_dir"], f"{date_str}*{cfg['pattern'].replace('*','')}")
             )
