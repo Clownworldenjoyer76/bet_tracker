@@ -51,11 +51,49 @@ def validate_columns(df: pd.DataFrame, required_cols):
         raise ValueError(f"Missing required columns: {missing}")
 
 # =========================
+# HELPERS
+# =========================
+
+def extract_date_from_filename(filename):
+
+    match = re.search(r"\d{4}_\d{2}_\d{2}", filename)
+
+    if not match:
+        raise ValueError(f"No date found in filename: {filename}")
+
+    return match.group(0)
+
+# =========================
 # EDGE COMPUTATION
 # =========================
 
-def compute_moneyline_edges(df, league):
+def compute_moneyline_edges(df, league, date):
 
+    # ---------- NBA ----------
+    if league == "NBA":
+
+        edge_file = OUTPUT_DIR / f"{date}_basketball_NBA_moneyline.csv"
+
+        if not edge_file.exists():
+            raise FileNotFoundError(f"Missing edge file: {edge_file}")
+
+        edge_df = pd.read_csv(edge_file)
+
+        required = ["game_id", "home_edge_decimal", "away_edge_decimal"]
+        validate_columns(edge_df, required)
+
+        df = df.merge(
+            edge_df[required],
+            on="game_id",
+            how="left"
+        )
+
+        df["home_ml_edge_decimal"] = df["home_edge_decimal"]
+        df["away_ml_edge_decimal"] = df["away_edge_decimal"]
+
+        return df
+
+    # ---------- NCAAB ----------
     required = [
         "home_dk_decimal_moneyline",
         "away_dk_decimal_moneyline",
@@ -75,13 +113,38 @@ def compute_moneyline_edges(df, league):
         df["away_juice_decimal_moneyline"]
     )
 
-    df = df.drop(columns=["home_play", "away_play"], errors="ignore")
-
     return df
 
 
-def compute_spread_edges(df, league):
+def compute_spread_edges(df, league, date):
 
+    # ---------- NBA ----------
+    if league == "NBA":
+
+        edge_file = OUTPUT_DIR / f"{date}_basketball_NBA_spread.csv"
+
+        if not edge_file.exists():
+            raise FileNotFoundError(f"Missing edge file: {edge_file}")
+
+        edge_df = pd.read_csv(edge_file)
+
+        required = [
+            "game_id",
+            "home_spread_edge_decimal",
+            "away_spread_edge_decimal",
+        ]
+
+        validate_columns(edge_df, required)
+
+        df = df.merge(
+            edge_df[required],
+            on="game_id",
+            how="left"
+        )
+
+        return df
+
+    # ---------- NCAAB ----------
     required = [
         "home_dk_spread_decimal",
         "away_dk_spread_decimal",
@@ -100,8 +163,6 @@ def compute_spread_edges(df, league):
         df["away_dk_spread_decimal"],
         df["away_spread_juice_decimal"]
     )
-
-    df = df.drop(columns=["home_play", "away_play"], errors="ignore")
 
     return df
 
@@ -127,8 +188,6 @@ def compute_total_edges(df, league):
         df["total_under_juice_decimal"]
     )
 
-    df = df.drop(columns=["home_play", "away_play"], errors="ignore")
-
     return df
 
 # =========================
@@ -144,16 +203,6 @@ def atomic_write_csv(df, output_path):
     tmp.replace(output_path)
 
 
-def extract_date_from_filename(filename):
-
-    match = re.search(r"\d{4}_\d{2}_\d{2}", filename)
-
-    if not match:
-        raise ValueError(f"No date found in filename: {filename}")
-
-    return match.group(0)
-
-
 def process_market_files(files, compute_fn, league, market):
 
     if not files:
@@ -166,11 +215,18 @@ def process_market_files(files, compute_fn, league, market):
 
             df = pd.read_csv(f)
 
-            df = compute_fn(df, league)
+            date = extract_date_from_filename(f.name)
+
+            if market == "moneyline":
+                df = compute_fn(df, league, date)
+
+            elif market == "spread":
+                df = compute_fn(df, league, date)
+
+            else:
+                df = compute_fn(df, league)
 
             df = df.drop(columns=["home_play", "away_play"], errors="ignore")
-
-            date = extract_date_from_filename(f.name)
 
             output_path = OUTPUT_DIR / f"{date}_basketball_{league}_{market}.csv"
 
@@ -186,8 +242,16 @@ def process_market_files(files, compute_fn, league, market):
 
         except Exception:
 
-            audit(ERROR_LOG, f"{league}_{market.upper()}", "FAILED", msg=traceback.format_exc())
+            audit(
+                ERROR_LOG,
+                f"{league}_{market.upper()}",
+                "FAILED",
+                msg=traceback.format_exc()
+            )
 
+# =========================
+# LEAGUE PROCESSING
+# =========================
 
 def process_league(league):
 
