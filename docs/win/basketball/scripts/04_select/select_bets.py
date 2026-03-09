@@ -70,17 +70,10 @@ def detect_market_from_filename(file_name):
 ###############################################################
 
 def clear_previous_outputs():
-    """
-    Delete ONLY files produced by this script.
-    Leave daily_slate and any subfolders untouched.
-    """
-
     removed = 0
-
     for fpath in OUTPUT_DIR.glob("*.csv"):
         fpath.unlink(missing_ok=True)
         removed += 1
-
     report_line(f"MAIN | cleared old select files | removed={removed}")
 
 
@@ -89,7 +82,6 @@ def clear_previous_outputs():
 ###############################################################
 
 def step1_nba_moneyline(row):
-
     home_edge = f(row.get("home_ml_edge_decimal"))
     away_edge = f(row.get("away_ml_edge_decimal"))
 
@@ -110,7 +102,6 @@ def step1_nba_moneyline(row):
 ###############################################################
 
 def step2_nba_spread(row):
-
     home_line = f(row.get("home_spread"))
     away_line = f(row.get("away_spread"))
 
@@ -118,12 +109,12 @@ def step2_nba_spread(row):
     away_edge = f(row.get("away_spread_edge_decimal"))
 
     if home_edge >= 0.07 and -14.6 <= home_line <= 14.6 and not (-2 <= home_line <= 2):
-        return True, "PASS STEP 2 NBA SPREAD"
+        return True, "PASS STEP 2 NBA SPREAD", "home", home_line
 
     if away_edge >= 0.07 and -14.6 <= away_line <= 14.6 and not (-2 <= away_line <= 2):
-        return True, "PASS STEP 2 NBA SPREAD"
+        return True, "PASS STEP 2 NBA SPREAD", "away", away_line
 
-    return False, "FAIL STEP 2 NBA SPREAD"
+    return False, "FAIL STEP 2 NBA SPREAD", "", ""
 
 
 ###############################################################
@@ -131,7 +122,6 @@ def step2_nba_spread(row):
 ###############################################################
 
 def step3_nba_total(row):
-
     line = f(row.get("total"))
     proj = f(row.get("total_projected_points"))
 
@@ -173,7 +163,6 @@ def step3_nba_total(row):
 ###############################################################
 
 def step4_ncaab_moneyline(row):
-
     home_ml = f(row.get("home_dk_moneyline_american"))
     away_ml = f(row.get("away_dk_moneyline_american"))
 
@@ -193,15 +182,30 @@ def step4_ncaab_moneyline(row):
 #################### STEP 5 NCAAB SPREAD ######################
 ###############################################################
 
-def step5_ncaab_spread(row):
+def blocked_ncaab_spread_line(line):
+    if 1 <= line <= 3:
+        return True
+    if -10 <= line <= -5:
+        return True
+    if 1 <= abs(line) <= 7 and line > 0:
+        return True
+    return False
 
+
+def step5_ncaab_spread(row):
     home_line = f(row.get("home_spread"))
     away_line = f(row.get("away_spread"))
 
-    if 1 <= abs(home_line) <= 7 or 1 <= abs(away_line) <= 7:
-        return False, "FAIL STEP 5 NCAAB SPREAD"
+    home_edge = f(row.get("home_spread_edge_decimal"))
+    away_edge = f(row.get("away_spread_edge_decimal"))
 
-    return True, "PASS STEP 5 NCAAB SPREAD"
+    if blocked_ncaab_spread_line(home_line) or blocked_ncaab_spread_line(away_line):
+        return False, "FAIL STEP 5 NCAAB SPREAD", "", ""
+
+    if home_edge >= away_edge:
+        return True, "PASS STEP 5 NCAAB SPREAD", "home", home_line
+
+    return True, "PASS STEP 5 NCAAB SPREAD", "away", away_line
 
 
 ###############################################################
@@ -209,7 +213,6 @@ def step5_ncaab_spread(row):
 ###############################################################
 
 def step6_ncaab_total(row):
-
     line = f(row.get("total"))
     proj = f(row.get("total_projected_points"))
 
@@ -244,60 +247,73 @@ def step6_ncaab_total(row):
 ###############################################################
 
 def process_file(csv_file):
-
     df = pd.read_csv(csv_file)
 
     if df.empty:
+        report_line(f"FILE {csv_file.name} | INFO | empty input file")
         return
 
     league = "NBA" if "nba" in csv_file.name.lower() else "NCAAB"
     market_type = detect_market_from_filename(csv_file.name)
 
+    if not market_type:
+        report_line(f"FILE {csv_file.name} | ERROR | could not detect market type from filename")
+        return
+
+    report_line(f"FILE {csv_file.name} | START | league={league} | market_type={market_type} | rows={len(df)}")
+
     selected_rows = []
+    pass_count = 0
+    fail_count = 0
 
     for _, row in df.iterrows():
+        label = game_label(row)
+        bet_side = ""
+        line = ""
 
         if league == "NBA":
-
             if market_type == "moneyline":
-                allowed, _, bet_side, line = step1_nba_moneyline(row)
-
+                allowed, reason, bet_side, line = step1_nba_moneyline(row)
             elif market_type == "spread":
-                allowed, _ = step2_nba_spread(row)
-                bet_side = ""
-                line = ""
-
+                allowed, reason, bet_side, line = step2_nba_spread(row)
             else:
-                allowed, _, bet_side = step3_nba_total(row)
-                line = ""
-
+                allowed, reason, bet_side = step3_nba_total(row)
+                line = f(row.get("total"))
         else:
-
             if market_type == "moneyline":
-                allowed, _, bet_side, line = step4_ncaab_moneyline(row)
-
+                allowed, reason, bet_side, line = step4_ncaab_moneyline(row)
             elif market_type == "spread":
-                allowed, _ = step5_ncaab_spread(row)
-                bet_side = ""
-                line = ""
-
+                allowed, reason, bet_side, line = step5_ncaab_spread(row)
             else:
-                allowed, _, bet_side = step6_ncaab_total(row)
-                line = ""
+                allowed, reason, bet_side = step6_ncaab_total(row)
+                line = f(row.get("total"))
 
         if allowed:
-
             row_dict = row.to_dict()
             row_dict["market_type"] = market_type
             row_dict["bet_side"] = bet_side
             row_dict["line"] = line
-
             selected_rows.append(row_dict)
 
-    if selected_rows:
+            pass_count += 1
+            report_line(f"PASS | {league} | {market_type} | {label} | {reason} | bet_side={bet_side} | line={line}")
+        else:
+            fail_count += 1
+            report_line(f"FAIL | {league} | {market_type} | {label} | {reason}")
 
+    if selected_rows:
         out_df = pd.DataFrame(selected_rows)
-        out_df.to_csv(OUTPUT_DIR / csv_file.name, index=False)
+        out_path = OUTPUT_DIR / csv_file.name
+        out_df.to_csv(out_path, index=False)
+        report_line(
+            f"FILE {csv_file.name} | DONE | selected_rows={len(out_df)} | passed={pass_count} | failed={fail_count} | output={out_path}"
+        )
+        print(f"Selected {len(out_df)} rows -> {out_path.name}")
+    else:
+        report_line(
+            f"FILE {csv_file.name} | DONE | selected_rows=0 | passed={pass_count} | failed={fail_count} | no output file written"
+        )
+        print(f"Selected 0 rows -> {csv_file.name}")
 
 
 ###############################################################
@@ -305,15 +321,16 @@ def process_file(csv_file):
 ###############################################################
 
 def main():
-
     reset_report()
-
     clear_previous_outputs()
 
     files = sorted(INPUT_DIR.glob("*.csv"))
 
     for fpath in files:
-        process_file(fpath)
+        try:
+            process_file(fpath)
+        except Exception as e:
+            report_line(f"FILE {fpath.name} | ERROR | {type(e).__name__}: {e}")
 
     report_line("MAIN | selection rebuild complete")
 
