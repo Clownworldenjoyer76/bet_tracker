@@ -251,26 +251,27 @@ def step3_nba_total(row):
 
 
 ###############################################################
-#################### STEP 4 NCAAB MONEYLINE ###################
-###############################################################
+#################### STEP 4 NCAAB #############################################################
 
 def step4_ncaab_moneyline(row):
     home_ml = f(row.get("home_dk_moneyline_american"))
     away_ml = f(row.get("away_dk_moneyline_american"))
 
-    away_cond = away_ml < 0
-    home_cond = home_ml > -215
+    home_edge = f(row.get("home_ml_edge"))
+    away_edge = f(row.get("away_ml_edge"))
+
+    away_cond = away_ml < 0 and away_edge >= 0.06
+    home_cond = home_ml > -215 and home_edge >= 0.06
 
     if away_cond:
-        return True, f"PASS STEP 4 NCAAB MONEYLINE | away condition passed"
+        return True, f"PASS STEP 4 NCAAB MONEYLINE | away condition + edge passed"
 
     if home_cond:
-        return True, f"PASS STEP 4 NCAAB MONEYLINE | home condition passed"
+        return True, f"PASS STEP 4 NCAAB MONEYLINE | home condition + edge passed"
 
     return False, f"FAIL STEP 4 NCAAB MONEYLINE"
 
-
-###############################################################
+###########################################################################################################
 #################### STEP 5 NCAAB SPREAD ######################
 ###############################################################
 
