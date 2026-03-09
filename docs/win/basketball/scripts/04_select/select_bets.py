@@ -75,6 +75,18 @@ def blocked_ncaab_spread_line(line):
     return False
 
 
+def clear_previous_outputs():
+    """
+    Remove old top-level basketball select csv files before rebuilding.
+    Leaves subfolders like daily_slate untouched.
+    """
+    removed = 0
+    for fpath in OUTPUT_DIR.glob("*.csv"):
+        fpath.unlink(missing_ok=True)
+        removed += 1
+    report_line(f"MAIN | INFO | Cleared previous select outputs | removed_files={removed}")
+
+
 ###############################################################
 ##################### STEP 1 NBA MONEYLINE ####################
 ###############################################################
@@ -170,10 +182,9 @@ def step2_nba_spread(row):
     return False, "FAIL STEP 2 NBA SPREAD | " + " | ".join(reasons)
 
 
-##############################################################################################################    
+###############################################################
 ##################### STEP 3 NBA TOTAL ########################
-##############################################################################################################    
-
+###############################################################
 
 def step3_nba_total(row):
     line = f(row.get("total"))
@@ -186,14 +197,12 @@ def step3_nba_total(row):
     under_edge = f(row.get("under_edge_decimal"))
     proj_diff = abs(proj - line)
 
-    # Reject extreme totals
     if line > 245:
         return False, (
             f"FAIL STEP 3 NBA TOTAL | total limit failed | "
             f"total={line:.2f} > 245"
         ), ""
 
-    # Require stronger projection disagreement
     if proj_diff < 5:
         return False, (
             f"FAIL STEP 3 NBA TOTAL | projection diff failed | "
@@ -201,7 +210,6 @@ def step3_nba_total(row):
             f"total_projected_points={proj:.2f}, total={line:.2f}"
         ), ""
 
-    # Blowout filter
     if max_spread >= 13 and line >= 240:
         return False, (
             f"FAIL STEP 3 NBA TOTAL | blowout filter failed | "
@@ -212,28 +220,20 @@ def step3_nba_total(row):
     over_pass = False
     under_pass = False
 
-    ###################################################
-    # PROJECTION DIRECTION CONFIRMATION
-    ###################################################
-
     # Only allow OVER if projection supports it
-    if proj > line:
-        if 0.10 <= over_edge <= 0.35:
-            over_pass = True
+    if proj > line and 0.10 <= over_edge <= 0.35:
+        over_pass = True
 
     # Only allow UNDER if projection supports it
-    if proj < line:
-        if 0.10 <= under_edge <= 0.35:
-            under_pass = True
-
-    ###################################################
+    if proj < line and 0.10 <= under_edge <= 0.35:
+        under_pass = True
 
     if over_pass:
         return True, (
             f"PASS STEP 3 NBA TOTAL | OVER passed | "
             f"total={line:.2f}, total_projected_points={proj:.2f}, "
             f"proj_diff={proj_diff:.2f}, max_spread={max_spread:.2f}, "
-            f"over_edge_decimal={over_edge:.6f}"
+            f"over_edge_decimal={over_edge:.6f}, under_edge_decimal={under_edge:.6f}"
         ), "over"
 
     if under_pass:
@@ -241,7 +241,7 @@ def step3_nba_total(row):
             f"PASS STEP 3 NBA TOTAL | UNDER passed | "
             f"total={line:.2f}, total_projected_points={proj:.2f}, "
             f"proj_diff={proj_diff:.2f}, max_spread={max_spread:.2f}, "
-            f"under_edge_decimal={under_edge:.6f}"
+            f"under_edge_decimal={under_edge:.6f}, over_edge_decimal={over_edge:.6f}"
         ), "under"
 
     return False, (
@@ -250,9 +250,11 @@ def step3_nba_total(row):
         f"proj_diff={proj_diff:.2f}, max_spread={max_spread:.2f}, "
         f"over_edge_decimal={over_edge:.6f}, under_edge_decimal={under_edge:.6f}"
     ), ""
-##############################################################################################################    
+
+
+###############################################################
 ################### STEP 4 NCAAB MONEYLINE ####################
-##############################################################################################################    
+###############################################################
 
 def step4_ncaab_moneyline(row):
     home_ml = f(row.get("home_dk_moneyline_american"))
@@ -273,7 +275,7 @@ def step4_ncaab_moneyline(row):
     return False, f"FAIL STEP 4 NCAAB MONEYLINE", "", ""
 
 
-###########################################################################################################
+###############################################################
 #################### STEP 5 NCAAB SPREAD ######################
 ###############################################################
 
@@ -309,14 +311,12 @@ def step6_ncaab_total(row):
 
     proj_diff = abs(proj - line)
 
-    # Reject extreme totals
     if line < 130 or line > 175:
         return False, (
             f"FAIL STEP 6 NCAAB TOTAL | total outside allowed range | "
             f"total={line:.2f}"
         ), ""
 
-    # Require meaningful projection disagreement
     if proj_diff < 6:
         return False, (
             f"FAIL STEP 6 NCAAB TOTAL | projection diff failed | "
@@ -327,30 +327,26 @@ def step6_ncaab_total(row):
     over_pass = False
     under_pass = False
 
-    ###################################################
-    # Projection direction confirmation
-    ###################################################
-
     if proj > line and 0.10 <= over_edge <= 0.22:
         over_pass = True
 
     if proj < line and 0.12 <= under_edge <= 0.22:
         under_pass = True
 
-    ###################################################
-
     if over_pass:
         return True, (
             f"PASS STEP 6 NCAAB TOTAL | OVER passed | "
             f"total={line:.2f}, total_projected_points={proj:.2f}, "
-            f"proj_diff={proj_diff:.2f}, over_edge_decimal={over_edge:.6f}"
+            f"proj_diff={proj_diff:.2f}, over_edge_decimal={over_edge:.6f}, "
+            f"under_edge_decimal={under_edge:.6f}"
         ), "over"
 
     if under_pass:
         return True, (
             f"PASS STEP 6 NCAAB TOTAL | UNDER passed | "
             f"total={line:.2f}, total_projected_points={proj:.2f}, "
-            f"proj_diff={proj_diff:.2f}, under_edge_decimal={under_edge:.6f}"
+            f"proj_diff={proj_diff:.2f}, under_edge_decimal={under_edge:.6f}, "
+            f"over_edge_decimal={over_edge:.6f}"
         ), "under"
 
     return False, (
@@ -359,6 +355,8 @@ def step6_ncaab_total(row):
         f"proj_diff={proj_diff:.2f}, over_edge_decimal={over_edge:.6f}, "
         f"under_edge_decimal={under_edge:.6f}"
     ), ""
+
+
 ###############################################################
 #################### EDGE SELECTION ENGINE ####################
 ###############################################################
@@ -383,6 +381,7 @@ def process_file(csv_file):
     selected_rows = []
     pass_count = 0
     fail_count = 0
+    out_path = OUTPUT_DIR / csv_file.name
 
     for _, row in df.iterrows():
         label = game_label(row)
@@ -428,16 +427,21 @@ def process_file(csv_file):
 
     if selected_rows:
         out_df = pd.DataFrame(selected_rows)
-        out_path = OUTPUT_DIR / csv_file.name
         out_df.to_csv(out_path, index=False)
         report_line(
             f"FILE {csv_file.name} | DONE | selected_rows={len(out_df)} | passed={pass_count} | failed={fail_count} | output={out_path}"
         )
         print(f"Selected {len(out_df)} rows -> {out_path.name}")
     else:
-        report_line(
-            f"FILE {csv_file.name} | DONE | selected_rows=0 | passed={pass_count} | failed={fail_count} | no output file written"
-        )
+        if out_path.exists():
+            out_path.unlink()
+            report_line(
+                f"FILE {csv_file.name} | DONE | selected_rows=0 | passed={pass_count} | failed={fail_count} | stale_output_removed={out_path}"
+            )
+        else:
+            report_line(
+                f"FILE {csv_file.name} | DONE | selected_rows=0 | passed={pass_count} | failed={fail_count} | no output file written"
+            )
         print(f"Selected 0 rows -> {csv_file.name}")
 
 
@@ -447,6 +451,7 @@ def process_file(csv_file):
 
 def main():
     reset_report()
+    clear_previous_outputs()
 
     files = sorted(INPUT_DIR.glob("*.csv"))
 
