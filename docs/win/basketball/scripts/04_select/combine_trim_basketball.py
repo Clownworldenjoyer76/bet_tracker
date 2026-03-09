@@ -104,6 +104,23 @@ def trim_games(df):
 
 
 ###############################################################
+######################## LEAGUE SPLIT #########################
+###############################################################
+
+def split_leagues(df):
+    market_series = df["market"].astype(str).str.upper().str.strip() if "market" in df.columns else pd.Series("", index=df.index)
+    league_series = df["league"].astype(str).str.upper().str.strip() if "league" in df.columns else pd.Series("", index=df.index)
+
+    nba_mask = market_series.eq("NBA") | league_series.eq("NBA")
+    ncaab_mask = market_series.eq("NCAAB") | league_series.eq("NCAAB")
+
+    nba_df = df[nba_mask].copy()
+    ncaab_df = df[ncaab_mask].copy()
+
+    return nba_df, ncaab_df
+
+
+###############################################################
 ######################## TOTAL HISTORY ########################
 ###############################################################
 
@@ -173,8 +190,7 @@ def main():
 
     df = pd.concat(dfs, ignore_index=True)
 
-    nba_df = df[df["market"].astype(str).str.contains("NBA", na=False)].copy()
-    ncaab_df = df[df["market"].astype(str).str.contains("NCAAB", na=False)].copy()
+    nba_df, ncaab_df = split_leagues(df)
 
     nba_trimmed = trim_games(nba_df) if not nba_df.empty else pd.DataFrame()
     ncaab_trimmed = trim_games(ncaab_df) if not ncaab_df.empty else pd.DataFrame()
