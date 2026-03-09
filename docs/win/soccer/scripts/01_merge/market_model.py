@@ -92,6 +92,7 @@ def get_dc_table(market):
 
     return table
 
+
 # =========================
 # KNN INTERPOLATION
 # =========================
@@ -134,6 +135,7 @@ def interpolate(table, lh, la, k=6):
         "btts_yes": btts / weight_sum,
     }
 
+
 # =========================
 # FIELDNAMES
 # =========================
@@ -152,6 +154,7 @@ FIELDNAMES = [
     "btts_prob",
 ]
 
+
 # =========================
 # LOAD MERGE FILES
 # =========================
@@ -161,6 +164,7 @@ merge_files = list(MERGE_DIR.glob("soccer_*.csv"))
 if not merge_files:
     print("No merge files found.")
     sys.exit(0)
+
 
 # =========================
 # PROCESS SLATES
@@ -200,7 +204,9 @@ for merge_file in merge_files:
                 log(f"Invalid xG for {r.get('game_id','UNKNOWN')}")
                 continue
 
-            dc_row = interpolate(table, lh, la)
+            # IMPORTANT FIX:
+            # DC table lambdas are reversed
+            dc_row = interpolate(table, la, lh)
 
             rows.append({
                 "game_id": r["game_id"],
