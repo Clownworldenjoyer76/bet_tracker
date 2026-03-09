@@ -202,6 +202,9 @@ def step5_ncaab_spread(row):
     if blocked_ncaab_spread_line(home_line) or blocked_ncaab_spread_line(away_line):
         return False, "FAIL STEP 5 NCAAB SPREAD", "", ""
 
+    if home_edge <= 0 and away_edge <= 0:
+        return False, "FAIL STEP 5 NCAAB SPREAD | no positive spread edge", "", ""
+
     if home_edge >= away_edge:
         return True, "PASS STEP 5 NCAAB SPREAD", "home", home_line
 
@@ -265,6 +268,7 @@ def process_file(csv_file):
     selected_rows = []
     pass_count = 0
     fail_count = 0
+    out_path = OUTPUT_DIR / csv_file.name
 
     for _, row in df.iterrows():
         label = game_label(row)
@@ -303,13 +307,14 @@ def process_file(csv_file):
 
     if selected_rows:
         out_df = pd.DataFrame(selected_rows)
-        out_path = OUTPUT_DIR / csv_file.name
         out_df.to_csv(out_path, index=False)
         report_line(
             f"FILE {csv_file.name} | DONE | selected_rows={len(out_df)} | passed={pass_count} | failed={fail_count} | output={out_path}"
         )
         print(f"Selected {len(out_df)} rows -> {out_path.name}")
     else:
+        if out_path.exists():
+            out_path.unlink(missing_ok=True)
         report_line(
             f"FILE {csv_file.name} | DONE | selected_rows=0 | passed={pass_count} | failed={fail_count} | no output file written"
         )
