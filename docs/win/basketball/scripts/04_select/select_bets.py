@@ -65,6 +65,16 @@ def detect_market_from_filename(file_name):
     return ""
 
 
+def blocked_ncaab_spread_line(line):
+    if 1 <= line <= 3:
+        return True
+    if -10 <= line <= -5:
+        return True
+    if 1 <= abs(line) <= 7 and line > 0:
+        return True
+    return False
+
+
 ###############################################################
 ##################### STEP 1 NBA MONEYLINE ####################
 ###############################################################
@@ -118,48 +128,46 @@ def step1_nba_moneyline(row):
 ###############################################################
 
 def step2_nba_spread(row):
-    line = f(row.get("line"))
+    home_line = f(row.get("home_spread"))
+    away_line = f(row.get("away_spread"))
     home_edge = f(row.get("home_spread_edge_decimal"))
     away_edge = f(row.get("away_spread_edge_decimal"))
 
     home_cond1 = home_edge >= 0.07
     away_cond1 = away_edge >= 0.07
 
-    cond2_range = -14.6 <= line <= 14.6
-    fail_dead_zone = -2 <= line <= 2
+    home_cond2 = -14.6 <= home_line <= 14.6 and not (-2 <= home_line <= 2)
+    away_cond2 = -14.6 <= away_line <= 14.6 and not (-2 <= away_line <= 2)
 
-    if fail_dead_zone:
-        return False, (
-            f"FAIL STEP 2 NBA SPREAD | dead zone triggered | "
-            f"line={line:.2f} is between -2 and 2"
-        )
-
-    if not cond2_range:
-        return False, (
-            f"FAIL STEP 2 NBA SPREAD | line outside allowed range | "
-            f"line={line:.2f} not in [-14.6, 14.6]"
-        )
-
-    if home_cond1:
+    if home_cond1 and home_cond2:
         return True, (
             f"PASS STEP 2 NBA SPREAD | HOME passed | "
             f"home_spread_edge_decimal={home_edge:.6f} >= 0.07 and "
-            f"line={line:.2f} allowed"
+            f"home_spread={home_line:.2f} allowed"
         )
 
-    if away_cond1:
+    if away_cond1 and away_cond2:
         return True, (
             f"PASS STEP 2 NBA SPREAD | AWAY passed | "
             f"away_spread_edge_decimal={away_edge:.6f} >= 0.07 and "
-            f"line={line:.2f} allowed"
+            f"away_spread={away_line:.2f} allowed"
         )
 
-    return False, (
-        f"FAIL STEP 2 NBA SPREAD | no side met edge threshold | "
-        f"home_spread_edge_decimal={home_edge:.6f}, "
-        f"away_spread_edge_decimal={away_edge:.6f}, "
-        f"line={line:.2f}"
+    reasons = []
+    reasons.append(
+        f"HOME edge_ok={home_cond1} (home_spread_edge_decimal={home_edge:.6f})"
     )
+    reasons.append(
+        f"HOME line_ok={home_cond2} (home_spread={home_line:.2f})"
+    )
+    reasons.append(
+        f"AWAY edge_ok={away_cond1} (away_spread_edge_decimal={away_edge:.6f})"
+    )
+    reasons.append(
+        f"AWAY line_ok={away_cond2} (away_spread={away_line:.2f})"
+    )
+
+    return False, "FAIL STEP 2 NBA SPREAD | " + " | ".join(reasons)
 
 
 ###############################################################
@@ -167,7 +175,7 @@ def step2_nba_spread(row):
 ###############################################################
 
 def step3_nba_total(row):
-    line = f(row.get("line"))
+    line = f(row.get("total"))
     proj = f(row.get("total_projected_points"))
     home_spread = abs(f(row.get("home_spread")))
     away_spread = abs(f(row.get("away_spread")))
@@ -180,21 +188,21 @@ def step3_nba_total(row):
     if line > 245:
         return False, (
             f"FAIL STEP 3 NBA TOTAL | total limit failed | "
-            f"line={line:.2f} > 245"
+            f"total={line:.2f} > 245"
         ), ""
 
     if proj_diff < 3:
         return False, (
             f"FAIL STEP 3 NBA TOTAL | projection diff failed | "
-            f"abs(total_projected_points - line)={proj_diff:.2f} < 3 | "
-            f"total_projected_points={proj:.2f}, line={line:.2f}"
+            f"abs(total_projected_points - total)={proj_diff:.2f} < 3 | "
+            f"total_projected_points={proj:.2f}, total={line:.2f}"
         ), ""
 
     if max_spread >= 13 and line >= 240:
         return False, (
             f"FAIL STEP 3 NBA TOTAL | blowout filter failed | "
             f"max(abs(home_spread), abs(away_spread))={max_spread:.2f} >= 13 "
-            f"and line={line:.2f} >= 240"
+            f"and total={line:.2f} >= 240"
         ), ""
 
     under_pass = False
@@ -204,16 +212,16 @@ def step3_nba_total(row):
         under_pass = True
 
     if line <= 205:
-        if over_edge >= 0.04 and over_edge <= 0.35:
+        if 0.04 <= over_edge <= 0.35:
             over_pass = True
     else:
-        if over_edge >= 0.06 and over_edge <= 0.35:
+        if 0.06 <= over_edge <= 0.35:
             over_pass = True
 
     if over_pass and under_pass:
         return True, (
             f"PASS STEP 3 NBA TOTAL | BOTH passed | "
-            f"line={line:.2f}, total_projected_points={proj:.2f}, "
+            f"total={line:.2f}, total_projected_points={proj:.2f}, "
             f"proj_diff={proj_diff:.2f}, max_spread={max_spread:.2f}, "
             f"over_edge_decimal={over_edge:.6f}, under_edge_decimal={under_edge:.6f}"
         ), "both"
@@ -221,7 +229,7 @@ def step3_nba_total(row):
     if over_pass:
         return True, (
             f"PASS STEP 3 NBA TOTAL | OVER passed | "
-            f"line={line:.2f}, total_projected_points={proj:.2f}, "
+            f"total={line:.2f}, total_projected_points={proj:.2f}, "
             f"proj_diff={proj_diff:.2f}, max_spread={max_spread:.2f}, "
             f"over_edge_decimal={over_edge:.6f}, under_edge_decimal={under_edge:.6f}"
         ), "over"
@@ -229,14 +237,14 @@ def step3_nba_total(row):
     if under_pass:
         return True, (
             f"PASS STEP 3 NBA TOTAL | UNDER passed | "
-            f"line={line:.2f}, total_projected_points={proj:.2f}, "
+            f"total={line:.2f}, total_projected_points={proj:.2f}, "
             f"proj_diff={proj_diff:.2f}, max_spread={max_spread:.2f}, "
             f"under_edge_decimal={under_edge:.6f}, over_edge_decimal={over_edge:.6f}"
         ), "under"
 
     return False, (
         f"FAIL STEP 3 NBA TOTAL | neither side passed | "
-        f"line={line:.2f}, total_projected_points={proj:.2f}, "
+        f"total={line:.2f}, total_projected_points={proj:.2f}, "
         f"proj_diff={proj_diff:.2f}, max_spread={max_spread:.2f}, "
         f"over_edge_decimal={over_edge:.6f}, under_edge_decimal={under_edge:.6f}"
     ), ""
@@ -267,18 +275,22 @@ def step4_ncaab_moneyline(row):
 ###############################################################
 
 def step5_ncaab_spread(row):
-    line = f(row.get("line"))
+    home_line = f(row.get("home_spread"))
+    away_line = f(row.get("away_spread"))
 
-    if 1 <= line <= 3:
-        return False, "FAIL STEP 5 NCAAB SPREAD | blocked range 1-3"
+    home_blocked = blocked_ncaab_spread_line(home_line)
+    away_blocked = blocked_ncaab_spread_line(away_line)
 
-    if -10 <= line <= -5:
-        return False, "FAIL STEP 5 NCAAB SPREAD | blocked range -10 to -5"
+    if home_blocked or away_blocked:
+        return False, (
+            f"FAIL STEP 5 NCAAB SPREAD | blocked range hit | "
+            f"home_spread={home_line:.2f}, away_spread={away_line:.2f}"
+        )
 
-    if 1 <= abs(line) <= 7 and line > 0:
-        return False, "FAIL STEP 5 NCAAB SPREAD | blocked positive spread"
-
-    return True, "PASS STEP 5 NCAAB SPREAD"
+    return True, (
+        f"PASS STEP 5 NCAAB SPREAD | line allowed | "
+        f"home_spread={home_line:.2f}, away_spread={away_line:.2f}"
+    )
 
 
 ###############################################################
@@ -286,7 +298,7 @@ def step5_ncaab_spread(row):
 ###############################################################
 
 def step6_ncaab_total(row):
-    line = f(row.get("line"))
+    line = f(row.get("total"))
     over_edge = f(row.get("over_edge_decimal"))
     under_edge = f(row.get("under_edge_decimal"))
 
@@ -296,25 +308,25 @@ def step6_ncaab_total(row):
     if over_pass and under_pass:
         return True, (
             f"PASS STEP 6 NCAAB TOTAL | BOTH passed | "
-            f"line={line:.2f}, over_edge_decimal={over_edge:.6f}, "
+            f"total={line:.2f}, over_edge_decimal={over_edge:.6f}, "
             f"under_edge_decimal={under_edge:.6f}"
         ), "both"
 
     if over_pass:
         return True, (
             f"PASS STEP 6 NCAAB TOTAL | OVER passed | "
-            f"line={line:.2f}, over_edge_decimal={over_edge:.6f}"
+            f"total={line:.2f}, over_edge_decimal={over_edge:.6f}"
         ), "over"
 
     if under_pass:
         return True, (
             f"PASS STEP 6 NCAAB TOTAL | UNDER passed | "
-            f"line={line:.2f}, under_edge_decimal={under_edge:.6f}"
+            f"total={line:.2f}, under_edge_decimal={under_edge:.6f}"
         ), "under"
 
     return False, (
         f"FAIL STEP 6 NCAAB TOTAL | neither side passed | "
-        f"line={line:.2f}, over_edge_decimal={over_edge:.6f}, "
+        f"total={line:.2f}, over_edge_decimal={over_edge:.6f}, "
         f"under_edge_decimal={under_edge:.6f}"
     ), ""
 
