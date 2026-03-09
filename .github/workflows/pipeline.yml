@@ -38,6 +38,13 @@ jobs:
           pip install -r requirements.txt
 
       # -----------------------------
+      # Ensure soccer model folder exists
+      # -----------------------------
+      - name: Ensure soccer model folder exists
+        run: |
+          mkdir -p docs/win/soccer/01_merge/market_model
+
+      # -----------------------------
       # Run pipeline
       # -----------------------------
       - name: Run pipeline
@@ -68,6 +75,7 @@ jobs:
 
           git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git
 
+          # core outputs
           git add docs/win || true
           git add mappings || true
 
