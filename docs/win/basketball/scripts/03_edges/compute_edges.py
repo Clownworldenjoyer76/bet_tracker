@@ -113,18 +113,18 @@ def compute_moneyline_edges(df, league, date):
     required = [
         "home_dk_decimal_moneyline",
         "away_dk_decimal_moneyline",
-        "home_acceptable_decimal_moneyline",
-        "away_acceptable_decimal_moneyline",
+        "home_juice_decimal_moneyline",
+        "away_juice_decimal_moneyline",
     ]
     validate_columns(df, required)
 
     df["home_ml_edge_decimal"] = calculate_edge(
-        df["home_acceptable_decimal_moneyline"],
+        df["home_juice_decimal_moneyline"],
         df["home_dk_decimal_moneyline"]
     )
 
     df["away_ml_edge_decimal"] = calculate_edge(
-        df["away_acceptable_decimal_moneyline"],
+        df["away_juice_decimal_moneyline"],
         df["away_dk_decimal_moneyline"]
     )
 
