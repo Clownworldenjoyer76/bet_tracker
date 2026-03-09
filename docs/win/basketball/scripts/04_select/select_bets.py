@@ -81,21 +81,26 @@ def clear_previous_outputs():
 ##################### STEP 1 NBA MONEYLINE ####################
 ###############################################################
 
+###############################################################
+##################### STEP 1 NBA MONEYLINE ####################
+###############################################################
+
 def step1_nba_moneyline(row):
+
     home_edge = f(row.get("home_ml_edge_decimal"))
     away_edge = f(row.get("away_ml_edge_decimal"))
 
     home_ml = f(row.get("home_dk_moneyline_american"))
     away_ml = f(row.get("away_dk_moneyline_american"))
 
-    if home_edge > 0.07 and -180 <= home_ml <= 180:
+    # allow almost all realistic ML prices
+    if home_edge > 0.01 and -1000 <= home_ml <= 1000:
         return True, "PASS STEP 1 NBA MONEYLINE", "home", home_ml
 
-    if away_edge > 0.07 and -180 <= away_ml <= 180:
+    if away_edge > 0.01 and -1000 <= away_ml <= 1000:
         return True, "PASS STEP 1 NBA MONEYLINE", "away", away_ml
 
     return False, "FAIL STEP 1 NBA MONEYLINE", "", ""
-
 
 ###############################################################
 ##################### STEP 2 NBA SPREAD #######################
