@@ -1,5 +1,3 @@
-# docs/win/soccer/scripts/00_parsing/drat.py
-
 #!/usr/bin/env python3
 
 import sys
@@ -111,7 +109,7 @@ def normalize_time(time_str: str) -> str:
     except Exception:
         return t
 
-# remove tab formatting from sportsbook tables
+# normalize tabs/spaces from sportsbook tables
 lines = [
     re.sub(r"\s+", " ", l).strip()
     for l in raw_text.splitlines()
@@ -177,18 +175,18 @@ for idx, line in enumerate(lines):
     draw_prob = pct_vals[2]
 
     # =====================
-    # ML ODDS DETECTION
+    # FIND ML ODDS
     # =====================
 
     odds_idx = None
     odds_found = 0
 
-    for k in range(t_idx+1, min(t_idx+20, n)):
+    for k in range(t_idx+1, min(t_idx+12, n)):
 
         if RE_ODDS.match(lines[k]):
             odds_found += 1
 
-            if odds_found == 3:
+            if odds_found == 2:
                 odds_idx = k
                 break
 
@@ -197,16 +195,17 @@ for idx, line in enumerate(lines):
         continue
 
     # =====================
-    # xG + TOTAL
+    # EXTRACT xG + TOTAL
     # =====================
 
     float_vals = []
 
-    for k in range(odds_idx+1, min(odds_idx+15, n)):
+    for k in range(odds_idx+1, min(odds_idx+10, n)):
 
         found = RE_FLOAT.findall(lines[k])
 
         for v in found:
+
             float_vals.append(float(v))
 
             if len(float_vals) == 3:
