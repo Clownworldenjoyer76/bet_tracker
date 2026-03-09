@@ -26,11 +26,20 @@ def compute_edge(row):
     Totals:
         Use edge that corresponds to bet_side.
 
-    Sides:
-        Use max(home_edge, away_edge)
+    Moneyline:
+        Use max(home_ml_edge_decimal, away_ml_edge_decimal)
+
+    Spread:
+        Use max(home_spread_edge_decimal, away_spread_edge_decimal)
     """
 
-    if row["market_type"] == "total":
+    market_type = str(row.get("market_type", "")).lower()
+
+    ###################################################
+    # TOTALS
+    ###################################################
+
+    if market_type == "total":
 
         bet_side = str(row.get("bet_side", "")).lower()
 
@@ -42,10 +51,29 @@ def compute_edge(row):
 
         return 0
 
-    return max(
-        float(row.get("home_edge_decimal", 0) or 0),
-        float(row.get("away_edge_decimal", 0) or 0),
-    )
+    ###################################################
+    # MONEYLINE
+    ###################################################
+
+    if market_type == "moneyline":
+
+        return max(
+            float(row.get("home_ml_edge_decimal", 0) or 0),
+            float(row.get("away_ml_edge_decimal", 0) or 0),
+        )
+
+    ###################################################
+    # SPREAD
+    ###################################################
+
+    if market_type == "spread":
+
+        return max(
+            float(row.get("home_spread_edge_decimal", 0) or 0),
+            float(row.get("away_spread_edge_decimal", 0) or 0),
+        )
+
+    return 0
 
 
 ###############################################################
@@ -243,15 +271,12 @@ def main():
     ###################################################
 
     nba_master = OUTPUT_DIR / "nba_selected.csv"
-
     ncaab_master = OUTPUT_DIR / "ncaab_selected.csv"
 
     nba_trimmed.to_csv(nba_master, index=False)
-
     ncaab_trimmed.to_csv(ncaab_master, index=False)
 
     print(f"NBA master file created: {nba_master}")
-
     print(f"NCAAB master file created: {ncaab_master}")
 
     ###################################################
