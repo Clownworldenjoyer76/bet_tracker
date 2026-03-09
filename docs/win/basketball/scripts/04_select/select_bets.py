@@ -265,12 +265,18 @@ def step4_ncaab_moneyline(row):
     home_cond = home_ml > -200 and home_edge >= 0.05
 
     if away_cond:
+        row["_bet_side"] = "away"
+        row["_line"] = away_ml
         return True, f"PASS STEP 4 NCAAB MONEYLINE | away condition + edge passed"
 
     if home_cond:
+        row["_bet_side"] = "home"
+        row["_line"] = home_ml
         return True, f"PASS STEP 4 NCAAB MONEYLINE | home condition + edge passed"
 
     return False, f"FAIL STEP 4 NCAAB MONEYLINE"
+
+
 ###########################################################################################################
 #################### STEP 5 NCAAB SPREAD ######################
 ###############################################################
@@ -386,6 +392,10 @@ def process_file(csv_file):
 
             if market_type == "total":
                 row_dict["bet_side"] = bet_side
+
+            if market_type == "moneyline":
+                row_dict["bet_side"] = row.get("_bet_side", "")
+                row_dict["line"] = row.get("_line", "")
 
             selected_rows.append(row_dict)
             pass_count += 1
