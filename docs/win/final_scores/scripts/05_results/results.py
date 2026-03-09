@@ -7,52 +7,60 @@ import re
 import traceback
 from pathlib import Path
 from datetime import datetime
-
 import pandas as pd
 
-
 # =========================
-# LOGGER UTILITY
+# LOGGER
 # =========================
 
 def audit(log_path, stage, status, msg="", df=None):
+
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     log_path = Path(log_path)
     log_path.parent.mkdir(parents=True, exist_ok=True)
 
     log_mode = "w" if not log_path.exists() else "a"
+
     with open(log_path, log_mode, encoding="utf-8") as f:
+
         f.write(f"\n[{ts}] [{stage}] {status}\n")
+
         if msg:
             f.write(f"  MSG: {msg}\n")
+
         if df is not None and isinstance(df, pd.DataFrame):
+
             f.write(f"  STATS: {len(df)} rows | {len(df.columns)} cols\n")
             f.write(f"  SAMPLE:\n{df.head(3).to_string(index=False)}\n")
+
         f.write("-" * 40 + "\n")
 
-
-# =========================
-# GRADING SCRIPT
-# =========================
 
 ERROR_DIR = Path("docs/win/final_scores/errors")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_LOG = ERROR_DIR / "results_errors.txt"
 
 
-def log_error(message: str) -> None:
+def log_error(message: str):
+
     with open(ERROR_LOG, "a", encoding="utf-8") as f:
         f.write(message.rstrip() + "\n")
 
 
-def safe_read_csv(path: str) -> pd.DataFrame:
+def safe_read_csv(path: str):
+
     try:
         df = pd.read_csv(path)
+
         if df is None or df.empty:
             return pd.DataFrame()
+
         return df
+
     except Exception:
+
         log_error(f"ERROR READING {path}: {traceback.format_exc()}")
+
         return pd.DataFrame()
 
 
@@ -60,18 +68,14 @@ def safe_read_csv(path: str) -> pd.DataFrame:
 # OUTCOME LOGIC
 # =========================
 
-def determine_outcome(row) -> str:
+def determine_outcome(row):
 
     try:
-        m_type = str(row.get("market_type", "")).lower().strip()
-        side = str(row.get("bet_side", "")).lower().strip()
 
-        line_val = row.get("line", 0)
+        m_type = str(row.get("market_type", "")).lower()
+        side = str(row.get("bet_side", "")).lower()
 
-        try:
-            line = float(line_val)
-        except Exception:
-            line = 0.0
+        line = float(row.get("line", 0))
 
         away_s = float(row["away_score"])
         home_s = float(row["home_score"])
@@ -83,11 +87,11 @@ def determine_outcome(row) -> str:
             if total_score == line:
                 return "Push"
 
-            if side == "under":
-                return "Win" if total_score < line else "Loss"
-
             if side == "over":
                 return "Win" if total_score > line else "Loss"
+
+            if side == "under":
+                return "Win" if total_score < line else "Loss"
 
             return "Unknown"
 
@@ -102,16 +106,12 @@ def determine_outcome(row) -> str:
             if side == "home":
                 return "Win" if home_s > away_s else "Loss"
 
-            return "Unknown"
-
         if m_type in ["spread", "puck_line"]:
 
             if side == "away":
                 diff = (away_s + line) - home_s
-            elif side == "home":
-                diff = (home_s + line) - away_s
             else:
-                return "Unknown"
+                diff = (home_s + line) - away_s
 
             if diff == 0:
                 return "Push"
@@ -121,6 +121,7 @@ def determine_outcome(row) -> str:
         return "Unknown"
 
     except Exception:
+
         return "Unknown"
 
 
@@ -128,16 +129,18 @@ def determine_outcome(row) -> str:
 # MASTER FILE BUILDER
 # =========================
 
-def write_market_master(cfg: dict, output_dir: Path) -> None:
+def write_market_master(cfg, output_dir):
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
     master_path = output_dir / f"{cfg['name']}_final.csv"
 
     pattern = str(output_dir / f"*_results_{cfg['suffix']}.csv")
+
     files = sorted(glob.glob(pattern))
 
     if not files:
+
         audit(ERROR_LOG, "MASTER", "SKIP", msg=f"No graded files found for {cfg['name']}")
         return
 
@@ -152,7 +155,6 @@ def write_market_master(cfg: dict, output_dir: Path) -> None:
 
         if not df.empty:
 
-            # KEEP ONLY REAL BETS
             df = df[df["bet_side"].notna()]
             df = df[df["bet_side"] != ""]
 
@@ -160,6 +162,7 @@ def write_market_master(cfg: dict, output_dir: Path) -> None:
                 dfs.append(df)
 
     if not dfs:
+
         audit(ERROR_LOG, "MASTER", "SKIP", msg=f"No valid bets found for {cfg['name']}")
         return
 
@@ -176,8 +179,10 @@ def write_market_master(cfg: dict, output_dir: Path) -> None:
         "market_type",
         "bet_side",
         "line",
-        "home_edge_decimal",
-        "away_edge_decimal",
+        "home_ml_edge_decimal",
+        "away_ml_edge_decimal",
+        "home_spread_edge_decimal",
+        "away_spread_edge_decimal",
         "over_edge_decimal",
         "under_edge_decimal",
     ]
@@ -189,15 +194,15 @@ def write_market_master(cfg: dict, output_dir: Path) -> None:
 
     master_df = master_df.drop_duplicates()
 
-    sort_cols = [c for c in ["game_date", "market_type", "away_team", "home_team"] if c in master_df.columns]
-
-    if sort_cols:
-        master_df = master_df.sort_values(sort_cols, kind="mergesort")
+    master_df = master_df.sort_values(
+        ["game_date", "market_type", "away_team", "home_team"],
+        kind="mergesort"
+    )
 
     master_df.to_csv(master_path, index=False)
 
     audit(ERROR_LOG, "MASTER", "SUCCESS",
-          msg=f"Wrote {cfg['name']} master: {master_path}", df=master_df)
+          msg=f"Wrote {cfg['name']} master", df=master_df)
 
 
 # =========================
@@ -206,37 +211,19 @@ def write_market_master(cfg: dict, output_dir: Path) -> None:
 
 def process_results():
 
-    with open(ERROR_LOG, "w", encoding="utf-8") as f:
-        f.write("=== Results Script Log ===\n\n")
+    with open(ERROR_LOG, "w") as f:
+        f.write("=== Results Script Log ===\n")
 
     configs = [
-        {
-            "name": "NHL",
-            "scores_sub": "nhl",
-            "bets_dir": "docs/win/hockey/04_select",
-            "suffix": "NHL",
-            "pattern": "*NHL*.csv",
-        },
-        {
-            "name": "NBA",
-            "scores_sub": "nba",
-            "bets_dir": "docs/win/basketball/04_select/daily_slate",
-            "suffix": "NBA",
-            "pattern": "*_nba.csv",
-        },
-        {
-            "name": "NCAAB",
-            "scores_sub": "ncaab",
-            "bets_dir": "docs/win/basketball/04_select/daily_slate",
-            "suffix": "NCAAB",
-            "pattern": "*_ncaab.csv",
-        },
+        {"name": "NBA", "scores_sub": "nba", "bets_dir": "docs/win/basketball/04_select/daily_slate", "suffix": "NBA", "pattern": "*_nba.csv"},
+        {"name": "NCAAB", "scores_sub": "ncaab", "bets_dir": "docs/win/basketball/04_select/daily_slate", "suffix": "NCAAB", "pattern": "*_ncaab.csv"}
     ]
 
     for cfg in configs:
 
         scores_dir = Path(f"docs/win/final_scores/results/{cfg['scores_sub']}/final_scores")
         output_dir = Path(f"docs/win/final_scores/results/{cfg['scores_sub']}/graded")
+
         output_dir.mkdir(parents=True, exist_ok=True)
 
         bet_files = glob.glob(os.path.join(cfg["bets_dir"], cfg["pattern"]))
@@ -244,40 +231,34 @@ def process_results():
         dates = set()
 
         for fpath in bet_files:
+
             match = re.search(r"(\d{4}_\d{2}_\d{2})", os.path.basename(fpath))
+
             if match:
                 dates.add(match.group(1))
 
         for date_str in sorted(dates):
 
             score_file = scores_dir / f"{date_str}_final_scores_{cfg['suffix']}.csv"
-            output_path = output_dir / f"{date_str}_results_{cfg['suffix']}.csv"
 
             if not score_file.exists():
                 continue
 
-            daily_bet_files = glob.glob(os.path.join(cfg["bets_dir"], f"{date_str}*.csv"))
+            daily_bets = glob.glob(os.path.join(cfg["bets_dir"], f"{date_str}*.csv"))
 
-            valid_dfs = []
+            dfs = []
 
-            for bf in daily_bet_files:
+            for bf in daily_bets:
 
-                df_temp = safe_read_csv(bf)
+                df = safe_read_csv(bf)
 
-                if not df_temp.empty:
-                    valid_dfs.append(df_temp)
+                if not df.empty:
+                    dfs.append(df)
 
-            if not valid_dfs:
+            if not dfs:
                 continue
 
-            bets_df = pd.concat(valid_dfs, ignore_index=True)
-
-            # FILTER OUT NON BET ROWS
-            bets_df = bets_df[bets_df["bet_side"].notna()]
-            bets_df = bets_df[bets_df["bet_side"] != ""]
-
-            if bets_df.empty:
-                continue
+            bets_df = pd.concat(dfs, ignore_index=True)
 
             scores_df = safe_read_csv(str(score_file))
 
@@ -290,46 +271,20 @@ def process_results():
                     bets_df,
                     scores_df,
                     on=["away_team", "home_team", "game_date"],
+                    validate="many_to_one",
                     suffixes=("", "_scorefile"),
                 )
 
             except Exception:
-                log_error(f"ERROR MERGING {cfg['name']} {date_str}: {traceback.format_exc()}")
-                continue
 
-            if df.empty:
+                log_error(f"MERGE ERROR {cfg['name']} {date_str}: {traceback.format_exc()}")
                 continue
 
             df["bet_result"] = df.apply(determine_outcome, axis=1)
 
-            core_cols = [
-                "game_date",
-                "away_team",
-                "home_team",
-                "away_score",
-                "home_score",
-                "bet_result",
-            ]
+            df.to_csv(output_dir / f"{date_str}_results_{cfg['suffix']}.csv", index=False)
 
-            extra_cols = [
-                "market",
-                "market_type",
-                "bet_side",
-                "line",
-                "home_edge_decimal",
-                "away_edge_decimal",
-                "over_edge_decimal",
-                "under_edge_decimal",
-            ]
-
-            final_cols = core_cols + [c for c in extra_cols if c in df.columns]
-
-            df_out = df[final_cols].copy()
-
-            df_out.to_csv(output_path, index=False)
-
-            audit(ERROR_LOG, "GRADING", "SUCCESS",
-                  msg=f"Graded {cfg['name']} {date_str}", df=df_out)
+            audit(ERROR_LOG, "GRADING", "SUCCESS", msg=f"{cfg['name']} {date_str}", df=df)
 
         write_market_master(cfg, output_dir)
 
