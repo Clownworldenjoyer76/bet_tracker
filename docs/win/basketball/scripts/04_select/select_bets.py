@@ -97,14 +97,14 @@ def step1_nba_moneyline(row):
             f"PASS STEP 1 NBA MONEYLINE | HOME passed both conditions | "
             f"home_ml_edge_decimal={home_edge:.6f} > 0.07 and "
             f"home_dk_moneyline_american={home_ml:.2f} in [-180, 180]"
-        )
+        ), "home", home_ml
 
     if away_cond1 and away_cond2:
         return True, (
             f"PASS STEP 1 NBA MONEYLINE | AWAY passed both conditions | "
             f"away_ml_edge_decimal={away_edge:.6f} > 0.07 and "
             f"away_dk_moneyline_american={away_ml:.2f} in [-180, 180]"
-        )
+        ), "away", away_ml
 
     reasons = []
     reasons.append(
@@ -120,7 +120,7 @@ def step1_nba_moneyline(row):
         f"AWAY cond2 odds_in_range={away_cond2} (away_dk_moneyline_american={away_ml:.2f})"
     )
 
-    return False, "FAIL STEP 1 NBA MONEYLINE | " + " | ".join(reasons)
+    return False, "FAIL STEP 1 NBA MONEYLINE | " + " | ".join(reasons), "", ""
 
 
 ###############################################################
@@ -265,16 +265,12 @@ def step4_ncaab_moneyline(row):
     home_cond = home_ml > -200 and home_edge >= 0.05
 
     if away_cond:
-        row["_bet_side"] = "away"
-        row["_line"] = away_ml
-        return True, f"PASS STEP 4 NCAAB MONEYLINE | away condition + edge passed"
+        return True, f"PASS STEP 4 NCAAB MONEYLINE | away condition + edge passed", "away", away_ml
 
     if home_cond:
-        row["_bet_side"] = "home"
-        row["_line"] = home_ml
-        return True, f"PASS STEP 4 NCAAB MONEYLINE | home condition + edge passed"
+        return True, f"PASS STEP 4 NCAAB MONEYLINE | home condition + edge passed", "home", home_ml
 
-    return False, f"FAIL STEP 4 NCAAB MONEYLINE"
+    return False, f"FAIL STEP 4 NCAAB MONEYLINE", "", ""
 
 
 ###########################################################################################################
@@ -366,10 +362,11 @@ def process_file(csv_file):
     for _, row in df.iterrows():
         label = game_label(row)
         bet_side = ""
+        line = ""
 
         if league == "NBA":
             if market_type == "moneyline":
-                allowed, reason = step1_nba_moneyline(row)
+                allowed, reason, bet_side, line = step1_nba_moneyline(row)
             elif market_type == "spread":
                 allowed, reason = step2_nba_spread(row)
             elif market_type == "total":
@@ -378,7 +375,7 @@ def process_file(csv_file):
                 allowed, reason = False, f"FAIL | unknown NBA market_type={market_type}"
         else:
             if market_type == "moneyline":
-                allowed, reason = step4_ncaab_moneyline(row)
+                allowed, reason, bet_side, line = step4_ncaab_moneyline(row)
             elif market_type == "spread":
                 allowed, reason = step5_ncaab_spread(row)
             elif market_type == "total":
@@ -394,8 +391,8 @@ def process_file(csv_file):
                 row_dict["bet_side"] = bet_side
 
             if market_type == "moneyline":
-                row_dict["bet_side"] = row.get("_bet_side", "")
-                row_dict["line"] = row.get("_line", "")
+                row_dict["bet_side"] = bet_side
+                row_dict["line"] = line
 
             selected_rows.append(row_dict)
             pass_count += 1
