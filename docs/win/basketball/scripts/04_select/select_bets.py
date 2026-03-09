@@ -261,7 +261,7 @@ def step4_ncaab_moneyline(row):
     home_edge = f(row.get("home_ml_edge_decimal"))
     away_edge = f(row.get("away_ml_edge_decimal"))
 
-    away_cond = away_ml > 200 and away_edge >= 0.06
+    away_cond = away_ml > -150 and away_edge >= 0.08
     home_cond = home_ml > -200 and home_edge >= 0.05
 
     if away_cond:
