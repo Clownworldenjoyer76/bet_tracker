@@ -25,6 +25,21 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 # =========================
+# ODDS CONVERSION
+# =========================
+
+def american_to_decimal(odds):
+    try:
+        odds = float(odds)
+    except:
+        return None
+
+    if odds > 0:
+        return 1 + (odds / 100)
+    else:
+        return 1 + (100 / abs(odds))
+
+# =========================
 # MATH HELPERS
 # =========================
 
@@ -64,32 +79,42 @@ def extract_date_from_filename(filename):
     return match.group(0)
 
 # =========================
+# AUTO DECIMAL CREATION
+# =========================
+
+def ensure_decimal_columns(df):
+
+    # totals
+    if "dk_total_over_decimal" not in df.columns and "dk_total_over_american" in df.columns:
+        df["dk_total_over_decimal"] = df["dk_total_over_american"].apply(american_to_decimal)
+
+    if "dk_total_under_decimal" not in df.columns and "dk_total_under_american" in df.columns:
+        df["dk_total_under_decimal"] = df["dk_total_under_american"].apply(american_to_decimal)
+
+    # moneyline
+    if "home_dk_decimal_moneyline" not in df.columns and "home_dk_moneyline_american" in df.columns:
+        df["home_dk_decimal_moneyline"] = df["home_dk_moneyline_american"].apply(american_to_decimal)
+
+    if "away_dk_decimal_moneyline" not in df.columns and "away_dk_moneyline_american" in df.columns:
+        df["away_dk_decimal_moneyline"] = df["away_dk_moneyline_american"].apply(american_to_decimal)
+
+    # spreads
+    if "home_dk_spread_decimal" not in df.columns and "home_dk_spread_american" in df.columns:
+        df["home_dk_spread_decimal"] = df["home_dk_spread_american"].apply(american_to_decimal)
+
+    if "away_dk_spread_decimal" not in df.columns and "away_dk_spread_american" in df.columns:
+        df["away_dk_spread_decimal"] = df["away_dk_spread_american"].apply(american_to_decimal)
+
+    return df
+
+# =========================
 # EDGE COMPUTATION
 # =========================
 
 def compute_moneyline_edges(df, league, date):
 
-    # ---------- NBA ----------
-    if league == "NBA":
+    df = ensure_decimal_columns(df)
 
-        edge_file = OUTPUT_DIR / f"{date}_basketball_NBA_moneyline.csv"
-
-        if not edge_file.exists():
-            raise FileNotFoundError(f"Missing edge file: {edge_file}")
-
-        edge_df = pd.read_csv(edge_file)
-
-        required = ["game_id", "home_edge_decimal", "away_edge_decimal"]
-        validate_columns(edge_df, required)
-
-        df = df.merge(edge_df[required], on="game_id", how="left")
-
-        df["home_ml_edge_decimal"] = df["home_edge_decimal"]
-        df["away_ml_edge_decimal"] = df["away_edge_decimal"]
-
-        return df
-
-    # ---------- NCAAB ----------
     required = [
         "home_dk_decimal_moneyline",
         "away_dk_decimal_moneyline",
@@ -114,27 +139,8 @@ def compute_moneyline_edges(df, league, date):
 
 def compute_spread_edges(df, league, date):
 
-    # ---------- NBA ----------
-    if league == "NBA":
+    df = ensure_decimal_columns(df)
 
-        edge_file = OUTPUT_DIR / f"{date}_basketball_NBA_spread.csv"
-
-        if not edge_file.exists():
-            raise FileNotFoundError(f"Missing edge file: {edge_file}")
-
-        edge_df = pd.read_csv(edge_file)
-
-        required = ["game_id", "home_edge_decimal", "away_edge_decimal"]
-        validate_columns(edge_df, required)
-
-        df = df.merge(edge_df[required], on="game_id", how="left")
-
-        df["home_spread_edge_decimal"] = df["home_edge_decimal"]
-        df["away_spread_edge_decimal"] = df["away_edge_decimal"]
-
-        return df
-
-    # ---------- NCAAB ----------
     required = [
         "home_dk_spread_decimal",
         "away_dk_spread_decimal",
@@ -158,6 +164,8 @@ def compute_spread_edges(df, league, date):
 
 
 def compute_total_edges(df, league):
+
+    df = ensure_decimal_columns(df)
 
     required = [
         "dk_total_over_decimal",
