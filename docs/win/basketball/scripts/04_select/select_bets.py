@@ -65,22 +65,23 @@ def detect_market_from_filename(file_name):
     return ""
 
 
-def blocked_ncaab_spread_line(line):
-    if 1 <= line <= 3:
-        return True
-    if -10 <= line <= -5:
-        return True
-    if 1 <= abs(line) <= 7 and line > 0:
-        return True
-    return False
-
+###############################################################
+################ CLEAN OUTPUTS (SAFE RESET) ###################
+###############################################################
 
 def clear_previous_outputs():
+    """
+    Delete ONLY files produced by this script.
+    Leave daily_slate and any subfolders untouched.
+    """
+
     removed = 0
+
     for fpath in OUTPUT_DIR.glob("*.csv"):
         fpath.unlink(missing_ok=True)
         removed += 1
-    report_line(f"MAIN | INFO | Cleared previous select outputs | removed_files={removed}")
+
+    report_line(f"MAIN | cleared old select files | removed={removed}")
 
 
 ###############################################################
@@ -156,7 +157,7 @@ def step3_nba_total(row):
     under_pass = 0.10 <= under_edge <= 0.35
 
     if over_pass and under_pass:
-        return True, "PASS STEP 3 NBA TOTAL | both edges valid", "over" if over_edge >= under_edge else "under"
+        return True, "PASS STEP 3 NBA TOTAL | both edges", "over" if over_edge >= under_edge else "under"
 
     if over_pass:
         return True, "PASS STEP 3 NBA TOTAL | over edge", "over"
@@ -197,7 +198,7 @@ def step5_ncaab_spread(row):
     home_line = f(row.get("home_spread"))
     away_line = f(row.get("away_spread"))
 
-    if blocked_ncaab_spread_line(home_line) or blocked_ncaab_spread_line(away_line):
+    if 1 <= abs(home_line) <= 7 or 1 <= abs(away_line) <= 7:
         return False, "FAIL STEP 5 NCAAB SPREAD"
 
     return True, "PASS STEP 5 NCAAB SPREAD"
@@ -218,7 +219,7 @@ def step6_ncaab_total(row):
     proj_diff = abs(proj - line)
 
     if line < 130 or line > 175:
-        return False, "FAIL STEP 6 NCAAB TOTAL | total range", ""
+        return False, "FAIL STEP 6 NCAAB TOTAL | range", ""
 
     if proj_diff < 6:
         return False, "FAIL STEP 6 NCAAB TOTAL | projection diff", ""
@@ -239,12 +240,74 @@ def step6_ncaab_total(row):
 
 
 ###############################################################
+######################## FILE PROCESSOR #######################
+###############################################################
+
+def process_file(csv_file):
+
+    df = pd.read_csv(csv_file)
+
+    if df.empty:
+        return
+
+    league = "NBA" if "nba" in csv_file.name.lower() else "NCAAB"
+    market_type = detect_market_from_filename(csv_file.name)
+
+    selected_rows = []
+
+    for _, row in df.iterrows():
+
+        if league == "NBA":
+
+            if market_type == "moneyline":
+                allowed, _, bet_side, line = step1_nba_moneyline(row)
+
+            elif market_type == "spread":
+                allowed, _ = step2_nba_spread(row)
+                bet_side = ""
+                line = ""
+
+            else:
+                allowed, _, bet_side = step3_nba_total(row)
+                line = ""
+
+        else:
+
+            if market_type == "moneyline":
+                allowed, _, bet_side, line = step4_ncaab_moneyline(row)
+
+            elif market_type == "spread":
+                allowed, _ = step5_ncaab_spread(row)
+                bet_side = ""
+                line = ""
+
+            else:
+                allowed, _, bet_side = step6_ncaab_total(row)
+                line = ""
+
+        if allowed:
+
+            row_dict = row.to_dict()
+            row_dict["market_type"] = market_type
+            row_dict["bet_side"] = bet_side
+            row_dict["line"] = line
+
+            selected_rows.append(row_dict)
+
+    if selected_rows:
+
+        out_df = pd.DataFrame(selected_rows)
+        out_df.to_csv(OUTPUT_DIR / csv_file.name, index=False)
+
+
+###############################################################
 ############################ MAIN #############################
 ###############################################################
 
 def main():
 
     reset_report()
+
     clear_previous_outputs()
 
     files = sorted(INPUT_DIR.glob("*.csv"))
@@ -252,7 +315,7 @@ def main():
     for fpath in files:
         process_file(fpath)
 
-    report_line("MAIN | SUCCESS | Selection run complete")
+    report_line("MAIN | selection rebuild complete")
 
 
 if __name__ == "__main__":
