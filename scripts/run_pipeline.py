@@ -29,15 +29,23 @@ write_log(f"\nPipeline Run: {datetime.now()}\n")
 
 pipeline = [
 
-    # 01 MERGE (auto-detect all slates)
+    # -----------------------
+    # 01 MERGE
+    # -----------------------
+
     ["python", "docs/win/soccer/scripts/01_merge/merge_intake.py"],
+    ["python", "docs/win/soccer/scripts/01_merge/market_model.py"],   # NEW STEP
+
     ["python", "docs/win/hockey/scripts/01_merge/merge_intake.py"],
     ["python", "docs/win/basketball/scripts/01_merge/merge_intake.py"],
 
     ["python", "docs/win/hockey/scripts/01_merge/build_juice_files.py"],
     ["python", "docs/win/basketball/scripts/01_merge/build_juice_files.py"],
 
+    # -----------------------
     # 02 APPLY JUICE
+    # -----------------------
+
     ["python", "docs/win/soccer/scripts/02_juice/apply_juice.py"],
 
     ["python", "docs/win/hockey/scripts/02_juice/apply_moneyline_juice.py"],
@@ -48,18 +56,27 @@ pipeline = [
     ["python", "docs/win/basketball/scripts/02_juice/apply_spread_juice.py"],
     ["python", "docs/win/basketball/scripts/02_juice/apply_total_juice.py"],
 
+    # -----------------------
     # 03 EDGES
+    # -----------------------
+
     ["python", "docs/win/soccer/scripts/03_edges/compute_edges.py"],
     ["python", "docs/win/hockey/scripts/03_edges/compute_edges.py"],
     ["python", "docs/win/basketball/scripts/03_edges/compute_edges.py"],
 
+    # -----------------------
     # 04 SELECT
+    # -----------------------
+
     ["python", "docs/win/soccer/scripts/04_select/select_bets.py"],
     ["python", "docs/win/hockey/scripts/04_select/select_bets.py"],
     ["python", "docs/win/basketball/scripts/04_select/select_bets.py"],
     ["python", "docs/win/basketball/scripts/04_select/combine_trim_basketball.py"],
 
+    # -----------------------
     # 05 RESULTS
+    # -----------------------
+
     ["python", "docs/win/final_scores/scripts/05_results/name_normalization.py"],
     ["python", "docs/win/final_scores/scripts/05_results/results.py"],
     ["python", "docs/win/final_scores/scripts/05_results/generate_summary.py"],
