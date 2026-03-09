@@ -4,6 +4,7 @@ import csv
 import sys
 from pathlib import Path
 from datetime import datetime
+from bisect import bisect_left
 
 # =========================
 # PATHS
@@ -41,17 +42,19 @@ CONFIG_MAP = {
     "seriea": "serie_a",
 }
 
-# cache for DC tables
+# DC table cache
 DC_CACHE = {}
 
 
 # =========================
-# HELPERS
+# LOAD DC TABLE
 # =========================
 
 def load_dc_table(path):
 
     rows = []
+    lambda_home_vals = set()
+    lambda_away_vals = set()
 
     with open(path, newline="", encoding="utf-8") as f:
 
@@ -60,20 +63,34 @@ def load_dc_table(path):
         for r in reader:
 
             try:
+                lh = float(r["lambda_home"])
+                la = float(r["lambda_away"])
+
                 rows.append({
-                    "lambda_home": float(r["lambda_home"]),
-                    "lambda_away": float(r["lambda_away"]),
+                    "lambda_home": lh,
+                    "lambda_away": la,
                     "home_win": float(r["home_win"]),
                     "draw": float(r["draw"]),
                     "away_win": float(r["away_win"]),
                     "over2_5": float(r["over2_5"]),
                     "btts_yes": float(r["btts_yes"]),
                 })
-            except Exception:
+
+                lambda_home_vals.add(lh)
+                lambda_away_vals.add(la)
+
+            except:
                 continue
 
-    return rows
+    lambda_home_vals = sorted(lambda_home_vals)
+    lambda_away_vals = sorted(lambda_away_vals)
 
+    return rows, lambda_home_vals, lambda_away_vals
+
+
+# =========================
+# GET DC TABLE (cached)
+# =========================
 
 def get_dc_table(market):
 
@@ -87,32 +104,83 @@ def get_dc_table(market):
         log(f"Missing config file: {dc_file}")
         return None
 
-    table = load_dc_table(dc_file)
+    rows, lh_vals, la_vals = load_dc_table(dc_file)
 
-    DC_CACHE[market] = table
+    DC_CACHE[market] = (rows, lh_vals, la_vals)
 
-    return table
-
-
-def closest_row(table, lh, la):
-
-    best = None
-    best_dist = float("inf")
-
-    for r in table:
-
-        # Euclidean distance (prevents lambda swapping issue)
-        dist = (r["lambda_home"] - lh) ** 2 + (r["lambda_away"] - la) ** 2
-
-        if dist < best_dist:
-            best_dist = dist
-            best = r
-
-    return best
+    return DC_CACHE[market]
 
 
 # =========================
-# FIELDNAMES
+# FIND CLOSEST GRID VALUES
+# =========================
+
+def find_bounds(values, x):
+
+    pos = bisect_left(values, x)
+
+    if pos == 0:
+        return values[0], values[0]
+
+    if pos >= len(values):
+        return values[-1], values[-1]
+
+    return values[pos-1], values[pos]
+
+
+# =========================
+# LOOKUP GRID VALUE
+# =========================
+
+def find_row(table, lh, la):
+
+    for r in table:
+        if r["lambda_home"] == lh and r["lambda_away"] == la:
+            return r
+
+    return None
+
+
+# =========================
+# BILINEAR INTERPOLATION
+# =========================
+
+def interpolate(table, lh_vals, la_vals, lh, la):
+
+    lh0, lh1 = find_bounds(lh_vals, lh)
+    la0, la1 = find_bounds(la_vals, la)
+
+    q11 = find_row(table, lh0, la0)
+    q12 = find_row(table, lh0, la1)
+    q21 = find_row(table, lh1, la0)
+    q22 = find_row(table, lh1, la1)
+
+    if not all([q11, q12, q21, q22]):
+        return q11 or q12 or q21 or q22
+
+    def interp(v11, v12, v21, v22):
+
+        if lh1 == lh0 or la1 == la0:
+            return v11
+
+        return (
+            v11 * (lh1 - lh) * (la1 - la) +
+            v21 * (lh - lh0) * (la1 - la) +
+            v12 * (lh1 - lh) * (la - la0) +
+            v22 * (lh - lh0) * (la - la0)
+        ) / ((lh1 - lh0) * (la1 - la0))
+
+    return {
+        "home_win": interp(q11["home_win"], q12["home_win"], q21["home_win"], q22["home_win"]),
+        "draw": interp(q11["draw"], q12["draw"], q21["draw"], q22["draw"]),
+        "away_win": interp(q11["away_win"], q12["away_win"], q21["away_win"], q22["away_win"]),
+        "over2_5": interp(q11["over2_5"], q12["over2_5"], q21["over2_5"], q22["over2_5"]),
+        "btts_yes": interp(q11["btts_yes"], q12["btts_yes"], q21["btts_yes"], q22["btts_yes"]),
+    }
+
+
+# =========================
+# OUTPUT FIELDS
 # =========================
 
 FIELDNAMES = [
@@ -131,7 +199,7 @@ FIELDNAMES = [
 
 
 # =========================
-# LOAD MERGE FILES
+# PROCESS MERGE FILES
 # =========================
 
 merge_files = list(MERGE_DIR.glob("soccer_*.csv"))
@@ -140,10 +208,6 @@ if not merge_files:
     print("No merge files found.")
     sys.exit(0)
 
-
-# =========================
-# PROCESS SLATES
-# =========================
 
 for merge_file in merge_files:
 
@@ -165,19 +229,21 @@ for merge_file in merge_files:
                 log(f"Unknown market: {market}")
                 continue
 
-            dc_table = get_dc_table(market)
+            table_data = get_dc_table(market)
 
-            if not dc_table:
+            if not table_data:
                 continue
+
+            table, lh_vals, la_vals = table_data
 
             try:
                 lh = float(r["home_xg"])
                 la = float(r["away_xg"])
-            except Exception:
+            except:
                 log(f"Invalid xG for {r.get('game_id','UNKNOWN')}")
                 continue
 
-            dc_row = closest_row(dc_table, la, lh)
+            dc_row = interpolate(table, lh_vals, la_vals, lh, la)
 
             if not dc_row:
                 log(f"No DC row found for {r['game_id']}")
