@@ -302,38 +302,63 @@ def step5_ncaab_spread(row):
 
 def step6_ncaab_total(row):
     line = f(row.get("total"))
+    proj = f(row.get("total_projected_points"))
+
     over_edge = f(row.get("over_edge_decimal"))
     under_edge = f(row.get("under_edge_decimal"))
 
-    over_pass = 145 <= line <= 155 and 0.12 <= over_edge <= 0.18
-    under_pass = 141 <= line <= 150 and 0.10 <= under_edge <= 0.22
+    proj_diff = abs(proj - line)
 
-    if over_pass and under_pass:
-        return True, (
-            f"PASS STEP 6 NCAAB TOTAL | BOTH passed | "
-            f"total={line:.2f}, over_edge_decimal={over_edge:.6f}, "
-            f"under_edge_decimal={under_edge:.6f}"
-        ), "both"
+    # Reject extreme totals
+    if line < 130 or line > 175:
+        return False, (
+            f"FAIL STEP 6 NCAAB TOTAL | total outside allowed range | "
+            f"total={line:.2f}"
+        ), ""
+
+    # Require meaningful projection disagreement
+    if proj_diff < 6:
+        return False, (
+            f"FAIL STEP 6 NCAAB TOTAL | projection diff failed | "
+            f"abs(total_projected_points - total)={proj_diff:.2f} < 6 | "
+            f"total_projected_points={proj:.2f}, total={line:.2f}"
+        ), ""
+
+    over_pass = False
+    under_pass = False
+
+    ###################################################
+    # Projection direction confirmation
+    ###################################################
+
+    if proj > line and 0.10 <= over_edge <= 0.22:
+        over_pass = True
+
+    if proj < line and 0.12 <= under_edge <= 0.22:
+        under_pass = True
+
+    ###################################################
 
     if over_pass:
         return True, (
             f"PASS STEP 6 NCAAB TOTAL | OVER passed | "
-            f"total={line:.2f}, over_edge_decimal={over_edge:.6f}"
+            f"total={line:.2f}, total_projected_points={proj:.2f}, "
+            f"proj_diff={proj_diff:.2f}, over_edge_decimal={over_edge:.6f}"
         ), "over"
 
     if under_pass:
         return True, (
             f"PASS STEP 6 NCAAB TOTAL | UNDER passed | "
-            f"total={line:.2f}, under_edge_decimal={under_edge:.6f}"
+            f"total={line:.2f}, total_projected_points={proj:.2f}, "
+            f"proj_diff={proj_diff:.2f}, under_edge_decimal={under_edge:.6f}"
         ), "under"
 
     return False, (
         f"FAIL STEP 6 NCAAB TOTAL | neither side passed | "
-        f"total={line:.2f}, over_edge_decimal={over_edge:.6f}, "
+        f"total={line:.2f}, total_projected_points={proj:.2f}, "
+        f"proj_diff={proj_diff:.2f}, over_edge_decimal={over_edge:.6f}, "
         f"under_edge_decimal={under_edge:.6f}"
     ), ""
-
-
 ###############################################################
 #################### EDGE SELECTION ENGINE ####################
 ###############################################################
