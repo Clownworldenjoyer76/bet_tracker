@@ -177,7 +177,7 @@ for merge_file in merge_files:
                 log(f"Invalid xG for {r.get('game_id','UNKNOWN')}")
                 continue
 
-            dc_row = closest_row(dc_table, lh, la)
+            dc_row = closest_row(dc_table, la, lh)
 
             if not dc_row:
                 log(f"No DC row found for {r['game_id']}")
