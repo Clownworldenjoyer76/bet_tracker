@@ -1,3 +1,4 @@
+# docs/win/soccer/scripts/01_merge/validate_merge.py
 #!/usr/bin/env python3
 
 import sys
