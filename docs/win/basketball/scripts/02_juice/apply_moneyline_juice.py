@@ -9,26 +9,6 @@ import traceback
 import sys
 
 # =========================
-# LOGGER UTILITY
-# =========================
-
-def audit(log_path, stage, status, msg="", df=None):
-    ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    log_path = Path(log_path)
-    log_path.parent.mkdir(parents=True, exist_ok=True)
-
-    with open(log_path, "a", encoding="utf-8") as f:
-        f.write(f"\n[{ts}] [{stage}] {status}\n")
-        if msg:
-            f.write(f"  MSG: {msg}\n")
-        if df is not None and isinstance(df, pd.DataFrame):
-            f.write(f"  STATS: {len(df)} rows | {len(df.columns)} cols\n")
-            f.write(f"  NULLS: {df.isnull().sum().sum()} total\n")
-            f.write(f"  SAMPLE:\n{df.head(3).to_string(index=False)}\n")
-        f.write("-" * 40 + "\n")
-
-
-# =========================
 # PATHS
 # =========================
 
@@ -46,14 +26,17 @@ ERROR_LOG = ERROR_DIR / "apply_moneyline_juice.txt"
 
 
 # =========================
-# HELPERS
+# LOGGER
 # =========================
 
-def validate_columns(df, required_cols, file_name=""):
-    missing = [c for c in required_cols if c not in df.columns]
-    if missing:
-        raise ValueError(f"{file_name} missing required columns: {missing}")
+def log(msg):
+    with open(ERROR_LOG, "a", encoding="utf-8") as f:
+        f.write(f"{datetime.utcnow().isoformat()} | {msg}\n")
 
+
+# =========================
+# HELPERS
+# =========================
 
 def normalize_american_value(val):
     if pd.isna(val):
@@ -96,20 +79,10 @@ def safe_decimal(val, fallback=1.01):
     return val
 
 
-def safe_extra(val):
-    try:
-        val = float(val)
-    except Exception:
-        return 0.0
-    if not math.isfinite(val):
-        return 0.0
-    return val
-
-
 def atomic_write_csv(df, output_path):
-    tmp_path = output_path.with_suffix(".tmp")
-    df.to_csv(tmp_path, index=False)
-    tmp_path.replace(output_path)
+    tmp = output_path.with_suffix(".tmp")
+    df.to_csv(tmp, index=False)
+    tmp.replace(output_path)
 
 
 def clear_old_moneyline_outputs():
@@ -120,7 +93,7 @@ def clear_old_moneyline_outputs():
 
 
 # =========================
-# CONFIG LOAD
+# LOAD CONFIG
 # =========================
 
 NBA_JT = pd.read_csv(NBA_CONFIG)
@@ -136,109 +109,49 @@ for col in ["prob_bin_min", "prob_bin_max", "extra_juice"]:
 
 
 # =========================
-# NORMALIZATION
+# NBA JUICE (NO MERGE)
 # =========================
 
-def normalize_moneyline_inputs(df, file_name=""):
+def lookup_nba_extra(price, venue):
 
-    required = [
-        "home_dk_moneyline_american",
-        "away_dk_moneyline_american",
-        "home_acceptable_decimal_moneyline",
-        "away_acceptable_decimal_moneyline",
-        "home_acceptable_american_moneyline",
-        "away_acceptable_american_moneyline",
-        "home_prob",
-        "away_prob",
+    if pd.isna(price):
+        return 0.0
+
+    fav_ud = "favorite" if price < 0 else "underdog"
+
+    rows = NBA_JT[
+        (NBA_JT["venue"] == venue)
+        & (NBA_JT["fav_ud"] == fav_ud)
+        & (price >= NBA_JT["band_min"])
+        & (price <= NBA_JT["band_max"])
     ]
 
-    validate_columns(df, required, file_name)
+    if rows.empty:
+        return 0.0
 
-    numeric_cols = [
-        "home_dk_moneyline_american",
-        "away_dk_moneyline_american",
-        "home_acceptable_decimal_moneyline",
-        "away_acceptable_decimal_moneyline",
-        "home_prob",
-        "away_prob",
-    ]
+    return float(rows.iloc[0]["extra_juice"])
 
-    for col in numeric_cols:
-        df[col] = pd.to_numeric(df[col], errors="coerce")
-
-    for col in ["home_acceptable_american_moneyline", "away_acceptable_american_moneyline"]:
-        df[col] = df[col].apply(normalize_american_value)
-
-    return df
-
-
-# =========================
-# NBA JUICE
-# =========================
 
 def apply_nba(df):
 
     df = df.copy()
 
-    # HOME SIDE
-    home_merge = NBA_JT[NBA_JT["venue"] == "home"][
-        ["band_min", "band_max", "fav_ud", "extra_juice"]
-    ].rename(columns={"extra_juice": "home_extra_juice"})
-
-    df["home_fav_ud"] = df["home_dk_moneyline_american"].apply(
-        lambda x: "favorite" if pd.notna(x) and x < 0 else "underdog"
+    df["home_extra_juice"] = df["home_dk_moneyline_american"].apply(
+        lambda x: lookup_nba_extra(x, "home")
     )
 
-    df = df.merge(home_merge, left_on="home_fav_ud", right_on="fav_ud", how="left")
-
-    df["home_band_match"] = df["home_dk_moneyline_american"].between(
-        df["band_min"], df["band_max"], inclusive="both"
+    df["away_extra_juice"] = df["away_dk_moneyline_american"].apply(
+        lambda x: lookup_nba_extra(x, "away")
     )
 
-    df["home_extra_juice"] = df["home_extra_juice"].where(df["home_band_match"])
-    df["home_extra_juice"] = df["home_extra_juice"].fillna(0).apply(safe_extra)
-
-    df = (
-        df.sort_values(["game_id", "home_band_match"], ascending=[True, False])
-        .drop_duplicates(subset=["game_id"], keep="first")
-    )
-
-    df = df.drop(columns=["band_min", "band_max", "fav_ud", "home_band_match"], errors="ignore")
-
-    # AWAY SIDE
-    away_merge = NBA_JT[NBA_JT["venue"] == "away"][
-        ["band_min", "band_max", "fav_ud", "extra_juice"]
-    ].rename(columns={"extra_juice": "away_extra_juice"})
-
-    df["away_fav_ud"] = df["away_dk_moneyline_american"].apply(
-        lambda x: "favorite" if pd.notna(x) and x < 0 else "underdog"
-    )
-
-    df = df.merge(away_merge, left_on="away_fav_ud", right_on="fav_ud", how="left")
-
-    df["away_band_match"] = df["away_dk_moneyline_american"].between(
-        df["band_min"], df["band_max"], inclusive="both"
-    )
-
-    df["away_extra_juice"] = df["away_extra_juice"].where(df["away_band_match"])
-    df["away_extra_juice"] = df["away_extra_juice"].fillna(0).apply(safe_extra)
-
-    df = (
-        df.sort_values(["game_id", "away_band_match"], ascending=[True, False])
-        .drop_duplicates(subset=["game_id"], keep="first")
-    )
-
-    df = df.drop(columns=["band_min", "band_max", "fav_ud", "away_band_match"], errors="ignore")
-
-    # FINAL PRICE
     df["home_juice_decimal_moneyline"] = (
-        df["home_acceptable_decimal_moneyline"].apply(safe_decimal) *
-        (1 + df["home_extra_juice"])
+        pd.to_numeric(df["home_acceptable_decimal_moneyline"], errors="coerce").apply(safe_decimal)
+        * (1 + df["home_extra_juice"])
     )
 
     df["away_juice_decimal_moneyline"] = (
-        df["away_acceptable_decimal_moneyline"].apply(safe_decimal) *
-        (1 + df["away_extra_juice"])
+        pd.to_numeric(df["away_acceptable_decimal_moneyline"], errors="coerce").apply(safe_decimal)
+        * (1 + df["away_extra_juice"])
     )
 
     df["home_juice_odds"] = df["home_juice_decimal_moneyline"].apply(decimal_to_american)
@@ -254,37 +167,31 @@ def apply_nba(df):
 
 
 # =========================
-# NCAAB JUICE
+# NCAAB JUICE (SAFE BIN)
 # =========================
+
+def lookup_ncaab_extra(prob):
+
+    if pd.isna(prob):
+        return 0.0
+
+    rows = NCAAB_JT[
+        (prob >= NCAAB_JT["prob_bin_min"])
+        & (prob < NCAAB_JT["prob_bin_max"])
+    ]
+
+    if rows.empty:
+        return 0.0
+
+    return float(rows.iloc[0]["extra_juice"])
+
 
 def apply_ncaab(df):
 
     df = df.copy()
 
-    bins = NCAAB_JT
-
-    df["_key"] = 1
-    bins["_key"] = 1
-
-    df = df.merge(bins, on="_key", how="left")
-
-    df["home_prob_match"] = (
-        (df["home_prob"] >= df["prob_bin_min"]) &
-        (df["home_prob"] < df["prob_bin_max"])
-    )
-
-    df["away_prob_match"] = (
-        (df["away_prob"] >= df["prob_bin_min"]) &
-        (df["away_prob"] < df["prob_bin_max"])
-    )
-
-    df["home_extra_juice"] = df["extra_juice"].where(df["home_prob_match"]).fillna(0)
-    df["away_extra_juice"] = df["extra_juice"].where(df["away_prob_match"]).fillna(0)
-
-    df = (
-        df.sort_values(["game_id", "home_prob_match"], ascending=[True, False])
-        .drop_duplicates(subset=["game_id"], keep="first")
-    )
+    df["home_extra_juice"] = df["home_prob"].apply(lookup_ncaab_extra)
+    df["away_extra_juice"] = df["away_prob"].apply(lookup_ncaab_extra)
 
     base_home = df["home_acceptable_american_moneyline"].apply(american_to_decimal).apply(safe_decimal)
     base_away = df["away_acceptable_american_moneyline"].apply(american_to_decimal).apply(safe_decimal)
@@ -317,34 +224,45 @@ def main():
 
         clear_old_moneyline_outputs()
 
+        files_found = 0
+
         for f in sorted(INPUT_DIR.iterdir()):
 
             if not f.is_file():
                 continue
 
-            if f.name.endswith("_NBA_moneyline.csv"):
+            name = f.name
+
+            if name.endswith("_NBA_moneyline.csv"):
 
                 df = pd.read_csv(f)
-                df = normalize_moneyline_inputs(df, f.name)
                 df = apply_nba(df)
 
-                atomic_write_csv(df, OUTPUT_DIR / f.name)
+                output_path = OUTPUT_DIR / name
+                atomic_write_csv(df, output_path)
 
-                audit(ERROR_LOG, "JUICE_ML_NBA", "SUCCESS", msg=f.name, df=df)
+                log(f"Processed NBA file: {name}")
+                files_found += 1
 
-            elif f.name.endswith("_NCAAB_moneyline.csv"):
+            elif name.endswith("_NCAAB_moneyline.csv"):
 
                 df = pd.read_csv(f)
-                df = normalize_moneyline_inputs(df, f.name)
                 df = apply_ncaab(df)
 
-                atomic_write_csv(df, OUTPUT_DIR / f.name)
+                output_path = OUTPUT_DIR / name
+                atomic_write_csv(df, output_path)
 
-                audit(ERROR_LOG, "JUICE_ML_NCAAB", "SUCCESS", msg=f.name, df=df)
+                log(f"Processed NCAAB file: {name}")
+                files_found += 1
+
+        log(f"Total files processed: {files_found}")
+        log("=== APPLY MONEYLINE JUICE END ===")
 
     except Exception as e:
 
-        audit(ERROR_LOG, "JUICE_ML_CRITICAL", "FAILED", msg=str(e))
+        log("=== ERROR ===")
+        log(str(e))
+        log(traceback.format_exc())
         sys.exit(1)
 
 
