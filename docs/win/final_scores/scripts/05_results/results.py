@@ -9,6 +9,7 @@ from pathlib import Path
 from datetime import datetime
 import pandas as pd
 
+
 # =========================
 # LOGGER
 # =========================
@@ -215,8 +216,20 @@ def process_results():
         f.write("=== Results Script Log ===\n")
 
     configs = [
-        {"name": "NBA", "scores_sub": "nba", "bets_dir": "docs/win/basketball/04_select/daily_slate", "suffix": "NBA", "pattern": "*_nba.csv"},
-        {"name": "NCAAB", "scores_sub": "ncaab", "bets_dir": "docs/win/basketball/04_select/daily_slate", "suffix": "NCAAB", "pattern": "*_ncaab.csv"}
+        {
+            "name": "NBA",
+            "scores_sub": "nba",
+            "bets_dir": "docs/win/basketball/04_select/daily_slate",
+            "suffix": "NBA",
+            "pattern": "*_nba.csv"
+        },
+        {
+            "name": "NCAAB",
+            "scores_sub": "ncaab",
+            "bets_dir": "docs/win/basketball/04_select/daily_slate",
+            "suffix": "NCAAB",
+            "pattern": "*_ncaab.csv"
+        }
     ]
 
     for cfg in configs:
@@ -226,6 +239,7 @@ def process_results():
 
         output_dir.mkdir(parents=True, exist_ok=True)
 
+        # ONLY LOAD BET FILES FOR THIS LEAGUE
         bet_files = glob.glob(os.path.join(cfg["bets_dir"], cfg["pattern"]))
 
         dates = set()
@@ -244,7 +258,10 @@ def process_results():
             if not score_file.exists():
                 continue
 
-            daily_bets = glob.glob(os.path.join(cfg["bets_dir"], f"{date_str}*.csv"))
+            # STRICT FILE MATCHING BY LEAGUE
+            daily_bets = glob.glob(
+                os.path.join(cfg["bets_dir"], f"{date_str}*{cfg['pattern'].replace('*','')}")
+            )
 
             dfs = []
 
