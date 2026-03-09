@@ -31,13 +31,12 @@ ERROR_DIR.mkdir(parents=True, exist_ok=True)
 def american_to_decimal(odds):
     try:
         odds = float(odds)
-    except:
+    except Exception:
         return None
 
     if odds > 0:
         return 1 + (odds / 100)
-    else:
-        return 1 + (100 / abs(odds))
+    return 1 + (100 / abs(odds))
 
 # =========================
 # MATH HELPERS
@@ -48,7 +47,10 @@ def implied_prob(decimal_odds):
 
 
 def calculate_edge(model_decimal, book_decimal):
-
+    """
+    Positive edge means the sportsbook offers a better price
+    than the model's acceptable price.
+    """
     model_decimal = pd.to_numeric(model_decimal, errors="coerce")
     book_decimal = pd.to_numeric(book_decimal, errors="coerce")
 
@@ -59,9 +61,7 @@ def calculate_edge(model_decimal, book_decimal):
 
 
 def validate_columns(df: pd.DataFrame, required_cols):
-
     missing = [c for c in required_cols if c not in df.columns]
-
     if missing:
         raise ValueError(f"Missing required columns: {missing}")
 
@@ -70,12 +70,9 @@ def validate_columns(df: pd.DataFrame, required_cols):
 # =========================
 
 def extract_date_from_filename(filename):
-
     match = re.search(r"\d{4}_\d{2}_\d{2}", filename)
-
     if not match:
         raise ValueError(f"No date found in filename: {filename}")
-
     return match.group(0)
 
 # =========================
@@ -83,7 +80,6 @@ def extract_date_from_filename(filename):
 # =========================
 
 def ensure_decimal_columns(df):
-
     # totals
     if "dk_total_over_decimal" not in df.columns and "dk_total_over_american" in df.columns:
         df["dk_total_over_decimal"] = df["dk_total_over_american"].apply(american_to_decimal)
@@ -112,78 +108,72 @@ def ensure_decimal_columns(df):
 # =========================
 
 def compute_moneyline_edges(df, league, date):
-
     df = ensure_decimal_columns(df)
 
     required = [
         "home_dk_decimal_moneyline",
         "away_dk_decimal_moneyline",
-        "home_juice_decimal_moneyline",
-        "away_juice_decimal_moneyline",
+        "home_acceptable_decimal_moneyline",
+        "away_acceptable_decimal_moneyline",
     ]
-
     validate_columns(df, required)
 
     df["home_ml_edge_decimal"] = calculate_edge(
-        df["home_dk_decimal_moneyline"],
-        df["home_juice_decimal_moneyline"]
+        df["home_acceptable_decimal_moneyline"],
+        df["home_dk_decimal_moneyline"]
     )
 
     df["away_ml_edge_decimal"] = calculate_edge(
-        df["away_dk_decimal_moneyline"],
-        df["away_juice_decimal_moneyline"]
+        df["away_acceptable_decimal_moneyline"],
+        df["away_dk_decimal_moneyline"]
     )
 
     return df
 
 
 def compute_spread_edges(df, league, date):
-
     df = ensure_decimal_columns(df)
 
     required = [
         "home_dk_spread_decimal",
         "away_dk_spread_decimal",
-        "home_spread_juice_decimal",
-        "away_spread_juice_decimal",
+        "home_acceptable_spread_decimal",
+        "away_acceptable_spread_decimal",
     ]
-
     validate_columns(df, required)
 
     df["home_spread_edge_decimal"] = calculate_edge(
-        df["home_dk_spread_decimal"],
-        df["home_spread_juice_decimal"]
+        df["home_acceptable_spread_decimal"],
+        df["home_dk_spread_decimal"]
     )
 
     df["away_spread_edge_decimal"] = calculate_edge(
-        df["away_dk_spread_decimal"],
-        df["away_spread_juice_decimal"]
+        df["away_acceptable_spread_decimal"],
+        df["away_dk_spread_decimal"]
     )
 
     return df
 
 
 def compute_total_edges(df, league):
-
     df = ensure_decimal_columns(df)
 
     required = [
         "dk_total_over_decimal",
         "dk_total_under_decimal",
-        "total_over_juice_decimal",
-        "total_under_juice_decimal",
+        "acceptable_over",
+        "acceptable_under",
     ]
-
     validate_columns(df, required)
 
     df["over_edge_decimal"] = calculate_edge(
-        df["dk_total_over_decimal"],
-        df["total_over_juice_decimal"]
+        df["acceptable_over"],
+        df["dk_total_over_decimal"]
     )
 
     df["under_edge_decimal"] = calculate_edge(
-        df["dk_total_under_decimal"],
-        df["total_under_juice_decimal"]
+        df["acceptable_under"],
+        df["dk_total_under_decimal"]
     )
 
     return df
@@ -193,26 +183,19 @@ def compute_total_edges(df, league):
 # =========================
 
 def atomic_write_csv(df, output_path):
-
     tmp = output_path.with_suffix(".tmp")
-
     df.to_csv(tmp, index=False)
-
     tmp.replace(output_path)
 
 
 def process_market_files(files, compute_fn, league, market):
-
     if not files:
         audit(ERROR_LOG, f"{league}_{market.upper()}", "SKIPPED", "No files found.")
         return
 
     for f in files:
-
         try:
-
             df = pd.read_csv(f)
-
             date = extract_date_from_filename(f.name)
 
             if market in ("moneyline", "spread"):
@@ -223,7 +206,6 @@ def process_market_files(files, compute_fn, league, market):
             df = df.drop(columns=["home_play", "away_play"], errors="ignore")
 
             output_path = OUTPUT_DIR / f"{date}_basketball_{league}_{market}.csv"
-
             atomic_write_csv(df, output_path)
 
             audit(
@@ -235,7 +217,6 @@ def process_market_files(files, compute_fn, league, market):
             )
 
         except Exception:
-
             audit(
                 ERROR_LOG,
                 f"{league}_{market.upper()}",
@@ -248,7 +229,6 @@ def process_market_files(files, compute_fn, league, market):
 # =========================
 
 def process_league(league):
-
     process_market_files(
         sorted(INPUT_DIR.glob(f"*_{league}_moneyline.csv")),
         compute_moneyline_edges,
@@ -275,18 +255,14 @@ def process_league(league):
 # =========================
 
 def main():
-
     audit(ERROR_LOG, "SYSTEM", "STARTING RUN")
 
     try:
-
         process_league("NBA")
         process_league("NCAAB")
-
         audit(ERROR_LOG, "SYSTEM", "SUCCESSFUL COMPLETION")
 
     except Exception:
-
         audit(ERROR_LOG, "SYSTEM", "CRITICAL FAILURE", msg=traceback.format_exc())
 
 
