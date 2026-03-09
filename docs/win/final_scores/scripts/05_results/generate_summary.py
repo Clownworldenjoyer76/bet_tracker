@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 from datetime import datetime
 
-ERROR_LOG = Path("docs/win/final_scores/scripts/05_results/summary_audit.txt")
+ERROR_LOG = Path("docs/win/final_scores/errors/summary_audit.txt")
 
 
 def extract_edge(row):
