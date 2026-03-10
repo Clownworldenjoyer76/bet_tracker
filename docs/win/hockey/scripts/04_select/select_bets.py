@@ -159,7 +159,13 @@ def main():
                                 m_prob = pd.to_numeric(mrow.get(f"{side}_prob"), errors='coerce')
                                 m_odds = pd.to_numeric(mrow.get(f"{side}_dk_moneyline_american"), errors='coerce')
 
-                                if m_edge >= 0.03 and m_prob >= 0.45:
+                                if (
+                                    -250 <= m_odds <= 250 and
+                                    (
+                                        (m_edge >= 0.025 and m_prob >= 0.40) or
+                                        (m_odds < 0 and m_edge >= 0.02 and m_prob >= 0.44)
+                                    )
+                                ):
                                     bet_key = f"{game_date}_{away}_{home}_moneyline_{side}"
                                     if bet_key not in seen_bets:
                                         final_rows.append({
