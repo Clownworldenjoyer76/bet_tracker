@@ -22,13 +22,11 @@ ERROR_LOG = ERROR_DIR / "results_errors.txt"
 
 
 def log_summary(message: str):
-
     with open(SUMMARY_LOG, "a", encoding="utf-8") as f:
         f.write(message.rstrip() + "\n")
 
 
 def log_error(message: str):
-
     with open(ERROR_LOG, "a", encoding="utf-8") as f:
         f.write(message.rstrip() + "\n")
 
@@ -40,7 +38,6 @@ def log_error(message: str):
 def safe_read_csv(path: str):
 
     try:
-
         df = pd.read_csv(path)
 
         if df is None or df.empty:
@@ -136,7 +133,6 @@ def determine_outcome(row):
         return "Unknown"
 
     except Exception:
-
         return "Unknown"
 
 
@@ -155,7 +151,6 @@ def write_market_master(cfg, output_dir):
     files = sorted(glob.glob(pattern))
 
     if not files:
-
         log_summary(f"[MASTER SKIP] {cfg['name']} - No graded files found")
         return
 
@@ -177,7 +172,6 @@ def write_market_master(cfg, output_dir):
                 dfs.append(df)
 
     if not dfs:
-
         log_summary(f"[MASTER SKIP] {cfg['name']} - No valid bets found")
         return
 
@@ -236,6 +230,7 @@ def process_results():
         f.write(f"=== Results Errors | {datetime.now()} ===\n")
 
     configs = [
+
         {
             "name": "NBA",
             "scores_sub": "nba",
@@ -243,12 +238,21 @@ def process_results():
             "suffix": "NBA",
             "pattern": "*_nba.csv"
         },
+
         {
             "name": "NCAAB",
             "scores_sub": "ncaab",
             "bets_dir": "docs/win/basketball/04_select/daily_slate",
             "suffix": "NCAAB",
             "pattern": "*_ncaab.csv"
+        },
+
+        {
+            "name": "NHL",
+            "scores_sub": "nhl",
+            "bets_dir": "docs/win/hockey/04_select",
+            "suffix": "NHL",
+            "pattern": "*_NHL.csv"
         }
     ]
 
