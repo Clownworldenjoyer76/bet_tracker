@@ -69,24 +69,68 @@ def compute_edge(row):
 def trim_games(df):
     cleaned_rows = []
 
-    grouped = df.groupby(["game_date", "away_team", "home_team"], dropna=False)
+    # SAFER grouping using unique game_id
+    grouped = df.groupby(["game_id"], dropna=False)
 
     for _, game_df in grouped:
+
         totals = game_df[game_df["market_type"] == "total"].copy()
         sides = game_df[game_df["market_type"].isin(["spread", "moneyline"])].copy()
 
         best_total = None
         best_side = None
 
+        ###################################################
+        # BEST TOTAL
+        ###################################################
+
         if not totals.empty:
             totals["edge"] = totals.apply(compute_edge, axis=1)
             totals = totals.sort_values("edge", ascending=False, kind="mergesort")
             best_total = totals.iloc[0]
 
+        ###################################################
+        # BEST SIDE (SPREAD vs ML PREFERENCE RULE)
+        ###################################################
+
         if not sides.empty:
+
             sides["edge"] = sides.apply(compute_edge, axis=1)
-            sides = sides.sort_values("edge", ascending=False, kind="mergesort")
-            best_side = sides.iloc[0]
+
+            spreads = sides[sides["market_type"] == "spread"].copy()
+            mls = sides[sides["market_type"] == "moneyline"].copy()
+
+            best_spread = None
+            best_ml = None
+
+            if not spreads.empty:
+                spreads = spreads.sort_values("edge", ascending=False, kind="mergesort")
+                best_spread = spreads.iloc[0]
+
+            if not mls.empty:
+                mls = mls.sort_values("edge", ascending=False, kind="mergesort")
+                best_ml = mls.iloc[0]
+
+            if best_spread is not None and best_ml is not None:
+
+                spread_edge = safe_float(best_spread["edge"])
+                ml_edge = safe_float(best_ml["edge"])
+
+                # ML must beat spread by 2% to be chosen
+                if ml_edge >= spread_edge + 0.02:
+                    best_side = best_ml
+                else:
+                    best_side = best_spread
+
+            elif best_spread is not None:
+                best_side = best_spread
+
+            elif best_ml is not None:
+                best_side = best_ml
+
+        ###################################################
+        # ADD RESULTS
+        ###################################################
 
         if best_side is not None:
             cleaned_rows.append(best_side)
@@ -98,8 +142,10 @@ def trim_games(df):
         return pd.DataFrame()
 
     out = pd.DataFrame(cleaned_rows).copy()
+
     if "edge" in out.columns:
         out = out.drop(columns=["edge"], errors="ignore")
+
     return out
 
 
@@ -108,6 +154,7 @@ def trim_games(df):
 ###############################################################
 
 def split_leagues(df):
+
     market_series = df["market"].astype(str).str.upper().str.strip() if "market" in df.columns else pd.Series("", index=df.index)
     league_series = df["league"].astype(str).str.upper().str.strip() if "league" in df.columns else pd.Series("", index=df.index)
 
@@ -125,6 +172,7 @@ def split_leagues(df):
 ###############################################################
 
 def build_totals():
+
     nba_files = sorted(OUTPUT_DIR.glob("*_nba.csv"))
     ncaab_files = sorted(OUTPUT_DIR.glob("*_ncaab.csv"))
 
@@ -155,6 +203,7 @@ def build_totals():
 ###############################################################
 
 def clear_daily_slate_outputs():
+
     for f in OUTPUT_DIR.glob("*.csv"):
         f.unlink(missing_ok=True)
 
@@ -163,6 +212,7 @@ def clear_daily_slate_outputs():
 
 
 def main():
+
     clear_daily_slate_outputs()
 
     files = [
