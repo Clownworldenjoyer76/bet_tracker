@@ -34,7 +34,7 @@ pipeline = [
     # -----------------------
 
     ["python", "docs/win/soccer/scripts/01_merge/merge_intake.py"],
-    ["python", "docs/win/soccer/scripts/01_merge/market_model.py"],   # NEW STEP
+    ["python", "docs/win/soccer/scripts/01_merge/market_model.py"],
 
     ["python", "docs/win/hockey/scripts/01_merge/merge_intake.py"],
     ["python", "docs/win/basketball/scripts/01_merge/merge_intake.py"],
@@ -63,6 +63,9 @@ pipeline = [
     ["python", "docs/win/soccer/scripts/03_edges/compute_edges.py"],
     ["python", "docs/win/hockey/scripts/03_edges/compute_edges.py"],
     ["python", "docs/win/basketball/scripts/03_edges/compute_edges.py"],
+
+    # EDGE VALIDATOR
+    ["python", "docs/win/basketball/scripts/03_edges/edge_check.py"],
 
     # -----------------------
     # 04 SELECT
