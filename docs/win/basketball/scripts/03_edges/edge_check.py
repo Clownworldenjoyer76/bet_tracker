@@ -37,95 +37,82 @@ def reset_log():
 def edge(model_decimal, book_decimal):
     model_decimal = pd.to_numeric(model_decimal, errors="coerce")
     book_decimal = pd.to_numeric(book_decimal, errors="coerce")
-    return (1 / model_decimal) - (1 / book_decimal)
+    return book_decimal - model_decimal
 
 
-def rebuild_edges(df, file_name):
+def values_changed(old, new):
+    return ~(
+        (old.eq(new)) |
+        (old.isna() & new.isna())
+    )
+
+
+def rebuild_edges(df, filename):
 
     updated = 0
-    name = file_name.lower()
+    name = filename.lower()
 
     def update(col, new_vals):
         nonlocal updated
+
         if col not in df.columns:
             return
-        old = pd.to_numeric(df[col], errors="coerce")
-        new = pd.to_numeric(new_vals, errors="coerce")
-        df[col] = new
-        changed_mask = ~(
-            (old.eq(new)) |
-            (old.isna() & new.isna())
-        )
-        updated += int(changed_mask.sum())
+
+        old_vals = pd.to_numeric(df[col], errors="coerce")
+        new_vals = pd.to_numeric(new_vals, errors="coerce")
+
+        mask = values_changed(old_vals, new_vals)
+        updated += int(mask.sum())
+
+        df[col] = new_vals
+
+    # ---------------------
+    # SPREAD FILES
+    # ---------------------
 
     if "spread" in name:
-        required = {
-            "home_spread_juice_decimal",
-            "away_spread_juice_decimal",
-            "home_dk_spread_decimal",
-            "away_dk_spread_decimal",
-            "home_spread_edge_decimal",
-            "away_spread_edge_decimal",
-        }
-        missing = sorted(required - set(df.columns))
-        if missing:
-            raise ValueError(f"Missing spread columns: {missing}")
 
         update(
             "home_spread_edge_decimal",
             edge(df["home_spread_juice_decimal"], df["home_dk_spread_decimal"])
         )
+
         update(
             "away_spread_edge_decimal",
             edge(df["away_spread_juice_decimal"], df["away_dk_spread_decimal"])
         )
 
+    # ---------------------
+    # MONEYLINE FILES
+    # ---------------------
+
     elif "moneyline" in name:
-        required = {
-            "home_juice_decimal_moneyline",
-            "away_juice_decimal_moneyline",
-            "home_dk_decimal_moneyline",
-            "away_dk_decimal_moneyline",
-            "home_ml_edge_decimal",
-            "away_ml_edge_decimal",
-        }
-        missing = sorted(required - set(df.columns))
-        if missing:
-            raise ValueError(f"Missing moneyline columns: {missing}")
 
         update(
             "home_ml_edge_decimal",
             edge(df["home_juice_decimal_moneyline"], df["home_dk_decimal_moneyline"])
         )
+
         update(
             "away_ml_edge_decimal",
             edge(df["away_juice_decimal_moneyline"], df["away_dk_decimal_moneyline"])
         )
 
+    # ---------------------
+    # TOTAL FILES
+    # ---------------------
+
     elif "total" in name:
-        required = {
-            "total_over_juice_decimal",
-            "total_under_juice_decimal",
-            "dk_total_over_decimal",
-            "dk_total_under_decimal",
-            "over_edge_decimal",
-            "under_edge_decimal",
-        }
-        missing = sorted(required - set(df.columns))
-        if missing:
-            raise ValueError(f"Missing total columns: {missing}")
 
         update(
             "over_edge_decimal",
             edge(df["total_over_juice_decimal"], df["dk_total_over_decimal"])
         )
+
         update(
             "under_edge_decimal",
             edge(df["total_under_juice_decimal"], df["dk_total_under_decimal"])
         )
-
-    else:
-        raise ValueError(f"Could not detect market type from filename: {file_name}")
 
     return df, updated
 
@@ -133,6 +120,7 @@ def rebuild_edges(df, file_name):
 def process_file(path):
 
     try:
+
         df = pd.read_csv(path)
 
         if df.empty:
@@ -140,7 +128,9 @@ def process_file(path):
             return 0
 
         df, updates = rebuild_edges(df, path.name)
-        df.to_csv(path, index=False)
+
+        if updates > 0:
+            df.to_csv(path, index=False)
 
         log_line(f"UPDATED | {path.name} | values_updated={updates}")
 
@@ -156,6 +146,7 @@ def main():
     reset_log()
 
     files = []
+
     for pattern in PATTERNS:
         files.extend(sorted(EDGE_DIR.glob(pattern)))
 
