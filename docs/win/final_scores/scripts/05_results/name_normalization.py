@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 # docs/win/final_scores/scripts/05_results/name_normalization.py
 
 import pandas as pd
@@ -8,31 +7,13 @@ from pathlib import Path
 from datetime import datetime
 
 # =========================
-# LOGGER UTILITY
-# =========================
-
-def audit(log_path, stage, status, msg="", df=None):
-    ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    log_path = Path(log_path)
-    log_path.parent.mkdir(parents=True, exist_ok=True)
-
-    log_mode = "w" if not log_path.exists() else "a"
-
-    with open(log_path, log_mode) as f:
-        f.write(f"\n[{ts}] [{stage}] {status}\n")
-        if msg:
-            f.write(f"  MSG: {msg}\n")
-        if df is not None and isinstance(df, pd.DataFrame):
-            f.write(f"  STATS: {len(df)} rows | {len(df.columns)} cols\n")
-            f.write(f"  NULLS: {df.isnull().sum().sum()} total\n")
-            f.write(f"  SAMPLE:\n{df.head(3).to_string(index=False)}\n")
-        f.write("-" * 40 + "\n")
-
-# =========================
 # CONFIGURATION
 # =========================
 
-ERROR_LOG = Path("docs/win/final_scores/scripts/05_results/normalization_audit.txt")
+ERROR_DIR = Path("docs/win/final_scores/errors")
+ERROR_DIR.mkdir(parents=True, exist_ok=True)
+
+SUMMARY_LOG = ERROR_DIR / "name_normalization_summary.txt"
 
 TARGET_DIRS = [
     "docs/win/basketball/04_select/daily_slate",
@@ -51,6 +32,7 @@ MAP_FILES = {
 NO_MAP_FILE = Path("mappings/05_no_map/no_team_map.csv")
 NO_MAP_FILE.parent.mkdir(parents=True, exist_ok=True)
 
+
 # =========================
 # LOAD TEAM MAPS
 # =========================
@@ -63,8 +45,8 @@ def load_maps():
 
         df = pd.read_csv(path)
 
-        df["alias"] = df["alias"].str.strip().str.lower()
-        df["canonical_team"] = df["canonical_team"].str.strip()
+        df["alias"] = df["alias"].astype(str).str.strip().str.lower()
+        df["canonical_team"] = df["canonical_team"].astype(str).str.strip()
 
         maps[market] = dict(zip(df["alias"], df["canonical_team"]))
 
@@ -93,7 +75,7 @@ def detect_market(file_path):
 # NORMALIZE FILE
 # =========================
 
-def normalize_file(file_path, market, team_map, missing):
+def normalize_file(file_path, market, team_map, missing, counters):
 
     try:
 
@@ -117,9 +99,17 @@ def normalize_file(file_path, market, team_map, missing):
                 alias = str(team).strip().lower()
 
                 if alias in team_map:
-                    normalized.append(team_map[alias])
-                    updated = True
+
+                    canonical = team_map[alias]
+
+                    if canonical != team:
+                        counters["normalized"] += 1
+                        updated = True
+
+                    normalized.append(canonical)
+
                 else:
+
                     normalized.append(team)
                     missing.add((market, alias))
 
@@ -127,12 +117,51 @@ def normalize_file(file_path, market, team_map, missing):
 
         if updated:
             df.to_csv(file_path, index=False)
-            audit(ERROR_LOG, "NORMALIZE", "SUCCESS", msg=f"Normalized {file_path}", df=df)
 
     except Exception as e:
 
-        print(f"Error processing {file_path}: {e}")
-        audit(ERROR_LOG, "NORMALIZE", "ERROR", msg=f"Error processing {file_path}: {str(e)}")
+        missing.add((market, f"FILE_ERROR::{file_path}::{str(e)}"))
+
+
+# =========================
+# WRITE SUMMARY
+# =========================
+
+def write_summary(files_scanned, normalized_count, missing):
+
+    ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    with open(SUMMARY_LOG, "w", encoding="utf-8") as f:
+
+        f.write("=== TEAM NAME NORMALIZATION SUMMARY ===\n")
+        f.write(f"Timestamp: {ts}\n\n")
+
+        f.write(f"Files scanned: {files_scanned}\n")
+        f.write(f"Names normalized: {normalized_count}\n\n")
+
+        if missing:
+
+            f.write("Unmapped team names:\n")
+
+            for market, alias in sorted(missing):
+
+                if alias.startswith("FILE_ERROR::"):
+
+                    parts = alias.split("::", 2)
+                    file_path = parts[1]
+                    reason = parts[2]
+
+                    f.write(f"  FILE ERROR | {market} | {file_path} | {reason}\n")
+
+                else:
+
+                    f.write(
+                        f"  {market} | '{alias}' | reason: alias not found in mapping file\n"
+                    )
+
+        else:
+
+            f.write("No unmapped team names detected.\n")
 
 
 # =========================
@@ -145,6 +174,12 @@ def main():
 
     missing = set()
 
+    counters = {
+        "normalized": 0
+    }
+
+    files_scanned = 0
+
     for directory in TARGET_DIRS:
 
         files = glob.glob(f"{directory}/*.csv")
@@ -156,9 +191,11 @@ def main():
             if not market:
                 continue
 
+            files_scanned += 1
+
             team_map = team_maps.get(market)
 
-            normalize_file(file_path, market, team_map, missing)
+            normalize_file(file_path, market, team_map, missing, counters)
 
     if missing:
 
@@ -168,12 +205,14 @@ def main():
         )
 
         if NO_MAP_FILE.exists():
+
             existing = pd.read_csv(NO_MAP_FILE)
+
             df_missing = pd.concat([existing, df_missing]).drop_duplicates()
 
         df_missing.to_csv(NO_MAP_FILE, index=False)
 
-        audit(ERROR_LOG, "MISSING_MAPS", "INFO", msg="Updated no_team_map.csv", df=df_missing)
+    write_summary(files_scanned, counters["normalized"], missing)
 
 
 if __name__ == "__main__":
