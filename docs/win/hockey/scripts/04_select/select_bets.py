@@ -90,7 +90,14 @@ def main():
                                             "game_id": game_id,
                                             "take_bet": f"{side}_total",
                                             "take_bet_edge_pct": t_edge,
-                                            "take_odds": trow.get(f"dk_total_{side}_american")
+                                            "take_odds": trow.get(f"dk_total_{side}_american"),
+
+                                            "over_edge_decimal": t_edge if side == "over" else None,
+                                            "under_edge_decimal": t_edge if side == "under" else None,
+                                            "home_ml_edge_decimal": None,
+                                            "away_ml_edge_decimal": None,
+                                            "home_spread_edge_decimal": None,
+                                            "away_spread_edge_decimal": None
                                         })
                                         seen_bets.add(bet_key)
                                         counts["total"] += 1
@@ -131,7 +138,14 @@ def main():
                                     "game_id": game_id,
                                     "take_bet": f"{side}_puck_line",
                                     "take_bet_edge_pct": edge,
-                                    "take_odds": odds
+                                    "take_odds": odds,
+
+                                    "home_spread_edge_decimal": edge if side == "home" else None,
+                                    "away_spread_edge_decimal": edge if side == "away" else None,
+                                    "home_ml_edge_decimal": None,
+                                    "away_ml_edge_decimal": None,
+                                    "over_edge_decimal": None,
+                                    "under_edge_decimal": None
                                 })
                                 seen_bets.add(bet_key)
                                 counts["puck_line"] += 1
@@ -159,7 +173,14 @@ def main():
                                             "game_id": game_id,
                                             "take_bet": f"{side}_moneyline",
                                             "take_bet_edge_pct": m_edge,
-                                            "take_odds": m_odds
+                                            "take_odds": m_odds,
+
+                                            "home_ml_edge_decimal": m_edge if side == "home" else None,
+                                            "away_ml_edge_decimal": m_edge if side == "away" else None,
+                                            "home_spread_edge_decimal": None,
+                                            "away_spread_edge_decimal": None,
+                                            "over_edge_decimal": None,
+                                            "under_edge_decimal": None
                                         })
                                         seen_bets.add(bet_key)
                                         counts["moneyline"] += 1
