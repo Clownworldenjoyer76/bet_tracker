@@ -148,26 +148,22 @@ def step3_nba_total(row):
 
     proj_diff = abs(proj - line)
 
-    # extreme totals filter
-    if line > 245:
-        return False, "FAIL STEP 3 NBA TOTAL | total limit", ""
+    # remove extreme totals only
+    if line > 250:
+        return False, "FAIL STEP 3 NBA TOTAL | extreme total", ""
 
-    # require real disagreement between projection and market
-    if proj_diff < 2:
+    # allow smaller model disagreement
+    if proj_diff < 1:
         return False, "FAIL STEP 3 NBA TOTAL | projection diff", ""
 
-    # blowout risk filter
+    # blowout risk
     if max_spread >= 16 and line >= 240:
         return False, "FAIL STEP 3 NBA TOTAL | blowout filter", ""
 
-    edge_threshold = 0.02
+    edge_threshold = 0.01
 
     over_pass = over_edge >= edge_threshold
     under_pass = under_edge >= edge_threshold
-
-    # avoid coin-flip edges
-    if abs(over_edge - under_edge) < 0.005:
-        return False, "FAIL STEP 3 NBA TOTAL | edges too close", ""
 
     if over_pass or under_pass:
 
