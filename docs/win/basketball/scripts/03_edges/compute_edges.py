@@ -171,18 +171,18 @@ def compute_total_edges(df, league):
     required = [
         "dk_total_over_decimal",
         "dk_total_under_decimal",
-        "acceptable_over",
-        "acceptable_under",
+        "total_over_juice_decimal",
+        "total_under_juice_decimal",
     ]
     validate_columns(df, required)
 
     df["over_edge_decimal"] = calculate_edge(
-        df["acceptable_over"],
+        df["total_over_juice_decimal"],
         df["dk_total_over_decimal"]
     )
 
     df["under_edge_decimal"] = calculate_edge(
-        df["acceptable_under"],
+        df["total_under_juice_decimal"],
         df["dk_total_under_decimal"]
     )
 
