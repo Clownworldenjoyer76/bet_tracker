@@ -346,105 +346,39 @@ def step5_ncaab_spread(row):
 #################### STEP 6 NCAAB TOTAL #######################
 ###############################################################
 
-def step6_ncaab_total(row):
-
+def step6_ncaab_total_final(row):
     line = f(row.get("total"))
     proj = f(row.get("total_projected_points"))
-
     over_edge = f(row.get("over_edge_decimal"))
-
+    under_edge = f(row.get("under_edge_decimal"))
+    
     proj_diff = abs(proj - line)
 
-    # avoid extreme totals
-    if line < 145 or line > 200:
-        return False, "FAIL STEP 6 NCAAB TOTAL | range", ""
+    # ---------------------------------------------------------
+    # 1. THE "DYNAMITE" OVER LOGIC (Success Zone: 150+)
+    # ---------------------------------------------------------
+    if over_edge > under_edge:
+        # Band A: Under 150 (High-Bar)
+        if line < 150 and over_edge >= 0.40 and proj_diff >= 4:
+            return True, "PASS NCAAB | high conviction over", "over"
+        
+        # Band B: Over 150 (Value Zone)
+        if line >= 150 and over_edge >= 0.05 and proj_diff >= 2:
+            return True, "PASS NCAAB | over 150 value zone", "over"
 
-    # projection must meaningfully disagree with market
-    if proj_diff < 3:
-        return False, "FAIL STEP 6 NCAAB TOTAL | projection diff", ""
+    # ---------------------------------------------------------
+    # 2. THE "CAREFUL" UNDER LOGIC (Success Zone: < 145)
+    # ---------------------------------------------------------
+    elif under_edge > over_edge:
+        # Avoid high totals for Unders (Too much variance)
+        if line > 145:
+            return False, "FAIL NCAAB UNDER | total too high for under", ""
 
-    # only bet overs (unders currently negative EV)
-    if 0.02 <= over_edge <= 0.50:
-        return True, "PASS STEP 6 NCAAB TOTAL | over edge", "over"
+        # Higher entry requirements for Unders to protect ROI
+        if under_edge >= 0.08 and proj_diff >= 4:
+            return True, "PASS NCAAB | careful under spot", "under"
 
-    return False, "FAIL STEP 6 NCAAB TOTAL | edge filter", ""
-
-
-###############################################################
-######################## FILE PROCESSOR #######################
-###############################################################
-
-def process_file(csv_file):
-    df = pd.read_csv(csv_file)
-
-    if df.empty:
-        report_line(f"FILE {csv_file.name} | INFO | empty input file")
-        return
-
-    league = "NBA" if "nba" in csv_file.name.lower() else "NCAAB"
-    market_type = detect_market_from_filename(csv_file.name)
-
-    if not market_type:
-        report_line(f"FILE {csv_file.name} | ERROR | could not detect market type from filename")
-        return
-
-    report_line(f"FILE {csv_file.name} | START | league={league} | market_type={market_type} | rows={len(df)}")
-
-    selected_rows = []
-    pass_count = 0
-    fail_count = 0
-    out_path = OUTPUT_DIR / csv_file.name
-
-    for _, row in df.iterrows():
-        label = game_label(row)
-        bet_side = ""
-        line = ""
-
-        if league == "NBA":
-            if market_type == "moneyline":
-                allowed, reason, bet_side, line = step1_nba_moneyline(row)
-            elif market_type == "spread":
-                allowed, reason, bet_side, line = step2_nba_spread(row)
-            else:
-                allowed, reason, bet_side = step3_nba_total(row)
-                line = f(row.get("total"))
-        else:
-            if market_type == "moneyline":
-                allowed, reason, bet_side, line = step4_ncaab_moneyline(row)
-            elif market_type == "spread":
-                allowed, reason, bet_side, line = step5_ncaab_spread(row)
-            else:
-                allowed, reason, bet_side = step6_ncaab_total(row)
-                line = f(row.get("total"))
-
-        if allowed:
-            row_dict = row.to_dict()
-            row_dict["market_type"] = market_type
-            row_dict["bet_side"] = bet_side
-            row_dict["line"] = line
-            selected_rows.append(row_dict)
-
-            pass_count += 1
-            report_line(f"PASS | {league} | {market_type} | {label} | {reason} | bet_side={bet_side} | line={line}")
-        else:
-            fail_count += 1
-            report_line(f"FAIL | {league} | {market_type} | {label} | {reason}")
-
-    if selected_rows:
-        out_df = pd.DataFrame(selected_rows)
-        out_df.to_csv(out_path, index=False)
-        report_line(
-            f"FILE {csv_file.name} | DONE | selected_rows={len(out_df)} | passed={pass_count} | failed={fail_count} | output={out_path}"
-        )
-        print(f"Selected {len(out_df)} rows -> {out_path.name}")
-    else:
-        if out_path.exists():
-            out_path.unlink(missing_ok=True)
-        report_line(
-            f"FILE {csv_file.name} | DONE | selected_rows=0 | passed={pass_count} | failed={fail_count} | no output file written"
-        )
-        print(f"Selected 0 rows -> {csv_file.name}")
-
+    return False, "FAIL NCAAB | no edge/range match", ""
 
 ###############################################################
 ############################ MAIN #############################
