@@ -1,3 +1,5 @@
+docs/win/basketball/scripts/03_edges/compute_edges.py
+
 #!/usr/bin/env python3
 import pandas as pd
 from pathlib import Path
@@ -151,6 +153,12 @@ def compute_spread_edges(df, league, date):
         "away_spread_juice_decimal",
     ]
     validate_columns(df, required)
+
+    # force numeric conversion before edge calculation
+    df["home_spread_juice_decimal"] = pd.to_numeric(df["home_spread_juice_decimal"], errors="coerce")
+    df["away_spread_juice_decimal"] = pd.to_numeric(df["away_spread_juice_decimal"], errors="coerce")
+    df["home_dk_spread_decimal"] = pd.to_numeric(df["home_dk_spread_decimal"], errors="coerce")
+    df["away_dk_spread_decimal"] = pd.to_numeric(df["away_dk_spread_decimal"], errors="coerce")
 
     df["home_spread_edge_decimal"] = calculate_edge(
         df["home_spread_juice_decimal"],
