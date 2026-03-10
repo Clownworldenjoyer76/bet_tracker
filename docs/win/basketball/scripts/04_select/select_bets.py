@@ -218,7 +218,7 @@ def step4_ncaab_moneyline(row):
     # HEAVY FAVORITE FILTER
     ###########################################################
 
-    if ml < -165:
+    if ml < -185:
         return False, "FAIL STEP 4 NCAAB MONEYLINE | heavy favorite filter", "", ""
 
     ###########################################################
@@ -228,7 +228,7 @@ def step4_ncaab_moneyline(row):
     # Underdogs
     if ml >= 100:
 
-        if edge < 0.04:
+        if edge < 0.02:
             return False, "FAIL STEP 4 NCAAB MONEYLINE | dog edge too low", "", ""
 
         if prob < 0.42:
@@ -237,17 +237,17 @@ def step4_ncaab_moneyline(row):
     # Favorites
     else:
 
-        if edge < 0.025:
+        if edge < 0.015:
             return False, "FAIL STEP 4 NCAAB MONEYLINE | favorite edge too low", "", ""
 
-        if prob < 0.56:
+        if prob < 0.53:
             return False, "FAIL STEP 4 NCAAB MONEYLINE | favorite prob too low", "", ""
 
     ###########################################################
     # EDGE SEPARATION (MODEL CONVICTION)
     ###########################################################
 
-    if edge - opp_edge < 0.015:
+    if edge - opp_edge < 0.005:
         return False, "FAIL STEP 4 NCAAB MONEYLINE | edge separation too small", "", ""
 
     ###########################################################
@@ -293,35 +293,35 @@ def step5_ncaab_spread(row):
     # Tiny spread filter (avoid efficient pick'em zone)
     ###########################################################
 
-    if abs(line) < 2.5:
+    if abs(line) < 1.5:
         return False, "FAIL STEP 5 NCAAB SPREAD | tiny spread", "", ""
 
     ###########################################################
     # Extreme spread filter (garbage-time volatility)
     ###########################################################
 
-    if abs(line) > 16:
+    if abs(line) > 17:
         return False, "FAIL STEP 5 NCAAB SPREAD | extreme spread", "", ""
 
     ###########################################################
     # Minimum edge requirement
     ###########################################################
 
-    if edge < 0.025:
+    if edge < 0.015:
         return False, "FAIL STEP 5 NCAAB SPREAD | edge too low", "", ""
 
     ###########################################################
     # Probability confirmation
     ###########################################################
 
-    if prob < 0.51:
+    if prob < 0.4:
         return False, "FAIL STEP 5 NCAAB SPREAD | probability too low", "", ""
 
     ###########################################################
     # Model conviction (edge separation)
     ###########################################################
 
-    if edge - opp_edge < 0.015:
+    if edge - opp_edge < 0.005:
         return False, "FAIL STEP 5 NCAAB SPREAD | edge separation too small", "", ""
 
     ###########################################################
