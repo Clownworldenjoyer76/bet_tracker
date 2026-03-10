@@ -222,20 +222,6 @@ def write_market_master(cfg, output_dir):
         f"[MASTER SUCCESS] {cfg['name']} master written | rows={len(master_df)}"
     )
 
-    # =========================
-    # MARKET TALLY
-    # =========================
-
-    tally = master_df.groupby(
-        ["market_type","bet_side","bet_result"]
-    ).size().reset_index(name="count")
-
-    tally_path = output_dir.parent / "market_tally.csv"
-    tally.to_csv(tally_path, index=False)
-
-    print(f"\n{cfg['name']} MARKET TALLY")
-    print(tally.sort_values(["market_type","bet_side","bet_result"]).to_string(index=False))
-
 
 # =========================
 # MAIN PROCESS
