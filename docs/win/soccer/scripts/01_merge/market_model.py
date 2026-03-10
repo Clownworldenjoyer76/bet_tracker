@@ -1,3 +1,4 @@
+# docs/win/soccer/scripts/01_merge/market_model.py
 #!/usr/bin/env python3
 
 import csv
@@ -23,9 +24,11 @@ LOG_FILE = ERROR_DIR / "market_model.txt"
 with open(LOG_FILE, "w", encoding="utf-8") as f:
     f.write("")
 
+
 def log(msg):
     with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write(f"{datetime.utcnow().isoformat()} | {msg}\n")
+
 
 # =========================
 # CONFIG MAP
@@ -39,8 +42,23 @@ CONFIG_MAP = {
     "seriea": "serie_a",
 }
 
+# =========================
+# DC TABLE ORIENTATION
+# =========================
+# False = normal
+# True  = reversed
+
+LAMBDA_ORIENTATION = {
+    "bundesliga": False,
+    "epl": False,
+    "laliga": True,
+    "ligue1": False,
+    "seriea": False,
+}
+
 # cache DC tables
 DC_CACHE = {}
+
 
 # =========================
 # LOAD DC TABLE
@@ -103,7 +121,7 @@ def interpolate(table, lh, la, k=6):
 
     for r in table:
 
-        dist = (r["lambda_home"] - lh)**2 + (r["lambda_away"] - la)**2
+        dist = (r["lambda_home"] - lh) ** 2 + (r["lambda_away"] - la) ** 2
 
         distances.append((dist, r))
 
@@ -204,9 +222,11 @@ for merge_file in merge_files:
                 log(f"Invalid xG for {r.get('game_id','UNKNOWN')}")
                 continue
 
-            # IMPORTANT FIX:
-            # DC table lambdas are reversed
-            dc_row = interpolate(table, la, lh)
+            # Apply correct lambda orientation
+            if LAMBDA_ORIENTATION.get(market, False):
+                dc_row = interpolate(table, la, lh)
+            else:
+                dc_row = interpolate(table, lh, la)
 
             rows.append({
                 "game_id": r["game_id"],
