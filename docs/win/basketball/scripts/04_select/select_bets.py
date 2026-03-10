@@ -187,28 +187,74 @@ def step4_ncaab_moneyline(row):
     home_edge = f(row.get("home_ml_edge_decimal"))
     away_edge = f(row.get("away_ml_edge_decimal"))
 
-    edge_home_threshold = 0.02
-    edge_away_threshold = 0.03
+    home_prob = f(row.get("home_ml_prob"))
+    away_prob = f(row.get("away_ml_prob"))
 
-    # avoid extreme longshots
-    if home_ml > 400 or away_ml > 400:
+    ###########################################################
+    # Select side with stronger edge
+    ###########################################################
+
+    if away_edge > home_edge:
+        side = "away"
+        ml = away_ml
+        edge = away_edge
+        prob = away_prob
+        opp_edge = home_edge
+    else:
+        side = "home"
+        ml = home_ml
+        edge = home_edge
+        prob = home_prob
+        opp_edge = away_edge
+
+    ###########################################################
+    # LONGSHOT FILTER
+    ###########################################################
+
+    if ml > 200:
         return False, "FAIL STEP 4 NCAAB MONEYLINE | longshot filter", "", ""
 
-    # require at least one valid edge
-    if home_edge >= edge_home_threshold or away_edge >= edge_away_threshold:
+    ###########################################################
+    # HEAVY FAVORITE FILTER
+    ###########################################################
 
-        # avoid coin-flip edges
-        if abs(home_edge - away_edge) < 0.005:
-            return False, "FAIL STEP 4 NCAAB MONEYLINE | edges too close", "", ""
+    if ml < -165:
+        return False, "FAIL STEP 4 NCAAB MONEYLINE | heavy favorite filter", "", ""
 
-        # choose stronger edge
-        if away_edge > home_edge and away_ml > -150:
-            return True, "PASS STEP 4 NCAAB MONEYLINE", "away", away_ml
+    ###########################################################
+    # EDGE + PROBABILITY REQUIREMENTS
+    ###########################################################
 
-        if home_edge >= away_edge and home_ml > -200:
-            return True, "PASS STEP 4 NCAAB MONEYLINE", "home", home_ml
+    # Underdogs
+    if ml >= 100:
 
-    return False, "FAIL STEP 4 NCAAB MONEYLINE", "", ""
+        if edge < 0.04:
+            return False, "FAIL STEP 4 NCAAB MONEYLINE | dog edge too low", "", ""
+
+        if prob < 0.42:
+            return False, "FAIL STEP 4 NCAAB MONEYLINE | dog prob too low", "", ""
+
+    # Favorites
+    else:
+
+        if edge < 0.025:
+            return False, "FAIL STEP 4 NCAAB MONEYLINE | favorite edge too low", "", ""
+
+        if prob < 0.56:
+            return False, "FAIL STEP 4 NCAAB MONEYLINE | favorite prob too low", "", ""
+
+    ###########################################################
+    # EDGE SEPARATION (MODEL CONVICTION)
+    ###########################################################
+
+    if edge - opp_edge < 0.015:
+        return False, "FAIL STEP 4 NCAAB MONEYLINE | edge separation too small", "", ""
+
+    ###########################################################
+    # PASS
+    ###########################################################
+
+    return True, "PASS STEP 4 NCAAB MONEYLINE", side, ml
 
 
 ###############################################################
@@ -223,20 +269,66 @@ def step5_ncaab_spread(row):
     home_edge = f(row.get("home_spread_edge_decimal"))
     away_edge = f(row.get("away_spread_edge_decimal"))
 
-    edge_threshold = 0.04
+    home_prob = f(row.get("home_spread_prob"))
+    away_prob = f(row.get("away_spread_prob"))
 
-    # avoid tiny spreads
-    if abs(home_line) <= 2 or abs(away_line) <= 2:
+    ###########################################################
+    # Select side with stronger edge
+    ###########################################################
+
+    if home_edge >= away_edge:
+        side = "home"
+        line = home_line
+        edge = home_edge
+        prob = home_prob
+        opp_edge = away_edge
+    else:
+        side = "away"
+        line = away_line
+        edge = away_edge
+        prob = away_prob
+        opp_edge = home_edge
+
+    ###########################################################
+    # Tiny spread filter (avoid efficient pick'em zone)
+    ###########################################################
+
+    if abs(line) < 2.5:
         return False, "FAIL STEP 5 NCAAB SPREAD | tiny spread", "", ""
 
-    if home_edge >= edge_threshold or away_edge >= edge_threshold:
+    ###########################################################
+    # Extreme spread filter (garbage-time volatility)
+    ###########################################################
 
-        if home_edge >= away_edge:
-            return True, "PASS STEP 5 NCAAB SPREAD", "home", home_line
+    if abs(line) > 16:
+        return False, "FAIL STEP 5 NCAAB SPREAD | extreme spread", "", ""
 
-        return True, "PASS STEP 5 NCAAB SPREAD", "away", away_line
+    ###########################################################
+    # Minimum edge requirement
+    ###########################################################
 
-    return False, "FAIL STEP 5 NCAAB SPREAD", "", ""
+    if edge < 0.025:
+        return False, "FAIL STEP 5 NCAAB SPREAD | edge too low", "", ""
+
+    ###########################################################
+    # Probability confirmation
+    ###########################################################
+
+    if prob < 0.51:
+        return False, "FAIL STEP 5 NCAAB SPREAD | probability too low", "", ""
+
+    ###########################################################
+    # Model conviction (edge separation)
+    ###########################################################
+
+    if edge - opp_edge < 0.015:
+        return False, "FAIL STEP 5 NCAAB SPREAD | edge separation too small", "", ""
+
+    ###########################################################
+    # PASS
+    ###########################################################
+
+    return True, "PASS STEP 5 NCAAB SPREAD", side, line
 
 
 ###############################################################
