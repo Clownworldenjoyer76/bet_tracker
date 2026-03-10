@@ -82,44 +82,23 @@ def clear_previous_outputs():
 ###############################################################
 
 def step1_nba_moneyline(row):
-
     home_edge = f(row.get("home_ml_edge_decimal"))
     away_edge = f(row.get("away_ml_edge_decimal"))
-
     home_ml = f(row.get("home_dk_moneyline_american"))
     away_ml = f(row.get("away_dk_moneyline_american"))
 
-    # Baseline edge
-    edge_threshold = 0.025 
+    # AWAY STRATEGY: Data shows 4-0 record in 0.05-0.15 edge band
+    if 0.05 < away_edge <= 0.15:
+        # Success found in favorites and short underdogs
+        if away_ml <= 274:
+            return True, "PASS STEP 1 NBA ML | away sweet spot", "away", away_ml
 
-    # Logic for Home Side
-    home_pass = False
-    # Only bet home ML if it's within a realistic competitive range (-250 to +150)
-    if -250 <= home_ml <= 150:
-        if home_edge >= edge_threshold:
-            home_pass = True
-    # If a heavy favorite (-251 to -500), require a larger edge to justify the risk
-    elif -500 <= home_ml < -250:
-        if home_edge >= 0.04:
-            home_pass = True
+    # HOME STRATEGY: Data shows 0% win rate on big home dogs (>0.30 edge is 0-7)
+    # Target favorites where you have a small, realistic edge
+    if home_ml < 0 and 0.00 <= home_edge <= 0.05:
+        return True, "PASS STEP 1 NBA ML | home favorite value", "home", home_ml
 
-    # Logic for Away Side
-    away_pass = False
-    # Away teams are riskier; tighten the odds range (-180 to +120)
-    if -180 <= away_ml <= 120:
-        if away_edge >= 0.03: # Slightly higher edge for road teams
-            away_pass = True
-
-    # Decision Block
-    if home_pass or away_pass:
-        # If both pass, choose the larger edge
-        if home_edge >= away_edge and home_pass:
-            return True, "PASS STEP 1 NBA MONEYLINE | home", "home", home_ml
-        
-        if away_pass:
-            return True, "PASS STEP 1 NBA MONEYLINE | away", "away", away_ml
-
-    return False, "FAIL STEP 1 NBA MONEYLINE", "", ""
+    return False, "FAIL STEP 1 NBA ML | out of performance bands", "", ""
 
 ###############################################################
 ##################### STEP 2 NBA SPREAD #######################
