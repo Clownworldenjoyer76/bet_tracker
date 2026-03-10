@@ -34,109 +34,75 @@ def reset_log():
         fh.write("=" * 80 + "\n")
 
 
-def edge(model_decimal, book_decimal):
-    model_decimal = pd.to_numeric(model_decimal, errors="coerce")
-    book_decimal = pd.to_numeric(book_decimal, errors="coerce")
-    return book_decimal - model_decimal
-
-
-def values_changed(old, new):
-    return ~(
-        (old.eq(new)) |
-        (old.isna() & new.isna())
-    )
-
-
-def rebuild_edges(df, filename):
-
-    updated = 0
-    name = filename.lower()
-
-    def update(col, new_vals):
-        nonlocal updated
-
-        if col not in df.columns:
-            return
-
-        old_vals = pd.to_numeric(df[col], errors="coerce")
-        new_vals = pd.to_numeric(new_vals, errors="coerce")
-
-        mask = values_changed(old_vals, new_vals)
-        updated += int(mask.sum())
-
-        df[col] = new_vals
-
-    # ---------------------
-    # SPREAD FILES
-    # ---------------------
-
-    if "spread" in name:
-
-        update(
-            "home_spread_edge_decimal",
-            edge(df["home_spread_juice_decimal"], df["home_dk_spread_decimal"])
-        )
-
-        update(
-            "away_spread_edge_decimal",
-            edge(df["away_spread_juice_decimal"], df["away_dk_spread_decimal"])
-        )
-
-    # ---------------------
-    # MONEYLINE FILES
-    # ---------------------
-
-    elif "moneyline" in name:
-
-        update(
-            "home_ml_edge_decimal",
-            edge(df["home_juice_decimal_moneyline"], df["home_dk_decimal_moneyline"])
-        )
-
-        update(
-            "away_ml_edge_decimal",
-            edge(df["away_juice_decimal_moneyline"], df["away_dk_decimal_moneyline"])
-        )
-
-    # ---------------------
-    # TOTAL FILES
-    # ---------------------
-
-    elif "total" in name:
-
-        update(
-            "over_edge_decimal",
-            edge(df["total_over_juice_decimal"], df["dk_total_over_decimal"])
-        )
-
-        update(
-            "under_edge_decimal",
-            edge(df["total_under_juice_decimal"], df["dk_total_under_decimal"])
-        )
-
-    return df, updated
-
-
 def process_file(path):
 
     try:
 
         df = pd.read_csv(path)
+        name = path.name.lower()
 
         if df.empty:
             log_line(f"SKIP empty file | {path.name}")
             return 0
 
-        df, updates = rebuild_edges(df, path.name)
+        updated = 0
 
-        if updates > 0:
-            df.to_csv(path, index=False)
+        # ---------------------------
+        # MONEYLINE FILES
+        # ---------------------------
 
-        log_line(f"UPDATED | {path.name} | values_updated={updates}")
+        if "moneyline" in name:
 
-        return updates
+            new_home = df["home_dk_decimal_moneyline"] - df["home_juice_decimal_moneyline"]
+            new_away = df["away_dk_decimal_moneyline"] - df["away_juice_decimal_moneyline"]
+
+            updated += (df["home_ml_edge_decimal"] != new_home).sum()
+            updated += (df["away_ml_edge_decimal"] != new_away).sum()
+
+            df["home_ml_edge_decimal"] = new_home
+            df["away_ml_edge_decimal"] = new_away
+
+
+        # ---------------------------
+        # SPREAD FILES
+        # ---------------------------
+
+        elif "spread" in name:
+
+            new_home = df["home_dk_spread_decimal"] - df["home_spread_juice_decimal"]
+            new_away = df["away_dk_spread_decimal"] - df["away_spread_juice_decimal"]
+
+            updated += (df["home_spread_edge_decimal"] != new_home).sum()
+            updated += (df["away_spread_edge_decimal"] != new_away).sum()
+
+            df["home_spread_edge_decimal"] = new_home
+            df["away_spread_edge_decimal"] = new_away
+
+
+        # ---------------------------
+        # TOTAL FILES
+        # ---------------------------
+
+        elif "total" in name:
+
+            new_over = df["dk_total_over_decimal"] - df["total_over_juice_decimal"]
+            new_under = df["dk_total_under_decimal"] - df["total_under_juice_decimal"]
+
+            updated += (df["over_edge_decimal"] != new_over).sum()
+            updated += (df["under_edge_decimal"] != new_under).sum()
+
+            df["over_edge_decimal"] = new_over
+            df["under_edge_decimal"] = new_under
+
+
+        df.to_csv(path, index=False)
+
+        log_line(f"UPDATED | {path.name} | values_updated={updated}")
+
+        return updated
 
     except Exception:
+
         log_line(f"FAILED | {path.name}\n{traceback.format_exc()}")
         return 0
 
@@ -149,10 +115,6 @@ def main():
 
     for pattern in PATTERNS:
         files.extend(sorted(EDGE_DIR.glob(pattern)))
-
-    if not files:
-        log_line("No edge files found.")
-        return
 
     total_files = 0
     total_updates = 0
