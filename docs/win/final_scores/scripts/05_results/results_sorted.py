@@ -24,6 +24,18 @@ OUTPUTS = {
     "NHL": Path("docs/win/final_scores/results/nhl/graded/nhl_final_sorted.csv"),
 }
 
+MARKET_TALLY_INPUTS = {
+    "NBA": Path("docs/win/final_scores/results/nba/graded/NBA_final_sorted.csv"),
+    "NCAAB": Path("docs/win/final_scores/results/ncaab/graded/ncaab_final_sorted.csv"),
+    "NHL": Path("docs/win/final_scores/results/nhl/graded/nhl_final_sorted.csv"),
+}
+
+MARKET_TALLY_OUTPUTS = {
+    "NBA": Path("docs/win/final_scores/results/market_tally_NBA.csv"),
+    "NCAAB": Path("docs/win/final_scores/results/market_tally_NCAAB.csv"),
+    "NHL": Path("docs/win/final_scores/results/market_tally_NHL.csv"),
+}
+
 ERROR_LOG = Path("docs/win/final_scores/errors/results_sorted_errors.txt")
 
 
@@ -396,6 +408,78 @@ def build_sorted_output(df: pd.DataFrame, market_name: str) -> pd.DataFrame:
     return out
 
 
+def create_market_tally_file(market_name: str, in_path: Path, out_path: Path) -> None:
+    df = safe_read(in_path)
+
+    if df.empty:
+        log(f"{market_name}: market tally input empty or missing: {in_path}")
+        pd.DataFrame(columns=[
+            "market", "market_type", "Win", "Loss", "Push", "Total", "Win_Pct"
+        ]).to_csv(out_path, index=False)
+        return
+
+    required_cols = {"market_type", "Win", "Loss", "Push", "Total", "Win_Pct"}
+    missing_cols = required_cols - set(df.columns)
+
+    if missing_cols:
+        log(f"{market_name}: market tally input missing columns {sorted(missing_cols)} in {in_path}")
+        pd.DataFrame(columns=[
+            "market", "market_type", "Win", "Loss", "Push", "Total", "Win_Pct"
+        ]).to_csv(out_path, index=False)
+        return
+
+    tally_df = df[df["market_type"].astype(str).str.strip() != ""].copy()
+    tally_df = tally_df[tally_df["market_type"].notna()].copy()
+
+    if tally_df.empty:
+        log(f"{market_name}: no market_type rows found in {in_path}")
+        pd.DataFrame(columns=[
+            "market", "market_type", "Win", "Loss", "Push", "Total", "Win_Pct"
+        ]).to_csv(out_path, index=False)
+        return
+
+    tally_df["market_type"] = tally_df["market_type"].astype(str).str.strip().str.lower()
+    tally_df["Win"] = pd.to_numeric(tally_df["Win"], errors="coerce").fillna(0).astype(int)
+    tally_df["Loss"] = pd.to_numeric(tally_df["Loss"], errors="coerce").fillna(0).astype(int)
+    tally_df["Push"] = pd.to_numeric(tally_df["Push"], errors="coerce").fillna(0).astype(int)
+    tally_df["Total"] = pd.to_numeric(tally_df["Total"], errors="coerce").fillna(0).astype(int)
+    tally_df["Win_Pct"] = pd.to_numeric(tally_df["Win_Pct"], errors="coerce").fillna(0.0)
+
+    tally_df = (
+        tally_df.groupby("market_type", as_index=False)[["Win", "Loss", "Push", "Total"]]
+        .sum()
+    )
+
+    denom = tally_df["Win"] + tally_df["Loss"]
+    tally_df["Win_Pct"] = (tally_df["Win"] / denom).where(denom > 0, 0.0).round(4)
+    tally_df.insert(0, "market", market_name)
+
+    if market_name in ["NBA", "NCAAB"]:
+        order = ["moneyline", "spread", "total"]
+    else:
+        order = ["moneyline", "puck_line", "total"]
+
+    tally_df["market_type"] = pd.Categorical(
+        tally_df["market_type"],
+        categories=order,
+        ordered=True
+    )
+    tally_df = tally_df.sort_values("market_type", kind="mergesort")
+    tally_df["market_type"] = tally_df["market_type"].astype(str)
+
+    tally_df = tally_df[["market", "market_type", "Win", "Loss", "Push", "Total", "Win_Pct"]]
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    tally_df.to_csv(out_path, index=False)
+    log(f"{market_name}: wrote market tally {out_path} ({len(tally_df)} rows)")
+
+
+def create_all_market_tally_files() -> None:
+    for market_name, in_path in MARKET_TALLY_INPUTS.items():
+        out_path = MARKET_TALLY_OUTPUTS[market_name]
+        create_market_tally_file(market_name, in_path, out_path)
+
+
 # =========================
 # MAIN
 # =========================
@@ -483,6 +567,8 @@ def main() -> None:
         sorted_df = build_sorted_output(df, market_name)
         sorted_df.to_csv(out_path, index=False)
         log(f"{market_name}: wrote {out_path} ({len(sorted_df)} rows)")
+
+    create_all_market_tally_files()
 
     print("results_sorted.py complete.")
 
