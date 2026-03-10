@@ -11,35 +11,20 @@ import pandas as pd
 
 
 # =========================
-# LOGGER
+# LOGGING
 # =========================
-
-def audit(log_path, stage, status, msg="", df=None):
-
-    ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    log_path = Path(log_path)
-    log_path.parent.mkdir(parents=True, exist_ok=True)
-
-    log_mode = "w" if not log_path.exists() else "a"
-
-    with open(log_path, log_mode, encoding="utf-8") as f:
-
-        f.write(f"\n[{ts}] [{stage}] {status}\n")
-
-        if msg:
-            f.write(f"  MSG: {msg}\n")
-
-        if df is not None and isinstance(df, pd.DataFrame):
-
-            f.write(f"  STATS: {len(df)} rows | {len(df.columns)} cols\n")
-            f.write(f"  SAMPLE:\n{df.head(3).to_string(index=False)}\n")
-
-        f.write("-" * 40 + "\n")
-
 
 ERROR_DIR = Path("docs/win/final_scores/errors")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
+
+SUMMARY_LOG = ERROR_DIR / "results_summary.txt"
 ERROR_LOG = ERROR_DIR / "results_errors.txt"
+
+
+def log_summary(message: str):
+
+    with open(SUMMARY_LOG, "a", encoding="utf-8") as f:
+        f.write(message.rstrip() + "\n")
 
 
 def log_error(message: str):
@@ -48,9 +33,14 @@ def log_error(message: str):
         f.write(message.rstrip() + "\n")
 
 
+# =========================
+# SAFE CSV READ
+# =========================
+
 def safe_read_csv(path: str):
 
     try:
+
         df = pd.read_csv(path)
 
         if df is None or df.empty:
@@ -60,7 +50,10 @@ def safe_read_csv(path: str):
 
     except Exception:
 
-        log_error(f"ERROR READING {path}: {traceback.format_exc()}")
+        log_error(
+            f"\n[{datetime.now()}] ERROR READING {path}\n"
+            f"{traceback.format_exc()}"
+        )
 
         return pd.DataFrame()
 
@@ -74,10 +67,16 @@ def clear_old_results(directory, suffix):
     files = glob.glob(str(directory / f"*_results_{suffix}.csv"))
 
     for f in files:
+
         try:
             os.remove(f)
+
         except Exception:
-            pass
+
+            log_error(
+                f"\n[{datetime.now()}] FAILED TO DELETE {f}\n"
+                f"{traceback.format_exc()}"
+            )
 
 
 # =========================
@@ -157,7 +156,7 @@ def write_market_master(cfg, output_dir):
 
     if not files:
 
-        audit(ERROR_LOG, "MASTER", "SKIP", msg=f"No graded files found for {cfg['name']}")
+        log_summary(f"[MASTER SKIP] {cfg['name']} - No graded files found")
         return
 
     dfs = []
@@ -179,7 +178,7 @@ def write_market_master(cfg, output_dir):
 
     if not dfs:
 
-        audit(ERROR_LOG, "MASTER", "SKIP", msg=f"No valid bets found for {cfg['name']}")
+        log_summary(f"[MASTER SKIP] {cfg['name']} - No valid bets found")
         return
 
     master_df = pd.concat(dfs, ignore_index=True)
@@ -208,7 +207,6 @@ def write_market_master(cfg, output_dir):
 
     master_df = master_df[cols]
 
-    # SAFE duplicate removal
     master_df = master_df.drop_duplicates(
         subset=["game_date","away_team","home_team","market_type","bet_side","line"]
     )
@@ -220,9 +218,9 @@ def write_market_master(cfg, output_dir):
 
     master_df.to_csv(master_path, index=False)
 
-    audit(ERROR_LOG, "MASTER", "SUCCESS",
-          msg=f"Wrote {cfg['name']} master", df=master_df)
-
+    log_summary(
+        f"[MASTER SUCCESS] {cfg['name']} master written | rows={len(master_df)}"
+    )
 
     # =========================
     # MARKET TALLY
@@ -235,8 +233,6 @@ def write_market_master(cfg, output_dir):
     tally_path = output_dir.parent / "market_tally.csv"
     tally.to_csv(tally_path, index=False)
 
-
-    # console display
     print(f"\n{cfg['name']} MARKET TALLY")
     print(tally.sort_values(["market_type","bet_side","bet_result"]).to_string(index=False))
 
@@ -247,8 +243,11 @@ def write_market_master(cfg, output_dir):
 
 def process_results():
 
+    with open(SUMMARY_LOG, "w") as f:
+        f.write(f"=== Results Summary | {datetime.now()} ===\n")
+
     with open(ERROR_LOG, "w") as f:
-        f.write("=== Results Script Log ===\n")
+        f.write(f"=== Results Errors | {datetime.now()} ===\n")
 
     configs = [
         {
@@ -292,6 +291,7 @@ def process_results():
             score_file = scores_dir / f"{date_str}_final_scores_{cfg['suffix']}.csv"
 
             if not score_file.exists():
+                log_summary(f"[SKIP] {cfg['name']} {date_str} - score file missing")
                 continue
 
             daily_bets = glob.glob(
@@ -308,6 +308,7 @@ def process_results():
                     dfs.append(df)
 
             if not dfs:
+                log_summary(f"[SKIP] {cfg['name']} {date_str} - no bet files")
                 continue
 
             bets_df = pd.concat(dfs, ignore_index=True)
@@ -315,6 +316,7 @@ def process_results():
             scores_df = safe_read_csv(str(score_file))
 
             if scores_df.empty:
+                log_summary(f"[SKIP] {cfg['name']} {date_str} - score file empty")
                 continue
 
             try:
@@ -329,14 +331,21 @@ def process_results():
 
             except Exception:
 
-                log_error(f"MERGE ERROR {cfg['name']} {date_str}: {traceback.format_exc()}")
+                log_error(
+                    f"\n[{datetime.now()}] MERGE ERROR {cfg['name']} {date_str}\n"
+                    f"{traceback.format_exc()}"
+                )
                 continue
 
             df["bet_result"] = df.apply(determine_outcome, axis=1)
 
-            df.to_csv(output_dir / f"{date_str}_results_{cfg['suffix']}.csv", index=False)
+            outfile = output_dir / f"{date_str}_results_{cfg['suffix']}.csv"
 
-            audit(ERROR_LOG, "GRADING", "SUCCESS", msg=f"{cfg['name']} {date_str}", df=df)
+            df.to_csv(outfile, index=False)
+
+            log_summary(
+                f"[GRADING SUCCESS] {cfg['name']} {date_str} | rows={len(df)}"
+            )
 
         write_market_master(cfg, output_dir)
 
