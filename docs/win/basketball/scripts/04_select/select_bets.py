@@ -142,14 +142,14 @@ def step3_nba_total(row):
     if line > 245:
         return False, "FAIL STEP 3 NBA TOTAL | total limit", ""
 
-    if proj_diff < 2:
+    if proj_diff < 0:
         return False, "FAIL STEP 3 NBA TOTAL | projection diff", ""
 
     if max_spread >= 16 and line >= 240:
         return False, "FAIL STEP 3 NBA TOTAL | blowout filter", ""
 
-    over_pass = 0.05 <= over_edge <= 0.35
-    under_pass = 0.05 <= under_edge <= 0.35
+    over_pass = 0.02 <= over_edge <= 0.35
+    under_pass = 0.02 <= under_edge <= 0.35
 
     if over_pass and under_pass:
         return True, "PASS STEP 3 NBA TOTAL | both edges", "over" if over_edge >= under_edge else "under"
@@ -174,10 +174,10 @@ def step4_ncaab_moneyline(row):
     home_edge = f(row.get("home_ml_edge_decimal"))
     away_edge = f(row.get("away_ml_edge_decimal"))
 
-    if away_ml > -150 and away_edge >= 0.05:
+    if away_ml > -150 and away_edge >= 0.03:
         return True, "PASS STEP 4 NCAAB MONEYLINE", "away", away_ml
 
-    if home_ml > -200 and home_edge >= 0.05:
+    if home_ml > -200 and home_edge >= 0.02:
         return True, "PASS STEP 4 NCAAB MONEYLINE", "home", home_ml
 
     return False, "FAIL STEP 4 NCAAB MONEYLINE", "", ""
