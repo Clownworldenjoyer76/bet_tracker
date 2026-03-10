@@ -108,17 +108,24 @@ def step1_nba_moneyline(row):
 ###############################################################
 
 def step2_nba_spread(row):
+
     home_line = f(row.get("home_spread"))
     away_line = f(row.get("away_spread"))
 
     home_edge = f(row.get("home_spread_edge_decimal"))
     away_edge = f(row.get("away_spread_edge_decimal"))
 
-    if home_edge >= 0.05:
-        return True, "PASS STEP 2 NBA SPREAD", "home", home_line
+    edge_threshold = 0.020
 
-    if away_edge >= 0.05:
-        return True, "PASS STEP 2 NBA SPREAD", "away", away_line
+    # require at least one side above threshold
+    if home_edge >= edge_threshold or away_edge >= edge_threshold:
+
+        # choose the larger edge
+        if home_edge >= away_edge:
+            return True, "PASS STEP 2 NBA SPREAD", "home", home_line
+
+        if away_edge > home_edge:
+            return True, "PASS STEP 2 NBA SPREAD", "away", away_line
 
     return False, "FAIL STEP 2 NBA SPREAD", "", ""
 
@@ -128,6 +135,7 @@ def step2_nba_spread(row):
 ###############################################################
 
 def step3_nba_total(row):
+
     line = f(row.get("total"))
     proj = f(row.get("total_projected_points"))
 
@@ -140,25 +148,32 @@ def step3_nba_total(row):
 
     proj_diff = abs(proj - line)
 
+    # extreme totals filter
     if line > 245:
         return False, "FAIL STEP 3 NBA TOTAL | total limit", ""
 
-    if proj_diff < 0:
+    # require real disagreement between projection and market
+    if proj_diff < 2:
         return False, "FAIL STEP 3 NBA TOTAL | projection diff", ""
 
+    # blowout risk filter
     if max_spread >= 16 and line >= 240:
         return False, "FAIL STEP 3 NBA TOTAL | blowout filter", ""
 
-    over_pass = 0.02 <= over_edge <= 0.35
-    under_pass = 0.02 <= under_edge <= 0.35
+    edge_threshold = 0.02
 
-    if over_pass and under_pass:
-        return True, "PASS STEP 3 NBA TOTAL | both edges", "over" if over_edge >= under_edge else "under"
+    over_pass = over_edge >= edge_threshold
+    under_pass = under_edge >= edge_threshold
 
-    if over_pass:
-        return True, "PASS STEP 3 NBA TOTAL | over edge", "over"
+    # avoid coin-flip edges
+    if abs(over_edge - under_edge) < 0.005:
+        return False, "FAIL STEP 3 NBA TOTAL | edges too close", ""
 
-    if under_pass:
+    if over_pass or under_pass:
+
+        if over_edge >= under_edge:
+            return True, "PASS STEP 3 NBA TOTAL | over edge", "over"
+
         return True, "PASS STEP 3 NBA TOTAL | under edge", "under"
 
     return False, "FAIL STEP 3 NBA TOTAL | edge filter", ""
@@ -169,17 +184,33 @@ def step3_nba_total(row):
 ###############################################################
 
 def step4_ncaab_moneyline(row):
+
     home_ml = f(row.get("home_dk_moneyline_american"))
     away_ml = f(row.get("away_dk_moneyline_american"))
 
     home_edge = f(row.get("home_ml_edge_decimal"))
     away_edge = f(row.get("away_ml_edge_decimal"))
 
-    if away_ml > -150 and away_edge >= 0.03:
-        return True, "PASS STEP 4 NCAAB MONEYLINE", "away", away_ml
+    edge_home_threshold = 0.02
+    edge_away_threshold = 0.03
 
-    if home_ml > -200 and home_edge >= 0.02:
-        return True, "PASS STEP 4 NCAAB MONEYLINE", "home", home_ml
+    # avoid extreme longshots
+    if home_ml > 400 or away_ml > 400:
+        return False, "FAIL STEP 4 NCAAB MONEYLINE | longshot filter", "", ""
+
+    # require at least one valid edge
+    if home_edge >= edge_home_threshold or away_edge >= edge_away_threshold:
+
+        # avoid coin-flip edges
+        if abs(home_edge - away_edge) < 0.005:
+            return False, "FAIL STEP 4 NCAAB MONEYLINE | edges too close", "", ""
+
+        # choose stronger edge
+        if away_edge > home_edge and away_ml > -150:
+            return True, "PASS STEP 4 NCAAB MONEYLINE", "away", away_ml
+
+        if home_edge >= away_edge and home_ml > -200:
+            return True, "PASS STEP 4 NCAAB MONEYLINE", "home", home_ml
 
     return False, "FAIL STEP 4 NCAAB MONEYLINE", "", ""
 
@@ -188,26 +219,28 @@ def step4_ncaab_moneyline(row):
 #################### STEP 5 NCAAB SPREAD ######################
 ###############################################################
 
-
-
-
 def step5_ncaab_spread(row):
+
     home_line = f(row.get("home_spread"))
     away_line = f(row.get("away_spread"))
 
     home_edge = f(row.get("home_spread_edge_decimal"))
     away_edge = f(row.get("away_spread_edge_decimal"))
 
+    edge_threshold = 0.04
 
+    # avoid tiny spreads
+    if abs(home_line) <= 2 or abs(away_line) <= 2:
+        return False, "FAIL STEP 5 NCAAB SPREAD | tiny spread", "", ""
 
+    if home_edge >= edge_threshold or away_edge >= edge_threshold:
 
-    if home_edge <= 0 and away_edge <= 0:
-        return False, "FAIL STEP 5 NCAAB SPREAD | no positive spread edge", "", ""
+        if home_edge >= away_edge:
+            return True, "PASS STEP 5 NCAAB SPREAD", "home", home_line
 
-    if home_edge >= away_edge:
-        return True, "PASS STEP 5 NCAAB SPREAD", "home", home_line
+        return True, "PASS STEP 5 NCAAB SPREAD", "away", away_line
 
-    return True, "PASS STEP 5 NCAAB SPREAD", "away", away_line
+    return False, "FAIL STEP 5 NCAAB SPREAD", "", ""
 
 
 ###############################################################
@@ -215,31 +248,25 @@ def step5_ncaab_spread(row):
 ###############################################################
 
 def step6_ncaab_total(row):
+
     line = f(row.get("total"))
     proj = f(row.get("total_projected_points"))
 
     over_edge = f(row.get("over_edge_decimal"))
-    under_edge = f(row.get("under_edge_decimal"))
 
     proj_diff = abs(proj - line)
 
-    if line < 130 or line > 200:
+    # avoid extreme totals
+    if line < 145 or line > 200:
         return False, "FAIL STEP 6 NCAAB TOTAL | range", ""
 
-    if proj_diff <3:
+    # projection must meaningfully disagree with market
+    if proj_diff < 3:
         return False, "FAIL STEP 6 NCAAB TOTAL | projection diff", ""
 
-    over_pass = 0.02 <= over_edge <= 0.50
-    under_pass = 0.02 <= under_edge <= 0.50
-
-    if over_pass and under_pass:
-        return True, "PASS STEP 6 NCAAB TOTAL | both edges", "over" if over_edge >= under_edge else "under"
-
-    if over_pass:
+    # only bet overs (unders currently negative EV)
+    if 0.02 <= over_edge <= 0.50:
         return True, "PASS STEP 6 NCAAB TOTAL | over edge", "over"
-
-    if under_pass:
-        return True, "PASS STEP 6 NCAAB TOTAL | under edge", "under"
 
     return False, "FAIL STEP 6 NCAAB TOTAL | edge filter", ""
 
