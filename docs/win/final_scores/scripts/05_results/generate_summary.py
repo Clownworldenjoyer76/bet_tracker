@@ -30,7 +30,8 @@ def extract_edge(row):
             if side == "away":
                 return row.get("away_ml_edge_decimal")
 
-        if market == "spread":
+        # UPDATED: include puck_line
+        if market in ["spread", "puck_line"]:
 
             if side == "home":
                 return row.get("home_spread_edge_decimal")
