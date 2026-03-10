@@ -89,17 +89,35 @@ def step1_nba_moneyline(row):
     home_ml = f(row.get("home_dk_moneyline_american"))
     away_ml = f(row.get("away_dk_moneyline_american"))
 
-    edge_threshold = 0.02
+    # Baseline edge
+    edge_threshold = 0.025 
 
-    # require at least one side to meet threshold
-    if home_edge >= edge_threshold or away_edge >= edge_threshold:
+    # Logic for Home Side
+    home_pass = False
+    # Only bet home ML if it's within a realistic competitive range (-250 to +150)
+    if -250 <= home_ml <= 150:
+        if home_edge >= edge_threshold:
+            home_pass = True
+    # If a heavy favorite (-251 to -500), require a larger edge to justify the risk
+    elif -500 <= home_ml < -250:
+        if home_edge >= 0.04:
+            home_pass = True
 
-        # choose the side with the larger edge
-        if home_edge >= away_edge and -1000 <= home_ml <= 1000:
-            return True, "PASS STEP 1 NBA MONEYLINE", "home", home_ml
+    # Logic for Away Side
+    away_pass = False
+    # Away teams are riskier; tighten the odds range (-180 to +120)
+    if -180 <= away_ml <= 120:
+        if away_edge >= 0.03: # Slightly higher edge for road teams
+            away_pass = True
 
-        if away_edge > home_edge and -1000 <= away_ml <= 1000:
-            return True, "PASS STEP 1 NBA MONEYLINE", "away", away_ml
+    # Decision Block
+    if home_pass or away_pass:
+        # If both pass, choose the larger edge
+        if home_edge >= away_edge and home_pass:
+            return True, "PASS STEP 1 NBA MONEYLINE | home", "home", home_ml
+        
+        if away_pass:
+            return True, "PASS STEP 1 NBA MONEYLINE | away", "away", away_ml
 
     return False, "FAIL STEP 1 NBA MONEYLINE", "", ""
 
@@ -115,19 +133,34 @@ def step2_nba_spread(row):
     home_edge = f(row.get("home_spread_edge_decimal"))
     away_edge = f(row.get("away_spread_edge_decimal"))
 
-    edge_threshold = 0.020
+    # Baseline edge requirement
+    edge_threshold = 0.020 
+    
+    # ADVANTAGE: Home Favorites (home_line is negative)
+    # Give a slight edge boost to home favorites between -3 and -7
+    is_home_fav = home_line <= -3 and home_line >= -7
+    if is_home_fav:
+        effective_home_threshold = 0.015  # Easier to pass for strong home spots
+    else:
+        effective_home_threshold = edge_threshold
 
-    # require at least one side above threshold
-    if home_edge >= edge_threshold or away_edge >= edge_threshold:
+    # RISK MITIGATION: Large Road Underdogs (away_line is high positive)
+    # Require a larger edge for road teams getting 10+ points
+    if away_line >= 10:
+        effective_away_threshold = 0.035
+    else:
+        effective_away_threshold = edge_threshold
 
-        # choose the larger edge
+    # Evaluation logic
+    if home_edge >= effective_home_threshold or away_edge >= effective_away_threshold:
+
+        # If both pass, pick the one with the highest relative edge
         if home_edge >= away_edge:
-            return True, "PASS STEP 2 NBA SPREAD", "home", home_line
+            return True, "PASS STEP 2 NBA SPREAD | home advantage", "home", home_line
 
-        if away_edge > home_edge:
-            return True, "PASS STEP 2 NBA SPREAD", "away", away_line
+        return True, "PASS STEP 2 NBA SPREAD | away edge", "away", away_line
 
-    return False, "FAIL STEP 2 NBA SPREAD", "", ""
+    return False, "FAIL STEP 2 NBA SPREAD | edge below threshold", "", ""
 
 
 ###############################################################
@@ -148,28 +181,27 @@ def step3_nba_total(row):
 
     proj_diff = abs(proj - line)
 
-    # remove extreme totals only
-    if line > 250:
+    # REVISED: Increased limit to 260 to capture high-scoring matchups
+    if line > 260:
         return False, "FAIL STEP 3 NBA TOTAL | extreme total", ""
 
-    # allow smaller model disagreement
-    if proj_diff < 1:
+    # REVISED: Reduced minimum disagreement from 1.0 to 0.1 to allow more plays
+    if proj_diff < 0.1:
         return False, "FAIL STEP 3 NBA TOTAL | projection diff", ""
 
-    # blowout risk
-    if max_spread >= 16 and line >= 240:
+    # REVISED: Increased blowout threshold from 16 to 20
+    if max_spread >= 20 and line >= 240:
         return False, "FAIL STEP 3 NBA TOTAL | blowout filter", ""
 
-    edge_threshold = 0.01
+    # REVISED: Lowered edge requirement to 0.005 (half a percent)
+    edge_threshold = 0.005
 
     over_pass = over_edge >= edge_threshold
     under_pass = under_edge >= edge_threshold
 
     if over_pass or under_pass:
-
         if over_edge >= under_edge:
             return True, "PASS STEP 3 NBA TOTAL | over edge", "over"
-
         return True, "PASS STEP 3 NBA TOTAL | under edge", "under"
 
     return False, "FAIL STEP 3 NBA TOTAL | edge filter", ""
