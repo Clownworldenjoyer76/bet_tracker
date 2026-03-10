@@ -40,41 +40,92 @@ def edge(model_decimal, book_decimal):
     return (1 / model_decimal) - (1 / book_decimal)
 
 
-def rebuild_edges(df):
+def rebuild_edges(df, file_name):
 
     updated = 0
+    name = file_name.lower()
 
     def update(col, new_vals):
         nonlocal updated
         if col not in df.columns:
             return
-        old = df[col].copy()
-        df[col] = new_vals
-        updated += (old != new_vals).sum()
+        old = pd.to_numeric(df[col], errors="coerce")
+        new = pd.to_numeric(new_vals, errors="coerce")
+        df[col] = new
+        changed_mask = ~(
+            (old.eq(new)) |
+            (old.isna() & new.isna())
+        )
+        updated += int(changed_mask.sum())
 
-    if {"home_spread_juice_decimal", "home_dk_spread_decimal"}.issubset(df.columns):
-        new_vals = edge(df["home_spread_juice_decimal"], df["home_dk_spread_decimal"])
-        update("home_spread_edge_decimal", new_vals)
+    if "spread" in name:
+        required = {
+            "home_spread_juice_decimal",
+            "away_spread_juice_decimal",
+            "home_dk_spread_decimal",
+            "away_dk_spread_decimal",
+            "home_spread_edge_decimal",
+            "away_spread_edge_decimal",
+        }
+        missing = sorted(required - set(df.columns))
+        if missing:
+            raise ValueError(f"Missing spread columns: {missing}")
 
-    if {"away_spread_juice_decimal", "away_dk_spread_decimal"}.issubset(df.columns):
-        new_vals = edge(df["away_spread_juice_decimal"], df["away_dk_spread_decimal"])
-        update("away_spread_edge_decimal", new_vals)
+        update(
+            "home_spread_edge_decimal",
+            edge(df["home_spread_juice_decimal"], df["home_dk_spread_decimal"])
+        )
+        update(
+            "away_spread_edge_decimal",
+            edge(df["away_spread_juice_decimal"], df["away_dk_spread_decimal"])
+        )
 
-    if {"home_juice_decimal_moneyline", "home_dk_decimal_moneyline"}.issubset(df.columns):
-        new_vals = edge(df["home_juice_decimal_moneyline"], df["home_dk_decimal_moneyline"])
-        update("home_ml_edge_decimal", new_vals)
+    elif "moneyline" in name:
+        required = {
+            "home_juice_decimal_moneyline",
+            "away_juice_decimal_moneyline",
+            "home_dk_decimal_moneyline",
+            "away_dk_decimal_moneyline",
+            "home_ml_edge_decimal",
+            "away_ml_edge_decimal",
+        }
+        missing = sorted(required - set(df.columns))
+        if missing:
+            raise ValueError(f"Missing moneyline columns: {missing}")
 
-    if {"away_juice_decimal_moneyline", "away_dk_decimal_moneyline"}.issubset(df.columns):
-        new_vals = edge(df["away_juice_decimal_moneyline"], df["away_dk_decimal_moneyline"])
-        update("away_ml_edge_decimal", new_vals)
+        update(
+            "home_ml_edge_decimal",
+            edge(df["home_juice_decimal_moneyline"], df["home_dk_decimal_moneyline"])
+        )
+        update(
+            "away_ml_edge_decimal",
+            edge(df["away_juice_decimal_moneyline"], df["away_dk_decimal_moneyline"])
+        )
 
-    if {"total_over_juice_decimal", "dk_total_over_decimal"}.issubset(df.columns):
-        new_vals = edge(df["total_over_juice_decimal"], df["dk_total_over_decimal"])
-        update("over_edge_decimal", new_vals)
+    elif "total" in name:
+        required = {
+            "total_over_juice_decimal",
+            "total_under_juice_decimal",
+            "dk_total_over_decimal",
+            "dk_total_under_decimal",
+            "over_edge_decimal",
+            "under_edge_decimal",
+        }
+        missing = sorted(required - set(df.columns))
+        if missing:
+            raise ValueError(f"Missing total columns: {missing}")
 
-    if {"total_under_juice_decimal", "dk_total_under_decimal"}.issubset(df.columns):
-        new_vals = edge(df["total_under_juice_decimal"], df["dk_total_under_decimal"])
-        update("under_edge_decimal", new_vals)
+        update(
+            "over_edge_decimal",
+            edge(df["total_over_juice_decimal"], df["dk_total_over_decimal"])
+        )
+        update(
+            "under_edge_decimal",
+            edge(df["total_under_juice_decimal"], df["dk_total_under_decimal"])
+        )
+
+    else:
+        raise ValueError(f"Could not detect market type from filename: {file_name}")
 
     return df, updated
 
@@ -88,7 +139,7 @@ def process_file(path):
             log_line(f"SKIP empty file | {path.name}")
             return 0
 
-        df, updates = rebuild_edges(df)
+        df, updates = rebuild_edges(df, path.name)
         df.to_csv(path, index=False)
 
         log_line(f"UPDATED | {path.name} | values_updated={updates}")
