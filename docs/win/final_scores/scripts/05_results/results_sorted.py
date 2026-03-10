@@ -409,69 +409,56 @@ def build_sorted_output(df: pd.DataFrame, market_name: str) -> pd.DataFrame:
 
 
 def create_market_tally_file(market_name: str, in_path: Path, out_path: Path) -> None:
-    df = safe_read(in_path)
+    # Use the raw input file to ensure we are looking at individual bets
+    raw_path = INPUTS.get(market_name)
+    df = safe_read(raw_path)
 
     if df.empty:
-        log(f"{market_name}: market tally input empty or missing: {in_path}")
-        pd.DataFrame(columns=[
-            "market", "market_type", "Win", "Loss", "Push", "Total", "Win_Pct"
-        ]).to_csv(out_path, index=False)
+        log(f"{market_name}: Input empty or missing: {raw_path}")
         return
 
-    required_cols = {"market_type", "Win", "Loss", "Push", "Total", "Win_Pct"}
-    missing_cols = required_cols - set(df.columns)
+    # 1. DEDUPLICATION: Only count one outcome per game/market combo
+    # This prevents counting 5 different bets on the same ML as 5 separate wins/losses
+    df_unique = df.drop_duplicates(subset=["game_id", "market_type"]).copy()
 
-    if missing_cols:
-        log(f"{market_name}: market tally input missing columns {sorted(missing_cols)} in {in_path}")
-        pd.DataFrame(columns=[
-            "market", "market_type", "Win", "Loss", "Push", "Total", "Win_Pct"
-        ]).to_csv(out_path, index=False)
-        return
+    # 2. STANDARDIZE
+    df_unique["market_type"] = df_unique["market_type"].astype(str).str.strip().str.lower()
+    df_unique["bet_result"] = df_unique["bet_result"].astype(str).str.strip().str.title()
 
-    tally_df = df[df["market_type"].astype(str).str.strip() != ""].copy()
-    tally_df = tally_df[tally_df["market_type"].notna()].copy()
-
-    if tally_df.empty:
-        log(f"{market_name}: no market_type rows found in {in_path}")
-        pd.DataFrame(columns=[
-            "market", "market_type", "Win", "Loss", "Push", "Total", "Win_Pct"
-        ]).to_csv(out_path, index=False)
-        return
-
-    tally_df["market_type"] = tally_df["market_type"].astype(str).str.strip().str.lower()
-    tally_df["Win"] = pd.to_numeric(tally_df["Win"], errors="coerce").fillna(0).astype(int)
-    tally_df["Loss"] = pd.to_numeric(tally_df["Loss"], errors="coerce").fillna(0).astype(int)
-    tally_df["Push"] = pd.to_numeric(tally_df["Push"], errors="coerce").fillna(0).astype(int)
-    tally_df["Total"] = pd.to_numeric(tally_df["Total"], errors="coerce").fillna(0).astype(int)
-    tally_df["Win_Pct"] = pd.to_numeric(tally_df["Win_Pct"], errors="coerce").fillna(0.0)
-
-    tally_df = (
-        tally_df.groupby("market_type", as_index=False)[["Win", "Loss", "Push", "Total"]]
-        .sum()
-    )
-
-    denom = tally_df["Win"] + tally_df["Loss"]
-    tally_df["Win_Pct"] = (tally_df["Win"] / denom).where(denom > 0, 0.0).round(4)
-    tally_df.insert(0, "market", market_name)
-
+    # 3. CALCULATE TALLY
+    results = []
+    # Define order based on sport
     if market_name in ["NBA", "NCAAB"]:
-        order = ["moneyline", "spread", "total"]
+        m_types = ["moneyline", "spread", "total"]
     else:
-        order = ["moneyline", "puck_line", "total"]
+        m_types = ["moneyline", "puck_line", "total"]
 
-    tally_df["market_type"] = pd.Categorical(
-        tally_df["market_type"],
-        categories=order,
-        ordered=True
-    )
-    tally_df = tally_df.sort_values("market_type", kind="mergesort")
-    tally_df["market_type"] = tally_df["market_type"].astype(str)
+    for mt in m_types:
+        sub = df_unique[df_unique["market_type"] == mt]
+        
+        wins = int((sub["bet_result"] == "Win").sum())
+        losses = int((sub["bet_result"] == "Loss").sum())
+        pushes = int((sub["bet_result"] == "Push").sum())
+        total = wins + losses + pushes
+        
+        denom = wins + losses
+        win_pct = float(wins / denom) if denom > 0 else 0.0
 
-    tally_df = tally_df[["market", "market_type", "Win", "Loss", "Push", "Total", "Win_Pct"]]
+        results.append({
+            "market": market_name,
+            "market_type": mt,
+            "Win": wins,
+            "Loss": losses,
+            "Push": pushes,
+            "Total": total,
+            "Win_Pct": round(win_pct, 4)
+        })
 
+    # 4. WRITE OUTPUT
+    tally_df = pd.DataFrame(results)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     tally_df.to_csv(out_path, index=False)
-    log(f"{market_name}: wrote market tally {out_path} ({len(tally_df)} rows)")
+    log(f"{market_name}: wrote deduplicated market tally {out_path}")
 
 
 def create_all_market_tally_files() -> None:
