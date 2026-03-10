@@ -113,10 +113,10 @@ def step2_nba_spread(row):
     home_edge = f(row.get("home_spread_edge_decimal"))
     away_edge = f(row.get("away_spread_edge_decimal"))
 
-    if home_edge >= 0.07 and -14.6 <= home_line <= 14.6 and not (-2 <= home_line <= 2):
+    if home_edge >= 0.05:
         return True, "PASS STEP 2 NBA SPREAD", "home", home_line
 
-    if away_edge >= 0.07 and -14.6 <= away_line <= 14.6 and not (-2 <= away_line <= 2):
+    if away_edge >= 0.05:
         return True, "PASS STEP 2 NBA SPREAD", "away", away_line
 
     return False, "FAIL STEP 2 NBA SPREAD", "", ""
@@ -142,14 +142,14 @@ def step3_nba_total(row):
     if line > 245:
         return False, "FAIL STEP 3 NBA TOTAL | total limit", ""
 
-    if proj_diff < 5:
+    if proj_diff < 2:
         return False, "FAIL STEP 3 NBA TOTAL | projection diff", ""
 
-    if max_spread >= 13 and line >= 240:
+    if max_spread >= 16 and line >= 240:
         return False, "FAIL STEP 3 NBA TOTAL | blowout filter", ""
 
-    over_pass = 0.10 <= over_edge <= 0.35
-    under_pass = 0.10 <= under_edge <= 0.35
+    over_pass = 0.05 <= over_edge <= 0.35
+    under_pass = 0.05 <= under_edge <= 0.35
 
     if over_pass and under_pass:
         return True, "PASS STEP 3 NBA TOTAL | both edges", "over" if over_edge >= under_edge else "under"
@@ -174,7 +174,7 @@ def step4_ncaab_moneyline(row):
     home_edge = f(row.get("home_ml_edge_decimal"))
     away_edge = f(row.get("away_ml_edge_decimal"))
 
-    if away_ml > -150 and away_edge >= 0.08:
+    if away_ml > -150 and away_edge >= 0.05:
         return True, "PASS STEP 4 NCAAB MONEYLINE", "away", away_ml
 
     if home_ml > -200 and home_edge >= 0.05:
@@ -187,14 +187,7 @@ def step4_ncaab_moneyline(row):
 #################### STEP 5 NCAAB SPREAD ######################
 ###############################################################
 
-def blocked_ncaab_spread_line(line):
-    if 1 <= line <= 3:
-        return True
-    if -10 <= line <= -5:
-        return True
-    if 1 <= abs(line) <= 7 and line > 0:
-        return True
-    return False
+
 
 
 def step5_ncaab_spread(row):
@@ -204,8 +197,8 @@ def step5_ncaab_spread(row):
     home_edge = f(row.get("home_spread_edge_decimal"))
     away_edge = f(row.get("away_spread_edge_decimal"))
 
-    if blocked_ncaab_spread_line(home_line) or blocked_ncaab_spread_line(away_line):
-        return False, "FAIL STEP 5 NCAAB SPREAD", "", ""
+
+
 
     if home_edge <= 0 and away_edge <= 0:
         return False, "FAIL STEP 5 NCAAB SPREAD | no positive spread edge", "", ""
@@ -229,14 +222,14 @@ def step6_ncaab_total(row):
 
     proj_diff = abs(proj - line)
 
-    if line < 130 or line > 175:
+    if line < 130 or line > 200:
         return False, "FAIL STEP 6 NCAAB TOTAL | range", ""
 
-    if proj_diff < 6:
+    if proj_diff <3:
         return False, "FAIL STEP 6 NCAAB TOTAL | projection diff", ""
 
-    over_pass = 0.10 <= over_edge <= 0.22
-    under_pass = 0.12 <= under_edge <= 0.22
+    over_pass = 0.02 <= over_edge <= 0.50
+    under_pass = 0.02 <= under_edge <= 0.50
 
     if over_pass and under_pass:
         return True, "PASS STEP 6 NCAAB TOTAL | both edges", "over" if over_edge >= under_edge else "under"
