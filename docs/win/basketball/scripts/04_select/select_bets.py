@@ -81,10 +81,6 @@ def clear_previous_outputs():
 ##################### STEP 1 NBA MONEYLINE ####################
 ###############################################################
 
-###############################################################
-##################### STEP 1 NBA MONEYLINE ####################
-###############################################################
-
 def step1_nba_moneyline(row):
 
     home_edge = f(row.get("home_ml_edge_decimal"))
@@ -93,12 +89,17 @@ def step1_nba_moneyline(row):
     home_ml = f(row.get("home_dk_moneyline_american"))
     away_ml = f(row.get("away_dk_moneyline_american"))
 
-    # allow almost all realistic ML prices
-    if home_edge > 0.01 and -1000 <= home_ml <= 1000:
-        return True, "PASS STEP 1 NBA MONEYLINE", "home", home_ml
+    edge_threshold = 0.02
 
-    if away_edge > 0.01 and -1000 <= away_ml <= 1000:
-        return True, "PASS STEP 1 NBA MONEYLINE", "away", away_ml
+    # require at least one side to meet threshold
+    if home_edge >= edge_threshold or away_edge >= edge_threshold:
+
+        # choose the side with the larger edge
+        if home_edge >= away_edge and -1000 <= home_ml <= 1000:
+            return True, "PASS STEP 1 NBA MONEYLINE", "home", home_ml
+
+        if away_edge > home_edge and -1000 <= away_ml <= 1000:
+            return True, "PASS STEP 1 NBA MONEYLINE", "away", away_ml
 
     return False, "FAIL STEP 1 NBA MONEYLINE", "", ""
 
