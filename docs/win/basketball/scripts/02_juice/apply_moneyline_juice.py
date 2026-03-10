@@ -9,6 +9,33 @@ import traceback
 import sys
 
 # =========================
+# LOGGER
+# =========================
+
+def audit(log_path, stage, status, msg="", df=None):
+
+    ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    log_path = Path(log_path)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(log_path, "a") as f:
+
+        f.write(f"\n[{ts}] [{stage}] {status}\n")
+
+        if msg:
+            f.write(f"  MSG: {msg}\n")
+
+        if df is not None and isinstance(df, pd.DataFrame):
+
+            f.write(f"  STATS: {len(df)} rows | {len(df.columns)} cols\n")
+            f.write(f"  NULLS: {df.isnull().sum().sum()} total\n")
+            f.write(f"  SAMPLE:\n{df.head(3).to_string(index=False)}\n")
+
+        f.write("-" * 40 + "\n")
+
+
+# =========================
 # PATHS
 # =========================
 
@@ -26,7 +53,7 @@ ERROR_LOG = ERROR_DIR / "apply_moneyline_juice.txt"
 
 
 # =========================
-# LOGGER
+# SIMPLE LOG
 # =========================
 
 def log(msg):
@@ -39,55 +66,74 @@ def log(msg):
 # =========================
 
 def normalize_american_value(val):
+
     if pd.isna(val):
         return None
+
     text = str(val).strip().replace(",", "")
+
     if text == "":
         return None
+
     try:
         return float(text)
-    except Exception:
+    except:
         return None
 
 
 def american_to_decimal(a):
+
     a = normalize_american_value(a)
+
     if a is None or a == 0:
         return None
-    return 1 + (a / 100 if a > 0 else 100 / abs(a))
+
+    return 1 + (a/100 if a > 0 else 100/abs(a))
 
 
 def decimal_to_american(d):
+
     try:
         d = float(d)
-    except Exception:
+    except:
         return ""
+
     if not math.isfinite(d) or d <= 1:
         return ""
+
     if d >= 2:
-        return f"+{int(round((d - 1) * 100))}"
-    return f"-{int(round(100 / (d - 1)))}"
+        return f"+{int(round((d-1)*100))}"
+
+    return f"-{int(round(100/(d-1)))}"
 
 
-def safe_decimal(val, fallback=1.01):
+def safe_decimal(v):
+
     try:
-        val = float(val)
-    except Exception:
-        return fallback
-    if not math.isfinite(val) or val <= 1:
-        return fallback
-    return val
+        v = float(v)
+    except:
+        return 1.01
+
+    if not math.isfinite(v) or v <= 1:
+        return 1.01
+
+    return v
 
 
-def atomic_write_csv(df, output_path):
-    tmp = output_path.with_suffix(".tmp")
+def atomic_write(df, path):
+
+    tmp = path.with_suffix(".tmp")
+
     df.to_csv(tmp, index=False)
-    tmp.replace(output_path)
+
+    tmp.replace(path)
 
 
 def clear_old_moneyline_outputs():
+
     for f in OUTPUT_DIR.glob("*_NBA_moneyline.csv"):
         f.unlink(missing_ok=True)
+
     for f in OUTPUT_DIR.glob("*_NCAAB_moneyline.csv"):
         f.unlink(missing_ok=True)
 
@@ -99,17 +145,9 @@ def clear_old_moneyline_outputs():
 NBA_JT = pd.read_csv(NBA_CONFIG)
 NCAAB_JT = pd.read_csv(NCAAB_CONFIG)
 
-for col in ["band_min", "band_max", "extra_juice"]:
-    if col in NBA_JT.columns:
-        NBA_JT[col] = pd.to_numeric(NBA_JT[col], errors="coerce")
-
-for col in ["prob_bin_min", "prob_bin_max", "extra_juice"]:
-    if col in NCAAB_JT.columns:
-        NCAAB_JT[col] = pd.to_numeric(NCAAB_JT[col], errors="coerce")
-
 
 # =========================
-# NBA JUICE (NO MERGE)
+# NBA JUICE
 # =========================
 
 def lookup_nba_extra(price, venue):
@@ -167,7 +205,7 @@ def apply_nba(df):
 
 
 # =========================
-# NCAAB JUICE (SAFE BIN)
+# NCAAB JUICE
 # =========================
 
 def lookup_ncaab_extra(prob):
@@ -217,52 +255,65 @@ def apply_ncaab(df):
 
 def main():
 
-    with open(ERROR_LOG, "w", encoding="utf-8") as f:
+    with open(ERROR_LOG, "w") as f:
         f.write(f"=== APPLY MONEYLINE JUICE START {datetime.utcnow().isoformat()}Z ===\n")
 
     try:
 
         clear_old_moneyline_outputs()
 
-        files_found = 0
+        files = 0
 
-        for f in sorted(INPUT_DIR.iterdir()):
-
-            if not f.is_file():
-                continue
+        for f in INPUT_DIR.iterdir():
 
             name = f.name
 
             if name.endswith("_NBA_moneyline.csv"):
 
                 df = pd.read_csv(f)
+
                 df = apply_nba(df)
 
-                output_path = OUTPUT_DIR / name
-                atomic_write_csv(df, output_path)
+                atomic_write(df, OUTPUT_DIR/name)
 
                 log(f"Processed NBA file: {name}")
-                files_found += 1
+
+                audit(ERROR_LOG, "JUICE_ML_NBA", "SUCCESS",
+                      msg=f"Applied NBA Moneyline Juice to {name}",
+                      df=df)
+
+                files += 1
+
 
             elif name.endswith("_NCAAB_moneyline.csv"):
 
                 df = pd.read_csv(f)
+
                 df = apply_ncaab(df)
 
-                output_path = OUTPUT_DIR / name
-                atomic_write_csv(df, output_path)
+                atomic_write(df, OUTPUT_DIR/name)
 
                 log(f"Processed NCAAB file: {name}")
-                files_found += 1
 
-        log(f"Total files processed: {files_found}")
+                audit(ERROR_LOG, "JUICE_ML_NCAAB", "SUCCESS",
+                      msg=f"Applied NCAAB Moneyline Juice to {name}",
+                      df=df)
+
+                files += 1
+
+
+        log(f"Total files processed: {files}")
         log("=== APPLY MONEYLINE JUICE END ===")
+
 
     except Exception as e:
 
         log("=== ERROR ===")
         log(str(e))
         log(traceback.format_exc())
+
+        audit(ERROR_LOG, "JUICE_ML_CRITICAL", "FAILED", msg=str(e))
+
         sys.exit(1)
 
 
