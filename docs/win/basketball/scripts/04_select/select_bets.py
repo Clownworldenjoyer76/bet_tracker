@@ -328,11 +328,18 @@ def step4_ncaab_moneyline(row):
     # Price range
     ###########################################################
 
-    if ml > 350:
+    if ml > 300:
         return False, "FAIL STEP 4 NCAAB MONEYLINE | extreme dog", "", ""
 
     if ml < -300:
         return False, "FAIL STEP 4 NCAAB MONEYLINE | extreme favorite", "", ""
+
+    ###########################################################
+    # Reject coin flip price range
+    ###########################################################
+
+    if -150 < ml < 130:
+        return False, "FAIL STEP 4 NCAAB MONEYLINE | coin flip range", "", ""
 
     ###########################################################
     # Edge + probability
@@ -340,7 +347,7 @@ def step4_ncaab_moneyline(row):
 
     if ml >= 100:   # dog
 
-        if edge < 0.015:
+        if edge < 0.020:
             return False, "FAIL STEP 4 NCAAB MONEYLINE | dog edge too low", "", ""
 
         if prob < 0.38:
@@ -351,14 +358,14 @@ def step4_ncaab_moneyline(row):
         if edge < 0.012:
             return False, "FAIL STEP 4 NCAAB MONEYLINE | favorite edge too low", "", ""
 
-        if prob < 0.52:
+        if prob < 0.55:
             return False, "FAIL STEP 4 NCAAB MONEYLINE | favorite prob too low", "", ""
 
     ###########################################################
     # Edge separation
     ###########################################################
 
-    if edge - opp_edge < 0.003:
+    if edge - opp_edge < 0.006:
         return False, "FAIL STEP 4 NCAAB MONEYLINE | edge separation", "", ""
 
     return True, "PASS STEP 4 NCAAB MONEYLINE", side, ml
