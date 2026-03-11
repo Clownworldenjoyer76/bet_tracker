@@ -13,7 +13,14 @@ OUT_DIR = MERGE_DIR / "market_model"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 CONFIG_BASE = Path("config/soccer")
-CONFIG_MAP = {"bundesliga": "bundesliga", "epl": "epl", "laliga": "la_liga", "ligue1": "ligue1", "seriea": "serie_a"}
+CONFIG_MAP = {
+    "bundesliga": "bundesliga", 
+    "epl": "epl", 
+    "laliga": "la_liga", 
+    "ligue1": "ligue1", 
+    "seriea": "serie_a"
+}
+# False = normal, True = reversed
 LAMBDA_ORIENTATION = {"laliga": True}
 DC_CACHE = {}
 
@@ -27,9 +34,13 @@ def load_dc_table(path):
         for r in reader:
             try:
                 rows.append({
-                    "lambda_home": float(r["lambda_home"]), "lambda_away": float(r["lambda_away"]),
-                    "home_win": float(r["home_win"]), "draw": float(r["draw"]), "away_win": float(r["away_win"]),
-                    "over2_5": float(r["over2_5"]), "btts_yes": float(r["btts_yes"]),
+                    "lambda_home": float(r["lambda_home"]), 
+                    "lambda_away": float(r["lambda_away"]),
+                    "home_win": float(r["home_win"]), 
+                    "draw": float(r["draw"]), 
+                    "away_win": float(r["away_win"]),
+                    "over2_5": float(r["over2_5"]), 
+                    "btts_yes": float(r["btts_yes"]),
                 })
             except: continue
     return rows
@@ -71,9 +82,13 @@ for merge_file in merge_files:
 
     with open(merge_file, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
-        fieldnames = reader.fieldnames + ["lambda_home", "lambda_away", "home_win_prob", "draw_prob", "away_win_prob", "over25_prob", "btts_prob"]
-        # Dedupe fieldnames
-        fieldnames = list(dict.fromkeys(fieldnames))
+        
+        # Standardize fieldnames: Ensure core model outputs exist and overwrite redundant ones
+        orig_fields = reader.fieldnames
+        add_fields = ["lambda_home", "lambda_away", "over25_prob", "btts_prob"]
+        
+        # Clean up fieldnames: exclude internal model keys if they already exist to avoid duplicates
+        fieldnames = [f for f in orig_fields if f not in add_fields] + add_fields
 
         for r in reader:
             market = r["market"]
@@ -82,13 +97,19 @@ for merge_file in merge_files:
 
             try:
                 lh, la = float(r["home_xg"]), float(r["away_xg"])
+                # Handle orientation logic
                 res = interpolate(table, la, lh) if LAMBDA_ORIENTATION.get(market, False) else interpolate(table, lh, la)
                 
-                # Update row instead of creating a new one (Preserves Odds)
+                # UPDATE: Overwrite home_prob/draw_prob/away_prob with model values
+                # and add the new interpolation results
                 r.update({
-                    "lambda_home": lh, "lambda_away": la,
-                    "home_win_prob": res["h"], "draw_prob": res["d"], "away_win_prob": res["a"],
-                    "over25_prob": res["o"], "btts_prob": res["b"]
+                    "home_prob": res["h"],
+                    "draw_prob": res["d"],
+                    "away_prob": res["a"],
+                    "lambda_home": lh, 
+                    "lambda_away": la,
+                    "over25_prob": res["o"], 
+                    "btts_prob": res["b"]
                 })
                 processed_rows.append(r)
             except: continue
@@ -98,4 +119,4 @@ for merge_file in merge_files:
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(processed_rows)
-        print(f"Wrote {outfile}")
+        print(f"Wrote {outfile} ({len(processed_rows)} rows)")
