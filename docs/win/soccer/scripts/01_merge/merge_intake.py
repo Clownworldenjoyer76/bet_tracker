@@ -86,6 +86,7 @@ for pred_file in prediction_files:
         away_id = normalize_id(p["away_team"])
         game_id = f"{p['match_date']}_{home_id}_{away_id}"
 
+        # Get values with -110 fallback for missing 2-way markets
         merged_rows[key] = {
             "league": p["league"],
             "market": p["market"],
@@ -102,10 +103,11 @@ for pred_file in prediction_files:
             "home_american": d.get("dk_home_american",""),
             "draw_american": d.get("dk_draw_american",""),
             "away_american": d.get("dk_away_american",""),
-            "over25_american": d.get("dk_over25_american",""),
-            "under25_american": d.get("dk_under25_american",""),
-            "btts_yes_american": d.get("dk_btts_yes_american",""),
-            "btts_no_american": d.get("dk_btts_no_american",""),
+            # Fallback to -110 standard juice if not in sportsbook file
+            "over25_american": d.get("dk_over25_american") or "-110",
+            "under25_american": d.get("dk_under25_american") or "-110",
+            "btts_yes_american": d.get("dk_btts_yes_american") or "-110",
+            "btts_no_american": d.get("dk_btts_no_american") or "-110",
             "game_id": game_id,
         }
 
