@@ -118,6 +118,10 @@ def step1_nba_moneyline(row):
 ##################### STEP 2 NBA SPREAD #######################
 ###############################################################
 
+###############################################################
+##################### STEP 2 NBA SPREAD #######################
+###############################################################
+
 def step2_nba_spread(row):
 
     home_line = f(row.get("home_spread"))
@@ -130,7 +134,8 @@ def step2_nba_spread(row):
     # BASE EDGE REQUIREMENT
     ############################################################
 
-    edge_threshold = 0.035
+    home_edge_threshold = 0.035
+    away_edge_threshold = 0.055
 
     ############################################################
     # EXTREME SPREAD FILTER
@@ -140,13 +145,21 @@ def step2_nba_spread(row):
         return False, "FAIL STEP 2 NBA SPREAD | extreme spread", "", ""
 
     ############################################################
+    # REJECT LARGE ROAD DOGS
+    ############################################################
+
+    if away_line >= 10:
+        return False, "FAIL STEP 2 NBA SPREAD | large road dog", "", ""
+
+    ############################################################
     # KEY NUMBER PROTECTION
     ############################################################
 
     key_numbers = [3, 5, 7]
 
     if abs(home_line) in key_numbers or abs(away_line) in key_numbers:
-        edge_threshold += 0.015
+        home_edge_threshold += 0.015
+        away_edge_threshold += 0.015
 
     ############################################################
     # HOME FAVORITE ADVANTAGE ZONE
@@ -155,7 +168,7 @@ def step2_nba_spread(row):
     if -9 <= home_line <= -3:
         effective_home_threshold = 0.020
     else:
-        effective_home_threshold = edge_threshold
+        effective_home_threshold = home_edge_threshold
 
     ############################################################
     # ROAD FAVORITE PENALTY
@@ -164,7 +177,7 @@ def step2_nba_spread(row):
     if away_line <= -3:
         effective_away_threshold = 0.045
     else:
-        effective_away_threshold = edge_threshold
+        effective_away_threshold = away_edge_threshold
 
     ############################################################
     # EDGE PASS CHECK
@@ -197,7 +210,6 @@ def step2_nba_spread(row):
         return True, "PASS STEP 2 NBA SPREAD | away edge", "away", away_line
 
     return False, "FAIL STEP 2 NBA SPREAD | edge below threshold", "", ""
-
 
 ###############################################################
 ##################### STEP 3 NBA TOTAL ########################
