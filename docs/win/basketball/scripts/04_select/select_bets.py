@@ -443,7 +443,7 @@ def step6_ncaab_total(row):
     proj_diff = abs(proj - line)
 
     # avoid extreme totals
-    if line < 145 or line > 200:
+    if line < 150 or line > 200:
         return False, "FAIL STEP 6 NCAAB TOTAL | range", ""
 
     # projection must meaningfully disagree with market
