@@ -18,11 +18,11 @@ ERROR_DIR = Path("docs/win/soccer/errors/02_juice")
 ERROR_LOG = ERROR_DIR / "01_apply_juice.txt"
 
 JUICE_MAP = {
-    "epl": Path("config/soccer/epl/epl_1x2_juice.csv"),
-    "laliga": Path("config/soccer/la_liga/laliga_1x2_juice.csv"),
-    "bundesliga": Path("config/soccer/bundesliga/bundesliga_1x2_juice.csv"),
-    "ligue1": Path("config/soccer/ligue1/ligue1_1x2_juice.csv"),
-    "seriea": Path("config/soccer/serie_a/seriea_1x2_juice.csv"),
+    "epl": Path("config/soccer/epl/3way_juice.csv"),
+    "laliga": Path("config/soccer/la_liga/3way_juice.csv"),
+    "bundesliga": Path("config/soccer/bundesliga/3way_juice.csv"),
+    "ligue1": Path("config/soccer/ligue1/3way_juice.csv"),
+    "seriea": Path("config/soccer/serie_a/3way_juice.csv"),
 }
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -40,28 +40,34 @@ def decimal_to_american(decimal_odds):
     return f"-{int(round(100 / (decimal_odds - 1)))}"
 
 
-def find_band(prob, juice_df, side):
-    band = juice_df[
-        (juice_df["side"] == side) &
-        (juice_df["band_min"] <= prob) &
-        (prob < juice_df["band_max"])
-    ]
+def find_closest_juice(prob, juice_df, side):
+    side_df = juice_df[juice_df["side"] == side]
+    
+    if side_df.empty:
+        raise ValueError(f"No juice data found for side {side}")
 
-    if band.empty:
-        raise ValueError(f"No juice band found for probability {prob} side {side}")
+    # Find the row with the fair_prob closest to our actual prob
+    closest_idx = (side_df["fair_prob"] - prob).abs().idxmin()
+    return side_df.loc[closest_idx]
 
-    return band.iloc[0]
+
+def get_prob_col_name(df, side):
+    if f"{side}_win_prob" in df.columns:
+        return f"{side}_win_prob"
+    if f"{side}_prob" in df.columns:
+        return f"{side}_prob"
+    raise ValueError(f"Missing probability column for {side}")
 
 
 def process_side(df, side, juice_tables, summary):
 
-    prob_col = f"{side}_prob"
+    prob_col = get_prob_col_name(df, side)
 
     df[f"{side}_fair_decimal"] = pd.NA
     df[f"{side}_adjusted_prob"] = pd.NA
     df[f"{side}_adjusted_decimal"] = pd.NA
 
-    df[f"{side}_juice_band"] = ""
+    df[f"{side}_matched_fair_prob"] = pd.NA
     df[f"{side}_extra_juice"] = pd.NA
     df[f"{side}_adjusted_american"] = ""
 
@@ -82,10 +88,10 @@ def process_side(df, side, juice_tables, summary):
 
         fair_decimal = 1 / prob
 
-        band_row = find_band(prob, juice_df, side)
+        matched_row = find_closest_juice(prob, juice_df, side)
 
-        extra_juice = band_row["extra_juice"]
-        band_label = f"{band_row['band_min']}-{band_row['band_max']}"
+        extra_juice = matched_row["extra_juice"]
+        matched_fair_prob = matched_row["fair_prob"]
 
         adjusted_prob = prob + extra_juice
 
@@ -96,7 +102,7 @@ def process_side(df, side, juice_tables, summary):
         adjusted_american = decimal_to_american(adjusted_decimal)
 
         df.at[idx, f"{side}_fair_decimal"] = float(fair_decimal)
-        df.at[idx, f"{side}_juice_band"] = band_label
+        df.at[idx, f"{side}_matched_fair_prob"] = float(matched_fair_prob)
         df.at[idx, f"{side}_extra_juice"] = float(extra_juice)
         df.at[idx, f"{side}_adjusted_prob"] = float(adjusted_prob)
         df.at[idx, f"{side}_adjusted_decimal"] = float(adjusted_decimal)
@@ -119,7 +125,8 @@ def main():
 
     try:
 
-        input_files = glob.glob(str(INPUT_DIR / "soccer_*.csv"))
+        # recursive=True ensures we catch files inside subfolders like /market_model/
+        input_files = glob.glob(str(INPUT_DIR / "**" / "soccer_*.csv"), recursive=True)
 
         if not input_files:
             with open(ERROR_LOG, "a", encoding="utf-8") as log:
@@ -139,10 +146,7 @@ def main():
             df = pd.read_csv(input_path)
 
             if "market" not in df.columns:
-                raise ValueError("Missing 'market' column")
-
-            if "home_prob" not in df.columns:
-                raise ValueError("Missing probability columns")
+                raise ValueError(f"Missing 'market' column in {input_path.name}")
 
             unique_markets = df["market"].unique()
 
@@ -163,6 +167,7 @@ def main():
             for side in ["home", "draw", "away"]:
                 df = process_side(df, side, juice_tables, summary)
 
+            # Keep folder structure flat in output, or use input_path.name
             output_path = OUTPUT_DIR / input_path.name
 
             df.to_csv(output_path, index=False)
