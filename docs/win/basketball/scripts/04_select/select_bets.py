@@ -137,21 +137,21 @@ def step2_nba_spread(row):
     # REJECT COIN FLIP SPREADS
     ############################################################
 
-    if abs(home_line) < 3 or abs(away_line) < 3:
+    if abs(home_line) < 1.5 or abs(away_line) < 1.5:
         return False, "FAIL STEP 2 NBA SPREAD | small spread", "", ""
 
     ############################################################
     # EXTREME SPREAD FILTER
     ############################################################
 
-    if abs(home_line) > 22 or abs(away_line) > 22:
+    if abs(home_line) > 20 or abs(away_line) > 2:
         return False, "FAIL STEP 2 NBA SPREAD | extreme spread", "", ""
 
     ############################################################
     # REJECT LARGE ROAD DOGS
     ############################################################
 
-    if away_line >= 8:
+    if away_line >= 11:
         return False, "FAIL STEP 2 NBA SPREAD | large road dog", "", ""
 
     ############################################################
@@ -168,7 +168,7 @@ def step2_nba_spread(row):
     # HOME FAVORITE ADVANTAGE ZONE
     ############################################################
 
-    if -12 <= home_line <= -4:
+    if -14 <= home_line <= -3:
         effective_home_threshold = 0.020
     else:
         effective_home_threshold = home_edge_threshold
