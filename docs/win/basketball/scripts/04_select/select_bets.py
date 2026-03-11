@@ -348,17 +348,17 @@ def step4_ncaab_moneyline(row):
 
     else:   # favorite
 
-        if edge < 0.012:
+        if edge < 0.010:
             return False, "FAIL STEP 4 NCAAB MONEYLINE | favorite edge too low", "", ""
 
-        if prob < 0.52:
+        if prob < 0.50:
             return False, "FAIL STEP 4 NCAAB MONEYLINE | favorite prob too low", "", ""
 
     ###########################################################
     # Edge separation
     ###########################################################
 
-    if edge - opp_edge < 0.003:
+    if edge - opp_edge < 0.002:
         return False, "FAIL STEP 4 NCAAB MONEYLINE | edge separation", "", ""
 
     return True, "PASS STEP 4 NCAAB MONEYLINE", side, ml
@@ -399,7 +399,7 @@ def step5_ncaab_spread(row):
     # Spread sanity checks
     ###########################################################
 
-    if abs(line) < 1:
+    if abs(line) < 5:
         return False, "FAIL STEP 5 NCAAB SPREAD | pickem zone", "", ""
 
     if abs(line) > 19:
@@ -423,7 +423,7 @@ def step5_ncaab_spread(row):
     # Edge separation
     ###########################################################
 
-    if edge - opp_edge < 0.003:
+    if edge - opp_edge < 0.002:
         return False, "FAIL STEP 5 NCAAB SPREAD | edge separation", "", ""
 
     return True, "PASS STEP 5 NCAAB SPREAD", side, line
