@@ -1,4 +1,3 @@
-<!-- docs/manual_data.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -40,6 +39,7 @@
           <option value="hockey">Hockey</option>
           <option value="soccer">Soccer</option>
           <option value="final_scores">Final Scores</option>
+          <option value="final_soccer_scores">Final Soccer Scores</option>
         </select>
       </div>
 
@@ -85,12 +85,20 @@
       baseball: ["MLB"],
       hockey: ["NHL"],
       soccer: ["MLS", "EPL", "Ligue 1", "Serie A", "La Liga", "Bundesliga"],
-      final_scores: ["NBA", "NCAAB", "NHL"]
+      final_scores: ["NBA", "NCAAB", "NHL"],
+      final_soccer_scores: [
+        { val: "epl", text: "EPL" },
+        { val: "laliga", text: "LA LIGA" },
+        { val: "ligue1", text: "LIGUE 1" },
+        { val: "bundesliga", text: "BUNDESLIGA" },
+        { val: "seriea", text: "SERIE A" }
+      ]
     };
 
     function updateMarkets() {
       const league = document.getElementById("league").value;
       const marketSelect = document.getElementById("market");
+      const sourceSelect = document.getElementById("source");
       marketSelect.innerHTML = "";
 
       if (!league || !MARKET_MAP[league]) {
@@ -101,11 +109,22 @@
         return;
       }
 
+      // Populate Markets
       for (const m of MARKET_MAP[league]) {
         const opt = document.createElement("option");
-        opt.value = m;
-        opt.textContent = m;
+        if (typeof m === 'object') {
+          opt.value = m.val;
+          opt.textContent = m.text;
+        } else {
+          opt.value = m;
+          opt.textContent = m;
+        }
         marketSelect.appendChild(opt);
+      }
+
+      // Auto-set Source to 'Scores' if Final Soccer Scores is picked
+      if (league === "final_soccer_scores") {
+        sourceSelect.value = "Scores";
       }
     }
 
