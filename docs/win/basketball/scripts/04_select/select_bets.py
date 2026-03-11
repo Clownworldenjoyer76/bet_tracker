@@ -118,10 +118,6 @@ def step1_nba_moneyline(row):
 ##################### STEP 2 NBA SPREAD #######################
 ###############################################################
 
-###############################################################
-##################### STEP 2 NBA SPREAD #######################
-###############################################################
-
 def step2_nba_spread(row):
 
     home_line = f(row.get("home_spread"))
@@ -135,27 +131,34 @@ def step2_nba_spread(row):
     ############################################################
 
     home_edge_threshold = 0.035
-    away_edge_threshold = 0.055
+    away_edge_threshold = 0.065
+
+    ############################################################
+    # REJECT COIN FLIP SPREADS
+    ############################################################
+
+    if abs(home_line) < 3 or abs(away_line) < 3:
+        return False, "FAIL STEP 2 NBA SPREAD | small spread", "", ""
 
     ############################################################
     # EXTREME SPREAD FILTER
     ############################################################
 
-    if abs(home_line) > 18 or abs(away_line) > 18:
+    if abs(home_line) > 22 or abs(away_line) > 22:
         return False, "FAIL STEP 2 NBA SPREAD | extreme spread", "", ""
 
     ############################################################
     # REJECT LARGE ROAD DOGS
     ############################################################
 
-    if away_line >= 10:
+    if away_line >= 8:
         return False, "FAIL STEP 2 NBA SPREAD | large road dog", "", ""
 
     ############################################################
     # KEY NUMBER PROTECTION
     ############################################################
 
-    key_numbers = [3, 5, 7]
+    key_numbers = [3, 4, 5, 7, 10]
 
     if abs(home_line) in key_numbers or abs(away_line) in key_numbers:
         home_edge_threshold += 0.015
@@ -165,7 +168,7 @@ def step2_nba_spread(row):
     # HOME FAVORITE ADVANTAGE ZONE
     ############################################################
 
-    if -9 <= home_line <= -3:
+    if -12 <= home_line <= -4:
         effective_home_threshold = 0.020
     else:
         effective_home_threshold = home_edge_threshold
@@ -210,7 +213,6 @@ def step2_nba_spread(row):
         return True, "PASS STEP 2 NBA SPREAD | away edge", "away", away_line
 
     return False, "FAIL STEP 2 NBA SPREAD | edge below threshold", "", ""
-
 ###############################################################
 ##################### STEP 3 NBA TOTAL ########################
 ###############################################################
