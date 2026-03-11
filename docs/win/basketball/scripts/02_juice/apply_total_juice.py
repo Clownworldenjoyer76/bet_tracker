@@ -68,6 +68,7 @@ def log(msg):
 NBA_JUICE = pd.read_csv(NBA_CONFIG)
 NBA_JUICE["band_min"] = pd.to_numeric(NBA_JUICE["band_min"], errors="coerce")
 NBA_JUICE["band_max"] = pd.to_numeric(NBA_JUICE["band_max"], errors="coerce")
+NBA_JUICE["extra_juice"] = pd.to_numeric(NBA_JUICE["extra_juice"], errors="coerce")
 
 NCAAB_JUICE = pd.read_csv(NCAAB_CONFIG)
 NCAAB_JUICE["over_under"] = pd.to_numeric(NCAAB_JUICE["over_under"], errors="coerce")
@@ -145,12 +146,19 @@ def resolve_total_odds(row, side):
 
 def apply_nba(df):
 
-    validate_columns(df, ["total", "dk_total_over_american", "dk_total_under_american"])
+    validate_columns(df, ["total", "acceptable_over", "acceptable_under"])
 
     def process(row, side):
 
-        total = float(row["total"])
-        odds = resolve_total_odds(row, side)
+        total = pd.to_numeric(row.get("total"), errors="coerce")
+        if pd.isna(total):
+            return None, ""
+
+        base_col = "acceptable_over" if side == "over" else "acceptable_under"
+        base_decimal = pd.to_numeric(row.get(base_col), errors="coerce")
+
+        if pd.isna(base_decimal) or not math.isfinite(base_decimal) or base_decimal <= 1:
+            return None, ""
 
         band = NBA_JUICE[
             (NBA_JUICE["band_min"] <= total) &
@@ -160,15 +168,13 @@ def apply_nba(df):
 
         extra = band.iloc[0]["extra_juice"] if not band.empty else 0.0
 
-        if not math.isfinite(extra):
+        if pd.isna(extra) or not math.isfinite(extra):
             extra = 0.0
 
-        base_decimal = american_to_decimal(odds)
-
-        if base_decimal is None:
-            return None, ""
-
-        final_decimal = base_decimal * (1 + extra)
+        # Apply juice directly to model acceptable decimal odds.
+        # Positive extra_juice makes the acceptable price stricter
+        # by reducing decimal odds.
+        final_decimal = base_decimal / (1 + extra)
 
         if not math.isfinite(final_decimal) or final_decimal <= 1:
             return None, ""
@@ -181,7 +187,7 @@ def apply_nba(df):
     df[["total_under_juice_decimal", "total_under_juice_odds"]] = \
         df.apply(lambda r: process(r, "under"), axis=1, result_type="expand")
 
-    # Replace acceptable totals so edges use juice
+    # Replace acceptable totals so downstream edges use the adjusted model prices
     df["acceptable_over"] = df["total_over_juice_decimal"]
     df["acceptable_under"] = df["total_under_juice_decimal"]
 
