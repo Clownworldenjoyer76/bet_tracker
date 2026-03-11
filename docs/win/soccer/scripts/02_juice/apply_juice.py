@@ -11,7 +11,7 @@ from datetime import datetime
 # CONFIG & PATHS
 # =========================
 
-INPUT_DIR = Path("docs/win/soccer/01_merge")
+INPUT_DIR = Path("docs/win/soccer/01_merge/market_model")
 OUTPUT_DIR = Path("docs/win/soccer/02_juice")
 ERROR_LOG = Path("docs/win/soccer/errors/02_juice/01_apply_juice.txt")
 
