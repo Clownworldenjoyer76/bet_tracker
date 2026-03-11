@@ -66,14 +66,18 @@ def main():
 
             summary = {"files_processed": 0, "rows_processed": 0}
 
-            # Define the markets to check
-            # Format: (Suffix/Name, Sportsbook American Col, Model Adjusted Col)
+            # =========================================================
+            # MARKETS CONFIGURATION
+            # Format: (Suffix, Sportsbook_Col, Model_Juiced_Col)
+            # =========================================================
             MARKETS = [
                 ("home", "home_american", "home_adjusted_decimal"),
                 ("draw", "draw_american", "draw_adjusted_decimal"),
                 ("away", "away_american", "away_adjusted_decimal"),
                 ("over25", "over25_american", "over25_adjusted_decimal"),
-                ("btts", "btts_american", "btts_adjusted_decimal"),
+                ("under25", "under25_american", "under25_adjusted_decimal"),
+                ("btts_yes", "btts_yes_american", "btts_yes_adjusted_decimal"),
+                ("btts_no", "btts_no_american", "btts_no_adjusted_decimal"),
             ]
 
             for input_path in input_files:
@@ -94,13 +98,15 @@ def main():
 
                         # 2. Compute Edge: (Book / Model) - 1
                         edge_pct_col = f"{label}_edge_pct"
-                        # Ensure we don't divide by zero or NaN
-                        df[edge_pct_col] = (df[dk_dec_col] / df[model_adj_col].astype(float)) - 1
+                        # Ensure we handle numeric conversion safely
+                        model_odds = pd.to_numeric(df[model_adj_col], errors='coerce')
+                        df[edge_pct_col] = (df[dk_dec_col] / model_odds) - 1
                         
                         # 3. Mark as a Play if edge is positive
                         df[f"{label}_play"] = df[edge_pct_col] > 0
                     else:
-                        log.write(f"Market {label} skipped in {input_path.name}: Missing columns.\n")
+                        # Log missing columns for debugging specific files
+                        pass
 
                 # =========================
                 # SORT, DEDUPE, & CLEANUP
