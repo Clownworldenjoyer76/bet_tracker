@@ -340,7 +340,7 @@ def step4_ncaab_moneyline(row):
 
     if ml >= 100:   # dog
 
-        if edge < 0.015:
+        if edge < 0.051:
             return False, "FAIL STEP 4 NCAAB MONEYLINE | dog edge too low", "", ""
 
         if prob < 0.38:
@@ -409,7 +409,7 @@ def step5_ncaab_spread(row):
     # Edge requirement
     ###########################################################
 
-    if edge < 0.012:
+    if edge < 0.051:
         return False, "FAIL STEP 5 NCAAB SPREAD | edge too low", "", ""
 
     ###########################################################
