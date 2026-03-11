@@ -23,31 +23,27 @@ ERROR_DIR.mkdir(parents=True, exist_ok=True)
 # =========================
 
 def american_to_decimal(american):
-
-    if pd.isna(american):
+    """Converts American odds (e.g., -110, +150) to Decimal (1.91, 2.50)"""
+    if pd.isna(american) or american == "":
         return None
 
-    american = float(str(american).replace("+",""))
-
-    if american > 0:
-        return 1 + (american / 100.0)
-
-    return 1 + (100.0 / abs(american))
-
-
-def validate_columns(df, required_cols):
-
-    for col in required_cols:
-        if col not in df.columns:
-            raise ValueError(f"Missing required column: {col}")
+    try:
+        val = float(str(american).replace("+", ""))
+        if val > 0:
+            return 1 + (val / 100.0)
+        return 1 + (100.0 / abs(val))
+    except (ValueError, ZeroDivisionError):
+        return None
 
 
 def parse_match_time(time_str):
     """Convert '03:05 PM' → datetime object for sorting"""
+    if pd.isna(time_str):
+        return datetime.max
     try:
-        return datetime.strptime(time_str.strip(), "%I:%M %p")
+        return datetime.strptime(str(time_str).strip(), "%I:%M %p")
     except Exception:
-        return None
+        return datetime.max
 
 
 # =========================
@@ -62,80 +58,65 @@ def main():
         log.write(f"Timestamp: {datetime.utcnow().isoformat()}Z\n\n")
 
         try:
-
             input_files = sorted(INPUT_DIR.glob("soccer_*.csv"))
 
             if not input_files:
-                log.write("No input files found.\n")
+                log.write("No input files found in 02_juice.\n")
                 return
 
-            summary = {
-                "files_processed": 0,
-                "rows_processed": 0
-            }
+            summary = {"files_processed": 0, "rows_processed": 0}
+
+            # Define the markets to check
+            # Format: (Suffix/Name, Sportsbook American Col, Model Adjusted Col)
+            MARKETS = [
+                ("home", "home_american", "home_adjusted_decimal"),
+                ("draw", "draw_american", "draw_adjusted_decimal"),
+                ("away", "away_american", "away_adjusted_decimal"),
+                ("over25", "over25_american", "over25_adjusted_decimal"),
+                ("btts", "btts_american", "btts_adjusted_decimal"),
+            ]
 
             for input_path in input_files:
-
                 df = pd.read_csv(input_path)
 
-                required_cols = [
-                    "game_id",
-                    "match_time",
-                    "home_adjusted_decimal",
-                    "draw_adjusted_decimal",
-                    "away_adjusted_decimal",
-                    "home_american",
-                    "draw_american",
-                    "away_american",
-                ]
+                if "game_id" not in df.columns:
+                    log.write(f"Skipping {input_path.name}: Missing game_id\n")
+                    continue
 
-                validate_columns(df, required_cols)
+                for label, dk_amer_col, model_adj_col in MARKETS:
+                    
+                    # Only process if both the sportsbook odds and juiced model odds exist
+                    if dk_amer_col in df.columns and model_adj_col in df.columns:
+                        
+                        # 1. Convert Sportsbook American to Decimal
+                        dk_dec_col = f"{label}_dk_decimal"
+                        df[dk_dec_col] = df[dk_amer_col].apply(american_to_decimal)
 
-                # =========================
-                # DK American → Decimal
-                # =========================
-
-                df["home_dk_decimal"] = df["home_american"].apply(american_to_decimal)
-                df["draw_dk_decimal"] = df["draw_american"].apply(american_to_decimal)
-                df["away_dk_decimal"] = df["away_american"].apply(american_to_decimal)
-
-                # =========================
-                # EDGE CALCULATION
-                # =========================
-
-                for side in ["home", "draw", "away"]:
-
-                    dk_col = f"{side}_dk_decimal"
-                    adj_col = f"{side}_adjusted_decimal"
-
-                    edge_dec_col = f"{side}_edge_decimal"
-                    edge_pct_col = f"{side}_edge_pct"
-                    play_col = f"{side}_play"
-
-                    df[edge_dec_col] = df[dk_col] - df[adj_col]
-                    df[edge_pct_col] = (df[dk_col] / df[adj_col]) - 1
-                    df[play_col] = df[edge_pct_col] > 0
+                        # 2. Compute Edge: (Book / Model) - 1
+                        edge_pct_col = f"{label}_edge_pct"
+                        # Ensure we don't divide by zero or NaN
+                        df[edge_pct_col] = (df[dk_dec_col] / df[model_adj_col].astype(float)) - 1
+                        
+                        # 3. Mark as a Play if edge is positive
+                        df[f"{label}_play"] = df[edge_pct_col] > 0
+                    else:
+                        log.write(f"Market {label} skipped in {input_path.name}: Missing columns.\n")
 
                 # =========================
-                # SORT BY MATCH TIME
+                # SORT, DEDUPE, & CLEANUP
                 # =========================
 
-                df["_sort_time"] = df["match_time"].apply(parse_match_time)
-                df = df.sort_values(by="_sort_time")
-                df = df.drop(columns=["_sort_time"])
-
-                # =========================
-                # DEDUPE
-                # =========================
+                if "match_time" in df.columns:
+                    df["_sort_time"] = df["match_time"].apply(parse_match_time)
+                    df = df.sort_values(by="_sort_time")
+                    df = df.drop(columns=["_sort_time"])
 
                 df = df.drop_duplicates(subset=["game_id"])
 
                 output_path = OUTPUT_DIR / input_path.name
-
                 df.to_csv(output_path, index=False)
 
                 log.write(f"Wrote {output_path}\n")
-
                 summary["files_processed"] += 1
                 summary["rows_processed"] += len(df)
 
@@ -144,11 +125,9 @@ def main():
             log.write(f"Rows processed: {summary['rows_processed']}\n")
 
         except Exception as e:
-
             log.write("\n=== ERROR ===\n")
             log.write(str(e) + "\n\n")
             log.write(traceback.format_exc())
-
             raise
 
 
