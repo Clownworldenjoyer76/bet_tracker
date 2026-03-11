@@ -1,3 +1,4 @@
+# docs/win/soccer/scripts/04_select/select_bets.py
 #!/usr/bin/env python3
 
 import pandas as pd
@@ -21,6 +22,7 @@ ERROR_DIR.mkdir(parents=True, exist_ok=True)
 # CRITERIA CONFIG
 # =========================
 MIN_EDGE_PCT = 0.03
+MIN_PROB = 0.20  # Floor to avoid low-probability longshots
 DRAW_MIN_EDGE_PCT = 0.05
 DRAW_MIN_PROB = 0.22
 DRAW_DOMINANCE_MARGIN = 0.03
@@ -56,26 +58,33 @@ def main():
                 selections = []
 
                 for _, row in df.iterrows():
-                    # 1. Build dictionary of all potential edges
-                    all_edges = {}
+                    # 1. Build dictionary of potential edges that ALSO meet MIN_PROB
+                    valid_candidates = {}
                     for m in core_markets:
                         edge_col = f"{m}_edge_pct"
-                        if edge_col in df.columns:
-                            val = row[edge_col]
-                            all_edges[m] = val if not pd.isna(val) else -999
+                        prob_col = f"{m}_prob" if f"{m}_prob" in row else f"{m}_win_prob"
+                        
+                        if edge_col in row and prob_col in row:
+                            edge_val = row[edge_col]
+                            prob_val = row[prob_col]
+                            
+                            # Candidate must meet both Edge and Probability floors
+                            if not pd.isna(edge_val) and edge_val >= MIN_EDGE_PCT:
+                                if not pd.isna(prob_val) and prob_val >= MIN_PROB:
+                                    valid_candidates[m] = edge_val
 
-                    # 2. Filter for MIN_EDGE_PCT
-                    valid_edges = {k: v for k, v in all_edges.items() if v >= MIN_EDGE_PCT}
-                    if not valid_edges:
+                    if not valid_candidates:
                         continue
 
-                    # 3. Find Best Side (Initial)
-                    best_side = max(valid_edges, key=valid_edges.get)
-                    best_edge = valid_edges[best_side]
+                    # 2. Find Best Side (Initial)
+                    best_side = max(valid_candidates, key=valid_candidates.get)
+                    best_edge = valid_candidates[best_side]
 
-                    # 4. Apply Special Draw Logic
+                    # 3. Apply Special Draw Logic
                     if best_side == "draw":
-                        sorted_edge_vals = sorted(all_edges.values(), reverse=True)
+                        # We still want to see all edges to check dominance
+                        all_edges = {m: row.get(f"{m}_edge_pct", -999) for m in core_markets}
+                        sorted_edge_vals = sorted([v for v in all_edges.values() if not pd.isna(v)], reverse=True)
                         second_best_val = sorted_edge_vals[1] if len(sorted_edge_vals) > 1 else -999
                         
                         # Conditions to REJECT the draw as the primary pick
@@ -83,21 +92,20 @@ def main():
                             row["draw_prob"] < DRAW_MIN_PROB or 
                             (best_edge - second_best_val) < DRAW_DOMINANCE_MARGIN):
                             
-                            # Fallback to next best non-draw market if it meets MIN_EDGE_PCT
-                            non_draw_valid = {k: v for k, v in valid_edges.items() if k != "draw"}
+                            # Fallback to next best non-draw market that was already validated for MIN_PROB
+                            non_draw_valid = {k: v for k, v in valid_candidates.items() if k != "draw"}
                             if non_draw_valid:
                                 best_side = max(non_draw_valid, key=non_draw_valid.get)
                                 best_edge = non_draw_valid[best_side]
                             else:
-                                continue # Skip game if only a weak Draw was available
+                                continue # Skip game if only a weak/non-dominant Draw was available
 
-                    # 5. Calculate Kelly Stake
-                    # Note: We use the DK Decimal and the Model Probability
+                    # 4. Final Verification and Kelly Stake
                     odds = row[f"{best_side}_dk_decimal"]
                     prob = row[f"{best_side}_prob"] if f"{best_side}_prob" in row else row[f"{best_side}_win_prob"]
                     stake_pct = calculate_kelly(prob, odds, KELLY_FRACTION)
 
-                    # 6. Build Selection Row
+                    # 5. Build Selection Row
                     selections.append({
                         "league": row["league"],
                         "match_date": row["match_date"],
