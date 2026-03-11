@@ -328,7 +328,7 @@ def step4_ncaab_moneyline(row):
     # Price range
     ###########################################################
 
-    if ml > 300:
+    if ml > 150:
         return False, "FAIL STEP 4 NCAAB MONEYLINE | extreme dog", "", ""
 
     if ml < -300:
