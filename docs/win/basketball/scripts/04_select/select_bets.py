@@ -304,9 +304,9 @@ def step4_ncaab_moneyline(row):
     home_edge = f(row.get("home_ml_edge_decimal"))
     away_edge = f(row.get("away_ml_edge_decimal"))
 
-    home_prob = f(row.get("home_ml_prob"))
-    away_prob = f(row.get("away_ml_prob"))
-
+    home_prob = f(row.get("home_prob"))
+    away_prob = f(row.get("away_prob"))
+    
     ###########################################################
     # Select stronger edge
     ###########################################################
@@ -375,9 +375,9 @@ def step5_ncaab_spread(row):
     home_edge = f(row.get("home_spread_edge_decimal"))
     away_edge = f(row.get("away_spread_edge_decimal"))
 
-    home_prob = f(row.get("home_spread_prob"))
-    away_prob = f(row.get("away_spread_prob"))
-
+    home_prob = f(row.get("home_prob"))
+    away_prob = f(row.get("away_prob"))
+    
     ###########################################################
     # Select stronger edge
     ###########################################################
