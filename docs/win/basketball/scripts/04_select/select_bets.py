@@ -130,8 +130,8 @@ def step2_nba_spread(row):
     # BASE EDGE REQUIREMENT
     ############################################################
 
-    home_edge_threshold = 0.035
-    away_edge_threshold = 0.065
+    home_edge_threshold = 0.03
+    away_edge_threshold = 0.06
 
     ############################################################
     # REJECT COIN FLIP SPREADS
@@ -144,7 +144,7 @@ def step2_nba_spread(row):
     # EXTREME SPREAD FILTER
     ############################################################
 
-    if abs(home_line) > 20 or abs(away_line) > 2:
+    if abs(home_line) > 20 or abs(away_line) > -20:
         return False, "FAIL STEP 2 NBA SPREAD | extreme spread", "", ""
 
     ############################################################
