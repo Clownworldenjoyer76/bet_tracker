@@ -82,23 +82,37 @@ def clear_previous_outputs():
 ###############################################################
 
 def step1_nba_moneyline(row):
+
     home_edge = f(row.get("home_ml_edge_decimal"))
     away_edge = f(row.get("away_ml_edge_decimal"))
+
     home_ml = f(row.get("home_dk_moneyline_american"))
     away_ml = f(row.get("away_dk_moneyline_american"))
 
-    # AWAY STRATEGY: Data shows 4-0 record in 0.05-0.15 edge band
-    if 0.05 < away_edge <= 0.15:
-        # Success found in favorites and short underdogs
-        if away_ml <= 274:
-            return True, "PASS STEP 1 NBA ML | away sweet spot", "away", away_ml
+    EDGE_THRESHOLD = 0.035
 
-    # HOME STRATEGY: Data shows 0% win rate on big home dogs (>0.30 edge is 0-7)
-    # Target favorites where you have a small, realistic edge
-    if home_ml < 0 and 0.00 <= home_edge <= 0.05:
+    ############################################################
+    # SMALL UNDERDOG VALUE BAND
+    ############################################################
+
+    if away_ml >= 120 and away_ml <= 150 and away_edge >= EDGE_THRESHOLD:
+        return True, "PASS STEP 1 NBA ML | small dog band", "away", away_ml
+
+    if home_ml >= 120 and home_ml <= 150 and home_edge >= EDGE_THRESHOLD:
+        return True, "PASS STEP 1 NBA ML | small dog band", "home", home_ml
+
+    ############################################################
+    # FAVORITE VALUE
+    ############################################################
+
+    if home_ml < -120 and home_edge >= EDGE_THRESHOLD:
         return True, "PASS STEP 1 NBA ML | home favorite value", "home", home_ml
 
-    return False, "FAIL STEP 1 NBA ML | out of performance bands", "", ""
+    if away_ml < -120 and away_edge >= EDGE_THRESHOLD:
+        return True, "PASS STEP 1 NBA ML | away favorite value", "away", away_ml
+
+    return False, "FAIL STEP 1 NBA ML | no value band", "", ""
+
 
 ###############################################################
 ##################### STEP 2 NBA SPREAD #######################
@@ -113,20 +127,29 @@ def step2_nba_spread(row):
     away_edge = f(row.get("away_spread_edge_decimal"))
 
     ############################################################
-    # BASELINE EDGE REQUIREMENT
+    # BASE EDGE REQUIREMENT
     ############################################################
 
-    edge_threshold = 0.030
+    edge_threshold = 0.035
 
     ############################################################
     # EXTREME SPREAD FILTER
     ############################################################
 
-    if abs(home_line) > 15 or abs(away_line) > 15:
+    if abs(home_line) > 18 or abs(away_line) > 18:
         return False, "FAIL STEP 2 NBA SPREAD | extreme spread", "", ""
 
     ############################################################
-    # HOME FAVORITE ADVANTAGE
+    # KEY NUMBER PROTECTION
+    ############################################################
+
+    key_numbers = [3, 5, 7]
+
+    if abs(home_line) in key_numbers or abs(away_line) in key_numbers:
+        edge_threshold += 0.015
+
+    ############################################################
+    # HOME FAVORITE ADVANTAGE ZONE
     ############################################################
 
     if -9 <= home_line <= -3:
@@ -157,7 +180,6 @@ def step2_nba_spread(row):
     # SIDE SELECTION LOGIC
     ############################################################
 
-    # If both sides qualify, require meaningful separation
     if home_pass and away_pass:
 
         if home_edge >= away_edge + 0.01:
@@ -213,14 +235,19 @@ def step3_nba_total(row):
     # PROJECTION DISAGREEMENT FILTER
     ############################################################
 
-    if abs(proj_diff) < 2:
+    if abs(proj_diff) < 3:
         return False, "FAIL STEP 3 NBA TOTAL | projection diff", ""
 
     ############################################################
-    # EDGE THRESHOLD
+    # TOTAL BAND EDGE THRESHOLD
     ############################################################
 
-    edge_threshold = 0.015
+    if 225 <= line <= 230:
+        edge_threshold = 0.010
+    elif 230 < line <= 235:
+        edge_threshold = 0.010
+    else:
+        edge_threshold = 0.020
 
     ############################################################
     # DIRECTIONAL EDGE CHECK
