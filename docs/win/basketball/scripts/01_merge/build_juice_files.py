@@ -17,12 +17,12 @@ from scipy.stats import norm, poisson
 # NBA SETTINGS
 # ------------------------------------------------------------
 
-NBA_EDGE = 0.06
-NBA_TOTAL_EDGE = 0.05
-NBA_SPREAD_EDGE = 0.06
+NBA_EDGE = 0.035
+NBA_TOTAL_EDGE = 0.025
+NBA_SPREAD_EDGE = 0.035
 
-NBA_TOTAL_STD = 18.7
-NBA_SPREAD_STD = 13.7
+NBA_TOTAL_STD = 17.65
+NBA_SPREAD_STD = 12.16
 
 
 # ------------------------------------------------------------
