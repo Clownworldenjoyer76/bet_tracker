@@ -1,0 +1,45 @@
+name: Run Data Merge
+
+on:
+  workflow_dispatch: 
+
+jobs:
+  run-merge:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Dependencies
+        run: |
+          pip install pandas
+
+      - name: Run Merge Script
+        run: |
+          python scripts/merge_script.py
+
+        env:
+          # ============================================
+          # UPDATE THESE TWO VALUES ONLY
+          # ============================================
+
+          INPUT_FOLDER: data/YOUR_FOLDER_TO_MERGE
+          OUTPUT_FILE: output/YOUR_OUTPUT_FILE.csv
+
+          # ============================================
+          # UPDATE THOSE TWO VALUES ABOVE ONLY
+          # ============================================
+
+      - name: Commit merged output to repo
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "actions@github.com"
+          git add output/
+          git commit -m "Automated merge output update" || echo "No changes to commit"
+          git push
