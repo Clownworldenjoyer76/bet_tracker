@@ -108,6 +108,7 @@ def main():
                     # 5. Build Selection Row
                     selections.append({
                         "league": row["league"],
+                        "market": row["market"],
                         "match_date": row["match_date"],
                         "match_time": row["match_time"],
                         "home_team": row["home_team"],
