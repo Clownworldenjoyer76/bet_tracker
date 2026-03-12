@@ -120,6 +120,7 @@ def step1_nba_moneyline(row):
     return False, "FAIL STEP 1 NBA ML | no edge advantage", "", ""
 
 ###############################################################
+###############################################################
 ##################### STEP 2 NBA SPREAD #######################
 ###############################################################
 
@@ -131,26 +132,48 @@ def step2_nba_spread(row):
     home_edge = f(row.get("home_spread_edge_decimal"))
     away_edge = f(row.get("away_spread_edge_decimal"))
 
-    ############################################################
-    # SIDE SELECTION
-    ############################################################
+    home_prob = f(row.get("home_prob"))
+    away_prob = f(row.get("away_prob"))
 
-    if home_edge > away_edge:
-        return True, "PASS STEP 1 NBA ML | home stronger edge", "home", home_ml
+    ###########################################################
+    # Select stronger edge
+    ###########################################################
 
-    if away_edge > home_edge:
-        return True, "PASS STEP 1 NBA ML | away stronger edge", "away", away_ml
+    if home_edge >= away_edge:
+        side = "home"
+        line = home_line
+        edge = home_edge
+        prob = home_prob
+        opp_edge = away_edge
+    else:
+        side = "away"
+        line = away_line
+        edge = away_edge
+        prob = away_prob
+        opp_edge = home_edge
 
-    return False, "FAIL STEP 1 NBA ML | no edge advantage", "", ""
+    ###########################################################
+    # Edge requirement
+    ###########################################################
 
-    ############################################################
-    # 
-    ############################################################
-    # SAFETY FALLBACK
-    ############################################################
+    if edge < 0.001:
+        return False, "FAIL STEP 2 NBA SPREAD | edge too low", "", ""
 
-    return False, "FAIL STEP 2 NBA SPREAD | no condition met", "", ""
-    
+    ###########################################################
+    # Probability check
+    ###########################################################
+
+    if prob < 0.35:
+        return False, "FAIL STEP 2 NBA SPREAD | probability too low", "", ""
+
+    ###########################################################
+    # Edge separation
+    ###########################################################
+
+    if edge <= opp_edge:
+        return False, "FAIL STEP 2 NBA SPREAD | edge separation", "", ""
+
+    return True, "PASS STEP 2 NBA SPREAD", side, line
 ###############################################################
 ##################### STEP 3 NBA TOTAL ########################
 ###############################################################
