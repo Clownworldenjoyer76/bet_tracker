@@ -141,17 +141,12 @@ def step2_nba_spread(row):
         return False, "FAIL STEP 2 NBA SPREAD | small spread", "", ""
 
     ############################################################
-    # EXTREME SPREAD FILTER
-    ############################################################
-
-    if abs(home_line) > 20 or abs(away_line) > -20:
-        return False, "FAIL STEP 2 NBA SPREAD | extreme spread", "", ""
-
+  
     ############################################################
     # REJECT LARGE ROAD DOGS
     ############################################################
 
-    if away_line >= 11:
+    if away_line >= 15:
         return False, "FAIL STEP 2 NBA SPREAD | large road dog", "", ""
 
     ############################################################
@@ -168,7 +163,7 @@ def step2_nba_spread(row):
     # HOME FAVORITE ADVANTAGE ZONE
     ############################################################
 
-    if -14 <= home_line <= -3:
+    if -14 <= home_line <= -2:
         effective_home_threshold = 0.020
     else:
         effective_home_threshold = home_edge_threshold
@@ -177,8 +172,8 @@ def step2_nba_spread(row):
     # ROAD FAVORITE PENALTY
     ############################################################
 
-    if away_line <= -3:
-        effective_away_threshold = 0.045
+    if away_line <= -2:
+        effective_away_threshold = 0.04
     else:
         effective_away_threshold = away_edge_threshold
 
