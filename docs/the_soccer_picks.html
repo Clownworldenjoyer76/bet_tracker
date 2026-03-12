@@ -1,21 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Soccer Picks</title>
-    <link rel="stylesheet" href="css/matstheme.css">
-    <style>
-        .master-column { max-width: 900px; margin: 0 auto; }
-        .pick-row { border: 1px solid #444; margin-bottom: 10px; padding: 15px; border-radius: 4px; }
-        .pick-header { font-weight: bold; border-bottom: 1px solid #555; margin-bottom: 10px; display: flex; justify-content: space-between; }
-        .pick-body { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .bet-info { color: #00ff00; font-weight: bold; }
-    </style>
+<meta charset="UTF-8">
+<title>Soccer Picks Only</title>
+<link rel="stylesheet" href="css/matstheme.css">
+<style>
+    .master-column { max-width: 800px; margin: 20px auto; }
+    .pick-entry { border: 1px solid #ccc; padding: 15px; margin-bottom: 10px; border-radius: 5px; }
+    .pick-entry div { margin: 5px 0; }
+    .bold { font-weight: bold; }
+</style>
 </head>
 
 <body>
 <div class="container">
-    <h1>Soccer Picks Only</h1>
+    <h1>Soccer Picks</h1>
     <div id="nav-placeholder"></div>
 
     <section class="controls">
@@ -30,55 +29,46 @@
 <script src="js/config.js"></script>
 <script src="js/nav.js"></script>
 <script>
-    // Specific logic for Soccer Files only
     const dateInput = document.getElementById('p-date');
     const container = document.getElementById('games');
     const status = document.getElementById('status');
 
     dateInput.addEventListener('change', (e) => {
         const date = e.target.value.replace(/-/g, '');
-        const filePath = `win/soccer/04_select/soccer_${date}.csv`;
-        loadSoccerData(filePath);
+        // STRICT PATH: Only looks in the soccer folder
+        const soccerPath = `win/soccer/04_select/soccer_${date}.csv`;
+        fetchSoccerOnly(soccerPath);
     });
 
-    async function loadSoccerData(path) {
-        status.textContent = "Loading soccer data...";
+    async function fetchSoccerOnly(path) {
         container.innerHTML = "";
-        
+        status.textContent = "Fetching Soccer Data...";
+
         try {
             const response = await fetch(path);
-            if (!response.ok) throw new Error("File not found for this date.");
-            
+            if (!response.ok) throw new Error("No soccer data found for this date.");
+
             const text = await response.text();
-            const rows = text.split('\n').filter(r => r.trim() !== "");
-            const headers = rows[0].split(',');
+            const lines = text.split('\n').filter(l => l.trim() !== "");
+            const headers = lines[0].split(',');
 
-            // Find indices for excluded columns
-            const skipIndices = [
-                headers.indexOf('league'),
-                headers.indexOf('game_id'),
-                headers.indexOf('odds_decimal')
-            ];
+            // Map headers to indices
+            const idx = {};
+            headers.forEach((h, i) => idx[h.trim()] = i);
 
-            rows.slice(1).forEach(row => {
-                const cols = row.split(',');
-                const div = document.createElement('div');
-                div.className = 'pick-row';
-                
-                let html = `<div class="pick-header">
-                    <span>${cols[headers.indexOf('market')]}</span>
-                    <span>${cols[headers.indexOf('match_date')]} ${cols[headers.indexOf('match_time')]}</span>
-                </div>
-                <div class="pick-body">
-                    <div><strong>${cols[headers.indexOf('home_team')]} vs ${cols[headers.indexOf('away_team')]}</strong></div>
-                    <div class="bet-info">Bet: ${cols[headers.indexOf('take_bet')]} (@${cols[headers.indexOf('odds_american')]})</div>
-                    <div>Edge: ${cols[headers.indexOf('edge_pct')]}%</div>
-                    <div>Kelly: ${cols[headers.indexOf('kelly_stake_pct')]}%</div>
-                    <div>xG: ${cols[headers.indexOf('expected_goals')]}</div>
-                </div>`;
-                
-                div.innerHTML = html;
-                container.appendChild(div);
+            lines.slice(1).forEach(line => {
+                const cols = line.split(',');
+                const entry = document.createElement('div');
+                entry.className = 'pick-entry';
+
+                // Display only requested fields
+                entry.innerHTML = `
+                    <div class="bold">${cols[idx.home_team]} vs ${cols[idx.away_team]}</div>
+                    <div>Market: ${cols[idx.market]} | Time: ${cols[idx.match_date]} ${cols[idx.match_time]}</div>
+                    <div>Bet: <span class="bold">${cols[idx.take_bet]}</span> (@${cols[idx.odds_american]})</div>
+                    <div>Edge: ${cols[idx.edge_pct]}% | Kelly: ${cols[idx.kelly_stake_pct]}% | xG: ${cols[idx.expected_goals]}</div>
+                `;
+                container.appendChild(entry);
             });
             status.textContent = "";
         } catch (err) {
