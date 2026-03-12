@@ -1,4 +1,4 @@
-name: Run Merge Scripts
+name: Run Basketball Merge Scripts
 
 on:
   workflow_dispatch:
@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Setup Python
@@ -16,11 +16,11 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install Dependencies
+      - name: Install dependencies
         run: pip install pandas
 
-      # Ensure all output folders exist
-      - name: Ensure output directories exist
+      # Ensure folders your scripts write to exist
+      - name: Ensure output folders exist
         run: |
           mkdir -p scripts/errors_log
           mkdir -p docs/win/basketball/00_intake/sportsbook/merged
@@ -41,13 +41,13 @@ jobs:
       - name: Run Predictions NCAAB merge
         run: python scripts/merge_scripts/merge_folder_files_00_pred_NCAAB.py
 
-      - name: Run Edges merge
+      - name: Run Basketball edges merge
         run: python scripts/merge_scripts/merge_folder_files_03_basketball_edges.py
 
-      - name: Run Select merge
+      - name: Run Basketball select merge
         run: python scripts/merge_scripts/merge_folder_files_04_basketball_select.py
 
-      # Commit outputs
+      # Commit outputs your scripts created
       - name: Commit merged outputs
         run: |
           git config --global user.name "github-actions"
@@ -59,5 +59,5 @@ jobs:
           git add docs/win/basketball/03_edges/merged/
           git add docs/win/basketball/04_select/merged/
 
-          git commit -m "Automated basketball merge outputs" || echo "No changes to commit"
+          git commit -m "Automated basketball merges" || echo "No changes to commit"
           git push
