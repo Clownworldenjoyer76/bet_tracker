@@ -130,8 +130,8 @@ def step2_nba_spread(row):
     # BASE EDGE REQUIREMENT
     ############################################################
 
-    home_edge_threshold = 0.01
-    away_edge_threshold = 0.30
+    home_edge_threshold = 0.001
+    away_edge_threshold = 0.1
 
     ############################################################
    
@@ -139,7 +139,7 @@ def step2_nba_spread(row):
     # REJECT LARGE ROAD DOGS
     ############################################################
 
-    if away_line >= 15:
+    if away_line >= 20:
         return False, "FAIL STEP 2 NBA SPREAD | large road dog", "", ""
 
     ############################################################
@@ -149,7 +149,7 @@ def step2_nba_spread(row):
     ############################################################
 
     if -14 <= home_line <= -2:
-        effective_home_threshold = 0.001
+        effective_home_threshold = 0.00001
     else:
         effective_home_threshold = home_edge_threshold
 
@@ -158,7 +158,7 @@ def step2_nba_spread(row):
     ############################################################
 
     if away_line <= -1:
-        effective_away_threshold = 0.03
+        effective_away_threshold = 0.02
     else:
         effective_away_threshold = away_edge_threshold
 
@@ -178,10 +178,10 @@ def step2_nba_spread(row):
 
     if home_pass and away_pass:
 
-        if home_edge >= away_edge + 0.001:
+        if home_edge >= away_edge + 0.0001:
             return True, "PASS STEP 2 NBA SPREAD | home stronger edge", "home", home_line
 
-        if away_edge >= home_edge + 0.001:
+        if away_edge >= home_edge + 0.0001:
             return True, "PASS STEP 2 NBA SPREAD | away stronger edge", "away", away_line
 
         return False, "FAIL STEP 2 NBA SPREAD | edges too close", "", ""
