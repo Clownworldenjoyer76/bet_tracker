@@ -328,7 +328,7 @@ def step4_ncaab_moneyline(row):
 
     else:   # favorite
 
-        if edge < 0.010:
+        if edge < 0.050:
             return False, "FAIL STEP 4 NCAAB MONEYLINE | favorite edge too low", "", ""
 
         if prob < 0.50:
