@@ -93,23 +93,28 @@ def step1_nba_moneyline(row):
     ### UNDERDOGS ##############################################
     ############################################################
 
-    # Reject extreme underdogs
-    if away_ml > 250:
+    if away_ml > 300:
         return False, "FAIL STEP 1 NBA ML | away extreme underdog", "", ""
 
-    if home_ml > 250:
+    if home_ml > 300:
         return False, "FAIL STEP 1 NBA ML | home extreme underdog", "", ""
 
     ############################################################
     ###### DISABLED ---- EXTREME EDGES #########################
     ############################################################
 
-    # Reject unrealistic edges
     if home_edge > 999:
         return False, "FAIL STEP 1 NBA ML | home extreme edge", "", ""
 
     if away_edge > 999:
         return False, "FAIL STEP 1 NBA ML | away extreme edge", "", ""
+
+    ############################################################
+    # EDGE FLOOR
+    ############################################################
+
+    if home_edge < 0.035 and away_edge < 0.035:
+        return False, "FAIL STEP 1 NBA ML | edge too low", "", ""
 
     ############################################################
     # SIDE SELECTION
@@ -122,6 +127,7 @@ def step1_nba_moneyline(row):
         return True, "PASS STEP 1 NBA ML | away stronger edge", "away", away_ml
 
     return False, "FAIL STEP 1 NBA ML | no edge advantage", "", ""
+
 ###############################################################
 ##################### STEP 2 NBA SPREAD #######################
 ###############################################################
@@ -139,11 +145,11 @@ def step2_nba_spread(row):
     ############################################################
 
     away_range_pass = (
-        (14 <= away_line <= 99) or
-        (-99 <= away_line <= -2)
+        (20 <= away_line <= 99) or
+        (-99 <= away_line <= -1)
     )
 
-    away_edge_pass = away_edge >= 0.15
+    away_edge_pass = away_edge >= 0.05
 
     away_pass = away_range_pass and away_edge_pass
 
@@ -152,11 +158,11 @@ def step2_nba_spread(row):
     ############################################################
 
     home_range_pass = (
-        (2 <= home_line <= 11.9) or
-        (-99 <= home_line <= -2)
+        (1 <= home_line <= 15) or
+        (-99 <= home_line <= -1)
     )
 
-    home_edge_pass = home_edge >= 0.10001
+    home_edge_pass = home_edge >= 0.05
 
     home_pass = home_range_pass and home_edge_pass
 
@@ -275,7 +281,6 @@ def step3_nba_total(row):
         return False, "FAIL STEP 3 NBA TOTAL | edges too close", ""
 
     return False, "FAIL STEP 3 NBA TOTAL | edge filter", ""
-###############################################################
 ################### STEP 4 NCAAB MONEYLINE ####################
 ###############################################################
 
@@ -311,10 +316,10 @@ def step4_ncaab_moneyline(row):
     # Price range
     ###########################################################
 
-    if ml > 150:
+    if ml > 200:
         return False, "FAIL STEP 4 NCAAB MONEYLINE | extreme dog", "", ""
 
-    if ml < -300:
+    if ml < -450:
         return False, "FAIL STEP 4 NCAAB MONEYLINE | extreme favorite", "", ""
 
     ###########################################################
@@ -323,25 +328,25 @@ def step4_ncaab_moneyline(row):
 
     if ml >= 100:   # dog
 
-        if edge < 0.051:
+        if edge < 0.040:
             return False, "FAIL STEP 4 NCAAB MONEYLINE | dog edge too low", "", ""
 
-        if prob < 0.38:
+        if prob < 0.35:
             return False, "FAIL STEP 4 NCAAB MONEYLINE | dog prob too low", "", ""
 
     else:   # favorite
 
-        if edge < 0.050:
+        if edge < 0.040:
             return False, "FAIL STEP 4 NCAAB MONEYLINE | favorite edge too low", "", ""
 
-        if prob < 0.50:
+        if prob < 0.47:
             return False, "FAIL STEP 4 NCAAB MONEYLINE | favorite prob too low", "", ""
 
     ###########################################################
     # Edge separation
     ###########################################################
 
-    if edge - opp_edge < 0.002:
+    if edge <= opp_edge:
         return False, "FAIL STEP 4 NCAAB MONEYLINE | edge separation", "", ""
 
     return True, "PASS STEP 4 NCAAB MONEYLINE", side, ml
@@ -379,26 +384,24 @@ def step5_ncaab_spread(row):
         opp_edge = home_edge
 
     ###########################################################
-  
-    ###########################################################
     # Edge requirement
     ###########################################################
 
-    if edge < 0.08:
+    if edge < 0.045:
         return False, "FAIL STEP 5 NCAAB SPREAD | edge too low", "", ""
 
     ###########################################################
     # Probability check
     ###########################################################
 
-    if prob < 0.38:
+    if prob < 0.35:
         return False, "FAIL STEP 5 NCAAB SPREAD | probability too low", "", ""
 
     ###########################################################
     # Edge separation
     ###########################################################
 
-    if edge - opp_edge < 0.001:
+    if edge <= opp_edge:
         return False, "FAIL STEP 5 NCAAB SPREAD | edge separation", "", ""
 
     return True, "PASS STEP 5 NCAAB SPREAD", side, line
