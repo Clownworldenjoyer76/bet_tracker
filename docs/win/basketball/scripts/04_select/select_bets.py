@@ -131,7 +131,7 @@ def step2_nba_spread(row):
     ############################################################
 
     home_edge_threshold = 0.01
-    away_edge_threshold = 0.05
+    away_edge_threshold = 0.30
 
     ############################################################
    
@@ -149,7 +149,7 @@ def step2_nba_spread(row):
     ############################################################
 
     if -14 <= home_line <= -2:
-        effective_home_threshold = 0.020
+        effective_home_threshold = 0.001
     else:
         effective_home_threshold = home_edge_threshold
 
@@ -157,8 +157,8 @@ def step2_nba_spread(row):
     # ROAD FAVORITE PENALTY
     ############################################################
 
-    if away_line <= -2:
-        effective_away_threshold = 0.04
+    if away_line <= -1:
+        effective_away_threshold = 0.03
     else:
         effective_away_threshold = away_edge_threshold
 
@@ -178,10 +178,10 @@ def step2_nba_spread(row):
 
     if home_pass and away_pass:
 
-        if home_edge >= away_edge + 0.01:
+        if home_edge >= away_edge + 0.001:
             return True, "PASS STEP 2 NBA SPREAD | home stronger edge", "home", home_line
 
-        if away_edge >= home_edge + 0.01:
+        if away_edge >= home_edge + 0.001:
             return True, "PASS STEP 2 NBA SPREAD | away stronger edge", "away", away_line
 
         return False, "FAIL STEP 2 NBA SPREAD | edges too close", "", ""
