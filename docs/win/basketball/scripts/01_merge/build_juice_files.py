@@ -17,7 +17,7 @@ from scipy.stats import norm, poisson
 # NBA SETTINGS
 # ------------------------------------------------------------
 
-NBA_EDGE = 0.035
+NBA_EDGE = 0.015
 NBA_TOTAL_EDGE = 0.025
 NBA_SPREAD_EDGE = 0.035
 
@@ -28,7 +28,7 @@ NBA_SPREAD_STD = 11.5
 # NCAAB SETTINGS
 # ------------------------------------------------------------
 
-NCAAB_EDGE = 0.03
+NCAAB_EDGE = 0.015
 NCAAB_TOTAL_EDGE = 0.03
 NCAAB_SPREAD_EDGE = 0.03
 
