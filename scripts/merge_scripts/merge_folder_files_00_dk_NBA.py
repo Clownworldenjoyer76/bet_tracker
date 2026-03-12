@@ -1,43 +1,24 @@
+# scripts/merge_scripts/merge_folder_files_00_dk_NBA.py
+
 import os
 import pandas as pd
 from pathlib import Path
 from datetime import datetime
 
-# =========================================================
-# =============== MATS CONFIGURATION SECTION ===============
-# =========================================================
-
-
 INPUT_FOLDER = r"docs/win/basketball/00_intake/sportsbook"
-# Folder containing the files you want to merge.
 
 LEAGUE_FILTER = "NBA"
-# Example: "NBA", "NCAAB", etc.
-# To scan the ENTIRE folder and merge everything use:
-# 
-# LEAGUE_FILTER = ""
 
 OUTPUT_FILE = f"docs/win/basketball/00_intake/sportsbook/merged/sportsbook_{LEAGUE_FILTER}_merged.csv"
-# Output file location.
 
 FILE_EXTENSION = ".csv"
-# File type to merge
 
 ADD_SOURCE_COLUMN = True
-# True = adds column showing which file each row came from
-# False = no extra column
-
-# =========================================================
-
-
-# ---------------- Logger ---------------- #
 
 LOG_DIR = "scripts/errors_log"
 LOG_FILE = os.path.join(LOG_DIR, "merge_log.txt")
 
-# ensure log directory exists
 os.makedirs(LOG_DIR, exist_ok=True)
-
 
 def log(message):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -45,7 +26,6 @@ def log(message):
     print(entry)
     with open(LOG_FILE, "a") as f:
         f.write(entry + "\n")
-
 
 def get_files(folder, extension):
     files = []
@@ -62,9 +42,8 @@ def get_files(folder, extension):
                 continue
 
             files.append(os.path.join(root, name))
-
+            
     return files
-
 
 def detect_all_columns(files):
     """
@@ -84,7 +63,6 @@ def detect_all_columns(files):
 
     return sorted(list(column_set))
 
-
 def merge_files(files, all_columns):
 
     first_write = True
@@ -100,7 +78,6 @@ def merge_files(files, all_columns):
             if ADD_SOURCE_COLUMN:
                 df["source_file"] = Path(file).name
 
-            # align schema
             for col in all_columns:
                 if col not in df.columns:
                     df[col] = None
@@ -115,7 +92,6 @@ def merge_files(files, all_columns):
 
         except Exception as e:
             log(f"FAILED reading {file}: {e}")
-
 
 def main():
 
@@ -136,7 +112,6 @@ def main():
     merge_files(files, all_columns)
 
     log("Merge complete")
-
 
 if __name__ == "__main__":
     main()
