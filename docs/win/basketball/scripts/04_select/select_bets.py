@@ -381,7 +381,7 @@ def step5_ncaab_spread(row):
     # Edge requirement
     ###########################################################
 
-    if edge < 0.06:
+    if edge < 0.07:
         return False, "FAIL STEP 5 NCAAB SPREAD | edge too low", "", ""
 
     ###########################################################
