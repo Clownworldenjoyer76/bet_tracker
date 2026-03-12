@@ -89,37 +89,46 @@ def step1_nba_moneyline(row):
     home_ml = f(row.get("home_dk_moneyline_american"))
     away_ml = f(row.get("away_dk_moneyline_american"))
 
-    EDGE_THRESHOLD = 0.00000001
-
     ############################################################
-    # EDGE CHECK
+    ####### UNDERDOGS ##########################################
     ############################################################
 
-    home_pass = home_edge >= EDGE_THRESHOLD
-    away_pass = away_edge >= EDGE_THRESHOLD
+    # Reject extreme underdogs
+    if away_ml > 250:
+        return False, "FAIL STEP 1 NBA ML | away extreme underdog", "", ""
 
-    if not home_pass and not away_pass:
-        return False, "FAIL STEP 1 NBA ML | edge below threshold", "", ""
+    if home_ml > 250:
+        return False, "FAIL STEP 1 NBA ML | home extreme underdog", "", ""
 
     ############################################################
-    # SIDE SELECTION (STRONGER EDGE)
+    ###### EXTREME EDGES #######################################
     ############################################################
 
-    if home_pass and away_pass:
+    # Reject unrealistic edges
+    if home_edge > 0.25:
+        return False, "FAIL STEP 1 NBA ML | home extreme edge", "", ""
 
-        if home_edge >= away_edge:
-            return True, "PASS STEP 1 NBA ML | home stronger edge", "home", home_ml
+    if away_edge > 0.25:
+        return False, "FAIL STEP 1 NBA ML | away extreme edge", "", ""
 
+    ############################################################
+    ######## EDGE SEPARATION ###################################
+    ############################################################
+
+    if abs(home_edge - away_edge) < 0.01:
+        return False, "FAIL STEP 1 NBA ML | edge separation too small", "", ""
+
+    ############################################################
+    # SIDE SELECTION
+    ############################################################
+
+    if home_edge > away_edge:
+        return True, "PASS STEP 1 NBA ML | home stronger edge", "home", home_ml
+
+    if away_edge > home_edge:
         return True, "PASS STEP 1 NBA ML | away stronger edge", "away", away_ml
 
-    if home_pass:
-        return True, "PASS STEP 1 NBA ML | home edge", "home", home_ml
-
-    if away_pass:
-        return True, "PASS STEP 1 NBA ML | away edge", "away", away_ml
-
-    return False, "FAIL STEP 1 NBA ML | edge filter", "", ""
-
+    return False, "FAIL STEP 1 NBA ML | no edge advantage", "", ""
 
 ###############################################################
 ##################### STEP 2 NBA SPREAD #######################
