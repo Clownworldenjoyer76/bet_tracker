@@ -8,7 +8,7 @@ from datetime import datetime
 # =========================================================
 
 
-INPUT_FOLDER = r"OUTPUT_FILE: docs/win/basketball/00_intake/sportsbook"
+INPUT_FOLDER = r"docs/win/basketball/00_intake/sportsbook"
 # Folder containing the files you want to merge.
 
 LEAGUE_FILTER = "NCAAB"
