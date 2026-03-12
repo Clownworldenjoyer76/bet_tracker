@@ -6,8 +6,8 @@
     <link rel="stylesheet" href="css/matstheme.css">
     <style>
         .master-column { max-width: 800px; margin: 20px auto; display: flex; flex-direction: column; gap: 10px; }
-        .pick-card { border: 1px solid #444; padding: 15px; background: #111; border-radius: 4px; }
-        .pick-header { display: flex; justify-content: space-between; font-weight: bold; border-bottom: 1px solid #333; padding-bottom: 8px; margin-bottom: 8px; }
+        .pick-card { border: 1px solid #444; padding: 15px; background: #111; border-radius: 4px; color: #eee; }
+        .pick-header { display: flex; justify-content: space-between; font-weight: bold; border-bottom: 1px solid #333; padding-bottom: 8px; margin-bottom: 8px; color: #fff; }
         .pick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .bet-text { color: #00ff00; font-weight: bold; }
         .status { color: #ffca28; margin: 10px 0; font-family: monospace; }
@@ -36,20 +36,28 @@
     const container = document.getElementById('games');
     const status = document.getElementById('status');
 
-    // Initialize Page
-    window.onload = () => {
-        const today = new Date().toISOString().split('T')[0];
-        dateInput.value = today;
-        loadData(today);
-    };
+    // Initialize with Today's Date
+    window.addEventListener('DOMContentLoaded', () => {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        
+        const dateString = `${year}-${month}-${day}`;
+        dateInput.value = dateString;
+        loadData(dateString);
+    });
 
-    // Date Picker Logic
-    dateInput.addEventListener('input', (e) => {
-        if (e.target.value) loadData(e.target.value);
+    // Update on Date Selection
+    dateInput.addEventListener('change', (e) => {
+        loadData(e.target.value);
     });
 
     async function loadData(dateStr) {
-        const formattedDate = dateStr.replace(/-/g, '');
+        if (!dateStr) return;
+
+        // Formats YYYY-MM-DD to YYYY_MM_DD to match your file: soccer_2026_03_07.csv
+        const formattedDate = dateStr.replace(/-/g, '_');
         const targetFile = `win/soccer/04_select/soccer_${formattedDate}.csv`;
         
         status.textContent = `Loading: ${targetFile}`;
@@ -67,6 +75,8 @@
 
             rows.slice(1).forEach(row => {
                 const cols = row.split(',').map(c => c.trim());
+                if (cols.length < headers.length) return;
+
                 const card = document.createElement('div');
                 card.className = 'pick-card';
                 card.innerHTML = `
@@ -75,16 +85,17 @@
                         <span>${cols[getIdx('match_time')]}</span>
                     </div>
                     <div class="pick-grid">
-                        <div>Market: ${cols[getIdx('market')]}</div>
+                        <div><strong>Market:</strong> ${cols[getIdx('market')]}</div>
+                        <div><strong>Date:</strong> ${cols[getIdx('match_date')]}</div>
                         <div class="bet-text">BET: ${cols[getIdx('take_bet')]} (@${cols[getIdx('odds_american')]})</div>
-                        <div>Edge: ${cols[getIdx('edge_pct')]}%</div>
-                        <div>Kelly: ${cols[getIdx('kelly_stake_pct')]}%</div>
-                        <div>xG: ${cols[getIdx('expected_goals')]}</div>
+                        <div><strong>Edge:</strong> ${cols[getIdx('edge_pct')]}%</div>
+                        <div><strong>Kelly:</strong> ${cols[getIdx('kelly_stake_pct')]}%</div>
+                        <div><strong>xG:</strong> ${cols[getIdx('expected_goals')]}</div>
                     </div>
                 `;
                 container.appendChild(card);
             });
-            status.textContent = "Data loaded successfully.";
+            status.textContent = "Results Loaded.";
         } catch (err) {
             status.textContent = err.message;
         }
