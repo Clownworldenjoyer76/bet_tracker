@@ -22,8 +22,7 @@ NBA_TOTAL_EDGE = 0.025
 NBA_SPREAD_EDGE = 0.035
 
 NBA_TOTAL_STD = 21.5
-NBA_SPREAD_STD = 16.5
-
+NBA_SPREAD_STD = 11.5
 
 # ------------------------------------------------------------
 # NCAAB SETTINGS
