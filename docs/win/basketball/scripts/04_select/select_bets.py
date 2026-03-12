@@ -143,44 +143,68 @@ def step2_nba_spread(row):
     away_edge = f(row.get("away_spread_edge_decimal"))
 
     ############################################################
-    # BASE EDGE REQUIREMENT
+    # AWAY CONDITIONS
     ############################################################
 
-    home_edge_threshold = 0.0000001
-    away_edge_threshold = 0.0000001
+    away_range_pass = (
+        (14 <= away_line <= 99) or
+        (-99 <= away_line <= -2)
+    )
 
-    
+    away_edge_pass = away_edge >= 0.15
+
+    away_pass = away_range_pass and away_edge_pass
+
     ############################################################
-    # EDGE PASS CHECK
+    # HOME CONDITIONS
     ############################################################
 
-    home_pass = home_edge >= effective_home_threshold
-    away_pass = away_edge >= effective_away_threshold
+    home_range_pass = (
+        (2 <= home_line <= 11.9) or
+        (-99 <= home_line <= -2)
+    )
+
+    home_edge_pass = home_edge >= 0.10001
+
+    home_pass = home_range_pass and home_edge_pass
+
+    ############################################################
+    # FAIL IF NEITHER SIDE QUALIFIES
+    ############################################################
 
     if not home_pass and not away_pass:
-        return False, "FAIL STEP 2 NBA SPREAD | edge below threshold", "", ""
+        return False, "FAIL STEP 2 NBA SPREAD | no side qualified", "", ""
 
     ############################################################
-    # SIDE SELECTION LOGIC
+    # SIDE SELECTION
     ############################################################
 
     if home_pass and away_pass:
 
-        if home_edge >= away_edge + 0.0000001:
+        if home_edge > away_edge:
             return True, "PASS STEP 2 NBA SPREAD | home stronger edge", "home", home_line
 
-        if away_edge >= home_edge + 0.0000001:
+        if away_edge > home_edge:
             return True, "PASS STEP 2 NBA SPREAD | away stronger edge", "away", away_line
 
-        return False, "FAIL STEP 2 NBA SPREAD | edges too close", "", ""
+        return False, "FAIL STEP 2 NBA SPREAD | edges equal", "", ""
+
+    ############################################################
+    # SINGLE SIDE PASS
+    ############################################################
 
     if home_pass:
-        return True, "PASS STEP 2 NBA SPREAD | home edge", "home", home_line
+        return True, "PASS STEP 2 NBA SPREAD | home qualified", "home", home_line
 
     if away_pass:
-        return True, "PASS STEP 2 NBA SPREAD | away edge", "away", away_line
+        return True, "PASS STEP 2 NBA SPREAD | away qualified", "away", away_line
 
-    return False, "FAIL STEP 2 NBA SPREAD | edge below threshold", "", ""
+    ############################################################
+    # SAFETY FALLBACK
+    ############################################################
+
+    return False, "FAIL STEP 2 NBA SPREAD | no condition met", "", ""
+    
 ###############################################################
 ##################### STEP 3 NBA TOTAL ########################
 ###############################################################
