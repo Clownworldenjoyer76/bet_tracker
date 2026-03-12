@@ -143,74 +143,41 @@ def step2_nba_spread(row):
     away_edge = f(row.get("away_spread_edge_decimal"))
 
     ############################################################
-    # REJECT NEGATIVE AWAY EDGE
+    # AWAY SPREAD RANGE FILTER
     ############################################################
 
-    if away_edge < 0.15001:
-        away_edge = -999
+    away_range_pass = (
+        (14 <= away_line <= 99) or
+        (-99 <= away_line <= -3)
+    )
+
+    if not away_range_pass:
+        return False, "FAIL STEP 2 NBA SPREAD | away spread outside allowed range", "", ""
 
     ############################################################
-    # BASELINE EDGE REQUIREMENT
+    # HOME EDGE REQUIREMENT
     ############################################################
 
-    edge_threshold = 0.030
+    if home_edge < 0.10001:
+        return False, "FAIL STEP 2 NBA SPREAD | home edge below threshold", "", ""
 
     ############################################################
-    # EXTREME SPREAD FILTER
+    # HOME SPREAD RANGE FILTER
     ############################################################
 
-    if abs(home_line) > 15 or abs(away_line) > 15:
-        return False, "FAIL STEP 2 NBA SPREAD | extreme spread", "", ""
+    home_range_pass = (
+        (2 <= home_line <= 11.9) or
+        (-99 <= home_line <= -2)
+    )
+
+    if not home_range_pass:
+        return False, "FAIL STEP 2 NBA SPREAD | home spread outside allowed range", "", ""
 
     ############################################################
-    # HOME FAVORITE ADVANTAGE
+    # PASS HOME BET
     ############################################################
 
-    if -9 <= home_line <= -3:
-        effective_home_threshold = 0.020
-    else:
-        effective_home_threshold = edge_threshold
-
-    ############################################################
-    # ROAD FAVORITE PENALTY
-    ############################################################
-
-    if away_line <= -3:
-        effective_away_threshold = 0.045
-    else:
-        effective_away_threshold = edge_threshold
-
-    ############################################################
-    # EDGE PASS CHECK
-    ############################################################
-
-    home_pass = home_edge >= effective_home_threshold
-    away_pass = away_edge >= effective_away_threshold
-
-    if not home_pass and not away_pass:
-        return False, "FAIL STEP 2 NBA SPREAD | edge below threshold", "", ""
-
-    ############################################################
-    # SIDE SELECTION LOGIC
-    ############################################################
-
-    if home_pass and away_pass:
-
-        if home_edge >= away_edge + 0.01:
-            return True, "PASS STEP 2 NBA SPREAD | home stronger edge", "home", home_line
-
-        if away_edge >= home_edge + 0.01:
-            return True, "PASS STEP 2 NBA SPREAD | away stronger edge", "away", away_line
-
-        return False, "FAIL STEP 2 NBA SPREAD | edges too close", "", ""
-
-    if home_pass:
-        return True, "PASS STEP 2 NBA SPREAD | home edge", "home", home_line
-
-    if away_pass:
-        return True, "PASS STEP 2 NBA SPREAD | away edge", "away", away_line
-
-    return False, "FAIL STEP 2 NBA SPREAD | edge below threshold", "", ""
+    return True, "PASS STEP 2 NBA SPREAD | home spread qualified", "home", home_line
 ###############################################################
 ##################### STEP 3 NBA TOTAL ########################
 ###############################################################
