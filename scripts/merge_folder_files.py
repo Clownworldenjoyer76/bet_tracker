@@ -11,7 +11,7 @@ from datetime import datetime
 INPUT_FOLDER = r"docs/win/basketball/00_intake/sportsbook"
 # Folder containing the files you want to merge.
 
-LEAGUE_FILTER = "NCAAB"
+LEAGUE_FILTER = "NBA"
 # Example: "NBA", "NCAAB", etc.
 # To scan the ENTIRE folder and merge everything use:
 # 
