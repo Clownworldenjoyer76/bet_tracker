@@ -89,29 +89,36 @@ def step1_nba_moneyline(row):
     home_ml = f(row.get("home_dk_moneyline_american"))
     away_ml = f(row.get("away_dk_moneyline_american"))
 
-    EDGE_THRESHOLD = 0.035
+    EDGE_THRESHOLD = 0.00000001
 
     ############################################################
-    # SMALL UNDERDOG VALUE BAND
+    # EDGE CHECK
     ############################################################
 
-    if away_ml >= 120 and away_ml <= 150 and away_edge >= EDGE_THRESHOLD:
-        return True, "PASS STEP 1 NBA ML | small dog band", "away", away_ml
+    home_pass = home_edge >= EDGE_THRESHOLD
+    away_pass = away_edge >= EDGE_THRESHOLD
 
-    if home_ml >= 120 and home_ml <= 150 and home_edge >= EDGE_THRESHOLD:
-        return True, "PASS STEP 1 NBA ML | small dog band", "home", home_ml
+    if not home_pass and not away_pass:
+        return False, "FAIL STEP 1 NBA ML | edge below threshold", "", ""
 
     ############################################################
-    # FAVORITE VALUE
+    # SIDE SELECTION (STRONGER EDGE)
     ############################################################
 
-    if home_ml < -120 and home_edge >= EDGE_THRESHOLD:
-        return True, "PASS STEP 1 NBA ML | home favorite value", "home", home_ml
+    if home_pass and away_pass:
 
-    if away_ml < -120 and away_edge >= EDGE_THRESHOLD:
-        return True, "PASS STEP 1 NBA ML | away favorite value", "away", away_ml
+        if home_edge >= away_edge:
+            return True, "PASS STEP 1 NBA ML | home stronger edge", "home", home_ml
 
-    return False, "FAIL STEP 1 NBA ML | no value band", "", ""
+        return True, "PASS STEP 1 NBA ML | away stronger edge", "away", away_ml
+
+    if home_pass:
+        return True, "PASS STEP 1 NBA ML | home edge", "home", home_ml
+
+    if away_pass:
+        return True, "PASS STEP 1 NBA ML | away edge", "away", away_ml
+
+    return False, "FAIL STEP 1 NBA ML | edge filter", "", ""
 
 
 ###############################################################
