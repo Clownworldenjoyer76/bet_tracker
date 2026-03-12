@@ -73,7 +73,7 @@ def main():
 
             merged = pd.concat(dfs, ignore_index=True)
 
-            output_file = f"edges_{league}_{market}.csv"
+            output_file = f"select_{league}_{market}.csv"
             output_path = os.path.join(OUTPUT_FOLDER, output_file)
 
             merged.to_csv(output_path, index=False)
