@@ -379,17 +379,17 @@ def step5_ncaab_spread(row):
     # Spread sanity checks
     ###########################################################
 
-    if abs(line) < 5:
+    if abs(line) < 80:
         return False, "FAIL STEP 5 NCAAB SPREAD | pickem zone", "", ""
 
-    if abs(line) > 19:
+    if abs(line) > 99:
         return False, "FAIL STEP 5 NCAAB SPREAD | extreme spread", "", ""
 
     ###########################################################
     # Edge requirement
     ###########################################################
 
-    if edge < 0.051:
+    if edge < 0.02:
         return False, "FAIL STEP 5 NCAAB SPREAD | edge too low", "", ""
 
     ###########################################################
@@ -403,7 +403,7 @@ def step5_ncaab_spread(row):
     # Edge separation
     ###########################################################
 
-    if edge - opp_edge < 0.002:
+    if edge - opp_edge < 0.001:
         return False, "FAIL STEP 5 NCAAB SPREAD | edge separation", "", ""
 
     return True, "PASS STEP 5 NCAAB SPREAD", side, line
