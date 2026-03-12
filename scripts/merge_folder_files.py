@@ -8,7 +8,7 @@ from datetime import datetime
 # =========================================================
 
 
-INPUT_FOLDER = r"docs/win/basketball/00_intake/predictions"
+INPUT_FOLDER = r"OUTPUT_FILE: docs/win/basketball/00_intake/sportsbook"
 # Folder containing the files you want to merge.
 
 LEAGUE_FILTER = "NCAAB"
@@ -17,7 +17,7 @@ LEAGUE_FILTER = "NCAAB"
 # 
 # LEAGUE_FILTER = ""
 
-OUTPUT_FILE = f"docs/win/basketball/00_intake/predictions/merged/predictions_{LEAGUE_FILTER}_merged.csv"
+OUTPUT_FILE = f"docs/win/basketball/00_intake/sportsbook/merged/sportsbook{LEAGUE_FILTER}_merged.csv"
 # Output file location.
 
 FILE_EXTENSION = ".csv"
