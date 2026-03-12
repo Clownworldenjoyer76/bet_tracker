@@ -21,8 +21,8 @@ NBA_EDGE = 0.035
 NBA_TOTAL_EDGE = 0.025
 NBA_SPREAD_EDGE = 0.035
 
-NBA_TOTAL_STD = 17.65
-NBA_SPREAD_STD = 12.16
+NBA_TOTAL_STD = 21.5
+NBA_SPREAD_STD = 16.5
 
 
 # ------------------------------------------------------------
