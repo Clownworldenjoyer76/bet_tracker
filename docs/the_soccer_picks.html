@@ -10,6 +10,7 @@
         .pick-header { display: flex; justify-content: space-between; font-weight: bold; border-bottom: 1px solid #333; padding-bottom: 8px; margin-bottom: 8px; color: #fff; }
         .pick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .bet-text { color: #00ff00; font-weight: bold; }
+        .league-label { color: #aaa; font-size: 0.85em; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px; }
         .status { color: #ffca28; margin: 10px 0; font-family: monospace; }
     </style>
 </head>
@@ -36,27 +37,43 @@
     const container = document.getElementById('games');
     const status = document.getElementById('status');
 
-    // Initialize with Today's Date
+    const leagueMap = {
+        'bundesliga': 'German Bundesliga',
+        'laliga': 'Spain La Liga',
+        'ligue1': 'France Ligue 1',
+        'epl': 'English Premier League',
+        'seriea': 'Italy Serie A'
+    };
+
+    function getOrdinal(n) {
+        const s = ["th", "st", "nd", "rd"];
+        const v = n % 100;
+        return n + (s[(v - 20) % 10] || s[v] || s[0]);
+    }
+
+    function formatDate(dateStr) {
+        // Formats 2026_03_08 to March 8th, 2026
+        const parts = dateStr.split('_');
+        const d = new Date(parts[0], parts[1] - 1, parts[2]);
+        const month = d.toLocaleString('en-US', { month: 'long' });
+        return `${month} ${getOrdinal(parseInt(parts[2]))}, ${parts[0]}`;
+    }
+
+    // Auto-initialize with Today's Date
     window.addEventListener('DOMContentLoaded', () => {
         const now = new Date();
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const day = String(now.getDate()).padStart(2, '0');
-        
-        const dateString = `${year}-${month}-${day}`;
-        dateInput.value = dateString;
-        loadData(dateString);
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        const today = `${y}-${m}-${d}`;
+        dateInput.value = today;
+        loadData(today);
     });
 
-    // Update on Date Selection
-    dateInput.addEventListener('change', (e) => {
-        loadData(e.target.value);
-    });
+    dateInput.addEventListener('change', (e) => loadData(e.target.value));
 
     async function loadData(dateStr) {
         if (!dateStr) return;
-
-        // Formats YYYY-MM-DD to YYYY_MM_DD to match your file: soccer_2026_03_07.csv
         const formattedDate = dateStr.replace(/-/g, '_');
         const targetFile = `win/soccer/04_select/soccer_${formattedDate}.csv`;
         
@@ -70,32 +87,49 @@
             const text = await response.text();
             const rows = text.split('\n').filter(r => r.trim().length > 0);
             const headers = rows[0].split(',').map(h => h.trim());
-            
             const getIdx = (name) => headers.indexOf(name);
 
             rows.slice(1).forEach(row => {
                 const cols = row.split(',').map(c => c.trim());
                 if (cols.length < headers.length) return;
 
+                // 1. Flip Team Order: away_team at home_team
+                const away = cols[getIdx('away_team')];
+                const home = cols[getIdx('home_team')];
+
+                // 2. Map Market to Front-end Display Name
+                const marketRaw = cols[getIdx('market')];
+                const marketDisplay = leagueMap[marketRaw] || marketRaw;
+
+                // 3. Format Date with Ordinal
+                const dateDisplay = formatDate(cols[getIdx('match_date')]);
+
+                // 4. Format Bet Text
+                const betDisplay = cols[getIdx('take_bet')].replace('over25', 'Over 2.5').replace('under25', 'Under 2.5');
+                const odds = cols[getIdx('odds_american')];
+
+                // 5. Convert Edge to 2-decimal percent
+                const edgePct = (parseFloat(cols[getIdx('edge_pct')]) * 100).toFixed(2);
+
                 const card = document.createElement('div');
                 card.className = 'pick-card';
                 card.innerHTML = `
+                    <div class="league-label">${marketDisplay}</div>
                     <div class="pick-header">
-                        <span>${cols[getIdx('home_team')]} vs ${cols[getIdx('away_team')]}</span>
-                        <span>${cols[getIdx('match_time')]}</span>
+                        <span>${away} at ${home}</span>
+                        <span>${cols[getIdx('match_time')]} EST</span>
                     </div>
                     <div class="pick-grid">
-                        <div><strong>Market:</strong> ${cols[getIdx('market')]}</div>
-                        <div><strong>Date:</strong> ${cols[getIdx('match_date')]}</div>
-                        <div class="bet-text">BET: ${cols[getIdx('take_bet')]} (@${cols[getIdx('odds_american')]})</div>
-                        <div><strong>Edge:</strong> ${cols[getIdx('edge_pct')]}%</div>
-                        <div><strong>Kelly:</strong> ${cols[getIdx('kelly_stake_pct')]}%</div>
-                        <div><strong>xG:</strong> ${cols[getIdx('expected_goals')]}</div>
+                        <div>${dateDisplay}</div>
+                        <div class="bet-text">Take ${betDisplay} at ${odds}</div>
+                        <div>Edge: ${edgePct}%</div>
+                        <div>Kelly: ${cols[getIdx('kelly_stake_pct')]}%</div>
+                        <div>Projected Goals: ${cols[getIdx('expected_goals')]}</div>
                     </div>
                 `;
                 container.appendChild(card);
             });
-            status.textContent = "Results Loaded.";
+            status.textContent = "Loaded.";
         } catch (err) {
             status.textContent = err.message;
         }
