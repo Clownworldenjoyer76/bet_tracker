@@ -144,29 +144,7 @@ def step2_nba_spread(row):
     return False, "FAIL STEP 1 NBA ML | no edge advantage", "", ""
 
     ############################################################
-    # SIDE SELECTION
-    ############################################################
-
-    if home_pass and away_pass:
-
-        if home_edge > away_edge:
-            return True, "PASS STEP 2 NBA SPREAD | home stronger edge", "home", home_line
-
-        if away_edge > home_edge:
-            return True, "PASS STEP 2 NBA SPREAD | away stronger edge", "away", away_line
-
-        return False, "FAIL STEP 2 NBA SPREAD | edges equal", "", ""
-
-    ############################################################
-    # SINGLE SIDE PASS
-    ############################################################
-
-    if home_pass:
-        return True, "PASS STEP 2 NBA SPREAD | home qualified", "home", home_line
-
-    if away_pass:
-        return True, "PASS STEP 2 NBA SPREAD | away qualified", "away", away_line
-
+    # 
     ############################################################
     # SAFETY FALLBACK
     ############################################################
@@ -359,7 +337,7 @@ def step5_ncaab_spread(row):
     # Edge requirement
     ###########################################################
 
-    if edge < 0.045:
+    if edge < 0.001:
         return False, "FAIL STEP 5 NCAAB SPREAD | edge too low", "", ""
 
     ###########################################################
