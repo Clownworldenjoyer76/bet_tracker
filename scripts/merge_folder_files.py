@@ -17,7 +17,7 @@ LEAGUE_FILTER = "NCAAB"
 # 
 # LEAGUE_FILTER = ""
 
-OUTPUT_FILE = f"docs/win/basketball/00_intake/sportsbook/merged/sportsbook{LEAGUE_FILTER}_merged.csv"
+OUTPUT_FILE = f"docs/win/basketball/00_intake/sportsbook/merged/sportsbook_{LEAGUE_FILTER}_merged.csv"
 # Output file location.
 
 FILE_EXTENSION = ".csv"
