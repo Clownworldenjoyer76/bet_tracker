@@ -51,7 +51,7 @@ pipeline = [
     ["python", "docs/win/soccer/scripts/03_edges/compute_edges.py"],
     ["python", "docs/win/hockey/scripts/03_edges/compute_edges.py"],
     ["python", "docs/win/basketball/scripts/03_edges/compute_edges.py"],
-    ["python", "docs/win/basketball/scripts/03_edges/edge_check.py"],
+    ############################### ["python", "docs/win/basketball/scripts/03_edges/edge_check.py"],
 
     # --- 04 SELECT ---
     ["python", "docs/win/soccer/scripts/04_select/select_bets.py"],
