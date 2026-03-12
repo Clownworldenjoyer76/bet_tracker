@@ -130,18 +130,11 @@ def step2_nba_spread(row):
     # BASE EDGE REQUIREMENT
     ############################################################
 
-    home_edge_threshold = 0.03
-    away_edge_threshold = 0.06
+    home_edge_threshold = 0.02
+    away_edge_threshold = 0.07
 
     ############################################################
-    # REJECT COIN FLIP SPREADS
-    ############################################################
-
-    if abs(home_line) < 1.5 or abs(away_line) < 1.5:
-        return False, "FAIL STEP 2 NBA SPREAD | small spread", "", ""
-
-    ############################################################
-  
+   
     ############################################################
     # REJECT LARGE ROAD DOGS
     ############################################################
