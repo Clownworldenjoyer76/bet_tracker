@@ -130,8 +130,8 @@ def step2_nba_spread(row):
     # BASE EDGE REQUIREMENT
     ############################################################
 
-    home_edge_threshold = 0.02
-    away_edge_threshold = 0.07
+    home_edge_threshold = 0.01
+    away_edge_threshold = 0.05
 
     ############################################################
    
@@ -143,15 +143,7 @@ def step2_nba_spread(row):
         return False, "FAIL STEP 2 NBA SPREAD | large road dog", "", ""
 
     ############################################################
-    # KEY NUMBER PROTECTION
-    ############################################################
-
-    key_numbers = [3, 4, 5, 7, 10]
-
-    if abs(home_line) in key_numbers or abs(away_line) in key_numbers:
-        home_edge_threshold += 0.015
-        away_edge_threshold += 0.015
-
+ 
     ############################################################
     # HOME FAVORITE ADVANTAGE ZONE
     ############################################################
