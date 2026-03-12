@@ -130,8 +130,8 @@ def step2_nba_spread(row):
     # BASE EDGE REQUIREMENT
     ############################################################
 
-    home_edge_threshold = 0.001
-    away_edge_threshold = 0.001
+    home_edge_threshold = 0.0000001
+    away_edge_threshold = 0.0000001
 
     
     ############################################################
@@ -150,10 +150,10 @@ def step2_nba_spread(row):
 
     if home_pass and away_pass:
 
-        if home_edge >= away_edge + 0.0001:
+        if home_edge >= away_edge + 0.0000001:
             return True, "PASS STEP 2 NBA SPREAD | home stronger edge", "home", home_line
 
-        if away_edge >= home_edge + 0.0001:
+        if away_edge >= home_edge + 0.0000001:
             return True, "PASS STEP 2 NBA SPREAD | away stronger edge", "away", away_line
 
         return False, "FAIL STEP 2 NBA SPREAD | edges too close", "", ""
