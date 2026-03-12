@@ -5,8 +5,8 @@ import pandas as pd
 # ==================== CONFIG SECTION =====================
 # =========================================================
 
-INPUT_FOLDER = "docs/win/basketball/03_edges"
-OUTPUT_FOLDER = "docs/win/basketball/03_edges/merged"
+INPUT_FOLDER = "docs/win/basketball/04_select"
+OUTPUT_FOLDER = "docs/win/basketball/04_select/merged"
 
 LEAGUES = ["NBA", "NCAAB"]
 MARKETS = ["moneyline", "spread", "total"]
