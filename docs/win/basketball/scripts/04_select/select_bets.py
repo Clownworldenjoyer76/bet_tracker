@@ -376,20 +376,12 @@ def step5_ncaab_spread(row):
         opp_edge = home_edge
 
     ###########################################################
-    # Spread sanity checks
-    ###########################################################
-
-    if abs(line) < 80:
-        return False, "FAIL STEP 5 NCAAB SPREAD | pickem zone", "", ""
-
-    if abs(line) > 99:
-        return False, "FAIL STEP 5 NCAAB SPREAD | extreme spread", "", ""
-
+  
     ###########################################################
     # Edge requirement
     ###########################################################
 
-    if edge < 0.02:
+    if edge < 0.01:
         return False, "FAIL STEP 5 NCAAB SPREAD | edge too low", "", ""
 
     ###########################################################
