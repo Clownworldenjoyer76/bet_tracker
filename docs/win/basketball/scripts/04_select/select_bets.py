@@ -89,11 +89,12 @@ def step1_nba_moneyline(row):
     home_ml = f(row.get("home_dk_moneyline_american"))
     away_ml = f(row.get("away_dk_moneyline_american"))
 
-    if away_ml > 400:
-        return False, "FAIL STEP 1 NBA ML | away extreme underdog", "", ""
+    # Allow only favorites between -140 and -1000
+    if not (-1000 <= home_ml <= -140):
+        return False, "FAIL STEP 1 NBA ML | home odds outside allowed range", "", ""
 
-    if home_ml > 400:
-        return False, "FAIL STEP 1 NBA ML | home extreme underdog", "", ""
+    if not (-1000 <= away_ml <= -140):
+        return False, "FAIL STEP 1 NBA ML | away odds outside allowed range", "", ""
 
     if home_edge < 0.0000001 and away_edge < 0.0000001:
         return False, "FAIL STEP 1 NBA ML | edge too low", "", ""
@@ -105,7 +106,6 @@ def step1_nba_moneyline(row):
         return True, "PASS STEP 1 NBA ML | away stronger edge", "away", away_ml
 
     return False, "FAIL STEP 1 NBA ML | no edge advantage", "", ""
-
 
 ###############################################################
 ##################### STEP 2 NBA SPREAD #######################
