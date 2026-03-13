@@ -211,6 +211,21 @@ def build_sorted_output(df: pd.DataFrame, market_name: str) -> pd.DataFrame:
 # =========================
 
 def get_side_group(row) -> str:
+    market_name = normalize_text(row.get("market"))
+    market_type = normalize_text(row.get("market_type"))
+
+    if market_name == "soccer":
+        take_bet = normalize_text(row.get("take_bet"))
+
+        if market_type == "result":
+            if take_bet == "home":
+                return "Home"
+            if take_bet == "away":
+                return "Away"
+            return "Non_Home_Away"
+
+        return "Non_Home_Away"
+
     bet_side = normalize_text(row.get("bet_side"))
     home_team = normalize_text(row.get("home_team"))
     away_team = normalize_text(row.get("away_team"))
@@ -225,6 +240,20 @@ def get_side_group(row) -> str:
 
 
 def get_total_side(row) -> str:
+    market_name = normalize_text(row.get("market"))
+    market_type = normalize_text(row.get("market_type"))
+
+    if market_name == "soccer":
+        take_bet = normalize_text(row.get("take_bet"))
+
+        if market_type == "total":
+            if take_bet == "over25":
+                return "Over"
+            if take_bet == "under25":
+                return "Under"
+
+        return ""
+
     bet_side = normalize_text(row.get("bet_side"))
 
     if bet_side == "over":
@@ -236,7 +265,12 @@ def get_total_side(row) -> str:
 
 
 def get_selected_edge(row):
+    market_name = normalize_text(row.get("market"))
     market_type = normalize_text(row.get("market_type"))
+
+    if market_name == "soccer":
+        return to_float(row.get("edge_pct"))
+
     side_group = row.get("side_group", "")
     total_side = row.get("total_side", "")
 
@@ -262,7 +296,12 @@ def get_selected_edge(row):
 
 
 def get_selected_american_odds(row):
+    market_name = normalize_text(row.get("market"))
     market_type = normalize_text(row.get("market_type"))
+
+    if market_name == "soccer":
+        return to_float(row.get("odds_american"))
+
     side_group = row.get("side_group", "")
     total_side = row.get("total_side", "")
 
@@ -272,7 +311,6 @@ def get_selected_american_odds(row):
         if side_group == "Away":
             return to_float(row.get("away_dk_moneyline_american"))
 
-        # NHL fallback if home/away moneyline columns are absent
         take_odds = to_float(row.get("take_odds"))
         if pd.notna(take_odds):
             return take_odds
@@ -283,7 +321,6 @@ def get_selected_american_odds(row):
         if side_group == "Away":
             return to_float(row.get("away_dk_spread_american"))
 
-        # NHL fallback
         take_odds = to_float(row.get("take_odds"))
         if pd.notna(take_odds):
             return take_odds
@@ -304,7 +341,6 @@ def get_selected_american_odds(row):
         if total_side == "Under":
             return to_float(row.get("dk_total_under_american"))
 
-        # NHL total fallback
         take_odds = to_float(row.get("take_odds"))
         if pd.notna(take_odds):
             return take_odds
@@ -332,9 +368,12 @@ def get_selected_spread_like_line(row):
 
 
 def get_favorite_dog_bucket(row) -> str:
+    market_name = normalize_text(row.get("market"))
     market_type = normalize_text(row.get("market_type"))
 
-    # Favorite / dog makes sense for side markets only
+    if market_name == "soccer":
+        return ""
+
     if market_type == "moneyline":
         odds = to_float(row.get("selected_american_odds"))
 
