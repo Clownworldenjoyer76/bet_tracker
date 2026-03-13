@@ -93,7 +93,7 @@ def step1_nba_moneyline(row):
     if not (-1000 <= home_ml <= -150):
         return False, "FAIL STEP 1 NBA ML | home odds outside allowed range", "", ""
 
-    if not (-1000 <= away_ml <= -150):
+    if not (-1000 <= away_ml <= 1000):
         return False, "FAIL STEP 1 NBA ML | away odds outside allowed range", "", ""
 
     if home_edge < 0.0000001 and away_edge < 0.0000001:
