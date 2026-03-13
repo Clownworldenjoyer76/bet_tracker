@@ -1,362 +1,288 @@
 #!/usr/bin/env python3
-# docs/win/final_scores/scripts/05_results/results_sorted.py
+# docs/win/soccer/scripts/04_select/select_bets.py
 
-import os
+import pandas as pd
 from pathlib import Path
 from datetime import datetime
-import pandas as pd
-
+import traceback
 
 # =========================
 # PATHS
 # =========================
+INPUT_DIR = Path("docs/win/soccer/03_edges")
+OUTPUT_DIR = Path("docs/win/soccer/04_select")
+ERROR_DIR = Path("docs/win/soccer/errors/04_select")
+ERROR_LOG = ERROR_DIR / "select_bets.txt"
 
-INPUTS = {
-    "NBA": Path("docs/win/final_scores/results/nba/graded/NBA_final.csv"),
-    "NCAAB": Path("docs/win/final_scores/results/ncaab/graded/NCAAB_final.csv"),
-    "NHL": Path("docs/win/final_scores/results/nhl/graded/NHL_final.csv"),
-    "SOCCER": Path("docs/win/final_scores/results/soccer/graded/SOCCER_final.csv"),
-}
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
-OUTPUTS = {
-    "NBA": Path("docs/win/final_scores/results/nba/graded/NBA_final_sorted.csv"),
-    "NCAAB": Path("docs/win/final_scores/results/ncaab/graded/ncaab_final_sorted.csv"),
-    "NHL": Path("docs/win/final_scores/results/nhl/graded/nhl_final_sorted.csv"),
-    "SOCCER": Path("docs/win/final_scores/results/soccer/graded/soccer_final_sorted.csv"),
-}
+# =========================
+# CRITERIA CONFIG
+# =========================
+MIN_EDGE_PCT = 0.03
+MIN_PROB = 0.20
 
-MARKET_TALLY_INPUTS = {
-    "NBA": Path("docs/win/final_scores/results/nba/graded/NBA_final_sorted.csv"),
-    "NCAAB": Path("docs/win/final_scores/results/ncaab/graded/ncaab_final_sorted.csv"),
-    "NHL": Path("docs/win/final_scores/results/nhl/graded/nhl_final_sorted.csv"),
-    "SOCCER": Path("docs/win/final_scores/results/soccer/graded/soccer_final_sorted.csv"),
-}
+DRAW_MIN_EDGE_PCT = 0.05
+DRAW_MIN_PROB = 0.22
+DRAW_DOMINANCE_MARGIN = 0.03
 
-MARKET_TALLY_OUTPUTS = {
-    "NBA": Path("docs/win/final_scores/results/market_tally_NBA.csv"),
-    "NCAAB": Path("docs/win/final_scores/results/market_tally_NCAAB.csv"),
-    "NHL": Path("docs/win/final_scores/results/market_tally_NHL.csv"),
-    "SOCCER": Path("docs/win/final_scores/results/market_tally_SOCCER.csv"),
-}
-
-DEEP_OUTPUT_DIR = Path("docs/win/final_scores/deep_market_breakdowns")
-
-ERROR_LOG = Path("docs/win/final_scores/errors/results_sorted_errors.txt")
-
+KELLY_FRACTION = 0.25
 
 # =========================
 # HELPERS
 # =========================
+def parse_match_time(time_str):
+    if pd.isna(time_str):
+        return None
 
-def log(msg: str) -> None:
+    time_str = str(time_str).strip()
 
-    ERROR_LOG.parent.mkdir(parents=True, exist_ok=True)
+    for fmt in ("%I:%M %p", "%H:%M"):
+        try:
+            return datetime.strptime(time_str, fmt)
+        except Exception:
+            pass
 
-    ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    return None
 
-    with open(ERROR_LOG, "a", encoding="utf-8") as f:
 
-        f.write(f"[{ts}] {msg}\n")
+def calculate_kelly(prob, odds, fraction=0.25):
+    if pd.isna(prob) or pd.isna(odds):
+        return 0
 
+    if odds <= 1 or prob <= 0:
+        return 0
 
-def safe_read(path: Path) -> pd.DataFrame:
+    f_star = (odds * prob - 1) / (odds - 1)
+    return max(0, f_star * fraction)
 
-    try:
 
-        if not path.exists():
+def get_result_prob(row, side):
+    return row.get(f"{side}_prob")
 
-            log(f"Missing input: {path}")
 
-            return pd.DataFrame()
+def get_total_prob(row, side):
+    if side == "over25":
+        return row.get("over25_prob")
 
-        df = pd.read_csv(path)
+    if side == "under25":
+        over_prob = row.get("over25_prob")
 
-        if df is None or df.empty:
+        if pd.isna(over_prob):
+            return None
 
-            return pd.DataFrame()
+        return 1 - over_prob
 
-        return df
+    return None
 
-    except Exception as e:
 
-        log(f"ERROR reading {path}: {e}")
+def build_selection(row, market_name, take_bet, edge_pct, prob):
 
-        return pd.DataFrame()
+    odds_decimal = row.get(f"{take_bet}_dk_decimal")
+    odds_american = row.get(f"{take_bet}_american")
 
+    stake = calculate_kelly(prob, odds_decimal, KELLY_FRACTION)
 
-def normalize_result(df: pd.DataFrame) -> pd.DataFrame:
+    # =========================
+    # NEW SAFETY FILTER
+    # Reject bets with non-positive Kelly
+    # =========================
+    if stake <= 0:
+        return None
 
-    if "bet_result" in df.columns:
+    return {
+        "league": row.get("league"),
+        "market": market_name,
+        "match_date": row.get("match_date"),
+        "match_time": row.get("match_time"),
+        "home_team": row.get("home_team"),
+        "away_team": row.get("away_team"),
+        "game_id": row.get("game_id"),
+        "take_bet": take_bet,
+        "odds_american": odds_american,
+        "odds_decimal": odds_decimal,
+        "edge_pct": edge_pct,
+        "kelly_stake_pct": round(stake * 100, 2),
+        "expected_goals": row.get("expected_total_goals", "")
+    }
 
-        df["bet_result"] = df["bet_result"].astype(str).str.strip().str.title()
 
-    return df
+def select_best_result_side(row, columns):
 
+    result_candidates = {}
 
-def summarize_wl(df: pd.DataFrame):
+    for side in ["home", "draw", "away"]:
 
-    if "bet_result" not in df.columns:
+        edge_col = f"{side}_edge_pct"
+        prob_col = f"{side}_prob"
 
-        return 0, 0, 0, 0, 0
+        if edge_col not in columns or prob_col not in columns:
+            continue
 
-    wins = int((df["bet_result"] == "Win").sum())
+        edge_val = row.get(edge_col)
+        prob_val = row.get(prob_col)
 
-    losses = int((df["bet_result"] == "Loss").sum())
+        if pd.isna(edge_val) or pd.isna(prob_val):
+            continue
 
-    pushes = int((df["bet_result"] == "Push").sum())
+        if edge_val >= MIN_EDGE_PCT and prob_val >= MIN_PROB:
+            result_candidates[side] = edge_val
 
-    total = wins + losses + pushes
+    if not result_candidates:
+        return None
 
-    denom = wins + losses
+    best_side = max(result_candidates, key=result_candidates.get)
+    best_edge = result_candidates[best_side]
 
-    win_pct = float(wins / denom) if denom > 0 else 0
+    if best_side == "draw":
 
-    return wins, losses, pushes, total, win_pct
-
-
-# =========================
-# SUMMARY BUILDERS
-# =========================
-
-def generic_summary(df: pd.DataFrame, market_name: str):
-
-    rows = []
-
-    for m in sorted(df["market_type"].dropna().unique()):
-
-        sub = df[df["market_type"] == m]
-
-        wins, losses, pushes, total, win_pct = summarize_wl(sub)
-
-        rows.append({
-            "market": market_name,
-            "market_type": m,
-            "Win": wins,
-            "Loss": losses,
-            "Push": pushes,
-            "Total": total,
-            "Win_Pct": round(win_pct, 4)
-        })
-
-    return pd.DataFrame(rows)
-
-
-def soccer_summary(df: pd.DataFrame):
-
-    rows = []
-
-    for m in ["result", "total"]:
-
-        sub = df[df["market_type"] == m]
-
-        wins, losses, pushes, total, win_pct = summarize_wl(sub)
-
-        rows.append({
-            "market": "SOCCER",
-            "market_type": m,
-            "Win": wins,
-            "Loss": losses,
-            "Push": pushes,
-            "Total": total,
-            "Win_Pct": round(win_pct, 4)
-        })
-
-    return pd.DataFrame(rows)
-
-
-# =========================
-# DEEP ANALYTICS
-# =========================
-
-def build_deep_summary(df: pd.DataFrame, market_name: str):
-
-    rows = []
-
-    grouping_cols = ["market_type"]
-
-    if "team" in df.columns:
-        grouping_cols.append("team")
-
-    if "side" in df.columns:
-        grouping_cols.append("side")
-
-    if market_name == "SOCCER" and "league" in df.columns:
-        grouping_cols.append("league")
-
-    grouped = df.groupby(grouping_cols)
-
-    for keys, sub in grouped:
-
-        wins, losses, pushes, total, win_pct = summarize_wl(sub)
-
-        if not isinstance(keys, tuple):
-            keys = (keys,)
-
-        row = {
-            "market": market_name,
-            "Win": wins,
-            "Loss": losses,
-            "Push": pushes,
-            "Total": total,
-            "Win_Pct": round(win_pct, 4)
+        all_edges = {
+            side: row.get(f"{side}_edge_pct")
+            for side in ["home", "draw", "away"]
         }
 
-        for i, col in enumerate(grouping_cols):
-            row[col] = keys[i]
-
-        rows.append(row)
-
-    return pd.DataFrame(rows)
-
-
-def write_deep_summary(df: pd.DataFrame, market_name: str):
-
-    DEEP_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-
-    deep = build_deep_summary(df, market_name)
-
-    out_path = DEEP_OUTPUT_DIR / f"{market_name}_deep_summary.csv"
-
-    deep.to_csv(out_path, index=False)
-
-    log(f"{market_name}: wrote deep summary {out_path}")
-
-
-# =========================
-# BUILD SORTED OUTPUT
-# =========================
-
-def build_sorted_output(df: pd.DataFrame, market_name: str):
-
-    df = normalize_result(df)
-
-    if market_name == "SOCCER":
-
-        summary = soccer_summary(df)
-
-    else:
-
-        summary = generic_summary(df, market_name)
-
-    return summary
-
-
-# =========================
-# MARKET TALLY
-# =========================
-
-def create_market_tally_file(market_name: str, in_path: Path, out_path: Path):
-
-    df = safe_read(in_path)
-
-    if df.empty:
-
-        log(f"{market_name}: Input empty {in_path}")
-
-        return
-
-    rows = []
-
-    # Case 1: already aggregated files
-    if {"Win", "Loss", "Push", "Total", "Win_Pct"}.issubset(df.columns):
-
-        df["market"] = market_name
-
-        out = df[["market", "market_type", "Win", "Loss", "Push", "Total", "Win_Pct"]]
-
-    else:
-
-        df = normalize_result(df)
-
-        if market_name in ["NBA", "NCAAB"]:
-
-            markets = ["moneyline", "spread", "total"]
-
-        elif market_name == "NHL":
-
-            markets = ["moneyline", "puck_line", "total"]
-
-        else:
-
-            markets = ["result", "total"]
-
-        for m in markets:
-
-            sub = df[df["market_type"] == m]
-
-            wins, losses, pushes, total, win_pct = summarize_wl(sub)
-
-            rows.append({
-                "market": market_name,
-                "market_type": m,
-                "Win": wins,
-                "Loss": losses,
-                "Push": pushes,
-                "Total": total,
-                "Win_Pct": round(win_pct, 4)
-            })
-
-        out = pd.DataFrame(rows)
-
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-
-    out.to_csv(out_path, index=False)
-
-    log(f"{market_name}: wrote tally {out_path}")
-
-
-def create_all_market_tally_files():
-
-    for m, path in MARKET_TALLY_INPUTS.items():
-
-        create_market_tally_file(
-            m,
-            path,
-            MARKET_TALLY_OUTPUTS[m]
+        sorted_vals = sorted(
+            [v for v in all_edges.values() if not pd.isna(v)],
+            reverse=True
         )
+
+        second_best = sorted_vals[1] if len(sorted_vals) > 1 else -999
+
+        draw_prob = row.get("draw_prob", 0)
+
+        if (
+            best_edge < DRAW_MIN_EDGE_PCT
+            or pd.isna(draw_prob)
+            or draw_prob < DRAW_MIN_PROB
+            or (best_edge - second_best) < DRAW_DOMINANCE_MARGIN
+        ):
+
+            non_draw = {
+                k: v for k, v in result_candidates.items() if k != "draw"
+            }
+
+            if not non_draw:
+                return None
+
+            best_side = max(non_draw, key=non_draw.get)
+            best_edge = non_draw[best_side]
+
+    prob = get_result_prob(row, best_side)
+
+    if pd.isna(prob):
+        return None
+
+    return build_selection(
+        row=row,
+        market_name="result",
+        take_bet=best_side,
+        edge_pct=best_edge,
+        prob=prob
+    )
+
+
+def select_best_total(row, columns):
+
+    total_candidates = {}
+
+    for side in ["over25", "under25"]:
+
+        edge_col = f"{side}_edge_pct"
+
+        if edge_col not in columns:
+            continue
+
+        edge_val = row.get(edge_col)
+        prob_val = get_total_prob(row, side)
+
+        if pd.isna(edge_val) or prob_val is None or pd.isna(prob_val):
+            continue
+
+        if edge_val >= MIN_EDGE_PCT and prob_val >= MIN_PROB:
+            total_candidates[side] = edge_val
+
+    if not total_candidates:
+        return None
+
+    best_total = max(total_candidates, key=total_candidates.get)
+    best_edge = total_candidates[best_total]
+
+    prob = get_total_prob(row, best_total)
+
+    if prob is None or pd.isna(prob):
+        return None
+
+    return build_selection(
+        row=row,
+        market_name="total",
+        take_bet=best_total,
+        edge_pct=best_edge,
+        prob=prob
+    )
 
 
 # =========================
 # MAIN
 # =========================
-
 def main():
 
-    ERROR_LOG.parent.mkdir(parents=True, exist_ok=True)
+    with open(ERROR_LOG, "a") as log:
 
-    with open(ERROR_LOG, "w", encoding="utf-8") as f:
+        log.write(f"=== SELECT BETS RUN: {datetime.utcnow().isoformat()}Z ===\n")
 
-        f.write("=== results_sorted.py log ===\n")
+        try:
 
-    for market_name, in_path in INPUTS.items():
+            input_files = sorted(INPUT_DIR.glob("soccer_*.csv"))
 
-        df = safe_read(in_path)
+            if not input_files:
+                log.write("No input files found.\n")
+                return
 
-        if df.empty:
+            for input_path in input_files:
 
-            log(f"{market_name}: input empty")
+                df = pd.read_csv(input_path)
+                columns = set(df.columns)
 
-            continue
+                selections = []
 
-        # sorted output
-        out_df = build_sorted_output(df, market_name)
+                for _, row in df.iterrows():
 
-        out_path = OUTPUTS[market_name]
+                    result_selection = select_best_result_side(row, columns)
 
-        out_path.parent.mkdir(parents=True, exist_ok=True)
+                    if result_selection:
+                        selections.append(result_selection)
 
-        out_df.to_csv(out_path, index=False)
+                    total_selection = select_best_total(row, columns)
 
-        log(f"{market_name}: wrote sorted file {out_path}")
+                    if total_selection:
+                        selections.append(total_selection)
 
-        # deep analytics output
-        write_deep_summary(df, market_name)
+                output_path = OUTPUT_DIR / input_path.name
 
-    create_all_market_tally_files()
+                if selections:
 
-    print("results_sorted.py complete.")
+                    sel_df = pd.DataFrame(selections)
+
+                    sel_df["_sort_time"] = sel_df["match_time"].apply(parse_match_time)
+
+                    sel_df = sel_df.sort_values(
+                        by=["match_date", "_sort_time", "home_team", "away_team", "market"],
+                        na_position="last"
+                    ).drop(columns=["_sort_time"])
+
+                    sel_df.to_csv(output_path, index=False)
+
+                    log.write(f"Wrote {len(selections)} plays to {output_path}\n")
+
+                else:
+
+                    log.write(f"No plays qualified for {input_path.name}\n")
+
+        except Exception as e:
+
+            log.write(f"\nCRITICAL ERROR: {str(e)}\n{traceback.format_exc()}\n")
 
 
 if __name__ == "__main__":
-
     main()
