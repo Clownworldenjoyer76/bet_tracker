@@ -93,7 +93,7 @@ def determine_outcome(row):
         # SOCCER TOTALS (O/U 2.5)
         # =========================
 
-        if m_type == "total":
+        if m_type == "soccer_total":
 
             total_score = away_s + home_s
             line = 2.5
@@ -105,10 +105,8 @@ def determine_outcome(row):
                 return "Win" if total_score < line else "Loss"
 
         # =========================
-        # ORIGINAL LOGIC (UNCHANGED)
+        # MONEYLINE
         # =========================
-
-        line = float(row.get("line", 0))
 
         if m_type == "moneyline":
 
@@ -121,23 +119,34 @@ def determine_outcome(row):
             if side == "home":
                 return "Win" if home_s > away_s else "Loss"
 
+        # =========================
+        # SPREAD / PUCK LINE
+        # =========================
+
         if m_type in ["spread", "puck_line"]:
+
+            line = float(row.get("line", 0))
 
             if side == "away":
                 diff = (away_s + line) - home_s
             else:
                 diff = (home_s + line) - away_s
 
-            if diff == 0:
+            if abs(diff) < 1e-9:
                 return "Push"
 
             return "Win" if diff > 0 else "Loss"
 
+        # =========================
+        # TOTALS
+        # =========================
+
         if m_type in ["total", "totals"]:
 
+            line = float(row.get("line", 0))
             total_score = away_s + home_s
 
-            if total_score == line:
+            if abs(total_score - line) < 1e-9:
                 return "Push"
 
             if side == "over":
@@ -176,7 +185,6 @@ def write_market_master(cfg, output_dir):
         df = safe_read_csv(f)
 
         if not df.empty:
-
             dfs.append(df)
 
     if not dfs:
@@ -185,10 +193,10 @@ def write_market_master(cfg, output_dir):
 
     master_df = pd.concat(dfs, ignore_index=True)
 
-    master_df = master_df.sort_values(
-        ["game_date", "away_team", "home_team"],
-        kind="mergesort"
-    )
+    sort_cols = [c for c in ["game_date", "away_team", "home_team"] if c in master_df.columns]
+
+    if sort_cols:
+        master_df = master_df.sort_values(sort_cols, kind="mergesort")
 
     master_df.to_csv(master_path, index=False)
 
@@ -231,10 +239,6 @@ def process_results():
             "pattern": "*_NHL.csv"
         },
 
-        # =========================
-        # SOCCER CONFIG
-        # =========================
-
         {
             "name": "SOCCER",
             "scores_sub": "soccer",
@@ -272,8 +276,9 @@ def process_results():
                 log_summary(f"[SKIP] {cfg['name']} {date_str} - score file missing")
                 continue
 
+            # FIXED PATTERN BUG
             daily_bets = glob.glob(
-                os.path.join(cfg["bets_dir"], f"{date_str}*{cfg['pattern'].replace('*','')}")
+                os.path.join(cfg["bets_dir"], f"{date_str}{cfg['pattern']}")
             )
 
             dfs = []
