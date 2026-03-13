@@ -7,8 +7,6 @@ from pathlib import Path
 from datetime import datetime
 import traceback
 import pandas as pd
-import glob
-import re
 
 # =========================
 # LOGGER UTILITY
@@ -212,61 +210,6 @@ def market_output_dir(market: str) -> Path:
         raise ValueError(f"Unsupported market for output mapping: {market}")
 
 
-# =========================
-# SOCCER MASTER BUILDER
-# =========================
-
-def build_soccer_master():
-    soccer_dir = Path("docs/win/final_scores/results/soccer/final_scores")
-
-    files = glob.glob(str(soccer_dir / "*_final_scores_*.csv"))
-
-    dates = {}
-
-    for f in files:
-
-        name = Path(f).name
-
-        if name.endswith("_final_scores_SOCCER.csv"):
-            continue
-
-        m = re.search(r"(\d{4}_\d{2}_\d{2})", name)
-
-        if not m:
-            continue
-
-        d = m.group(1)
-
-        dates.setdefault(d, []).append(f)
-
-    for date_str, file_list in dates.items():
-
-        dfs = []
-
-        for f in file_list:
-
-            try:
-
-                df = pd.read_csv(f)
-
-                if "match_date" in df.columns:
-                    df = df.rename(columns={"match_date": "game_date"})
-
-                dfs.append(df)
-
-            except Exception:
-                continue
-
-        if not dfs:
-            continue
-
-        master = pd.concat(dfs, ignore_index=True)
-
-        out = soccer_dir / f"{date_str}_final_scores_SOCCER.csv"
-
-        master.to_csv(out, index=False)
-
-
 def main() -> int:
     if len(sys.argv) != 3:
         print("Usage: scores.py <market: NBA|NCAAB|NHL> <input_text_file>")
@@ -289,12 +232,6 @@ def main() -> int:
         print(f"Wrote {out_path} | rows={len(rows)}")
 
         audit(AUDIT_LOG, "PARSE_SCORES", "SUCCESS", msg=f"Parsed {market} from {input_path.name}", df=pd.DataFrame(rows))
-
-        # =========================
-        # BUILD SOCCER MASTER FILES
-        # =========================
-
-        build_soccer_master()
 
         return 0
 
