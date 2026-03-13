@@ -5,6 +5,7 @@ import pandas as pd
 from pathlib import Path
 from datetime import datetime
 import traceback
+import re
 
 # =========================
 # PATHS
@@ -282,6 +283,53 @@ def main():
         except Exception as e:
 
             log.write(f"\nCRITICAL ERROR: {str(e)}\n{traceback.format_exc()}\n")
+
+
+        # =========================
+        # CREATE REQUIRED RESULTS INPUT FILES
+        # docs/win/soccer/04_select/{YYYY_MM_DD}*soccer*.csv
+        # =========================
+        try:
+
+            date_groups = {}
+
+            for csv_file in OUTPUT_DIR.glob("*.csv"):
+
+                match = re.search(r"(\d{4}_\d{2}_\d{2})", csv_file.name)
+
+                if not match:
+                    continue
+
+                date_str = match.group(1)
+
+                date_groups.setdefault(date_str, []).append(csv_file)
+
+            for date_str, files in date_groups.items():
+
+                dfs = []
+
+                for f in files:
+                    try:
+                        df = pd.read_csv(f)
+                        if not df.empty:
+                            dfs.append(df)
+                    except Exception:
+                        continue
+
+                if not dfs:
+                    continue
+
+                combined = pd.concat(dfs, ignore_index=True)
+
+                out_path = OUTPUT_DIR / f"{date_str}_soccer.csv"
+
+                combined.to_csv(out_path, index=False)
+
+                log.write(f"Created results input file {out_path}\n")
+
+        except Exception as e:
+
+            log.write(f"\nERROR BUILDING REQUIRED SOCCER RESULTS FILES: {str(e)}\n{traceback.format_exc()}\n")
 
 
 if __name__ == "__main__":
