@@ -10,39 +10,40 @@
     
     label { display: block; margin-bottom: 5px; color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
     
-    /* COMBINED STYLE: Custom Arrow + Underline + Glow */
     select, input, textarea {
       width: 100%;
       background: var(--bg-card);
       color: var(--text-main);
       padding: 12px;
       font-family: inherit;
-      border-radius: 4px 4px 0 0; /* Rounded top, flat bottom */
+      border-radius: 4px;
       border: none;
       border-bottom: 2px solid var(--border-soft);
       transition: all 0.2s ease;
-      appearance: none; /* Removes default browser arrow */
+      appearance: none;
     }
 
-    /* CUSTOM GREEN ARROW for dropdowns */
     select {
       background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2300ff84'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
       background-repeat: no-repeat;
       background-position: right 12px center;
       background-size: 18px;
-      padding-right: 40px;
     }
 
-    /* NEON GLOW FOCUS */
     select:focus, input:focus, textarea:focus {
       outline: none;
       border-bottom-color: var(--accent-green);
-      background: #161b22; /* Slightly lighter background on focus */
       box-shadow: 0 4px 12px -4px rgba(0, 255, 132, 0.3);
     }
 
-    textarea { height: 180px; resize: none; border-radius: 4px; border: 1px solid var(--border-soft); }
-    textarea:focus { border-color: var(--accent-green); }
+    textarea { height: 200px; resize: none; border: 1px solid var(--border-soft); }
+
+    /* THE PULSE ANIMATION */
+    @keyframes pulse-yellow {
+      0% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.7); }
+      70% { box-shadow: 0 0 0 10px rgba(250, 204, 21, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0); }
+    }
 
     button {
       background: var(--accent-green);
@@ -56,14 +57,21 @@
       margin-top: 20px;
       text-transform: uppercase;
       letter-spacing: 2px;
-      transition: transform 0.1s;
+      transition: all 0.3s ease;
     }
 
-    button:active { transform: scale(0.98); }
-    button:disabled { background: var(--text-muted); opacity: 0.5; }
+    /* Pulse State */
+    button.submitting {
+      background: var(--bg-card) !important;
+      color: var(--accent-yellow) !important;
+      border: 1px solid var(--accent-yellow);
+      animation: pulse-yellow 1.5s infinite;
+      cursor: wait;
+    }
 
-    #out { margin-top: 20px; color: var(--accent-yellow); font-family: monospace; text-align: center; font-weight: bold; }
-    h2 { color: var(--accent-green); margin-bottom: 30px; }
+    #out { margin-top: 20px; font-family: monospace; font-weight: bold; text-align: center; }
+    .success { color: var(--accent-green); }
+    .failure { color: var(--accent-red); }
   </style>
 </head>
 <body>
@@ -84,14 +92,10 @@
           <option value="final_soccer_scores">Final Soccer Scores</option>
         </select>
       </div>
-
       <div>
         <label for="market">Market</label>
-        <select id="market">
-          <option value="">-- placeholder --</option>
-        </select>
+        <select id="market"><option value="">-- placeholder --</option></select>
       </div>
-
       <div>
         <label for="source">Source</label>
         <select id="source">
@@ -107,14 +111,13 @@
     <input id="token" type="password" placeholder="••••••••" />
 
     <label for="raw" style="margin-top:20px;">Raw Text</label>
-    <textarea id="raw" placeholder="Paste JSON or CSV data here..."></textarea>
+    <textarea id="raw"></textarea>
 
     <button id="btn" onclick="dispatch()">Create File</button>
     <div id="out"></div>
   </div>
 
   <script>
-    // ... (Keep existing script logic same as before) ...
     const OWNER = "Clownworldenjoyer76";
     const REPO  = "bet_tracker";
     const WORKFLOW_FILE = "_00_manual_data.yml";
@@ -128,35 +131,28 @@
       soccer: ["MLS", "EPL", "Ligue 1", "Serie A", "La Liga", "Bundesliga"],
       final_scores: ["NBA", "NCAAB", "NHL"],
       final_soccer_scores: [
-        { val: "epl", text: "EPL" },
-        { val: "laliga", text: "LA LIGA" },
-        { val: "ligue1", text: "LIGUE 1" },
-        { val: "bundesliga", text: "BUNDESLIGA" },
+        { val: "epl", text: "EPL" }, { val: "laliga", text: "LA LIGA" },
+        { val: "ligue1", text: "LIGUE 1" }, { val: "bundesliga", text: "BUNDESLIGA" },
         { val: "seriea", text: "SERIE A" }
       ]
     };
 
     function updateMarkets() {
-      const league = document.getElementById("league").value;
-      const marketSelect = document.getElementById("market");
-      const sourceSelect = document.getElementById("source");
-      marketSelect.innerHTML = "";
-      if (!league || !MARKET_MAP[league]) {
-        const opt = document.createElement("option");
-        opt.value = ""; opt.textContent = "-- placeholder --";
-        marketSelect.appendChild(opt);
+      const l = document.getElementById("league").value;
+      const mSel = document.getElementById("market");
+      const sSel = document.getElementById("source");
+      mSel.innerHTML = "";
+      if (!l || !MARKET_MAP[l]) {
+        mSel.innerHTML = "<option value=''>-- placeholder --</option>";
         return;
       }
-      for (const m of MARKET_MAP[league]) {
+      MARKET_MAP[l].forEach(m => {
         const opt = document.createElement("option");
-        if (typeof m === 'object') {
-          opt.value = m.val; opt.textContent = m.text;
-        } else {
-          opt.value = m; opt.textContent = m;
-        }
-        marketSelect.appendChild(opt);
-      }
-      if (league === "final_soccer_scores") { sourceSelect.value = "Scores"; }
+        opt.value = typeof m === 'object' ? m.val : m;
+        opt.textContent = typeof m === 'object' ? m.text : m;
+        mSel.appendChild(opt);
+      });
+      if (l === "final_soccer_scores") sSel.value = "Scores";
     }
 
     async function dispatch() {
@@ -167,13 +163,19 @@
       const raw    = document.getElementById("raw").value;
       const out    = document.getElementById("out");
       const btn    = document.getElementById("btn");
-      out.textContent = "";
+
       if (!league || !source || !token || !raw.trim()) {
+        out.className = "failure";
         out.textContent = "Major Failure Bro";
         return;
       }
+
+      // Start Pulse
+      btn.classList.add("submitting");
       btn.disabled = true;
-      btn.textContent = "Submitting...";
+      btn.textContent = "Processing...";
+      out.textContent = "";
+
       try {
         const url = `https://api.github.com/repos/${OWNER}/${REPO}/actions/workflows/${WORKFLOW_FILE}/dispatches`;
         const res = await fetch(url, {
@@ -183,15 +185,20 @@
             "Authorization": `Bearer ${token}`,
             "Content-Type": "application/json"
           },
-          body: JSON.stringify({
-            ref: REF,
-            inputs: { league, market, source, raw_text: raw }
-          })
+          body: JSON.stringify({ ref: REF, inputs: { league, market, source, raw_text: raw } })
         });
-        if (res.status === 204) { out.textContent = "Successfully Submitted"; } 
-        else { out.textContent = "Major Failure Bro"; }
-      } catch (e) { out.textContent = "Major Failure Bro"; } 
-      finally {
+
+        if (res.status === 204) {
+          out.className = "success";
+          out.textContent = "Successfully Submitted";
+        } else {
+          throw new Error();
+        }
+      } catch (e) {
+        out.className = "failure";
+        out.textContent = "Major Failure Bro";
+      } finally {
+        btn.classList.remove("submitting");
         btn.disabled = false;
         btn.textContent = "Create File";
       }
