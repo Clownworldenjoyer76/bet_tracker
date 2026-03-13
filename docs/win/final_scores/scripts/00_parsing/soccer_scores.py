@@ -44,7 +44,6 @@ SOCCER_HEADERS = [
 SOCCER_MARKETS = {"epl", "laliga", "ligue1", "bundesliga", "seriea"}
 
 def is_date_line(s: str) -> bool:
-    # Matches MM/DD/YYYY
     return bool(re.match(r"^\d{2}/\d{2}/\d{4}$", s.strip()))
 
 def format_date_for_file(s: str) -> str:
@@ -60,7 +59,6 @@ def parse_soccer(lines, market):
     while i < len(lines):
         line = lines[i].strip()
         
-        # 1. Identify start of game block by Date
         if not is_date_line(line):
             i += 1
             continue
@@ -69,8 +67,6 @@ def parse_soccer(lines, market):
         i += 1
         if i >= len(lines): break
 
-        # 2. Time, Away Team, Home Team (usually tab-separated or on separate lines)
-        # Based on your map: 03:00 PM [tab] Away \n Home
         row_data = lines[i].split("\t")
         match_time = row_data[0].strip()
         away_team = row_data[1].strip() if len(row_data) > 1 else ""
@@ -79,14 +75,11 @@ def parse_soccer(lines, market):
         if i >= len(lines): break
         home_team = lines[i].strip()
 
-        # 3. Skip the noise (Percentages, ML lines)
-        # We need to find the away_score/home_score which are typically 4-5 lines down
-        # We look for the first line that is purely a digit after the team names
         score_count = 0
         away_score = ""
         home_score = ""
         
-        search_limit = i + 10 # don't search forever
+        search_limit = i + 10
         while i < len(lines) and i < search_limit:
             potential_score = lines[i].split("\t")[0].strip()
             if potential_score.isdigit():
@@ -95,7 +88,7 @@ def parse_soccer(lines, market):
                     score_count += 1
                 else:
                     home_score = potential_score
-                    break # Found both scores
+                    break
             i += 1
 
         games.append({
@@ -112,6 +105,61 @@ def parse_soccer(lines, market):
     
     return games
 
+# =========================
+# SOCCER MASTER BUILDER
+# =========================
+
+def build_soccer_master():
+    soccer_dir = BASE_DIR / "results/soccer/final_scores"
+
+    files = list(soccer_dir.glob("*_final_scores_*.csv"))
+
+    dates = {}
+
+    for f in files:
+        name = f.name
+
+        if name.endswith("_final_scores_SOCCER.csv"):
+            continue
+
+        m = re.search(r"(\d{4}_\d{2}_\d{2})", name)
+
+        if not m:
+            continue
+
+        d = m.group(1)
+
+        dates.setdefault(d, []).append(f)
+
+    for date_str, file_list in dates.items():
+
+        dfs = []
+
+        for f in file_list:
+
+            try:
+
+                df = pd.read_csv(f)
+
+                if not df.empty:
+                    dfs.append(df)
+
+            except Exception:
+                continue
+
+        if not dfs:
+            continue
+
+        master_df = pd.concat(dfs, ignore_index=True)
+
+        out_path = soccer_dir / f"{date_str}_final_scores_SOCCER.csv"
+
+        master_df.to_csv(out_path, index=False)
+
+# =========================
+# MAIN
+# =========================
+
 def main():
     if len(sys.argv) != 3:
         return 2
@@ -119,9 +167,7 @@ def main():
     market = sys.argv[1].lower()
     input_path = Path(sys.argv[2])
     
-    # Validation for Soccer specifically
     if market not in SOCCER_MARKETS:
-        # Fallback to original script logic if needed, but here we focus on soccer
         print(f"Market {market} not in soccer list.")
         return 1
 
@@ -132,7 +178,6 @@ def main():
         if not all_games:
             raise ValueError("No soccer games parsed.")
 
-        # Group by date for multiple files
         df_all = pd.DataFrame(all_games)
         unique_dates = df_all['match_date'].unique()
 
@@ -143,7 +188,6 @@ def main():
             
             out_path = output_dir / f"{file_date}_final_scores_{market}.csv"
             
-            # Filter rows for this specific date
             date_rows = [g for g in all_games if g['match_date'] == m_date]
             
             with open(out_path, "w", newline="", encoding="utf-8") as f:
@@ -152,6 +196,8 @@ def main():
                 writer.writerows(date_rows)
             
             print(f"Created: {out_path}")
+
+        build_soccer_master()
 
         audit(AUDIT_LOG, "SOCCER_PARSE", "SUCCESS", msg=f"Processed {market}", df=df_all)
         return 0
