@@ -34,6 +34,7 @@ KELLY_FRACTION = 0.25
 # HELPERS
 # =========================
 def parse_match_time(time_str):
+
     if pd.isna(time_str):
         return None
 
@@ -49,6 +50,7 @@ def parse_match_time(time_str):
 
 
 def calculate_kelly(prob, odds, fraction=0.25):
+
     if pd.isna(prob) or pd.isna(odds):
         return 0
 
@@ -56,6 +58,7 @@ def calculate_kelly(prob, odds, fraction=0.25):
         return 0
 
     f_star = (odds * prob - 1) / (odds - 1)
+
     return max(0, f_star * fraction)
 
 
@@ -64,10 +67,12 @@ def get_result_prob(row, side):
 
 
 def get_total_prob(row, side):
+
     if side == "over25":
         return row.get("over25_prob")
 
     if side == "under25":
+
         over_prob = row.get("over25_prob")
 
         if pd.isna(over_prob):
@@ -78,6 +83,9 @@ def get_total_prob(row, side):
     return None
 
 
+# =========================
+# BUILD SELECTION
+# =========================
 def build_selection(row, market_name, take_bet, edge_pct, prob):
 
     odds_decimal = row.get(f"{take_bet}_dk_decimal")
@@ -106,6 +114,9 @@ def build_selection(row, market_name, take_bet, edge_pct, prob):
     }
 
 
+# =========================
+# RESULT SELECTION
+# =========================
 def select_best_result_side(row, columns):
 
     result_candidates = {}
@@ -180,6 +191,9 @@ def select_best_result_side(row, columns):
     )
 
 
+# =========================
+# TOTAL SELECTION
+# =========================
 def select_best_total(row, columns):
 
     total_candidates = {}
@@ -246,50 +260,46 @@ def main():
 
                 for _, row in df.iterrows():
 
-                    result_selection = select_best_result_side(row, columns)
+                    r = select_best_result_side(row, columns)
+                    if r:
+                        selections.append(r)
 
-                    if result_selection:
-                        selections.append(result_selection)
+                    t = select_best_total(row, columns)
+                    if t:
+                        selections.append(t)
 
-                    total_selection = select_best_total(row, columns)
+                if not selections:
+                    log.write(f"No plays qualified for {input_path.name}\n")
+                    continue
 
-                    if total_selection:
-                        selections.append(total_selection)
+                sel_df = pd.DataFrame(selections)
+
+                sel_df["_sort_time"] = sel_df["match_time"].apply(parse_match_time)
+
+                sel_df = sel_df.sort_values(
+                    by=["game_date", "_sort_time", "home_team", "away_team", "market_type"],
+                    na_position="last"
+                ).drop(columns=["_sort_time"])
 
                 output_path = OUTPUT_DIR / input_path.name
 
-                if selections:
+                sel_df.to_csv(output_path, index=False)
 
-                    sel_df = pd.DataFrame(selections)
-
-                    sel_df["_sort_time"] = sel_df["match_time"].apply(parse_match_time)
-
-                    sel_df = sel_df.sort_values(
-                        by=["game_date", "_sort_time", "home_team", "away_team", "market_type"],
-                        na_position="last"
-                    ).drop(columns=["_sort_time"])
-
-                    sel_df.to_csv(output_path, index=False)
-
-                    log.write(f"Wrote {len(selections)} plays to {output_path}\n")
-
-                else:
-
-                    log.write(f"No plays qualified for {input_path.name}\n")
+                log.write(f"Wrote {len(sel_df)} plays to {output_path}\n")
 
         except Exception as e:
 
             log.write(f"\nCRITICAL ERROR: {str(e)}\n{traceback.format_exc()}\n")
 
+
         # =========================
-        # CREATE REQUIRED RESULTS INPUT FILES
-        # docs/win/soccer/04_select/{YYYY_MM_DD}_soccer.csv
+        # BUILD DAILY COMBINED FILE
         # =========================
         try:
 
             date_groups = {}
 
-            for csv_file in OUTPUT_DIR.glob("*.csv"):
+            for csv_file in OUTPUT_DIR.glob("soccer_*.csv"):
 
                 match = re.search(r"(\d{4}_\d{2}_\d{2})", csv_file.name)
 
@@ -305,10 +315,14 @@ def main():
                 dfs = []
 
                 for f in files:
+
                     try:
+
                         df = pd.read_csv(f)
+
                         if not df.empty:
                             dfs.append(df)
+
                     except Exception:
                         continue
 
@@ -329,7 +343,9 @@ def main():
 
         except Exception as e:
 
-            log.write(f"\nERROR BUILDING REQUIRED SOCCER RESULTS FILES: {str(e)}\n{traceback.format_exc()}\n")
+            log.write(
+                f"\nERROR BUILDING SOCCER RESULTS INPUT: {str(e)}\n{traceback.format_exc()}\n"
+            )
 
 
 if __name__ == "__main__":
