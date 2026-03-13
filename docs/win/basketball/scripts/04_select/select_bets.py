@@ -160,12 +160,7 @@ def step2_nba_spread(row):
         return False, "FAIL STEP 2 NBA SPREAD | edge too low", "", ""
 
     ###########################################################
-    # Probability check
-    ###########################################################
-
-    if prob < 0.35:
-        return False, "FAIL STEP 2 NBA SPREAD | probability too low", "", ""
-
+   
     ###########################################################
     # Edge separation
     ###########################################################
