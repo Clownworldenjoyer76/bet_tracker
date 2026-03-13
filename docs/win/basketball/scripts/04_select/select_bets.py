@@ -117,13 +117,12 @@ def step1_nba_moneyline(row):
     if away_edge > home_edge:
         return True, "PASS STEP 1 NBA ML | away stronger edge", "away", away_ml
 
-    return False, "FAIL STEP 1 NBA ML | no edge advantage", "", ""
+    return False, "FAIL STEP 1 NBA ML | no edge ###############################################################
 
-###############################################################
-###############################################################
-##################### STEP 2 NBA SPREAD #######################
-###############################################################
 
+#####################################################
+#################### STEP 5 NBA SPREAD ######################
+#####################################################
 def step2_nba_spread(row):
 
     home_line = f(row.get("home_spread"))
@@ -131,9 +130,6 @@ def step2_nba_spread(row):
 
     home_edge = f(row.get("home_spread_edge_decimal"))
     away_edge = f(row.get("away_spread_edge_decimal"))
-
-    home_prob = f(row.get("home_prob"))
-    away_prob = f(row.get("away_prob"))
 
     ###########################################################
     # Select stronger edge
@@ -143,14 +139,19 @@ def step2_nba_spread(row):
         side = "home"
         line = home_line
         edge = home_edge
-        prob = home_prob
         opp_edge = away_edge
     else:
         side = "away"
         line = away_line
         edge = away_edge
-        prob = away_prob
         opp_edge = home_edge
+
+    ###########################################################
+    # Performance Filter: Away Spread "Dead Zone" (10.0 to 13.9)
+    ###########################################################
+    
+    if side == "away" and 10.0 <= line <= 13.9:
+        return False, f"FAIL STEP 2 NBA SPREAD | away spread dead zone ({line})", "", ""
 
     ###########################################################
     # Edge requirement
@@ -160,8 +161,6 @@ def step2_nba_spread(row):
         return False, "FAIL STEP 2 NBA SPREAD | edge too low", "", ""
 
     ###########################################################
-   
-    ###########################################################
     # Edge separation
     ###########################################################
 
@@ -169,6 +168,7 @@ def step2_nba_spread(row):
         return False, "FAIL STEP 2 NBA SPREAD | edge separation", "", ""
 
     return True, "PASS STEP 2 NBA SPREAD", side, line
+
 ###############################################################
 ##################### STEP 3 NBA TOTAL ########################
 ###############################################################
@@ -362,13 +362,7 @@ def step5_ncaab_spread(row):
         return False, "FAIL STEP 5 NCAAB SPREAD | edge too low", "", ""
 
     ###########################################################
-    # Probability check
-    ###########################################################
-
-    if prob < 0.35:
-        return False, "FAIL STEP 5 NCAAB SPREAD | probability too low", "", ""
-
-    ###########################################################
+    # ################################################
     # Edge separation
     ###########################################################
 
