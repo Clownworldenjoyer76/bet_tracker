@@ -5,13 +5,97 @@
     <title>Soccer Picks</title>
     <link rel="stylesheet" href="css/matstheme.css">
     <style>
-        .master-column { max-width: 800px; margin: 20px auto; display: flex; flex-direction: column; gap: 10px; }
-        .pick-card { border: 1px solid #444; padding: 15px; background: #111; border-radius: 4px; color: #eee; }
-        .pick-header { display: flex; justify-content: space-between; font-weight: bold; border-bottom: 1px solid #333; padding-bottom: 8px; margin-bottom: 8px; color: #fff; }
-        .pick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .bet-text { color: #00ff00; font-weight: bold; }
-        .league-label { color: #aaa; font-size: 0.85em; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px; }
-        .status { color: #ffca28; margin: 10px 0; font-family: monospace; }
+        .master-column { max-width: 800px; margin: 20px auto; display: flex; flex-direction: column; gap: 15px; }
+        
+        /* 1. Glassmorphism Card Style */
+        .pick-card { 
+            border: 1px solid var(--border-soft); 
+            padding: 20px; 
+            background: rgba(15, 20, 27, 0.8); 
+            backdrop-filter: blur(10px);
+            border-radius: 4px; 
+            color: var(--text-main); 
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* 2. Hover Lift & Glow */
+        .pick-card:hover { 
+            transform: translateY(-4px); 
+            border-color: var(--accent-green);
+            box-shadow: 0 8px 25px rgba(0, 255, 132, 0.15);
+            background: rgba(22, 27, 34, 0.9);
+        }
+
+        .pick-header { 
+            display: flex; 
+            justify-content: space-between; 
+            font-weight: bold; 
+            border-bottom: 1px solid var(--border-soft); 
+            padding-bottom: 10px; 
+            margin-bottom: 12px; 
+            color: var(--text-main); 
+            font-size: 1.1em;
+        }
+
+        .pick-grid { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 12px; 
+            font-size: 0.95em;
+        }
+
+        .bet-text { 
+            color: var(--accent-green); 
+            font-weight: 900; 
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .league-label { 
+            color: var(--text-muted); 
+            font-size: 0.75em; 
+            margin-bottom: 8px; 
+            text-transform: uppercase; 
+            letter-spacing: 2px; 
+            font-weight: bold;
+        }
+
+        /* 3. Loading Pulse Animation */
+        .status { 
+            margin: 20px 0; 
+            font-family: monospace; 
+            font-size: 13px;
+            transition: all 0.3s ease;
+        }
+
+        .loading-pulse {
+            animation: status-glow 1.5s infinite;
+            font-weight: bold;
+        }
+
+        @keyframes status-glow {
+            0% { color: var(--accent-yellow); opacity: 1; }
+            50% { color: var(--accent-green); opacity: 0.5; }
+            100% { color: var(--accent-yellow); opacity: 1; }
+        }
+
+        /* Styled Date Input */
+        input[type="date"] {
+            background: var(--bg-card);
+            border: 1px solid var(--border-soft);
+            color: var(--text-main);
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        input[type="date"]:focus {
+            border-color: var(--accent-green);
+        }
     </style>
 </head>
 
@@ -21,7 +105,7 @@
     <div id="nav-placeholder"></div>
 
     <section class="controls">
-        <label>Date:</label>
+        <label style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); margin-right: 10px;">Date Selection:</label>
         <input id="p-date" type="date">
     </section>
 
@@ -85,12 +169,13 @@
         const formattedDate = dateStr.replace(/-/g, '_');
         const targetFile = `win/soccer/04_select/soccer_${formattedDate}.csv`;
         
-        status.textContent = `Loading: ${targetFile}`;
+        status.textContent = `FETCHING DATA FROM: ${targetFile}`;
+        status.classList.add('loading-pulse');
         container.innerHTML = "";
 
         try {
             const response = await fetch(targetFile);
-            if (!response.ok) throw new Error(`File Not Found: ${targetFile}`);
+            if (!response.ok) throw new Error(`DATA UNAVAILABLE: ${formattedDate}`);
 
             const text = await response.text();
             const rows = text.split('\n').filter(r => r.trim().length > 0);
@@ -108,7 +193,6 @@
                 const dateDisplay = formatDate(cols[getIdx('match_date')]);
                 const timeDisplay = formatTime(cols[getIdx('match_time')]);
 
-                // Updated logic: replace 'away' or 'home' with actual team names
                 let rawBet = cols[getIdx('take_bet')];
                 let betDisplay = rawBet;
 
@@ -143,9 +227,11 @@
                 `;
                 container.appendChild(card);
             });
-            status.textContent = "Loaded.";
+            status.textContent = "SYSTEM READY";
+            status.classList.remove('loading-pulse');
         } catch (err) {
             status.textContent = err.message;
+            status.classList.remove('loading-pulse');
         }
     }
 </script>
