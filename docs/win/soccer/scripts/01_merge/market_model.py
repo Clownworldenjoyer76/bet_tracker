@@ -99,7 +99,7 @@ for merge_file in merge_files:
             try:
                 lh, la = float(r["home_xg"]), float(r["away_xg"])
                 # Handle orientation logic
-                res = interpolate(table, la, lh) if LAMBDA_ORIENTATION.get(market, False) else interpolate(table, lh, la)
+                res = interpolate(table, la, lh)
                 
                 # UPDATE: Overwrite home_prob/draw_prob/away_prob with model values
                 # and add the new interpolation results
