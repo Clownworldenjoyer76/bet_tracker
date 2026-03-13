@@ -107,14 +107,7 @@ jobs:
           printf "%s" "${{ github.event.inputs.raw_text }}" > dump.txt
           BASE="docs/win/final_scores/scripts/00_parsing"
           python "$BASE/soccer_scores.py" "${{ github.event.inputs.market }}" dump.txt
-
-      # =========================
-      # BUILD SOCCER MASTER FILE
-      # =========================
-      - name: Build Soccer Master Scores
-        if: ${{ github.event.inputs.league == 'final_soccer_scores' }}
-        run: |
-          python docs/win/final_scores/scripts/05_results/soccer_master.py
+          python "$BASE/soccer_master.py"
 
       # =========================
       # COMMITS
@@ -123,12 +116,11 @@ jobs:
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-
-          # Add all potential output directories
+          
           git add docs/win/basketball/00_intake/ mappings/basketball/no_map/ docs/win/basketball/errors/ || true
           git add docs/win/hockey/00_intake/ mappings/hockey/no_map/ docs/win/hockey/errors/ || true
           git add docs/win/soccer/00_intake/ mappings/soccer/no_map/ docs/win/soccer/errors/ || true
           git add docs/win/final_scores/results/ docs/win/final_scores/errors/ || true
-
+          
           git commit -m "manual data intake: ${{ github.event.inputs.league }} - ${{ github.event.inputs.market }}" || echo "No changes"
           git push
