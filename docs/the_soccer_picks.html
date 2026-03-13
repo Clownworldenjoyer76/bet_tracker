@@ -52,14 +52,23 @@
     }
 
     function formatDate(dateStr) {
-        // Formats 2026_03_08 to March 8th, 2026
         const parts = dateStr.split('_');
         const d = new Date(parts[0], parts[1] - 1, parts[2]);
         const month = d.toLocaleString('en-US', { month: 'long' });
         return `${month} ${getOrdinal(parseInt(parts[2]))}, ${parts[0]}`;
     }
 
-    // Auto-initialize with Today's Date
+    function formatTime(timeStr) {
+        // If input is 16:00, convert to 04:00 PM
+        if (!timeStr.includes(':')) return timeStr;
+        let [hours, minutes] = timeStr.split(':');
+        hours = parseInt(hours);
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours ? hours : 12; // the hour '0' should be '12'
+        return `${String(hours).padStart(2, '0')}:${minutes} ${ampm} EST`;
+    }
+
     window.addEventListener('DOMContentLoaded', () => {
         const now = new Date();
         const y = now.getFullYear();
@@ -93,22 +102,23 @@
                 const cols = row.split(',').map(c => c.trim());
                 if (cols.length < headers.length) return;
 
-                // 1. Flip Team Order: away_team at home_team
                 const away = cols[getIdx('away_team')];
                 const home = cols[getIdx('home_team')];
-
-                // 2. Map Market to Front-end Display Name
                 const marketRaw = cols[getIdx('market')];
                 const marketDisplay = leagueMap[marketRaw] || marketRaw;
-
-                // 3. Format Date with Ordinal
                 const dateDisplay = formatDate(cols[getIdx('match_date')]);
+                
+                // Formatting time to AM/PM EST
+                const timeDisplay = formatTime(cols[getIdx('match_time')]);
 
-                // 4. Format Bet Text
-                const betDisplay = cols[getIdx('take_bet')].replace('over25', 'Over 2.5').replace('under25', 'Under 2.5');
+                // Formatting bet text with Capitalization
+                let betDisplay = cols[getIdx('take_bet')]
+                    .replace('over25', 'Over 2.5')
+                    .replace('under25', 'Under 2.5')
+                    .replace('away', 'Away')
+                    .replace('home', 'Home');
+                
                 const odds = cols[getIdx('odds_american')];
-
-                // 5. Convert Edge to 2-decimal percent
                 const edgePct = (parseFloat(cols[getIdx('edge_pct')]) * 100).toFixed(2);
 
                 const card = document.createElement('div');
@@ -117,7 +127,7 @@
                     <div class="league-label">${marketDisplay}</div>
                     <div class="pick-header">
                         <span>${away} at ${home}</span>
-                        <span>${cols[getIdx('match_time')]} EST</span>
+                        <span>${timeDisplay}</span>
                     </div>
                     <div class="pick-grid">
                         <div>${dateDisplay}</div>
