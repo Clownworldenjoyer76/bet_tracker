@@ -227,13 +227,26 @@ def get_side_group(row) -> str:
         return "Non_Home_Away"
 
     bet_side = normalize_text(row.get("bet_side"))
+    take_bet = normalize_text(row.get("take_bet"))
     home_team = normalize_text(row.get("home_team"))
     away_team = normalize_text(row.get("away_team"))
+
+    if bet_side == "home" or take_bet == "home":
+        return "Home"
+
+    if bet_side == "away" or take_bet == "away":
+        return "Away"
 
     if bet_side and home_team and bet_side == home_team:
         return "Home"
 
     if bet_side and away_team and bet_side == away_team:
+        return "Away"
+
+    if take_bet and home_team and take_bet == home_team:
+        return "Home"
+
+    if take_bet and away_team and take_bet == away_team:
         return "Away"
 
     return "Non_Home_Away"
@@ -255,10 +268,11 @@ def get_total_side(row) -> str:
         return ""
 
     bet_side = normalize_text(row.get("bet_side"))
+    take_bet = normalize_text(row.get("take_bet"))
 
-    if bet_side == "over":
+    if bet_side == "over" or take_bet == "over":
         return "Over"
-    if bet_side == "under":
+    if bet_side == "under" or take_bet == "under":
         return "Under"
 
     return ""
@@ -279,18 +293,25 @@ def get_selected_edge(row):
             return to_float(row.get("home_ml_edge_decimal"))
         if side_group == "Away":
             return to_float(row.get("away_ml_edge_decimal"))
+        return to_float(row.get("take_bet_edge_pct"))
 
     if market_type in {"spread", "puck_line"}:
         if side_group == "Home":
             return to_float(row.get("home_spread_edge_decimal"))
         if side_group == "Away":
             return to_float(row.get("away_spread_edge_decimal"))
+        return to_float(row.get("take_bet_edge_pct"))
 
     if market_type == "total":
         if total_side == "Over":
-            return to_float(row.get("over_edge_decimal"))
+            over_edge = to_float(row.get("over_edge_decimal"))
+            if pd.notna(over_edge):
+                return over_edge
         if total_side == "Under":
-            return to_float(row.get("under_edge_decimal"))
+            under_edge = to_float(row.get("under_edge_decimal"))
+            if pd.notna(under_edge):
+                return under_edge
+        return to_float(row.get("take_bet_edge_pct"))
 
     return pd.NA
 
@@ -307,9 +328,13 @@ def get_selected_american_odds(row):
 
     if market_type == "moneyline":
         if side_group == "Home":
-            return to_float(row.get("home_dk_moneyline_american"))
+            odds = to_float(row.get("home_dk_moneyline_american"))
+            if pd.notna(odds):
+                return odds
         if side_group == "Away":
-            return to_float(row.get("away_dk_moneyline_american"))
+            odds = to_float(row.get("away_dk_moneyline_american"))
+            if pd.notna(odds):
+                return odds
 
         take_odds = to_float(row.get("take_odds"))
         if pd.notna(take_odds):
@@ -317,19 +342,27 @@ def get_selected_american_odds(row):
 
     if market_type == "spread":
         if side_group == "Home":
-            return to_float(row.get("home_dk_spread_american"))
+            odds = to_float(row.get("home_dk_spread_american"))
+            if pd.notna(odds):
+                return odds
         if side_group == "Away":
-            return to_float(row.get("away_dk_spread_american"))
+            odds = to_float(row.get("away_dk_spread_american"))
+            if pd.notna(odds):
+                return odds
 
         take_odds = to_float(row.get("take_odds"))
         if pd.notna(take_odds):
             return take_odds
 
     if market_type == "puck_line":
-        if "dk_home_puck_line" in row.index and side_group == "Home":
-            return to_float(row.get("dk_home_puck_line"))
-        if "dk_away_puck_line" in row.index and side_group == "Away":
-            return to_float(row.get("dk_away_puck_line"))
+        if side_group == "Home":
+            odds = to_float(row.get("dk_home_puck_line"))
+            if pd.notna(odds):
+                return odds
+        if side_group == "Away":
+            odds = to_float(row.get("dk_away_puck_line"))
+            if pd.notna(odds):
+                return odds
 
         take_odds = to_float(row.get("take_odds"))
         if pd.notna(take_odds):
@@ -337,9 +370,13 @@ def get_selected_american_odds(row):
 
     if market_type == "total":
         if total_side == "Over":
-            return to_float(row.get("dk_total_over_american"))
+            odds = to_float(row.get("dk_total_over_american"))
+            if pd.notna(odds):
+                return odds
         if total_side == "Under":
-            return to_float(row.get("dk_total_under_american"))
+            odds = to_float(row.get("dk_total_under_american"))
+            if pd.notna(odds):
+                return odds
 
         take_odds = to_float(row.get("take_odds"))
         if pd.notna(take_odds):
