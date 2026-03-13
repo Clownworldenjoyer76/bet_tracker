@@ -38,7 +38,7 @@ AUDIT_LOG = BASE_DIR / "scripts/00_parsing/parsing_audit.txt"
 ERR_DIR.mkdir(parents=True, exist_ok=True)
 
 SOCCER_HEADERS = [
-    "league", "market", "match_date", "match_time",
+    "league", "market", "game_date", "match_time",
     "home_team", "away_team", "away_score", "home_score"
 ]
 
@@ -65,7 +65,7 @@ def parse_soccer(lines, market):
             i += 1
             continue
 
-        match_date = line
+        game_date = line
         i += 1
         if i >= len(lines):
             break
@@ -78,7 +78,6 @@ def parse_soccer(lines, market):
         if i >= len(lines):
             break
 
-        # FIX: strip any trailing columns like percentages from the home team line
         home_team = lines[i].split("\t")[0].strip()
 
         score_count = 0
@@ -104,7 +103,7 @@ def parse_soccer(lines, market):
         games.append({
             "league": "Soccer",
             "market": market,
-            "match_date": match_date,
+            "game_date": game_date,
             "match_time": match_time,
             "home_team": home_team,
             "away_team": away_team,
@@ -195,7 +194,7 @@ def main():
 
         df_all = pd.DataFrame(all_games)
 
-        unique_dates = df_all['match_date'].unique()
+        unique_dates = df_all['game_date'].unique()
 
         for m_date in unique_dates:
 
@@ -206,7 +205,7 @@ def main():
 
             out_path = output_dir / f"{file_date}_final_scores_{market}.csv"
 
-            date_rows = [g for g in all_games if g['match_date'] == m_date]
+            date_rows = [g for g in all_games if g['game_date'] == m_date]
 
             with open(out_path, "w", newline="", encoding="utf-8") as f:
 
