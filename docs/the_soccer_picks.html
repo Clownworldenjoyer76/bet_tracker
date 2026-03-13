@@ -7,7 +7,6 @@
     <style>
         .master-column { max-width: 800px; margin: 20px auto; display: flex; flex-direction: column; gap: 15px; }
         
-        /* Glassmorphism Card Style */
         .pick-card { 
             border: 1px solid var(--border-soft); 
             padding: 20px; 
@@ -20,7 +19,6 @@
             overflow: hidden;
         }
 
-        /* Hover Lift & Glow */
         .pick-card:hover { 
             transform: translateY(-4px); 
             border-color: var(--accent-green);
@@ -62,7 +60,6 @@
             font-weight: bold;
         }
 
-        /* Loading Pulse Animation */
         .status { 
             margin: 20px 0; 
             font-family: monospace; 
@@ -81,7 +78,6 @@
             100% { color: var(--accent-yellow); opacity: 1; }
         }
 
-        /* Styled Date Input */
         input[type="date"] {
             background: var(--bg-card);
             border: 1px solid var(--border-soft);
@@ -136,6 +132,7 @@
     }
 
     function formatDate(dateStr) {
+        if (!dateStr || !dateStr.includes('_')) return dateStr;
         const parts = dateStr.split('_');
         const d = new Date(parts[0], parts[1] - 1, parts[2]);
         const month = d.toLocaleString('en-US', { month: 'long' });
@@ -143,7 +140,7 @@
     }
 
     function formatTime(timeStr) {
-        if (!timeStr.includes(':')) return timeStr;
+        if (!timeStr || !timeStr.includes(':')) return timeStr;
         let [hours, minutes] = timeStr.split(':');
         hours = parseInt(hours);
         const ampm = hours >= 12 ? 'PM' : 'AM';
@@ -169,7 +166,7 @@
         const formattedDate = dateStr.replace(/-/g, '_');
         const targetFile = `win/soccer/04_select/soccer_${formattedDate}.csv`;
         
-        status.textContent = `FETCHING DATA FROM: ${targetFile}`;
+        status.textContent = `FETCHING DATA...`;
         status.classList.add('loading-pulse');
         container.innerHTML = "";
 
@@ -178,7 +175,10 @@
             if (!response.ok) throw new Error(`DATA UNAVAILABLE: ${formattedDate}`);
 
             const text = await response.text();
-            const rows = text.split('\n').filter(r => r.trim().length > 0);
+            const rows = text.split('\n').map(r => r.trim()).filter(r => r.length > 0);
+            
+            if (rows.length < 2) throw new Error("NO PICKS IN FILE");
+
             const headers = rows[0].split(',').map(h => h.trim());
             const getIdx = (name) => headers.indexOf(name);
 
@@ -190,8 +190,12 @@
                 const home = cols[getIdx('home_team')];
                 const marketRaw = cols[getIdx('market')];
                 const marketDisplay = leagueMap[marketRaw] || marketRaw;
-                const dateDisplay = formatDate(cols[getIdx('match_date')]);
-                const timeDisplay = formatTime(cols[getIdx('match_time')]);
+                
+                const rawDate = cols[getIdx('match_date')];
+                const rawTime = cols[getIdx('match_time')];
+                
+                const dateDisplay = formatDate(rawDate);
+                const timeDisplay = formatTime(rawTime);
 
                 let rawBet = cols[getIdx('take_bet')];
                 let betDisplay = rawBet;
@@ -201,7 +205,7 @@
                 } else if (rawBet === 'home') {
                     betDisplay = home;
                 } else {
-                    betDisplay = rawBet
+                    betDisplay = (rawBet || "")
                         .replace('over25', 'Over 2.5')
                         .replace('under25', 'Under 2.5');
                 }
