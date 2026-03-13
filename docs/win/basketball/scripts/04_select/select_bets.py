@@ -89,13 +89,20 @@ def step1_nba_moneyline(row):
     home_ml = f(row.get("home_dk_moneyline_american"))
     away_ml = f(row.get("away_dk_moneyline_american"))
 
-    # Allow only favorites between -140 and -1000
-    if not (-999 <= home_ml <= 999):
-        return False, "FAIL STEP 1 NBA ML | home odds outside allowed range", "", ""
+    # Allow only favorites between -150 and -300
+if not (-300 <= home_ml <= -150):
+    home_valid = False
+else:
+    home_valid = True
 
-    if not (-999 <= away_ml <= 999):
-        return False, "FAIL STEP 1 NBA ML | home odds outside allowed range", "", ""
+if not (-300 <= away_ml <= -150):
+    away_valid = False
+else:
+    away_valid = True
 
+# If neither side is in allowed range → reject
+if not home_valid and not away_valid:
+    return False, "FAIL STEP 1 NBA ML | odds not in -150 to -300 range", "", ""
     if home_edge < 0.0001 and away_edge < 0.0001:
         return False, "FAIL STEP 1 NBA ML | edge too low", "", ""
 
