@@ -38,8 +38,14 @@ AUDIT_LOG = BASE_DIR / "scripts/00_parsing/parsing_audit.txt"
 ERR_DIR.mkdir(parents=True, exist_ok=True)
 
 SOCCER_HEADERS = [
-    "league", "market", "game_date", "match_time",
-    "home_team", "away_team", "away_score", "home_score"
+    "league",
+    "market",
+    "game_date",
+    "match_time",
+    "home_team",
+    "away_team",
+    "away_score",
+    "home_score"
 ]
 
 SOCCER_MARKETS = {"epl", "laliga", "ligue1", "bundesliga", "seriea"}
@@ -47,7 +53,7 @@ SOCCER_MARKETS = {"epl", "laliga", "ligue1", "bundesliga", "seriea"}
 def is_date_line(s: str) -> bool:
     return bool(re.match(r"^\d{2}/\d{2}/\d{4}$", s.strip()))
 
-def format_date_for_file(s: str) -> str:
+def convert_to_pipeline_date(s: str) -> str:
     return datetime.strptime(s.strip(), "%m/%d/%Y").strftime("%Y_%m_%d")
 
 # =========================
@@ -55,22 +61,27 @@ def format_date_for_file(s: str) -> str:
 # =========================
 
 def parse_soccer(lines, market):
+
     games = []
     i = 0
 
     while i < len(lines):
+
         line = lines[i].strip()
 
         if not is_date_line(line):
             i += 1
             continue
 
-        game_date = line
+        # Convert immediately to pipeline format
+        game_date = convert_to_pipeline_date(line)
+
         i += 1
         if i >= len(lines):
             break
 
         row_data = lines[i].split("\t")
+
         match_time = row_data[0].strip()
         away_team = row_data[1].strip() if len(row_data) > 1 else ""
 
@@ -87,6 +98,7 @@ def parse_soccer(lines, market):
         search_limit = i + 10
 
         while i < len(lines) and i < search_limit:
+
             potential_score = lines[i].split("\t")[0].strip()
 
             if potential_score.isdigit():
@@ -133,14 +145,12 @@ def build_soccer_master():
     for f in files:
 
         name = f.name
-
         m = re.search(r"(\d{4}_\d{2}_\d{2})", name)
 
         if not m:
             continue
 
         d = m.group(1)
-
         dates.setdefault(d, []).append(f)
 
     for date_str, file_list in dates.items():
@@ -194,18 +204,16 @@ def main():
 
         df_all = pd.DataFrame(all_games)
 
-        unique_dates = df_all['game_date'].unique()
+        unique_dates = df_all["game_date"].unique()
 
         for m_date in unique_dates:
-
-            file_date = format_date_for_file(m_date)
 
             output_dir = BASE_DIR / "results/soccer/final_scores"
             output_dir.mkdir(parents=True, exist_ok=True)
 
-            out_path = output_dir / f"{file_date}_final_scores_{market}.csv"
+            out_path = output_dir / f"{m_date}_final_scores_{market}.csv"
 
-            date_rows = [g for g in all_games if g['game_date'] == m_date]
+            date_rows = [g for g in all_games if g["game_date"] == m_date]
 
             with open(out_path, "w", newline="", encoding="utf-8") as f:
 
