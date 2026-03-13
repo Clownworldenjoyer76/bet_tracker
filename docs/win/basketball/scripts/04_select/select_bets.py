@@ -93,10 +93,10 @@ def step1_nba_moneyline(row):
     ### UNDERDOGS ##############################################
     ############################################################
 
-    if away_ml > 300:
+    if away_ml > 225:
         return False, "FAIL STEP 1 NBA ML | away extreme underdog", "", ""
 
-    if home_ml > 300:
+    if home_ml > 225:
         return False, "FAIL STEP 1 NBA ML | home extreme underdog", "", ""
 
 
