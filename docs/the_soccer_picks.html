@@ -59,13 +59,12 @@
     }
 
     function formatTime(timeStr) {
-        // If input is 16:00, convert to 04:00 PM
         if (!timeStr.includes(':')) return timeStr;
         let [hours, minutes] = timeStr.split(':');
         hours = parseInt(hours);
         const ampm = hours >= 12 ? 'PM' : 'AM';
         hours = hours % 12;
-        hours = hours ? hours : 12; // the hour '0' should be '12'
+        hours = hours ? hours : 12; 
         return `${String(hours).padStart(2, '0')}:${minutes} ${ampm} EST`;
     }
 
@@ -107,16 +106,21 @@
                 const marketRaw = cols[getIdx('market')];
                 const marketDisplay = leagueMap[marketRaw] || marketRaw;
                 const dateDisplay = formatDate(cols[getIdx('match_date')]);
-                
-                // Formatting time to AM/PM EST
                 const timeDisplay = formatTime(cols[getIdx('match_time')]);
 
-                // Formatting bet text with Capitalization
-                let betDisplay = cols[getIdx('take_bet')]
-                    .replace('over25', 'Over 2.5')
-                    .replace('under25', 'Under 2.5')
-                    .replace('away', 'Away')
-                    .replace('home', 'Home');
+                // Updated logic: replace 'away' or 'home' with actual team names
+                let rawBet = cols[getIdx('take_bet')];
+                let betDisplay = rawBet;
+
+                if (rawBet === 'away') {
+                    betDisplay = away;
+                } else if (rawBet === 'home') {
+                    betDisplay = home;
+                } else {
+                    betDisplay = rawBet
+                        .replace('over25', 'Over 2.5')
+                        .replace('under25', 'Under 2.5');
+                }
                 
                 const odds = cols[getIdx('odds_american')];
                 const edgePct = (parseFloat(cols[getIdx('edge_pct')]) * 100).toFixed(2);
