@@ -15,15 +15,12 @@ OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 CONFIG_BASE = Path("config/soccer")
 CONFIG_MAP = {
-    "bundesliga": "bundesliga", 
-    "epl": "epl", 
-    "laliga": "la_liga", 
-    "ligue1": "ligue1", 
+    "bundesliga": "bundesliga",
+    "epl": "epl",
+    "laliga": "la_liga",
+    "ligue1": "ligue1",
     "seriea": "serie_a"
 }
-
-# Only Serie A pricing table requires reversed lambda orientation
-LAMBDA_ORIENTATION = {"seriea": True}
 
 DC_CACHE = {}
 
@@ -74,8 +71,8 @@ def interpolate(table, lh, la, k=6):
     distances.sort(key=lambda x: x[0])
 
     nearest = distances[:k]
-    weight_sum = 0
 
+    weight_sum = 0
     h = d = a = o = b = 0
 
     for dist, r in nearest:
@@ -129,11 +126,8 @@ for merge_file in merge_files:
                 lh = float(r["home_xg"])
                 la = float(r["away_xg"])
 
-                # Handle orientation
-                if LAMBDA_ORIENTATION.get(market, False):
-                    res = interpolate(table, la, lh)
-                else:
-                    res = interpolate(table, lh, la)
+                # Correct orientation for all tables
+                res = interpolate(table, lh, la)
 
                 r.update({
                     "home_prob": res["h"],
