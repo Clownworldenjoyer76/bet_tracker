@@ -65,18 +65,31 @@ def get_result_prob(row, side):
 def get_total_prob(row, side):
     if side == "over25":
         return row.get("over25_prob")
+
     if side == "under25":
         over_prob = row.get("over25_prob")
+
         if pd.isna(over_prob):
             return None
+
         return 1 - over_prob
+
     return None
 
 
 def build_selection(row, market_name, take_bet, edge_pct, prob):
+
     odds_decimal = row.get(f"{take_bet}_dk_decimal")
     odds_american = row.get(f"{take_bet}_american")
+
     stake = calculate_kelly(prob, odds_decimal, KELLY_FRACTION)
+
+    # =========================
+    # NEW SAFETY FILTER
+    # Reject bets with non-positive Kelly
+    # =========================
+    if stake <= 0:
+        return None
 
     return {
         "league": row.get("league"),
@@ -96,9 +109,11 @@ def build_selection(row, market_name, take_bet, edge_pct, prob):
 
 
 def select_best_result_side(row, columns):
+
     result_candidates = {}
 
     for side in ["home", "draw", "away"]:
+
         edge_col = f"{side}_edge_pct"
         prob_col = f"{side}_prob"
 
@@ -121,6 +136,7 @@ def select_best_result_side(row, columns):
     best_edge = result_candidates[best_side]
 
     if best_side == "draw":
+
         all_edges = {
             side: row.get(f"{side}_edge_pct")
             for side in ["home", "draw", "away"]
@@ -130,6 +146,7 @@ def select_best_result_side(row, columns):
             [v for v in all_edges.values() if not pd.isna(v)],
             reverse=True
         )
+
         second_best = sorted_vals[1] if len(sorted_vals) > 1 else -999
 
         draw_prob = row.get("draw_prob", 0)
@@ -140,7 +157,10 @@ def select_best_result_side(row, columns):
             or draw_prob < DRAW_MIN_PROB
             or (best_edge - second_best) < DRAW_DOMINANCE_MARGIN
         ):
-            non_draw = {k: v for k, v in result_candidates.items() if k != "draw"}
+
+            non_draw = {
+                k: v for k, v in result_candidates.items() if k != "draw"
+            }
 
             if not non_draw:
                 return None
@@ -149,6 +169,7 @@ def select_best_result_side(row, columns):
             best_edge = non_draw[best_side]
 
     prob = get_result_prob(row, best_side)
+
     if pd.isna(prob):
         return None
 
@@ -162,9 +183,11 @@ def select_best_result_side(row, columns):
 
 
 def select_best_total(row, columns):
+
     total_candidates = {}
 
     for side in ["over25", "under25"]:
+
         edge_col = f"{side}_edge_pct"
 
         if edge_col not in columns:
@@ -184,6 +207,7 @@ def select_best_total(row, columns):
 
     best_total = max(total_candidates, key=total_candidates.get)
     best_edge = total_candidates[best_total]
+
     prob = get_total_prob(row, best_total)
 
     if prob is None or pd.isna(prob):
@@ -202,10 +226,13 @@ def select_best_total(row, columns):
 # MAIN
 # =========================
 def main():
+
     with open(ERROR_LOG, "a") as log:
+
         log.write(f"=== SELECT BETS RUN: {datetime.utcnow().isoformat()}Z ===\n")
 
         try:
+
             input_files = sorted(INPUT_DIR.glob("soccer_*.csv"))
 
             if not input_files:
@@ -213,36 +240,47 @@ def main():
                 return
 
             for input_path in input_files:
+
                 df = pd.read_csv(input_path)
                 columns = set(df.columns)
+
                 selections = []
 
                 for _, row in df.iterrows():
-                    # Allow up to 1 side and 1 total per game if they pass
+
                     result_selection = select_best_result_side(row, columns)
+
                     if result_selection:
                         selections.append(result_selection)
 
                     total_selection = select_best_total(row, columns)
+
                     if total_selection:
                         selections.append(total_selection)
 
                 output_path = OUTPUT_DIR / input_path.name
 
                 if selections:
+
                     sel_df = pd.DataFrame(selections)
+
                     sel_df["_sort_time"] = sel_df["match_time"].apply(parse_match_time)
+
                     sel_df = sel_df.sort_values(
                         by=["match_date", "_sort_time", "home_team", "away_team", "market"],
                         na_position="last"
                     ).drop(columns=["_sort_time"])
 
                     sel_df.to_csv(output_path, index=False)
+
                     log.write(f"Wrote {len(selections)} plays to {output_path}\n")
+
                 else:
+
                     log.write(f"No plays qualified for {input_path.name}\n")
 
         except Exception as e:
+
             log.write(f"\nCRITICAL ERROR: {str(e)}\n{traceback.format_exc()}\n")
 
 
