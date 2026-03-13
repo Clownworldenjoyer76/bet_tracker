@@ -85,21 +85,18 @@ def build_selection(row, market_name, take_bet, edge_pct, prob):
 
     stake = calculate_kelly(prob, odds_decimal, KELLY_FRACTION)
 
-    # =========================
-    # NEW SAFETY FILTER
-    # Reject bets with non-positive Kelly
-    # =========================
     if stake <= 0:
         return None
 
     return {
-        "league": row.get("league"),
-        "market": market_name,
-        "match_date": row.get("match_date"),
+        "league": "Soccer",
+        "market": row.get("market"),
+        "game_date": row.get("match_date"),
         "match_time": row.get("match_time"),
         "home_team": row.get("home_team"),
         "away_team": row.get("away_team"),
         "game_id": row.get("game_id"),
+        "market_type": market_name,
         "take_bet": take_bet,
         "odds_american": odds_american,
         "odds_decimal": odds_decimal,
@@ -268,7 +265,7 @@ def main():
                     sel_df["_sort_time"] = sel_df["match_time"].apply(parse_match_time)
 
                     sel_df = sel_df.sort_values(
-                        by=["match_date", "_sort_time", "home_team", "away_team", "market"],
+                        by=["game_date", "_sort_time", "home_team", "away_team", "market_type"],
                         na_position="last"
                     ).drop(columns=["_sort_time"])
 
@@ -284,10 +281,9 @@ def main():
 
             log.write(f"\nCRITICAL ERROR: {str(e)}\n{traceback.format_exc()}\n")
 
-
         # =========================
         # CREATE REQUIRED RESULTS INPUT FILES
-        # docs/win/soccer/04_select/{YYYY_MM_DD}*soccer*.csv
+        # docs/win/soccer/04_select/{YYYY_MM_DD}_soccer.csv
         # =========================
         try:
 
@@ -320,6 +316,10 @@ def main():
                     continue
 
                 combined = pd.concat(dfs, ignore_index=True)
+
+                combined = combined.drop_duplicates(
+                    subset=["game_date", "home_team", "away_team", "take_bet"]
+                )
 
                 out_path = OUTPUT_DIR / f"{date_str}_soccer.csv"
 
