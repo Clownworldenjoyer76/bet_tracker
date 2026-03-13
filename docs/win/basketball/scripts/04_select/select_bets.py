@@ -89,30 +89,24 @@ def step1_nba_moneyline(row):
     home_ml = f(row.get("home_dk_moneyline_american"))
     away_ml = f(row.get("away_dk_moneyline_american"))
 
-    # Allow only favorites between -150 and -300
-if not (-300 <= home_ml <= -150):
-    home_valid = False
-else:
-    home_valid = True
+    # Only allow odds between -140 and -1000
+    home_valid = -1000 <= home_ml <= -140
+    away_valid = -1000 <= away_ml <= -140
 
-if not (-300 <= away_ml <= -150):
-    away_valid = False
-else:
-    away_valid = True
+    if not home_valid and not away_valid:
+        return False, "FAIL STEP 1 NBA ML | odds not in -140 to -1000 range", "", ""
 
-# If neither side is in allowed range → reject
-if not home_valid and not away_valid:
-    return False, "FAIL STEP 1 NBA ML | odds not in -150 to -300 range", "", ""
-    if home_edge < 0.0001 and away_edge < 0.0001:
+    if home_edge < 0.0000001 and away_edge < 0.0000001:
         return False, "FAIL STEP 1 NBA ML | edge too low", "", ""
 
-    if home_edge > away_edge:
+    if home_valid and home_edge > away_edge:
         return True, "PASS STEP 1 NBA ML | home stronger edge", "home", home_ml
 
-    if away_edge > home_edge:
+    if away_valid and away_edge > home_edge:
         return True, "PASS STEP 1 NBA ML | away stronger edge", "away", away_ml
 
     return False, "FAIL STEP 1 NBA ML | no edge advantage", "", ""
+
 
 ###############################################################
 ##################### STEP 2 NBA SPREAD #######################
@@ -130,7 +124,6 @@ def step2_nba_spread(row):
     else:
         side, line, edge, opp_edge = "away", away_line, away_edge, home_edge
 
-    # FILTER: Away spread dead zone based on historical data
     if side == "away" and 10.0 <= line <= 13.9:
         return False, f"FAIL STEP 2 NBA SPREAD | away dead zone ({line})", "", ""
 
@@ -276,6 +269,7 @@ def process_file(csv_file):
     selected_rows = []
     for _, row in df.iterrows():
         label = game_label(row)
+
         if league == "NBA":
             if market_type == "moneyline":
                 allowed, reason, bet_side, line = step1_nba_moneyline(row)
@@ -295,7 +289,11 @@ def process_file(csv_file):
 
         if allowed:
             row_dict = row.to_dict()
-            row_dict.update({"market_type": market_type, "bet_side": bet_side, "line": line})
+            row_dict.update({
+                "market_type": market_type,
+                "bet_side": bet_side,
+                "line": line
+            })
             selected_rows.append(row_dict)
             report_line(f"PASS | {league} | {market_type} | {label} | {reason}")
         else:
@@ -310,12 +308,15 @@ def process_file(csv_file):
 def main():
     reset_report()
     clear_previous_outputs()
+
     for fpath in sorted(INPUT_DIR.glob("*.csv")):
         try:
             process_file(fpath)
         except Exception as e:
             report_line(f"FILE {fpath.name} | ERROR | {e}")
+
     report_line("MAIN | selection rebuild complete")
+
 
 if __name__ == "__main__":
     main()
