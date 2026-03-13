@@ -7,6 +7,8 @@ from pathlib import Path
 from datetime import datetime
 import traceback
 import pandas as pd
+import glob
+import re
 
 # =========================
 # LOGGER UTILITY
@@ -17,7 +19,6 @@ def audit(log_path, stage, status, msg="", df=None):
     log_path = Path(log_path)
     log_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # 1. EXHAUSTIVE LOG (TXT)
     log_mode = "w" if not log_path.exists() else "a"
 
     with open(log_path, log_mode) as f:
@@ -30,11 +31,9 @@ def audit(log_path, stage, status, msg="", df=None):
             f.write(f"  SAMPLE:\n{df.head(3).to_string(index=False)}\n")
         f.write("-" * 40 + "\n")
 
-    # 2. CONDENSED SUMMARY (TXT)
     if df is not None and isinstance(df, pd.DataFrame):
         summary_path = log_path.parent / "condensed_summary.txt"
 
-        # Identify active plays based on your headers
         play_cols = [c for c in ['home_play', 'away_play', 'over_play', 'under_play'] if c in df.columns]
 
         if play_cols:
@@ -46,7 +45,6 @@ def audit(log_path, stage, status, msg="", df=None):
                 with open(summary_path, summary_mode) as f:
                     f.write(f"\n--- BETTING SIGNALS: {ts} ---\n")
 
-                    # Filter identifying columns and edge columns
                     base_cols = ['game_date', 'home_team', 'away_team']
                     edge_cols = [c for c in df.columns if 'edge_pct' in c]
 
@@ -59,11 +57,9 @@ def audit(log_path, stage, status, msg="", df=None):
 # ORIGINAL SCRIPT
 # =========================
 
-# Base directories
 BASE_DIR = Path("docs/win/final_scores")
 ERR_DIR = BASE_DIR / "errors"
 
-# Audit Log Location
 AUDIT_LOG = Path("docs/win/final_scores/scripts/00_parsing/parsing_audit.txt")
 
 BASE_DIR.mkdir(parents=True, exist_ok=True)
@@ -143,7 +139,6 @@ def parse_games(lines, market):
         home_team = first_field(lines[i])
         i += 1
 
-        # Find away score (first numeric first field)
         while i < len(lines) and not first_field(lines[i]).isdigit():
             i += 1
         if i >= len(lines):
@@ -151,7 +146,6 @@ def parse_games(lines, market):
         away_score = int(first_field(lines[i]))
         i += 1
 
-        # Find home score (first numeric first field)
         while i < len(lines) and not first_field(lines[i]).isdigit():
             i += 1
         if i >= len(lines):
@@ -166,7 +160,6 @@ def parse_games(lines, market):
         home_puck_line = ""
 
         if market in {"NBA", "NCAAB"}:
-            # Positive means away team "spread" (home_score - away_score) in your current convention
             away_spread = str(home_score - away_score)
             home_spread = str(away_score - home_score)
 
@@ -208,7 +201,6 @@ def write_csv(path: Path, rows) -> None:
 
 
 def market_output_dir(market: str) -> Path:
-    # Explicit mapping only (no fallback)
     mapping = {
         "NBA": Path("docs/win/final_scores/results/nba/final_scores"),
         "NCAAB": Path("docs/win/final_scores/results/ncaab/final_scores"),
@@ -218,6 +210,61 @@ def market_output_dir(market: str) -> Path:
         return mapping[market]
     except KeyError:
         raise ValueError(f"Unsupported market for output mapping: {market}")
+
+
+# =========================
+# SOCCER MASTER BUILDER
+# =========================
+
+def build_soccer_master():
+    soccer_dir = Path("docs/win/final_scores/results/soccer/final_scores")
+
+    files = glob.glob(str(soccer_dir / "*_final_scores_*.csv"))
+
+    dates = {}
+
+    for f in files:
+
+        name = Path(f).name
+
+        if name.endswith("_final_scores_SOCCER.csv"):
+            continue
+
+        m = re.search(r"(\d{4}_\d{2}_\d{2})", name)
+
+        if not m:
+            continue
+
+        d = m.group(1)
+
+        dates.setdefault(d, []).append(f)
+
+    for date_str, file_list in dates.items():
+
+        dfs = []
+
+        for f in file_list:
+
+            try:
+
+                df = pd.read_csv(f)
+
+                if "match_date" in df.columns:
+                    df = df.rename(columns={"match_date": "game_date"})
+
+                dfs.append(df)
+
+            except Exception:
+                continue
+
+        if not dfs:
+            continue
+
+        master = pd.concat(dfs, ignore_index=True)
+
+        out = soccer_dir / f"{date_str}_final_scores_SOCCER.csv"
+
+        master.to_csv(out, index=False)
 
 
 def main() -> int:
@@ -240,10 +287,15 @@ def main() -> int:
         write_csv(out_path, rows)
 
         print(f"Wrote {out_path} | rows={len(rows)}")
-        
-        # Audit successful parse
+
         audit(AUDIT_LOG, "PARSE_SCORES", "SUCCESS", msg=f"Parsed {market} from {input_path.name}", df=pd.DataFrame(rows))
-        
+
+        # =========================
+        # BUILD SOCCER MASTER FILES
+        # =========================
+
+        build_soccer_master()
+
         return 0
 
     except Exception as e:
@@ -251,7 +303,7 @@ def main() -> int:
         with err_path.open("w", encoding="utf-8") as f:
             f.write(err_msg + "\n\n")
             f.write(traceback.format_exc())
-        
+
         audit(AUDIT_LOG, "PARSE_SCORES", "ERROR", msg=f"Failed {market} parse: {err_msg}")
         print(f"ERROR: {e}")
         return 1
