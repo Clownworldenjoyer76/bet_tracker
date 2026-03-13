@@ -6,10 +6,6 @@ import glob
 from pathlib import Path
 from datetime import datetime
 
-# =========================
-# CONFIGURATION
-# =========================
-
 ERROR_DIR = Path("docs/win/final_scores/errors")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -18,30 +14,33 @@ SUMMARY_LOG = ERROR_DIR / "name_normalization_summary.txt"
 TARGET_DIRS = [
     "docs/win/basketball/04_select/daily_slate",
     "docs/win/hockey/04_select",
+    "docs/win/soccer/04_select",
     "docs/win/final_scores/results/nba/final_scores",
     "docs/win/final_scores/results/ncaab/final_scores",
     "docs/win/final_scores/results/nhl/final_scores",
+    "docs/win/final_scores/results/soccer/final_scores",
 ]
 
 MAP_FILES = {
     "NBA": "mappings/basketball/team_map_nba.csv",
     "NCAAB": "mappings/basketball/team_map_ncaab.csv",
     "NHL": "mappings/hockey/team_map_hockey.csv",
+    "SOCCER": "mappings/soccer/team_map_soccer.csv",
 }
 
 NO_MAP_FILE = Path("mappings/05_no_map/no_team_map.csv")
 NO_MAP_FILE.parent.mkdir(parents=True, exist_ok=True)
 
 
-# =========================
-# LOAD TEAM MAPS
-# =========================
-
 def load_maps():
-
     maps = {}
 
     for market, path in MAP_FILES.items():
+
+        p = Path(path)
+
+        if not p.exists():
+            continue
 
         df = pd.read_csv(path)
 
@@ -53,10 +52,6 @@ def load_maps():
     return maps
 
 
-# =========================
-# DETECT MARKET FROM FILE
-# =========================
-
 def detect_market(file_path):
 
     name = Path(file_path).name.lower()
@@ -67,13 +62,11 @@ def detect_market(file_path):
         return "NCAAB"
     elif "nhl" in name:
         return "NHL"
+    elif "soccer" in name:
+        return "SOCCER"
 
     return None
 
-
-# =========================
-# NORMALIZE FILE
-# =========================
 
 def normalize_file(file_path, market, team_map, missing, counters):
 
@@ -98,7 +91,7 @@ def normalize_file(file_path, market, team_map, missing, counters):
 
                 alias = str(team).strip().lower()
 
-                if alias in team_map:
+                if team_map and alias in team_map:
 
                     canonical = team_map[alias]
 
@@ -122,10 +115,6 @@ def normalize_file(file_path, market, team_map, missing, counters):
 
         missing.add((market, f"FILE_ERROR::{file_path}::{str(e)}"))
 
-
-# =========================
-# WRITE SUMMARY
-# =========================
 
 def write_summary(files_scanned, normalized_count, missing):
 
@@ -164,19 +153,13 @@ def write_summary(files_scanned, normalized_count, missing):
             f.write("No unmapped team names detected.\n")
 
 
-# =========================
-# MAIN
-# =========================
-
 def main():
 
     team_maps = load_maps()
 
     missing = set()
 
-    counters = {
-        "normalized": 0
-    }
+    counters = {"normalized": 0}
 
     files_scanned = 0
 
