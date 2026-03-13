@@ -1,5 +1,5 @@
 # docs/win/soccer/scripts/00_parsing/drat.py
-# !/usr/bin/env python3
+#!/usr/bin/env python3
 
 import sys
 import re
@@ -110,7 +110,6 @@ def normalize_time(time_str: str) -> str:
     except Exception:
         return t
 
-# normalize tabs/spaces from sportsbook tables
 lines = [
     re.sub(r"\s+", " ", l).strip()
     for l in raw_text.splitlines()
@@ -133,7 +132,6 @@ for idx, line in enumerate(lines):
     mm, dd, yyyy = dm.groups()
     file_date = f"{yyyy}_{mm.zfill(2)}_{dd.zfill(2)}"
 
-    # find kickoff time
     t_idx = None
     for j in range(idx+1, n):
         if RE_TIME.search(lines[j]):
@@ -147,10 +145,6 @@ for idx, line in enumerate(lines):
 
     away_team = clean_team(lines[t_idx+1])
     home_team = clean_team(lines[t_idx+2])
-
-    # =====================
-    # PROBABILITIES
-    # =====================
 
     pct_vals = []
 
@@ -175,10 +169,6 @@ for idx, line in enumerate(lines):
     home_prob = pct_vals[1]
     draw_prob = pct_vals[2]
 
-    # =====================
-    # FIND ML ODDS
-    # =====================
-
     odds_idx = None
     odds_found = 0
 
@@ -194,10 +184,6 @@ for idx, line in enumerate(lines):
     if odds_idx is None:
         log(f"ML odds not found: {home_team} vs {away_team}")
         continue
-
-    # =====================
-    # EXTRACT xG + TOTAL
-    # =====================
 
     float_vals = []
 
@@ -258,3 +244,29 @@ for d in sorted(rows_by_date.keys()):
         writer.writerows(rows_by_date[d])
 
     print(f"Wrote {outfile} ({len(rows_by_date[d])} rows)")
+
+# =========================
+# BUILD COMBINED FILE
+# =========================
+
+combined_dir = output_dir / "combined"
+combined_dir.mkdir(parents=True, exist_ok=True)
+
+for d in sorted(rows_by_date.keys()):
+
+    combined_file = combined_dir / f"soccer_{d}.csv"
+
+    combined_rows = []
+
+    for f in output_dir.glob(f"soccer_{d}_*.csv"):
+        with open(f, newline="", encoding="utf-8") as r:
+            reader = csv.DictReader(r)
+            for row in reader:
+                combined_rows.append(row)
+
+    with open(combined_file, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
+        writer.writeheader()
+        writer.writerows(combined_rows)
+
+    print(f"Wrote combined file {combined_file} ({len(combined_rows)} rows)")
