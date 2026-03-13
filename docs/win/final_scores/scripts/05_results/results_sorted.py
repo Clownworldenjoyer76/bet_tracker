@@ -49,9 +49,13 @@ ERROR_LOG = Path("docs/win/final_scores/errors/results_sorted_errors.txt")
 # =========================
 
 def log(msg: str) -> None:
+
     ERROR_LOG.parent.mkdir(parents=True, exist_ok=True)
+
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
     with open(ERROR_LOG, "a", encoding="utf-8") as f:
+
         f.write(f"[{ts}] {msg}\n")
 
 
@@ -91,11 +95,18 @@ def normalize_result(df: pd.DataFrame) -> pd.DataFrame:
 
 def summarize_wl(df: pd.DataFrame):
 
+    if "bet_result" not in df.columns:
+
+        return 0, 0, 0, 0, 0
+
     wins = int((df["bet_result"] == "Win").sum())
+
     losses = int((df["bet_result"] == "Loss").sum())
+
     pushes = int((df["bet_result"] == "Push").sum())
 
     total = wins + losses + pushes
+
     denom = wins + losses
 
     win_pct = float(wins / denom) if denom > 0 else 0
@@ -104,7 +115,7 @@ def summarize_wl(df: pd.DataFrame):
 
 
 # =========================
-# BASE SUMMARY BUILDERS
+# SUMMARY BUILDERS
 # =========================
 
 def generic_summary(df: pd.DataFrame, market_name: str):
@@ -204,11 +215,11 @@ def write_deep_summary(df: pd.DataFrame, market_name: str):
 
     deep = build_deep_summary(df, market_name)
 
-    path = DEEP_OUTPUT_DIR / f"{market_name}_deep_summary.csv"
+    out_path = DEEP_OUTPUT_DIR / f"{market_name}_deep_summary.csv"
 
-    deep.to_csv(path, index=False)
+    deep.to_csv(out_path, index=False)
 
-    log(f"{market_name}: wrote deep summary {path}")
+    log(f"{market_name}: wrote deep summary {out_path}")
 
 
 # =========================
@@ -244,39 +255,48 @@ def create_market_tally_file(market_name: str, in_path: Path, out_path: Path):
 
         return
 
-    df = normalize_result(df)
-
     rows = []
 
-    if market_name in ["NBA", "NCAAB"]:
+    # Case 1: already aggregated files
+    if {"Win", "Loss", "Push", "Total", "Win_Pct"}.issubset(df.columns):
 
-        markets = ["moneyline", "spread", "total"]
+        df["market"] = market_name
 
-    elif market_name == "NHL":
-
-        markets = ["moneyline", "puck_line", "total"]
+        out = df[["market", "market_type", "Win", "Loss", "Push", "Total", "Win_Pct"]]
 
     else:
 
-        markets = ["result", "total"]
+        df = normalize_result(df)
 
-    for m in markets:
+        if market_name in ["NBA", "NCAAB"]:
 
-        sub = df[df["market_type"] == m]
+            markets = ["moneyline", "spread", "total"]
 
-        wins, losses, pushes, total, win_pct = summarize_wl(sub)
+        elif market_name == "NHL":
 
-        rows.append({
-            "market": market_name,
-            "market_type": m,
-            "Win": wins,
-            "Loss": losses,
-            "Push": pushes,
-            "Total": total,
-            "Win_Pct": round(win_pct, 4)
-        })
+            markets = ["moneyline", "puck_line", "total"]
 
-    out = pd.DataFrame(rows)
+        else:
+
+            markets = ["result", "total"]
+
+        for m in markets:
+
+            sub = df[df["market_type"] == m]
+
+            wins, losses, pushes, total, win_pct = summarize_wl(sub)
+
+            rows.append({
+                "market": market_name,
+                "market_type": m,
+                "Win": wins,
+                "Loss": losses,
+                "Push": pushes,
+                "Total": total,
+                "Win_Pct": round(win_pct, 4)
+            })
+
+        out = pd.DataFrame(rows)
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -318,7 +338,7 @@ def main():
 
             continue
 
-        # existing output
+        # sorted output
         out_df = build_sorted_output(df, market_name)
 
         out_path = OUTPUTS[market_name]
@@ -329,7 +349,7 @@ def main():
 
         log(f"{market_name}: wrote sorted file {out_path}")
 
-        # NEW deep analytics
+        # deep analytics output
         write_deep_summary(df, market_name)
 
     create_all_market_tally_files()
@@ -338,4 +358,5 @@ def main():
 
 
 if __name__ == "__main__":
+
     main()
