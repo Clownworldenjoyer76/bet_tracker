@@ -2,18 +2,14 @@
 #!/usr/bin/env python3
 
 import csv
-import sys
 from pathlib import Path
-from datetime import datetime
 
-# =========================
-# PATHS
-# =========================
 MERGE_DIR = Path("docs/win/soccer/01_merge")
 OUT_DIR = MERGE_DIR / "market_model"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 CONFIG_BASE = Path("config/soccer")
+
 CONFIG_MAP = {
     "bundesliga": "bundesliga",
     "epl": "epl",
@@ -22,15 +18,20 @@ CONFIG_MAP = {
     "seriea": "serie_a"
 }
 
+# All tables reversed except Serie A
+REVERSED_LEAGUES = {"bundesliga","epl","laliga","ligue1"}
+
 DC_CACHE = {}
 
-# =========================
-# LOGIC
-# =========================
+
 def load_dc_table(path):
+
     rows = []
+
     with open(path, newline="", encoding="utf-8") as f:
+
         reader = csv.DictReader(f)
+
         for r in reader:
             try:
                 rows.append({
@@ -40,14 +41,16 @@ def load_dc_table(path):
                     "draw": float(r["draw"]),
                     "away_win": float(r["away_win"]),
                     "over2_5": float(r["over2_5"]),
-                    "btts_yes": float(r["btts_yes"]),
+                    "btts_yes": float(r["btts_yes"])
                 })
             except:
                 continue
+
     return rows
 
 
 def get_dc_table(market):
+
     if market in DC_CACHE:
         return DC_CACHE[market]
 
@@ -57,15 +60,20 @@ def get_dc_table(market):
         return None
 
     table = load_dc_table(dc_file)
+
     DC_CACHE[market] = table
+
     return table
 
 
 def interpolate(table, lh, la, k=6):
+
     distances = []
 
     for r in table:
+
         dist = (r["lambda_home"] - lh) ** 2 + (r["lambda_away"] - la) ** 2
+
         distances.append((dist, r))
 
     distances.sort(key=lambda x: x[0])
@@ -73,12 +81,15 @@ def interpolate(table, lh, la, k=6):
     nearest = distances[:k]
 
     weight_sum = 0
+
     h = d = a = o = b = 0
 
     for dist, r in nearest:
+
         w = 1 / (dist + 1e-9)
 
         weight_sum += w
+
         h += r["home_win"] * w
         d += r["draw"] * w
         a += r["away_win"] * w
@@ -94,14 +105,12 @@ def interpolate(table, lh, la, k=6):
     }
 
 
-# =========================
-# PROCESS
-# =========================
 merge_files = list(MERGE_DIR.glob("soccer_*.csv"))
 
 for merge_file in merge_files:
 
     outfile = OUT_DIR / merge_file.name
+
     processed_rows = []
 
     with open(merge_file, newline="", encoding="utf-8") as f:
@@ -109,13 +118,15 @@ for merge_file in merge_files:
         reader = csv.DictReader(f)
 
         orig_fields = reader.fieldnames
-        add_fields = ["lambda_home", "lambda_away", "over25_prob", "btts_prob"]
+
+        add_fields = ["lambda_home","lambda_away","over25_prob","btts_prob"]
 
         fieldnames = [f for f in orig_fields if f not in add_fields] + add_fields
 
         for r in reader:
 
             market = r["market"]
+
             table = get_dc_table(market)
 
             if not table:
@@ -126,8 +137,10 @@ for merge_file in merge_files:
                 lh = float(r["home_xg"])
                 la = float(r["away_xg"])
 
-                # Correct orientation for all tables
-                res = interpolate(table, lh, la)
+                if market in REVERSED_LEAGUES:
+                    res = interpolate(table, la, lh)
+                else:
+                    res = interpolate(table, lh, la)
 
                 r.update({
                     "home_prob": res["h"],
@@ -146,9 +159,12 @@ for merge_file in merge_files:
 
     if processed_rows:
 
-        with open(outfile, "w", newline="", encoding="utf-8") as f:
+        with open(outfile,"w",newline="",encoding="utf-8") as f:
+
             writer = csv.DictWriter(f, fieldnames=fieldnames)
+
             writer.writeheader()
+
             writer.writerows(processed_rows)
 
         print(f"Wrote {outfile} ({len(processed_rows)} rows)")
