@@ -89,10 +89,10 @@ def step1_nba_moneyline(row):
     home_ml = f(row.get("home_dk_moneyline_american"))
     away_ml = f(row.get("away_dk_moneyline_american"))
 
-    if away_ml > -150:
+    if away_ml > 150:
         return False, "FAIL STEP 1 NBA ML | away extreme underdog", "", ""
 
-    if home_ml > -150:
+    if home_ml > 150:
         return False, "FAIL STEP 1 NBA ML | home extreme underdog", "", ""
 
     if home_edge < 0.00001 and away_edge < 0.00001:
