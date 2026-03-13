@@ -5,22 +5,54 @@
   <title>Data Dump</title>
   <link rel="stylesheet" href="css/matstheme.css" />
   <style>
-    .row {
-      display: flex;
-      gap: 16px;
-    }
-
-    .row > div {
-      flex: 1;
-    }
-
-    #raw {
+    /* Layout Logic */
+    .row { display: flex; gap: 16px; margin-bottom: 20px; }
+    .row > div { flex: 1; }
+    
+    /* Ensure form elements match matstheme.css variables */
+    label { display: block; margin-bottom: 5px; color: var(--text-muted); font-size: 12px; text-transform: uppercase; }
+    
+    select, input, textarea {
       width: 100%;
-      height: 200px;
-      overflow-y: auto;
-      resize: none;
-      box-sizing: border-box;
+      background: var(--bg-card);
+      border: 1px solid var(--border-soft);
+      color: var(--text-main);
+      padding: 10px;
+      font-family: inherit;
+      border-radius: 4px;
     }
+
+    select:focus, input:focus, textarea:focus {
+      outline: none;
+      border-color: var(--accent-green);
+    }
+
+    textarea { height: 200px; resize: none; }
+
+    button {
+      background: var(--accent-green);
+      color: var(--background);
+      border: none;
+      padding: 12px 24px;
+      font-weight: bold;
+      cursor: pointer;
+      border-radius: 4px;
+      width: 100%;
+      margin-top: 20px;
+      text-transform: uppercase;
+    }
+
+    button:hover { opacity: 0.9; }
+    button:disabled { background: var(--text-muted); cursor: not-allowed; }
+
+    #out {
+      margin-top: 20px;
+      color: var(--accent-yellow);
+      font-family: monospace;
+      text-align: center;
+    }
+
+    h2 { color: var(--accent-green); border-bottom: 1px solid var(--border-soft); padding-bottom: 10px; }
   </style>
 </head>
 <body>
@@ -64,12 +96,12 @@
     <label for="token">Magic</label>
     <input id="token" type="password" placeholder="Enter Magic Here" />
 
-    <label for="raw">Raw Text</label>
-    <textarea id="raw" rows="10" placeholder="Paste text here..."></textarea>
+    <label for="raw" style="margin-top:20px;">Raw Text</label>
+    <textarea id="raw" placeholder="Paste text here..."></textarea>
 
     <button id="btn" onclick="dispatch()">Create File</button>
 
-    <pre id="out"></pre>
+    <div id="out"></div>
 
   </div>
 
@@ -109,7 +141,6 @@
         return;
       }
 
-      // Populate Markets
       for (const m of MARKET_MAP[league]) {
         const opt = document.createElement("option");
         if (typeof m === 'object') {
@@ -122,7 +153,6 @@
         marketSelect.appendChild(opt);
       }
 
-      // Auto-set Source to 'Scores' if Final Soccer Scores is picked
       if (league === "final_soccer_scores") {
         sourceSelect.value = "Scores";
       }
@@ -182,6 +212,5 @@
       }
     }
   </script>
-
 </body>
 </html>
