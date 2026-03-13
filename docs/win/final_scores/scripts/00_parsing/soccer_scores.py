@@ -78,7 +78,8 @@ def parse_soccer(lines, market):
         if i >= len(lines):
             break
 
-        home_team = lines[i].strip()
+        # FIX: strip any trailing columns like percentages from the home team line
+        home_team = lines[i].split("\t")[0].strip()
 
         score_count = 0
         away_score = ""
