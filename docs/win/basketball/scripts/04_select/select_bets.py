@@ -143,7 +143,7 @@ def extract_date(filename):
     if m:
         return m.group(0)
 
-    return "unknown_date"
+    return None
 
 ###############################################################
 ######################## MONEYLINE ############################
@@ -306,8 +306,12 @@ def process_file(file):
 def main():
 
     dfs=[]
+    detected_date=None
 
     for file in sorted(INPUT_DIR.glob("*.csv")):
+
+        if detected_date is None:
+            detected_date=extract_date(file.name)
 
         df=process_file(file)
 
@@ -323,10 +327,11 @@ def main():
     nba=df[df["market"]=="NBA"]
     ncaab=df[df["market"]=="NCAAB"]
 
-    date=extract_date(INPUT_DIR.as_posix())
+    if detected_date is None:
+        detected_date="unknown_date"
 
-    nba_file=DAILY_DIR/f"{date}_nba.csv"
-    ncaab_file=DAILY_DIR/f"{date}_ncaab.csv"
+    nba_file=DAILY_DIR/f"{detected_date}_nba.csv"
+    ncaab_file=DAILY_DIR/f"{detected_date}_ncaab.csv"
 
     nba.to_csv(nba_file,index=False)
     ncaab.to_csv(ncaab_file,index=False)
