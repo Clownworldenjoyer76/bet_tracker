@@ -52,14 +52,10 @@ def extract_edge(row):
 
     return None
 
-
 # =========================
-# SPORT CONFIG
+# SPORTS CONFIG
 # =========================
-
 SPORTS = [
-    {"name": "nba", "suffix": "NBA"},
-    {"name": "ncaab", "suffix": "NCAAB"},
     {"name": "nhl", "suffix": "NHL"},
     {"name": "mlb", "suffix": "MLB"},
 ]
