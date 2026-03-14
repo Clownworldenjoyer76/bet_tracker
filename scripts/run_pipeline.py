@@ -1,5 +1,3 @@
-# scripts/run_pipeline.py
-
 import subprocess
 import sys
 from datetime import datetime
@@ -13,7 +11,7 @@ LOG_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE = LOG_DIR / "pipeline_log.txt"
 
 log = open(LOG_FILE, "w", encoding="utf-8")
-# Get current date in your file format (YYYY_MM_DD)
+
 current_date_str = datetime.now().strftime("%Y_%m_%d")
 
 def write_log(message):
@@ -25,10 +23,11 @@ write_log(f"\nPipeline Run: {datetime.now()}\n")
 # -----------------------
 # Pipeline definition
 # -----------------------
+
 pipeline = [
+
     # --- 01 MERGE & VALIDATE ---
     ["python", "docs/win/soccer/scripts/01_merge/merge_intake.py"],
-    # ADDED VALIDATION GATE
     ["python", "docs/win/soccer/scripts/01_merge/validate_merge.py", current_date_str],
     ["python", "docs/win/soccer/scripts/01_merge/market_model.py"],
 
@@ -40,9 +39,11 @@ pipeline = [
 
     # --- 02 APPLY JUICE ---
     ["python", "docs/win/soccer/scripts/02_juice/apply_juice.py"],
+
     ["python", "docs/win/hockey/scripts/02_juice/apply_moneyline_juice.py"],
     ["python", "docs/win/hockey/scripts/02_juice/apply_total_juice.py"],
     ["python", "docs/win/hockey/scripts/02_juice/apply_puck_line_juice.py"],
+
     ["python", "docs/win/basketball/scripts/02_juice/apply_moneyline_juice.py"],
     ["python", "docs/win/basketball/scripts/02_juice/apply_spread_juice.py"],
     ["python", "docs/win/basketball/scripts/02_juice/apply_total_juice.py"],
@@ -51,7 +52,11 @@ pipeline = [
     ["python", "docs/win/soccer/scripts/03_edges/compute_edges.py"],
     ["python", "docs/win/hockey/scripts/03_edges/compute_edges.py"],
     ["python", "docs/win/basketball/scripts/03_edges/compute_edges.py"],
-    ############################### ["python", "docs/win/basketball/scripts/03_edges/edge_check.py"],
+
+    # --- 03 EV + KELLY ---
+    ["python", "docs/win/soccer/scripts/03_edges/compute_ev_kelly.py"],
+    ["python", "docs/win/hockey/scripts/03_edges/compute_ev_kelly.py"],
+    ["python", "docs/win/basketball/scripts/03_edges/compute_ev_kelly.py"],
 
     # --- 04 SELECT ---
     ["python", "docs/win/soccer/scripts/04_select/select_bets.py"],
@@ -69,24 +74,29 @@ pipeline = [
 # -----------------------
 # Execute pipeline
 # -----------------------
+
 failures = 0
+
 for step in pipeline:
+
     script = step[1]
+
     try:
-        # We use the list as-is; it includes args like current_date_str where defined
         subprocess.run(step, check=True)
         write_log(f"✅ {script}")
+
     except subprocess.CalledProcessError as e:
+
         failures += 1
+
         write_log(f"❌ {script}")
         write_log(f"    ERROR: {str(e)}")
-        # OPTIONAL: break if a critical merge script fails
-        # if "merge" in script: break
 
 write_log("\nPipeline complete")
+
 if failures:
     write_log(f"\n❌ FAILURES: {failures}")
-    sys.exit(1) # Ensure GitHub Actions marks the job as failed
+    sys.exit(1)
 else:
     write_log("\n✅ ALL SCRIPTS SUCCESSFUL")
 
