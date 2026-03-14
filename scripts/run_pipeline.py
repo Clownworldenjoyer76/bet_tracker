@@ -54,8 +54,6 @@ pipeline = [
     ["python", "docs/win/basketball/scripts/03_edges/compute_edges.py"],
 
     # --- 03 EV + KELLY ---
-    ["python", "docs/win/soccer/scripts/03_edges/compute_ev_kelly.py"],
-    ["python", "docs/win/hockey/scripts/03_edges/compute_ev_kelly.py"],
     ["python", "docs/win/basketball/scripts/03_edges/compute_ev_kelly.py"],
 
     # --- 04 SELECT ---
@@ -65,6 +63,7 @@ pipeline = [
 
     # --- 05 RESULTS ---
     ["python", "docs/win/final_scores/scripts/05_results/name_normalization.py"],
+    ["python", "docs/win/final_scores/scripts/05_results/basketball_results.py"],
     ["python", "docs/win/final_scores/scripts/05_results/results.py"],
     ["python", "docs/win/final_scores/scripts/05_results/generate_summary.py"],
     ["python", "docs/win/final_scores/scripts/05_results/results_sorted.py"],
