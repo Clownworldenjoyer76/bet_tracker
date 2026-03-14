@@ -3,7 +3,6 @@
 
 import pandas as pd
 from pathlib import Path
-from datetime import datetime
 
 ###############################################################
 ######################## PATH CONFIG ##########################
@@ -13,14 +12,96 @@ INPUT_DIR = Path("docs/win/basketball/03_edges/ev_kelly")
 SELECT_DIR = Path("docs/win/basketball/04_select")
 DAILY_DIR = SELECT_DIR / "daily_slate"
 TOTALS_DIR = DAILY_DIR / "totals"
-ERROR_DIR = Path("docs/win/basketball/errors/04_select")
 
 SELECT_DIR.mkdir(parents=True, exist_ok=True)
 DAILY_DIR.mkdir(parents=True, exist_ok=True)
 TOTALS_DIR.mkdir(parents=True, exist_ok=True)
-ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
-REPORT_FILE = ERROR_DIR / "select_report.txt"
+###############################################################
+######################## NBA PARAMETERS #######################
+###############################################################
+
+# ---------- NBA MONEYLINE ----------
+NBA_ML_HOME_ODDS_MIN = -2000
+NBA_ML_HOME_ODDS_MAX = 500
+NBA_ML_HOME_EDGE_MIN = -1
+NBA_ML_HOME_EDGE_MAX = 1
+NBA_ALLOW_HOME_ML = True
+
+NBA_ML_AWAY_ODDS_MIN = -2000
+NBA_ML_AWAY_ODDS_MAX = 500
+NBA_ML_AWAY_EDGE_MIN = -1
+NBA_ML_AWAY_EDGE_MAX = 1
+NBA_ALLOW_AWAY_ML = True
+
+# ---------- NBA SPREAD ----------
+NBA_SPREAD_HOME_MIN = -40
+NBA_SPREAD_HOME_MAX = 40
+NBA_SPREAD_HOME_EDGE_MIN = -1
+NBA_SPREAD_HOME_EDGE_MAX = 1
+NBA_ALLOW_HOME_SPREAD = True
+
+NBA_SPREAD_AWAY_MIN = -40
+NBA_SPREAD_AWAY_MAX = 40
+NBA_SPREAD_AWAY_EDGE_MIN = -1
+NBA_SPREAD_AWAY_EDGE_MAX = 1
+NBA_ALLOW_AWAY_SPREAD = True
+
+# ---------- NBA TOTAL ----------
+NBA_TOTAL_OVER_MIN = 0
+NBA_TOTAL_OVER_MAX = 400
+NBA_TOTAL_OVER_EDGE_MIN = -1
+NBA_TOTAL_OVER_EDGE_MAX = 1
+NBA_ALLOW_OVER = True
+
+NBA_TOTAL_UNDER_MIN = 0
+NBA_TOTAL_UNDER_MAX = 400
+NBA_TOTAL_UNDER_EDGE_MIN = -1
+NBA_TOTAL_UNDER_EDGE_MAX = 1
+NBA_ALLOW_UNDER = True
+
+###############################################################
+######################## NCAAB PARAMETERS #####################
+###############################################################
+
+# ---------- NCAAB MONEYLINE ----------
+NCAAB_ML_HOME_ODDS_MIN = -2000
+NCAAB_ML_HOME_ODDS_MAX = 500
+NCAAB_ML_HOME_EDGE_MIN = -1
+NCAAB_ML_HOME_EDGE_MAX = 1
+NCAAB_ALLOW_HOME_ML = True
+
+NCAAB_ML_AWAY_ODDS_MIN = -2000
+NCAAB_ML_AWAY_ODDS_MAX = 500
+NCAAB_ML_AWAY_EDGE_MIN = -1
+NCAAB_ML_AWAY_EDGE_MAX = 1
+NCAAB_ALLOW_AWAY_ML = True
+
+# ---------- NCAAB SPREAD ----------
+NCAAB_SPREAD_HOME_MIN = -40
+NCAAB_SPREAD_HOME_MAX = 40
+NCAAB_SPREAD_HOME_EDGE_MIN = -1
+NCAAB_SPREAD_HOME_EDGE_MAX = 1
+NCAAB_ALLOW_HOME_SPREAD = True
+
+NCAAB_SPREAD_AWAY_MIN = -40
+NCAAB_SPREAD_AWAY_MAX = 40
+NCAAB_SPREAD_AWAY_EDGE_MIN = -1
+NCAAB_SPREAD_AWAY_EDGE_MAX = 1
+NCAAB_ALLOW_AWAY_SPREAD = True
+
+# ---------- NCAAB TOTAL ----------
+NCAAB_TOTAL_OVER_MIN = 0
+NCAAB_TOTAL_OVER_MAX = 400
+NCAAB_TOTAL_OVER_EDGE_MIN = -1
+NCAAB_TOTAL_OVER_EDGE_MAX = 1
+NCAAB_ALLOW_OVER = True
+
+NCAAB_TOTAL_UNDER_MIN = 0
+NCAAB_TOTAL_UNDER_MAX = 400
+NCAAB_TOTAL_UNDER_EDGE_MIN = -1
+NCAAB_TOTAL_UNDER_EDGE_MAX = 1
+NCAAB_ALLOW_UNDER = True
 
 ###############################################################
 ######################## HELPERS ##############################
@@ -29,25 +110,11 @@ REPORT_FILE = ERROR_DIR / "select_report.txt"
 def f(x):
     try:
         if pd.isna(x):
-            return 0.0
+            return 0
         return float(x)
-    except Exception:
-        return 0.0
+    except:
+        return 0
 
-def s(x):
-    if pd.isna(x):
-        return ""
-    return str(x).strip()
-
-def reset_report():
-    with open(REPORT_FILE, "w") as fh:
-        fh.write("BASKETBALL SELECT REPORT\n")
-        fh.write("="*80+"\n")
-
-def report_line(text):
-    ts=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    with open(REPORT_FILE,"a") as fh:
-        fh.write(f"[{ts}] {text}\n")
 
 def detect_market(file):
     name=file.lower()
@@ -60,39 +127,44 @@ def detect_market(file):
     return ""
 
 ###############################################################
-###################### NBA MONEYLINE ##########################
+######################## MONEYLINE ############################
 ###############################################################
 
-def nba_moneyline(row):
-
-    home_edge=f(row.get("home_ml_edge_decimal"))
-    away_edge=f(row.get("away_ml_edge_decimal"))
+def moneyline(row, league):
 
     home_ml=f(row.get("home_dk_moneyline_american"))
     away_ml=f(row.get("away_dk_moneyline_american"))
 
-    home_valid=-1000<=home_ml<=-140
-    away_valid=-1000<=away_ml<=-140
+    home_edge=f(row.get("home_ml_edge_decimal"))
+    away_edge=f(row.get("away_ml_edge_decimal"))
 
-    if not home_valid and not away_valid:
-        return False,"",""
+    if league=="NBA":
 
-    if home_edge<0.0000001 and away_edge<0.0000001:
-        return False,"",""
+        if NBA_ALLOW_HOME_ML and NBA_ML_HOME_ODDS_MIN<=home_ml<=NBA_ML_HOME_ODDS_MAX and NBA_ML_HOME_EDGE_MIN<=home_edge<=NBA_ML_HOME_EDGE_MAX:
+            if home_edge>=away_edge:
+                return True,"home",home_ml
 
-    if home_valid and home_edge>away_edge:
-        return True,"home",home_ml
+        if NBA_ALLOW_AWAY_ML and NBA_ML_AWAY_ODDS_MIN<=away_ml<=NBA_ML_AWAY_ODDS_MAX and NBA_ML_AWAY_EDGE_MIN<=away_edge<=NBA_ML_AWAY_EDGE_MAX:
+            if away_edge>home_edge:
+                return True,"away",away_ml
 
-    if away_valid and away_edge>home_edge:
-        return True,"away",away_ml
+    else:
+
+        if NCAAB_ALLOW_HOME_ML and NCAAB_ML_HOME_ODDS_MIN<=home_ml<=NCAAB_ML_HOME_ODDS_MAX and NCAAB_ML_HOME_EDGE_MIN<=home_edge<=NCAAB_ML_HOME_EDGE_MAX:
+            if home_edge>=away_edge:
+                return True,"home",home_ml
+
+        if NCAAB_ALLOW_AWAY_ML and NCAAB_ML_AWAY_ODDS_MIN<=away_ml<=NCAAB_ML_AWAY_ODDS_MAX and NCAAB_ML_AWAY_EDGE_MIN<=away_edge<=NCAAB_ML_AWAY_EDGE_MAX:
+            if away_edge>home_edge:
+                return True,"away",away_ml
 
     return False,"",""
 
 ###############################################################
-###################### NBA SPREAD #############################
+######################## SPREAD ###############################
 ###############################################################
 
-def nba_spread(row):
+def spread(row, league):
 
     home_line=f(row.get("home_spread"))
     away_line=f(row.get("away_spread"))
@@ -101,158 +173,98 @@ def nba_spread(row):
     away_edge=f(row.get("away_spread_edge_decimal"))
 
     if home_edge>=away_edge:
-        side="home"; line=home_line; edge=home_edge; opp=away_edge
+        side="home"; line=home_line; edge=home_edge
     else:
-        side="away"; line=away_line; edge=away_edge; opp=home_edge
+        side="away"; line=away_line; edge=away_edge
 
-    if side=="away" and 10<=line<=13.9:
-        return False,"",""
+    if league=="NBA":
 
-    if edge<0.0000001:
-        return False,"",""
+        if side=="home" and NBA_ALLOW_HOME_SPREAD:
+            if NBA_SPREAD_HOME_MIN<=line<=NBA_SPREAD_HOME_MAX and NBA_SPREAD_HOME_EDGE_MIN<=edge<=NBA_SPREAD_HOME_EDGE_MAX:
+                return True,"home",line
 
-    if edge<=opp:
-        return False,"",""
+        if side=="away" and NBA_ALLOW_AWAY_SPREAD:
+            if NBA_SPREAD_AWAY_MIN<=line<=NBA_SPREAD_AWAY_MAX and NBA_SPREAD_AWAY_EDGE_MIN<=edge<=NBA_SPREAD_AWAY_EDGE_MAX:
+                return True,"away",line
 
-    return True,side,line
+    else:
+
+        if side=="home" and NCAAB_ALLOW_HOME_SPREAD:
+            if NCAAB_SPREAD_HOME_MIN<=line<=NCAAB_SPREAD_HOME_MAX and NCAAB_SPREAD_HOME_EDGE_MIN<=edge<=NCAAB_SPREAD_HOME_EDGE_MAX:
+                return True,"home",line
+
+        if side=="away" and NCAAB_ALLOW_AWAY_SPREAD:
+            if NCAAB_SPREAD_AWAY_MIN<=line<=NCAAB_SPREAD_AWAY_MAX and NCAAB_SPREAD_AWAY_EDGE_MIN<=edge<=NCAAB_SPREAD_AWAY_EDGE_MAX:
+                return True,"away",line
+
+    return False,"",""
 
 ###############################################################
-###################### NBA TOTAL ##############################
+######################## TOTAL ################################
 ###############################################################
 
-def nba_total(row):
+def total(row, league):
 
     line=f(row.get("total"))
-    proj=f(row.get("total_projected_points"))
 
     over_edge=f(row.get("over_edge_decimal"))
     under_edge=f(row.get("under_edge_decimal"))
 
-    diff=proj-line
+    if over_edge>=under_edge:
+        side="over"; edge=over_edge
+    else:
+        side="under"; edge=under_edge
 
-    if abs(diff)<3:
-        return False,"",""
+    if league=="NBA":
 
-    if over_edge>under_edge and over_edge>0.01:
-        return True,"over",line
+        if side=="over" and NBA_ALLOW_OVER:
+            if NBA_TOTAL_OVER_MIN<=line<=NBA_TOTAL_OVER_MAX and NBA_TOTAL_OVER_EDGE_MIN<=edge<=NBA_TOTAL_OVER_EDGE_MAX:
+                return True,"over",line
 
-    if under_edge>over_edge and under_edge>0.01:
-        return True,"under",line
+        if side=="under" and NBA_ALLOW_UNDER:
+            if NBA_TOTAL_UNDER_MIN<=line<=NBA_TOTAL_UNDER_MAX and NBA_TOTAL_UNDER_EDGE_MIN<=edge<=NBA_TOTAL_UNDER_EDGE_MAX:
+                return True,"under",line
+
+    else:
+
+        if side=="over" and NCAAB_ALLOW_OVER:
+            if NCAAB_TOTAL_OVER_MIN<=line<=NCAAB_TOTAL_OVER_MAX and NCAAB_TOTAL_OVER_EDGE_MIN<=edge<=NCAAB_TOTAL_OVER_EDGE_MAX:
+                return True,"over",line
+
+        if side=="under" and NCAAB_ALLOW_UNDER:
+            if NCAAB_TOTAL_UNDER_MIN<=line<=NCAAB_TOTAL_UNDER_MAX and NCAAB_TOTAL_UNDER_EDGE_MIN<=edge<=NCAAB_TOTAL_UNDER_EDGE_MAX:
+                return True,"under",line
 
     return False,"",""
 
 ###############################################################
-##################### NCAAB MONEYLINE #########################
+######################## PROCESS FILE #########################
 ###############################################################
 
-def ncaab_moneyline(row):
+def process_file(file):
 
-    home_ml=f(row.get("home_dk_moneyline_american"))
-    away_ml=f(row.get("away_dk_moneyline_american"))
-
-    home_edge=f(row.get("home_ml_edge_decimal"))
-    away_edge=f(row.get("away_ml_edge_decimal"))
-
-    if away_edge>home_edge:
-        side="away"; ml=away_ml; edge=away_edge; opp=home_edge
-    else:
-        side="home"; ml=home_ml; edge=home_edge; opp=away_edge
-
-    if ml>150 or ml<-300:
-        return False,"",""
-
-    if edge<0.00001:
-        return False,"",""
-
-    if edge<=opp:
-        return False,"",""
-
-    return True,side,ml
-
-###############################################################
-##################### NCAAB SPREAD ############################
-###############################################################
-
-def ncaab_spread(row):
-
-    home_line=f(row.get("home_spread"))
-    away_line=f(row.get("away_spread"))
-
-    home_edge=f(row.get("home_spread_edge_decimal"))
-    away_edge=f(row.get("away_spread_edge_decimal"))
-
-    if home_edge>=away_edge:
-        side="home"; line=home_line; edge=home_edge; opp=away_edge
-    else:
-        side="away"; line=away_line; edge=away_edge; opp=home_edge
-
-    if edge<0.001:
-        return False,"",""
-
-    if edge<=opp:
-        return False,"",""
-
-    return True,side,line
-
-###############################################################
-##################### NCAAB TOTAL #############################
-###############################################################
-
-def ncaab_total(row):
-
-    line=f(row.get("total"))
-    proj=f(row.get("total_projected_points"))
-    over_edge=f(row.get("over_edge_decimal"))
-
-    if line<150 or line>200:
-        return False,"",""
-
-    if abs(proj-line)<3:
-        return False,"",""
-
-    if over_edge>0.02:
-        return True,"over",line
-
-    return False,"",""
-
-###############################################################
-###################### FILE PROCESSOR #########################
-###############################################################
-
-def process_file(csv_file):
-
-    df=pd.read_csv(csv_file)
+    df=pd.read_csv(file)
 
     if df.empty:
         return None
 
-    league="NBA" if "nba" in csv_file.name.lower() else "NCAAB"
-    market=detect_market(csv_file.name)
+    league="NBA" if "nba" in file.name.lower() else "NCAAB"
+    market=detect_market(file.name)
 
     rows=[]
 
     for _,row in df.iterrows():
 
-        if league=="NBA":
+        if market=="moneyline":
+            ok,side,line=moneyline(row,league)
 
-            if market=="moneyline":
-                ok,side,line=nba_moneyline(row)
-            elif market=="spread":
-                ok,side,line=nba_spread(row)
-            else:
-                ok,side,line=nba_total(row)
+        elif market=="spread":
+            ok,side,line=spread(row,league)
 
         else:
-
-            if market=="moneyline":
-                ok,side,line=ncaab_moneyline(row)
-            elif market=="spread":
-                ok,side,line=ncaab_spread(row)
-            else:
-                ok,side,line=ncaab_total(row)
+            ok,side,line=total(row,league)
 
         if ok:
-
             r=row.to_dict()
             r["bet_side"]=side
             r["line"]=line
@@ -265,12 +277,10 @@ def process_file(csv_file):
     return None
 
 ###############################################################
-######################## MAIN PIPELINE ########################
+######################## MAIN #################################
 ###############################################################
 
 def main():
-
-    reset_report()
 
     dfs=[]
 
@@ -290,24 +300,12 @@ def main():
     nba=df[df["market"].str.upper()=="NBA"]
     ncaab=df[df["market"].str.upper()=="NCAAB"]
 
-    nba_path=DAILY_DIR/"nba_selected.csv"
-    ncaab_path=DAILY_DIR/"ncaab_selected.csv"
-
-    nba.to_csv(nba_path,index=False)
-    ncaab.to_csv(ncaab_path,index=False)
+    nba.to_csv(DAILY_DIR/"nba_selected.csv",index=False)
+    ncaab.to_csv(DAILY_DIR/"ncaab_selected.csv",index=False)
 
     print("NBA bets:",len(nba))
     print("NCAAB bets:",len(ncaab))
 
-    # build history
-
-    nba_hist=[pd.read_csv(f) for f in DAILY_DIR.glob("*_nba.csv")]
-    if nba_hist:
-        pd.concat(nba_hist).to_csv(TOTALS_DIR/"NBA_final.csv",index=False)
-
-    ncaab_hist=[pd.read_csv(f) for f in DAILY_DIR.glob("*_ncaab.csv")]
-    if ncaab_hist:
-        pd.concat(ncaab_hist).to_csv(TOTALS_DIR/"NCAAB_final.csv",index=False)
 
 if __name__=="__main__":
     main()
