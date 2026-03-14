@@ -22,7 +22,9 @@ NCAAB_SCORE_DIR = Path("docs/win/final_scores/results/ncaab/final_scores")
 NBA_OUTPUT = Path("docs/win/final_scores/results/nba/graded")
 NCAAB_OUTPUT = Path("docs/win/final_scores/results/ncaab/graded")
 
-DEEP_SUMMARY_DIR = Path("docs/win/final_scores/deeper_summaries")
+DEEP_SUMMARY_BASE = Path("docs/win/final_scores/deeper_summaries")
+NBA_DEEP_DIR = DEEP_SUMMARY_BASE / "nba"
+NCAAB_DEEP_DIR = DEEP_SUMMARY_BASE / "ncaab"
 
 ERROR_DIR = Path("docs/win/final_scores/errors")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
@@ -75,7 +77,6 @@ def determine_outcome(row):
         away=float(row["away_score"])
         home=float(row["home_score"])
 
-        # MONEYLINE
         if market=="moneyline":
 
             if away==home:
@@ -87,7 +88,6 @@ def determine_outcome(row):
             if side=="away":
                 return "Win" if away>home else "Loss"
 
-        # SPREAD
         if market=="spread":
 
             line=float(row.get("line",0))
@@ -102,7 +102,6 @@ def determine_outcome(row):
 
             return "Win" if diff>0 else "Loss"
 
-        # TOTAL
         if market=="total":
 
             line=float(row.get("line",0))
@@ -357,7 +356,7 @@ def build_market_tally(df,league):
     pd.DataFrame(rows).to_csv(out,index=False)
 
 ###############################################################
-######################## DEEP ANALYTICS #######################
+######################## EDGE BUCKET ##########################
 ###############################################################
 
 def edge_bucket(val):
@@ -379,13 +378,20 @@ def edge_bucket(val):
 
 def deep_summary(df,league):
 
+    if league=="NBA":
+        outdir=NBA_DEEP_DIR
+    else:
+        outdir=NCAAB_DEEP_DIR
+
+    outdir.mkdir(parents=True,exist_ok=True)
+
     df["selected_edge"]=df.apply(extract_edge,axis=1)
 
     df["edge_bucket"]=df["selected_edge"].apply(edge_bucket)
 
     out=[]
 
-    for bucket in sorted(df.edge_bucket.unique()):
+    for bucket in sorted(df.edge_bucket.dropna().unique()):
 
         sub=df[df.edge_bucket==bucket]
 
@@ -403,11 +409,9 @@ def deep_summary(df,league):
 
         })
 
-    DEEP_SUMMARY_DIR.mkdir(parents=True,exist_ok=True)
-
     pd.DataFrame(out).to_csv(
 
-        DEEP_SUMMARY_DIR / f"{league}_edge_bucket_summary.csv",
+        outdir / "edge_bucket_summary.csv",
         index=False
     )
 
