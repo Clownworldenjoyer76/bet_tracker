@@ -34,11 +34,18 @@ jobs:
           python docs/win/final_scores/scripts/05_results/name_normalization.py
 
       # -----------------------------
-      # Grade results
+      # Existing results script (KEEP)
       # -----------------------------
       - name: Run Combined Results Script
         run: |
           python docs/win/final_scores/scripts/05_results/results.py
+
+      # -----------------------------
+      # NEW Basketball grading pipeline
+      # -----------------------------
+      - name: Run Basketball Results Pipeline
+        run: |
+          python docs/win/final_scores/scripts/05_results/basketball_results.py
 
       # -----------------------------
       # Generate summaries
@@ -48,7 +55,7 @@ jobs:
           python docs/win/final_scores/scripts/05_results/generate_summary.py
 
       # -----------------------------
-      # Build sorted/banded summaries (run last)
+      # Build sorted/banded summaries
       # -----------------------------
       - name: Run Results Sorted Script
         run: |
@@ -74,20 +81,25 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
 
-          # Ensure the workflow can commit/push
           git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 
-          # Stage relevant folders explicitly
+          # Existing folders
           git add docs/win/basketball/04_select || true
           git add docs/win/hockey/04_select || true
           git add docs/win/final_scores/results || true
           git add docs/win/final_scores/errors || true
           git add mappings/05_no_map || true
 
-          # Also stage anything else changed
+          # Basketball pipeline outputs
+          git add docs/win/final_scores/results/nba/graded || true
+          git add docs/win/final_scores/results/ncaab/graded || true
+          git add docs/win/final_scores/deeper_summaries || true
+          git add docs/win/final_scores/nba_market_tally.csv || true
+          git add docs/win/final_scores/ncaab_market_tally.csv || true
+
+          # Catch anything else
           git add -A
 
-          # Commit only if something changed
-          git diff --staged --quiet || git commit -m "Auto-update: Normalize teams, grade results, update summaries, sorted results"
+          git diff --staged --quiet || git commit -m "Auto-update: normalize teams, run results pipeline, run basketball diagnostics, update summaries"
 
           git push
