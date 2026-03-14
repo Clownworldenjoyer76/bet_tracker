@@ -18,46 +18,47 @@ DAILY_DIR.mkdir(parents=True, exist_ok=True)
 TOTALS_DIR.mkdir(parents=True, exist_ok=True)
 
 ###############################################################
+######################## BAND HELPER ##########################
+###############################################################
+
+def in_bands(value, bands):
+    for low, high in bands:
+        if low <= value <= high:
+            return True
+    return False
+
+###############################################################
 ######################## NBA PARAMETERS #######################
 ###############################################################
 
 # ---------- NBA MONEYLINE ----------
-NBA_ML_HOME_ODDS_MIN = -2000
-NBA_ML_HOME_ODDS_MAX = 500
-NBA_ML_HOME_EDGE_MIN = -1
-NBA_ML_HOME_EDGE_MAX = 1
+
+NBA_ML_HOME_ODDS_BANDS = [(-110,120)]
+NBA_ML_HOME_EDGE_BANDS = [(-1,1)]
 NBA_ALLOW_HOME_ML = True
 
-NBA_ML_AWAY_ODDS_MIN = -2000
-NBA_ML_AWAY_ODDS_MAX = 500
-NBA_ML_AWAY_EDGE_MIN = -1
-NBA_ML_AWAY_EDGE_MAX = 1
+NBA_ML_AWAY_ODDS_BANDS = [(-110,120)]
+NBA_ML_AWAY_EDGE_BANDS = [(-1,1)]
 NBA_ALLOW_AWAY_ML = True
 
 # ---------- NBA SPREAD ----------
-NBA_SPREAD_HOME_MIN = 10
-NBA_SPREAD_HOME_MAX = 40
-NBA_SPREAD_HOME_EDGE_MIN = -1
-NBA_SPREAD_HOME_EDGE_MAX = 1
+
+NBA_SPREAD_HOME_BANDS = [(-40,40)]
+NBA_SPREAD_HOME_EDGE_BANDS = [(-1,1)]
 NBA_ALLOW_HOME_SPREAD = True
 
-NBA_SPREAD_AWAY_MIN = -40
-NBA_SPREAD_AWAY_MAX = 15
-NBA_SPREAD_AWAY_EDGE_MIN = -1
-NBA_SPREAD_AWAY_EDGE_MAX = 1
+NBA_SPREAD_AWAY_BANDS = [(-40,40)]
+NBA_SPREAD_AWAY_EDGE_BANDS = [(-1,1)]
 NBA_ALLOW_AWAY_SPREAD = True
 
 # ---------- NBA TOTAL ----------
-NBA_TOTAL_OVER_MIN = 220
-NBA_TOTAL_OVER_MAX = 400
-NBA_TOTAL_OVER_EDGE_MIN = -1
-NBA_TOTAL_OVER_EDGE_MAX = 1
+
+NBA_TOTAL_OVER_BANDS = [(220,400)]
+NBA_TOTAL_OVER_EDGE_BANDS = [(-1,1)]
 NBA_ALLOW_OVER = True
 
-NBA_TOTAL_UNDER_MIN = 0
-NBA_TOTAL_UNDER_MAX = 400
-NBA_TOTAL_UNDER_EDGE_MIN = -1
-NBA_TOTAL_UNDER_EDGE_MAX = 1
+NBA_TOTAL_UNDER_BANDS = [(0,400)]
+NBA_TOTAL_UNDER_EDGE_BANDS = [(-1,1)]
 NBA_ALLOW_UNDER = True
 
 ###############################################################
@@ -65,42 +66,33 @@ NBA_ALLOW_UNDER = True
 ###############################################################
 
 # ---------- NCAAB MONEYLINE ----------
-NCAAB_ML_HOME_ODDS_MIN = -2000
-NCAAB_ML_HOME_ODDS_MAX = 500
-NCAAB_ML_HOME_EDGE_MIN = -1
-NCAAB_ML_HOME_EDGE_MAX = 1
+
+NCAAB_ML_HOME_ODDS_BANDS = [(-110,120)]
+NCAAB_ML_HOME_EDGE_BANDS = [(-1,1)]
 NCAAB_ALLOW_HOME_ML = True
 
-NCAAB_ML_AWAY_ODDS_MIN = -2000
-NCAAB_ML_AWAY_ODDS_MAX = 500
-NCAAB_ML_AWAY_EDGE_MIN = -1
-NCAAB_ML_AWAY_EDGE_MAX = 1
+NCAAB_ML_AWAY_ODDS_BANDS = [(-110,120)]
+NCAAB_ML_AWAY_EDGE_BANDS = [(-1,1)]
 NCAAB_ALLOW_AWAY_ML = True
 
 # ---------- NCAAB SPREAD ----------
-NCAAB_SPREAD_HOME_MIN = -40
-NCAAB_SPREAD_HOME_MAX = 40
-NCAAB_SPREAD_HOME_EDGE_MIN = -1
-NCAAB_SPREAD_HOME_EDGE_MAX = 1
+
+NCAAB_SPREAD_HOME_BANDS = [(-40,40)]
+NCAAB_SPREAD_HOME_EDGE_BANDS = [(-1,1)]
 NCAAB_ALLOW_HOME_SPREAD = True
 
-NCAAB_SPREAD_AWAY_MIN = -40
-NCAAB_SPREAD_AWAY_MAX = 40
-NCAAB_SPREAD_AWAY_EDGE_MIN = -1
-NCAAB_SPREAD_AWAY_EDGE_MAX = 1
+NCAAB_SPREAD_AWAY_BANDS = [(-40,40)]
+NCAAB_SPREAD_AWAY_EDGE_BANDS = [(-1,1)]
 NCAAB_ALLOW_AWAY_SPREAD = True
 
 # ---------- NCAAB TOTAL ----------
-NCAAB_TOTAL_OVER_MIN = 0
-NCAAB_TOTAL_OVER_MAX = 400
-NCAAB_TOTAL_OVER_EDGE_MIN = -1
-NCAAB_TOTAL_OVER_EDGE_MAX = 1
+
+NCAAB_TOTAL_OVER_BANDS = [(0,400)]
+NCAAB_TOTAL_OVER_EDGE_BANDS = [(-1,1)]
 NCAAB_ALLOW_OVER = True
 
-NCAAB_TOTAL_UNDER_MIN = 0
-NCAAB_TOTAL_UNDER_MAX = 400
-NCAAB_TOTAL_UNDER_EDGE_MIN = -1
-NCAAB_TOTAL_UNDER_EDGE_MAX = 1
+NCAAB_TOTAL_UNDER_BANDS = [(0,400)]
+NCAAB_TOTAL_UNDER_EDGE_BANDS = [(-1,1)]
 NCAAB_ALLOW_UNDER = True
 
 ###############################################################
@@ -126,7 +118,6 @@ def detect_market(file):
         return "total"
     return ""
 
-
 ###############################################################
 ######################## MONEYLINE ############################
 ###############################################################
@@ -141,26 +132,25 @@ def moneyline(row, league):
 
     if league=="NBA":
 
-        if NBA_ALLOW_HOME_ML and NBA_ML_HOME_ODDS_MIN<=home_ml<=NBA_ML_HOME_ODDS_MAX and NBA_ML_HOME_EDGE_MIN<=home_edge<=NBA_ML_HOME_EDGE_MAX:
+        if NBA_ALLOW_HOME_ML and in_bands(home_ml,NBA_ML_HOME_ODDS_BANDS) and in_bands(home_edge,NBA_ML_HOME_EDGE_BANDS):
             if home_edge>=away_edge:
                 return True,"home",home_ml,home_edge
 
-        if NBA_ALLOW_AWAY_ML and NBA_ML_AWAY_ODDS_MIN<=away_ml<=NBA_ML_AWAY_ODDS_MAX and NBA_ML_AWAY_EDGE_MIN<=away_edge<=NBA_ML_AWAY_EDGE_MAX:
+        if NBA_ALLOW_AWAY_ML and in_bands(away_ml,NBA_ML_AWAY_ODDS_BANDS) and in_bands(away_edge,NBA_ML_AWAY_EDGE_BANDS):
             if away_edge>home_edge:
                 return True,"away",away_ml,away_edge
 
     else:
 
-        if NCAAB_ALLOW_HOME_ML and NCAAB_ML_HOME_ODDS_MIN<=home_ml<=NCAAB_ML_HOME_ODDS_MAX and NCAAB_ML_HOME_EDGE_MIN<=home_edge<=NCAAB_ML_HOME_EDGE_MAX:
+        if NCAAB_ALLOW_HOME_ML and in_bands(home_ml,NCAAB_ML_HOME_ODDS_BANDS) and in_bands(home_edge,NCAAB_ML_HOME_EDGE_BANDS):
             if home_edge>=away_edge:
                 return True,"home",home_ml,home_edge
 
-        if NCAAB_ALLOW_AWAY_ML and NCAAB_ML_AWAY_ODDS_MIN<=away_ml<=NCAAB_ML_AWAY_ODDS_MAX and NCAAB_ML_AWAY_EDGE_MIN<=away_edge<=NCAAB_ML_AWAY_EDGE_MAX:
+        if NCAAB_ALLOW_AWAY_ML and in_bands(away_ml,NCAAB_ML_AWAY_ODDS_BANDS) and in_bands(away_edge,NCAAB_ML_AWAY_EDGE_BANDS):
             if away_edge>home_edge:
                 return True,"away",away_ml,away_edge
 
     return False,"","",0
-
 
 ###############################################################
 ######################## SPREAD ###############################
@@ -182,25 +172,24 @@ def spread(row, league):
     if league=="NBA":
 
         if side=="home" and NBA_ALLOW_HOME_SPREAD:
-            if NBA_SPREAD_HOME_MIN<=line<=NBA_SPREAD_HOME_MAX and NBA_SPREAD_HOME_EDGE_MIN<=edge<=NBA_SPREAD_HOME_EDGE_MAX:
+            if in_bands(line,NBA_SPREAD_HOME_BANDS) and in_bands(edge,NBA_SPREAD_HOME_EDGE_BANDS):
                 return True,"home",line,edge
 
         if side=="away" and NBA_ALLOW_AWAY_SPREAD:
-            if NBA_SPREAD_AWAY_MIN<=line<=NBA_SPREAD_AWAY_MAX and NBA_SPREAD_AWAY_EDGE_MIN<=edge<=NBA_SPREAD_AWAY_EDGE_MAX:
+            if in_bands(line,NBA_SPREAD_AWAY_BANDS) and in_bands(edge,NBA_SPREAD_AWAY_EDGE_BANDS):
                 return True,"away",line,edge
 
     else:
 
         if side=="home" and NCAAB_ALLOW_HOME_SPREAD:
-            if NCAAB_SPREAD_HOME_MIN<=line<=NCAAB_SPREAD_HOME_MAX and NCAAB_SPREAD_HOME_EDGE_MIN<=edge<=NCAAB_SPREAD_HOME_EDGE_MAX:
+            if in_bands(line,NCAAB_SPREAD_HOME_BANDS) and in_bands(edge,NCAAB_SPREAD_HOME_EDGE_BANDS):
                 return True,"home",line,edge
 
         if side=="away" and NCAAB_ALLOW_AWAY_SPREAD:
-            if NCAAB_SPREAD_AWAY_MIN<=line<=NCAAB_SPREAD_AWAY_MAX and NCAAB_SPREAD_AWAY_EDGE_MIN<=edge<=NCAAB_SPREAD_AWAY_EDGE_MAX:
+            if in_bands(line,NCAAB_SPREAD_AWAY_BANDS) and in_bands(edge,NCAAB_SPREAD_AWAY_EDGE_BANDS):
                 return True,"away",line,edge
 
     return False,"","",0
-
 
 ###############################################################
 ######################## TOTAL ################################
@@ -221,25 +210,24 @@ def total(row, league):
     if league=="NBA":
 
         if side=="over" and NBA_ALLOW_OVER:
-            if NBA_TOTAL_OVER_MIN<=line<=NBA_TOTAL_OVER_MAX and NBA_TOTAL_OVER_EDGE_MIN<=edge<=NBA_TOTAL_OVER_EDGE_MAX:
+            if in_bands(line,NBA_TOTAL_OVER_BANDS) and in_bands(edge,NBA_TOTAL_OVER_EDGE_BANDS):
                 return True,"over",line,edge
 
         if side=="under" and NBA_ALLOW_UNDER:
-            if NBA_TOTAL_UNDER_MIN<=line<=NBA_TOTAL_UNDER_MAX and NBA_TOTAL_UNDER_EDGE_MIN<=edge<=NBA_TOTAL_UNDER_EDGE_MAX:
+            if in_bands(line,NBA_TOTAL_UNDER_BANDS) and in_bands(edge,NBA_TOTAL_UNDER_EDGE_BANDS):
                 return True,"under",line,edge
 
     else:
 
         if side=="over" and NCAAB_ALLOW_OVER:
-            if NCAAB_TOTAL_OVER_MIN<=line<=NCAAB_TOTAL_OVER_MAX and NCAAB_TOTAL_OVER_EDGE_MIN<=edge<=NCAAB_TOTAL_OVER_EDGE_MAX:
+            if in_bands(line,NCAAB_TOTAL_OVER_BANDS) and in_bands(edge,NCAAB_TOTAL_OVER_EDGE_BANDS):
                 return True,"over",line,edge
 
         if side=="under" and NCAAB_ALLOW_UNDER:
-            if NCAAB_TOTAL_UNDER_MIN<=line<=NCAAB_TOTAL_UNDER_MAX and NCAAB_TOTAL_UNDER_EDGE_MIN<=edge<=NCAAB_TOTAL_UNDER_EDGE_MAX:
+            if in_bands(line,NCAAB_TOTAL_UNDER_BANDS) and in_bands(edge,NCAAB_TOTAL_UNDER_EDGE_BANDS):
                 return True,"under",line,edge
 
     return False,"","",0
-
 
 ###############################################################
 ######################## PROCESS FILE #########################
@@ -276,7 +264,6 @@ def process_file(file):
             r["line"]=line
             r["market_type"]=market
 
-            # DEBUG INFORMATION
             r["debug_league"]=league
             r["debug_market"]=market
             r["debug_selected_side"]=side
@@ -292,7 +279,6 @@ def process_file(file):
         return pd.DataFrame(rows)
 
     return None
-
 
 ###############################################################
 ######################## MAIN #################################
