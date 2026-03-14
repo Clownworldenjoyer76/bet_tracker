@@ -334,15 +334,14 @@ def selected_moneyline_odds(row):
 def selected_spread_line(row):
     side_group = row.get("side_group", "")
     if side_group == "HOME":
-        return to_float(row.get("home_spread"))
+        return to_float(row.get("home_spread_x"))
     if side_group == "AWAY":
-        return to_float(row.get("away_spread"))
+        return to_float(row.get("away_spread_x"))
     return pd.NA
 
 
 def selected_total_line(row):
-    return to_float(row.get("total"))
-
+    return to_float(row.get("total_x"))
 
 ###############################################################
 ######################## BUCKETS ##############################
@@ -443,7 +442,6 @@ def total_bucket(value):
     start = int(val // 5) * 5
     end = start + 4.9
     return f"{start}_to_{end:.1f}"
-
 
 ###############################################################
 ######################## PREP ANALYTICS #######################
@@ -613,7 +611,6 @@ def build_market_tally(df, league):
         write_csv(out, NBA_MARKET_TALLY)
     else:
         write_csv(out, NCAAB_MARKET_TALLY)
-
 
 ###############################################################
 ######################## EDGE REPORT ##########################
