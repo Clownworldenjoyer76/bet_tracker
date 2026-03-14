@@ -194,30 +194,45 @@ def spread(row, league):
     home_edge=f(row.get("home_spread_edge_decimal"))
     away_edge=f(row.get("away_spread_edge_decimal"))
 
-    if home_edge>=away_edge:
-        side="home"; line=home_line; edge=home_edge
-    else:
-        side="away"; line=away_line; edge=away_edge
-
     if league=="NBA":
 
-        if side=="home" and NBA_ALLOW_HOME_SPREAD:
-            if in_bands(line,NBA_SPREAD_HOME_BANDS) and in_bands(edge,NBA_SPREAD_HOME_EDGE_BANDS):
-                return True,"home",line,edge
+        home_valid = (
+            NBA_ALLOW_HOME_SPREAD
+            and in_bands(home_line, NBA_SPREAD_HOME_BANDS)
+            and in_bands(home_edge, NBA_SPREAD_HOME_EDGE_BANDS)
+        )
 
-        if side=="away" and NBA_ALLOW_AWAY_SPREAD:
-            if in_bands(line,NBA_SPREAD_AWAY_BANDS) and in_bands(edge,NBA_SPREAD_AWAY_EDGE_BANDS):
-                return True,"away",line,edge
+        away_valid = (
+            NBA_ALLOW_AWAY_SPREAD
+            and in_bands(away_line, NBA_SPREAD_AWAY_BANDS)
+            and in_bands(away_edge, NBA_SPREAD_AWAY_EDGE_BANDS)
+        )
 
     else:
 
-        if side=="home" and NCAAB_ALLOW_HOME_SPREAD:
-            if in_bands(line,NCAAB_SPREAD_HOME_BANDS) and in_bands(edge,NCAAB_SPREAD_HOME_EDGE_BANDS):
-                return True,"home",line,edge
+        home_valid = (
+            NCAAB_ALLOW_HOME_SPREAD
+            and in_bands(home_line, NCAAB_SPREAD_HOME_BANDS)
+            and in_bands(home_edge, NCAAB_SPREAD_HOME_EDGE_BANDS)
+        )
 
-        if side=="away" and NCAAB_ALLOW_AWAY_SPREAD:
-            if in_bands(line,NCAAB_SPREAD_AWAY_BANDS) and in_bands(edge,NCAAB_SPREAD_AWAY_EDGE_BANDS):
-                return True,"away",line,edge
+        away_valid = (
+            NCAAB_ALLOW_AWAY_SPREAD
+            and in_bands(away_line, NCAAB_SPREAD_AWAY_BANDS)
+            and in_bands(away_edge, NCAAB_SPREAD_AWAY_EDGE_BANDS)
+        )
+
+    if home_valid and away_valid:
+        if home_edge >= away_edge:
+            return True,"home",home_line,home_edge
+        else:
+            return True,"away",away_line,away_edge
+
+    if home_valid:
+        return True,"home",home_line,home_edge
+
+    if away_valid:
+        return True,"away",away_line,away_edge
 
     return False,"","",0
 
