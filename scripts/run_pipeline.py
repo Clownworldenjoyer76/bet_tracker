@@ -62,7 +62,6 @@ pipeline = [
     ["python", "docs/win/soccer/scripts/04_select/select_bets.py"],
     ["python", "docs/win/hockey/scripts/04_select/select_bets.py"],
     ["python", "docs/win/basketball/scripts/04_select/select_bets.py"],
-    ["python", "docs/win/basketball/scripts/04_select/combine_trim_basketball.py"],
 
     # --- 05 RESULTS ---
     ["python", "docs/win/final_scores/scripts/05_results/name_normalization.py"],
