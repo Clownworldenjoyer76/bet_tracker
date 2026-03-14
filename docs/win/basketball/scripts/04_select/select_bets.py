@@ -3,6 +3,7 @@
 
 import pandas as pd
 from pathlib import Path
+import re
 
 ###############################################################
 ######################## PATH CONFIG ##########################
@@ -11,11 +12,9 @@ from pathlib import Path
 INPUT_DIR = Path("docs/win/basketball/03_edges/ev_kelly")
 SELECT_DIR = Path("docs/win/basketball/04_select")
 DAILY_DIR = SELECT_DIR / "daily_slate"
-TOTALS_DIR = DAILY_DIR / "totals"
 
 SELECT_DIR.mkdir(parents=True, exist_ok=True)
 DAILY_DIR.mkdir(parents=True, exist_ok=True)
-TOTALS_DIR.mkdir(parents=True, exist_ok=True)
 
 ###############################################################
 ######################## BAND HELPER ##########################
@@ -44,14 +43,24 @@ NBA_ALLOW_AWAY_ML = True
 # ---------- NBA SPREAD ----------
 
 NBA_SPREAD_HOME_BANDS = [(-40,40)]
-NBA_SPREAD_HOME_EDGE_BANDS = [(-1,0.0199)]
-NBA_SPREAD_HOME_EDGE_BANDS = [(0.10,999)]
+
+NBA_SPREAD_HOME_EDGE_BANDS = [
+(-1,0.0199),
+(0.10,999)
+]
+
 NBA_ALLOW_HOME_SPREAD = True
 
-NBA_SPREAD_AWAY_BANDS = [(15,40)]
-NBA_SPREAD_AWAY_BANDS = [(7.5,9.9)]
-NBA_SPREAD_AWAY_EDGE_BANDS = [(-1,0.03)]
-NBA_SPREAD_AWAY_EDGE_BANDS = [(0.10,999)]
+NBA_SPREAD_AWAY_BANDS = [
+(15,40),
+(7.5,9.9)
+]
+
+NBA_SPREAD_AWAY_EDGE_BANDS = [
+(-1,0.03),
+(0.10,999)
+]
+
 NBA_ALLOW_AWAY_SPREAD = True
 
 # ---------- NBA TOTAL ----------
@@ -111,15 +120,30 @@ def f(x):
         return 0
 
 
-def detect_market(file):
-    name=file.lower()
-    if "moneyline" in name:
+def detect_market(filename):
+
+    name = filename.lower()
+
+    if "moneyline" in name or "_ml" in name:
         return "moneyline"
+
     if "spread" in name:
         return "spread"
+
     if "total" in name:
         return "total"
+
     return ""
+
+
+def extract_date(filename):
+
+    m = re.search(r"\d{4}_\d{2}_\d{2}", filename)
+
+    if m:
+        return m.group(0)
+
+    return "unknown_date"
 
 ###############################################################
 ######################## MONEYLINE ############################
@@ -266,15 +290,7 @@ def process_file(file):
             r["bet_side"]=side
             r["line"]=line
             r["market_type"]=market
-
-            r["debug_league"]=league
-            r["debug_market"]=market
-            r["debug_selected_side"]=side
-            r["debug_edge_value"]=edge
-            r["debug_odds_value"]=f(row.get("home_dk_moneyline_american"))
-            r["debug_line_value"]=line
-            r["debug_projection_value"]=f(row.get("total_projected_points"))
-            r["debug_pass_reason"]=f"{league} {market} {side} passed parameter filters"
+            r["market"]=league
 
             rows.append(r)
 
@@ -304,11 +320,16 @@ def main():
 
     df=pd.concat(dfs,ignore_index=True)
 
-    nba=df[df["market"].str.upper()=="NBA"]
-    ncaab=df[df["market"].str.upper()=="NCAAB"]
+    nba=df[df["market"]=="NBA"]
+    ncaab=df[df["market"]=="NCAAB"]
 
-    nba.to_csv(DAILY_DIR/"nba_selected.csv",index=False)
-    ncaab.to_csv(DAILY_DIR/"ncaab_selected.csv",index=False)
+    date=extract_date(INPUT_DIR.as_posix())
+
+    nba_file=DAILY_DIR/f"{date}_nba.csv"
+    ncaab_file=DAILY_DIR/f"{date}_ncaab.csv"
+
+    nba.to_csv(nba_file,index=False)
+    ncaab.to_csv(ncaab_file,index=False)
 
     print("NBA bets:",len(nba))
     print("NCAAB bets:",len(ncaab))
