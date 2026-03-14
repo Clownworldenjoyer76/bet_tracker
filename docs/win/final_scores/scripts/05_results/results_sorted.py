@@ -20,18 +20,6 @@ OUTPUTS = {
     "SOCCER": Path("docs/win/final_scores/results/soccer/graded/soccer_final_sorted.csv"),
 }
 
-MARKET_TALLY_INPUTS = {
-    "NHL": Path("docs/win/final_scores/results/nhl/graded/nhl_final_sorted.csv"),
-    "SOCCER": Path("docs/win/final_scores/results/soccer/graded/soccer_final_sorted.csv"),
-}
-
-MARKET_TALLY_OUTPUTS = {
-    "NHL": Path("docs/win/final_scores/results/market_tally_NHL.csv"),
-    "SOCCER": Path("docs/win/final_scores/results/market_tally_SOCCER.csv"),
-}
-
-DEEP_SUMMARY_DIR = Path("docs/win/final_scores/deeper_summaries")
-
 ERROR_LOG = Path("docs/win/final_scores/errors/results_sorted_errors.txt")
 
 
@@ -79,16 +67,6 @@ def normalize_result(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def normalize_text(value) -> str:
-    if pd.isna(value):
-        return ""
-    return str(value).strip().lower()
-
-
-def to_float(value):
-    return pd.to_numeric(pd.Series([value]), errors="coerce").iloc[0]
-
-
 # =========================
 # WIN / LOSS SUMMARY
 # =========================
@@ -108,45 +86,6 @@ def summarize_wl(df: pd.DataFrame):
 
     return wins, losses, pushes, total, win_pct
 
-
-def aggregate_results(df: pd.DataFrame, group_cols: list[str]) -> pd.DataFrame:
-
-    if df is None or df.empty:
-        return pd.DataFrame()
-
-    rows = []
-
-    grouped = df.groupby(group_cols, dropna=False)
-
-    for keys, sub in grouped:
-
-        wins, losses, pushes, total, win_pct = summarize_wl(sub)
-
-        if not isinstance(keys, tuple):
-            keys = (keys,)
-
-        row = {}
-
-        for i, col in enumerate(group_cols):
-            row[col] = keys[i]
-
-        row["Win"] = wins
-        row["Loss"] = losses
-        row["Push"] = pushes
-        row["Total"] = total
-        row["Win_Pct"] = round(win_pct, 4)
-
-        rows.append(row)
-
-    if not rows:
-        return pd.DataFrame()
-
-    return pd.DataFrame(rows)
-
-
-# =========================
-# CURRENT SUMMARY OUTPUTS
-# =========================
 
 def generic_summary(df: pd.DataFrame, market_name: str) -> pd.DataFrame:
 
