@@ -87,18 +87,18 @@ NCAAB_ML_HOME_ODDS_BANDS = [
 ]
 
 NCAAB_ML_HOME_EDGE_BANDS = [
-    (-1, 1)
+    (0.03, 1)
 ]
 
 NCAAB_ALLOW_HOME_ML = True
 
 
 NCAAB_ML_AWAY_ODDS_BANDS = [
-    (-100, 150)
+    (100, 150)
 ]
 
 NCAAB_ML_AWAY_EDGE_BANDS = [
-    (-1, 1)
+    (0.01, 1)
 ]
 
 NCAAB_ALLOW_AWAY_ML = True
@@ -106,24 +106,23 @@ NCAAB_ALLOW_AWAY_ML = True
 # ---------- NCAAB SPREAD ----------
 
 NCAAB_SPREAD_HOME_BANDS = [
-    (-40, -8),
-    (-5, 40)
+    (-5, -3)
 ]
 
 NCAAB_SPREAD_HOME_EDGE_BANDS = [
-    (-1, 1)
+    (0.05, 1)
 ]
 
 NCAAB_ALLOW_HOME_SPREAD = True
 
 
 NCAAB_SPREAD_AWAY_BANDS = [
-    (-40, -8),
-    (-5, 40)
+    (-3, -1),
+    (7.5, 20)
 ]
 
 NCAAB_SPREAD_AWAY_EDGE_BANDS = [
-    (-1, 1)
+    (0.01, 1)
 ]
 
 NCAAB_ALLOW_AWAY_SPREAD = True
@@ -131,7 +130,7 @@ NCAAB_ALLOW_AWAY_SPREAD = True
 # ---------- NCAAB TOTAL ----------
 
 NCAAB_TOTAL_OVER_BANDS = [
-    (120, 200)
+    (150, 200)
 ]
 
 NCAAB_TOTAL_OVER_EDGE_BANDS = [
@@ -142,7 +141,7 @@ NCAAB_ALLOW_OVER = True
 
 
 NCAAB_TOTAL_UNDER_BANDS = [
-    (130, 200)
+    (135, 150)
 ]
 
 NCAAB_TOTAL_UNDER_EDGE_BANDS = [
@@ -286,7 +285,6 @@ def spread(row, league):
             and in_bands(away_edge, NCAAB_SPREAD_AWAY_EDGE_BANDS)
         )
 
-        # NEW: if either side is excluded by spread filters, drop the game entirely
         if not home_valid or not away_valid:
             return False, "", "", 0
 
