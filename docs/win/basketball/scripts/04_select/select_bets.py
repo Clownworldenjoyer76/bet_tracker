@@ -205,6 +205,7 @@ def moneyline(row, league):
 ###############################################################
 
 def spread(row, league):
+
     home_line = f(row.get("home_spread"))
     away_line = f(row.get("away_spread"))
 
@@ -219,11 +220,16 @@ def spread(row, league):
             and in_bands(home_edge, NBA_SPREAD_HOME_EDGE_BANDS)
         )
 
+        # require edge > 0.10 if away spread >= +10
+        if away_line >= 10:
+            away_edge_ok = away_edge > 0.10
+        else:
+            away_edge_ok = in_bands(away_edge, NBA_SPREAD_AWAY_EDGE_BANDS)
+
         away_valid = (
             NBA_ALLOW_AWAY_SPREAD
-            and away_line < 15
             and in_bands(away_line, NBA_SPREAD_AWAY_BANDS)
-            and in_bands(away_edge, NBA_SPREAD_AWAY_EDGE_BANDS)
+            and away_edge_ok
         )
 
     else:
