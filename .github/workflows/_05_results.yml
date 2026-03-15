@@ -43,6 +43,7 @@ jobs:
       # -----------------------------
       # NEW Basketball grading pipeline
       # -----------------------------
+      
       - name: Run Basketball Results Pipeline
         run: |
           python docs/win/final_scores/scripts/05_results/basketball/basketball_results_grade.py
@@ -76,6 +77,9 @@ jobs:
       # -----------------------------
       # Commit & push
       # -----------------------------
+     
+      
+      
       - name: Commit and Push All Changes
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -85,6 +89,10 @@ jobs:
 
           git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 
+
+          # Catch All
+          git add docs/win/final_scores/
+         
           # Existing selections
           git add docs/win/basketball/04_select || true
           git add docs/win/hockey/04_select || true
