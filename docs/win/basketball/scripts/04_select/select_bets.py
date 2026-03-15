@@ -102,9 +102,10 @@ NCAAB_ALLOW_AWAY_SPREAD = True
 
 # ---------- NCAAB TOTAL ----------
 
+# ---------- NCAAB TOTAL ----------
+
 NCAAB_TOTAL_OVER_BANDS = [
-    (120, 139.9),
-    (150, 200)
+    (120, 200)
 ]
 
 NCAAB_TOTAL_OVER_EDGE_BANDS = [
@@ -113,8 +114,9 @@ NCAAB_TOTAL_OVER_EDGE_BANDS = [
 
 NCAAB_ALLOW_OVER = True
 
+
 NCAAB_TOTAL_UNDER_BANDS = [
-    (120, 200)
+    (130, 200)
 ]
 
 NCAAB_TOTAL_UNDER_EDGE_BANDS = [
