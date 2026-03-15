@@ -85,23 +85,28 @@ jobs:
 
           git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 
-          # Existing folders
+          # Existing selections
           git add docs/win/basketball/04_select || true
           git add docs/win/hockey/04_select || true
-          git add docs/win/final_scores/results || true
-          git add docs/win/final_scores/errors || true
-          git add mappings/05_no_map || true
 
-          # Basketball pipeline outputs
+          # Final score system outputs
+          git add docs/win/final_scores/results || true
+          git add docs/win/final_scores/intermediate || true
+          git add docs/win/final_scores/deeper_summaries || true
+          git add docs/win/final_scores/errors || true
+
+          # Basketball analytics outputs
           git add docs/win/final_scores/results/nba/graded || true
           git add docs/win/final_scores/results/ncaab/graded || true
-          git add docs/win/final_scores/deeper_summaries || true
+
+          # Market tally reports
           git add docs/win/final_scores/nba_market_tally.csv || true
           git add docs/win/final_scores/ncaab_market_tally.csv || true
 
-          # Catch anything else
-          git add -A
+          # Mapping outputs
+          git add mappings/05_no_map || true
 
-          git diff --staged --quiet || git commit -m "Auto-update: normalize teams, run results pipeline, run basketball diagnostics, update summaries"
+          # Commit only if changes exist
+          git diff --staged --quiet || git commit -m "Auto-update: run results pipeline, basketball grading, analytics summaries"
 
           git push
