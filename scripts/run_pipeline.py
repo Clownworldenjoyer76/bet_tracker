@@ -97,9 +97,9 @@ pipeline = [
     # Basketball Results
     # -------------------------
 
-    ["python", "docs/win/final_scores/scripts/05_results/basketball/basketball_results_grade.py"],
-    ["python", "docs/win/final_scores/scripts/05_results/basketball/basketball_results_analyze.py"],
-    ["python", "docs/win/final_scores/scripts/05_results/basketball/basketball_results_reports.py"],
+    ["python", "docs/win/final_scores/scripts/05_results/basketball/01_basketball_results_grade.py"],
+    ["python", "docs/win/final_scores/scripts/05_results/basketball/02_basketball_results_analyze.py"],
+    ["python", "docs/win/final_scores/scripts/05_results/basketball/03_basketball_results_reports.py"],
 
     # -------------------------
     # NHL Results
