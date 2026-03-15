@@ -32,11 +32,11 @@ def in_bands(value, bands):
 
 # ---------- NBA MONEYLINE ----------
 
-NBA_ML_HOME_ODDS_BANDS = [(-110, 120)]
+NBA_ML_HOME_ODDS_BANDS = [(-200, 200)]
 NBA_ML_HOME_EDGE_BANDS = [(-1, 1)]
 NBA_ALLOW_HOME_ML = True
 
-NBA_ML_AWAY_ODDS_BANDS = [(-110, 120)]
+NBA_ML_AWAY_ODDS_BANDS = [(-200, 200)]
 NBA_ML_AWAY_EDGE_BANDS = [(-1, 1)]
 NBA_ALLOW_AWAY_ML = True
 
