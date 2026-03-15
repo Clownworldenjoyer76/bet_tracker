@@ -20,7 +20,6 @@ jobs:
         with:
           fetch-depth: 0
 
-
       # -----------------------------
       # Setup Python
       # -----------------------------
@@ -30,7 +29,6 @@ jobs:
           python-version: "3.11"
           cache: "pip"
 
-
       # -----------------------------
       # Install dependencies
       # -----------------------------
@@ -39,14 +37,27 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-
       # -----------------------------
-      # Ensure soccer model folder exists
+      # Ensure required directories exist
       # -----------------------------
-      - name: Ensure soccer model folder exists
+      - name: Ensure pipeline folders exist
         run: |
           mkdir -p docs/win/soccer/01_merge/market_model
 
+          mkdir -p docs/win/final_scores/results/nba/graded
+          mkdir -p docs/win/final_scores/results/ncaab/graded
+          mkdir -p docs/win/final_scores/results/nhl/graded
+          mkdir -p docs/win/final_scores/results/soccer/graded
+
+          mkdir -p docs/win/final_scores/intermediate
+
+          mkdir -p docs/win/final_scores/deeper_summaries/nba
+          mkdir -p docs/win/final_scores/deeper_summaries/ncaab
+          mkdir -p docs/win/final_scores/deeper_summaries/nhl
+          mkdir -p docs/win/final_scores/deeper_summaries/soccer
+
+          mkdir -p docs/win/final_scores/errors
+          mkdir -p docs/win/errors
 
       # -----------------------------
       # Run pipeline
@@ -54,7 +65,6 @@ jobs:
       - name: Run pipeline
         run: |
           python scripts/run_pipeline.py
-
 
       # -----------------------------
       # Show pipeline log
@@ -67,7 +77,6 @@ jobs:
           else
             echo "No log file found."
           fi
-
 
       # -----------------------------
       # Commit results
