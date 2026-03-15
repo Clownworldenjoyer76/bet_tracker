@@ -20,6 +20,7 @@ jobs:
         with:
           fetch-depth: 0
 
+
       # -----------------------------
       # Setup Python
       # -----------------------------
@@ -29,6 +30,7 @@ jobs:
           python-version: "3.11"
           cache: "pip"
 
+
       # -----------------------------
       # Install dependencies
       # -----------------------------
@@ -37,6 +39,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+
       # -----------------------------
       # Ensure soccer model folder exists
       # -----------------------------
@@ -44,12 +47,14 @@ jobs:
         run: |
           mkdir -p docs/win/soccer/01_merge/market_model
 
+
       # -----------------------------
       # Run pipeline
       # -----------------------------
       - name: Run pipeline
         run: |
           python scripts/run_pipeline.py
+
 
       # -----------------------------
       # Show pipeline log
@@ -62,6 +67,7 @@ jobs:
           else
             echo "No log file found."
           fi
+
 
       # -----------------------------
       # Commit results
