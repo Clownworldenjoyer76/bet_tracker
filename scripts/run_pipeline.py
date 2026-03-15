@@ -18,9 +18,11 @@ log = open(LOG_FILE, "w", encoding="utf-8")
 
 current_date_str = datetime.now().strftime("%Y_%m_%d")
 
+
 def write_log(message):
     print(message)
     log.write(message + "\n")
+
 
 write_log(f"\nPipeline Run: {datetime.now()}\n")
 
@@ -91,22 +93,30 @@ pipeline = [
 
     ["python", "docs/win/final_scores/scripts/05_results/name_normalization.py"],
 
-    # Basketball
+    # -------------------------
+    # Basketball Results
+    # -------------------------
+
     ["python", "docs/win/final_scores/scripts/05_results/basketball/basketball_results_grade.py"],
     ["python", "docs/win/final_scores/scripts/05_results/basketball/basketball_results_analyze.py"],
     ["python", "docs/win/final_scores/scripts/05_results/basketball/basketball_results_reports.py"],
 
-    # NHL (NEW)
+    # -------------------------
+    # NHL Results
+    # -------------------------
+
     ["python", "docs/win/final_scores/scripts/05_results/hockey/01_nhl_results_grade.py"],
     ["python", "docs/win/final_scores/scripts/05_results/hockey/02_nhl_results_analyze.py"],
     ["python", "docs/win/final_scores/scripts/05_results/hockey/03_nhl_results_reports.py"],
 
-    # Global summaries
-    ["python", "docs/win/final_scores/scripts/05_results/results.py"],
-    ["python", "docs/win/final_scores/scripts/05_results/generate_summary.py"],
-    ["python", "docs/win/final_scores/scripts/05_results/results_sorted.py"],
-]
+    # -------------------------
+    # Soccer Results
+    # -------------------------
 
+    ["python", "docs/win/final_scores/scripts/05_results/soccer/01_soccer_results_grade.py"],
+    ["python", "docs/win/final_scores/scripts/05_results/soccer/02_soccer_results_analyze.py"],
+    ["python", "docs/win/final_scores/scripts/05_results/soccer/03_soccer_results_reports.py"],
+]
 
 # -----------------------
 # Execute pipeline
