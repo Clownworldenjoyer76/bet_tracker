@@ -82,8 +82,6 @@ NBA_ALLOW_UNDER = True
 
 # ---------- NCAAB MONEYLINE ----------
 
-# Home side (slight favorites or small dogs)
-
 NCAAB_ML_HOME_ODDS_BANDS = [
     (-100, 125)
 ]
@@ -94,8 +92,6 @@ NCAAB_ML_HOME_EDGE_BANDS = [
 
 NCAAB_ALLOW_HOME_ML = True
 
-
-# Away side (dogs perform better)
 
 NCAAB_ML_AWAY_ODDS_BANDS = [
     (-100, 150)
@@ -109,11 +105,9 @@ NCAAB_ALLOW_AWAY_ML = True
 
 # ---------- NCAAB SPREAD ----------
 
-# HOME spreads
-
 NCAAB_SPREAD_HOME_BANDS = [
-    (-40, -8),   # large favorites
-    (-5, 40)     # small favorites + dogs
+    (-40, -8),
+    (-5, 40)
 ]
 
 NCAAB_SPREAD_HOME_EDGE_BANDS = [
@@ -123,11 +117,9 @@ NCAAB_SPREAD_HOME_EDGE_BANDS = [
 NCAAB_ALLOW_HOME_SPREAD = True
 
 
-# AWAY spreads
-
 NCAAB_SPREAD_AWAY_BANDS = [
-    (-40, -8),   # large favorites
-    (-5, 40)     # small favorites + dogs
+    (-40, -8),
+    (-5, 40)
 ]
 
 NCAAB_SPREAD_AWAY_EDGE_BANDS = [
@@ -135,7 +127,6 @@ NCAAB_SPREAD_AWAY_EDGE_BANDS = [
 ]
 
 NCAAB_ALLOW_AWAY_SPREAD = True
-
 
 # ---------- NCAAB TOTAL ----------
 
@@ -295,15 +286,13 @@ def spread(row, league):
             and in_bands(away_edge, NCAAB_SPREAD_AWAY_EDGE_BANDS)
         )
 
+        # NEW: if either side is excluded by spread filters, drop the game entirely
+        if not home_valid or not away_valid:
+            return False, "", "", 0
+
     if home_valid and away_valid:
         if home_edge >= away_edge:
             return True, "home", home_line, home_edge
-        return True, "away", away_line, away_edge
-
-    if home_valid:
-        return True, "home", home_line, home_edge
-
-    if away_valid:
         return True, "away", away_line, away_edge
 
     return False, "", "", 0
