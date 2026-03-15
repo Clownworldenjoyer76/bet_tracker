@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# docs/win/final_scores/scripts/05_results/nhl_results_grade.py
+# docs/win/final_scores/scripts/05_results/01_nhl_results_grade.py
 
 import glob
 import re
@@ -13,7 +13,7 @@ import pandas as pd
 ###############################################################
 
 BASE = Path("docs/win/hockey")
-SELECT_DIR = BASE / "04_select/daily_slate"
+SELECT_DIR = BASE / "04_select"
 
 NHL_SCORE_DIR = Path("docs/win/final_scores/results/nhl/final_scores")
 
@@ -157,7 +157,7 @@ def grade_league():
 
     score_dir = NHL_SCORE_DIR
     output_dir = NHL_OUTPUT
-    pattern = "*_nhl.csv"
+    pattern = "*_NHL.csv"
     suffix = "NHL"
 
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -181,7 +181,7 @@ def grade_league():
                 log_error(f"SCORE FILE MISSING | {score_file}")
                 continue
 
-            bet_paths = glob.glob(str(SELECT_DIR / f"{date}_nhl.csv"))
+            bet_paths = glob.glob(str(SELECT_DIR / f"{date}_NHL.csv"))
 
             dfs = [safe_read(x) for x in bet_paths]
             dfs = [d for d in dfs if not d.empty]
