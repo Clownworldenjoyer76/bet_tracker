@@ -82,25 +82,60 @@ NBA_ALLOW_UNDER = True
 
 # ---------- NCAAB MONEYLINE ----------
 
-NCAAB_ML_HOME_ODDS_BANDS = [(-110, 120)]
-NCAAB_ML_HOME_EDGE_BANDS = [(-1, 1)]
+# Home side (slight favorites or small dogs)
+
+NCAAB_ML_HOME_ODDS_BANDS = [
+    (-100, 125)
+]
+
+NCAAB_ML_HOME_EDGE_BANDS = [
+    (-1, 1)
+]
+
 NCAAB_ALLOW_HOME_ML = True
 
-NCAAB_ML_AWAY_ODDS_BANDS = [(-110, 120)]
-NCAAB_ML_AWAY_EDGE_BANDS = [(-1, 1)]
+
+# Away side (dogs perform better)
+
+NCAAB_ML_AWAY_ODDS_BANDS = [
+    (-100, 150)
+]
+
+NCAAB_ML_AWAY_EDGE_BANDS = [
+    (-1, 1)
+]
+
 NCAAB_ALLOW_AWAY_ML = True
 
 # ---------- NCAAB SPREAD ----------
 
-NCAAB_SPREAD_HOME_BANDS = [(-40, 40)]
-NCAAB_SPREAD_HOME_EDGE_BANDS = [(-1, 1)]
+# HOME spreads
+
+NCAAB_SPREAD_HOME_BANDS = [
+    (-40, -8),   # large favorites
+    (-5, 40)     # small favorites + dogs
+]
+
+NCAAB_SPREAD_HOME_EDGE_BANDS = [
+    (-1, 1)
+]
+
 NCAAB_ALLOW_HOME_SPREAD = True
 
-NCAAB_SPREAD_AWAY_BANDS = [(-40, 40)]
-NCAAB_SPREAD_AWAY_EDGE_BANDS = [(-1, 1)]
+
+# AWAY spreads
+
+NCAAB_SPREAD_AWAY_BANDS = [
+    (-40, -8),   # large favorites
+    (-5, 40)     # small favorites + dogs
+]
+
+NCAAB_SPREAD_AWAY_EDGE_BANDS = [
+    (-1, 1)
+]
+
 NCAAB_ALLOW_AWAY_SPREAD = True
 
-# ---------- NCAAB TOTAL ----------
 
 # ---------- NCAAB TOTAL ----------
 
