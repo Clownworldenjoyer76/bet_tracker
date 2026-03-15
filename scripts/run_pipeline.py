@@ -62,8 +62,10 @@ pipeline = [
     ["python", "docs/win/basketball/scripts/04_select/select_bets.py"],
 
     # --- 05 RESULTS ---
-    ["python", "docs/win/final_scores/scripts/05_results/name_normalization.py"],
-    ["python", "docs/win/final_scores/scripts/05_results/basketball_results.py"],
+    ["python", "docs/win/final_scores/scripts/05_results/name_normalization.py"], 
+    ["python", "docs/win/final_scores/scripts/05_results/basketball/basketball_results_grade.py"],
+    ["python", "docs/win/final_scores/scripts/05_results/basketball/basketball_results_analyze.py"],
+    ["python", "docs/win/final_scores/scripts/05_results/basketball/basketball_results_reports.py"],
     ["python", "docs/win/final_scores/scripts/05_results/results.py"],
     ["python", "docs/win/final_scores/scripts/05_results/generate_summary.py"],
     ["python", "docs/win/final_scores/scripts/05_results/results_sorted.py"],
