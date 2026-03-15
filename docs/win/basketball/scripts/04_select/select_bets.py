@@ -285,12 +285,15 @@ def spread(row, league):
             and in_bands(away_edge, NCAAB_SPREAD_AWAY_EDGE_BANDS)
         )
 
-        if not home_valid or not away_valid:
-            return False, "", "", 0
-
     if home_valid and away_valid:
         if home_edge >= away_edge:
             return True, "home", home_line, home_edge
+        return True, "away", away_line, away_edge
+
+    if home_valid:
+        return True, "home", home_line, home_edge
+
+    if away_valid:
         return True, "away", away_line, away_edge
 
     return False, "", "", 0
