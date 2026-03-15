@@ -273,6 +273,19 @@ def spread(row, league):
 
     else:
 
+        # ---------------- FAIL RULES ----------------
+
+        if -5.0 <= away_line <= -2.0 and away_edge < 0:
+            return False, "", "", 0
+
+        if -7.5 <= home_line <= -5.0 and home_edge < 0:
+            return False, "", "", 0
+
+        if 7.5 <= home_line <= 10.0 and home_edge < 0.0199:
+            return False, "", "", 0
+
+        # ---------------- ORIGINAL LOGIC ----------------
+
         home_valid = (
             NCAAB_ALLOW_HOME_SPREAD
             and in_bands(home_line, NCAAB_SPREAD_HOME_BANDS)
