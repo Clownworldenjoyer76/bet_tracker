@@ -41,13 +41,18 @@ jobs:
       # -----------------------------
       - name: Ensure output folders exist
         run: |
-          mkdir -p docs/win/final_scores/results/nhl/graded
           mkdir -p docs/win/final_scores/results/nba/graded
           mkdir -p docs/win/final_scores/results/ncaab/graded
+          mkdir -p docs/win/final_scores/results/nhl/graded
+          mkdir -p docs/win/final_scores/results/soccer/graded
+
           mkdir -p docs/win/final_scores/intermediate
-          mkdir -p docs/win/final_scores/deeper_summaries/nhl
+
           mkdir -p docs/win/final_scores/deeper_summaries/nba
           mkdir -p docs/win/final_scores/deeper_summaries/ncaab
+          mkdir -p docs/win/final_scores/deeper_summaries/nhl
+          mkdir -p docs/win/final_scores/deeper_summaries/soccer
+
           mkdir -p docs/win/final_scores/errors
 
       # -----------------------------
@@ -58,14 +63,7 @@ jobs:
           python docs/win/final_scores/scripts/05_results/name_normalization.py
 
       # -----------------------------
-      # Existing combined results script
-      # -----------------------------
-      - name: Run Combined Results Script
-        run: |
-          python docs/win/final_scores/scripts/05_results/results.py
-
-      # -----------------------------
-      # Basketball grading pipeline
+      # Basketball Results Pipeline
       # -----------------------------
       - name: Run Basketball Results Pipeline
         run: |
@@ -74,7 +72,7 @@ jobs:
           python docs/win/final_scores/scripts/05_results/basketball/basketball_results_reports.py
 
       # -----------------------------
-      # NHL grading pipeline (NEW)
+      # NHL Results Pipeline
       # -----------------------------
       - name: Run NHL Results Pipeline
         run: |
@@ -83,18 +81,13 @@ jobs:
           python docs/win/final_scores/scripts/05_results/hockey/03_nhl_results_reports.py
 
       # -----------------------------
-      # Generate summaries
+      # Soccer Results Pipeline
       # -----------------------------
-      - name: Run Summary Tally Script
+      - name: Run Soccer Results Pipeline
         run: |
-          python docs/win/final_scores/scripts/05_results/generate_summary.py
-
-      # -----------------------------
-      # Build sorted/banded summaries
-      # -----------------------------
-      - name: Run Results Sorted Script
-        run: |
-          python docs/win/final_scores/scripts/05_results/results_sorted.py
+          python docs/win/final_scores/scripts/05_results/soccer/01_soccer_results_grade.py
+          python docs/win/final_scores/scripts/05_results/soccer/02_soccer_results_analyze.py
+          python docs/win/final_scores/scripts/05_results/soccer/03_soccer_results_reports.py
 
       # -----------------------------
       # Debug Git changes
@@ -124,6 +117,7 @@ jobs:
           # Existing selections
           git add docs/win/basketball/04_select || true
           git add docs/win/hockey/04_select || true
+          git add docs/win/soccer/04_select || true
 
           # Final score outputs
           git add docs/win/final_scores/results || true
@@ -131,22 +125,26 @@ jobs:
           git add docs/win/final_scores/deeper_summaries || true
           git add docs/win/final_scores/errors || true
 
-          # Basketball graded outputs
+          # Basketball outputs
           git add docs/win/final_scores/results/nba/graded || true
           git add docs/win/final_scores/results/ncaab/graded || true
 
-          # NHL graded outputs (NEW)
+          # NHL outputs
           git add docs/win/final_scores/results/nhl/graded || true
+
+          # Soccer outputs
+          git add docs/win/final_scores/results/soccer/graded || true
 
           # Market tally reports
           git add docs/win/final_scores/nba_market_tally.csv || true
           git add docs/win/final_scores/ncaab_market_tally.csv || true
           git add docs/win/final_scores/nhl_market_tally.csv || true
+          git add docs/win/final_scores/soccer_market_tally.csv || true
 
           # Mapping outputs
           git add mappings/05_no_map || true
 
           # Commit only if changes exist
-          git diff --staged --quiet || git commit -m "Auto-update: run results pipeline, basketball + NHL grading, analytics summaries"
+          git diff --staged --quiet || git commit -m "Auto-update: run results pipelines (NBA, NHL, Soccer)"
 
           git push
