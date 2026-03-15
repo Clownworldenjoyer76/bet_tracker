@@ -68,12 +68,12 @@ NBA_ALLOW_AWAY_SPREAD = True
 
 # ---------- NBA TOTAL ----------
 
-NBA_TOTAL_OVER_BANDS = [(220, 400)]
-NBA_TOTAL_OVER_EDGE_BANDS = [(-1, 1)]
+NBA_TOTAL_OVER_BANDS = [(215, 245)]
+NBA_TOTAL_OVER_EDGE_BANDS = [(0.06, 1)]
 NBA_ALLOW_OVER = True
 
-NBA_TOTAL_UNDER_BANDS = [(0, 400)]
-NBA_TOTAL_UNDER_EDGE_BANDS = [(-1, 1)]
+NBA_TOTAL_UNDER_BANDS = [(215, 245)]
+NBA_TOTAL_UNDER_EDGE_BANDS = [(0.05, 1)]
 NBA_ALLOW_UNDER = True
 
 ###############################################################
@@ -102,12 +102,25 @@ NCAAB_ALLOW_AWAY_SPREAD = True
 
 # ---------- NCAAB TOTAL ----------
 
-NCAAB_TOTAL_OVER_BANDS = [(0, 400)]
-NCAAB_TOTAL_OVER_EDGE_BANDS = [(-1, 1)]
+NCAAB_TOTAL_OVER_BANDS = [
+    (120, 139.9),
+    (150, 200)
+]
+
+NCAAB_TOTAL_OVER_EDGE_BANDS = [
+    (0.05, 1)
+]
+
 NCAAB_ALLOW_OVER = True
 
-NCAAB_TOTAL_UNDER_BANDS = [(0, 400)]
-NCAAB_TOTAL_UNDER_EDGE_BANDS = [(-1, 1)]
+NCAAB_TOTAL_UNDER_BANDS = [
+    (120, 200)
+]
+
+NCAAB_TOTAL_UNDER_EDGE_BANDS = [
+    (0.05, 1)
+]
+
 NCAAB_ALLOW_UNDER = True
 
 ###############################################################
@@ -220,7 +233,6 @@ def spread(row, league):
             and in_bands(home_edge, NBA_SPREAD_HOME_EDGE_BANDS)
         )
 
-        # require edge > 0.10 if away spread >= +10
         if away_line >= 10:
             away_edge_ok = away_edge > 0.10
         else:
