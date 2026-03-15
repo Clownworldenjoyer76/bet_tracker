@@ -43,8 +43,8 @@ NBA_ALLOW_AWAY_ML = True
 # ---------- NBA SPREAD ----------
 
 NBA_SPREAD_HOME_BANDS = [
-    (-99, 7.4),
-    (10.1, 99),
+    (-99, -5.1),
+    (7.6, 99),
 ]
 
 NBA_SPREAD_HOME_EDGE_BANDS = [
@@ -55,8 +55,8 @@ NBA_SPREAD_HOME_EDGE_BANDS = [
 NBA_ALLOW_HOME_SPREAD = True
 
 NBA_SPREAD_AWAY_BANDS = [
-    (-99, 7.4),
-    (15, 999),
+    (-99, 1.9),
+    (5.1, 999),
 ]
 
 NBA_SPREAD_AWAY_EDGE_BANDS = [
