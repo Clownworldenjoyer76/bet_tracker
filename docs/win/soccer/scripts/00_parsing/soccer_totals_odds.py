@@ -39,7 +39,7 @@ EASTERN_TZ = ZoneInfo("America/New_York")
 AMERICAN_ODDS_RE = re.compile(r"^[+-]\d{3,4}$")
 TIME_ONLY_RE = re.compile(r"^\s*(\d{1,2}):(\d{2})([ap])\s*$", re.IGNORECASE)
 DATE_TIME_RE = re.compile(
-    r"^\s*(?:(\d{1,2})/(\d{1,2})\s*,\s*)?(\d{1,2}):(\d{2})([ap])\s*$",
+    r"(\d{1,2})/(\d{1,2})\s*,?\s*(\d{1,2}):(\d{2})([ap])|(\d{1,2}):(\d{2})([ap])",
     re.IGNORECASE,
 )
 
