@@ -12,9 +12,6 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-# =========================
-# PATHS
-# =========================
 OUTPUT_DIR = Path("docs/win/soccer/00_intake/sportsbook/totals_odds")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -36,6 +33,7 @@ FIELDNAMES = [
 ]
 
 EASTERN_TZ = ZoneInfo("America/New_York")
+
 AMERICAN_ODDS_RE = re.compile(r"^[+-]\d{3,4}$")
 
 DATE_TIME_RE = re.compile(
@@ -44,168 +42,124 @@ DATE_TIME_RE = re.compile(
 )
 
 
-def log(msg: str) -> None:
+def log(msg):
     with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write(f"{datetime.now(EASTERN_TZ).isoformat()} | {msg}\n")
 
 
-# =========================
-# INPUT HANDLING
-# =========================
-def read_github_event_inputs() -> dict:
-    event_path = os.environ.get("GITHUB_EVENT_PATH", "").strip()
-    if not event_path:
+def read_github_event_inputs():
+    path = os.environ.get("GITHUB_EVENT_PATH", "")
+    if not path:
         return {}
-
-    path = Path(event_path)
-    if not path.exists():
-        return {}
-
     try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except Exception as e:
-        log(f"Could not read GITHUB_EVENT_PATH: {e}")
+        payload = json.loads(Path(path).read_text())
+        return payload.get("inputs", {})
+    except Exception:
         return {}
 
-    inputs = payload.get("inputs", {})
-    if isinstance(inputs, dict):
-        return inputs
 
-    return {}
-
-
-def get_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--league", default="")
-    parser.add_argument("--market", default="")
-    parser.add_argument("--raw-text", default="")
-    parser.add_argument("--raw-file", default="")
-    return parser.parse_args()
+def get_args():
+    p = argparse.ArgumentParser()
+    p.add_argument("--league", default="")
+    p.add_argument("--market", default="")
+    p.add_argument("--raw-text", default="")
+    p.add_argument("--raw-file", default="")
+    return p.parse_args()
 
 
-def get_runtime_inputs() -> tuple[str, str, str]:
+def get_runtime_inputs():
     args = get_args()
     event_inputs = read_github_event_inputs()
 
     league = (
         args.league
-        or os.environ.get("LEAGUE", "")
         or os.environ.get("INPUT_LEAGUE", "")
         or event_inputs.get("league", "")
-    ).strip()
+    )
 
     market = (
         args.market
-        or os.environ.get("MARKET", "")
         or os.environ.get("INPUT_MARKET", "")
         or event_inputs.get("market", "")
-    ).strip()
+    )
 
-    raw_text = (
+    raw = (
         args.raw_text
-        or os.environ.get("RAW_TEXT", "")
         or os.environ.get("INPUT_RAW_TEXT", "")
         or event_inputs.get("raw_text", "")
     )
 
-    if not raw_text and args.raw_file:
-        raw_path = Path(args.raw_file)
-        if raw_path.exists():
-            raw_text = raw_path.read_text(encoding="utf-8")
+    if not raw and args.raw_file:
+        raw = Path(args.raw_file).read_text()
 
-    if not raw_text and not sys.stdin.isatty():
-        raw_text = sys.stdin.read()
+    if not raw and not sys.stdin.isatty():
+        raw = sys.stdin.read()
 
-    return league, market, raw_text
+    return league.strip(), market.strip(), raw
 
 
-# =========================
-# HELPERS
-# =========================
-def today_eastern_str() -> str:
+def today_eastern():
     return datetime.now(EASTERN_TZ).strftime("%Y_%m_%d")
 
 
-def parse_match_datetime(line: str) -> tuple[str, str]:
-    line = line.strip()
-
+def parse_match_datetime(line):
     m = DATE_TIME_RE.search(line)
-
     if not m:
-        raise ValueError(f"Could not parse match date/time line: {line!r}")
+        raise ValueError(f"Could not parse match date/time line: {line}")
 
-    month, day, hour, minute, ampm = m.groups()
+    month, day, hour, minute, ap = m.groups()
 
     if month and day:
-        match_date = f"{datetime.now(EASTERN_TZ).year}_{int(month):02d}_{int(day):02d}"
+        date = f"{datetime.now(EASTERN_TZ).year}_{int(month):02d}_{int(day):02d}"
     else:
-        match_date = today_eastern_str()
+        date = today_eastern()
 
     hour = int(hour)
     minute = int(minute)
-    ampm = ampm.lower()
 
-    if ampm == "a":
-        if hour == 12:
-            hour = 0
-    else:
-        if hour != 12:
-            hour += 12
+    if ap.lower() == "p" and hour != 12:
+        hour += 12
+    if ap.lower() == "a" and hour == 12:
+        hour = 0
 
-    match_time = f"{hour:02d}:{minute:02d}"
+    time = f"{hour:02d}:{minute:02d}"
 
-    return match_date, match_time
+    return date, time
 
 
-def looks_like_datetime_line(line: str) -> bool:
+def looks_like_datetime(line):
     return bool(DATE_TIME_RE.search(line))
 
 
-def is_odds_token(line: str) -> bool:
-    return bool(AMERICAN_ODDS_RE.match(line.strip()))
+def split_lines(raw):
+    return [l.strip() for l in raw.splitlines() if l.strip()]
 
 
-def safe_filename_market(market: str) -> str:
-    market = market.strip()
-    market = re.sub(r"\s+", "_", market)
-    market = re.sub(r"[^A-Za-z0-9_]", "", market)
-    return market
-
-
-def split_lines(raw_text: str) -> list[str]:
-    return [line.strip() for line in raw_text.splitlines() if line.strip()]
-
-
-# =========================
-# GAME BLOCK PARSING
-# =========================
-def parse_games(lines: list[str]) -> tuple[list[dict], int]:
+def parse_games(lines):
     games = []
     i = 0
 
     while i < len(lines):
+
         if lines[i] == "Over":
             break
 
-        if i + 4 >= len(lines):
-            raise ValueError("Incomplete game block in raw input.")
+        away = lines[i + 1]
+        home = lines[i + 3]
+        dt = lines[i + 4]
 
-        away_team = lines[i + 1].strip()
-        home_team = lines[i + 3].strip()
-        dt_line = lines[i + 4].strip()
+        if not looks_like_datetime(dt):
+            raise ValueError(f"Expected datetime line got {dt}")
 
-        if not looks_like_datetime_line(dt_line):
-            raise ValueError(f"Expected date/time line, got: {dt_line!r}")
-
-        match_date, match_time = parse_match_datetime(dt_line)
+        date, time = parse_match_datetime(dt)
 
         games.append(
-            {
-                "match_date": match_date,
-                "match_time": match_time,
-                "home_team": home_team,
-                "away_team": away_team,
-            }
+            dict(
+                match_date=date,
+                match_time=time,
+                home_team=home,
+                away_team=away,
+            )
         )
 
         i += 5
@@ -213,207 +167,154 @@ def parse_games(lines: list[str]) -> tuple[list[dict], int]:
     return games, i
 
 
-# =========================
-# ODDS BLOCK PARSING
-# =========================
-def parse_single_market_snippet(lines: list[str], start_idx: int) -> tuple[dict, int]:
-    if start_idx + 5 >= len(lines):
-        raise ValueError("Incomplete odds snippet at end of raw input.")
+def parse_snippet(lines, i):
 
-    over_token = lines[start_idx]
-    total_line_1 = lines[start_idx + 1].strip()
-    over_odds = lines[start_idx + 2].strip()
-    under_token = lines[start_idx + 3]
-    total_line_2 = lines[start_idx + 4].strip()
-    under_odds = lines[start_idx + 5].strip()
+    over = lines[i]
+    line1 = lines[i + 1]
+    odds1 = lines[i + 2]
+    under = lines[i + 3]
+    line2 = lines[i + 4]
+    odds2 = lines[i + 5]
 
-    if over_token != "Over":
-        raise ValueError(f"Expected 'Over', got {over_token!r}")
-    if under_token != "Under":
-        raise ValueError(f"Expected 'Under', got {under_token!r}")
-    if total_line_1 != total_line_2:
-        raise ValueError(
-            f"Mismatched total lines in odds snippet: {total_line_1!r} vs {total_line_2!r}"
-        )
-    if not is_odds_token(over_odds):
-        raise ValueError(f"Invalid over odds token: {over_odds!r}")
-    if not is_odds_token(under_odds):
-        raise ValueError(f"Invalid under odds token: {under_odds!r}")
+    if over != "Over":
+        raise ValueError("Expected Over")
+    if under != "Under":
+        raise ValueError("Expected Under")
 
-    snippet = {
-        "line": total_line_1,
-        "over_odds": over_odds,
-        "under_odds": under_odds,
-    }
-    return snippet, start_idx + 6
+    return (
+        dict(line=line1, over=odds1, under=odds2),
+        i + 6,
+    )
 
 
-def parse_odds_groups(lines: list[str], start_idx: int, market: str) -> list[dict]:
+def parse_odds_groups(lines, start, market):
+
     snippets = []
-    i = start_idx
+    i = start
 
     while i < len(lines):
+
         if lines[i] != "Over":
-            raise ValueError(f"Unexpected token in odds section: {lines[i]!r}")
+            raise ValueError(f"Unexpected token {lines[i]}")
 
-        snippet, i = parse_single_market_snippet(lines, i)
-        snippets.append(snippet)
+        s, i = parse_snippet(lines, i)
+        snippets.append(s)
 
-    market_key = market.strip().lower()
+    market_key = market.lower()
 
-    # Bundesliga and La Liga only have 4 blocks per game
-    block_size = 4 if market_key in {"bundesliga", "laliga"} else 5
+    if market_key in {"bundesliga", "laliga"}:
+        block_size = 4
+    else:
+        block_size = 5
 
     if len(snippets) % block_size != 0:
         raise ValueError(
             f"Odds snippets count ({len(snippets)}) is not divisible by {block_size}."
         )
 
-    odds_groups = []
-    for group_start in range(0, len(snippets), block_size):
-        group = snippets[group_start : group_start + block_size]
+    groups = []
 
-        row_odds = {
-            "over25_american": "",
-            "under25_american": "",
-            "over35_american": "",
-            "under35_american": "",
-        }
+    for x in range(0, len(snippets), block_size):
 
-        chosen = None
-        for snippet in group:
-            if snippet["line"] == "2.5":
-                chosen = ("2.5", snippet)
+        block = snippets[x : x + block_size]
+
+        row = dict(
+            over25_american="",
+            under25_american="",
+            over35_american="",
+            under35_american="",
+        )
+
+        for s in block:
+
+            if s["line"] == "2.5":
+                row["over25_american"] = s["over"]
+                row["under25_american"] = s["under"]
                 break
-            if snippet["line"] == "3.5":
-                chosen = ("3.5", snippet)
+
+            if s["line"] == "3.5":
+                row["over35_american"] = s["over"]
+                row["under35_american"] = s["under"]
                 break
 
-        if chosen:
-            line_value, snippet = chosen
-            if line_value == "2.5":
-                row_odds["over25_american"] = snippet["over_odds"]
-                row_odds["under25_american"] = snippet["under_odds"]
-            elif line_value == "3.5":
-                row_odds["over35_american"] = snippet["over_odds"]
-                row_odds["under35_american"] = snippet["under_odds"]
+        groups.append(row)
 
-        odds_groups.append(row_odds)
-
-    return odds_groups
+    return groups
 
 
-# =========================
-# OUTPUT
-# =========================
-def write_output_files(rows: list[dict], market: str) -> list[Path]:
-    written = []
+def write_files(rows, market):
+
     by_date = defaultdict(list)
 
-    for row in rows:
-        by_date[row["match_date"]].append(row)
+    for r in rows:
+        by_date[r["match_date"]].append(r)
 
-    filename_market = safe_filename_market(market)
+    m = re.sub(r"\W+", "_", market)
 
-    for match_date, date_rows in by_date.items():
-        outfile = OUTPUT_DIR / f"soccer_{match_date}_{filename_market}_totals.csv"
-        temp_file = outfile.with_suffix(".tmp")
+    written = []
 
-        with open(temp_file, "w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
-            writer.writeheader()
-            for row in date_rows:
-                writer.writerow(row)
+    for d, rws in by_date.items():
 
-        temp_file.replace(outfile)
-        written.append(outfile)
+        out = OUTPUT_DIR / f"soccer_{d}_{m}_totals.csv"
+        tmp = out.with_suffix(".tmp")
+
+        with open(tmp, "w", newline="", encoding="utf-8") as f:
+
+            w = csv.DictWriter(f, FIELDNAMES)
+            w.writeheader()
+
+            for r in rws:
+                w.writerow(r)
+
+        tmp.replace(out)
+        written.append(out)
 
     return written
 
 
-# =========================
-# MAIN
-# =========================
-def main() -> int:
-    league, market, raw_text = get_runtime_inputs()
+def main():
 
-    if not league:
-        log("Missing league input.")
-        print("ERROR: Missing league input.", file=sys.stderr)
+    league, market, raw = get_runtime_inputs()
+
+    if not raw:
+        print("ERROR: Missing raw_text")
         return 1
 
-    if not market:
-        log("Missing market input.")
-        print("ERROR: Missing market input.", file=sys.stderr)
-        return 1
+    lines = split_lines(raw)
 
-    if not raw_text.strip():
-        log("Missing raw_text input.")
-        print("ERROR: Missing raw_text input.", file=sys.stderr)
-        return 1
+    games, idx = parse_games(lines)
 
-    lines = split_lines(raw_text)
+    odds = parse_odds_groups(lines, idx, market)
 
-    try:
-        games, odds_start_idx = parse_games(lines)
-        odds_groups = parse_odds_groups(lines, odds_start_idx, market)
-    except Exception as e:
-        log(f"Parse failure for market={market}: {e}")
-        print(f"ERROR: {e}", file=sys.stderr)
-        return 1
-
-    if not games:
-        log(f"No games parsed for market={market}.")
-        print("ERROR: No games parsed.", file=sys.stderr)
-        return 1
-
-    if not odds_groups:
-        log(f"No odds groups parsed for market={market}.")
-        print("ERROR: No odds groups parsed.", file=sys.stderr)
-        return 1
-
-    if len(games) != len(odds_groups):
-        log(
-            f"Game/odds mismatch for market={market}: "
-            f"{len(games)} games vs {len(odds_groups)} odds groups"
+    if len(games) != len(odds):
+        raise ValueError(
+            f"Game/odds mismatch {len(games)} vs {len(odds)}"
         )
-        print(
-            f"ERROR: Parsed {len(games)} games but {len(odds_groups)} odds groups.",
-            file=sys.stderr,
-        )
-        return 1
 
     rows = []
-    for game, odds in zip(games, odds_groups):
+
+    for g, o in zip(games, odds):
+
         rows.append(
-            {
-                "league": league,
-                "market": market,
-                "match_date": game["match_date"],
-                "match_time": game["match_time"],
-                "home_team": game["home_team"],
-                "away_team": game["away_team"],
-                "over25_american": odds["over25_american"],
-                "under25_american": odds["under25_american"],
-                "over35_american": odds["over35_american"],
-                "under35_american": odds["under35_american"],
-            }
+            dict(
+                league=league,
+                market=market,
+                match_date=g["match_date"],
+                match_time=g["match_time"],
+                home_team=g["home_team"],
+                away_team=g["away_team"],
+                over25_american=o["over25_american"],
+                under25_american=o["under25_american"],
+                over35_american=o["over35_american"],
+                under35_american=o["under35_american"],
+            )
         )
 
-    try:
-        written_files = write_output_files(rows, market)
-    except Exception as e:
-        log(f"Write failure for market={market}: {e}")
-        print(f"ERROR: Failed to write output files: {e}", file=sys.stderr)
-        return 1
+    files = write_files(rows, market)
 
-    for path in written_files:
-        print(f"Wrote {path}")
+    for f in files:
+        print(f"Wrote {f}")
 
-    log(
-        f"Success: market={market} league={league} "
-        f"rows={len(rows)} files={len(written_files)}"
-    )
     return 0
 
 
