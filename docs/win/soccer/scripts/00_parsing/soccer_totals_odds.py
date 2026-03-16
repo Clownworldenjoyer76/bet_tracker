@@ -38,7 +38,6 @@ FIELDNAMES = [
 EASTERN_TZ = ZoneInfo("America/New_York")
 AMERICAN_ODDS_RE = re.compile(r"^[+-]\d{3,4}$")
 
-# Robust datetime detection
 DATE_TIME_RE = re.compile(
     r"(?:(\d{1,2})/(\d{1,2})\s*,\s*)?(\d{1,2}):(\d{2})([ap])",
     re.IGNORECASE,
@@ -261,6 +260,8 @@ def parse_odds_groups(lines: list[str], start_idx: int, market: str) -> list[dic
         snippets.append(snippet)
 
     market_key = market.strip().lower()
+
+    # Bundesliga and La Liga only have 4 blocks per game
     block_size = 4 if market_key in {"bundesliga", "laliga"} else 5
 
     if len(snippets) % block_size != 0:
