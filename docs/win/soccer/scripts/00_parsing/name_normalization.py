@@ -26,23 +26,36 @@ def log(msg: str) -> None:
 
 
 # =========================
+# MARKET NORMALIZATION
+# =========================
+
+MARKET_NORMALIZATION = {
+    "la liga": "laliga",
+    "laliga": "laliga",
+    "epl": "epl",
+    "serie a": "seriea",
+    "seriea": "seriea",
+    "bundesliga": "bundesliga",
+    "ligue 1": "ligue1",
+    "ligue1": "ligue1",
+}
+
+def normalize_market(value: str) -> str:
+    v = (value or "").strip().lower()
+    return MARKET_NORMALIZATION.get(v, v)
+
+
+# =========================
 # LEAGUE NORMALIZATION
 # =========================
 
 LEAGUE_NORMALIZATION = {
-    "la liga": "laliga",
-    "laliga": "laliga",
-    "ligue 1": "ligue1",
-    "ligue1": "ligue1",
-    "serie a": "seriea",
-    "seriea": "seriea",
-    "bundesliga": "bundesliga",
-    "epl": "epl"
+    "soccer": "Soccer"
 }
 
 def normalize_league(value: str) -> str:
     v = (value or "").strip().lower()
-    return LEAGUE_NORMALIZATION.get(v, v)
+    return LEAGUE_NORMALIZATION.get(v, value)
 
 
 # =========================
@@ -55,7 +68,7 @@ if MAP_FILE.exists():
     with open(MAP_FILE, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            market = normalize_league(row.get("market"))
+            market = normalize_market(row.get("market"))
             alias = (row.get("alias") or "").strip().lower()
             canonical = (row.get("canonical_team") or "").strip()
 
@@ -104,7 +117,6 @@ for csv_file in files_to_process:
         reader = csv.DictReader(f)
         fieldnames = reader.fieldnames or []
 
-        # skip files without team columns
         if "home_team" not in fieldnames or "away_team" not in fieldnames:
             continue
 
@@ -112,11 +124,13 @@ for csv_file in files_to_process:
 
             rows_processed += 1
 
-            market_raw = row.get("market")
-            market = normalize_league(market_raw)
-
-            # normalize market inside row so downstream scripts see canonical league
+            # normalize market
+            market = normalize_market(row.get("market"))
             row["market"] = market
+
+            # normalize league if present
+            if "league" in row:
+                row["league"] = normalize_league(row.get("league"))
 
             for side in ["home_team", "away_team"]:
 
