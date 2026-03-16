@@ -103,7 +103,9 @@ def today_eastern():
 
 
 def parse_match_datetime(line):
+
     m = DATE_TIME_RE.search(line)
+
     if not m:
         raise ValueError(f"Could not parse match date/time line: {line}")
 
@@ -136,6 +138,7 @@ def split_lines(raw):
 
 
 def parse_games(lines):
+
     games = []
     i = 0
 
@@ -178,8 +181,15 @@ def parse_snippet(lines, i):
 
     if over != "Over":
         raise ValueError("Expected Over")
+
     if under != "Under":
         raise ValueError("Expected Under")
+
+    if not AMERICAN_ODDS_RE.match(odds1):
+        raise ValueError(f"Invalid odds {odds1}")
+
+    if not AMERICAN_ODDS_RE.match(odds2):
+        raise ValueError(f"Invalid odds {odds2}")
 
     return (
         dict(line=line1, over=odds1, under=odds2),
@@ -200,7 +210,8 @@ def parse_odds_groups(lines, start, market):
         s, i = parse_snippet(lines, i)
         snippets.append(s)
 
-    market_key = market.lower()
+    # --- MARKET NORMALIZATION FIX ---
+    market_key = re.sub(r"[^a-z]", "", market.lower())
 
     if market_key in {"bundesliga", "laliga"}:
         block_size = 4
