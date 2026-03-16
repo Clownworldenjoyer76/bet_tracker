@@ -26,18 +26,23 @@ def log(msg: str) -> None:
 
 
 # =========================
-# MARKET NORMALIZATION
+# LEAGUE NORMALIZATION
 # =========================
 
-MARKET_NORMALIZATION = {
+LEAGUE_NORMALIZATION = {
     "la liga": "laliga",
+    "laliga": "laliga",
     "ligue 1": "ligue1",
+    "ligue1": "ligue1",
     "serie a": "seriea",
+    "seriea": "seriea",
+    "bundesliga": "bundesliga",
+    "epl": "epl"
 }
 
-def normalize_market(market: str) -> str:
-    m = (market or "").strip().lower()
-    return MARKET_NORMALIZATION.get(m, m)
+def normalize_league(value: str) -> str:
+    v = (value or "").strip().lower()
+    return LEAGUE_NORMALIZATION.get(v, v)
 
 
 # =========================
@@ -50,7 +55,7 @@ if MAP_FILE.exists():
     with open(MAP_FILE, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            market = normalize_market(row.get("market"))
+            market = normalize_league(row.get("market"))
             alias = (row.get("alias") or "").strip().lower()
             canonical = (row.get("canonical_team") or "").strip()
 
@@ -106,7 +111,12 @@ for csv_file in files_to_process:
         for row in reader:
 
             rows_processed += 1
-            market = normalize_market(row.get("market"))
+
+            market_raw = row.get("market")
+            market = normalize_league(market_raw)
+
+            # normalize market inside row so downstream scripts see canonical league
+            row["market"] = market
 
             for side in ["home_team", "away_team"]:
 
@@ -143,32 +153,12 @@ for csv_file in files_to_process:
 # WRITE UNMAPPED
 # =========================
 
-existing = set()
-
-if NO_MAP_FILE.exists():
-
-    with open(NO_MAP_FILE, newline="", encoding="utf-8") as f:
-
-        reader = csv.DictReader(f)
-
-        if reader.fieldnames and "market" in reader.fieldnames and "team" in reader.fieldnames:
-
-            for row in reader:
-                m = normalize_market(row.get("market"))
-                t = (row.get("team") or "").strip()
-
-                if m and t:
-                    existing.add((m, t))
-
-new_only = unmapped - existing
-combined = existing | unmapped
-
 with open(NO_MAP_FILE, "w", newline="", encoding="utf-8") as f:
 
     writer = csv.writer(f)
     writer.writerow(["market", "team"])
 
-    for market, team in sorted(combined):
+    for market, team in sorted(unmapped):
         writer.writerow([market, team])
 
 
@@ -180,8 +170,7 @@ log(
     f"SUMMARY: files_processed={files_processed}, "
     f"rows_processed={rows_processed}, "
     f"rows_updated={rows_updated}, "
-    f"unmapped_found={len(unmapped)}, "
-    f"unmapped_new_added={len(new_only)}"
+    f"unmapped_found={len(unmapped)}"
 )
 
 print("Name normalization complete.")
