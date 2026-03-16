@@ -12,9 +12,11 @@ import re
 INPUT_DIR = Path("docs/win/basketball/03_edges/ev_kelly")
 SELECT_DIR = Path("docs/win/basketball/04_select")
 DAILY_DIR = SELECT_DIR / "daily_slate"
+TOTALS_DIR = DAILY_DIR / "totals"
 
 SELECT_DIR.mkdir(parents=True, exist_ok=True)
 DAILY_DIR.mkdir(parents=True, exist_ok=True)
+TOTALS_DIR.mkdir(parents=True, exist_ok=True)
 
 ###############################################################
 ######################## BAND HELPER ##########################
@@ -373,6 +375,29 @@ def process_file(file):
     return None
 
 ###############################################################
+######################## MERGE OUTPUTS ########################
+###############################################################
+
+def merge_outputs():
+
+    nba_files = sorted(DAILY_DIR.glob("*_nba.csv"))
+    ncaab_files = sorted(DAILY_DIR.glob("*_ncaab.csv"))
+
+    if nba_files:
+        dfs = [pd.read_csv(f) for f in nba_files if f.stat().st_size > 0]
+        if dfs:
+            df = pd.concat(dfs, ignore_index=True)
+            df.to_csv(DAILY_DIR / "nba_selected.csv", index=False)
+            df.to_csv(TOTALS_DIR / "NBA_final.csv", index=False)
+
+    if ncaab_files:
+        dfs = [pd.read_csv(f) for f in ncaab_files if f.stat().st_size > 0]
+        if dfs:
+            df = pd.concat(dfs, ignore_index=True)
+            df.to_csv(DAILY_DIR / "ncaab_selected.csv", index=False)
+            df.to_csv(TOTALS_DIR / "NCAAB_final.csv", index=False)
+
+###############################################################
 ######################## MAIN #################################
 ###############################################################
 
@@ -404,6 +429,8 @@ def main():
             out_file = DAILY_DIR / f"{date_value}_ncaab.csv"
 
         out_df.to_csv(out_file, index=False)
+
+    merge_outputs()
 
     nba_count = len(df[df["source_league"] == "NBA"])
     ncaab_count = len(df[df["source_league"] == "NCAAB"])
