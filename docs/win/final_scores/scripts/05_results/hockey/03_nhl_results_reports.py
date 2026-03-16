@@ -10,7 +10,7 @@ import numpy as np
 ###############################################################################
 
 INPUT_FILE = Path("docs/win/final_scores/intermediate/work_nhl.csv")
-OUTPUT_DIR = Path("docs/win/final_scores/results/nhl/reports")
+OUTPUT_DIR = Path("docs/win/final_scores/deeper_summaries/nhl")
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
