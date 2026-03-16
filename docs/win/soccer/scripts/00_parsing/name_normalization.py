@@ -29,7 +29,7 @@ def log(msg: str) -> None:
 # MARKET NORMALIZATION
 # =========================
 
-MARKET_NORMALIZATION = {
+MARKET_MAP = {
     "la liga": "laliga",
     "laliga": "laliga",
     "epl": "epl",
@@ -41,21 +41,23 @@ MARKET_NORMALIZATION = {
 }
 
 def normalize_market(value: str) -> str:
-    v = (value or "").strip().lower()
-    return MARKET_NORMALIZATION.get(v, v)
+    if not value:
+        return ""
+    v = value.strip().lower()
+    return MARKET_MAP.get(v, v)
 
 
 # =========================
 # LEAGUE NORMALIZATION
 # =========================
 
-LEAGUE_NORMALIZATION = {
-    "soccer": "Soccer"
-}
-
 def normalize_league(value: str) -> str:
-    v = (value or "").strip().lower()
-    return LEAGUE_NORMALIZATION.get(v, value)
+    if not value:
+        return value
+    v = value.strip().lower()
+    if v == "soccer":
+        return "Soccer"
+    return value
 
 
 # =========================
@@ -80,8 +82,6 @@ else:
 
 # =========================
 # BUILD FILE LIST
-# market files first
-# combined files second
 # =========================
 
 market_files = []
@@ -124,13 +124,13 @@ for csv_file in files_to_process:
 
             rows_processed += 1
 
-            # normalize market
-            market = normalize_market(row.get("market"))
-            row["market"] = market
+            if "market" in row:
+                row["market"] = normalize_market(row.get("market"))
 
-            # normalize league if present
             if "league" in row:
                 row["league"] = normalize_league(row.get("league"))
+
+            market = row.get("market", "")
 
             for side in ["home_team", "away_team"]:
 
