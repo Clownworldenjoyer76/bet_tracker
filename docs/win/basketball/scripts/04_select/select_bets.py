@@ -148,6 +148,7 @@ def clear_daily_outputs():
 ###############################################################
 
 def moneyline(row, league):
+
     home_ml = f(row.get("home_dk_moneyline_american"))
     away_ml = f(row.get("away_dk_moneyline_american"))
 
@@ -204,10 +205,6 @@ def spread(row, league):
     home_edge = f(row.get("home_spread_edge_decimal"))
     away_edge = f(row.get("away_spread_edge_decimal"))
 
-    ############################################################
-    ######################## FAIL RULES ########################
-    ############################################################
-
     if league == "NBA":
 
         if -5.0 <= away_line <= -2.0 and away_edge < 0:
@@ -223,10 +220,6 @@ def spread(row, league):
 
         if away_line >= 15 and 0.075 <= away_edge <= 0.0999:
             return False, "", "", 0
-
-    ############################################################
-    ######################## ORIGINAL LOGIC ####################
-    ############################################################
 
     if league == "NBA":
 
@@ -279,6 +272,7 @@ def spread(row, league):
 ###############################################################
 
 def total(row, league):
+
     line = f(row.get("total"))
 
     over_edge = f(row.get("over_edge_decimal"))
@@ -328,3 +322,95 @@ def total(row, league):
             return True, "under", line, edge
 
     return False, "", "", 0
+
+###############################################################
+######################## PROCESS FILE #########################
+###############################################################
+
+def process_file(file):
+
+    df = pd.read_csv(file)
+
+    if df.empty:
+        return None
+
+    league = "NBA" if "nba" in file.name.lower() else "NCAAB"
+    market = detect_market(file.name)
+    game_date = extract_date(file.name)
+
+    if market == "" or game_date is None:
+        return None
+
+    rows = []
+
+    for _, row in df.iterrows():
+
+        if market == "moneyline":
+            ok, side, line, edge = moneyline(row, league)
+
+        elif market == "spread":
+            ok, side, line, edge = spread(row, league)
+
+        else:
+            ok, side, line, edge = total(row, league)
+
+        if ok:
+            r = row.to_dict()
+            r["bet_side"] = side
+            r["line"] = line
+            r["selected_edge"] = edge
+            r["market_type"] = market
+            r["market"] = league
+            r["game_date"] = game_date
+            rows.append(r)
+
+    if rows:
+        out = pd.DataFrame(rows)
+        out["source_date"] = game_date
+        out["source_league"] = league
+        return out
+
+    return None
+
+###############################################################
+######################## MAIN #################################
+###############################################################
+
+def main():
+
+    clear_daily_outputs()
+
+    dfs = []
+
+    for file in sorted(INPUT_DIR.glob("*.csv")):
+        df = process_file(file)
+
+        if df is not None:
+            dfs.append(df)
+
+    if not dfs:
+        print("No bets selected")
+        return
+
+    df = pd.concat(dfs, ignore_index=True)
+
+    for (date_value, league_value), sub in df.groupby(["source_date", "source_league"], dropna=False):
+
+        out_df = sub.drop(columns=["source_date", "source_league"], errors="ignore")
+
+        if league_value == "NBA":
+            out_file = DAILY_DIR / f"{date_value}_nba.csv"
+        else:
+            out_file = DAILY_DIR / f"{date_value}_ncaab.csv"
+
+        out_df.to_csv(out_file, index=False)
+
+    nba_count = len(df[df["source_league"] == "NBA"])
+    ncaab_count = len(df[df["source_league"] == "NCAAB"])
+
+    print("NBA bets:", nba_count)
+    print("NCAAB bets:", ncaab_count)
+
+
+if __name__ == "__main__":
+    main()
