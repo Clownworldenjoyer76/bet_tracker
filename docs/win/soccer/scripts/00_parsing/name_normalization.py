@@ -26,6 +26,21 @@ def log(msg: str) -> None:
 
 
 # =========================
+# MARKET NORMALIZATION
+# =========================
+
+MARKET_NORMALIZATION = {
+    "la liga": "laliga",
+    "ligue 1": "ligue1",
+    "serie a": "seriea",
+}
+
+def normalize_market(market: str) -> str:
+    m = (market or "").strip().lower()
+    return MARKET_NORMALIZATION.get(m, m)
+
+
+# =========================
 # LOAD TEAM MAP
 # =========================
 
@@ -35,7 +50,7 @@ if MAP_FILE.exists():
     with open(MAP_FILE, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            market = (row.get("market") or "").strip().lower()
+            market = normalize_market(row.get("market"))
             alias = (row.get("alias") or "").strip().lower()
             canonical = (row.get("canonical_team") or "").strip()
 
@@ -91,7 +106,7 @@ for csv_file in files_to_process:
         for row in reader:
 
             rows_processed += 1
-            market = (row.get("market") or "").strip().lower()
+            market = normalize_market(row.get("market"))
 
             for side in ["home_team", "away_team"]:
 
@@ -139,7 +154,7 @@ if NO_MAP_FILE.exists():
         if reader.fieldnames and "market" in reader.fieldnames and "team" in reader.fieldnames:
 
             for row in reader:
-                m = (row.get("market") or "").strip().lower()
+                m = normalize_market(row.get("market"))
                 t = (row.get("team") or "").strip()
 
                 if m and t:
