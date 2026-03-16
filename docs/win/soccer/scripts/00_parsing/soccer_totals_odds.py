@@ -249,7 +249,7 @@ def parse_single_market_snippet(lines: list[str], start_idx: int) -> tuple[dict,
     return snippet, start_idx + 6
 
 
-def parse_odds_groups(lines: list[str], start_idx: int) -> list[dict]:
+def parse_odds_groups(lines: list[str], start_idx: int, market: str) -> list[dict]:
     snippets = []
     i = start_idx
 
@@ -260,14 +260,17 @@ def parse_odds_groups(lines: list[str], start_idx: int) -> list[dict]:
         snippet, i = parse_single_market_snippet(lines, i)
         snippets.append(snippet)
 
-    if len(snippets) % 5 != 0:
+    market_key = market.strip().lower()
+    block_size = 4 if market_key in {"bundesliga", "laliga"} else 5
+
+    if len(snippets) % block_size != 0:
         raise ValueError(
-            f"Odds snippets count ({len(snippets)}) is not divisible by 5."
+            f"Odds snippets count ({len(snippets)}) is not divisible by {block_size}."
         )
 
     odds_groups = []
-    for group_start in range(0, len(snippets), 5):
-        group = snippets[group_start : group_start + 5]
+    for group_start in range(0, len(snippets), block_size):
+        group = snippets[group_start : group_start + block_size]
 
         row_odds = {
             "over25_american": "",
@@ -352,7 +355,7 @@ def main() -> int:
 
     try:
         games, odds_start_idx = parse_games(lines)
-        odds_groups = parse_odds_groups(lines, odds_start_idx)
+        odds_groups = parse_odds_groups(lines, odds_start_idx, market)
     except Exception as e:
         log(f"Parse failure for market={market}: {e}")
         print(f"ERROR: {e}", file=sys.stderr)
