@@ -53,6 +53,7 @@ FIELDNAMES = [
     "home_xg","away_xg","expected_total_goals",
     "home_american","draw_american","away_american",
     "over25_american","under25_american",
+    "over35_american","under35_american",
     "btts_yes_american","btts_no_american",
     "game_id"
 ]
@@ -104,11 +105,17 @@ for pred_file in prediction_files:
             "home_american": d.get("dk_home_american",""),
             "draw_american": d.get("dk_draw_american",""),
             "away_american": d.get("dk_away_american",""),
-            # Fallback to -110 standard juice if not in sportsbook file
+
+            # Totals markets with fallback juice
             "over25_american": d.get("dk_over25_american") or "-110",
             "under25_american": d.get("dk_under25_american") or "-110",
+
+            "over35_american": d.get("dk_over35_american") or "-110",
+            "under35_american": d.get("dk_under35_american") or "-110",
+
             "btts_yes_american": d.get("dk_btts_yes_american") or "-110",
             "btts_no_american": d.get("dk_btts_no_american") or "-110",
+
             "game_id": game_id,
         }
 
@@ -119,5 +126,6 @@ for pred_file in prediction_files:
         writer.writeheader()
         for r in merged_rows.values():
             writer.writerow(r)
+
     temp_file.replace(OUTFILE)
     print(f"Wrote {OUTFILE}")
