@@ -37,9 +37,10 @@ FIELDNAMES = [
 
 EASTERN_TZ = ZoneInfo("America/New_York")
 AMERICAN_ODDS_RE = re.compile(r"^[+-]\d{3,4}$")
-TIME_ONLY_RE = re.compile(r"^\s*(\d{1,2}):(\d{2})([ap])\s*$", re.IGNORECASE)
+
+# Robust datetime detection
 DATE_TIME_RE = re.compile(
-    r"(\d{1,2})/(\d{1,2})\s*,?\s*(\d{1,2}):(\d{2})([ap])|(\d{1,2}):(\d{2})([ap])",
+    r"(?:(\d{1,2})/(\d{1,2})\s*,\s*)?(\d{1,2}):(\d{2})([ap])",
     re.IGNORECASE,
 )
 
@@ -126,21 +127,16 @@ def today_eastern_str() -> str:
     return datetime.now(EASTERN_TZ).strftime("%Y_%m_%d")
 
 
-def clean_datetime_line(line: str) -> str:
-    # Remove anything in parentheses, e.g. "(USA)"
-    cleaned = re.sub(r"\([^)]*\)", "", line).strip()
-    # Normalize internal whitespace
-    cleaned = re.sub(r"\s+", " ", cleaned)
-    return cleaned
-
-
 def parse_match_datetime(line: str) -> tuple[str, str]:
-    cleaned = clean_datetime_line(line)
-    m = DATE_TIME_RE.match(cleaned)
+    line = line.strip()
+
+    m = DATE_TIME_RE.search(line)
+
     if not m:
         raise ValueError(f"Could not parse match date/time line: {line!r}")
 
     month, day, hour, minute, ampm = m.groups()
+
     if month and day:
         match_date = f"{datetime.now(EASTERN_TZ).year}_{int(month):02d}_{int(day):02d}"
     else:
@@ -158,12 +154,12 @@ def parse_match_datetime(line: str) -> tuple[str, str]:
             hour += 12
 
     match_time = f"{hour:02d}:{minute:02d}"
+
     return match_date, match_time
 
 
 def looks_like_datetime_line(line: str) -> bool:
-    cleaned = clean_datetime_line(line)
-    return bool(DATE_TIME_RE.match(cleaned))
+    return bool(DATE_TIME_RE.search(line))
 
 
 def is_odds_token(line: str) -> bool:
@@ -185,16 +181,6 @@ def split_lines(raw_text: str) -> list[str]:
 # GAME BLOCK PARSING
 # =========================
 def parse_games(lines: list[str]) -> tuple[list[dict], int]:
-    """
-    Expected repeating game block:
-      [abbr ignore]
-      [away_team]
-      [abbr ignore]
-      [home_team]
-      [date/time line]   <-- end of game block
-
-    Parsing stops at first 'Over'.
-    """
     games = []
     i = 0
 
@@ -232,15 +218,6 @@ def parse_games(lines: list[str]) -> tuple[list[dict], int]:
 # ODDS BLOCK PARSING
 # =========================
 def parse_single_market_snippet(lines: list[str], start_idx: int) -> tuple[dict, int]:
-    """
-    Expected snippet:
-      Over
-      <line>
-      <over_odds>
-      Under
-      <line>
-      <under_odds>
-    """
     if start_idx + 5 >= len(lines):
         raise ValueError("Incomplete odds snippet at end of raw input.")
 
@@ -273,13 +250,6 @@ def parse_single_market_snippet(lines: list[str], start_idx: int) -> tuple[dict,
 
 
 def parse_odds_groups(lines: list[str], start_idx: int) -> list[dict]:
-    """
-    After game blocks, odds appear in groups of 5 'Over' market snippets per game.
-    For each 5-snippet game group:
-      - if the first encountered qualifying line is 2.5, use over25/under25
-      - if the first encountered qualifying line is 3.5, use over35/under35
-      - otherwise leave both blank
-    """
     snippets = []
     i = start_idx
 
