@@ -33,12 +33,12 @@ write_log(f"\nPipeline Run: {datetime.now()}\n")
 pipeline = [
 
     # --------------------------------
-    # 01 MERGE & VALIDATE
+    # 01 MERGE & MODEL & VALIDATE
     # --------------------------------
 
     ["python", "docs/win/soccer/scripts/01_merge/merge_intake.py"],
-    ["python", "docs/win/soccer/scripts/01_merge/validate_merge.py", current_date_str],
     ["python", "docs/win/soccer/scripts/01_merge/market_model.py"],
+    ["python", "docs/win/soccer/scripts/01_merge/validate_merge.py", current_date_str],
 
     ["python", "docs/win/hockey/scripts/01_merge/merge_intake.py"],
     ["python", "docs/win/basketball/scripts/01_merge/merge_intake.py"],
