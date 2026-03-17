@@ -1,3 +1,5 @@
+# docs/win/soccer/scripts/01_merge/market_model.py
+
 #!/usr/bin/env python3
 
 import csv
@@ -40,6 +42,7 @@ def load_dc_table(path):
                     "draw": float(r["draw"]),
                     "away_win": float(r["away_win"]),
                     "over2_5": float(r["over2_5"]),
+                    "under2_5": float(r["under2_5"]),
                     "btts_yes": float(r["btts_yes"])
                 })
             except:
@@ -81,7 +84,7 @@ def interpolate(table, lh, la, k=6):
 
     weight_sum = 0
 
-    h = d = a = o = b = 0
+    h = d = a = o = u = b = 0
 
     for dist, r in nearest:
 
@@ -93,6 +96,7 @@ def interpolate(table, lh, la, k=6):
         d += r["draw"] * w
         a += r["away_win"] * w
         o += r["over2_5"] * w
+        u += r["under2_5"] * w
         b += r["btts_yes"] * w
 
     return {
@@ -100,6 +104,7 @@ def interpolate(table, lh, la, k=6):
         "d": d / weight_sum,
         "a": a / weight_sum,
         "o": o / weight_sum,
+        "u": u / weight_sum,
         "b": b / weight_sum
     }
 
@@ -118,7 +123,7 @@ for merge_file in merge_files:
 
         orig_fields = reader.fieldnames
 
-        add_fields = ["lambda_home","lambda_away","over25_prob","btts_prob"]
+        add_fields = ["lambda_home","lambda_away","over25_prob","under25_prob","btts_prob"]
 
         fieldnames = [f for f in orig_fields if f not in add_fields] + add_fields
 
@@ -148,6 +153,7 @@ for merge_file in merge_files:
                     "lambda_home": lh,
                     "lambda_away": la,
                     "over25_prob": res["o"],
+                    "under25_prob": res["u"],
                     "btts_prob": res["b"]
                 })
 
