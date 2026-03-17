@@ -71,7 +71,13 @@ def build_reports():
         return
 
     ###########################################################
-    # MARKET_TYPE SPLIT (INCLUDES BTTS)
+    # USE TRUE LEAGUE (market_scorefile)
+    ###########################################################
+
+    df["league_market"] = df["market_scorefile"].astype(str).str.lower().str.strip()
+
+    ###########################################################
+    # MARKET_TYPE SPLIT (OVERALL SOCCER)
     ###########################################################
 
     for market_type in ["result","total","btts"]:
@@ -88,7 +94,24 @@ def build_reports():
         out.to_csv(SUMMARY_DIR/f"{market_type}_odds_bucket_summary.csv",index=False)
 
     ###########################################################
-    # BY MARKET (LEAGUE LEVEL)
+    # NEW: LEAGUE-LEVEL REPORTS
+    ###########################################################
+
+    for market_type in ["result","total","btts"]:
+
+        sub=df[df["market_type"]==market_type]
+
+        if sub.empty:
+            continue
+
+        out=aggregate(sub,["league_market","market_type","edge_bucket"])
+        out.to_csv(SUMMARY_DIR/f"{market_type}_by_league_edge_bucket_summary.csv",index=False)
+
+        out=aggregate(sub,["league_market","market_type","odds_bucket"])
+        out.to_csv(SUMMARY_DIR/f"{market_type}_by_league_odds_bucket_summary.csv",index=False)
+
+    ###########################################################
+    # EXISTING: BY MARKET (still SOCCER)
     ###########################################################
 
     out = aggregate(df, ["market", "edge_bucket"])
@@ -98,14 +121,14 @@ def build_reports():
     out.to_csv(SUMMARY_DIR / "by_market_odds_bucket_summary.csv", index=False)
 
     ###########################################################
-    # MARKET + MARKET_TYPE (FULL BREAKDOWN)
+    # NEW: BY LEAGUE
     ###########################################################
 
-    out = aggregate(df, ["market", "market_type", "edge_bucket"])
-    out.to_csv(SUMMARY_DIR / "by_market_and_type_edge_bucket_summary.csv", index=False)
+    out = aggregate(df, ["league_market", "edge_bucket"])
+    out.to_csv(SUMMARY_DIR / "by_league_edge_bucket_summary.csv", index=False)
 
-    out = aggregate(df, ["market", "market_type", "odds_bucket"])
-    out.to_csv(SUMMARY_DIR / "by_market_and_type_odds_bucket_summary.csv", index=False)
+    out = aggregate(df, ["league_market", "odds_bucket"])
+    out.to_csv(SUMMARY_DIR / "by_league_odds_bucket_summary.csv", index=False)
 
 ###############################################################
 
@@ -116,10 +139,12 @@ def build_market_tally():
 
     df=pd.read_csv(INTERMEDIATE)
 
+    df["league_market"] = df["market_scorefile"].astype(str).str.lower().str.strip()
+
     rows=[]
 
     ###########################################################
-    # OVERALL BY MARKET_TYPE (INCLUDES BTTS)
+    # OVERALL SOCCER
     ###########################################################
 
     for m in ["result","total","btts"]:
@@ -142,10 +167,10 @@ def build_market_tally():
         })
 
     ###########################################################
-    # BY MARKET (LEAGUE LEVEL)
+    # NEW: BY LEAGUE
     ###########################################################
 
-    for league,sub in df.groupby("market"):
+    for league,sub in df.groupby("league_market"):
 
         w,l,p,t,pct=summarize(sub)
 
