@@ -79,20 +79,23 @@ def main():
             }
 
             # =========================================================
-            # MARKETS CONFIGURATION
+            # MARKETS CONFIGURATION (UPDATED FOR DK + 3.5)
             # =========================================================
 
             MARKETS = [
 
-                ("home", "home_american", "home_adjusted_decimal"),
-                ("draw", "draw_american", "draw_adjusted_decimal"),
-                ("away", "away_american", "away_adjusted_decimal"),
+                ("home", "dk_home_american", "home_adjusted_decimal"),
+                ("draw", "dk_draw_american", "draw_adjusted_decimal"),
+                ("away", "dk_away_american", "away_adjusted_decimal"),
 
-                ("over25", "over25_american", "over25_adjusted_decimal"),
-                ("under25", "under25_american", "under25_adjusted_decimal"),
+                ("over25", "dk_over25_american", "over25_adjusted_decimal"),
+                ("under25", "dk_under25_american", "under25_adjusted_decimal"),
 
-                ("btts_yes", "btts_yes_american", "btts_yes_adjusted_decimal"),
-                ("btts_no", "btts_no_american", "btts_no_adjusted_decimal"),
+                ("over35", "dk_over35_american", "over35_adjusted_decimal"),
+                ("under35", "dk_under35_american", "under35_adjusted_decimal"),
+
+                ("btts_yes", "dk_btts_yes_american", "btts_yes_adjusted_decimal"),
+                ("btts_no", "dk_btts_no_american", "btts_no_adjusted_decimal"),
             ]
 
             for input_path in input_files:
