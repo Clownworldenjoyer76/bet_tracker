@@ -4,6 +4,7 @@ markets:
 
     moneyline:
       enabled: true
+      pick_preference: best_edge
 
       home:
         enabled: true
@@ -21,6 +22,32 @@ markets:
 
     spread:
       enabled: true
+      pick_preference: best_edge
+
+      block_rules:
+        - all:
+            - field: away_line
+              gte: -5.0
+            - field: away_line
+              lte: -2.0
+            - field: away_edge
+              lt: 0
+
+        - all:
+            - field: home_line
+              gte: -7.5
+            - field: home_line
+              lte: -5.0
+            - field: home_edge
+              lt: 0
+
+        - all:
+            - field: home_line
+              gte: 7.5
+            - field: home_line
+              lte: 10.0
+            - field: home_edge
+              lt: 0.0199
 
       home:
         enabled: true
@@ -36,22 +63,25 @@ markets:
         line_bands:
           - [-99, 1.9]
           - [5.1, 999]
-        edge_bands:
-          - [-1, 0.03]
-          - [0.10, 999]
+        edge_rules:
+          - when:
+              all:
+                - field: away_line
+                  gte: 10
+            edge_bands:
+              - [0.1000001, 999]
 
-      rules:
-        - type: block
-          condition: "away_line between -5.0 and -2.0 AND away_edge < 0"
-
-        - type: block
-          condition: "home_line between -7.5 and -5.0 AND home_edge < 0"
-
-        - type: block
-          condition: "home_line between 7.5 and 10.0 AND home_edge < 0.0199"
+          - when:
+              all:
+                - field: away_line
+                  lt: 10
+            edge_bands:
+              - [-1, 0.03]
+              - [0.10, 999]
 
     total:
       enabled: true
+      pick_preference: best_edge
 
       over:
         enabled: true
@@ -71,6 +101,7 @@ markets:
 
     moneyline:
       enabled: true
+      pick_preference: best_edge
 
       home:
         enabled: true
@@ -88,6 +119,16 @@ markets:
 
     spread:
       enabled: true
+      pick_preference: best_edge
+
+      block_rules:
+        - all:
+            - field: away_line
+              gte: 15
+            - field: away_edge
+              gte: 0.075
+            - field: away_edge
+              lte: 0.0999
 
       home:
         enabled: true
@@ -104,12 +145,9 @@ markets:
         edge_bands:
           - [0.01, 1]
 
-      rules:
-        - type: block
-          condition: "away_line >= 15 AND away_edge between 0.075 and 0.0999"
-
     total:
       enabled: true
+      pick_preference: best_edge
 
       over:
         enabled: true
