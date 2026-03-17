@@ -6,6 +6,7 @@ from pathlib import Path
 from datetime import datetime
 import traceback
 import re
+import yaml
 
 # =========================
 # PATHS
@@ -15,23 +16,22 @@ OUTPUT_DIR = Path("docs/win/soccer/04_select")
 ERROR_DIR = Path("docs/win/soccer/errors/04_select")
 ERROR_LOG = ERROR_DIR / "select_bets.txt"
 
+CONFIG_PATH = Path("docs/win/soccer/config/markets.yaml")
+
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 # =========================
-# CONFIG
+# LOAD CONFIG
 # =========================
-MIN_EDGE_PCT = 0.03
-MIN_PROB = 0.20
+with open(CONFIG_PATH, "r") as f:
+    MARKET_CONFIG = yaml.safe_load(f)["markets"]
 
-DRAW_MIN_EDGE_PCT = 0.05
-DRAW_MIN_PROB = 0.22
-DRAW_DOMINANCE_MARGIN = 0.03
-
+# =========================
+# CONFIG (fallbacks only)
+# =========================
 KELLY_FRACTION = 0.25
-BTTS_MIN_EDGE_FROM_50 = 0.05
-
-MIN_EDGE_GLOBAL = 0.00001
+MIN_EDGE_FALLBACK = 0.00001
 
 # =========================
 # HELPERS
@@ -83,6 +83,15 @@ def decimal_to_american(decimal):
 
     except Exception:
         return None
+
+
+def get_market_min_edge(row, market_type):
+
+    market = row.get("market")
+    market_cfg = MARKET_CONFIG.get(market, {})
+    type_cfg = market_cfg.get(market_type, {})
+
+    return type_cfg.get("min_edge", MIN_EDGE_FALLBACK)
 
 
 def get_result_prob(row, side):
@@ -156,13 +165,14 @@ def build_selection(row, market_name, take_bet, edge_pct, prob, odds_decimal=Non
 # =========================
 def select_best_result_side(row, columns):
 
+    min_edge = get_market_min_edge(row, "result")
     candidates = {}
 
     for side in ["home", "draw", "away"]:
 
         edge = row.get(f"{side}_edge_pct")
 
-        if pd.isna(edge) or edge <= MIN_EDGE_GLOBAL:
+        if pd.isna(edge) or edge <= min_edge:
             continue
 
         candidates[side] = edge
@@ -181,6 +191,7 @@ def select_best_result_side(row, columns):
 # =========================
 def select_best_total(row, columns):
 
+    min_edge = get_market_min_edge(row, "total")
     candidates = {}
 
     has_25 = not pd.isna(row.get("over25_prob"))
@@ -198,7 +209,7 @@ def select_best_total(row, columns):
         edge = row.get(f"{side}_edge_pct")
         prob = get_total_prob(row, side)
 
-        if pd.isna(edge) or edge <= MIN_EDGE_GLOBAL or prob is None:
+        if pd.isna(edge) or edge <= min_edge or prob is None:
             continue
 
         candidates[side] = edge
@@ -217,6 +228,8 @@ def select_best_total(row, columns):
 # =========================
 def select_best_btts(row, columns):
 
+    min_edge = get_market_min_edge(row, "btts")
+
     prob_yes = row.get("btts_prob")
 
     if pd.isna(prob_yes):
@@ -229,10 +242,10 @@ def select_best_btts(row, columns):
 
     candidates = {}
 
-    if not pd.isna(yes_edge) and yes_edge > MIN_EDGE_GLOBAL:
+    if not pd.isna(yes_edge) and yes_edge > min_edge:
         candidates["btts_yes"] = (yes_edge, prob_yes)
 
-    if not pd.isna(no_edge) and no_edge > MIN_EDGE_GLOBAL:
+    if not pd.isna(no_edge) and no_edge > min_edge:
         candidates["btts_no"] = (no_edge, prob_no)
 
     if not candidates:
