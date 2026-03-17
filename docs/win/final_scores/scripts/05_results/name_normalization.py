@@ -47,7 +47,17 @@ def load_maps():
         df["alias"] = df["alias"].astype(str).str.strip().str.lower()
         df["canonical_team"] = df["canonical_team"].astype(str).str.strip()
 
-        maps[market] = dict(zip(df["alias"], df["canonical_team"]))
+        # =========================
+        # FIX: MARKET-AWARE MAPPING
+        # =========================
+        market_map = {}
+
+        for _, row in df.iterrows():
+            alias = row["alias"]
+            canonical = row["canonical_team"]
+            market_map[(market.lower(), alias)] = canonical
+
+        maps[market] = market_map
 
     return maps
 
@@ -79,6 +89,8 @@ def normalize_file(file_path, market, team_map, missing, counters):
 
         updated = False
 
+        market_key = market.lower()
+
         for col in ["away_team", "home_team"]:
 
             normalized = []
@@ -89,13 +101,19 @@ def normalize_file(file_path, market, team_map, missing, counters):
                     normalized.append(team)
                     continue
 
-                alias = str(team).strip().lower()
+                team_raw = str(team).strip()
+                alias = team_raw.lower()
 
-                if team_map and alias in team_map:
+                # =========================
+                # FIX: MARKET-AWARE LOOKUP
+                # =========================
+                key = (market_key, alias)
 
-                    canonical = team_map[alias]
+                if team_map and key in team_map:
 
-                    if canonical != team:
+                    canonical = team_map[key]
+
+                    if canonical != team_raw:
                         counters["normalized"] += 1
                         updated = True
 
@@ -103,7 +121,7 @@ def normalize_file(file_path, market, team_map, missing, counters):
 
                 else:
 
-                    normalized.append(team)
+                    normalized.append(team_raw)
                     missing.add((market, alias))
 
             df[col] = normalized
