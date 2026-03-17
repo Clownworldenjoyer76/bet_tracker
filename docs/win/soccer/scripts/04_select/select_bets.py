@@ -31,6 +31,8 @@ DRAW_DOMINANCE_MARGIN = 0.03
 KELLY_FRACTION = 0.25
 BTTS_MIN_EDGE_FROM_50 = 0.05
 
+MIN_EDGE_GLOBAL = 0.00001
+
 # =========================
 # HELPERS
 # =========================
@@ -160,7 +162,7 @@ def select_best_result_side(row, columns):
 
         edge = row.get(f"{side}_edge_pct")
 
-        if pd.isna(edge):
+        if pd.isna(edge) or edge <= MIN_EDGE_GLOBAL:
             continue
 
         candidates[side] = edge
@@ -196,7 +198,7 @@ def select_best_total(row, columns):
         edge = row.get(f"{side}_edge_pct")
         prob = get_total_prob(row, side)
 
-        if pd.isna(edge) or prob is None:
+        if pd.isna(edge) or edge <= MIN_EDGE_GLOBAL or prob is None:
             continue
 
         candidates[side] = edge
@@ -222,20 +224,24 @@ def select_best_btts(row, columns):
 
     prob_no = 1 - prob_yes
 
-    if abs(prob_yes - 0.5) < BTTS_MIN_EDGE_FROM_50:
+    yes_edge = row.get("btts_yes_edge_pct")
+    no_edge = row.get("btts_no_edge_pct")
+
+    candidates = {}
+
+    if not pd.isna(yes_edge) and yes_edge > MIN_EDGE_GLOBAL:
+        candidates["btts_yes"] = (yes_edge, prob_yes)
+
+    if not pd.isna(no_edge) and no_edge > MIN_EDGE_GLOBAL:
+        candidates["btts_no"] = (no_edge, prob_no)
+
+    if not candidates:
         return None
 
-    yes_odds = row.get("btts_yes_adjusted_decimal")
-    no_odds = row.get("btts_no_adjusted_decimal")
+    best = max(candidates, key=lambda x: candidates[x][0])
+    edge, prob = candidates[best]
 
-    if prob_yes >= prob_no:
-        side = "btts_yes"
-        prob = prob_yes
-        odds_decimal = yes_odds
-    else:
-        side = "btts_no"
-        prob = prob_no
-        odds_decimal = no_odds
+    odds_decimal = row.get(f"{best}_adjusted_decimal")
 
     if pd.isna(odds_decimal):
         return None
@@ -245,8 +251,8 @@ def select_best_btts(row, columns):
     return build_selection(
         row=row,
         market_name="btts",
-        take_bet=side,
-        edge_pct=None,
+        take_bet=best,
+        edge_pct=edge,
         prob=prob,
         odds_decimal=odds_decimal,
         odds_american=odds_american
