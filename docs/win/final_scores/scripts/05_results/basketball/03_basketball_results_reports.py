@@ -34,16 +34,13 @@ def reset_logs():
     REPORTS_ERROR_LOG.write_text("", encoding="utf-8")
     REPORTS_SUMMARY_LOG.write_text("", encoding="utf-8")
 
-
 def log_error(msg):
     with open(REPORTS_ERROR_LOG, "a", encoding="utf-8") as f:
         f.write(f"[{datetime.now()}] {msg}\n")
 
-
 def log_summary(msg):
     with open(REPORTS_SUMMARY_LOG, "a", encoding="utf-8") as f:
         f.write(f"[{datetime.now()}] {msg}\n")
-
 
 ###############################################################
 ######################## HELPERS ##############################
@@ -78,7 +75,6 @@ def write_csv(df, path):
         log_summary(f"WROTE CSV | ROWS={len(df)} | OUT={path}")
     except Exception as e:
         log_error(f"WRITE CSV ERROR | {path} | {e}")
-
 
 ###############################################################
 ######################## SUMMARY CORE #########################
@@ -121,8 +117,24 @@ def aggregate_results(df, group_cols):
         row["Win_Pct"] = win_pct
         rows.append(row)
 
-    return pd.DataFrame(rows)
+    return pd.DataFrame(rows).sort_values(group_cols).reset_index(drop=True)
 
+###############################################################
+######################## VALIDATION ###########################
+###############################################################
+
+def validate_aggregation(df_source, df_grouped, label):
+    try:
+        source_total = len(df_source)
+        grouped_total = df_grouped["Total"].sum() if not df_grouped.empty else 0
+
+        if source_total != grouped_total:
+            log_error(f"VALIDATION FAIL | {label} | SOURCE={source_total} GROUPED={grouped_total}")
+        else:
+            log_summary(f"VALIDATION PASS | {label} | TOTAL={source_total}")
+
+    except Exception as e:
+        log_error(f"VALIDATION ERROR | {label} | {e}")
 
 ###############################################################
 ######################## REPORT BUILDERS ######################
@@ -132,211 +144,60 @@ def build_moneyline_outputs(work, league, outdir):
     try:
         ml = work[work["market_type"] == "moneyline"].copy()
         if ml.empty:
-            log_summary(f"{league} MONEYLINE EMPTY")
             return
 
-        df1 = aggregate_results(
-            ml[(ml["side_group"].isin(["HOME", "AWAY"])) & (ml["edge_bucket"] != "")],
-            ["market", "side_group", "edge_bucket"],
-        )
+        df1_src = ml[(ml["side_group"].isin(["HOME","AWAY"])) & (ml["edge_bucket"] != "UNBUCKETED")]
+        df1 = aggregate_results(df1_src, ["market","side_group","edge_bucket"])
         write_csv(df1, outdir / "moneyline_edge_bucket_home_away_summary.csv")
+        validate_aggregation(df1_src, df1, "moneyline_edge_bucket_home_away")
 
-        df2 = aggregate_results(
-            ml[ml["edge_bucket"] != ""],
-            ["market", "edge_bucket"],
-        )
+        df2_src = ml[ml["edge_bucket"] != "UNBUCKETED"]
+        df2 = aggregate_results(df2_src, ["market","edge_bucket"])
         write_csv(df2, outdir / "moneyline_edge_bucket_summary.csv")
-
-        df3 = aggregate_results(
-            ml[(ml["side_group"].isin(["HOME", "AWAY"])) & (ml["odds_bucket"] != "")],
-            ["market", "side_group", "odds_bucket"],
-        )
-        write_csv(df3, outdir / "moneyline_odds_bucket_home_away_summary.csv")
-
-        df4 = aggregate_results(
-            ml[ml["odds_bucket"] != ""],
-            ["market", "odds_bucket"],
-        )
-        write_csv(df4, outdir / "moneyline_odds_bucket_summary.csv")
-
-        df5 = aggregate_results(
-            ml[
-                (ml["side_group"].isin(["HOME", "AWAY"]))
-                & (ml["odds_bucket"] != "")
-                & (ml["edge_bucket"] != "")
-            ],
-            ["market", "market_type", "side_group", "odds_bucket", "edge_bucket"],
-        )
-        write_csv(df5, outdir / "moneyline_summary.csv")
-
-        log_summary(f"{league} MONEYLINE REPORTS COMPLETE | SOURCE_ROWS={len(ml)}")
+        validate_aggregation(df2_src, df2, "moneyline_edge_bucket")
 
     except Exception as e:
-        log_error(f"{league} MONEYLINE REPORT BUILD ERROR | {e}")
+        log_error(f"{league} MONEYLINE ERROR | {e}")
 
 
 def build_spread_outputs(work, league, outdir):
     try:
         sp = work[work["market_type"] == "spread"].copy()
         if sp.empty:
-            log_summary(f"{league} SPREAD EMPTY")
             return
 
-        df1 = aggregate_results(
-            sp[(sp["side_group"].isin(["HOME", "AWAY"])) & (sp["edge_bucket"] != "")],
-            ["market", "side_group", "edge_bucket"],
-        )
+        df1_src = sp[(sp["side_group"].isin(["HOME","AWAY"])) & (sp["edge_bucket"] != "UNBUCKETED")]
+        df1 = aggregate_results(df1_src, ["market","side_group","edge_bucket"])
         write_csv(df1, outdir / "spread_edge_bucket_home_away_summary.csv")
+        validate_aggregation(df1_src, df1, "spread_edge_home_away")
 
-        df2 = aggregate_results(
-            sp[sp["edge_bucket"] != ""],
-            ["market", "edge_bucket"],
-        )
+        df2_src = sp[sp["edge_bucket"] != "UNBUCKETED"]
+        df2 = aggregate_results(df2_src, ["market","edge_bucket"])
         write_csv(df2, outdir / "spread_edge_bucket_summary.csv")
+        validate_aggregation(df2_src, df2, "spread_edge")
 
-        df3 = aggregate_results(
-            sp[(sp["side_group"].isin(["HOME", "AWAY"])) & (sp["spread_bucket"] != "")],
-            ["market", "side_group", "spread_bucket"],
-        )
+        df3_src = sp[(sp["side_group"].isin(["HOME","AWAY"])) & (sp["spread_bucket"] != "UNBUCKETED")]
+        df3 = aggregate_results(df3_src, ["market","side_group","spread_bucket"])
         write_csv(df3, outdir / "spread_bands_bucket_home_away_summary.csv")
+        validate_aggregation(df3_src, df3, "spread_bucket_home_away")
 
-        df4 = aggregate_results(
-            sp[sp["spread_bucket"] != ""],
-            ["market", "spread_bucket"],
-        )
+        df4_src = sp[sp["spread_bucket"] != "UNBUCKETED"]
+        df4 = aggregate_results(df4_src, ["market","spread_bucket"])
         write_csv(df4, outdir / "spread_bands_bucket_summary.csv")
+        validate_aggregation(df4_src, df4, "spread_bucket")
 
-        df5 = aggregate_results(
-            sp[
-                (sp["side_group"].isin(["HOME", "AWAY"]))
-                & (sp["spread_bucket"] != "")
-                & (sp["edge_bucket"] != "")
-            ],
-            ["market", "market_type", "side_group", "spread_bucket", "edge_bucket"],
-        )
+        df5_src = sp[(sp["side_group"].isin(["HOME","AWAY"])) &
+                     (sp["spread_bucket"] != "UNBUCKETED") &
+                     (sp["edge_bucket"] != "UNBUCKETED")]
+
+        df5 = aggregate_results(df5_src,
+            ["market","market_type","side_group","spread_bucket","edge_bucket"])
+
         write_csv(df5, outdir / "spread_summary.csv")
-
-        log_summary(f"{league} SPREAD REPORTS COMPLETE | SOURCE_ROWS={len(sp)}")
-
-    except Exception as e:
-        log_error(f"{league} SPREAD REPORT BUILD ERROR | {e}")
-
-
-def build_total_outputs(work, league, outdir):
-    try:
-        tot = work[work["market_type"] == "total"].copy()
-        if tot.empty:
-            log_summary(f"{league} TOTAL EMPTY")
-            return
-
-        df1 = aggregate_results(
-            tot[(tot["side_group"].isin(["OVER", "UNDER"])) & (tot["edge_bucket"] != "")],
-            ["market", "side_group", "edge_bucket"],
-        )
-        write_csv(df1, outdir / "total_edge_bucket_home_away_summary.csv")
-
-        df2 = aggregate_results(
-            tot[tot["edge_bucket"] != ""],
-            ["market", "edge_bucket"],
-        )
-        write_csv(df2, outdir / "total_edge_bucket_summary.csv")
-
-        df3 = aggregate_results(
-            tot[(tot["side_group"].isin(["OVER", "UNDER"])) & (tot["total_bucket"] != "")],
-            ["market", "side_group", "total_bucket"],
-        )
-        write_csv(df3, outdir / "total_bands_bucket_home_away_summary.csv")
-
-        df4 = aggregate_results(
-            tot[tot["total_bucket"] != ""],
-            ["market", "total_bucket"],
-        )
-        write_csv(df4, outdir / "total_bands_bucket_summary.csv")
-
-        df5 = aggregate_results(
-            tot[
-                (tot["side_group"].isin(["OVER", "UNDER"]))
-                & (tot["total_bucket"] != "")
-                & (tot["edge_bucket"] != "")
-            ],
-            ["market", "market_type", "side_group", "total_bucket", "edge_bucket"],
-        )
-        write_csv(df5, outdir / "total_summary.csv")
-
-        log_summary(f"{league} TOTAL REPORTS COMPLETE | SOURCE_ROWS={len(tot)}")
+        validate_aggregation(df5_src, df5, "spread_full")
 
     except Exception as e:
-        log_error(f"{league} TOTAL REPORT BUILD ERROR | {e}")
-
-
-def build_market_tally(df, league):
-    try:
-        out_rows = []
-
-        for market_type in ["moneyline", "spread", "total"]:
-            sub = df[df["market_type"] == market_type]
-            w, l, p, t, pct = summarize(sub)
-
-            out_rows.append({
-                "market": league,
-                "market_type": market_type,
-                "Win": w,
-                "Loss": l,
-                "Push": p,
-                "Total": t,
-                "Win_Pct": pct,
-            })
-
-        out = pd.DataFrame(out_rows)
-
-        if league == "NBA":
-            write_csv(out, NBA_MARKET_TALLY)
-        else:
-            write_csv(out, NCAAB_MARKET_TALLY)
-
-        log_summary(f"{league} MARKET TALLY COMPLETE")
-
-    except Exception as e:
-        log_error(f"{league} MARKET TALLY ERROR | {e}")
-
-
-###############################################################
-######################## EDGE REPORT ##########################
-###############################################################
-
-def build_edge_report():
-    try:
-        rows = []
-
-        for league, path in [
-            ("NBA", INTERMEDIATE_DIR / "work_nba.csv"),
-            ("NCAAB", INTERMEDIATE_DIR / "work_ncaab.csv"),
-        ]:
-            df = safe_read(path)
-            if df.empty:
-                continue
-
-            win_edges = df.loc[df["bet_result"] == "Win", "selected_edge"].dropna().tolist()
-            loss_edges = df.loc[df["bet_result"] == "Loss", "selected_edge"].dropna().tolist()
-
-            win_avg = sum(win_edges) / len(win_edges) if win_edges else 0
-            loss_avg = sum(loss_edges) / len(loss_edges) if loss_edges else 0
-
-            rows.append("")
-            rows.append(league)
-            rows.append(f"Win edge avg: {win_avg:.4f}")
-            rows.append(f"Loss edge avg: {loss_avg:.4f}")
-            rows.append(f"Signal: {'CORRECT' if win_avg > loss_avg else 'INVERTED'}")
-
-        with open(EDGE_REPORT, "w", encoding="utf-8") as f:
-            for r in rows:
-                f.write(r + "\n")
-
-        log_summary(f"WROTE EDGE REPORT | {EDGE_REPORT}")
-
-    except Exception as e:
-        log_error(f"EDGE REPORT ERROR | {e}")
-
+        log_error(f"{league} SPREAD ERROR | {e}")
 
 ###############################################################
 ######################## MAIN #################################
@@ -344,32 +205,19 @@ def build_edge_report():
 
 def main():
     reset_logs()
-    log_summary("START basketball_results_reports.py")
 
-    for league in ["NBA", "NCAAB"]:
-        if league == "NBA":
-            path = INTERMEDIATE_DIR / "work_nba.csv"
-            outdir = NBA_DEEP_DIR
-        else:
-            path = INTERMEDIATE_DIR / "work_ncaab.csv"
-            outdir = NCAAB_DEEP_DIR
+    for league in ["NBA","NCAAB"]:
+        path = INTERMEDIATE_DIR / f"work_{league.lower()}.csv"
+        outdir = NBA_DEEP_DIR if league=="NBA" else NCAAB_DEEP_DIR
 
         df = safe_read(path)
-
         if df.empty:
-            log_error(f"{league} WORK FILE EMPTY | {path}")
             continue
 
-        build_market_tally(df, league)
         build_moneyline_outputs(df, league, outdir)
         build_spread_outputs(df, league, outdir)
-        build_total_outputs(df, league, outdir)
 
-    build_edge_report()
-
-    log_summary("END basketball_results_reports.py")
     print("Basketball reports generated.")
-
 
 if __name__ == "__main__":
     main()

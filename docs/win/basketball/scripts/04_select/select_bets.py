@@ -4,6 +4,7 @@
 import pandas as pd
 from pathlib import Path
 import re
+import yaml
 
 ###############################################################
 ######################## PATH CONFIG ##########################
@@ -13,10 +14,14 @@ INPUT_DIR = Path("docs/win/basketball/03_edges/ev_kelly")
 SELECT_DIR = Path("docs/win/basketball/04_select")
 DAILY_DIR = SELECT_DIR / "daily_slate"
 TOTALS_DIR = DAILY_DIR / "totals"
+CONFIG_PATH = Path("docs/win/basketball/config/markets.yaml")
 
 SELECT_DIR.mkdir(parents=True, exist_ok=True)
 DAILY_DIR.mkdir(parents=True, exist_ok=True)
 TOTALS_DIR.mkdir(parents=True, exist_ok=True)
+
+with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+    CONFIG = yaml.safe_load(f)
 
 ###############################################################
 ######################## BAND HELPER ##########################
@@ -29,80 +34,56 @@ def in_bands(value, bands):
     return False
 
 ###############################################################
-######################## NBA PARAMETERS #######################
+######################## RULE ENGINE ##########################
 ###############################################################
 
-NBA_ML_HOME_ODDS_BANDS = [(-200, 200)]
-NBA_ML_HOME_EDGE_BANDS = [(0.0001, 0.0199)]
-NBA_ALLOW_HOME_ML = True
+def compare_value(value, spec):
+    if value is None:
+        return False
 
-NBA_ML_AWAY_ODDS_BANDS = [(-200, 150.9)]
-NBA_ML_AWAY_EDGE_BANDS = [(0.0001, 1)]
-NBA_ALLOW_AWAY_ML = True
+    if "gt" in spec and not (value > spec["gt"]):
+        return False
+    if "gte" in spec and not (value >= spec["gte"]):
+        return False
+    if "lt" in spec and not (value < spec["lt"]):
+        return False
+    if "lte" in spec and not (value <= spec["lte"]):
+        return False
 
-NBA_SPREAD_HOME_BANDS = [
-    (-99, -5.1),
-    (7.6, 99),
-]
+    return True
 
-NBA_SPREAD_HOME_EDGE_BANDS = [
-    (-1, 0.0199),
-    (0.10, 999),
-]
 
-NBA_ALLOW_HOME_SPREAD = True
+def evaluate_rule(rule, context):
+    if "all" in rule:
+        return all(evaluate_rule(item, context) for item in rule["all"])
 
-NBA_SPREAD_AWAY_BANDS = [
-    (-99, 1.9),
-    (5.1, 999),
-]
+    if "any" in rule:
+        return any(evaluate_rule(item, context) for item in rule["any"])
 
-NBA_SPREAD_AWAY_EDGE_BANDS = [
-    (-1, 0.03),
-    (0.10, 999),
-]
+    field = rule.get("field")
+    if not field:
+        return False
 
-NBA_ALLOW_AWAY_SPREAD = True
+    value = context.get(field)
+    return compare_value(value, rule)
 
-NBA_TOTAL_OVER_BANDS = [(215, 245)]
-NBA_TOTAL_OVER_EDGE_BANDS = [(0.06, 1)]
-NBA_ALLOW_OVER = True
 
-NBA_TOTAL_UNDER_BANDS = [(215, 245)]
-NBA_TOTAL_UNDER_EDGE_BANDS = [(0.05, 1)]
-NBA_ALLOW_UNDER = True
+def any_rule_matches(rules, context):
+    if not rules:
+        return False
+    return any(evaluate_rule(rule, context) for rule in rules)
 
-###############################################################
-######################## NCAAB PARAMETERS #####################
-###############################################################
 
-NCAAB_ML_HOME_ODDS_BANDS = [(-100, 125)]
-NCAAB_ML_HOME_EDGE_BANDS = [(0.03, 1)]
-NCAAB_ALLOW_HOME_ML = True
+def get_edge_bands_from_rules(rules, context):
+    if not rules:
+        return None
 
-NCAAB_ML_AWAY_ODDS_BANDS = [(100, 150)]
-NCAAB_ML_AWAY_EDGE_BANDS = [(0.01, 1)]
-NCAAB_ALLOW_AWAY_ML = True
+    for rule in rules:
+        when = rule.get("when", {})
+        if evaluate_rule(when, context):
+            return rule.get("edge_bands")
 
-NCAAB_SPREAD_HOME_BANDS = [(-5, -3)]
-NCAAB_SPREAD_HOME_EDGE_BANDS = [(0.05, 1)]
-NCAAB_ALLOW_HOME_SPREAD = True
-
-NCAAB_SPREAD_AWAY_BANDS = [
-    (-3, -1),
-    (7.5, 20)
-]
-
-NCAAB_SPREAD_AWAY_EDGE_BANDS = [(0.01, 1)]
-NCAAB_ALLOW_AWAY_SPREAD = True
-
-NCAAB_TOTAL_OVER_BANDS = [(150, 200)]
-NCAAB_TOTAL_OVER_EDGE_BANDS = [(0.05, 1)]
-NCAAB_ALLOW_OVER = True
-
-NCAAB_TOTAL_UNDER_BANDS = [(135, 150)]
-NCAAB_TOTAL_UNDER_EDGE_BANDS = [(0.05, 1)]
-NCAAB_ALLOW_UNDER = True
+    return None
 
 ###############################################################
 ######################## HELPERS ##############################
@@ -146,10 +127,25 @@ def clear_daily_outputs():
         fpath.unlink(missing_ok=True)
 
 ###############################################################
+######################## CONFIG HELPERS #######################
+###############################################################
+
+def market_cfg(league, market_type):
+    return CONFIG["markets"][league.lower()][market_type]
+
+
+def side_cfg(league, market_type, side):
+    return market_cfg(league, market_type)[side]
+
+###############################################################
 ######################## MONEYLINE ############################
 ###############################################################
 
 def moneyline(row, league):
+
+    cfg = market_cfg(league, "moneyline")
+    if not cfg.get("enabled", False):
+        return False, "", "", 0
 
     home_ml = f(row.get("home_dk_moneyline_american"))
     away_ml = f(row.get("away_dk_moneyline_american"))
@@ -157,41 +153,31 @@ def moneyline(row, league):
     home_edge = f(row.get("home_ml_edge_decimal"))
     away_edge = f(row.get("away_ml_edge_decimal"))
 
-    if league == "NBA":
+    home_cfg = side_cfg(league, "moneyline", "home")
+    away_cfg = side_cfg(league, "moneyline", "away")
 
-        if (
-            NBA_ALLOW_HOME_ML
-            and in_bands(home_ml, NBA_ML_HOME_ODDS_BANDS)
-            and in_bands(home_edge, NBA_ML_HOME_EDGE_BANDS)
-            and home_edge >= away_edge
-        ):
+    home_valid = (
+        home_cfg.get("enabled", False)
+        and in_bands(home_ml, home_cfg.get("odds_bands", []))
+        and in_bands(home_edge, home_cfg.get("edge_bands", []))
+    )
+
+    away_valid = (
+        away_cfg.get("enabled", False)
+        and in_bands(away_ml, away_cfg.get("odds_bands", []))
+        and in_bands(away_edge, away_cfg.get("edge_bands", []))
+    )
+
+    if home_valid and away_valid:
+        if home_edge >= away_edge:
             return True, "home", home_ml, home_edge
+        return True, "away", away_ml, away_edge
 
-        if (
-            NBA_ALLOW_AWAY_ML
-            and in_bands(away_ml, NBA_ML_AWAY_ODDS_BANDS)
-            and in_bands(away_edge, NBA_ML_AWAY_EDGE_BANDS)
-            and away_edge > home_edge
-        ):
-            return True, "away", away_ml, away_edge
+    if home_valid:
+        return True, "home", home_ml, home_edge
 
-    else:
-
-        if (
-            NCAAB_ALLOW_HOME_ML
-            and in_bands(home_ml, NCAAB_ML_HOME_ODDS_BANDS)
-            and in_bands(home_edge, NCAAB_ML_HOME_EDGE_BANDS)
-            and home_edge >= away_edge
-        ):
-            return True, "home", home_ml, home_edge
-
-        if (
-            NCAAB_ALLOW_AWAY_ML
-            and in_bands(away_ml, NCAAB_ML_AWAY_ODDS_BANDS)
-            and in_bands(away_edge, NCAAB_ML_AWAY_EDGE_BANDS)
-            and away_edge > home_edge
-        ):
-            return True, "away", away_ml, away_edge
+    if away_valid:
+        return True, "away", away_ml, away_edge
 
     return False, "", "", 0
 
@@ -201,60 +187,44 @@ def moneyline(row, league):
 
 def spread(row, league):
 
+    cfg = market_cfg(league, "spread")
+    if not cfg.get("enabled", False):
+        return False, "", "", 0
+
     home_line = f(row.get("home_spread"))
     away_line = f(row.get("away_spread"))
 
     home_edge = f(row.get("home_spread_edge_decimal"))
     away_edge = f(row.get("away_spread_edge_decimal"))
 
-    if league == "NBA":
+    context = {
+        "home_line": home_line,
+        "away_line": away_line,
+        "home_edge": home_edge,
+        "away_edge": away_edge,
+    }
 
-        if -5.0 <= away_line <= -2.0 and away_edge < 0:
-            return False, "", "", 0
+    if any_rule_matches(cfg.get("block_rules", []), context):
+        return False, "", "", 0
 
-        if -7.5 <= home_line <= -5.0 and home_edge < 0:
-            return False, "", "", 0
+    home_cfg = side_cfg(league, "spread", "home")
+    away_cfg = side_cfg(league, "spread", "away")
 
-        if 7.5 <= home_line <= 10.0 and home_edge < 0.0199:
-            return False, "", "", 0
+    home_valid = (
+        home_cfg.get("enabled", False)
+        and in_bands(home_line, home_cfg.get("line_bands", []))
+        and in_bands(home_edge, home_cfg.get("edge_bands", []))
+    )
 
-    else:
+    away_edge_bands = get_edge_bands_from_rules(away_cfg.get("edge_rules", []), context)
+    if away_edge_bands is None:
+        away_edge_bands = away_cfg.get("edge_bands", [])
 
-        if away_line >= 15 and 0.075 <= away_edge <= 0.0999:
-            return False, "", "", 0
-
-    if league == "NBA":
-
-        home_valid = (
-            NBA_ALLOW_HOME_SPREAD
-            and in_bands(home_line, NBA_SPREAD_HOME_BANDS)
-            and in_bands(home_edge, NBA_SPREAD_HOME_EDGE_BANDS)
-        )
-
-        if away_line >= 10:
-            away_edge_ok = away_edge > 0.10
-        else:
-            away_edge_ok = in_bands(away_edge, NBA_SPREAD_AWAY_EDGE_BANDS)
-
-        away_valid = (
-            NBA_ALLOW_AWAY_SPREAD
-            and in_bands(away_line, NBA_SPREAD_AWAY_BANDS)
-            and away_edge_ok
-        )
-
-    else:
-
-        home_valid = (
-            NCAAB_ALLOW_HOME_SPREAD
-            and in_bands(home_line, NCAAB_SPREAD_HOME_BANDS)
-            and in_bands(home_edge, NCAAB_SPREAD_HOME_EDGE_BANDS)
-        )
-
-        away_valid = (
-            NCAAB_ALLOW_AWAY_SPREAD
-            and in_bands(away_line, NCAAB_SPREAD_AWAY_BANDS)
-            and in_bands(away_edge, NCAAB_SPREAD_AWAY_EDGE_BANDS)
-        )
+    away_valid = (
+        away_cfg.get("enabled", False)
+        and in_bands(away_line, away_cfg.get("line_bands", []))
+        and in_bands(away_edge, away_edge_bands)
+    )
 
     if home_valid and away_valid:
         if home_edge >= away_edge:
@@ -275,6 +245,10 @@ def spread(row, league):
 
 def total(row, league):
 
+    cfg = market_cfg(league, "total")
+    if not cfg.get("enabled", False):
+        return False, "", "", 0
+
     line = f(row.get("total"))
 
     over_edge = f(row.get("over_edge_decimal"))
@@ -287,41 +261,14 @@ def total(row, league):
         side = "under"
         edge = under_edge
 
-    if league == "NBA":
+    side_config = side_cfg(league, "total", side)
 
-        if (
-            side == "over"
-            and NBA_ALLOW_OVER
-            and in_bands(line, NBA_TOTAL_OVER_BANDS)
-            and in_bands(edge, NBA_TOTAL_OVER_EDGE_BANDS)
-        ):
-            return True, "over", line, edge
-
-        if (
-            side == "under"
-            and NBA_ALLOW_UNDER
-            and in_bands(line, NBA_TOTAL_UNDER_BANDS)
-            and in_bands(edge, NBA_TOTAL_UNDER_EDGE_BANDS)
-        ):
-            return True, "under", line, edge
-
-    else:
-
-        if (
-            side == "over"
-            and NCAAB_ALLOW_OVER
-            and in_bands(line, NCAAB_TOTAL_OVER_BANDS)
-            and in_bands(edge, NCAAB_TOTAL_OVER_EDGE_BANDS)
-        ):
-            return True, "over", line, edge
-
-        if (
-            side == "under"
-            and NCAAB_ALLOW_UNDER
-            and in_bands(line, NCAAB_TOTAL_UNDER_BANDS)
-            and in_bands(edge, NCAAB_TOTAL_UNDER_EDGE_BANDS)
-        ):
-            return True, "under", line, edge
+    if (
+        side_config.get("enabled", False)
+        and in_bands(line, side_config.get("line_bands", []))
+        and in_bands(edge, side_config.get("edge_bands", []))
+    ):
+        return True, side, line, edge
 
     return False, "", "", 0
 
@@ -337,20 +284,20 @@ def process_file(file):
         return None
 
     league = "NBA" if "nba" in file.name.lower() else "NCAAB"
-    market = detect_market(file.name)
+    market_type = detect_market(file.name)
     game_date = extract_date(file.name)
 
-    if market == "" or game_date is None:
+    if market_type == "" or game_date is None:
         return None
 
     rows = []
 
     for _, row in df.iterrows():
 
-        if market == "moneyline":
+        if market_type == "moneyline":
             ok, side, line, edge = moneyline(row, league)
 
-        elif market == "spread":
+        elif market_type == "spread":
             ok, side, line, edge = spread(row, league)
 
         else:
@@ -361,7 +308,7 @@ def process_file(file):
             r["bet_side"] = side
             r["line"] = line
             r["selected_edge"] = edge
-            r["market_type"] = market
+            r["market_type"] = market_type
             r["market"] = league
             r["game_date"] = game_date
             rows.append(r)
