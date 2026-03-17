@@ -70,18 +70,44 @@ def build_reports():
     if df.empty:
         return
 
-    for market in ["result","total"]:
+    ###########################################################
+    # EXISTING (market_type split)
+    ###########################################################
 
-        sub=df[df["market_type"]==market]
+    for market_type in ["result","total"]:
+
+        sub=df[df["market_type"]==market_type]
 
         if sub.empty:
             continue
 
         out=aggregate(sub,["market","market_type","edge_bucket"])
-        out.to_csv(SUMMARY_DIR/f"{market}_edge_bucket_summary.csv",index=False)
+        out.to_csv(SUMMARY_DIR/f"{market_type}_edge_bucket_summary.csv",index=False)
 
         out=aggregate(sub,["market","market_type","odds_bucket"])
-        out.to_csv(SUMMARY_DIR/f"{market}_odds_bucket_summary.csv",index=False)
+        out.to_csv(SUMMARY_DIR/f"{market_type}_odds_bucket_summary.csv",index=False)
+
+    ###########################################################
+    # NEW: BY MARKET (LEAGUE LEVEL)
+    ###########################################################
+
+    # Edge bucket by market
+    out = aggregate(df, ["market", "edge_bucket"])
+    out.to_csv(SUMMARY_DIR / "by_market_edge_bucket_summary.csv", index=False)
+
+    # Odds bucket by market
+    out = aggregate(df, ["market", "odds_bucket"])
+    out.to_csv(SUMMARY_DIR / "by_market_odds_bucket_summary.csv", index=False)
+
+    ###########################################################
+    # NEW: MARKET + MARKET_TYPE (FULL BREAKDOWN)
+    ###########################################################
+
+    out = aggregate(df, ["market", "market_type", "edge_bucket"])
+    out.to_csv(SUMMARY_DIR / "by_market_and_type_edge_bucket_summary.csv", index=False)
+
+    out = aggregate(df, ["market", "market_type", "odds_bucket"])
+    out.to_csv(SUMMARY_DIR / "by_market_and_type_odds_bucket_summary.csv", index=False)
 
 ###############################################################
 
@@ -94,6 +120,7 @@ def build_market_tally():
 
     rows=[]
 
+    # overall by market_type
     for m in ["result","total"]:
 
         sub=df[df["market_type"]==m]
@@ -103,6 +130,21 @@ def build_market_tally():
         rows.append({
             "market":"SOCCER",
             "market_type":m,
+            "Win":w,
+            "Loss":l,
+            "Push":p,
+            "Total":t,
+            "Win_Pct":pct
+        })
+
+    # NEW: by market (league)
+    for league,sub in df.groupby("market"):
+
+        w,l,p,t,pct=summarize(sub)
+
+        rows.append({
+            "market":league,
+            "market_type":"ALL",
             "Win":w,
             "Loss":l,
             "Push":p,
