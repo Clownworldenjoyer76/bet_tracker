@@ -38,11 +38,14 @@ jobs:
         run: |
           python docs/win/soccer/scripts/01_merge/merge_intake.py
 
+      - name: Run Soccer Market Model
+        run: |
+          python docs/win/soccer/scripts/01_merge/market_model.py
+
       - name: Validate Soccer merge
         run: |
           MERGE_DIR="docs/win/soccer/01_merge"
           if [ -d "$MERGE_DIR" ]; then
-            # Loop through soccer merge files to validate each date slate
             for f in $MERGE_DIR/soccer_*.csv; do
               if [ -f "$f" ]; then
                 DATE=$(basename "$f" | sed 's/soccer_//' | sed 's/.csv//')
@@ -52,12 +55,8 @@ jobs:
             done
           else
             echo "No soccer merge directory found"
-            exit 1 # Fail here if merge folder is missing
+            exit 1
           fi
-
-      - name: Run Soccer Market Model
-        run: |
-          python docs/win/soccer/scripts/01_merge/market_model.py
 
       # =========================
       # HOCKEY
