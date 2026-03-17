@@ -124,11 +124,25 @@ for csv_file in files_to_process:
 
             rows_processed += 1
 
+            # =========================
+            # MARKET NORMALIZATION FIX
+            # =========================
             if "market" in row:
-                row["market"] = normalize_market(row.get("market"))
+                original_market = row.get("market")
+                new_market = normalize_market(original_market)
+                if original_market != new_market:
+                    row["market"] = new_market
+                    modified = True
 
+            # =========================
+            # LEAGUE NORMALIZATION FIX
+            # =========================
             if "league" in row:
-                row["league"] = normalize_league(row.get("league"))
+                original_league = row.get("league")
+                new_league = normalize_league(original_league)
+                if original_league != new_league:
+                    row["league"] = new_league
+                    modified = True
 
             market = row.get("market", "")
 
