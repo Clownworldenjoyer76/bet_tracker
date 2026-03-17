@@ -41,6 +41,27 @@ def american_to_decimal(american):
         return None
 
 
+def decimal_to_american(decimal):
+    """Convert decimal odds to American odds"""
+
+    if pd.isna(decimal) or decimal in ["", 0, None]:
+        return None
+
+    try:
+        val = float(decimal)
+
+        if val <= 1:
+            return None
+
+        if val >= 2:
+            return round((val - 1) * 100)
+        else:
+            return round(-100 / (val - 1))
+
+    except Exception:
+        return None
+
+
 def parse_match_time(time_str):
     """Convert '03:05 PM' → datetime object for sorting"""
 
@@ -79,7 +100,7 @@ def main():
             }
 
             # =========================================================
-            # MARKETS CONFIGURATION (UPDATED FOR DK + 3.5)
+            # MARKETS CONFIGURATION
             # =========================================================
 
             MARKETS = [
@@ -123,6 +144,26 @@ def main():
 
                         dk_prob_col = f"{label}_dk_implied_prob"
                         df[dk_prob_col] = 1 / pd.to_numeric(df[dk_dec_col], errors="coerce")
+
+                        # -------------------------
+                        # Fair odds from model
+                        # -------------------------
+
+                        fair_decimal_col = f"{label}_fair_decimal"
+                        fair_american_col = f"{label}_fair_american"
+
+                        model_odds = pd.to_numeric(df[model_adj_col], errors="coerce")
+                        fair_prob = 1 / model_odds
+
+                        df[fair_decimal_col] = (1 / fair_prob).round(4)
+                        df[fair_american_col] = df[fair_decimal_col].apply(decimal_to_american)
+
+                        # -------------------------
+                        # Take price from model
+                        # -------------------------
+
+                        take_price_american_col = f"{label}_take_price_american"
+                        df[take_price_american_col] = df[fair_american_col]
 
                         # -------------------------
                         # Compute edge
