@@ -1,5 +1,5 @@
-# docs/win/soccer/scripts/01_merge/merge_intake.py
 #!/usr/bin/env python3
+# docs/win/soccer/scripts/01_merge/merge_intake.py
 
 import sys
 import csv
@@ -44,17 +44,20 @@ def normalize_id(text):
     return text
 
 # =========================
-# FIELDNAMES (UPDATED)
+# FIELDNAMES (UPDATED - RAW DK FIELDS)
 # =========================
 FIELDNAMES = [
     "league","market","match_date","match_time",
     "home_team","away_team",
     "home_prob","draw_prob","away_prob",
     "home_xg","away_xg","expected_total_goals",
-    "home_american","draw_american","away_american",
-    "over25_american","under25_american",
-    "over35_american","under35_american",
-    "btts_yes_american","btts_no_american",
+
+    # Raw sportsbook fields (no renaming)
+    "dk_home_american","dk_draw_american","dk_away_american",
+    "dk_over25_american","dk_under25_american",
+    "dk_over35_american","dk_under35_american",
+    "dk_btts_yes_american","dk_btts_no_american",
+
     "game_id"
 ]
 
@@ -88,7 +91,6 @@ for pred_file in prediction_files:
         away_id = normalize_id(p["away_team"])
         game_id = f"{p['match_date']}_{home_id}_{away_id}"
 
-        # Get values with -110 fallback for missing 2-way markets
         merged_rows[key] = {
             "league": p["league"],
             "market": p["market"],
@@ -102,24 +104,26 @@ for pred_file in prediction_files:
             "home_xg": p.get("home_xg",""),
             "away_xg": p.get("away_xg",""),
             "expected_total_goals": p.get("expected_total_goals",""),
-            "home_american": d.get("dk_home_american",""),
-            "draw_american": d.get("dk_draw_american",""),
-            "away_american": d.get("dk_away_american",""),
 
-            # Totals markets with fallback juice
-            "over25_american": d.get("dk_over25_american") or "-110",
-            "under25_american": d.get("dk_under25_american") or "-110",
+            # Raw sportsbook passthrough (NO fallback)
+            "dk_home_american": d.get("dk_home_american",""),
+            "dk_draw_american": d.get("dk_draw_american",""),
+            "dk_away_american": d.get("dk_away_american",""),
 
-            "over35_american": d.get("dk_over35_american") or "-110",
-            "under35_american": d.get("dk_under35_american") or "-110",
+            "dk_over25_american": d.get("dk_over25_american",""),
+            "dk_under25_american": d.get("dk_under25_american",""),
+            "dk_over35_american": d.get("dk_over35_american",""),
+            "dk_under35_american": d.get("dk_under35_american",""),
 
-            "btts_yes_american": d.get("dk_btts_yes_american") or "-110",
-            "btts_no_american": d.get("dk_btts_no_american") or "-110",
+            "dk_btts_yes_american": d.get("dk_btts_yes_american",""),
+            "dk_btts_no_american": d.get("dk_btts_no_american",""),
 
             "game_id": game_id,
         }
 
-    # Atomic Write Logic
+    # =========================
+    # ATOMIC WRITE
+    # =========================
     temp_file = OUTFILE.with_suffix(".tmp")
     with open(temp_file, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
