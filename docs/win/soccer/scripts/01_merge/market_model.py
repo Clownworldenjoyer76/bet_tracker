@@ -1,4 +1,5 @@
 # docs/win/soccer/scripts/01_merge/market_model.py
+
 #!/usr/bin/env python3
 
 import csv
