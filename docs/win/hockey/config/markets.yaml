@@ -1,0 +1,42 @@
+markets:
+
+  nhl:
+
+    total:
+      enabled: true
+
+      min_edge: 0.05
+      min_prob: 0.52
+
+      sides:
+        over:
+          enabled: true
+        under:
+          enabled: true
+
+    puck_line:
+      enabled: true
+
+      dog:
+        min_prob: 0.45
+
+      favorite:
+        min_edge: 0.20
+        max_odds: -120
+
+      rules:
+        - type: block
+          condition: "favorite AND total_side == under"
+
+    moneyline:
+      enabled: true
+
+      odds_range: [-250, 250]
+
+      standard:
+        min_edge: 0.025
+        min_prob: 0.40
+
+      favorite:
+        min_edge: 0.02
+        min_prob: 0.44
