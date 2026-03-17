@@ -34,7 +34,7 @@ def log_summary(msg):
 
 def edge_bucket(v):
 
-    if pd.isna(v): return ""
+    if pd.isna(v): return "no_edge"
 
     if v < .01: return "0_to_0.01"
     if v < .02: return "0.01_to_0.02"
@@ -69,7 +69,13 @@ def prepare():
         log_error("MASTER FILE EMPTY")
         return
 
+    # preserve original structure
     df["market"] = "SOCCER"
+
+    # keep market_type for downstream grouping
+    if "market_type" not in df.columns:
+        df["market_type"] = ""
+
     df["selected_edge"] = df["edge_pct"]
     df["selected_odds"] = df["odds_american"]
 
