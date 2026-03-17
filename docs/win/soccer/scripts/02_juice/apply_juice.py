@@ -1,5 +1,3 @@
-# docs/win/soccer/scripts/02_juice/apply_juice.py
-
 #!/usr/bin/env python3
 
 import pandas as pd
@@ -23,6 +21,7 @@ JUICE_MAP = {
     "bundesliga": Path("config/soccer/bundesliga/3way_juice.csv"),
     "ligue1": Path("config/soccer/ligue1/3way_juice.csv"),
     "seriea": Path("config/soccer/serie_a/3way_juice.csv"),
+    "mls": Path("config/soccer/mls/3way_juice.csv"),
 }
 
 TARGET_2WAY_JUICE = 1.04  # 4% Overround
@@ -43,7 +42,6 @@ def find_closest_juice(prob, juice_df, side):
 
 
 def get_prob_col(df, side):
-    """Checks for {side}_win_prob or {side}_prob"""
     for col in [f"{side}_win_prob", f"{side}_prob"]:
         if col in df.columns:
             return col
@@ -51,7 +49,6 @@ def get_prob_col(df, side):
 
 
 def decimal_to_american(decimal):
-    """Convert decimal odds to American odds"""
     if pd.isna(decimal):
         return pd.NA
     if decimal >= 2:
@@ -65,7 +62,6 @@ def decimal_to_american(decimal):
 # =========================
 
 def process_3way(df, juice_tables):
-    """Applies additive juice from CSV curves for Home/Draw/Away"""
     for side in ["home", "draw", "away"]:
         col = get_prob_col(df, side)
         if not col:
@@ -93,23 +89,18 @@ def process_3way(df, juice_tables):
 
 
 def process_totals(df):
-    """Applies 4% multiplicative juice for Over/Under 2.5"""
 
     if "over25_prob" not in df.columns:
         return df
 
-    # Explicit under probability for debugging / later pipeline steps
     df["under25_prob"] = 1 - df["over25_prob"]
 
-    # Apply 4% overround
     df["over25_adj_prob"] = df["over25_prob"] * TARGET_2WAY_JUICE
     df["under25_adj_prob"] = df["under25_prob"] * TARGET_2WAY_JUICE
 
-    # Decimal odds
     df["over25_adjusted_decimal"] = (1 / df["over25_adj_prob"]).round(4)
     df["under25_adjusted_decimal"] = (1 / df["under25_adj_prob"]).round(4)
 
-    # American odds
     df["over25_adjusted_american"] = df["over25_adjusted_decimal"].apply(decimal_to_american)
     df["under25_adjusted_american"] = df["under25_adjusted_decimal"].apply(decimal_to_american)
 
@@ -117,7 +108,6 @@ def process_totals(df):
 
 
 def process_btts(df):
-    """Applies 4% multiplicative juice for BTTS Yes/No"""
 
     if "btts_prob" not in df.columns:
         return df
@@ -125,11 +115,9 @@ def process_btts(df):
     df["btts_yes_adj_prob"] = df["btts_prob"] * TARGET_2WAY_JUICE
     df["btts_no_adj_prob"] = (1 - df["btts_prob"]) * TARGET_2WAY_JUICE
 
-    # Decimal odds
     df["btts_yes_adjusted_decimal"] = (1 / df["btts_yes_adj_prob"]).round(4)
     df["btts_no_adjusted_decimal"] = (1 / df["btts_no_adj_prob"]).round(4)
 
-    # American odds
     df["btts_yes_adjusted_american"] = df["btts_yes_adjusted_decimal"].apply(decimal_to_american)
     df["btts_no_adjusted_american"] = df["btts_no_adjusted_decimal"].apply(decimal_to_american)
 
@@ -156,14 +144,12 @@ def main():
             if "market" not in df.columns:
                 continue
 
-            # Load juice tables
             juice_tables = {
                 m: pd.read_csv(JUICE_MAP[m])
                 for m in df["market"].unique()
                 if m in JUICE_MAP
             }
 
-            # Apply juice blocks
             df = process_3way(df, juice_tables)
             df = process_totals(df)
             df = process_btts(df)
