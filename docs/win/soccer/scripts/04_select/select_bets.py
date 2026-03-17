@@ -72,13 +72,33 @@ def get_total_prob(row, side):
         return row.get("over25_prob")
 
     if side == "under25":
-
         over_prob = row.get("over25_prob")
-
         if pd.isna(over_prob):
             return None
-
         return 1 - over_prob
+
+    if side == "over35":
+        return row.get("over35_prob")
+
+    if side == "under35":
+        over_prob = row.get("over35_prob")
+        if pd.isna(over_prob):
+            return None
+        return 1 - over_prob
+
+    return None
+
+
+def get_btts_prob(row, side):
+
+    if side == "btts_yes":
+        return row.get("btts_prob")
+
+    if side == "btts_no":
+        prob = row.get("btts_prob")
+        if pd.isna(prob):
+            return None
+        return 1 - prob
 
     return None
 
@@ -192,13 +212,13 @@ def select_best_result_side(row, columns):
 
 
 # =========================
-# TOTAL SELECTION
+# TOTAL SELECTION (UPDATED)
 # =========================
 def select_best_total(row, columns):
 
     total_candidates = {}
 
-    for side in ["over25", "under25"]:
+    for side in ["over25", "under25", "over35", "under35"]:
 
         edge_col = f"{side}_edge_pct"
 
@@ -229,6 +249,49 @@ def select_best_total(row, columns):
         row=row,
         market_name="total",
         take_bet=best_total,
+        edge_pct=best_edge,
+        prob=prob
+    )
+
+
+# =========================
+# BTTS SELECTION (NEW)
+# =========================
+def select_best_btts(row, columns):
+
+    btts_candidates = {}
+
+    for side in ["btts_yes", "btts_no"]:
+
+        edge_col = f"{side}_edge_pct"
+
+        if edge_col not in columns:
+            continue
+
+        edge_val = row.get(edge_col)
+        prob_val = get_btts_prob(row, side)
+
+        if pd.isna(edge_val) or prob_val is None or pd.isna(prob_val):
+            continue
+
+        if edge_val >= MIN_EDGE_PCT and prob_val >= MIN_PROB:
+            btts_candidates[side] = edge_val
+
+    if not btts_candidates:
+        return None
+
+    best_side = max(btts_candidates, key=btts_candidates.get)
+    best_edge = btts_candidates[best_side]
+
+    prob = get_btts_prob(row, best_side)
+
+    if prob is None or pd.isna(prob):
+        return None
+
+    return build_selection(
+        row=row,
+        market_name="btts",
+        take_bet=best_side,
         edge_pct=best_edge,
         prob=prob
     )
@@ -267,6 +330,10 @@ def main():
                     t = select_best_total(row, columns)
                     if t:
                         selections.append(t)
+
+                    b = select_best_btts(row, columns)
+                    if b:
+                        selections.append(b)
 
                 if not selections:
                     log.write(f"No plays qualified for {input_path.name}\n")
@@ -317,12 +384,9 @@ def main():
                 for f in files:
 
                     try:
-
                         df = pd.read_csv(f)
-
                         if not df.empty:
                             dfs.append(df)
-
                     except Exception:
                         continue
 
