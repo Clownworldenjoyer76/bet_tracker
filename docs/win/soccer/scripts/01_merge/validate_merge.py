@@ -80,7 +80,13 @@ with open(MERGE_FILE, newline="", encoding="utf-8") as f:
 
     for field in required_fields:
         if field not in reader.fieldnames:
-            log(f"ERROR: Missing required column {field}")
+            msg = (
+                f"ERROR in file: {MERGE_FILE}\n"
+                f"Missing column: {field}\n"
+                f"Available columns: {reader.fieldnames}"
+            )
+            log(msg)
+            print(msg)
             sys.exit(1)
 
     has_xg = all(f in reader.fieldnames for f in optional_fields)
