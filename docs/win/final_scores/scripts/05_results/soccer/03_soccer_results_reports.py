@@ -71,7 +71,7 @@ def build_reports():
         return
 
     ###########################################################
-    # MARKET_TYPE SPLIT (NOW INCLUDES BTTS)
+    # MARKET_TYPE SPLIT (INCLUDES BTTS)
     ###########################################################
 
     for market_type in ["result","total","btts"]:
@@ -88,7 +88,7 @@ def build_reports():
         out.to_csv(SUMMARY_DIR/f"{market_type}_odds_bucket_summary.csv",index=False)
 
     ###########################################################
-    # BY MARKET (LEAGUE LEVEL — will still be "SOCCER" unless upstream changed)
+    # BY MARKET (LEAGUE LEVEL)
     ###########################################################
 
     out = aggregate(df, ["market", "edge_bucket"])
@@ -98,7 +98,7 @@ def build_reports():
     out.to_csv(SUMMARY_DIR / "by_market_odds_bucket_summary.csv", index=False)
 
     ###########################################################
-    # MARKET + MARKET_TYPE
+    # MARKET + MARKET_TYPE (FULL BREAKDOWN)
     ###########################################################
 
     out = aggregate(df, ["market", "market_type", "edge_bucket"])
@@ -118,7 +118,10 @@ def build_market_tally():
 
     rows=[]
 
-    # overall by market_type (NOW INCLUDES BTTS)
+    ###########################################################
+    # OVERALL BY MARKET_TYPE (INCLUDES BTTS)
+    ###########################################################
+
     for m in ["result","total","btts"]:
 
         sub=df[df["market_type"]==m]
@@ -138,7 +141,10 @@ def build_market_tally():
             "Win_Pct":pct
         })
 
-    # by market (league — depends on upstream fix)
+    ###########################################################
+    # BY MARKET (LEAGUE LEVEL)
+    ###########################################################
+
     for league,sub in df.groupby("market"):
 
         w,l,p,t,pct=summarize(sub)
