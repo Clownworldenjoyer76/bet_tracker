@@ -60,7 +60,7 @@ required_fields = [
     "league","market","match_date","match_time",
     "home_team","away_team",
     "home_prob","draw_prob","away_prob",
-    "home_american","draw_american","away_american",
+    "dk_home_american","dk_draw_american","dk_away_american",
     "game_id"
 ]
 
