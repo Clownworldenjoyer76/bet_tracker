@@ -1,4 +1,3 @@
-# docs/win/soccer/scripts/01_merge/market_model.py
 #!/usr/bin/env python3
 
 import csv
@@ -15,10 +14,10 @@ CONFIG_MAP = {
     "epl": "epl",
     "laliga": "la_liga",
     "ligue1": "ligue1",
-    "seriea": "serie_a"
+    "seriea": "serie_a",
+    "mls": "mls"
 }
 
-# All tables reversed except Serie A
 REVERSED_LEAGUES = {"bundesliga","epl","laliga","ligue1"}
 
 DC_CACHE = {}
