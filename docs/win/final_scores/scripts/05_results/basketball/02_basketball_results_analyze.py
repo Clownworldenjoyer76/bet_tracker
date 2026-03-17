@@ -195,32 +195,24 @@ def spread_bucket(value):
     if pd.isna(val):
         return "UNBUCKETED"
 
-    # tighter 1-point buckets, split around zero
-    bands = [
-        (-20, -15, "-20_to_-15"),
-        (-15, -10, "-15_to_-10"),
-        (-10, -7.5, "-10_to_-7.5"),
-        (-7.5, -5, "-7.5_to_-5"),
-        (-5, -3.5, "-5_to_-3.5"),
-        (-3.5, -2.5, "-3.5_to_-2.5"),
-        (-2.5, -1.5, "-2.5_to_-1.5"),
-        (-1.5, -0.5, "-1.5_to_-0.5"),
-        (-0.5, 0.5, "-0.5_to_0.5"),
-        (0.5, 1.5, "0.5_to_1.5"),
-        (1.5, 2.5, "1.5_to_2.5"),
-        (2.5, 3.5, "2.5_to_3.5"),
-        (3.5, 5, "3.5_to_5"),
-        (5, 7.5, "5_to_7.5"),
-        (7.5, 10, "7.5_to_10"),
-        (10, 15, "10_to_15"),
-        (15, 25, "15_to_25"),
-    ]
+    try:
+        val = float(val)
+    except:
+        return "UNBUCKETED"
 
-    for low, high, label in bands:
-        if low <= val < high:
-            return label
+    base = int(val)
 
-    return "UNBUCKETED"
+    if val >= 0:
+        low = base + 0.5
+        high = base + 1.4
+    else:
+        low = base - 0.5
+        high = base - 1.4
+
+    bucket_low = min(low, high)
+    bucket_high = max(low, high)
+
+    return f"{bucket_low:.1f}_to_{bucket_high:.1f}"
 
 
 def odds_bucket(value):
@@ -270,10 +262,11 @@ def prepare_work_df(df, league):
 
     work = df.copy()
 
-    work["bet_result"] = work["bet_result"].astype(str).str.strip().str.title()
+    if "bet_result" in work.columns:
+        work["bet_result"] = work["bet_result"].astype(str).str.strip().str.title()
+
     work["market"] = league
     work["market_type"] = work["market_type"].astype(str).str.strip().str.lower()
-
     work["side_group"] = work.apply(side_group_from_bet_side, axis=1)
     work["selected_edge"] = work.apply(selected_edge, axis=1)
     work["moneyline_odds_value"] = work.apply(selected_moneyline_odds, axis=1)
@@ -285,7 +278,6 @@ def prepare_work_df(df, league):
     work["spread_bucket"] = work["spread_value"].apply(spread_bucket)
     work["total_bucket"] = work["total_value"].apply(total_bucket)
 
-    # 🔴 LOG UNBUCKETED COUNTS
     for col in ["edge_bucket", "spread_bucket", "odds_bucket", "total_bucket"]:
         count = (work[col] == "UNBUCKETED").sum()
         if count > 0:
@@ -296,7 +288,11 @@ def prepare_work_df(df, league):
 
 def build_work_file(league):
     try:
-        path = NBA_OUTPUT / "NBA_final.csv" if league == "NBA" else NCAAB_OUTPUT / "NCAAB_final.csv"
+        if league == "NBA":
+            path = NBA_OUTPUT / "NBA_final.csv"
+        else:
+            path = NCAAB_OUTPUT / "NCAAB_final.csv"
+
         df = safe_read(path)
 
         if df.empty:
