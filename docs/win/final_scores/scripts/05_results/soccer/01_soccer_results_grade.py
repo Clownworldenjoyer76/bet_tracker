@@ -154,24 +154,47 @@ def grade_row(row):
         if pd.isna(home) or pd.isna(away):
             return "Push"
 
+        # ================= RESULT =================
         if market == "result":
+
             if take_bet == "home":
                 return "Win" if home > away else "Loss"
 
             if take_bet == "away":
                 return "Win" if away > home else "Loss"
 
+            if take_bet == "draw":
+                return "Win" if home == away else "Loss"
+
             return "Push"
 
+        # ================= TOTAL =================
         if market == "total":
+
             goals = home + away
-            line = 2.5
 
             if take_bet == "over25":
-                return "Win" if goals > line else "Loss"
+                return "Win" if goals > 2.5 else "Loss"
 
             if take_bet == "under25":
-                return "Win" if goals < line else "Loss"
+                return "Win" if goals < 2.5 else "Loss"
+
+            if take_bet == "over35":
+                return "Win" if goals > 3.5 else "Loss"
+
+            if take_bet == "under35":
+                return "Win" if goals < 3.5 else "Loss"
+
+            return "Push"
+
+        # ================= BTTS =================
+        if market == "btts":
+
+            if take_bet == "btts_yes":
+                return "Win" if (home > 0 and away > 0) else "Loss"
+
+            if take_bet == "btts_no":
+                return "Win" if (home == 0 or away == 0) else "Loss"
 
             return "Push"
 
