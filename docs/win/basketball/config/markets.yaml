@@ -1,0 +1,126 @@
+markets:
+
+  nba:
+
+    moneyline:
+      enabled: true
+
+      home:
+        enabled: true
+        odds_bands:
+          - [-200, 200]
+        edge_bands:
+          - [0.0001, 0.0199]
+
+      away:
+        enabled: true
+        odds_bands:
+          - [-200, 150.9]
+        edge_bands:
+          - [0.0001, 1]
+
+    spread:
+      enabled: true
+
+      home:
+        enabled: true
+        line_bands:
+          - [-99, -5.1]
+          - [7.6, 99]
+        edge_bands:
+          - [-1, 0.0199]
+          - [0.10, 999]
+
+      away:
+        enabled: true
+        line_bands:
+          - [-99, 1.9]
+          - [5.1, 999]
+        edge_bands:
+          - [-1, 0.03]
+          - [0.10, 999]
+
+      rules:
+        - type: block
+          condition: "away_line between -5.0 and -2.0 AND away_edge < 0"
+
+        - type: block
+          condition: "home_line between -7.5 and -5.0 AND home_edge < 0"
+
+        - type: block
+          condition: "home_line between 7.5 and 10.0 AND home_edge < 0.0199"
+
+    total:
+      enabled: true
+
+      over:
+        enabled: true
+        line_bands:
+          - [215, 245]
+        edge_bands:
+          - [0.06, 1]
+
+      under:
+        enabled: true
+        line_bands:
+          - [215, 245]
+        edge_bands:
+          - [0.05, 1]
+
+  ncaab:
+
+    moneyline:
+      enabled: true
+
+      home:
+        enabled: true
+        odds_bands:
+          - [-100, 125]
+        edge_bands:
+          - [0.03, 1]
+
+      away:
+        enabled: true
+        odds_bands:
+          - [100, 150]
+        edge_bands:
+          - [0.01, 1]
+
+    spread:
+      enabled: true
+
+      home:
+        enabled: true
+        line_bands:
+          - [-5, -3]
+        edge_bands:
+          - [0.05, 1]
+
+      away:
+        enabled: true
+        line_bands:
+          - [-3, -1]
+          - [7.5, 20]
+        edge_bands:
+          - [0.01, 1]
+
+      rules:
+        - type: block
+          condition: "away_line >= 15 AND away_edge between 0.075 and 0.0999"
+
+    total:
+      enabled: true
+
+      over:
+        enabled: true
+        line_bands:
+          - [150, 200]
+        edge_bands:
+          - [0.05, 1]
+
+      under:
+        enabled: true
+        line_bands:
+          - [135, 150]
+        edge_bands:
+          - [0.05, 1]
