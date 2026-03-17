@@ -19,7 +19,7 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 # =========================
-# CRITERIA CONFIG
+# CRITERIA CONFIG (unchanged, but no longer used for filtering)
 # =========================
 MIN_EDGE_PCT = 0.03
 MIN_PROB = 0.20
@@ -73,18 +73,14 @@ def get_total_prob(row, side):
 
     if side == "under25":
         over_prob = row.get("over25_prob")
-        if pd.isna(over_prob):
-            return None
-        return 1 - over_prob
+        return None if pd.isna(over_prob) else 1 - over_prob
 
     if side == "over35":
         return row.get("over35_prob")
 
     if side == "under35":
         over_prob = row.get("over35_prob")
-        if pd.isna(over_prob):
-            return None
-        return 1 - over_prob
+        return None if pd.isna(over_prob) else 1 - over_prob
 
     return None
 
@@ -96,9 +92,7 @@ def get_btts_prob(row, side):
 
     if side == "btts_no":
         prob = row.get("btts_prob")
-        if pd.isna(prob):
-            return None
-        return 1 - prob
+        return None if pd.isna(prob) else 1 - prob
 
     return None
 
@@ -109,12 +103,9 @@ def get_btts_prob(row, side):
 def build_selection(row, market_name, take_bet, edge_pct, prob):
 
     odds_decimal = row.get(f"{take_bet}_dk_decimal")
-    odds_american = row.get(f"{take_bet}_american")
+    odds_american = row.get(f"dk_{take_bet}_american")
 
     stake = calculate_kelly(prob, odds_decimal, KELLY_FRACTION)
-
-    if stake <= 0:
-        return None
 
     return {
         "league": "Soccer",
@@ -135,166 +126,81 @@ def build_selection(row, market_name, take_bet, edge_pct, prob):
 
 
 # =========================
-# RESULT SELECTION
+# RESULT (ALWAYS PICK BEST)
 # =========================
 def select_best_result_side(row, columns):
 
-    result_candidates = {}
+    candidates = {}
 
     for side in ["home", "draw", "away"]:
 
-        edge_col = f"{side}_edge_pct"
-        prob_col = f"{side}_prob"
+        edge = row.get(f"{side}_edge_pct")
 
-        if edge_col not in columns or prob_col not in columns:
+        if pd.isna(edge):
             continue
 
-        edge_val = row.get(edge_col)
-        prob_val = row.get(prob_col)
+        candidates[side] = edge
 
-        if pd.isna(edge_val) or pd.isna(prob_val):
-            continue
-
-        if edge_val >= MIN_EDGE_PCT and prob_val >= MIN_PROB:
-            result_candidates[side] = edge_val
-
-    if not result_candidates:
+    if not candidates:
         return None
 
-    best_side = max(result_candidates, key=result_candidates.get)
-    best_edge = result_candidates[best_side]
+    best = max(candidates, key=candidates.get)
 
-    if best_side == "draw":
+    prob = get_result_prob(row, best)
 
-        all_edges = {
-            side: row.get(f"{side}_edge_pct")
-            for side in ["home", "draw", "away"]
-        }
-
-        sorted_vals = sorted(
-            [v for v in all_edges.values() if not pd.isna(v)],
-            reverse=True
-        )
-
-        second_best = sorted_vals[1] if len(sorted_vals) > 1 else -999
-
-        draw_prob = row.get("draw_prob", 0)
-
-        if (
-            best_edge < DRAW_MIN_EDGE_PCT
-            or pd.isna(draw_prob)
-            or draw_prob < DRAW_MIN_PROB
-            or (best_edge - second_best) < DRAW_DOMINANCE_MARGIN
-        ):
-
-            non_draw = {
-                k: v for k, v in result_candidates.items() if k != "draw"
-            }
-
-            if not non_draw:
-                return None
-
-            best_side = max(non_draw, key=non_draw.get)
-            best_edge = non_draw[best_side]
-
-    prob = get_result_prob(row, best_side)
-
-    if pd.isna(prob):
-        return None
-
-    return build_selection(
-        row=row,
-        market_name="result",
-        take_bet=best_side,
-        edge_pct=best_edge,
-        prob=prob
-    )
+    return build_selection(row, "result", best, candidates[best], prob)
 
 
 # =========================
-# TOTAL SELECTION (UPDATED)
+# TOTAL (ALWAYS PICK BEST)
 # =========================
 def select_best_total(row, columns):
 
-    total_candidates = {}
+    candidates = {}
 
     for side in ["over25", "under25", "over35", "under35"]:
 
-        edge_col = f"{side}_edge_pct"
+        edge = row.get(f"{side}_edge_pct")
+        prob = get_total_prob(row, side)
 
-        if edge_col not in columns:
+        if pd.isna(edge) or prob is None:
             continue
 
-        edge_val = row.get(edge_col)
-        prob_val = get_total_prob(row, side)
+        candidates[side] = edge
 
-        if pd.isna(edge_val) or prob_val is None or pd.isna(prob_val):
-            continue
-
-        if edge_val >= MIN_EDGE_PCT and prob_val >= MIN_PROB:
-            total_candidates[side] = edge_val
-
-    if not total_candidates:
+    if not candidates:
         return None
 
-    best_total = max(total_candidates, key=total_candidates.get)
-    best_edge = total_candidates[best_total]
+    best = max(candidates, key=candidates.get)
+    prob = get_total_prob(row, best)
 
-    prob = get_total_prob(row, best_total)
-
-    if prob is None or pd.isna(prob):
-        return None
-
-    return build_selection(
-        row=row,
-        market_name="total",
-        take_bet=best_total,
-        edge_pct=best_edge,
-        prob=prob
-    )
+    return build_selection(row, "total", best, candidates[best], prob)
 
 
 # =========================
-# BTTS SELECTION (NEW)
+# BTTS (ALWAYS PICK BEST)
 # =========================
 def select_best_btts(row, columns):
 
-    btts_candidates = {}
+    candidates = {}
 
     for side in ["btts_yes", "btts_no"]:
 
-        edge_col = f"{side}_edge_pct"
+        edge = row.get(f"{side}_edge_pct")
+        prob = get_btts_prob(row, side)
 
-        if edge_col not in columns:
+        if pd.isna(edge) or prob is None:
             continue
 
-        edge_val = row.get(edge_col)
-        prob_val = get_btts_prob(row, side)
+        candidates[side] = edge
 
-        if pd.isna(edge_val) or prob_val is None or pd.isna(prob_val):
-            continue
-
-        if edge_val >= MIN_EDGE_PCT and prob_val >= MIN_PROB:
-            btts_candidates[side] = edge_val
-
-    if not btts_candidates:
+    if not candidates:
         return None
 
-    best_side = max(btts_candidates, key=btts_candidates.get)
-    best_edge = btts_candidates[best_side]
+    best = max(candidates, key=candidates.get)
+    prob = get_btts_prob(row, best)
 
-    prob = get_btts_prob(row, best_side)
-
-    if prob is None or pd.isna(prob):
-        return None
-
-    return build_selection(
-        row=row,
-        market_name="btts",
-        take_bet=best_side,
-        edge_pct=best_edge,
-        prob=prob
-    )
+    return build_selection(row, "btts", best, candidates[best], prob)
 
 
 # =========================
@@ -336,7 +242,7 @@ def main():
                         selections.append(b)
 
                 if not selections:
-                    log.write(f"No plays qualified for {input_path.name}\n")
+                    log.write(f"No plays for {input_path.name}\n")
                     continue
 
                 sel_df = pd.DataFrame(selections)
@@ -352,7 +258,7 @@ def main():
 
                 sel_df.to_csv(output_path, index=False)
 
-                log.write(f"Wrote {len(sel_df)} plays to {output_path}\n")
+                log.write(f"Wrote {len(sel_df)} rows to {output_path}\n")
 
         except Exception as e:
 
@@ -360,7 +266,7 @@ def main():
 
 
         # =========================
-        # BUILD DAILY COMBINED FILE
+        # DAILY COMBINED
         # =========================
         try:
 
@@ -374,7 +280,6 @@ def main():
                     continue
 
                 date_str = match.group(1)
-
                 date_groups.setdefault(date_str, []).append(csv_file)
 
             for date_str, files in date_groups.items():
@@ -382,12 +287,11 @@ def main():
                 dfs = []
 
                 for f in files:
-
                     try:
                         df = pd.read_csv(f)
                         if not df.empty:
                             dfs.append(df)
-                    except Exception:
+                    except:
                         continue
 
                 if not dfs:
@@ -396,20 +300,18 @@ def main():
                 combined = pd.concat(dfs, ignore_index=True)
 
                 combined = combined.drop_duplicates(
-                    subset=["game_date", "home_team", "away_team", "take_bet"]
+                    subset=["game_date", "home_team", "away_team", "market_type"]
                 )
 
                 out_path = OUTPUT_DIR / f"{date_str}_soccer.csv"
 
                 combined.to_csv(out_path, index=False)
 
-                log.write(f"Created results input file {out_path}\n")
+                log.write(f"Created {out_path}\n")
 
         except Exception as e:
 
-            log.write(
-                f"\nERROR BUILDING SOCCER RESULTS INPUT: {str(e)}\n{traceback.format_exc()}\n"
-            )
+            log.write(f"\nERROR BUILDING DAILY: {str(e)}\n{traceback.format_exc()}\n")
 
 
 if __name__ == "__main__":
