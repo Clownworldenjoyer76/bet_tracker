@@ -29,6 +29,7 @@ DRAW_MIN_PROB = 0.22
 DRAW_DOMINANCE_MARGIN = 0.03
 
 KELLY_FRACTION = 0.25
+BTTS_MIN_EDGE_FROM_50 = 0.05
 
 # =========================
 # HELPERS
@@ -60,6 +61,26 @@ def calculate_kelly(prob, odds, fraction=0.25):
     f_star = (odds * prob - 1) / (odds - 1)
 
     return max(0, f_star * fraction)
+
+
+def decimal_to_american(decimal):
+
+    if pd.isna(decimal):
+        return None
+
+    try:
+        decimal = float(decimal)
+
+        if decimal <= 1:
+            return None
+
+        if decimal >= 2:
+            return round((decimal - 1) * 100)
+
+        return round(-100 / (decimal - 1))
+
+    except Exception:
+        return None
 
 
 def get_result_prob(row, side):
@@ -160,7 +181,17 @@ def select_best_total(row, columns):
 
     candidates = {}
 
-    for side in ["over25", "under25", "over35", "under35"]:
+    has_25 = not pd.isna(row.get("over25_prob"))
+    has_35 = not pd.isna(row.get("over35_prob"))
+
+    if has_25:
+        sides = ["over25", "under25"]
+    elif has_35:
+        sides = ["over35", "under35"]
+    else:
+        return None
+
+    for side in sides:
 
         edge = row.get(f"{side}_edge_pct")
         prob = get_total_prob(row, side)
@@ -180,47 +211,42 @@ def select_best_total(row, columns):
 
 
 # =========================
-# BTTS (FIXED — MODEL ONLY)
+# BTTS
 # =========================
 def select_best_btts(row, columns):
 
-    yes_prob = row.get("btts_prob")
-    no_prob = None if pd.isna(yes_prob) else 1 - yes_prob
+    prob_yes = row.get("btts_prob")
+
+    if pd.isna(prob_yes):
+        return None
+
+    prob_no = 1 - prob_yes
+
+    if abs(prob_yes - 0.5) < BTTS_MIN_EDGE_FROM_50:
+        return None
 
     yes_odds = row.get("btts_yes_adjusted_decimal")
     no_odds = row.get("btts_no_adjusted_decimal")
 
-    candidates = {}
-
-    if not pd.isna(yes_prob) and not pd.isna(yes_odds):
-        candidates["btts_yes"] = yes_prob
-
-    if not pd.isna(no_prob) and not pd.isna(no_odds):
-        candidates["btts_no"] = no_prob
-
-    if not candidates:
-        return None
-
-    best = max(candidates, key=candidates.get)
-
-    if best == "btts_yes":
-        prob = yes_prob
+    if prob_yes >= prob_no:
+        side = "btts_yes"
+        prob = prob_yes
         odds_decimal = yes_odds
     else:
-        prob = no_prob
+        side = "btts_no"
+        prob = prob_no
         odds_decimal = no_odds
 
-    # derive american from decimal
-    if odds_decimal >= 2:
-        odds_american = round((odds_decimal - 1) * 100)
-    else:
-        odds_american = round(-100 / (odds_decimal - 1))
+    if pd.isna(odds_decimal):
+        return None
+
+    odds_american = decimal_to_american(odds_decimal)
 
     return build_selection(
         row=row,
         market_name="btts",
-        take_bet=best,
-        edge_pct=None,  # no edge for model-only market
+        take_bet=side,
+        edge_pct=None,
         prob=prob,
         odds_decimal=odds_decimal,
         odds_american=odds_american
