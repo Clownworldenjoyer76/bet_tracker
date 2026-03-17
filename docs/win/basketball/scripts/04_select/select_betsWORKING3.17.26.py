@@ -1,0 +1,443 @@
+#!/usr/bin/env python3
+# docs/win/basketball/scripts/04_select/select_bets.py
+
+import pandas as pd
+from pathlib import Path
+import re
+
+###############################################################
+######################## PATH CONFIG ##########################
+###############################################################
+
+INPUT_DIR = Path("docs/win/basketball/03_edges/ev_kelly")
+SELECT_DIR = Path("docs/win/basketball/04_select")
+DAILY_DIR = SELECT_DIR / "daily_slate"
+TOTALS_DIR = DAILY_DIR / "totals"
+
+SELECT_DIR.mkdir(parents=True, exist_ok=True)
+DAILY_DIR.mkdir(parents=True, exist_ok=True)
+TOTALS_DIR.mkdir(parents=True, exist_ok=True)
+
+###############################################################
+######################## BAND HELPER ##########################
+###############################################################
+
+def in_bands(value, bands):
+    for low, high in bands:
+        if low <= value <= high:
+            return True
+    return False
+
+###############################################################
+######################## NBA PARAMETERS #######################
+###############################################################
+
+NBA_ML_HOME_ODDS_BANDS = [(-200, 200)]
+NBA_ML_HOME_EDGE_BANDS = [(0.0001, 0.0199)]
+NBA_ALLOW_HOME_ML = True
+
+NBA_ML_AWAY_ODDS_BANDS = [(-200, 150.9)]
+NBA_ML_AWAY_EDGE_BANDS = [(0.0001, 1)]
+NBA_ALLOW_AWAY_ML = True
+
+NBA_SPREAD_HOME_BANDS = [
+    (-99, -5.1),
+    (7.6, 99),
+]
+
+NBA_SPREAD_HOME_EDGE_BANDS = [
+    (-1, 0.0199),
+    (0.10, 999),
+]
+
+NBA_ALLOW_HOME_SPREAD = True
+
+NBA_SPREAD_AWAY_BANDS = [
+    (-99, 1.9),
+    (5.1, 999),
+]
+
+NBA_SPREAD_AWAY_EDGE_BANDS = [
+    (-1, 0.03),
+    (0.10, 999),
+]
+
+NBA_ALLOW_AWAY_SPREAD = True
+
+NBA_TOTAL_OVER_BANDS = [(215, 245)]
+NBA_TOTAL_OVER_EDGE_BANDS = [(0.06, 1)]
+NBA_ALLOW_OVER = True
+
+NBA_TOTAL_UNDER_BANDS = [(215, 245)]
+NBA_TOTAL_UNDER_EDGE_BANDS = [(0.05, 1)]
+NBA_ALLOW_UNDER = True
+
+###############################################################
+######################## NCAAB PARAMETERS #####################
+###############################################################
+
+NCAAB_ML_HOME_ODDS_BANDS = [(-100, 125)]
+NCAAB_ML_HOME_EDGE_BANDS = [(0.03, 1)]
+NCAAB_ALLOW_HOME_ML = True
+
+NCAAB_ML_AWAY_ODDS_BANDS = [(100, 150)]
+NCAAB_ML_AWAY_EDGE_BANDS = [(0.01, 1)]
+NCAAB_ALLOW_AWAY_ML = True
+
+NCAAB_SPREAD_HOME_BANDS = [(-5, -3)]
+NCAAB_SPREAD_HOME_EDGE_BANDS = [(0.05, 1)]
+NCAAB_ALLOW_HOME_SPREAD = True
+
+NCAAB_SPREAD_AWAY_BANDS = [
+    (-3, -1),
+    (7.5, 20)
+]
+
+NCAAB_SPREAD_AWAY_EDGE_BANDS = [(0.01, 1)]
+NCAAB_ALLOW_AWAY_SPREAD = True
+
+NCAAB_TOTAL_OVER_BANDS = [(150, 200)]
+NCAAB_TOTAL_OVER_EDGE_BANDS = [(0.05, 1)]
+NCAAB_ALLOW_OVER = True
+
+NCAAB_TOTAL_UNDER_BANDS = [(135, 150)]
+NCAAB_TOTAL_UNDER_EDGE_BANDS = [(0.05, 1)]
+NCAAB_ALLOW_UNDER = True
+
+###############################################################
+######################## HELPERS ##############################
+###############################################################
+
+def f(x):
+    try:
+        if pd.isna(x):
+            return 0
+        return float(x)
+    except Exception:
+        return 0
+
+
+def detect_market(filename):
+    name = filename.lower()
+
+    if "moneyline" in name or "_ml" in name:
+        return "moneyline"
+
+    if "spread" in name:
+        return "spread"
+
+    if "total" in name:
+        return "total"
+
+    return ""
+
+
+def extract_date(filename):
+    m = re.search(r"\d{4}_\d{2}_\d{2}", filename)
+    if m:
+        return m.group(0)
+    return None
+
+
+def clear_daily_outputs():
+    for fpath in DAILY_DIR.glob("*_nba.csv"):
+        fpath.unlink(missing_ok=True)
+    for fpath in DAILY_DIR.glob("*_ncaab.csv"):
+        fpath.unlink(missing_ok=True)
+
+###############################################################
+######################## MONEYLINE ############################
+###############################################################
+
+def moneyline(row, league):
+
+    home_ml = f(row.get("home_dk_moneyline_american"))
+    away_ml = f(row.get("away_dk_moneyline_american"))
+
+    home_edge = f(row.get("home_ml_edge_decimal"))
+    away_edge = f(row.get("away_ml_edge_decimal"))
+
+    if league == "NBA":
+
+        if (
+            NBA_ALLOW_HOME_ML
+            and in_bands(home_ml, NBA_ML_HOME_ODDS_BANDS)
+            and in_bands(home_edge, NBA_ML_HOME_EDGE_BANDS)
+            and home_edge >= away_edge
+        ):
+            return True, "home", home_ml, home_edge
+
+        if (
+            NBA_ALLOW_AWAY_ML
+            and in_bands(away_ml, NBA_ML_AWAY_ODDS_BANDS)
+            and in_bands(away_edge, NBA_ML_AWAY_EDGE_BANDS)
+            and away_edge > home_edge
+        ):
+            return True, "away", away_ml, away_edge
+
+    else:
+
+        if (
+            NCAAB_ALLOW_HOME_ML
+            and in_bands(home_ml, NCAAB_ML_HOME_ODDS_BANDS)
+            and in_bands(home_edge, NCAAB_ML_HOME_EDGE_BANDS)
+            and home_edge >= away_edge
+        ):
+            return True, "home", home_ml, home_edge
+
+        if (
+            NCAAB_ALLOW_AWAY_ML
+            and in_bands(away_ml, NCAAB_ML_AWAY_ODDS_BANDS)
+            and in_bands(away_edge, NCAAB_ML_AWAY_EDGE_BANDS)
+            and away_edge > home_edge
+        ):
+            return True, "away", away_ml, away_edge
+
+    return False, "", "", 0
+
+###############################################################
+######################## SPREAD ###############################
+###############################################################
+
+def spread(row, league):
+
+    home_line = f(row.get("home_spread"))
+    away_line = f(row.get("away_spread"))
+
+    home_edge = f(row.get("home_spread_edge_decimal"))
+    away_edge = f(row.get("away_spread_edge_decimal"))
+
+    if league == "NBA":
+
+        if -5.0 <= away_line <= -2.0 and away_edge < 0:
+            return False, "", "", 0
+
+        if -7.5 <= home_line <= -5.0 and home_edge < 0:
+            return False, "", "", 0
+
+        if 7.5 <= home_line <= 10.0 and home_edge < 0.0199:
+            return False, "", "", 0
+
+    else:
+
+        if away_line >= 15 and 0.075 <= away_edge <= 0.0999:
+            return False, "", "", 0
+
+    if league == "NBA":
+
+        home_valid = (
+            NBA_ALLOW_HOME_SPREAD
+            and in_bands(home_line, NBA_SPREAD_HOME_BANDS)
+            and in_bands(home_edge, NBA_SPREAD_HOME_EDGE_BANDS)
+        )
+
+        if away_line >= 10:
+            away_edge_ok = away_edge > 0.10
+        else:
+            away_edge_ok = in_bands(away_edge, NBA_SPREAD_AWAY_EDGE_BANDS)
+
+        away_valid = (
+            NBA_ALLOW_AWAY_SPREAD
+            and in_bands(away_line, NBA_SPREAD_AWAY_BANDS)
+            and away_edge_ok
+        )
+
+    else:
+
+        home_valid = (
+            NCAAB_ALLOW_HOME_SPREAD
+            and in_bands(home_line, NCAAB_SPREAD_HOME_BANDS)
+            and in_bands(home_edge, NCAAB_SPREAD_HOME_EDGE_BANDS)
+        )
+
+        away_valid = (
+            NCAAB_ALLOW_AWAY_SPREAD
+            and in_bands(away_line, NCAAB_SPREAD_AWAY_BANDS)
+            and in_bands(away_edge, NCAAB_SPREAD_AWAY_EDGE_BANDS)
+        )
+
+    if home_valid and away_valid:
+        if home_edge >= away_edge:
+            return True, "home", home_line, home_edge
+        return True, "away", away_line, away_edge
+
+    if home_valid:
+        return True, "home", home_line, home_edge
+
+    if away_valid:
+        return True, "away", away_line, away_edge
+
+    return False, "", "", 0
+
+###############################################################
+######################## TOTAL ################################
+###############################################################
+
+def total(row, league):
+
+    line = f(row.get("total"))
+
+    over_edge = f(row.get("over_edge_decimal"))
+    under_edge = f(row.get("under_edge_decimal"))
+
+    if over_edge >= under_edge:
+        side = "over"
+        edge = over_edge
+    else:
+        side = "under"
+        edge = under_edge
+
+    if league == "NBA":
+
+        if (
+            side == "over"
+            and NBA_ALLOW_OVER
+            and in_bands(line, NBA_TOTAL_OVER_BANDS)
+            and in_bands(edge, NBA_TOTAL_OVER_EDGE_BANDS)
+        ):
+            return True, "over", line, edge
+
+        if (
+            side == "under"
+            and NBA_ALLOW_UNDER
+            and in_bands(line, NBA_TOTAL_UNDER_BANDS)
+            and in_bands(edge, NBA_TOTAL_UNDER_EDGE_BANDS)
+        ):
+            return True, "under", line, edge
+
+    else:
+
+        if (
+            side == "over"
+            and NCAAB_ALLOW_OVER
+            and in_bands(line, NCAAB_TOTAL_OVER_BANDS)
+            and in_bands(edge, NCAAB_TOTAL_OVER_EDGE_BANDS)
+        ):
+            return True, "over", line, edge
+
+        if (
+            side == "under"
+            and NCAAB_ALLOW_UNDER
+            and in_bands(line, NCAAB_TOTAL_UNDER_BANDS)
+            and in_bands(edge, NCAAB_TOTAL_UNDER_EDGE_BANDS)
+        ):
+            return True, "under", line, edge
+
+    return False, "", "", 0
+
+###############################################################
+######################## PROCESS FILE #########################
+###############################################################
+
+def process_file(file):
+
+    df = pd.read_csv(file)
+
+    if df.empty:
+        return None
+
+    league = "NBA" if "nba" in file.name.lower() else "NCAAB"
+    market = detect_market(file.name)
+    game_date = extract_date(file.name)
+
+    if market == "" or game_date is None:
+        return None
+
+    rows = []
+
+    for _, row in df.iterrows():
+
+        if market == "moneyline":
+            ok, side, line, edge = moneyline(row, league)
+
+        elif market == "spread":
+            ok, side, line, edge = spread(row, league)
+
+        else:
+            ok, side, line, edge = total(row, league)
+
+        if ok:
+            r = row.to_dict()
+            r["bet_side"] = side
+            r["line"] = line
+            r["selected_edge"] = edge
+            r["market_type"] = market
+            r["market"] = league
+            r["game_date"] = game_date
+            rows.append(r)
+
+    if rows:
+        out = pd.DataFrame(rows)
+        out["source_date"] = game_date
+        out["source_league"] = league
+        return out
+
+    return None
+
+###############################################################
+######################## MERGE OUTPUTS ########################
+###############################################################
+
+def merge_outputs():
+
+    nba_files = sorted(DAILY_DIR.glob("*_nba.csv"))
+    ncaab_files = sorted(DAILY_DIR.glob("*_ncaab.csv"))
+
+    if nba_files:
+        dfs = [pd.read_csv(f) for f in nba_files if f.stat().st_size > 0]
+        if dfs:
+            df = pd.concat(dfs, ignore_index=True)
+            df.to_csv(DAILY_DIR / "nba_selected.csv", index=False)
+            df.to_csv(TOTALS_DIR / "NBA_final.csv", index=False)
+
+    if ncaab_files:
+        dfs = [pd.read_csv(f) for f in ncaab_files if f.stat().st_size > 0]
+        if dfs:
+            df = pd.concat(dfs, ignore_index=True)
+            df.to_csv(DAILY_DIR / "ncaab_selected.csv", index=False)
+            df.to_csv(TOTALS_DIR / "NCAAB_final.csv", index=False)
+
+###############################################################
+######################## MAIN #################################
+###############################################################
+
+def main():
+
+    clear_daily_outputs()
+
+    dfs = []
+
+    for file in sorted(INPUT_DIR.glob("*.csv")):
+        df = process_file(file)
+
+        if df is not None:
+            dfs.append(df)
+
+    if not dfs:
+        print("No bets selected")
+        return
+
+    df = pd.concat(dfs, ignore_index=True)
+
+    for (date_value, league_value), sub in df.groupby(["source_date", "source_league"], dropna=False):
+
+        out_df = sub.drop(columns=["source_date", "source_league"], errors="ignore")
+
+        if league_value == "NBA":
+            out_file = DAILY_DIR / f"{date_value}_nba.csv"
+        else:
+            out_file = DAILY_DIR / f"{date_value}_ncaab.csv"
+
+        out_df.to_csv(out_file, index=False)
+
+    merge_outputs()
+
+    nba_count = len(df[df["source_league"] == "NBA"])
+    ncaab_count = len(df[df["source_league"] == "NCAAB"])
+
+    print("NBA bets:", nba_count)
+    print("NCAAB bets:", ncaab_count)
+
+
+if __name__ == "__main__":
+    main()
