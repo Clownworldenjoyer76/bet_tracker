@@ -19,7 +19,7 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 # =========================
-# CRITERIA CONFIG (unchanged, but no longer used for filtering)
+# CONFIG
 # =========================
 MIN_EDGE_PCT = 0.03
 MIN_PROB = 0.20
@@ -100,10 +100,13 @@ def get_btts_prob(row, side):
 # =========================
 # BUILD SELECTION
 # =========================
-def build_selection(row, market_name, take_bet, edge_pct, prob):
+def build_selection(row, market_name, take_bet, edge_pct, prob, odds_decimal=None, odds_american=None):
 
-    odds_decimal = row.get(f"{take_bet}_dk_decimal")
-    odds_american = row.get(f"dk_{take_bet}_american")
+    if odds_decimal is None:
+        odds_decimal = row.get(f"{take_bet}_dk_decimal")
+
+    if odds_american is None:
+        odds_american = row.get(f"dk_{take_bet}_american")
 
     stake = calculate_kelly(prob, odds_decimal, KELLY_FRACTION)
 
@@ -126,7 +129,7 @@ def build_selection(row, market_name, take_bet, edge_pct, prob):
 
 
 # =========================
-# RESULT (ALWAYS PICK BEST)
+# RESULT
 # =========================
 def select_best_result_side(row, columns):
 
@@ -145,14 +148,13 @@ def select_best_result_side(row, columns):
         return None
 
     best = max(candidates, key=candidates.get)
-
     prob = get_result_prob(row, best)
 
     return build_selection(row, "result", best, candidates[best], prob)
 
 
 # =========================
-# TOTAL (ALWAYS PICK BEST)
+# TOTAL
 # =========================
 def select_best_total(row, columns):
 
@@ -178,29 +180,51 @@ def select_best_total(row, columns):
 
 
 # =========================
-# BTTS (ALWAYS PICK BEST)
+# BTTS (FIXED — MODEL ONLY)
 # =========================
 def select_best_btts(row, columns):
 
+    yes_prob = row.get("btts_prob")
+    no_prob = None if pd.isna(yes_prob) else 1 - yes_prob
+
+    yes_odds = row.get("btts_yes_adjusted_decimal")
+    no_odds = row.get("btts_no_adjusted_decimal")
+
     candidates = {}
 
-    for side in ["btts_yes", "btts_no"]:
+    if not pd.isna(yes_prob) and not pd.isna(yes_odds):
+        candidates["btts_yes"] = yes_prob
 
-        edge = row.get(f"{side}_edge_pct")
-        prob = get_btts_prob(row, side)
-
-        if pd.isna(edge) or prob is None:
-            continue
-
-        candidates[side] = edge
+    if not pd.isna(no_prob) and not pd.isna(no_odds):
+        candidates["btts_no"] = no_prob
 
     if not candidates:
         return None
 
     best = max(candidates, key=candidates.get)
-    prob = get_btts_prob(row, best)
 
-    return build_selection(row, "btts", best, candidates[best], prob)
+    if best == "btts_yes":
+        prob = yes_prob
+        odds_decimal = yes_odds
+    else:
+        prob = no_prob
+        odds_decimal = no_odds
+
+    # derive american from decimal
+    if odds_decimal >= 2:
+        odds_american = round((odds_decimal - 1) * 100)
+    else:
+        odds_american = round(-100 / (odds_decimal - 1))
+
+    return build_selection(
+        row=row,
+        market_name="btts",
+        take_bet=best,
+        edge_pct=None,  # no edge for model-only market
+        prob=prob,
+        odds_decimal=odds_decimal,
+        odds_american=odds_american
+    )
 
 
 # =========================
