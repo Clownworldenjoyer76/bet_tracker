@@ -90,21 +90,39 @@ def process_3way(df, juice_tables):
 
 def process_totals(df):
 
-    if "over25_prob" not in df.columns:
-        return df
+    # ---------- 2.5 ----------
+    if "over25_prob" in df.columns:
 
-    df["under25_prob"] = 1 - df["over25_prob"]
+        df["under25_prob"] = 1 - df["over25_prob"]
 
-    df["over25_adj_prob"] = df["over25_prob"] * TARGET_2WAY_JUICE
-    df["under25_adj_prob"] = df["under25_prob"] * TARGET_2WAY_JUICE
+        df["over25_adj_prob"] = df["over25_prob"] * TARGET_2WAY_JUICE
+        df["under25_adj_prob"] = df["under25_prob"] * TARGET_2WAY_JUICE
 
-    df["over25_adjusted_decimal"] = (1 / df["over25_adj_prob"]).round(4)
-    df["under25_adjusted_decimal"] = (1 / df["under25_adj_prob"]).round(4)
+        df["over25_adjusted_decimal"] = (1 / df["over25_adj_prob"]).round(4)
+        df["under25_adjusted_decimal"] = (1 / df["under25_adj_prob"]).round(4)
 
-    df["over25_adjusted_american"] = df["over25_adjusted_decimal"].apply(decimal_to_american)
-    df["under25_adjusted_american"] = df["under25_adjusted_decimal"].apply(decimal_to_american)
+        df["over25_adjusted_american"] = df["over25_adjusted_decimal"].apply(decimal_to_american)
+        df["under25_adjusted_american"] = df["under25_adjusted_decimal"].apply(decimal_to_american)
 
-    return df.drop(columns=["over25_adj_prob", "under25_adj_prob"])
+        df = df.drop(columns=["over25_adj_prob", "under25_adj_prob"])
+
+    # ---------- 3.5 ----------
+    if "over35_prob" in df.columns:
+
+        df["under35_prob"] = 1 - df["over35_prob"]
+
+        df["over35_adj_prob"] = df["over35_prob"] * TARGET_2WAY_JUICE
+        df["under35_adj_prob"] = df["under35_prob"] * TARGET_2WAY_JUICE
+
+        df["over35_adjusted_decimal"] = (1 / df["over35_adj_prob"]).round(4)
+        df["under35_adjusted_decimal"] = (1 / df["under35_adj_prob"]).round(4)
+
+        df["over35_adjusted_american"] = df["over35_adjusted_decimal"].apply(decimal_to_american)
+        df["under35_adjusted_american"] = df["under35_adjusted_decimal"].apply(decimal_to_american)
+
+        df = df.drop(columns=["over35_adj_prob", "under35_adj_prob"])
+
+    return df
 
 
 def process_btts(df):
