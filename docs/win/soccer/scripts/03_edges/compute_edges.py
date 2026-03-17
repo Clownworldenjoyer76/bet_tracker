@@ -1,5 +1,5 @@
-# docs/win/soccer/scripts/03_edges/compute_edges.py
 #!/usr/bin/env python3
+# docs/win/soccer/scripts/03_edges/compute_edges.py
 
 import pandas as pd
 from pathlib import Path
@@ -24,53 +24,38 @@ ERROR_DIR.mkdir(parents=True, exist_ok=True)
 # =========================
 
 def american_to_decimal(american):
-    """Convert American odds to decimal odds"""
-
     if pd.isna(american) or american == "":
         return None
-
     try:
         val = float(american)
-
         if val > 0:
             return 1 + (val / 100)
         else:
             return 1 + (100 / abs(val))
-
     except Exception:
         return None
 
 
 def decimal_to_american(decimal):
-    """Convert decimal odds to American odds"""
-
     if pd.isna(decimal) or decimal in ["", 0, None]:
         return None
-
     try:
         val = float(decimal)
-
         if val <= 1:
             return None
-
         if val >= 2:
             return round((val - 1) * 100)
         else:
             return round(-100 / (val - 1))
-
     except Exception:
         return None
 
 
 def parse_match_time(time_str):
-    """Convert '03:05 PM' → datetime object for sorting"""
-
     if pd.isna(time_str):
         return datetime.max
-
     try:
         return datetime.strptime(str(time_str).strip(), "%I:%M %p")
-
     except Exception:
         return datetime.max
 
@@ -98,10 +83,6 @@ def main():
                 "files_processed": 0,
                 "rows_processed": 0
             }
-
-            # =========================================================
-            # MARKETS CONFIGURATION
-            # =========================================================
 
             MARKETS = [
 
@@ -131,65 +112,37 @@ def main():
 
                     if dk_amer_col in df.columns and model_adj_col in df.columns:
 
-                        # -------------------------
-                        # Convert sportsbook odds
-                        # -------------------------
-
                         dk_dec_col = f"{label}_dk_decimal"
                         df[dk_dec_col] = df[dk_amer_col].apply(american_to_decimal)
 
-                        # -------------------------
-                        # Sportsbook implied probability
-                        # -------------------------
+                        # 🔧 FORCE NUMERIC (fixes totals issue)
+                        df[dk_dec_col] = pd.to_numeric(df[dk_dec_col], errors="coerce")
+                        df[model_adj_col] = pd.to_numeric(df[model_adj_col], errors="coerce")
 
                         dk_prob_col = f"{label}_dk_implied_prob"
-                        df[dk_prob_col] = 1 / pd.to_numeric(df[dk_dec_col], errors="coerce")
-
-                        # -------------------------
-                        # Fair odds from model
-                        # -------------------------
+                        df[dk_prob_col] = 1 / df[dk_dec_col]
 
                         fair_decimal_col = f"{label}_fair_decimal"
                         fair_american_col = f"{label}_fair_american"
 
-                        model_odds = pd.to_numeric(df[model_adj_col], errors="coerce")
-                        fair_prob = 1 / model_odds
+                        fair_prob = 1 / df[model_adj_col]
 
                         df[fair_decimal_col] = (1 / fair_prob).round(4)
                         df[fair_american_col] = df[fair_decimal_col].apply(decimal_to_american)
 
-                        # -------------------------
-                        # Take price from model
-                        # -------------------------
-
                         take_price_american_col = f"{label}_take_price_american"
                         df[take_price_american_col] = df[fair_american_col]
 
-                        # -------------------------
-                        # Compute edge
-                        # -------------------------
-
                         edge_pct_col = f"{label}_edge_pct"
 
-                        book_odds = pd.to_numeric(df[dk_dec_col], errors="coerce")
-                        model_odds = pd.to_numeric(df[model_adj_col], errors="coerce")
-
-                        edge = (book_odds / model_odds) - 1
+                        # 🔧 SAFE EDGE CALCULATION (prevents NaN propagation)
+                        edge = (df[dk_dec_col] / df[model_adj_col]) - 1
 
                         df[edge_pct_col] = edge.round(4)
 
-                        # -------------------------
-                        # Play signal
-                        # -------------------------
-
                         df[f"{label}_play"] = df[edge_pct_col] > 0
 
-                # =========================
-                # SORT & CLEAN
-                # =========================
-
                 if "match_time" in df.columns:
-
                     df["_sort_time"] = df["match_time"].apply(parse_match_time)
                     df = df.sort_values(by="_sort_time")
                     df = df.drop(columns=["_sort_time"])
