@@ -40,7 +40,6 @@ def log_summary(msg):
     with open(ANALYZE_SUMMARY_LOG, "a", encoding="utf-8") as f:
         f.write(f"[{datetime.now()}] {msg}\n")
 
-
 ###############################################################
 ######################## HELPERS ##############################
 ###############################################################
@@ -66,6 +65,12 @@ def safe_read(path):
         return pd.DataFrame()
 
 
+def to_float(value):
+    try:
+        return float(value)
+    except:
+        return pd.NA
+
 ###############################################################
 ######################## SUMMARY CORE #########################
 ###############################################################
@@ -82,56 +87,24 @@ def summarize(df):
 
     return wins, losses, pushes, total, round(win_pct, 4)
 
-
-def aggregate_results(df, group_cols):
-    if df is None or df.empty:
-        return pd.DataFrame()
-
-    rows = []
-
-    grouped = df.groupby(group_cols, dropna=False)
-    for keys, sub in grouped:
-        wins, losses, pushes, total, win_pct = summarize(sub)
-
-        if not isinstance(keys, tuple):
-            keys = (keys,)
-
-        row = {}
-        for i, col in enumerate(group_cols):
-            row[col] = keys[i]
-
-        row["Win"] = wins
-        row["Loss"] = losses
-        row["Push"] = pushes
-        row["Total"] = total
-        row["Win_Pct"] = win_pct
-        rows.append(row)
-
-    return pd.DataFrame(rows)
-
-
 ###############################################################
 ######################## DERIVED FIELDS #######################
 ###############################################################
-
-def to_float(value):
-    return pd.to_numeric(pd.Series([value]), errors="coerce").iloc[0]
-
 
 def side_group_from_bet_side(row):
     market_type = str(row.get("market_type", "")).strip().lower()
     bet_side = str(row.get("bet_side", "")).strip().lower()
 
     if market_type in {"moneyline", "spread"}:
-        if bet_side == "home":
+        if "home" in bet_side:
             return "HOME"
-        if bet_side == "away":
+        if "away" in bet_side:
             return "AWAY"
 
     if market_type == "total":
-        if bet_side == "over":
+        if "over" in bet_side:
             return "OVER"
-        if bet_side == "under":
+        if "under" in bet_side:
             return "UNDER"
 
     return ""
@@ -187,7 +160,6 @@ def selected_spread_line(row):
 def selected_total_line(row):
     return to_float(row.get("total_x"))
 
-
 ###############################################################
 ######################## BUCKETS ##############################
 ###############################################################
@@ -196,7 +168,7 @@ def edge_bucket(value):
     val = to_float(value)
 
     if pd.isna(val):
-        return ""
+        return "UNBUCKETED"
 
     if val < 0:
         return "<0"
@@ -217,11 +189,45 @@ def edge_bucket(value):
     return "0.10_plus"
 
 
+def spread_bucket(value):
+    val = to_float(value)
+
+    if pd.isna(val):
+        return "UNBUCKETED"
+
+    # tighter 1-point buckets, split around zero
+    bands = [
+        (-20, -15, "-20_to_-15"),
+        (-15, -10, "-15_to_-10"),
+        (-10, -7.5, "-10_to_-7.5"),
+        (-7.5, -5, "-7.5_to_-5"),
+        (-5, -3.5, "-5_to_-3.5"),
+        (-3.5, -2.5, "-3.5_to_-2.5"),
+        (-2.5, -1.5, "-2.5_to_-1.5"),
+        (-1.5, -0.5, "-1.5_to_-0.5"),
+        (-0.5, 0.5, "-0.5_to_0.5"),
+        (0.5, 1.5, "0.5_to_1.5"),
+        (1.5, 2.5, "1.5_to_2.5"),
+        (2.5, 3.5, "2.5_to_3.5"),
+        (3.5, 5, "3.5_to_5"),
+        (5, 7.5, "5_to_7.5"),
+        (7.5, 10, "7.5_to_10"),
+        (10, 15, "10_to_15"),
+        (15, 25, "15_to_25"),
+    ]
+
+    for low, high, label in bands:
+        if low <= val < high:
+            return label
+
+    return "UNBUCKETED"
+
+
 def odds_bucket(value):
     val = to_float(value)
 
     if pd.isna(val):
-        return ""
+        return "UNBUCKETED"
 
     if val <= -200:
         return "minus_200_or_lower"
@@ -244,50 +250,15 @@ def odds_bucket(value):
     return "plus_201_or_higher"
 
 
-def spread_bucket(value):
-    val = to_float(value)
-
-    if pd.isna(val):
-        return ""
-
-    bands = [
-        (-99, -15, "minus_99_to_minus_15.0"),
-        (-15, -10, "minus_15.0_to_minus_10.0"),
-        (-10, -7.5, "minus_10.0_to_minus_7.5"),
-        (-7.5, -5, "minus_7.5_to_minus_5.0"),
-        (-5, -3, "minus_5.0_to_minus_3.0"),
-        (-3, -2, "minus_3.0_to_minus_2.0"),
-        (-2, -1, "minus_2.0_to_minus_1.0"),
-        (-1, 1, "minus_1.0_to_plus_1.0"),
-        (1, 2, "plus_1.0_to_plus_2.0"),
-        (2, 3, "plus_2.0_to_plus_3.0"),
-        (3, 5, "plus_3.0_to_plus_5.0"),
-        (5, 7.5, "plus_5.0_to_plus_7.5"),
-        (7.5, 10, "plus_7.5_to_plus_10.0"),
-        (10, 15, "plus_10.0_to_plus_15.0"),
-        (15, 99, "plus_15.0_or_higher"),
-    ]
-
-    for low, high, label in bands:
-        if low <= val < high:
-            return label
-
-    if val == 99:
-        return "plus_15.0_or_higher"
-
-    return ""
-
-
 def total_bucket(value):
     val = to_float(value)
 
     if pd.isna(val):
-        return ""
+        return "UNBUCKETED"
 
     start = int(val // 5) * 5
     end = start + 4.9
     return f"{start}_to_{end:.1f}"
-
 
 ###############################################################
 ######################## PREP ANALYTICS #######################
@@ -299,11 +270,10 @@ def prepare_work_df(df, league):
 
     work = df.copy()
 
-    if "bet_result" in work.columns:
-        work["bet_result"] = work["bet_result"].astype(str).str.strip().str.title()
-
+    work["bet_result"] = work["bet_result"].astype(str).str.strip().str.title()
     work["market"] = league
     work["market_type"] = work["market_type"].astype(str).str.strip().str.lower()
+
     work["side_group"] = work.apply(side_group_from_bet_side, axis=1)
     work["selected_edge"] = work.apply(selected_edge, axis=1)
     work["moneyline_odds_value"] = work.apply(selected_moneyline_odds, axis=1)
@@ -315,16 +285,18 @@ def prepare_work_df(df, league):
     work["spread_bucket"] = work["spread_value"].apply(spread_bucket)
     work["total_bucket"] = work["total_value"].apply(total_bucket)
 
+    # 🔴 LOG UNBUCKETED COUNTS
+    for col in ["edge_bucket", "spread_bucket", "odds_bucket", "total_bucket"]:
+        count = (work[col] == "UNBUCKETED").sum()
+        if count > 0:
+            log_error(f"{league} UNBUCKETED {col}: {count}")
+
     return work
 
 
 def build_work_file(league):
     try:
-        if league == "NBA":
-            path = NBA_OUTPUT / "NBA_final.csv"
-        else:
-            path = NCAAB_OUTPUT / "NCAAB_final.csv"
-
+        path = NBA_OUTPUT / "NBA_final.csv" if league == "NBA" else NCAAB_OUTPUT / "NCAAB_final.csv"
         df = safe_read(path)
 
         if df.empty:
@@ -340,20 +312,11 @@ def build_work_file(league):
         out = INTERMEDIATE_DIR / f"work_{league.lower()}.csv"
         work.to_csv(out, index=False)
 
-        side_counts = work["side_group"].astype(str).value_counts(dropna=False).to_dict() if "side_group" in work.columns else {}
-        market_counts = work["market_type"].astype(str).value_counts(dropna=False).to_dict() if "market_type" in work.columns else {}
-
-        log_summary(
-            f"{league} WORK FILE CREATED | ROWS={len(work)} | MARKET_TYPES={market_counts} | SIDE_GROUPS={side_counts} | OUT={out}"
-        )
+        log_summary(f"{league} WORK FILE CREATED | ROWS={len(work)} | OUT={out}")
 
     except Exception as e:
         log_error(f"{league} BUILD WORK FILE ERROR | {e}")
 
-
-###############################################################
-######################## MAIN #################################
-###############################################################
 
 def main():
     reset_logs()
