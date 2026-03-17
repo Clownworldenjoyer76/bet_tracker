@@ -1,5 +1,5 @@
-# docs/win/soccer/scripts/01_merge/validate_merge.py
 #!/usr/bin/env python3
+# docs/win/soccer/scripts/01_merge/validate_merge.py
 
 import sys
 import csv
@@ -11,10 +11,19 @@ from datetime import datetime
 # =========================
 
 if len(sys.argv) != 2:
-    print("Usage: validate_merge.py YYYY_MM_DD")
+    print("Usage: validate_merge.py YYYY_MM_DD or soccer_YYYY_MM_DD")
     sys.exit(0)
 
-slate_date = sys.argv[1].strip()
+raw_input = sys.argv[1].strip()
+
+# Accept BOTH formats:
+# 2026_03_07
+# soccer_2026_03_07
+
+if raw_input.startswith("soccer_"):
+    slate_date = raw_input.replace("soccer_", "", 1)
+else:
+    slate_date = raw_input
 
 # =========================
 # PATHS
