@@ -55,6 +55,33 @@ def write_csv(df, path):
     df.to_csv(path, index=False)
 
 
+# -----------------------------
+# NEW: MARKET TALLY
+# -----------------------------
+def market_tally(df):
+    rows = []
+
+    for (market, market_type), sub in df.groupby(["market", "market_type"]):
+        wins = (sub["bet_result"] == "Win").sum()
+        losses = (sub["bet_result"] == "Loss").sum()
+        pushes = (sub["bet_result"] == "Push").sum()
+
+        total = wins + losses + pushes
+        win_pct = wins / (wins + losses) if (wins + losses) > 0 else 0
+
+        rows.append({
+            "market": market,
+            "market_type": market_type,
+            "Win": wins,
+            "Loss": losses,
+            "Push": pushes,
+            "Total": total,
+            "Win_Pct": round(win_pct, 4)
+        })
+
+    return pd.DataFrame(rows)
+
+
 def build_moneyline_outputs(work, outdir):
     ml = work[work["market_type"] == "moneyline"].copy()
     if ml.empty:
@@ -149,6 +176,7 @@ def run():
     nba = pd.read_csv(INPUT_DIR / "work_nba.csv")
     ncaab = pd.read_csv(INPUT_DIR / "work_ncaab.csv")
 
+    # EXISTING REPORTS
     build_moneyline_outputs(nba, NBA_OUTPUT_DIR)
     build_spread_outputs(nba, NBA_OUTPUT_DIR)
     build_total_outputs(nba, NBA_OUTPUT_DIR)
@@ -156,6 +184,15 @@ def run():
     build_moneyline_outputs(ncaab, NCAAB_OUTPUT_DIR)
     build_spread_outputs(ncaab, NCAAB_OUTPUT_DIR)
     build_total_outputs(ncaab, NCAAB_OUTPUT_DIR)
+
+    # -----------------------------
+    # NEW: MARKET TALLY OUTPUT
+    # -----------------------------
+    nba_market = market_tally(nba)
+    ncaab_market = market_tally(ncaab)
+
+    nba_market.to_csv("docs/win/final_scores/nba_market_tally.csv", index=False)
+    ncaab_market.to_csv("docs/win/final_scores/ncaab_market_tally.csv", index=False)
 
     print("Reports complete.")
 
