@@ -63,6 +63,15 @@ jobs:
           mkdir -p docs/win/errors
 
       # -----------------------------
+      # CLEAN OLD OUTPUTS (CRITICAL FIX)
+      # -----------------------------
+      - name: Clean old select outputs
+        run: |
+          rm -rf docs/win/basketball/04_select/daily_slate/*
+          rm -rf docs/win/hockey/04_select/daily_slate/*
+          rm -rf docs/win/soccer/04_select/daily_slate/*
+
+      # -----------------------------
       # Run pipeline
       # -----------------------------
       - name: Run pipeline
@@ -82,7 +91,7 @@ jobs:
           fi
 
       # -----------------------------
-      # Commit results
+      # Commit and push results (FIXED)
       # -----------------------------
       - name: Commit and push results
         env:
@@ -93,12 +102,13 @@ jobs:
 
           git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git
 
-          git add docs/win || true
-          git add mappings || true
+          # Add ALL outputs
+          git add -A docs/win
 
-          if git diff --cached --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "Automated pipeline run"
-            git push
-          fi
+          # Remove pycache from staging safely
+          git restore --staged docs/win/**/__pycache__/* || true
+
+          # Commit safely (no crash if no changes)
+          git commit -m "Automated pipeline run" || echo "Nothing to commit"
+
+          git push

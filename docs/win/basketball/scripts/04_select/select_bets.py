@@ -29,10 +29,7 @@ def f(x):
 def in_bands(value, bands):
     if value is None:
         return False
-    for low, high in bands:
-        if low <= value <= high:
-            return True
-    return False
+    return any(low <= value <= high for low, high in bands)
 
 def detect_market(filename):
     name = filename.lower()
@@ -55,13 +52,10 @@ def side_cfg(league, market_type, side):
     return market_cfg(league, market_type)[side]
 
 ###############################################################
-# MONEYLINE
+# MARKET LOGIC (unchanged)
 ###############################################################
 
 def moneyline(row, league):
-
-    cfg = market_cfg(league, "moneyline")
-
     home_odds = f(row.get("home_dk_moneyline_american"))
     away_odds = f(row.get("away_dk_moneyline_american"))
 
@@ -99,14 +93,7 @@ def moneyline(row, league):
 
     return False, "", "", 0
 
-###############################################################
-# SPREAD
-###############################################################
-
 def spread(row, league):
-
-    cfg = market_cfg(league, "spread")
-
     home_line = f(row.get("home_spread"))
     away_line = f(row.get("away_spread"))
 
@@ -144,14 +131,7 @@ def spread(row, league):
 
     return False, "", "", 0
 
-###############################################################
-# TOTAL
-###############################################################
-
 def total(row, league):
-
-    cfg = market_cfg(league, "total")
-
     line = f(row.get("total"))
 
     over_ev = f(row.get("over_ev"))
@@ -189,7 +169,7 @@ def total(row, league):
     return False, "", "", 0
 
 ###############################################################
-# MAIN
+# PROCESS FILE (WITH DEBUG)
 ###############################################################
 
 def process_file(file):
@@ -197,11 +177,14 @@ def process_file(file):
     df = pd.read_csv(file)
 
     if df.empty:
-        return None
+        print(f"⚠️ EMPTY FILE: {file.name}")
+        return pd.DataFrame()
 
     league = "NBA" if "nba" in file.name.lower() else "NCAAB"
     market_type = detect_market(file.name)
     game_date = extract_date(file.name)
+
+    print(f"\nProcessing {file.name} | rows: {len(df)}")
 
     rows = []
 
@@ -209,10 +192,8 @@ def process_file(file):
 
         if market_type == "moneyline":
             ok, side, line, ev = moneyline(row, league)
-
         elif market_type == "spread":
             ok, side, line, ev = spread(row, league)
-
         else:
             ok, side, line, ev = total(row, league)
 
@@ -226,26 +207,41 @@ def process_file(file):
             r["game_date"] = game_date
             rows.append(r)
 
-    return pd.DataFrame(rows) if rows else None
+    print(f"Selected: {len(rows)}")
+
+    return pd.DataFrame(rows)
+
+###############################################################
+# MAIN (FORCE OUTPUT)
+###############################################################
 
 def main():
 
     dfs = []
 
+    total_in = 0
+    total_out = 0
+
     for file in sorted(INPUT_DIR.glob("*.csv")):
+        df_raw = pd.read_csv(file)
+        total_in += len(df_raw)
+
         df = process_file(file)
-        if df is not None:
-            dfs.append(df)
+        total_out += len(df)
 
-    if not dfs:
-        print("No bets selected")
-        return
+        dfs.append(df)
 
-    df = pd.concat(dfs, ignore_index=True)
+    final_df = pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
 
-    df.to_csv(DAILY_DIR / "nba_selected.csv", index=False)
+    output_path = DAILY_DIR / "nba_selected.csv"
 
-    print("TOTAL BETS:", len(df))
+    final_df.to_csv(output_path, index=False)
+
+    print("\n========================")
+    print("TOTAL INPUT ROWS:", total_in)
+    print("TOTAL SELECTED:", total_out)
+    print(f"Wrote: {output_path}")
+    print("========================")
 
 if __name__ == "__main__":
     main()
