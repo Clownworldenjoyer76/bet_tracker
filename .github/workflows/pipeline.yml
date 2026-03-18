@@ -81,9 +81,6 @@ jobs:
             echo "No log file found."
           fi
 
-           # -----------------------------
-      # Commit results
-      # -----------------------------
       - name: Commit and push results
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -93,11 +90,11 @@ jobs:
 
           git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git
 
-          # Stage ALL changes (including deletions and overwrites)
-          git add -A
+          # FORCE add ALL outputs (not just tracked ones)
+          git add -A docs/win
 
-          # Debug: show what is being committed
-          git status
+          # Remove pycache junk
+          git reset docs/win/**/__pycache__/* || true
 
           if git diff --cached --quiet; then
             echo "No changes to commit"
@@ -105,4 +102,7 @@ jobs:
             git commit -m "Automated pipeline run"
             git push
           fi
-          fi
+
+
+
+      
