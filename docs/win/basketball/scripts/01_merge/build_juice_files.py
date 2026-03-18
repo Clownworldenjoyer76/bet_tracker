@@ -13,20 +13,12 @@ from scipy.stats import norm, poisson
 # SETTINGS
 # ============================================================
 
-# ------------------------------------------------------------
-# NBA SETTINGS
-# ------------------------------------------------------------
-
 NBA_EDGE = 0.015
 NBA_TOTAL_EDGE = 0.025
 NBA_SPREAD_EDGE = 0.035
 
 NBA_TOTAL_STD = 21.5
-NBA_SPREAD_STD = 11.5
-
-# ------------------------------------------------------------
-# NCAAB SETTINGS
-# ------------------------------------------------------------
+NBA_SPREAD_STD = 17.5   # ← UPDATED (was 11.5)
 
 NCAAB_EDGE = 0.015
 NCAAB_TOTAL_EDGE = 0.03
@@ -35,77 +27,60 @@ NCAAB_SPREAD_EDGE = 0.03
 NCAAB_TOTAL_STD = 18.6662
 NCAAB_SPREAD_STD = 11.5
 
-
 # ============================================================
 # LOGGER
 # ============================================================
 
 def audit(log_path, stage, status, msg="", df=None):
-
     ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     log_path = Path(log_path)
     log_path.parent.mkdir(parents=True, exist_ok=True)
 
     with open(log_path, "a") as f:
         f.write(f"\n[{ts}] [{stage}] {status}\n")
-
         if msg:
             f.write(f"MSG: {msg}\n")
-
         if df is not None:
             f.write(f"ROWS: {len(df)}\n")
-
         f.write("-"*40+"\n")
-
 
 # ============================================================
 # PATHS
 # ============================================================
 
 INPUT_DIR = Path("docs/win/basketball/01_merge")
+OUTPUT_DIR = Path("docs/win/basketball/01_merge/01_merguiced")
+
 ERROR_DIR = Path("docs/win/basketball/errors/01_merge")
 ERROR_LOG = ERROR_DIR / "build_juice_files.txt"
 
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
-
 
 # ============================================================
 # HELPERS
 # ============================================================
 
 def american_to_decimal(odds):
-
     if pd.isna(odds) or odds == "":
         return ""
-
     odds = float(odds)
-
     if odds > 0:
         return 1 + (odds / 100)
-
     return 1 + (100 / abs(odds))
 
-
 def to_american(dec):
-
     if pd.isna(dec) or dec <= 1:
         return ""
-
     if dec >= 2:
         return f"+{int((dec - 1) * 100)}"
-
     return f"-{int(100 / (dec - 1))}"
 
-
 def clamp_probability(p):
-
     return min(max(p, 0.05), 0.95)
 
-
 def get_market_settings(market):
-
     if market == "NBA":
-
         return {
             "ML_EDGE": NBA_EDGE,
             "TOTAL_EDGE": NBA_TOTAL_EDGE,
@@ -113,7 +88,6 @@ def get_market_settings(market):
             "TOTAL_STD": NBA_TOTAL_STD,
             "SPREAD_STD": NBA_SPREAD_STD
         }
-
     return {
         "ML_EDGE": NCAAB_EDGE,
         "TOTAL_EDGE": NCAAB_TOTAL_EDGE,
@@ -121,7 +95,6 @@ def get_market_settings(market):
         "TOTAL_STD": NCAAB_TOTAL_STD,
         "SPREAD_STD": NCAAB_SPREAD_STD
     }
-
 
 # ============================================================
 # MAIN
@@ -135,22 +108,8 @@ def main():
 
     try:
 
-        # ----------------------------------------------------
-        # REMOVE OLD GENERATED FILES
-        # ----------------------------------------------------
-
-        for f in INPUT_DIR.glob("*_moneyline.csv"):
+        for f in OUTPUT_DIR.glob("*.csv"):
             f.unlink()
-
-        for f in INPUT_DIR.glob("*_spread.csv"):
-            f.unlink()
-
-        for f in INPUT_DIR.glob("*_total.csv"):
-            f.unlink()
-
-        # ----------------------------------------------------
-        # LOAD INPUT FILES
-        # ----------------------------------------------------
 
         input_files = glob.glob(str(INPUT_DIR / "basketball_*.csv"))
 
@@ -185,6 +144,14 @@ def main():
             ml_df["away_decimal"] = ml_df["away_dk_moneyline_american"].apply(american_to_decimal)
             ml_df["home_decimal"] = ml_df["home_dk_moneyline_american"].apply(american_to_decimal)
 
+            ml_df["away_implied_prob"] = 1 / ml_df["away_decimal"]
+            ml_df["home_implied_prob"] = 1 / ml_df["home_decimal"]
+
+            total_implied = ml_df["away_implied_prob"] + ml_df["home_implied_prob"]
+
+            ml_df["away_market_prob"] = ml_df["away_implied_prob"] / total_implied
+            ml_df["home_market_prob"] = ml_df["home_implied_prob"] / total_implied
+
             ml_df["away_fair"] = 1 / ml_df["away_prob"]
             ml_df["home_fair"] = 1 / ml_df["home_prob"]
 
@@ -194,8 +161,7 @@ def main():
             ml_df["away_acceptable_american_moneyline"] = ml_df["away_acceptable_decimal_moneyline"].apply(to_american)
             ml_df["home_acceptable_american_moneyline"] = ml_df["home_acceptable_decimal_moneyline"].apply(to_american)
 
-            ml_output = INPUT_DIR / f"{game_date}_{market}_moneyline.csv"
-
+            ml_output = OUTPUT_DIR / f"{game_date}_{market}_moneyline.csv"
             ml_df.to_csv(ml_output, index=False)
 
             audit(ERROR_LOG, "ML", "SUCCESS", file_path, ml_df)
@@ -208,7 +174,6 @@ def main():
 
             fair_over = []
             fair_under = []
-
             acc_over = []
             acc_under = []
 
@@ -218,7 +183,6 @@ def main():
                 mean = row["total_projected_points"]
 
                 if pd.isna(T):
-
                     fair_over.append("")
                     fair_under.append("")
                     acc_over.append("")
@@ -226,11 +190,8 @@ def main():
                     continue
 
                 if market == "NCAAB":
-
                     p_under = poisson.cdf(T - 0.5, mean)
-
                 else:
-
                     z = (T - mean) / TOTAL_STD
                     p_under = norm.cdf(z)
 
@@ -251,12 +212,10 @@ def main():
 
             total_df["fair_over"] = fair_over
             total_df["fair_under"] = fair_under
-
             total_df["acceptable_over"] = acc_over
             total_df["acceptable_under"] = acc_under
 
-            total_output = INPUT_DIR / f"{game_date}_{market}_total.csv"
-
+            total_output = OUTPUT_DIR / f"{game_date}_{market}_total.csv"
             total_df.to_csv(total_output, index=False)
 
             audit(ERROR_LOG, "TOTAL", "SUCCESS", file_path, total_df)
@@ -269,7 +228,6 @@ def main():
 
             fair_home = []
             fair_away = []
-
             acc_home = []
             acc_away = []
 
@@ -286,17 +244,13 @@ def main():
                     acc_away.append("")
                     continue
 
-                p_home = 1 - norm.cdf(-home_line, mean_margin, SPREAD_STD)
+                p_home = 1 - norm.cdf(home_line, loc=mean_margin, scale=SPREAD_STD)
 
                 p_home = clamp_probability(p_home)
-
                 p_away = 1 - p_home
 
                 fair_home_dec = 1 / p_home
                 fair_away_dec = 1 / p_away
-
-                fair_home.append(fair_home_dec)
-                fair_away.append(fair_away_dec)
 
                 acc_home_dec = fair_home_dec * (1 + SPREAD_EDGE)
                 acc_away_dec = fair_away_dec * (1 + SPREAD_EDGE)
@@ -310,8 +264,7 @@ def main():
             spread_df["home_acceptable_spread_american"] = spread_df["home_acceptable_spread_decimal"].apply(to_american)
             spread_df["away_acceptable_spread_american"] = spread_df["away_acceptable_spread_decimal"].apply(to_american)
 
-            spread_output = INPUT_DIR / f"{game_date}_{market}_spread.csv"
-
+            spread_output = OUTPUT_DIR / f"{game_date}_{market}_spread.csv"
             spread_df.to_csv(spread_output, index=False)
 
             audit(ERROR_LOG, "SPREAD", "SUCCESS", file_path, spread_df)
@@ -321,7 +274,6 @@ def main():
     except Exception as e:
 
         with open(ERROR_LOG, "a") as log:
-
             log.write("\nERROR\n")
             log.write(str(e))
             log.write("\n\n")

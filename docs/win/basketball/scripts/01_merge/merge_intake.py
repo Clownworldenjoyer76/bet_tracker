@@ -16,7 +16,6 @@ def audit(log_path, stage, status, msg="", df=None):
     log_path = Path(log_path)
     log_path.parent.mkdir(parents=True, exist_ok=True)
     
-    # 1. EXHAUSTIVE LOG (TXT)
     with open(log_path, "a") as f:
         f.write(f"\n[{ts}] [{stage}] {status}\n")
         if msg: f.write(f"  MSG: {msg}\n")
@@ -26,30 +25,9 @@ def audit(log_path, stage, status, msg="", df=None):
             f.write(f"  SAMPLE:\n{df.head(3).to_string(index=False)}\n")
         f.write("-" * 40 + "\n")
 
-    # 2. CONDENSED SUMMARY (TXT)
-    if df is not None and isinstance(df, pd.DataFrame):
-        summary_path = log_path.parent / "condensed_summary.txt"
-        
-        play_cols = [c for c in ['home_play', 'away_play', 'over_play', 'under_play'] if c in df.columns]
-        
-        if play_cols:
-            signals = df[df[play_cols].any(axis=1)].copy()
-            
-            if not signals.empty:
-                with open(summary_path, "a") as f:
-                    f.write(f"\n--- BETTING SIGNALS: {ts} ---\n")
-                    base_cols = ['game_date', 'home_team', 'away_team']
-                    edge_cols = [c for c in df.columns if 'edge_pct' in c]
-                    
-                    final_cols = [c for c in base_cols + edge_cols if c in signals.columns]
-                    f.write(signals[final_cols].to_string(index=False))
-                    f.write("\n" + "="*30 + "\n")
-
 # =========================
 # CONSTANTS
 # =========================
-
-LEAGUES = ["NBA", "NCAAB"]
 
 ROOT_DIR = Path("docs/win/basketball")
 INTAKE_DIR = ROOT_DIR / "00_intake"
@@ -66,49 +44,43 @@ with open(LOG_FILE, "w", encoding="utf-8") as f:
 
 def log(msg):
     with open(LOG_FILE, "a", encoding="utf-8") as f:
-        f.write(f"{datetime.utcnow().isoformat()} | {msg}\n")
+        f.write(f"{datetime.now().isoformat()} | {msg}\n")
 
 # =========================
 # HELPERS
 # =========================
 
-def load_dedupe(path, key_fields):
-    data = {}
+def load_rows(path):
+    rows = []
     with open(path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for r in reader:
-            key = tuple(r[k] for k in key_fields)
-            data[key] = r
-    return data
+            rows.append(r)
+    return rows
 
-key_fields = ["game_date", "home_team", "away_team"]
+def build_key(r):
+    return (r["game_date"], r["home_team"], r["away_team"])
+
+def build_team_set(r):
+    return (r["game_date"], frozenset([r["home_team"], r["away_team"]]))
+
+# =========================
+# FIELD STRUCTURE
+# =========================
 
 FIELDNAMES = [
-    "league",
-    "market",
-    "game_date",
-    "game_time",
-    "home_team",
-    "away_team",
-    "game_id",
-    "home_prob",
-    "away_prob",
-    "away_projected_points",
-    "home_projected_points",
-    "total_projected_points",
-    "away_spread",
-    "home_spread",
-    "total",
-    "away_dk_spread_american",
-    "home_dk_spread_american",
-    "dk_total_over_american",
-    "dk_total_under_american",
-    "away_dk_moneyline_american",
-    "home_dk_moneyline_american",
+    "league","market","game_date","game_time",
+    "home_team","away_team","game_id",
+    "home_prob","away_prob",
+    "away_projected_points","home_projected_points","total_projected_points",
+    "away_spread","home_spread","total",
+    "away_dk_spread_american","home_dk_spread_american",
+    "dk_total_over_american","dk_total_under_american",
+    "away_dk_moneyline_american","home_dk_moneyline_american",
 ]
 
 # =========================
-# AUTO DISCOVER SLATES
+# DISCOVER SLATES
 # =========================
 
 prediction_dir = INTAKE_DIR / "predictions"
@@ -117,7 +89,6 @@ sportsbook_dir = INTAKE_DIR / "sportsbook"
 prediction_files = list(prediction_dir.glob("basketball_*_*.csv"))
 
 slates = []
-
 for f in prediction_files:
     parts = f.stem.split("_")
     league = parts[1]
@@ -125,7 +96,7 @@ for f in prediction_files:
     slates.append((league, slate_date))
 
 # =========================
-# PROCESS EACH SLATE
+# PROCESS
 # =========================
 
 for league, slate_date in slates:
@@ -135,69 +106,91 @@ for league, slate_date in slates:
     OUTFILE = MERGE_DIR / f"basketball_{league}_{slate_date}.csv"
 
     if not PRED_FILE.exists() or not SPORTSBOOK_FILE.exists():
-        log(f"No {league} sportsbook or prediction file for {slate_date}. Skipping merge.")
-        print(f"No {league} slate found for {slate_date}. Skipping.")
+        log(f"{league} {slate_date} missing file. Skipping.")
         continue
 
-    pred_data = load_dedupe(PRED_FILE, key_fields)
-    dk_data = load_dedupe(SPORTSBOOK_FILE, key_fields)
+    pred_rows = load_rows(PRED_FILE)
+    book_rows = load_rows(SPORTSBOOK_FILE)
+
+    # build maps
+    pred_map = {build_key(r): r for r in pred_rows}
+    book_map = {build_key(r): r for r in book_rows}
+
+    # team-set maps (for detecting flips)
+    pred_team_map = {build_team_set(r): r for r in pred_rows}
+    book_team_map = {build_team_set(r): r for r in book_rows}
 
     merged_rows = []
 
-    for key, p in pred_data.items():
+    # =========================
+    # MAIN MERGE
+    # =========================
 
-        if key not in dk_data:
-            continue
+    for key, p in pred_map.items():
 
-        d = dk_data[key]
+        # normal match
+        if key in book_map:
+            d = book_map[key]
 
-        if d.get("home_team") != p.get("home_team") or d.get("away_team") != p.get("away_team"):
-            log(f"{league} TEAM MISMATCH: {p.get('home_team')} vs {p.get('away_team')}")
-            continue
+        else:
+            # check for flipped orientation
+            team_key = build_team_set(p)
+
+            if team_key in book_team_map:
+                d = book_team_map[team_key]
+
+                log(
+                    f"ORIENTATION MISMATCH | {league} {slate_date} | "
+                    f"PRED: {p['home_team']} vs {p['away_team']} | "
+                    f"BOOK: {d['home_team']} vs {d['away_team']}"
+                )
+                continue
+
+            else:
+                log(
+                    f"MISSING MATCH | {league} {slate_date} | "
+                    f"{p['home_team']} vs {p['away_team']}"
+                )
+                continue
 
         game_id = f"{p['game_date']}_{p['away_team']}_{p['home_team']}"
 
         merged_rows.append({
-            "league": p.get("league", ""),
-            "market": p.get("market", ""),
-            "game_date": p.get("game_date", ""),
-            "game_time": p.get("game_time", ""),
-            "home_team": p.get("home_team", ""),
-            "away_team": p.get("away_team", ""),
+            "league": p.get("league",""),
+            "market": p.get("market",""),
+            "game_date": p.get("game_date",""),
+            "game_time": p.get("game_time",""),
+            "home_team": p.get("home_team",""),
+            "away_team": p.get("away_team",""),
             "game_id": game_id,
-            "home_prob": p.get("home_prob", ""),
-            "away_prob": p.get("away_prob", ""),
-            "away_projected_points": p.get("away_projected_points", ""),
-            "home_projected_points": p.get("home_projected_points", ""),
-            "total_projected_points": p.get("total_projected_points", ""),
-            "away_spread": d.get("away_spread", ""),
-            "home_spread": d.get("home_spread", ""),
-            "total": d.get("total", ""),
-            "away_dk_spread_american": d.get("away_dk_spread_american", ""),
-            "home_dk_spread_american": d.get("home_dk_spread_american", ""),
-            "dk_total_over_american": d.get("dk_total_over_american", ""),
-            "dk_total_under_american": d.get("dk_total_under_american", ""),
-            "away_dk_moneyline_american": d.get("away_dk_moneyline_american", ""),
-            "home_dk_moneyline_american": d.get("home_dk_moneyline_american", ""),
+            "home_prob": p.get("home_prob",""),
+            "away_prob": p.get("away_prob",""),
+            "away_projected_points": p.get("away_projected_points",""),
+            "home_projected_points": p.get("home_projected_points",""),
+            "total_projected_points": p.get("total_projected_points",""),
+            "away_spread": d.get("away_spread",""),
+            "home_spread": d.get("home_spread",""),
+            "total": d.get("total",""),
+            "away_dk_spread_american": d.get("away_dk_spread_american",""),
+            "home_dk_spread_american": d.get("home_dk_spread_american",""),
+            "dk_total_over_american": d.get("dk_total_over_american",""),
+            "dk_total_under_american": d.get("dk_total_under_american",""),
+            "away_dk_moneyline_american": d.get("away_dk_moneyline_american",""),
+            "home_dk_moneyline_american": d.get("home_dk_moneyline_american",""),
         })
 
     if not merged_rows:
-        log(f"No matching {league} rows to merge for slate {slate_date}.")
-        print(f"No matching {league} rows to merge for slate {slate_date}.")
+        log(f"No matches for {league} {slate_date}")
         continue
 
-    temp_file = OUTFILE.with_suffix(".tmp")
-
-    with open(temp_file, "w", newline="", encoding="utf-8") as f:
+    # write
+    with open(OUTFILE, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
         writer.writeheader()
-        for r in sorted(merged_rows, key=lambda x: (x["game_date"], x["game_time"], x["home_team"])):
-            writer.writerow({k: r.get(k, "") for k in FIELDNAMES})
+        for r in merged_rows:
+            writer.writerow(r)
 
-    temp_file.replace(OUTFILE)
+    log(f"SUCCESS {league} {slate_date} | {len(merged_rows)} rows")
 
-    log(f"SUMMARY: rebuilt {len(merged_rows)} {league} games for slate {slate_date}")
-    print(f"Wrote {OUTFILE}")
-
-    df_merged = pd.DataFrame(merged_rows)
-    audit(LOG_FILE, "MERGE_STAGE", "SUCCESS", msg=f"Merged {league} data", df=df_merged)
+    df = pd.DataFrame(merged_rows)
+    audit(LOG_FILE, "MERGE_STAGE", "SUCCESS", f"{league} {slate_date}", df)
