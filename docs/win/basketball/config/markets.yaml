@@ -4,161 +4,125 @@ markets:
 
     moneyline:
       enabled: true
-      pick_preference: best_edge
+      pick_preference: best_ev
 
       home:
         enabled: true
         odds_bands:
           - [-200, 200]
-        edge_bands:
-          - [0.0001, 0.0199]
+        ev_min: 0.02
+        kelly_min: 0.01
+        kelly_max: 0.05
 
       away:
         enabled: true
         odds_bands:
-          - [-200, 150.9]
-        edge_bands:
-          - [0.0001, 1]
+          - [-200, 150]
+        ev_min: 0.02
+        kelly_min: 0.01
+        kelly_max: 0.05
 
     spread:
       enabled: true
-      pick_preference: best_edge
-
-      block_rules:
-        - all:
-            - field: away_line
-              gte: -5.0
-            - field: away_line
-              lte: -2.0
-            - field: away_edge
-              lt: 0
-
-        - all:
-            - field: home_line
-              gte: -7.5
-            - field: home_line
-              lte: -5.0
-            - field: home_edge
-              lt: 0
-
-        - all:
-            - field: home_line
-              gte: 7.5
-            - field: home_line
-              lte: 10.0
-            - field: home_edge
-              lt: 0.0199
+      pick_preference: best_ev
 
       home:
         enabled: true
         line_bands:
           - [-99, -5.1]
           - [7.6, 99]
-        edge_bands:
-          - [-1, 0.0199]
-          - [0.10, 999]
+        ev_min: 0.02
+        kelly_min: 0.008
+        kelly_max: 0.04
 
       away:
         enabled: true
         line_bands:
           - [-99, 1.9]
           - [5.1, 999]
-        edge_rules:
-          - when:
-              all:
-                - field: away_line
-                  gte: 10
-            edge_bands:
-              - [0.1000001, 999]
-
-          - when:
-              all:
-                - field: away_line
-                  lt: 10
-            edge_bands:
-              - [-1, 0.03]
-              - [0.10, 999]
+        ev_min: 0.02
+        kelly_min: 0.008
+        kelly_max: 0.04
 
     total:
       enabled: true
-      pick_preference: best_edge
+      pick_preference: best_ev
 
       over:
         enabled: true
         line_bands:
           - [215, 245]
-        edge_bands:
-          - [0.06, 1]
+        ev_min: 0.025
+        kelly_min: 0.01
+        kelly_max: 0.05
 
       under:
         enabled: true
         line_bands:
           - [215, 245]
-        edge_bands:
-          - [0.05, 1]
+        ev_min: 0.025
+        kelly_min: 0.01
+        kelly_max: 0.05
 
   ncaab:
 
     moneyline:
       enabled: true
-      pick_preference: best_edge
+      pick_preference: best_ev
 
       home:
         enabled: true
         odds_bands:
           - [-300, 325]
-        edge_bands:
-          - [0.0001, 1]
+        ev_min: 0.02
+        kelly_min: 0.01
+        kelly_max: 0.06
 
       away:
         enabled: true
         odds_bands:
           - [-300, 325]
-        edge_bands:
-          - [0.0001, 1]
+        ev_min: 0.02
+        kelly_min: 0.01
+        kelly_max: 0.06
 
     spread:
       enabled: true
-      pick_preference: best_edge
-
-      block_rules:
-        - all:
-            - field: away_line
-              gte: 15
-            - field: away_edge
-              gte: 0.075
-            - field: away_edge
-              lte: 0.0999
+      pick_preference: best_ev
 
       home:
         enabled: true
         line_bands:
           - [-5, -3]
-        edge_bands:
-          - [0.05, 1]
+        ev_min: 0.02
+        kelly_min: 0.01
+        kelly_max: 0.05
 
       away:
         enabled: true
         line_bands:
           - [-3, -1]
           - [7.5, 20]
-        edge_bands:
-          - [0.01, 1]
+        ev_min: 0.02
+        kelly_min: 0.01
+        kelly_max: 0.05
 
     total:
       enabled: true
-      pick_preference: best_edge
+      pick_preference: best_ev
 
       over:
         enabled: true
         line_bands:
           - [150, 200]
-        edge_bands:
-          - [0.05, 1]
+        ev_min: 0.025
+        kelly_min: 0.01
+        kelly_max: 0.06
 
       under:
         enabled: true
         line_bands:
           - [135, 150]
-        edge_bands:
-          - [0.05, 1]
+        ev_min: 0.025
+        kelly_min: 0.01
+        kelly_max: 0.06
