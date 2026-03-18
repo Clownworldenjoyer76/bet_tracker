@@ -4,7 +4,7 @@
 import pandas as pd
 from pathlib import Path
 import math
-from datetime import datetime
+from datetime import datetime, UTC
 import traceback
 import sys
 
@@ -28,10 +28,10 @@ def audit(log_path, stage, status, msg="", df=None):
         f.write("-" * 40 + "\n")
 
 # =========================
-# PATHS
+# PATHS (FIXED)
 # =========================
 
-INPUT_DIR = Path("docs/win/basketball/01_merge")
+INPUT_DIR = Path("docs/win/basketball/01_merge/01_merguiced")
 OUTPUT_DIR = Path("docs/win/basketball/02_juice")
 ERROR_DIR = Path("docs/win/basketball/errors/02_juice")
 
@@ -44,7 +44,7 @@ ERROR_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_LOG = ERROR_DIR / "apply_spread_juice.txt"
 
 # =========================
-# LOAD CONFIG ONCE
+# LOAD CONFIG
 # =========================
 
 NBA_JUICE_TABLE = pd.read_csv(NBA_CONFIG)
@@ -66,7 +66,7 @@ for f in OUTPUT_DIR.glob("*_NCAAB_spread.csv"):
 
 def log(msg):
     with open(ERROR_LOG, "a", encoding="utf-8") as f:
-        f.write(f"{datetime.utcnow().isoformat()} | {msg}\n")
+        f.write(f"{datetime.now(UTC).isoformat()} | {msg}\n")
 
 # =========================
 # HELPERS
@@ -97,10 +97,8 @@ def decimal_to_american(d):
         d=float(d)
     except:
         return ""
-
     if not math.isfinite(d) or d<=1:
         return ""
-
     if d>=2:
         return f"+{int(round((d-1)*100))}"
     return f"-{int(round(100/(d-1)))}"
@@ -110,10 +108,8 @@ def safe_decimal(v):
         v=float(v)
     except:
         return 1.01
-
     if not math.isfinite(v) or v<=1:
         return 1.01
-
     return v
 
 def atomic_write(df,path):
@@ -136,7 +132,7 @@ def ensure_american_columns(df):
     return df
 
 # =========================
-# NBA SPREAD JUICE
+# NBA SPREAD JUICE (UNCHANGED LOGIC)
 # =========================
 
 def apply_nba(df):
@@ -190,7 +186,6 @@ def apply_nba(df):
             result_type="expand"
         )
 
-    # replace acceptable prices so edges use juice-adjusted
     df["home_acceptable_spread_decimal"]=df["home_spread_juice_decimal"]
     df["away_acceptable_spread_decimal"]=df["away_spread_juice_decimal"]
 
@@ -200,7 +195,7 @@ def apply_nba(df):
     return df
 
 # =========================
-# NCAAB SPREAD JUICE
+# NCAAB SPREAD JUICE (FIXED)
 # =========================
 
 def apply_ncaab(df):
@@ -224,9 +219,10 @@ def apply_ncaab(df):
 
         odds=normalize_american(odds)
 
-        match=jt[jt.spread==spread]
-
-        extra=match.iloc[0]["extra_juice"] if not match.empty else 0.0
+        jt_temp = jt.copy()
+        jt_temp["diff"] = (jt_temp["spread"] - spread).abs()
+        nearest = jt_temp.loc[jt_temp["diff"].idxmin()]
+        extra = nearest["extra_juice"]
 
         if not math.isfinite(extra):
             extra=0.0
@@ -262,7 +258,7 @@ def apply_ncaab(df):
 def main():
 
     with open(ERROR_LOG,"w") as f:
-        f.write(f"=== APPLY SPREAD JUICE START {datetime.utcnow().isoformat()}Z ===\n")
+        f.write(f"=== APPLY SPREAD JUICE START {datetime.now(UTC).isoformat()}Z ===\n")
 
     try:
 

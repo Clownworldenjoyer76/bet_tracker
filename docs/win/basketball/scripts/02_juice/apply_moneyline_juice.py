@@ -4,7 +4,7 @@
 import pandas as pd
 from pathlib import Path
 import math
-from datetime import datetime
+from datetime import datetime, UTC
 import traceback
 import sys
 
@@ -36,10 +36,10 @@ def audit(log_path, stage, status, msg="", df=None):
 
 
 # =========================
-# PATHS
+# PATHS (FIXED)
 # =========================
 
-INPUT_DIR = Path("docs/win/basketball/01_merge")
+INPUT_DIR = Path("docs/win/basketball/01_merge/01_merguiced")
 OUTPUT_DIR = Path("docs/win/basketball/02_juice")
 ERROR_DIR = Path("docs/win/basketball/errors/02_juice")
 
@@ -58,7 +58,7 @@ ERROR_LOG = ERROR_DIR / "apply_moneyline_juice.txt"
 
 def log(msg):
     with open(ERROR_LOG, "a", encoding="utf-8") as f:
-        f.write(f"{datetime.utcnow().isoformat()} | {msg}\n")
+        f.write(f"{datetime.now(UTC).isoformat()} | {msg}\n")
 
 
 # =========================
@@ -152,7 +152,9 @@ NCAAB_JT = pd.read_csv(NCAAB_CONFIG)
 
 def lookup_nba_extra(price, venue):
 
-    if pd.isna(price):
+    price = normalize_american_value(price)
+
+    if price is None:
         return 0.0
 
     fav_ud = "favorite" if price < 0 else "underdog"
@@ -256,7 +258,7 @@ def apply_ncaab(df):
 def main():
 
     with open(ERROR_LOG, "w") as f:
-        f.write(f"=== APPLY MONEYLINE JUICE START {datetime.utcnow().isoformat()}Z ===\n")
+        f.write(f"=== APPLY MONEYLINE JUICE START {datetime.now(UTC).isoformat()}Z ===\n")
 
     try:
 

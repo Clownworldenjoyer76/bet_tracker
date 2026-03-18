@@ -4,7 +4,7 @@
 import pandas as pd
 from pathlib import Path
 import math
-from datetime import datetime
+from datetime import datetime, UTC
 import traceback
 import sys
 
@@ -13,7 +13,7 @@ import sys
 # =========================
 
 def audit(log_path, stage, status, msg="", df=None):
-    ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    ts = datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%S')
     log_path = Path(log_path)
     log_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -29,10 +29,10 @@ def audit(log_path, stage, status, msg="", df=None):
 
 
 # =========================
-# PATHS
+# PATHS (UPDATED)
 # =========================
 
-INPUT_DIR = Path("docs/win/basketball/01_merge")
+INPUT_DIR = Path("docs/win/basketball/01_merge/01_merguiced")
 OUTPUT_DIR = Path("docs/win/basketball/02_juice")
 ERROR_DIR = Path("docs/win/basketball/errors/02_juice")
 
@@ -46,23 +46,23 @@ ERROR_LOG = ERROR_DIR / "apply_total_juice.txt"
 
 
 # =========================
-# PURGE OLD OUTPUT FILES
+# CLEAN OLD OUTPUTS
 # =========================
 
 for f in OUTPUT_DIR.glob("*_NBA_total.csv"):
-    f.unlink()
+    f.unlink(missing_ok=True)
 
 for f in OUTPUT_DIR.glob("*_NCAAB_total.csv"):
-    f.unlink()
+    f.unlink(missing_ok=True)
 
 
 def log(msg):
     with open(ERROR_LOG, "a", encoding="utf-8") as f:
-        f.write(f"{datetime.utcnow().isoformat()} | {msg}\n")
+        f.write(f"{datetime.now(UTC).isoformat()} | {msg}\n")
 
 
 # =========================
-# CONFIG LOAD (ONCE)
+# CONFIG LOAD
 # =========================
 
 NBA_JUICE = pd.read_csv(NBA_CONFIG)
@@ -79,31 +79,6 @@ NCAAB_JUICE["extra_juice"] = pd.to_numeric(NCAAB_JUICE["extra_juice"], errors="c
 # ODDS CONVERSION
 # =========================
 
-def normalize_american(value):
-
-    if pd.isna(value):
-        return None
-
-    try:
-        value = str(value).replace("+", "").strip()
-        return float(value)
-    except:
-        return None
-
-
-def american_to_decimal(a):
-
-    a = normalize_american(a)
-
-    if a is None:
-        return None
-
-    if a > 0:
-        return 1 + (a / 100)
-
-    return 1 + (100 / abs(a))
-
-
 def decimal_to_american(d):
 
     if d is None or not math.isfinite(d) or d <= 1:
@@ -116,7 +91,7 @@ def decimal_to_american(d):
 
 
 # =========================
-# COLUMN VALIDATION
+# VALIDATION
 # =========================
 
 def validate_columns(df, cols):
@@ -125,20 +100,6 @@ def validate_columns(df, cols):
 
     if missing:
         raise ValueError(f"Missing required columns: {missing}")
-
-
-# =========================
-# ODDS RESOLUTION
-# =========================
-
-def resolve_total_odds(row, side):
-
-    dk_col = f"dk_total_{side}_american"
-
-    if dk_col in row and pd.notna(row[dk_col]):
-        return normalize_american(row[dk_col])
-
-    raise KeyError(f"Missing total odds column: {dk_col}")
 
 
 # =========================
@@ -185,7 +146,6 @@ def apply_nba(df):
     df[["total_under_juice_decimal", "total_under_juice_odds"]] = \
         df.apply(lambda r: process(r, "under"), axis=1, result_type="expand")
 
-    # Replace acceptable totals so downstream edges use the adjusted model prices
     df["acceptable_over"] = df["total_over_juice_decimal"]
     df["acceptable_under"] = df["total_under_juice_decimal"]
 
@@ -193,7 +153,7 @@ def apply_nba(df):
 
 
 # =========================
-# NCAAB PROCESSING
+# NCAAB PROCESSING (FIXED)
 # =========================
 
 def apply_ncaab(df):
@@ -212,12 +172,14 @@ def apply_ncaab(df):
         if pd.isna(base_decimal) or not math.isfinite(base_decimal) or base_decimal <= 1:
             return None, ""
 
-        match = NCAAB_JUICE[
-            (NCAAB_JUICE["over_under"] == total) &
-            (NCAAB_JUICE["side"] == side)
-        ]
+        jt_side = NCAAB_JUICE[NCAAB_JUICE["side"] == side].copy()
 
-        extra = match.iloc[0]["extra_juice"] if not match.empty else 0.0
+        if jt_side.empty:
+            extra = 0.0
+        else:
+            jt_side["diff"] = (jt_side["over_under"] - total).abs()
+            nearest = jt_side.loc[jt_side["diff"].idxmin()]
+            extra = nearest["extra_juice"]
 
         if pd.isna(extra) or not math.isfinite(extra):
             extra = 0.0
@@ -235,7 +197,6 @@ def apply_ncaab(df):
     df[["total_under_juice_decimal", "total_under_juice_odds"]] = \
         df.apply(lambda r: process(r, "under"), axis=1, result_type="expand")
 
-    # Replace acceptable totals so downstream edges use the adjusted model prices
     df["acceptable_over"] = df["total_over_juice_decimal"]
     df["acceptable_under"] = df["total_under_juice_decimal"]
 
@@ -249,7 +210,7 @@ def apply_ncaab(df):
 def main():
 
     with open(ERROR_LOG, "w", encoding="utf-8") as f:
-        f.write(f"=== APPLY TOTAL JUICE START {datetime.utcnow().isoformat()}Z ===\n")
+        f.write(f"=== APPLY TOTAL JUICE START {datetime.now(UTC).isoformat()}Z ===\n")
 
     try:
 
@@ -268,13 +229,8 @@ def main():
 
                 log(f"Processed NBA file: {name}")
 
-                audit(
-                    ERROR_LOG,
-                    "JUICE_TOTAL_NBA",
-                    "SUCCESS",
-                    msg=f"Applied NBA Totals Juice to {name}",
-                    df=df
-                )
+                audit(ERROR_LOG, "JUICE_TOTAL_NBA", "SUCCESS",
+                      msg=f"Applied NBA Totals Juice to {name}", df=df)
 
                 files_found += 1
 
@@ -288,13 +244,8 @@ def main():
 
                 log(f"Processed NCAAB file: {name}")
 
-                audit(
-                    ERROR_LOG,
-                    "JUICE_TOTAL_NCAAB",
-                    "SUCCESS",
-                    msg=f"Applied NCAAB Totals Juice to {name}",
-                    df=df
-                )
+                audit(ERROR_LOG, "JUICE_TOTAL_NCAAB", "SUCCESS",
+                      msg=f"Applied NCAAB Totals Juice to {name}", df=df)
 
                 files_found += 1
 
@@ -309,12 +260,7 @@ def main():
         log(str(e))
         log(traceback.format_exc())
 
-        audit(
-            ERROR_LOG,
-            "JUICE_TOTAL_CRITICAL",
-            "FAILED",
-            msg=str(e)
-        )
+        audit(ERROR_LOG, "JUICE_TOTAL_CRITICAL", "FAILED", msg=str(e))
 
         sys.exit(1)
 
