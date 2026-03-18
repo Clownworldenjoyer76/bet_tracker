@@ -63,6 +63,15 @@ jobs:
           mkdir -p docs/win/errors
 
       # -----------------------------
+      # CLEAN OLD OUTPUTS (CRITICAL FIX)
+      # -----------------------------
+      - name: Clean old select outputs
+        run: |
+          rm -rf docs/win/basketball/04_select/daily_slate/*
+          rm -rf docs/win/hockey/04_select/daily_slate/*
+          rm -rf docs/win/soccer/04_select/daily_slate/*
+
+      # -----------------------------
       # Run pipeline
       # -----------------------------
       - name: Run pipeline
@@ -81,6 +90,9 @@ jobs:
             echo "No log file found."
           fi
 
+      # -----------------------------
+      # Commit and push results (FIXED)
+      # -----------------------------
       - name: Commit and push results
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -90,19 +102,13 @@ jobs:
 
           git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git
 
-          # FORCE add ALL outputs (not just tracked ones)
+          # Add ALL outputs
           git add -A docs/win
 
-          # Remove pycache junk
-          git reset docs/win/**/__pycache__/* || true
+          # Remove pycache from staging safely
+          git restore --staged docs/win/**/__pycache__/* || true
 
-          if git diff --cached --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "Automated pipeline run"
-            git push
-          fi
+          # Commit safely (no crash if no changes)
+          git commit -m "Automated pipeline run" || echo "Nothing to commit"
 
-
-
-      
+          git push
