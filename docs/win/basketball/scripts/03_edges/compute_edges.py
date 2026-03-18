@@ -1,6 +1,6 @@
+#!/usr/bin/env python3
 # docs/win/basketball/scripts/03_edges/compute_edges.py
 
-#!/usr/bin/env python3
 import pandas as pd
 from pathlib import Path
 import traceback
@@ -42,26 +42,14 @@ def american_to_decimal(odds):
 
 
 # =========================
-# MATH HELPERS
+# EDGE CALCULATION (FIXED)
 # =========================
 
-def implied_prob(decimal_odds):
-    decimal_odds = pd.to_numeric(decimal_odds, errors="coerce")
-    return (1 / decimal_odds).where(decimal_odds > 1)
-
-
-def calculate_edge(model_decimal, book_decimal):
-    """
-    Positive edge means model implied probability is higher than
-    sportsbook implied probability.
-    """
-    model_decimal = pd.to_numeric(model_decimal, errors="coerce")
+def calculate_edge(model_prob, book_decimal):
+    model_prob = pd.to_numeric(model_prob, errors="coerce")
     book_decimal = pd.to_numeric(book_decimal, errors="coerce")
 
-    model_p = implied_prob(model_decimal)
-    book_p = implied_prob(book_decimal)
-
-    return model_p - book_p
+    return (model_prob * book_decimal) - 1
 
 
 def validate_columns(df: pd.DataFrame, required_cols):
@@ -123,20 +111,20 @@ def compute_moneyline_edges(df, league, date):
     df = ensure_decimal_columns(df)
 
     required = [
+        "home_prob",
+        "away_prob",
         "home_dk_decimal_moneyline",
         "away_dk_decimal_moneyline",
-        "home_juice_decimal_moneyline",
-        "away_juice_decimal_moneyline",
     ]
     validate_columns(df, required)
 
-    df["home_ml_edge_decimal"] = calculate_edge(
-        df["home_juice_decimal_moneyline"],
+    df["home_ml_edge"] = calculate_edge(
+        df["home_prob"],
         df["home_dk_decimal_moneyline"]
     )
 
-    df["away_ml_edge_decimal"] = calculate_edge(
-        df["away_juice_decimal_moneyline"],
+    df["away_ml_edge"] = calculate_edge(
+        df["away_prob"],
         df["away_dk_decimal_moneyline"]
     )
 
@@ -147,26 +135,20 @@ def compute_spread_edges(df, league, date):
     df = ensure_decimal_columns(df)
 
     required = [
+        "home_prob",
+        "away_prob",
         "home_dk_spread_decimal",
         "away_dk_spread_decimal",
-        "home_spread_juice_decimal",
-        "away_spread_juice_decimal",
     ]
     validate_columns(df, required)
 
-    # force numeric conversion before edge calculation
-    df["home_spread_juice_decimal"] = pd.to_numeric(df["home_spread_juice_decimal"], errors="coerce")
-    df["away_spread_juice_decimal"] = pd.to_numeric(df["away_spread_juice_decimal"], errors="coerce")
-    df["home_dk_spread_decimal"] = pd.to_numeric(df["home_dk_spread_decimal"], errors="coerce")
-    df["away_dk_spread_decimal"] = pd.to_numeric(df["away_dk_spread_decimal"], errors="coerce")
-
-    df["home_spread_edge_decimal"] = calculate_edge(
-        df["home_spread_juice_decimal"],
+    df["home_spread_edge"] = calculate_edge(
+        df["home_prob"],
         df["home_dk_spread_decimal"]
     )
 
-    df["away_spread_edge_decimal"] = calculate_edge(
-        df["away_spread_juice_decimal"],
+    df["away_spread_edge"] = calculate_edge(
+        df["away_prob"],
         df["away_dk_spread_decimal"]
     )
 
@@ -177,20 +159,24 @@ def compute_total_edges(df, league):
     df = ensure_decimal_columns(df)
 
     required = [
+        "fair_over",
+        "fair_under",
         "dk_total_over_decimal",
         "dk_total_under_decimal",
-        "total_over_juice_decimal",
-        "total_under_juice_decimal",
     ]
     validate_columns(df, required)
 
-    df["over_edge_decimal"] = calculate_edge(
-        df["total_over_juice_decimal"],
+    # convert fair odds → probabilities
+    df["over_prob"] = 1 / pd.to_numeric(df["fair_over"], errors="coerce")
+    df["under_prob"] = 1 / pd.to_numeric(df["fair_under"], errors="coerce")
+
+    df["over_edge"] = calculate_edge(
+        df["over_prob"],
         df["dk_total_over_decimal"]
     )
 
-    df["under_edge_decimal"] = calculate_edge(
-        df["total_under_juice_decimal"],
+    df["under_edge"] = calculate_edge(
+        df["under_prob"],
         df["dk_total_under_decimal"]
     )
 
