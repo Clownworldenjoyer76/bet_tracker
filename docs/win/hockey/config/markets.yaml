@@ -2,41 +2,70 @@ markets:
 
   nhl:
 
-    total:
+    moneyline:
       enabled: true
+      pick_preference: best_ev
 
-      min_edge: 0.05
-      min_prob: 0.52
+      home:
+        enabled: true
+        odds_bands:
+          - [-250, 200]
+        ev_min: 0.02
+        ev_max: 0.10
+        kelly_min: 0.005
+        kelly_max: 0.05
 
-      sides:
-        over:
-          enabled: true
-        under:
-          enabled: true
+      away:
+        enabled: true
+        odds_bands:
+          - [-250, 200]
+        ev_min: 0.02
+        ev_max: 0.10
+        kelly_min: 0.005
+        kelly_max: 0.05
 
     puck_line:
       enabled: true
+      pick_preference: best_ev
 
-      dog:
-        min_prob: 0.45
+      home:
+        enabled: true
+        line_bands:
+          - [-1.5, -1.5]
+          - [1.5, 1.5]
+        ev_min: 0.02
+        ev_max: 0.12
+        kelly_min: 0.01
+        kelly_max: 0.05
 
-      favorite:
-        min_edge: 0.20
-        max_odds: -120
+      away:
+        enabled: true
+        line_bands:
+          - [-1.5, -1.5]
+          - [1.5, 1.5]
+        ev_min: 0.02
+        ev_max: 0.12
+        kelly_min: 0.01
+        kelly_max: 0.05
 
-      rules:
-        - type: block
-          condition: "favorite AND total_side == under"
-
-    moneyline:
+    total:
       enabled: true
+      pick_preference: best_ev
 
-      odds_range: [-250, 250]
+      over:
+        enabled: true
+        line_bands:
+          - [4.5, 7.5]
+        ev_min: 0.02
+        ev_max: 0.10
+        kelly_min: 0.005
+        kelly_max: 0.05
 
-      standard:
-        min_edge: 0.025
-        min_prob: 0.40
-
-      favorite:
-        min_edge: 0.02
-        min_prob: 0.44
+      under:
+        enabled: true
+        line_bands:
+          - [4.5, 7.5]
+        ev_min: 0.02
+        ev_max: 0.10
+        kelly_min: 0.005
+        kelly_max: 0.05
