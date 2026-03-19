@@ -1,0 +1,25 @@
+HOCKEY PIPELINE (CURRENT STATE)
+
+1. MERGE (01_merge → 01_merguiced)
+   - Combines raw sportsbook data + model outputs
+   - Produces fair odds (no vig)
+
+2. JUICE APPLICATION (02_juice)
+   - Applies config-based juice to fair odds
+   - Converts to juiced decimal + implied probabilities
+   - Handles moneyline, puck line, and totals
+
+3. NORMALIZATION (built into juice step)
+   - Ensures probabilities sum to 1 per market
+   - Moneyline + totals: normalize after applying juice
+   - Puck line: paired calculation + normalization internally
+
+4. VALIDATION / SANITY CHECKS
+   - Probability sums = 1
+   - No negative hold
+   - No favorite inversions
+   - No nulls / duplicates
+   - Reasonable probability ranges
+
+OUTPUT:
+   Clean, market-consistent probability datasets ready for downstream use
