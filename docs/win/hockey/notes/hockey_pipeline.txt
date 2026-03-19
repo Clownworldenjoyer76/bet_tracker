@@ -130,24 +130,314 @@ ________________________________________________________________________________
 ___________________________________________________________________________________
 ___________________________________________________________________________________
 ___________________________________________________________________________________
+## HOCKEY PIPELINE (CURRENT STATE)
+___________________________________________________________________________________
 
-## TL;DR
+### 1. MERGE (01_merge → 01_merguiced)
 
-Pipeline now:
+* Combines raw sportsbook data + model outputs
+* Produces **fair odds (no vig)**
+* Generates:
 
-* **Model → Fair odds → Juiced odds → Normalized probabilities → Edge → EV → Kelly**
+  * fair_decimal_* (all markets)
+  * model probabilities (home_prob, away_prob, etc.)
+  * derived puck line probabilities via Skellam
+
+___________________________________________________________________________________
+
+### 2. JUICE APPLICATION (02_juice)
+
+* Applies config-based synthetic vig
+* Converts fair odds → **juiced odds + implied probabilities**
+
+Produces:
+
+* juiced_decimal_*
+* juiced_prob_*
+
+NORMALIZATION (within juice)
+
+* Enforces **valid market distributions**
+
+Rules:
+
+* **Moneyline / totals**
+  → juiced_prob rescaled → normalized_prob (sum = 1)
+
+* **Puck line**
+  → already paired + normalized internally
+  → normalized = juiced (duplicate for schema consistency)
+
+___________________________________________________________________________________
+
+
+### 3. EDGE COMPUTATION (03_edges)
+
+* Converts probabilities + book odds → **edge metrics**
+
+Produces:
+
+* edge_decimal_*
+* raw_edge_decimal_*
+* edge_pct_* (moneyline only)
+
+Formulas:
+
+```
+edge_decimal = (normalized_prob * dk_decimal) - 1  
+raw_edge = (model_prob * dk_decimal) - 1  
+edge_pct = normalized_prob - (1 / dk_decimal)
+```
+
+Purpose:
+
+* edge_decimal → usable signal
+* raw_edge → diagnostic (pre-normalization model signal)
+
+---
+
+EV + KELLY (03_edges/ev_kelly)
+
+* Converts edges into **betting decisions + sizing**
+
+Produces:
+
+* *_ev (same as edge_decimal)
+* *_kelly
+
+Formulas:
+
+```
+EV = (model_prob * dk_decimal) - 1  
+
+b = dk_decimal - 1  
+q = 1 - model_prob  
+
+kelly = ((b * model_prob) - q) / b  
+kelly = max(kelly, 0)
+```
+
+Notes:
+
+* EV = naming layer (same math as edge)
+* Kelly clipped at 0 (no negative bets)
+
+---
+
+VALIDATION / SANITY CHECKS
+
+Confirmed:
+
+* Probabilities ∈ (0,1)
+* Normalized sums = 1
+* No NaNs
+* No dual-positive edges (no arbitrage bugs)
+* Hold stable (~4–5%)
+* Edge distribution:
+
+  * mean < 0 (vig present)
+  * small positive tail only
+* Kelly:
+
+  * mostly 0
+  * no extreme values
+
+OUTPUT
+
+Two layers:
+
+### A. EDGE FILES (03_edges)
+
+* Market-consistent probabilities
+* Edge calculations (normalized + raw)
+
+### B. EV/KELLY FILES (03_edges/ev_kelly)
+
+* Actionable betting metrics:
+
+  * EV (value)
+  * Kelly (position sizing)
+
+___________________________________________________________________________________
+
+
+### 4. BET SELECTION (04_select)
+
+* Filters EV/Kelly outputs into **final betting slate**
+* Applies **config-driven rules (YAML)** per market and side
+* Produces only **actionable +EV bets**
+
+INPUT:
+
+```text
+docs/win/hockey/03_edges/ev_kelly
+```
+
+---
+
+### SELECTION LOGIC
+
+Controlled via:
+
+```text
+docs/win/hockey/config/markets.yaml
+```
+
+Per market + side:
+
+* enabled
+* odds_bands / line_bands
+* ev_min / ev_max
+* kelly_min / kelly_max
+
+Filtering conditions:
+
+```
+EV ≥ ev_min  
+Kelly ≥ kelly_min  
+Odds / line within configured bands  
+```
+
+---
+
+### MARKET BEHAVIOR
+
+* **Moneyline**
+  → filtered by odds range + EV/Kelly thresholds
+  → favorites and dogs handled separately
+
+* **Puck line**
+  → filtered by line bands (±1.5, etc.)
+  → strongest source of selections
+
+* **Totals**
+  → filtered by total range + EV/Kelly
+  → over/under evaluated independently
+
+---
+
+### OUTPUT
+
+```text
+docs/win/hockey/04_select/YYYY_MM_DD_NHL.csv
+```
+
+Each row = **1 selected bet**
+
+Columns:
+
+```
+game_date
+league
+game_id
+away_team
+home_team
+
+market_type
+bet_side
+line
+
+odds          (DraftKings price)
+ev            (expected value)
+kelly         (bet size fraction)
+```
+
+---
+
+### CORE RULES
+
+* **Uses normalized (juiced) probabilities**
+  → your market view vs sportsbook
+
+* **No duplicate bets**
+  → unique per (game_id, market_type, bet_side)
+
+* **No conflicting sides**
+  → never selects both sides of same market
+
+* **Positive EV only**
+  → all bets pass EV + Kelly thresholds
+
+* **Kelly clipped at 0**
+  → no forced bets
+
+* **Full rebuild each run**
+  → no stale selections
+
+---
+
+### SYSTEM BEHAVIOR (VALIDATED)
+
+* ~3–5 bets per slate
+* EV range:
+
+```
+~0.02 → 0.085
+```
+
+* Kelly range:
+
+```
+~0.01 → 0.05
+```
+
+Implications:
+
+* No inflated edges
+* No over-selection
+* Stable risk sizing
+* Realistic market inefficiencies captured
+
+---
+
+### OUTPUT QUALITY CHECKS
+
+Confirmed:
+
+* No duplicates
+* No conflicting bets
+* EV always finite and > 0
+* Kelly always finite and ≥ 0
+* No extreme exposure (Kelly < 0.10)
+
+---
+
+### PURPOSE
+
+This stage is the **decision layer**:
+
+```
+Edge → EV → Kelly → Selection → Final bets
+```
+
+Converts model signal into:
+
+* **What to bet**
+* **How much to bet**
+
+___________________________________________________________________________________
+___________________________________________________________________________________
+___________________________________________________________________________________
+
+TL;DR
+
+* **Model → Fair odds → Juiced odds → Normalized probabilities → Edge → EV → Kelly → Selection**
 
 Use:
 
-* **EV / edge_decimal → find bets**
+* **EV → identify bets**
 * **Kelly → size bets**
-
-Ignore:
-
-* raw_edge (debug only)
+* **Select stage → final execution layer**
 
 System state:
 
 * Fully calibrated
-* No math errors
-* Ready for strategy layer (filters + bet selection)
+* Fully validated
+* Ready for deployment / tracking / performance analysis
+
+
+
+
+
+
+er (filters + bet selection)
