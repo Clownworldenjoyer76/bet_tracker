@@ -218,16 +218,15 @@ def process_market_files(files, compute_fn, league, market):
                 ERROR_LOG,
                 f"{league}_{market.upper()}",
                 "SUCCESS",
-                f"File: {f.name}",
-                df=df
+                f"File: {f.name} | rows={len(df)}"
             )
 
-        except Exception:
+        except Exception as e:
             audit(
                 ERROR_LOG,
                 f"{league}_{market.upper()}",
                 "FAILED",
-                msg=traceback.format_exc()
+                msg=f"{type(e).__name__}: {str(e)[:200]}"
             )
 
 
@@ -271,8 +270,13 @@ def main():
         process_league("NCAAB")
         audit(ERROR_LOG, "SYSTEM", "SUCCESSFUL COMPLETION")
 
-    except Exception:
-        audit(ERROR_LOG, "SYSTEM", "CRITICAL FAILURE", msg=traceback.format_exc())
+    except Exception as e:
+        audit(
+            ERROR_LOG,
+            "SYSTEM",
+            "CRITICAL FAILURE",
+            msg=f"{type(e).__name__}: {str(e)[:200]}"
+        )
 
 
 if __name__ == "__main__":
