@@ -1,25 +1,153 @@
-HOCKEY PIPELINE (CURRENT STATE)
+## HOCKEY PIPELINE (CURRENT STATE)
+___________________________________________________________________________________
 
-1. MERGE (01_merge → 01_merguiced)
-   - Combines raw sportsbook data + model outputs
-   - Produces fair odds (no vig)
+### 1. MERGE (01_merge → 01_merguiced)
 
-2. JUICE APPLICATION (02_juice)
-   - Applies config-based juice to fair odds
-   - Converts to juiced decimal + implied probabilities
-   - Handles moneyline, puck line, and totals
+* Combines raw sportsbook data + model outputs
+* Produces **fair odds (no vig)**
+* Generates:
 
-3. NORMALIZATION (built into juice step)
-   - Ensures probabilities sum to 1 per market
-   - Moneyline + totals: normalize after applying juice
-   - Puck line: paired calculation + normalization internally
+  * fair_decimal_* (all markets)
+  * model probabilities (home_prob, away_prob, etc.)
+  * derived puck line probabilities via Skellam
 
-4. VALIDATION / SANITY CHECKS
-   - Probability sums = 1
-   - No negative hold
-   - No favorite inversions
-   - No nulls / duplicates
-   - Reasonable probability ranges
+___________________________________________________________________________________
 
-OUTPUT:
-   Clean, market-consistent probability datasets ready for downstream use
+### 2. JUICE APPLICATION (02_juice)
+
+* Applies config-based synthetic vig
+* Converts fair odds → **juiced odds + implied probabilities**
+
+Produces:
+
+* juiced_decimal_*
+* juiced_prob_*
+
+NORMALIZATION (within juice)
+
+* Enforces **valid market distributions**
+
+Rules:
+
+* **Moneyline / totals**
+  → juiced_prob rescaled → normalized_prob (sum = 1)
+
+* **Puck line**
+  → already paired + normalized internally
+  → normalized = juiced (duplicate for schema consistency)
+
+___________________________________________________________________________________
+
+
+### 3. EDGE COMPUTATION (03_edges)
+
+* Converts probabilities + book odds → **edge metrics**
+
+Produces:
+
+* edge_decimal_*
+* raw_edge_decimal_*
+* edge_pct_* (moneyline only)
+
+Formulas:
+
+```
+edge_decimal = (normalized_prob * dk_decimal) - 1  
+raw_edge = (model_prob * dk_decimal) - 1  
+edge_pct = normalized_prob - (1 / dk_decimal)
+```
+
+Purpose:
+
+* edge_decimal → usable signal
+* raw_edge → diagnostic (pre-normalization model signal)
+
+---
+
+EV + KELLY (03_edges/ev_kelly)
+
+* Converts edges into **betting decisions + sizing**
+
+Produces:
+
+* *_ev (same as edge_decimal)
+* *_kelly
+
+Formulas:
+
+```
+EV = (model_prob * dk_decimal) - 1  
+
+b = dk_decimal - 1  
+q = 1 - model_prob  
+
+kelly = ((b * model_prob) - q) / b  
+kelly = max(kelly, 0)
+```
+
+Notes:
+
+* EV = naming layer (same math as edge)
+* Kelly clipped at 0 (no negative bets)
+
+---
+
+VALIDATION / SANITY CHECKS
+
+Confirmed:
+
+* Probabilities ∈ (0,1)
+* Normalized sums = 1
+* No NaNs
+* No dual-positive edges (no arbitrage bugs)
+* Hold stable (~4–5%)
+* Edge distribution:
+
+  * mean < 0 (vig present)
+  * small positive tail only
+* Kelly:
+
+  * mostly 0
+  * no extreme values
+
+OUTPUT
+
+Two layers:
+
+### A. EDGE FILES (03_edges)
+
+* Market-consistent probabilities
+* Edge calculations (normalized + raw)
+
+### B. EV/KELLY FILES (03_edges/ev_kelly)
+
+* Actionable betting metrics:
+
+  * EV (value)
+  * Kelly (position sizing)
+
+___________________________________________________________________________________
+___________________________________________________________________________________
+___________________________________________________________________________________
+___________________________________________________________________________________
+
+## TL;DR
+
+Pipeline now:
+
+* **Model → Fair odds → Juiced odds → Normalized probabilities → Edge → EV → Kelly**
+
+Use:
+
+* **EV / edge_decimal → find bets**
+* **Kelly → size bets**
+
+Ignore:
+
+* raw_edge (debug only)
+
+System state:
+
+* Fully calibrated
+* No math errors
+* Ready for strategy layer (filters + bet selection)
