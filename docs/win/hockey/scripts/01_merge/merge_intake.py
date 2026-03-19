@@ -35,12 +35,17 @@ def log(msg):
 
 def load_dedupe(path, key_fields):
     data = {}
+    duplicates = 0
+
     with open(path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for r in reader:
             key = tuple(r[k] for k in key_fields)
+            if key in data:
+                duplicates += 1
             data[key] = r
-    return data
+
+    return data, duplicates
 
 key_fields = ["game_date", "home_team", "away_team"]
 
@@ -96,37 +101,54 @@ for pred_file in prediction_files:
     OUTFILE = MERGE_DIR / f"hockey_{slate_date}.csv"
 
     if not PRED_FILE.exists() or not SPORTSBOOK_FILE.exists():
-        log(f"No hockey slate found for {slate_date}. Skipping merge.")
+        log(f"MISSING FILE: slate={slate_date} predictions_or_sportsbook_missing")
         print(f"No hockey slate found for {slate_date}. Skipping.")
         continue
 
-    pred_data = load_dedupe(PRED_FILE, key_fields)
-    dk_data = load_dedupe(SPORTSBOOK_FILE, key_fields)
+    pred_data, pred_dupes = load_dedupe(PRED_FILE, key_fields)
+    dk_data, book_dupes = load_dedupe(SPORTSBOOK_FILE, key_fields)
+
+    pred_count = len(pred_data)
+    book_count = len(dk_data)
+
+    if pred_dupes > 0:
+        log(f"PREDICTION DUPLICATES: slate={slate_date} count={pred_dupes}")
+
+    if book_dupes > 0:
+        log(f"SPORTSBOOK DUPLICATES: slate={slate_date} count={book_dupes}")
 
     # =========================
     # MERGE (FULL REBUILD)
     # =========================
 
     merged_rows = []
+    missing_keys = 0
 
     for key, p in pred_data.items():
 
         if key not in dk_data:
+            missing_keys += 1
+            log(f"MISSING MATCH: slate={slate_date} {p.get('away_team')} @ {p.get('home_team')}")
             continue
 
         d = dk_data[key]
 
         if d.get("home_team") != p.get("home_team") or d.get("away_team") != p.get("away_team"):
-            log(f"TEAM MISMATCH: {p.get('home_team')} vs {p.get('away_team')}")
+            log(f"TEAM MISMATCH: slate={slate_date} {p.get('away_team')} @ {p.get('home_team')}")
             continue
 
+        # Puck line validation
         try:
             home_pl = float(d.get("home_puck_line", 0))
             away_pl = float(d.get("away_puck_line", 0))
             if home_pl != -away_pl:
-                log(f"PUCK LINE IMBALANCE: {p.get('home_team')} vs {p.get('away_team')}")
+                log(
+                    f"PUCK LINE IMBALANCE: slate={slate_date} "
+                    f"{p.get('away_team')} @ {p.get('home_team')} "
+                    f"home={home_pl} away={away_pl}"
+                )
         except:
-            pass
+            log(f"PUCK LINE PARSE ERROR: slate={slate_date} {p.get('away_team')} @ {p.get('home_team')}")
 
         game_id = f"{p['game_date']}_{p['away_team']}_{p['home_team']}"
 
@@ -154,10 +176,40 @@ for pred_file in prediction_files:
             "home_dk_moneyline_american": d.get("home_dk_moneyline_american", ""),
         })
 
+    merged_count = len(merged_rows)
+
+    # =========================
+    # DUPLICATE CHECK (MERGED OUTPUT)
+    # =========================
+
+    seen = set()
+    dupes = 0
+
+    for r in merged_rows:
+        if r["game_id"] in seen:
+            dupes += 1
+        seen.add(r["game_id"])
+
+    if dupes > 0:
+        log(f"MERGE DUPLICATES: slate={slate_date} count={dupes}")
+
+    # =========================
+    # EMPTY MERGE CHECK
+    # =========================
+
     if not merged_rows:
-        log(f"No matching rows to merge for slate {slate_date}.")
+        log(f"EMPTY MERGE: slate={slate_date}")
         print(f"No matching rows to merge for slate {slate_date}.")
         continue
+
+    # =========================
+    # SUMMARY LOGGING (CRITICAL)
+    # =========================
+
+    log(
+        f"SUMMARY: slate={slate_date} "
+        f"pred={pred_count} book={book_count} merged={merged_count} dropped={missing_keys}"
+    )
 
     # =========================
     # ATOMIC WRITE (REBUILD)
@@ -168,10 +220,13 @@ for pred_file in prediction_files:
     with open(temp_file, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
         writer.writeheader()
-        for r in sorted(merged_rows, key=lambda x: (x["game_date"], x["game_time"], x["home_team"])):
+
+        for r in sorted(
+            merged_rows,
+            key=lambda x: (x["game_date"], x["game_time"], x["home_team"])
+        ):
             writer.writerow({k: r.get(k, "") for k in FIELDNAMES})
 
     temp_file.replace(OUTFILE)
 
-    log(f"SUMMARY: rebuilt {len(merged_rows)} games for slate {slate_date}")
     print(f"Wrote {OUTFILE}")
