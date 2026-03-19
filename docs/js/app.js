@@ -71,9 +71,10 @@ async function loadPage(){
       const predMap = buildGameMap(predRows);
       const bookMap = buildGameMap(bookRows);
 
+      // ✅ FIX: ensure select file ALWAYS wins (prevents edge overwrite)
       const merged = selectRows.map(sel => {
         const key = makeKey(sel);
-        return { ...sel, ...(predMap[key] || {}), ...(bookMap[key] || {}), __key: key };
+        return { ...(predMap[key] || {}), ...(bookMap[key] || {}), ...sel, __key: key };
       });
 
       const grouped = {};
