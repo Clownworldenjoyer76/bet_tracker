@@ -1,0 +1,94 @@
+PS C:\Users\ntmal\bet_tracker> python -c "import pandas as pd; from pathlib import Path; import numpy as np;
+>>
+>> base=Path(r'docs/win/hockey/04_select')
+>> files=sorted(base.glob('*_NHL.csv'))
+>>
+>> dup_count=0
+>> conflict_count=0
+>> bad_odds=0
+>> bad_ev=0
+>> bad_kelly=0
+>>
+>> all_ev=[]
+>> all_kelly=[]
+>>
+>> for f in files:
+>>     df=pd.read_csv(f)
+>>
+>>     if df.empty:
+>>         continue
+>>
+>>     # DUPLICATES (same game + market + side)
+>>     dup_count += int(df.duplicated(subset=['game_id','market_type','bet_side']).sum())
+>>
+>>     # CONFLICTS (both sides selected in same market)
+>>     for (gid, mkt), sub in df.groupby(['game_id','market_type']):
+>>         if sub['bet_side'].nunique() > 1:
+>>             conflict_count += 1
+>>
+>>     # ODDS SANITY (decimal implied via EV formula must be >1)
+>>     bad_odds += int((df['ev'] < -1).sum())
+>>
+>>     # EV sanity
+>>     bad_ev += int((~np.isfinite(df['ev'])).sum())
+>>
+>>     # KELLY sanity
+>>     bad_kelly += int((~np.isfinite(df['kelly'])).sum())
+>>
+>>     all_ev.extend(df['ev'].dropna().tolist())
+>>     all_kelly.extend(df['kelly'].dropna().tolist())
+>>
+>> all_ev=np.array(all_ev)
+>> all_kelly=np.array(all_kelly)
+>>
+>> print('==============================')
+>> print('GLOBAL CHECKS')
+>> print('==============================')
+>>
+>> print('DUPLICATE BETS:', dup_count)
+>> print('CONFLICTING SIDES:', conflict_count)
+>> print('BAD ODDS (EV<-1):', bad_odds)
+>> print('INVALID EV:', bad_ev)
+>> print('INVALID KELLY:', bad_kelly)
+>>
+>> print('\nEV DISTRIBUTION')
+>> print('mean:', round(all_ev.mean(),5))
+>> print('std:', round(all_ev.std(),5))
+>> print('min:', round(all_ev.min(),5))
+>> print('max:', round(all_ev.max(),5))
+>>
+>> print('\nKELLY DISTRIBUTION')
+>> print('mean:', round(all_kelly.mean(),5))
+>> print('std:', round(all_kelly.std(),5))
+>> print('min:', round(all_kelly.min(),5))
+>> print('max:', round(all_kelly.max(),5))
+>>
+>> print('\nTAIL RISK')
+>> print('EV > 0.07:', int((all_ev>0.07).sum()))
+>> print('KELLY > 0.10:', int((all_kelly>0.10).sum()))
+>> "
+==============================
+GLOBAL CHECKS
+==============================
+DUPLICATE BETS: 0
+CONFLICTING SIDES: 0
+BAD ODDS (EV<-1): 0
+INVALID EV: 0
+INVALID KELLY: 0
+
+EV DISTRIBUTION
+mean: 0.04483
+std: 0.01669
+min: 0.02036
+max: 0.0856
+
+KELLY DISTRIBUTION
+mean: 0.03476
+std: 0.00928
+min: 0.01369
+max: 0.04992
+
+TAIL RISK
+EV > 0.07: 7
+KELLY > 0.10: 0
+PS C:\Users\ntmal\bet_tracker>
