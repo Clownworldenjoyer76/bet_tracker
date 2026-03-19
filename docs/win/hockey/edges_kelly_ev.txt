@@ -1,0 +1,286 @@
+## EDGES / EV / KELLY OUTPUT SCHEMA (Hockey)
+
+---
+
+# CORE INPUT FIELDS (from juice stage)
+
+### MONEYLINE
+
+game_id
+home_dk_decimal_moneyline
+away_dk_decimal_moneyline
+home_normalized_prob_moneyline
+away_normalized_prob_moneyline
+home_prob
+away_prob
+
+### PUCK LINE
+
+game_id
+home_dk_puck_line_decimal
+away_dk_puck_line_decimal
+home_normalized_prob_puck_line
+away_normalized_prob_puck_line
+home_prob
+away_prob
+
+### TOTAL
+
+game_id
+dk_total_over_decimal
+dk_total_under_decimal
+over_normalized_prob_total
+under_normalized_prob_total
+fair_total_over_decimal
+fair_total_under_decimal
+
+---
+
+# EDGE OUTPUTS
+
+### MONEYLINE
+
+home_edge_decimal_moneyline
+away_edge_decimal_moneyline
+
+home_raw_edge_decimal_moneyline
+away_raw_edge_decimal_moneyline
+
+home_edge_pct_moneyline
+away_edge_pct_moneyline
+
+---
+
+### PUCK LINE
+
+home_edge_decimal_puck_line
+away_edge_decimal_puck_line
+
+home_raw_edge_decimal_puck_line
+away_raw_edge_decimal_puck_line
+
+---
+
+### TOTAL
+
+over_edge_decimal_total
+under_edge_decimal_total
+
+over_raw_edge_decimal_total
+under_raw_edge_decimal_total
+
+---
+
+# EV OUTPUTS (from ev_kelly script)
+
+### MONEYLINE
+
+home_ml_ev
+away_ml_ev
+
+---
+
+### PUCK LINE
+
+home_puck_line_ev
+away_puck_line_ev
+
+---
+
+### TOTAL
+
+over_ev
+under_ev
+
+---
+
+# KELLY OUTPUTS
+
+### MONEYLINE
+
+home_ml_kelly
+away_ml_kelly
+
+---
+
+### PUCK LINE
+
+home_puck_line_kelly
+away_puck_line_kelly
+
+---
+
+### TOTAL
+
+over_kelly
+under_kelly
+
+---
+
+# DEFINITIONS
+
+### edge_decimal
+
+Expected return in decimal form:
+
+```
+edge_decimal = (model_prob * book_decimal) - 1
+```
+
+Interpretation:
+
+* > 0 → +EV bet
+* < 0 → -EV bet
+
+---
+
+### raw_edge_decimal
+
+Same formula, but using **unadjusted model probability**:
+
+```
+raw_edge = (raw_model_prob * book_decimal) - 1
+```
+
+Purpose:
+
+* isolates model vs market BEFORE juice normalization
+* diagnostic only
+
+---
+
+### edge_pct
+
+```
+edge_pct = model_prob - (1 / book_decimal)
+```
+
+Interpretation:
+
+* difference between model probability and implied market probability
+
+---
+
+### EV (expected value)
+
+Identical to edge_decimal:
+
+```
+EV = (model_prob * book_decimal) - 1
+```
+
+Naming difference only:
+
+* edge_decimal = pipeline output
+* EV = strategy/output layer naming
+
+---
+
+### Kelly Criterion
+
+```
+b = book_decimal - 1  
+q = 1 - model_prob  
+
+kelly = ((b * model_prob) - q) / b  
+```
+
+Clipped:
+
+```
+kelly = max(kelly, 0)
+```
+
+Interpretation:
+
+* fraction of bankroll to wager
+* 0 = no bet
+* higher = stronger edge
+
+---
+
+# MODEL PROBABILITY SOURCES (CRITICAL)
+
+### NORMALIZED PROBABILITIES
+
+Used for:
+
+* edge_decimal
+* EV
+* Kelly
+
+Reason:
+
+* market-consistent
+* includes vig structure
+
+---
+
+### RAW PROBABILITIES
+
+Used for:
+
+* raw_edge_decimal
+
+Reason:
+
+* reflects pure model signal
+
+---
+
+# MARKET STRUCTURE SUMMARY
+
+### MONEYLINE
+
+* edge = based on normalized_prob
+* raw_edge = based on model prob
+
+### PUCK LINE
+
+* edge = based on normalized_prob_puck_line
+* raw_edge = based on moneyline-derived model prob
+
+### TOTAL
+
+* edge = normalized probabilities
+* raw_edge = derived from fair odds
+
+---
+
+# GLOBAL RULES
+
+1. edge_decimal ≈ EV (same math)
+2. raw_edge_decimal is diagnostic only
+3. Kelly always ≥ 0 (clipped)
+4. No edge should exceed realistic bounds (~±0.15 normally)
+5. No NaNs allowed
+6. Probabilities must be (0,1)
+7. Opposing sides should NOT both be +EV
+
+---
+
+# SANITY EXPECTATIONS
+
+* Mean EV < 0 (market vig)
+* Small % of bets are +EV
+* Kelly mostly near 0
+* No extreme values (>0.25)
+
+---
+
+# TL;DR
+
+Use:
+
+* **edge_decimal / EV → identify value**
+* **kelly → size bets**
+
+Ignore:
+
+* raw_edge unless debugging
+
+System is correct when:
+
+* most bets are negative EV
+* only a small tail is positive
+* Kelly outputs are small and sparse
