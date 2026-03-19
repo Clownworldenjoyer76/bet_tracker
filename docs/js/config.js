@@ -24,7 +24,7 @@ window.REPO_CONFIG = {
     sport:"basketball",
     isHockey:false,
     selectFiles:(date)=>[
-      `win/basketball/04_select/daily_slate/nba_selected.csv`
+      `win/basketball/04_select/daily_slate/ncaab_selected.csv`
     ],
     predFile:(date)=>`win/basketball/00_intake/predictions/basketball_NCAAB_${date}.csv`,
     bookFile:(date)=>`win/basketball/00_intake/sportsbook/basketball_NCAAB_${date}.csv`
