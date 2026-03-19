@@ -1,0 +1,155 @@
+MONEYLINE OUTPUT SCHEMA
+
+# CORE INPUT FIELDS (from merge)
+game_id
+home_team
+away_team
+home_dk_moneyline_american
+away_dk_moneyline_american
+home_fair_decimal_moneyline
+away_fair_decimal_moneyline
+
+# JUICED (RAW, PRE-NORMALIZATION IMPLIED)
+home_juiced_decimal_moneyline
+away_juiced_decimal_moneyline
+
+home_juiced_prob_moneyline
+away_juiced_prob_moneyline
+
+# NORMALIZED (MARKET-CONSISTENT — SUM = 1)
+home_normalized_prob_moneyline
+away_normalized_prob_moneyline
+
+Definitions
+
+fair_decimal_moneyline:
+    True probability converted to decimal odds (no vig)
+
+juiced_decimal_moneyline:
+    Fair odds adjusted using config (contains synthetic vig)
+
+juiced_prob_moneyline:
+    1 / juiced_decimal (raw implied probability BEFORE normalization)
+
+normalized_prob_moneyline:
+    juiced_prob scaled so:
+        home + away = 1 exactly
+
+PUCK LINE OUTPUT SCHEMA
+
+# CORE INPUT FIELDS
+game_id
+home_team
+away_team
+home_puck_line
+away_puck_line
+home_fair_puck_line_decimal
+away_fair_puck_line_decimal
+
+# JUICED (FINAL — ALREADY NORMALIZED INTERNALLY)
+home_juiced_decimal_puck_line
+away_juiced_decimal_puck_line
+
+home_juiced_prob_puck_line
+away_juiced_prob_puck_line
+
+# NORMALIZED (IDENTICAL TO JUICED — FOR CONSISTENCY)
+home_normalized_prob_puck_line
+away_normalized_prob_puck_line
+
+Definitions
+
+puck_line:
+    Spread (typically -1.5 / +1.5)
+
+fair_puck_line_decimal:
+    Fair odds (no vig)
+
+juiced_prob_puck_line:
+    Final probability AFTER:
+        - juice applied
+        - paired normalization enforced
+
+normalized_prob_puck_line:
+    Same as juiced_prob (already normalized by design)
+
+TOTAL OUTPUT SCHEMA
+
+# CORE INPUT FIELDS
+game_id
+home_team
+away_team
+total
+fair_total_over_decimal
+fair_total_under_decimal
+
+# JUICED (RAW)
+over_juiced_decimal_total
+under_juiced_decimal_total
+
+over_juiced_prob_total
+under_juiced_prob_total
+
+# NORMALIZED
+over_normalized_prob_total
+under_normalized_prob_total
+
+Definitions
+
+total:
+    Game total line (e.g., 6.5)
+
+fair_total_*_decimal:
+    Fair odds for over / under
+
+juiced_prob_total:
+    Probability after juice applied (pre-normalization)
+
+normalized_prob_total:
+    Final probability such that:
+        over + under = 1
+
+GLOBAL COLUMN RULES (IMPORTANT)
+
+1. "fair_*"
+   → no vig, model-derived probability
+
+2. "juiced_*"
+   → includes synthetic vig from config
+
+3. "normalized_*"
+   → guaranteed valid probability distribution
+   → ALWAYS sums to 1 within market
+
+MARKET STRUCTURE SUMMARY
+
+MONEYLINE:
+    juiced_prob ≠ sum to 1
+    normalized_prob = final usable probabilities
+
+PUCK LINE:
+    juiced_prob = already normalized
+    normalized_prob = duplicate (for schema consistency)
+
+TOTAL:
+    juiced_prob ≠ sum to 1
+    normalized_prob = final usable probabilities
+
+CRITICAL ASSUMPTIONS (FOR DEBUGGING)
+
+- All probabilities must be between 0 and 1
+- Normalized columns must sum to 1 per row
+- Favorite must always have higher probability
+- No column should contain NaN after processing
+- Decimal odds must always be > 1
+
+TL;DR
+
+Use normalized_prob_* for any modeling or evaluation.
+
+juiced_prob_* exists to:
+    - inspect raw vig impact
+    - calculate hold
+    - debug config behavior
+
+Do NOT assume juiced_prob sums to 1 (except puck line).
