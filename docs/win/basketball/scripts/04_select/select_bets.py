@@ -9,12 +9,10 @@ from collections import defaultdict
 INPUT_DIR = Path("docs/win/basketball/03_edges/ev_kelly")
 SELECT_DIR = Path("docs/win/basketball/04_select")
 DAILY_DIR = SELECT_DIR / "daily_slate"
-TOTALS_DIR = DAILY_DIR / "totals"
 CONFIG_PATH = Path("docs/win/basketball/config/markets.yaml")
 
 SELECT_DIR.mkdir(parents=True, exist_ok=True)
 DAILY_DIR.mkdir(parents=True, exist_ok=True)
-TOTALS_DIR.mkdir(parents=True, exist_ok=True)
 
 with open(CONFIG_PATH, "r", encoding="utf-8") as f:
     CONFIG = yaml.safe_load(f)
@@ -51,6 +49,17 @@ def in_bands(value, bands):
 
 def detect_market(filename):
     name = filename.lower()
+
+    # 🔴 FIX: correct ordering (ncaab first)
+    if "ncaab" in name:
+        return "NCAAB"
+    elif "nba" in name:
+        return "NBA"
+    else:
+        raise ValueError(f"Unknown market in filename: {filename}")
+
+def detect_market_type(filename):
+    name = filename.lower()
     if "moneyline" in name:
         return "moneyline"
     if "spread" in name:
@@ -63,11 +72,8 @@ def extract_date(filename):
     m = re.search(r"\d{4}_\d{2}_\d{2}", filename)
     return m.group(0) if m else None
 
-def market_cfg(league, market_type):
-    return CONFIG["markets"][league.lower()][market_type]
-
-def side_cfg(league, market_type, side):
-    return market_cfg(league, market_type)[side]
+def market_cfg(market, market_type):
+    return CONFIG["markets"][market.lower()][market_type]
 
 def ev_ok(ev, cfg):
     if ev is None:
@@ -76,8 +82,7 @@ def ev_ok(ev, cfg):
     if ev < cfg["ev_min"]:
         count("fail_ev_min")
         return False
-    ev_max = cfg.get("ev_max", float("inf"))
-    if ev > ev_max:
+    if ev > cfg.get("ev_max", float("inf")):
         count("fail_ev_max")
         return False
     return True
@@ -91,10 +96,6 @@ def kelly_ok(kelly, cfg):
         return False
     return True
 
-###############################################################
-# PICK SELECTION
-###############################################################
-
 def pick_side(valid_sides, preference):
     if not valid_sides:
         return None
@@ -102,15 +103,14 @@ def pick_side(valid_sides, preference):
     if preference == "best_kelly":
         return max(valid_sides, key=lambda x: x["kelly"])
 
-    # default = best_ev
     return max(valid_sides, key=lambda x: x["ev"])
 
 ###############################################################
 # MARKET LOGIC
 ###############################################################
 
-def moneyline(row, league):
-    cfg = market_cfg(league, "moneyline")
+def moneyline(row, market):
+    cfg = market_cfg(market, "moneyline")
 
     if not cfg.get("enabled", True):
         return False, "", "", 0
@@ -148,8 +148,9 @@ def moneyline(row, league):
 
     return False, "", "", 0
 
-def spread(row, league):
-    cfg = market_cfg(league, "spread")
+
+def spread(row, market):
+    cfg = market_cfg(market, "spread")
 
     if not cfg.get("enabled", True):
         return False, "", "", 0
@@ -187,8 +188,9 @@ def spread(row, league):
 
     return False, "", "", 0
 
-def total(row, league):
-    cfg = market_cfg(league, "total")
+
+def total(row, market):
+    cfg = market_cfg(market, "total")
 
     if not cfg.get("enabled", True):
         return False, "", "", 0
@@ -239,22 +241,22 @@ def process_file(file):
         print(f"⚠️ EMPTY FILE: {file.name}")
         return pd.DataFrame()
 
-    league = "NBA" if "nba" in file.name.lower() else "NCAAB"
-    market_type = detect_market(file.name)
+    market = detect_market(file.name)
+    market_type = detect_market_type(file.name)
     game_date = extract_date(file.name)
 
-    print(f"\nProcessing {file.name} | rows: {len(df)}")
+    print(f"\nProcessing {file.name} -> {market} | rows: {len(df)}")
 
     rows = []
 
     for _, row in df.iterrows():
 
         if market_type == "moneyline":
-            ok, side, line, ev = moneyline(row, league)
+            ok, side, line, ev = moneyline(row, market)
         elif market_type == "spread":
-            ok, side, line, ev = spread(row, league)
+            ok, side, line, ev = spread(row, market)
         else:
-            ok, side, line, ev = total(row, league)
+            ok, side, line, ev = total(row, market)
 
         if ok:
             count("selected")
@@ -264,7 +266,8 @@ def process_file(file):
             r["line"] = line
             r["selected_ev"] = ev
             r["market_type"] = market_type
-            r["market"] = league
+            r["market"] = market
+            r["league"] = "basketball"   # ← your structure
             r["game_date"] = game_date
             rows.append(r)
         else:
@@ -282,33 +285,44 @@ def main():
 
     dfs = []
 
-    total_in = 0
-    total_out = 0
-
     for file in sorted(INPUT_DIR.glob("*.csv")):
-        df_raw = pd.read_csv(file)
-        total_in += len(df_raw)
-
-        df = process_file(file)
-        total_out += len(df)
-
-        dfs.append(df)
+        dfs.append(process_file(file))
 
     final_df = pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
 
-    output_path = DAILY_DIR / "nba_selected.csv"
-    final_df.to_csv(output_path, index=False)
+    if final_df.empty:
+        print("⚠️ No selections generated")
+        return
 
-    print("\n========================")
-    print("TOTAL INPUT ROWS:", total_in)
-    print("TOTAL SELECTED:", total_out)
+    print("\n--- MARKET COUNTS ---")
+    print(final_df["market"].value_counts())
+
+    ###########################################################
+    # 🔴 FIX: SPLIT OUTPUTS
+    ###########################################################
+
+    nba_df = final_df[final_df["market"] == "NBA"]
+    ncaab_df = final_df[final_df["market"] == "NCAAB"]
+
+    nba_path = DAILY_DIR / "nba_selected.csv"
+    ncaab_path = DAILY_DIR / "ncaab_selected.csv"
+
+    nba_df.to_csv(nba_path, index=False)
+    ncaab_df.to_csv(ncaab_path, index=False)
+
+    ###########################################################
+    # DEBUG
+    ###########################################################
 
     print("\n--- DEBUG COUNTS ---")
     for k, v in sorted(DEBUG.items()):
         print(f"{k}: {v}")
 
-    print(f"\nWrote: {output_path}")
+    print("\n========================")
+    print(f"NBA rows: {len(nba_df)} -> {nba_path}")
+    print(f"NCAAB rows: {len(ncaab_df)} -> {ncaab_path}")
     print("========================")
+
 
 if __name__ == "__main__":
     main()
