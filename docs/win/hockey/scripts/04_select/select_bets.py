@@ -49,6 +49,8 @@ def process_total(row, config):
 
     for side in ["over", "under"]:
 
+        side_config = config[side]
+
         edge = f(row.get(f"{side}_edge_pct"))
         prob = f(row.get(f"juiced_total_{side}_prob"))
         line = row.get("total")
@@ -56,7 +58,7 @@ def process_total(row, config):
         if edge is None or prob is None:
             continue
 
-        if edge >= config["min_edge"] and prob >= config["min_prob"]:
+        if edge >= side_config["min_edge"] and prob >= side_config["min_prob"]:
             selected_side = side
 
             results.append({
