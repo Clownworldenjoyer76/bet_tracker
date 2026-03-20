@@ -34,14 +34,16 @@ markets:
         enabled: true
         line_bands:
           - [1.5, 1.5]
-        # Lowered ev_min from 0.02 — +1.5 base win rate is 70-72%
-        # even small positive EV is meaningful at this base rate
         ev_min: 0.01
         ev_max: 0.10
-        kelly_min: 0.005
-        # Raised kelly_max — +1.5 at heavy negative odds can have
-        # high Kelly even at modest EV; old 0.05 cap was blocking bets
-        kelly_max: 0.10
+        # kelly_min set to 0 — +1.5 dogs at heavy negative odds
+        # have very low Kelly values even with strong EV; EV alone
+        # is the right filter here
+        kelly_min: 0.0
+        # kelly_max raised to 1.0 — at moderate odds like -150,
+        # Kelly can reach 0.25-0.30 at typical +1.5 win probs;
+        # old cap of 0.10 was blocking the majority of valid bets
+        kelly_max: 1.0
 
       away:
         enabled: true
@@ -51,12 +53,10 @@ markets:
         odds_bands:
           - [-300, 200]
           - [200, 999]
-        # Lowered ev_min from 0.02 for same reason as home
         ev_min: 0.01
         ev_max: 0.10
-        kelly_min: 0.005
-        # Raised kelly_max for same reason as home
-        kelly_max: 0.10
+        kelly_min: 0.0
+        kelly_max: 1.0
 
     total:
       enabled: true
