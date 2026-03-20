@@ -24,7 +24,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pandas
+          # FIX: added numpy — compute_edges.py imports numpy
+          pip install pandas numpy
 
       # EDGE CALCULATION
       - name: Run soccer compute_edges.py
@@ -37,7 +38,11 @@ jobs:
         run: python docs/win/basketball/scripts/03_edges/compute_edges.py
 
       # EV + KELLY CALCULATION
-    
+      # FIX: added hockey compute_ev_kelly.py — was missing
+      # select_bets.py reads from 03_edges/ev_kelly/ which only this script populates
+      - name: Run hockey compute_ev_kelly.py
+        run: python docs/win/hockey/scripts/03_edges/compute_ev_kelly.py
+
       - name: Run basketball compute_ev_kelly.py
         run: python docs/win/basketball/scripts/03_edges/compute_ev_kelly.py
 
@@ -50,6 +55,7 @@ jobs:
           git add docs/win/soccer/errors/03_edges/
 
           git add docs/win/hockey/03_edges/
+          git add docs/win/hockey/03_edges/ev_kelly/
           git add docs/win/hockey/errors/03_edges/
 
           git add docs/win/basketball/03_edges/
