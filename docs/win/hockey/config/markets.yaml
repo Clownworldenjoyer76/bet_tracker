@@ -1,62 +1,80 @@
 markets:
+
   nhl:
+
     moneyline:
       enabled: true
       pick_preference: best_ev
-      odds_range: [-250, 200]
+
       home:
         enabled: true
+        odds_bands:
+          - [-250, 200]
+        ev_min: 0.02
+        ev_max: 0.10
+        kelly_min: 0.005
+        kelly_max: 0.05
+
       away:
         enabled: true
-      favorite:
-        min_edge: 0.02
-        min_prob: 0.52
-      standard:
-        min_edge: 0.02
-        min_prob: 0.52
-      kelly_min: 0.005
-      kelly_max: 0.05
+        odds_bands:
+          - [-250, 200]
+        ev_min: 0.02
+        ev_max: 0.10
+        kelly_min: 0.005
+        kelly_max: 0.05
 
     puck_line:
       enabled: true
       pick_preference: best_ev
+
       home:
         enabled: true
         line_bands:
           - [-1.5, -1.5]
           - [1.5, 1.5]
+        # CHANGE: raised from 0.02 — home puck line below 0.04 EV was 0W/6L (-100% ROI)
+        ev_min: 0.04
+        ev_max: 0.12
+        kelly_min: 0.01
+        kelly_max: 0.05
+        # CHANGE: excludes +100 to +149 dead zone (1W/5L, -61% ROI)
+        # Allows negative odds (favourite covering) and +150 or better (value dog)
+        odds_bands:
+          - [-300, -100]
+          - [150, 300]
+
       away:
         enabled: true
         line_bands:
           - [-1.5, -1.5]
           - [1.5, 1.5]
-      dog:
-        min_prob: 0.52
-      favorite:
-        min_edge: 0.02
-        max_odds: -200
-      kelly_min: 0.01
-      kelly_max: 0.05
+        ev_min: 0.02
+        ev_max: 0.12
+        kelly_min: 0.01
+        kelly_max: 0.05
+        # CHANGE: excludes heavy favourites worse than -150 (1W/2L, poor risk/reward)
+        odds_bands:
+          - [-150, 300]
 
     total:
       enabled: true
       pick_preference: best_ev
+
       over:
         enabled: true
         line_bands:
           - [4.5, 7.5]
-        min_edge: 0.02
-        max_edge: 0.10
-        min_prob: 0.52
+        ev_min: 0.02
+        ev_max: 0.10
         kelly_min: 0.005
         kelly_max: 0.05
+
       under:
         enabled: true
         line_bands:
           - [4.5, 7.5]
-        min_edge: 0.02
-        max_edge: 0.10
-        min_prob: 0.52
+        ev_min: 0.02
+        ev_max: 0.10
         kelly_min: 0.005
         kelly_max: 0.05
-
