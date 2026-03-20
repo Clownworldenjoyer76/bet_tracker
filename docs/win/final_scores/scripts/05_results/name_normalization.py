@@ -4,7 +4,7 @@
 import pandas as pd
 import glob
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, UTC
 
 ERROR_DIR = Path("docs/win/final_scores/errors")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
@@ -136,7 +136,7 @@ def normalize_file(file_path, market, team_map, missing, counters):
 
 def write_summary(files_scanned, normalized_count, missing):
 
-    ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    ts = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S")
 
     with open(SUMMARY_LOG, "w", encoding="utf-8") as f:
 
