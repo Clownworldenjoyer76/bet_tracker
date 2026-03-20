@@ -32,33 +32,31 @@ markets:
 
       home:
         enabled: true
-        # +1.5 only — home -1.5 removed entirely
-        # -1.5 requires winning by 2+ goals: consistently 30-40% WR
-        # +1.5 dog just needs to avoid losing by 2+: much higher win rate
         line_bands:
           - [1.5, 1.5]
-        ev_min: 0.02
+        # Lowered ev_min from 0.02 — +1.5 base win rate is 70-72%
+        # even small positive EV is meaningful at this base rate
+        ev_min: 0.01
         ev_max: 0.10
-        kelly_min: 0.01
-        kelly_max: 0.05
+        kelly_min: 0.005
+        # Raised kelly_max — +1.5 at heavy negative odds can have
+        # high Kelly even at modest EV; old 0.05 cap was blocking bets
+        kelly_max: 0.10
 
       away:
         enabled: true
         line_bands:
           - [1.5, 1.5]
-          # -1.5 kept but restricted to odds +200 or better only
-          # at +200+ away -1.5 went 67% WR in historical data
-          # below +200 the win rate drops to 40-50% — not worth it
           - [-1.5, -1.5]
         odds_bands:
-          # +1.5 dogs: allow negative odds (they cover easily) up to +200
           - [-300, 200]
-          # -1.5 favs: only take at +200 or better (high payout justifies lower WR)
           - [200, 999]
-        ev_min: 0.02
+        # Lowered ev_min from 0.02 for same reason as home
+        ev_min: 0.01
         ev_max: 0.10
-        kelly_min: 0.01
-        kelly_max: 0.05
+        kelly_min: 0.005
+        # Raised kelly_max for same reason as home
+        kelly_max: 0.10
 
     total:
       enabled: true
