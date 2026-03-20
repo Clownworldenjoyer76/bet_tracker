@@ -8,8 +8,10 @@ markets:
 
       home:
         enabled: true
+        # Exclude odds -199 to -150 band (44% WR, -31% ROI across all markets)
         odds_bands:
-          - [-250, 200]
+          - [-149, -100]
+          - [-109, 200]
         ev_min: 0.02
         ev_max: 0.10
         kelly_min: 0.005
@@ -17,8 +19,10 @@ markets:
 
       away:
         enabled: true
+        # Exclude odds -199 to -150 band (44% WR, -31% ROI across all markets)
         odds_bands:
-          - [-250, 200]
+          - [-149, -100]
+          - [-109, 200]
         ev_min: 0.02
         ev_max: 0.10
         kelly_min: 0.005
@@ -31,31 +35,32 @@ markets:
       home:
         enabled: true
         line_bands:
+          # +1.5 (dog) removed: 58% WR but -18% ROI — heavy negative odds
+          # make wins pay too little vs loss cost regardless of edge
           - [-1.5, -1.5]
-          - [1.5, 1.5]
-        # CHANGE: raised from 0.02 — home puck line below 0.04 EV was 0W/6L (-100% ROI)
+        # Exclude odds -199 to -150 band
+        odds_bands:
+          - [-149, -100]
+          - [-109, 300]
+        # Raised from 0.02: EV 0.02-0.04 on home -1.5 went 0W/5L
         ev_min: 0.04
-        ev_max: 0.12
+        ev_max: 0.10
         kelly_min: 0.01
         kelly_max: 0.05
-        # CHANGE: excludes +100 to +149 dead zone (1W/5L, -61% ROI)
-        # Allows negative odds (favourite covering) and +150 or better (value dog)
-        odds_bands:
-          - [-300, -100]
-          - [150, 300]
 
       away:
         enabled: true
         line_bands:
           - [-1.5, -1.5]
           - [1.5, 1.5]
+        # Exclude odds -199 to -150 band
+        odds_bands:
+          - [-149, -100]
+          - [-109, 300]
         ev_min: 0.02
-        ev_max: 0.12
+        ev_max: 0.10
         kelly_min: 0.01
         kelly_max: 0.05
-        # CHANGE: excludes heavy favourites worse than -150 (1W/2L, poor risk/reward)
-        odds_bands:
-          - [-150, 300]
 
     total:
       enabled: true
@@ -74,7 +79,8 @@ markets:
         enabled: true
         line_bands:
           - [4.5, 7.5]
-        ev_min: 0.02
+        # Raised from 0.02: total under at 0.03-0.04 EV went 29% WR, -41% ROI
+        ev_min: 0.04
         ev_max: 0.10
         kelly_min: 0.005
         kelly_max: 0.05
