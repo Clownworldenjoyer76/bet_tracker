@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-# docs/win/final_scores/scripts/05_results/nhl_results_analyze.py
+# docs/win/final_scores/scripts/05_results/hockey/nhl_results_analyze.py
 
-from datetime import datetime
+from datetime import datetime, UTC
 from pathlib import Path
 import pandas as pd
 
@@ -31,12 +31,12 @@ def reset_logs():
 
 def log_error(msg):
     with open(ERROR_LOG, "a", encoding="utf-8") as f:
-        f.write(f"[{datetime.now()}] {msg}\n")
+        f.write(f"[{datetime.now(UTC).isoformat()}] {msg}\n")
 
 
 def log_summary(msg):
     with open(SUMMARY_LOG, "a", encoding="utf-8") as f:
-        f.write(f"[{datetime.now()}] {msg}\n")
+        f.write(f"[{datetime.now(UTC).isoformat()}] {msg}\n")
 
 ###############################################################
 ######################## HELPERS ##############################
@@ -44,7 +44,6 @@ def log_summary(msg):
 
 def safe_read(path):
     try:
-
         path = Path(path)
 
         if not path.exists():
@@ -64,41 +63,6 @@ def safe_read(path):
         return pd.DataFrame()
 
 ###############################################################
-######################## EDGE EXTRACTION ######################
-###############################################################
-
-def selected_edge(row):
-
-    market = str(row.get("market_type","")).lower()
-    side = str(row.get("bet_side","")).lower()
-
-    if market=="moneyline":
-
-        if side=="home":
-            return row.get("home_ml_edge_decimal")
-
-        if side=="away":
-            return row.get("away_ml_edge_decimal")
-
-    if market=="puck_line":
-
-        if side=="home":
-            return row.get("home_spread_edge_decimal")
-
-        if side=="away":
-            return row.get("away_spread_edge_decimal")
-
-    if market=="total":
-
-        if side=="over":
-            return row.get("over_edge_decimal")
-
-        if side=="under":
-            return row.get("under_edge_decimal")
-
-    return None
-
-###############################################################
 ######################## WORK FILE ############################
 ###############################################################
 
@@ -109,13 +73,40 @@ def build_work():
     df = safe_read(path)
 
     if df.empty:
+        log_error("MASTER FILE EMPTY OR MISSING")
         return
 
-    df["selected_edge"] = df.apply(selected_edge,axis=1)
+    # =========================================================
+    # 🔥 CRITICAL FIX: ALIGN WITH NEW PIPELINE
+    # =========================================================
+
+    # EV is now the edge signal
+    if "ev" not in df.columns:
+        log_error("MISSING COLUMN | ev")
+        return
+
+    if "dk_odds_american" not in df.columns:
+        log_error("MISSING COLUMN | dk_odds_american")
+        return
+
+    df["selected_edge"] = df["ev"]
+    df["take_odds"] = df["dk_odds_american"]
+
+    # =========================================================
+    # CLEANUP (OPTIONAL BUT SAFE)
+    # =========================================================
+
+    # unify league column
+    if "league_x" in df.columns:
+        df.rename(columns={"league_x": "league"}, inplace=True)
+
+    if "league_y" in df.columns:
+        df.drop(columns=["league_y"], inplace=True, errors="ignore")
+
+    # =========================================================
 
     out = INTERMEDIATE_DIR / "work_nhl.csv"
-
-    df.to_csv(out,index=False)
+    df.to_csv(out, index=False)
 
     log_summary(f"NHL WORK FILE CREATED | ROWS={len(df)} | OUT={out}")
 
@@ -136,5 +127,5 @@ def main():
     print("NHL analysis prep complete.")
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
     main()

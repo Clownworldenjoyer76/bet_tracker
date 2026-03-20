@@ -5,6 +5,7 @@ import pandas as pd
 from pathlib import Path
 import numpy as np
 import traceback
+from datetime import datetime, UTC
 
 # =========================
 # PATHS
@@ -13,7 +14,25 @@ import traceback
 INPUT_DIR = Path("docs/win/hockey/03_edges")
 OUTPUT_DIR = Path("docs/win/hockey/03_edges/ev_kelly")
 
+ERROR_DIR = Path("docs/win/hockey/errors/03_edges")
+ERROR_LOG = ERROR_DIR / "compute_ev_kelly.txt"
+
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+ERROR_DIR.mkdir(parents=True, exist_ok=True)
+
+
+# =========================
+# LOGGING
+# =========================
+
+def log(msg: str) -> None:
+    with open(ERROR_LOG, "a", encoding="utf-8") as f:
+        f.write(msg.rstrip() + "\n")
+
+
+def _now() -> str:
+    return datetime.now(UTC).isoformat()
+
 
 # =========================
 # HELPERS
@@ -56,7 +75,7 @@ def process_moneyline(df):
         "home_dk_decimal_moneyline",
         "away_dk_decimal_moneyline",
         "home_edge_decimal_moneyline",
-        "away_edge_decimal_moneyline"
+        "away_edge_decimal_moneyline",
     ]
 
     df = to_numeric(df, numeric_cols)
@@ -64,25 +83,11 @@ def process_moneyline(df):
     df["home_ml_edge_pct"] = df["home_edge_decimal_moneyline"] * 100
     df["away_ml_edge_pct"] = df["away_edge_decimal_moneyline"] * 100
 
-    df["home_ml_ev"] = compute_ev(
-        df["home_prob"],
-        df["home_dk_decimal_moneyline"]
-    )
+    df["home_ml_ev"] = compute_ev(df["home_prob"], df["home_dk_decimal_moneyline"])
+    df["away_ml_ev"] = compute_ev(df["away_prob"], df["away_dk_decimal_moneyline"])
 
-    df["away_ml_ev"] = compute_ev(
-        df["away_prob"],
-        df["away_dk_decimal_moneyline"]
-    )
-
-    df["home_ml_kelly"] = compute_kelly(
-        df["home_prob"],
-        df["home_dk_decimal_moneyline"]
-    )
-
-    df["away_ml_kelly"] = compute_kelly(
-        df["away_prob"],
-        df["away_dk_decimal_moneyline"]
-    )
+    df["home_ml_kelly"] = compute_kelly(df["home_prob"], df["home_dk_decimal_moneyline"])
+    df["away_ml_kelly"] = compute_kelly(df["away_prob"], df["away_dk_decimal_moneyline"])
 
     return df
 
@@ -99,7 +104,7 @@ def process_puck_line(df):
         "home_dk_puck_line_decimal",
         "away_dk_puck_line_decimal",
         "home_edge_decimal_puck_line",
-        "away_edge_decimal_puck_line"
+        "away_edge_decimal_puck_line",
     ]
 
     df = to_numeric(df, numeric_cols)
@@ -107,25 +112,11 @@ def process_puck_line(df):
     df["home_puck_line_edge_pct"] = df["home_edge_decimal_puck_line"] * 100
     df["away_puck_line_edge_pct"] = df["away_edge_decimal_puck_line"] * 100
 
-    df["home_puck_line_ev"] = compute_ev(
-        df["home_prob_puck_line"],
-        df["home_dk_puck_line_decimal"]
-    )
+    df["home_puck_line_ev"] = compute_ev(df["home_prob_puck_line"], df["home_dk_puck_line_decimal"])
+    df["away_puck_line_ev"] = compute_ev(df["away_prob_puck_line"], df["away_dk_puck_line_decimal"])
 
-    df["away_puck_line_ev"] = compute_ev(
-        df["away_prob_puck_line"],
-        df["away_dk_puck_line_decimal"]
-    )
-
-    df["home_puck_line_kelly"] = compute_kelly(
-        df["home_prob_puck_line"],
-        df["home_dk_puck_line_decimal"]
-    )
-
-    df["away_puck_line_kelly"] = compute_kelly(
-        df["away_prob_puck_line"],
-        df["away_dk_puck_line_decimal"]
-    )
+    df["home_puck_line_kelly"] = compute_kelly(df["home_prob_puck_line"], df["home_dk_puck_line_decimal"])
+    df["away_puck_line_kelly"] = compute_kelly(df["away_prob_puck_line"], df["away_dk_puck_line_decimal"])
 
     return df
 
@@ -142,7 +133,7 @@ def process_totals(df):
         "dk_total_over_decimal",
         "dk_total_under_decimal",
         "over_edge_decimal_total",
-        "under_edge_decimal_total"
+        "under_edge_decimal_total",
     ]
 
     df = to_numeric(df, numeric_cols)
@@ -153,25 +144,11 @@ def process_totals(df):
     df["over_edge_pct"] = df["over_edge_decimal_total"] * 100
     df["under_edge_pct"] = df["under_edge_decimal_total"] * 100
 
-    df["over_ev"] = compute_ev(
-        df["over_prob"],
-        df["dk_total_over_decimal"]
-    )
+    df["over_ev"] = compute_ev(df["over_prob"], df["dk_total_over_decimal"])
+    df["under_ev"] = compute_ev(df["under_prob"], df["dk_total_under_decimal"])
 
-    df["under_ev"] = compute_ev(
-        df["under_prob"],
-        df["dk_total_under_decimal"]
-    )
-
-    df["over_kelly"] = compute_kelly(
-        df["over_prob"],
-        df["dk_total_over_decimal"]
-    )
-
-    df["under_kelly"] = compute_kelly(
-        df["under_prob"],
-        df["dk_total_under_decimal"]
-    )
+    df["over_kelly"] = compute_kelly(df["over_prob"], df["dk_total_over_decimal"])
+    df["under_kelly"] = compute_kelly(df["under_prob"], df["dk_total_under_decimal"])
 
     return df
 
@@ -182,32 +159,49 @@ def process_totals(df):
 
 def main():
 
-    files = list(INPUT_DIR.glob("*.csv"))
+    with open(ERROR_LOG, "w", encoding="utf-8") as f:
+        f.write(f"=== COMPUTE EV KELLY START {_now()} ===\n")
+
+    files = sorted(INPUT_DIR.glob("*.csv"))
+    log(f"[INFO] Files found: {len(files)}")
+
+    processed = 0
+    failed = 0
 
     for f in files:
 
-        try:
+        log(f"\n=== FILE START {_now()} ===")
+        log(f"[INFO] {f}")
 
+        try:
             df = pd.read_csv(f)
             name = f.name.lower()
 
             if "moneyline" in name:
                 df = process_moneyline(df)
-
             elif "puck_line" in name:
                 df = process_puck_line(df)
-
             elif "total" in name:
                 df = process_totals(df)
+            else:
+                log(f"[WARN] Unrecognised file pattern — skipping")
+                continue
 
             out = OUTPUT_DIR / f.name
             df.to_csv(out, index=False)
 
-            print("Processed:", f.name)
+            log(f"[INFO] Wrote: {out}")
+            log(f"=== FILE END {_now()} ===")
+            processed += 1
 
         except Exception:
-            print("FAILED:", f.name)
-            print(traceback.format_exc())
+            log(f"[ERROR] FAILED: {f.name}")
+            log(traceback.format_exc())
+            log(f"=== FILE END {_now()} ===")
+            failed += 1
+
+    log(f"\n[SUMMARY] processed={processed} failed={failed}")
+    log(f"=== COMPLETE {_now()} ===")
 
 
 if __name__ == "__main__":

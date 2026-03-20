@@ -3,7 +3,7 @@
 
 import glob
 import re
-from datetime import datetime
+from datetime import datetime, UTC
 from pathlib import Path
 
 import pandas as pd
@@ -39,12 +39,12 @@ def reset_logs():
 
 def log_error(msg):
     with open(GRADE_ERROR_LOG, "a", encoding="utf-8") as f:
-        f.write(f"[{datetime.now()}] {msg}\n")
+        f.write(f"[{datetime.now(UTC).isoformat()}] {msg}\n")
 
 
 def log_summary(msg):
     with open(GRADE_SUMMARY_LOG, "a", encoding="utf-8") as f:
-        f.write(f"[{datetime.now()}] {msg}\n")
+        f.write(f"[{datetime.now(UTC).isoformat()}] {msg}\n")
 
 
 ###############################################################

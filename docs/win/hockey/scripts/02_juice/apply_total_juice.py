@@ -4,12 +4,12 @@
 import pandas as pd
 from pathlib import Path
 import glob
-from datetime import datetime
+from datetime import datetime, UTC
 import traceback
 import sys
 import math
 
-INPUT_DIR = Path("docs/win/hockey/01_merge")
+INPUT_DIR = Path("docs/win/hockey/01_merge/01_merguiced")
 OUTPUT_DIR = Path("docs/win/hockey/02_juice")
 JUICE_FILE = Path("config/hockey/nhl/nhl_total_juice.csv")
 
@@ -20,6 +20,15 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 
+def _now():
+    return datetime.now(UTC).isoformat()
+
+
+def _log(msg):
+    with open(LOG_FILE, "a", encoding="utf-8") as f:
+        f.write(msg.rstrip() + "\n")
+
+
 def find_band_row(juice_df, total, side):
     band = juice_df[
         (juice_df["band_min"] <= total) &
@@ -28,7 +37,7 @@ def find_band_row(juice_df, total, side):
     ]
 
     if band.empty:
-        raise ValueError(f"No total juice band for {total}, {side}")
+        return None
 
     return float(band.iloc[0]["extra_juice"])
 
@@ -36,64 +45,128 @@ def find_band_row(juice_df, total, side):
 def process_side(df, juice_df, side):
     fair_col = f"fair_total_{side}_decimal"
 
-    juiced_decimal_col = f"juiced_total_{side}_decimal"
-    juiced_prob_col = f"juiced_total_{side}_prob"
+    juiced_decimal_col = f"{side}_juiced_decimal_total"
+    juiced_prob_col = f"{side}_juiced_prob_total"
 
     df[juiced_decimal_col] = pd.NA
     df[juiced_prob_col] = pd.NA
 
+    applied = 0
+    skipped_no_band = 0
+    skipped_bad_row = 0
+
     for idx, row in df.iterrows():
         try:
-            total = float(row["total"])
+            total = round(float(row["total"]), 1)
             fair_decimal = float(row[fair_col])
         except Exception:
+            skipped_bad_row += 1
+            _log(f"[ROW SKIP] idx={idx} side={side} reason=bad_parse")
             continue
 
         if not math.isfinite(fair_decimal) or fair_decimal <= 1:
+            skipped_bad_row += 1
+            _log(f"[ROW SKIP] idx={idx} side={side} reason=bad_fair_decimal val={fair_decimal}")
             continue
 
         extra = find_band_row(juice_df, total, side)
 
-        # Multiplicative ROI adjustment
-        juiced_decimal = fair_decimal * (1 + extra)
+        if extra is None:
+            skipped_no_band += 1
+            _log(f"[ROW SKIP] idx={idx} side={side} reason=no_band total={total}")
+            continue
 
-        # Safety guard
-        if not math.isfinite(juiced_decimal) or juiced_decimal <= 1:
-            juiced_decimal = 1.0001
+        try:
+            juiced_decimal = fair_decimal * (1 + extra)
 
-        juiced_prob = 1 / juiced_decimal
+            if not math.isfinite(juiced_decimal) or juiced_decimal <= 1:
+                juiced_decimal = 1.0001
+
+            juiced_prob = 1 / juiced_decimal
+
+        except Exception:
+            skipped_bad_row += 1
+            _log(f"[ROW SKIP] idx={idx} side={side} reason=calc_error")
+            continue
 
         df.at[idx, juiced_decimal_col] = juiced_decimal
         df.at[idx, juiced_prob_col] = juiced_prob
+        applied += 1
+
+    return df, applied, skipped_no_band, skipped_bad_row
+
+
+def apply_normalization(df):
+    df["over_normalized_prob_total"] = pd.NA
+    df["under_normalized_prob_total"] = pd.NA
+
+    for idx, row in df.iterrows():
+        try:
+            op = float(row["over_juiced_prob_total"])
+            up = float(row["under_juiced_prob_total"])
+
+            if not math.isfinite(op) or not math.isfinite(up):
+                continue
+
+            total = op + up
+            if total <= 0:
+                continue
+
+            df.at[idx, "over_normalized_prob_total"] = op / total
+            df.at[idx, "under_normalized_prob_total"] = up / total
+
+        except Exception:
+            continue
 
     return df
 
 
 def main():
-    with open(LOG_FILE, "w") as log:
-        log.write(f"=== APPLY TOTAL JUICE {datetime.utcnow().isoformat()}Z ===\n\n")
+    with open(LOG_FILE, "w", encoding="utf-8") as log:
+        log.write(f"=== APPLY TOTAL JUICE START {_now()} ===\n")
 
     try:
         juice_df = pd.read_csv(JUICE_FILE)
-        files = glob.glob(str(INPUT_DIR / "*_NHL_total.csv"))
+
+        juice_df["band_min"] = juice_df["band_min"].astype(float)
+        juice_df["band_max"] = juice_df["band_max"].astype(float)
+        juice_df["side"] = juice_df["side"].astype(str).str.strip()
+        juice_df["extra_juice"] = juice_df["extra_juice"].astype(float)
+
+        files = sorted(glob.glob(str(INPUT_DIR / "*_NHL_total.csv")))
+        _log(f"[INFO] Files found: {len(files)}")
+
+        if not files:
+            raise ValueError("No total files found")
 
         for file_path in files:
-            df = pd.read_csv(file_path)
+            in_path = Path(file_path)
+            out_path = OUTPUT_DIR / in_path.name
 
-            df = process_side(df, juice_df, "over")
-            df = process_side(df, juice_df, "under")
+            _log(f"\n=== FILE START {_now()} ===")
+            _log(f"[INFO] Input: {in_path}")
 
-            output_path = OUTPUT_DIR / Path(file_path).name
-            df.to_csv(output_path, index=False)
+            df = pd.read_csv(in_path)
 
-            with open(LOG_FILE, "a") as log:
-                log.write(f"Wrote {output_path}\n")
+            df, o_applied, o_no_band, o_bad = process_side(df, juice_df, "over")
+            df, u_applied, u_no_band, u_bad = process_side(df, juice_df, "under")
+
+            df = apply_normalization(df)
+
+            _log(f"[SUMMARY] over applied={o_applied} no_band={o_no_band} bad={o_bad}")
+            _log(f"[SUMMARY] under applied={u_applied} no_band={u_no_band} bad={u_bad}")
+
+            df.to_csv(out_path, index=False)
+            _log(f"[INFO] Wrote: {out_path}")
+
+            _log(f"=== FILE END {_now()} ===")
+
+        _log(f"\n=== COMPLETE {_now()} ===")
 
     except Exception as e:
-        with open(LOG_FILE, "a") as log:
-            log.write("\nERROR\n")
-            log.write(str(e) + "\n")
-            log.write(traceback.format_exc())
+        _log("\n=== ERROR ===")
+        _log(str(e))
+        _log(traceback.format_exc())
         sys.exit(1)
 
 

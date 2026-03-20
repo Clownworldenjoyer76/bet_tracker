@@ -2,8 +2,9 @@
 # docs/win/hockey/scripts/03_edges/compute_edges.py
 
 import pandas as pd
+import numpy as np
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, UTC
 import traceback
 
 INPUT_DIR = Path("docs/win/hockey/02_juice")
@@ -15,10 +16,15 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def validate_columns(df: pd.DataFrame, required_cols: list[str]) -> None:
+def log(msg: str) -> None:
+    with open(ERROR_LOG, "a", encoding="utf-8") as f:
+        f.write(f"{datetime.now(UTC).isoformat()} | {msg}\n")
+
+
+def validate_columns(df: pd.DataFrame, required_cols: list[str], file_path: Path) -> None:
     missing = [c for c in required_cols if c not in df.columns]
     if missing:
-        raise ValueError(f"Missing required columns: {missing}")
+        raise ValueError(f"{file_path} missing required columns: {missing}")
 
 
 def decimal_to_american(series: pd.Series) -> pd.Series:
@@ -26,7 +32,7 @@ def decimal_to_american(series: pd.Series) -> pd.Series:
     american = pd.Series(index=dec.index, dtype="float64")
 
     pos = dec >= 2
-    neg = (dec < 2) & (dec > 1)
+    neg = (dec > 1) & (dec < 2)
 
     american[pos] = (dec[pos] - 1) * 100
     american[neg] = -100 / (dec[neg] - 1)
@@ -34,29 +40,26 @@ def decimal_to_american(series: pd.Series) -> pd.Series:
     return american.round(0)
 
 
-def safe_edge_decimal(dk_decimal: pd.Series, fair_decimal: pd.Series) -> pd.Series:
-    dk_num = pd.to_numeric(dk_decimal, errors="coerce")
-    fair_num = pd.to_numeric(fair_decimal, errors="coerce")
+def safe_edge_decimal(dk_decimal: pd.Series, prob: pd.Series) -> pd.Series:
+    dk = pd.to_numeric(dk_decimal, errors="coerce")
+    p = pd.to_numeric(prob, errors="coerce")
 
-    dk_ok = dk_num > 1
-    fair_ok = fair_num > 1
+    out = pd.Series(np.nan, index=dk.index)
+    valid = (dk > 1) & (p > 0) & (p < 1) & np.isfinite(dk) & np.isfinite(p)
 
-    fair_prob = (1 / fair_num).where(fair_ok)
-    ev = (fair_prob * dk_num - 1).where(dk_ok & fair_ok)
-    return ev
+    out[valid] = p[valid] * dk[valid] - 1
+    return out
 
 
-def safe_edge_pct(dk_decimal: pd.Series, fair_decimal: pd.Series) -> pd.Series:
-    dk_num = pd.to_numeric(dk_decimal, errors="coerce")
-    fair_num = pd.to_numeric(fair_decimal, errors="coerce")
+def safe_edge_pct(dk_decimal: pd.Series, prob: pd.Series) -> pd.Series:
+    dk = pd.to_numeric(dk_decimal, errors="coerce")
+    p = pd.to_numeric(prob, errors="coerce")
 
-    dk_ok = dk_num > 1
-    fair_ok = fair_num > 1
+    edge = pd.Series(np.nan, index=dk.index)
+    valid = (dk > 1) & (p > 0) & (p < 1) & np.isfinite(dk) & np.isfinite(p)
 
-    p_market = (1 / dk_num).where(dk_ok)
-    p_fair = (1 / fair_num).where(fair_ok)
-
-    edge = (p_fair - p_market).where(dk_ok & fair_ok)
+    p_market = 1 / dk[valid]
+    edge[valid] = p[valid] - p_market
     return edge
 
 
@@ -66,162 +69,182 @@ def atomic_write_csv(df: pd.DataFrame, output_path: Path) -> None:
     tmp.replace(output_path)
 
 
-def compute_moneyline_edges(df: pd.DataFrame) -> pd.DataFrame:
+# =========================
+# MONEYLINE
+# =========================
+
+def compute_moneyline_edges(df: pd.DataFrame, file_path: Path) -> pd.DataFrame:
     required = [
         "game_id",
         "home_dk_decimal_moneyline",
         "away_dk_decimal_moneyline",
-        "home_juiced_decimal_moneyline",
-        "away_juiced_decimal_moneyline",
+        "home_normalized_prob_moneyline",
+        "away_normalized_prob_moneyline",
+        "home_prob",
+        "away_prob",
     ]
-    validate_columns(df, required)
+    validate_columns(df, required, file_path)
 
-    df["home_juiced_american_moneyline"] = decimal_to_american(df["home_juiced_decimal_moneyline"])
-    df["away_juiced_american_moneyline"] = decimal_to_american(df["away_juiced_decimal_moneyline"])
-
-    df["home_edge_decimal"] = safe_edge_decimal(
+    df["home_edge_decimal_moneyline"] = safe_edge_decimal(
         df["home_dk_decimal_moneyline"],
-        df["home_juiced_decimal_moneyline"],
+        df["home_normalized_prob_moneyline"],
     )
-    df["home_edge_pct"] = safe_edge_pct(
-        df["home_dk_decimal_moneyline"],
-        df["home_juiced_decimal_moneyline"],
+    df["away_edge_decimal_moneyline"] = safe_edge_decimal(
+        df["away_dk_decimal_moneyline"],
+        df["away_normalized_prob_moneyline"],
     )
-    df["home_play"] = df["home_edge_decimal"] > 0
 
-    df["away_edge_decimal"] = safe_edge_decimal(
-        df["away_dk_decimal_moneyline"],
-        df["away_juiced_decimal_moneyline"],
+    df["home_raw_edge_decimal_moneyline"] = safe_edge_decimal(
+        df["home_dk_decimal_moneyline"],
+        df["home_prob"],
     )
-    df["away_edge_pct"] = safe_edge_pct(
+    df["away_raw_edge_decimal_moneyline"] = safe_edge_decimal(
         df["away_dk_decimal_moneyline"],
-        df["away_juiced_decimal_moneyline"],
+        df["away_prob"],
     )
-    df["away_play"] = df["away_edge_decimal"] > 0
+
+    df["home_edge_pct_moneyline"] = safe_edge_pct(
+        df["home_dk_decimal_moneyline"],
+        df["home_normalized_prob_moneyline"],
+    )
+    df["away_edge_pct_moneyline"] = safe_edge_pct(
+        df["away_dk_decimal_moneyline"],
+        df["away_normalized_prob_moneyline"],
+    )
 
     return df
 
 
-def compute_puck_line_edges(df: pd.DataFrame) -> pd.DataFrame:
+# =========================
+# PUCK LINE
+# =========================
+
+def compute_puck_line_edges(df: pd.DataFrame, file_path: Path) -> pd.DataFrame:
     required = [
         "game_id",
         "home_dk_puck_line_decimal",
         "away_dk_puck_line_decimal",
-        "home_juiced_decimal_puck_line",
-        "away_juiced_decimal_puck_line",
+        "home_prob_puck_line",
+        "away_prob_puck_line",
     ]
-    validate_columns(df, required)
+    validate_columns(df, required, file_path)
 
-    df["home_juiced_american_puck_line"] = decimal_to_american(df["home_juiced_decimal_puck_line"])
-    df["away_juiced_american_puck_line"] = decimal_to_american(df["away_juiced_decimal_puck_line"])
-
-    df["home_edge_decimal"] = safe_edge_decimal(
+    df["home_edge_decimal_puck_line"] = safe_edge_decimal(
         df["home_dk_puck_line_decimal"],
-        df["home_juiced_decimal_puck_line"],
+        df["home_prob_puck_line"],
     )
-    df["home_edge_pct"] = safe_edge_pct(
-        df["home_dk_puck_line_decimal"],
-        df["home_juiced_decimal_puck_line"],
+    df["away_edge_decimal_puck_line"] = safe_edge_decimal(
+        df["away_dk_puck_line_decimal"],
+        df["away_prob_puck_line"],
     )
-    df["home_play"] = df["home_edge_decimal"] > 0
 
-    df["away_edge_decimal"] = safe_edge_decimal(
-        df["away_dk_puck_line_decimal"],
-        df["away_juiced_decimal_puck_line"],
-    )
-    df["away_edge_pct"] = safe_edge_pct(
-        df["away_dk_puck_line_decimal"],
-        df["away_juiced_decimal_puck_line"],
-    )
-    df["away_play"] = df["away_edge_decimal"] > 0
+    df["home_raw_edge_decimal_puck_line"] = df["home_edge_decimal_puck_line"]
+    df["away_raw_edge_decimal_puck_line"] = df["away_edge_decimal_puck_line"]
 
     return df
 
 
-def compute_total_edges(df: pd.DataFrame) -> pd.DataFrame:
+# =========================
+# TOTAL
+# =========================
+
+def compute_total_edges(df: pd.DataFrame, file_path: Path) -> pd.DataFrame:
     required = [
         "game_id",
         "dk_total_over_decimal",
         "dk_total_under_decimal",
-        "juiced_total_over_decimal",
-        "juiced_total_under_decimal",
+        "over_normalized_prob_total",
+        "under_normalized_prob_total",
+        "fair_total_over_decimal",
+        "fair_total_under_decimal",
     ]
-    validate_columns(df, required)
+    validate_columns(df, required, file_path)
 
-    df["juiced_total_over_american"] = decimal_to_american(df["juiced_total_over_decimal"])
-    df["juiced_total_under_american"] = decimal_to_american(df["juiced_total_under_decimal"])
+    df["over_prob"] = 1 / pd.to_numeric(df["fair_total_over_decimal"], errors="coerce")
+    df["under_prob"] = 1 / pd.to_numeric(df["fair_total_under_decimal"], errors="coerce")
 
-    df["over_edge_decimal"] = safe_edge_decimal(
+    df["over_edge_decimal_total"] = safe_edge_decimal(
         df["dk_total_over_decimal"],
-        df["juiced_total_over_decimal"],
+        df["over_normalized_prob_total"],
     )
-    df["over_edge_pct"] = safe_edge_pct(
-        df["dk_total_over_decimal"],
-        df["juiced_total_over_decimal"],
+    df["under_edge_decimal_total"] = safe_edge_decimal(
+        df["dk_total_under_decimal"],
+        df["under_normalized_prob_total"],
     )
-    df["over_play"] = df["over_edge_decimal"] > 0
 
-    df["under_edge_decimal"] = safe_edge_decimal(
-        df["dk_total_under_decimal"],
-        df["juiced_total_under_decimal"],
+    df["over_raw_edge_decimal_total"] = safe_edge_decimal(
+        df["dk_total_over_decimal"],
+        df["over_prob"],
     )
-    df["under_edge_pct"] = safe_edge_pct(
+    df["under_raw_edge_decimal_total"] = safe_edge_decimal(
         df["dk_total_under_decimal"],
-        df["juiced_total_under_decimal"],
+        df["under_prob"],
     )
-    df["under_play"] = df["under_edge_decimal"] > 0
 
     return df
 
 
-def process_pattern(log, pattern: str, compute_fn, label: str, summary: dict) -> None:
+# =========================
+# DRIVER
+# =========================
+
+def process_pattern(pattern, compute_fn, label, summary):
     input_files = sorted(INPUT_DIR.glob(pattern))
     if not input_files:
-        log.write(f"No input files found for pattern: {pattern}\n")
+        log(f"[WARN] No input files found for pattern: {pattern}")
         return
 
     for input_path in input_files:
-        df = pd.read_csv(input_path)
-        out_df = compute_fn(df)
-
-        output_path = OUTPUT_DIR / input_path.name
-        atomic_write_csv(out_df, output_path)
-
-        log.write(f"Wrote {output_path} | rows={len(out_df)}\n")
-        summary["files_processed"] += 1
-        summary["rows_processed"] += len(out_df)
-        summary[f"{label}_files"] += 1
-
-
-def main() -> None:
-    with open(ERROR_LOG, "w") as log:
-        log.write("=== NHL COMPUTE EDGES RUN ===\n")
-        log.write(f"Timestamp: {datetime.utcnow().isoformat()}Z\n\n")
-
-        summary = {
-            "files_processed": 0,
-            "rows_processed": 0,
-            "moneyline_files": 0,
-            "puck_line_files": 0,
-            "total_files": 0,
-        }
-
+        # FIX: wrap per-file processing in try/except so one bad file does not
+        # kill all remaining files in the batch.
         try:
-            process_pattern(log, "*_NHL_moneyline.csv", compute_moneyline_edges, "moneyline", summary)
-            process_pattern(log, "*_NHL_puck_line.csv", compute_puck_line_edges, "puck_line", summary)
-            process_pattern(log, "*_NHL_total.csv", compute_total_edges, "total", summary)
+            df = pd.read_csv(input_path)
+            out_df = compute_fn(df, input_path)
 
-            log.write("\n=== SUMMARY ===\n")
-            log.write(f"Files processed: {summary['files_processed']}\n")
-            log.write(f"Rows processed: {summary['rows_processed']}\n")
-            log.write(f"Moneyline files: {summary['moneyline_files']}\n")
-            log.write(f"Puck line files: {summary['puck_line_files']}\n")
-            log.write(f"Total files: {summary['total_files']}\n")
+            output_path = OUTPUT_DIR / input_path.name
+            atomic_write_csv(out_df, output_path)
+
+            summary["files_processed"] += 1
+            summary["rows_processed"] += len(out_df)
+            summary[f"{label}_files"] += 1
+
+            log(f"[INFO] WROTE: {output_path} rows={len(out_df)}")
 
         except Exception as e:
-            log.write("\n=== ERROR ===\n")
-            log.write(str(e) + "\n\n")
-            log.write(traceback.format_exc())
+            log(f"[ERROR] SKIPPED: {input_path} reason={e}")
+            log(traceback.format_exc())
+
+
+def main():
+    with open(ERROR_LOG, "w", encoding="utf-8") as f:
+        f.write("=== NHL COMPUTE EDGES RUN ===\n")
+        f.write(f"{datetime.now(UTC).isoformat()}\n\n")
+
+    summary = {
+        "files_processed": 0,
+        "rows_processed": 0,
+        "moneyline_files": 0,
+        "puck_line_files": 0,
+        "total_files": 0,
+    }
+
+    try:
+        process_pattern("*_NHL_moneyline.csv", compute_moneyline_edges, "moneyline", summary)
+        process_pattern("*_NHL_puck_line.csv", compute_puck_line_edges, "puck_line", summary)
+        process_pattern("*_NHL_total.csv", compute_total_edges, "total", summary)
+
+        log("=== SUMMARY ===")
+        log(f"[SUMMARY] Files processed: {summary['files_processed']}")
+        log(f"[SUMMARY] Rows processed:  {summary['rows_processed']}")
+        log(f"[SUMMARY] Moneyline files: {summary['moneyline_files']}")
+        log(f"[SUMMARY] Puck line files: {summary['puck_line_files']}")
+        log(f"[SUMMARY] Total files:     {summary['total_files']}")
+
+    except Exception as e:
+        log("[ERROR] Fatal error in main")
+        log(str(e))
+        log(traceback.format_exc())
+        raise
 
 
 if __name__ == "__main__":

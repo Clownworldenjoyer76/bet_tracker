@@ -1,10 +1,11 @@
-#!/usr/bin/env python3
 # docs/win/hockey/scripts/01_merge/merge_intake.py
+
+#!/usr/bin/env python3
 
 import sys
 import csv
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, UTC
 
 # =========================
 # PATHS
@@ -27,25 +28,25 @@ with open(LOG_FILE, "w", encoding="utf-8") as f:
 
 def log(msg):
     with open(LOG_FILE, "a", encoding="utf-8") as f:
-        f.write(f"{datetime.utcnow().isoformat()} | {msg}\n")
+        f.write(f"{datetime.now(UTC).isoformat()} | {msg}\n")
 
 # =========================
 # HELPERS
 # =========================
 
-def load_dedupe(path, key_fields):
-    data = {}
-    duplicates = 0
-
+def load_raw(path):
+    rows = []
     with open(path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for r in reader:
-            key = tuple(r[k] for k in key_fields)
-            if key in data:
-                duplicates += 1
-            data[key] = r
+            rows.append(r)
+    return rows
 
-    return data, duplicates
+def to_float(x):
+    try:
+        return float(x)
+    except Exception:
+        return None
 
 key_fields = ["game_date", "home_team", "away_team"]
 
@@ -54,179 +55,135 @@ key_fields = ["game_date", "home_team", "away_team"]
 # =========================
 
 FIELDNAMES = [
-    "league",
-    "market",
-    "game_date",
-    "game_time",
-    "home_team",
-    "away_team",
-    "game_id",
-    "home_prob",
-    "away_prob",
-    "away_projected_goals",
-    "home_projected_goals",
-    "total_projected_goals",
-    "away_puck_line",
-    "home_puck_line",
-    "total",
-    "away_dk_puck_line_american",
-    "home_dk_puck_line_american",
-    "dk_total_over_american",
-    "dk_total_under_american",
-    "away_dk_moneyline_american",
-    "home_dk_moneyline_american",
+    "league", "market", "game_date", "game_time",
+    "home_team", "away_team", "game_id",
+    "home_prob", "away_prob",
+    "away_projected_goals", "home_projected_goals", "total_projected_goals",
+    "away_puck_line", "home_puck_line", "total",
+    "away_dk_puck_line_american", "home_dk_puck_line_american",
+    "dk_total_over_american", "dk_total_under_american",
+    "away_dk_moneyline_american", "home_dk_moneyline_american",
 ]
 
 # =========================
-# AUTO DISCOVER SLATES
+# PROCESS
 # =========================
 
 prediction_files = list(PRED_DIR.glob("hockey_*.csv"))
-
-if not prediction_files:
-    log("No prediction files found.")
-    print("No hockey prediction files found.")
-    sys.exit(0)
-
-# =========================
-# PROCESS EACH SLATE
-# =========================
 
 for pred_file in prediction_files:
 
     slate_date = pred_file.stem.replace("hockey_", "")
 
     PRED_FILE = PRED_DIR / f"hockey_{slate_date}.csv"
-    SPORTSBOOK_FILE = SPORTSBOOK_DIR / f"hockey_{slate_date}.csv"
-    OUTFILE = MERGE_DIR / f"hockey_{slate_date}.csv"
+    BOOK_FILE = SPORTSBOOK_DIR / f"hockey_{slate_date}.csv"
+    OUTFILE = MERGE_DIR / f"hockey_NHL_{slate_date}.csv"
 
-    if not PRED_FILE.exists() or not SPORTSBOOK_FILE.exists():
-        log(f"MISSING FILE: slate={slate_date} predictions_or_sportsbook_missing")
-        print(f"No hockey slate found for {slate_date}. Skipping.")
+    if not PRED_FILE.exists() or not BOOK_FILE.exists():
+        log(f"MISSING FILE: {slate_date}")
         continue
 
-    pred_data, pred_dupes = load_dedupe(PRED_FILE, key_fields)
-    dk_data, book_dupes = load_dedupe(SPORTSBOOK_FILE, key_fields)
+    pred_rows = load_raw(PRED_FILE)
+    book_rows = load_raw(BOOK_FILE)
 
-    pred_count = len(pred_data)
-    book_count = len(dk_data)
+    pred_map = {tuple(r[k] for k in key_fields): r for r in pred_rows}
+    book_map = {tuple(r[k] for k in key_fields): r for r in book_rows}
 
-    if pred_dupes > 0:
-        log(f"PREDICTION DUPLICATES: slate={slate_date} count={pred_dupes}")
-
-    if book_dupes > 0:
-        log(f"SPORTSBOOK DUPLICATES: slate={slate_date} count={book_dupes}")
+    merged = []
+    dropped = 0
 
     # =========================
-    # MERGE (FULL REBUILD)
+    # MERGE
     # =========================
 
-    merged_rows = []
-    missing_keys = 0
+    for key, p in pred_map.items():
 
-    for key, p in pred_data.items():
-
-        if key not in dk_data:
-            missing_keys += 1
-            log(f"MISSING MATCH: slate={slate_date} {p.get('away_team')} @ {p.get('home_team')}")
+        if key not in book_map:
+            log(f"MISSING MATCH: {p['home_team']} vs {p['away_team']}")
+            dropped += 1
             continue
 
-        d = dk_data[key]
+        b = book_map[key]
 
-        if d.get("home_team") != p.get("home_team") or d.get("away_team") != p.get("away_team"):
-            log(f"TEAM MISMATCH: slate={slate_date} {p.get('away_team')} @ {p.get('home_team')}")
-            continue
+        # Type enforcement
+        home_prob = to_float(p.get("home_prob"))
+        away_prob = to_float(p.get("away_prob"))
 
-        # Puck line validation
-        try:
-            home_pl = float(d.get("home_puck_line", 0))
-            away_pl = float(d.get("away_puck_line", 0))
-            if home_pl != -away_pl:
+        if home_prob is None or away_prob is None:
+            log(f"TYPE ISSUE: {p['home_team']} vs {p['away_team']} prob")
+
+        # FIX #3: Validate that home_prob + away_prob ≈ 1.0.
+        # A sum far from 1.0 indicates corrupted or unnormalized model output and
+        # will silently produce miscalibrated fair odds in every downstream stage.
+        if home_prob is not None and away_prob is not None:
+            prob_sum = home_prob + away_prob
+            if abs(prob_sum - 1.0) > 0.01:
                 log(
-                    f"PUCK LINE IMBALANCE: slate={slate_date} "
-                    f"{p.get('away_team')} @ {p.get('home_team')} "
-                    f"home={home_pl} away={away_pl}"
+                    f"PROB SUM WARNING: {p['home_team']} vs {p['away_team']} "
+                    f"home_prob={home_prob} away_prob={away_prob} sum={prob_sum:.4f}"
                 )
-        except:
-            log(f"PUCK LINE PARSE ERROR: slate={slate_date} {p.get('away_team')} @ {p.get('home_team')}")
 
-        game_id = f"{p['game_date']}_{p['away_team']}_{p['home_team']}"
+        home_pl = to_float(b.get("home_puck_line"))
+        away_pl = to_float(b.get("away_puck_line"))
 
-        merged_rows.append({
-            "league": p.get("league", ""),
-            "market": p.get("market", ""),
-            "game_date": p.get("game_date", ""),
-            "game_time": p.get("game_time", ""),
-            "home_team": p.get("home_team", ""),
-            "away_team": p.get("away_team", ""),
+        if home_pl is not None and away_pl is not None:
+            if home_pl != -away_pl:
+                log(f"PUCK LINE IMBALANCE: {p['home_team']} vs {p['away_team']}")
+
+        # FIX #4: Replace spaces in team names within game_id with underscores
+        # so it is safe to use as a join key in downstream CSVs and as a filename
+        # component. Display fields (home_team, away_team) are unchanged.
+        away_slug = p["away_team"].strip().replace(" ", "_")
+        home_slug = p["home_team"].strip().replace(" ", "_")
+        game_id = f"{p['game_date']}_{away_slug}_{home_slug}"
+
+        merged.append({
+            "league": p.get("league"),
+            "market": p.get("market"),
+            "game_date": p.get("game_date"),
+            "game_time": p.get("game_time"),
+            "home_team": p.get("home_team"),
+            "away_team": p.get("away_team"),
             "game_id": game_id,
-            "home_prob": p.get("home_prob", ""),
-            "away_prob": p.get("away_prob", ""),
-            "away_projected_goals": p.get("away_projected_goals", ""),
-            "home_projected_goals": p.get("home_projected_goals", ""),
-            "total_projected_goals": p.get("total_projected_goals", ""),
-            "away_puck_line": d.get("away_puck_line", ""),
-            "home_puck_line": d.get("home_puck_line", ""),
-            "total": d.get("total", ""),
-            "away_dk_puck_line_american": d.get("away_dk_puck_line_american", ""),
-            "home_dk_puck_line_american": d.get("home_dk_puck_line_american", ""),
-            "dk_total_over_american": d.get("dk_total_over_american", ""),
-            "dk_total_under_american": d.get("dk_total_under_american", ""),
-            "away_dk_moneyline_american": d.get("away_dk_moneyline_american", ""),
-            "home_dk_moneyline_american": d.get("home_dk_moneyline_american", ""),
+            "home_prob": home_prob,
+            "away_prob": away_prob,
+            "away_projected_goals": to_float(p.get("away_projected_goals")),
+            "home_projected_goals": to_float(p.get("home_projected_goals")),
+            "total_projected_goals": to_float(p.get("total_projected_goals")),
+            "away_puck_line": away_pl,
+            "home_puck_line": home_pl,
+            "total": to_float(b.get("total")),
+            "away_dk_puck_line_american": to_float(b.get("away_dk_puck_line_american")),
+            "home_dk_puck_line_american": to_float(b.get("home_dk_puck_line_american")),
+            "dk_total_over_american": to_float(b.get("dk_total_over_american")),
+            "dk_total_under_american": to_float(b.get("dk_total_under_american")),
+            "away_dk_moneyline_american": to_float(b.get("away_dk_moneyline_american")),
+            "home_dk_moneyline_american": to_float(b.get("home_dk_moneyline_american")),
         })
 
-    merged_count = len(merged_rows)
-
     # =========================
-    # DUPLICATE CHECK (MERGED OUTPUT)
+    # ORPHAN SPORTSBOOK ROWS
     # =========================
 
-    seen = set()
-    dupes = 0
-
-    for r in merged_rows:
-        if r["game_id"] in seen:
-            dupes += 1
-        seen.add(r["game_id"])
-
-    if dupes > 0:
-        log(f"MERGE DUPLICATES: slate={slate_date} count={dupes}")
+    for key, b in book_map.items():
+        if key not in pred_map:
+            log(f"ORPHAN SPORTSBOOK ROW: {b['home_team']} vs {b['away_team']}")
 
     # =========================
-    # EMPTY MERGE CHECK
-    # =========================
-
-    if not merged_rows:
-        log(f"EMPTY MERGE: slate={slate_date}")
-        print(f"No matching rows to merge for slate {slate_date}.")
-        continue
-
-    # =========================
-    # SUMMARY LOGGING (CRITICAL)
+    # SUMMARY
     # =========================
 
     log(
-        f"SUMMARY: slate={slate_date} "
-        f"pred={pred_count} book={book_count} merged={merged_count} dropped={missing_keys}"
+        f"SUMMARY: slate={slate_date} pred={len(pred_map)} book={len(book_map)} "
+        f"merged={len(merged)} dropped={dropped}"
     )
 
-    # =========================
-    # ATOMIC WRITE (REBUILD)
-    # =========================
+    if not merged:
+        continue
 
-    temp_file = OUTFILE.with_suffix(".tmp")
-
-    with open(temp_file, "w", newline="", encoding="utf-8") as f:
+    with open(OUTFILE, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
         writer.writeheader()
-
-        for r in sorted(
-            merged_rows,
-            key=lambda x: (x["game_date"], x["game_time"], x["home_team"])
-        ):
-            writer.writerow({k: r.get(k, "") for k in FIELDNAMES})
-
-    temp_file.replace(OUTFILE)
+        writer.writerows(merged)
 
     print(f"Wrote {OUTFILE}")

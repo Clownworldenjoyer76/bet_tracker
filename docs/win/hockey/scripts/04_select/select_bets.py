@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 # docs/win/hockey/scripts/04_select/select_bets.py
 
+import math
 import pandas as pd
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, UTC
 import traceback
 import yaml
 
 # =========================
 # PATHS
 # =========================
-INPUT_DIR = Path("docs/win/hockey/03_edges")
+INPUT_DIR = Path("docs/win/hockey/03_edges/ev_kelly")
 OUTPUT_DIR = Path("docs/win/hockey/04_select")
 CONFIG_PATH = Path("docs/win/hockey/config/markets.yaml")
 
@@ -36,158 +37,199 @@ def f(x):
         if pd.isna(x):
             return None
         return float(x)
-    except:
+    except Exception:
         return None
 
-# =========================
-# TOTAL
-# =========================
-def process_total(row, config):
 
-    results = []
-    selected_side = None
+def in_range(val, ranges):
+    if val is None:
+        return False
+    for lo, hi in ranges:
+        if lo <= val <= hi:
+            return True
+    return False
 
-    for side in ["over", "under"]:
 
-        side_config = config[side]
+def check_rules(ev, kelly, odds, line, rules):
+    if ev is None or kelly is None:
+        return False
 
-        edge = f(row.get(f"{side}_edge_pct"))
-        prob = f(row.get(f"juiced_total_{side}_prob"))
-        line = row.get("total")
+    if ev < rules["ev_min"] or ev > rules["ev_max"]:
+        return False
 
-        if edge is None or prob is None:
-            continue
+    if kelly < rules["kelly_min"] or kelly > rules["kelly_max"]:
+        return False
 
-        if edge >= side_config["min_edge"] and prob >= side_config["min_prob"]:
-            selected_side = side
+    if "odds_bands" in rules:
+        if not in_range(odds, rules["odds_bands"]):
+            return False
 
-            results.append({
-                "market_type": "total",
-                "bet_side": side,
-                "line": line,
-                "take_bet": f"{side}_total",
-                "take_bet_edge_pct": edge,
-                "take_odds": row.get(f"dk_total_{side}_american"),
-                "selected_total_side": side
-            })
+    if "line_bands" in rules:
+        if not in_range(line, rules["line_bands"]):
+            return False
 
-    return results, selected_side
+    return True
 
-# =========================
-# PUCK LINE
-# =========================
-def process_puck_line(row, config, selected_total_side):
 
-    results = []
+def rescale_prob(p, k=3.0):
+    """
+    Expand probabilities away from 0.5 using logit scaling.
+    This preserves ranking but increases separation.
 
-    for side in ["home", "away"]:
+    Examples with k=3:
+      0.45 -> ~0.35
+      0.50 -> 0.50
+      0.55 -> ~0.65
+    """
+    if p is None:
+        return None
 
-        line = f(row.get(f"{side}_puck_line"))
-        edge = f(row.get(f"{side}_edge_pct"))
-        prob = f(row.get(f"{side}_prob"))
-        odds = f(row.get(f"{side}_dk_puck_line_american"))
+    try:
+        p = float(p)
+    except Exception:
+        return None
 
-        if line is None:
-            continue
+    if not (0 < p < 1):
+        return p
 
-        keep = False
+    logit = math.log(p / (1 - p))
+    scaled_logit = k * logit
+    return 1 / (1 + math.exp(-scaled_logit))
 
-        # DOG
-        if line >= 1.5:
-            if prob is not None and prob >= config["dog"]["min_prob"]:
-                keep = True
-
-        # FAVORITE
-        elif line <= -1.5:
-
-            # block rule
-            if selected_total_side == "under":
-                continue
-
-            if (
-                edge is not None and
-                edge >= config["favorite"]["min_edge"] and
-                odds is not None and
-                odds >= config["favorite"]["max_odds"]
-            ):
-                keep = True
-
-        if keep:
-            results.append({
-                "market_type": "puck_line",
-                "bet_side": side,
-                "line": line,
-                "take_bet": f"{side}_puck_line",
-                "take_bet_edge_pct": edge,
-                "take_odds": odds
-            })
-
-    return results
 
 # =========================
 # MONEYLINE
 # =========================
 def process_moneyline(row, config):
-
     results = []
 
     for side in ["home", "away"]:
+        rules = config[side]
+        if not rules["enabled"]:
+            continue
 
-        edge = f(row.get(f"{side}_edge_pct"))
-        prob = f(row.get(f"{side}_prob"))
+        ev = f(row.get(f"{side}_ml_ev"))
+        kelly = f(row.get(f"{side}_ml_kelly"))
         odds = f(row.get(f"{side}_dk_moneyline_american"))
+        dec = f(row.get(f"{side}_dk_decimal_moneyline"))
 
-        if edge is None or prob is None or odds is None:
+        # TRUE MODEL PROB FOR THIS SIDE
+        raw_prob = f(row.get(f"{side}_prob"))
+        model_prob = rescale_prob(raw_prob)
+
+        if not check_rules(ev, kelly, odds, None, rules):
             continue
 
-        if not (config["odds_range"][0] <= odds <= config["odds_range"][1]):
-            continue
-
-        keep = False
-
-        # favorite logic
-        if odds < 0:
-            if edge >= config["favorite"]["min_edge"] and prob >= config["favorite"]["min_prob"]:
-                keep = True
-
-        # standard logic
-        else:
-            if edge >= config["standard"]["min_edge"] and prob >= config["standard"]["min_prob"]:
-                keep = True
-
-        if keep:
-            results.append({
-                "market_type": "moneyline",
-                "bet_side": side,
-                "line": "",
-                "take_bet": f"{side}_moneyline",
-                "take_bet_edge_pct": edge,
-                "take_odds": odds
-            })
+        results.append({
+            "market_type": "moneyline",
+            "bet_side": side,
+            "line": "",
+            "take_bet": f"{side}_moneyline",
+            "dk_odds_american": odds,
+            "dk_odds_decimal": dec,
+            "model_prob": model_prob,
+            "ev": ev,
+            "kelly": kelly
+        })
 
     return results
+
+
+# =========================
+# PUCK LINE
+# =========================
+def process_puck_line(row, config):
+    results = []
+
+    for side in ["home", "away"]:
+        rules = config[side]
+        if not rules["enabled"]:
+            continue
+
+        ev = f(row.get(f"{side}_puck_line_ev"))
+        kelly = f(row.get(f"{side}_puck_line_kelly"))
+        odds = f(row.get(f"{side}_dk_puck_line_american"))
+        dec = f(row.get(f"{side}_dk_puck_line_decimal"))
+        line = f(row.get(f"{side}_puck_line"))
+
+        # TRUE PUCK LINE MODEL PROB FOR THIS SIDE
+        raw_prob = f(row.get(f"{side}_prob_puck_line"))
+        model_prob = rescale_prob(raw_prob)
+
+        if not check_rules(ev, kelly, odds, line, rules):
+            continue
+
+        results.append({
+            "market_type": "puck_line",
+            "bet_side": side,
+            "line": line,
+            "take_bet": f"{side}_puck_line",
+            "dk_odds_american": odds,
+            "dk_odds_decimal": dec,
+            "model_prob": model_prob,
+            "ev": ev,
+            "kelly": kelly
+        })
+
+    return results
+
+
+# =========================
+# TOTAL
+# =========================
+def process_total(row, config):
+    results = []
+
+    for side in ["over", "under"]:
+        rules = config[side]
+        if not rules["enabled"]:
+            continue
+
+        ev = f(row.get(f"{side}_ev"))
+        kelly = f(row.get(f"{side}_kelly"))
+        odds = f(row.get(f"dk_total_{side}_american"))
+        dec = f(row.get(f"dk_total_{side}_decimal"))
+        line = f(row.get("total"))
+
+        # TRUE TOTAL MODEL PROB FOR THIS SIDE
+        raw_prob = f(row.get(f"{side}_prob"))
+        model_prob = rescale_prob(raw_prob)
+
+        if not check_rules(ev, kelly, odds, line, rules):
+            continue
+
+        results.append({
+            "market_type": "total",
+            "bet_side": side,
+            "line": line,
+            "take_bet": f"{side}_total",
+            "dk_odds_american": odds,
+            "dk_odds_decimal": dec,
+            "model_prob": model_prob,
+            "ev": ev,
+            "kelly": kelly
+        })
+
+    return results
+
 
 # =========================
 # MAIN
 # =========================
 def main():
-
-    with open(ERROR_LOG, "w") as log:
-
+    with open(ERROR_LOG, "w", encoding="utf-8") as log:
         log.write("=== NHL SELECT BETS RUN ===\n")
-        log.write(f"Timestamp: {datetime.utcnow().isoformat()}Z\n\n")
+        log.write(f"{datetime.now(UTC).isoformat()}\n\n")
 
         try:
-
-            all_files = sorted(INPUT_DIR.glob("*_NHL_*.csv"))
+            files = sorted(INPUT_DIR.glob("*_NHL_*.csv"))
             slates = {}
 
-            for fpath in all_files:
-                slate_key = fpath.name.split('_NHL_')[0]
+            for fpath in files:
+                slate_key = fpath.name.split("_NHL_")[0]
                 slates.setdefault(slate_key, []).append(fpath)
 
             for slate_key in slates:
-
                 final_rows = []
                 seen = set()
 
@@ -203,22 +245,20 @@ def main():
                     continue
 
                 for _, row in pl_df.iterrows():
-
                     game_date = str(row.get("game_date"))
                     away = str(row.get("away_team"))
                     home = str(row.get("home_team"))
                     game_id = row.get("game_id")
 
-                    selected_total_side = None
-
                     # TOTAL
                     if td_df is not None:
-                        game_tot = td_df[(td_df["away_team"] == away) & (td_df["home_team"] == home)]
+                        game_tot = td_df[
+                            (td_df["away_team"] == away) &
+                            (td_df["home_team"] == home)
+                        ]
                         for _, trow in game_tot.iterrows():
-                            totals, selected_total_side = process_total(trow, CONFIG["total"])
-
-                            for t in totals:
-                                key = f"{game_date}_{away}_{home}_{t['market_type']}_{t['bet_side']}"
+                            for t in process_total(trow, CONFIG["total"]):
+                                key = f"{game_id}_{t['market_type']}_{t['bet_side']}"
                                 if key not in seen:
                                     t.update({
                                         "game_date": game_date,
@@ -231,8 +271,8 @@ def main():
                                     seen.add(key)
 
                     # PUCK LINE
-                    for p in process_puck_line(row, CONFIG["puck_line"], selected_total_side):
-                        key = f"{game_date}_{away}_{home}_{p['market_type']}_{p['bet_side']}"
+                    for p in process_puck_line(row, CONFIG["puck_line"]):
+                        key = f"{game_id}_{p['market_type']}_{p['bet_side']}"
                         if key not in seen:
                             p.update({
                                 "game_date": game_date,
@@ -246,10 +286,13 @@ def main():
 
                     # MONEYLINE
                     if ml_df is not None:
-                        game_ml = ml_df[(ml_df["away_team"] == away) & (ml_df["home_team"] == home)]
+                        game_ml = ml_df[
+                            (ml_df["away_team"] == away) &
+                            (ml_df["home_team"] == home)
+                        ]
                         for _, mrow in game_ml.iterrows():
                             for m in process_moneyline(mrow, CONFIG["moneyline"]):
-                                key = f"{game_date}_{away}_{home}_{m['market_type']}_{m['bet_side']}"
+                                key = f"{game_id}_{m['market_type']}_{m['bet_side']}"
                                 if key not in seen:
                                     m.update({
                                         "game_date": game_date,
@@ -265,11 +308,10 @@ def main():
                     df = pd.DataFrame(final_rows)
                     out_path = OUTPUT_DIR / f"{slate_key}_NHL.csv"
                     df.to_csv(out_path, index=False)
-
-                    log.write(f"Wrote {out_path.name} ({len(df)} rows)\n")
+                    log.write(f"WROTE {out_path.name} ({len(df)} rows)\n")
 
         except Exception as e:
-            log.write(f"CRITICAL ERROR: {str(e)}\n{traceback.format_exc()}")
+            log.write(f"ERROR: {str(e)}\n{traceback.format_exc()}")
 
 
 if __name__ == "__main__":

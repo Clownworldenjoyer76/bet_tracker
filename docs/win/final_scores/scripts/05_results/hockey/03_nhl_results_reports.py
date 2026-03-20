@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# docs/win/final_scores/scripts/03_nhl_results_reports.py
+# docs/win/final_scores/scripts/05_results/hockey/03_nhl_results_reports.py
 
 from pathlib import Path
 import pandas as pd
@@ -40,12 +40,11 @@ def american_to_profit_per_unit(odds):
 def grade_to_units(row):
     result = str(row.get("bet_result", "")).strip().lower()
     odds = row.get("take_odds", np.nan)
+
     profit_per_unit = american_to_profit_per_unit(odds)
 
     if result == "win":
-        if pd.isna(profit_per_unit):
-            return np.nan
-        return profit_per_unit
+        return profit_per_unit if not pd.isna(profit_per_unit) else np.nan
     if result == "loss":
         return -1.0
     if result == "push":
@@ -68,13 +67,7 @@ def normalize_side_group(row):
     market = row["market_type_norm"]
     side = str(row.get("bet_side", "")).strip().lower()
 
-    if market == "moneyline":
-        if side == "home":
-            return "HOME"
-        if side == "away":
-            return "AWAY"
-
-    if market == "puck_line":
+    if market in {"moneyline", "puck_line"}:
         if side == "home":
             return "HOME"
         if side == "away":
@@ -161,6 +154,7 @@ def puck_line_bucket(row):
         return ""
 
     line = row.get("line", np.nan)
+
     if pd.isna(line):
         return "missing"
 
@@ -171,24 +165,15 @@ def puck_line_bucket(row):
 
     if v <= -2.5:
         return "minus_2.5_or_lower"
-    if -2.5 < v < -1.5:
-        return "minus_2.0"
     if v == -1.5:
         return "minus_1.5"
-    if -1.5 < v < 0:
-        return "minus_1.0_to_0.5"
-    if v == 0:
-        return "0"
-    if 0 < v < 1.5:
-        return "plus_0.5_to_plus_1.0"
     if v == 1.5:
         return "plus_1.5"
-    if 1.5 < v < 2.5:
-        return "plus_2.0"
-    return "plus_2.5_or_higher"
+    return "other"
 
 
 def summarize(df, group_cols):
+
     grouped = (
         df.groupby(group_cols, dropna=False)
         .agg(
@@ -209,17 +194,23 @@ def summarize(df, group_cols):
         grouped["wins"] / (grouped["wins"] + grouped["losses"]),
         np.nan,
     )
-    grouped["roi"] = np.where(grouped["bets"] > 0, grouped["units"] / grouped["bets"], np.nan)
+
+    grouped["roi"] = np.where(
+        grouped["bets"] > 0,
+        grouped["units"] / grouped["bets"],
+        np.nan,
+    )
 
     grouped = grouped.sort_values(group_cols).reset_index(drop=True)
-    return grouped
 
+    return grouped
 
 ###############################################################################
 # MAIN
 ###############################################################################
 
 def main():
+
     if not INPUT_FILE.exists():
         raise FileNotFoundError(f"Missing input file: {INPUT_FILE}")
 
@@ -228,8 +219,21 @@ def main():
     if df.empty:
         raise ValueError(f"Input file is empty: {INPUT_FILE}")
 
+    # =========================
+    # CRITICAL FIELD MAPPING
+    # =========================
+
+    if "selected_edge" not in df.columns:
+        df["selected_edge"] = df["ev"]
+
+    if "take_odds" not in df.columns:
+        df["take_odds"] = df["dk_odds_american"]
+
+    # =========================
+
     df["game_date"] = df["game_date"].astype(str)
     df["market_type_norm"] = df["market_type"].apply(normalize_market_type)
+
     df["selected_edge_num"] = pd.to_numeric(df["selected_edge"], errors="coerce")
     df["take_odds_num"] = pd.to_numeric(df["take_odds"], errors="coerce")
     df["line_num"] = pd.to_numeric(df["line"], errors="coerce")
@@ -237,18 +241,29 @@ def main():
     df["side_group"] = df.apply(normalize_side_group, axis=1)
     df["edge_bucket"] = df["selected_edge_num"].apply(edge_bucket)
     df["odds_bucket"] = df["take_odds_num"].apply(odds_bucket)
-    df["total_bucket"] = df["dk_total"].apply(total_bucket)
+    # FIX: column is named "line" in select_bets output, not "dk_total".
+    # total_bucket only makes sense for total bets — pass None for all other
+    # market types so they map to "missing" rather than using puck line values.
+    df["total_bucket"] = df.apply(
+        lambda r: total_bucket(r["line"]) if r["market_type_norm"] == "total" else "missing",
+        axis=1,
+    )
     df["puck_line_bucket"] = df.apply(puck_line_bucket, axis=1)
 
     result_clean = df["bet_result"].astype(str).str.strip().str.lower()
     df["is_win"] = (result_clean == "win").astype(int)
     df["is_loss"] = (result_clean == "loss").astype(int)
     df["is_push"] = (result_clean == "push").astype(int)
+
     df["units"] = df.apply(grade_to_units, axis=1)
+
+    # =========================
+    # BET LOG
+    # =========================
 
     bet_log_cols = [
         "game_date",
-        "league_x",
+        "league",
         "away_team",
         "home_team",
         "market_type_norm",
@@ -265,7 +280,14 @@ def main():
         "units",
         "game_id",
     ]
-    df[bet_log_cols].rename(columns={"market_type_norm": "market_type"}).to_csv(BET_LOG_FILE, index=False)
+
+    df[bet_log_cols].rename(
+        columns={"market_type_norm": "market_type"}
+    ).to_csv(BET_LOG_FILE, index=False)
+
+    # =========================
+    # OVERALL SUMMARY (FIXED)
+    # =========================
 
     overall = pd.DataFrame(
         {
@@ -285,7 +307,12 @@ def main():
             "avg_odds": [df["take_odds_num"].mean()],
         }
     )
+
     overall.to_csv(SUMMARY_FILE, index=False)
+
+    # =========================
+    # GROUPED OUTPUTS
+    # =========================
 
     summarize(df, ["market_type_norm"]).rename(
         columns={"market_type_norm": "market_type"}
@@ -298,6 +325,7 @@ def main():
     summarize(df, ["odds_bucket"]).to_csv(BY_ODDS_BUCKET_FILE, index=False)
 
     total_df = df[df["market_type_norm"] == "total"].copy()
+
     if total_df.empty:
         pd.DataFrame(
             columns=[
