@@ -1,545 +1,138 @@
-=== APPLY PUCK LINE JUICE START 2026-03-20T11:05:39.079811Z ===
+=== APPLY PUCK LINE JUICE START 2026-03-20T20:08:54.111750+00:00 ===
+[INFO] INPUT_DIR: docs/win/hockey/01_merge/01_merguiced
 [INFO] JUICE_FILE: config/hockey/nhl/nhl_puck_line_juice.csv
-[INFO] INPUT_DIR: docs/win/hockey/01_merge
-[INFO] OUTPUT_DIR: docs/win/hockey/02_juice
-[INFO] Juice columns: ['band', 'band_min', 'band_max', 'venue', 'fav_ud', 'extra_juice']
-[INFO] Juice rows: 4
-[INFO] Juice config (normalized) preview:
- band  band_min  band_max venue   fav_ud  extra_juice
- -1.5      -1.5      -1.5  away favorite        -0.32
- -1.5      -1.5      -1.5  home favorite        -0.30
-  1.5       1.5       1.5  away underdog         0.32
-  1.5       1.5       1.5  home underdog         0.35
-[INFO] Glob pattern: docs/win/hockey/01_merge/*_NHL_puck_line.csv
-[INFO] Files found: 23
-  - docs/win/hockey/01_merge/2026_02_25_NHL_puck_line.csv
-  - docs/win/hockey/01_merge/2026_02_26_NHL_puck_line.csv
-  - docs/win/hockey/01_merge/2026_02_27_NHL_puck_line.csv
-  - docs/win/hockey/01_merge/2026_03_01_NHL_puck_line.csv
-  - docs/win/hockey/01_merge/2026_03_02_NHL_puck_line.csv
-  - docs/win/hockey/01_merge/2026_03_03_NHL_puck_line.csv
-  - docs/win/hockey/01_merge/2026_03_04_NHL_puck_line.csv
-  - docs/win/hockey/01_merge/2026_03_05_NHL_puck_line.csv
-  - docs/win/hockey/01_merge/2026_03_06_NHL_puck_line.csv
-  - docs/win/hockey/01_merge/2026_03_07_NHL_puck_line.csv
-  - docs/win/hockey/01_merge/2026_03_08_NHL_puck_line.csv
-  - docs/win/hockey/01_merge/2026_03_09_NHL_puck_line.csv
-  - docs/win/hockey/01_merge/2026_03_10_NHL_puck_line.csv
-  - docs/win/hockey/01_merge/2026_03_11_NHL_puck_line.csv
-  - docs/win/hockey/01_merge/2026_03_12_NHL_puck_line.csv
-  - docs/win/hockey/01_merge/2026_03_13_NHL_puck_line.csv
-  - docs/win/hockey/01_merge/2026_03_14_NHL_puck_line.csv
-  - docs/win/hockey/01_merge/2026_03_15_NHL_puck_line.csv
-  - docs/win/hockey/01_merge/2026_03_16_NHL_puck_line.csv
-  - docs/win/hockey/01_merge/2026_03_17_NHL_puck_line.csv
-  - docs/win/hockey/01_merge/2026_03_18_NHL_puck_line.csv
-  - docs/win/hockey/01_merge/2026_03_19_NHL_puck_line.csv
-  - docs/win/hockey/01_merge/2026_03_20_NHL_puck_line.csv
+[INFO] Files found: 22
 
-=== FILE START 2026-03-20T11:05:39.085141Z ===
-[INFO] Input file: docs/win/hockey/01_merge/2026_02_25_NHL_puck_line.csv
-[INFO] Output file: docs/win/hockey/02_juice/2026_02_25_NHL_puck_line.csv
-[INFO] Input rows: 8
-[INFO] Input columns: ['league', 'market', 'game_date', 'game_time', 'home_team', 'away_team', 'game_id', 'home_prob', 'away_prob', 'away_projected_goals', 'home_projected_goals', 'total_projected_goals', 'away_puck_line', 'home_puck_line', 'total', 'away_dk_puck_line_american', 'home_dk_puck_line_american', 'dk_total_over_american', 'dk_total_under_american', 'away_dk_moneyline_american', 'home_dk_moneyline_american', 'away_dk_puck_line_decimal', 'home_dk_puck_line_decimal', 'home_fair_puck_line_decimal', 'away_fair_puck_line_decimal']
-[INFO] home_puck_line value_counts: {-1.5: 5, 1.5: 3}
-[INFO] away_puck_line value_counts: {1.5: 5, -1.5: 3}
-[INFO] Home applied=8 no_band=0 bad_rows=0
-[INFO] Away applied=8 no_band=0 bad_rows=0
-[INFO] Wrote output rows: 8
-[INFO] Output columns now include: home_juiced_decimal_puck_line=True, away_juiced_decimal_puck_line=True
-[INFO] Output sample (first 10):
-                                           game_id  home_puck_line  away_puck_line  home_juiced_decimal_puck_line  home_juiced_prob_puck_line  away_juiced_decimal_puck_line  away_juiced_prob_puck_line
-       2026_02_25_Buffalo Sabres_New Jersey Devils            -1.5             1.5                       2.763450                    0.361867                       2.037839                    0.490716
-2026_02_25_Philadelphia Flyers_Washington Capitals            -1.5             1.5                       2.276027                    0.439362                       2.221334                    0.450180
-2026_02_25_Toronto Maple Leafs_Tampa Bay Lightning            -1.5             1.5                       2.020005                    0.495048                       2.375005                    0.421052
-            2026_02_25_Seattle Kraken_Dallas Stars            -1.5             1.5                       1.915405                    0.522083                       2.457543                    0.406910
-        2026_02_25_Colorado Avalanche_Utah Mammoth             1.5            -1.5                       2.290255                    0.436633                       2.307870                    0.433300
- 2026_02_25_Vegas Golden Knights_Los Angeles Kings            -1.5             1.5                       3.021087                    0.331007                       1.972939                    0.506858
-        2026_02_25_Winnipeg Jets_Vancouver Canucks             1.5            -1.5                       2.279906                    0.438615                       2.329508                    0.429275
-          2026_02_25_Edmonton Oilers_Anaheim Ducks             1.5            -1.5                       2.208105                    0.452877                       2.498055                    0.400311
-=== FILE END 2026-03-20T11:05:39.116822Z ===
+=== FILE START 2026-03-20T20:08:54.114928+00:00 ===
+[INFO] docs/win/hockey/01_merge/01_merguiced/2026_02_25_NHL_puck_line.csv
+[SUMMARY] applied=8 no_band=0 bad=0
+[INFO] Wrote: docs/win/hockey/02_juice/2026_02_25_NHL_puck_line.csv
+=== FILE END 2026-03-20T20:08:54.130377+00:00 ===
 
-=== FILE START 2026-03-20T11:05:39.116862Z ===
-[INFO] Input file: docs/win/hockey/01_merge/2026_02_26_NHL_puck_line.csv
-[INFO] Output file: docs/win/hockey/02_juice/2026_02_26_NHL_puck_line.csv
-[INFO] Input rows: 12
-[INFO] Input columns: ['league', 'market', 'game_date', 'game_time', 'home_team', 'away_team', 'game_id', 'home_prob', 'away_prob', 'away_projected_goals', 'home_projected_goals', 'total_projected_goals', 'away_puck_line', 'home_puck_line', 'total', 'away_dk_puck_line_american', 'home_dk_puck_line_american', 'dk_total_over_american', 'dk_total_under_american', 'away_dk_moneyline_american', 'home_dk_moneyline_american', 'away_dk_puck_line_decimal', 'home_dk_puck_line_decimal', 'home_fair_puck_line_decimal', 'away_fair_puck_line_decimal']
-[INFO] home_puck_line value_counts: {-1.5: 11, 1.5: 1}
-[INFO] away_puck_line value_counts: {1.5: 11, -1.5: 1}
-[INFO] Home applied=12 no_band=0 bad_rows=0
-[INFO] Away applied=12 no_band=0 bad_rows=0
-[INFO] Wrote output rows: 12
-[INFO] Output columns now include: home_juiced_decimal_puck_line=True, away_juiced_decimal_puck_line=True
-[INFO] Output sample (first 10):
-                                           game_id  home_puck_line  away_puck_line  home_juiced_decimal_puck_line  home_juiced_prob_puck_line  away_juiced_decimal_puck_line  away_juiced_prob_puck_line
-    2026_02_26_Columbus Blue Jackets_Boston Bruins            -1.5             1.5                       2.688267                    0.371987                       2.060062                    0.485422
-2026_02_26_Tampa Bay Lightning_Carolina Hurricanes            -1.5             1.5                       2.360444                    0.423649                       2.181506                    0.458399
-   2026_02_26_Toronto Maple Leafs_Florida Panthers            -1.5             1.5                       2.233382                    0.447751                       2.243201                    0.445792
-  2026_02_26_New York Islanders_Montreal Canadiens            -1.5             1.5                       2.549626                    0.392214                       2.105965                    0.474842
-      2026_02_26_Detroit Red Wings_Ottawa Senators            -1.5             1.5                       2.342833                    0.426834                       2.189462                    0.456733
-  2026_02_26_New Jersey Devils_Pittsburgh Penguins            -1.5             1.5                       2.508273                    0.398681                       2.121074                    0.471459
- 2026_02_26_Chicago Blackhawks_Nashville Predators            -1.5             1.5                       2.151389                    0.464816                       2.289034                    0.436865
-   2026_02_26_Philadelphia Flyers_New York Rangers            -1.5             1.5                       2.395204                    0.417501                       2.166308                    0.461615
-         2026_02_26_Seattle Kraken_St. Louis Blues            -1.5             1.5                       2.704136                    0.369804                       2.055227                    0.486564
-      2026_02_26_Minnesota Wild_Colorado Avalanche            -1.5             1.5                       1.999630                    0.500092                       2.389982                    0.418413
-=== FILE END 2026-03-20T11:05:39.156789Z ===
+=== FILE START 2026-03-20T20:08:54.130428+00:00 ===
+[INFO] docs/win/hockey/01_merge/01_merguiced/2026_02_26_NHL_puck_line.csv
+[SUMMARY] applied=12 no_band=0 bad=0
+[INFO] Wrote: docs/win/hockey/02_juice/2026_02_26_NHL_puck_line.csv
+=== FILE END 2026-03-20T20:08:54.149387+00:00 ===
 
-=== FILE START 2026-03-20T11:05:39.156828Z ===
-[INFO] Input file: docs/win/hockey/01_merge/2026_02_27_NHL_puck_line.csv
-[INFO] Output file: docs/win/hockey/02_juice/2026_02_27_NHL_puck_line.csv
-[INFO] Input rows: 4
-[INFO] Input columns: ['league', 'market', 'game_date', 'game_time', 'home_team', 'away_team', 'game_id', 'home_prob', 'away_prob', 'away_projected_goals', 'home_projected_goals', 'total_projected_goals', 'away_puck_line', 'home_puck_line', 'total', 'away_dk_puck_line_american', 'home_dk_puck_line_american', 'dk_total_over_american', 'dk_total_under_american', 'away_dk_moneyline_american', 'home_dk_moneyline_american', 'away_dk_puck_line_decimal', 'home_dk_puck_line_decimal', 'home_fair_puck_line_decimal', 'away_fair_puck_line_decimal']
-[INFO] home_puck_line value_counts: {-1.5: 4}
-[INFO] away_puck_line value_counts: {1.5: 4}
-[INFO] Home applied=4 no_band=0 bad_rows=0
-[INFO] Away applied=4 no_band=0 bad_rows=0
-[INFO] Wrote output rows: 4
-[INFO] Output columns now include: home_juiced_decimal_puck_line=True, away_juiced_decimal_puck_line=True
-[INFO] Output sample (first 10):
-                                            game_id  home_puck_line  away_puck_line  home_juiced_decimal_puck_line  home_juiced_prob_puck_line  away_juiced_decimal_puck_line  away_juiced_prob_puck_line
-         2026_02_27_Buffalo Sabres_Florida Panthers            -1.5             1.5                       2.610793                    0.383025                       2.084861                    0.479648
-2026_02_27_Vegas Golden Knights_Washington Capitals            -1.5             1.5                       2.885556                    0.346554                       2.005110                    0.498726
-             2026_02_27_Minnesota Wild_Utah Mammoth            -1.5             1.5                       2.435506                    0.410592                       2.149481                    0.465229
-             2026_02_27_Winnipeg Jets_Anaheim Ducks            -1.5             1.5                       2.653030                    0.376928                       2.071088                    0.482838
-=== FILE END 2026-03-20T11:05:39.174489Z ===
+=== FILE START 2026-03-20T20:08:54.149438+00:00 ===
+[INFO] docs/win/hockey/01_merge/01_merguiced/2026_02_27_NHL_puck_line.csv
+[SUMMARY] applied=4 no_band=0 bad=0
+[INFO] Wrote: docs/win/hockey/02_juice/2026_02_27_NHL_puck_line.csv
+=== FILE END 2026-03-20T20:08:54.157882+00:00 ===
 
-=== FILE START 2026-03-20T11:05:39.174556Z ===
-[INFO] Input file: docs/win/hockey/01_merge/2026_03_01_NHL_puck_line.csv
-[INFO] Output file: docs/win/hockey/02_juice/2026_03_01_NHL_puck_line.csv
-[INFO] Input rows: 6
-[INFO] Input columns: ['league', 'market', 'game_date', 'game_time', 'home_team', 'away_team', 'game_id', 'home_prob', 'away_prob', 'away_projected_goals', 'home_projected_goals', 'total_projected_goals', 'away_puck_line', 'home_puck_line', 'total', 'away_dk_puck_line_american', 'home_dk_puck_line_american', 'dk_total_over_american', 'dk_total_under_american', 'away_dk_moneyline_american', 'home_dk_moneyline_american', 'away_dk_puck_line_decimal', 'home_dk_puck_line_decimal', 'home_fair_puck_line_decimal', 'away_fair_puck_line_decimal']
-[INFO] home_puck_line value_counts: {1.5: 3, -1.5: 3}
-[INFO] away_puck_line value_counts: {-1.5: 3, 1.5: 3}
-[INFO] Home applied=6 no_band=0 bad_rows=0
-[INFO] Away applied=6 no_band=0 bad_rows=0
-[INFO] Wrote output rows: 6
-[INFO] Output columns now include: home_juiced_decimal_puck_line=True, away_juiced_decimal_puck_line=True
-[INFO] Output sample (first 10):
-                                            game_id  home_puck_line  away_puck_line  home_juiced_decimal_puck_line  home_juiced_prob_puck_line  away_juiced_decimal_puck_line  away_juiced_prob_puck_line
-2026_03_01_Vegas Golden Knights_Pittsburgh Penguins             1.5            -1.5                       2.303445                    0.434132                       2.281140                    0.438377
-           2026_03_01_Winnipeg Jets_San Jose Sharks             1.5            -1.5                       2.279071                    0.438775                       2.331281                    0.428949
-         2026_03_01_Chicago Blackhawks_Utah Mammoth            -1.5             1.5                       1.589930                    0.628958                       2.848951                    0.351006
-          2026_03_01_St. Louis Blues_Minnesota Wild            -1.5             1.5                       1.898021                    0.526864                       2.472742                    0.404409
-     2026_03_01_Florida Panthers_New York Islanders             1.5            -1.5                       2.139216                    0.467461                       2.697637                    0.370695
-            2026_03_01_Calgary Flames_Anaheim Ducks            -1.5             1.5                       2.047765                    0.488337                       2.355368                    0.424562
-=== FILE END 2026-03-20T11:05:39.197708Z ===
+=== FILE START 2026-03-20T20:08:54.157931+00:00 ===
+[INFO] docs/win/hockey/01_merge/01_merguiced/2026_03_01_NHL_puck_line.csv
+[SUMMARY] applied=6 no_band=0 bad=0
+[INFO] Wrote: docs/win/hockey/02_juice/2026_03_01_NHL_puck_line.csv
+=== FILE END 2026-03-20T20:08:54.168764+00:00 ===
 
-=== FILE START 2026-03-20T11:05:39.197745Z ===
-[INFO] Input file: docs/win/hockey/01_merge/2026_03_02_NHL_puck_line.csv
-[INFO] Output file: docs/win/hockey/02_juice/2026_03_02_NHL_puck_line.csv
-[INFO] Input rows: 6
-[INFO] Input columns: ['league', 'market', 'game_date', 'game_time', 'home_team', 'away_team', 'game_id', 'home_prob', 'away_prob', 'away_projected_goals', 'home_projected_goals', 'total_projected_goals', 'away_puck_line', 'home_puck_line', 'total', 'away_dk_puck_line_american', 'home_dk_puck_line_american', 'dk_total_over_american', 'dk_total_under_american', 'away_dk_moneyline_american', 'home_dk_moneyline_american', 'away_dk_puck_line_decimal', 'home_dk_puck_line_decimal', 'home_fair_puck_line_decimal', 'away_fair_puck_line_decimal']
-[INFO] home_puck_line value_counts: {1.5: 5, -1.5: 1}
-[INFO] away_puck_line value_counts: {-1.5: 5, 1.5: 1}
-[INFO] Home applied=6 no_band=0 bad_rows=0
-[INFO] Away applied=6 no_band=0 bad_rows=0
-[INFO] Wrote output rows: 6
-[INFO] Output columns now include: home_juiced_decimal_puck_line=True, away_juiced_decimal_puck_line=True
-[INFO] Output sample (first 10):
-                                           game_id  home_puck_line  away_puck_line  home_juiced_decimal_puck_line  home_juiced_prob_puck_line  away_juiced_decimal_puck_line  away_juiced_prob_puck_line
-  2026_03_02_Detroit Red Wings_Nashville Predators             1.5            -1.5                       2.123109                    0.471007                       2.751086                    0.363493
- 2026_03_02_Columbus Blue Jackets_New York Rangers             1.5            -1.5                       2.088602                    0.478789                       2.876129                    0.347690
-2026_03_02_Philadelphia Flyers_Toronto Maple Leafs            -1.5             1.5                       2.445014                    0.408996                       2.145629                    0.466064
-     2026_03_02_Carolina Hurricanes_Seattle Kraken             1.5            -1.5                       2.544049                    0.393074                       1.916601                    0.521757
-         2026_03_02_Dallas Stars_Vancouver Canucks             1.5            -1.5                       2.569216                    0.389224                       1.888302                    0.529576
-   2026_03_02_Colorado Avalanche_Los Angeles Kings             1.5            -1.5                       2.499367                    0.400101                       1.970496                    0.507487
-=== FILE END 2026-03-20T11:05:39.220811Z ===
+=== FILE START 2026-03-20T20:08:54.168840+00:00 ===
+[INFO] docs/win/hockey/01_merge/01_merguiced/2026_03_02_NHL_puck_line.csv
+[SUMMARY] applied=6 no_band=0 bad=0
+[INFO] Wrote: docs/win/hockey/02_juice/2026_03_02_NHL_puck_line.csv
+=== FILE END 2026-03-20T20:08:54.179701+00:00 ===
 
-=== FILE START 2026-03-20T11:05:39.220852Z ===
-[INFO] Input file: docs/win/hockey/01_merge/2026_03_03_NHL_puck_line.csv
-[INFO] Output file: docs/win/hockey/02_juice/2026_03_03_NHL_puck_line.csv
-[INFO] Input rows: 11
-[INFO] Input columns: ['league', 'market', 'game_date', 'game_time', 'home_team', 'away_team', 'game_id', 'home_prob', 'away_prob', 'away_projected_goals', 'home_projected_goals', 'total_projected_goals', 'away_puck_line', 'home_puck_line', 'total', 'away_dk_puck_line_american', 'home_dk_puck_line_american', 'dk_total_over_american', 'dk_total_under_american', 'away_dk_moneyline_american', 'home_dk_moneyline_american', 'away_dk_puck_line_decimal', 'home_dk_puck_line_decimal', 'home_fair_puck_line_decimal', 'away_fair_puck_line_decimal']
-[INFO] home_puck_line value_counts: {-1.5: 6, 1.5: 5}
-[INFO] away_puck_line value_counts: {1.5: 6, -1.5: 5}
-[INFO] Home applied=11 no_band=0 bad_rows=0
-[INFO] Away applied=11 no_band=0 bad_rows=0
-[INFO] Wrote output rows: 11
-[INFO] Output columns now include: home_juiced_decimal_puck_line=True, away_juiced_decimal_puck_line=True
-[INFO] Output sample (first 10):
-                                             game_id  home_puck_line  away_puck_line  home_juiced_decimal_puck_line  home_juiced_prob_puck_line  away_juiced_decimal_puck_line  away_juiced_prob_puck_line
-        2026_03_03_Pittsburgh Penguins_Boston Bruins            -1.5             1.5                       2.643416                    0.378298                       2.074169                    0.482121
-      2026_03_03_Vegas Golden Knights_Buffalo Sabres            -1.5             1.5                       2.703036                    0.369954                       2.055560                    0.486485
-2026_03_03_Nashville Predators_Columbus Blue Jackets            -1.5             1.5                       2.340670                    0.427228                       2.190452                    0.456527
-       2026_03_03_Florida Panthers_New Jersey Devils             1.5            -1.5                       2.087050                    0.479145                       2.882122                    0.346967
-         2026_03_03_Utah Mammoth_Washington Capitals            -1.5             1.5                       2.968847                    0.336831                       1.984870                    0.503811
-         2026_03_03_Chicago Blackhawks_Winnipeg Jets            -1.5             1.5                       2.148199                    0.465506                       2.290928                    0.436504
-              2026_03_03_Dallas Stars_Calgary Flames             1.5            -1.5                       2.239073                    0.446613                       2.421124                    0.413031
-          2026_03_03_Ottawa Senators_Edmonton Oilers            -1.5             1.5                       2.519748                    0.396865                       2.116810                    0.472409
-       2026_03_03_Tampa Bay Lightning_Minnesota Wild             1.5            -1.5                       2.158192                    0.463351                       2.638233                    0.379042
-         2026_03_03_Colorado Avalanche_Anaheim Ducks             1.5            -1.5                       2.480104                    0.403209                       1.995307                    0.501176
-=== FILE END 2026-03-20T11:05:39.257536Z ===
+=== FILE START 2026-03-20T20:08:54.179752+00:00 ===
+[INFO] docs/win/hockey/01_merge/01_merguiced/2026_03_03_NHL_puck_line.csv
+[SUMMARY] applied=11 no_band=0 bad=0
+[INFO] Wrote: docs/win/hockey/02_juice/2026_03_03_NHL_puck_line.csv
+=== FILE END 2026-03-20T20:08:54.196957+00:00 ===
 
-=== FILE START 2026-03-20T11:05:39.257572Z ===
-[INFO] Input file: docs/win/hockey/01_merge/2026_03_04_NHL_puck_line.csv
-[INFO] Output file: docs/win/hockey/02_juice/2026_03_04_NHL_puck_line.csv
-[INFO] Input rows: 5
-[INFO] Input columns: ['league', 'market', 'game_date', 'game_time', 'home_team', 'away_team', 'game_id', 'home_prob', 'away_prob', 'away_projected_goals', 'home_projected_goals', 'total_projected_goals', 'away_puck_line', 'home_puck_line', 'total', 'away_dk_puck_line_american', 'home_dk_puck_line_american', 'dk_total_over_american', 'dk_total_under_american', 'away_dk_moneyline_american', 'home_dk_moneyline_american', 'away_dk_puck_line_decimal', 'home_dk_puck_line_decimal', 'home_fair_puck_line_decimal', 'away_fair_puck_line_decimal']
-[INFO] home_puck_line value_counts: {-1.5: 4, 1.5: 1}
-[INFO] away_puck_line value_counts: {1.5: 4, -1.5: 1}
-[INFO] Home applied=5 no_band=0 bad_rows=0
-[INFO] Away applied=5 no_band=0 bad_rows=0
-[INFO] Wrote output rows: 5
-[INFO] Output columns now include: home_juiced_decimal_puck_line=True, away_juiced_decimal_puck_line=True
-[INFO] Output sample (first 10):
-                                          game_id  home_puck_line  away_puck_line  home_juiced_decimal_puck_line  home_juiced_prob_puck_line  away_juiced_decimal_puck_line  away_juiced_prob_puck_line
-2026_03_04_Vegas Golden Knights_Detroit Red Wings            -1.5             1.5                       2.659290                    0.376040                       2.069099                    0.483302
- 2026_03_04_Toronto Maple Leafs_New Jersey Devils            -1.5             1.5                       2.860501                    0.349589                       2.011514                    0.497138
-      2026_03_04_New York Islanders_Anaheim Ducks            -1.5             1.5                       3.049154                    0.327960                       1.966755                    0.508452
-        2026_03_04_St. Louis Blues_Seattle Kraken            -1.5             1.5                       2.653040                    0.376926                       2.071085                    0.482839
- 2026_03_04_Carolina Hurricanes_Vancouver Canucks             1.5            -1.5                       2.812518                    0.355553                       1.672371                    0.597953
-=== FILE END 2026-03-20T11:05:39.277723Z ===
+=== FILE START 2026-03-20T20:08:54.197004+00:00 ===
+[INFO] docs/win/hockey/01_merge/01_merguiced/2026_03_04_NHL_puck_line.csv
+[SUMMARY] applied=5 no_band=0 bad=0
+[INFO] Wrote: docs/win/hockey/02_juice/2026_03_04_NHL_puck_line.csv
+=== FILE END 2026-03-20T20:08:54.206554+00:00 ===
 
-=== FILE START 2026-03-20T11:05:39.277760Z ===
-[INFO] Input file: docs/win/hockey/01_merge/2026_03_05_NHL_puck_line.csv
-[INFO] Output file: docs/win/hockey/02_juice/2026_03_05_NHL_puck_line.csv
-[INFO] Input rows: 8
-[INFO] Input columns: ['league', 'market', 'game_date', 'game_time', 'home_team', 'away_team', 'game_id', 'home_prob', 'away_prob', 'away_projected_goals', 'home_projected_goals', 'total_projected_goals', 'away_puck_line', 'home_puck_line', 'total', 'away_dk_puck_line_american', 'home_dk_puck_line_american', 'dk_total_over_american', 'dk_total_under_american', 'away_dk_moneyline_american', 'home_dk_moneyline_american', 'away_dk_puck_line_decimal', 'home_dk_puck_line_decimal', 'home_fair_puck_line_decimal', 'away_fair_puck_line_decimal']
-[INFO] home_puck_line value_counts: {-1.5: 4, 1.5: 4}
-[INFO] away_puck_line value_counts: {1.5: 4, -1.5: 4}
-[INFO] Home applied=8 no_band=0 bad_rows=0
-[INFO] Away applied=8 no_band=0 bad_rows=0
-[INFO] Wrote output rows: 8
-[INFO] Output columns now include: home_juiced_decimal_puck_line=True, away_juiced_decimal_puck_line=True
-[INFO] Output sample (first 10):
-                                          game_id  home_puck_line  away_puck_line  home_juiced_decimal_puck_line  home_juiced_prob_puck_line  away_juiced_decimal_puck_line  away_juiced_prob_puck_line
-2026_03_05_Florida Panthers_Columbus Blue Jackets            -1.5             1.5                       2.792391                    0.358116                       2.029724                    0.492678
-  2026_03_05_Toronto Maple Leafs_New York Rangers            -1.5             1.5                       2.570831                    0.388979                       2.098486                    0.476534
-      2026_03_05_Utah Mammoth_Philadelphia Flyers             1.5            -1.5                       2.212163                    0.452046                       2.487572                    0.401998
-    2026_03_05_Buffalo Sabres_Pittsburgh Penguins             1.5            -1.5                       2.124050                    0.470799                       2.747885                    0.363916
-     2026_03_05_Boston Bruins_Nashville Predators            -1.5             1.5                       2.866042                    0.348913                       2.010085                    0.497492
-     2026_03_05_Tampa Bay Lightning_Winnipeg Jets             1.5            -1.5                       2.354665                    0.424689                       2.185530                    0.457555
-        2026_03_05_Ottawa Senators_Calgary Flames             1.5            -1.5                       2.274159                    0.439723                       2.341789                    0.427024
-  2026_03_05_New York Islanders_Los Angeles Kings            -1.5             1.5                       2.670591                    0.374449                       2.065542                    0.484134
-=== FILE END 2026-03-20T11:05:39.306106Z ===
+=== FILE START 2026-03-20T20:08:54.206622+00:00 ===
+[INFO] docs/win/hockey/01_merge/01_merguiced/2026_03_05_NHL_puck_line.csv
+[SUMMARY] applied=8 no_band=0 bad=0
+[INFO] Wrote: docs/win/hockey/02_juice/2026_03_05_NHL_puck_line.csv
+=== FILE END 2026-03-20T20:08:54.219983+00:00 ===
 
-=== FILE START 2026-03-20T11:05:39.306141Z ===
-[INFO] Input file: docs/win/hockey/01_merge/2026_03_06_NHL_puck_line.csv
-[INFO] Output file: docs/win/hockey/02_juice/2026_03_06_NHL_puck_line.csv
-[INFO] Input rows: 7
-[INFO] Input columns: ['league', 'market', 'game_date', 'game_time', 'home_team', 'away_team', 'game_id', 'home_prob', 'away_prob', 'away_projected_goals', 'home_projected_goals', 'total_projected_goals', 'away_puck_line', 'home_puck_line', 'total', 'away_dk_puck_line_american', 'home_dk_puck_line_american', 'dk_total_over_american', 'dk_total_under_american', 'away_dk_moneyline_american', 'home_dk_moneyline_american', 'away_dk_puck_line_decimal', 'home_dk_puck_line_decimal', 'home_fair_puck_line_decimal', 'away_fair_puck_line_decimal']
-[INFO] home_puck_line value_counts: {-1.5: 4, 1.5: 3}
-[INFO] away_puck_line value_counts: {1.5: 4, -1.5: 3}
-[INFO] Home applied=7 no_band=0 bad_rows=0
-[INFO] Away applied=7 no_band=0 bad_rows=0
-[INFO] Wrote output rows: 7
-[INFO] Output columns now include: home_juiced_decimal_puck_line=True, away_juiced_decimal_puck_line=True
-[INFO] Output sample (first 10):
-                                        game_id  home_puck_line  away_puck_line  home_juiced_decimal_puck_line  home_juiced_prob_puck_line  away_juiced_decimal_puck_line  away_juiced_prob_puck_line
-  2026_03_06_Florida Panthers_Detroit Red Wings            -1.5             1.5                       2.573262                    0.388612                       2.097640                    0.476726
-     2026_03_06_Colorado Avalanche_Dallas Stars             1.5            -1.5                       2.178076                    0.459121                       2.579770                    0.387632
-2026_03_06_Vancouver Canucks_Chicago Blackhawks            -1.5             1.5                       2.481254                    0.403022                       2.131340                    0.469189
-    2026_03_06_Montreal Canadiens_Anaheim Ducks            -1.5             1.5                       2.755102                    0.362963                       2.040223                    0.490142
- 2026_03_06_Carolina Hurricanes_Edmonton Oilers             1.5            -1.5                       2.255615                    0.443338                       2.382753                    0.419683
-     2026_03_06_St. Louis Blues_San Jose Sharks            -1.5             1.5                       2.893954                    0.345548                       2.002997                    0.499252
- 2026_03_06_Minnesota Wild_Vegas Golden Knights             1.5            -1.5                       2.035398                    0.491304                       3.102950                    0.322274
-=== FILE END 2026-03-20T11:05:39.331837Z ===
+=== FILE START 2026-03-20T20:08:54.220029+00:00 ===
+[INFO] docs/win/hockey/01_merge/01_merguiced/2026_03_06_NHL_puck_line.csv
+[SUMMARY] applied=7 no_band=0 bad=0
+[INFO] Wrote: docs/win/hockey/02_juice/2026_03_06_NHL_puck_line.csv
+=== FILE END 2026-03-20T20:08:54.232218+00:00 ===
 
-=== FILE START 2026-03-20T11:05:39.331872Z ===
-[INFO] Input file: docs/win/hockey/01_merge/2026_03_07_NHL_puck_line.csv
-[INFO] Output file: docs/win/hockey/02_juice/2026_03_07_NHL_puck_line.csv
-[INFO] Input rows: 11
-[INFO] Input columns: ['league', 'market', 'game_date', 'game_time', 'home_team', 'away_team', 'game_id', 'home_prob', 'away_prob', 'away_projected_goals', 'home_projected_goals', 'total_projected_goals', 'away_puck_line', 'home_puck_line', 'total', 'away_dk_puck_line_american', 'home_dk_puck_line_american', 'dk_total_over_american', 'dk_total_under_american', 'away_dk_moneyline_american', 'home_dk_moneyline_american', 'away_dk_puck_line_decimal', 'home_dk_puck_line_decimal', 'home_fair_puck_line_decimal', 'away_fair_puck_line_decimal']
-[INFO] home_puck_line value_counts: {-1.5: 6, 1.5: 5}
-[INFO] away_puck_line value_counts: {1.5: 6, -1.5: 5}
-[INFO] Home applied=11 no_band=0 bad_rows=0
-[INFO] Away applied=11 no_band=0 bad_rows=0
-[INFO] Wrote output rows: 11
-[INFO] Output columns now include: home_juiced_decimal_puck_line=True, away_juiced_decimal_puck_line=True
-[INFO] Output sample (first 10):
-                                           game_id  home_puck_line  away_puck_line  home_juiced_decimal_puck_line  home_juiced_prob_puck_line  away_juiced_decimal_puck_line  away_juiced_prob_puck_line
-     2026_03_07_New York Rangers_New Jersey Devils            -1.5             1.5                       2.546461                    0.392702                       2.107096                    0.474587
-     2026_03_07_Nashville Predators_Buffalo Sabres            -1.5             1.5                       2.112568                    0.473358                       2.312686                    0.432398
-2026_03_07_Philadelphia Flyers_Pittsburgh Penguins            -1.5             1.5                       2.460194                    0.406472                       2.139569                    0.467384
-     2026_03_07_Utah Mammoth_Columbus Blue Jackets             1.5            -1.5                       2.159863                    0.462992                       2.633176                    0.379769
-   2026_03_07_Montreal Canadiens_Los Angeles Kings            -1.5             1.5                       2.560643                    0.390527                       2.102058                    0.475724
-2026_03_07_Tampa Bay Lightning_Toronto Maple Leafs             1.5            -1.5                       2.348678                    0.425771                       2.196082                    0.455356
-        2026_03_07_Vancouver Canucks_Winnipeg Jets            -1.5             1.5                       1.844119                    0.542264                       2.522997                    0.396354
-     2026_03_07_Carolina Hurricanes_Calgary Flames             1.5            -1.5                       2.456489                    0.407085                       2.027147                    0.493304
-     2026_03_07_New York Islanders_San Jose Sharks             1.5            -1.5                       2.346495                    0.426168                       2.199969                    0.454552
-         2026_03_07_Ottawa Senators_Seattle Kraken             1.5            -1.5                       2.325447                    0.430025                       2.238545                    0.446719
-=== FILE END 2026-03-20T11:05:39.368830Z ===
+=== FILE START 2026-03-20T20:08:54.232265+00:00 ===
+[INFO] docs/win/hockey/01_merge/01_merguiced/2026_03_07_NHL_puck_line.csv
+[SUMMARY] applied=11 no_band=0 bad=0
+[INFO] Wrote: docs/win/hockey/02_juice/2026_03_07_NHL_puck_line.csv
+=== FILE END 2026-03-20T20:08:54.249440+00:00 ===
 
-=== FILE START 2026-03-20T11:05:39.368870Z ===
-[INFO] Input file: docs/win/hockey/01_merge/2026_03_08_NHL_puck_line.csv
-[INFO] Output file: docs/win/hockey/02_juice/2026_03_08_NHL_puck_line.csv
-[INFO] Input rows: 7
-[INFO] Input columns: ['league', 'market', 'game_date', 'game_time', 'home_team', 'away_team', 'game_id', 'home_prob', 'away_prob', 'away_projected_goals', 'home_projected_goals', 'total_projected_goals', 'away_puck_line', 'home_puck_line', 'total', 'away_dk_puck_line_american', 'home_dk_puck_line_american', 'dk_total_over_american', 'dk_total_under_american', 'away_dk_moneyline_american', 'home_dk_moneyline_american', 'away_dk_puck_line_decimal', 'home_dk_puck_line_decimal', 'home_fair_puck_line_decimal', 'away_fair_puck_line_decimal']
-[INFO] home_puck_line value_counts: {-1.5: 6, 1.5: 1}
-[INFO] away_puck_line value_counts: {1.5: 6, -1.5: 1}
-[INFO] Home applied=7 no_band=0 bad_rows=0
-[INFO] Away applied=7 no_band=0 bad_rows=0
-[INFO] Wrote output rows: 7
-[INFO] Output columns now include: home_juiced_decimal_puck_line=True, away_juiced_decimal_puck_line=True
-[INFO] Output sample (first 10):
-                                        game_id  home_puck_line  away_puck_line  home_juiced_decimal_puck_line  home_juiced_prob_puck_line  away_juiced_decimal_puck_line  away_juiced_prob_puck_line
-   2026_03_08_Minnesota Wild_Colorado Avalanche            -1.5             1.5                       1.950329                    0.512734                       2.428359                    0.411801
-   2026_03_08_Boston Bruins_Pittsburgh Penguins            -1.5             1.5                       2.635225                    0.379474                       2.076818                    0.481506
-  2026_03_08_Tampa Bay Lightning_Buffalo Sabres             1.5            -1.5                       2.175313                    0.459704                       2.587674                    0.386448
-     2026_03_08_Chicago Blackhawks_Dallas Stars            -1.5             1.5                       1.615514                    0.618998                       2.807282                    0.356216
- 2026_03_08_Detroit Red Wings_New Jersey Devils            -1.5             1.5                       2.961034                    0.337720                       1.986703                    0.503347
-       2026_03_08_St. Louis Blues_Anaheim Ducks            -1.5             1.5                       2.095556                    0.477200                       2.323487                    0.430388
-2026_03_08_Edmonton Oilers_Vegas Golden Knights            -1.5             1.5                       2.634794                    0.379536                       2.076958                    0.481473
-=== FILE END 2026-03-20T11:05:39.395014Z ===
+=== FILE START 2026-03-20T20:08:54.249486+00:00 ===
+[INFO] docs/win/hockey/01_merge/01_merguiced/2026_03_08_NHL_puck_line.csv
+[SUMMARY] applied=7 no_band=0 bad=0
+[INFO] Wrote: docs/win/hockey/02_juice/2026_03_08_NHL_puck_line.csv
+=== FILE END 2026-03-20T20:08:54.261563+00:00 ===
 
-=== FILE START 2026-03-20T11:05:39.395051Z ===
-[INFO] Input file: docs/win/hockey/01_merge/2026_03_09_NHL_puck_line.csv
-[INFO] Output file: docs/win/hockey/02_juice/2026_03_09_NHL_puck_line.csv
-[INFO] Input rows: 5
-[INFO] Input columns: ['league', 'market', 'game_date', 'game_time', 'home_team', 'away_team', 'game_id', 'home_prob', 'away_prob', 'away_projected_goals', 'home_projected_goals', 'total_projected_goals', 'away_puck_line', 'home_puck_line', 'total', 'away_dk_puck_line_american', 'home_dk_puck_line_american', 'dk_total_over_american', 'dk_total_under_american', 'away_dk_moneyline_american', 'home_dk_moneyline_american', 'away_dk_puck_line_decimal', 'home_dk_puck_line_decimal', 'home_fair_puck_line_decimal', 'away_fair_puck_line_decimal']
-[INFO] home_puck_line value_counts: {-1.5: 3, 1.5: 2}
-[INFO] away_puck_line value_counts: {1.5: 3, -1.5: 2}
-[INFO] Home applied=5 no_band=0 bad_rows=0
-[INFO] Away applied=5 no_band=0 bad_rows=0
-[INFO] Wrote output rows: 5
-[INFO] Output columns now include: home_juiced_decimal_puck_line=True, away_juiced_decimal_puck_line=True
-[INFO] Output sample (first 10):
-                                           game_id  home_puck_line  away_puck_line  home_juiced_decimal_puck_line  home_juiced_prob_puck_line  away_juiced_decimal_puck_line  away_juiced_prob_puck_line
-2026_03_09_Los Angeles Kings_Columbus Blue Jackets            -1.5             1.5                       2.596074                    0.385197                       2.089810                    0.478512
-   2026_03_09_New York Rangers_Philadelphia Flyers            -1.5             1.5                       2.588693                    0.386295                       2.092322                    0.477938
-     2026_03_09_Calgary Flames_Washington Capitals            -1.5             1.5                       2.117168                    0.472329                       2.309813                    0.432936
-        2026_03_09_Utah Mammoth_Chicago Blackhawks             1.5            -1.5                       2.621502                    0.381461                       1.833714                    0.545341
-      2026_03_09_Ottawa Senators_Vancouver Canucks             1.5            -1.5                       2.523610                    0.396258                       1.940648                    0.515292
-=== FILE END 2026-03-20T11:05:39.415251Z ===
+=== FILE START 2026-03-20T20:08:54.261627+00:00 ===
+[INFO] docs/win/hockey/01_merge/01_merguiced/2026_03_09_NHL_puck_line.csv
+[SUMMARY] applied=5 no_band=0 bad=0
+[INFO] Wrote: docs/win/hockey/02_juice/2026_03_09_NHL_puck_line.csv
+=== FILE END 2026-03-20T20:08:54.271002+00:00 ===
 
-=== FILE START 2026-03-20T11:05:39.415286Z ===
-[INFO] Input file: docs/win/hockey/01_merge/2026_03_10_NHL_puck_line.csv
-[INFO] Output file: docs/win/hockey/02_juice/2026_03_10_NHL_puck_line.csv
-[INFO] Input rows: 13
-[INFO] Input columns: ['league', 'market', 'game_date', 'game_time', 'home_team', 'away_team', 'game_id', 'home_prob', 'away_prob', 'away_projected_goals', 'home_projected_goals', 'total_projected_goals', 'away_puck_line', 'home_puck_line', 'total', 'away_dk_puck_line_american', 'home_dk_puck_line_american', 'dk_total_over_american', 'dk_total_under_american', 'away_dk_moneyline_american', 'home_dk_moneyline_american', 'away_dk_puck_line_decimal', 'home_dk_puck_line_decimal', 'home_fair_puck_line_decimal', 'away_fair_puck_line_decimal']
-[INFO] home_puck_line value_counts: {-1.5: 12, 1.5: 1}
-[INFO] away_puck_line value_counts: {1.5: 12, -1.5: 1}
-[INFO] Home applied=13 no_band=0 bad_rows=0
-[INFO] Away applied=13 no_band=0 bad_rows=0
-[INFO] Wrote output rows: 13
-[INFO] Output columns now include: home_juiced_decimal_puck_line=True, away_juiced_decimal_puck_line=True
-[INFO] Output sample (first 10):
-                                             game_id  home_puck_line  away_puck_line  home_juiced_decimal_puck_line  home_juiced_prob_puck_line  away_juiced_decimal_puck_line  away_juiced_prob_puck_line
-          2026_03_10_Los Angeles Kings_Boston Bruins            -1.5             1.5                       2.461690                    0.406225                       2.138978                    0.467513
-           2026_03_10_San Jose Sharks_Buffalo Sabres            -1.5             1.5                       1.869097                    0.535018                       2.499096                    0.400145
-  2026_03_10_Pittsburgh Penguins_Carolina Hurricanes            -1.5             1.5                       1.824155                    0.548199                       2.542913                    0.393250
-       2026_03_10_Detroit Red Wings_Florida Panthers            -1.5             1.5                       2.497268                    0.400438                       2.125216                    0.470540
-   2026_03_10_Toronto Maple Leafs_Montreal Canadiens            -1.5             1.5                       2.233060                    0.447816                       2.243371                    0.445758
-          2026_03_10_Calgary Flames_New York Rangers            -1.5             1.5                       2.569204                    0.389226                       2.099054                    0.476405
-2026_03_10_Columbus Blue Jackets_Tampa Bay Lightning            -1.5             1.5                       1.868590                    0.535163                       2.499571                    0.400069
-       2026_03_10_New York Islanders_St. Louis Blues             1.5            -1.5                       2.171670                    0.460475                       2.598203                    0.384881
-        2026_03_10_Vegas Golden Knights_Dallas Stars            -1.5             1.5                       2.392649                    0.417947                       2.167403                    0.461382
-              2026_03_10_Utah Mammoth_Minnesota Wild            -1.5             1.5                       2.487572                    0.401998                       2.128910                    0.469724
-=== FILE END 2026-03-20T11:05:39.457830Z ===
+=== FILE START 2026-03-20T20:08:54.271048+00:00 ===
+[INFO] docs/win/hockey/01_merge/01_merguiced/2026_03_10_NHL_puck_line.csv
+[SUMMARY] applied=13 no_band=0 bad=0
+[INFO] Wrote: docs/win/hockey/02_juice/2026_03_10_NHL_puck_line.csv
+=== FILE END 2026-03-20T20:08:54.290649+00:00 ===
 
-=== FILE START 2026-03-20T11:05:39.457867Z ===
-[INFO] Input file: docs/win/hockey/01_merge/2026_03_11_NHL_puck_line.csv
-[INFO] Output file: docs/win/hockey/02_juice/2026_03_11_NHL_puck_line.csv
-[INFO] Input rows: 2
-[INFO] Input columns: ['league', 'market', 'game_date', 'game_time', 'home_team', 'away_team', 'game_id', 'home_prob', 'away_prob', 'away_projected_goals', 'home_projected_goals', 'total_projected_goals', 'away_puck_line', 'home_puck_line', 'total', 'away_dk_puck_line_american', 'home_dk_puck_line_american', 'dk_total_over_american', 'dk_total_under_american', 'away_dk_moneyline_american', 'home_dk_moneyline_american', 'away_dk_puck_line_decimal', 'home_dk_puck_line_decimal', 'home_fair_puck_line_decimal', 'away_fair_puck_line_decimal']
-[INFO] home_puck_line value_counts: {-1.5: 1, 1.5: 1}
-[INFO] away_puck_line value_counts: {1.5: 1, -1.5: 1}
-[INFO] Home applied=2 no_band=0 bad_rows=0
-[INFO] Away applied=2 no_band=0 bad_rows=0
-[INFO] Wrote output rows: 2
-[INFO] Output columns now include: home_juiced_decimal_puck_line=True, away_juiced_decimal_puck_line=True
-[INFO] Output sample (first 10):
-                                           game_id  home_puck_line  away_puck_line  home_juiced_decimal_puck_line  home_juiced_prob_puck_line  away_juiced_decimal_puck_line  away_juiced_prob_puck_line
-     2026_03_11_Montreal Canadiens_Ottawa Senators            -1.5             1.5                       2.231622                    0.448105                       2.244131                    0.445607
-2026_03_11_Washington Capitals_Philadelphia Flyers             1.5            -1.5                       2.141481                    0.466966                       2.690350                    0.371699
-=== FILE END 2026-03-20T11:05:39.469717Z ===
+=== FILE START 2026-03-20T20:08:54.290696+00:00 ===
+[INFO] docs/win/hockey/01_merge/01_merguiced/2026_03_11_NHL_puck_line.csv
+[SUMMARY] applied=2 no_band=0 bad=0
+[INFO] Wrote: docs/win/hockey/02_juice/2026_03_11_NHL_puck_line.csv
+=== FILE END 2026-03-20T20:08:54.296360+00:00 ===
 
-=== FILE START 2026-03-20T11:05:39.469751Z ===
-[INFO] Input file: docs/win/hockey/01_merge/2026_03_12_NHL_puck_line.csv
-[INFO] Output file: docs/win/hockey/02_juice/2026_03_12_NHL_puck_line.csv
-[INFO] Input rows: 14
-[INFO] Input columns: ['league', 'market', 'game_date', 'game_time', 'home_team', 'away_team', 'game_id', 'home_prob', 'away_prob', 'away_projected_goals', 'home_projected_goals', 'total_projected_goals', 'away_puck_line', 'home_puck_line', 'total', 'away_dk_puck_line_american', 'home_dk_puck_line_american', 'dk_total_over_american', 'dk_total_under_american', 'away_dk_moneyline_american', 'home_dk_moneyline_american', 'away_dk_puck_line_decimal', 'home_dk_puck_line_decimal', 'home_fair_puck_line_decimal', 'away_fair_puck_line_decimal']
-[INFO] home_puck_line value_counts: {-1.5: 11, 1.5: 3}
-[INFO] away_puck_line value_counts: {1.5: 11, -1.5: 3}
-[INFO] Home applied=14 no_band=0 bad_rows=0
-[INFO] Away applied=14 no_band=0 bad_rows=0
-[INFO] Wrote output rows: 14
-[INFO] Output columns now include: home_juiced_decimal_puck_line=True, away_juiced_decimal_puck_line=True
-[INFO] Output sample (first 10):
-                                          game_id  home_puck_line  away_puck_line  home_juiced_decimal_puck_line  home_juiced_prob_puck_line  away_juiced_decimal_puck_line  away_juiced_prob_puck_line
-         2026_03_12_San Jose Sharks_Boston Bruins            -1.5             1.5                       2.060909                    0.485223                       2.346365                    0.426191
-    2026_03_12_Washington Capitals_Buffalo Sabres            -1.5             1.5                       2.257352                    0.442997                       2.230756                    0.448279
-   2026_03_12_St. Louis Blues_Carolina Hurricanes            -1.5             1.5                       1.675414                    0.596867                       2.718925                    0.367792
-2026_03_12_Columbus Blue Jackets_Florida Panthers            -1.5             1.5                       2.508598                    0.398629                       2.120952                    0.471486
-      2026_03_12_Calgary Flames_New Jersey Devils            -1.5             1.5                       2.289252                    0.436824                       2.214803                    0.451507
- 2026_03_12_Detroit Red Wings_Tampa Bay Lightning            -1.5             1.5                       2.031189                    0.492323                       2.366990                    0.422477
-     2026_03_12_Anaheim Ducks_Toronto Maple Leafs             1.5            -1.5                       2.076540                    0.481570                       2.923619                    0.342042
-          2026_03_12_Edmonton Oilers_Dallas Stars            -1.5             1.5                       2.441270                    0.409623                       2.147140                    0.465736
-    2026_03_12_Philadelphia Flyers_Minnesota Wild            -1.5             1.5                       1.905397                    0.524825                       2.466236                    0.405476
-        2026_03_12_New York Rangers_Winnipeg Jets            -1.5             1.5                       2.495088                    0.400787                       2.126043                    0.470357
-=== FILE END 2026-03-20T11:05:39.514976Z ===
+=== FILE START 2026-03-20T20:08:54.296406+00:00 ===
+[INFO] docs/win/hockey/01_merge/01_merguiced/2026_03_12_NHL_puck_line.csv
+[SUMMARY] applied=14 no_band=0 bad=0
+[INFO] Wrote: docs/win/hockey/02_juice/2026_03_12_NHL_puck_line.csv
+=== FILE END 2026-03-20T20:08:54.317346+00:00 ===
 
-=== FILE START 2026-03-20T11:05:39.515011Z ===
-[INFO] Input file: docs/win/hockey/01_merge/2026_03_13_NHL_puck_line.csv
-[INFO] Output file: docs/win/hockey/02_juice/2026_03_13_NHL_puck_line.csv
-[INFO] Input rows: 2
-[INFO] Input columns: ['league', 'market', 'game_date', 'game_time', 'home_team', 'away_team', 'game_id', 'home_prob', 'away_prob', 'away_projected_goals', 'home_projected_goals', 'total_projected_goals', 'away_puck_line', 'home_puck_line', 'total', 'away_dk_puck_line_american', 'home_dk_puck_line_american', 'dk_total_over_american', 'dk_total_under_american', 'away_dk_moneyline_american', 'home_dk_moneyline_american', 'away_dk_puck_line_decimal', 'home_dk_puck_line_decimal', 'home_fair_puck_line_decimal', 'away_fair_puck_line_decimal']
-[INFO] home_puck_line value_counts: {-1.5: 1, 1.5: 1}
-[INFO] away_puck_line value_counts: {1.5: 1, -1.5: 1}
-[INFO] Home applied=2 no_band=0 bad_rows=0
-[INFO] Away applied=2 no_band=0 bad_rows=0
-[INFO] Wrote output rows: 2
-[INFO] Output columns now include: home_juiced_decimal_puck_line=True, away_juiced_decimal_puck_line=True
-[INFO] Output sample (first 10):
-                                        game_id  home_puck_line  away_puck_line  home_juiced_decimal_puck_line  home_juiced_prob_puck_line  away_juiced_decimal_puck_line  away_juiced_prob_puck_line
-2026_03_13_Los Angeles Kings_New York Islanders            -1.5             1.5                       2.584322                    0.386949                       2.093820                    0.477596
-     2026_03_13_Edmonton Oilers_St. Louis Blues             1.5            -1.5                       2.342072                    0.426972                       2.207907                    0.452918
-=== FILE END 2026-03-20T11:05:39.526762Z ===
+=== FILE START 2026-03-20T20:08:54.317405+00:00 ===
+[INFO] docs/win/hockey/01_merge/01_merguiced/2026_03_13_NHL_puck_line.csv
+[SUMMARY] applied=2 no_band=0 bad=0
+[INFO] Wrote: docs/win/hockey/02_juice/2026_03_13_NHL_puck_line.csv
+=== FILE END 2026-03-20T20:08:54.323111+00:00 ===
 
-=== FILE START 2026-03-20T11:05:39.526797Z ===
-[INFO] Input file: docs/win/hockey/01_merge/2026_03_14_NHL_puck_line.csv
-[INFO] Output file: docs/win/hockey/02_juice/2026_03_14_NHL_puck_line.csv
-[INFO] Input rows: 14
-[INFO] Input columns: ['league', 'market', 'game_date', 'game_time', 'home_team', 'away_team', 'game_id', 'home_prob', 'away_prob', 'away_projected_goals', 'home_projected_goals', 'total_projected_goals', 'away_puck_line', 'home_puck_line', 'total', 'away_dk_puck_line_american', 'home_dk_puck_line_american', 'dk_total_over_american', 'dk_total_under_american', 'away_dk_moneyline_american', 'home_dk_moneyline_american', 'away_dk_puck_line_decimal', 'home_dk_puck_line_decimal', 'home_fair_puck_line_decimal', 'away_fair_puck_line_decimal']
-[INFO] home_puck_line value_counts: {-1.5: 11, 1.5: 3}
-[INFO] away_puck_line value_counts: {1.5: 11, -1.5: 3}
-[INFO] Home applied=14 no_band=0 bad_rows=0
-[INFO] Away applied=14 no_band=0 bad_rows=0
-[INFO] Wrote output rows: 14
-[INFO] Output columns now include: home_juiced_decimal_puck_line=True, away_juiced_decimal_puck_line=True
-[INFO] Output sample (first 10):
-                                             game_id  home_puck_line  away_puck_line  home_juiced_decimal_puck_line  home_juiced_prob_puck_line  away_juiced_decimal_puck_line  away_juiced_prob_puck_line
-            2026_03_14_Anaheim Ducks_Ottawa Senators            -1.5             1.5                       2.173042                    0.460184                       2.276410                    0.439288
-        2026_03_14_Boston Bruins_Washington Capitals            -1.5             1.5                       2.357554                    0.424168                       2.182799                    0.458127
-         2026_03_14_Colorado Avalanche_Winnipeg Jets             1.5            -1.5                       2.451089                    0.407982                       2.034659                    0.491483
-          2026_03_14_New York Rangers_Minnesota Wild            -1.5             1.5                       2.144021                    0.466413                       2.293420                    0.436030
-       2026_03_14_Toronto Maple Leafs_Buffalo Sabres            -1.5             1.5                       2.194550                    0.455674                       2.264250                    0.441647
-       2026_03_14_San Jose Sharks_Montreal Canadiens            -1.5             1.5                       1.930153                    0.518094                       2.445004                    0.408997
-      2026_03_14_Los Angeles Kings_New Jersey Devils            -1.5             1.5                       2.544089                    0.393068                       2.107947                    0.474395
-        2026_03_14_Calgary Flames_New York Islanders            -1.5             1.5                       2.454098                    0.407482                       2.141989                    0.466856
-  2026_03_14_Carolina Hurricanes_Tampa Bay Lightning            -1.5             1.5                       2.667907                    0.374826                       2.066383                    0.483937
-2026_03_14_Columbus Blue Jackets_Philadelphia Flyers             1.5            -1.5                       2.087814                    0.478970                       2.879166                    0.347323
-=== FILE END 2026-03-20T11:05:39.571814Z ===
+=== FILE START 2026-03-20T20:08:54.323156+00:00 ===
+[INFO] docs/win/hockey/01_merge/01_merguiced/2026_03_15_NHL_puck_line.csv
+[SUMMARY] applied=6 no_band=0 bad=0
+[INFO] Wrote: docs/win/hockey/02_juice/2026_03_15_NHL_puck_line.csv
+=== FILE END 2026-03-20T20:08:54.334018+00:00 ===
 
-=== FILE START 2026-03-20T11:05:39.571851Z ===
-[INFO] Input file: docs/win/hockey/01_merge/2026_03_15_NHL_puck_line.csv
-[INFO] Output file: docs/win/hockey/02_juice/2026_03_15_NHL_puck_line.csv
-[INFO] Input rows: 6
-[INFO] Input columns: ['league', 'market', 'game_date', 'game_time', 'home_team', 'away_team', 'game_id', 'home_prob', 'away_prob', 'away_projected_goals', 'home_projected_goals', 'total_projected_goals', 'away_puck_line', 'home_puck_line', 'total', 'away_dk_puck_line_american', 'home_dk_puck_line_american', 'dk_total_over_american', 'dk_total_under_american', 'away_dk_moneyline_american', 'home_dk_moneyline_american', 'away_dk_puck_line_decimal', 'home_dk_puck_line_decimal', 'home_fair_puck_line_decimal', 'away_fair_puck_line_decimal']
-[INFO] home_puck_line value_counts: {-1.5: 5, 1.5: 1}
-[INFO] away_puck_line value_counts: {1.5: 5, -1.5: 1}
-[INFO] Home applied=6 no_band=0 bad_rows=0
-[INFO] Away applied=6 no_band=0 bad_rows=0
-[INFO] Wrote output rows: 6
-[INFO] Output columns now include: home_juiced_decimal_puck_line=True, away_juiced_decimal_puck_line=True
-[INFO] Output sample (first 10):
-                                       game_id  home_puck_line  away_puck_line  home_juiced_decimal_puck_line  home_juiced_prob_puck_line  away_juiced_decimal_puck_line  away_juiced_prob_puck_line
-      2026_03_15_St. Louis Blues_Winnipeg Jets            -1.5             1.5                       2.922605                    0.342160                       1.995913                    0.501024
-    2026_03_15_San Jose Sharks_Ottawa Senators            -1.5             1.5                       1.878796                    0.532256                       2.490106                    0.401589
-   2026_03_15_Anaheim Ducks_Montreal Canadiens            -1.5             1.5                       2.372671                    0.421466                       2.176085                    0.459541
- 2026_03_15_Toronto Maple Leafs_Minnesota Wild            -1.5             1.5                       2.011088                    0.497243                       2.381500                    0.419903
-2026_03_15_Nashville Predators_Edmonton Oilers            -1.5             1.5                       2.105115                    0.475033                       2.317385                    0.431521
-    2026_03_15_Florida Panthers_Seattle Kraken             1.5            -1.5                       2.227401                    0.448954                       2.449309                    0.408278
-=== FILE END 2026-03-20T11:05:39.594866Z ===
+=== FILE START 2026-03-20T20:08:54.334063+00:00 ===
+[INFO] docs/win/hockey/01_merge/01_merguiced/2026_03_16_NHL_puck_line.csv
+[SUMMARY] applied=5 no_band=0 bad=0
+[INFO] Wrote: docs/win/hockey/02_juice/2026_03_16_NHL_puck_line.csv
+=== FILE END 2026-03-20T20:08:54.343633+00:00 ===
 
-=== FILE START 2026-03-20T11:05:39.594900Z ===
-[INFO] Input file: docs/win/hockey/01_merge/2026_03_16_NHL_puck_line.csv
-[INFO] Output file: docs/win/hockey/02_juice/2026_03_16_NHL_puck_line.csv
-[INFO] Input rows: 5
-[INFO] Input columns: ['league', 'market', 'game_date', 'game_time', 'home_team', 'away_team', 'game_id', 'home_prob', 'away_prob', 'away_projected_goals', 'home_projected_goals', 'total_projected_goals', 'away_puck_line', 'home_puck_line', 'total', 'away_dk_puck_line_american', 'home_dk_puck_line_american', 'dk_total_over_american', 'dk_total_under_american', 'away_dk_moneyline_american', 'home_dk_moneyline_american', 'away_dk_puck_line_decimal', 'home_dk_puck_line_decimal', 'home_fair_puck_line_decimal', 'away_fair_puck_line_decimal']
-[INFO] home_puck_line value_counts: {-1.5: 4, 1.5: 1}
-[INFO] away_puck_line value_counts: {1.5: 4, -1.5: 1}
-[INFO] Home applied=5 no_band=0 bad_rows=0
-[INFO] Away applied=5 no_band=0 bad_rows=0
-[INFO] Wrote output rows: 5
-[INFO] Output columns now include: home_juiced_decimal_puck_line=True, away_juiced_decimal_puck_line=True
-[INFO] Output sample (first 10):
-                                          game_id  home_puck_line  away_puck_line  home_juiced_decimal_puck_line  home_juiced_prob_puck_line  away_juiced_decimal_puck_line  away_juiced_prob_puck_line
-      2026_03_16_Calgary Flames_Detroit Red Wings            -1.5             1.5                       2.326723                    0.429789                       2.196898                    0.455187
-       2026_03_16_Boston Bruins_New Jersey Devils            -1.5             1.5                       2.855726                    0.350174                       2.012752                    0.496832
-    2026_03_16_Los Angeles Kings_New York Rangers             1.5            -1.5                       2.020118                    0.495021                       3.177352                    0.314728
-             2026_03_16_Utah Mammoth_Dallas Stars            -1.5             1.5                       2.460024                    0.406500                       2.139636                    0.467369
-2026_03_16_Pittsburgh Penguins_Colorado Avalanche            -1.5             1.5                       1.707341                    0.585706                       2.676439                    0.373631
-=== FILE END 2026-03-20T11:05:39.615019Z ===
+=== FILE START 2026-03-20T20:08:54.343679+00:00 ===
+[INFO] docs/win/hockey/01_merge/01_merguiced/2026_03_17_NHL_puck_line.csv
+[SUMMARY] applied=9 no_band=0 bad=0
+[INFO] Wrote: docs/win/hockey/02_juice/2026_03_17_NHL_puck_line.csv
+=== FILE END 2026-03-20T20:08:54.358165+00:00 ===
 
-=== FILE START 2026-03-20T11:05:39.615054Z ===
-[INFO] Input file: docs/win/hockey/01_merge/2026_03_17_NHL_puck_line.csv
-[INFO] Output file: docs/win/hockey/02_juice/2026_03_17_NHL_puck_line.csv
-[INFO] Input rows: 9
-[INFO] Input columns: ['league', 'market', 'game_date', 'game_time', 'home_team', 'away_team', 'game_id', 'home_prob', 'away_prob', 'away_projected_goals', 'home_projected_goals', 'total_projected_goals', 'away_puck_line', 'home_puck_line', 'total', 'away_dk_puck_line_american', 'home_dk_puck_line_american', 'dk_total_over_american', 'dk_total_under_american', 'away_dk_moneyline_american', 'home_dk_moneyline_american', 'away_dk_puck_line_decimal', 'home_dk_puck_line_decimal', 'home_fair_puck_line_decimal', 'away_fair_puck_line_decimal']
-[INFO] home_puck_line value_counts: {1.5: 5, -1.5: 4}
-[INFO] away_puck_line value_counts: {-1.5: 5, 1.5: 4}
-[INFO] Home applied=9 no_band=0 bad_rows=0
-[INFO] Away applied=9 no_band=0 bad_rows=0
-[INFO] Wrote output rows: 9
-[INFO] Output columns now include: home_juiced_decimal_puck_line=True, away_juiced_decimal_puck_line=True
-[INFO] Output sample (first 10):
-                                             game_id  home_puck_line  away_puck_line  home_juiced_decimal_puck_line  home_juiced_prob_puck_line  away_juiced_decimal_puck_line  away_juiced_prob_puck_line
-2026_03_17_Carolina Hurricanes_Columbus Blue Jackets             1.5            -1.5                       2.296684                    0.435410                       2.294724                    0.435782
-         2026_03_17_Boston Bruins_Montreal Canadiens            -1.5             1.5                       2.230579                    0.448314                       2.244683                    0.445497
-   2026_03_17_New York Islanders_Toronto Maple Leafs             1.5            -1.5                       2.147304                    0.465700                       2.671865                    0.374270
-        2026_03_17_Minnesota Wild_Chicago Blackhawks             1.5            -1.5                       2.479743                    0.403268                       1.995783                    0.501056
-        2026_03_17_Nashville Predators_Winnipeg Jets            -1.5             1.5                       2.513895                    0.397789                       2.118978                    0.471926
-          2026_03_17_San Jose Sharks_Edmonton Oilers            -1.5             1.5                       1.892447                    0.528416                       2.477715                    0.403598
-       2026_03_17_Tampa Bay Lightning_Seattle Kraken             1.5            -1.5                       2.430441                    0.411448                       2.064221                    0.484444
-       2026_03_17_Florida Panthers_Vancouver Canucks             1.5            -1.5                       2.369009                    0.422117                       2.160868                    0.462777
-      2026_03_17_Buffalo Sabres_Vegas Golden Knights            -1.5             1.5                       2.595324                    0.385308                       2.090065                    0.478454
-=== FILE END 2026-03-20T11:05:39.646396Z ===
+=== FILE START 2026-03-20T20:08:54.358209+00:00 ===
+[INFO] docs/win/hockey/01_merge/01_merguiced/2026_03_18_NHL_puck_line.csv
+[SUMMARY] applied=6 no_band=0 bad=0
+[INFO] Wrote: docs/win/hockey/02_juice/2026_03_18_NHL_puck_line.csv
+=== FILE END 2026-03-20T20:08:54.368861+00:00 ===
 
-=== FILE START 2026-03-20T11:05:39.646430Z ===
-[INFO] Input file: docs/win/hockey/01_merge/2026_03_18_NHL_puck_line.csv
-[INFO] Output file: docs/win/hockey/02_juice/2026_03_18_NHL_puck_line.csv
-[INFO] Input rows: 6
-[INFO] Input columns: ['league', 'market', 'game_date', 'game_time', 'home_team', 'away_team', 'game_id', 'home_prob', 'away_prob', 'away_projected_goals', 'home_projected_goals', 'total_projected_goals', 'away_puck_line', 'home_puck_line', 'total', 'away_dk_puck_line_american', 'home_dk_puck_line_american', 'dk_total_over_american', 'dk_total_under_american', 'away_dk_moneyline_american', 'home_dk_moneyline_american', 'away_dk_puck_line_decimal', 'home_dk_puck_line_decimal', 'home_fair_puck_line_decimal', 'away_fair_puck_line_decimal']
-[INFO] home_puck_line value_counts: {-1.5: 3, 1.5: 3}
-[INFO] away_puck_line value_counts: {1.5: 3, -1.5: 3}
-[INFO] Home applied=6 no_band=0 bad_rows=0
-[INFO] Away applied=6 no_band=0 bad_rows=0
-[INFO] Wrote output rows: 6
-[INFO] Output columns now include: home_juiced_decimal_puck_line=True, away_juiced_decimal_puck_line=True
-[INFO] Output sample (first 10):
-                                           game_id  home_puck_line  away_puck_line  home_juiced_decimal_puck_line  home_juiced_prob_puck_line  away_juiced_decimal_puck_line  away_juiced_prob_puck_line
-2026_03_18_Pittsburgh Penguins_Carolina Hurricanes            -1.5             1.5                       2.041146                    0.489921                       2.359973                    0.423734
-     2026_03_18_New Jersey Devils_New York Rangers             1.5            -1.5                       2.039423                    0.490335                       3.084105                    0.324243
-    2026_03_18_Ottawa Senators_Washington Capitals             1.5            -1.5                       2.078833                    0.481039                       2.914428                    0.343121
-         2026_03_18_St. Louis Blues_Calgary Flames             1.5            -1.5                       2.024923                    0.493846                       3.153450                    0.317113
-        2026_03_18_Dallas Stars_Colorado Avalanche            -1.5             1.5                       2.220818                    0.450285                       2.249888                    0.444467
-      2026_03_18_Philadelphia Flyers_Anaheim Ducks            -1.5             1.5                       2.488732                    0.401811                       2.128466                    0.469822
-=== FILE END 2026-03-20T11:05:39.669043Z ===
+=== FILE START 2026-03-20T20:08:54.368905+00:00 ===
+[INFO] docs/win/hockey/01_merge/01_merguiced/2026_03_19_NHL_puck_line.csv
+[SUMMARY] applied=11 no_band=0 bad=0
+[INFO] Wrote: docs/win/hockey/02_juice/2026_03_19_NHL_puck_line.csv
+=== FILE END 2026-03-20T20:08:54.385868+00:00 ===
 
-=== FILE START 2026-03-20T11:05:39.669077Z ===
-[INFO] Input file: docs/win/hockey/01_merge/2026_03_19_NHL_puck_line.csv
-[INFO] Output file: docs/win/hockey/02_juice/2026_03_19_NHL_puck_line.csv
-[INFO] Input rows: 11
-[INFO] Input columns: ['league', 'market', 'game_date', 'game_time', 'home_team', 'away_team', 'game_id', 'home_prob', 'away_prob', 'away_projected_goals', 'home_projected_goals', 'total_projected_goals', 'away_puck_line', 'home_puck_line', 'total', 'away_dk_puck_line_american', 'home_dk_puck_line_american', 'dk_total_over_american', 'dk_total_under_american', 'away_dk_moneyline_american', 'home_dk_moneyline_american', 'away_dk_puck_line_decimal', 'home_dk_puck_line_decimal', 'home_fair_puck_line_decimal', 'away_fair_puck_line_decimal']
-[INFO] home_puck_line value_counts: {-1.5: 8, 1.5: 3}
-[INFO] away_puck_line value_counts: {1.5: 8, -1.5: 3}
-[INFO] Home applied=11 no_band=0 bad_rows=0
-[INFO] Away applied=11 no_band=0 bad_rows=0
-[INFO] Wrote output rows: 11
-[INFO] Output columns now include: home_juiced_decimal_puck_line=True, away_juiced_decimal_puck_line=True
-[INFO] Output sample (first 10):
-                                          game_id  home_puck_line  away_puck_line  home_juiced_decimal_puck_line  home_juiced_prob_puck_line  away_juiced_decimal_puck_line  away_juiced_prob_puck_line
-           2026_03_19_Winnipeg Jets_Boston Bruins            -1.5             1.5                       2.555346                    0.391336                       2.103930                    0.475301
-2026_03_19_New York Rangers_Columbus Blue Jackets            -1.5             1.5                       2.193281                    0.455938                       2.264958                    0.441509
-  2026_03_19_Montreal Canadiens_Detroit Red Wings             1.5            -1.5                       2.090481                    0.478359                       2.868917                    0.348564
-    2026_03_19_New York Islanders_Ottawa Senators            -1.5             1.5                       2.646736                    0.377824                       2.073102                    0.482369
-     2026_03_19_Chicago Blackhawks_Minnesota Wild            -1.5             1.5                       1.754003                    0.570125                       2.619303                    0.381781
-    2026_03_19_Seattle Kraken_Nashville Predators            -1.5             1.5                       2.460886                    0.406358                       2.139295                    0.467444
-      2026_03_19_Florida Panthers_Edmonton Oilers            -1.5             1.5                       2.275894                    0.439388                       2.221401                    0.450166
-        2026_03_19_Buffalo Sabres_San Jose Sharks             1.5            -1.5                       2.396230                    0.417322                       2.116335                    0.472515
- 2026_03_19_Tampa Bay Lightning_Vancouver Canucks             1.5            -1.5                       2.755125                    0.362960                       1.715525                    0.582912
-     2026_03_19_Utah Mammoth_Vegas Golden Knights            -1.5             1.5                       2.673735                    0.374009                       2.064560                    0.484365
-=== FILE END 2026-03-20T11:05:39.705693Z ===
+=== FILE START 2026-03-20T20:08:54.385914+00:00 ===
+[INFO] docs/win/hockey/01_merge/01_merguiced/2026_03_20_NHL_puck_line.csv
+[SUMMARY] applied=5 no_band=0 bad=0
+[INFO] Wrote: docs/win/hockey/02_juice/2026_03_20_NHL_puck_line.csv
+=== FILE END 2026-03-20T20:08:54.395354+00:00 ===
 
-=== FILE START 2026-03-20T11:05:39.705728Z ===
-[INFO] Input file: docs/win/hockey/01_merge/2026_03_20_NHL_puck_line.csv
-[INFO] Output file: docs/win/hockey/02_juice/2026_03_20_NHL_puck_line.csv
-[INFO] Input rows: 5
-[INFO] Input columns: ['league', 'market', 'game_date', 'game_time', 'home_team', 'away_team', 'game_id', 'home_prob', 'away_prob', 'away_projected_goals', 'home_projected_goals', 'total_projected_goals', 'away_puck_line', 'home_puck_line', 'total', 'away_dk_puck_line_american', 'home_dk_puck_line_american', 'dk_total_over_american', 'dk_total_under_american', 'away_dk_moneyline_american', 'home_dk_moneyline_american', 'away_dk_puck_line_decimal', 'home_dk_puck_line_decimal', 'home_fair_puck_line_decimal', 'away_fair_puck_line_decimal']
-[INFO] home_puck_line value_counts: {1.5: 3, -1.5: 2}
-[INFO] away_puck_line value_counts: {-1.5: 3, 1.5: 2}
-[INFO] Home applied=5 no_band=0 bad_rows=0
-[INFO] Away applied=5 no_band=0 bad_rows=0
-[INFO] Wrote output rows: 5
-[INFO] Output columns now include: home_juiced_decimal_puck_line=True, away_juiced_decimal_puck_line=True
-[INFO] Output sample (first 10):
-                                           game_id  home_puck_line  away_puck_line  home_juiced_decimal_puck_line  home_juiced_prob_puck_line  away_juiced_decimal_puck_line  away_juiced_prob_puck_line
-2026_03_20_Carolina Hurricanes_Toronto Maple Leafs             1.5            -1.5                       2.475430                    0.403970                       2.001482                    0.499630
-  2026_03_20_New Jersey Devils_Washington Capitals            -1.5             1.5                       2.500196                    0.399969                       2.124109                    0.470786
-  2026_03_20_Colorado Avalanche_Chicago Blackhawks             1.5            -1.5                       2.944200                    0.339651                       1.586678                    0.630247
-        2026_03_20_Florida Panthers_Calgary Flames             1.5            -1.5                       2.068071                    0.483542                       2.958257                    0.338037
-             2026_03_20_Anaheim Ducks_Utah Mammoth            -1.5             1.5                       2.318900                    0.431239                       2.200565                    0.454429
-=== FILE END 2026-03-20T11:05:39.725880Z ===
-
-=== APPLY PUCK LINE JUICE END 2026-03-20T11:05:39.725900Z ===
+=== COMPLETE 2026-03-20T20:08:54.395385+00:00 ===
