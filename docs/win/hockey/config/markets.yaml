@@ -8,7 +8,6 @@ markets:
 
       home:
         enabled: true
-        # Exclude odds -199 to -150 band (44% WR, -31% ROI across all markets)
         odds_bands:
           - [-149, -100]
           - [-109, 200]
@@ -19,7 +18,6 @@ markets:
 
       away:
         enabled: true
-        # Exclude odds -199 to -150 band (44% WR, -31% ROI across all markets)
         odds_bands:
           - [-149, -100]
           - [-109, 200]
@@ -34,16 +32,12 @@ markets:
 
       home:
         enabled: true
+        # +1.5 only — home -1.5 removed entirely
+        # -1.5 requires winning by 2+ goals: consistently 30-40% WR
+        # +1.5 dog just needs to avoid losing by 2+: much higher win rate
         line_bands:
-          # +1.5 (dog) removed: 58% WR but -18% ROI — heavy negative odds
-          # make wins pay too little vs loss cost regardless of edge
-          - [-1.5, -1.5]
-        # Exclude odds -199 to -150 band
-        odds_bands:
-          - [-149, -100]
-          - [-109, 300]
-        # Raised from 0.02: EV 0.02-0.04 on home -1.5 went 0W/5L
-        ev_min: 0.04
+          - [1.5, 1.5]
+        ev_min: 0.02
         ev_max: 0.10
         kelly_min: 0.01
         kelly_max: 0.05
@@ -51,12 +45,16 @@ markets:
       away:
         enabled: true
         line_bands:
-          - [-1.5, -1.5]
           - [1.5, 1.5]
-        # Exclude odds -199 to -150 band
+          # -1.5 kept but restricted to odds +200 or better only
+          # at +200+ away -1.5 went 67% WR in historical data
+          # below +200 the win rate drops to 40-50% — not worth it
+          - [-1.5, -1.5]
         odds_bands:
-          - [-149, -100]
-          - [-109, 300]
+          # +1.5 dogs: allow negative odds (they cover easily) up to +200
+          - [-300, 200]
+          # -1.5 favs: only take at +200 or better (high payout justifies lower WR)
+          - [200, 999]
         ev_min: 0.02
         ev_max: 0.10
         kelly_min: 0.01
@@ -79,7 +77,6 @@ markets:
         enabled: true
         line_bands:
           - [4.5, 7.5]
-        # Raised from 0.02: total under at 0.03-0.04 EV went 29% WR, -41% ROI
         ev_min: 0.04
         ev_max: 0.10
         kelly_min: 0.005
