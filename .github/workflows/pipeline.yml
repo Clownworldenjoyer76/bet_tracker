@@ -68,7 +68,8 @@ jobs:
       - name: Clean old select outputs
         run: |
           rm -rf docs/win/basketball/04_select/daily_slate/*
-          rm -rf docs/win/hockey/04_select/daily_slate/*
+          # FIX: hockey writes directly to 04_select/, not 04_select/daily_slate/
+          rm -f docs/win/hockey/04_select/*.csv
           rm -rf docs/win/soccer/04_select/daily_slate/*
 
       # -----------------------------
@@ -104,9 +105,6 @@ jobs:
 
           # Add ALL outputs
           git add -A docs/win
-
-          # Remove pycache from staging safely
-          git restore --staged docs/win/**/__pycache__/* || true
 
           # Commit safely (no crash if no changes)
           git commit -m "Automated pipeline run" || echo "Nothing to commit"
