@@ -75,6 +75,9 @@ pipeline = [
     # 03 EV + KELLY
     # --------------------------------
 
+    # FIX: was missing — select_bets.py reads from 03_edges/ev_kelly/
+    # which is only populated by this script
+    ["python", "docs/win/hockey/scripts/03_edges/compute_ev_kelly.py"],
     ["python", "docs/win/basketball/scripts/03_edges/compute_ev_kelly.py"],
 
 
@@ -124,33 +127,37 @@ pipeline = [
 
 failures = 0
 
-for step in pipeline:
+try:
+    for step in pipeline:
 
-    script = step[1]
+        script = step[1]
 
-    try:
+        try:
 
-        subprocess.run(step, check=True)
+            subprocess.run(step, check=True)
 
-        write_log(f"✅ {script}")
+            write_log(f"✅ {script}")
 
-    except subprocess.CalledProcessError as e:
+        except subprocess.CalledProcessError as e:
 
-        failures += 1
+            failures += 1
 
-        write_log(f"❌ {script}")
-        write_log(f"    ERROR: {str(e)}")
+            write_log(f"❌ {script}")
+            write_log(f"    ERROR: {str(e)}")
 
 
-write_log("\nPipeline complete")
+    write_log("\nPipeline complete")
+
+    if failures:
+
+        write_log(f"\n❌ FAILURES: {failures}")
+
+    else:
+
+        write_log("\n✅ ALL SCRIPTS SUCCESSFUL")
+
+finally:
+    log.close()
 
 if failures:
-
-    write_log(f"\n❌ FAILURES: {failures}")
     sys.exit(1)
-
-else:
-
-    write_log("\n✅ ALL SCRIPTS SUCCESSFUL")
-
-log.close()
