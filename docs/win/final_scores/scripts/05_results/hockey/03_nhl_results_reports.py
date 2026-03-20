@@ -241,13 +241,7 @@ def main():
     df["side_group"] = df.apply(normalize_side_group, axis=1)
     df["edge_bucket"] = df["selected_edge_num"].apply(edge_bucket)
     df["odds_bucket"] = df["take_odds_num"].apply(odds_bucket)
-    # FIX: column is named "line" in select_bets output, not "dk_total".
-    # total_bucket only makes sense for total bets — pass None for all other
-    # market types so they map to "missing" rather than using puck line values.
-    df["total_bucket"] = df.apply(
-        lambda r: total_bucket(r["line"]) if r["market_type_norm"] == "total" else "missing",
-        axis=1,
-    )
+    df["total_bucket"] = df["dk_total"].apply(total_bucket)
     df["puck_line_bucket"] = df.apply(puck_line_bucket, axis=1)
 
     result_clean = df["bet_result"].astype(str).str.strip().str.lower()
@@ -341,6 +335,36 @@ def main():
     summarize(df, ["market_type_norm", "side_group"]).rename(
         columns={"market_type_norm": "market_type"}
     ).to_csv(BY_MARKET_AND_SIDE_FILE, index=False)
+
+    # =========================
+    # MARKET TALLY
+    # =========================
+
+    tally_rows = []
+
+    for market in ["moneyline", "puck_line", "total"]:
+        sub = df[df["market_type_norm"] == market]
+        wins = int(sub["is_win"].sum())
+        losses = int(sub["is_loss"].sum())
+        pushes = int(sub["is_push"].sum())
+        total = wins + losses + pushes
+        win_pct = round(wins / (wins + losses), 4) if (wins + losses) > 0 else 0.0
+
+        tally_rows.append({
+            "market": "NHL",
+            "market_type": market,
+            "Win": wins,
+            "Loss": losses,
+            "Push": pushes,
+            "Total": total,
+            "Win_Pct": win_pct,
+        })
+
+    tally_df = pd.DataFrame(tally_rows)
+    tally_df.to_csv(
+        Path("docs/win/final_scores/nhl_market_tally.csv"),
+        index=False,
+    )
 
 
 if __name__ == "__main__":
