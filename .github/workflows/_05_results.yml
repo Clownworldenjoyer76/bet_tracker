@@ -26,7 +26,10 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          # FIX: bumped from 3.10 — datetime.now(UTC) requires Python 3.11+
+          # all hockey results scripts use datetime.now(UTC) and will
+          # raise TypeError on 3.10
+          python-version: "3.11"
 
       # -----------------------------
       # Install Dependencies
