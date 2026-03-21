@@ -37,14 +37,8 @@ markets:
         odds_bands:
           - [-300, 150]
         ev_min: 0.00
-        ev_max: 0.08
-        # kelly_min set to 0 — +1.5 dogs at heavy negative odds
-        # have very low Kelly values even with strong EV; EV alone
-        # is the right filter here
+        ev_max: 0.10
         kelly_min: 0.0
-        # kelly_max raised to 1.0 — at moderate odds like -150,
-        # Kelly can reach 0.25-0.30 at typical +1.5 win probs;
-        # old cap of 0.10 was blocking the majority of valid bets
         kelly_max: 1.0
 
       away:
@@ -53,8 +47,8 @@ markets:
           - [1.5, 1.5]
           - [-1.5, -1.5]
         odds_bands:
-          - [-300, 199]
-          - [200, 999]
+          - [-300, -0.1]
+          - [0, 999]
         ev_min: 0.00
         ev_max: 0.10
         kelly_min: 0.0
