@@ -51,6 +51,115 @@ def write_csv(df, path):
     df.to_csv(path, index=False)
 
 
+# -------------------------------------------------------
+# ENRICHMENT  (take_odds, bet_units, kelly_bucket)
+# -------------------------------------------------------
+
+def _take_odds(row):
+    mt   = str(row.get("market_type", "")).lower()
+    side = str(row.get("bet_side",    "")).lower()
+    if mt == "moneyline":
+        col = "home_dk_moneyline_american" if side == "home" else "away_dk_moneyline_american"
+    elif mt == "spread":
+        col = "home_dk_spread_american" if side == "home" else "away_dk_spread_american"
+    elif mt == "total":
+        col = "dk_total_over_american" if side == "over" else "dk_total_under_american"
+    else:
+        return None
+    return row.get(col, None)
+
+
+def _kelly_value(row):
+    mt   = str(row.get("market_type", "")).lower()
+    side = str(row.get("bet_side",    "")).lower()
+    if mt == "moneyline":
+        col = "home_ml_kelly" if side == "home" else "away_ml_kelly"
+    elif mt == "spread":
+        col = "home_spread_kelly" if side == "home" else "away_spread_kelly"
+    elif mt == "total":
+        col = "over_kelly" if side == "over" else "under_kelly"
+    else:
+        return None
+    return row.get(col, None)
+
+
+def _kelly_bucket(k):
+    try:
+        k = float(k)
+    except (TypeError, ValueError):
+        return "UNBUCKETED"
+    if k < 0.01:  return "0-1%"
+    if k < 0.02:  return "1-2%"
+    if k < 0.05:  return "2-5%"
+    return "5%+"
+
+
+def _units_won(odds, result):
+    result = str(result)
+    if result == "Push":  return 0.0
+    if result == "Loss":  return -1.0
+    try:
+        odds = float(odds)
+    except (TypeError, ValueError):
+        return None
+    return odds / 100.0 if odds >= 0 else 100.0 / abs(odds)
+
+
+def enrich_work(df):
+    """Add take_odds, bet_units, kelly_value, kelly_bucket columns."""
+    df = df.copy()
+    df["take_odds"]    = df.apply(_take_odds,   axis=1)
+    df["kelly_value"]  = df.apply(_kelly_value, axis=1)
+    df["kelly_bucket"] = df["kelly_value"].apply(_kelly_bucket)
+    df["bet_units"]    = df.apply(
+        lambda r: _units_won(r["take_odds"], r["bet_result"]), axis=1
+    )
+    return df
+
+
+# -------------------------------------------------------
+# FULL AGGREGATION  (dashboard-compatible columns)
+# -------------------------------------------------------
+
+def aggregate_full(df, group_cols):
+    """Produce bets/wins/losses/win_rate/units/roi/avg_edge/avg_odds per group."""
+    extra = ["bets", "wins", "losses", "win_rate", "units", "roi", "avg_edge", "avg_odds"]
+    if df.empty:
+        return pd.DataFrame(columns=group_cols + extra)
+    rows = []
+    for keys, sub in df.groupby(group_cols, dropna=False):
+        if not isinstance(keys, tuple):
+            keys = (keys,)
+        wins   = int((sub["bet_result"] == "Win").sum())
+        losses = int((sub["bet_result"] == "Loss").sum())
+        pushes = int((sub["bet_result"] == "Push").sum())
+        bets   = wins + losses + pushes
+        win_rate = wins / (wins + losses) if (wins + losses) > 0 else 0.0
+        unit_col = sub["bet_units"].dropna()
+        total_units = float(unit_col.sum()) if not unit_col.empty else 0.0
+        roi = total_units / bets if bets > 0 else 0.0
+
+        edge_col = sub["selected_edge"].dropna() if "selected_edge" in sub.columns else pd.Series(dtype=float)
+        avg_edge = float(edge_col.mean()) if not edge_col.empty else None
+
+        odds_col = sub["take_odds"].dropna() if "take_odds" in sub.columns else pd.Series(dtype=float)
+        avg_odds = float(odds_col.mean()) if not odds_col.empty else None
+
+        row = {col: keys[i] for i, col in enumerate(group_cols)}
+        row.update({
+            "bets":     bets,
+            "wins":     wins,
+            "losses":   losses,
+            "win_rate": round(win_rate, 4),
+            "units":    round(total_units, 4),
+            "roi":      round(roi, 4),
+            "avg_edge": round(avg_edge, 4) if avg_edge is not None else None,
+            "avg_odds": round(avg_odds, 1) if avg_odds is not None else None,
+        })
+        rows.append(row)
+    return pd.DataFrame(rows).sort_values(group_cols).reset_index(drop=True)
+
+
 def market_tally(df):
     rows = []
     for (market, market_type), sub in df.groupby(["market", "market_type"]):
@@ -77,53 +186,34 @@ def market_tally(df):
 
 def build_detail_reports(work, detail_dir, league_name):
     """
-    Writes 12 per-market detail files into detail_dir/by_market/:
+    Writes per-market detail files into detail_dir/by_market/:
       moneyline: by_edge, by_odds, by_kelly, by_side
-      spread:    by_edge, by_spread, by_kelly, by_side
-      total:     by_edge, by_total, by_kelly, by_side
+      spread:    by_edge, by_odds, by_kelly, by_side
+      total:     by_edge, by_odds, by_kelly, by_side
     """
-
-    has_kelly = "kelly_bucket" in work.columns
-
     for market_name in ["moneyline", "spread", "total"]:
         mdf = work[work["market_type"] == market_name].copy()
         if mdf.empty:
             continue
 
-        slug = market_name
-        prefix = f"{league_name.lower()}_{slug}"
+        prefix = f"{league_name.lower()}_{market_name}"
 
         # --- by edge ---
         src = mdf[mdf["edge_bucket"] != "UNBUCKETED"]
-        out = aggregate_results(src, ["edge_bucket"])
-        write_csv(out, detail_dir / f"{prefix}_by_edge.csv")
+        write_csv(aggregate_full(src, ["edge_bucket"]), detail_dir / f"{prefix}_by_edge.csv")
 
-        # --- by odds (moneyline only) ---
-        if market_name == "moneyline" and "odds_bucket" in mdf.columns:
+        # --- by odds ---
+        if "odds_bucket" in mdf.columns:
             src = mdf[mdf["odds_bucket"] != "UNBUCKETED"]
-            out = aggregate_results(src, ["odds_bucket"])
-            write_csv(out, detail_dir / f"{prefix}_by_odds.csv")
-
-        # --- by spread bucket (spread only) ---
-        if market_name == "spread" and "spread_bucket" in mdf.columns:
-            src = mdf[mdf["spread_bucket"] != "UNBUCKETED"]
-            out = aggregate_results(src, ["spread_bucket"])
-            write_csv(out, detail_dir / f"{prefix}_by_spread.csv")
-
-        # --- by total bucket (total only) ---
-        if market_name == "total" and "total_bucket" in mdf.columns:
-            src = mdf[mdf["total_bucket"] != "UNBUCKETED"]
-            out = aggregate_results(src, ["total_bucket"])
-            write_csv(out, detail_dir / f"{prefix}_by_total.csv")
+            write_csv(aggregate_full(src, ["odds_bucket"]), detail_dir / f"{prefix}_by_odds.csv")
 
         # --- by kelly ---
-        if has_kelly:
-            out = aggregate_results(mdf, ["kelly_bucket"])
-            write_csv(out, detail_dir / f"{prefix}_by_kelly.csv")
+        if "kelly_bucket" in mdf.columns:
+            src = mdf[mdf["kelly_bucket"] != "UNBUCKETED"]
+            write_csv(aggregate_full(src, ["kelly_bucket"]), detail_dir / f"{prefix}_by_kelly.csv")
 
         # --- by side ---
-        out = aggregate_results(mdf, ["side_group"])
-        write_csv(out, detail_dir / f"{prefix}_by_side.csv")
+        write_csv(aggregate_full(mdf, ["side_group"]), detail_dir / f"{prefix}_by_side.csv")
 
 
 # -------------------------------------------------------
@@ -220,9 +310,53 @@ def build_total_outputs(work, outdir):
               outdir / "total_summary.csv")
 
 
+def build_summary_files(work, outdir, league_name):
+    """Generate the 5 summary CSVs consumed by the dashboard."""
+    lg = league_name.lower()
+
+    # Overall
+    write_csv(aggregate_full(work, []).assign(league=league_name) if work.empty
+              else pd.DataFrame([{
+                  "bets":     len(work),
+                  "wins":     int((work["bet_result"] == "Win").sum()),
+                  "losses":   int((work["bet_result"] == "Loss").sum()),
+                  "win_rate": round(
+                      (work["bet_result"] == "Win").sum() /
+                      max((work["bet_result"].isin(["Win","Loss"])).sum(), 1), 4),
+                  "units":    round(float(work["bet_units"].dropna().sum()), 4),
+                  "roi":      round(float(work["bet_units"].dropna().sum()) / max(len(work), 1), 4),
+                  "avg_edge": round(float(work["selected_edge"].dropna().mean()), 4)
+                              if "selected_edge" in work.columns and not work["selected_edge"].dropna().empty else None,
+                  "avg_odds": round(float(work["take_odds"].dropna().mean()), 1)
+                              if "take_odds" in work.columns and not work["take_odds"].dropna().empty else None,
+              }]),
+              outdir / f"{lg}_summary_overall.csv")
+
+    # By market
+    write_csv(aggregate_full(work, ["market_type"]),
+              outdir / f"{lg}_summary_by_market.csv")
+
+    # By side group
+    write_csv(aggregate_full(work, ["side_group"]),
+              outdir / f"{lg}_summary_by_side_group.csv")
+
+    # By date
+    write_csv(aggregate_full(work, ["game_date"]),
+              outdir / f"{lg}_summary_by_date.csv")
+
+    # Bet log
+    log_cols = ["game_date", "away_team", "home_team", "market_type",
+                "bet_side", "line", "take_odds", "selected_edge", "bet_result", "bet_units"]
+    available = [c for c in log_cols if c in work.columns]
+    log_df = work[available].copy()
+    if "bet_units" in log_df.columns:
+        log_df = log_df.rename(columns={"bet_units": "units"})
+    write_csv(log_df, outdir / f"{lg}_bet_log.csv")
+
+
 def run():
-    nba = pd.read_csv(INPUT_DIR / "work_nba.csv")
-    ncaab = pd.read_csv(INPUT_DIR / "work_ncaab.csv")
+    nba   = enrich_work(pd.read_csv(INPUT_DIR / "work_nba.csv"))
+    ncaab = enrich_work(pd.read_csv(INPUT_DIR / "work_ncaab.csv"))
 
     # Existing reports
     build_moneyline_outputs(nba, NBA_OUTPUT_DIR)
@@ -233,12 +367,16 @@ def run():
     build_spread_outputs(ncaab, NCAAB_OUTPUT_DIR)
     build_total_outputs(ncaab, NCAAB_OUTPUT_DIR)
 
-    # Per-market detail reports (new — mirrors hockey by_market/)
+    # Per-market detail reports
     build_detail_reports(nba, NBA_DETAIL_DIR, "nba")
     build_detail_reports(ncaab, NCAAB_DETAIL_DIR, "ncaab")
 
+    # Dashboard summary files
+    build_summary_files(nba,   NBA_OUTPUT_DIR,   "nba")
+    build_summary_files(ncaab, NCAAB_OUTPUT_DIR, "ncaab")
+
     # Market tally
-    nba_market = market_tally(nba)
+    nba_market   = market_tally(nba)
     ncaab_market = market_tally(ncaab)
     nba_market.to_csv("docs/win/final_scores/nba_market_tally.csv", index=False)
     ncaab_market.to_csv("docs/win/final_scores/ncaab_market_tally.csv", index=False)
