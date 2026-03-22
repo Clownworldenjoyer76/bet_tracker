@@ -83,6 +83,23 @@ def _kelly_value(row):
     return row.get(col, None)
 
 
+def _odds_bucket(value):
+    try:
+        value = float(value)
+    except (TypeError, ValueError):
+        return "UNBUCKETED"
+    if value <= -200: return "minus_200_or_lower"
+    if value <= -150: return "minus_199_to_minus_150"
+    if value <= -125: return "minus_149_to_minus_125"
+    if value <= -110: return "minus_124_to_minus_110"
+    if value <= -101: return "minus_109_to_minus_101"
+    if value <= 100:  return "minus_100_to_plus_100"
+    if value <= 125:  return "plus_101_to_plus_125"
+    if value <= 150:  return "plus_126_to_plus_150"
+    if value <= 200:  return "plus_151_to_plus_200"
+    return "plus_201_or_higher"
+
+
 def _kelly_bucket(k):
     try:
         k = float(k)
@@ -106,7 +123,8 @@ def _units_won(odds, result):
 
 
 def enrich_work(df):
-    """Add take_odds, bet_units, kelly_value, kelly_bucket columns."""
+    """Add take_odds, bet_units, kelly_value, kelly_bucket columns.
+    Also backfills odds_bucket for spread/total rows that were left UNBUCKETED."""
     df = df.copy()
     df["take_odds"]    = df.apply(_take_odds,   axis=1)
     df["kelly_value"]  = df.apply(_kelly_value, axis=1)
@@ -114,6 +132,10 @@ def enrich_work(df):
     df["bet_units"]    = df.apply(
         lambda r: _units_won(r["take_odds"], r["bet_result"]), axis=1
     )
+    # Backfill odds_bucket from take_odds for non-moneyline rows
+    if "odds_bucket" in df.columns:
+        mask = df["odds_bucket"].isna() | (df["odds_bucket"] == "UNBUCKETED")
+        df.loc[mask, "odds_bucket"] = df.loc[mask, "take_odds"].apply(_odds_bucket)
     return df
 
 
