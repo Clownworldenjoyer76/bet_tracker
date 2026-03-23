@@ -9,7 +9,7 @@
 <style>:root { --sport-accent: var(--accent-blue); }</style>
 </head>
 <body>
-
+<div id="nav-placeholder"></div> 
 <header>
   <div>
     <h1>NHL Analytics</h1>
@@ -19,14 +19,15 @@
 </header>
 
 <nav>
-  <a class="active" onclick="showSection('market', this)">Market</a>
-  <a onclick="showSection('side', this)">Side</a>
-  <a onclick="showSection('edge', this)">Edge</a>
-  <a onclick="showSection('odds', this)">Odds</a>
-  <a onclick="showSection('kelly', this)">Kelly</a>
-  <a onclick="showSection('date', this)">By Date</a>
-  <a onclick="showSection('betlog', this)">Bet Log</a>
-  <a onclick="showSection('tally', this)">Tally</a>
+  <div class="dash-tabs">
+    <a class="active" onclick="showSection('market', this)">Market</a>
+    <a onclick="showSection('side', this)">Side</a>
+    <a onclick="showSection('edge', this)">Edge</a>
+    <a onclick="showSection('odds', this)">Odds</a>
+    <a onclick="showSection('kelly', this)">Kelly</a>
+    <a onclick="showSection('date', this)">By Date</a>
+    <a onclick="showSection('betlog', this)">Bet Log</a>
+    <a onclick="showSection('tally', this)">Tally</a>
 </nav>
 
 <main>
@@ -229,7 +230,7 @@ function roiColor(v) {
 
 function showSection(name, el) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-  document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
+  document.querySelectorAll('.dash-tabs a').forEach(a => a.classList.remove('active'));
   document.getElementById('sec-' + name).classList.add('active');
   if (el) el.classList.add('active');
   if (name === 'date' && D['nhl_summary_by_date']) renderDateChart();
