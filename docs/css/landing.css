@@ -1,0 +1,121 @@
+/* SPORT GRID */
+.sport-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+@media (max-width: 960px) {
+  .sport-grid { grid-template-columns: 1fr; }
+}
+
+/* SPORT BOX */
+.sport-box {
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.sport-box-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-soft);
+  background: rgba(0, 255, 132, 0.03);
+}
+
+.sport-label {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 4px;
+  color: var(--accent-green);
+}
+
+.sport-status        { font-size: 10px; letter-spacing: 1px; }
+.status-live         { color: var(--accent-green); }
+.status-error        { color: var(--accent-red); }
+
+/* TALLY CONTENT */
+.tally-content { padding: 16px; }
+
+.loading-text,
+.no-data {
+  color: var(--text-muted);
+  font-size: 12px;
+  text-align: center;
+  padding: 24px 0;
+}
+
+.tally-section-title {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+
+/* BAR CHART */
+.tally-bars { margin-bottom: 20px; }
+
+.tally-bar-row {
+  display: grid;
+  grid-template-columns: 88px 1fr 58px;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 7px;
+}
+
+.tally-bar-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+  text-align: right;
+}
+
+.tally-bar-track {
+  background: rgba(26, 31, 38, 0.8);
+  border-radius: 2px;
+  height: 22px;
+  overflow: hidden;
+}
+
+.tally-bar-fill {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  font-size: 11px;
+  white-space: nowrap;
+  border-radius: 2px;
+}
+
+.bar-win     { background: rgba(0,255,132,0.18); color: var(--accent-green); }
+.bar-neutral { background: rgba(250,204,21,0.18); color: var(--accent-yellow); }
+.bar-loss    { background: rgba(255,45,45,0.18);  color: var(--accent-red); }
+
+.tally-bar-pct { text-align: right; }
+
+/* TABLE */
+.tally-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.tally-table th {
+  color: var(--text-muted);
+  text-align: left;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border-soft);
+  letter-spacing: 0.5px;
+  font-weight: normal;
+}
+
+.tally-table td {
+  padding: 5px 6px;
+  border-bottom: 1px solid rgba(26,31,38,0.5);
+  color: var(--text-main);
+}
+
+.tally-table tr:last-child td { border-bottom: none; }
