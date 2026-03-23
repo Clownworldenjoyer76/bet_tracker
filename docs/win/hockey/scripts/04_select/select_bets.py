@@ -26,8 +26,16 @@ LEAGUE_CODE = "NHL"
 # =========================
 # LOAD CONFIG
 # =========================
-with open(CONFIG_PATH, "r") as f:
-    CONFIG = yaml.safe_load(f)["markets"]["nhl"]
+try:
+    with open(CONFIG_PATH, "r") as f:
+        _raw_config = yaml.safe_load(f)
+    CONFIG = _raw_config["markets"]["nhl"]
+except FileNotFoundError:
+    raise SystemExit(f"Config file not found: {CONFIG_PATH}")
+except yaml.YAMLError as e:
+    raise SystemExit(f"Malformed YAML in {CONFIG_PATH}: {e}")
+except KeyError as e:
+    raise SystemExit(f"Missing expected key {e} in {CONFIG_PATH}")
 
 # =========================
 # HELPERS

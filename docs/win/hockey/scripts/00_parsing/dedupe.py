@@ -2,6 +2,7 @@
 # docs/win/hockey/scripts/00_parsing/dedupe.py
 
 import csv
+import os
 from pathlib import Path
 from datetime import datetime
 
@@ -65,8 +66,9 @@ def dedupe_file(csv_file: Path):
         seen.add(key)
         deduped.append(r)
 
-    # atomic rewrite
-    temp_file = csv_file.with_suffix(".tmp")
+    # atomic rewrite — include PID in temp name to avoid collisions if
+    # multiple dedupe processes run concurrently on overlapping file sets
+    temp_file = csv_file.with_suffix(f".{os.getpid()}.tmp")
 
     with open(temp_file, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)

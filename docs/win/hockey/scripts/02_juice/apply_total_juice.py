@@ -77,10 +77,18 @@ def process_side(df, juice_df, side):
             continue
 
         try:
-            juiced_decimal = fair_decimal * (1 + extra)
+            # Juice reduces the decimal (makes odds worse for the bettor),
+            # consistent with how moneyline juice is applied.
+            juiced_decimal = fair_decimal * (1 - extra)
 
             if not math.isfinite(juiced_decimal) or juiced_decimal <= 1:
-                juiced_decimal = 1.0001
+                _log(
+                    f"[ROW SKIP] idx={idx} side={side} "
+                    f"reason=invalid_juiced_decimal val={juiced_decimal} "
+                    f"fair={fair_decimal} extra={extra}"
+                )
+                skipped_bad_row += 1
+                continue
 
             juiced_prob = 1 / juiced_decimal
 

@@ -4,12 +4,11 @@
 
 import pandas as pd
 import glob
-import math
 import sys
 import traceback
 from pathlib import Path
 from datetime import datetime, UTC
-from scipy.stats import skellam
+from scipy.stats import skellam, poisson
 
 INPUT_DIR = Path("docs/win/hockey/01_merge")
 OUTPUT_DIR = INPUT_DIR / "01_merguiced"
@@ -57,7 +56,8 @@ def american_to_decimal(odds):
 
 
 def poisson_cdf(k, lam):
-    return sum(math.exp(-lam) * lam**i / math.factorial(i) for i in range(k + 1))
+    # scipy handles large lambda without factorial overflow
+    return poisson.cdf(k, lam)
 
 
 def main():

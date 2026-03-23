@@ -32,8 +32,10 @@ def _log(msg: str):
 
 
 def find_band_row(juice_df, puck_line, venue, fav_ud):
+    # Use a small tolerance instead of exact float equality so that minor
+    # floating-point drift (e.g. -1.4999999 vs -1.5) still finds a match.
     band = juice_df[
-        (juice_df["band_min"] == puck_line) &
+        (abs(juice_df["band_min"] - puck_line) < 0.01) &
         (juice_df["venue"] == venue) &
         (juice_df["fav_ud"] == fav_ud)
     ]

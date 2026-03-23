@@ -110,25 +110,31 @@ for pred_file in prediction_files:
         away_prob = to_float(p.get("away_prob"))
 
         if home_prob is None or away_prob is None:
-            log(f"TYPE ISSUE: {p['home_team']} vs {p['away_team']} prob")
+            log(f"TYPE ISSUE: {p['home_team']} vs {p['away_team']} — prob is None; dropping row")
+            dropped += 1
+            continue
 
-        # FIX #3: Validate that home_prob + away_prob ≈ 1.0.
-        # A sum far from 1.0 indicates corrupted or unnormalized model output and
-        # will silently produce miscalibrated fair odds in every downstream stage.
-        if home_prob is not None and away_prob is not None:
-            prob_sum = home_prob + away_prob
-            if abs(prob_sum - 1.0) > 0.01:
-                log(
-                    f"PROB SUM WARNING: {p['home_team']} vs {p['away_team']} "
-                    f"home_prob={home_prob} away_prob={away_prob} sum={prob_sum:.4f}"
-                )
+        # Validate that home_prob + away_prob ≈ 1.0.
+        prob_sum = home_prob + away_prob
+        if abs(prob_sum - 1.0) > 0.01:
+            log(
+                f"PROB SUM WARNING: {p['home_team']} vs {p['away_team']} "
+                f"home_prob={home_prob} away_prob={away_prob} sum={prob_sum:.4f} — dropping row"
+            )
+            dropped += 1
+            continue
 
         home_pl = to_float(b.get("home_puck_line"))
         away_pl = to_float(b.get("away_puck_line"))
 
         if home_pl is not None and away_pl is not None:
-            if home_pl != -away_pl:
-                log(f"PUCK LINE IMBALANCE: {p['home_team']} vs {p['away_team']}")
+            if round(home_pl + away_pl, 6) != 0:
+                log(
+                    f"PUCK LINE IMBALANCE: {p['home_team']} vs {p['away_team']} "
+                    f"home={home_pl} away={away_pl} — dropping row"
+                )
+                dropped += 1
+                continue
 
         # FIX #4: Replace spaces in team names within game_id with underscores
         # so it is safe to use as a join key in downstream CSVs and as a filename

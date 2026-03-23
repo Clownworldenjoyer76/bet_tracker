@@ -60,6 +60,10 @@ def compute_kelly(model_prob, book_decimal):
 
     k = ((b * model_prob) - q) / b
 
+    negative_kelly = k[k.notna() & (k < 0)]
+    if not negative_kelly.empty:
+        log(f"[WARN] Negative Kelly clipped to 0 for {len(negative_kelly)} row(s): min={negative_kelly.min():.4f}")
+
     return np.maximum(k, 0)
 
 
@@ -138,8 +142,10 @@ def process_totals(df):
 
     df = to_numeric(df, numeric_cols)
 
-    df["over_prob"] = 1 / df["fair_total_over_decimal"]
-    df["under_prob"] = 1 / df["fair_total_under_decimal"]
+    over_dec = pd.to_numeric(df["fair_total_over_decimal"], errors="coerce")
+    under_dec = pd.to_numeric(df["fair_total_under_decimal"], errors="coerce")
+    df["over_prob"] = over_dec.where(over_dec > 0).apply(lambda x: 1 / x if pd.notna(x) else pd.NA)
+    df["under_prob"] = under_dec.where(under_dec > 0).apply(lambda x: 1 / x if pd.notna(x) else pd.NA)
 
     df["over_edge_pct"] = df["over_edge_decimal_total"] * 100
     df["under_edge_pct"] = df["under_edge_decimal_total"] * 100

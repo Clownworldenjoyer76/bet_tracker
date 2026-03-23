@@ -31,7 +31,7 @@ def log(msg: str) -> None:
 team_map = {}
 
 if MAP_FILE.exists():
-    with open(MAP_FILE, newline="", encoding="utf-8") as f:
+    with open(MAP_FILE, newline="", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
         for row in reader:
             key = (
@@ -80,7 +80,7 @@ for csv_file in INTAKE_DIR.rglob("*.csv"):
                         modified = True
                         rows_updated += 1
                 else:
-                    unmapped.add((market, team))
+                    unmapped.add((market, team.lower()))
 
             updated_rows.append(row)
 

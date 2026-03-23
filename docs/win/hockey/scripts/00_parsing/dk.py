@@ -116,7 +116,20 @@ def parse_global_game_date(text: str) -> str:
         if m:
             mon = MONTH_MAP[m.group(1)[:3].upper()]
             day = int(m.group(2))
-            dt = datetime(today.year, mon, day)
+            try:
+                dt = datetime(today.year, mon, day)
+            except ValueError:
+                continue
+            delta = (dt.date() - today.date()).days
+            # If the date lands more than 7 days in the past, the dump is
+            # for a date in the next calendar year (e.g. "JAN 2" parsed on
+            # Dec 30).  If it lands more than 180 days ahead, the dump is
+            # for a date in the previous calendar year (e.g. "DEC 31"
+            # parsed on Jan 5).
+            if delta < -7:
+                dt = datetime(today.year + 1, mon, day)
+            elif delta > 180:
+                dt = datetime(today.year - 1, mon, day)
             return dt.strftime("%Y_%m_%d")
 
     return today.strftime("%Y_%m_%d")
