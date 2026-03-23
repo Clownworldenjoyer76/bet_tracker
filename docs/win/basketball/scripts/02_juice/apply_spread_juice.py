@@ -47,8 +47,11 @@ ERROR_LOG = ERROR_DIR / "apply_spread_juice.txt"
 # LOAD CONFIG
 # =========================
 
-NBA_JUICE_TABLE = pd.read_csv(NBA_CONFIG)
-NCAAB_JUICE_TABLE = pd.read_csv(NCAAB_CONFIG)
+try:
+    NBA_JUICE_TABLE = pd.read_csv(NBA_CONFIG)
+    NCAAB_JUICE_TABLE = pd.read_csv(NCAAB_CONFIG)
+except FileNotFoundError as e:
+    raise SystemExit(f"ERROR: Missing juice config file — {e}") from e
 
 # =========================
 # CLEAN OLD FILES

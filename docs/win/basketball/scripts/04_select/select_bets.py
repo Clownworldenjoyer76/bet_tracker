@@ -73,7 +73,10 @@ def extract_date(filename):
     return m.group(0) if m else None
 
 def market_cfg(market, market_type):
-    return CONFIG["markets"][market.lower()][market_type]
+    try:
+        return CONFIG["markets"][market.lower()][market_type]
+    except KeyError:
+        raise KeyError(f"No config found for market={market!r}, market_type={market_type!r}")
 
 def ev_ok(ev, cfg):
     if ev is None:

@@ -65,12 +65,16 @@ def log(msg):
 # CONFIG LOAD
 # =========================
 
-NBA_JUICE = pd.read_csv(NBA_CONFIG)
+try:
+    NBA_JUICE = pd.read_csv(NBA_CONFIG)
+    NCAAB_JUICE = pd.read_csv(NCAAB_CONFIG)
+except FileNotFoundError as e:
+    raise SystemExit(f"ERROR: Missing juice config file — {e}") from e
+
 NBA_JUICE["band_min"] = pd.to_numeric(NBA_JUICE["band_min"], errors="coerce")
 NBA_JUICE["band_max"] = pd.to_numeric(NBA_JUICE["band_max"], errors="coerce")
 NBA_JUICE["extra_juice"] = pd.to_numeric(NBA_JUICE["extra_juice"], errors="coerce")
 
-NCAAB_JUICE = pd.read_csv(NCAAB_CONFIG)
 NCAAB_JUICE["over_under"] = pd.to_numeric(NCAAB_JUICE["over_under"], errors="coerce")
 NCAAB_JUICE["extra_juice"] = pd.to_numeric(NCAAB_JUICE["extra_juice"], errors="coerce")
 
