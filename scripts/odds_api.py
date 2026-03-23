@@ -1,15 +1,16 @@
 import requests
 import os
 import json
+from pathlib import Path
 
 API_KEY = os.getenv("ODDS_API_KEY")
 
-sports = [
-    "basketball_nba",
-    "icehockey_nhl"
-]
+targets = {
+    "basketball_nba": "docs/win/basketball/odds/nba.json",
+    "icehockey_nhl": "docs/win/hockey/odds/nhl.json"
+}
 
-for sport in sports:
+for sport, path in targets.items():
     url = f"https://api.the-odds-api.com/v4/sports/{sport}/odds"
 
     params = {
@@ -21,14 +22,16 @@ for sport in sports:
     response = requests.get(url, params=params)
 
     if response.status_code != 200:
-        print(f"Error for {sport}: {response.status_code}")
+        print(f"{sport} error: {response.status_code}")
         print(response.text)
         continue
 
     data = response.json()
 
-    filename = f"{sport}.json"
-    with open(filename, "w") as f:
+    # ensure directory exists
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+
+    with open(path, "w") as f:
         json.dump(data, f, indent=2)
 
-    print(f"Saved {filename}")
+    print(f"Saved {path}")
