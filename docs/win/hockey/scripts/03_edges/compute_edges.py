@@ -124,22 +124,32 @@ def compute_puck_line_edges(df: pd.DataFrame, file_path: Path) -> pd.DataFrame:
         "game_id",
         "home_dk_puck_line_decimal",
         "away_dk_puck_line_decimal",
+        "home_normalized_prob_puck_line",
+        "away_normalized_prob_puck_line",
         "home_prob_puck_line",
         "away_prob_puck_line",
     ]
     validate_columns(df, required, file_path)
 
+    # Juiced edge: post-juice normalized probability vs DK price
     df["home_edge_decimal_puck_line"] = safe_edge_decimal(
         df["home_dk_puck_line_decimal"],
-        df["home_prob_puck_line"],
+        df["home_normalized_prob_puck_line"],
     )
     df["away_edge_decimal_puck_line"] = safe_edge_decimal(
         df["away_dk_puck_line_decimal"],
-        df["away_prob_puck_line"],
+        df["away_normalized_prob_puck_line"],
     )
 
-    df["home_raw_edge_decimal_puck_line"] = df["home_edge_decimal_puck_line"]
-    df["away_raw_edge_decimal_puck_line"] = df["away_edge_decimal_puck_line"]
+    # Raw edge: unmodified model probability vs DK price
+    df["home_raw_edge_decimal_puck_line"] = safe_edge_decimal(
+        df["home_dk_puck_line_decimal"],
+        df["home_prob_puck_line"],
+    )
+    df["away_raw_edge_decimal_puck_line"] = safe_edge_decimal(
+        df["away_dk_puck_line_decimal"],
+        df["away_prob_puck_line"],
+    )
 
     return df
 

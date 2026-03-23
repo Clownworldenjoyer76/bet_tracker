@@ -152,6 +152,16 @@ while i < n:
     away_prob = probs[0]
     home_prob = probs[1]
 
+    # Validate probability sum ≈ 1.0
+    prob_sum = away_prob + home_prob
+    if abs(prob_sum - 1.0) > 0.02:
+        log(
+            f"PROB SUM WARNING: date={file_date} away={away_team} home={home_team} "
+            f"away_prob={away_prob} home_prob={home_prob} sum={prob_sum:.4f} — skipping"
+        )
+        i += 1
+        continue
+
     # Collect projected goals (first 3 standalone floats after probs)
     floats = []
     while j < n and len(floats) < 3:
@@ -167,6 +177,22 @@ while i < n:
         j += 1
 
     if len(floats) != 3:
+        i += 1
+        continue
+
+    # Validate projected goal values are plausible
+    try:
+        float_vals = [float(v) for v in floats]
+    except ValueError:
+        log(f"FLOAT PARSE ERROR: date={file_date} away={away_team} home={home_team} floats={floats} — skipping")
+        i += 1
+        continue
+
+    if any(v < 0 or v > 15 for v in float_vals):
+        log(
+            f"IMPLAUSIBLE GOALS: date={file_date} away={away_team} home={home_team} "
+            f"values={float_vals} — skipping"
+        )
         i += 1
         continue
 
