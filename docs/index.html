@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EDGELYTICS</title>
+  <link rel="stylesheet" href="css/matstheme.css">
+  <link rel="stylesheet" href="css/landing.css">
+</head>
+<body>
+
+  <div id="nav-placeholder"></div>
+
+  <div class="container">
+    <h1 class="site-title">EDGELYTICS</h1>
+
+    <div class="sport-grid">
+
+      <div class="sport-box">
+        <div class="sport-box-header">
+          <span class="sport-label">NHL</span>
+          <span class="sport-status" id="nhl-status">Loading...</span>
+        </div>
+        <div class="tally-content" id="nhl-tally">
+          <div class="loading-text">Fetching data...</div>
+        </div>
+      </div>
+
+      <div class="sport-box">
+        <div class="sport-box-header">
+          <span class="sport-label">NBA</span>
+          <span class="sport-status" id="nba-status">Loading...</span>
+        </div>
+        <div class="tally-content" id="nba-tally">
+          <div class="loading-text">Fetching data...</div>
+        </div>
+      </div>
+
+      <div class="sport-box">
+        <div class="sport-box-header">
+          <span class="sport-label">NCAAB</span>
+          <span class="sport-status" id="ncaab-status">Loading...</span>
+        </div>
+        <div class="tally-content" id="ncaab-tally">
+          <div class="loading-text">Fetching data...</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="js/nav.js"></script>
+  <script>
+    // CSV parser
+    function parseCSV(text) {
+      const lines = text.trim().split('\n');
+      if (lines.length < 2) return [];
+      const heads = lines[0].split(',').map(h => h.trim());
+      return lines.slice(1).map(line => {
+        const vals = line.split(',').map(v => v.trim());
+        return Object.fromEntries(heads.map((h, i) => [h, vals[i] ?? '']));
+      });
+    }
+
+    // Market label maps
+    const NHL_MAP = { moneyline: 'Moneyline', puck_line: 'Puck Line', total: 'Over/Under' };
+    const STD_MAP = { moneyline: 'Moneyline', spread: 'Spread', total: 'Over/Under' };
+
+    function norm(m, map)   { return map[(m||'').toLowerCase()] || m || '—'; }
+    function pct(v)         { const n=parseFloat(v); return isNaN(n)?'—':(n*100).toFixed(1)+'%'; }
+    function wrCls(v)       { const n=parseFloat(v)||0; return n>=0.60?'win':n>=0.50?'neutral':'loss'; }
+    function fmtU(v)        { const n=parseFloat(v); return isNaN(n)?'—':(n>=0?'+':'')+n.toFixed(2); }
+    function roiStr(v)      { const n=parseFloat(v); return isNaN(n)?'—':(n*100).toFixed(1)+'%'; }
+    function roiCls(v)      { const n=parseFloat(v); return isNaN(n)?'':(n>=0?'val-win':'val-loss'); }
+
+    function renderTally(tid, sid, data, map) {
+      const wrap = document.getElementById(tid);
+      const stat = document.getElementById(sid);
+
+      if (!data || !data.length) {
+        wrap.innerHTML = '<div class="no-data">No data available</div>';
+        stat.textContent = 'NO DATA';
+        stat.className = 'sport-status status-error';
+        return;
+      }
+
+      stat.textContent = 'LIVE';
+      stat.className = 'sport-status status-live';
+
+      const maxB = Math.max(...data.map(r => parseInt(r.bets) || 0));
+
+      const bars = data.map(r => {
+        const lbl = norm(r.market_type, map);
+        const wr  = parseFloat(r.win_rate) || 0;
+        const w   = Math.max(((parseInt(r.bets)||0) / maxB) * 100, 4);
+        const cls = wr >= 0.60 ? 'bar-win' : wr >= 0.50 ? 'bar-neutral' : 'bar-loss';
+        return `<div class="tally-bar-row">
+          <div class="tally-bar-label">${lbl.toUpperCase()}</div>
+          <div class="tally-bar-track">
+            <div class="tally-bar-fill ${cls}" style="width:${w}%">${r.wins||0}W / ${r.losses||0}L</div>
+          </div>
+          <div class="tally-bar-pct"><span class="wr-badge wr-${wrCls(r.win_rate)}">${pct(r.win_rate)}</span></div>
+        </div>`;
+      }).join('');
+
+      const rows = data.map(r => {
+        const lbl  = norm(r.market_type, map);
+        const u    = parseFloat(r.units);
+        const uCls = isNaN(u) ? '' : (u >= 0 ? 'val-win' : 'val-loss');
+        return `<tr>
+          <td>${lbl}</td>
+          <td class="val-win">${r.wins||'—'}</td>
+          <td class="val-loss">${r.losses||'—'}</td>
+          <td>${r.bets||'—'}</td>
+          <td><span class="wr-badge wr-${wrCls(r.win_rate)}">${pct(r.win_rate)}</span></td>
+          <td class="${uCls}">${fmtU(r.units)}</td>
+          <td class="${roiCls(r.roi)}">${roiStr(r.roi)}</td>
+        </tr>`;
+      }).join('');
+
+      wrap.innerHTML = `
+        <div class="tally-section-title">WIN RATE BY MARKET</div>
+        <div class="tally-bars">${bars}</div>
+        <table class="tally-table">
+          <thead>
+            <tr>
+              <th>MARKET</th><th>WINS</th><th>LOSSES</th>
+              <th>BETS</th><th>WIN RATE</th><th>UNITS</th><th>ROI</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>`;
+    }
+
+    const BASES = {
+      nhl:   'https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/docs/win/final_scores/deeper_summaries/nhl/',
+      nba:   'https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/docs/win/final_scores/deeper_summaries/nba/',
+      ncaab: 'https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/docs/win/final_scores/deeper_summaries/ncaab/'
+    };
+
+    async function loadSport(sport, file, tid, sid, map) {
+      try {
+        const r = await fetch(BASES[sport] + file);
+        if (!r.ok) throw new Error(r.status);
+        renderTally(tid, sid, parseCSV(await r.text()), map);
+      } catch {
+        document.getElementById(tid).innerHTML = '<div class="no-data">Failed to load</div>';
+        const s = document.getElementById(sid);
+        s.textContent = 'ERROR';
+        s.className = 'sport-status status-error';
+      }
+    }
+
+    loadSport('nhl',   'nhl_summary_by_market.csv',   'nhl-tally',   'nhl-status',   NHL_MAP);
+    loadSport('nba',   'nba_summary_by_market.csv',   'nba-tally',   'nba-status',   STD_MAP);
+    loadSport('ncaab', 'ncaab_summary_by_market.csv', 'ncaab-tally', 'ncaab-status', STD_MAP);
+  </script>
+
+</body>
+</html>
