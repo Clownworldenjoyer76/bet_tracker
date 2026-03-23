@@ -32,23 +32,21 @@ markets:
       home:
         enabled: true
         line_bands:
-          - [-6, -3]       # home fav 3-6: 61.4% cover rate
-          - [-12, -9]      # home fav 9-12: 76.0% cover rate (strongest signal)
-          - [-20, -15]     # home fav 15-20: 68.8% cover rate
+          - [-20, -9]      
+          - [-5.9, -3]
         ev_min: 0.001
-        ev_max: 0.10
-        kelly_min: 0.01
-        kelly_max: 0.1
+        ev_max: 0.99
+        kelly_min: 0.00
+        kelly_max: 0.999
 
       away:
         enabled: true
         line_bands:
-          - [6, 9]         # away dog 6-9: 63.9% cover rate
-          - [12, 15]       # away dog 12-15: 50.0% cover rate (even, borderline)
-        ev_min: 0.005
-        ev_max: 0.10
-        kelly_min: 0.01
-        kelly_max: 0.1
+          - [6, 15]         # away dog 6-9: 63.9% cover rate
+        ev_min: 0.001
+        ev_max: 0.99
+        kelly_min: 0.00
+        kelly_max: 0.999
 
     total:
       enabled: true
@@ -85,7 +83,6 @@ markets:
           - [-500, -200]   # heavy favorites: 72.1% win rate, +0.7% edge (466 games)
           - [-130, -109]   # mild favorites: 58.8% win rate, +4.2% edge
           - [110, 150]     # moderate dogs: 56.3% win rate at 130-150, +14.6% edge
-          - [200, 400]     # large dogs: 30.8% win rate vs 28.6% implied, +2.3% edge
         ev_min: 0.001
         ev_max: 0.075
         kelly_min: 0.001
@@ -96,7 +93,6 @@ markets:
         odds_bands:
           - [-150, -109]   # mild away favorites: 60-62% win rate, +2-7% edge
           - [101, 130]     # slight dogs: 52-52% win rate, +3-6% edge
-          - [175, 200]     # large dogs: 39.1% win rate vs 34.8% implied, +4.2% edge
         ev_min: 0.001
         ev_max: 0.075
         kelly_min: 0.001
@@ -110,8 +106,8 @@ markets:
         enabled: true
         line_bands:
           - [-99, 99]      # NCAAB spread is flat across sizes, keep broad
-        ev_min: 0.03
-        ev_max: 0.10
+        ev_min: 0.05
+        ev_max: 0.075
         kelly_min: 0.001
         kelly_max: 0.1
 
@@ -132,7 +128,7 @@ markets:
       over:
         enabled: true
         line_bands:
-          - [155, 250]     # over wins 53-58%+ above 155; under dominates below
+          - [155, 250]     
         ev_min: 0.001
         ev_max: 0.10
         kelly_min: 0.001
@@ -141,8 +137,9 @@ markets:
       under:
         enabled: true
         line_bands:
-          - [130, 155]     # under wins 52-54% in this range
+          - [130, 139.9]     
+          - [150, 155]     
         ev_min: 0.03
-        ev_max: 0.10
+        ev_max: 0.04
         kelly_min: 0.001
         kelly_max: 0.1
