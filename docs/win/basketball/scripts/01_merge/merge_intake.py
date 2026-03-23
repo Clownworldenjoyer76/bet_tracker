@@ -137,14 +137,23 @@ for league, slate_date in slates:
             team_key = build_team_set(p)
 
             if team_key in book_team_map:
-                d = book_team_map[team_key]
+                d_raw = book_team_map[team_key]
 
                 log(
-                    f"ORIENTATION MISMATCH | {league} {slate_date} | "
+                    f"ORIENTATION MISMATCH (swapping) | {league} {slate_date} | "
                     f"PRED: {p['home_team']} vs {p['away_team']} | "
-                    f"BOOK: {d['home_team']} vs {d['away_team']}"
+                    f"BOOK: {d_raw['home_team']} vs {d_raw['away_team']}"
                 )
-                continue
+
+                # Book has home/away flipped relative to prediction — swap fields
+                d = dict(d_raw)
+                d["away_spread"]               = d_raw.get("home_spread", "")
+                d["home_spread"]               = d_raw.get("away_spread", "")
+                d["away_dk_spread_american"]   = d_raw.get("home_dk_spread_american", "")
+                d["home_dk_spread_american"]   = d_raw.get("away_dk_spread_american", "")
+                d["away_dk_moneyline_american"] = d_raw.get("home_dk_moneyline_american", "")
+                d["home_dk_moneyline_american"] = d_raw.get("away_dk_moneyline_american", "")
+                # total/over/under are symmetric — no swap needed
 
             else:
                 log(

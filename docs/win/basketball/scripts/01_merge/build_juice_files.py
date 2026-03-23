@@ -6,7 +6,7 @@ import glob
 import sys
 import traceback
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from scipy.stats import norm, poisson
 
 # ============================================================
@@ -104,7 +104,7 @@ def main():
 
     with open(ERROR_LOG, "w") as log:
         log.write("=== BUILD JUICE FILES RUN ===\n")
-        log.write(f"{datetime.utcnow().isoformat()}Z\n\n")
+        log.write(f"{datetime.now(timezone.utc).isoformat()}Z\n\n")
 
     try:
 
@@ -122,6 +122,11 @@ def main():
             df = pd.read_csv(file_path)
 
             if df.empty:
+                continue
+
+            if "market" not in df.columns or "game_date" not in df.columns:
+                audit(ERROR_LOG, "BUILD_JUICE", "SKIP",
+                      f"Missing required columns (market/game_date) in {file_path}")
                 continue
 
             market = df["market"].iloc[0]
@@ -255,9 +260,13 @@ def main():
                 acc_home_dec = fair_home_dec * (1 + SPREAD_EDGE)
                 acc_away_dec = fair_away_dec * (1 + SPREAD_EDGE)
 
+                fair_home.append(fair_home_dec)
+                fair_away.append(fair_away_dec)
                 acc_home.append(acc_home_dec)
                 acc_away.append(acc_away_dec)
 
+            spread_df["fair_home_spread_decimal"] = fair_home
+            spread_df["fair_away_spread_decimal"] = fair_away
             spread_df["home_acceptable_spread_decimal"] = acc_home
             spread_df["away_acceptable_spread_decimal"] = acc_away
 

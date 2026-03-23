@@ -4,7 +4,7 @@
 import csv
 import pandas as pd
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
 # =========================
 # LOGGER UTILITY
@@ -62,7 +62,7 @@ with open(LOG_FILE, "w", encoding="utf-8") as f:
 
 def log(msg):
     with open(LOG_FILE, "a", encoding="utf-8") as f:
-        f.write(f"{datetime.utcnow().isoformat()} | {msg}\n")
+        f.write(f"{datetime.now(timezone.utc).isoformat()} | {msg}\n")
 
 # =========================
 # DEDUPE FUNCTION

@@ -78,6 +78,7 @@ def normalize_american_value(val):
     try:
         return float(text)
     except:
+        log(f"WARN: invalid American odds value: {val!r}")
         return None
 
 
@@ -142,8 +143,11 @@ def clear_old_moneyline_outputs():
 # LOAD CONFIG
 # =========================
 
-NBA_JT = pd.read_csv(NBA_CONFIG)
-NCAAB_JT = pd.read_csv(NCAAB_CONFIG)
+try:
+    NBA_JT = pd.read_csv(NBA_CONFIG)
+    NCAAB_JT = pd.read_csv(NCAAB_CONFIG)
+except FileNotFoundError as e:
+    raise SystemExit(f"ERROR: Missing juice config file — {e}") from e
 
 
 # =========================

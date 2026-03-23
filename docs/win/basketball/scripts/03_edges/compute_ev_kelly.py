@@ -147,9 +147,9 @@ def process_totals(df):
 
     df = to_numeric(df, numeric_cols)
 
-    # convert fair odds → probabilities
-    df["over_prob"] = 1 / df["fair_over"]
-    df["under_prob"] = 1 / df["fair_under"]
+    # convert fair odds → probabilities (guard against zero/NaN)
+    df["over_prob"] = 1 / df["fair_over"].where(df["fair_over"] > 0)
+    df["under_prob"] = 1 / df["fair_under"].where(df["fair_under"] > 0)
 
     df["over_edge_pct"] = df["over_edge"] * 100
     df["under_edge_pct"] = df["under_edge"] * 100
