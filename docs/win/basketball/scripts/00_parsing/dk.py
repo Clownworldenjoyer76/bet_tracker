@@ -268,7 +268,7 @@ for block in blocks:
 
 if not rows:
     log("SUMMARY: wrote 0 rows")
-    raise SystemExit(0)
+    raise SystemExit(1)
 
 # ----------------------------
 # Write (FULL REBUILD FOR DAY)

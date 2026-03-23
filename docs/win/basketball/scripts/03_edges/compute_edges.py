@@ -209,8 +209,6 @@ def process_market_files(files, compute_fn, league, market):
             else:
                 df = compute_fn(df, league)
 
-            df = df.drop(columns=["home_play", "away_play"], errors="ignore")
-
             output_path = OUTPUT_DIR / f"{date}_basketball_{league}_{market}.csv"
             atomic_write_csv(df, output_path)
 

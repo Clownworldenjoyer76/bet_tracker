@@ -83,7 +83,7 @@ def validate_columns(df, cols):
 def normalize_american(val):
     if pd.isna(val):
         return None
-    text = str(val).replace("+","").strip()
+    text = str(val).strip().replace(",", "").replace("+", "")
     try:
         return float(text)
     except:
