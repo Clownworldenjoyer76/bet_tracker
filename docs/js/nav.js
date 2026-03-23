@@ -29,7 +29,7 @@
         const tz    = tzSel.value;
         const label = tzSel.options[tzSel.selectedIndex].text;
         const now   = new Date();
-        const t = now.toLocaleTimeString('en-US', { timeZone: tz, hour12: false });
+        const t = now.toLocaleTimeString('en-US', { timeZone: tz, hour12: true });
         const d = now.toLocaleDateString('en-US', { timeZone: tz, weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
         clockEl.textContent = `${label}  ${t}   ${d}`;
       }
