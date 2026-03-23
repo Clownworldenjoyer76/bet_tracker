@@ -2,12 +2,15 @@ import requests
 import os
 import json
 from pathlib import Path
+from datetime import datetime
 
 API_KEY = os.getenv("ODDS_API_KEY")
 
+today = datetime.utcnow().strftime("%Y_%m_%d")
+
 targets = {
-    "basketball_nba": "docs/win/basketball/odds/nba.json",
-    "icehockey_nhl": "docs/win/hockey/odds/nhl.json"
+    "basketball_nba": f"docs/win/basketball/odds/{today}.json",
+    "icehockey_nhl": f"docs/win/hockey/odds/{today}.json"
 }
 
 for sport, path in targets.items():
@@ -28,7 +31,6 @@ for sport, path in targets.items():
 
     data = response.json()
 
-    # ensure directory exists
     Path(path).parent.mkdir(parents=True, exist_ok=True)
 
     with open(path, "w") as f:
