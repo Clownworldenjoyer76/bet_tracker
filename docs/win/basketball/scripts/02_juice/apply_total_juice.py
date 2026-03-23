@@ -61,6 +61,12 @@ def log(msg):
         f.write(f"{datetime.now(UTC).isoformat()} | {msg}\n")
 
 
+def atomic_write(df, path):
+    tmp = path.with_suffix(".tmp")
+    df.to_csv(tmp, index=False)
+    tmp.replace(path)
+
+
 # =========================
 # CONFIG LOAD
 # =========================
@@ -229,7 +235,7 @@ def main():
                 df = pd.read_csv(f)
                 df = apply_nba(df)
 
-                df.to_csv(OUTPUT_DIR / name, index=False)
+                atomic_write(df, OUTPUT_DIR / name)
 
                 log(f"Processed NBA file: {name}")
 
@@ -244,7 +250,7 @@ def main():
                 df = pd.read_csv(f)
                 df = apply_ncaab(df)
 
-                df.to_csv(OUTPUT_DIR / name, index=False)
+                atomic_write(df, OUTPUT_DIR / name)
 
                 log(f"Processed NCAAB file: {name}")
 
