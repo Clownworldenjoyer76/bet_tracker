@@ -1,0 +1,42 @@
+name: NHL Odds Parse
+
+on:
+  workflow_dispatch:
+
+jobs:
+  parse-odds:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install pandas
+
+      - name: Run odds parse script
+        run: python docs/win/hockey/scripts/00_parsing/odds_parse.py
+
+      - name: Verify output written
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem -Path "docs/win/hockey/00_intake/sportsbook" -Filter "hockey_*.csv" -ErrorAction SilentlyContinue
+          if ($files.Count -eq 0) {
+            Write-Error "No output CSV files found in docs/win/hockey/00_intake/sportsbook"
+            exit 1
+          }
+          Write-Output "Output files found:"
+          $files | ForEach-Object { Write-Output "  $($_.Name)" }
+
+      - name: Commit and push output
+        shell: pwsh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/win/hockey/00_intake/sportsbook/
+          git diff --cached --quiet && Write-Output "No changes to commit" || (git commit -m "NHL odds parse output [$(Get-Date -Format 'yyyy-MM-dd')]" && git push)
