@@ -147,7 +147,7 @@ return game_date, row
 def main():
 json_files = sorted(ODDS_DIR.glob("*.json"))
 if not json_files:
-print(f”No JSON files found in {ODDS_DIR}")
+print(f"No JSON files found in {ODDS_DIR}")
 return
 
 ```
