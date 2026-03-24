@@ -15,12 +15,12 @@ from collections import defaultdict
 
 # =========================
 
-ODDS_DIR = Path(“docs/win/hockey/odds”)
-OUTPUT_DIR = Path(“docs/win/hockey/00_intake/sportsbook”)
+ODDS_DIR = Path("docs/win/hockey/odds")
+OUTPUT_DIR = Path("docs/win/hockey/00_intake/sportsbook")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 NY_TZ = ZoneInfo(“America/New_York”)
-UTC_TZ = ZoneInfo(“UTC”)
+UTC_TZ = ZoneInfo("UTC”)
 
 BOOKMAKER_KEY = “draftkings”
 
