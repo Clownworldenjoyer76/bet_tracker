@@ -19,10 +19,10 @@ ODDS_DIR = Path("docs/win/hockey/odds")
 OUTPUT_DIR = Path("docs/win/hockey/00_intake/sportsbook")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-NY_TZ = ZoneInfo("America/New_York”)
-UTC_TZ = ZoneInfo("UTC”)
+NY_TZ = ZoneInfo("America/New_York")
+UTC_TZ = ZoneInfo("UTC")
 
-BOOKMAKER_KEY = “draftkings”
+BOOKMAKER_KEY = "draftkings"
 
 # =========================
 
@@ -49,9 +49,9 @@ return round(-100 / (dec - 1))
 # =========================
 
 def parse_game(game):
-game_id = game.get(“id”)
-home_team = game.get(“home_team”)
-away_team = game.get(“away_team”)
+game_id = game.get("id")
+home_team = game.get("home_team")
+away_team = game.get("away_team")
 
 ```
 commence_utc = datetime.fromisoformat(
