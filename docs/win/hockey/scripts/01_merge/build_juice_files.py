@@ -9,6 +9,7 @@ import traceback
 from pathlib import Path
 from datetime import datetime, UTC
 from scipy.stats import skellam, poisson
+import math
 
 INPUT_DIR = Path("docs/win/hockey/01_merge")
 OUTPUT_DIR = INPUT_DIR / "01_merguiced"
