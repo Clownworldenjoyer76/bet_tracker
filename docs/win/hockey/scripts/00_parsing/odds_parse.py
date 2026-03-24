@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
-# docs/win/hockey/scripts/00_intake/odds_to_csv.py
+# docs/win/hockey/scripts/00_parsing/odds_parse.py
 
+import csv
 import json
-import math
 from pathlib import Path
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -15,14 +15,14 @@ from collections import defaultdict
 
 # =========================
 
-ODDS_DIR = Path("docs/win/hockey/odds")
-OUTPUT_DIR = Path("docs/win/hockey/00_intake/sportsbook")
+ODDS_DIR = Path(“docs/win/hockey/odds”)
+OUTPUT_DIR = Path(“docs/win/hockey/00_intake/sportsbook”)
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-NY_TZ = ZoneInfo("America/New_York")
-UTC_TZ = ZoneInfo("UTC")
+NY_TZ = ZoneInfo(“America/New_York”)
+UTC_TZ = ZoneInfo(“UTC”)
 
-BOOKMAKER_KEY = "draftkings"
+BOOKMAKER_KEY = “draftkings”
 
 # =========================
 
@@ -49,9 +49,9 @@ return round(-100 / (dec - 1))
 # =========================
 
 def parse_game(game):
-game_id = game.get("id")
-home_team = game.get("home_team")
-away_team = game.get("away_team")
+game_id = game.get(“id”)
+home_team = game.get(“home_team”)
+away_team = game.get(“away_team”)
 
 ```
 commence_utc = datetime.fromisoformat(
@@ -61,7 +61,6 @@ commence_ny = commence_utc.astimezone(NY_TZ)
 game_date = commence_ny.strftime("%Y-%m-%d")
 game_time = commence_ny.strftime("%H:%M")
 
-# Find DraftKings
 dk = None
 for bk in game.get("bookmakers", []):
     if bk["key"] == BOOKMAKER_KEY:
@@ -73,7 +72,6 @@ if dk is None:
 
 odds_last_update = dk.get("last_update")
 
-# Init
 away_ml_dec = home_ml_dec = None
 away_pl_dec = home_pl_dec = None
 away_puck_line = home_puck_line = None
@@ -119,14 +117,12 @@ row = {
     "away_puck_line": away_puck_line,
     "home_puck_line": home_puck_line,
     "total": total,
-    # American odds
     "away_dk_moneyline_american": decimal_to_american(away_ml_dec),
     "home_dk_moneyline_american": decimal_to_american(home_ml_dec),
     "away_dk_puck_line_american": decimal_to_american(away_pl_dec),
     "home_dk_puck_line_american": decimal_to_american(home_pl_dec),
     "dk_total_over_american": decimal_to_american(over_dec),
     "dk_total_under_american": decimal_to_american(under_dec),
-    # Decimal odds
     "away_dk_moneyline_decimal": away_ml_dec,
     "home_dk_moneyline_decimal": home_ml_dec,
     "away_dk_puck_line_decimal": away_pl_dec,
@@ -145,9 +141,9 @@ return game_date, row
 # =========================
 
 def main():
-json_files = sorted(ODDS_DIR.glob("*.json"))
+json_files = sorted(ODDS_DIR.glob(”*.json”))
 if not json_files:
-print(f"No JSON files found in {ODDS_DIR}")
+print(f”No JSON files found in {ODDS_DIR}”)
 return
 
 ```
@@ -157,29 +153,27 @@ for json_path in json_files:
     with open(json_path, "r", encoding="utf-8") as f:
         games = json.load(f)
 
-    # Group rows by game_date (games from multiple dates possible)
     by_date = defaultdict(list)
     for game in games:
         game_date, row = parse_game(game)
         if row is not None:
             by_date[game_date].append(row)
 
+    fieldnames = [
+        "league", "market", "game_date", "game_time",
+        "home_team", "away_team", "game_id", "odds_last_update",
+        "away_puck_line", "home_puck_line", "total",
+        "away_dk_moneyline_american", "home_dk_moneyline_american",
+        "away_dk_puck_line_american", "home_dk_puck_line_american",
+        "dk_total_over_american", "dk_total_under_american",
+        "away_dk_moneyline_decimal", "home_dk_moneyline_decimal",
+        "away_dk_puck_line_decimal", "home_dk_puck_line_decimal",
+        "dk_total_over_decimal", "dk_total_under_decimal",
+    ]
+
     for game_date, rows in by_date.items():
         date_str = game_date.replace("-", "_")
         out_path = OUTPUT_DIR / f"hockey_{date_str}.csv"
-
-        import csv
-        fieldnames = [
-            "league", "market", "game_date", "game_time",
-            "home_team", "away_team", "game_id", "odds_last_update",
-            "away_puck_line", "home_puck_line", "total",
-            "away_dk_moneyline_american", "home_dk_moneyline_american",
-            "away_dk_puck_line_american", "home_dk_puck_line_american",
-            "dk_total_over_american", "dk_total_under_american",
-            "away_dk_moneyline_decimal", "home_dk_moneyline_decimal",
-            "away_dk_puck_line_decimal", "home_dk_puck_line_decimal",
-            "dk_total_over_decimal", "dk_total_under_decimal",
-        ]
 
         with open(out_path, "w", newline="", encoding="utf-8") as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
@@ -189,5 +183,5 @@ for json_path in json_files:
         print(f"  Wrote {out_path.name} ({len(rows)} games)")
 ```
 
-if **name** == "**main**":
+if **name** == “**main**”:
 main()
