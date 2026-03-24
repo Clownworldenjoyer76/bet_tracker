@@ -189,5 +189,5 @@ for json_path in json_files:
         print(f"  Wrote {out_path.name} ({len(rows)} games)")
 ```
 
-if **name** == “**main**”:
+if **name** == "**main**":
 main()
