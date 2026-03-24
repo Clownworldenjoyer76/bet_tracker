@@ -1,7 +1,10 @@
-name: NHL Odds Parse
+name: Odds Parse (Hockey + Basketball)
 
 on:
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   parse-odds:
@@ -10,6 +13,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -19,24 +24,48 @@ jobs:
       - name: Install dependencies
         run: pip install pandas
 
-      - name: Run odds parse script
+      # =========================
+      # RUN HOCKEY
+      # =========================
+      - name: Run hockey odds parse
         run: python docs/win/hockey/scripts/00_parsing/odds_parse.py
 
+      # =========================
+      # RUN BASKETBALL
+      # =========================
+      - name: Run basketball odds parse
+        run: python docs/win/basketball/scripts/00_parsing/odds_parse.py
+
+      # =========================
+      # VERIFY OUTPUT
+      # =========================
       - name: Verify output written
         shell: pwsh
         run: |
-          $files = Get-ChildItem -Path "docs/win/hockey/00_intake/sportsbook" -Filter "hockey_*.csv" -ErrorAction SilentlyContinue
-          if ($files.Count -eq 0) {
-            Write-Error "No output CSV files found in docs/win/hockey/00_intake/sportsbook"
+          $hockey = Get-ChildItem -Path "docs/win/hockey/00_intake/sportsbook" -Filter "hockey_*.csv" -ErrorAction SilentlyContinue
+          $basketball = Get-ChildItem -Path "docs/win/basketball/00_intake/sportsbook" -Filter "basketball_NBA_*.csv" -ErrorAction SilentlyContinue
+
+          if (($hockey.Count -eq 0) -and ($basketball.Count -eq 0)) {
+            Write-Error "No output CSV files found for hockey or basketball"
             exit 1
           }
-          Write-Output "Output files found:"
-          $files | ForEach-Object { Write-Output "  $($_.Name)" }
 
+          Write-Output "Hockey files:"
+          $hockey | ForEach-Object { Write-Output "  $($_.Name)" }
+
+          Write-Output "Basketball files:"
+          $basketball | ForEach-Object { Write-Output "  $($_.Name)" }
+
+      # =========================
+      # COMMIT
+      # =========================
       - name: Commit and push output
         shell: pwsh
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/win/hockey/00_intake/sportsbook/
-          git diff --cached --quiet && Write-Output "No changes to commit" || (git commit -m "NHL odds parse output [$(Get-Date -Format 'yyyy-MM-dd')]" && git push)
+
+          git add docs/win/hockey/00_intake/sportsbook/ 2>$null
+          git add docs/win/basketball/00_intake/sportsbook/ 2>$null
+
+          git diff --cached --quiet && Write-Output "No changes to commit" || (git commit -m "odds parse output [$(Get-Date -Format 'yyyy-MM-dd')]" && git push)
