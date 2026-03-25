@@ -4,11 +4,7 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 import sys
 
-# ---- CONFIG ----
-INPUT_PATH = sys.argv[1]  # docs/win/baseball/odds/{date}.json
-OUTPUT_DATE = Path(INPUT_PATH).stem  # YYYY_MM_DD
-
-OUTPUT_PATH = f"docs/win/baseball/sportsbook/{OUTPUT_DATE}_MLB.csv"
+INPUT_PATH = Path(sys.argv[1])  # can be file OR directory
 
 # ---- TIME CONVERSION (UTC -> EST) ----
 def utc_to_est(utc_str):
@@ -25,117 +21,127 @@ def decimal_to_american(decimal_odds):
     else:
         return int(-100 / (decimal_odds - 1))
 
-# ---- MAIN ----
-with open(INPUT_PATH, "r") as f:
-    data = json.load(f)
+# ---- PROCESS ONE FILE ----
+def process_file(file_path):
+    with open(file_path, "r") as f:
+        data = json.load(f)
 
-rows = []
+    output_date = file_path.stem
+    output_path = f"docs/win/baseball/sportsbook/{output_date}_MLB.csv"
 
-for game in data:
-    sport = "baseball"
-    league = "mlb"
+    rows = []
 
-    game_date, game_time = utc_to_est(game["commence_time"])
+    for game in data:
+        sport = "baseball"
+        league = "mlb"
 
-    away_team = game["away_team"]  # team1
-    home_team = game["home_team"]  # team2
+        game_date, game_time = utc_to_est(game["commence_time"])
 
-    # defaults
-    away_run_line = None
-    home_run_line = None
-    total = None
+        away_team = game["away_team"]
+        home_team = game["home_team"]
 
-    away_rl_dec = None
-    home_rl_dec = None
-    over_dec = None
-    under_dec = None
-    away_ml_dec = None
-    home_ml_dec = None
+        away_run_line = None
+        home_run_line = None
+        total = None
 
-    if not game.get("bookmakers"):
-        continue
+        away_rl_dec = None
+        home_rl_dec = None
+        over_dec = None
+        under_dec = None
+        away_ml_dec = None
+        home_ml_dec = None
 
-    markets = game["bookmakers"][0].get("markets", [])
+        if not game.get("bookmakers"):
+            continue
 
-    for market in markets:
-        key = market["key"]
+        markets = game["bookmakers"][0].get("markets", [])
 
-        if key == "h2h":
-            for o in market["outcomes"]:
-                if o["name"] == away_team:
-                    away_ml_dec = o["price"]
-                elif o["name"] == home_team:
-                    home_ml_dec = o["price"]
+        for market in markets:
+            key = market["key"]
 
-        elif key == "spreads":
-            for o in market["outcomes"]:
-                if o["name"] == away_team:
-                    away_run_line = o["point"]
-                    away_rl_dec = o["price"]
-                elif o["name"] == home_team:
-                    home_run_line = o["point"]
-                    home_rl_dec = o["price"]
+            if key == "h2h":
+                for o in market["outcomes"]:
+                    if o["name"] == away_team:
+                        away_ml_dec = o["price"]
+                    elif o["name"] == home_team:
+                        home_ml_dec = o["price"]
 
-        elif key == "totals":
-            if market["outcomes"]:
-                total = market["outcomes"][0]["point"]
+            elif key == "spreads":
+                for o in market["outcomes"]:
+                    if o["name"] == away_team:
+                        away_run_line = o["point"]
+                        away_rl_dec = o["price"]
+                    elif o["name"] == home_team:
+                        home_run_line = o["point"]
+                        home_rl_dec = o["price"]
 
-            for o in market["outcomes"]:
-                if o["name"] == "Over":
-                    over_dec = o["price"]
-                elif o["name"] == "Under":
-                    under_dec = o["price"]
+            elif key == "totals":
+                if market["outcomes"]:
+                    total = market["outcomes"][0]["point"]
 
-    # convert to american
-    away_rl_amer = decimal_to_american(away_rl_dec)
-    home_rl_amer = decimal_to_american(home_rl_dec)
-    over_amer = decimal_to_american(over_dec)
-    under_amer = decimal_to_american(under_dec)
-    away_ml_amer = decimal_to_american(away_ml_dec)
-    home_ml_amer = decimal_to_american(home_ml_dec)
+                for o in market["outcomes"]:
+                    if o["name"] == "Over":
+                        over_dec = o["price"]
+                    elif o["name"] == "Under":
+                        under_dec = o["price"]
 
-    row = [
-        sport,
-        league,
-        game_date,
-        game_time,
-        home_team,
-        away_team,
-        away_run_line,
-        home_run_line,
-        total,
-        away_rl_amer,
-        home_rl_amer,
-        over_amer,
-        under_amer,
-        away_ml_amer,
-        home_ml_amer,
-        away_rl_dec,
-        home_rl_dec,
-        over_dec,
-        under_dec,
-        away_ml_dec,
-        home_ml_dec
-    ]
+        # convert to american
+        away_rl_amer = decimal_to_american(away_rl_dec)
+        home_rl_amer = decimal_to_american(home_rl_dec)
+        over_amer = decimal_to_american(over_dec)
+        under_amer = decimal_to_american(under_dec)
+        away_ml_amer = decimal_to_american(away_ml_dec)
+        home_ml_amer = decimal_to_american(home_ml_dec)
 
-    rows.append(row)
+        row = [
+            sport,
+            league,
+            game_date,
+            game_time,
+            home_team,
+            away_team,
+            away_run_line,
+            home_run_line,
+            total,
+            away_rl_amer,
+            home_rl_amer,
+            over_amer,
+            under_amer,
+            away_ml_amer,
+            home_ml_amer,
+            away_rl_dec,
+            home_rl_dec,
+            over_dec,
+            under_dec,
+            away_ml_dec,
+            home_ml_dec
+        ]
 
-# ensure output dir
-Path(OUTPUT_PATH).parent.mkdir(parents=True, exist_ok=True)
+        rows.append(row)
 
-# write CSV
-with open(OUTPUT_PATH, "w", newline="") as f:
-    writer = csv.writer(f)
-    writer.writerow([
-        "sport","league","game_date","game_time","home_team","away_team",
-        "away_run_line","home_run_line","total",
-        "away_dk_run_line_american","home_dk_run_line_american",
-        "dk_total_over_american","dk_total_under_american",
-        "away_dk_moneyline_american","home_dk_moneyline_american",
-        "away_dk_run_line_decimal","home_dk_run_line_decimal",
-        "dk_total_over_decimal","dk_total_under_decimal",
-        "away_dk_moneyline_decimal","home_dk_moneyline_decimal"
-    ])
-    writer.writerows(rows)
+    Path("docs/win/baseball/sportsbook").mkdir(parents=True, exist_ok=True)
 
-print(f"Saved {OUTPUT_PATH}")
+    with open(output_path, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow([
+            "sport","league","game_date","game_time","home_team","away_team",
+            "away_run_line","home_run_line","total",
+            "away_dk_run_line_american","home_dk_run_line_american",
+            "dk_total_over_american","dk_total_under_american",
+            "away_dk_moneyline_american","home_dk_moneyline_american",
+            "away_dk_run_line_decimal","home_dk_run_line_decimal",
+            "dk_total_over_decimal","dk_total_under_decimal",
+            "away_dk_moneyline_decimal","home_dk_moneyline_decimal"
+        ])
+        writer.writerows(rows)
+
+    print(f"Saved {output_path}")
+
+# ---- ENTRY ----
+if INPUT_PATH.is_file():
+    process_file(INPUT_PATH)
+elif INPUT_PATH.is_dir():
+    for file in sorted(INPUT_PATH.glob("*.json")):
+        process_file(file)
+else:
+    print("Invalid input path")
