@@ -147,7 +147,7 @@ for pred_file in prediction_files:
             "league": p.get("league"),
             "market": p.get("market"),
             "game_date": p.get("game_date"),
-            "game_time": p.get("game_time"),
+            "game_time": b.get("game_time"),
             "home_team": p.get("home_team"),
             "away_team": p.get("away_team"),
             "game_id": game_id,
