@@ -52,7 +52,7 @@ def parse_game(game):
     ).replace(tzinfo=UTC_TZ)
 
     commence_ny = commence_utc.astimezone(NY_TZ)
-    game_date = commence_ny.strftime('%Y-%m-%d')
+    game_date = commence_ny.strftime('%Y_%m_%d')
     game_time = commence_ny.strftime('%H:%M')
 
     dk = None
