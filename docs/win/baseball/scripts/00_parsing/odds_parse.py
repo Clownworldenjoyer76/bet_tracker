@@ -4,13 +4,13 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 import sys
 
-INPUT_PATH = Path(sys.argv[1])  # can be file OR directory
+INPUT_PATH = Path(sys.argv[1])
 
 # ---- TIME CONVERSION (UTC -> EST) ----
 def utc_to_est(utc_str):
     dt = datetime.fromisoformat(utc_str.replace("Z", "+00:00"))
     est = dt.astimezone(timezone(timedelta(hours=-5)))
-    return est.strftime("%Y-%m-%d"), est.strftime("%H:%M:%S")
+    return est.strftime("%Y_%m_%d"), est.strftime("%H:%M:%S")
 
 # ---- ODDS CONVERSION ----
 def decimal_to_american(decimal_odds):
@@ -26,10 +26,7 @@ def process_file(file_path):
     with open(file_path, "r") as f:
         data = json.load(f)
 
-    output_date = file_path.stem
-    output_path = f"docs/win/baseball/sportsbook/{output_date}_MLB.csv"
-
-    rows = []
+    grouped_rows = {}
 
     for game in data:
         sport = "baseball"
@@ -85,14 +82,6 @@ def process_file(file_path):
                     elif o["name"] == "Under":
                         under_dec = o["price"]
 
-        # convert to american
-        away_rl_amer = decimal_to_american(away_rl_dec)
-        home_rl_amer = decimal_to_american(home_rl_dec)
-        over_amer = decimal_to_american(over_dec)
-        under_amer = decimal_to_american(under_dec)
-        away_ml_amer = decimal_to_american(away_ml_dec)
-        home_ml_amer = decimal_to_american(home_ml_dec)
-
         row = [
             sport,
             league,
@@ -103,12 +92,12 @@ def process_file(file_path):
             away_run_line,
             home_run_line,
             total,
-            away_rl_amer,
-            home_rl_amer,
-            over_amer,
-            under_amer,
-            away_ml_amer,
-            home_ml_amer,
+            decimal_to_american(away_rl_dec),
+            decimal_to_american(home_rl_dec),
+            decimal_to_american(over_dec),
+            decimal_to_american(under_dec),
+            decimal_to_american(away_ml_dec),
+            decimal_to_american(home_ml_dec),
             away_rl_dec,
             home_rl_dec,
             over_dec,
@@ -117,25 +106,30 @@ def process_file(file_path):
             home_ml_dec
         ]
 
-        rows.append(row)
+        grouped_rows.setdefault(game_date, []).append(row)
 
-    Path("docs/win/baseball/sportsbook").mkdir(parents=True, exist_ok=True)
+    # ---- WRITE ONE CSV PER GAME DATE ----
+    base_output_dir = Path("docs/win/baseball/sportsbook")
+    base_output_dir.mkdir(parents=True, exist_ok=True)
 
-    with open(output_path, "w", newline="") as f:
-        writer = csv.writer(f)
-        writer.writerow([
-            "sport","league","game_date","game_time","home_team","away_team",
-            "away_run_line","home_run_line","total",
-            "away_dk_run_line_american","home_dk_run_line_american",
-            "dk_total_over_american","dk_total_under_american",
-            "away_dk_moneyline_american","home_dk_moneyline_american",
-            "away_dk_run_line_decimal","home_dk_run_line_decimal",
-            "dk_total_over_decimal","dk_total_under_decimal",
-            "away_dk_moneyline_decimal","home_dk_moneyline_decimal"
-        ])
-        writer.writerows(rows)
+    for game_date, rows in grouped_rows.items():
+        output_path = base_output_dir / f"{game_date}_MLB.csv"
 
-    print(f"Saved {output_path}")
+        with open(output_path, "w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow([
+                "sport","league","game_date","game_time","home_team","away_team",
+                "away_run_line","home_run_line","total",
+                "away_dk_run_line_american","home_dk_run_line_american",
+                "dk_total_over_american","dk_total_under_american",
+                "away_dk_moneyline_american","home_dk_moneyline_american",
+                "away_dk_run_line_decimal","home_dk_run_line_decimal",
+                "dk_total_over_decimal","dk_total_under_decimal",
+                "away_dk_moneyline_decimal","home_dk_moneyline_decimal"
+            ])
+            writer.writerows(rows)
+
+        print(f"Saved {output_path}")
 
 # ---- ENTRY ----
 if INPUT_PATH.is_file():
