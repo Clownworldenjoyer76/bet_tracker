@@ -1,4 +1,4 @@
-name: Odds Parse (Hockey + Basketball)
+name: Odds Parse (Hockey + Basketball + Baseball)
 
 on:
   workflow_dispatch:
@@ -37,6 +37,17 @@ jobs:
         run: python docs/win/basketball/scripts/00_parsing/odds_parse.py
 
       # =========================
+      # RUN BASEBALL
+      # =========================
+      - name: Ensure baseball output folder
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "docs/win/baseball/sportsbook" | Out-Null
+
+      - name: Run baseball odds parse
+        run: python docs/win/baseball/scripts/00_parsing/odds_parse.py docs/win/baseball/odds/${{ github.event.inputs.date }}
+
+      # =========================
       # VERIFY OUTPUT
       # =========================
       - name: Verify output written
@@ -44,9 +55,10 @@ jobs:
         run: |
           $hockey = Get-ChildItem -Path "docs/win/hockey/00_intake/sportsbook" -Filter "hockey_*.csv" -ErrorAction SilentlyContinue
           $basketball = Get-ChildItem -Path "docs/win/basketball/00_intake/sportsbook" -Filter "basketball_NBA_*.csv" -ErrorAction SilentlyContinue
+          $baseball = Get-ChildItem -Path "docs/win/baseball/sportsbook" -Filter "*_MLB.csv" -ErrorAction SilentlyContinue
 
-          if (($hockey.Count -eq 0) -and ($basketball.Count -eq 0)) {
-            Write-Error "No output CSV files found for hockey or basketball"
+          if (($hockey.Count -eq 0) -and ($basketball.Count -eq 0) -and ($baseball.Count -eq 0)) {
+            Write-Error "No output CSV files found"
             exit 1
           }
 
@@ -55,6 +67,9 @@ jobs:
 
           Write-Output "Basketball files:"
           $basketball | ForEach-Object { Write-Output "  $($_.Name)" }
+
+          Write-Output "Baseball files:"
+          $baseball | ForEach-Object { Write-Output "  $($_.Name)" }
 
       # =========================
       # COMMIT
@@ -67,5 +82,6 @@ jobs:
 
           git add docs/win/hockey/00_intake/sportsbook/ 2>$null
           git add docs/win/basketball/00_intake/sportsbook/ 2>$null
+          git add docs/win/baseball/sportsbook/ 2>$null
 
           git diff --cached --quiet && Write-Output "No changes to commit" || (git commit -m "odds parse output [$(Get-Date -Format 'yyyy-MM-dd')]" && git push)
