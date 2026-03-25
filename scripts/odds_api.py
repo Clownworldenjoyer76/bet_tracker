@@ -10,7 +10,8 @@ today = datetime.utcnow().strftime("%Y_%m_%d")
 
 targets = {
     "basketball_nba": f"docs/win/basketball/odds/{today}.json",
-    "icehockey_nhl": f"docs/win/hockey/odds/{today}.json"
+    "icehockey_nhl": f"docs/win/hockey/odds/{today}.json",
+    "baseball_mlb": f"docs/win/baseball/odds/{today}.json"
 }
 
 for sport, path in targets.items():
