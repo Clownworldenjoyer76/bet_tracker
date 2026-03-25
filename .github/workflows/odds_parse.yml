@@ -42,7 +42,7 @@ jobs:
       - name: Ensure baseball output folder
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path "docs/win/baseball/sportsbook" | Out-Null
+          New-Item -ItemType Directory -Force -Path "docs/win/baseball/00_intake/sportsbook" | Out-Null
 
       - name: Run baseball odds parse
         run: python docs/win/baseball/scripts/00_parsing/odds_parse.py docs/win/baseball/odds/${{ github.event.inputs.date }}
@@ -55,7 +55,7 @@ jobs:
         run: |
           $hockey = Get-ChildItem -Path "docs/win/hockey/00_intake/sportsbook" -Filter "hockey_*.csv" -ErrorAction SilentlyContinue
           $basketball = Get-ChildItem -Path "docs/win/basketball/00_intake/sportsbook" -Filter "basketball_NBA_*.csv" -ErrorAction SilentlyContinue
-          $baseball = Get-ChildItem -Path "docs/win/baseball/sportsbook" -Filter "*_MLB.csv" -ErrorAction SilentlyContinue
+          $baseball = Get-ChildItem -Path "docs/win/baseball/00_intake/sportsbook" -Filter "*_MLB.csv" -ErrorAction SilentlyContinue
 
           if (($hockey.Count -eq 0) -and ($basketball.Count -eq 0) -and ($baseball.Count -eq 0)) {
             Write-Error "No output CSV files found"
@@ -82,6 +82,6 @@ jobs:
 
           git add docs/win/hockey/00_intake/sportsbook/ 2>$null
           git add docs/win/basketball/00_intake/sportsbook/ 2>$null
-          git add docs/win/baseball/sportsbook/ 2>$null
+          git add docs/win/baseball/00_intake/sportsbook/ 2>$null
 
           git diff --cached --quiet && Write-Output "No changes to commit" || (git commit -m "odds parse output [$(Get-Date -Format 'yyyy-MM-dd')]" && git push)
