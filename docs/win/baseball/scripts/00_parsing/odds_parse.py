@@ -109,7 +109,7 @@ def process_file(file_path):
         grouped_rows.setdefault(game_date, []).append(row)
 
     # ---- WRITE ONE CSV PER GAME DATE ----
-    base_output_dir = Path("docs/win/baseball/sportsbook")
+    base_output_dir = Path("docs/win/baseball/00_intake/sportsbook")
     base_output_dir.mkdir(parents=True, exist_ok=True)
 
     for game_date, rows in grouped_rows.items():
