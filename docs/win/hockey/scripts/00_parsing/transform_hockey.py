@@ -6,9 +6,6 @@ import pandas as pd
 from datetime import datetime
 
 
-# -------------------------
-# NORMALIZATION (FIXES DK MATCHES)
-# -------------------------
 def normalize_team(name: str) -> str:
     name = str(name).strip().lower()
 
@@ -76,9 +73,6 @@ def games_to_df(games: list) -> pd.DataFrame:
     return df
 
 
-# -------------------------
-# PREDICTIONS
-# -------------------------
 def process_predictions(df: pd.DataFrame):
     mask = df["score1"].isna() | (df["score1"].astype(str).str.strip() == "")
     upcoming = df[mask].copy()
@@ -123,9 +117,6 @@ def process_predictions(df: pd.DataFrame):
         save(out, path)
 
 
-# -------------------------
-# FINAL SCORES + DK
-# -------------------------
 def load_sportsbook(date_val: str):
     path = f"docs/win/hockey/00_intake/sportsbook/hockey_{date_val}.csv"
     if not os.path.exists(path):
@@ -133,11 +124,8 @@ def load_sportsbook(date_val: str):
         return None
 
     sb = pd.read_csv(path)
-
-    # normalize sportsbook names
     sb["home_team_norm"] = sb["home_team"].apply(normalize_team)
     sb["away_team_norm"] = sb["away_team"].apply(normalize_team)
-
     return sb
 
 
@@ -180,9 +168,8 @@ def process_final_scores(df: pd.DataFrame):
                 away_score = int(float(row["score1"]))
                 home_score = int(float(row["score2"]))
                 total      = away_score + home_score
-
-                away_pl = away_score - home_score
-                home_pl = home_score - away_score
+                away_pl    = away_score - home_score
+                home_pl    = home_score - away_score
             except:
                 away_score = home_score = total = away_pl = home_pl = ""
 
@@ -220,6 +207,8 @@ def main():
 
     games = load_json(args.nhl)
     df = games_to_df(games)
+
+    print(f"  TOTAL ROWS: {len(df)}")
 
     if not df.empty:
         process_predictions(df)
