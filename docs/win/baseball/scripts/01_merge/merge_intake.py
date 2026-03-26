@@ -40,11 +40,9 @@ def load_csv(path):
 
 def build_team_index(rows):
     idx = {}
-
     for r in rows:
         key = (norm(r["home_team"]), norm(r["away_team"]))
         idx[key] = r
-
     return idx
 
 
@@ -57,6 +55,15 @@ def american_to_prob(odds):
             return -odds / (-odds + 100)
     except:
         return None
+
+
+def normalize_probs(p1, p2):
+    if p1 is None or p2 is None:
+        return "", ""
+    total = p1 + p2
+    if total == 0:
+        return "", ""
+    return str(p1 / total), str(p2 / total)
 
 
 def process_date(date):
@@ -79,7 +86,6 @@ def process_date(date):
     for b in books:
 
         key = (norm(b["home_team"]), norm(b["away_team"]))
-
         p = pred_idx.get(key)
 
         if not p:
@@ -89,7 +95,9 @@ def process_date(date):
 
         matched += 1
 
+        # -------------------------
         # MONEYLINE
+        # -------------------------
         ml_rows.append([
             b["game_id"], b["sport"], b["league"], b["game_date"], b["game_time"],
             b["home_team"], b["away_team"],
@@ -101,9 +109,13 @@ def process_date(date):
             p["away_projected_runs"], p["home_projected_runs"], p["total_projected_runs"]
         ])
 
-        # RUN LINE
-        home_rl_prob = american_to_prob(b["home_dk_run_line_american"])
-        away_rl_prob = american_to_prob(b["away_dk_run_line_american"])
+        # -------------------------
+        # RUN LINE (vig removed)
+        # -------------------------
+        home_raw = american_to_prob(b["home_dk_run_line_american"])
+        away_raw = american_to_prob(b["away_dk_run_line_american"])
+
+        home_rl_prob, away_rl_prob = normalize_probs(home_raw, away_raw)
 
         rl_rows.append([
             b["game_id"], b["sport"], b["league"], b["game_date"], b["game_time"],
@@ -114,12 +126,16 @@ def process_date(date):
             p["home_pitcher"], p["away_pitcher"],
             p["home_prob"], p["away_prob"],
             p["away_projected_runs"], p["home_projected_runs"], p["total_projected_runs"],
-            str(home_rl_prob), str(away_rl_prob)
+            home_rl_prob, away_rl_prob
         ])
 
-        # TOTAL
-        over_prob = american_to_prob(b["dk_total_over_american"])
-        under_prob = american_to_prob(b["dk_total_under_american"])
+        # -------------------------
+        # TOTAL (vig removed)
+        # -------------------------
+        over_raw = american_to_prob(b["dk_total_over_american"])
+        under_raw = american_to_prob(b["dk_total_under_american"])
+
+        over_prob, under_prob = normalize_probs(over_raw, under_raw)
 
         tot_rows.append([
             b["game_id"], b["sport"], b["league"], b["game_date"], b["game_time"],
@@ -130,7 +146,7 @@ def process_date(date):
             p["home_pitcher"], p["away_pitcher"],
             p["home_prob"], p["away_prob"],
             p["away_projected_runs"], p["home_projected_runs"], p["total_projected_runs"],
-            str(over_prob), str(under_prob)
+            over_prob, under_prob
         ])
 
     log(f"{date} | matched={matched} | unmatched={unmatched}")
@@ -141,9 +157,46 @@ def process_date(date):
             writer.writerow(header)
             writer.writerows(rows)
 
-    write(OUT_DIR / f"{date}_mlb_moneyline.csv", [], ml_rows)
-    write(OUT_DIR / f"{date}_mlb_run_line.csv", [], rl_rows)
-    write(OUT_DIR / f"{date}_mlb_total.csv", [], tot_rows)
+    write(
+        OUT_DIR / f"{date}_mlb_moneyline.csv",
+        [
+            "game_id","sport","league","game_date","game_time","home_team","away_team",
+            "away_run_line","home_run_line","total",
+            "away_dk_moneyline_american","home_dk_moneyline_american",
+            "away_dk_moneyline_decimal","home_dk_moneyline_decimal",
+            "home_pitcher","away_pitcher","home_prob","away_prob",
+            "away_projected_runs","home_projected_runs","total_projected_runs"
+        ],
+        ml_rows
+    )
+
+    write(
+        OUT_DIR / f"{date}_mlb_run_line.csv",
+        [
+            "game_id","sport","league","game_date","game_time","home_team","away_team",
+            "away_run_line","home_run_line","total",
+            "away_dk_run_line_american","home_dk_run_line_american",
+            "away_dk_run_line_decimal","home_dk_run_line_decimal",
+            "home_pitcher","away_pitcher","home_prob","away_prob",
+            "away_projected_runs","home_projected_runs","total_projected_runs",
+            "home_run_line_prob","away_run_line_prob"
+        ],
+        rl_rows
+    )
+
+    write(
+        OUT_DIR / f"{date}_mlb_total.csv",
+        [
+            "game_id","sport","league","game_date","game_time","home_team","away_team",
+            "away_run_line","home_run_line","total",
+            "dk_total_over_american","dk_total_under_american",
+            "dk_total_over_decimal","dk_total_under_decimal",
+            "home_pitcher","away_pitcher","home_prob","away_prob",
+            "away_projected_runs","home_projected_runs","total_projected_runs",
+            "total_runs_over_prob","total_runs_under_prob"
+        ],
+        tot_rows
+    )
 
 
 if __name__ == "__main__":
