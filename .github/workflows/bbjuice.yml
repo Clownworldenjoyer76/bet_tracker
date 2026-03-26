@@ -1,0 +1,54 @@
+name: bbJuice
+
+on:
+  workflow_dispatch:
+
+jobs:
+  juice:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install pandas scipy
+
+      # -------------------------
+      # APPLY JUICE - MONEYLINE
+      # -------------------------
+      - name: Apply moneyline juice
+        run: python docs/win/baseball/scripts/02_juice/apply_moneyline_juice.py
+
+      # -------------------------
+      # APPLY JUICE - RUN LINE
+      # -------------------------
+      - name: Apply run line juice
+        run: python docs/win/baseball/scripts/02_juice/apply_run_line_juice.py
+
+      # -------------------------
+      # APPLY JUICE - TOTAL
+      # -------------------------
+      - name: Apply total juice
+        run: python docs/win/baseball/scripts/02_juice/apply_total_juice.py
+
+      # -------------------------
+      # COMMIT OUTPUTS
+      # -------------------------
+      - name: Commit and push outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Add juiced outputs
+          git add docs/win/baseball/02_juice/
+          git add docs/win/baseball/errors/02_juice/
+
+          git diff --cached --quiet || git commit -m "baseball juice applied $(date +'%Y-%m-%d %H:%M')"
+          git push
