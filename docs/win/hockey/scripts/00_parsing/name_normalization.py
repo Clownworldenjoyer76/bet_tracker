@@ -5,7 +5,9 @@ import csv
 from pathlib import Path
 from datetime import datetime
 
-INTAKE_DIR = Path("docs/win/hockey/00_intake")
+SPORTSBOOK_DIR = Path("docs/win/hockey/00_intake/sportsbook")
+PREDICTIONS_DIR = Path("docs/win/hockey/00_intake/predictions")
+
 MAP_FILE = Path("mappings/hockey/team_map_hockey.csv")
 
 NO_MAP_DIR = Path("mappings/hockey/no_map")
@@ -25,7 +27,7 @@ def log(msg: str) -> None:
         f.write(f"{datetime.utcnow().isoformat()} | {msg}\n")
 
 # =========================
-# LOAD TEAM MAP (CASE INSENSITIVE)
+# LOAD TEAM MAP
 # =========================
 
 team_map = {}
@@ -45,6 +47,18 @@ else:
     log("WARNING: team_map_hockey.csv not found")
 
 # =========================
+# TARGET FILES ONLY
+# =========================
+
+target_files = []
+
+for f in SPORTSBOOK_DIR.glob("hockey_*.csv"):
+    target_files.append(f)
+
+for f in PREDICTIONS_DIR.glob("hockey_*.csv"):
+    target_files.append(f)
+
+# =========================
 # PROCESS FILES
 # =========================
 
@@ -53,7 +67,7 @@ files_processed = 0
 rows_processed = 0
 rows_updated = 0
 
-for csv_file in INTAKE_DIR.rglob("*.csv"):
+for csv_file in target_files:
     files_processed += 1
     updated_rows = []
     modified = False
