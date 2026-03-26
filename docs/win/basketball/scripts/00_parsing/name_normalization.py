@@ -15,7 +15,6 @@ def audit(log_path, stage, status, msg="", df=None):
     log_path = Path(log_path)
     log_path.parent.mkdir(parents=True, exist_ok=True)
     
-    # 1. EXHAUSTIVE LOG (TXT)
     with open(log_path, "a") as f:
         f.write(f"\n[{ts}] [{stage}] {status}\n")
         if msg: f.write(f"  MSG: {msg}\n")
@@ -25,7 +24,6 @@ def audit(log_path, stage, status, msg="", df=None):
             f.write(f"  SAMPLE:\n{df.head(3).to_string(index=False)}\n")
         f.write("-" * 40 + "\n")
 
-    # 2. CONDENSED SUMMARY (TXT)
     if df is not None and isinstance(df, pd.DataFrame):
         summary_path = log_path.parent / "condensed_summary.txt"
         
@@ -48,7 +46,8 @@ def audit(log_path, stage, status, msg="", df=None):
 # PATHS
 # =========================
 
-INTAKE_DIR = Path("docs/win/basketball/00_intake")
+SPORTSBOOK_DIR = Path("docs/win/basketball/00_intake/sportsbook")
+PREDICTIONS_DIR = Path("docs/win/basketball/00_intake/predictions")
 
 NBA_MAP_FILE = Path("mappings/basketball/team_map_nba.csv")
 NCAAB_MAP_FILE = Path("mappings/basketball/team_map_ncaab.csv")
@@ -61,7 +60,6 @@ ERROR_DIR = Path("docs/win/basketball/errors/00_intake")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE = ERROR_DIR / "name_normalization_log.txt"
 
-# Overwrite log each run
 with open(LOG_FILE, "w", encoding="utf-8") as f:
     f.write("")
 
@@ -70,7 +68,7 @@ def log(msg: str) -> None:
         f.write(f"{datetime.now(timezone.utc).isoformat()} | {msg}\n")
 
 # =========================
-# LOAD TEAM MAPS (CASE INSENSITIVE)
+# LOAD TEAM MAPS
 # =========================
 
 team_map = {}
@@ -90,9 +88,26 @@ def load_map(map_file: Path):
             if market and alias and canonical:
                 team_map[(market, alias)] = canonical
 
-# Load both NBA and NCAAB maps
 load_map(NBA_MAP_FILE)
 load_map(NCAAB_MAP_FILE)
+
+# =========================
+# TARGET FILES ONLY
+# =========================
+
+target_files = []
+
+for f in SPORTSBOOK_DIR.glob("basketball_NBA_*.csv"):
+    target_files.append(f)
+
+for f in SPORTSBOOK_DIR.glob("basketball_NCAAB_*.csv"):
+    target_files.append(f)
+
+for f in PREDICTIONS_DIR.glob("basketball_NBA_*.csv"):
+    target_files.append(f)
+
+for f in PREDICTIONS_DIR.glob("basketball_NCAAB_*.csv"):
+    target_files.append(f)
 
 # =========================
 # PROCESS FILES
@@ -103,7 +118,7 @@ files_processed = 0
 rows_processed = 0
 rows_updated = 0
 
-for csv_file in INTAKE_DIR.rglob("*.csv"):
+for csv_file in target_files:
     files_processed += 1
     updated_rows = []
     modified = False
@@ -140,7 +155,6 @@ for csv_file in INTAKE_DIR.rglob("*.csv"):
             writer.writeheader()
             writer.writerows(updated_rows)
 
-    # Audit individual file normalization
     if updated_rows:
         df_audit = pd.DataFrame(updated_rows)
         audit(LOG_FILE, "NORMALIZATION", "SUCCESS", msg=f"Processed {csv_file.name}", df=df_audit)
