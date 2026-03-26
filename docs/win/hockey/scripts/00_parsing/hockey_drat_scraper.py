@@ -28,7 +28,6 @@ def is_game_row(row):
     return len(row) >= 5 and "\n" in row[1]
 
 
-# 🔥 FIXED: strict score detection (prevents misclassification)
 def is_score(s):
     try:
         s = str(s).strip()
@@ -62,7 +61,7 @@ def parse_nhl(row):
         proj1 = proj2 = total = over_line = under_line = ""
         score1 = score2 = game_status = ""
 
-        # Upcoming
+        # UPCOMING
         if len(row) >= 10 and "\n" in row[5] and not is_score(row[5].split("\n")[0]):
             ps = row[5].split("\n")
             proj1, proj2 = ps[0], ps[1]
@@ -71,7 +70,7 @@ def parse_nhl(row):
             ou = row[7].split("\n")
             over_line, under_line = ou[0], ou[1]
 
-        # Live
+        # LIVE
         elif len(row) >= 9 and not is_score(row[5]):
             total = row[5]
 
@@ -83,15 +82,17 @@ def parse_nhl(row):
             sc = row[8].split("\n")
             score1, score2 = sc[0], sc[1]
 
-        # Completed
+        # COMPLETED (STRICT)
         elif len(row) >= 7:
             sc = row[5].split("\n")
-            score1 = sc[0].strip()
 
-            if len(sc) > 1:
-                score2 = sc[1].strip()
-            elif len(row) > 6 and is_score(row[6]):
-                score2 = row[6].strip()
+            if is_score(sc[0]):
+                score1 = sc[0].strip()
+
+                if len(sc) > 1 and is_score(sc[1]):
+                    score2 = sc[1].strip()
+                elif len(row) > 6 and is_score(row[6]):
+                    score2 = row[6].strip()
 
         return {
             "sport":           "NHL",
@@ -144,22 +145,17 @@ def main():
 
         print("Scraping NHL...")
 
-        try:
-            raw   = scrape_page(page, URLS["nhl"])
-            games = [parse_nhl(r) for r in raw]
-            games = [g for g in games if g]
+        raw   = scrape_page(page, URLS["nhl"])
+        games = [parse_nhl(r) for r in raw]
+        games = [g for g in games if g]
 
-            path = out_dir / f"{date}_nhl_raw.json"
+        path = out_dir / f"{date}_nhl_raw.json"
 
-            with open(path, "w") as f:
-                json.dump(games, f, indent=2)
+        with open(path, "w") as f:
+            json.dump(games, f, indent=2)
 
-            print(f"  Saved {len(games)} games -> {path}")
+        print(f"  Saved {len(games)} games -> {path}")
 
-        except Exception as e:
-            print(f"  ERROR scraping NHL: {e}")
-
-        time.sleep(random.uniform(2, 4))
         browser.close()
 
 
