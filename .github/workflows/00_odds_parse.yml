@@ -39,6 +39,9 @@ jobs:
       - name: Run basketball odds parse
         run: python docs/win/basketball/scripts/00_parsing/odds_parse.py
 
+      - name: Run basketball name normalization
+        run: python docs/win/basketball/scripts/00_parsing/name_normalization.py
+
       # =========================
       # RUN BASEBALL
       # =========================
@@ -49,6 +52,9 @@ jobs:
 
       - name: Run baseball odds parse
         run: python docs/win/baseball/scripts/00_parsing/odds_parse.py docs/win/baseball/odds/${{ github.event.inputs.date }}
+
+      - name: Run baseball name normalization
+        run: python docs/win/baseball/scripts/00_parsing/name_normalization.py
 
       # =========================
       # VERIFY OUTPUT
@@ -86,6 +92,8 @@ jobs:
           git add docs/win/hockey/00_intake/sportsbook/ 2>$null
           git add docs/win/hockey/00_intake/predictions/ 2>$null
           git add docs/win/basketball/00_intake/sportsbook/ 2>$null
+          git add docs/win/basketball/00_intake/predictions/ 2>$null
           git add docs/win/baseball/00_intake/sportsbook/ 2>$null
+          git add docs/win/baseball/00_intake/predictions/ 2>$null
 
-          git diff --cached --quiet && Write-Output "No changes to commit" || (git commit -m "odds parse + hockey normalization [$(Get-Date -Format 'yyyy-MM-dd')]" && git push)
+          git diff --cached --quiet && Write-Output "No changes to commit" || (git commit -m "odds parse + normalization (hockey, basketball, baseball) [$(Get-Date -Format 'yyyy-MM-dd')]" && git push)
