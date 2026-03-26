@@ -26,10 +26,10 @@ jobs:
 
       - name: Run transform
         run: |
-          DATE=$(date -u +%Y_%m_%d)
-          python docs/win/basketball/scripts/00_parsing/transform_basketball.py \
-            --nba   docs/win/basketball/00_intake/drat_raw/${DATE}_nba_raw.json \
-            --ncaab docs/win/basketball/00_intake/drat_raw/${DATE}_ncaab_raw.json
+            DATE=$(TZ="America/New_York" date +%Y_%m_%d)
+            python docs/win/basketball/scripts/00_parsing/transform_basketball.py \
+              --nba   docs/win/basketball/00_intake/drat_raw/${DATE}_nba_raw.json \
+              --ncaab docs/win/basketball/00_intake/drat_raw/${DATE}_ncaab_raw.json
 
       - name: Commit and push outputs
         run: |
