@@ -30,11 +30,8 @@ def is_game_row(row):
 
 def is_score(s):
     try:
-        s = str(s).strip()
-        if not s.isdigit():
-            return False
-        v = int(s)
-        return 0 <= v <= 15
+        v = float(s)
+        return v >= 0 and v == int(v) and v < 20
     except:
         return False
 
@@ -61,35 +58,26 @@ def parse_nhl(row):
         proj1 = proj2 = total = over_line = under_line = ""
         score1 = score2 = game_status = ""
 
-        # UPCOMING
         if len(row) >= 10 and "\n" in row[5] and not is_score(row[5].split("\n")[0]):
             ps = row[5].split("\n")
             proj1, proj2 = ps[0], ps[1]
             total = row[6]
-
             ou = row[7].split("\n")
             over_line, under_line = ou[0], ou[1]
 
-        # LIVE
         elif len(row) >= 9 and not is_score(row[5]):
             total = row[5]
-
             ou = row[6].split("\n")
             over_line, under_line = ou[0], ou[1]
-
             game_status = " ".join(row[7].split("\n"))
-
             sc = row[8].split("\n")
             score1, score2 = sc[0], sc[1]
 
-        # COMPLETED (STRICT)
         elif len(row) >= 7:
             sc = row[5].split("\n")
-
             if is_score(sc[0]):
                 score1 = sc[0].strip()
-
-                if len(sc) > 1 and is_score(sc[1]):
+                if len(sc) > 1:
                     score2 = sc[1].strip()
                 elif len(row) > 6 and is_score(row[6]):
                     score2 = row[6].strip()
