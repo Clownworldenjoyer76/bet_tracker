@@ -36,7 +36,6 @@ def build_index(rows):
 
     for r in rows:
         gid = r.get("game_id")
-
         key = gid if gid else (r["home_team"], r["away_team"])
         idx[key] = r
 
@@ -44,31 +43,38 @@ def build_index(rows):
 
 
 # -------------------------
-# PROBABILITY PLACEHOLDERS
+# ODDS → PROBABILITY
 # -------------------------
 
-def run_line_probs(home_prob, away_prob):
+def american_to_prob(odds):
     try:
-        hp = float(home_prob)
-        ap = float(away_prob)
-        return str(hp), str(ap)
-    except:
-        return "", ""
-
-
-def total_probs(total_proj, total_line):
-    try:
-        proj = float(total_proj)
-        line = float(total_line)
-
-        if proj > line:
-            return "1", "0"
-        elif proj < line:
-            return "0", "1"
+        odds = float(odds)
+        if odds > 0:
+            return 100 / (odds + 100)
         else:
-            return "0.5", "0.5"
+            return -odds / (-odds + 100)
     except:
+        return None
+
+
+def run_line_probs(home_odds, away_odds):
+    hp = american_to_prob(home_odds)
+    ap = american_to_prob(away_odds)
+
+    if hp is None or ap is None:
         return "", ""
+
+    return str(round(hp, 6)), str(round(ap, 6))
+
+
+def total_probs(over_odds, under_odds):
+    op = american_to_prob(over_odds)
+    up = american_to_prob(under_odds)
+
+    if op is None or up is None:
+        return "", ""
+
+    return str(round(op, 6)), str(round(up, 6))
 
 
 # -------------------------
@@ -115,7 +121,8 @@ def process_date(date):
         # RUN LINE
         # -------------------------
         home_rl_prob, away_rl_prob = run_line_probs(
-            p["home_prob"], p["away_prob"]
+            b["home_dk_run_line_american"],
+            b["away_dk_run_line_american"]
         )
 
         rl_rows.append([
@@ -134,7 +141,8 @@ def process_date(date):
         # TOTAL
         # -------------------------
         over_prob, under_prob = total_probs(
-            p["total_projected_runs"], b["total"]
+            b["dk_total_over_american"],
+            b["dk_total_under_american"]
         )
 
         tot_rows.append([
