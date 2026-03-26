@@ -1,4 +1,4 @@
-name: 01_Merge_Baseball
+name: bbMerge
 
 on:
   workflow_dispatch:
@@ -16,8 +16,21 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Install dependencies
+        run: |
+          pip install pandas scipy
+
+      # -------------------------
+      # RUN MERGE
+      # -------------------------
       - name: Run merge intake
         run: python docs/win/baseball/scripts/01_merge/merge_intake.py
+
+      # -------------------------
+      # RUN BUILD JUICE
+      # -------------------------
+      - name: Run build juice files
+        run: python docs/win/baseball/scripts/01_merge/build_juice_files.py
 
       # -------------------------
       # COMMIT OUTPUTS
@@ -27,8 +40,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Add merge outputs
+          # Add merge + juiced outputs
           git add docs/win/baseball/01_merge/
+          git add docs/win/baseball/errors/01_merge/
 
-          git diff --cached --quiet || git commit -m "baseball merge intake $(date +'%Y-%m-%d %H:%M')"
+          git diff --cached --quiet || git commit -m "baseball merge + juice $(date +'%Y-%m-%d %H:%M')"
           git push
