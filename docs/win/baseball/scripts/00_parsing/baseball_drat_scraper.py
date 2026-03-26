@@ -60,7 +60,8 @@ def parse_mlb(row):
             over_line, under_line = ou[0], ou[1]
 
             return {
-                "sport": "MLB",
+                "sport": "baseball",
+                "league": "MLB",
                 "date_time": date_time,
                 "team1": team1,
                 "team2": team2,
@@ -100,7 +101,8 @@ def parse_mlb(row):
             score1, score2 = sc[0], sc[1]
 
             return {
-                "sport": "MLB",
+                "sport": "baseball",
+                "league": "MLB",
                 "date_time": date_time,
                 "team1": team1,
                 "team2": team2,
