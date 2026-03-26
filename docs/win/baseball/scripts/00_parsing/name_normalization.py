@@ -54,10 +54,10 @@ else:
 
 target_files = []
 
-for f in SPORTSBOOK_DIR.glob("*_mlb.csv"):
+for f in SPORTSBOOK_DIR.glob("*_MLB.csv"):
     target_files.append(f)
 
-for f in PREDICTIONS_DIR.glob("*_mlb.csv"):
+for f in PREDICTIONS_DIR.glob("*_MLB.csv"):
     target_files.append(f)
 
 # =========================
