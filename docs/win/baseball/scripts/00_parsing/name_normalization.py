@@ -39,12 +39,12 @@ if MAP_FILE.exists():
     with open(MAP_FILE, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            market = row.get("league", "").strip().lower()
+            league = row.get("league", "").strip().lower()
             alias = row.get("alias", "").strip().lower()
             canonical = row.get("canonical_team", "").strip()
 
-            if market and alias and canonical:
-                team_map[(market, alias)] = canonical
+            if league and alias and canonical:
+                team_map[(league, alias)] = canonical
 else:
     log("WARNING: team_map_mlb.csv not found")
 
@@ -80,14 +80,14 @@ for csv_file in target_files:
 
         for row in reader:
             rows_processed += 1
-            market = row.get("market", "").strip().lower()
+            league = row.get("league", "").strip().lower()
 
             for side in ["home_team", "away_team"]:
                 team = row.get(side, "").strip()
                 if not team:
                     continue
 
-                key = (market, team.lower())
+                key = (league, team.lower())
 
                 if key in team_map:
                     canonical = team_map[key]
@@ -96,7 +96,7 @@ for csv_file in target_files:
                         modified = True
                         rows_updated += 1
                 else:
-                    unmapped.add((market, team))
+                    unmapped.add((league, team))
 
             updated_rows.append(row)
 
@@ -115,21 +115,21 @@ existing = set()
 if NO_MAP_FILE.exists():
     with open(NO_MAP_FILE, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
-        if reader.fieldnames and "market" in reader.fieldnames and "team" in reader.fieldnames:
+        if reader.fieldnames and "league" in reader.fieldnames and "team" in reader.fieldnames:
             for row in reader:
-                m = (row.get("market") or "").strip().lower()
+                l = (row.get("league") or "").strip().lower()
                 t = (row.get("team") or "").strip()
-                if m and t:
-                    existing.add((m, t))
+                if l and t:
+                    existing.add((l, t))
 
 new_only = unmapped - existing
 combined = existing | unmapped
 
 with open(NO_MAP_FILE, "w", newline="", encoding="utf-8") as f:
     writer = csv.writer(f)
-    writer.writerow(["market", "team"])
-    for market, team in sorted(combined):
-        writer.writerow([market, team])
+    writer.writerow(["league", "team"])
+    for league, team in sorted(combined):
+        writer.writerow([league, team])
 
 # =========================
 # LOG SUMMARY
