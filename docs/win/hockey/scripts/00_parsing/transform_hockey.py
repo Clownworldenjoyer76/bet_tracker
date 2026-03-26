@@ -1,9 +1,3 @@
-"""
-Transform NHL raw JSON into prediction and final score files.
-
-Matches basketball structure exactly (:contentReference[oaicite:1]{index=1})
-"""
-
 import os
 import re
 import json
@@ -12,11 +6,35 @@ import pandas as pd
 from datetime import datetime
 
 
+# -------------------------
+# NORMALIZATION (FIXES DK MATCHES)
+# -------------------------
+def normalize_team(name: str) -> str:
+    name = str(name).strip().lower()
+
+    replacements = {
+        "st. louis": "st louis",
+        "ny rangers": "new york rangers",
+        "ny islanders": "new york islanders",
+        "nj devils": "new jersey devils",
+        "la kings": "los angeles kings",
+    }
+
+    for k, v in replacements.items():
+        name = name.replace(k, v)
+
+    return name
+
+
+def strip_record(name: str) -> str:
+    return re.sub(r"\s*\(\d+[-–]\d+[-–]?\d*\)\s*$", "", str(name)).strip()
+
+
 def parse_date(date_str: str) -> str:
     try:
         dt = datetime.strptime(date_str.strip(), "%m/%d/%Y %I:%M %p")
         return dt.strftime("%Y_%m_%d")
-    except ValueError:
+    except:
         return date_str.strip().replace("/", "_").replace(" ", "_")
 
 
@@ -25,10 +43,6 @@ def parse_time(date_str: str) -> str:
     if len(parts) >= 2:
         return " ".join(parts[1:])
     return ""
-
-
-def strip_record(name: str) -> str:
-    return re.sub(r"\s*\(\d+[-–]\d+[-–]?\d*\)\s*$", "", str(name)).strip()
 
 
 def ensure_dir(path: str):
@@ -53,10 +67,11 @@ def games_to_df(games: list) -> pd.DataFrame:
     if df.empty:
         return df
 
+    df["team1"] = df["team1"].apply(strip_record).apply(normalize_team)
+    df["team2"] = df["team2"].apply(strip_record).apply(normalize_team)
+
     df["game_date"] = df["date_time"].apply(parse_date)
     df["game_time"] = df["date_time"].apply(parse_time)
-    df["team1"] = df["team1"].apply(strip_record)
-    df["team2"] = df["team2"].apply(strip_record)
 
     return df
 
@@ -116,7 +131,14 @@ def load_sportsbook(date_val: str):
     if not os.path.exists(path):
         print(f"  WARNING: sportsbook missing: {path}")
         return None
-    return pd.read_csv(path)
+
+    sb = pd.read_csv(path)
+
+    # normalize sportsbook names
+    sb["home_team_norm"] = sb["home_team"].apply(normalize_team)
+    sb["away_team_norm"] = sb["away_team"].apply(normalize_team)
+
+    return sb
 
 
 def get_dk_values(sb, home_team, away_team):
@@ -124,11 +146,12 @@ def get_dk_values(sb, home_team, away_team):
         return {}
 
     match = sb[
-        (sb["home_team"].str.strip() == home_team.strip()) &
-        (sb["away_team"].str.strip() == away_team.strip())
+        (sb["home_team_norm"] == home_team) &
+        (sb["away_team_norm"] == away_team)
     ]
 
     if match.empty:
+        print(f"  NO MATCH: {away_team} @ {home_team}")
         return {}
 
     row = match.iloc[0]
@@ -188,12 +211,9 @@ def process_final_scores(df: pd.DataFrame):
         save(out, path)
 
 
-# -------------------------
-# MAIN
-# -------------------------
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--nhl", required=True, help="Path to NHL raw JSON file")
+    parser.add_argument("--nhl", required=True)
     args = parser.parse_args()
 
     print(f"\nProcessing NHL: {args.nhl}")
