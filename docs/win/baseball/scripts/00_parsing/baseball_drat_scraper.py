@@ -141,6 +141,12 @@ def scrape_page(page, url):
             cells = [c.inner_text().strip() for c in r.query_selector_all("td")]
 
             if cells:
+                # apply UTC → ET conversion on first column (date column)
+                try:
+                    cells[0] = convert_utc_to_et(cells[0].replace("\n", " "))
+                except:
+                    pass
+
                 all_rows.append(cells)
 
     return all_rows
@@ -172,12 +178,10 @@ def main():
 
         raw = scrape_page(page, URLS["mlb"])
 
-        # store FULL raw rows (no parsing assumptions)
         raw_path = raw_dir / f"{date}_mlb_raw.json"
         with open(raw_path, "w") as f:
             json.dump(raw, f, indent=2)
 
-        # optional parsing layer (unchanged)
         games = [parse_mlb(r) for r in raw]
         games = [g for g in games if g]
 
