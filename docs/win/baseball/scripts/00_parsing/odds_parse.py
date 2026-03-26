@@ -31,6 +31,8 @@ def process_file(file_path):
     grouped_rows = {}
 
     for game in data:
+        game_id = game.get("id")
+
         sport = "baseball"
         league = "mlb"
 
@@ -85,6 +87,7 @@ def process_file(file_path):
                         under_dec = o["price"]
 
         row = [
+            game_id,
             sport,
             league,
             game_date,
@@ -120,7 +123,7 @@ def process_file(file_path):
         with open(output_path, "w", newline="") as f:
             writer = csv.writer(f)
             writer.writerow([
-                "sport","league","game_date","game_time","home_team","away_team",
+                "game_id","sport","league","game_date","game_time","home_team","away_team",
                 "away_run_line","home_run_line","total",
                 "away_dk_run_line_american","home_dk_run_line_american",
                 "dk_total_over_american","dk_total_under_american",
