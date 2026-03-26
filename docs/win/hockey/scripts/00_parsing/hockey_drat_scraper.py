@@ -15,9 +15,6 @@ ET  = pytz.timezone("America/New_York")
 
 
 def convert_utc_to_et(date_time_str: str) -> str:
-    """
-    CRITICAL: match basketball logic exactly
-    """
     try:
         dt     = datetime.strptime(date_time_str.strip(), "%m/%d/%Y %I:%M %p")
         dt_utc = UTC.localize(dt)
@@ -31,18 +28,19 @@ def is_game_row(row):
     return len(row) >= 5 and "\n" in row[1]
 
 
+# 🔥 FIXED: strict score detection (prevents misclassification)
 def is_score(s):
     try:
-        v = float(s)
-        return v >= 0 and v == int(v) and v < 20  # hockey scores are small
-    except (ValueError, TypeError):
+        s = str(s).strip()
+        if not s.isdigit():
+            return False
+        v = int(s)
+        return 0 <= v <= 15
+    except:
         return False
 
 
 def parse_nhl(row):
-    """
-    STRUCTURE mirrors basketball parser exactly (:contentReference[oaicite:0]{index=0})
-    """
     if not is_game_row(row):
         return None
 
@@ -64,9 +62,8 @@ def parse_nhl(row):
         proj1 = proj2 = total = over_line = under_line = ""
         score1 = score2 = game_status = ""
 
-        # --- EXACT branching logic from basketball ---
+        # Upcoming
         if len(row) >= 10 and "\n" in row[5] and not is_score(row[5].split("\n")[0]):
-            # Upcoming
             ps = row[5].split("\n")
             proj1, proj2 = ps[0], ps[1]
             total = row[6]
@@ -74,8 +71,8 @@ def parse_nhl(row):
             ou = row[7].split("\n")
             over_line, under_line = ou[0], ou[1]
 
+        # Live
         elif len(row) >= 9 and not is_score(row[5]):
-            # Live
             total = row[5]
 
             ou = row[6].split("\n")
@@ -86,8 +83,8 @@ def parse_nhl(row):
             sc = row[8].split("\n")
             score1, score2 = sc[0], sc[1]
 
+        # Completed
         elif len(row) >= 7:
-            # Completed
             sc = row[5].split("\n")
             score1 = sc[0].strip()
 
