@@ -51,19 +51,50 @@ async function loadPage(){
 
     try {
       const allSelectRows = await fetchMultiple(cfg.selectFiles(dateFormatted));
+      const targetLeague = league.toUpperCase();
 
-      const selectRows = allSelectRows.filter(r => {
-        const rowDate = normalizeDate(r.game_date);
-        const targetLeague = league.toUpperCase();
+      let selectRows = [];
 
-        if (cfg.isHockey) {
+      // -----------------------------
+      // HOCKEY (UNCHANGED)
+      // -----------------------------
+      if (cfg.isHockey) {
+        selectRows = allSelectRows.filter(r => {
           const rowLeague = (r.league || "").trim().toUpperCase();
+          const rowDate = normalizeDate(r.game_date);
           return rowLeague === targetLeague && rowDate === dateFormatted;
-        }
+        });
+      }
 
-        const rowMarket = (r.market || "").trim().toUpperCase();
-        return rowMarket === targetLeague && rowDate === dateFormatted;
-      });
+      // -----------------------------
+      // BASKETBALL (FIXED)
+      // -----------------------------
+      if (!cfg.isHockey) {
+        // PASS 1: strict match (existing behavior)
+        selectRows = allSelectRows.filter(r => {
+          const rowMarket = (r.market || "").trim().toUpperCase();
+          const rowDate = normalizeDate(r.game_date);
+          return rowMarket === targetLeague && rowDate === dateFormatted;
+        });
+
+        // PASS 2: fallback if zero rows
+        if (selectRows.length === 0) {
+          const leagueRows = allSelectRows.filter(r =>
+            (r.market || "").trim().toUpperCase() === targetLeague
+          );
+
+          // sort descending by date
+          leagueRows.sort((a, b) =>
+            normalizeDate(b.game_date).localeCompare(normalizeDate(a.game_date))
+          );
+
+          const latestDate = normalizeDate(leagueRows[0]?.game_date);
+
+          selectRows = leagueRows.filter(r =>
+            normalizeDate(r.game_date) === latestDate
+          );
+        }
+      }
 
       const predRows = await fetchCSV(cfg.predFile(dateFormatted));
       const bookRows = await fetchCSV(cfg.bookFile(dateFormatted));
