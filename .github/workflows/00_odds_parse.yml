@@ -91,9 +91,14 @@ jobs:
 
           git add docs/win/hockey/00_intake/sportsbook/ 2>$null
           git add docs/win/hockey/00_intake/predictions/ 2>$null
+          git add mappings/hockey/no_map/ 2>$null
+
           git add docs/win/basketball/00_intake/sportsbook/ 2>$null
           git add docs/win/basketball/00_intake/predictions/ 2>$null
+          git add mappings/basketball/no_map/ 2>$null
+
           git add docs/win/baseball/00_intake/sportsbook/ 2>$null
           git add docs/win/baseball/00_intake/predictions/ 2>$null
+          git add mappings/baseball/no_map/ 2>$null
 
           git diff --cached --quiet && Write-Output "No changes to commit" || (git commit -m "odds parse + normalization (hockey, basketball, baseball) [$(Get-Date -Format 'yyyy-MM-dd')]" && git push)
