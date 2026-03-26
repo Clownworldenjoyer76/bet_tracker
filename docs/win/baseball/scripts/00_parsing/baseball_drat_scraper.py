@@ -129,8 +129,21 @@ def parse_mlb(row):
 def scrape_page(page, url):
     page.goto(url)
     page.wait_for_selector("table")
-    rows = page.query_selector_all("table tbody tr")
-    return [[c.inner_text().strip() for c in r.query_selector_all("td")] for r in rows]
+
+    all_rows = []
+
+    tables = page.query_selector_all("table")
+
+    for table in tables:
+        rows = table.query_selector_all("tbody tr")
+
+        for r in rows:
+            cells = [c.inner_text().strip() for c in r.query_selector_all("td")]
+
+            if cells:
+                all_rows.append(cells)
+
+    return all_rows
 
 
 def main():
@@ -159,12 +172,14 @@ def main():
 
         raw = scrape_page(page, URLS["mlb"])
 
-        games = [parse_mlb(r) for r in raw]
-        games = [g for g in games if g]
-
+        # store FULL raw rows (no parsing assumptions)
         raw_path = raw_dir / f"{date}_mlb_raw.json"
         with open(raw_path, "w") as f:
-            json.dump(games, f, indent=2)
+            json.dump(raw, f, indent=2)
+
+        # optional parsing layer (unchanged)
+        games = [parse_mlb(r) for r in raw]
+        games = [g for g in games if g]
 
         upcoming = [g for g in games if g["score1"] == "" and g["proj_score_1"] != ""]
 
