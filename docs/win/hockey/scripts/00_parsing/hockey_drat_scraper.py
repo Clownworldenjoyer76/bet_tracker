@@ -42,7 +42,6 @@ def parse_nhl(row):
         return None
 
     try:
-        # UPCOMING (11 columns)
         if len(row) >= 9 and row[-1] == "":
             date_time = convert_utc_to_et(row[0].replace("\n", " "))
 
@@ -87,7 +86,6 @@ def parse_nhl(row):
                 "game_status": "",
             }
 
-        # COMPLETED (7 columns)
         elif len(row) == 7:
             date_time = convert_utc_to_et(row[0].replace("\n", " "))
 
@@ -147,6 +145,9 @@ def main():
     pred_dir = Path("docs/win/hockey/00_intake/predictions")
     pred_dir.mkdir(parents=True, exist_ok=True)
 
+    scraper_dir = pred_dir / "scraper"
+    scraper_dir.mkdir(parents=True, exist_ok=True)
+
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
@@ -172,8 +173,14 @@ def main():
 
         if upcoming:
             df = pd.DataFrame(upcoming)
-            pred_path = pred_dir / f"{date}_nhl_predictions.csv"
-            df.to_csv(pred_path, index=False)
+
+            # correct main output
+            final_path = pred_dir / f"hockey_{date}.csv"
+            df.to_csv(final_path, index=False)
+
+            # move scraper output
+            scraper_path = scraper_dir / f"{date}_nhl_predictions.csv"
+            df.to_csv(scraper_path, index=False)
 
         browser.close()
 
