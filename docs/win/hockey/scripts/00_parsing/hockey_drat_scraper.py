@@ -4,6 +4,7 @@ import random
 from pathlib import Path
 from datetime import datetime
 import pytz
+import pandas as pd
 from playwright.sync_api import sync_playwright
 
 URLS = {
@@ -41,74 +42,90 @@ def parse_nhl(row):
         return None
 
     try:
-        date_time = convert_utc_to_et(row[0].replace("\n", " "))
+        # UPCOMING (11 columns)
+        if len(row) >= 9 and row[-1] == "":
+            date_time = convert_utc_to_et(row[0].replace("\n", " "))
 
-        t = row[1].split("\n")
-        team1, team2 = t[0].strip(), t[1].strip()
+            t = row[1].split("\n")
+            team1, team2 = t[0].strip(), t[1].strip()
 
-        w = row[2].split("\n")
-        wp1, wp2 = w[0].strip(), w[1].strip()
+            wp = row[3].split("\n")
+            wp1, wp2 = wp[0], wp[1]
 
-        m = row[3].split("\n")
-        ml1, ml2 = m[0].strip(), m[1].strip()
+            ml = row[4].split("\n")
+            ml1, ml2 = ml[0], ml[1]
 
-        s = row[4].split("\n")
-        sp1, sp2 = s[0].strip(), s[1].strip()
+            sp = row[5].split("\n")
+            sp1, sp2 = sp[0], sp[1]
 
-        proj1 = proj2 = total = over_line = under_line = ""
-        score1 = score2 = game_status = ""
+            ps = row[6].split("\n")
+            proj1, proj2 = ps[0], ps[1]
 
-        # COMPLETED → ONLY if real scores exist
-        if len(row) >= 6:
+            total = row[7]
+
+            ou = row[8].split("\n")
+            over_line, under_line = ou[0], ou[1]
+
+            return {
+                "sport": "NHL",
+                "date_time": date_time,
+                "team1": team1,
+                "team2": team2,
+                "team1_win_pct": wp1,
+                "team2_win_pct": wp2,
+                "team1_moneyline": ml1,
+                "team2_moneyline": ml2,
+                "team1_spread": sp1,
+                "team2_spread": sp2,
+                "proj_score_1": proj1,
+                "proj_score_2": proj2,
+                "total": total,
+                "over_line": over_line,
+                "under_line": under_line,
+                "score1": "",
+                "score2": "",
+                "game_status": "",
+            }
+
+        # COMPLETED (7 columns)
+        elif len(row) == 7:
+            date_time = convert_utc_to_et(row[0].replace("\n", " "))
+
+            t = row[1].split("\n")
+            team1, team2 = t[0].strip(), t[1].strip()
+
+            wp = row[2].split("\n")
+            wp1, wp2 = wp[0], wp[1]
+
+            ml = row[3].split("\n")
+            ml1, ml2 = ml[0], ml[1]
+
+            sp = row[4].split("\n")
+            sp1, sp2 = sp[0], sp[1]
+
             sc = row[5].split("\n")
-            if len(sc) >= 1 and is_score(sc[0]):
-                score1 = sc[0].strip()
-                if len(sc) > 1 and is_score(sc[1]):
-                    score2 = sc[1].strip()
-                elif len(row) > 6 and is_score(row[6]):
-                    score2 = row[6].strip()
+            score1, score2 = sc[0], sc[1]
 
-        # UPCOMING → explicitly when score columns are empty
-        if score1 == "" and score2 == "":
-            if len(row) >= 8:
-                ps = row[5].split("\n")
-                if len(ps) >= 2:
-                    proj1, proj2 = ps[0], ps[1]
-                    total = row[6]
-                    ou = row[7].split("\n")
-                    over_line, under_line = ou[0], ou[1]
-
-        # LIVE fallback
-        if score1 == "" and score2 == "" and proj1 == "":
-            if len(row) >= 9:
-                total = row[5]
-                ou = row[6].split("\n")
-                over_line, under_line = ou[0], ou[1]
-                game_status = " ".join(row[7].split("\n"))
-                sc = row[8].split("\n")
-                if len(sc) >= 2:
-                    score1, score2 = sc[0], sc[1]
-
-        return {
-            "sport":           "NHL",
-            "date_time":       date_time,
-            "team1":           team1,
-            "team2":           team2,
-            "team1_win_pct":   wp1,
-            "team2_win_pct":   wp2,
-            "team1_moneyline": ml1,
-            "team2_moneyline": ml2,
-            "team1_spread":    sp1,
-            "team2_spread":    sp2,
-            "proj_score_1":    proj1,
-            "proj_score_2":    proj2,
-            "total":           total,
-            "over_line":       over_line,
-            "under_line":      under_line,
-            "score1":          score1,
-            "score2":          score2,
-            "game_status":     game_status,
-        }
+            return {
+                "sport": "NHL",
+                "date_time": date_time,
+                "team1": team1,
+                "team2": team2,
+                "team1_win_pct": wp1,
+                "team2_win_pct": wp2,
+                "team1_moneyline": ml1,
+                "team2_moneyline": ml2,
+                "team1_spread": sp1,
+                "team2_spread": sp2,
+                "proj_score_1": "",
+                "proj_score_2": "",
+                "total": "",
+                "over_line": "",
+                "under_line": "",
+                "score1": score1,
+                "score2": score2,
+                "game_status": "",
+            }
 
     except:
         return None
@@ -122,13 +139,17 @@ def scrape_page(page, url):
 
 
 def main():
-    date    = datetime.now(ET).strftime("%Y_%m_%d")
-    out_dir = Path("docs/win/hockey/00_intake/drat_raw")
-    out_dir.mkdir(parents=True, exist_ok=True)
+    date = datetime.now(ET).strftime("%Y_%m_%d")
+
+    raw_dir = Path("docs/win/hockey/00_intake/drat_raw")
+    raw_dir.mkdir(parents=True, exist_ok=True)
+
+    pred_dir = Path("docs/win/hockey/00_intake/predictions")
+    pred_dir.mkdir(parents=True, exist_ok=True)
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        page    = browser.new_page()
+        page = browser.new_page()
 
         page.set_extra_http_headers({
             "User-Agent": (
@@ -138,19 +159,21 @@ def main():
             )
         })
 
-        print("Scraping NHL...")
-
         raw = scrape_page(page, URLS["nhl"])
 
         games = [parse_nhl(r) for r in raw]
         games = [g for g in games if g]
 
-        path = out_dir / f"{date}_nhl_raw.json"
-
-        with open(path, "w") as f:
+        raw_path = raw_dir / f"{date}_nhl_raw.json"
+        with open(raw_path, "w") as f:
             json.dump(games, f, indent=2)
 
-        print(f"  Saved {len(games)} games -> {path}")
+        upcoming = [g for g in games if g["score1"] == "" and g["proj_score_1"] != ""]
+
+        if upcoming:
+            df = pd.DataFrame(upcoming)
+            pred_path = pred_dir / f"{date}_nhl_predictions.csv"
+            df.to_csv(pred_path, index=False)
 
         browser.close()
 
