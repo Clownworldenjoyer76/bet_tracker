@@ -169,9 +169,6 @@ def main():
         if upcoming:
             df = pd.DataFrame(upcoming)
 
-            final_path = pred_dir / f"baseball_{date}.csv"
-            df.to_csv(final_path, index=False)
-
             scraper_path = scraper_dir / f"{date}_mlb_predictions.csv"
             df.to_csv(scraper_path, index=False)
 
