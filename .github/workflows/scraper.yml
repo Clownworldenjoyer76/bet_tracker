@@ -39,6 +39,9 @@ jobs:
             --nba   docs/win/basketball/00_intake/drat_raw/${DATE}_nba_raw.json \
             --ncaab docs/win/basketball/00_intake/drat_raw/${DATE}_ncaab_raw.json
 
+      - name: Run basketball name normalization
+        run: python docs/win/basketball/scripts/00_parsing/name_normalization.py
+
       # -------------------------
       # HOCKEY
       # -------------------------
@@ -49,6 +52,15 @@ jobs:
         run: |
           python docs/win/hockey/scripts/00_parsing/transform_hockey.py \
             --nhl docs/win/hockey/00_intake/drat_raw/${DATE}_nhl_raw.json
+
+      - name: Run hockey name normalization
+        run: python docs/win/hockey/scripts/00_parsing/name_normalization.py
+
+      # -------------------------
+      # BASEBALL (NORMALIZATION ONLY)
+      # -------------------------
+      - name: Run baseball name normalization
+        run: python docs/win/baseball/scripts/00_parsing/name_normalization.py
 
       # -------------------------
       # COMMIT OUTPUTS
@@ -61,7 +73,13 @@ jobs:
           # Add ALL relevant output directories
           git add docs/win/basketball/
           git add docs/win/hockey/
+          git add docs/win/baseball/
           git add docs/win/final_scores/
 
-          git diff --cached --quiet || git commit -m "scraper run (basketball + hockey) $(date +'%Y-%m-%d %H:%M')"
+          # Add mapping outputs (no_map folders)
+          git add mappings/hockey/no_map/ 2>/dev/null
+          git add mappings/basketball/no_map/ 2>/dev/null
+          git add mappings/baseball/no_map/ 2>/dev/null
+
+          git diff --cached --quiet || git commit -m "scraper run + normalization (basketball + hockey + baseball) $(date +'%Y-%m-%d %H:%M')"
           git push
