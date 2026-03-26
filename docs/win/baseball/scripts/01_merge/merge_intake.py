@@ -3,21 +3,32 @@
 
 import csv
 from pathlib import Path
+from datetime import datetime, timezone
 
 PRED_DIR = Path("docs/win/baseball/00_intake/predictions")
 BOOK_DIR = Path("docs/win/baseball/00_intake/sportsbook")
 OUT_DIR  = Path("docs/win/baseball/01_merge")
+LOG_DIR  = Path("docs/win/baseball/errors/01_merge")
 
 OUT_DIR.mkdir(parents=True, exist_ok=True)
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+LOG_FILE = LOG_DIR / "merge_intake_log.txt"
 
 
-# -------------------------
-# LOAD CSV
-# -------------------------
+def log(msg):
+    with open(LOG_FILE, "a", encoding="utf-8") as f:
+        f.write(f"{datetime.now(timezone.utc).isoformat()} | {msg}\n")
+
+
+def norm(s):
+    return (s or "").strip().lower()
+
 
 def load_csv(path):
     rows = []
     if not path.exists():
+        log(f"MISSING FILE: {path}")
         return rows
 
     with open(path, newline="", encoding="utf-8") as f:
@@ -27,24 +38,15 @@ def load_csv(path):
     return rows
 
 
-# -------------------------
-# INDEX BUILD
-# -------------------------
-
-def build_index(rows):
+def build_team_index(rows):
     idx = {}
 
     for r in rows:
-        gid = r.get("game_id")
-        key = gid if gid else (r["home_team"], r["away_team"])
+        key = (norm(r["home_team"]), norm(r["away_team"]))
         idx[key] = r
 
     return idx
 
-
-# -------------------------
-# ODDS → PROBABILITY
-# -------------------------
 
 def american_to_prob(odds):
     try:
@@ -57,30 +59,6 @@ def american_to_prob(odds):
         return None
 
 
-def run_line_probs(home_odds, away_odds):
-    hp = american_to_prob(home_odds)
-    ap = american_to_prob(away_odds)
-
-    if hp is None or ap is None:
-        return "", ""
-
-    return str(round(hp, 6)), str(round(ap, 6))
-
-
-def total_probs(over_odds, under_odds):
-    op = american_to_prob(over_odds)
-    up = american_to_prob(under_odds)
-
-    if op is None or up is None:
-        return "", ""
-
-    return str(round(op, 6)), str(round(up, 6))
-
-
-# -------------------------
-# PROCESS
-# -------------------------
-
 def process_date(date):
 
     pred_path = PRED_DIR / f"{date}_MLB.csv"
@@ -89,23 +67,29 @@ def process_date(date):
     preds = load_csv(pred_path)
     books = load_csv(book_path)
 
-    pred_idx = build_index(preds)
+    pred_idx = build_team_index(preds)
+
+    matched = 0
+    unmatched = 0
 
     ml_rows = []
     rl_rows = []
     tot_rows = []
 
     for b in books:
-        gid = b.get("game_id")
-        key = gid if gid else (b["home_team"], b["away_team"])
+
+        key = (norm(b["home_team"]), norm(b["away_team"]))
 
         p = pred_idx.get(key)
+
         if not p:
+            unmatched += 1
+            log(f"UNMATCHED: {key}")
             continue
 
-        # -------------------------
+        matched += 1
+
         # MONEYLINE
-        # -------------------------
         ml_rows.append([
             b["game_id"], b["sport"], b["league"], b["game_date"], b["game_time"],
             b["home_team"], b["away_team"],
@@ -117,13 +101,9 @@ def process_date(date):
             p["away_projected_runs"], p["home_projected_runs"], p["total_projected_runs"]
         ])
 
-        # -------------------------
         # RUN LINE
-        # -------------------------
-        home_rl_prob, away_rl_prob = run_line_probs(
-            b["home_dk_run_line_american"],
-            b["away_dk_run_line_american"]
-        )
+        home_rl_prob = american_to_prob(b["home_dk_run_line_american"])
+        away_rl_prob = american_to_prob(b["away_dk_run_line_american"])
 
         rl_rows.append([
             b["game_id"], b["sport"], b["league"], b["game_date"], b["game_time"],
@@ -134,16 +114,12 @@ def process_date(date):
             p["home_pitcher"], p["away_pitcher"],
             p["home_prob"], p["away_prob"],
             p["away_projected_runs"], p["home_projected_runs"], p["total_projected_runs"],
-            home_rl_prob, away_rl_prob
+            str(home_rl_prob), str(away_rl_prob)
         ])
 
-        # -------------------------
         # TOTAL
-        # -------------------------
-        over_prob, under_prob = total_probs(
-            b["dk_total_over_american"],
-            b["dk_total_under_american"]
-        )
+        over_prob = american_to_prob(b["dk_total_over_american"])
+        under_prob = american_to_prob(b["dk_total_under_american"])
 
         tot_rows.append([
             b["game_id"], b["sport"], b["league"], b["game_date"], b["game_time"],
@@ -154,12 +130,10 @@ def process_date(date):
             p["home_pitcher"], p["away_pitcher"],
             p["home_prob"], p["away_prob"],
             p["away_projected_runs"], p["home_projected_runs"], p["total_projected_runs"],
-            over_prob, under_prob
+            str(over_prob), str(under_prob)
         ])
 
-    # -------------------------
-    # WRITE FILES
-    # -------------------------
+    log(f"{date} | matched={matched} | unmatched={unmatched}")
 
     def write(path, header, rows):
         with open(path, "w", newline="", encoding="utf-8") as f:
@@ -167,53 +141,15 @@ def process_date(date):
             writer.writerow(header)
             writer.writerows(rows)
 
-    write(
-        OUT_DIR / f"{date}_mlb_moneyline.csv",
-        [
-            "game_id","sport","league","game_date","game_time","home_team","away_team",
-            "away_run_line","home_run_line","total",
-            "away_dk_moneyline_american","home_dk_moneyline_american",
-            "away_dk_moneyline_decimal","home_dk_moneyline_decimal",
-            "home_pitcher","away_pitcher","home_prob","away_prob",
-            "away_projected_runs","home_projected_runs","total_projected_runs"
-        ],
-        ml_rows
-    )
+    write(OUT_DIR / f"{date}_mlb_moneyline.csv", [], ml_rows)
+    write(OUT_DIR / f"{date}_mlb_run_line.csv", [], rl_rows)
+    write(OUT_DIR / f"{date}_mlb_total.csv", [], tot_rows)
 
-    write(
-        OUT_DIR / f"{date}_mlb_run_line.csv",
-        [
-            "game_id","sport","league","game_date","game_time","home_team","away_team",
-            "away_run_line","home_run_line","total",
-            "away_dk_run_line_american","home_dk_run_line_american",
-            "away_dk_run_line_decimal","home_dk_run_line_decimal",
-            "home_pitcher","away_pitcher","home_prob","away_prob",
-            "away_projected_runs","home_projected_runs","total_projected_runs",
-            "home_run_line_prob","away_run_line_prob"
-        ],
-        rl_rows
-    )
-
-    write(
-        OUT_DIR / f"{date}_mlb_total.csv",
-        [
-            "game_id","sport","league","game_date","game_time","home_team","away_team",
-            "away_run_line","home_run_line","total",
-            "dk_total_over_american","dk_total_under_american",
-            "dk_total_over_decimal","dk_total_under_decimal",
-            "home_pitcher","away_pitcher","home_prob","away_prob",
-            "away_projected_runs","home_projected_runs","total_projected_runs",
-            "total_runs_over_prob","total_runs_under_prob"
-        ],
-        tot_rows
-    )
-
-
-# -------------------------
-# ENTRY
-# -------------------------
 
 if __name__ == "__main__":
+    with open(LOG_FILE, "w") as f:
+        f.write("")
+
     for file in sorted(PRED_DIR.glob("*_MLB.csv")):
         date = file.stem.replace("_MLB", "")
         process_date(date)
