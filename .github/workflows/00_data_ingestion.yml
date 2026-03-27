@@ -1,0 +1,133 @@
+name: Data Ingestion
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install pandas playwright pytz
+          python -m playwright install chromium
+
+      # -------------------------
+      # SET DATE (CRITICAL)
+      # -------------------------
+      - name: Set date
+        run: echo "DATE=$(TZ='America/New_York' date +%Y_%m_%d)" >> $GITHUB_ENV
+
+      # =========================
+      # HOCKEY
+      # =========================
+      - name: Hockey odds parse
+        run: python docs/win/hockey/scripts/00_parsing/odds_parse.py
+
+      - name: Hockey normalization (pre)
+        run: python docs/win/hockey/scripts/00_parsing/name_normalization.py
+
+      - name: Hockey scraper
+        run: python docs/win/hockey/scripts/00_parsing/hockey_drat_scraper.py
+
+      - name: Hockey transform
+        run: |
+          python docs/win/hockey/scripts/00_parsing/transform_hockey.py \
+            --nhl docs/win/hockey/00_intake/drat_raw/${DATE}_nhl_raw.json
+
+      - name: Hockey normalization (post)
+        run: python docs/win/hockey/scripts/00_parsing/name_normalization.py
+
+      # =========================
+      # BASKETBALL
+      # =========================
+      - name: Basketball odds parse
+        run: python docs/win/basketball/scripts/00_parsing/odds_parse.py
+
+      - name: Basketball normalization (pre)
+        run: python docs/win/basketball/scripts/00_parsing/name_normalization.py
+
+      - name: Basketball scraper
+        run: python docs/win/basketball/scripts/00_parsing/basketball_drat_scraper.py
+
+      - name: Basketball transform
+        run: |
+          python docs/win/basketball/scripts/00_parsing/transform_basketball.py \
+            --nba   docs/win/basketball/00_intake/drat_raw/${DATE}_nba_raw.json \
+            --ncaab docs/win/basketball/00_intake/drat_raw/${DATE}_ncaab_raw.json
+
+      - name: Basketball normalization (post)
+        run: python docs/win/basketball/scripts/00_parsing/name_normalization.py
+
+      # =========================
+      # BASEBALL
+      # =========================
+      - name: Ensure baseball output folder
+        run: mkdir -p docs/win/baseball/00_intake/sportsbook
+
+      - name: Baseball odds parse
+        run: python docs/win/baseball/scripts/00_parsing/odds_parse.py
+
+      - name: Baseball normalization (pre)
+        run: python docs/win/baseball/scripts/00_parsing/name_normalization.py
+
+      - name: Baseball scraper
+        run: python docs/win/baseball/scripts/00_parsing/baseball_drat_scraper.py
+
+      - name: Baseball transform
+        run: python docs/win/baseball/scripts/00_parsing/transform_baseball.py
+
+      - name: Baseball normalization (post)
+        run: python docs/win/baseball/scripts/00_parsing/name_normalization.py
+
+      # =========================
+      # VERIFY OUTPUT (STRICT)
+      # =========================
+      - name: Verify output written
+        run: |
+          hockey_count=$(ls docs/win/hockey/00_intake/sportsbook/hockey_*.csv 2>/dev/null | wc -l)
+          basketball_count=$(ls docs/win/basketball/00_intake/sportsbook/basketball_NBA_*.csv 2>/dev/null | wc -l)
+          baseball_count=$(ls docs/win/baseball/00_intake/sportsbook/*_MLB.csv 2>/dev/null | wc -l)
+
+          echo "Hockey files: $hockey_count"
+          echo "Basketball files: $basketball_count"
+          echo "Baseball files: $baseball_count"
+
+          if [ "$hockey_count" -eq 0 ] || [ "$basketball_count" -eq 0 ] || [ "$baseball_count" -eq 0 ]; then
+            echo "ERROR: Missing expected outputs"
+            exit 1
+          fi
+
+      # =========================
+      # COMMIT OUTPUTS
+      # =========================
+      - name: Commit and push output
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add docs/win/hockey/
+          git add docs/win/basketball/
+          git add docs/win/baseball/
+          git add docs/win/final_scores/
+
+          git add mappings/hockey/no_map/ 2>/dev/null
+          git add mappings/basketball/no_map/ 2>/dev/null
+          git add mappings/baseball/no_map/ 2>/dev/null
+
+          git diff --cached --quiet || git commit -m "full ingestion run (odds + scraper + normalize) $(date +'%Y-%m-%d')"
+          git push
