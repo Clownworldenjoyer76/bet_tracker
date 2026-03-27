@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Games Today — Edgelytics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=Barlow+Condensed:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/matstheme.css">
+<style>
+
+/* ── Base ───────────────────────────────────────────────────────────────── */
+body {
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  background: var(--background);
+  padding: 0;
+}
+
+:root {
+  --g-green:      #00ff84;
+  --g-green-dim:  rgba(0,255,132,0.08);
+  --g-green-glow: rgba(0,255,132,0.2);
+  --g-yellow:     #facc15;
+  --g-red:        #ff2d2d;
+  --g-blue:       #00bfff;
+  --g-border:     rgba(255,255,255,0.06);
+  --g-card:       #0c1118;
+  --g-card-hover: #111822;
+  --g-radius:     3px;
+}
+
+/* ── Topbar fix ─────────────────────────────────────────────────────────── */
+.topbar { margin: 0; }
+
+/* ── Page header ────────────────────────────────────────────────────────── */
+.gt-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--g-border);
+}
+
+.gt-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: 6px;
+  text-transform: uppercase;
+  color: var(--g-green);
+  line-height: 1;
+  margin: 0;
+}
+
+#gt-status {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-left: auto;
+}
+
+#gt-status.loading {
+  color: var(--g-green);
+  animation: gt-pulse 1.2s ease infinite;
+}
+
+@keyframes gt-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.35; }
+}
+
+/* ── Controls ────────────────────────────────────────────────────────────── */
+.gt-controls {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--g-border);
+  flex-wrap: wrap;
+}
+
+.gt-date-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gt-date-label {
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+input[type="date"] {
+  background: var(--g-card);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-main);
+  padding: 7px 12px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  border-radius: var(--g-radius);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  cursor: pointer;
+}
+
+input[type="date"]:focus {
+  border-color: var(--g-green);
+  box-shadow: 0 0 0 3px var(--g-green-dim);
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) opacity(0.3);
+  cursor: pointer;
+}
+
+/* ── Filter pills ────────────────────────────────────────────────────────── */
+#gt-filters {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.filter-pill {
+  padding: 4px 14px;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 2px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  cursor: pointer;
+  color: var(--text-muted);
+  background: transparent;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.filter-pill:hover {
+  border-color: rgba(0,255,132,0.35);
+  color: var(--text-main);
+}
+
+.filter-pill.active {
+  border-color: var(--g-green);
+  color: var(--g-green);
+  background: var(--g-green-dim);
+  box-shadow: 0 0 8px var(--g-green-glow);
+}
+
+/* ── League grid ─────────────────────────────────────────────────────────── */
+#gt-games {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0;
+  padding: 24px;
+  align-items: start;
+}
+
+.gt-league-column {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 16px 0 0;
+  border-right: 1px solid var(--g-border);
+}
+
+.gt-league-column:last-child {
+  border-right: none;
+  padding-right: 0;
+}
+
+.gt-league-column + .gt-league-column {
+  padding-left: 16px;
+}
+
+/* ── League header ───────────────────────────────────────────────────────── */
+.gt-league-header {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--g-border);
+  margin-bottom: 4px;
+}
+
+.gt-col-state {
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 20px 0;
+  text-align: center;
+}
+
+.gt-col-state.empty { color: var(--text-muted); }
+.gt-col-state.error { color: var(--g-red); }
+
+/* ── Game card ───────────────────────────────────────────────────────────── */
+.gt-card {
+  background: var(--g-card);
+  border: 1px solid var(--g-border);
+  border-left: 3px solid transparent;
+  border-radius: var(--g-radius);
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+}
+
+.gt-card:hover {
+  border-color: var(--g-border);
+  border-left-color: var(--g-green);
+  background: var(--g-card-hover);
+  transform: translateX(2px);
+}
+
+/* Card top */
+.gt-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.gt-card-time {
+  font-size: 10px;
+  color: var(--g-yellow);
+  letter-spacing: 1px;
+}
+
+.gt-card-league {
+  font-size: 8px;
+  letter-spacing: 2px;
+  color: var(--g-green);
+  background: var(--g-green-dim);
+  border: 1px solid rgba(0,255,132,0.2);
+  padding: 2px 7px;
+  border-radius: 2px;
+}
+
+/* Teams + moneyline */
+.gt-card-matchup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.gt-card-team-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.gt-card-team {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--text-main);
+  line-height: 1.2;
+}
+
+.gt-card-ml {
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.gt-card-ml.plus { color: var(--g-green); }
+
+/* Pitchers */
+.gt-card-pitchers {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  letter-spacing: 0.5px;
+}
+
+/* Divider */
+.gt-card-divider {
+  height: 1px;
+  background: var(--g-border);
+  margin: 8px 0;
+}
+
+/* Lines section */
+.gt-card-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 2px;
+}
+
+.gt-card-line-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 10px;
+  flex-wrap: wrap;
+}
+
+.gt-card-line-label {
+  font-size: 8px;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--g-border);
+  padding: 1px 6px;
+  border-radius: 2px;
+  min-width: 58px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.gt-card-line-val {
+  color: var(--text-main);
+  font-size: 11px;
+}
+
+.gt-card-line-odds {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.gt-card-line-sep {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+/* Projections */
+.gt-card-proj {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+}
+
+.gt-card-proj-label {
+  font-size: 8px;
+  letter-spacing: 1.5px;
+  color: var(--g-blue);
+  background: rgba(0,191,255,0.06);
+  border: 1px solid rgba(0,191,255,0.15);
+  padding: 1px 6px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.gt-card-proj-val {
+  color: var(--text-main);
+  font-size: 11px;
+}
+
+.gt-card-proj-total {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+/* ── Empty state ─────────────────────────────────────────────────────────── */
+.gt-empty-state {
+  grid-column: 1 / -1;
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 4px;
+  color: var(--text-muted);
+  padding: 80px 0;
+  text-transform: uppercase;
+  border: 1px dashed rgba(255,255,255,0.06);
+  border-radius: var(--g-radius);
+}
+
+/* ── Modal ───────────────────────────────────────────────────────────────── */
+.gt-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.8);
+  backdrop-filter: blur(8px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 1000;
+}
+
+.gt-modal.open { display: flex; }
+
+.gt-modal-card {
+  background: #0c1118;
+  border: 1px solid rgba(0,255,132,0.25);
+  border-radius: 4px;
+  padding: 28px;
+  width: 100%;
+  max-width: 520px;
+  max-height: 88vh;
+  overflow-y: auto;
+  box-shadow: 0 32px 64px rgba(0,0,0,0.7), 0 0 0 1px rgba(0,255,132,0.1);
+}
+
+.gt-modal-card::-webkit-scrollbar { width: 3px; }
+.gt-modal-card::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); }
+
+.gt-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.gt-modal-league-tag {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: var(--g-green);
+  text-transform: uppercase;
+}
+
+.gt-modal-time {
+  font-size: 10px;
+  color: var(--g-yellow);
+  letter-spacing: 1px;
+}
+
+.gt-modal-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--text-main);
+  margin: 0 0 14px;
+  line-height: 1.2;
+}
+
+.gt-modal-at {
+  color: var(--text-muted);
+  font-weight: 400;
+  margin: 0 4px;
+}
+
+.gt-modal-pitchers {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--g-border);
+  padding: 8px 12px;
+  border-radius: var(--g-radius);
+  margin-bottom: 14px;
+}
+
+.gt-pitcher-label {
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--g-blue);
+  background: rgba(0,191,255,0.08);
+  border: 1px solid rgba(0,191,255,0.2);
+  padding: 1px 6px;
+  border-radius: 2px;
+}
+
+.gt-pitcher-vs { color: var(--text-muted); font-size: 9px; }
+
+.gt-modal-section-label {
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  margin-top: 16px;
+}
+
+.gt-modal-proj {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--g-border);
+  border-radius: var(--g-radius);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.gt-proj-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 11px;
+}
+
+.gt-proj-team {
+  flex: 1;
+  color: var(--text-main);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+.gt-proj-val {
+  color: var(--g-green);
+  font-size: 14px;
+  font-weight: 600;
+  min-width: 36px;
+  text-align: right;
+}
+
+.gt-proj-prob {
+  color: var(--text-muted);
+  font-size: 10px;
+  min-width: 48px;
+  text-align: right;
+}
+
+.gt-proj-total {
+  font-size: 10px;
+  color: var(--text-muted);
+  padding-top: 4px;
+  border-top: 1px solid var(--g-border);
+}
+
+.gt-proj-total strong { color: var(--text-main); }
+
+.gt-modal-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gt-line-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  flex-wrap: wrap;
+}
+
+.gt-total-row {
+  gap: 14px;
+}
+
+.gt-line-label {
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--g-border);
+  padding: 2px 8px;
+  border-radius: 2px;
+  min-width: 72px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.gt-line-team {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.gt-line-odds {
+  color: var(--text-muted);
+}
+
+.gt-line-odds.plus { color: var(--g-green); }
+
+.gt-line-val {
+  color: var(--text-main);
+}
+
+.gt-total-num {
+  color: var(--text-main);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.gt-modal-close-btn {
+  margin-top: 22px;
+  width: 100%;
+  background: transparent;
+  color: var(--g-green);
+  border: 1px solid rgba(0,255,132,0.3);
+  padding: 11px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  cursor: pointer;
+  border-radius: var(--g-radius);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.gt-modal-close-btn:hover {
+  background: var(--g-green-dim);
+  border-color: var(--g-green);
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  #gt-games {
+    grid-template-columns: 1fr;
+    padding: 16px;
+  }
+  .gt-league-column {
+    padding: 0 0 20px !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--g-border);
+  }
+  .gt-league-column:last-child { border-bottom: none; }
+}
+
+</style>
+</head>
+<body>
+
+  <div id="nav-placeholder"></div>
+
+  <div class="gt-header">
+    <h1 class="gt-title">GAMES TODAY</h1>
+    <div id="gt-status" class="status"></div>
+  </div>
+
+  <div class="gt-controls">
+    <div class="gt-date-wrap">
+      <span class="gt-date-label">Date</span>
+      <input id="gt-date" type="date">
+    </div>
+    <div id="gt-filters"></div>
+  </div>
+
+  <div id="gt-games"></div>
+
+  <div id="gt-modal" class="gt-modal">
+    <div class="gt-modal-card" onclick="event.stopPropagation()">
+      <div id="gt-modal-content"></div>
+      <button class="gt-modal-close-btn" onclick="document.getElementById('gt-modal').classList.remove('open')">Close</button>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/games_today.js"></script>
+
+</body>
+</html>
