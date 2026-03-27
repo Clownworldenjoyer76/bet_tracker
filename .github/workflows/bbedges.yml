@@ -1,0 +1,48 @@
+name: bbEdges
+
+on:
+  workflow_dispatch:
+
+jobs:
+  edges:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install pandas numpy
+
+      # -------------------------
+      # COMPUTE EDGES
+      # -------------------------
+      - name: Compute edges
+        run: python docs/win/baseball/scripts/03_edges/compute_edges.py
+
+      # -------------------------
+      # COMPUTE EV + KELLY
+      # -------------------------
+      - name: Compute EV and Kelly
+        run: python docs/win/baseball/scripts/03_edges/compute_ev_kelly.py
+
+      # -------------------------
+      # COMMIT OUTPUTS
+      # -------------------------
+      - name: Commit and push outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Add outputs
+          git add docs/win/baseball/03_edges/
+          git add docs/win/baseball/errors/03_edges/
+
+          git diff --cached --quiet || git commit -m "baseball edges + ev/kelly $(date +'%Y-%m-%d %H:%M')"
+          git push
