@@ -1,0 +1,104 @@
+name: 01 Pipeline V2
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          python -m playwright install chromium
+
+      # -------------------------
+      # SET DATE (CRITICAL)
+      # -------------------------
+      - name: Set date
+        run: echo "DATE=$(TZ='America/New_York' date +%Y_%m_%d)" >> $GITHUB_ENV
+
+      # -------------------------
+      # ENSURE DIRECTORIES
+      # -------------------------
+      - name: Ensure pipeline folders exist
+        run: |
+          mkdir -p docs/win/soccer/01_merge/market_model
+
+          mkdir -p docs/win/final_scores/results/nba/graded
+          mkdir -p docs/win/final_scores/results/ncaab/graded
+          mkdir -p docs/win/final_scores/results/nhl/graded
+          mkdir -p docs/win/final_scores/results/soccer/graded
+          mkdir -p docs/win/final_scores/results/mlb/graded
+
+          mkdir -p docs/win/final_scores/deeper_summaries/nba/by_market
+          mkdir -p docs/win/final_scores/deeper_summaries/ncaab/by_market
+          mkdir -p docs/win/final_scores/deeper_summaries/nhl/by_market
+          mkdir -p docs/win/final_scores/deeper_summaries/soccer
+          mkdir -p docs/win/final_scores/deeper_summaries/mlb/by_market
+
+          mkdir -p docs/win/errors
+          mkdir -p docs/win/final_scores/errors
+
+      # -------------------------
+      # CLEAN OLD OUTPUTS
+      # -------------------------
+      - name: Clean old select outputs
+        run: |
+          rm -rf docs/win/basketball/04_select/daily_slate/*
+          rm -f docs/win/hockey/04_select/*.csv
+          rm -rf docs/win/soccer/04_select/daily_slate/*
+          rm -rf docs/win/baseball/04_select/*
+
+      # -------------------------
+      # RUN PIPELINE
+      # -------------------------
+      - name: Run pipeline
+        run: python scripts/run_pipeline.py
+
+      # -------------------------
+      # SHOW LOG
+      # -------------------------
+      - name: Show pipeline log
+        run: |
+          echo "------ PIPELINE LOG ------"
+          if [ -f docs/win/errors/pipeline_log.txt ]; then
+            cat docs/win/errors/pipeline_log.txt
+          else
+            echo "No log file found."
+          fi
+
+      # -------------------------
+      # COMMIT RESULTS
+      # -------------------------
+      - name: Commit and push results
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+          git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git
+
+          git add -A docs/win
+
+          git commit -m "Automated full pipeline run $(date +'%Y-%m-%d')" || echo "Nothing to commit"
+
+          git push
