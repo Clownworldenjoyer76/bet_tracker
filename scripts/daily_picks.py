@@ -6,10 +6,6 @@ from pathlib import Path
 from datetime import datetime
 import traceback
 
-###############################################################
-# PATH CONFIG
-###############################################################
-
 BASEBALL_DIR = Path("docs/win/baseball/04_select")
 HOCKEY_DIR = Path("docs/win/hockey/04_select")
 NBA_FILE = Path("docs/win/basketball/04_select/daily_slate/nba_selected.csv")
@@ -23,9 +19,6 @@ ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 ERROR_LOG = ERROR_DIR / "daily_picks.txt"
 
-###############################################################
-# HELPERS
-###############################################################
 
 def log_error(msg):
     with open(ERROR_LOG, "a", encoding="utf-8") as f:
@@ -38,11 +31,17 @@ def load_csv(path):
             return pd.read_csv(path)
         return pd.DataFrame()
     except Exception:
-        log_error(f"Failed reading {path}\n{traceback.format_exc()}")
+        log_error(f"{path} load failed\n{traceback.format_exc()}")
         return pd.DataFrame()
 
 
-def extract_columns(df, league_value):
+def filter_to_date(df, date_str):
+    if "game_date" not in df.columns:
+        return df
+    return df[df["game_date"].astype(str) == date_str]
+
+
+def build_output(df, league_value):
     cols = [
         "game_id",
         "game_date",
@@ -54,56 +53,55 @@ def extract_columns(df, league_value):
         "line"
     ]
 
-    out = pd.DataFrame()
+    out = pd.DataFrame(index=df.index)
+
+    # FORCE league value — cannot be blank
     out["league"] = league_value
 
+    # Copy columns EXACTLY as-is from input
     for c in cols:
-        out[c] = df[c] if c in df.columns else ""
+        if c in df.columns:
+            out[c] = df[c].values
+        else:
+            out[c] = ""
 
     return out
 
-
-def filter_to_date(df, date_str):
-    if "game_date" not in df.columns:
-        return df
-    return df[df["game_date"].astype(str) == date_str]
-
-
-###############################################################
-# MAIN
-###############################################################
 
 def main():
     try:
         date_str = datetime.now().strftime("%Y_%m_%d")
 
-        baseball_file = BASEBALL_DIR / f"{date_str}_MLB.csv"
-        hockey_file = HOCKEY_DIR / f"{date_str}_NHL.csv"
-
         frames = []
 
-        df_baseball = load_csv(baseball_file)
-        if not df_baseball.empty:
-            frames.append(extract_columns(df_baseball, "NBA"))
+        # MLB
+        mlb_path = BASEBALL_DIR / f"{date_str}_MLB.csv"
+        df = load_csv(mlb_path)
+        if not df.empty:
+            frames.append(build_output(df, "NBA"))  # per spec
 
-        df_hockey = load_csv(hockey_file)
-        if not df_hockey.empty:
-            frames.append(extract_columns(df_hockey, "NHL"))
+        # NHL
+        nhl_path = HOCKEY_DIR / f"{date_str}_NHL.csv"
+        df = load_csv(nhl_path)
+        if not df.empty:
+            frames.append(build_output(df, "NHL"))
 
-        df_nba = load_csv(NBA_FILE)
-        if not df_nba.empty:
-            df_nba = filter_to_date(df_nba, date_str)
-            if not df_nba.empty:
-                frames.append(extract_columns(df_nba, "NBA"))
+        # NBA (FILTERED TO DATE)
+        df = load_csv(NBA_FILE)
+        if not df.empty:
+            df = filter_to_date(df, date_str)
+            if not df.empty:
+                frames.append(build_output(df, "NBA"))
 
-        df_ncaab = load_csv(NCAAB_FILE)
-        if not df_ncaab.empty:
-            df_ncaab = filter_to_date(df_ncaab, date_str)
-            if not df_ncaab.empty:
-                frames.append(extract_columns(df_ncaab, "NCAAB"))
+        # NCAAB (FILTERED TO DATE)
+        df = load_csv(NCAAB_FILE)
+        if not df.empty:
+            df = filter_to_date(df, date_str)
+            if not df.empty:
+                frames.append(build_output(df, "NCAAB"))
 
         if not frames:
-            log_error("No input data found")
+            log_error("No data found")
             return
 
         final = pd.concat(frames, ignore_index=True)
