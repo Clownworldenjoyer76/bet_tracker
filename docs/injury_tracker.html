@@ -397,21 +397,23 @@ async function fetchLeagueInjuries(cfg) {
     const data = await r.json();
     const rows = [];
 
-    // ESPN injury structure: data.injuries = flat array of injury objects, team is inside athlete
-    const injuries = data.injuries || [];
-    injuries.forEach(inj => {
-      const athlete = inj.athlete || {};
-      const team = athlete.team || {};
-      rows.push({
-        league:     cfg.key,
-        player:     athlete.displayName || "Unknown",
-        position:   athlete.position?.abbreviation || "—",
-        team:       team.displayName || team.name || "Unknown",
-        teamAbbr:   team.abbreviation || "",
-        status:     inj.status || "Unknown",
-        injury:     inj.details?.type ? `${inj.details.type}${inj.details.detail ? ' · ' + inj.details.detail : ''}` : inj.shortComment || "—",
-        returnDate: inj.details?.returnDate || "",
-        comment:    inj.shortComment || "",
+    // ESPN: data.injuries = array of team objects { displayName, injuries[] }
+    const groups = data.injuries || [];
+    groups.forEach(group => {
+      const teamName = group.displayName || group.name || "Unknown";
+      const teamAbbr = group.abbreviation || "";
+      (group.injuries || []).forEach(inj => {
+        const athlete = inj.athlete || {};
+        rows.push({
+          league:     cfg.key,
+          player:     athlete.displayName || "Unknown",
+          position:   athlete.position?.abbreviation || "-",
+          team:       teamName,
+          teamAbbr:   teamAbbr,
+          status:     inj.status || "Unknown",
+          injury:     inj.details?.type || inj.shortComment || "-",
+          returnDate: inj.details?.returnDate || "",
+        });
       });
     });
     return rows;
