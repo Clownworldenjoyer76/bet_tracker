@@ -1,6 +1,4 @@
 import json
-import time
-import random
 from pathlib import Path
 from datetime import datetime
 import pytz
@@ -40,8 +38,23 @@ def parse_time(date_time_str: str) -> str:
     return ""
 
 
+def normalize_team(name: str) -> str:
+    name = str(name).strip().lower()
+    replacements = {
+        "st. louis": "st louis",
+        "ny rangers": "new york rangers",
+        "ny islanders": "new york islanders",
+        "nj devils": "new jersey devils",
+        "la kings": "los angeles kings",
+    }
+    for k, v in replacements.items():
+        name = name.replace(k, v)
+    return name
+
+
 def is_game_row(row):
-    return len(row) >= 5 and "\n" in row[1]
+    """Must have at least 6 cols and teams field must contain a newline."""
+    return len(row) >= 6 and "\n" in row[1]
 
 
 def parse_nhl(row):
@@ -49,8 +62,19 @@ def parse_nhl(row):
         return None
 
     try:
-        # ── Upcoming game (9 columns) ──────────────────────────────────────
-        if len(row) >= 9 and row[-1] == "":
+        # ── Upcoming game (11 columns) ─────────────────────────────────────
+        # col 0: date/time
+        # col 1: teams
+        # col 2: goalies          ← NEW column vs old scraper assumption
+        # col 3: win pcts
+        # col 4: moneylines
+        # col 5: spreads
+        # col 6: proj scores
+        # col 7: total
+        # col 8: over/under lines
+        # col 9: volatility label (may be empty)
+        # col 10: empty string
+        if len(row) == 11:
             date_time = convert_utc_to_et(row[0].replace("\n", " "))
 
             t = row[1].split("\n")
@@ -94,8 +118,16 @@ def parse_nhl(row):
                 "game_status":     "upcoming",
             }
 
-        # ── Completed game (7 columns) ─────────────────────────────────────
-        elif len(row) == 7:
+        # ── Completed game (8 columns) ─────────────────────────────────────
+        # col 0: date/time
+        # col 1: teams (no record appended for completed)
+        # col 2: win pcts
+        # col 3: moneylines
+        # col 4: spreads
+        # col 5: scores  e.g. "1\n6"
+        # col 6: decimal value (model metric)
+        # col 7: decimal value (model metric)
+        elif len(row) == 8:
             date_time = convert_utc_to_et(row[0].replace("\n", " "))
 
             t = row[1].split("\n")
@@ -111,7 +143,7 @@ def parse_nhl(row):
             sp1, sp2 = sp[0], sp[1]
 
             sc = row[5].split("\n")
-            score1, score2 = sc[0], sc[1]
+            score1, score2 = sc[0].strip(), sc[1].strip()
 
             return {
                 "sport":           "NHL",
@@ -134,22 +166,10 @@ def parse_nhl(row):
                 "game_status":     "completed",
             }
 
-    except Exception:
-        return None
+    except Exception as e:
+        print(f"  WARNING: parse_nhl failed on row (len={len(row)}): {e}")
 
-
-def normalize_team(name: str) -> str:
-    name = str(name).strip().lower()
-    replacements = {
-        "st. louis": "st louis",
-        "ny rangers": "new york rangers",
-        "ny islanders": "new york islanders",
-        "nj devils": "new jersey devils",
-        "la kings": "los angeles kings",
-    }
-    for k, v in replacements.items():
-        name = name.replace(k, v)
-    return name
+    return None
 
 
 def scrape_page(page, url):
@@ -159,7 +179,7 @@ def scrape_page(page, url):
     return [[c.inner_text().strip() for c in r.query_selector_all("td")] for r in rows]
 
 
-def save_final_scores(completed: list, raw_dir: Path):
+def save_final_scores(completed: list):
     if not completed:
         return
 
@@ -188,7 +208,8 @@ def save_final_scores(completed: list, raw_dir: Path):
                 "home_puck_line": home_pl,
             })
         except Exception as e:
-            print(f"  WARNING: could not process completed game {g.get('team1')} vs {g.get('team2')}: {e}")
+            print(f"  WARNING: could not process completed game "
+                  f"{g.get('team1')} vs {g.get('team2')}: {e}")
 
     if not rows:
         return
@@ -203,7 +224,9 @@ def save_final_scores(completed: list, raw_dir: Path):
         if out_path.exists():
             existing = pd.read_csv(out_path)
             combined = pd.concat([existing, group], ignore_index=True)
-            combined = combined.drop_duplicates(subset=["game_date", "away_team", "home_team"], keep="last")
+            combined = combined.drop_duplicates(
+                subset=["game_date", "away_team", "home_team"], keep="last"
+            )
             combined.to_csv(out_path, index=False)
         else:
             group.to_csv(out_path, index=False)
@@ -237,13 +260,12 @@ def main():
 
         raw = scrape_page(page, URLS["nhl"])
 
-        # ── Debug: save raw rows so column structure is visible ────────────
+        # Save raw rows for debugging
         raw_rows_path = raw_dir / f"{date}_nhl_raw_rows.json"
         with open(raw_rows_path, "w") as f:
             json.dump(raw, f, indent=2)
-        print(f"  Raw rows saved -> {raw_rows_path}")
 
-        # Log column counts for every row to spot completed game structure
+        # Log column count distribution
         col_counts = {}
         for r in raw:
             n = len(r)
@@ -253,14 +275,14 @@ def main():
         games = [parse_nhl(r) for r in raw]
         games = [g for g in games if g]
 
-        # Save full raw JSON
+        # Save full parsed JSON
         raw_path = raw_dir / f"{date}_nhl_raw.json"
         with open(raw_path, "w") as f:
             json.dump(games, f, indent=2)
-        print(f"  Parsed {len(games)} games -> {raw_path}")
 
-        # ── Upcoming: predictions ──────────────────────────────────────────
+        # ── Upcoming ───────────────────────────────────────────────────────
         upcoming = [g for g in games if g["game_status"] == "upcoming"]
+        print(f"  Upcoming games found: {len(upcoming)}")
 
         if upcoming:
             df_up        = pd.DataFrame(upcoming)
@@ -272,12 +294,12 @@ def main():
         else:
             print("  No upcoming games found.")
 
-        # ── Completed: final scores ────────────────────────────────────────
+        # ── Completed ──────────────────────────────────────────────────────
         completed = [g for g in games if g["game_status"] == "completed"]
         print(f"  Completed games found: {len(completed)}")
 
         if completed:
-            save_final_scores(completed, raw_dir)
+            save_final_scores(completed)
         else:
             print("  No completed games found.")
 
