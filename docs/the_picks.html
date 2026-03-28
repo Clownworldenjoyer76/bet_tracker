@@ -1,596 +1,453 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Picks — Edgelytics</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=Barlow+Condensed:wght@400;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/matstheme.css">
-<style>
+(() => {
 
+const dateInput    = document.getElementById("p-date");
+const statusEl     = document.getElementById("status");
+const gamesEl      = document.getElementById("games");
+const modal        = document.getElementById("modal");
+const modalContent = document.getElementById("modal-content");
 
-.topbar {
-  margin: 0;
+if (!dateInput || !statusEl || !gamesEl) return;
+if (!window.REPO_CONFIG) { statusEl.textContent = "Missing config."; return; }
+
+// ─── Date ────────────────────────────────────────────────────────────────────
+
+function todayLocal() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
-  
-/* ── Page-level overrides ───────────────────────────────────────────────── */
-body {
-  font-family: 'IBM Plex Mono', 'Courier New', monospace;
-  background: var(--background);
-  padding: 0;
+function toUnderscore(s) {
+  return (s || "").trim().replaceAll("-", "_");
 }
 
-/* ── Picks-specific tokens ──────────────────────────────────────────────── */
-:root {
-  --picks-green:      #00ff84;
-  --picks-green-dim:  rgba(0, 255, 132, 0.08);
-  --picks-green-glow: rgba(0, 255, 132, 0.2);
-  --picks-yellow:     #facc15;
-  --picks-red:        #ff2d2d;
-  --picks-blue:       #00bfff;
-  --picks-border:     rgba(255,255,255,0.06);
-  --picks-card:       #0c1118;
-  --picks-card-hover: #111822;
-  --picks-radius:     3px;
+function normDate(v) {
+  return toUnderscore(v || "");
 }
 
-/* ── Page header ────────────────────────────────────────────────────────── */
-.picks-header {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  padding: 20px 24px 16px;
-  border-bottom: 1px solid var(--picks-border);
+// ─── CSV ─────────────────────────────────────────────────────────────────────
+
+function parseCSV(text) {
+  const lines = text.trim().split(/\r?\n/);
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(",").map(h => h.trim());
+  return lines.slice(1).map(line => {
+    const vals = line.split(",");
+    const obj = {};
+    headers.forEach((h, i) => { obj[h] = (vals[i] ?? "").trim(); });
+    return obj;
+  });
 }
 
-.picks-title {
-  font-family: 'Barlow Condensed', sans-serif;
-  font-size: 32px;
-  font-weight: 800;
-  letter-spacing: 6px;
-  text-transform: uppercase;
-  color: var(--picks-green);
-  line-height: 1;
-  margin: 0;
-}
-
-.picks-title-slash {
-  color: rgba(0,255,132,0.25);
-  margin: 0 4px;
-}
-
-#status {
-  font-size: 10px;
-  letter-spacing: 2px;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  margin-left: auto;
-}
-
-#status.loading {
-  color: var(--picks-green);
-  animation: pulse-text 1.2s ease infinite;
-}
-
-@keyframes pulse-text {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.35; }
-}
-
-/* ── Controls bar ───────────────────────────────────────────────────────── */
-.picks-controls {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  padding: 14px 24px;
-  border-bottom: 1px solid var(--picks-border);
-  flex-wrap: wrap;
-}
-
-.date-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.date-label {
-  font-size: 9px;
-  letter-spacing: 2px;
-  color: var(--text-muted);
-  text-transform: uppercase;
-}
-
-input[type="date"] {
-  background: var(--picks-card);
-  border: 1px solid rgba(255,255,255,0.1);
-  color: var(--text-main);
-  padding: 7px 12px;
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 12px;
-  border-radius: var(--picks-radius);
-  outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s;
-  cursor: pointer;
-}
-
-input[type="date"]:focus {
-  border-color: var(--picks-green);
-  box-shadow: 0 0 0 3px var(--picks-green-dim);
-}
-
-input[type="date"]::-webkit-calendar-picker-indicator {
-  filter: invert(1) opacity(0.3);
-  cursor: pointer;
-}
-
-/* ── Filter pills ───────────────────────────────────────────────────────── */
-#league-filters {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.filter-pill {
-  padding: 4px 14px;
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 2px;
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 2px;
-  cursor: pointer;
-  color: var(--text-muted);
-  background: transparent;
-  transition: all 0.15s ease;
-  user-select: none;
-}
-
-.filter-pill:hover {
-  border-color: rgba(0,255,132,0.35);
-  color: var(--text-main);
-}
-
-.filter-pill.active {
-  border-color: var(--picks-green);
-  color: var(--picks-green);
-  background: var(--picks-green-dim);
-  box-shadow: 0 0 8px var(--picks-green-glow);
-}
-
-/* ── League grid ────────────────────────────────────────────────────────── */
-#games {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
-  gap: 0;
-  padding: 24px;
-  align-items: start;
-}
-
-/* Gap via padding so borders collapse cleanly */
-.league-column {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 0 16px 0 0;
-  border-right: 1px solid var(--picks-border);
-}
-
-.league-column:last-child {
-  border-right: none;
-  padding-right: 0;
-}
-
-.league-column + .league-column {
-  padding-left: 16px;
-}
-
-/* ── League header ──────────────────────────────────────────────────────── */
-.league-header {
-  font-family: 'Barlow Condensed', sans-serif;
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: 4px;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  padding-bottom: 10px;
-  border-bottom: 2px solid var(--picks-border);
-  margin-bottom: 4px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.stale-tag {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 8px;
-  padding: 2px 6px;
-  border-radius: 2px;
-  background: rgba(250,204,21,0.1);
-  color: var(--picks-yellow);
-  border: 1px solid rgba(250,204,21,0.25);
-  letter-spacing: 1px;
-  vertical-align: middle;
-}
-
-.col-state {
-  font-size: 10px;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  padding: 20px 0;
-  text-align: center;
-}
-
-.col-state.empty { color: var(--text-muted); }
-.col-state.error { color: var(--picks-red);  }
-
-/* ── Pick card ──────────────────────────────────────────────────────────── */
-.pick-card {
-  background: var(--picks-card);
-  border: 1px solid var(--picks-border);
-  border-left: 3px solid transparent;
-  border-radius: var(--picks-radius);
-  padding: 12px 14px;
-  cursor: pointer;
-  transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
-  position: relative;
-}
-
-.pick-card:hover {
-  border-color: var(--picks-border);
-  border-left-color: var(--picks-green);
-  background: var(--picks-card-hover);
-  transform: translateX(2px);
-}
-
-.card-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 9px;
-}
-
-.card-time {
-  font-size: 10px;
-  color: var(--picks-yellow);
-  letter-spacing: 1px;
-}
-
-.card-league-tag {
-  font-size: 8px;
-  letter-spacing: 2px;
-  color: var(--picks-green);
-  background: var(--picks-green-dim);
-  border: 1px solid rgba(0,255,132,0.2);
-  padding: 2px 7px;
-  border-radius: 2px;
-}
-
-.card-matchup {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  margin-bottom: 4px;
-  flex-wrap: wrap;
-}
-
-.card-team {
-  font-family: 'Barlow Condensed', sans-serif;
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: 1px;
-  color: var(--text-main);
-  line-height: 1.2;
-}
-
-.card-at {
-  font-size: 10px;
-  color: var(--text-muted);
-  letter-spacing: 1px;
-}
-
-.card-pitchers {
-  font-size: 10px;
-  color: var(--text-muted);
-  margin-bottom: 8px;
-  letter-spacing: 0.5px;
-}
-
-.card-bet {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--picks-blue);
-  margin-bottom: 10px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.card-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-top: 8px;
-  border-top: 1px solid var(--picks-border);
-}
-
-.card-ev {
-  font-size: 10px;
-  letter-spacing: 1px;
-}
-
-.card-ev.pos { color: var(--picks-green); }
-.card-ev.neg { color: var(--picks-red);   }
-
-/* ── Edge dots ──────────────────────────────────────────────────────────── */
-.edge-dots {
-  font-size: 10px;
-  letter-spacing: 2px;
-}
-
-.edge-dots.e5 { color: #ff2d2d; text-shadow: 0 0 6px rgba(255,45,45,0.5); }
-.edge-dots.e4 { color: #ff7043; }
-.edge-dots.e3 { color: var(--picks-yellow); }
-.edge-dots.e2 { color: #7a8fa6; }
-.edge-dots.e1 { color: var(--text-muted); }
-.edge-dots.e0 { color: rgba(255,255,255,0.12); }
-
-/* ── Empty state ────────────────────────────────────────────────────────── */
-.empty-state {
-  grid-column: 1 / -1;
-  text-align: center;
-  font-size: 11px;
-  letter-spacing: 4px;
-  color: var(--text-muted);
-  padding: 80px 0;
-  text-transform: uppercase;
-  border: 1px dashed rgba(255,255,255,0.06);
-  border-radius: var(--picks-radius);
-}
-
-/* ── Modal ──────────────────────────────────────────────────────────────── */
-.modal {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.8);
-  backdrop-filter: blur(8px);
-  display: none;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  z-index: 1000;
-}
-
-.modal.open { display: flex; }
-
-.modal-card {
-  background: #0c1118;
-  border: 1px solid rgba(0,255,132,0.25);
-  border-radius: 4px;
-  padding: 28px;
-  width: 100%;
-  max-width: 500px;
-  max-height: 88vh;
-  overflow-y: auto;
-  box-shadow: 0 32px 64px rgba(0,0,0,0.7), 0 0 0 1px rgba(0,255,132,0.1);
-}
-
-.modal-card::-webkit-scrollbar { width: 3px; }
-.modal-card::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); }
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-}
-
-.modal-league-tag {
-  font-family: 'Barlow Condensed', sans-serif;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 3px;
-  color: var(--picks-green);
-  text-transform: uppercase;
-}
-
-.modal-game-time {
-  font-size: 10px;
-  color: var(--picks-yellow);
-  letter-spacing: 1px;
-}
-
-.modal-title {
-  font-family: 'Barlow Condensed', sans-serif;
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: 2px;
-  color: var(--text-main);
-  margin: 0 0 12px;
-  line-height: 1.2;
-}
-
-.modal-at {
-  color: var(--text-muted);
-  font-weight: 400;
-  margin: 0 4px;
-}
-
-.modal-pitchers {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 11px;
-  color: var(--text-muted);
-  background: rgba(255,255,255,0.03);
-  border: 1px solid var(--picks-border);
-  padding: 8px 12px;
-  border-radius: var(--picks-radius);
-  margin-bottom: 12px;
-}
-
-.modal-pitcher-label {
-  font-size: 9px;
-  letter-spacing: 2px;
-  color: var(--picks-blue);
-  background: rgba(0,191,255,0.08);
-  border: 1px solid rgba(0,191,255,0.2);
-  padding: 1px 6px;
-  border-radius: 2px;
-}
-
-.modal-pitcher-vs { color: var(--text-muted); font-size: 9px; }
-
-.modal-proj {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  font-size: 11px;
-  color: var(--text-muted);
-  background: rgba(255,255,255,0.02);
-  border: 1px solid var(--picks-border);
-  padding: 10px 12px;
-  border-radius: var(--picks-radius);
-  margin-bottom: 10px;
-}
-
-.modal-proj strong { color: var(--text-main); }
-
-.modal-lines {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 20px;
-}
-
-.modal-line-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
-.line-label {
-  font-size: 9px;
-  letter-spacing: 1.5px;
-  color: var(--text-muted);
-  background: rgba(255,255,255,0.04);
-  border: 1px solid var(--picks-border);
-  padding: 2px 7px;
-  border-radius: 2px;
-  min-width: 60px;
-  text-align: center;
-  flex-shrink: 0;
-}
-
-.modal-picks-section { }
-
-.modal-picks-label {
-  font-size: 9px;
-  letter-spacing: 3px;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  margin-bottom: 8px;
-}
-
-.modal-picks { display: flex; flex-direction: column; gap: 6px; }
-
-.modal-pick-row {
-  background: rgba(0,255,132,0.04);
-  border: 1px solid rgba(0,255,132,0.15);
-  border-radius: var(--picks-radius);
-  padding: 10px 14px;
-}
-
-.modal-bet {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--picks-green);
-  margin-bottom: 6px;
-}
-
-.modal-pick-stats {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 10px;
-}
-
-.modal-ev.pos { color: var(--picks-green); }
-.modal-ev.neg { color: var(--picks-red); }
-.modal-kelly  { color: var(--text-muted); }
-
-.modal-close-btn {
-  margin-top: 20px;
-  width: 100%;
-  background: transparent;
-  color: var(--picks-green);
-  border: 1px solid rgba(0,255,132,0.3);
-  padding: 11px;
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  cursor: pointer;
-  border-radius: var(--picks-radius);
-  transition: background 0.15s, border-color 0.15s;
-}
-
-.modal-close-btn:hover {
-  background: var(--picks-green-dim);
-  border-color: var(--picks-green);
-}
-
-/* ── Responsive ─────────────────────────────────────────────────────────── */
-@media (max-width: 640px) {
-  #games {
-    grid-template-columns: 1fr;
-    padding: 16px;
+async function fetchCSV(path) {
+  try {
+    const r = await fetch(path);
+    if (!r.ok) return { ok: false, rows: [] };
+    return { ok: true, rows: parseCSV(await r.text()) };
+  } catch {
+    return { ok: false, rows: [] };
   }
-  .league-column {
-    padding: 0 0 20px !important;
-    border-right: none !important;
-    border-bottom: 1px solid var(--picks-border);
-  }
-  .league-column:last-child { border-bottom: none; }
 }
 
-</style>
-</head>
-<body>
+async function fetchMultiCSV(paths) {
+  let rows = [];
+  let anyOk = false;
+  for (const p of paths) {
+    const res = await fetchCSV(p);
+    if (res.ok) { rows = rows.concat(res.rows); anyOk = true; }
+  }
+  return { ok: anyOk, rows };
+}
 
-  <div id="nav-placeholder"></div>
+// ─── Row Matching ─────────────────────────────────────────────────────────────
 
-  <div class="picks-header">
-    <h1 class="picks-title">PICKS</h1>
-    <div id="status" class="status"></div>
-  </div>
+function rowMatchesLeague(row, cfg, target) {
+  if (cfg.filterFn) return true; // filterFn handles everything
+  if (cfg.leagueColumn) return (row[cfg.leagueColumn] || "").trim().toUpperCase() === target;
+  if (cfg.marketColumn) return (row[cfg.marketColumn] || "").trim().toUpperCase() === target;
+  // fallback: try both
+  const league = (row.league || "").trim().toUpperCase();
+  const market = (row.market || "").trim().toUpperCase();
+  return league === target || market === target;
+}
 
-  <div class="picks-controls">
-    <div class="date-wrap">
-      <span class="date-label">Date</span>
-      <input id="p-date" type="date">
+function filterRows(allRows, dateFormatted, leagueName, cfg) {
+  const target = leagueName.toUpperCase();
+
+  const leagueRows = allRows.filter(r => {
+    if (cfg.filterFn) return cfg.filterFn(r, null, target);
+    return rowMatchesLeague(r, cfg, target);
+  });
+
+  const dated = leagueRows.filter(r => normDate(r.game_date) === dateFormatted);
+  return { rows: dated, stale: false, fromDate: dateFormatted };
+}
+
+// ─── Join Keys ────────────────────────────────────────────────────────────────
+
+function makeKey(row, cfg) {
+  if (cfg && cfg.joinKey) {
+    return (row[cfg.joinKey] || "").trim();
+  }
+  return `${(row.game_date || "").trim()}|${(row.home_team || "").trim()}|${(row.away_team || "").trim()}`;
+}
+
+function buildMap(rows, cfg) {
+  const map = {};
+  rows.forEach(r => {
+    const k = makeKey(r, cfg);
+    if (k) map[k] = r;
+  });
+  return map;
+}
+
+// ─── Merge: pull game_time from pred when select doesn't have it (MLB) ────────
+
+function mergeRows(selectRows, predMap, bookMap, cfg) {
+  return selectRows.map(sel => {
+    const key  = makeKey(sel, cfg);
+    const pred = predMap[key] || {};
+    const book = bookMap[key] || {};
+    const merged = { ...pred, ...book, ...sel, __key: key };
+    // If select has no game_time, pull from pred
+    if (!merged.game_time && pred.game_time) merged.game_time = pred.game_time;
+    return merged;
+  });
+}
+
+// ─── Bet Text ─────────────────────────────────────────────────────────────────
+
+function formatLine(line) {
+  const n = parseFloat(line);
+  if (isNaN(n)) return line;
+  return n > 0 ? "+" + n : String(n);
+}
+
+function buildBetText(p, r, cfg) {
+  if (cfg.buildBetText) return cfg.buildBetText(p, r);
+
+  const market = (p.market_type || "").toLowerCase();
+  const side   = (p.bet_side    || "").toLowerCase();
+  const line   = p.line || "";
+  const odds   = p.dk_odds_american || p.take_odds || "";
+
+  let label    = "";
+  let american = odds; // default to generic odds column
+
+  if (side === "home")  label = r.home_team || "Home";
+  if (side === "away")  label = r.away_team || "Away";
+  if (side === "over")  label = "Over";
+  if (side === "under") label = "Under";
+
+  // Spread-type markets: spread (NBA/NCAAB), puck_line (NHL), run_line (MLB)
+  if (["spread", "puck_line", "run_line"].includes(market)) {
+    if (side === "home") american = r.home_dk_spread_american || r.home_dk_puck_line_american || r.home_dk_run_line_american || odds;
+    if (side === "away") american = r.away_dk_spread_american || r.away_dk_puck_line_american || r.away_dk_run_line_american || odds;
+    return `${label} ${formatLine(line)} (${american})`.trim();
+  }
+
+  if (market === "total") {
+    if (side === "over")  american = r.dk_total_over_american  || odds;
+    if (side === "under") american = r.dk_total_under_american || odds;
+    return `${label} ${line} (${american})`.trim();
+  }
+
+  if (market === "moneyline") {
+    if (side === "home") american = r.home_dk_moneyline_american || odds;
+    if (side === "away") american = r.away_dk_moneyline_american || odds;
+    return `${label} (${american})`.trim();
+  }
+
+  return `${side} ${line} ${odds}`.trim();
+}
+
+// ─── Edge ─────────────────────────────────────────────────────────────────────
+
+function extractEdge(p) {
+  const market = (p.market_type || "").toLowerCase();
+  const side   = (p.bet_side    || "").toLowerCase();
+
+  if (market === "total")                                    return parseFloat(p[`${side}_edge_pct`]        || p.ev || 0);
+  if (["spread","puck_line","run_line"].includes(market))    return parseFloat(p[`${side}_spread_edge_pct`] || p.ev || 0);
+  if (market === "moneyline")                                return parseFloat(p[`${side}_ml_edge_pct`]     || p.ev || 0);
+  return parseFloat(p.ev || p.selected_ev || 0);
+}
+
+function edgeDots(edge) {
+  const filled = edge >= 0.15 ? 5 : edge >= 0.10 ? 4 : edge >= 0.07 ? 3 : edge >= 0.04 ? 2 : edge >= 0.001 ? 1 : 0;
+  const cls    = ["e0","e1","e2","e3","e4","e5"][filled];
+  const dots   = "●".repeat(filled) + "○".repeat(5 - filled);
+  return `<span class="edge-dots ${cls}" title="Edge ${(edge*100).toFixed(1)}%">${dots}</span>`;
+}
+
+// ─── Time Sort ────────────────────────────────────────────────────────────────
+
+function parseTime(t) {
+  if (!t) return 9999;
+  const m = t.match(/(\d+):(\d+)\s*(AM|PM)/i);
+  if (!m) return 9999;
+  let h = parseInt(m[1], 10);
+  const min = parseInt(m[2], 10);
+  if (m[3].toUpperCase() === "PM" && h !== 12) h += 12;
+  if (m[3].toUpperCase() === "AM" && h === 12) h = 0;
+  return h * 60 + min;
+}
+
+// ─── Modal ────────────────────────────────────────────────────────────────────
+
+function openModal(html) {
+  if (!modalContent || !modal) return;
+  modalContent.innerHTML = html;
+  modal.classList.add("open");
+}
+
+function buildModalHtml(r, picks, cfg) {
+  const isHockey   = !!cfg.isHockey;
+  const isBaseball = !!cfg.isBaseball;
+
+  const projAway  = isHockey ? r.away_projected_goals : isBaseball ? r.away_projected_runs  : r.away_projected_points;
+  const projHome  = isHockey ? r.home_projected_goals : isBaseball ? r.home_projected_runs  : r.home_projected_points;
+  const projTotal = isHockey ? r.total_projected_goals: isBaseball ? r.total_projected_runs : r.total_projected_points;
+
+  const spreadKey  = isHockey ? "puck_line" : isBaseball ? "run_line" : "spread";
+  const spreadAway = r[`away_${spreadKey}`]              || r.away_spread || "—";
+  const spreadHome = r[`home_${spreadKey}`]              || r.home_spread || "—";
+  const spreadAwayOdds = r[`away_dk_${spreadKey}_american`] || r.away_dk_spread_american || "—";
+  const spreadHomeOdds = r[`home_dk_${spreadKey}_american`] || r.home_dk_spread_american || "—";
+
+  const pitcherRow = isBaseball && (r.home_pitcher || r.away_pitcher) ? `
+    <div class="modal-pitchers">
+      <span class="modal-pitcher-label">SP</span>
+      <span>${r.away_pitcher || "—"}</span>
+      <span class="modal-pitcher-vs">vs</span>
+      <span>${r.home_pitcher || "—"}</span>
+    </div>` : "";
+
+  const picksHtml = picks.map(p => {
+    const betText = buildBetText(p, r, cfg);
+    const ev      = parseFloat(p.ev || p.selected_ev || 0);
+    const kelly   = parseFloat(p.kelly || p.home_spread_kelly || p.away_spread_kelly || p.home_ml_kelly || p.away_ml_kelly || 0);
+    const edge    = extractEdge(p);
+    return `
+      <div class="modal-pick-row">
+        <div class="modal-bet">${betText}</div>
+        <div class="modal-pick-stats">
+          <span class="modal-ev ${ev >= 0 ? "pos" : "neg"}">${ev >= 0 ? "+" : ""}${(ev * 100).toFixed(2)}% EV</span>
+          <span class="modal-kelly">Kelly ${(kelly * 100).toFixed(2)}%</span>
+          ${edgeDots(edge)}
+        </div>
+      </div>`;
+  }).join("");
+
+  return `
+    <div class="modal-header">
+      <span class="modal-league-tag">${cfg.displayName}</span>
+      <span class="modal-game-time">${r.game_time || ""}</span>
     </div>
-    <div id="league-filters"></div>
-  </div>
-
-  <div id="games"></div>
-
-  <div id="modal" class="modal">
-    <div class="modal-card" onclick="event.stopPropagation()">
-      <div id="modal-content"></div>
-      <button class="modal-close-btn" onclick="document.getElementById('modal').classList.remove('open')">Close</button>
+    <h2 class="modal-title">${r.away_team || "—"} <span class="modal-at">@</span> ${r.home_team || "—"}</h2>
+    ${pitcherRow}
+    <div class="modal-proj">
+      <span>Proj ${r.away_team || "Away"}: <strong>${projAway || "—"}</strong></span>
+      <span>Proj ${r.home_team || "Home"}: <strong>${projHome || "—"}</strong></span>
+      <span>Total: <strong>${projTotal || "—"}</strong></span>
     </div>
-  </div>
+    <div class="modal-lines">
+      <div class="modal-line-row"><span class="line-label">ML</span><span>${r.away_dk_moneyline_american || "—"} / ${r.home_dk_moneyline_american || "—"}</span></div>
+      <div class="modal-line-row"><span class="line-label">${spreadKey.replace("_"," ").toUpperCase()}</span><span>${spreadAway} (${spreadAwayOdds}) / ${spreadHome} (${spreadHomeOdds})</span></div>
+      <div class="modal-line-row"><span class="line-label">TOTAL</span><span>${r.total || "—"} &nbsp; O ${r.dk_total_over_american || "—"} / U ${r.dk_total_under_american || "—"}</span></div>
+    </div>
+    <div class="modal-picks-section">
+      <div class="modal-picks-label">PICKS</div>
+      <div class="modal-picks">${picksHtml}</div>
+    </div>`;
+}
 
-  <script src="js/config.js"></script>
-  <script src="js/nav.js"></script>
-  <script src="js/app.js"></script>
+// ─── Card ─────────────────────────────────────────────────────────────────────
 
-</body>
-</html>
+function buildCard(p, r, cfg) {
+  const card     = document.createElement("div");
+  card.className = "pick-card";
+
+  const betText    = buildBetText(p, r, cfg);
+  const edge       = extractEdge(p);
+  const ev         = parseFloat(p.ev || p.selected_ev || 0);
+  const isBaseball = !!cfg.isBaseball;
+
+  const pitcherLine = isBaseball && (r.away_pitcher || r.home_pitcher)
+    ? `<div class="card-pitchers">${r.away_pitcher || "?"} vs ${r.home_pitcher || "?"}</div>`
+    : "";
+
+  card.innerHTML = `
+    <div class="card-top">
+      <span class="card-time">${r.game_time || "—"}</span>
+      <span class="card-league-tag">${cfg.displayName}</span>
+    </div>
+    <div class="card-matchup">
+      <span class="card-team">${r.away_team || "—"}</span>
+      <span class="card-at">@</span>
+      <span class="card-team">${r.home_team || "—"}</span>
+    </div>
+    ${pitcherLine}
+    <div class="card-bet">${betText}</div>
+    <div class="card-footer">
+      <span class="card-ev ${ev >= 0 ? "pos" : "neg"}">${ev >= 0 ? "+" : ""}${(ev * 100).toFixed(1)}%</span>
+      ${edgeDots(edge)}
+    </div>`;
+
+  return card;
+}
+
+// ─── League Loader ────────────────────────────────────────────────────────────
+
+async function loadLeague(league, dateFormatted) {
+  const cfg = REPO_CONFIG[league];
+  if (!cfg) return { league, error: "No config" };
+
+  const [selectRes, predRes, bookRes] = await Promise.all([
+    fetchMultiCSV(cfg.selectFiles(dateFormatted)),
+    fetchCSV(cfg.predFile(dateFormatted)),
+    fetchCSV(cfg.bookFile(dateFormatted)),
+  ]);
+
+  if (!selectRes.ok) return { league, cfg, error: "File not found", picks: 0 };
+
+  const { rows: selectRows, stale, fromDate } = filterRows(selectRes.rows, dateFormatted, league, cfg);
+  if (selectRows.length === 0) return { league, cfg, picks: 0, stale, fromDate };
+
+  const predMap = buildMap(predRes.rows, cfg);
+  const bookMap = buildMap(bookRes.rows, cfg);
+  const merged  = mergeRows(selectRows, predMap, bookMap, cfg);
+
+  // Group by game key
+  const grouped = {};
+  merged.forEach(r => {
+    if (!grouped[r.__key]) grouped[r.__key] = [];
+    grouped[r.__key].push(r);
+  });
+
+  // Sort games by time
+  const keys = Object.keys(grouped).sort((a, b) =>
+    parseTime(grouped[a][0].game_time) - parseTime(grouped[b][0].game_time)
+  );
+
+  return { league, cfg, keys, grouped, stale, fromDate, picks: merged.length };
+}
+
+// ─── Render Column ────────────────────────────────────────────────────────────
+
+function renderColumn(result) {
+  const col = document.createElement("div");
+  col.className = "league-column";
+  col.dataset.league = result.league;
+
+  const hdr = document.createElement("div");
+  hdr.className = "league-header";
+
+  if (result.error) {
+    hdr.textContent = result.league;
+    col.appendChild(hdr);
+    col.innerHTML += `<div class="col-state error">⚠ ${result.error}</div>`;
+    return { col, count: 0 };
+  }
+
+  hdr.textContent = result.league;
+  col.appendChild(hdr);
+
+  if (!result.keys || result.keys.length === 0) {
+    col.innerHTML += `<div class="col-state empty">No picks</div>`;
+    return { col, count: 0 };
+  }
+
+  let count = 0;
+  result.keys.forEach(key => {
+    const picks = result.grouped[key];
+    const r     = picks[0];
+    picks.forEach(p => {
+      const card = buildCard(p, r, result.cfg);
+      card.addEventListener("click", () => openModal(buildModalHtml(r, picks, result.cfg)));
+      col.appendChild(card);
+      count++;
+    });
+  });
+
+  return { col, count };
+}
+
+// ─── Filter Pills ─────────────────────────────────────────────────────────────
+
+function buildFilters(leagues) {
+  const container = document.getElementById("league-filters");
+  if (!container) return;
+  container.innerHTML = "";
+
+  const makeP = (text, league) => {
+    const p = document.createElement("div");
+    p.className = "filter-pill" + (league === "all" ? " active" : "");
+    p.textContent = text;
+    p.dataset.league = league;
+    return p;
+  };
+
+  container.appendChild(makeP("All", "all"));
+  leagues.forEach(l => container.appendChild(makeP(l, l)));
+
+  container.addEventListener("click", e => {
+    const pill = e.target.closest(".filter-pill");
+    if (!pill) return;
+    container.querySelectorAll(".filter-pill").forEach(p => p.classList.remove("active"));
+    pill.classList.add("active");
+    const sel = pill.dataset.league;
+    document.querySelectorAll(".league-column").forEach(col => {
+      col.style.display = (sel === "all" || col.dataset.league === sel) ? "" : "none";
+    });
+  });
+}
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
+
+function init() {
+  dateInput.value = todayLocal();
+  dateInput.addEventListener("change", loadPage);
+
+  if (modal) {
+    modal.addEventListener("click", e => {
+      if (e.target === modal) modal.classList.remove("open");
+    });
+  }
+
+  loadPage();
+}
+
+async function loadPage() {
+  const dateStr       = dateInput.value || "";
+  const dateFormatted = toUnderscore(dateStr);
+
+  statusEl.textContent = "Loading…";
+  statusEl.className   = "status loading";
+  gamesEl.innerHTML    = "";
+
+  const leagues = REPO_CONFIG.leagues || [];
+  buildFilters(leagues);
+
+  const results = await Promise.all(leagues.map(l => loadLeague(l, dateFormatted)));
+
+  let totalPicks = 0;
+  results.forEach(result => {
+    const { col, count } = renderColumn(result);
+    gamesEl.appendChild(col);
+    totalPicks += count;
+  });
+
+  if (totalPicks === 0) {
+    gamesEl.innerHTML = '<div class="empty-state">NO PICKS FOR THIS DATE</div>';
+  }
+
+  statusEl.textContent = `${totalPicks} pick${totalPicks !== 1 ? "s" : ""} · ${dateStr}`;
+  statusEl.className   = "status";
+}
+
+init();
+
+})();
