@@ -159,16 +159,14 @@ def scrape_page(page, url):
     return [[c.inner_text().strip() for c in r.query_selector_all("td")] for r in rows]
 
 
-def save_final_scores(completed: list):
-    """Write completed games to dated final scores CSV files."""
+def save_final_scores(completed: list, raw_dir: Path):
     if not completed:
         return
 
     rows = []
     for g in completed:
         try:
-            game_date = parse_date(g["date_time"])
-            game_time = parse_time(g["date_time"])
+            game_date  = parse_date(g["date_time"])
             away_score = int(float(g["score1"]))
             home_score = int(float(g["score2"]))
             total      = away_score + home_score
@@ -202,7 +200,6 @@ def save_final_scores(completed: list):
         out_dir.mkdir(parents=True, exist_ok=True)
         out_path = out_dir / f"{date_val}_final_scores_NHL.csv"
 
-        # Append to existing file if it exists, avoiding duplicates
         if out_path.exists():
             existing = pd.read_csv(out_path)
             combined = pd.concat([existing, group], ignore_index=True)
@@ -240,19 +237,33 @@ def main():
 
         raw = scrape_page(page, URLS["nhl"])
 
+        # ── Debug: save raw rows so column structure is visible ────────────
+        raw_rows_path = raw_dir / f"{date}_nhl_raw_rows.json"
+        with open(raw_rows_path, "w") as f:
+            json.dump(raw, f, indent=2)
+        print(f"  Raw rows saved -> {raw_rows_path}")
+
+        # Log column counts for every row to spot completed game structure
+        col_counts = {}
+        for r in raw:
+            n = len(r)
+            col_counts[n] = col_counts.get(n, 0) + 1
+        print(f"  Column count distribution: {col_counts}")
+
         games = [parse_nhl(r) for r in raw]
         games = [g for g in games if g]
 
-        # Save full raw JSON (upcoming + completed)
+        # Save full raw JSON
         raw_path = raw_dir / f"{date}_nhl_raw.json"
         with open(raw_path, "w") as f:
             json.dump(games, f, indent=2)
+        print(f"  Parsed {len(games)} games -> {raw_path}")
 
         # ── Upcoming: predictions ──────────────────────────────────────────
         upcoming = [g for g in games if g["game_status"] == "upcoming"]
 
         if upcoming:
-            df_up = pd.DataFrame(upcoming)
+            df_up        = pd.DataFrame(upcoming)
             final_path   = pred_dir / f"hockey_{date}.csv"
             scraper_path = scraper_dir / f"{date}_nhl_predictions.csv"
             df_up.to_csv(final_path,   index=False)
@@ -263,9 +274,10 @@ def main():
 
         # ── Completed: final scores ────────────────────────────────────────
         completed = [g for g in games if g["game_status"] == "completed"]
+        print(f"  Completed games found: {len(completed)}")
 
         if completed:
-            save_final_scores(completed)
+            save_final_scores(completed, raw_dir)
         else:
             print("  No completed games found.")
 
