@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard</title>
+  <title>EDGELYTICS</title>
   <link rel="stylesheet" href="css/matstheme.css">
   <link rel="stylesheet" href="css/landing.css">
 </head>
@@ -12,7 +12,7 @@
   <div id="nav-placeholder"></div>
 
   <div class="container">
-    <h1 class="site-title">Dashboard</h1>
+    <h1 class="site-title">EDGELYTICS</h1>
 
     <div class="sport-grid">
 
@@ -46,12 +46,21 @@
         </div>
       </div>
 
+      <div class="sport-box">
+        <div class="sport-box-header">
+          <span class="sport-label">MLB</span>
+          <span class="sport-status" id="mlb-status">Loading...</span>
+        </div>
+        <div class="tally-content" id="mlb-tally">
+          <div class="loading-text">Fetching data...</div>
+        </div>
+      </div>
+
     </div>
   </div>
 
   <script src="js/nav.js"></script>
   <script>
-    // CSV parser
     function parseCSV(text) {
       const lines = text.trim().split('\n');
       if (lines.length < 2) return [];
@@ -62,16 +71,16 @@
       });
     }
 
-    // Market label maps
-    const NHL_MAP = { moneyline: 'Moneyline', puck_line: 'Puck Line', total: 'Over/Under' };
-    const STD_MAP = { moneyline: 'Moneyline', spread: 'Spread', total: 'Over/Under' };
+    const NHL_MAP  = { moneyline: 'Moneyline', puck_line: 'Puck Line', total: 'Over/Under' };
+    const STD_MAP  = { moneyline: 'Moneyline', spread: 'Spread', total: 'Over/Under' };
+    const MLB_MAP  = { moneyline: 'Moneyline', run_line: 'Run Line', total: 'Over/Under' };
 
-    function norm(m, map)   { return map[(m||'').toLowerCase()] || m || '—'; }
-    function pct(v)         { const n=parseFloat(v); return isNaN(n)?'—':(n*100).toFixed(1)+'%'; }
-    function wrCls(v)       { const n=parseFloat(v)||0; return n>=0.60?'win':n>=0.50?'neutral':'loss'; }
-    function fmtU(v)        { const n=parseFloat(v); return isNaN(n)?'—':(n>=0?'+':'')+n.toFixed(2); }
-    function roiStr(v)      { const n=parseFloat(v); return isNaN(n)?'—':(n*100).toFixed(1)+'%'; }
-    function roiCls(v)      { const n=parseFloat(v); return isNaN(n)?'':(n>=0?'val-win':'val-loss'); }
+    function norm(m, map)  { return map[(m||'').toLowerCase()] || m || '—'; }
+    function pct(v)        { const n=parseFloat(v); return isNaN(n)?'—':(n*100).toFixed(1)+'%'; }
+    function wrCls(v)      { const n=parseFloat(v)||0; return n>=0.60?'win':n>=0.50?'neutral':'loss'; }
+    function fmtU(v)       { const n=parseFloat(v); return isNaN(n)?'—':(n>=0?'+':'')+n.toFixed(2); }
+    function roiStr(v)     { const n=parseFloat(v); return isNaN(n)?'—':(n*100).toFixed(1)+'%'; }
+    function roiCls(v)     { const n=parseFloat(v); return isNaN(n)?'':(n>=0?'val-win':'val-loss'); }
 
     function renderTally(tid, sid, data, map) {
       const wrap = document.getElementById(tid);
@@ -135,7 +144,8 @@
     const BASES = {
       nhl:   'https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/docs/win/final_scores/deeper_summaries/nhl/',
       nba:   'https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/docs/win/final_scores/deeper_summaries/nba/',
-      ncaab: 'https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/docs/win/final_scores/deeper_summaries/ncaab/'
+      ncaab: 'https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/docs/win/final_scores/deeper_summaries/ncaab/',
+      mlb:   'https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/docs/win/final_scores/deeper_summaries/mlb/'
     };
 
     async function loadSport(sport, file, tid, sid, map) {
@@ -154,6 +164,7 @@
     loadSport('nhl',   'nhl_summary_by_market.csv',   'nhl-tally',   'nhl-status',   NHL_MAP);
     loadSport('nba',   'nba_summary_by_market.csv',   'nba-tally',   'nba-status',   STD_MAP);
     loadSport('ncaab', 'ncaab_summary_by_market.csv', 'ncaab-tally', 'ncaab-status', STD_MAP);
+    loadSport('mlb',   'mlb_summary_by_market.csv',   'mlb-tally',   'mlb-status',   MLB_MAP);
   </script>
 
 </body>
