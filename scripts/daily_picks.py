@@ -1,0 +1,124 @@
+#!/usr/bin/env python3
+# scripts/daily_picks.py
+
+import pandas as pd
+from pathlib import Path
+from datetime import datetime
+import traceback
+
+###############################################################
+# PATH CONFIG
+###############################################################
+
+BASEBALL_DIR = Path("docs/win/baseball/04_select")
+HOCKEY_DIR = Path("docs/win/hockey/04_select")
+NBA_FILE = Path("docs/win/basketball/04_select/daily_slate/nba_selected.csv")
+NCAAB_FILE = Path("docs/win/basketball/04_select/daily_slate/ncaab_selected.csv")
+
+OUTPUT_DIR = Path("docs/win/final_scores/daily_picks")
+ERROR_DIR = Path("docs/win/final_scores/errors")
+
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+ERROR_DIR.mkdir(parents=True, exist_ok=True)
+
+ERROR_LOG = ERROR_DIR / "daily_picks.txt"
+
+###############################################################
+# HELPERS
+###############################################################
+
+def log_error(msg):
+    with open(ERROR_LOG, "a", encoding="utf-8") as f:
+        f.write(f"{datetime.utcnow().isoformat()} | {msg}\n")
+
+
+def get_today_str():
+    return datetime.now().strftime("%Y_%m_%d")
+
+
+def load_csv_safe(path):
+    try:
+        if path.exists():
+            return pd.read_csv(path)
+        return pd.DataFrame()
+    except Exception:
+        log_error(f"Failed reading {path}\n{traceback.format_exc()}")
+        return pd.DataFrame()
+
+
+def normalize_columns(df, league_value):
+    if df.empty:
+        return df
+
+    cols_needed = [
+        "game_id",
+        "game_date",
+        "game_time",
+        "home_team",
+        "away_team",
+        "bet_side",
+        "market_type",
+        "line"
+    ]
+
+    missing = [c for c in cols_needed if c not in df.columns]
+    if missing:
+        log_error(f"Missing columns {missing}")
+        return pd.DataFrame()
+
+    out = df[cols_needed].copy()
+    out.insert(0, "league", league_value)
+
+    return out
+
+
+###############################################################
+# MAIN
+###############################################################
+
+def main():
+    try:
+        date_str = get_today_str()
+
+        # Input files
+        baseball_file = BASEBALL_DIR / f"{date_str}_MLB.csv"
+        hockey_file = HOCKEY_DIR / f"{date_str}_NHL.csv"
+
+        dfs = []
+
+        # Baseball (NOTE: per instructions → league = NBA)
+        df_baseball = load_csv_safe(baseball_file)
+        if not df_baseball.empty:
+            dfs.append(normalize_columns(df_baseball, "NBA"))
+
+        # Hockey
+        df_hockey = load_csv_safe(hockey_file)
+        if not df_hockey.empty:
+            dfs.append(normalize_columns(df_hockey, "NHL"))
+
+        # NBA
+        df_nba = load_csv_safe(NBA_FILE)
+        if not df_nba.empty:
+            dfs.append(normalize_columns(df_nba, "NBA"))
+
+        # NCAAB
+        df_ncaab = load_csv_safe(NCAAB_FILE)
+        if not df_ncaab.empty:
+            dfs.append(normalize_columns(df_ncaab, "NCAAB"))
+
+        if not dfs:
+            log_error("No input data found")
+            return
+
+        final_df = pd.concat(dfs, ignore_index=True)
+
+        # Output
+        output_file = OUTPUT_DIR / f"{date_str}_daily_picks.csv"
+        final_df.to_csv(output_file, index=False)
+
+    except Exception:
+        log_error(traceback.format_exc())
+
+
+if __name__ == "__main__":
+    main()
