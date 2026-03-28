@@ -1,453 +1,181 @@
-(() => {
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Picks</title>
+<link rel="stylesheet" href="css/matstheme.css">
+<style>
+    .loading-pulse {
+        animation: status-glow 1.5s infinite;
+        font-weight: bold;
+        letter-spacing: 1px;
+    }
 
-const dateInput    = document.getElementById("p-date");
-const statusEl     = document.getElementById("status");
-const gamesEl      = document.getElementById("games");
-const modal        = document.getElementById("modal");
-const modalContent = document.getElementById("modal-content");
+    @keyframes status-glow {
+        0% { color: var(--accent-yellow); opacity: 1; }
+        50% { color: var(--accent-green); opacity: 0.5; }
+        100% { color: var(--accent-yellow); opacity: 1; }
+    }
 
-if (!dateInput || !statusEl || !gamesEl) return;
-if (!window.REPO_CONFIG) { statusEl.textContent = "Missing config."; return; }
+    #games.loading::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 2px;
+        background: var(--accent-green);
+        box-shadow: 0 0 10px var(--accent-green);
+        animation: scan 2s linear infinite;
+        z-index: 10;
+    }
 
-// ─── Date ────────────────────────────────────────────────────────────────────
+    @keyframes scan {
+        0% { top: 0%; }
+        100% { top: 100%; }
+    }
 
-function todayLocal() {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
+    .pick-card {
+        transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s ease, border-color 0.25s ease;
+        background: rgba(15, 20, 27, 0.8) !important;
+        backdrop-filter: blur(5px);
+        border: 1px solid var(--border-soft);
+        position: relative;
+    }
 
-function toUnderscore(s) {
-  return (s || "").trim().replaceAll("-", "_");
-}
+    .pick-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0, 255, 132, 0.15);
+        border-color: var(--accent-green);
+        background: rgba(22, 27, 34, 0.9) !important;
+    }
 
-function normDate(v) {
-  return toUnderscore(v || "");
-}
+    .filters {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 25px;
+        flex-wrap: wrap;
+    }
 
-// ─── CSV ─────────────────────────────────────────────────────────────────────
+    .filter-pill {
+        padding: 6px 16px;
+        border: 1px solid var(--border-soft);
+        border-radius: 4px;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        cursor: pointer;
+        color: var(--text-muted);
+        transition: all 0.2s ease;
+        background: var(--bg-card);
+    }
 
-function parseCSV(text) {
-  const lines = text.trim().split(/\r?\n/);
-  if (lines.length < 2) return [];
-  const headers = lines[0].split(",").map(h => h.trim());
-  return lines.slice(1).map(line => {
-    const vals = line.split(",");
-    const obj = {};
-    headers.forEach((h, i) => { obj[h] = (vals[i] ?? "").trim(); });
-    return obj;
-  });
-}
+    .filter-pill.active {
+        border-color: var(--accent-green);
+        color: var(--accent-green);
+        background: rgba(0, 255, 132, 0.05);
+        box-shadow: 0 0 10px rgba(0, 255, 132, 0.2);
+    }
 
-async function fetchCSV(path) {
-  try {
-    const r = await fetch(path);
-    if (!r.ok) return { ok: false, rows: [] };
-    return { ok: true, rows: parseCSV(await r.text()) };
-  } catch {
-    return { ok: false, rows: [] };
-  }
-}
+    input[type="date"] {
+        background: var(--bg-card);
+        border: 1px solid var(--border-soft);
+        color: var(--text-main);
+        padding: 8px 12px;
+        font-family: inherit;
+        border-radius: 4px;
+        outline: none;
+    }
 
-async function fetchMultiCSV(paths) {
-  let rows = [];
-  let anyOk = false;
-  for (const p of paths) {
-    const res = await fetchCSV(p);
-    if (res.ok) { rows = rows.concat(res.rows); anyOk = true; }
-  }
-  return { ok: anyOk, rows };
-}
+    input[type="date"]:focus {
+        border-color: var(--accent-green);
+        box-shadow: 0 0 5px rgba(0, 255, 132, 0.2);
+    }
 
-// ─── Row Matching ─────────────────────────────────────────────────────────────
+    .modal {
+        backdrop-filter: blur(8px);
+        transition: opacity 0.3s ease;
+    }
 
-function rowMatchesLeague(row, cfg, target) {
-  if (cfg.filterFn) return true; // filterFn handles everything
-  if (cfg.leagueColumn) return (row[cfg.leagueColumn] || "").trim().toUpperCase() === target;
-  if (cfg.marketColumn) return (row[cfg.marketColumn] || "").trim().toUpperCase() === target;
-  // fallback: try both
-  const league = (row.league || "").trim().toUpperCase();
-  const market = (row.market || "").trim().toUpperCase();
-  return league === target || market === target;
-}
+    .modal-card {
+        border: 1px solid var(--accent-green);
+        box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+    }
 
-function filterRows(allRows, dateFormatted, leagueName, cfg) {
-  const target = leagueName.toUpperCase();
+    .league-grid {
+        position: relative;
+        min-height: 200px;
+    }
+</style>
+</head>
 
-  const leagueRows = allRows.filter(r => {
-    if (cfg.filterFn) return cfg.filterFn(r, null, target);
-    return rowMatchesLeague(r, cfg, target);
-  });
+<body>
+<div class="container">
 
-  const dated = leagueRows.filter(r => normDate(r.game_date) === dateFormatted);
-  return { rows: dated, stale: false, fromDate: dateFormatted };
-}
+    <h1>Picks</h1>
 
-// ─── Join Keys ────────────────────────────────────────────────────────────────
+    <div id="nav-placeholder"></div>
 
-function makeKey(row, cfg) {
-  if (cfg && cfg.joinKey) {
-    return (row[cfg.joinKey] || "").trim();
-  }
-  return `${(row.game_date || "").trim()}|${(row.home_team || "").trim()}|${(row.away_team || "").trim()}`;
-}
-
-function buildMap(rows, cfg) {
-  const map = {};
-  rows.forEach(r => {
-    const k = makeKey(r, cfg);
-    if (k) map[k] = r;
-  });
-  return map;
-}
-
-// ─── Merge: pull game_time from pred when select doesn't have it (MLB) ────────
-
-function mergeRows(selectRows, predMap, bookMap, cfg) {
-  return selectRows.map(sel => {
-    const key  = makeKey(sel, cfg);
-    const pred = predMap[key] || {};
-    const book = bookMap[key] || {};
-    const merged = { ...pred, ...book, ...sel, __key: key };
-    // If select has no game_time, pull from pred
-    if (!merged.game_time && pred.game_time) merged.game_time = pred.game_time;
-    return merged;
-  });
-}
-
-// ─── Bet Text ─────────────────────────────────────────────────────────────────
-
-function formatLine(line) {
-  const n = parseFloat(line);
-  if (isNaN(n)) return line;
-  return n > 0 ? "+" + n : String(n);
-}
-
-function buildBetText(p, r, cfg) {
-  if (cfg.buildBetText) return cfg.buildBetText(p, r);
-
-  const market = (p.market_type || "").toLowerCase();
-  const side   = (p.bet_side    || "").toLowerCase();
-  const line   = p.line || "";
-  const odds   = p.dk_odds_american || p.take_odds || "";
-
-  let label    = "";
-  let american = odds; // default to generic odds column
-
-  if (side === "home")  label = r.home_team || "Home";
-  if (side === "away")  label = r.away_team || "Away";
-  if (side === "over")  label = "Over";
-  if (side === "under") label = "Under";
-
-  // Spread-type markets: spread (NBA/NCAAB), puck_line (NHL), run_line (MLB)
-  if (["spread", "puck_line", "run_line"].includes(market)) {
-    if (side === "home") american = r.home_dk_spread_american || r.home_dk_puck_line_american || r.home_dk_run_line_american || odds;
-    if (side === "away") american = r.away_dk_spread_american || r.away_dk_puck_line_american || r.away_dk_run_line_american || odds;
-    return `${label} ${formatLine(line)} (${american})`.trim();
-  }
-
-  if (market === "total") {
-    if (side === "over")  american = r.dk_total_over_american  || odds;
-    if (side === "under") american = r.dk_total_under_american || odds;
-    return `${label} ${line} (${american})`.trim();
-  }
-
-  if (market === "moneyline") {
-    if (side === "home") american = r.home_dk_moneyline_american || odds;
-    if (side === "away") american = r.away_dk_moneyline_american || odds;
-    return `${label} (${american})`.trim();
-  }
-
-  return `${side} ${line} ${odds}`.trim();
-}
-
-// ─── Edge ─────────────────────────────────────────────────────────────────────
-
-function extractEdge(p) {
-  const market = (p.market_type || "").toLowerCase();
-  const side   = (p.bet_side    || "").toLowerCase();
-
-  if (market === "total")                                    return parseFloat(p[`${side}_edge_pct`]        || p.ev || 0);
-  if (["spread","puck_line","run_line"].includes(market))    return parseFloat(p[`${side}_spread_edge_pct`] || p.ev || 0);
-  if (market === "moneyline")                                return parseFloat(p[`${side}_ml_edge_pct`]     || p.ev || 0);
-  return parseFloat(p.ev || p.selected_ev || 0);
-}
-
-function edgeDots(edge) {
-  const filled = edge >= 0.15 ? 5 : edge >= 0.10 ? 4 : edge >= 0.07 ? 3 : edge >= 0.04 ? 2 : edge >= 0.001 ? 1 : 0;
-  const cls    = ["e0","e1","e2","e3","e4","e5"][filled];
-  const dots   = "●".repeat(filled) + "○".repeat(5 - filled);
-  return `<span class="edge-dots ${cls}" title="Edge ${(edge*100).toFixed(1)}%">${dots}</span>`;
-}
-
-// ─── Time Sort ────────────────────────────────────────────────────────────────
-
-function parseTime(t) {
-  if (!t) return 9999;
-  const m = t.match(/(\d+):(\d+)\s*(AM|PM)/i);
-  if (!m) return 9999;
-  let h = parseInt(m[1], 10);
-  const min = parseInt(m[2], 10);
-  if (m[3].toUpperCase() === "PM" && h !== 12) h += 12;
-  if (m[3].toUpperCase() === "AM" && h === 12) h = 0;
-  return h * 60 + min;
-}
-
-// ─── Modal ────────────────────────────────────────────────────────────────────
-
-function openModal(html) {
-  if (!modalContent || !modal) return;
-  modalContent.innerHTML = html;
-  modal.classList.add("open");
-}
-
-function buildModalHtml(r, picks, cfg) {
-  const isHockey   = !!cfg.isHockey;
-  const isBaseball = !!cfg.isBaseball;
-
-  const projAway  = isHockey ? r.away_projected_goals : isBaseball ? r.away_projected_runs  : r.away_projected_points;
-  const projHome  = isHockey ? r.home_projected_goals : isBaseball ? r.home_projected_runs  : r.home_projected_points;
-  const projTotal = isHockey ? r.total_projected_goals: isBaseball ? r.total_projected_runs : r.total_projected_points;
-
-  const spreadKey  = isHockey ? "puck_line" : isBaseball ? "run_line" : "spread";
-  const spreadAway = r[`away_${spreadKey}`]              || r.away_spread || "—";
-  const spreadHome = r[`home_${spreadKey}`]              || r.home_spread || "—";
-  const spreadAwayOdds = r[`away_dk_${spreadKey}_american`] || r.away_dk_spread_american || "—";
-  const spreadHomeOdds = r[`home_dk_${spreadKey}_american`] || r.home_dk_spread_american || "—";
-
-  const pitcherRow = isBaseball && (r.home_pitcher || r.away_pitcher) ? `
-    <div class="modal-pitchers">
-      <span class="modal-pitcher-label">SP</span>
-      <span>${r.away_pitcher || "—"}</span>
-      <span class="modal-pitcher-vs">vs</span>
-      <span>${r.home_pitcher || "—"}</span>
-    </div>` : "";
-
-  const picksHtml = picks.map(p => {
-    const betText = buildBetText(p, r, cfg);
-    const ev      = parseFloat(p.ev || p.selected_ev || 0);
-    const kelly   = parseFloat(p.kelly || p.home_spread_kelly || p.away_spread_kelly || p.home_ml_kelly || p.away_ml_kelly || 0);
-    const edge    = extractEdge(p);
-    return `
-      <div class="modal-pick-row">
-        <div class="modal-bet">${betText}</div>
-        <div class="modal-pick-stats">
-          <span class="modal-ev ${ev >= 0 ? "pos" : "neg"}">${ev >= 0 ? "+" : ""}${(ev * 100).toFixed(2)}% EV</span>
-          <span class="modal-kelly">Kelly ${(kelly * 100).toFixed(2)}%</span>
-          ${edgeDots(edge)}
+    <section class="controls">
+        <div class="row">
+            <div>
+                <label style="display:block; margin-bottom:8px; font-size:11px; color:var(--text-muted); text-transform:uppercase;">Select Date:</label>
+                <input id="p-date" type="date">
+            </div>
         </div>
-      </div>`;
-  }).join("");
+    </section>
 
-  return `
-    <div class="modal-header">
-      <span class="modal-league-tag">${cfg.displayName}</span>
-      <span class="modal-game-time">${r.game_time || ""}</span>
+    <div class="filters" id="league-filters">
+        <div class="filter-pill active" onclick="filterLeague('all')">All Leagues</div>
     </div>
-    <h2 class="modal-title">${r.away_team || "—"} <span class="modal-at">@</span> ${r.home_team || "—"}</h2>
-    ${pitcherRow}
-    <div class="modal-proj">
-      <span>Proj ${r.away_team || "Away"}: <strong>${projAway || "—"}</strong></span>
-      <span>Proj ${r.home_team || "Home"}: <strong>${projHome || "—"}</strong></span>
-      <span>Total: <strong>${projTotal || "—"}</strong></span>
-    </div>
-    <div class="modal-lines">
-      <div class="modal-line-row"><span class="line-label">ML</span><span>${r.away_dk_moneyline_american || "—"} / ${r.home_dk_moneyline_american || "—"}</span></div>
-      <div class="modal-line-row"><span class="line-label">${spreadKey.replace("_"," ").toUpperCase()}</span><span>${spreadAway} (${spreadAwayOdds}) / ${spreadHome} (${spreadHomeOdds})</span></div>
-      <div class="modal-line-row"><span class="line-label">TOTAL</span><span>${r.total || "—"} &nbsp; O ${r.dk_total_over_american || "—"} / U ${r.dk_total_under_american || "—"}</span></div>
-    </div>
-    <div class="modal-picks-section">
-      <div class="modal-picks-label">PICKS</div>
-      <div class="modal-picks">${picksHtml}</div>
-    </div>`;
-}
 
-// ─── Card ─────────────────────────────────────────────────────────────────────
+    <div id="status" class="status"></div>
 
-function buildCard(p, r, cfg) {
-  const card     = document.createElement("div");
-  card.className = "pick-card";
+    <div id="games" class="league-grid"></div>
 
-  const betText    = buildBetText(p, r, cfg);
-  const edge       = extractEdge(p);
-  const ev         = parseFloat(p.ev || p.selected_ev || 0);
-  const isBaseball = !!cfg.isBaseball;
+</div>
 
-  const pitcherLine = isBaseball && (r.away_pitcher || r.home_pitcher)
-    ? `<div class="card-pitchers">${r.away_pitcher || "?"} vs ${r.home_pitcher || "?"}</div>`
-    : "";
+<div id="modal" class="modal" onclick="closeModal(event)">
+  <div class="modal-card" onclick="event.stopPropagation()">
+    <div id="modal-content"></div>
+    <button class="secondary-btn" style="margin-top:20px; width:100%; background:var(--accent-green); color:var(--background); border:none; padding:12px; font-weight:bold; cursor:pointer; text-transform:uppercase;" onclick="closeModal()">Close Details</button>
+  </div>
+</div>
 
-  card.innerHTML = `
-    <div class="card-top">
-      <span class="card-time">${r.game_time || "—"}</span>
-      <span class="card-league-tag">${cfg.displayName}</span>
-    </div>
-    <div class="card-matchup">
-      <span class="card-team">${r.away_team || "—"}</span>
-      <span class="card-at">@</span>
-      <span class="card-team">${r.home_team || "—"}</span>
-    </div>
-    ${pitcherLine}
-    <div class="card-bet">${betText}</div>
-    <div class="card-footer">
-      <span class="card-ev ${ev >= 0 ? "pos" : "neg"}">${ev >= 0 ? "+" : ""}${(ev * 100).toFixed(1)}%</span>
-      ${edgeDots(edge)}
-    </div>`;
+<script src="js/config.js"></script>
+<script src="js/nav.js"></script>
+<script>
+    const statusEl = document.getElementById('status');
+    const gamesContainer = document.getElementById('games');
+    const modal = document.getElementById('modal');
 
-  return card;
-}
+    function setStatusLoading(msg) {
+        statusEl.textContent = msg;
+        statusEl.classList.add('loading-pulse');
+        gamesContainer.classList.add('loading');
+    }
 
-// ─── League Loader ────────────────────────────────────────────────────────────
+    function setStatusReady(msg) {
+        statusEl.textContent = msg;
+        statusEl.classList.remove('loading-pulse');
+        gamesContainer.classList.remove('loading');
+    }
 
-async function loadLeague(league, dateFormatted) {
-  const cfg = REPO_CONFIG[league];
-  if (!cfg) return { league, error: "No config" };
+    function openModal(contentHtml) {
+        document.getElementById('modal-content').innerHTML = contentHtml;
+        modal.classList.add('open');
+    }
 
-  const [selectRes, predRes, bookRes] = await Promise.all([
-    fetchMultiCSV(cfg.selectFiles(dateFormatted)),
-    fetchCSV(cfg.predFile(dateFormatted)),
-    fetchCSV(cfg.bookFile(dateFormatted)),
-  ]);
+    function closeModal() {
+        modal.classList.remove('open');
+    }
 
-  if (!selectRes.ok) return { league, cfg, error: "File not found", picks: 0 };
-
-  const { rows: selectRows, stale, fromDate } = filterRows(selectRes.rows, dateFormatted, league, cfg);
-  if (selectRows.length === 0) return { league, cfg, picks: 0, stale, fromDate };
-
-  const predMap = buildMap(predRes.rows, cfg);
-  const bookMap = buildMap(bookRes.rows, cfg);
-  const merged  = mergeRows(selectRows, predMap, bookMap, cfg);
-
-  // Group by game key
-  const grouped = {};
-  merged.forEach(r => {
-    if (!grouped[r.__key]) grouped[r.__key] = [];
-    grouped[r.__key].push(r);
-  });
-
-  // Sort games by time
-  const keys = Object.keys(grouped).sort((a, b) =>
-    parseTime(grouped[a][0].game_time) - parseTime(grouped[b][0].game_time)
-  );
-
-  return { league, cfg, keys, grouped, stale, fromDate, picks: merged.length };
-}
-
-// ─── Render Column ────────────────────────────────────────────────────────────
-
-function renderColumn(result) {
-  const col = document.createElement("div");
-  col.className = "league-column";
-  col.dataset.league = result.league;
-
-  const hdr = document.createElement("div");
-  hdr.className = "league-header";
-
-  if (result.error) {
-    hdr.textContent = result.league;
-    col.appendChild(hdr);
-    col.innerHTML += `<div class="col-state error">⚠ ${result.error}</div>`;
-    return { col, count: 0 };
-  }
-
-  hdr.textContent = result.league;
-  col.appendChild(hdr);
-
-  if (!result.keys || result.keys.length === 0) {
-    col.innerHTML += `<div class="col-state empty">No picks</div>`;
-    return { col, count: 0 };
-  }
-
-  let count = 0;
-  result.keys.forEach(key => {
-    const picks = result.grouped[key];
-    const r     = picks[0];
-    picks.forEach(p => {
-      const card = buildCard(p, r, result.cfg);
-      card.addEventListener("click", () => openModal(buildModalHtml(r, picks, result.cfg)));
-      col.appendChild(card);
-      count++;
-    });
-  });
-
-  return { col, count };
-}
-
-// ─── Filter Pills ─────────────────────────────────────────────────────────────
-
-function buildFilters(leagues) {
-  const container = document.getElementById("league-filters");
-  if (!container) return;
-  container.innerHTML = "";
-
-  const makeP = (text, league) => {
-    const p = document.createElement("div");
-    p.className = "filter-pill" + (league === "all" ? " active" : "");
-    p.textContent = text;
-    p.dataset.league = league;
-    return p;
-  };
-
-  container.appendChild(makeP("All", "all"));
-  leagues.forEach(l => container.appendChild(makeP(l, l)));
-
-  container.addEventListener("click", e => {
-    const pill = e.target.closest(".filter-pill");
-    if (!pill) return;
-    container.querySelectorAll(".filter-pill").forEach(p => p.classList.remove("active"));
-    pill.classList.add("active");
-    const sel = pill.dataset.league;
-    document.querySelectorAll(".league-column").forEach(col => {
-      col.style.display = (sel === "all" || col.dataset.league === sel) ? "" : "none";
-    });
-  });
-}
-
-// ─── Main ─────────────────────────────────────────────────────────────────────
-
-function init() {
-  dateInput.value = todayLocal();
-  dateInput.addEventListener("change", loadPage);
-
-  if (modal) {
-    modal.addEventListener("click", e => {
-      if (e.target === modal) modal.classList.remove("open");
-    });
-  }
-
-  loadPage();
-}
-
-async function loadPage() {
-  const dateStr       = dateInput.value || "";
-  const dateFormatted = toUnderscore(dateStr);
-
-  statusEl.textContent = "Loading…";
-  statusEl.className   = "status loading";
-  gamesEl.innerHTML    = "";
-
-  const leagues = REPO_CONFIG.leagues || [];
-  buildFilters(leagues);
-
-  const results = await Promise.all(leagues.map(l => loadLeague(l, dateFormatted)));
-
-  let totalPicks = 0;
-  results.forEach(result => {
-    const { col, count } = renderColumn(result);
-    gamesEl.appendChild(col);
-    totalPicks += count;
-  });
-
-  if (totalPicks === 0) {
-    gamesEl.innerHTML = '<div class="empty-state">NO PICKS FOR THIS DATE</div>';
-  }
-
-  statusEl.textContent = `${totalPicks} pick${totalPicks !== 1 ? "s" : ""} · ${dateStr}`;
-  statusEl.className   = "status";
-}
-
-init();
-
-})();
+    window.onclick = function(event) {
+        if (event.target == modal) {
+            closeModal();
+        }
+    }
+</script>
+<script src="js/app.js"></script>
+</body>
+</html>
