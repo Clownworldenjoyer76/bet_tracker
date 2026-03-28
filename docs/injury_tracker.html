@@ -310,7 +310,7 @@
 <div class="page-header">
   <div>
     <div class="page-title">Injury Impact Tracker</div>
-    <div class="page-subtitle">INJURY FEED</div>
+    <div class="page-subtitle">ESPN INJURY FEED · CROSS-REF YOUR PICKS</div>
   </div>
   <div class="header-right">
     <input type="date" class="date-input" id="inj-date">
@@ -397,24 +397,21 @@ async function fetchLeagueInjuries(cfg) {
     const data = await r.json();
     const rows = [];
 
-    // ESPN injury structure: data.injuries = array of { team, injuries[] }
-    const groups = data.injuries || [];
-    groups.forEach(group => {
-      const teamName = group.team?.displayName || group.team?.name || "Unknown";
-      const teamAbbr = group.team?.abbreviation || "";
-      const injuries = group.injuries || [];
-      injuries.forEach(inj => {
-        const athlete = inj.athlete || {};
-        rows.push({
-          league:   cfg.key,
-          player:   athlete.displayName || athlete.fullName || "Unknown",
-          position: athlete.position?.abbreviation || "—",
-          team:     teamName,
-          teamAbbr: teamAbbr,
-          status:   inj.status || inj.type || "Unknown",
-          injury:   inj.details?.fantasyStatus?.description || inj.details?.type || inj.longComment || inj.shortComment || "—",
-          returnDate: inj.details?.returnDate || "",
-        });
+    // ESPN injury structure: data.injuries = flat array of injury objects, team is inside athlete
+    const injuries = data.injuries || [];
+    injuries.forEach(inj => {
+      const athlete = inj.athlete || {};
+      const team = athlete.team || {};
+      rows.push({
+        league:     cfg.key,
+        player:     athlete.displayName || "Unknown",
+        position:   athlete.position?.abbreviation || "—",
+        team:       team.displayName || team.name || "Unknown",
+        teamAbbr:   team.abbreviation || "",
+        status:     inj.status || "Unknown",
+        injury:     inj.details?.type ? `${inj.details.type}${inj.details.detail ? ' · ' + inj.details.detail : ''}` : inj.shortComment || "—",
+        returnDate: inj.details?.returnDate || "",
+        comment:    inj.shortComment || "",
       });
     });
     return rows;
