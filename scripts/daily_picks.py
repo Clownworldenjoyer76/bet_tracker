@@ -32,10 +32,6 @@ def log_error(msg):
         f.write(f"{datetime.utcnow().isoformat()} | {msg}\n")
 
 
-def get_today_str():
-    return datetime.now().strftime("%Y_%m_%d")
-
-
 def load_csv_safe(path):
     try:
         if path.exists():
@@ -72,49 +68,59 @@ def normalize_columns(df, league_value):
     return out
 
 
+def collect_all_inputs():
+    dfs = []
+
+    # Baseball files (loop all dates)
+    for f in BASEBALL_DIR.glob("*_MLB.csv"):
+        df = load_csv_safe(f)
+        if not df.empty:
+            dfs.append(normalize_columns(df, "NBA"))  # per instruction
+
+    # Hockey files (loop all dates)
+    for f in HOCKEY_DIR.glob("*_NHL.csv"):
+        df = load_csv_safe(f)
+        if not df.empty:
+            dfs.append(normalize_columns(df, "NHL"))
+
+    # NBA (single file, assumed current day)
+    df_nba = load_csv_safe(NBA_FILE)
+    if not df_nba.empty:
+        dfs.append(normalize_columns(df_nba, "NBA"))
+
+    # NCAAB (single file, assumed current day)
+    df_ncaab = load_csv_safe(NCAAB_FILE)
+    if not df_ncaab.empty:
+        dfs.append(normalize_columns(df_ncaab, "NCAAB"))
+
+    if not dfs:
+        return pd.DataFrame()
+
+    return pd.concat(dfs, ignore_index=True)
+
+
 ###############################################################
 # MAIN
 ###############################################################
 
 def main():
     try:
-        date_str = get_today_str()
+        df = collect_all_inputs()
 
-        # Input files
-        baseball_file = BASEBALL_DIR / f"{date_str}_MLB.csv"
-        hockey_file = HOCKEY_DIR / f"{date_str}_NHL.csv"
-
-        dfs = []
-
-        # Baseball (NOTE: per instructions → league = NBA)
-        df_baseball = load_csv_safe(baseball_file)
-        if not df_baseball.empty:
-            dfs.append(normalize_columns(df_baseball, "NBA"))
-
-        # Hockey
-        df_hockey = load_csv_safe(hockey_file)
-        if not df_hockey.empty:
-            dfs.append(normalize_columns(df_hockey, "NHL"))
-
-        # NBA
-        df_nba = load_csv_safe(NBA_FILE)
-        if not df_nba.empty:
-            dfs.append(normalize_columns(df_nba, "NBA"))
-
-        # NCAAB
-        df_ncaab = load_csv_safe(NCAAB_FILE)
-        if not df_ncaab.empty:
-            dfs.append(normalize_columns(df_ncaab, "NCAAB"))
-
-        if not dfs:
-            log_error("No input data found")
+        if df.empty:
+            log_error("No data found across all inputs")
             return
 
-        final_df = pd.concat(dfs, ignore_index=True)
+        # Ensure date format consistency
+        df["game_date"] = df["game_date"].astype(str).str.replace("-", "_")
 
-        # Output
-        output_file = OUTPUT_DIR / f"{date_str}_daily_picks.csv"
-        final_df.to_csv(output_file, index=False)
+        # Group by date → 1 file per day
+        for game_date, group in df.groupby("game_date"):
+            try:
+                output_file = OUTPUT_DIR / f"{game_date}_daily_picks.csv"
+                group.to_csv(output_file, index=False)
+            except Exception:
+                log_error(f"Failed writing file for {game_date}\n{traceback.format_exc()}")
 
     except Exception:
         log_error(traceback.format_exc())
