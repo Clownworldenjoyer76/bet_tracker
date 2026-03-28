@@ -41,70 +41,63 @@ def filter_to_date(df, date_str):
     return df[df["game_date"].astype(str) == date_str]
 
 
-def build_output(df, league_value):
-    cols = [
-        "game_id",
-        "game_date",
-        "game_time",
-        "home_team",
-        "away_team",
-        "bet_side",
-        "market_type",
-        "line"
-    ]
+def build_rows(df, league_value):
+    rows = []
 
-    out = pd.DataFrame(index=df.index)
+    for _, r in df.iterrows():
+        row = {
+            "league": league_value,
+            "game_id": r.get("game_id", ""),
+            "game_date": r.get("game_date", ""),
+            "game_time": r.get("game_time", ""),
+            "home_team": r.get("home_team", ""),
+            "away_team": r.get("away_team", ""),
+            "bet_side": r.get("bet_side", ""),
+            "market_type": r.get("market_type", ""),
+            "line": r.get("line", "")
+        }
+        rows.append(row)
 
-    # FORCE league value — cannot be blank
-    out["league"] = league_value
-
-    # Copy columns EXACTLY as-is from input
-    for c in cols:
-        if c in df.columns:
-            out[c] = df[c].values
-        else:
-            out[c] = ""
-
-    return out
+    return rows
 
 
 def main():
     try:
         date_str = datetime.now().strftime("%Y_%m_%d")
 
-        frames = []
+        all_rows = []
 
         # MLB
         mlb_path = BASEBALL_DIR / f"{date_str}_MLB.csv"
         df = load_csv(mlb_path)
         if not df.empty:
-            frames.append(build_output(df, "NBA"))  # per spec
+            all_rows.extend(build_rows(df, "NBA"))  # per spec
 
         # NHL
         nhl_path = HOCKEY_DIR / f"{date_str}_NHL.csv"
         df = load_csv(nhl_path)
         if not df.empty:
-            frames.append(build_output(df, "NHL"))
+            all_rows.extend(build_rows(df, "NHL"))
 
-        # NBA (FILTERED TO DATE)
+        # NBA
         df = load_csv(NBA_FILE)
         if not df.empty:
             df = filter_to_date(df, date_str)
             if not df.empty:
-                frames.append(build_output(df, "NBA"))
+                all_rows.extend(build_rows(df, "NBA"))
 
-        # NCAAB (FILTERED TO DATE)
+        # NCAAB
         df = load_csv(NCAAB_FILE)
         if not df.empty:
             df = filter_to_date(df, date_str)
             if not df.empty:
-                frames.append(build_output(df, "NCAAB"))
+                all_rows.extend(build_rows(df, "NCAAB"))
 
-        if not frames:
+        if not all_rows:
             log_error("No data found")
             return
 
-        final = pd.concat(frames, ignore_index=True)
+        final = pd.DataFrame(all_rows)
 
         output_file = OUTPUT_DIR / f"{date_str}_daily_picks.csv"
         final.to_csv(output_file, index=False)
