@@ -2,168 +2,595 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Picks</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Picks — Edgelytics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=Barlow+Condensed:wght@400;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/matstheme.css">
 <style>
-    .loading-pulse {
-        animation: status-glow 1.5s infinite;
-        font-weight: bold;
-        letter-spacing: 1px;
-    }
 
-    @keyframes status-glow {
-        0% { color: var(--accent-yellow); opacity: 1; }
-        50% { color: var(--accent-green); opacity: 0.5; }
-        100% { color: var(--accent-yellow); opacity: 1; }
-    }
 
-    #games.loading::after {
-        content: "";
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 2px;
-        background: var(--accent-green);
-        box-shadow: 0 0 10px var(--accent-green);
-        animation: scan 2s linear infinite;
-        z-index: 10;
-    }
+.topbar {
+  margin: 0;
+}
 
-    @keyframes scan {
-        0% { top: 0%; }
-        100% { top: 100%; }
-    }
+  
+/* ── Page-level overrides ───────────────────────────────────────────────── */
+body {
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  background: var(--background);
+  padding: 0;
+}
 
-    .pick-card {
-        transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s ease, border-color 0.25s ease;
-        background: rgba(15, 20, 27, 0.8) !important;
-        backdrop-filter: blur(5px);
-        border: 1px solid var(--border-soft);
-        position: relative;
-    }
+/* ── Picks-specific tokens ──────────────────────────────────────────────── */
+:root {
+  --picks-green:      #00ff84;
+  --picks-green-dim:  rgba(0, 255, 132, 0.08);
+  --picks-green-glow: rgba(0, 255, 132, 0.2);
+  --picks-yellow:     #facc15;
+  --picks-red:        #ff2d2d;
+  --picks-blue:       #00bfff;
+  --picks-border:     rgba(255,255,255,0.06);
+  --picks-card:       #0c1118;
+  --picks-card-hover: #111822;
+  --picks-radius:     3px;
+}
 
-    .pick-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 20px rgba(0, 255, 132, 0.15);
-        border-color: var(--accent-green);
-        background: rgba(22, 27, 34, 0.9) !important;
-    }
+/* ── Page header ────────────────────────────────────────────────────────── */
+.picks-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--picks-border);
+}
 
-    .filters {
-        display: flex;
-        gap: 12px;
-        margin-bottom: 25px;
-        flex-wrap: wrap;
-    }
+.picks-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: 6px;
+  text-transform: uppercase;
+  color: var(--picks-green);
+  line-height: 1;
+  margin: 0;
+}
 
-    .filter-pill {
-        padding: 6px 16px;
-        border: 1px solid var(--border-soft);
-        border-radius: 4px;
-        font-size: 11px;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        cursor: pointer;
-        color: var(--text-muted);
-        transition: all 0.2s ease;
-        background: var(--bg-card);
-    }
+.picks-title-slash {
+  color: rgba(0,255,132,0.25);
+  margin: 0 4px;
+}
 
-    .filter-pill.active {
-        border-color: var(--accent-green);
-        color: var(--accent-green);
-        background: rgba(0, 255, 132, 0.05);
-        box-shadow: 0 0 10px rgba(0, 255, 132, 0.2);
-    }
+#status {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-left: auto;
+}
 
-    input[type="date"] {
-        background: var(--bg-card);
-        border: 1px solid var(--border-soft);
-        color: var(--text-main);
-        padding: 8px 12px;
-        font-family: inherit;
-        border-radius: 4px;
-        outline: none;
-    }
+#status.loading {
+  color: var(--picks-green);
+  animation: pulse-text 1.2s ease infinite;
+}
 
-    input[type="date"]:focus {
-        border-color: var(--accent-green);
-        box-shadow: 0 0 5px rgba(0, 255, 132, 0.2);
-    }
+@keyframes pulse-text {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.35; }
+}
 
-    .modal {
-        backdrop-filter: blur(8px);
-        transition: opacity 0.3s ease;
-    }
+/* ── Controls bar ───────────────────────────────────────────────────────── */
+.picks-controls {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--picks-border);
+  flex-wrap: wrap;
+}
 
-    .modal-card {
-        border: 1px solid var(--accent-green);
-        box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
-    }
+.date-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
 
-    .league-grid {
-        position: relative;
-        min-height: 200px;
-    }
+.date-label {
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+input[type="date"] {
+  background: var(--picks-card);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-main);
+  padding: 7px 12px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  border-radius: var(--picks-radius);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  cursor: pointer;
+}
+
+input[type="date"]:focus {
+  border-color: var(--picks-green);
+  box-shadow: 0 0 0 3px var(--picks-green-dim);
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) opacity(0.3);
+  cursor: pointer;
+}
+
+/* ── Filter pills ───────────────────────────────────────────────────────── */
+#league-filters {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.filter-pill {
+  padding: 4px 14px;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 2px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  cursor: pointer;
+  color: var(--text-muted);
+  background: transparent;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.filter-pill:hover {
+  border-color: rgba(0,255,132,0.35);
+  color: var(--text-main);
+}
+
+.filter-pill.active {
+  border-color: var(--picks-green);
+  color: var(--picks-green);
+  background: var(--picks-green-dim);
+  box-shadow: 0 0 8px var(--picks-green-glow);
+}
+
+/* ── League grid ────────────────────────────────────────────────────────── */
+#games {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 0;
+  padding: 24px;
+  align-items: start;
+}
+
+/* Gap via padding so borders collapse cleanly */
+.league-column {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 16px 0 0;
+  border-right: 1px solid var(--picks-border);
+}
+
+.league-column:last-child {
+  border-right: none;
+  padding-right: 0;
+}
+
+.league-column + .league-column {
+  padding-left: 16px;
+}
+
+/* ── League header ──────────────────────────────────────────────────────── */
+.league-header {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--picks-border);
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stale-tag {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 8px;
+  padding: 2px 6px;
+  border-radius: 2px;
+  background: rgba(250,204,21,0.1);
+  color: var(--picks-yellow);
+  border: 1px solid rgba(250,204,21,0.25);
+  letter-spacing: 1px;
+  vertical-align: middle;
+}
+
+.col-state {
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 20px 0;
+  text-align: center;
+}
+
+.col-state.empty { color: var(--text-muted); }
+.col-state.error { color: var(--picks-red);  }
+
+/* ── Pick card ──────────────────────────────────────────────────────────── */
+.pick-card {
+  background: var(--picks-card);
+  border: 1px solid var(--picks-border);
+  border-left: 3px solid transparent;
+  border-radius: var(--picks-radius);
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+  position: relative;
+}
+
+.pick-card:hover {
+  border-color: var(--picks-border);
+  border-left-color: var(--picks-green);
+  background: var(--picks-card-hover);
+  transform: translateX(2px);
+}
+
+.card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 9px;
+}
+
+.card-time {
+  font-size: 10px;
+  color: var(--picks-yellow);
+  letter-spacing: 1px;
+}
+
+.card-league-tag {
+  font-size: 8px;
+  letter-spacing: 2px;
+  color: var(--picks-green);
+  background: var(--picks-green-dim);
+  border: 1px solid rgba(0,255,132,0.2);
+  padding: 2px 7px;
+  border-radius: 2px;
+}
+
+.card-matchup {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+
+.card-team {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--text-main);
+  line-height: 1.2;
+}
+
+.card-at {
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+}
+
+.card-pitchers {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  letter-spacing: 0.5px;
+}
+
+.card-bet {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--picks-blue);
+  margin-bottom: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 8px;
+  border-top: 1px solid var(--picks-border);
+}
+
+.card-ev {
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+
+.card-ev.pos { color: var(--picks-green); }
+.card-ev.neg { color: var(--picks-red);   }
+
+/* ── Edge dots ──────────────────────────────────────────────────────────── */
+.edge-dots {
+  font-size: 10px;
+  letter-spacing: 2px;
+}
+
+.edge-dots.e5 { color: #ff2d2d; text-shadow: 0 0 6px rgba(255,45,45,0.5); }
+.edge-dots.e4 { color: #ff7043; }
+.edge-dots.e3 { color: var(--picks-yellow); }
+.edge-dots.e2 { color: #7a8fa6; }
+.edge-dots.e1 { color: var(--text-muted); }
+.edge-dots.e0 { color: rgba(255,255,255,0.12); }
+
+/* ── Empty state ────────────────────────────────────────────────────────── */
+.empty-state {
+  grid-column: 1 / -1;
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 4px;
+  color: var(--text-muted);
+  padding: 80px 0;
+  text-transform: uppercase;
+  border: 1px dashed rgba(255,255,255,0.06);
+  border-radius: var(--picks-radius);
+}
+
+/* ── Modal ──────────────────────────────────────────────────────────────── */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.8);
+  backdrop-filter: blur(8px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 1000;
+}
+
+.modal.open { display: flex; }
+
+.modal-card {
+  background: #0c1118;
+  border: 1px solid rgba(0,255,132,0.25);
+  border-radius: 4px;
+  padding: 28px;
+  width: 100%;
+  max-width: 500px;
+  max-height: 88vh;
+  overflow-y: auto;
+  box-shadow: 0 32px 64px rgba(0,0,0,0.7), 0 0 0 1px rgba(0,255,132,0.1);
+}
+
+.modal-card::-webkit-scrollbar { width: 3px; }
+.modal-card::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); }
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.modal-league-tag {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: var(--picks-green);
+  text-transform: uppercase;
+}
+
+.modal-game-time {
+  font-size: 10px;
+  color: var(--picks-yellow);
+  letter-spacing: 1px;
+}
+
+.modal-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--text-main);
+  margin: 0 0 12px;
+  line-height: 1.2;
+}
+
+.modal-at {
+  color: var(--text-muted);
+  font-weight: 400;
+  margin: 0 4px;
+}
+
+.modal-pitchers {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--picks-border);
+  padding: 8px 12px;
+  border-radius: var(--picks-radius);
+  margin-bottom: 12px;
+}
+
+.modal-pitcher-label {
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--picks-blue);
+  background: rgba(0,191,255,0.08);
+  border: 1px solid rgba(0,191,255,0.2);
+  padding: 1px 6px;
+  border-radius: 2px;
+}
+
+.modal-pitcher-vs { color: var(--text-muted); font-size: 9px; }
+
+.modal-proj {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--text-muted);
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--picks-border);
+  padding: 10px 12px;
+  border-radius: var(--picks-radius);
+  margin-bottom: 10px;
+}
+
+.modal-proj strong { color: var(--text-main); }
+
+.modal-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+
+.modal-line-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.line-label {
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--picks-border);
+  padding: 2px 7px;
+  border-radius: 2px;
+  min-width: 60px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.modal-picks-section { }
+
+.modal-picks-label {
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.modal-picks { display: flex; flex-direction: column; gap: 6px; }
+
+.modal-pick-row {
+  background: rgba(0,255,132,0.04);
+  border: 1px solid rgba(0,255,132,0.15);
+  border-radius: var(--picks-radius);
+  padding: 10px 14px;
+}
+
+.modal-bet {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--picks-green);
+  margin-bottom: 6px;
+}
+
+.modal-pick-stats {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 10px;
+}
+
+.modal-ev.pos { color: var(--picks-green); }
+.modal-ev.neg { color: var(--picks-red); }
+.modal-kelly  { color: var(--text-muted); }
+
+.modal-close-btn {
+  margin-top: 20px;
+  width: 100%;
+  background: transparent;
+  color: var(--picks-green);
+  border: 1px solid rgba(0,255,132,0.3);
+  padding: 11px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  cursor: pointer;
+  border-radius: var(--picks-radius);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.modal-close-btn:hover {
+  background: var(--picks-green-dim);
+  border-color: var(--picks-green);
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  #games {
+    grid-template-columns: 1fr;
+    padding: 16px;
+  }
+  .league-column {
+    padding: 0 0 20px !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--picks-border);
+  }
+  .league-column:last-child { border-bottom: none; }
+}
+
 </style>
 </head>
-
 <body>
-<div class="container">
 
-    <h1>Picks</h1>
+  <div id="nav-placeholder"></div>
 
-    <div id="nav-placeholder"></div>
-
-    <section class="controls">
-        <div class="row">
-            <div>
-                <label style="display:block; margin-bottom:8px; font-size:11px; color:var(--text-muted); text-transform:uppercase;">Select Date:</label>
-                <input id="p-date" type="date">
-            </div>
-        </div>
-    </section>
-
-    <div class="filters" id="league-filters">
-        <div class="filter-pill active" onclick="filterLeague('all')">All Leagues</div>
-    </div>
-
+  <div class="picks-header">
+    <h1 class="picks-title">PICKS</h1>
     <div id="status" class="status"></div>
-
-    <div id="games" class="league-grid"></div>
-
-</div>
-
-<div id="modal" class="modal">
-  <div class="modal-card" onclick="event.stopPropagation()">
-    <div id="modal-content"></div>
-    <button class="secondary-btn" style="margin-top:20px; width:100%; background:var(--accent-green); color:var(--background); border:none; padding:12px; font-weight:bold; cursor:pointer; text-transform:uppercase;" onclick="document.getElementById('modal').classList.remove('open')">
-      Close Details
-    </button>
   </div>
-</div>
 
-<script src="js/config.js"></script>
-<script src="js/nav.js"></script>
+  <div class="picks-controls">
+    <div class="date-wrap">
+      <span class="date-label">Date</span>
+      <input id="p-date" type="date">
+    </div>
+    <div id="league-filters"></div>
+  </div>
 
-<script>
-    const statusEl = document.getElementById('status');
-    const gamesContainer = document.getElementById('games');
+  <div id="games"></div>
 
-    function setStatusLoading(msg) {
-        statusEl.textContent = msg;
-        statusEl.classList.add('loading-pulse');
-        gamesContainer.classList.add('loading');
-    }
+  <div id="modal" class="modal">
+    <div class="modal-card" onclick="event.stopPropagation()">
+      <div id="modal-content"></div>
+      <button class="modal-close-btn" onclick="document.getElementById('modal').classList.remove('open')">Close</button>
+    </div>
+  </div>
 
-    function setStatusReady(msg) {
-        statusEl.textContent = msg;
-        statusEl.classList.remove('loading-pulse');
-        gamesContainer.classList.remove('loading');
-    }
-</script>
+  <script src="js/config.js"></script>
+  <script src="js/nav.js"></script>
+  <script src="js/app.js"></script>
 
-<script src="js/app.js"></script>
 </body>
 </html>
