@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # scripts/daily_picks.py
 
-import pandas as pd
+import csv
+import traceback
 from pathlib import Path
 from datetime import datetime
-import traceback
 
 BASEBALL_DIR = Path("docs/win/baseball/04_select")
 HOCKEY_DIR = Path("docs/win/hockey/04_select")
@@ -19,88 +19,103 @@ ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 ERROR_LOG = ERROR_DIR / "daily_picks.txt"
 
+OUTPUT_COLUMNS = [
+    "league",
+    "game_id",
+    "game_date",
+    "game_time",
+    "home_team",
+    "away_team",
+    "bet_side",
+    "market_type",
+    "line",
+]
 
-def log_error(msg):
+
+def log_error(msg: str) -> None:
     with open(ERROR_LOG, "a", encoding="utf-8") as f:
         f.write(f"{datetime.utcnow().isoformat()} | {msg}\n")
 
 
-def load_csv(path):
+def read_csv_rows(path: Path):
     try:
-        if path.exists():
-            return pd.read_csv(path)
-        return pd.DataFrame()
+        if not path.exists():
+            return []
+        with open(path, "r", encoding="utf-8-sig", newline="") as f:
+            return list(csv.DictReader(f))
     except Exception:
-        log_error(f"{path} load failed\n{traceback.format_exc()}")
-        return pd.DataFrame()
+        log_error(f"FAILED TO READ {path}\n{traceback.format_exc()}")
+        return []
 
 
-def filter_to_date(df, date_str):
-    if "game_date" not in df.columns:
-        return df
-    return df[df["game_date"].astype(str) == date_str]
+def normalize_date_value(value) -> str:
+    if value is None:
+        return ""
+    return str(value).strip()
 
 
-def build_rows(df, league_value):
-    rows = []
+def build_output_rows(source_rows, forced_league: str, target_date: str = None):
+    out = []
 
-    for _, r in df.iterrows():
-        row = {
-            "league": league_value,
-            "game_id": r.get("game_id", ""),
-            "game_date": r.get("game_date", ""),
-            "game_time": r.get("game_time", ""),
-            "home_team": r.get("home_team", ""),
-            "away_team": r.get("away_team", ""),
-            "bet_side": r.get("bet_side", ""),
-            "market_type": r.get("market_type", ""),
-            "line": r.get("line", "")
-        }
-        rows.append(row)
+    for src in source_rows:
+        game_date = normalize_date_value(src.get("game_date", ""))
 
-    return rows
+        if target_date is not None and game_date != target_date:
+            continue
+
+        out.append({
+            "league": forced_league,
+            "game_id": src.get("game_id", ""),
+            "game_date": src.get("game_date", ""),
+            "game_time": src.get("game_time", ""),
+            "home_team": src.get("home_team", ""),
+            "away_team": src.get("away_team", ""),
+            "bet_side": src.get("bet_side", ""),
+            "market_type": src.get("market_type", ""),
+            "line": src.get("line", ""),
+        })
+
+    return out
+
+
+def write_output(path: Path, rows) -> None:
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=OUTPUT_COLUMNS)
+        writer.writeheader()
+        writer.writerows(rows)
 
 
 def main():
     try:
         date_str = datetime.now().strftime("%Y_%m_%d")
 
-        all_rows = []
+        baseball_path = BASEBALL_DIR / f"{date_str}_MLB.csv"
+        hockey_path = HOCKEY_DIR / f"{date_str}_NHL.csv"
 
-        # MLB
-        mlb_path = BASEBALL_DIR / f"{date_str}_MLB.csv"
-        df = load_csv(mlb_path)
-        if not df.empty:
-            all_rows.extend(build_rows(df, "NBA"))  # per spec
+        final_rows = []
 
-        # NHL
-        nhl_path = HOCKEY_DIR / f"{date_str}_NHL.csv"
-        df = load_csv(nhl_path)
-        if not df.empty:
-            all_rows.extend(build_rows(df, "NHL"))
+        # Baseball file -> league value = NBA (per spec)
+        baseball_rows = read_csv_rows(baseball_path)
+        final_rows.extend(build_output_rows(baseball_rows, "NBA"))
 
-        # NBA
-        df = load_csv(NBA_FILE)
-        if not df.empty:
-            df = filter_to_date(df, date_str)
-            if not df.empty:
-                all_rows.extend(build_rows(df, "NBA"))
+        # Hockey file -> league value = NHL
+        hockey_rows = read_csv_rows(hockey_path)
+        final_rows.extend(build_output_rows(hockey_rows, "NHL"))
 
-        # NCAAB
-        df = load_csv(NCAAB_FILE)
-        if not df.empty:
-            df = filter_to_date(df, date_str)
-            if not df.empty:
-                all_rows.extend(build_rows(df, "NCAAB"))
+        # NBA selected -> only rows for target date
+        nba_rows = read_csv_rows(NBA_FILE)
+        final_rows.extend(build_output_rows(nba_rows, "NBA", target_date=date_str))
 
-        if not all_rows:
-            log_error("No data found")
+        # NCAAB selected -> only rows for target date
+        ncaab_rows = read_csv_rows(NCAAB_FILE)
+        final_rows.extend(build_output_rows(ncaab_rows, "NCAAB", target_date=date_str))
+
+        if not final_rows:
+            log_error("NO DATA FOUND")
             return
 
-        final = pd.DataFrame(all_rows)
-
-        output_file = OUTPUT_DIR / f"{date_str}_daily_picks.csv"
-        final.to_csv(output_file, index=False)
+        output_path = OUTPUT_DIR / f"{date_str}_daily_picks.csv"
+        write_output(output_path, final_rows)
 
     except Exception:
         log_error(traceback.format_exc())
