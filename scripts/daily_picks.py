@@ -54,13 +54,17 @@ def normalize_date_value(value) -> str:
     return str(value).strip()
 
 
-def build_output_rows(source_rows, forced_league: str, target_date: str = None):
+def build_output_rows(source_rows, forced_league: str, target_date_dashes: str = None):
+    """
+    target_date_dashes: date string in YYYY-MM-DD format (matches game_date values in CSV).
+    Pass None to include all rows (baseball/hockey files are already date-scoped by filename).
+    """
     out = []
 
     for src in source_rows:
         game_date = normalize_date_value(src.get("game_date", ""))
 
-        if target_date is not None and game_date != target_date:
+        if target_date_dashes is not None and game_date != target_date_dashes:
             continue
 
         out.append({
@@ -87,35 +91,37 @@ def write_output(path: Path, rows) -> None:
 
 def main():
     try:
-        date_str = datetime.now().strftime("%Y_%m_%d")
+        now = datetime.now()
+        date_underscores = now.strftime("%Y_%m_%d")   # e.g. 2026_03_28  — used in filenames
+        date_dashes = now.strftime("%Y-%m-%d")        # e.g. 2026-03-28  — matches game_date in CSVs
 
-        baseball_path = BASEBALL_DIR / f"{date_str}_MLB.csv"
-        hockey_path = HOCKEY_DIR / f"{date_str}_NHL.csv"
+        baseball_path = BASEBALL_DIR / f"{date_underscores}_MLB.csv"
+        hockey_path = HOCKEY_DIR / f"{date_underscores}_NHL.csv"
 
         final_rows = []
 
-        # Baseball file -> league value = NBA (per spec)
+        # Baseball file -> league = MLB
         baseball_rows = read_csv_rows(baseball_path)
-        final_rows.extend(build_output_rows(baseball_rows, "NBA"))
+        final_rows.extend(build_output_rows(baseball_rows, "MLB"))
 
-        # Hockey file -> league value = NHL
+        # Hockey file -> league = NHL
         hockey_rows = read_csv_rows(hockey_path)
         final_rows.extend(build_output_rows(hockey_rows, "NHL"))
 
-        # NBA selected -> only rows for target date
+        # NBA selected -> filter to today's date
         nba_rows = read_csv_rows(NBA_FILE)
-        final_rows.extend(build_output_rows(nba_rows, "NBA", target_date=date_str))
+        final_rows.extend(build_output_rows(nba_rows, "NBA", target_date_dashes=date_dashes))
 
-        # NCAAB selected -> only rows for target date
+        # NCAAB selected -> filter to today's date
         ncaab_rows = read_csv_rows(NCAAB_FILE)
-        final_rows.extend(build_output_rows(ncaab_rows, "NCAAB", target_date=date_str))
+        final_rows.extend(build_output_rows(ncaab_rows, "NCAAB", target_date_dashes=date_dashes))
 
         if not final_rows:
             log_error("NO DATA FOUND")
             return
 
-        output_path = OUTPUT_DIR / f"{date_str}_daily_picks.csv"
-        write_output(output_path, final_rows)
+        output_path = OUTPUT_DIR / f"{date_underscores}_daily_picks.csv"
+        write_output(output_path, final_rows)  # "w" mode always overwrites
 
     except Exception:
         log_error(traceback.format_exc())
