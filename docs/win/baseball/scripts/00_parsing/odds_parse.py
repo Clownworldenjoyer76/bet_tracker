@@ -1,20 +1,35 @@
 # docs/win/baseball/scripts/00_parsing/odds_parse.py
 
+import sys
 import json
 import csv
-from datetime import datetime, timezone, timedelta
 from pathlib import Path
-import sys
+from datetime import datetime
+from zoneinfo import ZoneInfo  # ✅ handles DST correctly
 
-INPUT_PATH = Path(sys.argv[1])
+# -----------------------
+# INPUT HANDLING (FIXED)
+# -----------------------
 
-# ---- TIME CONVERSION (UTC -> EST) ----
+if len(sys.argv) > 1:
+    INPUT_PATH = Path(sys.argv[1])
+else:
+    INPUT_PATH = Path("docs/win/baseball/odds")
+
+if not INPUT_PATH.exists():
+    raise FileNotFoundError(f"Input path does not exist: {INPUT_PATH}")
+
+# -----------------------
+# TIME CONVERSION (UTC -> NY)
+# -----------------------
 def utc_to_est(utc_str):
     dt = datetime.fromisoformat(utc_str.replace("Z", "+00:00"))
-    est = dt.astimezone(timezone(timedelta(hours=-5)))
+    est = dt.astimezone(ZoneInfo("America/New_York"))
     return est.strftime("%Y_%m_%d"), est.strftime("%H:%M:%S")
 
-# ---- ODDS CONVERSION ----
+# -----------------------
+# ODDS CONVERSION
+# -----------------------
 def decimal_to_american(decimal_odds):
     if decimal_odds is None:
         return None
@@ -23,7 +38,9 @@ def decimal_to_american(decimal_odds):
     else:
         return int(-100 / (decimal_odds - 1))
 
-# ---- PROCESS ONE FILE ----
+# -----------------------
+# PROCESS ONE FILE
+# -----------------------
 def process_file(file_path):
     with open(file_path, "r") as f:
         data = json.load(f)
@@ -87,33 +104,22 @@ def process_file(file_path):
                         under_dec = o["price"]
 
         row = [
-            game_id,
-            sport,
-            league,
-            game_date,
-            game_time,
-            home_team,
-            away_team,
-            away_run_line,
-            home_run_line,
-            total,
+            game_id, sport, league, game_date, game_time,
+            home_team, away_team,
+            away_run_line, home_run_line, total,
             decimal_to_american(away_rl_dec),
             decimal_to_american(home_rl_dec),
             decimal_to_american(over_dec),
             decimal_to_american(under_dec),
             decimal_to_american(away_ml_dec),
             decimal_to_american(home_ml_dec),
-            away_rl_dec,
-            home_rl_dec,
-            over_dec,
-            under_dec,
-            away_ml_dec,
-            home_ml_dec
+            away_rl_dec, home_rl_dec,
+            over_dec, under_dec,
+            away_ml_dec, home_ml_dec
         ]
 
         grouped_rows.setdefault(game_date, []).append(row)
 
-    # ---- WRITE ONE CSV PER GAME DATE ----
     base_output_dir = Path("docs/win/baseball/00_intake/sportsbook")
     base_output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -136,11 +142,16 @@ def process_file(file_path):
 
         print(f"Saved {output_path}")
 
-# ---- ENTRY ----
+# -----------------------
+# ENTRY
+# -----------------------
 if INPUT_PATH.is_file():
     process_file(INPUT_PATH)
 elif INPUT_PATH.is_dir():
-    for file in sorted(INPUT_PATH.glob("*.json")):
+    files = list(INPUT_PATH.glob("*.json"))
+    if not files:
+        raise FileNotFoundError(f"No JSON files found in {INPUT_PATH}")
+    for file in sorted(files):
         process_file(file)
 else:
-    print("Invalid input path")
+    raise ValueError(f"Invalid input path: {INPUT_PATH}")
