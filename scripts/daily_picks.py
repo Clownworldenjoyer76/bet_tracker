@@ -63,6 +63,12 @@ def extract_columns(df, league_value):
     return out
 
 
+def filter_to_date(df, date_str):
+    if "game_date" not in df.columns:
+        return df
+    return df[df["game_date"].astype(str) == date_str]
+
+
 ###############################################################
 # MAIN
 ###############################################################
@@ -86,11 +92,15 @@ def main():
 
         df_nba = load_csv(NBA_FILE)
         if not df_nba.empty:
-            frames.append(extract_columns(df_nba, "NBA"))
+            df_nba = filter_to_date(df_nba, date_str)
+            if not df_nba.empty:
+                frames.append(extract_columns(df_nba, "NBA"))
 
         df_ncaab = load_csv(NCAAB_FILE)
         if not df_ncaab.empty:
-            frames.append(extract_columns(df_ncaab, "NCAAB"))
+            df_ncaab = filter_to_date(df_ncaab, date_str)
+            if not df_ncaab.empty:
+                frames.append(extract_columns(df_ncaab, "NCAAB"))
 
         if not frames:
             log_error("No input data found")
