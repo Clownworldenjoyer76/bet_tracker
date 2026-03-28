@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Injury Impact Tracker · Edgelytics</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #0a0a0a;
+    --bg2:      #111111;
+    --bg3:      #181818;
+    --border:   #222222;
+    --green:    #00ff84;
+    --blue:     #00bfff;
+    --yellow:   #facc15;
+    --red:      #ff4444;
+    --orange:   #ff8c00;
+    --muted:    #555555;
+    --text:     #e0e0e0;
+    --text2:    #888888;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  .page-header {
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .page-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 22px;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--green);
+  }
+  .page-subtitle {
+    color: var(--text2);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+  }
+  .header-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  /* ── Controls ── */
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .league-pill {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    padding: 4px 12px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text2);
+    cursor: pointer;
+    transition: all 0.15s;
+    text-transform: uppercase;
+  }
+  .league-pill:hover { border-color: var(--blue); color: var(--blue); }
+  .league-pill.active { border-color: var(--green); color: var(--green); background: rgba(0,255,132,0.06); }
+
+  .search-box {
+    margin-left: auto;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    padding: 5px 10px;
+    width: 200px;
+    outline: none;
+  }
+  .search-box:focus { border-color: var(--blue); }
+  .search-box::placeholder { color: var(--muted); }
+
+  .date-input {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    color: var(--yellow);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    padding: 5px 10px;
+    outline: none;
+    cursor: pointer;
+  }
+  .date-input:focus { border-color: var(--yellow); }
+
+  /* ── CSV Upload ── */
+  .csv-zone {
+    padding: 10px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .csv-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--text2);
+    text-transform: uppercase;
+  }
+  .csv-btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    padding: 4px 10px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--blue);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .csv-btn:hover { border-color: var(--blue); background: rgba(0,191,255,0.06); }
+  #csv-file-input { display: none; }
+  .csv-status {
+    font-size: 11px;
+    color: var(--text2);
+  }
+  .csv-status.loaded { color: var(--green); }
+
+  /* ── Status bar ── */
+  .status-bar {
+    padding: 8px 24px;
+    font-size: 11px;
+    color: var(--text2);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 16px;
+    align-items: center;
+  }
+  .status-bar.loading { color: var(--yellow); }
+  .status-bar.error   { color: var(--red); }
+
+  /* ── Main layout ── */
+  .main {
+    padding: 20px 24px;
+  }
+
+  /* ── Table ── */
+  .table-wrap {
+    overflow-x: auto;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  thead tr {
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text2);
+    padding: 6px 10px;
+    text-align: left;
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+  }
+  th:hover { color: var(--text); }
+  th.sort-asc::after  { content: " ▲"; color: var(--green); }
+  th.sort-desc::after { content: " ▼"; color: var(--green); }
+
+  tbody tr {
+    border-bottom: 1px solid #161616;
+    transition: background 0.1s;
+  }
+  tbody tr:hover { background: var(--bg2); }
+  tbody tr.has-pick { background: rgba(0,255,132,0.03); }
+  tbody tr.has-pick:hover { background: rgba(0,255,132,0.07); }
+
+  td {
+    padding: 7px 10px;
+    white-space: nowrap;
+    font-size: 12px;
+  }
+
+  .td-league {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--text2);
+  }
+  .td-player {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .td-team {
+    color: var(--text2);
+  }
+  .td-pos {
+    color: var(--muted);
+    font-size: 11px;
+  }
+
+  .status-badge {
+    display: inline-block;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    padding: 2px 7px;
+    text-transform: uppercase;
+  }
+  .status-out      { background: rgba(255,68,68,0.15);  color: var(--red);    border: 1px solid rgba(255,68,68,0.3); }
+  .status-doubtful { background: rgba(255,140,0,0.12);  color: var(--orange); border: 1px solid rgba(255,140,0,0.3); }
+  .status-questionable { background: rgba(250,204,21,0.10); color: var(--yellow); border: 1px solid rgba(250,204,21,0.3); }
+  .status-probable { background: rgba(0,191,255,0.10);  color: var(--blue);   border: 1px solid rgba(0,191,255,0.25); }
+  .status-other    { background: rgba(100,100,100,0.1); color: var(--text2);  border: 1px solid var(--border); }
+
+  .td-injury { color: var(--text2); font-size: 11px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
+
+  .pick-flag {
+    display: inline-block;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    padding: 2px 6px;
+    background: rgba(0,255,132,0.12);
+    color: var(--green);
+    border: 1px solid rgba(0,255,132,0.3);
+  }
+  .pick-flag.away { background: rgba(0,191,255,0.10); color: var(--blue); border-color: rgba(0,191,255,0.3); }
+
+  .no-pick { color: var(--muted); font-size: 11px; }
+
+  /* ── Empty / error states ── */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  /* ── Summary strip ── */
+  .summary-strip {
+    display: flex;
+    gap: 24px;
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .summary-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .summary-val {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 22px;
+    font-weight: 900;
+    line-height: 1;
+  }
+  .summary-lbl {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    color: var(--text2);
+    text-transform: uppercase;
+  }
+  .val-red    { color: var(--red); }
+  .val-orange { color: var(--orange); }
+  .val-yellow { color: var(--yellow); }
+  .val-green  { color: var(--green); }
+  .val-blue   { color: var(--blue); }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <div>
+    <div class="page-title">Injury Impact Tracker</div>
+    <div class="page-subtitle">INJURY FEED</div>
+  </div>
+  <div class="header-right">
+    <input type="date" class="date-input" id="inj-date">
+  </div>
+</div>
+
+<div class="controls">
+  <div class="league-pill active" data-league="all">All</div>
+  <div class="league-pill" data-league="NHL">NHL</div>
+  <div class="league-pill" data-league="NBA">NBA</div>
+  <div class="league-pill" data-league="NCAAB">NCAAB</div>
+  <div class="league-pill" data-league="MLB">MLB</div>
+  <input type="text" class="search-box" id="inj-search" placeholder="Search player or team…">
+</div>
+
+<div class="csv-zone">
+  <span class="csv-label">Cross-ref picks:</span>
+  <button class="csv-btn" onclick="document.getElementById('csv-file-input').click()">📂 Load CSV</button>
+  <input type="file" id="csv-file-input" accept=".csv">
+  <span class="csv-status" id="csv-status">No picks loaded</span>
+  <button class="csv-btn" id="clear-csv-btn" style="display:none" onclick="clearCSV()">✕ Clear</button>
+</div>
+
+<div class="summary-strip" id="summary-strip" style="display:none">
+  <div class="summary-item"><span class="summary-val val-red" id="sum-out">0</span><span class="summary-lbl">Out</span></div>
+  <div class="summary-item"><span class="summary-val val-orange" id="sum-doubtful">0</span><span class="summary-lbl">Doubtful</span></div>
+  <div class="summary-item"><span class="summary-val val-yellow" id="sum-questionable">0</span><span class="summary-lbl">Questionable</span></div>
+  <div class="summary-item"><span class="summary-val val-blue" id="sum-probable">0</span><span class="summary-lbl">Probable</span></div>
+  <div class="summary-item"><span class="summary-val val-green" id="sum-picked">0</span><span class="summary-lbl">On Picked Teams</span></div>
+</div>
+
+<div class="status-bar" id="inj-status">Ready</div>
+
+<div class="main">
+  <div class="table-wrap">
+    <table id="inj-table">
+      <thead>
+        <tr>
+          <th data-col="league">League</th>
+          <th data-col="player">Player</th>
+          <th data-col="position">Pos</th>
+          <th data-col="team">Team</th>
+          <th data-col="status">Status</th>
+          <th data-col="injury">Injury</th>
+          <th data-col="pick">Pick Impact</th>
+        </tr>
+      </thead>
+      <tbody id="inj-tbody"></tbody>
+    </table>
+    <div class="empty-state" id="inj-empty" style="display:none">No injuries found</div>
+  </div>
+</div>
+
+<script>
+// ── Config ──────────────────────────────────────────────────────────────────
+const LEAGUES = [
+  { key: "NHL",   sport: "hockey",     league: "nhl",                    espnSlug: "nhl"   },
+  { key: "NBA",   sport: "basketball", league: "nba",                    espnSlug: "nba"   },
+  { key: "NCAAB", sport: "basketball", league: "mens-college-basketball", espnSlug: "ncaab" },
+  { key: "MLB",   sport: "baseball",   league: "mlb",                    espnSlug: "mlb"   },
+];
+
+// ── State ────────────────────────────────────────────────────────────────────
+let allInjuries   = [];
+let pickedTeams   = new Set();
+let activeLeague  = "all";
+let searchQuery   = "";
+let sortCol       = "status";
+let sortDir       = "asc";
+
+// ── Date ─────────────────────────────────────────────────────────────────────
+function todayLocal() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+document.getElementById("inj-date").value = todayLocal();
+
+// ── ESPN Fetch ───────────────────────────────────────────────────────────────
+async function fetchLeagueInjuries(cfg) {
+  const url = `https://site.api.espn.com/apis/site/v2/sports/${cfg.sport}/${cfg.league}/injuries`;
+  try {
+    const r = await fetch(url);
+    if (!r.ok) return [];
+    const data = await r.json();
+    const rows = [];
+
+    // ESPN injury structure: data.injuries = array of { team, injuries[] }
+    const groups = data.injuries || [];
+    groups.forEach(group => {
+      const teamName = group.team?.displayName || group.team?.name || "Unknown";
+      const teamAbbr = group.team?.abbreviation || "";
+      const injuries = group.injuries || [];
+      injuries.forEach(inj => {
+        const athlete = inj.athlete || {};
+        rows.push({
+          league:   cfg.key,
+          player:   athlete.displayName || athlete.fullName || "Unknown",
+          position: athlete.position?.abbreviation || "—",
+          team:     teamName,
+          teamAbbr: teamAbbr,
+          status:   inj.status || inj.type || "Unknown",
+          injury:   inj.details?.fantasyStatus?.description || inj.details?.type || inj.longComment || inj.shortComment || "—",
+          returnDate: inj.details?.returnDate || "",
+        });
+      });
+    });
+    return rows;
+  } catch (e) {
+    console.warn(`[${cfg.key}] fetch failed:`, e);
+    return null; // null = CORS/network error
+  }
+}
+
+// ── Status sort order ─────────────────────────────────────────────────────────
+const STATUS_ORDER = { out: 0, doubtful: 1, questionable: 2, probable: 3, day: 4 };
+function statusRank(s) {
+  const k = (s || "").toLowerCase();
+  for (const [word, rank] of Object.entries(STATUS_ORDER)) {
+    if (k.includes(word)) return rank;
+  }
+  return 5;
+}
+
+function statusClass(s) {
+  const k = (s || "").toLowerCase();
+  if (k.includes("out"))          return "status-out";
+  if (k.includes("doubtful"))     return "status-doubtful";
+  if (k.includes("questionable")) return "status-questionable";
+  if (k.includes("probable") || k.includes("day")) return "status-probable";
+  return "status-other";
+}
+
+// ── CSV Parse ─────────────────────────────────────────────────────────────────
+function parseCSV(text) {
+  const lines = text.trim().split(/\r?\n/);
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(",").map(h => h.trim().toLowerCase());
+  return lines.slice(1).map(line => {
+    const vals = line.split(",");
+    const obj = {};
+    headers.forEach((h, i) => { obj[h] = (vals[i] ?? "").trim(); });
+    return obj;
+  });
+}
+
+function extractPickedTeams(rows) {
+  const teams = new Set();
+  rows.forEach(r => {
+    if (r.home_team) teams.add(r.home_team.trim());
+    if (r.away_team) teams.add(r.away_team.trim());
+  });
+  return teams;
+}
+
+// ── CSV Load ──────────────────────────────────────────────────────────────────
+document.getElementById("csv-file-input").addEventListener("change", e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const rows = parseCSV(ev.target.result);
+    pickedTeams = extractPickedTeams(rows);
+    const statusEl = document.getElementById("csv-status");
+    statusEl.textContent = `${file.name} · ${pickedTeams.size} teams`;
+    statusEl.className = "csv-status loaded";
+    document.getElementById("clear-csv-btn").style.display = "";
+    render();
+  };
+  reader.readAsText(file);
+});
+
+function clearCSV() {
+  pickedTeams = new Set();
+  document.getElementById("csv-status").textContent = "No picks loaded";
+  document.getElementById("csv-status").className = "csv-status";
+  document.getElementById("clear-csv-btn").style.display = "none";
+  document.getElementById("csv-file-input").value = "";
+  render();
+}
+
+// ── Match team name ───────────────────────────────────────────────────────────
+function teamInPicks(teamName) {
+  if (pickedTeams.size === 0) return false;
+  const t = teamName.toLowerCase();
+  for (const p of pickedTeams) {
+    const pLow = p.toLowerCase();
+    if (t === pLow) return true;
+    // partial: "Boston Celtics" matches "Celtics" or "Boston"
+    const parts = pLow.split(" ");
+    if (parts.some(part => part.length > 3 && t.includes(part))) return true;
+  }
+  return false;
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function render() {
+  let rows = allInjuries.slice();
+
+  // Filter league
+  if (activeLeague !== "all") rows = rows.filter(r => r.league === activeLeague);
+
+  // Filter search
+  if (searchQuery) {
+    const q = searchQuery.toLowerCase();
+    rows = rows.filter(r =>
+      r.player.toLowerCase().includes(q) ||
+      r.team.toLowerCase().includes(q) ||
+      r.injury.toLowerCase().includes(q)
+    );
+  }
+
+  // Annotate pick flag
+  rows = rows.map(r => ({ ...r, hasPick: teamInPicks(r.team) }));
+
+  // Sort
+  rows.sort((a, b) => {
+    let av, bv;
+    if (sortCol === "status") { av = statusRank(a.status); bv = statusRank(b.status); }
+    else if (sortCol === "pick") { av = a.hasPick ? 0 : 1; bv = b.hasPick ? 0 : 1; }
+    else { av = (a[sortCol] || "").toLowerCase(); bv = (b[sortCol] || "").toLowerCase(); }
+    if (av < bv) return sortDir === "asc" ? -1 : 1;
+    if (av > bv) return sortDir === "asc" ?  1 : -1;
+    return 0;
+  });
+
+  // Summary
+  const counts = { out: 0, doubtful: 0, questionable: 0, probable: 0, picked: 0 };
+  allInjuries.forEach(r => {
+    const k = (r.status || "").toLowerCase();
+    if (k.includes("out"))           counts.out++;
+    else if (k.includes("doubtful")) counts.doubtful++;
+    else if (k.includes("question")) counts.questionable++;
+    else                             counts.probable++;
+    if (teamInPicks(r.team)) counts.picked++;
+  });
+  document.getElementById("sum-out").textContent          = counts.out;
+  document.getElementById("sum-doubtful").textContent     = counts.doubtful;
+  document.getElementById("sum-questionable").textContent = counts.questionable;
+  document.getElementById("sum-probable").textContent     = counts.probable;
+  document.getElementById("sum-picked").textContent       = counts.picked;
+  document.getElementById("summary-strip").style.display  = allInjuries.length ? "" : "none";
+
+  // Table
+  const tbody = document.getElementById("inj-tbody");
+  const empty = document.getElementById("inj-empty");
+  tbody.innerHTML = "";
+
+  if (rows.length === 0) {
+    empty.style.display = "";
+    return;
+  }
+  empty.style.display = "none";
+
+  rows.forEach(r => {
+    const tr = document.createElement("tr");
+    if (r.hasPick) tr.classList.add("has-pick");
+
+    const pickCell = r.hasPick
+      ? `<span class="pick-flag">● PICKED</span>`
+      : `<span class="no-pick">—</span>`;
+
+    tr.innerHTML = `
+      <td class="td-league">${r.league}</td>
+      <td class="td-player">${r.player}</td>
+      <td class="td-pos">${r.position}</td>
+      <td class="td-team">${r.team}</td>
+      <td><span class="status-badge ${statusClass(r.status)}">${r.status}</span></td>
+      <td class="td-injury" title="${r.injury}">${r.injury}</td>
+      <td>${pickCell}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// ── Sort headers ──────────────────────────────────────────────────────────────
+document.querySelectorAll("th[data-col]").forEach(th => {
+  th.addEventListener("click", () => {
+    const col = th.dataset.col;
+    if (sortCol === col) sortDir = sortDir === "asc" ? "desc" : "asc";
+    else { sortCol = col; sortDir = "asc"; }
+    document.querySelectorAll("th[data-col]").forEach(t => t.classList.remove("sort-asc","sort-desc"));
+    th.classList.add(sortDir === "asc" ? "sort-asc" : "sort-desc");
+    render();
+  });
+});
+
+// Set default sort indicator
+document.querySelector('th[data-col="status"]').classList.add("sort-asc");
+
+// ── League pills ──────────────────────────────────────────────────────────────
+document.querySelectorAll(".league-pill").forEach(pill => {
+  pill.addEventListener("click", () => {
+    document.querySelectorAll(".league-pill").forEach(p => p.classList.remove("active"));
+    pill.classList.add("active");
+    activeLeague = pill.dataset.league;
+    render();
+  });
+});
+
+// ── Search ────────────────────────────────────────────────────────────────────
+document.getElementById("inj-search").addEventListener("input", e => {
+  searchQuery = e.target.value.trim();
+  render();
+});
+
+// ── Load all leagues ──────────────────────────────────────────────────────────
+async function loadAll() {
+  const statusEl = document.getElementById("inj-status");
+  statusEl.textContent = "Fetching injury data…";
+  statusEl.className = "status-bar loading";
+  allInjuries = [];
+
+  const results = await Promise.all(LEAGUES.map(cfg => fetchLeagueInjuries(cfg)));
+
+  let errors = [];
+  results.forEach((rows, i) => {
+    if (rows === null) {
+      errors.push(LEAGUES[i].key + " (CORS blocked)");
+    } else {
+      allInjuries = allInjuries.concat(rows);
+    }
+  });
+
+  render();
+
+  if (errors.length > 0) {
+    statusEl.textContent = `${allInjuries.length} injuries loaded · Blocked: ${errors.join(", ")}`;
+    statusEl.className = "status-bar error";
+  } else {
+    statusEl.textContent = `${allInjuries.length} injuries loaded across ${LEAGUES.length} leagues`;
+    statusEl.className = "status-bar";
+  }
+}
+
+loadAll();
+</script>
+</body>
+</html>
