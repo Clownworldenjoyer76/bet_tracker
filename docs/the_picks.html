@@ -10,20 +10,14 @@
 <link rel="stylesheet" href="css/matstheme.css">
 <style>
 
+.topbar { margin: 0; }
 
-.topbar {
-  margin: 0;
-}
-
-  
-/* ── Page-level overrides ───────────────────────────────────────────────── */
 body {
   font-family: 'IBM Plex Mono', 'Courier New', monospace;
   background: var(--background);
   padding: 0;
 }
 
-/* ── Picks-specific tokens ──────────────────────────────────────────────── */
 :root {
   --picks-green:      #00ff84;
   --picks-green-dim:  rgba(0, 255, 132, 0.08);
@@ -37,7 +31,6 @@ body {
   --picks-radius:     3px;
 }
 
-/* ── Page header ────────────────────────────────────────────────────────── */
 .picks-header {
   display: flex;
   align-items: center;
@@ -55,11 +48,6 @@ body {
   color: var(--picks-green);
   line-height: 1;
   margin: 0;
-}
-
-.picks-title-slash {
-  color: rgba(0,255,132,0.25);
-  margin: 0 4px;
 }
 
 #status {
@@ -80,7 +68,6 @@ body {
   50%       { opacity: 0.35; }
 }
 
-/* ── Controls bar ───────────────────────────────────────────────────────── */
 .picks-controls {
   display: flex;
   align-items: center;
@@ -126,7 +113,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   cursor: pointer;
 }
 
-/* ── Filter pills ───────────────────────────────────────────────────────── */
 #league-filters {
   display: flex;
   gap: 6px;
@@ -161,7 +147,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   box-shadow: 0 0 8px var(--picks-green-glow);
 }
 
-/* ── League grid ────────────────────────────────────────────────────────── */
 #games {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
@@ -170,7 +155,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   align-items: start;
 }
 
-/* Gap via padding so borders collapse cleanly */
 .league-column {
   display: flex;
   flex-direction: column;
@@ -188,7 +172,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   padding-left: 16px;
 }
 
-/* ── League header ──────────────────────────────────────────────────────── */
 .league-header {
   font-family: 'Barlow Condensed', sans-serif;
   font-size: 18px;
@@ -204,18 +187,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   gap: 8px;
 }
 
-.stale-tag {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 8px;
-  padding: 2px 6px;
-  border-radius: 2px;
-  background: rgba(250,204,21,0.1);
-  color: var(--picks-yellow);
-  border: 1px solid rgba(250,204,21,0.25);
-  letter-spacing: 1px;
-  vertical-align: middle;
-}
-
 .col-state {
   font-size: 10px;
   letter-spacing: 1.5px;
@@ -227,7 +198,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .col-state.empty { color: var(--text-muted); }
 .col-state.error { color: var(--picks-red);  }
 
-/* ── Pick card ──────────────────────────────────────────────────────────── */
 .pick-card {
   background: var(--picks-card);
   border: 1px solid var(--picks-border);
@@ -317,20 +287,11 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   border-top: 1px solid var(--picks-border);
 }
 
-.card-ev {
-  font-size: 10px;
-  letter-spacing: 1px;
-}
-
+.card-ev { font-size: 10px; letter-spacing: 1px; }
 .card-ev.pos { color: var(--picks-green); }
 .card-ev.neg { color: var(--picks-red);   }
 
-/* ── Edge dots ──────────────────────────────────────────────────────────── */
-.edge-dots {
-  font-size: 10px;
-  letter-spacing: 2px;
-}
-
+.edge-dots { font-size: 10px; letter-spacing: 2px; }
 .edge-dots.e5 { color: #ff2d2d; text-shadow: 0 0 6px rgba(255,45,45,0.5); }
 .edge-dots.e4 { color: #ff7043; }
 .edge-dots.e3 { color: var(--picks-yellow); }
@@ -338,7 +299,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .edge-dots.e1 { color: var(--text-muted); }
 .edge-dots.e0 { color: rgba(255,255,255,0.12); }
 
-/* ── Empty state ────────────────────────────────────────────────────────── */
 .empty-state {
   grid-column: 1 / -1;
   text-align: center;
@@ -351,7 +311,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   border-radius: var(--picks-radius);
 }
 
-/* ── Modal ──────────────────────────────────────────────────────────────── */
 .modal {
   position: fixed;
   inset: 0;
@@ -413,11 +372,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   line-height: 1.2;
 }
 
-.modal-at {
-  color: var(--text-muted);
-  font-weight: 400;
-  margin: 0 4px;
-}
+.modal-at { color: var(--text-muted); font-weight: 400; margin: 0 4px; }
 
 .modal-pitchers {
   display: flex;
@@ -487,8 +442,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   flex-shrink: 0;
 }
 
-.modal-picks-section { }
-
 .modal-picks-label {
   font-size: 9px;
   letter-spacing: 3px;
@@ -546,12 +499,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   border-color: var(--picks-green);
 }
 
-/* ── Responsive ─────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
-  #games {
-    grid-template-columns: 1fr;
-    padding: 16px;
-  }
+  #games { grid-template-columns: 1fr; padding: 16px; }
   .league-column {
     padding: 0 0 20px !important;
     border-right: none !important;
@@ -584,12 +533,25 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   <div id="modal" class="modal">
     <div class="modal-card" onclick="event.stopPropagation()">
       <div id="modal-content"></div>
-      <button class="modal-close-btn" onclick="document.getElementById('modal').classList.remove('open')">Close</button>
+      <button class="modal-close-btn" onclick="closeModal()">Close</button>
     </div>
   </div>
 
   <script src="js/config.js"></script>
   <script src="js/nav.js"></script>
+  <script>
+    function openModal(html) {
+      document.getElementById('modal-content').innerHTML = html;
+      document.getElementById('modal').classList.add('open');
+    }
+    function closeModal() {
+      document.getElementById('modal').classList.remove('open');
+    }
+    document.addEventListener('click', function(e) {
+      var m = document.getElementById('modal');
+      if (e.target === m) closeModal();
+    });
+  </script>
   <script src="js/app.js"></script>
 
 </body>
