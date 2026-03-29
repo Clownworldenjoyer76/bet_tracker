@@ -1,0 +1,137 @@
+Here is a **clean, usable grouping** based on how you’d actually build pages/features.
+
+---
+
+# 🧱 TEAM-LEVEL (team pages / dashboards)
+
+* **/apis/site/v2/sports/{sport}/{league}/teams** — All teams list
+* **/apis/site/v2/sports/{sport}/{league}/teams/{id}** — Team overview
+* **/apis/site/v2/sports/{sport}/{league}/teams/{id}/roster** — Active roster
+* **/apis/site/v2/sports/{sport}/{league}/teams/{id}/schedule** — Team schedule
+* **/apis/site/v2/sports/{sport}/{league}/teams/{id}/depthcharts** — Depth chart
+* **/apis/site/v2/sports/{sport}/{league}/teams/{id}/history** — Franchise history
+
+👉 Use for:
+
+* `/team.html`
+* team dashboards
+* matchup previews
+
+---
+
+# 👤 PLAYER-LEVEL (player profiles / props)
+
+* **/apis/site/v2/sports/{sport}/{league}/athletes/{id}** — Player overview
+* **/apis/site/v2/sports/{sport}/{league}/athletes/{id}/gamelog** — Game logs
+* **/apis/site/v2/sports/{sport}/{league}/athletes/{id}/splits** — Splits (home/away, etc.)
+* **/apis/site/v2/sports/{sport}/{league}/athletes/{id}/news** — Player news
+* **/apis/site/v2/sports/{sport}/{league}/athletes/{id}/bio** — Bio
+
+👉 Use for:
+
+* `/player.html`
+* prop modeling
+* trend analysis
+
+---
+
+# 🏆 LEAGUE STRUCTURE (context + standings)
+
+* **/apis/v2/sports/{sport}/{league}/standings** — Standings
+* **/apis/site/v2/sports/{sport}/{league}/groups** — Divisions / conferences
+* **/apis/site/v2/sports/{sport}/{league}/rankings** — Rankings (NCAA heavy)
+
+👉 Use for:
+
+* standings pages
+* playoff race tracking
+* power rankings UI
+
+---
+
+# 📅 SCHEDULE / CALENDAR (time-based navigation)
+
+* **/apis/site/v2/sports/{sport}/{league}/calendar** — Season calendar
+
+👉 Use for:
+
+* date pickers
+* schedule navigation
+* season phase detection (regular/postseason)
+
+---
+
+# 🧠 HOW THIS MAPS TO YOUR SITE (practical)
+
+## Core navigation expansion
+
+```
+Schedule
+  - Games Today
+  - Live Scores
+  - Final Scores
+
+Teams
+  - Team Page (future)
+
+Players
+  - Player Page (future)
+
+Standings
+  - League Standings
+
+Analytics
+  - (already exists)
+```
+
+---
+
+# 🔥 HIGH-VALUE NEXT BUILDS (based on your setup)
+
+### 1. TEAM PAGE (big win)
+
+Use:
+
+* teams/{id}
+* roster
+* schedule
+
+→ combine with your picks model
+
+---
+
+### 2. PLAYER PROP ENGINE (your strongest potential edge)
+
+Use:
+
+* gamelog
+* splits
+
+→ calculate:
+
+* hit rates
+* over/under trends
+
+---
+
+### 3. STANDINGS + MODEL VALIDATION
+
+Use:
+
+* standings
+  → compare:
+* your model vs actual standings
+
+---
+
+# 🧠 Bottom line
+
+* **Teams endpoints → structure + matchups**
+* **Athletes endpoints → betting edge (most valuable)**
+* **Standings/groups → context layer**
+* **Calendar → navigation control**
+
+---
+
+If you want next step:
+I can map **exactly which endpoints power which UI components** (cards, tables, modals) so you stop guessing entirely.
