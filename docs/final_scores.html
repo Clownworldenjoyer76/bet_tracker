@@ -311,28 +311,43 @@ async function openSummaryModal(eventId, sport, league, leagueKey) {
         '<div class="modal-row">Total: ' + (odds.overUnder || '—') + '</div>';
     }
 
+    // team stats — API uses name/value not displayName/displayValue
     var statsHTML = '';
     if (data.boxscore && data.boxscore.teams) {
       statsHTML = data.boxscore.teams.map(function(t) {
-        var stats = (t.statistics || []).slice(0, 4).map(function(s) {
-          return s.displayName + ': ' + s.displayValue;
-        }).join(' · ');
-        return '<div class="modal-row"><strong style="color:var(--text)">' + t.team.displayName + '</strong> — ' + stats + '</div>';
+        var stats = (t.statistics || []).slice(0, 5).map(function(s) {
+          var label = s.label || s.displayName || s.name || '';
+          var val   = s.displayValue || s.value || '';
+          return label + ': ' + val;
+        }).filter(function(s) { return s !== ': '; }).join(' · ');
+        var teamName = t.team ? (t.team.displayName || t.team.abbreviation || '') : '';
+        return '<div class="modal-row"><strong style="color:var(--text)">' + teamName + '</strong><br>' + stats + '</div>';
       }).join('');
     }
 
+    // leaders — API uses displayValue on the leader object
     var leadersHTML = '';
     if (data.leaders) {
       leadersHTML = data.leaders.map(function(l) {
-        var top = l.leaders && l.leaders[0];
-        return top ? '<div class="modal-row">' + l.name + ': ' + top.displayValue + '</div>' : '';
-      }).join('');
+        var top  = l.leaders && l.leaders[0];
+        var name = l.displayName || l.name || '';
+        var val  = top ? (top.displayValue || top.value || '') : '';
+        var athlete = (top && top.athlete) ? (top.athlete.displayName || '') : '';
+        return (name && val) ? '<div class="modal-row">' + name + ': ' + (athlete ? athlete + ' — ' : '') + val + '</div>' : '';
+      }).filter(Boolean).join('');
     }
 
+    // linescores — live on comp.competitors[x].linescores
     var linesHTML = '';
-    if (away.linescores && home.linescores) {
-      linesHTML = away.linescores.map(function(l, i) {
-        return '<div class="modal-row">' + (l.label || ('Period ' + (i+1))) + ': ' + (l.value || '0') + ' — ' + (home.linescores[i] ? home.linescores[i].value : '0') + '</div>';
+    var awayLines = away.linescores || [];
+    var homeLines = home.linescores || [];
+    if (awayLines.length > 0) {
+      linesHTML = awayLines.map(function(l, i) {
+        var period   = l.period || (i + 1);
+        var awayVal  = l.displayValue || l.value || '0';
+        var homeLine = homeLines[i];
+        var homeVal  = homeLine ? (homeLine.displayValue || homeLine.value || '0') : '0';
+        return '<div class="modal-row">Q' + period + ': ' + away.team.abbreviation + ' ' + awayVal + ' · ' + home.team.abbreviation + ' ' + homeVal + '</div>';
       }).join('');
     }
 
