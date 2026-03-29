@@ -315,14 +315,29 @@ async function openSummaryModal(eventId, sport, league, leagueKey) {
     var statsHTML = '';
     if (data.boxscore && data.boxscore.teams) {
       statsHTML = data.boxscore.teams.map(function(t) {
-        var stats = (t.statistics || []).slice(0, 5).map(function(s) {
+        var allStats = t.statistics || [];
+        // flatten — some sports nest stats inside a 'stats' array on each entry
+        var flat = [];
+        allStats.forEach(function(s) {
+          if (s.stats && s.stats.length) {
+            s.stats.forEach(function(ss) { flat.push(ss); });
+          } else {
+            flat.push(s);
+          }
+        });
+        // only include rows that have a non-empty value
+        var rows = flat.filter(function(s) {
+          var val = s.displayValue || s.value || '';
+          return val !== '' && val !== null && val !== undefined;
+        }).slice(0, 6).map(function(s) {
           var label = s.label || s.displayName || s.name || '';
           var val   = s.displayValue || s.value || '';
           return label + ': ' + val;
-        }).filter(function(s) { return s !== ': '; }).join(' · ');
+        });
+        if (rows.length === 0) return '';
         var teamName = t.team ? (t.team.displayName || t.team.abbreviation || '') : '';
-        return '<div class="modal-row"><strong style="color:var(--text)">' + teamName + '</strong><br>' + stats + '</div>';
-      }).join('');
+        return '<div class="modal-row"><strong style="color:var(--text)">' + teamName + '</strong><br>' + rows.join(' · ') + '</div>';
+      }).filter(Boolean).join('');
     }
 
     // leaders — API uses displayValue on the leader object
