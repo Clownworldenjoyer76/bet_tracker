@@ -100,6 +100,10 @@
   .s-probable { background: rgba(0,191,255,0.10);   color: var(--blue);   border: 1px solid rgba(0,191,255,0.25); }
   .s-other    { background: rgba(100,100,100,0.10); color: var(--text2);  border: 1px solid var(--border); }
   .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); font-family: 'Barlow Condensed', sans-serif; font-size: 16px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+  .section-header-row td { padding: 10px 10px 6px; background: var(--bg3); border-top: 2px solid var(--border); border-bottom: 1px solid var(--border); }
+  .section-header-cell { font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--green); }
+  .section-header-row:first-child td { border-top: none; }
+  .section-count { color: var(--muted); font-weight: 400; }
 </style>
 </head>
 <body>
@@ -109,7 +113,7 @@
 <div class="page-header">
   <div>
     <div class="page-title">Injury Impact Tracker</div>
-    <div class="page-subtitle">ESPN INJURY FEED · CROSS-REF TODAY'S PICKS</div>
+    <div class="page-subtitle">INJURY FEED · CROSS-REF TODAY'S PICKS</div>
   </div>
   <div class="picks-badge" id="picks-badge">Loading picks...</div>
 </div>
@@ -343,7 +347,10 @@ function render() {
   if (displayRows.length === 0) { empty.style.display = ""; return; }
   empty.style.display = "none";
 
-  displayRows.forEach(function(r) {
+  var pickRows  = displayRows.filter(function(r) { return r.hasPick; });
+  var otherRows = displayRows.filter(function(r) { return !r.hasPick; });
+
+  function buildRow(r) {
     var tr = document.createElement("tr");
     if (r.hasPick) tr.classList.add("has-pick");
 
@@ -370,8 +377,25 @@ function render() {
       '<td><span class="status-badge ' + statusClass(r.status) + '">' + r.status + '</span></td>' +
       '<td class="td-injury">' + r.injury   + '</td>' +
       '<td class="pick-detail">' + pickCell + '</td>';
-    tbody.appendChild(tr);
-  });
+    return tr;
+  }
+
+  function buildSectionHeader(label, count) {
+    var tr = document.createElement("tr");
+    tr.className = "section-header-row";
+    tr.innerHTML = '<td colspan="7" class="section-header-cell">' + label + ' <span class="section-count">(' + count + ')</span></td>';
+    return tr;
+  }
+
+  if (pickRows.length > 0) {
+    tbody.appendChild(buildSectionHeader("TODAY’S PICKS — INJURED PLAYERS", pickRows.length));
+    pickRows.forEach(function(r) { tbody.appendChild(buildRow(r)); });
+  }
+
+  if (otherRows.length > 0) {
+    tbody.appendChild(buildSectionHeader("ALL OTHER INJURIES", otherRows.length));
+    otherRows.forEach(function(r) { tbody.appendChild(buildRow(r)); });
+  }
 }
 
 document.querySelectorAll("th[data-col]").forEach(function(th) {
