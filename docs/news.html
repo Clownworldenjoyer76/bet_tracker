@@ -3,69 +3,235 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>News | EDGELYTICS</title>
-
+  <title>News · Edgelytics</title>
   <link rel="stylesheet" href="css/matstheme.css">
-  <link rel="stylesheet" href="css/news.css">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:     #0a0a0a;
+      --bg2:    #111111;
+      --bg3:    #141414;
+      --border: #222222;
+      --green:  #00ff84;
+      --blue:   #00bfff;
+      --yellow: #facc15;
+      --red:    #ff4444;
+      --orange: #ff8c00;
+      --muted:  #555555;
+      --text:   #e0e0e0;
+      --text2:  #888888;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'IBM Plex Mono', monospace; font-size: 13px; min-height: 100vh; }
+
+    .page-header { border-bottom: 1px solid var(--border); padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+    .page-title { font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; color: var(--green); }
+    .page-subtitle { color: var(--text2); font-size: 11px; letter-spacing: 0.06em; margin-top: 2px; }
+
+    .controls { display: flex; align-items: center; gap: 8px; padding: 12px 24px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+    .league-pill { font-family: 'Barlow Condensed', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; padding: 4px 12px; border: 1px solid var(--border); background: transparent; color: var(--text2); cursor: pointer; transition: all 0.15s; text-transform: uppercase; }
+    .league-pill:hover { border-color: var(--blue); color: var(--blue); }
+    .league-pill.active { border-color: var(--green); color: var(--green); background: rgba(0,255,132,0.06); }
+    .search-box { margin-left: auto; background: var(--bg2); border: 1px solid var(--border); color: var(--text); font-family: 'IBM Plex Mono', monospace; font-size: 12px; padding: 5px 10px; width: 200px; outline: none; }
+    .search-box:focus { border-color: var(--blue); }
+    .search-box::placeholder { color: var(--muted); }
+
+    .status-bar { padding: 8px 24px; font-size: 11px; color: var(--text2); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+    .status-bar.loading { color: var(--yellow); }
+    .status-bar.error   { color: var(--red); }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); display: inline-block; flex-shrink: 0; }
+    .status-dot.green  { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .status-dot.yellow { background: var(--yellow); animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1;}50%{opacity:0.3;} }
+
+    .main { padding: 20px 24px; }
+    .news-grid { display: flex; flex-direction: column; gap: 1px; }
+
+    .news-card { display: flex; gap: 0; border-bottom: 1px solid var(--border); transition: background 0.1s; background: var(--bg); }
+    .news-card:hover { background: var(--bg2); }
+
+    .news-img-wrap { width: 140px; flex-shrink: 0; overflow: hidden; }
+    .news-img { width: 100%; height: 90px; object-fit: cover; display: block; filter: grayscale(20%); }
+    .news-img-placeholder { width: 140px; height: 90px; background: var(--bg3); display: flex; align-items: center; justify-content: center; }
+    .news-img-placeholder span { font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: var(--muted); }
+
+    .news-body { padding: 12px 16px; display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 0; }
+    .news-league-tag { display: inline-block; font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; padding: 1px 6px; text-transform: uppercase; width: fit-content; }
+    .tag-NHL   { color: var(--blue);   border: 1px solid rgba(0,191,255,0.3);  background: rgba(0,191,255,0.05); }
+    .tag-NBA   { color: var(--yellow); border: 1px solid rgba(250,204,21,0.3); background: rgba(250,204,21,0.05); }
+    .tag-NCAAB { color: var(--orange); border: 1px solid rgba(255,140,0,0.3);  background: rgba(255,140,0,0.05); }
+    .tag-MLB   { color: var(--green);  border: 1px solid rgba(0,255,132,0.3);  background: rgba(0,255,132,0.05); }
+
+    .news-headline { font-family: 'Barlow Condensed', sans-serif; font-size: 16px; font-weight: 700; color: var(--text); line-height: 1.2; letter-spacing: 0.02em; }
+    .news-desc { font-size: 11px; color: var(--text2); line-height: 1.5; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+    .news-meta { font-size: 10px; color: var(--muted); letter-spacing: 0.08em; margin-top: auto; }
+    .news-link { display: inline-block; margin-top: 4px; font-size: 10px; letter-spacing: 0.1em; color: var(--green); text-decoration: none; font-weight: 500; }
+    .news-link:hover { text-decoration: underline; }
+
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); font-family: 'Barlow Condensed', sans-serif; font-size: 16px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+
+    @media (max-width: 600px) {
+      .news-img-wrap, .news-img-placeholder { display: none; }
+    }
+  </style>
 </head>
 <body>
 
-  <div id="nav-placeholder"></div>
+<div id="nav-placeholder"></div>
 
-  <div class="container">
-    <h1 class="site-title">NEWS</h1>
-
-    <div id="news-container" class="news-grid">
-      <div class="loading">Loading news...</div>
-    </div>
+<div class="page-header">
+  <div>
+    <div class="page-title">News</div>
+    <div class="page-subtitle">ESPN · NHL · NBA · NCAAB · MLB</div>
   </div>
+</div>
 
-  <script src="js/nav.js"></script>
+<div class="controls">
+  <div class="league-pill active" data-league="all">All</div>
+  <div class="league-pill" data-league="NHL">NHL</div>
+  <div class="league-pill" data-league="NBA">NBA</div>
+  <div class="league-pill" data-league="NCAAB">NCAAB</div>
+  <div class="league-pill" data-league="MLB">MLB</div>
+  <input type="text" class="search-box" id="news-search" placeholder="Search headlines...">
+</div>
 
-  <script>
-    async function loadNews() {
-      const container = document.getElementById("news-container");
+<div class="status-bar" id="news-status">
+  <span class="status-dot yellow" id="status-dot"></span>
+  <span id="status-text">Loading...</span>
+</div>
 
-      try {
-        const res = await fetch("https://now.core.api.espn.com/v1/sports/news?limit=30");
-        const data = await res.json();
+<div class="main">
+  <div class="news-grid" id="news-grid"></div>
+  <div class="empty-state" id="news-empty" style="display:none">No articles found</div>
+</div>
 
-        if (!data.articles || data.articles.length === 0) {
-          container.innerHTML = '<div class="empty">No news available</div>';
-          return;
-        }
+<script src="js/nav.js"></script>
+<script>
+var SOURCES = [
+  { key: "NHL",   sport: "hockey",     league: "nhl"                    },
+  { key: "NBA",   sport: "basketball", league: "nba"                    },
+  { key: "NCAAB", sport: "basketball", league: "mens-college-basketball" },
+  { key: "MLB",   sport: "baseball",   league: "mlb"                    }
+];
 
-        container.innerHTML = "";
+var allArticles   = [];
+var activeLeague  = "all";
+var searchQuery   = "";
 
-        data.articles.forEach(a => {
-          const img = a.images?.[0]?.url || "";
-          const date = new Date(a.published).toLocaleString();
+function setStatus(text, cls, dotCls) {
+  document.getElementById("status-text").textContent = text;
+  document.getElementById("news-status").className   = "status-bar " + (cls    || "");
+  document.getElementById("status-dot").className    = "status-dot "  + (dotCls || "");
+}
 
-          const card = document.createElement("div");
-          card.className = "news-card";
+async function fetchLeagueNews(src) {
+  var url = "https://site.api.espn.com/apis/site/v2/sports/" + src.sport + "/" + src.league + "/news?limit=20";
+  try {
+    var r    = await fetch(url);
+    if (!r.ok) return [];
+    var data = await r.json();
+    var articles = data.articles || [];
+    return articles.map(function(a) {
+      return {
+        league:    src.key,
+        headline:  a.headline  || "",
+        desc:      a.description || "",
+        img:       (a.images && a.images[0]) ? a.images[0].url : "",
+        source:    a.source    || "ESPN",
+        date:      a.published ? new Date(a.published) : null,
+        url:       (a.links && a.links.web) ? a.links.web.href : "#"
+      };
+    });
+  } catch(e) {
+    console.warn(src.key + " news failed:", e);
+    return [];
+  }
+}
 
-          card.innerHTML = `
-            ${img ? `<img src="${img}" class="news-img">` : ""}
-            <div class="news-content">
-              <div class="news-title">${a.headline || ""}</div>
-              <div class="news-desc">${a.description || ""}</div>
-              <div class="news-meta">${a.source || "ESPN"} • ${date}</div>
-              <a href="${a.links?.web?.href || "#"}" target="_blank" class="news-link">
-                READ →
-              </a>
-            </div>
-          `;
+function fmtDate(d) {
+  if (!d) return "";
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) +
+    " · " + d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+}
 
-          container.appendChild(card);
-        });
+function render() {
+  var articles = allArticles.slice();
 
-      } catch (e) {
-        container.innerHTML = '<div class="empty">Failed to load news</div>';
-      }
-    }
+  if (activeLeague !== "all") {
+    articles = articles.filter(function(a) { return a.league === activeLeague; });
+  }
 
-    loadNews();
-  </script>
+  if (searchQuery) {
+    var q = searchQuery.toLowerCase();
+    articles = articles.filter(function(a) {
+      return a.headline.toLowerCase().indexOf(q) !== -1 ||
+             a.desc.toLowerCase().indexOf(q)     !== -1;
+    });
+  }
 
+  var grid  = document.getElementById("news-grid");
+  var empty = document.getElementById("news-empty");
+  grid.innerHTML = "";
+
+  if (articles.length === 0) { empty.style.display = ""; return; }
+  empty.style.display = "none";
+
+  articles.forEach(function(a) {
+    var card = document.createElement("div");
+    card.className = "news-card";
+
+    var imgHtml = a.img
+      ? '<div class="news-img-wrap"><img class="news-img" src="' + a.img + '" loading="lazy"></div>'
+      : '<div class="news-img-placeholder"><span>' + a.league + '</span></div>';
+
+    card.innerHTML =
+      imgHtml +
+      '<div class="news-body">' +
+        '<span class="news-league-tag tag-' + a.league + '">' + a.league + '</span>' +
+        '<div class="news-headline">' + a.headline + '</div>' +
+        (a.desc ? '<div class="news-desc">' + a.desc + '</div>' : '') +
+        '<div class="news-meta">' + a.source + (a.date ? " · " + fmtDate(a.date) : "") + '</div>' +
+        '<a class="news-link" href="' + a.url + '" target="_blank" rel="noopener">READ →</a>' +
+      '</div>';
+
+    grid.appendChild(card);
+  });
+}
+
+document.querySelectorAll(".league-pill").forEach(function(pill) {
+  pill.addEventListener("click", function() {
+    document.querySelectorAll(".league-pill").forEach(function(p) { p.classList.remove("active"); });
+    pill.classList.add("active");
+    activeLeague = pill.dataset.league;
+    render();
+  });
+});
+
+document.getElementById("news-search").addEventListener("input", function(e) {
+  searchQuery = e.target.value.trim();
+  render();
+});
+
+async function loadAll() {
+  setStatus("Fetching news...", "loading", "yellow");
+  allArticles = [];
+
+  var results = await Promise.all(SOURCES.map(function(src) { return fetchLeagueNews(src); }));
+  results.forEach(function(articles) { allArticles = allArticles.concat(articles); });
+
+  // sort newest first
+  allArticles.sort(function(a, b) {
+    if (!a.date && !b.date) return 0;
+    if (!a.date) return 1;
+    if (!b.date) return -1;
+    return b.date - a.date;
+  });
+
+  render();
+  setStatus(allArticles.length + " articles loaded", "", "green");
+}
+
+loadAll();
+</script>
 </body>
 </html>
