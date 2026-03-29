@@ -1,0 +1,160 @@
+**GENERIC PATTERN (applies to ALL leagues)**
+
+* **/apis/site/v2/sports/{sport}/{league}/scoreboard** — Scores/events
+* **/apis/site/v2/sports/{sport}/{league}/teams** — Teams list
+* **/apis/site/v2/sports/{sport}/{league}/teams/{id}** — Team detail
+* **/apis/site/v2/sports/{sport}/{league}/teams/{id}/roster** — Roster
+* **/apis/site/v2/sports/{sport}/{league}/teams/{id}/schedule** — Schedule
+* **/apis/site/v2/sports/{sport}/{league}/teams/{id}/depthcharts** — Depth chart
+* **/apis/site/v2/sports/{sport}/{league}/teams/{id}/injuries** — Team injuries
+* **/apis/site/v2/sports/{sport}/{league}/teams/{id}/transactions** — Team transactions
+* **/apis/site/v2/sports/{sport}/{league}/teams/{id}/history** — Franchise history
+* **/apis/site/v2/sports/{sport}/{league}/athletes/{id}** — Athlete profile
+* **/apis/site/v2/sports/{sport}/{league}/athletes/{id}/gamelog** — Game log
+* **/apis/site/v2/sports/{sport}/{league}/athletes/{id}/splits** — Splits
+* **/apis/site/v2/sports/{sport}/{league}/athletes/{id}/news** — Athlete news
+* **/apis/site/v2/sports/{sport}/{league}/athletes/{id}/bio** — Bio
+* **/apis/v2/sports/{sport}/{league}/standings** — Standings
+* **/apis/site/v2/sports/{sport}/{league}/injuries** — League injuries
+* **/apis/site/v2/sports/{sport}/{league}/transactions** — League transactions
+* **/apis/site/v2/sports/{sport}/{league}/groups** — Divisions
+* **/apis/site/v2/sports/{sport}/{league}/news** — News
+* **/apis/site/v2/sports/{sport}/{league}/rankings** — Rankings
+* **/apis/site/v2/sports/{sport}/{league}/calendar** — Calendar
+* **/apis/site/v2/sports/{sport}/{league}/summary?event={id}** — Game summary
+
+---
+
+# 🏈 NFL (football/nfl)
+
+* Uses **GENERIC PATTERN above**
+* **+ QBR:**
+
+  * /v2/sports/football/leagues/nfl/seasons/{year}/types/{type}/groups/{group}/qbr/{split} — QB rating
+  * /v2/sports/football/leagues/nfl/seasons/{year}/types/{type}/weeks/{week}/qbr/{split} — Weekly QBR
+
+---
+
+# 🏀 NBA (basketball/nba)
+
+* Uses **GENERIC PATTERN above**
+* No unique league-only endpoints beyond core/stat/betting
+
+---
+
+# 🏀 NCAAB (basketball/mens-college-basketball)
+
+* Uses **GENERIC PATTERN above**
+* **+ Rankings endpoint heavily used**
+* **+ Bracketology:**
+
+  * /v2/tournament/{tournamentId}/seasons/{year}/bracketology — Tournament projections
+  * /v2/tournament/{tournamentId}/seasons/{year}/bracketology/{iteration} — Snapshot
+
+---
+
+# ⚾ MLB (baseball/mlb)
+
+* Uses **GENERIC PATTERN above**
+* **+ Hot zones (unique stat type):**
+
+  * /v2/sports/baseball/leagues/mlb/athletes/{id}/hotzones — Hit zones
+
+---
+
+# 🏒 NHL (hockey/nhl)
+
+* Uses **GENERIC PATTERN above**
+* Note: standings requires `/apis/v2/` path (not `/apis/site/v2/`)
+
+---
+
+# ⚽ SOCCER (soccer/{league})
+
+Examples: eng.1, esp.1, usa.1
+
+* Uses **GENERIC PATTERN above**
+* **+ CDN REQUIRED for many scoreboards:**
+
+  * /core/soccer/scoreboard?xhr=1&league={league} — Live soccer scores
+
+---
+
+# 🏈 COLLEGE FOOTBALL (football/college-football)
+
+* Uses **GENERIC PATTERN above**
+* **+ Recruiting:**
+
+  * /v2/sports/football/leagues/college-football/seasons/{year}/recruits — Rankings
+  * /v2/sports/football/leagues/college-football/seasons/{year}/classes/{teamId} — Team classes
+
+---
+
+# ⛳ GOLF (golf/pga, etc.)
+
+* Uses **GENERIC PATTERN above**
+* Typically relies more on **leaders + events endpoints**
+
+---
+
+# 🏎️ RACING (racing/f1, etc.)
+
+* Uses **GENERIC PATTERN above**
+* Primarily event + standings driven
+
+---
+
+# 🎾 TENNIS (tennis/atp, wta)
+
+* Uses **GENERIC PATTERN above**
+* Heavy use of rankings + events
+
+---
+
+# 🔧 CORE (ALL LEAGUES – shared advanced endpoints)
+
+* **/v2/sports/{sport}/leagues/{league}/events** — Full event data
+* **/v2/sports/{sport}/leagues/{league}/events/{id}/competitions/{id}/odds** — Odds
+* **/v2/sports/{sport}/leagues/{league}/events/{id}/competitions/{id}/probabilities** — Win probability
+* **/v2/sports/{sport}/leagues/{league}/events/{id}/competitions/{id}/plays** — Play-by-play
+* **/v2/sports/{sport}/leagues/{league}/events/{id}/competitions/{id}/predictor** — Predictor
+* **/v2/sports/{sport}/leagues/{league}/events/{id}/competitions/{id}/powerindex** — Game power index
+* **/v2/sports/{sport}/leagues/{league}/leaders** — Stat leaders
+* **/v2/sports/{sport}/leagues/{league}/teams** — Detailed teams
+* **/v2/sports/{sport}/leagues/{league}/venues** — Venues
+* **/v2/sports/{sport}/leagues/{league}/franchises** — Franchise history
+
+---
+
+# 🌐 SEARCH / GLOBAL (NOT LEAGUE-SPECIFIC)
+
+* **/search/v2?query={q}** — Search
+* **/apis/common/v3/sports/{sport}/{league}/athletes/{id}/overview** — Athlete overview
+* **/apis/common/v3/sports/{sport}/{league}/statistics/byathlete** — Leaderboard
+
+---
+
+# ⚡ CDN (ALL LEAGUES)
+
+* **/core/{sport}/scoreboard?xhr=1** — Live scoreboard
+* **/core/{sport}/game?xhr=1&gameId={id}** — Full game data
+* **/core/{sport}/boxscore?xhr=1&gameId={id}** — Boxscore
+* **/core/{sport}/playbyplay?xhr=1&gameId={id}** — Play-by-play
+
+---
+
+# 📰 NEWS (ALL LEAGUES)
+
+* **/v1/sports/news?sport={sport}** — Sport news
+* **/v1/sports/news?leagues={league}** — League news
+* **/v1/sports/news?team={abbrev}** — Team news
+
+---
+
+# 🎮 FANTASY (ALL LEAGUES)
+
+* **/apis/v3/games/{sport}/seasons/{year}/segments/{segment}/leagues/{league_id}** — League data
+* **?view=...** — Team, roster, matchup, standings, etc.
+
+---
+
