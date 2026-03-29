@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Teams</title>
+  <link rel="stylesheet" href="css/matstheme.css">
+</head>
+<body>
+
+<div id="nav-placeholder"></div>
+
+<div class="container">
+  <h1 class="site-title">TEAMS</h1>
+
+  <select id="league-select">
+    <option value="basketball/nba">NBA</option>
+    <option value="hockey/nhl">NHL</option>
+    <option value="baseball/mlb">MLB</option>
+    <option value="basketball/mens-college-basketball">NCAAB</option>
+  </select>
+
+  <div id="teams-container"></div>
+</div>
+
+<script src="js/nav.js"></script>
+
+<script>
+async function loadTeams() {
+  const val = document.getElementById("league-select").value;
+  const [sport, league] = val.split("/");
+
+  const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/${sport}/${league}/teams`);
+  const data = await res.json();
+
+  const container = document.getElementById("teams-container");
+  container.innerHTML = "";
+
+  data.sports[0].leagues[0].teams.forEach(t => {
+    const team = t.team;
+    container.innerHTML += `
+      <div class="game-card">
+        ${team.displayName}
+      </div>
+    `;
+  });
+}
+
+document.getElementById("league-select").addEventListener("change", loadTeams);
+loadTeams();
+</script>
+
+</body>
+</html>
