@@ -3,185 +3,386 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Final Scores</title>
-
+  <title>Final Scores · Edgelytics</title>
   <link rel="stylesheet" href="css/matstheme.css">
-  <link rel="stylesheet" href="css/live_scores.css">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:     #0a0a0a;
+      --bg2:    #111111;
+      --bg3:    #141414;
+      --border: #222222;
+      --green:  #00ff84;
+      --blue:   #00bfff;
+      --yellow: #facc15;
+      --red:    #ff4444;
+      --orange: #ff8c00;
+      --muted:  #555555;
+      --text:   #e0e0e0;
+      --text2:  #888888;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'IBM Plex Mono', monospace; font-size: 13px; min-height: 100vh; }
+
+    /* HEADER */
+    .page-header { border-bottom: 1px solid var(--border); padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+    .page-title { font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; color: var(--green); }
+    .page-subtitle { color: var(--text2); font-size: 11px; letter-spacing: 0.06em; margin-top: 2px; }
+
+    /* CONTROLS */
+    .controls { display: flex; align-items: center; gap: 12px; padding: 12px 24px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+    .league-pill { font-family: 'Barlow Condensed', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; padding: 4px 12px; border: 1px solid var(--border); background: transparent; color: var(--text2); cursor: pointer; transition: all 0.15s; text-transform: uppercase; }
+    .league-pill:hover { border-color: var(--blue); color: var(--blue); }
+    .league-pill.active { border-color: var(--green); color: var(--green); background: rgba(0,255,132,0.06); }
+    .date-input { margin-left: auto; background: var(--bg2); border: 1px solid var(--border); color: var(--text); font-family: 'IBM Plex Mono', monospace; font-size: 12px; padding: 5px 10px; outline: none; color-scheme: dark; }
+    .date-input:focus { border-color: var(--blue); }
+
+    /* STATUS */
+    .status-bar { padding: 8px 24px; font-size: 11px; color: var(--text2); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+    .status-bar.loading { color: var(--yellow); }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); display: inline-block; flex-shrink: 0; }
+    .status-dot.green  { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .status-dot.yellow { background: var(--yellow); animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1;}50%{opacity:0.3;} }
+
+    /* MAIN */
+    .main { padding: 20px 24px; display: flex; flex-direction: column; gap: 28px; }
+
+    .league-block {}
+    .league-header { font-family: 'Barlow Condensed', sans-serif; font-size: 13px; font-weight: 900; letter-spacing: 0.14em; text-transform: uppercase; padding: 0 0 8px; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
+    .lh-NBA   { color: var(--yellow); }
+    .lh-NCAAB { color: var(--orange); }
+    .lh-NHL   { color: var(--blue); }
+    .lh-MLB   { color: var(--green); }
+
+    .games-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
+
+    .game-card { background: var(--bg2); border: 1px solid var(--border); padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
+    .game-card:hover { border-color: var(--green); background: var(--bg3); }
+
+    .game-status { font-size: 10px; letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase; }
+
+    .game-row { display: flex; align-items: center; justify-content: space-between; }
+    .team-abbr { font-family: 'Barlow Condensed', sans-serif; font-size: 15px; font-weight: 700; letter-spacing: 0.06em; color: var(--text); }
+    .team-abbr.winner { color: var(--green); }
+    .team-score { font-family: 'Barlow Condensed', sans-serif; font-size: 18px; font-weight: 900; color: var(--text); }
+    .team-score.winner { color: var(--green); }
+
+    .no-games { font-size: 11px; color: var(--muted); letter-spacing: 0.08em; padding: 8px 0; }
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); font-family: 'Barlow Condensed', sans-serif; font-size: 16px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+
+    /* MODAL */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
+    .modal-overlay.open { display: flex; }
+    .modal-box { background: var(--bg2); border: 1px solid var(--border); width: 100%; max-width: 540px; max-height: 85vh; overflow-y: auto; position: relative; }
+    .modal-close { position: absolute; top: 12px; right: 14px; font-family: 'Barlow Condensed', sans-serif; font-size: 18px; font-weight: 700; color: var(--muted); cursor: pointer; letter-spacing: 0.1em; background: none; border: none; }
+    .modal-close:hover { color: var(--text); }
+    .modal-inner { padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
+
+    .modal-top { display: flex; align-items: center; gap: 10px; }
+    .modal-league-tag { font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; padding: 2px 8px; text-transform: uppercase; }
+    .tag-NBA   { color: var(--yellow); border: 1px solid rgba(250,204,21,0.3);  background: rgba(250,204,21,0.05); }
+    .tag-NCAAB { color: var(--orange); border: 1px solid rgba(255,140,0,0.3);   background: rgba(255,140,0,0.05); }
+    .tag-NHL   { color: var(--blue);   border: 1px solid rgba(0,191,255,0.3);   background: rgba(0,191,255,0.05); }
+    .tag-MLB   { color: var(--green);  border: 1px solid rgba(0,255,132,0.3);   background: rgba(0,255,132,0.05); }
+    .modal-final-tag { font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: var(--muted); }
+
+    .modal-matchup { font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 900; color: var(--text); letter-spacing: 0.04em; }
+
+    .modal-scoreboard { display: flex; flex-direction: column; gap: 4px; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 12px 0; }
+    .modal-score-row { display: flex; align-items: center; justify-content: space-between; }
+    .modal-team { font-family: 'Barlow Condensed', sans-serif; font-size: 16px; font-weight: 700; color: var(--text2); letter-spacing: 0.06em; }
+    .modal-team.winner { color: var(--green); }
+    .modal-pts { font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 900; color: var(--text); }
+    .modal-pts.winner { color: var(--green); }
+
+    .modal-section { display: flex; flex-direction: column; gap: 6px; }
+    .modal-subtitle { font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.12em; color: var(--text2); text-transform: uppercase; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
+    .modal-row { font-size: 11px; color: var(--text2); padding: 3px 0; border-bottom: 1px solid #161616; line-height: 1.5; }
+    .modal-row:last-child { border-bottom: none; }
+    .modal-error { color: var(--red); font-size: 12px; padding: 20px 0; text-align: center; }
+  </style>
 </head>
 <body>
 
-  <div id="nav-placeholder"></div>
+<div id="nav-placeholder"></div>
 
-  <div class="container">
-    <h1 class="site-title">FINAL SCORES</h1>
-
-    <div class="controls">
-      <input type="date" id="score-date">
-    </div>
-
-    <div id="scores-container" class="scores-grid">
-      <div class="loading">Loading...</div>
-    </div>
+<div class="page-header">
+  <div>
+    <div class="page-title">Final Scores</div>
+    <div class="page-subtitle">ESPN · NBA · NCAAB · NHL · MLB</div>
   </div>
+</div>
 
-  <script src="js/nav.js"></script>
+<div class="controls">
+  <div class="league-pill active" data-league="all">All</div>
+  <div class="league-pill" data-league="NBA">NBA</div>
+  <div class="league-pill" data-league="NCAAB">NCAAB</div>
+  <div class="league-pill" data-league="NHL">NHL</div>
+  <div class="league-pill" data-league="MLB">MLB</div>
+  <input type="date" class="date-input" id="score-date">
+</div>
 
-  <script>
-    const LEAGUES = [
-      { sport: "basketball", league: "nba", label: "NBA" },
-      { sport: "basketball", league: "mens-college-basketball", label: "NCAAB" },
-      { sport: "hockey", league: "nhl", label: "NHL" },
-      { sport: "baseball", league: "mlb", label: "MLB" }
-    ];
+<div class="status-bar" id="scores-status">
+  <span class="status-dot yellow" id="status-dot"></span>
+  <span id="status-text">Loading...</span>
+</div>
 
-    function todayStr() {
-      const d = new Date();
-      return d.toISOString().slice(0, 10);
+<div class="main" id="scores-main"></div>
+<div class="empty-state" id="scores-empty" style="display:none">No completed games</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal-box">
+    <button class="modal-close" id="modal-close">CLOSE ✕</button>
+    <div class="modal-inner" id="modal-inner"></div>
+  </div>
+</div>
+
+<script src="js/nav.js"></script>
+<script src="js/app.js"></script>
+<script>
+var LEAGUES = [
+  { key: 'NBA',   sport: 'basketball', league: 'nba'                    },
+  { key: 'NCAAB', sport: 'basketball', league: 'mens-college-basketball' },
+  { key: 'NHL',   sport: 'hockey',     league: 'nhl'                    },
+  { key: 'MLB',   sport: 'baseball',   league: 'mlb'                    }
+];
+
+var activeLeague = 'all';
+var allData      = {};
+
+function setStatus(text, cls, dotCls) {
+  document.getElementById('status-text').textContent  = text;
+  document.getElementById('scores-status').className  = 'status-bar ' + (cls    || '');
+  document.getElementById('status-dot').className     = 'status-dot '  + (dotCls || '');
+}
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function toESPNDate(d) {
+  return d.replace(/-/g, '');
+}
+
+function renderLeague(cfg, events) {
+  var block = document.createElement('div');
+  block.className = 'league-block';
+  block.dataset.league = cfg.key;
+  if (activeLeague !== 'all' && activeLeague !== cfg.key) block.style.display = 'none';
+
+  var hdr = document.createElement('div');
+  hdr.className = 'league-header lh-' + cfg.key;
+  hdr.textContent = cfg.key;
+  block.appendChild(hdr);
+
+  var completed = (events || []).filter(function(ev) {
+    return ev.status && ev.status.type && ev.status.type.completed;
+  });
+
+  if (completed.length === 0) {
+    var ng = document.createElement('div');
+    ng.className = 'no-games';
+    ng.textContent = 'No completed games';
+    block.appendChild(ng);
+    return block;
+  }
+
+  var grid = document.createElement('div');
+  grid.className = 'games-grid';
+
+  completed.forEach(function(ev) {
+    var comp  = ev.competitions && ev.competitions[0];
+    if (!comp) return;
+    var teams = comp.competitors || [];
+    var away  = teams.find(function(t) { return t.homeAway === 'away'; });
+    var home  = teams.find(function(t) { return t.homeAway === 'home'; });
+    if (!away || !home) return;
+
+    var awayScore = parseInt(away.score);
+    var homeScore = parseInt(home.score);
+    var awayWins  = awayScore > homeScore;
+    var homeWins  = homeScore > awayScore;
+
+    var card = document.createElement('div');
+    card.className = 'game-card';
+    card.dataset.event  = ev.id;
+    card.dataset.sport  = cfg.sport;
+    card.dataset.league = cfg.league;
+    card.dataset.leagueKey = cfg.key;
+
+    card.innerHTML =
+      '<div class="game-status">FINAL</div>' +
+      '<div class="game-row">' +
+        '<span class="team-abbr' + (awayWins ? ' winner' : '') + '">' + (away.team ? away.team.abbreviation : '—') + '</span>' +
+        '<span class="team-score' + (awayWins ? ' winner' : '') + '">' + (away.score || '0') + '</span>' +
+      '</div>' +
+      '<div class="game-row">' +
+        '<span class="team-abbr' + (homeWins ? ' winner' : '') + '">' + (home.team ? home.team.abbreviation : '—') + '</span>' +
+        '<span class="team-score' + (homeWins ? ' winner' : '') + '">' + (home.score || '0') + '</span>' +
+      '</div>';
+
+    card.addEventListener('click', function() {
+      openSummaryModal(card.dataset.event, card.dataset.sport, card.dataset.league, card.dataset.leagueKey);
+    });
+
+    grid.appendChild(card);
+  });
+
+  block.appendChild(grid);
+  return block;
+}
+
+function applyFilter() {
+  document.querySelectorAll('.league-block').forEach(function(b) {
+    b.style.display = (activeLeague === 'all' || b.dataset.league === activeLeague) ? '' : 'none';
+  });
+}
+
+function render() {
+  var main  = document.getElementById('scores-main');
+  var empty = document.getElementById('scores-empty');
+  main.innerHTML = '';
+
+  var total = 0;
+  LEAGUES.forEach(function(cfg) {
+    var completed = (allData[cfg.key] || []).filter(function(ev) {
+      return ev.status && ev.status.type && ev.status.type.completed;
+    });
+    total += completed.length;
+    main.appendChild(renderLeague(cfg, allData[cfg.key] || []));
+  });
+
+  empty.style.display = total === 0 ? '' : 'none';
+}
+
+async function loadFinalScores() {
+  setStatus('Loading...', 'loading', 'yellow');
+  var date     = document.getElementById('score-date').value;
+  var espnDate = toESPNDate(date);
+
+  var results = await Promise.all(LEAGUES.map(async function(cfg) {
+    try {
+      var r = await fetch('https://site.api.espn.com/apis/site/v2/sports/' + cfg.sport + '/' + cfg.league + '/scoreboard?dates=' + espnDate);
+      if (!r.ok) return { key: cfg.key, events: [] };
+      var data = await r.json();
+      return { key: cfg.key, events: data.events || [] };
+    } catch(e) {
+      return { key: cfg.key, events: [] };
+    }
+  }));
+
+  results.forEach(function(r) { allData[r.key] = r.events; });
+  render();
+  applyFilter();
+
+  var total = results.reduce(function(sum, r) {
+    return sum + r.events.filter(function(ev) { return ev.status && ev.status.type && ev.status.type.completed; }).length;
+  }, 0);
+
+  setStatus(total + ' completed games · ' + date, '', 'green');
+}
+
+// MODAL
+async function openSummaryModal(eventId, sport, league, leagueKey) {
+  var overlay = document.getElementById('modal-overlay');
+  var inner   = document.getElementById('modal-inner');
+  inner.innerHTML = '<div style="padding:20px;color:var(--text2);font-size:11px;">Loading...</div>';
+  overlay.classList.add('open');
+
+  try {
+    var r    = await fetch('https://site.api.espn.com/apis/site/v2/sports/' + sport + '/' + league + '/summary?event=' + eventId);
+    var data = await r.json();
+
+    var comp  = data.header.competitions[0];
+    var teams = comp.competitors || [];
+    var away  = teams.find(function(t) { return t.homeAway === 'away'; });
+    var home  = teams.find(function(t) { return t.homeAway === 'home'; });
+
+    var awayWins = parseInt(away.score) > parseInt(home.score);
+    var homeWins = parseInt(home.score) > parseInt(away.score);
+
+    var oddsHTML = '';
+    var odds = comp.odds && comp.odds[0];
+    if (odds) {
+      oddsHTML =
+        '<div class="modal-row">Spread: ' + (odds.details || '—') + '</div>' +
+        '<div class="modal-row">Total: ' + (odds.overUnder || '—') + '</div>';
     }
 
-    function toESPNDate(d) {
-      return d.replaceAll("-", "");
+    var statsHTML = '';
+    if (data.boxscore && data.boxscore.teams) {
+      statsHTML = data.boxscore.teams.map(function(t) {
+        var stats = (t.statistics || []).slice(0, 4).map(function(s) {
+          return s.displayName + ': ' + s.displayValue;
+        }).join(' · ');
+        return '<div class="modal-row"><strong style="color:var(--text)">' + t.team.displayName + '</strong> — ' + stats + '</div>';
+      }).join('');
     }
 
-    async function loadFinalScores() {
-      const date = document.getElementById("score-date").value;
-      const espnDate = toESPNDate(date);
-
-      const container = document.getElementById("scores-container");
-      container.innerHTML = '<div class="loading">Loading...</div>';
-
-      let totalGames = 0;
-      container.innerHTML = "";
-
-      for (const l of LEAGUES) {
-        try {
-          const res = await fetch(
-            `https://site.api.espn.com/apis/site/v2/sports/${l.sport}/${l.league}/scoreboard?dates=${espnDate}`
-          );
-          const data = await res.json();
-
-          const completedGames = (data.events || []).filter(e =>
-            e.status?.type?.completed === true
-          );
-
-          if (completedGames.length === 0) continue;
-
-          const block = document.createElement("div");
-          block.className = "league-block";
-
-          let gamesHTML = "";
-
-          completedGames.forEach(e => {
-            const comp = e.competitions[0];
-            const teams = comp.competitors;
-
-            const away = teams.find(t => t.homeAway === "away");
-            const home = teams.find(t => t.homeAway === "home");
-
-            gamesHTML += `
-              <div class="game-card"
-                   data-event="${e.id}"
-                   data-sport="${l.sport}"
-                   data-league="${l.league}">
-                <div class="game-status">FINAL</div>
-
-                <div class="game-row">
-                  <span>${away.team.abbreviation}</span>
-                  <span class="score">${away.score}</span>
-                </div>
-
-                <div class="game-row">
-                  <span>${home.team.abbreviation}</span>
-                  <span class="score">${home.score}</span>
-                </div>
-              </div>
-            `;
-          });
-
-          block.innerHTML = `
-            <div class="league-header">${l.label}</div>
-            ${gamesHTML}
-         `;
-
-          container.appendChild(block);
-          totalGames += completedGames.length;
-
-          // ✅ attach modal click
-          block.querySelectorAll(".game-card").forEach(card => {
-            card.addEventListener("click", () => {
-              openSummaryModal(
-                card.dataset.event,
-                card.dataset.sport,
-                card.dataset.league
-              );
-            });
-          });
-
-        } catch {
-          // fail silently per league
-        }
-      }
-
-      if (totalGames === 0) {
-        container.innerHTML = '<div class="empty">No completed games</div>';
-      }
+    var leadersHTML = '';
+    if (data.leaders) {
+      leadersHTML = data.leaders.map(function(l) {
+        var top = l.leaders && l.leaders[0];
+        return top ? '<div class="modal-row">' + l.name + ': ' + top.displayValue + '</div>' : '';
+      }).join('');
     }
 
-    async function openSummaryModal(eventId, sport, league) {
-      try {
-        const res = await fetch(
-          `https://site.api.espn.com/apis/site/v2/sports/${sport}/${league}/summary?event=${eventId}`
-        );
-
-        const data = await res.json();
-
-        const comp = data.header.competitions[0];
-        const teams = comp.competitors;
-
-        const away = teams.find(t => t.homeAway === "away");
-        const home = teams.find(t => t.homeAway === "home");
-
-        const leaders = (data.leaders || []).map(l => `
-          <div class="modal-row">
-            ${l.name}: ${l.leaders?.[0]?.displayValue || ""}
-          </div>
-        `).join("");
-
-        const html = `
-          <div class="modal-header">
-            <span class="modal-league-tag">${league.toUpperCase()}</span>
-            <span>FINAL</span>
-          </div>
-
-          <h2 class="modal-title">
-            ${away.team.displayName} @ ${home.team.displayName}
-          </h2>
-
-          <div class="modal-score">
-            <div>${away.team.abbreviation} — ${away.score}</div>
-            <div>${home.team.abbreviation} — ${home.score}</div>
-          </div>
-
-          <div class="modal-section">
-            <div class="modal-subtitle">Leaders</div>
-            ${leaders || "No data"}
-          </div>
-        `;
-
-        openModal(html);
-
-      } catch {
-        openModal('<div class="modal-error">Failed to load game</div>');
-      }
+    var linesHTML = '';
+    if (away.linescores && home.linescores) {
+      linesHTML = away.linescores.map(function(l, i) {
+        return '<div class="modal-row">' + (l.label || ('Period ' + (i+1))) + ': ' + (l.value || '0') + ' — ' + (home.linescores[i] ? home.linescores[i].value : '0') + '</div>';
+      }).join('');
     }
 
-    // ✅ init
-    document.getElementById("score-date").value = todayStr();
-    document.getElementById("score-date")
-      .addEventListener("change", loadFinalScores);
+    inner.innerHTML =
+      '<div class="modal-top">' +
+        '<span class="modal-league-tag tag-' + leagueKey + '">' + leagueKey + '</span>' +
+        '<span class="modal-final-tag">FINAL</span>' +
+      '</div>' +
+      '<div class="modal-matchup">' + away.team.displayName + ' @ ' + home.team.displayName + '</div>' +
+      '<div class="modal-scoreboard">' +
+        '<div class="modal-score-row">' +
+          '<span class="modal-team' + (awayWins ? ' winner' : '') + '">' + away.team.abbreviation + '</span>' +
+          '<span class="modal-pts' + (awayWins ? ' winner' : '') + '">' + away.score + '</span>' +
+        '</div>' +
+        '<div class="modal-score-row">' +
+          '<span class="modal-team' + (homeWins ? ' winner' : '') + '">' + home.team.abbreviation + '</span>' +
+          '<span class="modal-pts' + (homeWins ? ' winner' : '') + '">' + home.score + '</span>' +
+        '</div>' +
+      '</div>' +
+      (oddsHTML ? '<div class="modal-section"><div class="modal-subtitle">Betting Lines</div>' + oddsHTML + '</div>' : '') +
+      (linesHTML ? '<div class="modal-section"><div class="modal-subtitle">Scoring by Period</div>' + linesHTML + '</div>' : '') +
+      (statsHTML ? '<div class="modal-section"><div class="modal-subtitle">Team Stats</div>' + statsHTML + '</div>' : '') +
+      (leadersHTML ? '<div class="modal-section"><div class="modal-subtitle">Leaders</div>' + leadersHTML + '</div>' : '');
 
-    loadFinalScores();
-  </script>
+  } catch(e) {
+    inner.innerHTML = '<div class="modal-error">Failed to load game summary</div>';
+  }
+}
 
+document.getElementById('modal-close').addEventListener('click', function() {
+  document.getElementById('modal-overlay').classList.remove('open');
+});
+
+document.getElementById('modal-overlay').addEventListener('click', function(e) {
+  if (e.target === this) this.classList.remove('open');
+});
+
+document.querySelectorAll('.league-pill').forEach(function(pill) {
+  pill.addEventListener('click', function() {
+    document.querySelectorAll('.league-pill').forEach(function(p) { p.classList.remove('active'); });
+    pill.classList.add('active');
+    activeLeague = pill.dataset.league;
+    applyFilter();
+  });
+});
+
+document.getElementById('score-date').value = todayStr();
+document.getElementById('score-date').addEventListener('change', loadFinalScores);
+
+loadFinalScores();
+</script>
 </body>
 </html>
