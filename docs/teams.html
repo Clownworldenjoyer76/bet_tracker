@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Teams</title>
+  <title>Teams · Edgelytics</title>
   <link rel="stylesheet" href="css/matstheme.css">
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
@@ -106,7 +106,7 @@
 <div class="page-header">
   <div>
     <div class="page-title">Teams</div>
-    <div class="page-subtitle"> ROSTER &amp; TEAM INFO</div>
+    <div class="page-subtitle">ESPN · ROSTER &amp; TEAM INFO</div>
   </div>
 </div>
 <div class="controls">
@@ -262,31 +262,36 @@ function buildRosterPanel(data) {
   return '<table class="roster-table"><thead><tr><th>#</th><th>Name</th><th>Pos</th><th>HT</th><th>WT</th></tr></thead><tbody>' + rows + '</tbody></table>';
 }
 
-function buildSchedulePanel(data) {
+function buildSchedulePanel(data, teamId) {
   var events = data.events || [];
   if (!events.length) return '<div class="no-data">No schedule data</div>';
 
-  var rows = events.slice(0, 20).map(function(ev) {
+  var rows = events.slice(0, 30).map(function(ev) {
     var comp      = ev.competitions && ev.competitions[0];
     if (!comp) return '';
-    var completed = ev.status && ev.status.type && ev.status.type.completed;
+    var completed = comp.status && comp.status.type && comp.status.type.completed;
     var date      = fmtDate(ev.date);
     var comps     = comp.competitors || [];
-    var opp       = comps.find(function(c) { return !c.team || (comp.competitors[0] !== c); });
-    var me        = comps.find(function(c) { return c !== opp; });
+    // identify this team by id match
+    var me  = comps.find(function(c) { return String(c.id) === String(teamId); });
+    var opp = comps.find(function(c) { return String(c.id) !== String(teamId); });
+    if (!me || !opp) {
+      // fallback — just use order
+      me  = comps[0]; opp = comps[1];
+    }
     if (!opp || !me) return '';
-    var oppName   = opp.team ? (opp.team.abbreviation || opp.team.displayName || '') : '—';
-    var atHome    = me.homeAway === 'home';
-    var label     = atHome ? 'vs ' + oppName : '@ ' + oppName;
-    var result    = '';
+    var oppName = opp.team ? (opp.team.abbreviation || opp.team.displayName || '?') : '?';
+    var atHome  = me.homeAway === 'home';
+    var label   = atHome ? 'vs ' + oppName : '@ ' + oppName;
+    var result  = '';
     if (completed) {
-      var myScore  = me.score ? (me.score.displayValue || me.score.value || me.score || 0) : 0;
-      var oppScore = opp.score ? (opp.score.displayValue || opp.score.value || opp.score || 0) : 0;
-      var win      = me.winner === true || parseInt(myScore) > parseInt(oppScore);
+      var myScore  = me.score  ? (me.score.displayValue  || String(me.score.value  || 0)) : '0';
+      var oppScore = opp.score ? (opp.score.displayValue || String(opp.score.value || 0)) : '0';
+      var win      = me.winner === true;
       result = '<span class="sch-result ' + (win ? 'sch-w' : 'sch-l') + '">' + (win ? 'W' : 'L') + ' ' + myScore + '-' + oppScore + '</span>';
     } else {
-      var statusDetail = ev.status && ev.status.type ? (ev.status.type.shortDetail || ev.status.type.detail || '') : '';
-      result = '<span class="sch-upcoming">' + statusDetail + '</span>';
+      var detail = comp.status && comp.status.type ? (comp.status.type.shortDetail || comp.status.type.detail || '') : '';
+      result = '<span class="sch-upcoming">' + detail + '</span>';
     }
     return '<div class="schedule-row"><span class="sch-date">' + date + '</span><span class="sch-opp">' + label + '</span>' + result + '</div>';
   }).join('');
@@ -295,9 +300,8 @@ function buildSchedulePanel(data) {
 }
 
 function buildDepthPanel(data) {
-  // API returns data.depthchart[0].positions — a dict keyed by pos abbreviation
   var charts = data.depthchart || data.depthCharts || data.items || [];
-  if (!charts.length) return '<div class="no-data">No depth chart data</div>';
+  if (!charts.length) return '<div class="no-data">Depth chart not available for this league</div>';
   var positions = charts[0].positions || {};
   var keys = Object.keys(positions);
   if (!keys.length) return '<div class="no-data">No depth chart data</div>';
@@ -309,8 +313,7 @@ function buildDepthPanel(data) {
     if (!athletes.length) return;
     html += '<div class="depth-group"><div class="depth-pos-header">' + posName + '</div>';
     athletes.forEach(function(a, i) {
-      // athlete may be inline or a $ref — use displayName if present
-      var name = a.displayName || (a.athlete && a.athlete.displayName) || (a.firstName ? a.firstName + ' ' + a.lastName : '—');
+      var name = a.displayName || (a.athlete && a.athlete.displayName) || (a.firstName ? (a.firstName + ' ' + a.lastName) : '—');
       html += '<div class="depth-row"><span class="depth-rank">' + (i+1) + '</span><span class="depth-name">' + name + '</span></div>';
     });
     html += '</div>';
@@ -359,7 +362,7 @@ async function loadPanel(panelId, t, tab) {
     } else if (tab === 'schedule') {
       r = await fetch(base + '/schedule');
       data = await r.json();
-      html = buildSchedulePanel(data);
+      html = buildSchedulePanel(data, t.id);
     } else if (tab === 'depth') {
       r = await fetch(base + '/depthcharts');
       data = await r.json();
