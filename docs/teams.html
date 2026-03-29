@@ -2,52 +2,237 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Teams</title>
   <link rel="stylesheet" href="css/matstheme.css">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#0a0a0a;--bg2:#111111;--bg3:#141414;--border:#222222;
+      --green:#00ff84;--blue:#00bfff;--yellow:#facc15;--red:#ff4444;
+      --orange:#ff8c00;--muted:#555555;--text:#e0e0e0;--text2:#888888;
+    }
+    body { background:var(--bg);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:13px;min-height:100vh; }
+    .page-header { border-bottom:1px solid var(--border);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px; }
+    .page-title { font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;letter-spacing:0.08em;text-transform:uppercase;color:var(--green); }
+    .page-subtitle { color:var(--text2);font-size:11px;letter-spacing:0.06em;margin-top:2px; }
+    .controls { display:flex;align-items:center;gap:8px;padding:12px 24px;border-bottom:1px solid var(--border);flex-wrap:wrap; }
+    .league-pill { font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:0.08em;padding:4px 12px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;transition:all 0.15s;text-transform:uppercase; }
+    .league-pill:hover { border-color:var(--blue);color:var(--blue); }
+    .league-pill.active { border-color:var(--green);color:var(--green);background:rgba(0,255,132,0.06); }
+    .search-box { margin-left:auto;background:var(--bg2);border:1px solid var(--border);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:12px;padding:5px 10px;width:200px;outline:none; }
+    .search-box:focus { border-color:var(--blue); }
+    .search-box::placeholder { color:var(--muted); }
+    .status-bar { padding:8px 24px;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px; }
+    .status-dot { width:6px;height:6px;border-radius:50%;background:var(--muted);display:inline-block;flex-shrink:0; }
+    .status-dot.green { background:var(--green);box-shadow:0 0 6px var(--green); }
+    .status-dot.yellow { background:var(--yellow);animation:pulse 1s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1;}50%{opacity:0.3;} }
+    .main { padding:20px 24px;display:flex;flex-direction:column;gap:24px; }
+    .team-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px; }
+    .team-card { background:var(--bg2);border:1px solid var(--border);padding:12px 14px;cursor:pointer;transition:border-color 0.15s,background 0.15s;display:flex;align-items:center;gap:12px; }
+    .team-card:hover { border-color:var(--green);background:var(--bg3); }
+    .team-logo { width:32px;height:32px;object-fit:contain;flex-shrink:0; }
+    .team-logo-placeholder { width:32px;height:32px;flex-shrink:0; }
+    .team-info { display:flex;flex-direction:column;gap:2px;min-width:0; }
+    .team-name { font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;color:var(--text);letter-spacing:0.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+    .team-abbr { font-size:10px;color:var(--text2);letter-spacing:0.1em; }
+    .section-header { font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;color:var(--text2);text-transform:uppercase;padding:0 0 8px;border-bottom:1px solid var(--border);margin-bottom:10px; }
+    .empty-state { text-align:center;padding:60px 20px;color:var(--muted);font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase; }
+    /* MODAL */
+    .modal-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:1000;align-items:center;justify-content:center;padding:20px; }
+    .modal-overlay.open { display:flex; }
+    .modal-box { background:var(--bg2);border:1px solid var(--border);width:100%;max-width:520px;max-height:85vh;overflow-y:auto;position:relative; }
+    .modal-close { position:absolute;top:12px;right:14px;font-family:'Barlow Condensed',sans-serif;font-size:18px;font-weight:700;color:var(--muted);cursor:pointer;letter-spacing:0.1em;background:none;border:none; }
+    .modal-close:hover { color:var(--text); }
+    .modal-inner { padding:20px 24px;display:flex;flex-direction:column;gap:14px; }
+    .modal-team-header { display:flex;align-items:center;gap:14px; }
+    .modal-logo { width:48px;height:48px;object-fit:contain; }
+    .modal-team-name { font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;color:var(--text);letter-spacing:0.04em; }
+    .modal-team-sub { font-size:11px;color:var(--text2);margin-top:2px; }
+    .modal-subtitle { font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.12em;color:var(--text2);text-transform:uppercase;border-bottom:1px solid var(--border);padding-bottom:4px; }
+    .modal-row { font-size:11px;color:var(--text2);padding:4px 0;border-bottom:1px solid #161616; }
+    .modal-row:last-child { border-bottom:none; }
+    .modal-row span { color:var(--text); }
+    .roster-grid { display:flex;flex-direction:column;gap:2px; }
+    .player-row { display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid #161616;font-size:11px; }
+    .player-row:last-child { border-bottom:none; }
+    .player-name { font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;color:var(--text);letter-spacing:0.04em; }
+    .player-meta { color:var(--text2);font-size:10px; }
+    .modal-error { color:var(--red);font-size:12px;padding:20px 0;text-align:center; }
+    .modal-loading { color:var(--text2);font-size:11px;padding:20px 0;text-align:center; }
+  </style>
 </head>
 <body>
-
 <div id="nav-placeholder"></div>
-
-<div class="container">
-  <h1 class="site-title">TEAMS</h1>
-
-  <select id="league-select">
-    <option value="basketball/nba">NBA</option>
-    <option value="hockey/nhl">NHL</option>
-    <option value="baseball/mlb">MLB</option>
-    <option value="basketball/mens-college-basketball">NCAAB</option>
-  </select>
-
-  <div id="teams-container"></div>
+<div class="page-header">
+  <div>
+    <div class="page-title">Teams</div>
+    <div class="page-subtitle">ROSTER &amp; TEAM INFO</div>
+  </div>
 </div>
-
+<div class="controls">
+  <div class="league-pill active" data-sport="basketball" data-league="nba">NBA</div>
+  <div class="league-pill" data-sport="hockey" data-league="nhl">NHL</div>
+  <div class="league-pill" data-sport="baseball" data-league="mlb">MLB</div>
+  <div class="league-pill" data-sport="basketball" data-league="mens-college-basketball">NCAAB</div>
+  <input type="text" class="search-box" id="team-search" placeholder="Search team...">
+</div>
+<div class="status-bar" id="teams-status">
+  <span class="status-dot yellow" id="status-dot"></span>
+  <span id="status-text">Loading...</span>
+</div>
+<div class="main" id="teams-main"></div>
+<div class="empty-state" id="teams-empty" style="display:none">No teams found</div>
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal-box">
+    <button class="modal-close" id="modal-close">CLOSE ✕</button>
+    <div class="modal-inner" id="modal-inner"></div>
+  </div>
+</div>
 <script src="js/nav.js"></script>
-
 <script>
-async function loadTeams() {
-  const val = document.getElementById("league-select").value;
-  const [sport, league] = val.split("/");
+var activeSport  = 'basketball';
+var activeLeague = 'nba';
+var allTeams     = [];
+var searchQuery  = '';
 
-  const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/${sport}/${league}/teams`);
-  const data = await res.json();
-
-  const container = document.getElementById("teams-container");
-  container.innerHTML = "";
-
-  data.sports[0].leagues[0].teams.forEach(t => {
-    const team = t.team;
-    container.innerHTML += `
-      <div class="game-card">
-        ${team.displayName}
-      </div>
-    `;
-  });
+function setStatus(text, dotCls) {
+  document.getElementById('status-text').textContent = text;
+  document.getElementById('status-dot').className = 'status-dot ' + (dotCls || '');
 }
 
-document.getElementById("league-select").addEventListener("change", loadTeams);
+function render() {
+  var main  = document.getElementById('teams-main');
+  var empty = document.getElementById('teams-empty');
+  main.innerHTML = '';
+
+  var teams = allTeams.slice();
+  if (searchQuery) {
+    var q = searchQuery.toLowerCase();
+    teams = teams.filter(function(t) {
+      return t.name.toLowerCase().indexOf(q) !== -1 || t.abbr.toLowerCase().indexOf(q) !== -1;
+    });
+  }
+
+  if (teams.length === 0) { empty.style.display = ''; return; }
+  empty.style.display = 'none';
+
+  var grid = document.createElement('div');
+  grid.className = 'team-grid';
+
+  teams.forEach(function(t) {
+    var card = document.createElement('div');
+    card.className = 'team-card';
+    var imgHtml = t.logo
+      ? '<img class="team-logo" src="' + t.logo + '" loading="lazy">'
+      : '<div class="team-logo-placeholder"></div>';
+    card.innerHTML = imgHtml +
+      '<div class="team-info">' +
+        '<div class="team-name">' + t.name + '</div>' +
+        '<div class="team-abbr">' + t.abbr + '</div>' +
+      '</div>';
+    card.addEventListener('click', function() { openTeamModal(t); });
+    grid.appendChild(card);
+  });
+
+  main.appendChild(grid);
+}
+
+async function loadTeams() {
+  setStatus('Loading...', 'yellow');
+  allTeams = [];
+
+  try {
+    var url  = 'https://site.api.espn.com/apis/site/v2/sports/' + activeSport + '/' + activeLeague + '/teams?limit=200';
+    var r    = await fetch(url);
+    var data = await r.json();
+    var raw  = data.sports[0].leagues[0].teams || [];
+
+    allTeams = raw.map(function(t) {
+      var team = t.team;
+      var logo = team.logos && team.logos[0] ? team.logos[0].href : '';
+      return { id: team.id, name: team.displayName, abbr: team.abbreviation || '', location: team.location || '', nickname: team.nickname || '', logo: logo, color: team.color || '', sport: activeSport, league: activeLeague };
+    }).sort(function(a, b) { return a.name.localeCompare(b.name); });
+
+    render();
+    setStatus(allTeams.length + ' teams', 'green');
+  } catch(e) {
+    setStatus('Failed to load', '');
+  }
+}
+
+async function openTeamModal(t) {
+  var overlay = document.getElementById('modal-overlay');
+  var inner   = document.getElementById('modal-inner');
+  overlay.classList.add('open');
+  inner.innerHTML = '<div class="modal-loading">Loading roster...</div>';
+
+  try {
+    var r    = await fetch('https://site.api.espn.com/apis/site/v2/sports/' + t.sport + '/' + t.league + '/teams/' + t.id + '/roster');
+    var data = await r.json();
+
+    var athletes = [];
+    if (data.athletes) {
+      data.athletes.forEach(function(group) {
+        if (group.items) group.items.forEach(function(p) { athletes.push(p); });
+        else athletes.push(group);
+      });
+    }
+
+    var logoHtml = t.logo ? '<img class="modal-logo" src="' + t.logo + '">' : '';
+    var rosterHtml = '';
+    if (athletes.length > 0) {
+      rosterHtml = '<div class="modal-subtitle">ROSTER</div><div class="roster-grid">' +
+        athletes.map(function(p) {
+          var pos    = p.position ? (p.position.abbreviation || p.position.name || '') : '—';
+          var jersey = p.jersey ? '#' + p.jersey : '';
+          var status = p.injuries && p.injuries.length ? ' · <span style="color:var(--red)">' + p.injuries[0].status + '</span>' : '';
+          return '<div class="player-row">' +
+            '<span class="player-name">' + (p.displayName || p.fullName || '') + '</span>' +
+            '<span class="player-meta">' + pos + (jersey ? ' ' + jersey : '') + status + '</span>' +
+          '</div>';
+        }).join('') +
+      '</div>';
+    } else {
+      rosterHtml = '<div class="modal-subtitle">ROSTER</div><div class="modal-row">No roster data available</div>';
+    }
+
+    inner.innerHTML =
+      '<div class="modal-team-header">' + logoHtml +
+        '<div><div class="modal-team-name">' + t.name + '</div>' +
+        '<div class="modal-team-sub">' + (t.location || '') + ' · ' + activeLeague.toUpperCase() + '</div></div>' +
+      '</div>' + rosterHtml;
+
+  } catch(e) {
+    inner.innerHTML = '<div class="modal-error">Failed to load roster</div>';
+  }
+}
+
+document.getElementById('modal-close').addEventListener('click', function() {
+  document.getElementById('modal-overlay').classList.remove('open');
+});
+document.getElementById('modal-overlay').addEventListener('click', function(e) {
+  if (e.target === this) this.classList.remove('open');
+});
+document.querySelectorAll('.league-pill').forEach(function(pill) {
+  pill.addEventListener('click', function() {
+    document.querySelectorAll('.league-pill').forEach(function(p) { p.classList.remove('active'); });
+    pill.classList.add('active');
+    activeSport  = pill.dataset.sport;
+    activeLeague = pill.dataset.league;
+    searchQuery  = '';
+    document.getElementById('team-search').value = '';
+    loadTeams();
+  });
+});
+document.getElementById('team-search').addEventListener('input', function(e) {
+  searchQuery = e.target.value.trim();
+  render();
+});
+
 loadTeams();
 </script>
-
 </body>
 </html>
