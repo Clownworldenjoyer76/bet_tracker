@@ -311,12 +311,14 @@ async function openSummaryModal(eventId, sport, league, leagueKey) {
         '<div class="modal-row">Total: ' + (odds.overUnder || '—') + '</div>';
     }
 
-    // team stats — API uses name/value not displayName/displayValue
+    // sport-specific stat whitelists
+    var NHL_STATS = ['shots on goal', 'hits', 'power play goals', 'power play opportunities', 'giveaways', 'takeaways'];
+    var MLB_STATS = ['runs', 'hits', 'errors', 'strikeouts', 'home runs', 'runs batted in', 'batting average', 'left on base'];
+
     var statsHTML = '';
     if (data.boxscore && data.boxscore.teams) {
       statsHTML = data.boxscore.teams.map(function(t) {
         var allStats = t.statistics || [];
-        // flatten — some sports nest stats inside a 'stats' array on each entry
         var flat = [];
         allStats.forEach(function(s) {
           if (s.stats && s.stats.length) {
@@ -325,15 +327,21 @@ async function openSummaryModal(eventId, sport, league, leagueKey) {
             flat.push(s);
           }
         });
-        // only include rows that have a non-empty value
+
+        var whitelist = sport === 'hockey' ? NHL_STATS : (sport === 'baseball' ? MLB_STATS : null);
+
         var rows = flat.filter(function(s) {
-          var val = s.displayValue || s.value || '';
-          return val !== '' && val !== null && val !== undefined;
-        }).slice(0, 6).map(function(s) {
+          var val   = s.displayValue || s.value || '';
+          var label = (s.label || s.displayName || s.name || '').toLowerCase();
+          if (!val && val !== 0) return false;
+          if (whitelist) return whitelist.indexOf(label) !== -1;
+          return true;
+        }).slice(0, 8).map(function(s) {
           var label = s.label || s.displayName || s.name || '';
           var val   = s.displayValue || s.value || '';
           return label + ': ' + val;
         });
+
         if (rows.length === 0) return '';
         var teamName = t.team ? (t.team.displayName || t.team.abbreviation || '') : '';
         return '<div class="modal-row"><strong style="color:var(--text)">' + teamName + '</strong><br>' + rows.join(' · ') + '</div>';
@@ -356,13 +364,14 @@ async function openSummaryModal(eventId, sport, league, leagueKey) {
     var linesHTML = '';
     var awayLines = away.linescores || [];
     var homeLines = home.linescores || [];
+    var periodLabel = sport === 'baseball' ? 'Inn' : (sport === 'hockey' ? 'P' : 'Q');
     if (awayLines.length > 0) {
       linesHTML = awayLines.map(function(l, i) {
-        var period   = l.period || (i + 1);
-        var awayVal  = l.displayValue || l.value || '0';
+        var period  = l.period || (i + 1);
+        var awayVal = l.displayValue || l.value || '0';
         var homeLine = homeLines[i];
         var homeVal  = homeLine ? (homeLine.displayValue || homeLine.value || '0') : '0';
-        return '<div class="modal-row">Q' + period + ': ' + away.team.abbreviation + ' ' + awayVal + ' · ' + home.team.abbreviation + ' ' + homeVal + '</div>';
+        return '<div class="modal-row">' + periodLabel + period + ': ' + away.team.abbreviation + ' ' + awayVal + ' · ' + home.team.abbreviation + ' ' + homeVal + '</div>';
       }).join('');
     }
 
