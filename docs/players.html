@@ -298,21 +298,30 @@ function buildOverview(data, p) {
 }
 
 function buildGamelog(data) {
-  var gl     = data.gameLog || {};
-  var stats  = gl.statistics || {};
-  var labels = stats.labels || data.statistics && data.statistics.labels || [];
-  // events is a dict keyed by game id
-  var eventsDict = gl.events || {};
-  var eventKeys  = Object.keys(eventsDict);
-  if (!eventKeys.length) return '<div class="no-data">No game log data</div>';
+  var gl         = data.gameLog || {};
+  var statGroups = gl.statistics || [];
+  var eventsDict = gl.events    || {};
 
-  var thead = '<tr><th>Date</th><th>Opp</th>' + labels.slice(0, 8).map(function(l) { return '<th>' + l + '</th>'; }).join('') + '</tr>';
-  var rows  = eventKeys.slice(0, 25).map(function(key) {
-    var ev      = eventsDict[key];
-    var dateStr = ev.gameDate ? new Date(ev.gameDate).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : (ev.date ? new Date(ev.date).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '—');
-    var opp     = ev.opponent ? (ev.opponent.abbreviation || ev.opponent.displayName || '—') : (ev.atVs || '—');
-    var statVals= ev.stats || [];
-    return '<tr><td>' + dateStr + '</td><td>' + opp + '</td>' + statVals.slice(0, 8).map(function(v) { return '<td>' + (v !== null && v !== undefined ? v : '—') + '</td>'; }).join('') + '</tr>';
+  if (!statGroups.length) return '<div class="no-data">No game log data</div>';
+
+  var sg     = statGroups[0];
+  var labels = sg.labels || [];
+  // sg.events: [{eventId, stats[]}]
+  var sgEvents = sg.events || [];
+  if (!sgEvents.length) return '<div class="no-data">No games found</div>';
+
+  var thead = '<tr><th>Date</th><th>Opp</th><th>Result</th>' +
+    labels.slice(0, 8).map(function(l) { return '<th>' + l + '</th>'; }).join('') + '</tr>';
+
+  var rows = sgEvents.slice(0, 25).map(function(entry) {
+    var ev      = eventsDict[entry.eventId] || {};
+    var dateStr = ev.gameDate ? new Date(ev.gameDate).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '—';
+    var opp     = ev.opponent ? (ev.opponent.abbreviation || ev.opponent.displayName || ev.atVs || '—') : (ev.atVs || '—');
+    var result  = ev.gameResult || '';
+    var resCls  = result === 'W' ? 'style="color:var(--green);font-weight:700"' : result === 'L' ? 'style="color:var(--red);font-weight:700"' : '';
+    var statVals = entry.stats || [];
+    return '<tr><td>' + dateStr + '</td><td>' + opp + '</td><td ' + resCls + '>' + result + '</td>' +
+      statVals.slice(0, 8).map(function(v) { return '<td>' + (v !== null && v !== undefined ? v : '—') + '</td>'; }).join('') + '</tr>';
   }).join('');
 
   return '<div style="overflow-x:auto"><table class="stat-table"><thead>' + thead + '</thead><tbody>' + rows + '</tbody></table></div>';
