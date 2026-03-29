@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Transactions | EDGELYTICS</title>
+
+  <link rel="stylesheet" href="css/matstheme.css">
+  <link rel="stylesheet" href="css/transactions.css">
+</head>
+<body>
+
+  <div id="nav-placeholder"></div>
+
+  <div class="container">
+    <h1 class="site-title">TRANSACTIONS</h1>
+
+    <div class="controls">
+      <select id="league-select">
+        <option value="nba">NBA</option>
+        <option value="nfl">NFL</option>
+        <option value="mlb">MLB</option>
+        <option value="nhl">NHL</option>
+      </select>
+    </div>
+
+    <div id="transactions-container" class="txn-feed">
+      <div class="loading">Loading transactions...</div>
+    </div>
+  </div>
+
+  <script src="js/nav.js"></script>
+
+  <script>
+    const SPORT_MAP = {
+      nba: "basketball",
+      nfl: "football",
+      mlb: "baseball",
+      nhl: "hockey"
+    };
+
+    async function loadTransactions() {
+      const league = document.getElementById("league-select").value;
+      const sport  = SPORT_MAP[league];
+
+      const container = document.getElementById("transactions-container");
+      container.innerHTML = '<div class="loading">Loading...</div>';
+
+      try {
+        const res = await fetch(
+          `https://site.api.espn.com/apis/site/v2/sports/${sport}/${league}/transactions`
+        );
+        const data = await res.json();
+
+        if (!data.transactions || data.transactions.length === 0) {
+          container.innerHTML = '<div class="empty">No transactions found</div>';
+          return;
+        }
+
+        container.innerHTML = "";
+
+        data.transactions.forEach(t => {
+          const row = document.createElement("div");
+          row.className = "txn-row";
+
+          const date = new Date(t.date).toLocaleDateString();
+
+          row.innerHTML = `
+            <div class="txn-date">${date}</div>
+            <div class="txn-content">
+              <span class="txn-team">${t.team?.abbreviation || ""}</span>
+              <span class="txn-text">${t.description || "—"}</span>
+            </div>
+          `;
+
+          container.appendChild(row);
+        });
+
+      } catch (e) {
+        container.innerHTML = '<div class="empty">Failed to load</div>';
+      }
+    }
+
+    document.getElementById("league-select")
+      .addEventListener("change", loadTransactions);
+
+    loadTransactions();
+  </script>
+
+</body>
+</html>
