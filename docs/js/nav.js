@@ -158,7 +158,7 @@
       '.ticker-wrap{overflow:hidden;border-bottom:1px solid #222;background:#0d0d0d;height:28px;display:flex;align-items:center;}',
       '.ticker-label{font-family:"Barlow Condensed",sans-serif;font-size:11px;font-weight:900;letter-spacing:0.12em;color:#0a0a0a;background:#00ff84;padding:0 10px;height:100%;display:flex;align-items:center;white-space:nowrap;flex-shrink:0;}',
       '.ticker-track{display:flex;align-items:center;overflow:hidden;flex:1;}',
-      '.ticker-inner{display:flex;align-items:center;white-space:nowrap;animation:ticker-scroll 400s linear infinite;}',
+      '.ticker-inner{display:flex;align-items:center;white-space:nowrap;animation:ticker-scroll 600s linear infinite;}',
       '.ticker-inner:hover{animation-play-state:paused;}',
       '.ticker-item{font-family:"IBM Plex Mono",monospace;font-size:11px;color:#888;padding:0 32px;border-right:1px solid #222;}',
       '.ti-tag{font-family:"Barlow Condensed",sans-serif;font-weight:700;letter-spacing:0.08em;margin-right:6px;}',
