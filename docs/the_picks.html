@@ -12,7 +12,7 @@
 
 <style>
 
-/* ===== ORIGINAL STYLES (unchanged) ===== */
+/* ================= BASE ================= */
 
 .topbar { margin: 0; }
 
@@ -22,17 +22,70 @@ body {
   padding: 0;
 }
 
+/* ================= BURGER NAV ================= */
+
+.burger {
+  display: none;
+  position: fixed;
+  top: 14px;
+  right: 16px;
+  z-index: 2000;
+  cursor: pointer;
+}
+
+.burger span {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: var(--picks-green);
+  margin: 5px 0;
+  transition: 0.2s;
+}
+
+.mobile-nav {
+  position: fixed;
+  top: 0;
+  right: -100%;
+  width: 240px;
+  height: 100%;
+  background: #0c1118;
+  border-left: 1px solid var(--picks-border);
+  padding: 60px 20px;
+  z-index: 1500;
+  transition: right 0.25s ease;
+}
+
+.mobile-nav.open {
+  right: 0;
+}
+
+.mobile-nav a {
+  display: block;
+  padding: 12px 0;
+  color: var(--text-main);
+  text-decoration: none;
+  font-size: 12px;
+  letter-spacing: 2px;
+}
+
+.mobile-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: none;
+  z-index: 1400;
+}
+
+.mobile-overlay.open {
+  display: block;
+}
+
+/* ================= ORIGINAL PICKS ================= */
+
 :root {
   --picks-green:#00ff84;
-  --picks-green-dim:rgba(0,255,132,0.08);
-  --picks-green-glow:rgba(0,255,132,0.2);
-  --picks-yellow:#facc15;
-  --picks-red:#ff2d2d;
-  --picks-blue:#00bfff;
   --picks-border:rgba(255,255,255,0.06);
   --picks-card:#0c1118;
-  --picks-card-hover:#111822;
-  --picks-radius:3px;
 }
 
 .picks-header {
@@ -46,41 +99,14 @@ body {
 .picks-title {
   font-family:'Barlow Condensed',sans-serif;
   font-size:32px;
-  font-weight:800;
   letter-spacing:6px;
-  text-transform:uppercase;
   color:var(--picks-green);
-}
-
-#status {
-  font-size:10px;
-  letter-spacing:2px;
-  color:var(--text-muted);
-  margin-left:auto;
 }
 
 .picks-controls {
   display:flex;
-  align-items:center;
   gap:24px;
   padding:14px 24px;
-  border-bottom:1px solid var(--picks-border);
-  flex-wrap:wrap;
-}
-
-.date-wrap { display:flex; flex-direction:column; gap:4px; }
-
-input[type="date"] {
-  background:var(--picks-card);
-  border:1px solid rgba(255,255,255,0.1);
-  color:var(--text-main);
-  padding:7px 12px;
-}
-
-#league-filters {
-  display:flex;
-  gap:6px;
-  flex-wrap:wrap;
 }
 
 #games {
@@ -89,90 +115,36 @@ input[type="date"] {
   padding:24px;
 }
 
-.league-column {
-  display:flex;
-  flex-direction:column;
-  padding-right:16px;
-  border-right:1px solid var(--picks-border);
-}
-
 .pick-card {
   background:var(--picks-card);
-  padding:12px 14px;
-  cursor:pointer;
+  padding:12px;
 }
 
-/* ===== MOBILE RESPONSIVE (FULLY ADDED) ===== */
-
-@media (max-width: 900px) {
-
-  .picks-header {
-    flex-direction:column;
-    align-items:flex-start;
-    gap:10px;
-  }
-
-  #status {
-    margin-left:0;
-  }
-
-  .picks-title {
-    font-size:26px;
-    letter-spacing:4px;
-  }
-}
+/* ================= MOBILE ================= */
 
 @media (max-width: 700px) {
 
+  .burger {
+    display: block;
+  }
+
+  .site-nav {
+    display: none;
+  }
+
+  .picks-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
   .picks-controls {
-    flex-direction:column;
-    align-items:flex-start;
-    gap:14px;
+    flex-direction: column;
+    gap: 12px;
   }
-
-  .date-wrap,
-  input[type="date"],
-  #league-filters {
-    width:100%;
-  }
-}
-
-@media (max-width: 640px) {
 
   #games {
-    grid-template-columns:1fr;
-    padding:14px;
-    gap:12px;
-  }
-
-  .league-column {
-    padding:0 0 18px !important;
-    border-right:none !important;
-    border-bottom:1px solid var(--picks-border);
-  }
-
-  .league-column:last-child {
-    border-bottom:none;
-  }
-
-  .pick-card {
-    padding:14px;
-  }
-
-  .modal {
-    padding:0;
-  }
-
-  .modal-card {
-    max-width:100%;
-    height:100%;
-    max-height:100vh;
-    border-radius:0;
-    padding:20px;
-  }
-
-  .modal-title {
-    font-size:18px;
+    grid-template-columns: 1fr;
+    padding: 14px;
   }
 
 }
@@ -184,20 +156,44 @@ input[type="date"] {
 
 <div id="nav-placeholder"></div>
 
+<!-- BURGER -->
+<div class="burger" onclick="toggleMenu()">
+  <span></span>
+  <span></span>
+  <span></span>
+</div>
+
+<!-- MOBILE NAV -->
+<div id="mobile-nav" class="mobile-nav">
+  <a href="index.html">HOME</a>
+  <a href="games_today.html">GAMES TODAY</a>
+  <a href="live_scores.html">LIVE SCORES</a>
+  <a href="final_scores.html">FINAL SCORES</a>
+  <a href="news.html">NEWS</a>
+  <a href="transactions.html">TRANSACTIONS</a>
+  <a href="teams.html">TEAMS</a>
+  <a href="players.html">PLAYERS</a>
+  <a href="standings.html">STANDINGS</a>
+  <a href="the_picks.html">PICKS</a>
+</div>
+
+<div id="mobile-overlay" class="mobile-overlay" onclick="closeMenu()"></div>
+
+<!-- PAGE -->
+
 <div class="picks-header">
   <h1 class="picks-title">PICKS</h1>
   <div id="status"></div>
 </div>
 
 <div class="picks-controls">
-  <div class="date-wrap">
-    <span>Date</span>
-    <input id="p-date" type="date">
-  </div>
+  <input id="p-date" type="date">
   <div id="league-filters"></div>
 </div>
 
 <div id="games"></div>
+
+<!-- MODAL -->
 
 <div id="modal" class="modal">
   <div class="modal-card" onclick="event.stopPropagation()">
@@ -210,6 +206,8 @@ input[type="date"] {
 <script src="js/nav.js"></script>
 
 <script>
+
+/* MODAL */
 function openModal(html){
   document.getElementById('modal-content').innerHTML=html;
   document.getElementById('modal').classList.add('open');
@@ -217,9 +215,21 @@ function openModal(html){
 function closeModal(){
   document.getElementById('modal').classList.remove('open');
 }
+
+/* BURGER */
+function toggleMenu(){
+  document.getElementById('mobile-nav').classList.toggle('open');
+  document.getElementById('mobile-overlay').classList.toggle('open');
+}
+function closeMenu(){
+  document.getElementById('mobile-nav').classList.remove('open');
+  document.getElementById('mobile-overlay').classList.remove('open');
+}
+
 document.addEventListener('click',function(e){
   if(e.target===document.getElementById('modal')) closeModal();
 });
+
 </script>
 
 <script src="js/app.js"></script>
