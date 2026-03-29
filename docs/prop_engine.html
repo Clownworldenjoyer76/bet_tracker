@@ -194,53 +194,61 @@ async function loadPlayers(teamId) {
   } catch(e) { psel.innerHTML = '<option value="">Failed to load</option>'; }
 }
 
-function extractStat(statsArr, keys) {
-  if (!statsArr) return null;
-  for (var i = 0; i < keys.length; i++) {
-    var k = keys[i].toLowerCase();
-    for (var j = 0; j < statsArr.length; j++) {
-      var s = statsArr[j];
-      var n = (s.name || s.shortDisplayName || s.abbreviation || '').toLowerCase();
-      if (n === k) { var v = parseFloat(s.displayValue || s.value); return isNaN(v) ? null : v; }
+function extractStatByLabels(labels, statsArr, keys) {
+  // labels = ['MIN','FG%',...], statsArr = ['34','23.1',...]
+  // find index of matching label, return parsed float value
+  for (var k = 0; k < keys.length; k++) {
+    var key = keys[k].toLowerCase();
+    for (var i = 0; i < labels.length; i++) {
+      var lbl = (labels[i] || '').toLowerCase();
+      if (lbl === key) {
+        var v = parseFloat(statsArr[i]);
+        return isNaN(v) ? null : v;
+      }
     }
   }
   return null;
 }
 
 function parseGamelog(data, propDef) {
-  var seasonTypes = data.seasonTypes || [];
-  var games = [];
-  seasonTypes.forEach(function(st) {
-    var cats = st.categories || [];
-    if (!cats.length) return;
-    // find the category that has our stat
-    cats.forEach(function(cat) {
-      var labels = cat.labels || cat.names || [];
-      var events = cat.events || [];
-      events.forEach(function(ev) {
-        var statsArr = (ev.stats || []).map(function(v, i) {
-          return { name: labels[i] || '', value: v, displayValue: v };
-        });
-        var val = null;
-        if (propDef.statKeys[0] === '__pra__') {
-          var pts = extractStat(statsArr, ['points','pts']);
-          var reb = extractStat(statsArr, ['rebounds','totalRebounds','reb']);
-          var ast = extractStat(statsArr, ['assists','ast']);
-          if (pts !== null && reb !== null && ast !== null) val = pts + reb + ast;
-        } else {
-          val = extractStat(statsArr, propDef.statKeys);
-        }
-        if (val !== null) {
-          games.push({
-            date:  ev.gameDate ? new Date(ev.gameDate) : null,
-            val:   val,
-            stats: statsArr
-          });
-        }
+  // data = full overview response
+  var gl         = data.gameLog || {};
+  var statGroups = gl.statistics || [];
+  var eventsDict = gl.events    || {};  // keyed by eventId
+  var games      = [];
+
+  if (!statGroups.length) return games;
+
+  var sg     = statGroups[0];
+  var labels = sg.labels || sg.names || [];
+  var sgEvts = sg.events || [];  // [{eventId, stats:[]}]
+
+  sgEvts.forEach(function(entry) {
+    var statsArr = entry.stats || [];
+    var val = null;
+
+    if (propDef.statKeys[0] === '__pra__') {
+      var pts = extractStatByLabels(labels, statsArr, ['points','pts','PTS']);
+      var reb = extractStatByLabels(labels, statsArr, ['rebounds','totalRebounds','reb','REB']);
+      var ast = extractStatByLabels(labels, statsArr, ['assists','ast','AST']);
+      if (pts !== null && reb !== null && ast !== null) val = pts + reb + ast;
+    } else {
+      val = extractStatByLabels(labels, statsArr, propDef.statKeys.concat([propDef.abbr]));
+    }
+
+    if (val !== null) {
+      var ev     = eventsDict[entry.eventId] || {};
+      var opp    = ev.opponent ? (ev.opponent.abbreviation || ev.opponent.displayName || '?') : (ev.atVs || '?');
+      var result = ev.gameResult || '';
+      games.push({
+        date:   ev.gameDate ? new Date(ev.gameDate) : null,
+        val:    val,
+        opp:    opp,
+        result: result
       });
-    });
+    }
   });
-  // deduplicate by date+val, sort newest first
+
   games.sort(function(a,b) { return (b.date ? b.date.getTime() : 0) - (a.date ? a.date.getTime() : 0); });
   return games;
 }
@@ -336,10 +344,11 @@ function renderResults(player, games, propDef, n) {
   var rows = recentGames.map(function(g) {
     var dateStr = g.date ? g.date.toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '—';
     var cls     = g.val > midLine ? 'cell-over' : g.val < midLine ? 'cell-under' : '';
-    return '<tr><td>' + dateStr + '</td><td class="' + cls + '">' + g.val + '</td></tr>';
+    var resCls  = g.result === 'W' ? 'style="color:var(--accent-green)"' : g.result === 'L' ? 'style="color:var(--accent-red)"' : '';
+    return '<tr><td>' + dateStr + '</td><td>' + (g.opp||'—') + '</td><td ' + resCls + '>' + (g.result||'—') + '</td><td class="' + cls + '">' + g.val + '</td></tr>';
   }).join('');
 
-  logSec.innerHTML += '<div style="overflow-x:auto"><table class="log-table"><thead><tr><th>Date</th><th>' + propDef.abbr + '</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+  logSec.innerHTML += '<div style="overflow-x:auto"><table class="log-table"><thead><tr><th>Date</th><th>Opp</th><th>W/L</th><th>' + propDef.abbr + '</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
   main.appendChild(logSec);
 }
 
@@ -359,8 +368,8 @@ async function analyze() {
   document.getElementById('prop-main').innerHTML = '<div class="empty-state">Loading...</div>';
 
   try {
-    var base = 'https://site.api.espn.com/apis/site/v2/sports/' + activeSport + '/' + activeLeague + '/athletes/' + playerId;
-    var r    = await fetch(base + '/gamelog');
+    var url  = 'https://site.web.api.espn.com/apis/common/v3/sports/' + activeSport + '/' + activeLeague + '/athletes/' + playerId + '/overview';
+    var r    = await fetch(url);
     var data = await r.json();
     var games = parseGamelog(data, propDef);
 
