@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Final Scores</title>
+
+  <link rel="stylesheet" href="css/matstheme.css">
+  <link rel="stylesheet" href="css/live_scores.css">
+</head>
+<body>
+
+  <div id="nav-placeholder"></div>
+
+  <div class="container">
+    <h1 class="site-title">FINAL SCORES</h1>
+
+    <div class="controls">
+      <input type="date" id="score-date">
+    </div>
+
+    <div id="scores-container" class="scores-grid">
+      <div class="loading">Loading...</div>
+    </div>
+  </div>
+
+  <script src="js/nav.js"></script>
+
+  <script>
+    const LEAGUES = [
+      { sport: "basketball", league: "nba", label: "NBA" },
+      { sport: "basketball", league: "mens-college-basketball", label: "NCAAB" },
+      { sport: "hockey", league: "nhl", label: "NHL" },
+      { sport: "baseball", league: "mlb", label: "MLB" }
+    ];
+
+    function todayStr() {
+      const d = new Date();
+      return d.toISOString().slice(0, 10);
+    }
+
+    function toESPNDate(d) {
+      return d.replaceAll("-", "");
+    }
+
+    async function loadFinalScores() {
+      const date = document.getElementById("score-date").value;
+      const espnDate = toESPNDate(date);
+
+      const container = document.getElementById("scores-container");
+      container.innerHTML = '<div class="loading">Loading...</div>';
+
+      let totalGames = 0;
+      container.innerHTML = "";
+
+      for (const l of LEAGUES) {
+        try {
+          const res = await fetch(
+            `https://site.api.espn.com/apis/site/v2/sports/${l.sport}/${l.league}/scoreboard?dates=${espnDate}`
+          );
+          const data = await res.json();
+
+          const completedGames = (data.events || []).filter(e =>
+            e.status?.type?.completed === true
+          );
+
+          if (completedGames.length === 0) continue;
+
+          const block = document.createElement("div");
+          block.className = "league-block";
+
+          let gamesHTML = "";
+
+          completedGames.forEach(e => {
+            const comp = e.competitions[0];
+            const teams = comp.competitors;
+
+            const away = teams.find(t => t.homeAway === "away");
+            const home = teams.find(t => t.homeAway === "home");
+
+            gamesHTML += `
+              <div class="game-card"
+                   data-event="${e.id}"
+                   data-sport="${l.sport}"
+                   data-league="${l.league}">
+                <div class="game-status">FINAL</div>
+
+                <div class="game-row">
+                  <span>${away.team.abbreviation}</span>
+                  <span class="score">${away.score}</span>
+                </div>
+
+                <div class="game-row">
+                  <span>${home.team.abbreviation}</span>
+                  <span class="score">${home.score}</span>
+                </div>
+              </div>
+            `;
+          });
+
+          block.innerHTML = `
+            <div class="league-header">${l.label}</div>
+            ${gamesHTML}
+         `;
+
+          container.appendChild(block);
+          totalGames += completedGames.length;
+
+          // ✅ attach modal click
+          block.querySelectorAll(".game-card").forEach(card => {
+            card.addEventListener("click", () => {
+              openSummaryModal(
+                card.dataset.event,
+                card.dataset.sport,
+                card.dataset.league
+              );
+            });
+          });
+
+        } catch {
+          // fail silently per league
+        }
+      }
+
+      if (totalGames === 0) {
+        container.innerHTML = '<div class="empty">No completed games</div>';
+      }
+    }
+
+    async function openSummaryModal(eventId, sport, league) {
+      try {
+        const res = await fetch(
+          `https://site.api.espn.com/apis/site/v2/sports/${sport}/${league}/summary?event=${eventId}`
+        );
+
+        const data = await res.json();
+
+        const comp = data.header.competitions[0];
+        const teams = comp.competitors;
+
+        const away = teams.find(t => t.homeAway === "away");
+        const home = teams.find(t => t.homeAway === "home");
+
+        const leaders = (data.leaders || []).map(l => `
+          <div class="modal-row">
+            ${l.name}: ${l.leaders?.[0]?.displayValue || ""}
+          </div>
+        `).join("");
+
+        const html = `
+          <div class="modal-header">
+            <span class="modal-league-tag">${league.toUpperCase()}</span>
+            <span>FINAL</span>
+          </div>
+
+          <h2 class="modal-title">
+            ${away.team.displayName} @ ${home.team.displayName}
+          </h2>
+
+          <div class="modal-score">
+            <div>${away.team.abbreviation} — ${away.score}</div>
+            <div>${home.team.abbreviation} — ${home.score}</div>
+          </div>
+
+          <div class="modal-section">
+            <div class="modal-subtitle">Leaders</div>
+            ${leaders || "No data"}
+          </div>
+        `;
+
+        openModal(html);
+
+      } catch {
+        openModal('<div class="modal-error">Failed to load game</div>');
+      }
+    }
+
+    // ✅ init
+    document.getElementById("score-date").value = todayStr();
+    document.getElementById("score-date")
+      .addEventListener("change", loadFinalScores);
+
+    loadFinalScores();
+  </script>
+
+</body>
+</html>
