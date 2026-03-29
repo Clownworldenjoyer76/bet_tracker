@@ -240,34 +240,28 @@ function switchTab(tabKey) {
   if (p) p.classList.add('active');
 }
 
+// cache overview data per player so all tabs share one fetch
+var playerDataCache = {};
+
 async function loadPlayerPanel(panelId, p, tab) {
   var panel = document.getElementById(panelId);
   if (!panel || panel.dataset.loaded) return;
   panel.innerHTML = '<div class="modal-loading">Loading...</div>';
-  var base = 'https://site.api.espn.com/apis/site/v2/sports/' + activeSport + '/' + activeLeague + '/athletes/' + p.id;
+
   try {
-    var r, data, html = '';
-    if (tab === 'overview') {
-      r    = await fetch(base);
-      data = await r.json();
-      html = buildOverview(data);
-    } else if (tab === 'gamelog') {
-      r    = await fetch(base + '/gamelog');
-      data = await r.json();
-      html = buildGamelog(data);
-    } else if (tab === 'splits') {
-      r    = await fetch(base + '/splits');
-      data = await r.json();
-      html = buildSplits(data);
-    } else if (tab === 'news') {
-      r    = await fetch(base + '/news');
-      data = await r.json();
-      html = buildNews(data);
-    } else if (tab === 'bio') {
-      r    = await fetch(base + '/bio');
-      data = await r.json();
-      html = buildBio(data, p);
+    var data = playerDataCache[p.id];
+    if (!data) {
+      var url = 'https://site.web.api.espn.com/apis/common/v3/sports/' + activeSport + '/' + activeLeague + '/athletes/' + p.id + '/overview';
+      var r   = await fetch(url);
+      data    = await r.json();
+      playerDataCache[p.id] = data;
     }
+    var html = '';
+    if      (tab === 'overview') html = buildOverview(data, p);
+    else if (tab === 'gamelog')  html = buildGamelog(data);
+    else if (tab === 'splits')   html = buildSplits(data);
+    else if (tab === 'news')     html = buildNews(data);
+    else if (tab === 'bio')      html = buildBio(data, p);
     panel.innerHTML = html || '<div class="no-data">No data available</div>';
     panel.dataset.loaded = '1';
   } catch(e) {
@@ -275,78 +269,80 @@ async function loadPlayerPanel(panelId, p, tab) {
   }
 }
 
-function buildOverview(data) {
-  var a = data.athlete || data;
-  var stats = [];
-  if (data.statistics) {
-    var cats = data.statistics.splits && data.statistics.splits.categories ? data.statistics.splits.categories : [];
-    cats.forEach(function(cat) {
-      (cat.stats || []).forEach(function(s) { stats.push(s); });
-    });
-  }
-  var html = '<div class="modal-subtitle">Season Stats</div>';
-  if (stats.length) {
+function buildOverview(data, p) {
+  // statistics: labels/names at data.statistics, values in data.statistics.splits[i].stats
+  var stats   = data.statistics || {};
+  var labels  = stats.labels || [];
+  var names   = stats.names  || [];
+  var splits  = Array.isArray(stats.splits) ? stats.splits : [];
+  // use first split (season totals)
+  var vals    = splits.length ? (splits[0].stats || []) : [];
+  var html    = '<div class="modal-subtitle">Season Stats</div>';
+  if (vals.length && labels.length) {
     html += '<div class="info-grid">';
-    stats.slice(0, 9).forEach(function(s) {
-      html += '<div class="info-item"><div class="info-label">' + (s.shortDisplayName || s.abbreviation || s.name || '') + '</div><div class="info-val">' + (s.displayValue || s.value || '—') + '</div></div>';
+    labels.slice(0, 12).forEach(function(lbl, i) {
+      html += '<div class="info-item"><div class="info-label">' + lbl + '</div><div class="info-val">' + (vals[i] !== undefined ? vals[i] : '—') + '</div></div>';
     });
     html += '</div>';
   } else {
     html += '<div class="no-data">No season stats available</div>';
   }
+  // rotowire note
+  var roto = data.rotowire;
+  if (roto && roto.headline) {
+    html += '<div class="modal-subtitle" style="margin-top:12px">Latest Note</div>';
+    html += '<div style="font-size:11px;color:var(--text2);line-height:1.6">' + (roto.headline || '') + '</div>';
+    if (roto.story) html += '<div style="font-size:11px;color:var(--muted);margin-top:6px;line-height:1.6">' + roto.story + '</div>';
+  }
   return html;
 }
 
 function buildGamelog(data) {
-  var cats   = data.seasonTypes && data.seasonTypes[0] && data.seasonTypes[0].categories ? data.seasonTypes[0].categories : [];
-  var events = data.events || {};
-  if (!cats.length) return '<div class="no-data">No game log data</div>';
+  var gl     = data.gameLog || {};
+  var stats  = gl.statistics || {};
+  var labels = stats.labels || data.statistics && data.statistics.labels || [];
+  // events is a dict keyed by game id
+  var eventsDict = gl.events || {};
+  var eventKeys  = Object.keys(eventsDict);
+  if (!eventKeys.length) return '<div class="no-data">No game log data</div>';
 
-  var cat    = cats[0];
-  var labels = cat.labels || cat.names || [];
-  var rows   = cat.events  || [];
-
-  if (!rows.length) return '<div class="no-data">No games found</div>';
-
-  var thead = '<tr><th>Date</th>' + labels.slice(0, 8).map(function(l) { return '<th>' + l + '</th>'; }).join('') + '</tr>';
-  var tbody = rows.slice(0, 20).map(function(row) {
-    var eventRef = row.$ref || '';
-    var dateStr  = row.gameDate ? new Date(row.gameDate).toLocaleDateString('en-US', { month:'short', day:'numeric' }) : '—';
-    var stats    = row.stats || [];
-    return '<tr><td>' + dateStr + '</td>' + stats.slice(0, 8).map(function(v) { return '<td>' + (v || '—') + '</td>'; }).join('') + '</tr>';
+  var thead = '<tr><th>Date</th><th>Opp</th>' + labels.slice(0, 8).map(function(l) { return '<th>' + l + '</th>'; }).join('') + '</tr>';
+  var rows  = eventKeys.slice(0, 25).map(function(key) {
+    var ev      = eventsDict[key];
+    var dateStr = ev.gameDate ? new Date(ev.gameDate).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : (ev.date ? new Date(ev.date).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '—');
+    var opp     = ev.opponent ? (ev.opponent.abbreviation || ev.opponent.displayName || '—') : (ev.atVs || '—');
+    var statVals= ev.stats || [];
+    return '<tr><td>' + dateStr + '</td><td>' + opp + '</td>' + statVals.slice(0, 8).map(function(v) { return '<td>' + (v !== null && v !== undefined ? v : '—') + '</td>'; }).join('') + '</tr>';
   }).join('');
 
-  return '<div style="overflow-x:auto"><table class="stat-table"><thead>' + thead + '</thead><tbody>' + tbody + '</tbody></table></div>';
+  return '<div style="overflow-x:auto"><table class="stat-table"><thead>' + thead + '</thead><tbody>' + rows + '</tbody></table></div>';
 }
 
 function buildSplits(data) {
-  var cats = data.splits && data.splits.categories ? data.splits.categories : [];
-  if (!cats.length) return '<div class="no-data">No splits data</div>';
-  var html = '';
-  cats.slice(0, 4).forEach(function(cat) {
-    var splits = cat.splits || [];
-    if (!splits.length) return;
-    var labels = cat.labels || cat.names || [];
-    html += '<div class="modal-subtitle">' + (cat.displayName || cat.name || '') + '</div>';
-    html += '<div style="overflow-x:auto"><table class="stat-table"><thead><tr><th>Split</th>' +
-      labels.slice(0, 7).map(function(l) { return '<th>' + l + '</th>'; }).join('') +
-      '</tr></thead><tbody>';
-    splits.forEach(function(sp) {
-      var stats = sp.stats || [];
-      html += '<tr><td>' + (sp.displayName || sp.name || '—') + '</td>' +
-        stats.slice(0, 7).map(function(v) { return '<td>' + (v || '—') + '</td>'; }).join('') + '</tr>';
-    });
-    html += '</tbody></table></div>';
+  // splits lives in data.statistics.splits — array of {displayName, stats[]}
+  var stats  = data.statistics || {};
+  var labels = stats.labels || [];
+  var splits = Array.isArray(stats.splits) ? stats.splits : [];
+  if (!splits.length) return '<div class="no-data">No splits data</div>';
+  var html = '<div style="overflow-x:auto"><table class="stat-table"><thead><tr><th>Split</th>' +
+    labels.slice(0, 8).map(function(l){return '<th>'+l+'</th>';}).join('') +
+    '</tr></thead><tbody>';
+  splits.forEach(function(sp) {
+    var vals = sp.stats || [];
+    html += '<tr><td>' + (sp.displayName || '—') + '</td>' +
+      vals.slice(0, 8).map(function(v){return '<td>'+(v!==null&&v!==undefined?v:'—')+'</td>';}).join('') + '</tr>';
   });
-  return html || '<div class="no-data">No splits available</div>';
+  html += '</tbody></table></div>';
+  return html;
 }
 
 function buildNews(data) {
-  var articles = data.articles || [];
+  // data.news is a list directly
+  var articles = Array.isArray(data.news) ? data.news : (data.news && data.news.articles ? data.news.articles : []);
   if (!articles.length) return '<div class="no-data">No news available</div>';
   return articles.slice(0, 10).map(function(a) {
-    var date = a.published ? new Date(a.published).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) : '';
-    var url  = a.links && a.links.web ? a.links.web.href : '#';
+    var date = a.published ? new Date(a.published).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
+    var url  = a.links && a.links.web ? a.links.web.href : (a.links && a.links.mobile ? a.links.mobile.href : '#');
     return '<div class="news-item">' +
       '<div class="news-headline">' + (a.headline || '') + '</div>' +
       '<div class="news-meta">' + (a.source || 'ESPN') + (date ? ' · ' + date : '') + '</div>' +
@@ -356,23 +352,26 @@ function buildNews(data) {
 }
 
 function buildBio(data, p) {
-  var bio = data.athlete || data;
+  // bio info from roster player object — overview doesn't have a bio endpoint
+  var roto = data.rotowire || {};
   var rows = [
-    ['Full Name',    bio.fullName || p.fullName || p.displayName || '—'],
-    ['Position',     p.position ? (p.position.displayName || p.position.name || '—') : '—'],
-    ['Jersey',       p.jersey ? '#' + p.jersey : '—'],
-    ['Age',          bio.age || p.age || '—'],
-    ['Height',       bio.displayHeight || p.displayHeight || '—'],
-    ['Weight',       bio.displayWeight || p.displayWeight || '—'],
-    ['Birthplace',   bio.birthPlace ? [bio.birthPlace.city, bio.birthPlace.state, bio.birthPlace.country].filter(Boolean).join(', ') : '—'],
-    ['College',      bio.college ? (bio.college.name || '—') : '—'],
-    ['Experience',   bio.experience ? (bio.experience.displayValue || bio.experience.years + ' yr' || '—') : '—'],
-    ['Status',       bio.status ? (bio.status.name || bio.status.type || '—') : '—']
+    ['Name',       p.displayName || p.fullName || '—'],
+    ['Position',   p.position ? (p.position.displayName || p.position.name || '—') : '—'],
+    ['Jersey',     p.jersey ? '#' + p.jersey : '—'],
+    ['Age',        p.age || '—'],
+    ['Height',     p.displayHeight || '—'],
+    ['Weight',     p.displayWeight || '—'],
+    ['Status',     p.status ? (p.status.name || p.status.type || '—') : '—']
   ];
-  if (p.injuries && p.injuries.length) rows.push(['Injury', p.injuries[0].status + (p.injuries[0].detail ? ' — ' + p.injuries[0].detail : '')]);
-  return rows.map(function(r) {
-    return '<div class="bio-row"><span class="bio-label">' + r[0] + '</span><span class="bio-val">' + r[1] + '</span></div>';
+  if (p.injuries && p.injuries.length) rows.push(['Injury', p.injuries[0].status || '—']);
+  var html = rows.map(function(r) {
+    return '<div class="bio-row"><span class="bio-label">'+r[0]+'</span><span class="bio-val">'+r[1]+'</span></div>';
   }).join('');
+  if (roto.story) {
+    html += '<div class="modal-subtitle" style="margin-top:12px">Rotowire</div>';
+    html += '<div style="font-size:11px;color:var(--text2);line-height:1.6">' + roto.story + '</div>';
+  }
+  return html;
 }
 
 function openPlayerModal(p) {
