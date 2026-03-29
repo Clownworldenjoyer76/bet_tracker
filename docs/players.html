@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Players</title>
+  <link rel="stylesheet" href="css/matstheme.css">
+</head>
+<body>
+
+<div id="nav-placeholder"></div>
+
+<div class="container">
+  <h1 class="site-title">PLAYERS</h1>
+
+  <select id="league-select">
+    <option value="basketball/nba">NBA</option>
+    <option value="hockey/nhl">NHL</option>
+    <option value="baseball/mlb">MLB</option>
+  </select>
+
+  <div id="players-container"></div>
+</div>
+
+<script src="js/nav.js"></script>
+
+<script>
+async function loadPlayers() {
+  const val = document.getElementById("league-select").value;
+  const [sport, league] = val.split("/");
+
+  const res = await fetch(`https://site.api.espn.com/apis/site/v2/sports/${sport}/${league}/teams`);
+  const data = await res.json();
+
+  const container = document.getElementById("players-container");
+  container.innerHTML = "";
+
+  for (const t of data.sports[0].leagues[0].teams) {
+    const rosterRes = await fetch(t.team.links[0].href + "/roster");
+    const roster = await rosterRes.json();
+
+    roster.athletes.forEach(p => {
+      container.innerHTML += `<div class="game-card">${p.displayName}</div>`;
+    });
+  }
+}
+
+document.getElementById("league-select").addEventListener("change", loadPlayers);
+loadPlayers();
+</script>
+
+</body>
+</html>
