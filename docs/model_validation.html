@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Model Validation · Edgelytics</title>
+  <link rel="stylesheet" href="css/matstheme.css">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#0a0a0a;--bg2:#111111;--bg3:#141414;--border:#222222;
+      --green:#00ff84;--blue:#00bfff;--yellow:#facc15;--red:#ff4444;
+      --orange:#ff8c00;--muted:#555555;--text:#e0e0e0;--text2:#888888;
+    }
+    body { background:var(--bg);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:13px;min-height:100vh; }
+    .page-header { border-bottom:1px solid var(--border);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px; }
+    .page-title { font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;letter-spacing:0.08em;text-transform:uppercase;color:var(--green); }
+    .page-subtitle { color:var(--text2);font-size:11px;letter-spacing:0.06em;margin-top:2px; }
+    .controls { display:flex;align-items:center;gap:8px;padding:12px 24px;border-bottom:1px solid var(--border);flex-wrap:wrap; }
+    .league-pill { font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:0.08em;padding:4px 12px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;transition:all 0.15s;text-transform:uppercase; }
+    .league-pill:hover { border-color:var(--blue);color:var(--blue); }
+    .league-pill.active { border-color:var(--green);color:var(--green);background:rgba(0,255,132,0.06); }
+    .market-pill { font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:0.08em;padding:4px 10px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;transition:all 0.15s;text-transform:uppercase; }
+    .market-pill:hover { border-color:var(--yellow);color:var(--yellow); }
+    .market-pill.active { border-color:var(--yellow);color:var(--yellow);background:rgba(250,204,21,0.06); }
+    .upload-btn { font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:0.1em;padding:5px 14px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;text-transform:uppercase;transition:all 0.15s;margin-left:auto; }
+    .upload-btn:hover { border-color:var(--blue);color:var(--blue); }
+    .upload-btn.loaded { border-color:var(--green);color:var(--green); }
+    .status-bar { padding:8px 24px;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px; }
+    .status-dot { width:6px;height:6px;border-radius:50%;background:var(--muted);display:inline-block;flex-shrink:0; }
+    .status-dot.green { background:var(--green);box-shadow:0 0 6px var(--green); }
+    .status-dot.yellow { background:var(--yellow);animation:pulse 1s infinite; }
+    .status-dot.red { background:var(--red); }
+    @keyframes pulse { 0%,100%{opacity:1;}50%{opacity:0.3;} }
+    .main { padding:20px 24px;display:flex;flex-direction:column;gap:20px; }
+
+    /* SUMMARY STRIP */
+    .summary-strip { display:flex;border:1px solid var(--border); }
+    .summary-item { flex:1;padding:14px 18px;border-right:1px solid var(--border);display:flex;flex-direction:column;gap:3px; }
+    .summary-item:last-child { border-right:none; }
+    .summary-val { font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:900;line-height:1; }
+    .summary-lbl { font-size:9px;letter-spacing:0.12em;color:var(--text2);text-transform:uppercase; }
+    .val-green { color:var(--green); }
+    .val-red   { color:var(--red);   }
+    .val-yellow{ color:var(--yellow);}
+    .val-blue  { color:var(--blue);  }
+
+    /* CALIBRATION */
+    .calibration-section { background:var(--bg2);border:1px solid var(--border);padding:14px 16px; }
+    .section-title { font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;color:var(--text2);text-transform:uppercase;border-bottom:1px solid var(--border);padding-bottom:4px;margin-bottom:12px; }
+    .cal-row { display:flex;align-items:center;gap:10px;margin-bottom:8px; }
+    .cal-bucket { font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;color:var(--text);min-width:70px; }
+    .cal-bar-wrap { flex:1;height:8px;background:var(--bg3);border:1px solid var(--border);position:relative; }
+    .cal-bar-pred { height:100%;background:rgba(0,191,255,0.4);position:absolute;top:0;left:0; }
+    .cal-bar-act  { height:4px;background:var(--green);position:absolute;bottom:0;left:0; }
+    .cal-pct { font-size:10px;min-width:90px;text-align:right; }
+
+    /* BETS TABLE */
+    .bets-section { background:var(--bg2);border:1px solid var(--border);padding:14px 16px; }
+    .bets-table { width:100%;border-collapse:collapse;font-size:11px; }
+    .bets-table th { font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text2);padding:4px 6px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap; }
+    .bets-table th:not(:first-child):not(:nth-child(2)) { text-align:right; }
+    .bets-table td { padding:5px 6px;border-bottom:1px solid #161616;color:var(--text2);white-space:nowrap; }
+    .bets-table td:not(:first-child):not(:nth-child(2)) { text-align:right; }
+    .bets-table tr:hover td { background:var(--bg3); }
+    .bets-table tr:last-child td { border-bottom:none; }
+    .outcome-w { color:var(--green);font-family:'Barlow Condensed',sans-serif;font-weight:700; }
+    .outcome-l { color:var(--red);font-family:'Barlow Condensed',sans-serif;font-weight:700; }
+    .outcome-p { color:var(--text2); }
+    .prob-high { color:var(--green); }
+    .prob-mid  { color:var(--yellow); }
+    .prob-low  { color:var(--red); }
+
+    /* EV CHART */
+    .ev-section { background:var(--bg2);border:1px solid var(--border);padding:14px 16px; }
+    .market-breakdown { display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px; }
+    .mkt-card { background:var(--bg3);border:1px solid var(--border);padding:10px 12px; }
+    .mkt-card-title { font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.1em;color:var(--yellow);text-transform:uppercase;margin-bottom:8px; }
+    .mkt-stat-row { display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid #161616; }
+    .mkt-stat-row:last-child { border-bottom:none; }
+    .mkt-stat-label { color:var(--text2); }
+    .mkt-stat-val { font-family:'Barlow Condensed',sans-serif;font-weight:700;color:var(--text); }
+
+    .empty-state { text-align:center;padding:60px 20px;color:var(--muted);font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase; }
+    .upload-prompt { text-align:center;padding:40px 20px;color:var(--text2);font-size:12px;border:1px dashed var(--border);margin:0; }
+    .upload-prompt strong { font-family:'Barlow Condensed',sans-serif;font-size:14px;color:var(--text);display:block;margin-bottom:6px; }
+  </style>
+</head>
+<body>
+<div id="nav-placeholder"></div>
+<div class="page-header">
+  <div>
+    <div class="page-title">Model Validation</div>
+    <div class="page-subtitle">MODEL PROB vs ACTUAL OUTCOME · CALIBRATION · EV TRACKING</div>
+  </div>
+</div>
+<div class="controls">
+  <div class="league-pill active" data-league="all">All</div>
+  <div class="league-pill" data-league="NHL">NHL</div>
+  <div class="league-pill" data-league="NBA">NBA</div>
+  <div class="league-pill" data-league="MLB">MLB</div>
+  <div class="league-pill" data-league="NCAAB">NCAAB</div>
+  <div class="market-pill active" data-market="all">All Markets</div>
+  <div class="market-pill" data-market="moneyline">Moneyline</div>
+  <div class="market-pill" data-market="spread">Spread / Line</div>
+  <div class="market-pill" data-market="total">Total</div>
+  <button class="upload-btn" id="upload-btn" onclick="document.getElementById('csv-input').click()">Load Graded CSVs</button>
+  <input type="file" id="csv-input" accept=".csv" multiple style="display:none">
+</div>
+<div class="status-bar" id="val-status">
+  <span class="status-dot" id="status-dot"></span>
+  <span id="status-text">Load your graded CSV files to begin validation</span>
+</div>
+<div class="main" id="val-main">
+  <div class="upload-prompt">
+    <strong>Load Graded Pick CSVs</strong>
+    Click "Load Graded CSVs" above and select one or more of your graded output files.<br>
+    Required columns: <code>league, market_type, bet_side, line, model_prob, ev, kelly, game_date</code> + a result column (<code>result</code>, <code>outcome</code>, or <code>win</code>)
+  </div>
+</div>
+
+<script src="js/nav.js"></script>
+<script>
+var allRows      = [];
+var activeLeague = 'all';
+var activeMarket = 'all';
+
+function setStatus(text, dotCls) {
+  document.getElementById('status-text').textContent = text;
+  document.getElementById('status-dot').className = 'status-dot ' + (dotCls || '');
+}
+
+function parseCSV(text) {
+  var lines   = text.trim().split(/\r?\n/);
+  if (lines.length < 2) return [];
+  var headers = lines[0].split(',').map(function(h){return h.trim().toLowerCase();});
+  return lines.slice(1).map(function(line) {
+    var vals = line.split(',');
+    var obj  = {};
+    headers.forEach(function(h,i){obj[h]=(vals[i]||'').trim();});
+    return obj;
+  });
+}
+
+function normalizeRow(r) {
+  // detect result column
+  var resultCol = ['result','outcome','win','won','correct'].find(function(c){return r[c]!==undefined;});
+  var resultVal = resultCol ? r[resultCol].toLowerCase() : null;
+  var win = null;
+  if (resultVal === 'win' || resultVal === 'w' || resultVal === '1' || resultVal === 'true') win = true;
+  else if (resultVal === 'loss' || resultVal === 'l' || resultVal === '0' || resultVal === 'false') win = false;
+  // push/no action
+  if (resultVal === 'push' || resultVal === 'p') win = null;
+
+  // normalise market type
+  var mkt = (r.market_type||r.market||'').toLowerCase();
+  var mktNorm = 'other';
+  if (mkt === 'moneyline') mktNorm = 'moneyline';
+  else if (mkt === 'spread' || mkt === 'puck_line' || mkt === 'run_line') mktNorm = 'spread';
+  else if (mkt === 'total' || mkt === 'over_total' || mkt === 'under_total') mktNorm = 'total';
+
+  return {
+    league:     (r.league||'').toUpperCase(),
+    market:     mktNorm,
+    market_raw: r.market_type||'',
+    bet_side:   r.bet_side||'',
+    line:       parseFloat(r.line)||null,
+    model_prob: parseFloat(r.model_prob)||null,
+    ev:         parseFloat(r.ev)||null,
+    kelly:      parseFloat(r.kelly)||null,
+    game_date:  r.game_date||'',
+    win:        win
+  };
+}
+
+document.getElementById('csv-input').addEventListener('change', function(e) {
+  var files = Array.from(e.target.files);
+  if (!files.length) return;
+  setStatus('Loading...', 'yellow');
+  var promises = files.map(function(f) {
+    return new Promise(function(res) {
+      var reader = new FileReader();
+      reader.onload = function(ev) { res(parseCSV(ev.target.result)); };
+      reader.readAsText(f);
+    });
+  });
+  Promise.all(promises).then(function(results) {
+    allRows = [];
+    results.forEach(function(rows) { rows.forEach(function(r) { allRows.push(normalizeRow(r)); }); });
+    var graded = allRows.filter(function(r){return r.win !== null;}).length;
+    document.getElementById('upload-btn').className = 'upload-btn loaded';
+    setStatus(allRows.length + ' bets loaded · ' + graded + ' graded', 'green');
+    render();
+  });
+});
+
+function filteredRows() {
+  return allRows.filter(function(r) {
+    if (activeLeague !== 'all' && r.league !== activeLeague) return false;
+    if (activeMarket !== 'all' && r.market !== activeMarket) return false;
+    return true;
+  });
+}
+
+function render() {
+  var rows   = filteredRows();
+  var graded = rows.filter(function(r){return r.win !== null;});
+  var main   = document.getElementById('val-main');
+  main.innerHTML = '';
+
+  if (!graded.length) {
+    main.innerHTML = '<div class="empty-state">No graded bets match the current filter</div>';
+    return;
+  }
+
+  var wins   = graded.filter(function(r){return r.win===true;}).length;
+  var losses = graded.filter(function(r){return r.win===false;}).length;
+  var winRate = wins / graded.length;
+  var avgProb = graded.reduce(function(s,r){return s+(r.model_prob||0);},0) / graded.length;
+  var totalEV = graded.reduce(function(s,r){return s+(r.ev||0);},0);
+  var roiRows = graded.filter(function(r){return r.ev!==null;});
+
+  // summary strip
+  var strip = document.createElement('div');
+  strip.className = 'summary-strip';
+  [
+    { val: graded.length,         lbl:'Graded Bets',      cls:'' },
+    { val: wins+'-'+losses,       lbl:'W-L Record',       cls: winRate>=0.55?'val-green':winRate<0.45?'val-red':'val-yellow' },
+    { val: (winRate*100).toFixed(1)+'%', lbl:'Win Rate',  cls: winRate>=0.55?'val-green':winRate<0.45?'val-red':'val-yellow' },
+    { val: (avgProb*100).toFixed(1)+'%', lbl:'Avg Model Prob', cls:'val-blue' },
+    { val: (totalEV*100).toFixed(2)+'%', lbl:'Total EV', cls:totalEV>=0?'val-green':'val-red' }
+  ].forEach(function(s) {
+    strip.innerHTML += '<div class="summary-item"><div class="summary-val '+s.cls+'">'+ s.val +'</div><div class="summary-lbl">'+s.lbl+'</div></div>';
+  });
+  main.appendChild(strip);
+
+  // calibration
+  var calSec = document.createElement('div');
+  calSec.className = 'calibration-section';
+  calSec.innerHTML = '<div class="section-title">Model Calibration · Predicted Probability vs Actual Win Rate</div>';
+  var buckets = [[0,0.45,'< 45%'],[0.45,0.55,'45–55%'],[0.55,0.65,'55–65%'],[0.65,0.75,'65–75%'],[0.75,1.01,'> 75%']];
+  buckets.forEach(function(b) {
+    var bRows = graded.filter(function(r){return r.model_prob!==null&&r.model_prob>=b[0]&&r.model_prob<b[1];});
+    if (!bRows.length) return;
+    var bWins = bRows.filter(function(r){return r.win===true;}).length;
+    var predAvg = bRows.reduce(function(s,r){return s+r.model_prob;},0)/bRows.length;
+    var actRate = bWins/bRows.length;
+    var diff    = actRate - predAvg;
+    var diffStr = (diff>=0?'+':'') + (diff*100).toFixed(1)+'%';
+    var diffCls = diff>0.05?'val-green':diff<-0.05?'val-red':'';
+    calSec.innerHTML +=
+      '<div class="cal-row">' +
+        '<span class="cal-bucket">' + b[2] + '</span>' +
+        '<div class="cal-bar-wrap">' +
+          '<div class="cal-bar-pred" style="width:' + (predAvg*100) + '%"></div>' +
+          '<div class="cal-bar-act"  style="width:' + (actRate*100) + '%"></div>' +
+        '</div>' +
+        '<span class="cal-pct"><span style="color:var(--blue)">' + (predAvg*100).toFixed(0) + '%</span> pred · <span style="color:var(--green)">' + (actRate*100).toFixed(0) + '%</span> act · <span class="' + diffCls + '">' + diffStr + '</span></span>' +
+        '<span style="font-size:10px;color:var(--muted);min-width:40px;text-align:right">' + bRows.length + ' bets</span>' +
+      '</div>';
+  });
+  main.appendChild(calSec);
+
+  // market breakdown
+  var mkts = ['moneyline','spread','total'];
+  var mktCards = mkts.map(function(mkt) {
+    var mktLabel = mkt === 'spread' ? {nhl:'Puck Line',mlb:'Run Line',nba:'Spread',ncaab:'Spread',all:'Spread/Line'}[activeLeague.toLowerCase()]||'Spread/Line' : mkt.charAt(0).toUpperCase()+mkt.slice(1);
+    var mktRows  = graded.filter(function(r){return r.market===mkt;});
+    if (!mktRows.length) return '';
+    var mWins = mktRows.filter(function(r){return r.win===true;}).length;
+    var mRate = mWins/mktRows.length;
+    var mEV   = mktRows.reduce(function(s,r){return s+(r.ev||0);},0);
+    return '<div class="mkt-card"><div class="mkt-card-title">' + mktLabel + '</div>' +
+      '<div class="mkt-stat-row"><span class="mkt-stat-label">Bets</span><span class="mkt-stat-val">'+mktRows.length+'</span></div>' +
+      '<div class="mkt-stat-row"><span class="mkt-stat-label">W-L</span><span class="mkt-stat-val">'+mWins+'-'+(mktRows.length-mWins)+'</span></div>' +
+      '<div class="mkt-stat-row"><span class="mkt-stat-label">Win Rate</span><span class="mkt-stat-val" style="color:'+(mRate>=0.55?'var(--green)':mRate<0.45?'var(--red)':'var(--yellow)')+'">'+( mRate*100).toFixed(1)+'%</span></div>' +
+      '<div class="mkt-stat-row"><span class="mkt-stat-label">Total EV</span><span class="mkt-stat-val" style="color:'+(mEV>=0?'var(--green)':'var(--red)')+'">'+(mEV*100).toFixed(2)+'%</span></div>' +
+    '</div>';
+  }).join('');
+
+  if (mktCards.replace(/\s/g,'')) {
+    var evSec = document.createElement('div');
+    evSec.className = 'ev-section';
+    evSec.innerHTML = '<div class="section-title">Performance by Market</div><div class="market-breakdown">' + mktCards + '</div>';
+    main.appendChild(evSec);
+  }
+
+  // bets table
+  var betsSec = document.createElement('div');
+  betsSec.className = 'bets-section';
+  betsSec.innerHTML = '<div class="section-title">Graded Bets</div>';
+  var rows2 = graded.slice().reverse().slice(0,100);
+  var tableRows = rows2.map(function(r) {
+    var outcls = r.win===true?'outcome-w':r.win===false?'outcome-l':'outcome-p';
+    var outTxt = r.win===true?'WIN':r.win===false?'LOSS':'PUSH';
+    var probCls = (r.model_prob||0)>=0.65?'prob-high':(r.model_prob||0)>=0.5?'prob-mid':'prob-low';
+    var evCls   = (r.ev||0)>=0?'val-green':'val-red';
+    return '<tr>' +
+      '<td>' + (r.game_date||'—') + '</td>' +
+      '<td>' + r.league + '</td>' +
+      '<td>' + (r.market_raw||'—') + '</td>' +
+      '<td>' + (r.bet_side||'—') + (r.line?' '+r.line:'') + '</td>' +
+      '<td class="' + probCls + '">' + (r.model_prob!==null?(r.model_prob*100).toFixed(1)+'%':'—') + '</td>' +
+      '<td class="' + evCls + '">' + (r.ev!==null?(r.ev*100).toFixed(2)+'%':'—') + '</td>' +
+      '<td class="' + outcls + '">' + outTxt + '</td>' +
+    '</tr>';
+  }).join('');
+  betsSec.innerHTML += '<div style="overflow-x:auto"><table class="bets-table"><thead><tr><th>Date</th><th>League</th><th>Market</th><th>Side/Line</th><th>Model%</th><th>EV</th><th>Result</th></tr></thead><tbody>' + tableRows + '</tbody></table></div>';
+  if (graded.length > 100) betsSec.innerHTML += '<div style="font-size:10px;color:var(--muted);padding:8px 0;text-align:center">Showing most recent 100 of ' + graded.length + ' graded bets</div>';
+  main.appendChild(betsSec);
+}
+
+document.querySelectorAll('.league-pill').forEach(function(pill) {
+  pill.addEventListener('click', function() {
+    document.querySelectorAll('.league-pill').forEach(function(p){p.classList.remove('active');});
+    pill.classList.add('active');
+    activeLeague = pill.dataset.league;
+    if (allRows.length) render();
+  });
+});
+
+document.querySelectorAll('.market-pill').forEach(function(pill) {
+  pill.addEventListener('click', function() {
+    document.querySelectorAll('.market-pill').forEach(function(p){p.classList.remove('active');});
+    pill.classList.add('active');
+    activeMarket = pill.dataset.market;
+    if (allRows.length) render();
+  });
+});
+</script>
+</body>
+</html>
