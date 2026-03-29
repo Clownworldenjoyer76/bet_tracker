@@ -266,37 +266,54 @@ function buildSchedulePanel(data, teamId) {
   var events = data.events || [];
   if (!events.length) return '<div class="no-data">No schedule data</div>';
 
-  var rows = events.slice(0, 30).map(function(ev) {
+  var now      = new Date();
+  var past     = [];
+  var upcoming = [];
+
+  events.forEach(function(ev) {
     var comp      = ev.competitions && ev.competitions[0];
-    if (!comp) return '';
+    if (!comp) return;
     var completed = comp.status && comp.status.type && comp.status.type.completed;
-    var date      = fmtDate(ev.date);
+    var evDate    = new Date(ev.date);
     var comps     = comp.competitors || [];
-    // identify this team by id match
     var me  = comps.find(function(c) { return String(c.id) === String(teamId); });
     var opp = comps.find(function(c) { return String(c.id) !== String(teamId); });
-    if (!me || !opp) {
-      // fallback — just use order
-      me  = comps[0]; opp = comps[1];
-    }
-    if (!opp || !me) return '';
+    if (!me || !opp) { me = comps[0]; opp = comps[1]; }
+    if (!me || !opp) return;
+
     var oppName = opp.team ? (opp.team.abbreviation || opp.team.displayName || '?') : '?';
     var atHome  = me.homeAway === 'home';
     var label   = atHome ? 'vs ' + oppName : '@ ' + oppName;
     var result  = '';
+
     if (completed) {
       var myScore  = me.score  ? (me.score.displayValue  || String(me.score.value  || 0)) : '0';
       var oppScore = opp.score ? (opp.score.displayValue || String(opp.score.value || 0)) : '0';
       var win      = me.winner === true;
       result = '<span class="sch-result ' + (win ? 'sch-w' : 'sch-l') + '">' + (win ? 'W' : 'L') + ' ' + myScore + '-' + oppScore + '</span>';
+      past.push({ date: evDate, row: '<div class="schedule-row"><span class="sch-date">' + fmtDate(ev.date) + '</span><span class="sch-opp">' + label + '</span>' + result + '</div>' });
     } else {
       var detail = comp.status && comp.status.type ? (comp.status.type.shortDetail || comp.status.type.detail || '') : '';
-      result = '<span class="sch-upcoming">' + detail + '</span>';
+      var timeStr = evDate > now ? evDate.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', timeZoneName:'short' }) : detail;
+      result = '<span class="sch-upcoming">' + timeStr + '</span>';
+      upcoming.push({ date: evDate, row: '<div class="schedule-row"><span class="sch-date">' + fmtDate(ev.date) + '</span><span class="sch-opp">' + label + '</span>' + result + '</div>' });
     }
-    return '<div class="schedule-row"><span class="sch-date">' + date + '</span><span class="sch-opp">' + label + '</span>' + result + '</div>';
-  }).join('');
+  });
 
-  return rows || '<div class="no-data">No games found</div>';
+  // sort past descending (most recent first), upcoming ascending (soonest first)
+  past.sort(function(a,b) { return b.date - a.date; });
+  upcoming.sort(function(a,b) { return a.date - b.date; });
+
+  var html = '';
+  if (upcoming.length) {
+    html += '<div class="modal-subtitle">Upcoming</div>';
+    html += upcoming.slice(0, 10).map(function(r) { return r.row; }).join('');
+  }
+  if (past.length) {
+    html += '<div class="modal-subtitle" style="margin-top:12px">Recent Results</div>';
+    html += past.slice(0, 15).map(function(r) { return r.row; }).join('');
+  }
+  return html || '<div class="no-data">No games found</div>';
 }
 
 function buildDepthPanel(data) {
