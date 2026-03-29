@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>News | EDGELYTICS</title>
+
+  <link rel="stylesheet" href="css/matstheme.css">
+  <link rel="stylesheet" href="css/news.css">
+</head>
+<body>
+
+  <div id="nav-placeholder"></div>
+
+  <div class="container">
+    <h1 class="site-title">NEWS</h1>
+
+    <div id="news-container" class="news-grid">
+      <div class="loading">Loading news...</div>
+    </div>
+  </div>
+
+  <script src="js/nav.js"></script>
+
+  <script>
+    async function loadNews() {
+      const container = document.getElementById("news-container");
+
+      try {
+        const res = await fetch("https://now.core.api.espn.com/v1/sports/news?limit=30");
+        const data = await res.json();
+
+        if (!data.articles || data.articles.length === 0) {
+          container.innerHTML = '<div class="empty">No news available</div>';
+          return;
+        }
+
+        container.innerHTML = "";
+
+        data.articles.forEach(a => {
+          const img = a.images?.[0]?.url || "";
+          const date = new Date(a.published).toLocaleString();
+
+          const card = document.createElement("div");
+          card.className = "news-card";
+
+          card.innerHTML = `
+            ${img ? `<img src="${img}" class="news-img">` : ""}
+            <div class="news-content">
+              <div class="news-title">${a.headline || ""}</div>
+              <div class="news-desc">${a.description || ""}</div>
+              <div class="news-meta">${a.source || "ESPN"} • ${date}</div>
+              <a href="${a.links?.web?.href || "#"}" target="_blank" class="news-link">
+                READ →
+              </a>
+            </div>
+          `;
+
+          container.appendChild(card);
+        });
+
+      } catch (e) {
+        container.innerHTML = '<div class="empty">Failed to load news</div>';
+      }
+    }
+
+    loadNews();
+  </script>
+
+</body>
+</html>
