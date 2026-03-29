@@ -257,15 +257,15 @@ document.getElementById("picks-panel-toggle").addEventListener("click", function
 });
 
 function picksForTeam(teamName) {
-  var t = teamName.toLowerCase();
+  var t = teamName.toLowerCase().trim();
   return pickedRows.filter(function(r) {
-    var ht = (r.home_team || "").toLowerCase();
-    var at = (r.away_team || "").toLowerCase();
-    if (ht === t || at === t) return true;
-    var parts = t.split(" ");
-    return parts.some(function(p) {
-      return p.length > 3 && (ht.indexOf(p) !== -1 || at.indexOf(p) !== -1);
-    });
+    var ht   = (r.home_team || "").toLowerCase().trim();
+    var at   = (r.away_team || "").toLowerCase().trim();
+    var side = (r.bet_side  || "").toLowerCase().trim();
+    if (side === "over" || side === "under") return ht === t || at === t;
+    if (side === "home") return ht === t;
+    if (side === "away") return at === t;
+    return ht === t || at === t;
   });
 }
 
@@ -350,11 +350,14 @@ function render() {
     var pickCell = '<span class="no-pick">—</span>';
     if (r.hasPick && r.picks.length > 0) {
       var lines = r.picks.map(function(p) {
-        var mkt  = p.market_type ? p.market_type.toUpperCase() : "";
-        var side = p.bet_side    ? p.bet_side.toUpperCase()    : "";
-        var ln   = p.line        ? " " + p.line                : "";
-        return '<div class="pick-line">' + mkt + " " + side + ln + '</div>' +
-               '<div class="pick-meta">' + (p.game_time || "") + '</div>';
+        var mkt  = (p.market_type || "").toUpperCase();
+        var ln   = p.line ? " " + p.line : "";
+        var side = (p.bet_side || "").toLowerCase();
+        var pickedTeamName = side === "home" ? p.home_team : (side === "away" ? p.away_team : (p.home_team + " vs " + p.away_team));
+        var oppTeamName    = side === "home" ? ("vs " + p.away_team) : (side === "away" ? ("vs " + p.home_team) : "");
+        var timeStr = p.game_time ? " · " + p.game_time : "";
+        return '<div class="pick-line">' + mkt + ln + '</div>' +
+               '<div class="pick-meta">' + pickedTeamName + (oppTeamName ? " " + oppTeamName : "") + timeStr + '</div>';
       }).join("");
       pickCell = '<div class="pick-detail-inner">' + lines + '</div>';
     }
