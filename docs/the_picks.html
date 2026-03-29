@@ -11,215 +11,59 @@
 <link rel="stylesheet" href="css/matstheme.css">
 
 <style>
-
-.topbar {
-  margin: 0;
-}
-
-body {
-  font-family: 'IBM Plex Mono', 'Courier New', monospace;
-  background: var(--background);
-  padding: 0;
-}
-
-:root {
-  --picks-green: #00ff84;
-  --picks-green-dim: rgba(0, 255, 132, 0.08);
-  --picks-green-glow: rgba(0, 255, 132, 0.2);
-  --picks-yellow: #facc15;
-  --picks-red: #ff2d2d;
-  --picks-blue: #00bfff;
-  --picks-border: rgba(255,255,255,0.06);
-  --picks-card: #0c1118;
-  --picks-card-hover: #111822;
-  --picks-radius: 3px;
-}
-
-.picks-header {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  padding: 20px 24px 16px;
-  border-bottom: 1px solid var(--picks-border);
-}
-
-.picks-title {
-  font-family: 'Barlow Condensed', sans-serif;
-  font-size: 32px;
-  font-weight: 800;
-  letter-spacing: 6px;
-  text-transform: uppercase;
-  color: var(--picks-green);
-  line-height: 1;
-  margin: 0;
-}
-
-#status {
-  font-size: 10px;
-  letter-spacing: 2px;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  margin-left: auto;
-}
-
-#status.loading {
-  color: var(--picks-green);
-  animation: pulse-text 1.2s ease infinite;
-}
-
-@keyframes pulse-text {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.35; }
-}
-
-.picks-controls {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  padding: 14px 24px;
-  border-bottom: 1px solid var(--picks-border);
-  flex-wrap: wrap;
-}
-
-.date-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.date-label {
-  font-size: 9px;
-  letter-spacing: 2px;
-  color: var(--text-muted);
-  text-transform: uppercase;
-}
-
-input[type="date"] {
-  background: var(--picks-card);
-  border: 1px solid rgba(255,255,255,0.1);
-  color: var(--text-main);
-  padding: 7px 12px;
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 12px;
-  border-radius: var(--picks-radius);
-  outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s;
-  cursor: pointer;
-}
-
-input[type="date"]:focus {
-  border-color: var(--picks-green);
-  box-shadow: 0 0 0 3px var(--picks-green-dim);
-}
-
-input[type="date"]::-webkit-calendar-picker-indicator {
-  filter: invert(1) opacity(0.3);
-  cursor: pointer;
-}
-
-#league-filters {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.filter-pill {
-  padding: 4px 14px;
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 2px;
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 2px;
-  cursor: pointer;
-  color: var(--text-muted);
-  background: transparent;
-  transition: all 0.15s ease;
-  user-select: none;
-}
-
-.filter-pill:hover {
-  border-color: rgba(0,255,132,0.35);
-  color: var(--text-main);
-}
-
-.filter-pill.active {
-  border-color: var(--picks-green);
-  color: var(--picks-green);
-  background: var(--picks-green-dim);
-  box-shadow: 0 0 8px var(--picks-green-glow);
-}
-
-#games {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
-  gap: 0;
-  padding: 24px;
-  align-items: start;
-}
-
-.league-column {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 0 16px 0 0;
-  border-right: 1px solid var(--picks-border);
-}
-
-.league-column:last-child {
-  border-right: none;
-  padding-right: 0;
-}
-
-.league-column + .league-column {
-  padding-left: 16px;
-}
-
-.league-header {
-  font-family: 'Barlow Condensed', sans-serif;
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: 4px;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  padding-bottom: 10px;
-  border-bottom: 2px solid var(--picks-border);
-  margin-bottom: 4px;
-}
-
-.pick-card {
-  background: var(--picks-card);
-  border: 1px solid var(--picks-border);
-  padding: 12px 14px;
-  cursor: pointer;
-}
-
-.modal {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.8);
-  display: none;
-}
-
-.modal.open {
-  display: flex;
-}
-
-.modal-card {
-  background: #0c1118;
-  padding: 28px;
-  width: 100%;
-  max-width: 500px;
-}
-
-@media (max-width: 640px) {
-  #games {
-    grid-template-columns: 1fr;
-    padding: 16px;
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:#0a0a0a;--bg2:#111111;--bg3:#141414;--border:#222222;
+    --green:#00ff84;--blue:#00bfff;--yellow:#facc15;--red:#ff4444;
+    --orange:#ff8c00;--muted:#555555;--text:#e0e0e0;--text2:#888888;
   }
-}
+  body { background:var(--bg);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:13px;min-height:100vh;padding:0; }
 
+  .picks-header { border-bottom:1px solid var(--border);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px; }
+  .picks-title { font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;letter-spacing:0.08em;text-transform:uppercase;color:var(--green);margin:0; }
+  .picks-subtitle { color:var(--text2);font-size:11px;letter-spacing:0.06em;margin-top:2px; }
+
+  #status { font-size:10px;letter-spacing:0.1em;color:var(--text2);text-transform:uppercase; }
+  #status.loading { color:var(--green);animation:pulse-text 1.2s ease infinite; }
+  @keyframes pulse-text { 0%,100%{opacity:1;}50%{opacity:0.35;} }
+
+  .picks-controls { display:flex;align-items:center;gap:8px;padding:12px 24px;border-bottom:1px solid var(--border);flex-wrap:wrap; }
+
+  .date-wrap { display:flex;flex-direction:column;gap:3px; }
+  .date-label { font-size:9px;letter-spacing:0.1em;color:var(--muted);text-transform:uppercase; }
+  input[type="date"] { background:var(--bg2);border:1px solid var(--border);color:var(--text);padding:5px 10px;font-family:'IBM Plex Mono',monospace;font-size:12px;outline:none;transition:border-color 0.15s;cursor:pointer;color-scheme:dark; }
+  input[type="date"]:focus { border-color:var(--blue); }
+  input[type="date"]::-webkit-calendar-picker-indicator { filter:invert(1) opacity(0.3);cursor:pointer; }
+
+  #league-filters { display:flex;gap:6px;flex-wrap:wrap;align-items:center; }
+  .filter-pill { font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:0.08em;padding:4px 12px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;transition:all 0.15s;text-transform:uppercase;user-select:none; }
+  .filter-pill:hover { border-color:var(--blue);color:var(--blue); }
+  .filter-pill.active { border-color:var(--green);color:var(--green);background:rgba(0,255,132,0.06); }
+
+  .status-bar { padding:8px 24px;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px; }
+
+  #games { display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:0;padding:24px;align-items:start; }
+
+  .league-column { display:flex;flex-direction:column;gap:8px;padding:0 16px 0 0;border-right:1px solid var(--border); }
+  .league-column:last-child { border-right:none;padding-right:0; }
+  .league-column + .league-column { padding-left:16px; }
+
+  .league-header { font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:900;letter-spacing:0.14em;text-transform:uppercase;color:var(--text2);padding-bottom:8px;border-bottom:1px solid var(--border);margin-bottom:4px; }
+  .league-header.lh-NHL  { color:var(--blue); }
+  .league-header.lh-NBA  { color:var(--yellow); }
+  .league-header.lh-NCAAB{ color:var(--orange); }
+  .league-header.lh-MLB  { color:var(--green); }
+
+  .pick-card { background:var(--bg2);border:1px solid var(--border);padding:12px 14px;cursor:pointer;transition:border-color 0.15s,background 0.15s; }
+  .pick-card:hover { border-color:var(--green);background:var(--bg3); }
+
+  .modal { position:fixed;inset:0;background:rgba(0,0,0,0.85);display:none;align-items:center;justify-content:center;padding:20px;z-index:1000; }
+  .modal.open { display:flex; }
+  .modal-card { background:var(--bg2);border:1px solid var(--border);padding:28px;width:100%;max-width:500px;position:relative;max-height:85vh;overflow-y:auto; }
+  .modal-card button { font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:0.1em;padding:5px 14px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;text-transform:uppercase;margin-top:16px;transition:all 0.15s; }
+  .modal-card button:hover { border-color:var(--green);color:var(--green); }
+
+  @media (max-width:640px) { #games { grid-template-columns:1fr;padding:16px; } }
 </style>
 </head>
 
@@ -228,7 +72,10 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 <div id="nav-placeholder"></div>
 
 <div class="picks-header">
-  <h1 class="picks-title">PICKS</h1>
+  <div>
+    <h1 class="picks-title">Picks</h1>
+    <div class="picks-subtitle">TODAY'S SELECTED BETS</div>
+  </div>
   <div id="status"></div>
 </div>
 
