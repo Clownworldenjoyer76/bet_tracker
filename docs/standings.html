@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Standings</title>
+  <title>Standings · Edgelytics</title>
   <link rel="stylesheet" href="css/matstheme.css">
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
@@ -27,8 +27,9 @@
     .status-dot.yellow { background:var(--yellow);animation:pulse 1s infinite; }
     @keyframes pulse { 0%,100%{opacity:1;}50%{opacity:0.3;} }
     .main { padding:20px 24px;display:flex;flex-direction:column;gap:28px; }
-    .conference-block {}
-    .conference-header { font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:900;letter-spacing:0.1em;color:var(--text);text-transform:uppercase;margin-bottom:12px; }
+    .conferences-wrap { display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px;align-items:start; }
+    .conference-block { background:var(--bg2);border:1px solid var(--border);padding:14px 16px; }
+    .conference-header { font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:900;letter-spacing:0.1em;color:var(--text);text-transform:uppercase;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--border); }
     .division-block { margin-bottom:20px; }
     .division-header { font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;color:var(--text2);text-transform:uppercase;padding:0 0 6px;border-bottom:1px solid var(--border);margin-bottom:6px; }
     .standings-table { width:100%;border-collapse:collapse;font-size:12px; }
@@ -39,10 +40,13 @@
     .standings-table tbody tr:hover { background:var(--bg2); }
     .standings-table td { padding:6px 8px;text-align:right;color:var(--text2); }
     .standings-table td:first-child { text-align:left; }
-    .team-cell { display:flex;align-items:center;gap:8px; }
-    .team-logo-sm { width:18px;height:18px;object-fit:contain; }
+    .team-cell { display:flex;align-items:center;gap:6px;white-space:nowrap; }
+    .team-logo-sm { width:18px;height:18px;object-fit:contain;flex-shrink:0;vertical-align:middle; }
     .team-name-cell { font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;color:var(--text);letter-spacing:0.04em; }
-    .rank-cell { color:var(--muted);font-size:11px;min-width:18px; }
+    .rank-cell { color:var(--muted);font-size:11px;width:20px;text-align:right;padding-right:4px; }
+    .standings-table td { padding:5px 6px;text-align:right;color:var(--text2);vertical-align:middle; }
+    .standings-table td:first-child { text-align:right; }
+    .standings-table td:nth-child(2) { text-align:left; }
     .val-win { color:var(--green); }
     .val-loss { color:var(--red); }
     .empty-state { text-align:center;padding:60px 20px;color:var(--muted);font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase; }
@@ -53,7 +57,7 @@
 <div class="page-header">
   <div>
     <div class="page-title">Standings</div>
-    <div class="page-subtitle">CURRENT SEASON</div>
+    <div class="page-subtitle">ESPN · CURRENT SEASON</div>
   </div>
 </div>
 <div class="controls">
@@ -93,7 +97,21 @@ function getStat(stats, names) {
   return '—';
 }
 
-function buildTable(entries, sport) {
+function sortEntries(entries) {
+    return entries.slice().sort(function(a, b) {
+      var getWins = function(e) {
+        var stats = e.stats || [];
+        for (var i = 0; i < stats.length; i++) {
+          var n = (stats[i].name || '').toLowerCase();
+          if (n === 'wins' || n === 'w') return parseFloat(stats[i].value) || 0;
+        }
+        return 0;
+      };
+      return getWins(b) - getWins(a);
+    });
+  }
+
+  function buildTable(entries, sport) {
   var cols;
   if (sport === 'basketball') cols = [
     { label: 'W',   names: ['wins','w'] },
@@ -171,6 +189,9 @@ async function loadStandings() {
       return;
     }
 
+    var confWrap = document.createElement('div');
+    confWrap.className = 'conferences-wrap';
+
     groups.forEach(function(conf) {
       var confBlock = document.createElement('div');
       confBlock.className = 'conference-block';
@@ -188,7 +209,7 @@ async function loadStandings() {
         divisions.forEach(function(div) {
           var divBlock = document.createElement('div');
           divBlock.className = 'division-block';
-          var entries = div.standings && div.standings.entries ? div.standings.entries : [];
+          var entries = sortEntries(div.standings && div.standings.entries ? div.standings.entries : []);
           var divName = div.name || '';
           if (divName) {
             var dh = document.createElement('div');
@@ -200,12 +221,14 @@ async function loadStandings() {
           confBlock.appendChild(divBlock);
         });
       } else {
-        var entries = conf.standings && conf.standings.entries ? conf.standings.entries : [];
+        var entries = sortEntries(conf.standings && conf.standings.entries ? conf.standings.entries : []);
         confBlock.innerHTML += buildTable(entries, activeSport);
       }
 
-      main.appendChild(confBlock);
+      confWrap.appendChild(confBlock);
     });
+
+    main.appendChild(confWrap);
 
     setStatus('Standings loaded', 'green');
   } catch(e) {
