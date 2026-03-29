@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live Scores | EDGELYTICS</title>
+
+  <link rel="stylesheet" href="css/matstheme.css">
+  <link rel="stylesheet" href="css/live_scores.css">
+</head>
+<body>
+
+  <div id="nav-placeholder"></div>
+
+  <div class="container">
+    <h1 class="site-title">LIVE SCORES</h1>
+
+    <div id="scores-container" class="scores-grid">
+      <div class="loading">Loading scores...</div>
+    </div>
+  </div>
+
+  <script src="js/nav.js"></script>
+
+  <script>
+    const LEAGUES = [
+      { sport: "basketball", league: "nba", label: "NBA" },
+      { sport: "basketball", league: "mens-college-basketball", label: "NCAAB" },
+      { sport: "hockey", league: "nhl", label: "NHL" },
+      { sport: "baseball", league: "mlb", label: "MLB" }
+    ];
+
+    async function loadScores() {
+      const container = document.getElementById("scores-container");
+      container.innerHTML = "";
+
+      for (const l of LEAGUES) {
+        try {
+          const res = await fetch(
+            `https://site.api.espn.com/apis/site/v2/sports/${l.sport}/${l.league}/scoreboard`
+          );
+          const data = await res.json();
+
+          const block = document.createElement("div");
+          block.className = "league-block";
+
+          let gamesHTML = "";
+
+          (data.events || []).forEach(e => {
+            const comp = e.competitions[0];
+            const teams = comp.competitors;
+
+            const away = teams.find(t => t.homeAway === "away");
+            const home = teams.find(t => t.homeAway === "home");
+
+            gamesHTML += `
+              <div class="game-card">
+                <div class="game-status">${e.status.type.description}</div>
+                <div class="game-row">
+                  <span>${away.team.abbreviation}</span>
+                  <span class="score">${away.score || "-"}</span>
+                </div>
+                <div class="game-row">
+                  <span>${home.team.abbreviation}</span>
+                  <span class="score">${home.score || "-"}</span>
+                </div>
+              </div>
+            `;
+          });
+
+          block.innerHTML = `
+            <div class="league-header">${l.label}</div>
+            ${gamesHTML || '<div class="empty">No games</div>'}
+          `;
+
+          container.appendChild(block);
+
+        } catch {
+          // silent fail per league
+        }
+      }
+    }
+
+    loadScores();
+    setInterval(loadScores, 30000); // refresh every 30s
+  </script>
+
+</body>
+</html>
