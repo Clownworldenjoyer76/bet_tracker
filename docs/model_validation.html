@@ -7,84 +7,78 @@
   <link rel="stylesheet" href="css/matstheme.css">
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    :root {
-      --bg:#0a0a0a;--bg2:#111111;--bg3:#141414;--border:#222222;
-      --green:#00ff84;--blue:#00bfff;--yellow:#facc15;--red:#ff4444;
-      --orange:#ff8c00;--muted:#555555;--text:#e0e0e0;--text2:#888888;
-    }
-    body { background:var(--bg);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:13px;min-height:100vh; }
-    .page-header { border-bottom:1px solid var(--border);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px; }
-    .page-title { font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;letter-spacing:0.08em;text-transform:uppercase;color:var(--green); }
-    .page-subtitle { color:var(--text2);font-size:11px;letter-spacing:0.06em;margin-top:2px; }
-    .controls { display:flex;align-items:center;gap:8px;padding:12px 24px;border-bottom:1px solid var(--border);flex-wrap:wrap; }
-    .league-pill { font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:0.08em;padding:4px 12px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;transition:all 0.15s;text-transform:uppercase; }
-    .league-pill:hover { border-color:var(--blue);color:var(--blue); }
-    .league-pill.active { border-color:var(--green);color:var(--green);background:rgba(0,255,132,0.06); }
-    .market-pill { font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:0.08em;padding:4px 10px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;transition:all 0.15s;text-transform:uppercase; }
-    .market-pill:hover { border-color:var(--yellow);color:var(--yellow); }
-    .market-pill.active { border-color:var(--yellow);color:var(--yellow);background:rgba(250,204,21,0.06); }
-    .upload-btn { font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:0.1em;padding:5px 14px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;text-transform:uppercase;transition:all 0.15s;margin-left:auto; }
-    .upload-btn:hover { border-color:var(--blue);color:var(--blue); }
-    .upload-btn.loaded { border-color:var(--green);color:var(--green); }
-    .status-bar { padding:8px 24px;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px; }
-    .status-dot { width:6px;height:6px;border-radius:50%;background:var(--muted);display:inline-block;flex-shrink:0; }
-    .status-dot.green { background:var(--green);box-shadow:0 0 6px var(--green); }
-    .status-dot.yellow { background:var(--yellow);animation:pulse 1s infinite; }
-    .status-dot.red { background:var(--red); }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }    body { background:var(--background);color:var(--text-main);font-family:'IBM Plex Mono',monospace;font-size:13px;min-height:100vh; }
+    .page-header { border-bottom:1px solid var(--border-soft);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px; }
+    .page-title { font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;letter-spacing:0.08em;text-transform:uppercase;color:var(--accent-green); }
+    .page-subtitle { color:var(--text-muted);font-size:11px;letter-spacing:0.06em;margin-top:2px; }
+    .controls { display:flex;align-items:center;gap:8px;padding:12px 24px;border-bottom:1px solid var(--border-soft);flex-wrap:wrap; }
+    .league-pill { font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:0.08em;padding:4px 12px;border:1px solid var(--border-soft);background:transparent;color:var(--text-muted);cursor:pointer;transition:all 0.15s;text-transform:uppercase; }
+    .league-pill:hover { border-color:var(--accent-blue);color:var(--accent-blue); }
+    .league-pill.active { border-color:var(--accent-green);color:var(--accent-green);background:rgba(0,255,132,0.06); }
+    .market-pill { font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:0.08em;padding:4px 10px;border:1px solid var(--border-soft);background:transparent;color:var(--text-muted);cursor:pointer;transition:all 0.15s;text-transform:uppercase; }
+    .market-pill:hover { border-color:var(--accent-yellow);color:var(--accent-yellow); }
+    .market-pill.active { border-color:var(--accent-yellow);color:var(--accent-yellow);background:rgba(250,204,21,0.06); }
+    .upload-btn { font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:0.1em;padding:5px 14px;border:1px solid var(--border-soft);background:transparent;color:var(--text-muted);cursor:pointer;text-transform:uppercase;transition:all 0.15s;margin-left:auto; }
+    .upload-btn:hover { border-color:var(--accent-blue);color:var(--accent-blue); }
+    .upload-btn.loaded { border-color:var(--accent-green);color:var(--accent-green); }
+    .status-bar { padding:8px 24px;font-size:11px;color:var(--text-muted);border-bottom:1px solid var(--border-soft);display:flex;align-items:center;gap:10px; }
+    .status-dot { width:6px;height:6px;border-radius:50%;background:var(--text-muted);display:inline-block;flex-shrink:0; }
+    .status-dot.green { background:var(--accent-green);box-shadow:0 0 6px var(--accent-green); }
+    .status-dot.yellow { background:var(--accent-yellow);animation:pulse 1s infinite; }
+    .status-dot.red { background:var(--accent-red); }
     @keyframes pulse { 0%,100%{opacity:1;}50%{opacity:0.3;} }
     .main { padding:20px 24px;display:flex;flex-direction:column;gap:20px; }
 
     /* SUMMARY STRIP */
-    .summary-strip { display:flex;border:1px solid var(--border); }
-    .summary-item { flex:1;padding:14px 18px;border-right:1px solid var(--border);display:flex;flex-direction:column;gap:3px; }
+    .summary-strip { display:flex;border:1px solid var(--border-soft); }
+    .summary-item { flex:1;padding:14px 18px;border-right:1px solid var(--border-soft);display:flex;flex-direction:column;gap:3px; }
     .summary-item:last-child { border-right:none; }
     .summary-val { font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:900;line-height:1; }
-    .summary-lbl { font-size:9px;letter-spacing:0.12em;color:var(--text2);text-transform:uppercase; }
-    .val-green { color:var(--green); }
-    .val-red   { color:var(--red);   }
-    .val-yellow{ color:var(--yellow);}
-    .val-blue  { color:var(--blue);  }
+    .summary-lbl { font-size:9px;letter-spacing:0.12em;color:var(--text-muted);text-transform:uppercase; }
+    .val-green { color:var(--accent-green); }
+    .val-red   { color:var(--accent-red);   }
+    .val-yellow{ color:var(--accent-yellow);}
+    .val-blue  { color:var(--accent-blue);  }
 
     /* CALIBRATION */
-    .calibration-section { background:var(--bg2);border:1px solid var(--border);padding:14px 16px; }
-    .section-title { font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;color:var(--text2);text-transform:uppercase;border-bottom:1px solid var(--border);padding-bottom:4px;margin-bottom:12px; }
+    .calibration-section { background:var(--bg-card);border:1px solid var(--border-soft);padding:14px 16px; }
+    .section-title { font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;color:var(--text-muted);text-transform:uppercase;border-bottom:1px solid var(--border-soft);padding-bottom:4px;margin-bottom:12px; }
     .cal-row { display:flex;align-items:center;gap:10px;margin-bottom:8px; }
-    .cal-bucket { font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;color:var(--text);min-width:70px; }
-    .cal-bar-wrap { flex:1;height:8px;background:var(--bg3);border:1px solid var(--border);position:relative; }
+    .cal-bucket { font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;color:var(--text-main);min-width:70px; }
+    .cal-bar-wrap { flex:1;height:8px;background:var(--bg-card);border:1px solid var(--border-soft);position:relative; }
     .cal-bar-pred { height:100%;background:rgba(0,191,255,0.4);position:absolute;top:0;left:0; }
-    .cal-bar-act  { height:4px;background:var(--green);position:absolute;bottom:0;left:0; }
+    .cal-bar-act  { height:4px;background:var(--accent-green);position:absolute;bottom:0;left:0; }
     .cal-pct { font-size:10px;min-width:90px;text-align:right; }
 
     /* BETS TABLE */
-    .bets-section { background:var(--bg2);border:1px solid var(--border);padding:14px 16px; }
+    .bets-section { background:var(--bg-card);border:1px solid var(--border-soft);padding:14px 16px; }
     .bets-table { width:100%;border-collapse:collapse;font-size:11px; }
-    .bets-table th { font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text2);padding:4px 6px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap; }
+    .bets-table th { font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);padding:4px 6px;text-align:left;border-bottom:1px solid var(--border-soft);white-space:nowrap; }
     .bets-table th:not(:first-child):not(:nth-child(2)) { text-align:right; }
-    .bets-table td { padding:5px 6px;border-bottom:1px solid #161616;color:var(--text2);white-space:nowrap; }
+    .bets-table td { padding:5px 6px;border-bottom:1px solid var(--border-soft);color:var(--text-muted);white-space:nowrap; }
     .bets-table td:not(:first-child):not(:nth-child(2)) { text-align:right; }
-    .bets-table tr:hover td { background:var(--bg3); }
+    .bets-table tr:hover td { background:var(--bg-card); }
     .bets-table tr:last-child td { border-bottom:none; }
-    .outcome-w { color:var(--green);font-family:'Barlow Condensed',sans-serif;font-weight:700; }
-    .outcome-l { color:var(--red);font-family:'Barlow Condensed',sans-serif;font-weight:700; }
-    .outcome-p { color:var(--text2); }
-    .prob-high { color:var(--green); }
-    .prob-mid  { color:var(--yellow); }
-    .prob-low  { color:var(--red); }
+    .outcome-w { color:var(--accent-green);font-family:'Barlow Condensed',sans-serif;font-weight:700; }
+    .outcome-l { color:var(--accent-red);font-family:'Barlow Condensed',sans-serif;font-weight:700; }
+    .outcome-p { color:var(--text-muted); }
+    .prob-high { color:var(--accent-green); }
+    .prob-mid  { color:var(--accent-yellow); }
+    .prob-low  { color:var(--accent-red); }
 
     /* EV CHART */
-    .ev-section { background:var(--bg2);border:1px solid var(--border);padding:14px 16px; }
+    .ev-section { background:var(--bg-card);border:1px solid var(--border-soft);padding:14px 16px; }
     .market-breakdown { display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px; }
-    .mkt-card { background:var(--bg3);border:1px solid var(--border);padding:10px 12px; }
-    .mkt-card-title { font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.1em;color:var(--yellow);text-transform:uppercase;margin-bottom:8px; }
-    .mkt-stat-row { display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid #161616; }
+    .mkt-card { background:var(--bg-card);border:1px solid var(--border-soft);padding:10px 12px; }
+    .mkt-card-title { font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.1em;color:var(--accent-yellow);text-transform:uppercase;margin-bottom:8px; }
+    .mkt-stat-row { display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid var(--border-soft); }
     .mkt-stat-row:last-child { border-bottom:none; }
-    .mkt-stat-label { color:var(--text2); }
-    .mkt-stat-val { font-family:'Barlow Condensed',sans-serif;font-weight:700;color:var(--text); }
+    .mkt-stat-label { color:var(--text-muted); }
+    .mkt-stat-val { font-family:'Barlow Condensed',sans-serif;font-weight:700;color:var(--text-main); }
 
-    .empty-state { text-align:center;padding:60px 20px;color:var(--muted);font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase; }
-    .upload-prompt { text-align:center;padding:40px 20px;color:var(--text2);font-size:12px;border:1px dashed var(--border);margin:0; }
-    .upload-prompt strong { font-family:'Barlow Condensed',sans-serif;font-size:14px;color:var(--text);display:block;margin-bottom:6px; }
+    .empty-state { text-align:center;padding:60px 20px;color:var(--text-muted);font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase; }
+    .upload-prompt { text-align:center;padding:40px 20px;color:var(--text-muted);font-size:12px;border:1px dashed var(--border-soft);margin:0; }
+    .upload-prompt strong { font-family:'Barlow Condensed',sans-serif;font-size:14px;color:var(--text-main);display:block;margin-bottom:6px; }
   </style>
 </head>
 <body>
@@ -256,8 +250,8 @@ function render() {
           '<div class="cal-bar-pred" style="width:' + (predAvg*100) + '%"></div>' +
           '<div class="cal-bar-act"  style="width:' + (actRate*100) + '%"></div>' +
         '</div>' +
-        '<span class="cal-pct"><span style="color:var(--blue)">' + (predAvg*100).toFixed(0) + '%</span> pred · <span style="color:var(--green)">' + (actRate*100).toFixed(0) + '%</span> act · <span class="' + diffCls + '">' + diffStr + '</span></span>' +
-        '<span style="font-size:10px;color:var(--muted);min-width:40px;text-align:right">' + bRows.length + ' bets</span>' +
+        '<span class="cal-pct"><span style="color:var(--accent-blue)">' + (predAvg*100).toFixed(0) + '%</span> pred · <span style="color:var(--accent-green)">' + (actRate*100).toFixed(0) + '%</span> act · <span class="' + diffCls + '">' + diffStr + '</span></span>' +
+        '<span style="font-size:10px;color:var(--text-muted);min-width:40px;text-align:right">' + bRows.length + ' bets</span>' +
       '</div>';
   });
   main.appendChild(calSec);
@@ -274,8 +268,8 @@ function render() {
     return '<div class="mkt-card"><div class="mkt-card-title">' + mktLabel + '</div>' +
       '<div class="mkt-stat-row"><span class="mkt-stat-label">Bets</span><span class="mkt-stat-val">'+mktRows.length+'</span></div>' +
       '<div class="mkt-stat-row"><span class="mkt-stat-label">W-L</span><span class="mkt-stat-val">'+mWins+'-'+(mktRows.length-mWins)+'</span></div>' +
-      '<div class="mkt-stat-row"><span class="mkt-stat-label">Win Rate</span><span class="mkt-stat-val" style="color:'+(mRate>=0.55?'var(--green)':mRate<0.45?'var(--red)':'var(--yellow)')+'">'+( mRate*100).toFixed(1)+'%</span></div>' +
-      '<div class="mkt-stat-row"><span class="mkt-stat-label">Total EV</span><span class="mkt-stat-val" style="color:'+(mEV>=0?'var(--green)':'var(--red)')+'">'+(mEV*100).toFixed(2)+'%</span></div>' +
+      '<div class="mkt-stat-row"><span class="mkt-stat-label">Win Rate</span><span class="mkt-stat-val" style="color:'+(mRate>=0.55?'var(--accent-green)':mRate<0.45?'var(--accent-red)':'var(--accent-yellow)')+'">'+( mRate*100).toFixed(1)+'%</span></div>' +
+      '<div class="mkt-stat-row"><span class="mkt-stat-label">Total EV</span><span class="mkt-stat-val" style="color:'+(mEV>=0?'var(--accent-green)':'var(--accent-red)')+'">'+(mEV*100).toFixed(2)+'%</span></div>' +
     '</div>';
   }).join('');
 
@@ -307,7 +301,7 @@ function render() {
     '</tr>';
   }).join('');
   betsSec.innerHTML += '<div style="overflow-x:auto"><table class="bets-table"><thead><tr><th>Date</th><th>League</th><th>Market</th><th>Side/Line</th><th>Model%</th><th>EV</th><th>Result</th></tr></thead><tbody>' + tableRows + '</tbody></table></div>';
-  if (graded.length > 100) betsSec.innerHTML += '<div style="font-size:10px;color:var(--muted);padding:8px 0;text-align:center">Showing most recent 100 of ' + graded.length + ' graded bets</div>';
+  if (graded.length > 100) betsSec.innerHTML += '<div style="font-size:10px;color:var(--text-muted);padding:8px 0;text-align:center">Showing most recent 100 of ' + graded.length + ' graded bets</div>';
   main.appendChild(betsSec);
 }
 

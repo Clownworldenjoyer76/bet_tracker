@@ -7,69 +7,54 @@
   <link rel="stylesheet" href="css/matstheme.css">
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    :root {
-      --bg:     #0a0a0a;
-      --bg2:    #111111;
-      --bg3:    #141414;
-      --border: #222222;
-      --green:  #00ff84;
-      --blue:   #00bfff;
-      --yellow: #facc15;
-      --red:    #ff4444;
-      --orange: #ff8c00;
-      --muted:  #555555;
-      --text:   #e0e0e0;
-      --text2:  #888888;
-    }
-    body { background: var(--bg); color: var(--text); font-family: 'IBM Plex Mono', monospace; font-size: 13px; min-height: 100vh; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }    body { background: var(--background); color: var(--text-main); font-family: 'IBM Plex Mono', monospace; font-size: 13px; min-height: 100vh; }
 
-    .page-header { border-bottom: 1px solid var(--border); padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
-    .page-title { font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; color: var(--green); }
-    .page-subtitle { color: var(--text2); font-size: 11px; letter-spacing: 0.06em; margin-top: 2px; }
-    .refresh-badge { font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; padding: 3px 10px; border: 1px solid rgba(0,255,132,0.3); color: var(--green); text-transform: uppercase; }
+    .page-header { border-bottom: 1px solid var(--border-soft); padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+    .page-title { font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-green); }
+    .page-subtitle { color: var(--text-muted); font-size: 11px; letter-spacing: 0.06em; margin-top: 2px; }
+    .refresh-badge { font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; padding: 3px 10px; border: 1px solid rgba(0,255,132,0.3); color: var(--accent-green); text-transform: uppercase; }
 
-    .controls { display: flex; align-items: center; gap: 8px; padding: 12px 24px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
-    .league-pill { font-family: 'Barlow Condensed', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; padding: 4px 12px; border: 1px solid var(--border); background: transparent; color: var(--text2); cursor: pointer; transition: all 0.15s; text-transform: uppercase; }
-    .league-pill:hover { border-color: var(--blue); color: var(--blue); }
-    .league-pill.active { border-color: var(--green); color: var(--green); background: rgba(0,255,132,0.06); }
+    .controls { display: flex; align-items: center; gap: 8px; padding: 12px 24px; border-bottom: 1px solid var(--border-soft); flex-wrap: wrap; }
+    .league-pill { font-family: 'Barlow Condensed', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; padding: 4px 12px; border: 1px solid var(--border-soft); background: transparent; color: var(--text-muted); cursor: pointer; transition: all 0.15s; text-transform: uppercase; }
+    .league-pill:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
+    .league-pill.active { border-color: var(--accent-green); color: var(--accent-green); background: rgba(0,255,132,0.06); }
 
-    .status-bar { padding: 8px 24px; font-size: 11px; color: var(--text2); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
-    .status-bar.loading { color: var(--yellow); }
-    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); display: inline-block; flex-shrink: 0; }
-    .status-dot.green  { background: var(--green); box-shadow: 0 0 6px var(--green); }
-    .status-dot.yellow { background: var(--yellow); animation: pulse 1s infinite; }
-    .status-dot.red    { background: var(--red); }
+    .status-bar { padding: 8px 24px; font-size: 11px; color: var(--text-muted); border-bottom: 1px solid var(--border-soft); display: flex; align-items: center; gap: 10px; }
+    .status-bar.loading { color: var(--accent-yellow); }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-muted); display: inline-block; flex-shrink: 0; }
+    .status-dot.green  { background: var(--accent-green); box-shadow: 0 0 6px var(--accent-green); }
+    .status-dot.yellow { background: var(--accent-yellow); animation: pulse 1s infinite; }
+    .status-dot.red    { background: var(--accent-red); }
     @keyframes pulse { 0%,100%{opacity:1;}50%{opacity:0.3;} }
 
     .main { padding: 20px 24px; display: flex; flex-direction: column; gap: 28px; }
 
     .league-block {}
-    .league-header { font-family: 'Barlow Condensed', sans-serif; font-size: 13px; font-weight: 900; letter-spacing: 0.14em; color: var(--text2); text-transform: uppercase; padding: 0 0 8px; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
-    .league-header.lh-NHL   { color: var(--blue); }
-    .league-header.lh-NBA   { color: var(--yellow); }
-    .league-header.lh-NCAAB { color: var(--orange); }
-    .league-header.lh-MLB   { color: var(--green); }
+    .league-header { font-family: 'Barlow Condensed', sans-serif; font-size: 13px; font-weight: 900; letter-spacing: 0.14em; color: var(--text-muted); text-transform: uppercase; padding: 0 0 8px; border-bottom: 1px solid var(--border-soft); margin-bottom: 10px; }
+    .league-header.lh-NHL   { color: var(--accent-blue); }
+    .league-header.lh-NBA   { color: var(--accent-yellow); }
+    .league-header.lh-NCAAB { color: var(--accent-yellow); }
+    .league-header.lh-MLB   { color: var(--accent-green); }
 
     .games-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
 
-    .game-card { background: var(--bg2); border: 1px solid var(--border); padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; transition: border-color 0.15s; }
+    .game-card { background: var(--bg-card); border: 1px solid var(--border-soft); padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; transition: border-color 0.15s; }
     .game-card:hover { border-color: #333; }
     .game-card.live { border-color: rgba(0,255,132,0.25); }
 
-    .game-status { font-size: 10px; letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase; }
-    .game-status.is-live { color: var(--green); }
-    .game-status.is-final { color: var(--text2); }
+    .game-status { font-size: 10px; letter-spacing: 0.1em; color: var(--text-muted); text-transform: uppercase; }
+    .game-status.is-live { color: var(--accent-green); }
+    .game-status.is-final { color: var(--text-muted); }
 
     .game-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-    .team-abbr { font-family: 'Barlow Condensed', sans-serif; font-size: 15px; font-weight: 700; letter-spacing: 0.06em; color: var(--text); }
-    .team-abbr.winner { color: var(--green); }
-    .team-score { font-family: 'Barlow Condensed', sans-serif; font-size: 18px; font-weight: 900; color: var(--text); min-width: 28px; text-align: right; }
-    .team-score.winner { color: var(--green); }
-    .team-score.no-score { color: var(--muted); font-size: 13px; }
+    .team-abbr { font-family: 'Barlow Condensed', sans-serif; font-size: 15px; font-weight: 700; letter-spacing: 0.06em; color: var(--text-main); }
+    .team-abbr.winner { color: var(--accent-green); }
+    .team-score { font-family: 'Barlow Condensed', sans-serif; font-size: 18px; font-weight: 900; color: var(--text-main); min-width: 28px; text-align: right; }
+    .team-score.winner { color: var(--accent-green); }
+    .team-score.no-score { color: var(--text-muted); font-size: 13px; }
 
-    .no-games { font-size: 11px; color: var(--muted); letter-spacing: 0.08em; padding: 8px 0; }
-    .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); font-family: 'Barlow Condensed', sans-serif; font-size: 16px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+    .no-games { font-size: 11px; color: var(--text-muted); letter-spacing: 0.08em; padding: 8px 0; }
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); font-family: 'Barlow Condensed', sans-serif; font-size: 16px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
   </style>
 </head>
 <body>

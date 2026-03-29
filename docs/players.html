@@ -7,87 +7,81 @@
   <link rel="stylesheet" href="css/matstheme.css">
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    :root {
-      --bg:#0a0a0a;--bg2:#111111;--bg3:#141414;--border:#222222;
-      --green:#00ff84;--blue:#00bfff;--yellow:#facc15;--red:#ff4444;
-      --orange:#ff8c00;--muted:#555555;--text:#e0e0e0;--text2:#888888;
-    }
-    body { background:var(--bg);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:13px;min-height:100vh; }
-    .page-header { border-bottom:1px solid var(--border);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px; }
-    .page-title { font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;letter-spacing:0.08em;text-transform:uppercase;color:var(--green); }
-    .page-subtitle { color:var(--text2);font-size:11px;letter-spacing:0.06em;margin-top:2px; }
-    .controls { display:flex;align-items:center;gap:8px;padding:12px 24px;border-bottom:1px solid var(--border);flex-wrap:wrap; }
-    .league-pill { font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:0.08em;padding:4px 12px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;transition:all 0.15s;text-transform:uppercase; }
-    .league-pill:hover { border-color:var(--blue);color:var(--blue); }
-    .league-pill.active { border-color:var(--green);color:var(--green);background:rgba(0,255,132,0.06); }
-    .team-select { background:var(--bg2);border:1px solid var(--border);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:12px;padding:5px 10px;outline:none;min-width:200px; }
-    .team-select:focus { border-color:var(--blue); }
-    .status-bar { padding:8px 24px;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px; }
-    .status-dot { width:6px;height:6px;border-radius:50%;background:var(--muted);display:inline-block;flex-shrink:0; }
-    .status-dot.green { background:var(--green);box-shadow:0 0 6px var(--green); }
-    .status-dot.yellow { background:var(--yellow);animation:pulse 1s infinite; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }    body { background:var(--background);color:var(--text-main);font-family:'IBM Plex Mono',monospace;font-size:13px;min-height:100vh; }
+    .page-header { border-bottom:1px solid var(--border-soft);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px; }
+    .page-title { font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;letter-spacing:0.08em;text-transform:uppercase;color:var(--accent-green); }
+    .page-subtitle { color:var(--text-muted);font-size:11px;letter-spacing:0.06em;margin-top:2px; }
+    .controls { display:flex;align-items:center;gap:8px;padding:12px 24px;border-bottom:1px solid var(--border-soft);flex-wrap:wrap; }
+    .league-pill { font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:0.08em;padding:4px 12px;border:1px solid var(--border-soft);background:transparent;color:var(--text-muted);cursor:pointer;transition:all 0.15s;text-transform:uppercase; }
+    .league-pill:hover { border-color:var(--accent-blue);color:var(--accent-blue); }
+    .league-pill.active { border-color:var(--accent-green);color:var(--accent-green);background:rgba(0,255,132,0.06); }
+    .team-select { background:var(--bg-card);border:1px solid var(--border-soft);color:var(--text-main);font-family:'IBM Plex Mono',monospace;font-size:12px;padding:5px 10px;outline:none;min-width:200px; }
+    .team-select:focus { border-color:var(--accent-blue); }
+    .status-bar { padding:8px 24px;font-size:11px;color:var(--text-muted);border-bottom:1px solid var(--border-soft);display:flex;align-items:center;gap:10px; }
+    .status-dot { width:6px;height:6px;border-radius:50%;background:var(--text-muted);display:inline-block;flex-shrink:0; }
+    .status-dot.green { background:var(--accent-green);box-shadow:0 0 6px var(--accent-green); }
+    .status-dot.yellow { background:var(--accent-yellow);animation:pulse 1s infinite; }
     @keyframes pulse { 0%,100%{opacity:1;}50%{opacity:0.3;} }
     .main { padding:20px 24px; }
-    .roster-header { display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border); }
+    .roster-header { display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border-soft); }
     .roster-logo { width:40px;height:40px;object-fit:contain; }
-    .roster-team-name { font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:900;color:var(--text);letter-spacing:0.04em; }
-    .roster-group-header { font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;color:var(--text2);text-transform:uppercase;padding:8px 0 4px;border-bottom:1px solid var(--border);margin-bottom:4px;margin-top:12px; }
+    .roster-team-name { font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:900;color:var(--text-main);letter-spacing:0.04em; }
+    .roster-group-header { font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;color:var(--text-muted);text-transform:uppercase;padding:8px 0 4px;border-bottom:1px solid var(--border-soft);margin-bottom:4px;margin-top:12px; }
     .players-table { width:100%;border-collapse:collapse;font-size:12px; }
-    .players-table thead tr { border-bottom:1px solid var(--border); }
-    .players-table th { font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text2);padding:5px 8px;text-align:left; }
-    .players-table tbody tr { border-bottom:1px solid #161616;transition:background 0.1s;cursor:pointer; }
-    .players-table tbody tr:hover { background:var(--bg2); }
-    .players-table tbody tr:hover .player-name-cell { color:var(--green); }
-    .players-table td { padding:7px 8px;color:var(--text2); }
-    .player-name-cell { font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;color:var(--text);letter-spacing:0.04em;transition:color 0.15s; }
-    .inj-badge { font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;padding:1px 5px;color:var(--red);border:1px solid rgba(255,68,68,0.3);background:rgba(255,68,68,0.08); }
-    .empty-state { text-align:center;padding:60px 20px;color:var(--muted);font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase; }
+    .players-table thead tr { border-bottom:1px solid var(--border-soft); }
+    .players-table th { font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-muted);padding:5px 8px;text-align:left; }
+    .players-table tbody tr { border-bottom:1px solid var(--border-soft);transition:background 0.1s;cursor:pointer; }
+    .players-table tbody tr:hover { background:var(--bg-card); }
+    .players-table tbody tr:hover .player-name-cell { color:var(--accent-green); }
+    .players-table td { padding:7px 8px;color:var(--text-muted); }
+    .player-name-cell { font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;color:var(--text-main);letter-spacing:0.04em;transition:color 0.15s; }
+    .inj-badge { font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;padding:1px 5px;color:var(--accent-red);border:1px solid rgba(255,68,68,0.3);background:rgba(255,68,68,0.08); }
+    .empty-state { text-align:center;padding:60px 20px;color:var(--text-muted);font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase; }
 
     /* MODAL */
     .modal-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:1000;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto; }
     .modal-overlay.open { display:flex; }
-    .modal-box { background:var(--bg2);border:1px solid var(--border);width:100%;max-width:600px;position:relative;margin:auto; }
-    .modal-close { position:absolute;top:12px;right:14px;font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;color:var(--muted);cursor:pointer;letter-spacing:0.1em;background:none;border:none;z-index:2; }
-    .modal-close:hover { color:var(--text); }
-    .modal-player-header { display:flex;align-items:center;gap:16px;padding:20px 24px 14px;border-bottom:1px solid var(--border); }
+    .modal-box { background:var(--bg-card);border:1px solid var(--border-soft);width:100%;max-width:600px;position:relative;margin:auto; }
+    .modal-close { position:absolute;top:12px;right:14px;font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;color:var(--text-muted);cursor:pointer;letter-spacing:0.1em;background:none;border:none;z-index:2; }
+    .modal-close:hover { color:var(--text-main); }
+    .modal-player-header { display:flex;align-items:center;gap:16px;padding:20px 24px 14px;border-bottom:1px solid var(--border-soft); }
     .modal-headshot { width:56px;height:56px;object-fit:cover;border-radius:2px;flex-shrink:0; }
-    .modal-headshot-placeholder { width:56px;height:56px;background:var(--bg3);border:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:18px;color:var(--muted); }
-    .modal-player-name { font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;color:var(--text);letter-spacing:0.04em; }
-    .modal-player-meta { font-size:11px;color:var(--text2);margin-top:3px;display:flex;gap:10px;flex-wrap:wrap; }
-    .modal-player-meta .tag { font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;color:var(--green); }
-    .modal-tabs { display:flex;border-bottom:1px solid var(--border);overflow-x:auto; }
-    .modal-tab { font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;padding:8px 14px;color:var(--text2);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all 0.15s;flex-shrink:0; }
-    .modal-tab:hover { color:var(--text); }
-    .modal-tab.active { color:var(--green);border-bottom-color:var(--green); }
+    .modal-headshot-placeholder { width:56px;height:56px;background:var(--bg-card);border:1px solid var(--border-soft);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:18px;color:var(--text-muted); }
+    .modal-player-name { font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;color:var(--text-main);letter-spacing:0.04em; }
+    .modal-player-meta { font-size:11px;color:var(--text-muted);margin-top:3px;display:flex;gap:10px;flex-wrap:wrap; }
+    .modal-player-meta .tag { font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;color:var(--accent-green); }
+    .modal-tabs { display:flex;border-bottom:1px solid var(--border-soft);overflow-x:auto; }
+    .modal-tab { font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;padding:8px 14px;color:var(--text-muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all 0.15s;flex-shrink:0; }
+    .modal-tab:hover { color:var(--text-main); }
+    .modal-tab.active { color:var(--accent-green);border-bottom-color:var(--accent-green); }
     .modal-panel { padding:16px 20px;display:none;min-height:100px;max-height:65vh;overflow-y:auto; }
     .modal-panel.active { display:block; }
-    .modal-subtitle { font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.14em;color:var(--text2);text-transform:uppercase;border-bottom:1px solid var(--border);padding-bottom:4px;margin-bottom:8px;margin-top:14px; }
+    .modal-subtitle { font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.14em;color:var(--text-muted);text-transform:uppercase;border-bottom:1px solid var(--border-soft);padding-bottom:4px;margin-bottom:8px;margin-top:14px; }
     .modal-subtitle:first-child { margin-top:0; }
     .info-grid { display:grid;grid-template-columns:repeat(3,1fr);gap:8px 12px;margin-bottom:12px; }
     .info-item { display:flex;flex-direction:column;gap:1px; }
-    .info-label { font-size:9px;letter-spacing:0.1em;color:var(--muted);text-transform:uppercase; }
-    .info-val { font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;color:var(--text); }
+    .info-label { font-size:9px;letter-spacing:0.1em;color:var(--text-muted);text-transform:uppercase; }
+    .info-val { font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;color:var(--text-main); }
     .stat-table { width:100%;border-collapse:collapse;font-size:11px; }
-    .stat-table th { font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text2);padding:4px 6px;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap; }
+    .stat-table th { font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);padding:4px 6px;text-align:right;border-bottom:1px solid var(--border-soft);white-space:nowrap; }
     .stat-table th:first-child { text-align:left; }
-    .stat-table td { padding:4px 6px;border-bottom:1px solid #161616;color:var(--text2);text-align:right;white-space:nowrap; }
-    .stat-table td:first-child { text-align:left;color:var(--text); }
+    .stat-table td { padding:4px 6px;border-bottom:1px solid var(--border-soft);color:var(--text-muted);text-align:right;white-space:nowrap; }
+    .stat-table td:first-child { text-align:left;color:var(--text-main); }
     .stat-table tr:last-child td { border-bottom:none; }
-    .stat-table tr:hover td { background:var(--bg3); }
-    .news-item { padding:8px 0;border-bottom:1px solid #161616; }
+    .stat-table tr:hover td { background:var(--bg-card); }
+    .news-item { padding:8px 0;border-bottom:1px solid var(--border-soft); }
     .news-item:last-child { border-bottom:none; }
-    .news-headline { font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;color:var(--text);line-height:1.2;margin-bottom:3px; }
-    .news-meta { font-size:10px;color:var(--muted); }
-    .news-link { font-size:10px;color:var(--green);text-decoration:none;letter-spacing:0.08em; }
+    .news-headline { font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;color:var(--text-main);line-height:1.2;margin-bottom:3px; }
+    .news-meta { font-size:10px;color:var(--text-muted); }
+    .news-link { font-size:10px;color:var(--accent-green);text-decoration:none;letter-spacing:0.08em; }
     .news-link:hover { text-decoration:underline; }
-    .bio-row { display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #161616;font-size:11px; }
+    .bio-row { display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border-soft);font-size:11px; }
     .bio-row:last-child { border-bottom:none; }
-    .bio-label { color:var(--muted);letter-spacing:0.06em; }
-    .bio-val { color:var(--text); }
-    .modal-loading { color:var(--text2);font-size:11px;padding:20px 0;text-align:center; }
-    .modal-error { color:var(--red);font-size:11px;padding:12px 0;text-align:center; }
-    .no-data { color:var(--muted);font-size:11px;padding:12px 0;text-align:center;letter-spacing:0.08em; }
+    .bio-label { color:var(--text-muted);letter-spacing:0.06em; }
+    .bio-val { color:var(--text-main); }
+    .modal-loading { color:var(--text-muted);font-size:11px;padding:20px 0;text-align:center; }
+    .modal-error { color:var(--accent-red);font-size:11px;padding:12px 0;text-align:center; }
+    .no-data { color:var(--text-muted);font-size:11px;padding:12px 0;text-align:center;letter-spacing:0.08em; }
   </style>
 </head>
 <body>
@@ -291,8 +285,8 @@ function buildOverview(data, p) {
   var roto = data.rotowire;
   if (roto && roto.headline) {
     html += '<div class="modal-subtitle" style="margin-top:12px">Latest Note</div>';
-    html += '<div style="font-size:11px;color:var(--text2);line-height:1.6">' + (roto.headline || '') + '</div>';
-    if (roto.story) html += '<div style="font-size:11px;color:var(--muted);margin-top:6px;line-height:1.6">' + roto.story + '</div>';
+    html += '<div style="font-size:11px;color:var(--text-muted);line-height:1.6">' + (roto.headline || '') + '</div>';
+    if (roto.story) html += '<div style="font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.6">' + roto.story + '</div>';
   }
   return html;
 }
@@ -318,7 +312,7 @@ function buildGamelog(data) {
     var dateStr = ev.gameDate ? new Date(ev.gameDate).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '—';
     var opp     = ev.opponent ? (ev.opponent.abbreviation || ev.opponent.displayName || ev.atVs || '—') : (ev.atVs || '—');
     var result  = ev.gameResult || '';
-    var resCls  = result === 'W' ? 'style="color:var(--green);font-weight:700"' : result === 'L' ? 'style="color:var(--red);font-weight:700"' : '';
+    var resCls  = result === 'W' ? 'style="color:var(--accent-green);font-weight:700"' : result === 'L' ? 'style="color:var(--accent-red);font-weight:700"' : '';
     var statVals = entry.stats || [];
     return '<tr><td>' + dateStr + '</td><td>' + opp + '</td><td ' + resCls + '>' + result + '</td>' +
       statVals.slice(0, 8).map(function(v) { return '<td>' + (v !== null && v !== undefined ? v : '—') + '</td>'; }).join('') + '</tr>';
@@ -378,7 +372,7 @@ function buildBio(data, p) {
   }).join('');
   if (roto.story) {
     html += '<div class="modal-subtitle" style="margin-top:12px">Rotowire</div>';
-    html += '<div style="font-size:11px;color:var(--text2);line-height:1.6">' + roto.story + '</div>';
+    html += '<div style="font-size:11px;color:var(--text-muted);line-height:1.6">' + roto.story + '</div>';
   }
   return html;
 }

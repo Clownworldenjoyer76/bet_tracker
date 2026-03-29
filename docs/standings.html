@@ -7,68 +7,62 @@
   <link rel="stylesheet" href="css/matstheme.css">
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    :root {
-      --bg:#0a0a0a;--bg2:#111111;--bg3:#141414;--border:#222222;
-      --green:#00ff84;--blue:#00bfff;--yellow:#facc15;--red:#ff4444;
-      --orange:#ff8c00;--muted:#555555;--text:#e0e0e0;--text2:#888888;
-    }
-    body { background:var(--bg);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:13px;min-height:100vh; }
-    .page-header { border-bottom:1px solid var(--border);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px; }
-    .page-title { font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;letter-spacing:0.08em;text-transform:uppercase;color:var(--green); }
-    .page-subtitle { color:var(--text2);font-size:11px;letter-spacing:0.06em;margin-top:2px; }
-    .controls { display:flex;align-items:center;gap:8px;padding:12px 24px;border-bottom:1px solid var(--border);flex-wrap:wrap; }
-    .league-pill { font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:0.08em;padding:4px 12px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;transition:all 0.15s;text-transform:uppercase; }
-    .league-pill:hover { border-color:var(--blue);color:var(--blue); }
-    .league-pill.active { border-color:var(--green);color:var(--green);background:rgba(0,255,132,0.06); }
-    .view-pill { font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:0.08em;padding:4px 12px;border:1px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;transition:all 0.15s;text-transform:uppercase;margin-left:auto; }
-    .view-pill:hover { border-color:var(--yellow);color:var(--yellow); }
-    .view-pill.active { border-color:var(--yellow);color:var(--yellow);background:rgba(250,204,21,0.06); }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }    body { background:var(--background);color:var(--text-main);font-family:'IBM Plex Mono',monospace;font-size:13px;min-height:100vh; }
+    .page-header { border-bottom:1px solid var(--border-soft);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px; }
+    .page-title { font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;letter-spacing:0.08em;text-transform:uppercase;color:var(--accent-green); }
+    .page-subtitle { color:var(--text-muted);font-size:11px;letter-spacing:0.06em;margin-top:2px; }
+    .controls { display:flex;align-items:center;gap:8px;padding:12px 24px;border-bottom:1px solid var(--border-soft);flex-wrap:wrap; }
+    .league-pill { font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:0.08em;padding:4px 12px;border:1px solid var(--border-soft);background:transparent;color:var(--text-muted);cursor:pointer;transition:all 0.15s;text-transform:uppercase; }
+    .league-pill:hover { border-color:var(--accent-blue);color:var(--accent-blue); }
+    .league-pill.active { border-color:var(--accent-green);color:var(--accent-green);background:rgba(0,255,132,0.06); }
+    .view-pill { font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:0.08em;padding:4px 12px;border:1px solid var(--border-soft);background:transparent;color:var(--text-muted);cursor:pointer;transition:all 0.15s;text-transform:uppercase;margin-left:auto; }
+    .view-pill:hover { border-color:var(--accent-yellow);color:var(--accent-yellow); }
+    .view-pill.active { border-color:var(--accent-yellow);color:var(--accent-yellow);background:rgba(250,204,21,0.06); }
     .view-pill.hidden { display:none; }
-    .status-bar { padding:8px 24px;font-size:11px;color:var(--text2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px; }
-    .status-dot { width:6px;height:6px;border-radius:50%;background:var(--muted);display:inline-block;flex-shrink:0; }
-    .status-dot.green { background:var(--green);box-shadow:0 0 6px var(--green); }
-    .status-dot.yellow { background:var(--yellow);animation:pulse 1s infinite; }
+    .status-bar { padding:8px 24px;font-size:11px;color:var(--text-muted);border-bottom:1px solid var(--border-soft);display:flex;align-items:center;gap:10px; }
+    .status-dot { width:6px;height:6px;border-radius:50%;background:var(--text-muted);display:inline-block;flex-shrink:0; }
+    .status-dot.green { background:var(--accent-green);box-shadow:0 0 6px var(--accent-green); }
+    .status-dot.yellow { background:var(--accent-yellow);animation:pulse 1s infinite; }
     @keyframes pulse { 0%,100%{opacity:1;}50%{opacity:0.3;} }
     .main { padding:20px 24px;display:flex;flex-direction:column;gap:28px; }
     .conferences-wrap { display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px;align-items:start; }
-    .conference-block { background:var(--bg2);border:1px solid var(--border);padding:14px 16px; }
-    .conference-header { font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:900;letter-spacing:0.1em;color:var(--text);text-transform:uppercase;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--border); }
+    .conference-block { background:var(--bg-card);border:1px solid var(--border-soft);padding:14px 16px; }
+    .conference-header { font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:900;letter-spacing:0.1em;color:var(--text-main);text-transform:uppercase;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--border-soft); }
     .division-block { margin-bottom:20px; }
-    .division-header { font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;color:var(--text2);text-transform:uppercase;padding:0 0 6px;border-bottom:1px solid var(--border);margin-bottom:6px; }
+    .division-header { font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;color:var(--text-muted);text-transform:uppercase;padding:0 0 6px;border-bottom:1px solid var(--border-soft);margin-bottom:6px; }
     .standings-table { width:100%;border-collapse:collapse;font-size:12px; }
-    .standings-table thead tr { border-bottom:1px solid var(--border); }
-    .standings-table th { font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text2);padding:5px 6px;text-align:right; }
+    .standings-table thead tr { border-bottom:1px solid var(--border-soft); }
+    .standings-table th { font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-muted);padding:5px 6px;text-align:right; }
     .standings-table th:first-child { text-align:right;width:20px;padding-right:4px; }
     .standings-table th:nth-child(2) { text-align:left;padding-left:4px; }
-    .standings-table tbody tr { border-bottom:1px solid #161616;transition:background 0.1s; }
-    .standings-table tbody tr:hover { background:var(--bg3); }
-    .standings-table td { padding:5px 6px;text-align:right;color:var(--text2);vertical-align:middle; }
+    .standings-table tbody tr { border-bottom:1px solid var(--border-soft);transition:background 0.1s; }
+    .standings-table tbody tr:hover { background:var(--bg-card); }
+    .standings-table td { padding:5px 6px;text-align:right;color:var(--text-muted);vertical-align:middle; }
     .standings-table td:first-child { text-align:right; }
     .standings-table td:nth-child(2) { text-align:left; }
     .team-cell { display:flex;align-items:center;gap:6px;white-space:nowrap; }
     .team-logo-sm { width:18px;height:18px;object-fit:contain;flex-shrink:0;vertical-align:middle; }
-    .team-name-cell { font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;color:var(--text);letter-spacing:0.04em; }
-    .rank-cell { color:var(--muted);font-size:11px;width:20px;text-align:right;padding-right:4px; }
+    .team-name-cell { font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;color:var(--text-main);letter-spacing:0.04em; }
+    .rank-cell { color:var(--text-muted);font-size:11px;width:20px;text-align:right;padding-right:4px; }
     /* playoff cutoff line */
     .standings-table tr.playoff-cutoff td { border-bottom:2px solid rgba(0,255,132,0.4); }
     .playoff-label { font-size:9px;letter-spacing:0.1em;color:rgba(0,255,132,0.5);text-align:right;padding:2px 6px 4px; }
     /* rankings */
     .rankings-wrap { display:flex;flex-direction:column;gap:16px; }
-    .poll-block { background:var(--bg2);border:1px solid var(--border);padding:14px 16px; }
-    .poll-header { font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:900;letter-spacing:0.1em;color:var(--yellow);text-transform:uppercase;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--border); }
+    .poll-block { background:var(--bg-card);border:1px solid var(--border-soft);padding:14px 16px; }
+    .poll-header { font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:900;letter-spacing:0.1em;color:var(--accent-yellow);text-transform:uppercase;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--border-soft); }
     .rankings-table { width:100%;border-collapse:collapse;font-size:12px; }
-    .rankings-table th { font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text2);padding:5px 6px;text-align:right;border-bottom:1px solid var(--border); }
+    .rankings-table th { font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-muted);padding:5px 6px;text-align:right;border-bottom:1px solid var(--border-soft); }
     .rankings-table th:nth-child(2) { text-align:left; }
-    .rankings-table td { padding:5px 6px;text-align:right;color:var(--text2);vertical-align:middle;border-bottom:1px solid #161616; }
+    .rankings-table td { padding:5px 6px;text-align:right;color:var(--text-muted);vertical-align:middle;border-bottom:1px solid var(--border-soft); }
     .rankings-table td:nth-child(2) { text-align:left; }
-    .rankings-table tr:hover td { background:var(--bg3); }
+    .rankings-table tr:hover td { background:var(--bg-card); }
     .rankings-table tr:last-child td { border-bottom:none; }
-    .rank-num { font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:900;color:var(--yellow); }
-    .rank-chg-up   { color:var(--green);font-size:10px; }
-    .rank-chg-down { color:var(--red);font-size:10px; }
-    .rank-chg-same { color:var(--muted);font-size:10px; }
-    .empty-state { text-align:center;padding:60px 20px;color:var(--muted);font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase; }
+    .rank-num { font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:900;color:var(--accent-yellow); }
+    .rank-chg-up   { color:var(--accent-green);font-size:10px; }
+    .rank-chg-down { color:var(--accent-red);font-size:10px; }
+    .rank-chg-same { color:var(--text-muted);font-size:10px; }
+    .empty-state { text-align:center;padding:60px 20px;color:var(--text-muted);font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase; }
   </style>
 </head>
 <body>
@@ -294,10 +288,10 @@ async function loadRankings() {
       block.className = 'poll-block';
       var pollName = poll.name || poll.shortName || 'Poll';
       var updated  = poll.lastUpdated ? new Date(poll.lastUpdated).toLocaleDateString('en-US', { month:'short', day:'numeric' }) : '';
-      block.innerHTML = '<div class="poll-header">' + pollName + (updated ? ' <span style="font-size:10px;color:var(--muted);font-weight:400">· Updated ' + updated + '</span>' : '') + '</div>';
+      block.innerHTML = '<div class="poll-header">' + pollName + (updated ? ' <span style="font-size:10px;color:var(--text-muted);font-weight:400">· Updated ' + updated + '</span>' : '') + '</div>';
 
       var ranks = poll.ranks || [];
-      if (!ranks.length) { block.innerHTML += '<div style="font-size:11px;color:var(--muted);padding:8px 0">No data</div>'; wrap.appendChild(block); return; }
+      if (!ranks.length) { block.innerHTML += '<div style="font-size:11px;color:var(--text-muted);padding:8px 0">No data</div>'; wrap.appendChild(block); return; }
 
       var rows = ranks.map(function(entry) {
         var team    = entry.team || {};
