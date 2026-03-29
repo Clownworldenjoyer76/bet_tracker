@@ -120,23 +120,26 @@ var currentSplits  = null;
 
 var PROPS = {
   nba: [
-    { label:'Points',          statKeys:['points','pts'],                      abbr:'PTS' },
-    { label:'Rebounds',        statKeys:['rebounds','totalRebounds','reb'],     abbr:'REB' },
-    { label:'Assists',         statKeys:['assists','ast'],                      abbr:'AST' },
-    { label:'3-Pointers Made', statKeys:['threePointFieldGoalsMade','3pm','threePointersMade'], abbr:'3PM' },
-    { label:'PRA (Pts+Reb+Ast)',statKeys:['__pra__'],                           abbr:'PRA' }
+    { label:'Points',           statKeys:['points','PTS'],                abbr:'PTS' },
+    { label:'Rebounds',         statKeys:['totalRebounds','REB'],         abbr:'REB' },
+    { label:'Assists',          statKeys:['assists','AST'],               abbr:'AST' },
+    { label:'3-Point %',        statKeys:['threePointPct','3P%'],         abbr:'3P%' },
+    { label:'PRA (Pts+Reb+Ast)',statKeys:['__pra__'],                     abbr:'PRA' },
+    { label:'Blocks',           statKeys:['blocks','BLK'],                abbr:'BLK' },
+    { label:'Steals',           statKeys:['steals','STL'],                abbr:'STL' }
   ],
   nhl: [
-    { label:'Goals',           statKeys:['goals','g'],                          abbr:'G'   },
-    { label:'Assists',         statKeys:['assists','a'],                        abbr:'A'   },
-    { label:'Points',          statKeys:['points','pts'],                       abbr:'PTS' },
-    { label:'Shots on Goal',   statKeys:['shotsOnGoal','shots','sog'],          abbr:'SOG' }
+    { label:'Goals',            statKeys:['goals','G'],                   abbr:'G'   },
+    { label:'Assists',          statKeys:['assists','A'],                  abbr:'A'   },
+    { label:'Points',           statKeys:['points','PTS'],                abbr:'PTS' },
+    { label:'Shots on Goal',    statKeys:['shotsTotal','S'],              abbr:'S'   },
+    { label:'Power Play Goals', statKeys:['powerPlayGoals','PPG'],        abbr:'PPG' }
   ],
   mlb: [
-    { label:'Hits',            statKeys:['hits','h'],                           abbr:'H'   },
-    { label:'RBI',             statKeys:['RBI','rbi','runsBattedIn'],           abbr:'RBI' },
-    { label:'Total Bases',     statKeys:['totalBases','tb'],                    abbr:'TB'  },
-    { label:'Strikeouts (P)',   statKeys:['strikeouts','strikeOuts','so','k'],   abbr:'K'   }
+    { label:'Hits',             statKeys:['hits','H'],                    abbr:'H'   },
+    { label:'RBI',              statKeys:['rbi','runsBattedIn','RBI'],    abbr:'RBI' },
+    { label:'Strikeouts (P)',    statKeys:['strikeouts','strikeOuts','SO'],abbr:'SO'  },
+    { label:'Home Runs',        statKeys:['homeRuns','HR'],               abbr:'HR'  }
   ]
 };
 
@@ -194,14 +197,20 @@ async function loadPlayers(teamId) {
   } catch(e) { psel.innerHTML = '<option value="">Failed to load</option>'; }
 }
 
-function extractStatByLabels(labels, statsArr, keys) {
-  // labels = ['MIN','FG%',...], statsArr = ['34','23.1',...]
-  // find index of matching label, return parsed float value
+function extractStatByLabels(labels, names, statsArr, keys) {
+  // Try matching against both labels (e.g. 'PTS') and names (e.g. 'points')
   for (var k = 0; k < keys.length; k++) {
     var key = keys[k].toLowerCase();
+    // try labels first
     for (var i = 0; i < labels.length; i++) {
-      var lbl = (labels[i] || '').toLowerCase();
-      if (lbl === key) {
+      if ((labels[i] || '').toLowerCase() === key) {
+        var v = parseFloat(statsArr[i]);
+        return isNaN(v) ? null : v;
+      }
+    }
+    // try names
+    for (var i = 0; i < (names || []).length; i++) {
+      if ((names[i] || '').toLowerCase() === key) {
         var v = parseFloat(statsArr[i]);
         return isNaN(v) ? null : v;
       }
@@ -220,20 +229,21 @@ function parseGamelog(data, propDef) {
   if (!statGroups.length) return games;
 
   var sg     = statGroups[0];
-  var labels = sg.labels || sg.names || [];
-  var sgEvts = sg.events || [];  // [{eventId, stats:[]}]
+  var labels = sg.labels || [];
+  var names  = sg.names  || [];
+  var sgEvts = sg.events || [];
 
   sgEvts.forEach(function(entry) {
     var statsArr = entry.stats || [];
     var val = null;
 
     if (propDef.statKeys[0] === '__pra__') {
-      var pts = extractStatByLabels(labels, statsArr, ['points','pts','PTS']);
-      var reb = extractStatByLabels(labels, statsArr, ['rebounds','totalRebounds','reb','REB']);
-      var ast = extractStatByLabels(labels, statsArr, ['assists','ast','AST']);
+      var pts = extractStatByLabels(labels, names, statsArr, ['points','pts','PTS']);
+      var reb = extractStatByLabels(labels, names, statsArr, ['totalRebounds','rebounds','reb','REB']);
+      var ast = extractStatByLabels(labels, names, statsArr, ['assists','ast','AST']);
       if (pts !== null && reb !== null && ast !== null) val = pts + reb + ast;
     } else {
-      val = extractStatByLabels(labels, statsArr, propDef.statKeys.concat([propDef.abbr]));
+      val = extractStatByLabels(labels, names, statsArr, propDef.statKeys.concat([propDef.abbr]));
     }
 
     if (val !== null) {
@@ -327,7 +337,7 @@ function renderResults(player, games, propDef, n) {
     var pct = (hr.rate * 100).toFixed(0);
     hitSec.innerHTML +=
       '<div class="hit-row">' +
-        '<span class="hit-line-label">O ' + line + '</span>' +
+        '<span class="hit-line-label">' + line + '</span>' +
         '<div class="hit-bar-wrap"><div class="hit-bar-fill" style="width:' + (hr.rate*100) + '%;background:' + barColor(hr.rate) + '"></div></div>' +
         '<span class="hit-pct" style="color:' + pctColor(hr.rate) + '">' + pct + '%</span>' +
         '<span class="hit-count">' + hr.hits + '/' + hr.total + '</span>' +
