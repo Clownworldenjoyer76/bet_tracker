@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Players</title>
+  <title>Players · Edgelytics</title>
   <link rel="stylesheet" href="css/matstheme.css">
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
@@ -49,7 +49,7 @@
 <div class="page-header">
   <div>
     <div class="page-title">Players</div>
-    <div class="page-subtitle">ROSTER BY TEAM</div>
+    <div class="page-subtitle">ESPN · ROSTER BY TEAM</div>
   </div>
 </div>
 <div class="controls">
@@ -130,30 +130,49 @@ async function loadRoster(teamId) {
     };
     var cols = colsByLeague[activeLeague] || ['#','Name','Pos','Age'];
 
+    // flatten all players across groups
+    var allPlayers = [];
+    var groupMap   = [];
     groups.forEach(function(group) {
-      var players = group.items || (group.displayName ? [] : [group]);
-      if (!players.length) return;
+      var players = [];
+      if (group.items && group.items.length) {
+        players = group.items;
+      } else if (group.athletes && group.athletes.length) {
+        players = group.athletes;
+      } else if (group.displayName === undefined && group.id) {
+        players = [group]; // single player object
+      }
+      if (players.length) groupMap.push({ label: group.displayName || group.position || '', players: players });
+    });
 
-      if (group.displayName) {
-        var gh = document.createElement('div');
-        gh.className = 'roster-group-header';
-        gh.textContent = group.displayName;
-        main.appendChild(gh);
+    // if no groups resolved, treat entire array as flat player list
+    if (groupMap.length === 0 && groups.length > 0) {
+      groupMap = [{ label: '', players: groups }];
+    }
+
+    var table = document.createElement('table');
+    table.className = 'players-table';
+    table.innerHTML = '<thead><tr>' + cols.map(function(c) { return '<th>' + c + '</th>'; }).join('') + '<th>Status</th></tr></thead>';
+    var tbody = document.createElement('tbody');
+
+    groupMap.forEach(function(grp) {
+      if (grp.label) {
+        var gh = document.createElement('tr');
+        gh.innerHTML = '<td colspan="' + (cols.length + 1) + '" class="roster-group-header" style="padding:8px 8px 4px;">' + grp.label + '</td>';
+        tbody.appendChild(gh);
       }
 
-      var table = document.createElement('table');
-      table.className = 'players-table';
-      table.innerHTML = '<thead><tr>' + cols.map(function(c) { return '<th>' + c + '</th>'; }).join('') + '<th>Status</th></tr></thead>';
-      var tbody = document.createElement('tbody');
-
-      players.forEach(function(p) {
+      grp.players.forEach(function(p) {
         var pos    = p.position ? (p.position.abbreviation || p.position.name || '—') : '—';
         var jersey = p.jersey || '—';
         var age    = p.age || '—';
         var ht     = p.displayHeight || '—';
         var wt     = p.displayWeight || '—';
-        var bt     = (p.bats && p.throws) ? p.bats + '/' + p.throws : '—';
-        var inj    = p.injuries && p.injuries.length ? '<span class="inj-badge">' + p.injuries[0].status + '</span>' : '—';
+        // bats/throws can be objects with a displayValue or abbreviation
+        var batsVal   = p.bats   ? (typeof p.bats   === 'string' ? p.bats   : (p.bats.abbreviation   || p.bats.displayValue   || '—')) : '—';
+        var throwsVal = p.throws ? (typeof p.throws === 'string' ? p.throws : (p.throws.abbreviation || p.throws.displayValue || '—')) : '—';
+        var bt  = (batsVal !== '—' || throwsVal !== '—') ? batsVal + '/' + throwsVal : '—';
+        var inj = p.injuries && p.injuries.length ? '<span class="inj-badge">' + p.injuries[0].status + '</span>' : '—';
 
         var cells = [jersey, '<span class="player-name-cell">' + (p.displayName || p.fullName || '—') + '</span>', pos, age, ht, wt];
         if (activeLeague === 'mlb') cells.push(bt);
@@ -163,10 +182,10 @@ async function loadRoster(teamId) {
         tr.innerHTML = cells.map(function(c) { return '<td>' + c + '</td>'; }).join('') + '<td>' + inj + '</td>';
         tbody.appendChild(tr);
       });
-
-      table.appendChild(tbody);
-      main.appendChild(table);
     });
+
+    table.appendChild(tbody);
+    main.appendChild(table);
 
     setStatus(team.name + ' roster loaded', 'green');
   } catch(e) {
