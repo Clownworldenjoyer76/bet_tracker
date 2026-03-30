@@ -44,39 +44,16 @@ def build_side_group(row):
 
 
 def build_selected_edge(row):
-    market_type = str(row.get("market_type", "")).strip().lower()
-    side_group = str(row.get("side_group", "")).strip().upper()
-
-    if market_type == "moneyline":
-        if side_group == "HOME":
-            return to_float(get_col(row, "home_ml_edge", "home_edge_decimal_moneyline"))
-        if side_group == "AWAY":
-            return to_float(get_col(row, "away_ml_edge", "away_edge_decimal_moneyline"))
-
-    if market_type == "run_line":
-        if side_group == "HOME":
-            return to_float(get_col(row, "home_rl_edge", "home_edge_decimal_run_line"))
-        if side_group == "AWAY":
-            return to_float(get_col(row, "away_rl_edge", "away_edge_decimal_run_line"))
-
-    if market_type == "total":
-        if side_group == "OVER":
-            return to_float(get_col(row, "over_edge", "over_edge_decimal_total"))
-        if side_group == "UNDER":
-            return to_float(get_col(row, "under_edge", "under_edge_decimal_total"))
-
-    return pd.NA
+    # MLB_final already has a single selected_edge column — read it directly
+    return to_float(get_col(row, "selected_edge"))
 
 
 def build_moneyline_odds_value(row):
-    side_group = str(row.get("side_group", "")).strip().upper()
-
-    if side_group == "HOME":
-        return to_float(get_col(row, "home_dk_moneyline_american"))
-    if side_group == "AWAY":
-        return to_float(get_col(row, "away_dk_moneyline_american"))
-
-    return pd.NA
+    # MLB_final uses dk_odds_american (not split home/away columns)
+    market_type = str(row.get("market_type", "")).strip().lower()
+    if market_type != "moneyline":
+        return pd.NA
+    return to_float(get_col(row, "dk_odds_american"))
 
 
 def build_run_line_value(row):

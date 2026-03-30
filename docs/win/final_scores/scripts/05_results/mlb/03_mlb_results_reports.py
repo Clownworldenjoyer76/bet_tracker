@@ -48,31 +48,13 @@ def write_csv(df, path):
 
 
 def _take_odds(row):
-    mt = str(row.get("market_type", "")).lower()
-    side = str(row.get("bet_side", "")).lower()
-    if mt == "moneyline":
-        col = "home_dk_moneyline_american" if side == "home" else "away_dk_moneyline_american"
-    elif mt == "run_line":
-        col = "home_dk_run_line_american" if side == "home" else "away_dk_run_line_american"
-    elif mt == "total":
-        col = "dk_total_over_american" if side == "over" else "dk_total_under_american"
-    else:
-        return None
-    return row.get(col, None)
+    # MLB_final uses a single dk_odds_american column for all market types
+    return row.get("dk_odds_american", None)
 
 
 def _kelly_value(row):
-    mt = str(row.get("market_type", "")).lower()
-    side = str(row.get("bet_side", "")).lower()
-    if mt == "moneyline":
-        col = "home_ml_kelly" if side == "home" else "away_ml_kelly"
-    elif mt == "run_line":
-        col = "home_rl_kelly" if side == "home" else "away_rl_kelly"
-    elif mt == "total":
-        col = "over_kelly" if side == "over" else "under_kelly"
-    else:
-        return None
-    return row.get(col, None)
+    # MLB_final uses a single kelly column
+    return row.get("kelly", None)
 
 
 def _odds_bucket(value):
