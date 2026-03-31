@@ -106,21 +106,40 @@ markets:
       home:
         enabled: true
         line_bands:
-          - [-99, 99]      
-        ev_min: 0.00
-        ev_max: 0.99
-        kelly_min: 0.00
-        kelly_max: 0.99
+
+        # small spreads (coin flip inefficiencies)
+          - [-4, -1]
+
+        # mid spreads (strongest signal zone)
+          - [-10, -4.5]
+
+        # large favorites (inflated lines)
+          - [-20, -10.5]
+
+        ev_min: 0.02
+        ev_max: 0.12
+        kelly_min: 0.01
+        kelly_max: 0.10
+
 
       away:
         enabled: true
         line_bands:
-          - [-99, -0.01]
-          - [0, 99]
-        ev_min: 0.00
-        ev_max: 0.99
-        kelly_min: 0.00
-        kelly_max: 0.99
+
+        # small spreads (dogs + short favorites)
+          - [1, 4]
+
+        # mid spreads (best dog value range)
+          - [4.5, 10]
+
+        # large dogs (public fade zone)
+          - [10.5, 20]
+
+        ev_min: 0.025
+        ev_max: 0.15
+        kelly_min: 0.01
+        kelly_max: 0.12
+      
 
     total:
       enabled: true
