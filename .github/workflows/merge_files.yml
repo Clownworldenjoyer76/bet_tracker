@@ -47,6 +47,9 @@ jobs:
       - name: Run Basketball select merge
         run: python scripts/merge_scripts/merge_folder_files_04_basketball_select.py
 
+      - name: Run Basketball select merge
+        run: python scripts/merge_scripts/merge_folder_files_TESTER.py
+
       # Commit outputs your scripts created
       - name: Commit merged outputs
         run: |
@@ -58,6 +61,7 @@ jobs:
           git add docs/win/basketball/00_intake/predictions/merged/
           git add docs/win/basketball/03_edges/merged/
           git add docs/win/basketball/04_select/merged/
+          git add docs/win/final_scores/results/ncaab/final_scores/merged/
 
           git commit -m "Automated basketball merges" || echo "No changes to commit"
           git push
