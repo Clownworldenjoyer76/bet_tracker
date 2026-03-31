@@ -21,6 +21,7 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 # =========================
 
 NBA_SPREAD_STD = 13.9
+NCAAB_SPREAD_STD = 11.0
 
 # =========================
 # HELPERS
@@ -51,12 +52,12 @@ def compute_kelly(model_prob, book_decimal):
     return np.maximum(k, 0)
 
 
-def spread_cover_prob(projected_home, projected_away, spread, side):
+def spread_cover_prob(projected_home, projected_away, spread, side, std=NBA_SPREAD_STD):
     margin = projected_home - projected_away
     if side == "home":
-        return float(norm.cdf((margin - spread) / NBA_SPREAD_STD))
+        return float(norm.cdf((margin - spread) / std))
     else:
-        return float(norm.cdf((spread - margin) / NBA_SPREAD_STD))
+        return float(norm.cdf((spread - margin) / std))
 
 
 # =========================
@@ -106,7 +107,7 @@ def process_moneyline(df):
 # SPREAD
 # =========================
 
-def process_spread(df):
+def process_spread(df, std=NBA_SPREAD_STD):
 
     numeric_cols = [
         "home_prob",
@@ -127,10 +128,10 @@ def process_spread(df):
     df["away_spread_edge_pct"] = df["away_spread_edge"] * 100
 
     df["home_spread_cover_prob"] = df.apply(
-        lambda r: spread_cover_prob(r["home_projected_points"], r["away_projected_points"], r["home_spread"], "home"), axis=1
+        lambda r: spread_cover_prob(r["home_projected_points"], r["away_projected_points"], r["home_spread"], "home", std), axis=1
     )
     df["away_spread_cover_prob"] = df.apply(
-        lambda r: spread_cover_prob(r["home_projected_points"], r["away_projected_points"], r["away_spread"], "away"), axis=1
+        lambda r: spread_cover_prob(r["home_projected_points"], r["away_projected_points"], r["away_spread"], "away", std), axis=1
     )
 
     df["home_spread_ev"] = compute_ev(
@@ -223,7 +224,8 @@ def main():
                 df = process_moneyline(df)
 
             elif "spread" in name:
-                df = process_spread(df)
+                std = NCAAB_SPREAD_STD if "ncaab" in name else NBA_SPREAD_STD
+                df = process_spread(df, std)
 
             elif "total" in name:
                 df = process_totals(df)
