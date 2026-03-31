@@ -8,16 +8,16 @@ from datetime import datetime
 # =========================================================
 
 
-INPUT_FOLDER = r"docs/win/basketball/00_intake/sportsbook"
+INPUT_FOLDER = r"docs/win/final_scores/results/ncaab/final_scores/"
 # Folder containing the files you want to merge.
 
-LEAGUE_FILTER = "NBA"
+LEAGUE_FILTER = ""
 # Example: "NBA", "NCAAB", etc.
 # To scan the ENTIRE folder and merge everything use:
 # 
 # LEAGUE_FILTER = ""
 
-OUTPUT_FILE = f"docs/win/basketball/00_intake/sportsbook/merged/sportsbook_{LEAGUE_FILTER}_merged.csv"
+OUTPUT_FILE = f"docs/win/final_scores/results/ncaab/final_scores/merged/ncaab_merged.csv"
 # Output file location.
 
 FILE_EXTENSION = ".csv"
