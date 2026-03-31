@@ -275,6 +275,8 @@ tbody td { padding: 11px 10px; vertical-align: middle; }
     <span class="dollar">$</span>
     <input type="number" id="bankroll" placeholder="10000" min="0" step="100">
   </div>
+  <label>Date</label>
+  <input type="date" id="date-picker" style="background:var(--bg);border:1px solid var(--accent);color:var(--text);font-family:'DM Mono',monospace;font-size:14px;padding:8px 12px;outline:none;">
   <div class="fraction-group">
     <label>Kelly Fraction</label>
     <div class="fraction-btns">
@@ -309,12 +311,18 @@ const BASE = 'https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/
 let fraction = 1.0;
 const allPicks = { nba: [], mlb: [], nhl: [] };
 
-function todayStr() {
+function toDateStr(dateVal) {
+  return dateVal.replaceAll('-', '_');
+}
+
+function initDatePicker() {
   const d = new Date();
   const y = d.getFullYear();
   const m = String(d.getMonth()+1).padStart(2,'0');
   const day = String(d.getDate()).padStart(2,'0');
-  return `${y}_${m}_${day}`;
+  const val = `${y}-${m}-${day}`;
+  document.getElementById('date-picker').value = val;
+  return val;
 }
 
 document.getElementById('today-date').textContent =
@@ -330,6 +338,7 @@ document.querySelectorAll('.fraction-btns button').forEach(btn => {
 });
 
 document.getElementById('bankroll').addEventListener('input', render);
+document.getElementById('date-picker').addEventListener('change', () => loadAll());
 
 function parseCSV(text) {
   const lines = text.trim().split('\n');
@@ -396,8 +405,11 @@ function buildSideLabel(row) {
   return side;
 }
 
-function processPicks(rows, sport) {
-  return rows.map(row => {
+function processPicks(rows, sport, dateStr) {
+  return rows.filter(row => {
+    const rd = (row.game_date || '').trim();
+    return rd === dateStr;
+  }).map(row => {
     let kelly, ev, odds;
     if (sport === 'nba') {
       kelly = parseFloat(getNBAKelly(row));
@@ -478,7 +490,8 @@ function render() {
 }
 
 async function loadAll() {
-  const date = todayStr();
+  const dateInput = initDatePicker();
+  const date = toDateStr(document.getElementById('date-picker').value || dateInput);
   const files = [
     { sport: 'nba', url: `${BASE}docs/win/basketball/04_select/daily_slate/nba_selected.csv` },
     { sport: 'mlb', url: `${BASE}docs/win/baseball/04_select/${date}_MLB.csv` },
@@ -490,7 +503,7 @@ async function loadAll() {
       const r = await fetch(url);
       if (!r.ok) throw new Error(r.status);
       const rows = parseCSV(await r.text());
-      allPicks[sport] = processPicks(rows, sport);
+      allPicks[sport] = processPicks(rows, sport, date);
     } catch {
       allPicks[sport] = [];
     }
