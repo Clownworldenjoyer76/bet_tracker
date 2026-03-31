@@ -5,6 +5,7 @@ import pandas as pd
 from pathlib import Path
 import numpy as np
 import traceback
+from scipy.stats import norm
 
 # =========================
 # PATHS
@@ -14,6 +15,12 @@ INPUT_DIR = Path("docs/win/basketball/03_edges")
 OUTPUT_DIR = Path("docs/win/basketball/03_edges/ev_kelly")
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+# =========================
+# CONSTANTS
+# =========================
+
+NBA_SPREAD_STD = 13.9
 
 # =========================
 # HELPERS
@@ -42,6 +49,14 @@ def compute_kelly(model_prob, book_decimal):
     k = ((b * model_prob) - q) / b
 
     return np.maximum(k, 0)
+
+
+def spread_cover_prob(projected_home, projected_away, spread, side):
+    margin = projected_home - projected_away
+    if side == "home":
+        return float(norm.cdf((margin - spread) / NBA_SPREAD_STD))
+    else:
+        return float(norm.cdf((spread - margin) / NBA_SPREAD_STD))
 
 
 # =========================
@@ -99,7 +114,11 @@ def process_spread(df):
         "home_dk_spread_decimal",
         "away_dk_spread_decimal",
         "home_spread_edge",
-        "away_spread_edge"
+        "away_spread_edge",
+        "home_projected_points",
+        "away_projected_points",
+        "home_spread",
+        "away_spread"
     ]
 
     df = to_numeric(df, numeric_cols)
@@ -107,23 +126,30 @@ def process_spread(df):
     df["home_spread_edge_pct"] = df["home_spread_edge"] * 100
     df["away_spread_edge_pct"] = df["away_spread_edge"] * 100
 
+    df["home_spread_cover_prob"] = df.apply(
+        lambda r: spread_cover_prob(r["home_projected_points"], r["away_projected_points"], r["home_spread"], "home"), axis=1
+    )
+    df["away_spread_cover_prob"] = df.apply(
+        lambda r: spread_cover_prob(r["home_projected_points"], r["away_projected_points"], r["away_spread"], "away"), axis=1
+    )
+
     df["home_spread_ev"] = compute_ev(
-        df["home_prob"],
+        df["home_spread_cover_prob"],
         df["home_dk_spread_decimal"]
     )
 
     df["away_spread_ev"] = compute_ev(
-        df["away_prob"],
+        df["away_spread_cover_prob"],
         df["away_dk_spread_decimal"]
     )
 
     df["home_spread_kelly"] = compute_kelly(
-        df["home_prob"],
+        df["home_spread_cover_prob"],
         df["home_dk_spread_decimal"]
     )
 
     df["away_spread_kelly"] = compute_kelly(
-        df["away_prob"],
+        df["away_spread_cover_prob"],
         df["away_dk_spread_decimal"]
     )
 
