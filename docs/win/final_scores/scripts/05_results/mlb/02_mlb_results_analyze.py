@@ -44,8 +44,7 @@ def build_side_group(row):
 
 
 def build_selected_edge(row):
-    # MLB_final already has a single selected_edge column — read it directly
-    return to_float(get_col(row, "selected_edge"))
+    return to_float(get_col(row, "ev"))
 
 
 def build_moneyline_odds_value(row):
@@ -199,3 +198,4 @@ def run():
 
 if __name__ == "__main__":
     run()
+
