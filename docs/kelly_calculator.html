@@ -4,230 +4,185 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Kelly Calculator</title>
+<link rel="stylesheet" href="css/matstheme.css">
 <style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Bebas+Neue&display=swap');
-
-:root {
-  --bg: #0a0a0a;
-  --surface: #111111;
-  --border: #1e1e1e;
-  --accent: #c8f135;
-  --accent2: #f1c335;
-  --text: #e8e8e8;
-  --muted: #484848;
-  --nba: #f1a835;
-  --mlb: #35b4f1;
-  --nhl: #c8f135;
-}
-
-* { box-sizing: border-box; margin: 0; padding: 0; }
-
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: 'DM Mono', monospace;
-  min-height: 100vh;
-}
-
-header {
-  border-bottom: 1px solid var(--border);
-  padding: 20px 40px;
-  display: flex;
-  align-items: baseline;
-  gap: 20px;
-}
-
-header h1 {
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 44px;
-  letter-spacing: 4px;
-  color: var(--accent);
-  line-height: 1;
-}
-
-header .date {
-  font-size: 11px;
-  color: var(--muted);
-  letter-spacing: 2px;
-  text-transform: uppercase;
-}
-
-.bankroll-bar {
+.controls {
   display: flex;
   align-items: center;
-  gap: 24px;
-  padding: 20px 40px;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface);
+  gap: 20px;
   flex-wrap: wrap;
+  margin-bottom: 24px;
+  padding: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
 }
 
-.bankroll-bar label {
-  font-size: 10px;
-  letter-spacing: 2px;
+.controls label {
+  font-size: 11px;
+  letter-spacing: 1.5px;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--text-muted);
   white-space: nowrap;
 }
 
 .bankroll-wrap {
   display: flex;
   align-items: center;
-  border: 1px solid var(--accent);
-  background: var(--bg);
+  border: 1px solid var(--accent-green);
+  background: var(--background);
 }
 
 .bankroll-wrap .dollar {
-  padding: 8px 12px;
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 22px;
-  color: var(--accent);
-  border-right: 1px solid var(--accent);
-  line-height: 1;
+  padding: 6px 10px;
+  font-size: 16px;
+  color: var(--accent-green);
+  border-right: 1px solid var(--accent-green);
 }
 
 .bankroll-wrap input {
   background: transparent;
   border: none;
   outline: none;
-  color: var(--text);
-  font-family: 'DM Mono', monospace;
-  font-size: 18px;
-  padding: 8px 14px;
-  width: 180px;
+  color: var(--text-main);
+  font-family: "Courier New", Courier, monospace;
+  font-size: 15px;
+  padding: 6px 12px;
+  width: 160px;
 }
 
-.bankroll-wrap input::placeholder { color: var(--muted); }
+.bankroll-wrap input::placeholder { color: var(--text-muted); }
+
+input[type="date"] {
+  background: var(--background);
+  border: 1px solid var(--border-soft);
+  color: var(--text-main);
+  font-family: "Courier New", Courier, monospace;
+  font-size: 13px;
+  padding: 6px 10px;
+  outline: none;
+  cursor: pointer;
+}
+
+input[type="date"]:focus { border-color: var(--accent-green); }
 
 .fraction-group {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   margin-left: auto;
-}
-
-.fraction-group label {
-  font-size: 10px;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  color: var(--muted);
 }
 
 .fraction-btns { display: flex; }
 
 .fraction-btns button {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  color: var(--muted);
-  font-family: 'DM Mono', monospace;
+  background: var(--background);
+  border: 1px solid var(--border-soft);
+  color: var(--text-muted);
+  font-family: "Courier New", Courier, monospace;
   font-size: 11px;
-  padding: 7px 13px;
+  letter-spacing: 1px;
+  padding: 6px 12px;
   cursor: pointer;
   transition: all 0.12s;
   margin-left: -1px;
+  text-transform: uppercase;
 }
 
 .fraction-btns button.active {
-  background: var(--accent);
-  color: var(--bg);
-  border-color: var(--accent);
+  background: var(--accent-green);
+  color: var(--background);
+  border-color: var(--accent-green);
   z-index: 1;
-  font-weight: 500;
 }
 
 .fraction-btns button:hover:not(.active) {
-  border-color: var(--accent);
-  color: var(--accent);
+  border-color: var(--accent-green);
+  color: var(--accent-green);
 }
 
-.content { padding: 32px 40px; padding-bottom: 100px; }
-
-.picks-section { margin-bottom: 36px; }
+.picks-section { margin-bottom: 32px; }
 
 .sport-header {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   margin-bottom: 10px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-soft);
 }
 
 .sport-title {
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 20px;
-  letter-spacing: 3px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
 }
 
-.sport-title.nba { color: var(--nba); }
-.sport-title.mlb { color: var(--mlb); }
-.sport-title.nhl { color: var(--nhl); }
+.sport-title.nba { color: var(--accent-yellow); }
+.sport-title.mlb { color: var(--accent-blue); }
+.sport-title.nhl { color: var(--accent-green); }
 
-.pick-count { font-size: 10px; color: var(--muted); letter-spacing: 1px; }
+.pick-count { font-size: 11px; color: var(--text-muted); }
 
 table { width: 100%; border-collapse: collapse; font-size: 12px; }
 
 thead th {
   text-align: left;
   padding: 6px 10px;
-  font-size: 9px;
-  letter-spacing: 2px;
+  font-size: 10px;
+  letter-spacing: 1.5px;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--text-muted);
   font-weight: 400;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-soft);
 }
 
 thead th.right { text-align: right; }
 
-tbody tr { border-bottom: 1px solid #141414; transition: background 0.1s; }
-tbody tr:hover { background: #131313; }
-tbody td { padding: 11px 10px; vertical-align: middle; }
+tbody tr { border-bottom: 1px solid var(--border-soft); transition: background 0.1s; }
+tbody tr:hover { background: rgba(0,255,132,0.03); }
+tbody td { padding: 10px 10px; vertical-align: middle; }
 
-.matchup-teams { font-size: 12px; color: var(--text); }
-.matchup-time { font-size: 10px; color: var(--muted); margin-top: 2px; }
+.matchup-teams { font-size: 12px; color: var(--text-main); }
+.matchup-time { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
 
 .market-pill {
   display: inline-block;
-  padding: 2px 7px;
+  padding: 2px 6px;
   font-size: 9px;
   letter-spacing: 1px;
   text-transform: uppercase;
-  border: 1px solid var(--border);
-  color: var(--muted);
+  border: 1px solid var(--border-soft);
+  color: var(--text-muted);
+  border-radius: 2px;
 }
 
-.market-pill.spread, .market-pill.puck_line { border-color: #223; color: #99f; }
-.market-pill.moneyline { border-color: #232; color: #9f9; }
-.market-pill.total { border-color: #322; color: #f99; }
-.market-pill.run_line { border-color: #232; color: #9df; }
+.market-pill.spread, .market-pill.puck_line { border-color: rgba(0,191,255,0.3); color: var(--accent-blue); }
+.market-pill.moneyline { border-color: rgba(0,255,132,0.3); color: var(--accent-green); }
+.market-pill.total { border-color: rgba(250,204,21,0.3); color: var(--accent-yellow); }
+.market-pill.run_line { border-color: rgba(0,191,255,0.3); color: var(--accent-blue); }
 
-.side-cell { font-size: 13px; color: var(--text); }
-.odds-cell { font-size: 12px; color: var(--muted); }
-.ev-cell { font-size: 12px; color: var(--accent2); }
-.kelly-cell { font-size: 12px; color: var(--muted); }
+.side-cell { font-size: 12px; color: var(--text-main); }
+.odds-cell { font-size: 12px; color: var(--text-muted); }
+.ev-cell { font-size: 12px; color: var(--accent-yellow); }
+.kelly-cell { font-size: 12px; color: var(--text-muted); }
 
 .bet-cell {
   text-align: right;
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 24px;
-  color: var(--accent);
-  letter-spacing: 1px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent-green);
   white-space: nowrap;
 }
 
-.bet-cell.zero {
-  font-family: 'DM Mono', monospace;
-  font-size: 11px;
-  color: var(--muted);
-}
+.bet-cell.zero { font-size: 11px; color: var(--text-muted); font-weight: 400; }
 
-.no-picks { padding: 16px 10px; font-size: 11px; color: var(--muted); letter-spacing: 1px; }
+.no-picks { padding: 14px 10px; font-size: 11px; color: var(--text-muted); letter-spacing: 1px; }
 
 .loading-state {
   text-align: center;
-  padding: 60px 40px;
-  color: var(--muted);
+  padding: 60px 20px;
+  color: var(--text-muted);
   font-size: 11px;
   letter-spacing: 2px;
 }
@@ -236,59 +191,60 @@ tbody td { padding: 11px 10px; vertical-align: middle; }
   position: fixed;
   bottom: 0; left: 0; right: 0;
   display: flex;
-  border-top: 1px solid var(--border);
-  background: var(--surface);
+  border-top: 1px solid var(--border-soft);
+  background: var(--bg-card);
+  z-index: 100;
 }
 
 .total-item {
-  padding: 14px 32px;
-  border-right: 1px solid var(--border);
+  padding: 12px 28px;
+  border-right: 1px solid var(--border-soft);
 }
 
 .total-item label {
   font-size: 9px;
   letter-spacing: 2px;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--text-muted);
   display: block;
   margin-bottom: 3px;
 }
 
 .total-item .val {
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 24px;
-  color: var(--accent);
-  letter-spacing: 1px;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--accent-green);
 }
 </style>
 </head>
 <body>
 
-<header>
-  <h1>KELLY CALC</h1>
-  <span class="date" id="today-date"></span>
-</header>
+<div id="nav-placeholder"></div>
 
-<div class="bankroll-bar">
-  <label>Bankroll</label>
-  <div class="bankroll-wrap">
-    <span class="dollar">$</span>
-    <input type="number" id="bankroll" placeholder="10000" min="0" step="100">
-  </div>
-  <label>Date</label>
-  <input type="date" id="date-picker" style="background:var(--bg);border:1px solid var(--accent);color:var(--text);font-family:'DM Mono',monospace;font-size:14px;padding:8px 12px;outline:none;">
-  <div class="fraction-group">
-    <label>Kelly Fraction</label>
-    <div class="fraction-btns">
-      <button data-frac="1" class="active">Full</button>
-      <button data-frac="0.5">Half</button>
-      <button data-frac="0.25">Quarter</button>
+<div class="container">
+  <h1 class="site-title">KELLY CALCULATOR</h1>
+
+  <div class="controls">
+    <label>Bankroll</label>
+    <div class="bankroll-wrap">
+      <span class="dollar">$</span>
+      <input type="number" id="bankroll" placeholder="10000" min="0" step="100">
+    </div>
+    <label>Date</label>
+    <input type="date" id="date-picker">
+    <div class="fraction-group">
+      <label>Kelly Fraction</label>
+      <div class="fraction-btns">
+        <button data-frac="1" class="active">Full</button>
+        <button data-frac="0.5">Half</button>
+        <button data-frac="0.25">Quarter</button>
+      </div>
     </div>
   </div>
-</div>
 
-<div class="content" id="picks-container">
-  <div class="loading-state">LOADING TODAY'S PICKS...</div>
+  <div id="picks-container">
+    <div class="loading-state">LOADING PICKS...</div>
+  </div>
 </div>
 
 <div class="totals-bar">
@@ -306,27 +262,21 @@ tbody td { padding: 11px 10px; vertical-align: middle; }
   </div>
 </div>
 
+<script src="js/nav.js"></script>
 <script>
 const BASE = 'https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/';
 let fraction = 1.0;
 const allPicks = { nba: [], mlb: [], nhl: [] };
 
-function toDateStr(dateVal) {
-  return dateVal.replaceAll('-', '_');
-}
+function toDateStr(v) { return v.replaceAll('-', '_'); }
 
 function initDatePicker() {
   const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth()+1).padStart(2,'0');
-  const day = String(d.getDate()).padStart(2,'0');
-  const val = `${y}-${m}-${day}`;
-  document.getElementById('date-picker').value = val;
-  return val;
+  const val = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const el = document.getElementById('date-picker');
+  if (!el.value) el.value = val;
+  return el.value;
 }
-
-document.getElementById('today-date').textContent =
-  new Date().toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' }).toUpperCase();
 
 document.querySelectorAll('.fraction-btns button').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -338,7 +288,7 @@ document.querySelectorAll('.fraction-btns button').forEach(btn => {
 });
 
 document.getElementById('bankroll').addEventListener('input', render);
-document.getElementById('date-picker').addEventListener('change', () => loadAll());
+document.getElementById('date-picker').addEventListener('change', loadAll);
 
 function parseCSV(text) {
   const lines = text.trim().split('\n');
@@ -360,9 +310,7 @@ function formatDollar(n) {
   return '$' + n.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 
-function formatPct(n) {
-  return (n * 100).toFixed(1) + '%';
-}
+function formatPct(n) { return (n * 100).toFixed(1) + '%'; }
 
 function getNBAKelly(row) {
   const mt = (row.market_type || '').toLowerCase();
@@ -406,10 +354,7 @@ function buildSideLabel(row) {
 }
 
 function processPicks(rows, sport, dateStr) {
-  return rows.filter(row => {
-    const rd = (row.game_date || '').trim();
-    return rd === dateStr;
-  }).map(row => {
+  return rows.filter(row => (row.game_date || '').trim() === dateStr).map(row => {
     let kelly, ev, odds;
     if (sport === 'nba') {
       kelly = parseFloat(getNBAKelly(row));
@@ -443,7 +388,6 @@ function render() {
   ];
 
   let totalPicks = 0, totalBet = 0, html = '';
-
   const allPicksList = sports.flatMap(s => allPicks[s.key]);
   const totalKelly = allPicksList.reduce((sum, p) => sum + p.kelly * fraction, 0);
   const scale = totalKelly > 1.0 ? 1.0 / totalKelly : 1.0;
@@ -459,7 +403,7 @@ function render() {
       </div>`;
 
     if (picks.length === 0) {
-      html += `<div class="no-picks">No picks for today</div>`;
+      html += `<div class="no-picks">No picks for this date</div>`;
     } else {
       html += `<table><thead><tr>
         <th>Matchup</th><th>Market</th><th>Bet</th><th>Odds</th><th>EV</th><th>Kelly</th><th class="right">Bet Size</th>
@@ -494,8 +438,7 @@ function render() {
 }
 
 async function loadAll() {
-  const dateInput = initDatePicker();
-  const date = toDateStr(document.getElementById('date-picker').value || dateInput);
+  const date = toDateStr(initDatePicker());
   const files = [
     { sport: 'nba', url: `${BASE}docs/win/basketball/04_select/daily_slate/nba_selected.csv` },
     { sport: 'mlb', url: `${BASE}docs/win/baseball/04_select/${date}_MLB.csv` },
