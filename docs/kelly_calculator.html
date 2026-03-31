@@ -4,39 +4,116 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Kelly Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=Barlow+Condensed:wght@400;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/matstheme.css">
 <style>
-.controls {
+body {
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  background: var(--background);
+  padding: 0;
+}
+
+:root {
+  --picks-green:      #00ff84;
+  --picks-green-dim:  rgba(0,255,132,0.08);
+  --picks-green-glow: rgba(0,255,132,0.2);
+  --picks-yellow:     #facc15;
+  --picks-red:        #ff2d2d;
+  --picks-blue:       #00bfff;
+  --picks-border:     rgba(255,255,255,0.06);
+  --picks-card:       #0c1118;
+  --picks-card-hover: #111822;
+  --picks-radius:     3px;
+}
+
+/* HEADER */
+.picks-header {
   display: flex;
   align-items: center;
   gap: 20px;
-  flex-wrap: wrap;
-  margin-bottom: 24px;
-  padding: 16px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-soft);
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--picks-border);
 }
 
-.controls label {
-  font-size: 11px;
-  letter-spacing: 1.5px;
+.picks-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: 6px;
   text-transform: uppercase;
+  color: var(--picks-green);
+  line-height: 1;
+  margin: 0;
+}
+
+/* CONTROLS */
+.picks-controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 24px;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--picks-border);
+  flex-wrap: wrap;
+}
+
+.ctrl-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ctrl-label {
+  font-size: 9px;
+  letter-spacing: 2px;
   color: var(--text-muted);
-  white-space: nowrap;
+  text-transform: uppercase;
+}
+
+input[type="date"] {
+  background: var(--picks-card);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-main);
+  padding: 7px 12px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  border-radius: var(--picks-radius);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  cursor: pointer;
+}
+
+input[type="date"]:focus {
+  border-color: var(--picks-green);
+  box-shadow: 0 0 0 3px var(--picks-green-dim);
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) opacity(0.3);
+  cursor: pointer;
 }
 
 .bankroll-wrap {
   display: flex;
   align-items: center;
-  border: 1px solid var(--accent-green);
-  background: var(--background);
+  background: var(--picks-card);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: var(--picks-radius);
+  overflow: hidden;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.bankroll-wrap:focus-within {
+  border-color: var(--picks-green);
+  box-shadow: 0 0 0 3px var(--picks-green-dim);
 }
 
 .bankroll-wrap .dollar {
-  padding: 6px 10px;
-  font-size: 16px;
-  color: var(--accent-green);
-  border-right: 1px solid var(--accent-green);
+  padding: 7px 10px;
+  font-size: 13px;
+  color: var(--picks-green);
+  border-right: 1px solid rgba(255,255,255,0.08);
 }
 
 .bankroll-wrap input {
@@ -44,164 +121,61 @@
   border: none;
   outline: none;
   color: var(--text-main);
-  font-family: "Courier New", Courier, monospace;
-  font-size: 15px;
-  padding: 6px 12px;
-  width: 160px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  padding: 7px 12px;
+  width: 150px;
 }
 
 .bankroll-wrap input::placeholder { color: var(--text-muted); }
 
-input[type="date"] {
-  background: var(--background);
-  border: 1px solid var(--border-soft);
-  color: var(--text-main);
-  font-family: "Courier New", Courier, monospace;
-  font-size: 13px;
-  padding: 6px 10px;
-  outline: none;
-  cursor: pointer;
-}
-
-input[type="date"]:focus { border-color: var(--accent-green); }
-
-.fraction-group {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-left: auto;
-}
-
-.fraction-btns { display: flex; }
+.fraction-btns { display: flex; border-radius: var(--picks-radius); overflow: hidden; }
 
 .fraction-btns button {
-  background: var(--background);
-  border: 1px solid var(--border-soft);
+  background: var(--picks-card);
+  border: 1px solid rgba(255,255,255,0.1);
   color: var(--text-muted);
-  font-family: "Courier New", Courier, monospace;
-  font-size: 11px;
-  letter-spacing: 1px;
-  padding: 6px 12px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 7px 13px;
   cursor: pointer;
   transition: all 0.12s;
   margin-left: -1px;
-  text-transform: uppercase;
 }
 
 .fraction-btns button.active {
-  background: var(--accent-green);
-  color: var(--background);
-  border-color: var(--accent-green);
+  background: var(--picks-green-dim);
+  border-color: var(--picks-green);
+  color: var(--picks-green);
+  box-shadow: 0 0 8px var(--picks-green-glow);
   z-index: 1;
 }
 
 .fraction-btns button:hover:not(.active) {
-  border-color: var(--accent-green);
-  color: var(--accent-green);
+  border-color: rgba(0,255,132,0.35);
+  color: var(--text-main);
 }
 
-.picks-section { margin-bottom: 32px; }
-
-.sport-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 10px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--border-soft);
-}
-
-.sport-title {
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-}
-
-.sport-title.nba { color: var(--accent-yellow); }
-.sport-title.mlb { color: var(--accent-blue); }
-.sport-title.nhl { color: var(--accent-green); }
-
-.pick-count { font-size: 11px; color: var(--text-muted); }
-
-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-
-thead th {
-  text-align: left;
-  padding: 6px 10px;
-  font-size: 10px;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  font-weight: 400;
-  border-bottom: 1px solid var(--border-soft);
-}
-
-thead th.right { text-align: right; }
-
-tbody tr { border-bottom: 1px solid var(--border-soft); transition: background 0.1s; }
-tbody tr:hover { background: rgba(0,255,132,0.03); }
-tbody td { padding: 10px 10px; vertical-align: middle; }
-
-.matchup-teams { font-size: 12px; color: var(--text-main); }
-.matchup-time { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
-
-.market-pill {
-  display: inline-block;
-  padding: 2px 6px;
-  font-size: 9px;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  border: 1px solid var(--border-soft);
-  color: var(--text-muted);
-  border-radius: 2px;
-}
-
-.market-pill.spread, .market-pill.puck_line { border-color: rgba(0,191,255,0.3); color: var(--accent-blue); }
-.market-pill.moneyline { border-color: rgba(0,255,132,0.3); color: var(--accent-green); }
-.market-pill.total { border-color: rgba(250,204,21,0.3); color: var(--accent-yellow); }
-.market-pill.run_line { border-color: rgba(0,191,255,0.3); color: var(--accent-blue); }
-
-.side-cell { font-size: 12px; color: var(--text-main); }
-.odds-cell { font-size: 12px; color: var(--text-muted); }
-.ev-cell { font-size: 12px; color: var(--accent-yellow); }
-.kelly-cell { font-size: 12px; color: var(--text-muted); }
-
-.bet-cell {
-  text-align: right;
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--accent-green);
-  white-space: nowrap;
-}
-
-.bet-cell.zero { font-size: 11px; color: var(--text-muted); font-weight: 400; }
-
-.no-picks { padding: 14px 10px; font-size: 11px; color: var(--text-muted); letter-spacing: 1px; }
-
-.loading-state {
-  text-align: center;
-  padding: 60px 20px;
-  color: var(--text-muted);
-  font-size: 11px;
-  letter-spacing: 2px;
-}
-
+/* TOTALS BAR */
 .totals-bar {
-  position: fixed;
-  bottom: 0; left: 0; right: 0;
   display: flex;
-  border-top: 1px solid var(--border-soft);
-  background: var(--bg-card);
-  z-index: 100;
+  gap: 0;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--picks-border);
+  background: var(--picks-card);
 }
 
 .total-item {
-  padding: 12px 28px;
-  border-right: 1px solid var(--border-soft);
+  padding: 12px 24px 12px 0;
+  margin-right: 24px;
+  border-right: 1px solid var(--picks-border);
 }
 
-.total-item label {
+.total-item:last-child { border-right: none; }
+
+.total-item .t-label {
   font-size: 9px;
   letter-spacing: 2px;
   text-transform: uppercase;
@@ -210,10 +184,190 @@ tbody td { padding: 10px 10px; vertical-align: middle; }
   margin-bottom: 3px;
 }
 
-.total-item .val {
+.total-item .t-val {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--picks-green);
+  letter-spacing: 1px;
+}
+
+/* CONTENT */
+.picks-body {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+/* SPORT SECTION */
+.sport-section {}
+
+.sport-section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--picks-border);
+}
+
+.sport-section-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.sport-section-title.nba { color: var(--picks-yellow); }
+.sport-section-title.mlb { color: var(--picks-blue); }
+.sport-section-title.nhl { color: var(--picks-green); }
+
+.pick-count {
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+}
+
+/* PICK CARDS GRID */
+.picks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 8px;
+}
+
+/* PICK CARD */
+.pick-card {
+  background: var(--picks-card);
+  border: 1px solid var(--picks-border);
+  border-left: 3px solid transparent;
+  border-radius: var(--picks-radius);
+  padding: 14px 16px;
+  transition: border-color 0.18s, background 0.18s, transform 0.18s;
+}
+
+.pick-card:hover {
+  border-left-color: var(--picks-green);
+  background: var(--picks-card-hover);
+  transform: translateX(2px);
+}
+
+.pick-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.pick-market-tag {
+  font-size: 8px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 2px;
+}
+
+.pick-market-tag.spread, .pick-market-tag.puck_line {
+  color: var(--picks-blue);
+  background: rgba(0,191,255,0.08);
+  border: 1px solid rgba(0,191,255,0.2);
+}
+
+.pick-market-tag.moneyline {
+  color: var(--picks-green);
+  background: var(--picks-green-dim);
+  border: 1px solid rgba(0,255,132,0.2);
+}
+
+.pick-market-tag.total {
+  color: var(--picks-yellow);
+  background: rgba(250,204,21,0.08);
+  border: 1px solid rgba(250,204,21,0.2);
+}
+
+.pick-market-tag.run_line {
+  color: var(--picks-blue);
+  background: rgba(0,191,255,0.08);
+  border: 1px solid rgba(0,191,255,0.2);
+}
+
+.pick-odds {
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+}
+
+.pick-matchup {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+  letter-spacing: 0.5px;
+}
+
+.pick-bet {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--picks-blue);
+  letter-spacing: 1px;
+  margin-bottom: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pick-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 10px;
+  border-top: 1px solid var(--picks-border);
+}
+
+.pick-ev {
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--picks-green);
+}
+
+.pick-kelly {
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+}
+
+.pick-amount {
+  font-family: 'Barlow Condensed', sans-serif;
   font-size: 20px;
   font-weight: 700;
-  color: var(--accent-green);
+  color: var(--picks-green);
+  letter-spacing: 1px;
+}
+
+.pick-amount.zero {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.no-picks {
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  padding: 20px 0;
+}
+
+.loading-state {
+  text-align: center;
+  padding: 80px 0;
+  font-size: 11px;
+  letter-spacing: 4px;
+  color: var(--text-muted);
+  text-transform: uppercase;
 }
 </style>
 </head>
@@ -221,45 +375,49 @@ tbody td { padding: 10px 10px; vertical-align: middle; }
 
 <div id="nav-placeholder"></div>
 
-<div class="container">
-  <h1 class="site-title">KELLY CALCULATOR</h1>
+<div class="picks-header">
+  <h1 class="picks-title">KELLY CALCULATOR</h1>
+</div>
 
-  <div class="controls">
-    <label>Bankroll</label>
+<div class="picks-controls">
+  <div class="ctrl-group">
+    <span class="ctrl-label">Date</span>
+    <input type="date" id="date-picker">
+  </div>
+  <div class="ctrl-group">
+    <span class="ctrl-label">Bankroll</span>
     <div class="bankroll-wrap">
       <span class="dollar">$</span>
       <input type="number" id="bankroll" placeholder="10000" min="0" step="100">
     </div>
-    <label>Date</label>
-    <input type="date" id="date-picker">
-    <div class="fraction-group">
-      <label>Kelly Fraction</label>
-      <div class="fraction-btns">
-        <button data-frac="1" class="active">Full</button>
-        <button data-frac="0.5">Half</button>
-        <button data-frac="0.25">Quarter</button>
-      </div>
-    </div>
   </div>
-
-  <div id="picks-container">
-    <div class="loading-state">LOADING PICKS...</div>
+  <div class="ctrl-group">
+    <span class="ctrl-label">Kelly Fraction</span>
+    <div class="fraction-btns">
+      <button data-frac="1" class="active">Full</button>
+      <button data-frac="0.5">Half</button>
+      <button data-frac="0.25">Quarter</button>
+    </div>
   </div>
 </div>
 
 <div class="totals-bar">
   <div class="total-item">
-    <label>Total Picks</label>
-    <div class="val" id="total-picks">—</div>
+    <span class="t-label">Total Picks</span>
+    <div class="t-val" id="total-picks">—</div>
   </div>
   <div class="total-item">
-    <label>Total to Bet</label>
-    <div class="val" id="total-bet">—</div>
+    <span class="t-label">Total to Bet</span>
+    <div class="t-val" id="total-bet">—</div>
   </div>
   <div class="total-item">
-    <label>% of Bankroll</label>
-    <div class="val" id="total-pct">—</div>
+    <span class="t-label">% of Bankroll</span>
+    <div class="t-val" id="total-pct">—</div>
   </div>
+</div>
+
+<div class="picks-body" id="picks-container">
+  <div class="loading-state">Loading picks...</div>
 </div>
 
 <script src="js/nav.js"></script>
@@ -396,37 +554,38 @@ function render() {
     const picks = allPicks[key];
     totalPicks += picks.length;
 
-    html += `<div class="picks-section">
-      <div class="sport-header">
-        <span class="sport-title ${key}">${label}</span>
+    html += `<div class="sport-section">
+      <div class="sport-section-header">
+        <span class="sport-section-title ${key}">${label}</span>
         <span class="pick-count">${picks.length} PICK${picks.length !== 1 ? 'S' : ''}</span>
       </div>`;
 
     if (picks.length === 0) {
       html += `<div class="no-picks">No picks for this date</div>`;
     } else {
-      html += `<table><thead><tr>
-        <th>Matchup</th><th>Market</th><th>Bet</th><th>Odds</th><th>EV</th><th>Kelly</th><th class="right">Bet Size</th>
-      </tr></thead><tbody>`;
-
+      html += `<div class="picks-grid">`;
       for (const p of picks) {
         const betAmt = bankroll > 0 ? bankroll * p.kelly * fraction * scale : 0;
         totalBet += betAmt;
-        const betCell = bankroll > 0
-          ? `<span class="bet-cell">${formatDollar(betAmt)}</span>`
-          : `<span class="bet-cell zero">enter bankroll</span>`;
+        const amountHtml = bankroll > 0
+          ? `<span class="pick-amount">${formatDollar(betAmt)}</span>`
+          : `<span class="pick-amount zero">enter bankroll</span>`;
 
-        html += `<tr>
-          <td><div class="matchup-teams">${p.matchup}</div><div class="matchup-time">${p.time}</div></td>
-          <td><span class="market-pill ${p.market_type}">${p.market_type.replace('_',' ')}</span></td>
-          <td class="side-cell">${p.side}</td>
-          <td class="odds-cell">${p.odds}</td>
-          <td class="ev-cell">${p.ev !== null ? formatPct(p.ev) : '—'}</td>
-          <td class="kelly-cell">${formatPct(p.kelly)}</td>
-          <td>${betCell}</td>
-        </tr>`;
+        html += `<div class="pick-card">
+          <div class="pick-card-top">
+            <span class="pick-market-tag ${p.market_type}">${p.market_type.replace('_',' ')}</span>
+            <span class="pick-odds">${p.odds}</span>
+          </div>
+          <div class="pick-matchup">${p.matchup}${p.time ? ' · ' + p.time : ''}</div>
+          <div class="pick-bet">${p.side}</div>
+          <div class="pick-footer">
+            <span class="pick-ev">EV ${p.ev !== null ? formatPct(p.ev) : '—'}</span>
+            <span class="pick-kelly">K ${formatPct(p.kelly)}</span>
+            ${amountHtml}
+          </div>
+        </div>`;
       }
-      html += `</tbody></table>`;
+      html += `</div>`;
     }
     html += `</div>`;
   }
