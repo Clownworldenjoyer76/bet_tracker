@@ -444,6 +444,10 @@ function render() {
 
   let totalPicks = 0, totalBet = 0, html = '';
 
+  const allPicksList = sports.flatMap(s => allPicks[s.key]);
+  const totalKelly = allPicksList.reduce((sum, p) => sum + p.kelly * fraction, 0);
+  const scale = totalKelly > 1.0 ? 1.0 / totalKelly : 1.0;
+
   for (const { key, label } of sports) {
     const picks = allPicks[key];
     totalPicks += picks.length;
@@ -462,7 +466,7 @@ function render() {
       </tr></thead><tbody>`;
 
       for (const p of picks) {
-        const betAmt = bankroll > 0 ? bankroll * p.kelly * fraction : 0;
+        const betAmt = bankroll > 0 ? bankroll * p.kelly * fraction * scale : 0;
         totalBet += betAmt;
         const betCell = bankroll > 0
           ? `<span class="bet-cell">${formatDollar(betAmt)}</span>`
