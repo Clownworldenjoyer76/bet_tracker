@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kelly Calculator</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Bebas+Neue&display=swap');
+
+:root {
+  --bg: #0a0a0a;
+  --surface: #111111;
+  --border: #1e1e1e;
+  --accent: #c8f135;
+  --accent2: #f1c335;
+  --text: #e8e8e8;
+  --muted: #484848;
+  --nba: #f1a835;
+  --mlb: #35b4f1;
+  --nhl: #c8f135;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Mono', monospace;
+  min-height: 100vh;
+}
+
+header {
+  border-bottom: 1px solid var(--border);
+  padding: 20px 40px;
+  display: flex;
+  align-items: baseline;
+  gap: 20px;
+}
+
+header h1 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 44px;
+  letter-spacing: 4px;
+  color: var(--accent);
+  line-height: 1;
+}
+
+header .date {
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.bankroll-bar {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 20px 40px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  flex-wrap: wrap;
+}
+
+.bankroll-bar label {
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.bankroll-wrap {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--accent);
+  background: var(--bg);
+}
+
+.bankroll-wrap .dollar {
+  padding: 8px 12px;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 22px;
+  color: var(--accent);
+  border-right: 1px solid var(--accent);
+  line-height: 1;
+}
+
+.bankroll-wrap input {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-family: 'DM Mono', monospace;
+  font-size: 18px;
+  padding: 8px 14px;
+  width: 180px;
+}
+
+.bankroll-wrap input::placeholder { color: var(--muted); }
+
+.fraction-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.fraction-group label {
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.fraction-btns { display: flex; }
+
+.fraction-btns button {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  padding: 7px 13px;
+  cursor: pointer;
+  transition: all 0.12s;
+  margin-left: -1px;
+}
+
+.fraction-btns button.active {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+  z-index: 1;
+  font-weight: 500;
+}
+
+.fraction-btns button:hover:not(.active) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.content { padding: 32px 40px; padding-bottom: 100px; }
+
+.picks-section { margin-bottom: 36px; }
+
+.sport-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.sport-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 20px;
+  letter-spacing: 3px;
+}
+
+.sport-title.nba { color: var(--nba); }
+.sport-title.mlb { color: var(--mlb); }
+.sport-title.nhl { color: var(--nhl); }
+
+.pick-count { font-size: 10px; color: var(--muted); letter-spacing: 1px; }
+
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+
+thead th {
+  text-align: left;
+  padding: 6px 10px;
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 400;
+  border-bottom: 1px solid var(--border);
+}
+
+thead th.right { text-align: right; }
+
+tbody tr { border-bottom: 1px solid #141414; transition: background 0.1s; }
+tbody tr:hover { background: #131313; }
+tbody td { padding: 11px 10px; vertical-align: middle; }
+
+.matchup-teams { font-size: 12px; color: var(--text); }
+.matchup-time { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+.market-pill {
+  display: inline-block;
+  padding: 2px 7px;
+  font-size: 9px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.market-pill.spread, .market-pill.puck_line { border-color: #223; color: #99f; }
+.market-pill.moneyline { border-color: #232; color: #9f9; }
+.market-pill.total { border-color: #322; color: #f99; }
+.market-pill.run_line { border-color: #232; color: #9df; }
+
+.side-cell { font-size: 13px; color: var(--text); }
+.odds-cell { font-size: 12px; color: var(--muted); }
+.ev-cell { font-size: 12px; color: var(--accent2); }
+.kelly-cell { font-size: 12px; color: var(--muted); }
+
+.bet-cell {
+  text-align: right;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 24px;
+  color: var(--accent);
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+.bet-cell.zero {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.no-picks { padding: 16px 10px; font-size: 11px; color: var(--muted); letter-spacing: 1px; }
+
+.loading-state {
+  text-align: center;
+  padding: 60px 40px;
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 2px;
+}
+
+.totals-bar {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  display: flex;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.total-item {
+  padding: 14px 32px;
+  border-right: 1px solid var(--border);
+}
+
+.total-item label {
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted);
+  display: block;
+  margin-bottom: 3px;
+}
+
+.total-item .val {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 24px;
+  color: var(--accent);
+  letter-spacing: 1px;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>KELLY CALC</h1>
+  <span class="date" id="today-date"></span>
+</header>
+
+<div class="bankroll-bar">
+  <label>Bankroll</label>
+  <div class="bankroll-wrap">
+    <span class="dollar">$</span>
+    <input type="number" id="bankroll" placeholder="10000" min="0" step="100">
+  </div>
+  <div class="fraction-group">
+    <label>Kelly Fraction</label>
+    <div class="fraction-btns">
+      <button data-frac="1" class="active">Full</button>
+      <button data-frac="0.5">Half</button>
+      <button data-frac="0.25">Quarter</button>
+    </div>
+  </div>
+</div>
+
+<div class="content" id="picks-container">
+  <div class="loading-state">LOADING TODAY'S PICKS...</div>
+</div>
+
+<div class="totals-bar">
+  <div class="total-item">
+    <label>Total Picks</label>
+    <div class="val" id="total-picks">—</div>
+  </div>
+  <div class="total-item">
+    <label>Total to Bet</label>
+    <div class="val" id="total-bet">—</div>
+  </div>
+  <div class="total-item">
+    <label>% of Bankroll</label>
+    <div class="val" id="total-pct">—</div>
+  </div>
+</div>
+
+<script>
+const BASE = 'https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/';
+let fraction = 1.0;
+const allPicks = { nba: [], mlb: [], nhl: [] };
+
+function todayStr() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return `${y}_${m}_${day}`;
+}
+
+document.getElementById('today-date').textContent =
+  new Date().toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' }).toUpperCase();
+
+document.querySelectorAll('.fraction-btns button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.fraction-btns button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    fraction = parseFloat(btn.dataset.frac);
+    render();
+  });
+});
+
+document.getElementById('bankroll').addEventListener('input', render);
+
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(',').map(h => h.trim());
+  return lines.slice(1).map(line => {
+    const vals = line.split(',').map(v => v.trim());
+    return Object.fromEntries(headers.map((h, i) => [h, vals[i] ?? '']));
+  });
+}
+
+function formatOdds(val) {
+  const n = parseFloat(val);
+  if (isNaN(n)) return '—';
+  return n > 0 ? `+${Math.round(n)}` : `${Math.round(n)}`;
+}
+
+function formatDollar(n) {
+  return '$' + n.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+function formatPct(n) {
+  return (n * 100).toFixed(1) + '%';
+}
+
+function getNBAKelly(row) {
+  const mt = (row.market_type || '').toLowerCase();
+  const side = (row.bet_side || '').toLowerCase();
+  if (mt === 'spread') return side === 'home' ? row.home_spread_kelly : row.away_spread_kelly;
+  if (mt === 'moneyline') return side === 'home' ? row.home_ml_kelly : row.away_ml_kelly;
+  if (mt === 'total') return side === 'over' ? row.over_kelly : row.under_kelly;
+  return null;
+}
+
+function getNBAEV(row) {
+  const mt = (row.market_type || '').toLowerCase();
+  const side = (row.bet_side || '').toLowerCase();
+  if (mt === 'spread') return side === 'home' ? row.home_spread_ev : row.away_spread_ev;
+  if (mt === 'moneyline') return side === 'home' ? row.home_ml_ev : row.away_ml_ev;
+  if (mt === 'total') return side === 'over' ? row.over_ev : row.under_ev;
+  return row.selected_ev;
+}
+
+function getNBAOdds(row) {
+  const mt = (row.market_type || '').toLowerCase();
+  const side = (row.bet_side || '').toLowerCase();
+  if (mt === 'spread') return side === 'home' ? row.home_dk_spread_american : row.away_dk_spread_american;
+  if (mt === 'moneyline') return side === 'home' ? row.home_dk_moneyline_american : row.away_dk_moneyline_american;
+  if (mt === 'total') return side === 'over' ? row.dk_total_over_american : row.dk_total_under_american;
+  return null;
+}
+
+function buildSideLabel(row) {
+  const mt = (row.market_type || '').toLowerCase();
+  const side = (row.bet_side || '').toLowerCase();
+  const line = parseFloat(row.line);
+  if (mt === 'total') return `${side.toUpperCase()} ${row.line || ''}`;
+  if (['spread','puck_line','run_line'].includes(mt)) {
+    const team = side === 'home' ? row.home_team : row.away_team;
+    const lineStr = !isNaN(line) ? ` ${line > 0 ? '+' : ''}${line}` : '';
+    return `${team}${lineStr}`;
+  }
+  if (mt === 'moneyline') return side === 'home' ? row.home_team : row.away_team;
+  return side;
+}
+
+function processPicks(rows, sport) {
+  return rows.map(row => {
+    let kelly, ev, odds;
+    if (sport === 'nba') {
+      kelly = parseFloat(getNBAKelly(row));
+      ev = parseFloat(getNBAEV(row));
+      odds = getNBAOdds(row);
+    } else {
+      kelly = parseFloat(row.kelly);
+      ev = parseFloat(row.ev);
+      odds = row.dk_odds_american;
+    }
+    if (isNaN(kelly) || kelly <= 0) return null;
+    return {
+      matchup: `${row.away_team} @ ${row.home_team}`,
+      time: row.game_time || '',
+      market_type: (row.market_type || '').toLowerCase(),
+      side: buildSideLabel(row),
+      odds: formatOdds(odds),
+      ev: isNaN(ev) ? null : ev,
+      kelly,
+    };
+  }).filter(Boolean);
+}
+
+function render() {
+  const bankroll = parseFloat(document.getElementById('bankroll').value) || 0;
+  const container = document.getElementById('picks-container');
+  const sports = [
+    { key: 'nba', label: 'NBA' },
+    { key: 'mlb', label: 'MLB' },
+    { key: 'nhl', label: 'NHL' },
+  ];
+
+  let totalPicks = 0, totalBet = 0, html = '';
+
+  for (const { key, label } of sports) {
+    const picks = allPicks[key];
+    totalPicks += picks.length;
+
+    html += `<div class="picks-section">
+      <div class="sport-header">
+        <span class="sport-title ${key}">${label}</span>
+        <span class="pick-count">${picks.length} PICK${picks.length !== 1 ? 'S' : ''}</span>
+      </div>`;
+
+    if (picks.length === 0) {
+      html += `<div class="no-picks">No picks for today</div>`;
+    } else {
+      html += `<table><thead><tr>
+        <th>Matchup</th><th>Market</th><th>Bet</th><th>Odds</th><th>EV</th><th>Kelly</th><th class="right">Bet Size</th>
+      </tr></thead><tbody>`;
+
+      for (const p of picks) {
+        const betAmt = bankroll > 0 ? bankroll * p.kelly * fraction : 0;
+        totalBet += betAmt;
+        const betCell = bankroll > 0
+          ? `<span class="bet-cell">${formatDollar(betAmt)}</span>`
+          : `<span class="bet-cell zero">enter bankroll</span>`;
+
+        html += `<tr>
+          <td><div class="matchup-teams">${p.matchup}</div><div class="matchup-time">${p.time}</div></td>
+          <td><span class="market-pill ${p.market_type}">${p.market_type.replace('_',' ')}</span></td>
+          <td class="side-cell">${p.side}</td>
+          <td class="odds-cell">${p.odds}</td>
+          <td class="ev-cell">${p.ev !== null ? formatPct(p.ev) : '—'}</td>
+          <td class="kelly-cell">${formatPct(p.kelly)}</td>
+          <td>${betCell}</td>
+        </tr>`;
+      }
+      html += `</tbody></table>`;
+    }
+    html += `</div>`;
+  }
+
+  container.innerHTML = html;
+  document.getElementById('total-picks').textContent = totalPicks || '—';
+  document.getElementById('total-bet').textContent = bankroll > 0 && totalBet > 0 ? formatDollar(totalBet) : '—';
+  document.getElementById('total-pct').textContent = bankroll > 0 && totalBet > 0 ? formatPct(totalBet / bankroll) : '—';
+}
+
+async function loadAll() {
+  const date = todayStr();
+  const files = [
+    { sport: 'nba', url: `${BASE}docs/win/basketball/04_select/daily_slate/nba_selected.csv` },
+    { sport: 'mlb', url: `${BASE}docs/win/baseball/04_select/${date}_MLB.csv` },
+    { sport: 'nhl', url: `${BASE}docs/win/hockey/04_select/${date}_NHL.csv` },
+  ];
+
+  await Promise.all(files.map(async ({ sport, url }) => {
+    try {
+      const r = await fetch(url);
+      if (!r.ok) throw new Error(r.status);
+      const rows = parseCSV(await r.text());
+      allPicks[sport] = processPicks(rows, sport);
+    } catch {
+      allPicks[sport] = [];
+    }
+  }));
+
+  render();
+}
+
+loadAll();
+</script>
+</body>
+</html>
