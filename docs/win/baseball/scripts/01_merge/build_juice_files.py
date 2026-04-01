@@ -286,11 +286,13 @@ def process_run_line(file_path: str):
             continue
 
         if home_line == -1.5:
+            # Home is favorite: P(home - away >= 2) = 1 - skellam.cdf(1, lambda_home, lambda_away)
             p_home = 1 - skellam.cdf(1, lambda_home, lambda_away)
-            p_away = 1 - p_home
+            p_away = skellam.cdf(1, lambda_home, lambda_away)
         elif away_line == -1.5:
+            # Away is favorite: P(away - home >= 2) = 1 - skellam.cdf(1, lambda_away, lambda_home)
             p_away = 1 - skellam.cdf(1, lambda_away, lambda_home)
-            p_home = 1 - p_away
+            p_home = skellam.cdf(1, lambda_away, lambda_home)
         else:
             log(
                 f"ROW ISSUE: {file_path} idx={i} unexpected run lines: "

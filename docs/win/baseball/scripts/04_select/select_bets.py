@@ -130,7 +130,7 @@ def process_run_line(row):
         line = f(row.get(f"{side}_run_line"))
 
         raw_prob = f(row.get(f"{side}_prob_run_line"))
-        model_prob = rescale_prob(raw_prob)
+        model_prob = raw_prob
 
         if not check_rules(ev, kelly, odds, line, rules):
             continue
