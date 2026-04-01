@@ -16,7 +16,7 @@ OUTPUT_DIR = Path("docs/win/baseball/02_juice")
 JUICE_FILE = Path("config/baseball/mlb/mlb_run_line_juice.csv")
 
 ERROR_DIR = Path("docs/win/baseball/errors/02_juice")
-LOG_FILE = ERROR_DIR / "apply_puck_line_juice.txt"
+LOG_FILE = ERROR_DIR / "apply_run_line_juice.txt"
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
@@ -31,9 +31,10 @@ def _log(msg: str):
         f.write(msg.rstrip() + "\n")
 
 
-def find_band_row(juice_df, run_line, venue, fav_ud):
+def find_band_row(juice_df, dk_odds, venue, fav_ud):
     band = juice_df[
-        (abs(juice_df["band_min"] - run_line) < 0.01) &
+        (juice_df["band_min"] <= dk_odds) &
+        (juice_df["band_max"] > dk_odds) &
         (juice_df["venue"] == venue) &
         (juice_df["fav_ud"] == fav_ud)
     ]
@@ -43,7 +44,7 @@ def find_band_row(juice_df, run_line, venue, fav_ud):
 
     if len(band) > 1:
         _log(
-            f"[WARN] Multiple band matches run_line={run_line} "
+            f"[WARN] Multiple band matches dk_odds={dk_odds} "
             f"venue={venue} fav_ud={fav_ud}"
         )
 
@@ -51,13 +52,13 @@ def find_band_row(juice_df, run_line, venue, fav_ud):
 
 
 def process_rows(df, juice_df, file_path):
-    df["home_juiced_decimal_puck_line"] = pd.NA
-    df["away_juiced_decimal_puck_line"] = pd.NA
-    df["home_juiced_prob_puck_line"] = pd.NA
-    df["away_juiced_prob_puck_line"] = pd.NA
+    df["home_juiced_decimal_run_line"] = pd.NA
+    df["away_juiced_decimal_run_line"] = pd.NA
+    df["home_juiced_prob_run_line"] = pd.NA
+    df["away_juiced_prob_run_line"] = pd.NA
 
-    df["home_normalized_prob_puck_line"] = pd.NA
-    df["away_normalized_prob_puck_line"] = pd.NA
+    df["home_normalized_prob_run_line"] = pd.NA
+    df["away_normalized_prob_run_line"] = pd.NA
 
     applied = 0
     skipped_no_band = 0
@@ -65,8 +66,8 @@ def process_rows(df, juice_df, file_path):
 
     for idx, row in df.iterrows():
         try:
-            home_line = float(row["home_run_line"])
-            away_line = float(row["away_run_line"])
+            home_dk_odds = float(row["home_dk_run_line_american"])
+            away_dk_odds = float(row["away_dk_run_line_american"])
             home_dec = float(row["home_fair_run_line_decimal"])
             away_dec = float(row["away_fair_run_line_decimal"])
         except Exception:
@@ -82,17 +83,17 @@ def process_rows(df, juice_df, file_path):
             _log(f"[ROW SKIP] idx={idx} reason=bad_fair_decimal")
             continue
 
-        home_fav_ud = "favorite" if home_line < 0 else "underdog"
-        away_fav_ud = "favorite" if away_line < 0 else "underdog"
+        home_fav_ud = "favorite" if home_dk_odds < 0 else "underdog"
+        away_fav_ud = "favorite" if away_dk_odds < 0 else "underdog"
 
-        home_extra = find_band_row(juice_df, home_line, "home", home_fav_ud)
-        away_extra = find_band_row(juice_df, away_line, "away", away_fav_ud)
+        home_extra = find_band_row(juice_df, home_dk_odds, "home", home_fav_ud)
+        away_extra = find_band_row(juice_df, away_dk_odds, "away", away_fav_ud)
 
         if home_extra is None or away_extra is None:
             skipped_no_band += 1
             _log(
                 f"[ROW SKIP] idx={idx} reason=no_band "
-                f"home_line={home_line} away_line={away_line}"
+                f"home_dk_odds={home_dk_odds} away_dk_odds={away_dk_odds}"
             )
             continue
 
@@ -123,14 +124,14 @@ def process_rows(df, juice_df, file_path):
             _log(f"[ROW SKIP] idx={idx} reason=calc_error")
             continue
 
-        df.at[idx, "home_juiced_prob_puck_line"] = home_final
-        df.at[idx, "away_juiced_prob_puck_line"] = away_final
+        df.at[idx, "home_juiced_prob_run_line"] = home_final
+        df.at[idx, "away_juiced_prob_run_line"] = away_final
 
-        df.at[idx, "home_juiced_decimal_puck_line"] = home_juiced_decimal
-        df.at[idx, "away_juiced_decimal_puck_line"] = away_juiced_decimal
+        df.at[idx, "home_juiced_decimal_run_line"] = home_juiced_decimal
+        df.at[idx, "away_juiced_decimal_run_line"] = away_juiced_decimal
 
-        df.at[idx, "home_normalized_prob_puck_line"] = home_final
-        df.at[idx, "away_normalized_prob_puck_line"] = away_final
+        df.at[idx, "home_normalized_prob_run_line"] = home_final
+        df.at[idx, "away_normalized_prob_run_line"] = away_final
 
         applied += 1
 
@@ -139,7 +140,7 @@ def process_rows(df, juice_df, file_path):
 
 def main():
     with open(LOG_FILE, "w", encoding="utf-8") as f:
-        f.write(f"=== APPLY PUCK LINE JUICE START {_now()} ===\n")
+        f.write(f"=== APPLY RUN LINE JUICE START {_now()} ===\n")
 
     try:
         _log(f"[INFO] INPUT_DIR: {INPUT_DIR}")
@@ -148,6 +149,7 @@ def main():
         juice_df = pd.read_csv(JUICE_FILE)
 
         juice_df["band_min"] = juice_df["band_min"].astype(float)
+        juice_df["band_max"] = juice_df["band_max"].astype(float)
         juice_df["venue"] = juice_df["venue"].astype(str).str.strip()
         juice_df["fav_ud"] = juice_df["fav_ud"].astype(str).str.strip()
         juice_df["extra_juice"] = juice_df["extra_juice"].astype(float)

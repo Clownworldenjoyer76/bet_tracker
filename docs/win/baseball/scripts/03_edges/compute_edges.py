@@ -97,42 +97,38 @@ def compute_moneyline(df, file_path):
 
 
 # =========================
-# RUN LINE (mapped)
+# RUN LINE
 # =========================
 
 def compute_run_line(df, file_path):
-
-    # map naming (critical)
-    df["home_prob_puck_line"] = df["home_prob_run_line"]
-    df["away_prob_puck_line"] = df["away_prob_run_line"]
 
     required = [
         "game_id",
         "home_dk_run_line_decimal",
         "away_dk_run_line_decimal",
-        "home_normalized_prob_puck_line",
-        "away_normalized_prob_puck_line",
-        "home_prob_puck_line",
-        "away_prob_puck_line",
+        "home_normalized_prob_run_line",
+        "away_normalized_prob_run_line",
+        "home_prob_run_line",
+        "away_prob_run_line",
     ]
     validate_columns(df, required, file_path)
 
     df["home_edge_decimal_run_line"] = safe_edge_decimal(
         df["home_dk_run_line_decimal"],
-        df["home_normalized_prob_puck_line"],
+        df["home_normalized_prob_run_line"],
     )
     df["away_edge_decimal_run_line"] = safe_edge_decimal(
         df["away_dk_run_line_decimal"],
-        df["away_normalized_prob_puck_line"],
+        df["away_normalized_prob_run_line"],
     )
 
     df["home_raw_edge_decimal_run_line"] = safe_edge_decimal(
         df["home_dk_run_line_decimal"],
-        df["home_prob_puck_line"],
+        df["home_prob_run_line"],
     )
     df["away_raw_edge_decimal_run_line"] = safe_edge_decimal(
         df["away_dk_run_line_decimal"],
-        df["away_prob_puck_line"],
+        df["away_prob_run_line"],
     )
 
     return df
