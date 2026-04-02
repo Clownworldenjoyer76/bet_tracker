@@ -68,8 +68,11 @@ def process_rows(df, juice_df, file_path):
         try:
             home_dk_odds = float(row["home_dk_run_line_american"])
             away_dk_odds = float(row["away_dk_run_line_american"])
-            home_dec = float(row["home_fair_run_line_decimal"])
-            away_dec = float(row["away_fair_run_line_decimal"])
+
+            # FIX 1: use MARKET decimal odds (not fair)
+            home_dec = float(row["home_dk_run_line_decimal"])
+            away_dec = float(row["away_dk_run_line_decimal"])
+
         except Exception:
             skipped_bad += 1
             _log(f"[ROW SKIP] idx={idx} reason=cast_error")
@@ -80,7 +83,7 @@ def process_rows(df, juice_df, file_path):
             not math.isfinite(away_dec) or away_dec <= 1
         ):
             skipped_bad += 1
-            _log(f"[ROW SKIP] idx={idx} reason=bad_fair_decimal")
+            _log(f"[ROW SKIP] idx={idx} reason=bad_decimal")
             continue
 
         home_fav_ud = "favorite" if home_dk_odds < 0 else "underdog"
@@ -98,11 +101,19 @@ def process_rows(df, juice_df, file_path):
             continue
 
         try:
-            home_fair_prob = 1 / home_dec
-            away_fair_prob = 1 / away_dec
+            home_prob = 1 / home_dec
+            away_prob = 1 / away_dec
 
-            home_adj = home_fair_prob * (1 - home_extra)
-            away_adj = away_fair_prob * (1 - away_extra)
+            # FIX 2: correct directional application
+            if home_fav_ud == "favorite":
+                home_adj = home_prob * (1 - home_extra)
+            else:
+                home_adj = home_prob * (1 + home_extra)
+
+            if away_fav_ud == "favorite":
+                away_adj = away_prob * (1 - away_extra)
+            else:
+                away_adj = away_prob * (1 + away_extra)
 
             home_adj = max(home_adj, 1e-6)
             away_adj = max(away_adj, 1e-6)
@@ -110,7 +121,7 @@ def process_rows(df, juice_df, file_path):
             total = home_adj + away_adj
             if total <= 0 or not math.isfinite(total):
                 skipped_bad += 1
-                _log(f"[ROW SKIP] idx={idx} reason=bad_total_after_adjustment")
+                _log(f"[ROW SKIP] idx={idx} reason=bad_total")
                 continue
 
             home_final = home_adj / total
