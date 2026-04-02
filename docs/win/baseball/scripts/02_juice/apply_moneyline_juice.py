@@ -34,12 +34,13 @@ def _log(msg: str):
 def find_band_row(juice_df, american, fav_ud, venue):
     band = juice_df[
         (juice_df["band_min"] <= american) &
-        (american <= juice_df["band_max"]) &
+        (american < juice_df["band_max"]) &
         (juice_df["fav_ud"] == fav_ud) &
         (juice_df["venue"] == venue)
     ]
 
     if len(band) != 1:
+        print(f"FAIL: {american}, {fav_ud}, {venue}")
         return None
 
     return float(band.iloc[0]["extra_juice"])
@@ -49,8 +50,8 @@ def process_row(df, juice_df, idx, row, file_path):
     try:
         home_american = float(row["home_dk_moneyline_american"])
         away_american = float(row["away_dk_moneyline_american"])
-        home_fair = float(row["home_fair_decimal_moneyline"])
-        away_fair = float(row["away_fair_decimal_moneyline"])
+        home_fair = float(row["home_dk_moneyline_decimal"])
+        away_fair = float(row["away_dk_moneyline_decimal"])
     except Exception:
         _log(f"[ROW SKIP] idx={idx} reason=conversion_failed")
         return df
@@ -76,8 +77,15 @@ def process_row(df, juice_df, idx, row, file_path):
         )
         return df
 
-    home_juiced_decimal = home_fair * (1 - home_extra)
-    away_juiced_decimal = away_fair * (1 - away_extra)
+    if home_fav_ud == "favorite":
+        home_juiced_decimal = home_fair * (1 - home_extra)
+    else:
+        home_juiced_decimal = home_fair * (1 + home_extra)
+
+    if away_fav_ud == "favorite":
+        away_juiced_decimal = away_fair * (1 - away_extra)
+    else:
+        away_juiced_decimal = away_fair * (1 + away_extra)
 
     if home_juiced_decimal <= 1 or away_juiced_decimal <= 1:
         _log(
