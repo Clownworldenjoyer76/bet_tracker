@@ -1,40 +1,36 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
-<title>Custom Prop Finder</title>
+<title>Multi-Sport Prop Finder</title>
 <style>
-body { font-family: Arial; background:#111; color:#eee; padding:20px; }
+body { font-family: Arial; background:#0e1117; color:#e6edf3; padding:20px; }
 input, select, button { padding:6px; margin:4px; }
-.card { border:1px solid #333; padding:10px; margin:10px 0; }
+.card { border:1px solid #30363d; padding:10px; margin:10px 0; }
 .good { color:#00ff88; }
 </style>
 </head>
 <body>
 
-<h2>Custom Prop Finder</h2>
+<h2>Prop Finder (NBA / NHL / MLB)</h2>
 
 <div>
-  <label>Prop:</label>
-  <select id="prop">
-    <option>Points</option>
-    <option>Assists</option>
-    <option>Rebounds</option>
+  <select id="league">
+    <option value="nba">NBA</option>
+    <option value="nhl">NHL</option>
+    <option value="mlb">MLB</option>
   </select>
 
-  <label>Type:</label>
+  <select id="prop"></select>
+
   <select id="type">
     <option value="over">Over</option>
     <option value="under">Under</option>
   </select>
 
-  <label>Line:</label>
-  <input type="number" id="line" value="10.5" step="0.5">
-
-  <label>Min Hit %:</label>
+  <input type="number" id="line" value="1.5" step="0.5">
+  <input type="number" id="games" value="10">
   <input type="number" id="hit" value="80">
-
-  <label>Min Streak:</label>
   <input type="number" id="streak" value="5">
 
   <button onclick="run()">Run</button>
@@ -43,13 +39,54 @@ input, select, button { padding:6px; margin:4px; }
 <div id="results"></div>
 
 <script>
-const PROPS = {
-  "Points": ['points','PTS'],
-  "Assists": ['assists','AST'],
-  "Rebounds": ['rebounds','REB']
+const CONFIG = {
+  nba: {
+    sport: "basketball",
+    props: {
+      "Points": ['points','PTS'],
+      "Rebounds": ['rebounds','REB'],
+      "Assists": ['assists','AST'],
+      "Blocks": ['blocks','BLK'],
+      "Steals": ['steals','STL'],
+      "3PM": ['threePointFieldGoalsMade','3PM']
+    }
+  },
+  nhl: {
+    sport: "hockey",
+    props: {
+      "Goals": ['goals','G'],
+      "Assists": ['assists','A'],
+      "Points": ['points','PTS'],
+      "Shots": ['shots','S']
+    }
+  },
+  mlb: {
+    sport: "baseball",
+    props: {
+      "Hits": ['hits','H'],
+      "RBI": ['rbi','RBI'],
+      "Strikeouts": ['strikeouts','SO'],
+      "Home Runs": ['homeRuns','HR']
+    }
+  }
 };
 
-function today() {
+function populateProps(){
+  let league = document.getElementById('league').value;
+  let propSel = document.getElementById('prop');
+  propSel.innerHTML = '';
+
+  Object.keys(CONFIG[league].props).forEach(p=>{
+    let o = document.createElement('option');
+    o.textContent = p;
+    propSel.appendChild(o);
+  });
+}
+
+document.getElementById('league').addEventListener('change', populateProps);
+populateProps();
+
+function today(){
   let d = new Date();
   return d.getFullYear() +
     String(d.getMonth()+1).padStart(2,'0') +
@@ -103,57 +140,63 @@ function parseGames(data,keys){
 }
 
 async function run(){
+  let league = document.getElementById('league').value;
   let prop   = document.getElementById('prop').value;
   let type   = document.getElementById('type').value;
   let line   = parseFloat(document.getElementById('line').value);
+  let lastN  = parseInt(document.getElementById('games').value);
   let minHit = parseFloat(document.getElementById('hit').value)/100;
   let minStr = parseInt(document.getElementById('streak').value);
+
+  let conf = CONFIG[league];
 
   let resDiv = document.getElementById('results');
   resDiv.innerHTML = 'Loading...';
 
   let scoreboard = await fetchJSON(
-    `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates=${today()}`
+    `https://site.api.espn.com/apis/site/v2/sports/${conf.sport}/${league}/scoreboard?dates=${today()}`
   );
 
-  let resultsHTML = '';
+  let html = '';
 
-  for(let game of scoreboard.events){
+  for(let game of scoreboard.events || []){
     let comp = game.competitions[0];
 
     for(let team of comp.competitors){
       let teamId = team.team.id;
 
       let roster = await fetchJSON(
-        `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${teamId}/roster`
+        `https://site.api.espn.com/apis/site/v2/sports/${conf.sport}/${league}/teams/${teamId}/roster`
       );
 
-      let players = [];
-      roster.athletes.forEach(g=>{
+      let players=[];
+      (roster?.athletes||[]).forEach(g=>{
         (g.items||[]).forEach(p=>players.push(p));
       });
 
-      for(let p of players.slice(0,6)){
+      for(let p of players.slice(0,8)){
         let data = await fetchJSON(
-          `https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/${p.id}/overview`
+          `https://site.web.api.espn.com/apis/common/v3/sports/${conf.sport}/${league}/athletes/${p.id}/overview`
         );
 
         if(!data) continue;
 
-        let games = parseGames(data, PROPS[prop]);
-        if(games.length < 5) continue;
+        let games = parseGames(data, conf.props[prop]);
+        if(games.length < lastN) continue;
+
+        games = games.slice(0,lastN);
 
         let hits = games.filter(g=>isHit(g.val,line,type)).length;
         let rate = hits/games.length;
         let streak = getStreak(games,line,type);
 
         if(rate >= minHit && streak >= minStr){
-          resultsHTML += `
+          html += `
             <div class="card">
-              <div><b>${p.displayName}</b></div>
-              <div>${type.toUpperCase()} ${line} ${prop}</div>
-              <div class="good">${(rate*100).toFixed(0)}% hit (${hits}/${games.length})</div>
-              <div>Streak: ${streak}</div>
+              <b>${p.displayName}</b><br>
+              ${league.toUpperCase()} — ${type.toUpperCase()} ${line} ${prop}<br>
+              <span class="good">${(rate*100).toFixed(0)}% (${hits}/${games.length})</span><br>
+              Streak: ${streak}
             </div>
           `;
         }
@@ -161,7 +204,7 @@ async function run(){
     }
   }
 
-  resDiv.innerHTML = resultsHTML || 'No matches';
+  resDiv.innerHTML = html || 'No matches (adjust filters)';
 }
 </script>
 
