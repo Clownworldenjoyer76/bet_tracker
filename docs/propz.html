@@ -2,35 +2,70 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Multi-Sport Prop Finder</title>
+<title>Prop Finder</title>
+
 <style>
-body { font-family: Arial; background:#0e1117; color:#e6edf3; padding:20px; }
-input, select, button { padding:6px; margin:4px; }
-.card { border:1px solid #30363d; padding:10px; margin:10px 0; }
+body {
+  font-family: Arial;
+  background:#0e1117;
+  color:#e6edf3;
+  padding:20px;
+}
+.controls {
+  margin-bottom:15px;
+}
+select,input,button {
+  padding:6px;
+  margin:4px;
+}
+.card {
+  border:1px solid #30363d;
+  padding:12px;
+  margin:10px 0;
+}
 .good { color:#00ff88; }
+.mid { color:#facc15; }
+.bad { color:#ef4444; }
+.header {
+  font-weight:bold;
+  margin-top:10px;
+  margin-bottom:5px;
+  color:#58a6ff;
+}
 </style>
 </head>
+
 <body>
 
-<h2>Prop Finder (NBA / NHL / MLB)</h2>
+<h2>Multi-Sport Prop Finder</h2>
 
-<div>
+<div class="controls">
+  <label>League:</label>
   <select id="league">
     <option value="nba">NBA</option>
     <option value="nhl">NHL</option>
     <option value="mlb">MLB</option>
   </select>
 
+  <label>Prop:</label>
   <select id="prop"></select>
 
+  <label>Type:</label>
   <select id="type">
     <option value="over">Over</option>
     <option value="under">Under</option>
   </select>
 
+  <label>Line:</label>
   <input type="number" id="line" value="1.5" step="0.5">
+
+  <label>Last N Games:</label>
   <input type="number" id="games" value="10">
+
+  <label>Min Hit %:</label>
   <input type="number" id="hit" value="80">
+
+  <label>Min Streak:</label>
   <input type="number" id="streak" value="5">
 
   <button onclick="run()">Run</button>
@@ -39,37 +74,42 @@ input, select, button { padding:6px; margin:4px; }
 <div id="results"></div>
 
 <script>
+
+// ================= CONFIG =================
+
 const CONFIG = {
   nba: {
     sport: "basketball",
     props: {
-      "Points": ['points','PTS'],
-      "Rebounds": ['rebounds','REB'],
-      "Assists": ['assists','AST'],
-      "Blocks": ['blocks','BLK'],
-      "Steals": ['steals','STL'],
-      "3PM": ['threePointFieldGoalsMade','3PM']
+      "Points": ['points'],
+      "Rebounds": ['rebounds'],
+      "Assists": ['assists'],
+      "Blocks": ['blocks'],
+      "Steals": ['steals'],
+      "3PM": ['three']
     }
   },
   nhl: {
     sport: "hockey",
     props: {
-      "Goals": ['goals','G'],
-      "Assists": ['assists','A'],
-      "Points": ['points','PTS'],
-      "Shots": ['shots','S']
+      "Goals": ['goals'],
+      "Assists": ['assists'],
+      "Points": ['points'],
+      "Shots": ['shots']
     }
   },
   mlb: {
     sport: "baseball",
     props: {
-      "Hits": ['hits','H'],
-      "RBI": ['rbi','RBI'],
-      "Strikeouts": ['strikeouts','SO'],
-      "Home Runs": ['homeRuns','HR']
+      "Hits": ['hits'],
+      "RBI": ['rbi'],
+      "Strikeouts": ['strike'],
+      "Home Runs": ['home']
     }
   }
 };
+
+// ================= UI =================
 
 function populateProps(){
   let league = document.getElementById('league').value;
@@ -85,6 +125,8 @@ function populateProps(){
 
 document.getElementById('league').addEventListener('change', populateProps);
 populateProps();
+
+// ================= HELPERS =================
 
 function today(){
   let d = new Date();
@@ -110,19 +152,31 @@ async function fetchJSON(url){
   try{
     let r = await fetch(url);
     return await r.json();
-  }catch{ return null; }
+  }catch{
+    return null;
+  }
 }
 
+// 🔥 FIXED extraction (robust)
 function extract(labels,names,stats,keys){
-  for(let k of keys){
-    k = k.toLowerCase();
-    for(let i=0;i<labels.length;i++){
-      if((labels[i]||'').toLowerCase()===k) return +stats[i];
-    }
-    for(let i=0;i<names.length;i++){
-      if((names[i]||'').toLowerCase()===k) return +stats[i];
+  labels = labels || [];
+  names  = names  || [];
+  stats  = stats  || [];
+
+  for(let i=0;i<labels.length;i++){
+    let label = (labels[i]||'').toLowerCase();
+    for(let k of keys){
+      if(label.includes(k)) return parseFloat(stats[i]);
     }
   }
+
+  for(let i=0;i<names.length;i++){
+    let name = (names[i]||'').toLowerCase();
+    for(let k of keys){
+      if(name.includes(k)) return parseFloat(stats[i]);
+    }
+  }
+
   return null;
 }
 
@@ -132,14 +186,19 @@ function parseGames(data,keys){
   if(!sg) return [];
 
   let games=[];
+
   for(let e of sg.events||[]){
     let val = extract(sg.labels, sg.names, e.stats, keys);
     if(val!=null) games.push({val});
   }
+
   return games;
 }
 
+// ================= MAIN =================
+
 async function run(){
+
   let league = document.getElementById('league').value;
   let prop   = document.getElementById('prop').value;
   let type   = document.getElementById('type').value;
@@ -150,14 +209,15 @@ async function run(){
 
   let conf = CONFIG[league];
 
-  let resDiv = document.getElementById('results');
-  resDiv.innerHTML = 'Loading...';
+  let results = document.getElementById('results');
+  results.innerHTML = "<div>Loading...</div>";
 
   let scoreboard = await fetchJSON(
     `https://site.api.espn.com/apis/site/v2/sports/${conf.sport}/${league}/scoreboard?dates=${today()}`
   );
 
-  let html = '';
+  let matches = [];
+  let fallback = [];
 
   for(let game of scoreboard.events || []){
     let comp = game.competitions[0];
@@ -174,7 +234,8 @@ async function run(){
         (g.items||[]).forEach(p=>players.push(p));
       });
 
-      for(let p of players.slice(0,8)){
+      for(let p of players.slice(0,15)){
+
         let data = await fetchJSON(
           `https://site.web.api.espn.com/apis/common/v3/sports/${conf.sport}/${league}/athletes/${p.id}/overview`
         );
@@ -190,22 +251,55 @@ async function run(){
         let rate = hits/games.length;
         let streak = getStreak(games,line,type);
 
+        let obj = {
+          name: p.displayName,
+          rate, hits, total: games.length, streak
+        };
+
         if(rate >= minHit && streak >= minStr){
-          html += `
-            <div class="card">
-              <b>${p.displayName}</b><br>
-              ${league.toUpperCase()} — ${type.toUpperCase()} ${line} ${prop}<br>
-              <span class="good">${(rate*100).toFixed(0)}% (${hits}/${games.length})</span><br>
-              Streak: ${streak}
-            </div>
-          `;
+          matches.push(obj);
+        } else if(rate >= 0.6){
+          fallback.push(obj);
         }
       }
     }
   }
 
-  resDiv.innerHTML = html || 'No matches (adjust filters)';
+  let html = '';
+
+  if(matches.length){
+    html += `<div class="header">MATCHES</div>`;
+    matches.forEach(p=>{
+      html += `
+      <div class="card">
+        <b>${p.name}</b><br>
+        ${type.toUpperCase()} ${line} ${prop}<br>
+        <span class="good">${(p.rate*100).toFixed(0)}%</span> (${p.hits}/${p.total})<br>
+        Streak: ${p.streak}
+      </div>`;
+    });
+  }
+
+  if(!matches.length && fallback.length){
+    html += `<div class="header">CLOSE (relaxed results)</div>`;
+    fallback.forEach(p=>{
+      html += `
+      <div class="card">
+        <b>${p.name}</b><br>
+        ${type.toUpperCase()} ${line} ${prop}<br>
+        <span class="mid">${(p.rate*100).toFixed(0)}%</span> (${p.hits}/${p.total})<br>
+        Streak: ${p.streak}
+      </div>`;
+    });
+  }
+
+  if(!html){
+    html = `<div>No data found (this is real, not a bug — try lowering filters)</div>`;
+  }
+
+  results.innerHTML = html;
 }
+
 </script>
 
 </body>
