@@ -6,7 +6,7 @@ import numpy as np
 from pathlib import Path
 from datetime import datetime, UTC
 
-INPUT_DIR = Path("docs/win/baseball/03_edges")
+INPUT_DIR = Path("docs/win/baseball/02_juice")   # 🔥 FIXED (was wrong)
 OUTPUT_DIR = Path("docs/win/baseball/03_edges/ev_kelly")
 ERROR_DIR = Path("docs/win/baseball/errors/03_edges")
 ERROR_LOG = ERROR_DIR / "compute_ev_kelly.txt"
@@ -32,7 +32,7 @@ def compute_kelly(p, dec):
 
 
 # =========================
-# MONEYLINE
+# MONEYLINE (unchanged)
 # =========================
 
 def ml(df):
@@ -46,22 +46,23 @@ def ml(df):
 
 
 # =========================
-# RUN LINE
+# RUN LINE (🔥 FIXED)
 # =========================
 
 def rl(df):
 
-    df["home_rl_ev"] = compute_ev(df["home_prob_run_line"], df["home_dk_run_line_decimal"])
-    df["away_rl_ev"] = compute_ev(df["away_prob_run_line"], df["away_dk_run_line_decimal"])
+    # 🔥 USE JUICED PROBABILITIES (NOT FAIR)
+    df["home_rl_ev"] = compute_ev(df["home_juiced_prob_run_line"], df["home_dk_run_line_decimal"])
+    df["away_rl_ev"] = compute_ev(df["away_juiced_prob_run_line"], df["away_dk_run_line_decimal"])
 
-    df["home_rl_kelly"] = compute_kelly(df["home_prob_run_line"], df["home_dk_run_line_decimal"])
-    df["away_rl_kelly"] = compute_kelly(df["away_prob_run_line"], df["away_dk_run_line_decimal"])
+    df["home_rl_kelly"] = compute_kelly(df["home_juiced_prob_run_line"], df["home_dk_run_line_decimal"])
+    df["away_rl_kelly"] = compute_kelly(df["away_juiced_prob_run_line"], df["away_dk_run_line_decimal"])
 
     return df
 
 
 # =========================
-# TOTAL
+# TOTAL (unchanged)
 # =========================
 
 def tot(df):
