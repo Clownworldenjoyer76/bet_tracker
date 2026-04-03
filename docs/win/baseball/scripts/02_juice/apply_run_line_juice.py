@@ -6,7 +6,7 @@ import pandas as pd
 
 INPUT_DIR = Path("docs/win/baseball/01_merge")
 OUTPUT_DIR = Path("docs/win/baseball/02_juice")
-JUICE_FILE = Path("docs/win/baseball/config/mlb_run_line_juice_scaled.csv")
+JUICE_FILE = Path("config/baseball/mlb/mlb_run_line_juice.csv")
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
