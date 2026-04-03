@@ -356,18 +356,15 @@ function renderColumn(result) {
   if (result.error) {
     hdr.textContent = result.league;
     col.appendChild(hdr);
-    col.innerHTML += `<div class="col-state error">⚠ ${result.error}</div>`;
+    col.innerHTML += `<div class="col-state empty">No Picks Today</div>`;
     return { col, count: 0 };
   }
 
-  const staleTag = result.stale
-    ? ` <span class="stale-tag" title="Showing ${result.fromDate} — no data for selected date">STALE</span>`
-    : "";
-  hdr.innerHTML = result.league + staleTag;
+  hdr.innerHTML = result.league;
   col.appendChild(hdr);
 
-  if (!result.keys || result.keys.length === 0) {
-    col.innerHTML += `<div class="col-state empty">No picks</div>`;
+  if (result.stale || !result.keys || result.keys.length === 0) {
+    col.innerHTML += `<div class="col-state empty">No Picks Today</div>`;
     return { col, count: 0 };
   }
 
@@ -444,8 +441,6 @@ async function loadPage() {
 
   const results = await Promise.all(leagues.map(l => loadLeague(l, dateFormatted)));
 
-  const allStaleOrMissing = results.every(r => r.stale || r.error || r.picks === 0);
-
   let totalPicks = 0;
   results.forEach(result => {
     const { col, count } = renderColumn(result);
@@ -453,8 +448,8 @@ async function loadPage() {
     totalPicks += count;
   });
 
-  if (totalPicks === 0 || allStaleOrMissing) {
-    gamesEl.innerHTML = '<div class="empty-state">NO PICKS TODAY</div>';
+  if (totalPicks === 0) {
+    gamesEl.innerHTML = '<div class="empty-state">NO PICKS FOR THIS DATE</div>';
   }
 
   statusEl.textContent = `${totalPicks} pick${totalPicks !== 1 ? "s" : ""} · ${dateStr}`;
