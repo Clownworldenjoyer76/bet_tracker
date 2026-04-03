@@ -100,6 +100,8 @@ def process_moneyline(row):
         results.append({
             "market_type": "moneyline",
             "bet_side": side,
+            "market": "moneyline",   # 🔥 FIX
+            "side": side,            # 🔥 FIX
             "line": "",
             "take_bet": f"{side}_moneyline",
             "dk_odds_american": odds,
@@ -130,7 +132,6 @@ def process_run_line(row):
         line = f(row.get(f"{side}_run_line"))
 
         raw_prob = f(row.get(f"{side}_prob_run_line"))
-        model_prob = raw_prob
 
         if not check_rules(ev, kelly, odds, line, rules):
             continue
@@ -138,11 +139,13 @@ def process_run_line(row):
         results.append({
             "market_type": "run_line",
             "bet_side": side,
+            "market": "run_line",   # 🔥 FIX
+            "side": side,           # 🔥 FIX
             "line": line,
             "take_bet": f"{side}_run_line",
             "dk_odds_american": odds,
             "dk_odds_decimal": dec,
-            "model_prob": model_prob,
+            "model_prob": raw_prob,
             "ev": ev,
             "kelly": kelly
         })
@@ -176,6 +179,8 @@ def process_total(row):
         results.append({
             "market_type": "total",
             "bet_side": side,
+            "market": "total",     # 🔥 FIX
+            "side": side,          # 🔥 FIX
             "line": line,
             "take_bet": f"{side}_total",
             "dk_odds_american": odds,
