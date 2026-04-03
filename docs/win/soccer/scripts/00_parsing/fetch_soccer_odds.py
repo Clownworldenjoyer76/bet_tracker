@@ -3,7 +3,7 @@ import os
 import csv
 from collections import defaultdict
 
-API_KEY = "YOUR_API_KEY_HERE"
+API_KEY = os.getenv("CLOUD_API")
 
 HEADERS = {
     "Authorization": f"Bearer {API_KEY}"
