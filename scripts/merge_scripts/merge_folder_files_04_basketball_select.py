@@ -1,85 +1,25 @@
-import os
 import pandas as pd
+from pathlib import Path
 
-# =========================================================
-# ==================== CONFIG SECTION =====================
-# =========================================================
+INPUT_DIR = Path("docs/win/basketball/04_select/daily_slate")
 
-INPUT_FOLDER = "docs/win/basketball/04_select"
-OUTPUT_FOLDER = "docs/win/basketball/04_select/merged"
+def load_selected_files():
+    dfs = []
 
-LEAGUES = ["NBA", "NCAAB"]
-MARKETS = ["moneyline", "spread", "total"]
+    for f in INPUT_DIR.glob("*.csv"):
+        fname = f.name.lower()
 
-FILE_EXTENSION = ".csv"
+        # ✅ ONLY filter by league now (removed market requirement)
+        if "nba" in fname or "ncssb" in fname:
+            df = pd.read_csv(f)
+            dfs.append(df)
 
-# =========================================================
+    if not dfs:
+        raise ValueError("No selected files found")
 
-
-os.makedirs(OUTPUT_FOLDER, exist_ok=True)
-
-
-def get_files():
-    files = []
-
-    for name in os.listdir(INPUT_FOLDER):
-
-        if not name.endswith(FILE_EXTENSION):
-            continue
-
-        files.append(name)
-
-    return files
-
-
-def main():
-
-    files = get_files()
-
-    if not files:
-        print("No files found.")
-        return
-
-    for league in LEAGUES:
-        for market in MARKETS:
-
-            matching_files = []
-
-            for f in files:
-
-                if league in f and market in f:
-                    matching_files.append(f)
-
-            if not matching_files:
-                continue
-
-            print(f"Merging {league} {market} ({len(matching_files)} files)")
-
-            dfs = []
-
-            for file in sorted(matching_files):
-
-                path = os.path.join(INPUT_FOLDER, file)
-
-                try:
-                    df = pd.read_csv(path)
-                    dfs.append(df)
-
-                except Exception as e:
-                    print(f"Skipping {file}: {e}")
-
-            if not dfs:
-                continue
-
-            merged = pd.concat(dfs, ignore_index=True)
-
-            output_file = f"select_{league}_{market}.csv"
-            output_path = os.path.join(OUTPUT_FOLDER, output_file)
-
-            merged.to_csv(output_path, index=False)
-
-            print(f"Created: {output_path}")
+    return pd.concat(dfs, ignore_index=True)
 
 
 if __name__ == "__main__":
-    main()
+    df = load_selected_files()
+    print(df.head())
