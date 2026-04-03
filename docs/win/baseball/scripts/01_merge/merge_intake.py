@@ -110,12 +110,18 @@ def process_date(date):
         ])
 
         # -------------------------
-        # RUN LINE (vig removed)
+        # RUN LINE (FIXED BASELINE)
         # -------------------------
-        home_raw = american_to_prob(b["home_dk_run_line_american"])
-        away_raw = american_to_prob(b["away_dk_run_line_american"])
+        try:
+            home_prob_ml = float(p["home_prob"])
+            away_prob_ml = float(p["away_prob"])
 
-        home_rl_prob, away_rl_prob = normalize_probs(home_raw, away_raw)
+            # 🔥 KEY FIX: ML → RL conversion
+            home_rl_prob = home_prob_ml * 0.75
+            away_rl_prob = away_prob_ml * 0.75
+
+        except:
+            home_rl_prob, away_rl_prob = "", ""
 
         rl_rows.append([
             b["game_id"], b["sport"], b["league"], b["game_date"], b["game_time"],
