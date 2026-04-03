@@ -319,7 +319,7 @@ async function loadLeague(league, dateFormatted) {
     fetchCSV(cfg.bookFile(dateFormatted)),
   ]);
 
-  if (!selectRes.ok) return { league, cfg, error: "File not found", picks: 0 };
+  if (!selectRes.ok) return { league, cfg, noData: true, picks: 0 };
 
   const { rows: selectRows, stale, fromDate } = filterRows(selectRes.rows, dateFormatted, league, cfg);
   if (selectRows.length === 0) return { league, cfg, picks: 0, stale, fromDate };
@@ -353,17 +353,11 @@ function renderColumn(result) {
   const hdr = document.createElement("div");
   hdr.className = "league-header";
 
-  if (result.error) {
-    hdr.textContent = result.league;
-    col.appendChild(hdr);
-    col.innerHTML += `<div class="col-state error">⚠ ${result.error}</div>`;
-    return { col, count: 0 };
+  if (result.noData || result.stale) {
+    return { col: null, count: 0 };
   }
 
-  const staleTag = result.stale
-    ? ` <span class="stale-tag" title="Showing ${result.fromDate} — no data for selected date">STALE</span>`
-    : "";
-  hdr.innerHTML = result.league + staleTag;
+  hdr.innerHTML = result.league;
   col.appendChild(hdr);
 
   if (!result.keys || result.keys.length === 0) {
@@ -447,12 +441,12 @@ async function loadPage() {
   let totalPicks = 0;
   results.forEach(result => {
     const { col, count } = renderColumn(result);
-    gamesEl.appendChild(col);
+    if (col) gamesEl.appendChild(col);
     totalPicks += count;
   });
 
   if (totalPicks === 0) {
-    gamesEl.innerHTML = '<div class="empty-state">NO PICKS FOR THIS DATE</div>';
+    gamesEl.innerHTML = '<div class="empty-state">NO PICKS TODAY</div>';
   }
 
   statusEl.textContent = `${totalPicks} pick${totalPicks !== 1 ? "s" : ""} · ${dateStr}`;
