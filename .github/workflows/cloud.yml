@@ -1,0 +1,38 @@
+name: Fetch Soccer Odds
+
+on:
+  workflow_dispatch:   # manual only
+
+jobs:
+  run-script:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write   # REQUIRED to push files
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run script
+        env:
+          CLOUD_API: ${{ secrets.CLOUD_API }}
+        run: python docs/win/soccer/scripts/00_parsing/fetch_soccer_odds.py
+
+      - name: Commit & push output
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+
+          git add docs/win/soccer/00_intake/sportsbook/*.csv || true
+
+          git diff --cached --quiet || git commit -m "Update soccer odds data"
+          git push
