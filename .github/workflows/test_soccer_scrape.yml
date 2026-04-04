@@ -1,0 +1,39 @@
+name: Test Soccer Dratings Scraper
+
+on:
+  workflow_dispatch:
+
+jobs:
+  run-scraper:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install pandas playwright
+          playwright install
+
+      - name: Run scraper
+        run: python docs/win/soccer/scripts/00_parsing/soccert_drat.py
+
+      - name: Commit & push outputs
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+
+          git add docs/win/soccer/00_intake/predictions/**/*.csv || true
+          git add docs/win/final_scores/results/soccer/final_scores/**/*.csv || true
+
+          git diff --cached --quiet || git commit -m "Test run: soccer dratings scraper output"
+          git push
