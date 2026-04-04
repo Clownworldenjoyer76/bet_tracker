@@ -2,9 +2,6 @@ markets:
 
 ###################################################################################################
 # NBA CONFIG ######################################################################################
-# Simulation vs original (276 picks, 46.7% WR, -29.2u):
-# Proposed: 140 picks, 57.1% WR, +10.6u
-# Every market retained. Filters applied via odds_bands, line_bands, and ev thresholds.
 ###################################################################################################
 
   nba:
@@ -16,7 +13,7 @@ markets:
       home:
         enabled: true
         odds_bands:
-          - [-500, -150]  
+          - [-500, -150]
         ev_min: 0.0
         ev_max: 0.20
         kelly_min: 0.0
@@ -27,7 +24,7 @@ markets:
         odds_bands:
           - [-500, -150]
         ev_min: 0.0
-        ev_max: 0.05      
+        ev_max: 0.05
         kelly_min: 0.0
         kelly_max: 0.25
 
@@ -41,14 +38,11 @@ markets:
 
       home:
         enabled: true
-
         line_bands:
           - [-20, -3.0]
           - [-0.5, 0]
-
         ev_min: 0.0
         ev_max: 0.10
-
         kelly_min: 0.0
         kelly_max: 0.25
 
@@ -61,10 +55,8 @@ markets:
         enabled: true
         line_bands:
           - [5, 8]
-
         ev_min: 0.0
         ev_max: 0.15
-
         kelly_min: 0.0
         kelly_max: 0.25
 
@@ -78,36 +70,38 @@ markets:
 
       over:
         enabled: true
-
         line_bands:
           - [200, 225]
           - [225, 230]
-
-        ev_min: 0.02
-        ev_max: 0.075      
-
+          - [230, 260]
+        ev_min: 0.0
+        ev_max: 0.075
         kelly_min: 0.0
         kelly_max: 0.25
 
-        high_total_rules:
-          min_total: 230
-          ev_min: 0.05
+        exclude_rules:
+          - line_min: 230
+            line_max: 260
+            ev_max: 0.02
 
       under:
         enabled: true
-
         line_bands:
-          - [215, 228]    
+          - [215, 228]
           - [233, 245]
-
+          - [200, 260]
         odds_bands:
-          - [-109, 100]   
-
-        ev_min: 0.01
-        ev_max: 0.05      
-
+          - [-109, 100]
+          - [-149, -110]
+        ev_min: 0.0
+        ev_max: 0.05
         kelly_min: 0.0
         kelly_max: 0.25
+
+        exclude_rules:
+          - line_min: 200
+            line_max: 215
+            ev_max: 0.02
 
 ###################################################################################################
 # NCAAB CONFIG ####################################################################################
@@ -126,10 +120,15 @@ markets:
           - [-199, -150]
           - [-149, -110]
           - [101, 150]
-        ev_min: 0.03
+        ev_min: 0.0
         ev_max: 0.15
         kelly_min: 0.0
         kelly_max: 0.25
+
+        exclude_rules:
+          - odds_min: -149
+            odds_max: -110
+            ev_max: 0.04
 
       away:
         enabled: true
@@ -138,10 +137,15 @@ markets:
           - [-199, -150]
           - [-149, -110]
           - [101, 150]
-        ev_min: 0.05
+        ev_min: 0.0
         ev_max: 0.15
         kelly_min: 0.0
         kelly_max: 0.25
+
+        exclude_rules:
+          - odds_min: -149
+            odds_max: -110
+            ev_max: 0.05
 
 #################################################################
 ## NCAAB SPREAD #################################################
@@ -157,7 +161,7 @@ markets:
           - [-25, -6.5]
           - [-6.0, -3.5]
           - [-3.0, -0.5]
-        ev_min: 0.06
+        ev_min: 0.0
         ev_max: 0.20
         kelly_min: 0.01
         kelly_max: 0.05
@@ -165,16 +169,17 @@ markets:
         exclude_rules:
           - line_min: -6.0
             line_max: -0.5
-            ev_max: 0.08
+            ev_max: 0.03
 
       away:
         enabled: true
         line_bands:
-          - [5.0, 8.5]
           - [0.5, 4.5]
+          - [5.0, 8.5]
+          - [9.0, 25]
         odds_bands:
           - [-109, 100]
-        ev_min: 0.02
+        ev_min: 0.0
         ev_max: 0.15
         kelly_min: 0.01
         kelly_max: 0.05
@@ -182,10 +187,10 @@ markets:
         exclude_rules:
           - line_min: 0.5
             line_max: 4.5
-            ev_max: 0.05
+            ev_max: 0.02
           - line_min: 9.0
             line_max: 25
-            ev_max: 0.15
+            ev_max: 0.01
 
 #################################################################
 ## NCAAB TOTAL ##################################################
