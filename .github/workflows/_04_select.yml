@@ -26,7 +26,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install pandas pyyaml
 
-      # FIX: clean stale hockey select files before re-run
       - name: Clean stale hockey select outputs
         run: |
           rm -f docs/win/hockey/04_select/*.csv || true
@@ -71,7 +70,7 @@ jobs:
 
           # Baseball outputs
           git add docs/win/baseball/04_select/*.csv || true
-          git add docs/win/baseball/errors/04_select/*.txt || true
+          git add docs/win/baseball/errors/04_select/select_bets.txt || true
 
           if git diff --cached --quiet; then
             echo "No changes to commit"
