@@ -14,12 +14,12 @@ BASE_PATH = "docs/win/soccer/00_intake/sportsbook"
 os.makedirs(BASE_PATH, exist_ok=True)
 
 LEAGUES = {
-    "soccer-england-premier-league": "EPL",
-    "soccer-spain-laliga": "La Liga",
-    "soccer-france-ligue-1": "Ligue 1",
-    "soccer-germany-bundesliga": "Bundesliga",
-    "soccer-italy-serie-a": "Serie A",
-    "soccer-usa-major-league-soccer": "MLS",
+    "soccer-england-premier-league": "epl",
+    "soccer-spain-laliga": "laliga",
+    "soccer-france-ligue-1": "ligue1",
+    "soccer-germany-bundesliga": "bundesliga",
+    "soccer-italy-serie-a": "seriea",
+    "soccer-usa-major-league-soccer": "mls",
 }
 
 FIELDNAMES = [
@@ -41,25 +41,25 @@ FIELDNAMES = [
     "btts_no",
 ]
 
+def get_json(url):
+    r = requests.get(url, headers=HEADERS, timeout=30)
+    r.raise_for_status()
+    return r.json()
 
-def get_json(url: str) -> dict:
-    response = requests.get(url, headers=HEADERS, timeout=30)
-    response.raise_for_status()
-    return response.json()
-
-
-def parse_start_time(game: dict) -> tuple[str, str] | tuple[None, None]:
+def parse_time(game):
     raw = game.get("startTime") or game.get("cutoffTime")
     if not raw:
-        return None, None
+        return None, None, None
 
     dt = datetime.fromisoformat(raw.replace("Z", "+00:00")).astimezone(timezone.utc)
-    match_date = dt.strftime("%Y-%m-%d")
+
+    match_date = dt.strftime("%Y_%d_%m")   # ✅ FIXED
+    file_date  = dt.strftime("%Y_%m_%d")   # ✅ FIXED
     match_time = dt.strftime("%I:%M %p")
-    return match_date, match_time
 
+    return match_date, file_date, match_time
 
-def interpolate(lines: dict[float, float], target: float) -> float | None:
+def interpolate(lines, target):
     if target in lines:
         return lines[target]
 
@@ -71,156 +71,109 @@ def interpolate(lines: dict[float, float], target: float) -> float | None:
 
     return None
 
+output_by_file = defaultdict(list)
 
-def extract_match_odds(markets: dict) -> tuple[float | None, float | None, float | None]:
-    home = draw = away = None
-    market = markets.get("soccer.match_odds")
-    if not market:
-        return home, draw, away
+for league_key, league_name in LEAGUES.items():
 
-    for sub in market.get("submarkets", {}).values():
-        for sel in sub.get("selections", []):
-            outcome = sel.get("outcome")
-            price = sel.get("price")
-            if outcome == "home":
-                home = price
-            elif outcome == "draw":
-                draw = price
-            elif outcome == "away":
-                away = price
+    comp = get_json(f"https://sports-api.cloudbet.com/pub/v2/odds/competitions/{league_key}")
 
-    return home, draw, away
+    for event in comp.get("events", []):
 
+        if not event.get("home") or not event.get("away"):
+            continue
 
-def extract_btts(markets: dict) -> tuple[float | None, float | None]:
-    yes = no = None
-    market = markets.get("soccer.both_teams_to_score")
-    if not market:
-        return yes, no
+        event_id = event["id"]
+        game = get_json(f"https://sports-api.cloudbet.com/pub/v2/odds/events/{event_id}")
 
-    for sub in market.get("submarkets", {}).values():
-        for sel in sub.get("selections", []):
-            outcome = sel.get("outcome")
-            price = sel.get("price")
-            if outcome == "yes":
-                yes = price
-            elif outcome == "no":
-                no = price
+        markets = game.get("markets") or {}
 
-    return yes, no
+        match_date, file_date, match_time = parse_time(game)
+        if not match_date:
+            continue
 
+        row = {
+            "sport": "soccer",
+            "league": league_name,
+            "game_id": game.get("id"),
+            "match_date": match_date,
+            "match_time": match_time,
+            "home_team": game["home"]["name"],
+            "away_team": game["away"]["name"],
 
-def extract_totals(markets: dict) -> tuple[float | None, float | None, float | None, float | None]:
-    over_lines: dict[float, float] = {}
-    under_lines: dict[float, float] = {}
+            "dk_home_decimal": None,
+            "dk_draw_decimal": None,
+            "dk_away_decimal": None,
 
-    market = markets.get("soccer.total_goals")
-    if not market:
-        return None, None, None, None
+            "dk_over25_decimal": None,
+            "dk_under25_decimal": None,
+            "dk_over35_decimal": None,
+            "dk_under35_decimal": None,
 
-    for sub in market.get("submarkets", {}).values():
-        for sel in sub.get("selections", []):
-            params = str(sel.get("params", ""))
-            price = sel.get("price")
-            outcome = sel.get("outcome")
+            "btts_yes": None,
+            "btts_no": None,
+        }
 
-            if "total=" not in params or price is None:
-                continue
+        # MATCH ODDS
+        mo = markets.get("soccer.match_odds")
+        if mo:
+            for sub in mo["submarkets"].values():
+                for s in sub["selections"]:
+                    if s["outcome"] == "home":
+                        row["dk_home_decimal"] = s["price"]
+                    elif s["outcome"] == "draw":
+                        row["dk_draw_decimal"] = s["price"]
+                    elif s["outcome"] == "away":
+                        row["dk_away_decimal"] = s["price"]
 
-            try:
-                line = float(params.split("total=")[1].split("&")[0])
-            except ValueError:
-                continue
+        # TOTALS (INTERPOLATED)
+        over_lines = {}
+        under_lines = {}
 
-            if outcome == "over":
-                over_lines[line] = price
-            elif outcome == "under":
-                under_lines[line] = price
+        tg = markets.get("soccer.total_goals")
+        if tg:
+            for sub in tg["submarkets"].values():
+                for s in sub["selections"]:
+                    params = s.get("params", "")
+                    if "total=" in params:
+                        try:
+                            line = float(params.split("=")[1])
+                        except:
+                            continue
 
-    over25 = interpolate(over_lines, 2.5)
-    under25 = interpolate(under_lines, 2.5)
-    over35 = interpolate(over_lines, 3.5)
-    under35 = interpolate(under_lines, 3.5)
+                        if s["outcome"] == "over":
+                            over_lines[line] = s["price"]
+                        elif s["outcome"] == "under":
+                            under_lines[line] = s["price"]
 
-    return over25, under25, over35, under35
+        row["dk_over25_decimal"] = interpolate(over_lines, 2.5)
+        row["dk_under25_decimal"] = interpolate(under_lines, 2.5)
+        row["dk_over35_decimal"] = interpolate(over_lines, 3.5)
+        row["dk_under35_decimal"] = interpolate(under_lines, 3.5)
 
+        # BTTS
+        btts = markets.get("soccer.both_teams_to_score")
+        if btts:
+            for sub in btts["submarkets"].values():
+                for s in sub["selections"]:
+                    if s["outcome"] == "yes":
+                        row["btts_yes"] = s["price"]
+                    elif s["outcome"] == "no":
+                        row["btts_no"] = s["price"]
 
-def main() -> None:
-    rows_by_date: dict[str, list[dict]] = defaultdict(list)
+        if any([
+            row["dk_home_decimal"],
+            row["dk_over25_decimal"],
+            row["btts_yes"]
+        ]):
+            output_by_file[file_date].append(row)
 
-    for league_key, league_name in LEAGUES.items():
-        competition_url = f"https://sports-api.cloudbet.com/pub/v2/odds/competitions/{league_key}"
-        competition = get_json(competition_url)
+# WRITE FILES
+for file_date, rows in output_by_file.items():
+    path = os.path.join(BASE_PATH, f"{file_date}_soccer.csv")  # ✅ FIXED
 
-        for event in competition.get("events", []):
-            home = event.get("home") or {}
-            away = event.get("away") or {}
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
+        writer.writeheader()
+        writer.writerows(rows)
 
-            if not home.get("name") or not away.get("name"):
-                continue
-
-            event_id = event.get("id")
-            if not event_id:
-                continue
-
-            event_url = f"https://sports-api.cloudbet.com/pub/v2/odds/events/{event_id}"
-            game = get_json(event_url)
-            markets = game.get("markets") or {}
-
-            match_date, match_time = parse_start_time(game)
-            if not match_date or not match_time:
-                continue
-
-            dk_home_decimal, dk_draw_decimal, dk_away_decimal = extract_match_odds(markets)
-            dk_over25_decimal, dk_under25_decimal, dk_over35_decimal, dk_under35_decimal = extract_totals(markets)
-            btts_yes, btts_no = extract_btts(markets)
-
-            row = {
-                "sport": "soccer",
-                "league": league_name,
-                "game_id": game.get("id"),
-                "match_date": match_date,
-                "match_time": match_time,
-                "home_team": (game.get("home") or {}).get("name"),
-                "away_team": (game.get("away") or {}).get("name"),
-                "dk_home_decimal": dk_home_decimal,
-                "dk_draw_decimal": dk_draw_decimal,
-                "dk_away_decimal": dk_away_decimal,
-                "dk_over25_decimal": dk_over25_decimal,
-                "dk_under25_decimal": dk_under25_decimal,
-                "dk_over35_decimal": dk_over35_decimal,
-                "dk_under35_decimal": dk_under35_decimal,
-                "btts_yes": btts_yes,
-                "btts_no": btts_no,
-            }
-
-            if any(
-                row[k] is not None
-                for k in (
-                    "dk_home_decimal",
-                    "dk_draw_decimal",
-                    "dk_away_decimal",
-                    "dk_over25_decimal",
-                    "dk_under25_decimal",
-                    "dk_over35_decimal",
-                    "dk_under35_decimal",
-                    "btts_yes",
-                    "btts_no",
-                )
-            ):
-                rows_by_date[match_date].append(row)
-
-    for match_date, rows in rows_by_date.items():
-        rows.sort(key=lambda r: (r["match_time"], r["league"], r["home_team"], r["away_team"]))
-        out_path = os.path.join(BASE_PATH, f"{match_date}_soccer.csv")
-        with open(out_path, "w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
-            writer.writeheader()
-            writer.writerows(rows)
-
-    total_rows = sum(len(v) for v in rows_by_date.values())
-    print(f"Wrote {total_rows} rows across {len(rows_by_date)} files.")
-
-
-if __name__ == "__main__":
-    main()
+print("Done")
