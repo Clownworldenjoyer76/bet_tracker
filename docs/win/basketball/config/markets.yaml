@@ -16,7 +16,7 @@ markets:
       home:
         enabled: true
         odds_bands:
-          - [-500, 150]   # Cut +150+: 7 picks @ 0.0% WR, -7.0u. Kept [-500,150]: 28 picks @ 64.3% WR, +3.4u
+          - [-500, -150]  
         ev_min: 0.0
         ev_max: 0.20
         kelly_min: 0.0
@@ -25,7 +25,7 @@ markets:
       away:
         enabled: true
         odds_bands:
-          - [-500, 300]
+          - [-500, -150]
         ev_min: 0.0
         ev_max: 0.05      
         kelly_min: 0.0
@@ -54,7 +54,7 @@ markets:
           - [5, 8]        # KEY FILTER: line 5-8 = 11 picks @ 72.7% WR, +4.6u.
                           # line 0.5-5: breakeven. line 8-12: 27.8% WR, -8.3u. line 12+: 25.9% WR, -13.7u.
         ev_min: 0.0
-        ev_max: 0.20
+        ev_max: 0.15
         kelly_min: 0.0
         kelly_max: 0.25
 
@@ -71,20 +71,20 @@ markets:
         line_bands:
           - [200, 260]
         ev_min: 0.0
-        ev_max: 0.15      # 58 picks @ 53.4% WR, +1.0u. Above 0.15: insufficient sample.
+        ev_max: 0.075      
         kelly_min: 0.0
         kelly_max: 0.25
 
       under:
         enabled: true
         line_bands:
-          - [215, 228]    # Exclude 228-233: 16 picks @ 37.5% WR, -4.4u within -109 to +100 odds
+          - [215, 228]    
           - [233, 245]
         odds_bands:
-          - [-109, 100]   # -149 to -110 odds: 42 picks @ 40.5% WR, -9.9u — primary losing driver
-                          # -109 to +100 odds filtered: 18 picks @ 55.6% WR, +1.3u
+          - [-109, 100]   
+                          
         ev_min: 0.0
-        ev_max: 0.05      # Only 0.00-0.05 edge bucket showed positive units in this odds band
+        ev_max: 0.05      
         kelly_min: 0.0
         kelly_max: 0.25
 
@@ -108,7 +108,7 @@ markets:
           - [101, 150]    # +101 to +150 dogs: 70.0% WR, +5.3u
                           # Cut: +150+: 25.0% WR, -2.4u | -109 to +100: 0.0% WR, -4.0u (4 picks)
         ev_min: 0.0
-        ev_max: 0.20
+        ev_max: 0.15
         kelly_min: 0.0
         kelly_max: 0.25
 
@@ -119,7 +119,7 @@ markets:
           - [101, 150]    # +101 to +150: 46.9% WR, +1.8u — acceptable
                           # Cut: +150+: 30.2% WR, -2.1u | -109 to +100: 22.2% WR, -5.0u
         ev_min: 0.0
-        ev_max: 0.20
+        ev_max: 0.15
         kelly_min: 0.0
         kelly_max: 0.25
 
@@ -137,8 +137,8 @@ markets:
           - [-25, -0.5]
         ev_min: 0.05      # Below 0.05: 27 picks @ 33.3% WR, -9.9u. Above 0.05: 57.1% WR, +2.2u
         ev_max: 0.20
-        kelly_min: 0.0
-        kelly_max: 0.30
+        kelly_min: 0.01
+        kelly_max: 0.05
 
       away:
         enabled: true
@@ -149,8 +149,8 @@ markets:
                           # -149 to -110: 115 picks @ 50.4% WR, -5.6u — cut
         ev_min: 0.0
         ev_max: 0.15
-        kelly_min: 0.0
-        kelly_max: 0.30
+        kelly_min: 0.01
+        kelly_max: 0.05
 
 #################################################################
 ## NCAAB TOTAL ##################################################
