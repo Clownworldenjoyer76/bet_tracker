@@ -1,4 +1,4 @@
-name: Fetch Soccer Odds
+name: Fetch Soccer Data
 
 on:
   workflow_dispatch:   # manual only
@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      contents: write   # REQUIRED to push files
+      contents: write
 
     steps:
       - name: Checkout repo
@@ -20,12 +20,17 @@ jobs:
           python-version: "3.11"
 
       - name: Install dependencies
-        run: pip install requests
+        run: |
+          pip install requests pandas playwright
+          playwright install
 
-      - name: Run script
+      - name: Run odds script
         env:
           CLOUD_API: ${{ secrets.CLOUD_API }}
         run: python docs/win/soccer/scripts/00_parsing/fetch_soccer_odds.py
+
+      - name: Run dratings scraper
+        run: python docs/win/soccer/scripts/00_parsing/soccert_drat.py
 
       - name: Commit & push output
         run: |
@@ -33,6 +38,8 @@ jobs:
           git config user.email "actions@github.com"
 
           git add docs/win/soccer/00_intake/sportsbook/*.csv || true
+          git add docs/win/soccer/00_intake/predictions/**/*.csv || true
+          git add docs/win/final_scores/results/soccer/final_scores/**/*.csv || true
 
-          git diff --cached --quiet || git commit -m "Update soccer odds data"
+          git diff --cached --quiet || git commit -m "Update soccer data (odds + dratings)"
           git push
