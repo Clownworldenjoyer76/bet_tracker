@@ -72,9 +72,5 @@ jobs:
           git add docs/win/baseball/04_select/*.csv || true
           git add docs/win/baseball/errors/04_select/select_bets.txt || true
 
-          if git diff --cached --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "04 Select Bets - automated run"
-            git push
-          fi
+          git commit -m "04 Select Bets - automated run" || echo "No changes"
+          git push
