@@ -41,20 +41,30 @@ markets:
 
       home:
         enabled: true
+
         line_bands:
-          - [-20, -0.5]
+          - [-20, -3.0]
+          - [-0.5, 0]
+
         ev_min: 0.0
-        ev_max: 0.10      # Only low-edge home spread picks showed any profitability
+        ev_max: 0.10
+
         kelly_min: 0.0
         kelly_max: 0.25
+
+        exclude_rules:
+          - line_min: -3.0
+            line_max: 0
+            ev_max: 0.0
 
       away:
         enabled: true
         line_bands:
-          - [5, 8]        # KEY FILTER: line 5-8 = 11 picks @ 72.7% WR, +4.6u.
-                          # line 0.5-5: breakeven. line 8-12: 27.8% WR, -8.3u. line 12+: 25.9% WR, -13.7u.
+          - [5, 8]
+
         ev_min: 0.0
         ev_max: 0.15
+
         kelly_min: 0.0
         kelly_max: 0.25
 
@@ -68,31 +78,39 @@ markets:
 
       over:
         enabled: true
+
         line_bands:
-          - [200, 260]
-        ev_min: 0.0
+          - [200, 225]
+          - [225, 230]
+
+        ev_min: 0.02
         ev_max: 0.075      
+
         kelly_min: 0.0
         kelly_max: 0.25
 
+        high_total_rules:
+          min_total: 230
+          ev_min: 0.05
+
       under:
         enabled: true
+
         line_bands:
           - [215, 228]    
           - [233, 245]
+
         odds_bands:
           - [-109, 100]   
-                          
-        ev_min: 0.0
+
+        ev_min: 0.01
         ev_max: 0.05      
+
         kelly_min: 0.0
         kelly_max: 0.25
 
 ###################################################################################################
 # NCAAB CONFIG ####################################################################################
-# Simulation vs original (833 picks, 52.6% WR, +1.6u):
-# Proposed: 366 picks, 61.2% WR, +36.0u
-# Every market retained. Primary filters: odds_bands cut losing price ranges, ev bands cut tails.
 ###################################################################################################
 
   ncaab:
@@ -104,10 +122,11 @@ markets:
       home:
         enabled: true
         odds_bands:
-          - [-500, -110]  # Favorites: ≤-200: 78.0% WR, +2.9u | -199 to -150: 60.7% WR | -149 to -110: 57.1% WR
-          - [101, 150]    # +101 to +150 dogs: 70.0% WR, +5.3u
-                          # Cut: +150+: 25.0% WR, -2.4u | -109 to +100: 0.0% WR, -4.0u (4 picks)
-        ev_min: 0.0
+          - [-500, -200]
+          - [-199, -150]
+          - [-149, -110]
+          - [101, 150]
+        ev_min: 0.03
         ev_max: 0.15
         kelly_min: 0.0
         kelly_max: 0.25
@@ -115,10 +134,11 @@ markets:
       away:
         enabled: true
         odds_bands:
-          - [-500, -110]  # Away favorites rare but profitable: ≤-200: 76.9% WR | -149 to -110: 60.0% WR
-          - [101, 150]    # +101 to +150: 46.9% WR, +1.8u — acceptable
-                          # Cut: +150+: 30.2% WR, -2.1u | -109 to +100: 22.2% WR, -5.0u
-        ev_min: 0.0
+          - [-500, -200]
+          - [-199, -150]
+          - [-149, -110]
+          - [101, 150]
+        ev_min: 0.05
         ev_max: 0.15
         kelly_min: 0.0
         kelly_max: 0.25
@@ -134,23 +154,38 @@ markets:
       home:
         enabled: true
         line_bands:
-          - [-25, -0.5]
-        ev_min: 0.05      # Below 0.05: 27 picks @ 33.3% WR, -9.9u. Above 0.05: 57.1% WR, +2.2u
+          - [-25, -6.5]
+          - [-6.0, -3.5]
+          - [-3.0, -0.5]
+        ev_min: 0.06
         ev_max: 0.20
         kelly_min: 0.01
         kelly_max: 0.05
 
+        exclude_rules:
+          - line_min: -6.0
+            line_max: -0.5
+            ev_max: 0.08
+
       away:
         enabled: true
         line_bands:
-          - [0.5, 25]
+          - [5.0, 8.5]
+          - [0.5, 4.5]
         odds_bands:
-          - [-109, 100]   # -109 to +100: 57 picks @ 56.1% WR, +5.2u
-                          # -149 to -110: 115 picks @ 50.4% WR, -5.6u — cut
-        ev_min: 0.0
+          - [-109, 100]
+        ev_min: 0.02
         ev_max: 0.15
         kelly_min: 0.01
         kelly_max: 0.05
+
+        exclude_rules:
+          - line_min: 0.5
+            line_max: 4.5
+            ev_max: 0.05
+          - line_min: 9.0
+            line_max: 25
+            ev_max: 0.15
 
 #################################################################
 ## NCAAB TOTAL ##################################################
@@ -163,20 +198,37 @@ markets:
       over:
         enabled: true
         line_bands:
-          - [120, 180]
-        ev_min: 0.05      # 0.00-0.05: 69 picks @ 50.7% WR, -2.2u. 0.05-0.15 sweet spot: 62.3% WR, +19.0u
-        ev_max: 0.15      # 0.15-0.20: 41 picks @ 43.9% WR, -6.8u — cut
+          - [120, 134.5]
+          - [135, 154.5]
+          - [155, 180]
+        ev_min: 0.05
+        ev_max: 0.15
         kelly_min: 0.0
         kelly_max: 0.25
+
+        exclude_rules:
+          - line_min: 155
+            line_max: 180
+            ev_max: 0.09
 
       under:
         enabled: true
         line_bands:
-          - [120, 180]
+          - [120, 134.5]
+          - [135, 144.5]
+          - [145, 155]
+          - [155.5, 180]
         odds_bands:
-          - [-149, -110]  # -149 to -110: profitable at 0.05-0.10 ev (70.0% WR, +3.1u and 46.7% WR are mixed — net positive)
-                          # -109 to +100: 14 picks @ 35.7% WR, -4.3u — cut
-        ev_min: 0.05      # Below 0.05: marginal. 0.05-0.10 range is the profitable band.
-        ev_max: 0.10      # Above 0.10: net negative across all under segments
+          - [-149, -110]
+        ev_min: 0.05
+        ev_max: 0.10
         kelly_min: 0.0
         kelly_max: 0.25
+
+        exclude_rules:
+          - line_min: 120
+            line_max: 134.5
+            ev_max: 0.08
+          - line_min: 145
+            line_max: 155
+            ev_max: 0.07
