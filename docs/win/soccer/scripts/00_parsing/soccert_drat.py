@@ -68,7 +68,8 @@ def parse_prediction(row, league):
             "away_xg": away_xg,
             "expected_total_goals": total,
         }
-    except:
+    except Exception as e:
+        print(f"[DEBUG][PREDICTION PARSE ERROR] {league} | row={row} | error={e}")
         return None
 
 def parse_final(row, league):
@@ -93,7 +94,8 @@ def parse_final(row, league):
             "away_score": away_score,
             "home_score": home_score,
         }
-    except:
+    except Exception as e:
+        print(f"[DEBUG][FINAL PARSE ERROR] {league} | row={row} | error={e}")
         return None
 
 def main():
@@ -103,45 +105,58 @@ def main():
 
         for key, url in URLS.items():
             league = LEAGUE_MAP[key]
-            print(f"Scraping {league}")
+            print(f"\n--- Scraping {league} ---")
 
             raw = scrape_page(page, url)
+            print(f"[DEBUG] Total rows scraped: {len(raw)}")
 
             predictions = []
             finals = []
 
-            for r in raw:
+            for i, r in enumerate(raw):
+                print(f"\n[DEBUG] Row {i}: {r}")
+
                 # skip junk rows
                 if not r or "Sportsbooks" in r[0] or "DRatings" in r[0]:
+                    print(f"[DEBUG] Skipped junk row {i}")
                     continue
 
-                # prediction row (no odds)
-                if r[4] == "":
+                # classification debug
+                col4 = r[4] if len(r) > 4 else None
+                print(f"[DEBUG] Row {i} col4 value: '{col4}'")
+
+                if col4 == "":
+                    print(f"[DEBUG] Row {i} classified as PREDICTION")
                     parsed = parse_prediction(r, league)
                     if parsed:
                         predictions.append(parsed)
                 else:
+                    print(f"[DEBUG] Row {i} classified as FINAL")
                     parsed = parse_final(r, league)
                     if parsed:
                         finals.append(parsed)
 
+            print(f"\n[DEBUG] {league} → predictions: {len(predictions)}, finals: {len(finals)}")
+
             today = datetime.utcnow().strftime("%Y_%m_%d")
 
-            # predictions path
             pred_path = Path(f"docs/win/soccer/00_intake/predictions/{league}/{today}_{league}.csv")
             pred_path.parent.mkdir(parents=True, exist_ok=True)
 
-            # final scores path
             final_path = Path(f"docs/win/final_scores/results/soccer/final_scores/{league}/{today}_{league}.csv")
             final_path.parent.mkdir(parents=True, exist_ok=True)
 
             if predictions:
                 pd.DataFrame(predictions).to_csv(pred_path, index=False)
-                print(f"Saved predictions → {pred_path}")
+                print(f"[DEBUG] Saved predictions → {pred_path}")
+            else:
+                print(f"[DEBUG] No predictions saved for {league}")
 
             if finals:
                 pd.DataFrame(finals).to_csv(final_path, index=False)
-                print(f"Saved finals → {final_path}")
+                print(f"[DEBUG] Saved finals → {final_path}")
+            else:
+                print(f"[DEBUG] No finals saved for {league}")
 
             time.sleep(random.uniform(2, 4))
 
