@@ -16,6 +16,17 @@ markets:
         kelly_min: 0.00
         kelly_max: 0.99
 
+        exclude_rules:
+          - odds_min: -200
+            odds_max: -110
+            ev_max: 0.02
+          - odds_min: 100
+            odds_max: 140
+            ev_max: 0.05
+          - odds_min: -300
+            odds_max: -200
+            ev_max: 0.03
+
       away:
         enabled: true
         odds_bands:
@@ -25,6 +36,17 @@ markets:
         ev_max: 0.99
         kelly_min: 0.00
         kelly_max: 0.99
+
+        exclude_rules:
+          - odds_min: -180
+            odds_max: -110
+            ev_max: 0.03
+          - odds_min: 100
+            odds_max: 160
+            ev_max: 0.06
+          - odds_min: 180
+            odds_max: 300
+            ev_max: 0.10
 
     run_line:
       enabled: true
@@ -41,6 +63,14 @@ markets:
         kelly_min: 0.00
         kelly_max: 0.99
 
+        exclude_rules:
+          - ev_max: 0.03
+          - odds_min: -110
+            odds_max: 110
+            ev_max: 0.08
+          - ev_min: 0.15
+            ev_max: 0.99
+
       away:
         enabled: true
         line_bands:
@@ -51,6 +81,14 @@ markets:
         ev_max: 0.99
         kelly_min: 0.00
         kelly_max: 0.99
+
+        exclude_rules:
+          - ev_max: 0.02
+          - odds_min: -110
+            odds_max: 110
+            ev_max: 0.08
+          - ev_min: 0.15
+            ev_max: 0.99
 
     total:
       enabled: true
@@ -67,6 +105,11 @@ markets:
         kelly_min: 0.00
         kelly_max: 0.99
 
+        exclude_rules:
+          - ev_max: 0.03
+          - ev_min: 0.20
+            ev_max: 0.99
+
       under:
         enabled: true
         line_bands:
@@ -77,3 +120,8 @@ markets:
         ev_max: 0.99
         kelly_min: 0.00
         kelly_max: 0.99
+
+        exclude_rules:
+          - ev_max: 0.05
+          - ev_min: 0.15
+            ev_max: 0.99
