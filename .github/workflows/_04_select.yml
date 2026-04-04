@@ -27,8 +27,6 @@ jobs:
           pip install pandas pyyaml
 
       # FIX: clean stale hockey select files before re-run
-      # without this, old CSVs from prior slates accumulate and get
-      # re-graded in 05_results, inflating historical results
       - name: Clean stale hockey select outputs
         run: |
           rm -f docs/win/hockey/04_select/*.csv || true
@@ -45,13 +43,16 @@ jobs:
         run: |
           python docs/win/basketball/scripts/04_select/select_bets.py
 
+      - name: Run Baseball 04 Select Script
+        run: |
+          python docs/win/baseball/scripts/04_select/select_bets.py
+
       - name: Commit and push results
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-          # FIX: explicitly set remote URL with token for consistent auth
           git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git
 
           # Soccer outputs
@@ -67,6 +68,10 @@ jobs:
           git add docs/win/basketball/errors/04_select/select_report.txt || true
           git add docs/win/basketball/04_select/daily_slate/*.csv || true
           git add docs/win/basketball/04_select/daily_slate/totals/*.csv || true
+
+          # Baseball outputs
+          git add docs/win/baseball/04_select/*.csv || true
+          git add docs/win/baseball/errors/04_select/*.txt || true
 
           if git diff --cached --quiet; then
             echo "No changes to commit"
