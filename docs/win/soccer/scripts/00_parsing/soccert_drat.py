@@ -30,25 +30,33 @@ def scrape_page(page, url):
     return [[c.inner_text().strip() for c in r.query_selector_all("td")] for r in rows]
 
 def split_date_time(dt):
-    date, time_ = dt.split("|")
-    date = datetime.strptime(date.strip(), "%m/%d/%Y").strftime("%Y_%m_%d")
-    return date, time_.strip()
+    parts = dt.replace("\n", " ").split()
+    date = datetime.strptime(parts[0], "%m/%d/%Y").strftime("%Y_%m_%d")
+    time_ = " ".join(parts[1:])
+    return date, time_
+
+def safe_split(val):
+    return val.split("\n") if "\n" in val else val.split()
+
+def is_score_cell(val):
+    parts = safe_split(val)
+    return len(parts) == 2 and all(p.isdigit() for p in parts)
 
 def parse_prediction(row, league):
     try:
         date, time_ = split_date_time(row[0])
 
-        teams = row[1].split("\n")
-        home, away = teams[0].strip(), teams[1].strip()
+        teams = safe_split(row[1])
+        home, away = teams[0], teams[1]
 
-        probs = row[2].split("\n")
-        home_prob = probs[0].strip()
-        away_prob = probs[1].strip()
+        probs = safe_split(row[2])
+        home_prob = probs[0]
+        away_prob = probs[1]
 
-        draw_prob = row[3].strip()
+        draw_prob = row[3]
 
-        xg = row[5].split("\n") if len(row) > 5 and row[5] else ["", ""]
-        home_xg = xg[0]
+        xg = safe_split(row[5]) if len(row) > 5 else ["", ""]
+        home_xg = xg[0] if len(xg) > 0 else ""
         away_xg = xg[1] if len(xg) > 1 else ""
 
         total = row[6] if len(row) > 6 else ""
@@ -69,17 +77,27 @@ def parse_prediction(row, league):
             "expected_total_goals": total,
         }
     except Exception as e:
-        print(f"[DEBUG][PREDICTION PARSE ERROR] {league} | row={row} | error={e}")
+        print(f"[DEBUG][PREDICTION ERROR] {league} | {row} | {e}")
         return None
 
 def parse_final(row, league):
     try:
         date, time_ = split_date_time(row[0])
 
-        teams = row[1].split("\n")
-        home, away = teams[0].strip(), teams[1].strip()
+        teams = safe_split(row[1])
+        home, away = teams[0], teams[1]
 
-        score = row[5].split("\n")
+        score_idx = None
+        for i, cell in enumerate(row):
+            if is_score_cell(cell):
+                score_idx = i
+                break
+
+        if score_idx is None:
+            print(f"[DEBUG] No score found: {row}")
+            return None
+
+        score = safe_split(row[score_idx])
         home_score = score[0]
         away_score = score[1]
 
@@ -95,7 +113,7 @@ def parse_final(row, league):
             "home_score": home_score,
         }
     except Exception as e:
-        print(f"[DEBUG][FINAL PARSE ERROR] {league} | row={row} | error={e}")
+        print(f"[DEBUG][FINAL ERROR] {league} | {row} | {e}")
         return None
 
 def main():
@@ -108,35 +126,26 @@ def main():
             print(f"\n--- Scraping {league} ---")
 
             raw = scrape_page(page, url)
-            print(f"[DEBUG] Total rows scraped: {len(raw)}")
 
             predictions = []
             finals = []
 
             for i, r in enumerate(raw):
-                print(f"\n[DEBUG] Row {i}: {r}")
-
-                # skip junk rows
                 if not r or "Sportsbooks" in r[0] or "DRatings" in r[0]:
-                    print(f"[DEBUG] Skipped junk row {i}")
                     continue
 
-                # classification debug
-                col4 = r[4] if len(r) > 4 else None
-                print(f"[DEBUG] Row {i} col4 value: '{col4}'")
+                has_score = any(is_score_cell(c) for c in r)
 
-                if col4 == "":
-                    print(f"[DEBUG] Row {i} classified as PREDICTION")
-                    parsed = parse_prediction(r, league)
-                    if parsed:
-                        predictions.append(parsed)
-                else:
-                    print(f"[DEBUG] Row {i} classified as FINAL")
+                if has_score:
                     parsed = parse_final(r, league)
                     if parsed:
                         finals.append(parsed)
+                else:
+                    parsed = parse_prediction(r, league)
+                    if parsed:
+                        predictions.append(parsed)
 
-            print(f"\n[DEBUG] {league} → predictions: {len(predictions)}, finals: {len(finals)}")
+            print(f"[DEBUG] {league} → predictions: {len(predictions)}, finals: {len(finals)}")
 
             today = datetime.utcnow().strftime("%Y_%m_%d")
 
@@ -148,15 +157,11 @@ def main():
 
             if predictions:
                 pd.DataFrame(predictions).to_csv(pred_path, index=False)
-                print(f"[DEBUG] Saved predictions → {pred_path}")
-            else:
-                print(f"[DEBUG] No predictions saved for {league}")
+                print(f"Saved predictions → {pred_path}")
 
             if finals:
                 pd.DataFrame(finals).to_csv(final_path, index=False)
-                print(f"[DEBUG] Saved finals → {final_path}")
-            else:
-                print(f"[DEBUG] No finals saved for {league}")
+                print(f"Saved finals → {final_path}")
 
             time.sleep(random.uniform(2, 4))
 
