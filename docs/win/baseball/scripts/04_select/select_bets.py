@@ -24,6 +24,10 @@ LEAGUE_CODE = "MLB"
 with open(CONFIG_PATH, "r") as f:
     CONFIG = yaml.safe_load(f)["markets"]["mlb"]
 
+# =========================
+# HELPERS
+# =========================
+
 def f(x):
     try:
         if pd.isna(x):
@@ -54,25 +58,32 @@ def violates_exclude_rules(ev, kelly, odds, line, rules):
         return True
     return False
 
-def check_rules(ev, kelly, odds, line, rules):
+def check_rules(ev, kelly, odds, line, rules, counters):
     if ev is None or kelly is None:
+        counters["missing"] += 1
         return False
 
     if not (rules["ev_min"] <= ev <= rules["ev_max"]):
+        counters["ev_fail"] += 1
         return False
 
     if not (rules["kelly_min"] <= kelly <= rules["kelly_max"]):
+        counters["kelly_fail"] += 1
         return False
 
     if "odds_bands" in rules and not in_range(odds, rules["odds_bands"]):
+        counters["odds_fail"] += 1
         return False
 
     if "line_bands" in rules and not in_range(line, rules["line_bands"]):
+        counters["line_fail"] += 1
         return False
 
     if violates_exclude_rules(ev, kelly, odds, line, rules):
+        counters["excluded"] += 1
         return False
 
+    counters["passed"] += 1
     return True
 
 def rescale_prob(p, k=3.0):
@@ -83,7 +94,11 @@ def rescale_prob(p, k=3.0):
     logit = math.log(p / (1 - p))
     return 1 / (1 + math.exp(-k * logit))
 
-def process_moneyline(row):
+# =========================
+# PROCESSORS
+# =========================
+
+def process_moneyline(row, counters):
     results = []
     for side in ["home", "away"]:
         rules = CONFIG["moneyline"][side]
@@ -97,7 +112,7 @@ def process_moneyline(row):
         raw_prob = f(row.get(f"{side}_prob"))
         model_prob = rescale_prob(raw_prob)
 
-        if not check_rules(ev, kelly, odds, None, rules):
+        if not check_rules(ev, kelly, odds, None, rules, counters["moneyline"][side]):
             continue
 
         results.append({
@@ -115,7 +130,7 @@ def process_moneyline(row):
         })
     return results
 
-def process_run_line(row):
+def process_run_line(row, counters):
     results = []
     for side in ["home", "away"]:
         rules = CONFIG["run_line"][side]
@@ -129,7 +144,7 @@ def process_run_line(row):
         line = f(row.get(f"{side}_run_line"))
         raw_prob = f(row.get(f"{side}_prob_run_line"))
 
-        if not check_rules(ev, kelly, odds, line, rules):
+        if not check_rules(ev, kelly, odds, line, rules, counters["run_line"][side]):
             continue
 
         results.append({
@@ -147,7 +162,7 @@ def process_run_line(row):
         })
     return results
 
-def process_total(row):
+def process_total(row, counters):
     results = []
     for side in ["over", "under"]:
         rules = CONFIG["total"][side]
@@ -162,7 +177,7 @@ def process_total(row):
         raw_prob = f(row.get(f"{side}_prob"))
         model_prob = rescale_prob(raw_prob)
 
-        if not check_rules(ev, kelly, odds, line, rules):
+        if not check_rules(ev, kelly, odds, line, rules, counters["total"][side]):
             continue
 
         results.append({
@@ -180,24 +195,63 @@ def process_total(row):
         })
     return results
 
+# =========================
+# MAIN
+# =========================
+
 def main():
     with open(ERROR_LOG, "w") as log:
         try:
+            log.write(f"=== SELECT BETS RUN {datetime.now(UTC)} ===\n")
+
             files = sorted(INPUT_DIR.glob("*_mlb_*.csv"))
+            log.write(f"Files found: {len(files)}\n")
+
+            if not files:
+                log.write("ERROR: No input files found\n")
+                return
+
             for fpath in files:
+                log.write(f"\n--- Processing {fpath.name} ---\n")
+
                 df = pd.read_csv(fpath)
+                log.write(f"Rows in file: {len(df)}\n")
+
+                counters = {
+                    "moneyline": {
+                        "home": {"passed":0,"ev_fail":0,"kelly_fail":0,"odds_fail":0,"line_fail":0,"excluded":0,"missing":0},
+                        "away": {"passed":0,"ev_fail":0,"kelly_fail":0,"odds_fail":0,"line_fail":0,"excluded":0,"missing":0}
+                    },
+                    "run_line": {
+                        "home": {"passed":0,"ev_fail":0,"kelly_fail":0,"odds_fail":0,"line_fail":0,"excluded":0,"missing":0},
+                        "away": {"passed":0,"ev_fail":0,"kelly_fail":0,"odds_fail":0,"line_fail":0,"excluded":0,"missing":0}
+                    },
+                    "total": {
+                        "over": {"passed":0,"ev_fail":0,"kelly_fail":0,"odds_fail":0,"line_fail":0,"excluded":0,"missing":0},
+                        "under": {"passed":0,"ev_fail":0,"kelly_fail":0,"odds_fail":0,"line_fail":0,"excluded":0,"missing":0}
+                    }
+                }
+
                 final = []
 
                 for _, row in df.iterrows():
-                    final += process_moneyline(row)
-                    final += process_run_line(row)
-                    final += process_total(row)
+                    final += process_moneyline(row, counters)
+                    final += process_run_line(row, counters)
+                    final += process_total(row, counters)
 
                 if final:
                     pd.DataFrame(final).to_csv(OUTPUT_DIR / fpath.name, index=False)
+                    log.write(f"Output rows: {len(final)}\n")
+                else:
+                    log.write("WARNING: No bets passed filters\n")
+
+                log.write("Breakdown:\n")
+                for market in counters:
+                    for side in counters[market]:
+                        log.write(f"{market}-{side}: {counters[market][side]}\n")
 
         except Exception as e:
-            log.write(f"{e}\n{traceback.format_exc()}")
+            log.write(f"\nFATAL ERROR:\n{e}\n{traceback.format_exc()}")
 
 if __name__ == "__main__":
     main()
