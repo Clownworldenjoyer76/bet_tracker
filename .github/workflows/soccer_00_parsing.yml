@@ -1,0 +1,43 @@
+name: Soccer Pipeline (Manual)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  soccer-pipeline:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Fetch Soccer Odds
+        run: python docs/win/soccer/scripts/00_parsing/fetch_soccer_odds.py
+
+      - name: Soccer Draft
+        run: python docs/win/soccer/scripts/00_parsing/soccert_drat.py
+
+      - name: Name Normalization
+        run: python docs/win/soccer/scripts/00_parsing/name_normalization.py
+
+      - name: Soccer Cleaner
+        run: python docs/win/soccer/scripts/00_parsing/soccer_cleaner.py
+
+      - name: Commit outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/win/soccer/00_intake/sportsbook/
+          git add docs/win/soccer/00_intake/predictions/
+          git add mappings/soccer/no_map/
+          git add docs/win/soccer/errors/
+          git diff --cached --quiet || git commit -m "chore: soccer pipeline run $(date -u +'%Y-%m-%d %H:%M UTC')"
+          git push
