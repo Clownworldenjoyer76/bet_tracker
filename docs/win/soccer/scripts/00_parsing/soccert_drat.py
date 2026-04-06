@@ -1,3 +1,5 @@
+# docs/win/soccer/scripts/00_parsing/soccert_drat.py
+
 import re
 import time
 import random
