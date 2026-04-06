@@ -1,10 +1,13 @@
+# docs/win/soccer/scripts/00_parsing/soccer_cleaner.py
+
 #!/usr/bin/env python3
-# docs/win/soccer/scripts/soccer_cleaner.py
+# docs/win/soccer/scripts/00_parsing/soccer_cleaner.py
 
 import csv
 import re
+import traceback
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
 SPORTSBOOK_DIR  = Path("docs/win/soccer/00_intake/sportsbook")
 PREDICTIONS_DIR = Path("docs/win/soccer/00_intake/predictions")
@@ -15,24 +18,23 @@ PRED_NORM_DIR = PREDICTIONS_DIR / "normalized"
 SB_NORM_DIR.mkdir(parents=True, exist_ok=True)
 PRED_NORM_DIR.mkdir(parents=True, exist_ok=True)
 
-ERROR_DIR = Path("docs/win/soccer/errors/soccer_cleaner")
+ERROR_DIR = Path("docs/win/soccer/errors/00_parsing")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE  = ERROR_DIR / "soccer_cleaner_log.txt"
 
 DATE_PAT = re.compile(r"\d{4}_\d{2}_\d{2}")
 
 with open(LOG_FILE, "w", encoding="utf-8") as f:
-    f.write("")
+    f.write(f"=== soccer_cleaner RUN {datetime.now(timezone.utc).isoformat()} ===\n")
 
 def log(msg: str) -> None:
     with open(LOG_FILE, "a", encoding="utf-8") as f:
-        f.write(f"{datetime.utcnow().isoformat()} | {msg}\n")
+        f.write(f"{datetime.now(timezone.utc).isoformat()} | {msg}\n")
 
 def normalize_league(value: str) -> str:
     return (value or "").strip().lower().replace(" ", "_")
 
 def pct_to_decimal(value: str) -> str:
-    """Convert '62.5%' or '62.5' to '0.625'."""
     if not value:
         return ""
     cleaned = value.strip().rstrip("%")
@@ -44,7 +46,6 @@ def pct_to_decimal(value: str) -> str:
 # =========================
 # SPORTSBOOK GAME_ID INDEX
 # =========================
-# key: (league, match_date, match_time, home_team, away_team) -> game_id
 
 def build_game_id_index() -> dict:
     index = {}
@@ -53,18 +54,20 @@ def build_game_id_index() -> dict:
             continue
         if not sb_file.stem.endswith("_soccer"):
             continue
-        with open(sb_file, newline="", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                league    = normalize_league(row.get("league", ""))
-                match_date = (row.get("match_date") or "").strip()
-                match_time = (row.get("match_time") or "").strip()
-                home_team  = (row.get("home_team")  or "").strip()
-                away_team  = (row.get("away_team")  or "").strip()
-                game_id    = (row.get("game_id")    or "").strip()
-                if game_id:
-                    key = (league, match_date, match_time, home_team, away_team)
-                    index[key] = game_id
+        try:
+            with open(sb_file, newline="", encoding="utf-8") as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    league     = normalize_league(row.get("league", ""))
+                    match_date = (row.get("match_date") or "").strip()
+                    home_team  = (row.get("home_team")  or "").strip()
+                    away_team  = (row.get("away_team")  or "").strip()
+                    game_id    = (row.get("game_id")    or "").strip()
+                    if game_id:
+                        key = (league, match_date, home_team, away_team)
+                        index[key] = game_id
+        except Exception as e:
+            log(f"ERROR reading {sb_file}: {e}\n{traceback.format_exc()}")
     return index
 
 # =========================
@@ -86,32 +89,31 @@ def clean_sportsbook():
             continue
         if not sb_file.stem.endswith("_soccer"):
             continue
+        try:
+            date_str = DATE_PAT.search(sb_file.stem).group(0)
+            log(f"SPORTSBOOK: processing {sb_file.name}")
 
-        date_match = DATE_PAT.search(sb_file.stem)
-        date_str   = date_match.group(0)
+            by_league = {}
+            with open(sb_file, newline="", encoding="utf-8") as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    league_raw  = (row.get("league") or "").strip()
+                    league_norm = normalize_league(league_raw)
+                    if not league_norm:
+                        log(f"  SKIP row — no league value: {row}")
+                        continue
+                    by_league.setdefault(league_norm, []).append(row)
 
-        log(f"SPORTSBOOK: processing {sb_file.name}")
+            for league_norm, rows in by_league.items():
+                out_path = SB_NORM_DIR / f"{date_str}_{league_norm}.csv"
+                with open(out_path, "w", newline="", encoding="utf-8") as f:
+                    writer = csv.DictWriter(f, fieldnames=sb_fields, extrasaction="ignore")
+                    writer.writeheader()
+                    writer.writerows(rows)
+                log(f"  WROTE {out_path} ({len(rows)} rows)")
 
-        # Group rows by league
-        by_league = {}
-        with open(sb_file, newline="", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                league_raw  = (row.get("league") or "").strip()
-                league_norm = normalize_league(league_raw)
-                if not league_norm:
-                    log(f"  SKIP row — no league value: {row}")
-                    continue
-                by_league.setdefault(league_norm, []).append(row)
-
-        for league_norm, rows in by_league.items():
-            out_name = f"{date_str}_{league_norm}.csv"
-            out_path = SB_NORM_DIR / out_name
-            with open(out_path, "w", newline="", encoding="utf-8") as f:
-                writer = csv.DictWriter(f, fieldnames=sb_fields, extrasaction="ignore")
-                writer.writeheader()
-                writer.writerows(rows)
-            log(f"  WROTE {out_path} ({len(rows)} rows)")
+        except Exception as e:
+            log(f"ERROR processing sportsbook {sb_file}: {e}\n{traceback.format_exc()}")
 
 # =========================
 # 2. CLEAN PREDICTIONS
@@ -138,59 +140,55 @@ def clean_predictions(game_id_index: dict):
         for pred_file in sorted(league_dir.glob("*.csv")):
             if not DATE_PAT.search(pred_file.stem):
                 continue
-            expected_suffix = f"_{league}"
-            if not pred_file.stem.endswith(expected_suffix):
+            if not pred_file.stem.endswith(f"_{league}"):
                 continue
+            try:
+                date_str    = DATE_PAT.search(pred_file.stem).group(0)
+                league_norm = normalize_league(league)
+                out_path    = PRED_NORM_DIR / f"{date_str}_{league_norm}.csv"
 
-            date_match = DATE_PAT.search(pred_file.stem)
-            date_str   = date_match.group(0)
-            league_norm = normalize_league(league)
+                log(f"PREDICTIONS: processing {pred_file.name}")
 
-            log(f"PREDICTIONS: processing {pred_file.name}")
+                rows_out   = []
+                missing_id = 0
 
-            out_name = f"{date_str}_{league_norm}.csv"
-            out_path = PRED_NORM_DIR / out_name
+                with open(pred_file, newline="", encoding="utf-8") as f:
+                    reader = csv.DictReader(f)
+                    for row in reader:
+                        match_date = (row.get("match_date") or "").strip()
+                        home_team  = (row.get("home_team")  or "").strip()
+                        away_team  = (row.get("away_team")  or "").strip()
+                        row_league = normalize_league(row.get("league", "") or league)
 
-            rows_out  = []
-            missing_id = 0
+                        key     = (row_league, match_date, home_team, away_team)
+                        game_id = game_id_index.get(key, "")
+                        if not game_id:
+                            missing_id += 1
+                            log(f"  NO GAME_ID match: {key}")
 
-            with open(pred_file, newline="", encoding="utf-8") as f:
-                reader = csv.DictReader(f)
-                for row in reader:
-                    # A. Attach game_id from sportsbook index
-                    match_date = (row.get("match_date") or "").strip()
-                    match_time = (row.get("match_time") or "").strip()
-                    home_team  = (row.get("home_team")  or "").strip()
-                    away_team  = (row.get("away_team")  or "").strip()
-                    row_league = normalize_league(row.get("league", "") or league)
+                        row["game_id"] = game_id
 
-                    key     = (row_league, match_date, match_time, home_team, away_team)
-                    game_id = game_id_index.get(key, "")
-                    if not game_id:
-                        missing_id += 1
-                        log(f"  NO GAME_ID match: {key}")
+                        for col in PROB_COLS:
+                            row[col] = pct_to_decimal(row.get(col, ""))
 
-                    row["game_id"] = game_id
+                        rows_out.append(row)
 
-                    # B. Convert prob columns from pct to decimal
-                    for col in PROB_COLS:
-                        row[col] = pct_to_decimal(row.get(col, ""))
+                with open(out_path, "w", newline="", encoding="utf-8") as f:
+                    writer = csv.DictWriter(f, fieldnames=PRED_FIELDS, extrasaction="ignore")
+                    writer.writeheader()
+                    writer.writerows(rows_out)
 
-                    rows_out.append(row)
+                log(f"  WROTE {out_path} ({len(rows_out)} rows, {missing_id} missing game_id)")
 
-            with open(out_path, "w", newline="", encoding="utf-8") as f:
-                writer = csv.DictWriter(f, fieldnames=PRED_FIELDS, extrasaction="ignore")
-                writer.writeheader()
-                writer.writerows(rows_out)
-
-            log(f"  WROTE {out_path} ({len(rows_out)} rows, {missing_id} missing game_id)")
+            except Exception as e:
+                log(f"ERROR processing predictions {pred_file}: {e}\n{traceback.format_exc()}")
 
 # =========================
 # MAIN
 # =========================
 
 def main():
-    log("=== soccer_cleaner START ===")
+    log("START")
 
     clean_sportsbook()
 
@@ -199,8 +197,13 @@ def main():
 
     clean_predictions(game_id_index)
 
-    log("=== soccer_cleaner COMPLETE ===")
+    log("COMPLETE")
     print("Soccer cleaner complete.")
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        with open(LOG_FILE, "a", encoding="utf-8") as f:
+            f.write(f"FATAL:\n{e}\n{traceback.format_exc()}")
+        raise
