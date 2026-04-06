@@ -45,117 +45,129 @@ def build_game_id_index(rows):
     return idx
 
 
-def process_slate(date, league):
-    pred_path = PRED_DIR / f"{date}_{league}.csv"
-    book_path = BOOK_DIR / f"{date}_{league}.csv"
+def process_slate(date, league, summary):
+    try:
+        pred_path = PRED_DIR / f"{date}_{league}.csv"
+        book_path = BOOK_DIR / f"{date}_{league}.csv"
 
-    preds = load_csv(pred_path)
-    books = load_csv(book_path)
+        preds = load_csv(pred_path)
+        books = load_csv(book_path)
 
-    if not preds:
-        log(f"SKIP {date} {league}: no predictions")
-        return
+        if not preds:
+            log(f"SKIP {date} {league}: no predictions")
+            summary["skipped"] += 1
+            return
 
-    if not books:
-        log(f"SKIP {date} {league}: no sportsbook")
-        return
+        if not books:
+            log(f"SKIP {date} {league}: no sportsbook")
+            summary["skipped"] += 1
+            return
 
-    pred_idx = build_game_id_index(preds)
+        pred_idx = build_game_id_index(preds)
 
-    matched   = 0
-    unmatched = 0
+        matched   = 0
+        unmatched = 0
 
-    match_odds_rows = []
-    total_25_rows   = []
-    total_35_rows   = []
-    btts_rows       = []
+        match_odds_rows = []
+        total_25_rows   = []
+        total_35_rows   = []
+        btts_rows       = []
 
-    for b in books:
-        gid = (b.get("game_id") or "").strip()
-        p   = pred_idx.get(gid)
+        for b in books:
+            gid = (b.get("game_id") or "").strip()
+            p   = pred_idx.get(gid)
 
-        if not p:
-            unmatched += 1
-            log(f"UNMATCHED game_id={gid}: {date} {league} | {b.get('home_team')} vs {b.get('away_team')}")
-            continue
+            if not p:
+                unmatched += 1
+                log(f"UNMATCHED game_id={gid}: {date} {league} | {b.get('home_team')} vs {b.get('away_team')}")
+                continue
 
-        matched += 1
+            matched += 1
 
-        base = [
-            b["game_id"], b["sport"], b["league"], b["match_date"], b["match_time"],
-            b["home_team"], b["away_team"],
-            p["home_prob"], p["draw_prob"], p["away_prob"],
-            p["home_xg"], p["away_xg"], p["expected_total_goals"],
+            base = [
+                b["game_id"], b["sport"], b["league"], b["match_date"], b["match_time"],
+                b["home_team"], b["away_team"],
+                p["home_prob"], p["draw_prob"], p["away_prob"],
+                p["home_xg"], p["away_xg"], p["expected_total_goals"],
+            ]
+
+            match_odds_rows.append(base + [
+                b["dk_home_decimal"], b["dk_draw_decimal"], b["dk_away_decimal"],
+            ])
+
+            total_25_rows.append(base + [
+                b["dk_over25_decimal"], b["dk_under25_decimal"],
+            ])
+
+            total_35_rows.append(base + [
+                b["dk_over35_decimal"], b["dk_under35_decimal"],
+            ])
+
+            btts_rows.append(base + [
+                b["btts_yes"], b["btts_no"],
+            ])
+
+        log(f"{date} {league} | matched={matched} | unmatched={unmatched}")
+        summary["total_matched"]   += matched
+        summary["total_unmatched"] += unmatched
+
+        base_header = [
+            "game_id", "sport", "league", "match_date", "match_time",
+            "home_team", "away_team",
+            "home_prob", "draw_prob", "away_prob",
+            "home_xg", "away_xg", "expected_total_goals",
         ]
 
-        # ── Match Odds ────────────────────────────────────────────────────
-        match_odds_rows.append(base + [
-            b["dk_home_decimal"], b["dk_draw_decimal"], b["dk_away_decimal"],
-        ])
+        def write(filename, header, rows):
+            if not rows:
+                log(f"NO ROWS: {filename} — skipping")
+                return
+            path = OUT_DIR / filename
+            with open(path, "w", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                writer.writerow(header)
+                writer.writerows(rows)
+            log(f"WROTE {path} ({len(rows)} rows)")
+            summary["files_written"] += 1
 
-        # ── Total 2.5 ─────────────────────────────────────────────────────
-        total_25_rows.append(base + [
-            b["dk_over25_decimal"], b["dk_under25_decimal"],
-        ])
+        write(
+            f"{date}_{league}_match_odds.csv",
+            base_header + ["dk_home_decimal", "dk_draw_decimal", "dk_away_decimal"],
+            match_odds_rows,
+        )
+        write(
+            f"{date}_{league}_total_25.csv",
+            base_header + ["dk_over25_decimal", "dk_under25_decimal"],
+            total_25_rows,
+        )
+        write(
+            f"{date}_{league}_total_35.csv",
+            base_header + ["dk_over35_decimal", "dk_under35_decimal"],
+            total_35_rows,
+        )
+        write(
+            f"{date}_{league}_btts.csv",
+            base_header + ["btts_yes", "btts_no"],
+            btts_rows,
+        )
 
-        # ── Total 3.5 ─────────────────────────────────────────────────────
-        total_35_rows.append(base + [
-            b["dk_over35_decimal"], b["dk_under35_decimal"],
-        ])
-
-        # ── BTTS ──────────────────────────────────────────────────────────
-        btts_rows.append(base + [
-            b["btts_yes"], b["btts_no"],
-        ])
-
-    log(f"{date} {league} | matched={matched} | unmatched={unmatched}")
-
-    base_header = [
-        "game_id", "sport", "league", "match_date", "match_time",
-        "home_team", "away_team",
-        "home_prob", "draw_prob", "away_prob",
-        "home_xg", "away_xg", "expected_total_goals",
-    ]
-
-    def write(filename, header, rows):
-        if not rows:
-            log(f"NO ROWS: {filename} — skipping")
-            return
-        path = OUT_DIR / filename
-        with open(path, "w", newline="", encoding="utf-8") as f:
-            writer = csv.writer(f)
-            writer.writerow(header)
-            writer.writerows(rows)
-        log(f"WROTE {path} ({len(rows)} rows)")
-
-    write(
-        f"{date}_{league}_match_odds.csv",
-        base_header + ["dk_home_decimal", "dk_draw_decimal", "dk_away_decimal"],
-        match_odds_rows,
-    )
-
-    write(
-        f"{date}_{league}_total_25.csv",
-        base_header + ["dk_over25_decimal", "dk_under25_decimal"],
-        total_25_rows,
-    )
-
-    write(
-        f"{date}_{league}_total_35.csv",
-        base_header + ["dk_over35_decimal", "dk_under35_decimal"],
-        total_35_rows,
-    )
-
-    write(
-        f"{date}_{league}_btts.csv",
-        base_header + ["btts_yes", "btts_no"],
-        btts_rows,
-    )
+    except Exception as e:
+        log(f"ERROR {date} {league}: {e}\n{traceback.format_exc()}")
+        summary["errors"] += 1
 
 
 if __name__ == "__main__":
     with open(LOG_FILE, "w", encoding="utf-8") as f:
         f.write(f"=== merge_intake RUN {datetime.now(timezone.utc).isoformat()} ===\n")
+
+    summary = {
+        "slates_processed": 0,
+        "skipped":          0,
+        "files_written":    0,
+        "total_matched":    0,
+        "total_unmatched":  0,
+        "errors":           0,
+    }
 
     try:
         for pred_file in sorted(PRED_DIR.glob("*.csv")):
@@ -173,8 +185,17 @@ if __name__ == "__main__":
                 log(f"SKIP unrecognized file: {pred_file.name}")
                 continue
 
-            process_slate(date, league)
+            summary["slates_processed"] += 1
+            process_slate(date, league, summary)
 
+        log(
+            f"SUMMARY: slates_processed={summary['slates_processed']} | "
+            f"skipped={summary['skipped']} | "
+            f"files_written={summary['files_written']} | "
+            f"total_matched={summary['total_matched']} | "
+            f"total_unmatched={summary['total_unmatched']} | "
+            f"errors={summary['errors']}"
+        )
         log("COMPLETE")
 
     except Exception as e:
