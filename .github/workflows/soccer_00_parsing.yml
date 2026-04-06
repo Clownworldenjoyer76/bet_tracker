@@ -18,10 +18,10 @@ jobs:
 
       - name: Install dependencies
         run: pip install -r requirements.txt
-      
+
       - name: Install Playwright browsers
         run: playwright install chromium --with-deps
-     
+
       - name: Fetch Soccer Odds
         env:
           CLOUD_API: ${{ secrets.CLOUD_API }}
@@ -42,7 +42,8 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add docs/win/soccer/00_intake/sportsbook/
           git add docs/win/soccer/00_intake/predictions/
-          git add mappings/soccer/no_map/
           git add docs/win/soccer/errors/
+          git add docs/win/final_scores/results/soccer/
+          git add mappings/soccer/no_map/
           git diff --cached --quiet || git commit -m "chore: soccer pipeline run $(date -u +'%Y-%m-%d %H:%M UTC')"
           git push
