@@ -1,0 +1,35 @@
+name: Soccer 01 Merge (Manual)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  soccer-merge:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Merge Intake
+        run: python docs/win/soccer/scripts/01_merge/merge_intake.py
+
+      - name: Build Juice Files
+        run: python docs/win/soccer/scripts/01_merge/build_juice_files.py
+
+      - name: Commit outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/win/soccer/01_merge/
+          git add docs/win/soccer/errors/01_merge/
+          git diff --cached --quiet || git commit -m "chore: soccer 01_merge run $(date -u +'%Y-%m-%d %H:%M UTC')"
+          git push
