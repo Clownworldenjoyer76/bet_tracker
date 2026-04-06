@@ -1,5 +1,4 @@
 # docs/win/soccer/scripts/00_parsing/soccert_drat.py
-
 import re
 import time
 import random
@@ -137,6 +136,8 @@ def main():
         browser = p.chromium.launch(headless=True)
         page    = browser.new_page()
 
+        today = datetime.now(timezone.utc).strftime("%Y_%m_%d")
+
         for key, url in URLS.items():
             league = LEAGUE_MAP[key]
             log(f"Scraping {league}")
@@ -162,20 +163,23 @@ def main():
                 log(f"{league} → predictions: {len(predictions)}, finals: {len(finals)}")
                 print(f"\n--- {league} → predictions: {len(predictions)}, finals: {len(finals)} ---")
 
-                today = datetime.now(timezone.utc).strftime("%Y_%m_%d")
-
-                pred_path  = Path(f"docs/win/soccer/00_intake/predictions/{league}/{today}_{league}.csv")
-                final_path = Path(f"docs/win/final_scores/results/soccer/final_scores/{league}/{today}_{league}.csv")
-                pred_path.parent.mkdir(parents=True,  exist_ok=True)
-                final_path.parent.mkdir(parents=True, exist_ok=True)
-
+                # ── Write one prediction file per match_date ──────────────
                 if predictions:
-                    pd.DataFrame(predictions).to_csv(pred_path, index=False)
-                    log(f"WROTE predictions → {pred_path}")
+                    pred_df = pd.DataFrame(predictions)
+                    for match_date, group in pred_df.groupby("match_date"):
+                        pred_path = Path(f"docs/win/soccer/00_intake/predictions/{league}/{match_date}_{league}.csv")
+                        pred_path.parent.mkdir(parents=True, exist_ok=True)
+                        group.to_csv(pred_path, index=False)
+                        log(f"WROTE predictions → {pred_path} ({len(group)} rows)")
 
+                # ── Write finals grouped by game_date ─────────────────────
                 if finals:
-                    pd.DataFrame(finals).to_csv(final_path, index=False)
-                    log(f"WROTE finals → {final_path}")
+                    final_df = pd.DataFrame(finals)
+                    for game_date, group in final_df.groupby("game_date"):
+                        final_path = Path(f"docs/win/final_scores/results/soccer/final_scores/{league}/{game_date}_{league}.csv")
+                        final_path.parent.mkdir(parents=True, exist_ok=True)
+                        group.to_csv(final_path, index=False)
+                        log(f"WROTE finals → {final_path} ({len(group)} rows)")
 
             except Exception as e:
                 log(f"ERROR scraping {league}: {e}\n{traceback.format_exc()}")
