@@ -1,9 +1,22 @@
+import re
 import time
 import random
+import traceback
 import pandas as pd
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from playwright.sync_api import sync_playwright
+
+ERROR_DIR = Path("docs/win/soccer/errors/00_parsing")
+ERROR_DIR.mkdir(parents=True, exist_ok=True)
+LOG_FILE  = ERROR_DIR / "soccert_drat_log.txt"
+
+with open(LOG_FILE, "w", encoding="utf-8") as f:
+    f.write(f"=== soccert_drat RUN {datetime.now(timezone.utc).isoformat()} ===\n")
+
+def log(msg: str) -> None:
+    with open(LOG_FILE, "a", encoding="utf-8") as f:
+        f.write(f"{datetime.now(timezone.utc).isoformat()} | {msg}\n")
 
 URLS = {
     "mls":        "https://www.dratings.com/predictor/mls-soccer-predictions/",
@@ -15,13 +28,18 @@ URLS = {
 }
 
 LEAGUE_MAP = {
-    "mls": "MLS",
-    "epl": "EPL",
-    "ligue1": "LIGUE1",
-    "laliga": "LALIGA",
+    "mls":        "MLS",
+    "epl":        "EPL",
+    "ligue1":     "LIGUE1",
+    "laliga":     "LALIGA",
     "bundesliga": "BUNDESLIGA",
-    "seriea": "SERIEA",
+    "seriea":     "SERIEA",
 }
+
+MLS_RECORD_PAT = re.compile(r"\s*\(\d+-\d+-\d+\)\s*$")
+
+def strip_record(name: str) -> str:
+    return MLS_RECORD_PAT.sub("", name).strip()
 
 def scrape_page(page, url):
     page.goto(url)
@@ -31,7 +49,7 @@ def scrape_page(page, url):
 
 def split_date_time(dt):
     parts = dt.replace("\n", " ").split()
-    date = datetime.strptime(parts[0], "%m/%d/%Y").strftime("%Y_%m_%d")
+    date  = datetime.strptime(parts[0], "%m/%d/%Y").strftime("%Y_%m_%d")
     time_ = " ".join(parts[1:])
     return date, time_
 
@@ -45,47 +63,43 @@ def is_score_cell(val):
 def parse_prediction(row, league):
     try:
         date, time_ = split_date_time(row[0])
-
-        teams = safe_split(row[1])
-        home, away = teams[0], teams[1]
-
-        probs = safe_split(row[2])
-        home_prob = probs[0]
-        away_prob = probs[1]
-
+        teams     = safe_split(row[1])
+        away_team = strip_record(teams[0])
+        home_team = strip_record(teams[1])
+        probs     = safe_split(row[2])
+        away_prob = probs[0]
+        home_prob = probs[1]
         draw_prob = row[3]
-
-        xg = safe_split(row[5]) if len(row) > 5 else ["", ""]
-        home_xg = xg[0] if len(xg) > 0 else ""
-        away_xg = xg[1] if len(xg) > 1 else ""
-
-        total = row[6] if len(row) > 6 else ""
+        xg        = safe_split(row[5]) if len(row) > 5 else ["", ""]
+        away_xg   = xg[0] if len(xg) > 0 else ""
+        home_xg   = xg[1] if len(xg) > 1 else ""
+        total     = row[6] if len(row) > 6 else ""
 
         return {
-            "sport": "soccer",
-            "league": league,
-            "market": "",
-            "match_date": date,
-            "match_time": time_,
-            "home_team": home,
-            "away_team": away,
-            "home_prob": home_prob,
-            "draw_prob": draw_prob,
-            "away_prob": away_prob,
-            "home_xg": home_xg,
-            "away_xg": away_xg,
+            "sport":                "soccer",
+            "league":               league,
+            "market":               "",
+            "match_date":           date,
+            "match_time":           time_,
+            "home_team":            home_team,
+            "away_team":            away_team,
+            "home_prob":            home_prob,
+            "draw_prob":            draw_prob,
+            "away_prob":            away_prob,
+            "home_xg":              home_xg,
+            "away_xg":              away_xg,
             "expected_total_goals": total,
         }
     except Exception as e:
-        print(f"[DEBUG][PREDICTION ERROR] {league} | {row} | {e}")
+        log(f"PREDICTION PARSE ERROR {league} | {row} | {e}")
         return None
 
 def parse_final(row, league):
     try:
         date, time_ = split_date_time(row[0])
-
-        teams = safe_split(row[1])
-        home, away = teams[0], teams[1]
+        teams     = safe_split(row[1])
+        away_team = strip_record(teams[0])
+        home_team = strip_record(teams[1])
 
         score_idx = None
         for i, cell in enumerate(row):
@@ -94,78 +108,86 @@ def parse_final(row, league):
                 break
 
         if score_idx is None:
-            print(f"[DEBUG] No score found: {row}")
+            log(f"NO SCORE FOUND {league} | {row}")
             return None
 
-        score = safe_split(row[score_idx])
-        home_score = score[0]
-        away_score = score[1]
+        score      = safe_split(row[score_idx])
+        away_score = score[0]
+        home_score = score[1]
 
         return {
-            "sport": "soccer",
-            "league": league,
-            "market": "",
-            "game_date": date,
+            "sport":      "soccer",
+            "league":     league,
+            "market":     "",
+            "game_date":  date,
             "match_time": time_,
-            "home_team": home,
-            "away_team": away,
-            "away_score": away_score,
+            "home_team":  home_team,
+            "away_team":  away_team,
             "home_score": home_score,
+            "away_score": away_score,
         }
     except Exception as e:
-        print(f"[DEBUG][FINAL ERROR] {league} | {row} | {e}")
+        log(f"FINAL PARSE ERROR {league} | {row} | {e}")
         return None
 
 def main():
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
+        page    = browser.new_page()
 
         for key, url in URLS.items():
             league = LEAGUE_MAP[key]
-            print(f"\n--- Scraping {league} ---")
+            log(f"Scraping {league}")
+            try:
+                raw = scrape_page(page, url)
 
-            raw = scrape_page(page, url)
+                predictions = []
+                finals      = []
 
-            predictions = []
-            finals = []
+                for r in raw:
+                    if not r or "Sportsbooks" in r[0] or "DRatings" in r[0]:
+                        continue
+                    has_score = any(is_score_cell(c) for c in r)
+                    if has_score:
+                        parsed = parse_final(r, league)
+                        if parsed:
+                            finals.append(parsed)
+                    else:
+                        parsed = parse_prediction(r, league)
+                        if parsed:
+                            predictions.append(parsed)
 
-            for i, r in enumerate(raw):
-                if not r or "Sportsbooks" in r[0] or "DRatings" in r[0]:
-                    continue
+                log(f"{league} → predictions: {len(predictions)}, finals: {len(finals)}")
+                print(f"\n--- {league} → predictions: {len(predictions)}, finals: {len(finals)} ---")
 
-                has_score = any(is_score_cell(c) for c in r)
+                today = datetime.now(timezone.utc).strftime("%Y_%m_%d")
 
-                if has_score:
-                    parsed = parse_final(r, league)
-                    if parsed:
-                        finals.append(parsed)
-                else:
-                    parsed = parse_prediction(r, league)
-                    if parsed:
-                        predictions.append(parsed)
+                pred_path  = Path(f"docs/win/soccer/00_intake/predictions/{league}/{today}_{league}.csv")
+                final_path = Path(f"docs/win/final_scores/results/soccer/final_scores/{league}/{today}_{league}.csv")
+                pred_path.parent.mkdir(parents=True,  exist_ok=True)
+                final_path.parent.mkdir(parents=True, exist_ok=True)
 
-            print(f"[DEBUG] {league} → predictions: {len(predictions)}, finals: {len(finals)}")
+                if predictions:
+                    pd.DataFrame(predictions).to_csv(pred_path, index=False)
+                    log(f"WROTE predictions → {pred_path}")
 
-            today = datetime.utcnow().strftime("%Y_%m_%d")
+                if finals:
+                    pd.DataFrame(finals).to_csv(final_path, index=False)
+                    log(f"WROTE finals → {final_path}")
 
-            pred_path = Path(f"docs/win/soccer/00_intake/predictions/{league}/{today}_{league}.csv")
-            pred_path.parent.mkdir(parents=True, exist_ok=True)
-
-            final_path = Path(f"docs/win/final_scores/results/soccer/final_scores/{league}/{today}_{league}.csv")
-            final_path.parent.mkdir(parents=True, exist_ok=True)
-
-            if predictions:
-                pd.DataFrame(predictions).to_csv(pred_path, index=False)
-                print(f"Saved predictions → {pred_path}")
-
-            if finals:
-                pd.DataFrame(finals).to_csv(final_path, index=False)
-                print(f"Saved finals → {final_path}")
+            except Exception as e:
+                log(f"ERROR scraping {league}: {e}\n{traceback.format_exc()}")
 
             time.sleep(random.uniform(2, 4))
 
         browser.close()
 
+    log("COMPLETE")
+
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        with open(LOG_FILE, "a", encoding="utf-8") as f:
+            f.write(f"FATAL:\n{e}\n{traceback.format_exc()}")
+        raise
