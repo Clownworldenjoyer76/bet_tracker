@@ -24,10 +24,6 @@ def log(msg):
         f.write(f"{datetime.now(timezone.utc).isoformat()} | {msg}\n")
 
 
-def norm(s):
-    return (s or "").strip().lower()
-
-
 def load_csv(path):
     rows = []
     if not path.exists():
@@ -40,11 +36,12 @@ def load_csv(path):
     return rows
 
 
-def build_team_index(rows):
+def build_game_id_index(rows):
     idx = {}
     for r in rows:
-        key = (norm(r["home_team"]), norm(r["away_team"]))
-        idx[key] = r
+        gid = (r.get("game_id") or "").strip()
+        if gid:
+            idx[gid] = r
     return idx
 
 
@@ -63,7 +60,7 @@ def process_slate(date, league):
         log(f"SKIP {date} {league}: no sportsbook")
         return
 
-    pred_idx = build_team_index(preds)
+    pred_idx = build_game_id_index(preds)
 
     matched   = 0
     unmatched = 0
@@ -74,12 +71,12 @@ def process_slate(date, league):
     btts_rows       = []
 
     for b in books:
-        key = (norm(b["home_team"]), norm(b["away_team"]))
-        p   = pred_idx.get(key)
+        gid = (b.get("game_id") or "").strip()
+        p   = pred_idx.get(gid)
 
         if not p:
             unmatched += 1
-            log(f"UNMATCHED: {date} {league} | {key}")
+            log(f"UNMATCHED game_id={gid}: {date} {league} | {b.get('home_team')} vs {b.get('away_team')}")
             continue
 
         matched += 1
