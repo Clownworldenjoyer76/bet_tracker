@@ -1,135 +1,185 @@
 #!/usr/bin/env python3
 # docs/win/soccer/scripts/01_merge/merge_intake.py
 
-import sys
 import csv
+import traceback
 from pathlib import Path
-from datetime import datetime
-import re
+from datetime import datetime, timezone
 
-# =========================
-# PATHS
-# =========================
-INTAKE_DIR = Path("docs/win/soccer/00_intake")
-SPORTSBOOK_DIR = INTAKE_DIR / "sportsbook" / "combined"
-PRED_DIR = INTAKE_DIR / "predictions" / "combined"
+PRED_DIR = Path("docs/win/soccer/00_intake/predictions/normalized")
+BOOK_DIR = Path("docs/win/soccer/00_intake/sportsbook/normalized")
+OUT_DIR  = Path("docs/win/soccer/01_merge")
+LOG_DIR  = Path("docs/win/soccer/errors/01_merge")
 
-MERGE_DIR = Path("docs/win/soccer/01_merge")
-MERGE_DIR.mkdir(parents=True, exist_ok=True)
+OUT_DIR.mkdir(parents=True, exist_ok=True)
+LOG_DIR.mkdir(parents=True, exist_ok=True)
 
-ERROR_DIR = Path("docs/win/soccer/errors/01_merge")
-ERROR_DIR.mkdir(parents=True, exist_ok=True)
-LOG_FILE = ERROR_DIR / "merge_intake.txt"
+LOG_FILE = LOG_DIR / "merge_intake_log.txt"
+
+LEAGUES = ["epl", "laliga", "ligue1", "bundesliga", "seriea", "mls"]
+
 
 def log(msg):
     with open(LOG_FILE, "a", encoding="utf-8") as f:
-        f.write(f"{datetime.utcnow().isoformat()} | {msg}\n")
+        f.write(f"{datetime.now(timezone.utc).isoformat()} | {msg}\n")
 
-# =========================
-# HELPERS
-# =========================
-def load_dedupe(path, key_fields):
-    data = {}
+
+def norm(s):
+    return (s or "").strip().lower()
+
+
+def load_csv(path):
+    rows = []
+    if not path.exists():
+        log(f"MISSING FILE: {path}")
+        return rows
     with open(path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for r in reader:
-            key = tuple(r[k] for k in key_fields)
-            data[key] = r
-    return data
+            rows.append(r)
+    return rows
 
-def normalize_id(text):
-    text = text.lower().replace("&", "and")
-    text = re.sub(r"\s+", "_", text.strip())
-    text = re.sub(r"[^a-z0-9_]", "", text)
-    return text
 
-# =========================
-# FIELDNAMES (UPDATED - RAW DK FIELDS)
-# =========================
-FIELDNAMES = [
-    "league","market","match_date","match_time",
-    "home_team","away_team",
-    "home_prob","draw_prob","away_prob",
-    "home_xg","away_xg","expected_total_goals",
+def build_team_index(rows):
+    idx = {}
+    for r in rows:
+        key = (norm(r["home_team"]), norm(r["away_team"]))
+        idx[key] = r
+    return idx
 
-    # Raw sportsbook fields (no renaming)
-    "dk_home_american","dk_draw_american","dk_away_american",
-    "dk_over25_american","dk_under25_american",
-    "dk_over35_american","dk_under35_american",
-    "dk_btts_yes_american","dk_btts_no_american",
 
-    "game_id"
-]
+def process_slate(date, league):
+    pred_path = PRED_DIR / f"{date}_{league}.csv"
+    book_path = BOOK_DIR / f"{date}_{league}.csv"
 
-# =========================
-# PROCESS SLATES
-# =========================
-prediction_files = list(PRED_DIR.glob("soccer_*.csv"))
+    preds = load_csv(pred_path)
+    books = load_csv(book_path)
 
-for pred_file in prediction_files:
-    slate_date = pred_file.stem.replace("soccer_", "")
-    SPORTSBOOK_FILE = SPORTSBOOK_DIR / f"soccer_{slate_date}.csv"
-    OUTFILE = MERGE_DIR / f"soccer_{slate_date}.csv"
+    if not preds:
+        log(f"SKIP {date} {league}: no predictions")
+        return
 
-    if not SPORTSBOOK_FILE.exists():
-        continue
+    if not books:
+        log(f"SKIP {date} {league}: no sportsbook")
+        return
 
-    pred_key_fields = ["match_date", "market", "home_team", "away_team"]
-    dk_key_fields = ["match_date", "market", "home_team", "away_team"]
+    pred_idx = build_team_index(preds)
 
-    pred_data = load_dedupe(pred_file, pred_key_fields)
-    dk_data = load_dedupe(SPORTSBOOK_FILE, dk_key_fields)
+    matched   = 0
+    unmatched = 0
 
-    merged_rows = {}
+    match_odds_rows = []
+    total_25_rows   = []
+    total_35_rows   = []
+    btts_rows       = []
 
-    for key, p in pred_data.items():
-        if key not in dk_data:
+    for b in books:
+        key = (norm(b["home_team"]), norm(b["away_team"]))
+        p   = pred_idx.get(key)
+
+        if not p:
+            unmatched += 1
+            log(f"UNMATCHED: {date} {league} | {key}")
             continue
 
-        d = dk_data[key]
-        home_id = normalize_id(p["home_team"])
-        away_id = normalize_id(p["away_team"])
-        game_id = f"{p['match_date']}_{home_id}_{away_id}"
+        matched += 1
 
-        merged_rows[key] = {
-            "league": p["league"],
-            "market": p["market"],
-            "match_date": p["match_date"],
-            "match_time": p["match_time"],
-            "home_team": p["home_team"],
-            "away_team": p["away_team"],
-            "home_prob": p["home_prob"],
-            "draw_prob": p["draw_prob"],
-            "away_prob": p["away_prob"],
-            "home_xg": p.get("home_xg",""),
-            "away_xg": p.get("away_xg",""),
-            "expected_total_goals": p.get("expected_total_goals",""),
+        base = [
+            b["game_id"], b["sport"], b["league"], b["match_date"], b["match_time"],
+            b["home_team"], b["away_team"],
+            p["home_prob"], p["draw_prob"], p["away_prob"],
+            p["home_xg"], p["away_xg"], p["expected_total_goals"],
+        ]
 
-            # Raw sportsbook passthrough (NO fallback)
-            "dk_home_american": d.get("dk_home_american",""),
-            "dk_draw_american": d.get("dk_draw_american",""),
-            "dk_away_american": d.get("dk_away_american",""),
+        # ── Match Odds ────────────────────────────────────────────────────
+        match_odds_rows.append(base + [
+            b["dk_home_decimal"], b["dk_draw_decimal"], b["dk_away_decimal"],
+        ])
 
-            "dk_over25_american": d.get("dk_over25_american",""),
-            "dk_under25_american": d.get("dk_under25_american",""),
-            "dk_over35_american": d.get("dk_over35_american",""),
-            "dk_under35_american": d.get("dk_under35_american",""),
+        # ── Total 2.5 ─────────────────────────────────────────────────────
+        total_25_rows.append(base + [
+            b["dk_over25_decimal"], b["dk_under25_decimal"],
+        ])
 
-            "dk_btts_yes_american": d.get("dk_btts_yes_american",""),
-            "dk_btts_no_american": d.get("dk_btts_no_american",""),
+        # ── Total 3.5 ─────────────────────────────────────────────────────
+        total_35_rows.append(base + [
+            b["dk_over35_decimal"], b["dk_under35_decimal"],
+        ])
 
-            "game_id": game_id,
-        }
+        # ── BTTS ──────────────────────────────────────────────────────────
+        btts_rows.append(base + [
+            b["btts_yes"], b["btts_no"],
+        ])
 
-    # =========================
-    # ATOMIC WRITE
-    # =========================
-    temp_file = OUTFILE.with_suffix(".tmp")
-    with open(temp_file, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
-        writer.writeheader()
-        for r in merged_rows.values():
-            writer.writerow(r)
+    log(f"{date} {league} | matched={matched} | unmatched={unmatched}")
 
-    temp_file.replace(OUTFILE)
-    print(f"Wrote {OUTFILE}")
+    base_header = [
+        "game_id", "sport", "league", "match_date", "match_time",
+        "home_team", "away_team",
+        "home_prob", "draw_prob", "away_prob",
+        "home_xg", "away_xg", "expected_total_goals",
+    ]
+
+    def write(filename, header, rows):
+        if not rows:
+            log(f"NO ROWS: {filename} — skipping")
+            return
+        path = OUT_DIR / filename
+        with open(path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(header)
+            writer.writerows(rows)
+        log(f"WROTE {path} ({len(rows)} rows)")
+
+    write(
+        f"{date}_{league}_match_odds.csv",
+        base_header + ["dk_home_decimal", "dk_draw_decimal", "dk_away_decimal"],
+        match_odds_rows,
+    )
+
+    write(
+        f"{date}_{league}_total_25.csv",
+        base_header + ["dk_over25_decimal", "dk_under25_decimal"],
+        total_25_rows,
+    )
+
+    write(
+        f"{date}_{league}_total_35.csv",
+        base_header + ["dk_over35_decimal", "dk_under35_decimal"],
+        total_35_rows,
+    )
+
+    write(
+        f"{date}_{league}_btts.csv",
+        base_header + ["btts_yes", "btts_no"],
+        btts_rows,
+    )
+
+
+if __name__ == "__main__":
+    with open(LOG_FILE, "w", encoding="utf-8") as f:
+        f.write(f"=== merge_intake RUN {datetime.now(timezone.utc).isoformat()} ===\n")
+
+    try:
+        for pred_file in sorted(PRED_DIR.glob("*.csv")):
+            stem   = pred_file.stem
+            league = None
+            date   = None
+
+            for lg in LEAGUES:
+                if stem.endswith(f"_{lg}"):
+                    league = lg
+                    date   = stem[: -(len(lg) + 1)]
+                    break
+
+            if not league or not date:
+                log(f"SKIP unrecognized file: {pred_file.name}")
+                continue
+
+            process_slate(date, league)
+
+        log("COMPLETE")
+
+    except Exception as e:
+        log(f"FATAL: {e}\n{traceback.format_exc()}")
+        raise
