@@ -1,0 +1,200 @@
+name: Daily Pipeline (Odds → Scraper → Pipeline)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  run-full-pipeline:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install requests pandas playwright pytz
+          python -m playwright install chromium
+
+      # -------------------------
+      # SET DATE (CRITICAL)
+      # -------------------------
+      - name: Set date
+        run: echo "DATE=$(TZ='America/New_York' date +%Y_%m_%d)" >> $GITHUB_ENV
+
+      # -------------------------
+      # ENSURE DIRECTORIES
+      # -------------------------
+      - name: Ensure output folders exist
+        run: |
+          mkdir -p docs/win/basketball/odds
+          mkdir -p docs/win/hockey/odds
+          mkdir -p docs/win/baseball/odds
+          mkdir -p docs/win/baseball/00_intake/sportsbook
+
+          mkdir -p docs/win/soccer/01_merge/market_model
+
+          mkdir -p docs/win/final_scores/results/nba/graded
+          mkdir -p docs/win/final_scores/results/ncaab/graded
+          mkdir -p docs/win/final_scores/results/nhl/graded
+          mkdir -p docs/win/final_scores/results/soccer/graded
+          mkdir -p docs/win/final_scores/results/mlb/graded
+
+          mkdir -p docs/win/final_scores/deeper_summaries/nba/by_market
+          mkdir -p docs/win/final_scores/deeper_summaries/ncaab/by_market
+          mkdir -p docs/win/final_scores/deeper_summaries/nhl/by_market
+          mkdir -p docs/win/final_scores/deeper_summaries/soccer
+          mkdir -p docs/win/final_scores/deeper_summaries/mlb/by_market
+
+          mkdir -p docs/win/final_scores/daily_picks
+          mkdir -p docs/win/errors
+          mkdir -p docs/win/final_scores/errors
+
+      # =========================
+      # STEP 1 — ODDS API PULL
+      # =========================
+
+      - name: Run Odds API script
+        env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+        run: python scripts/odds_api.py
+
+      # =========================
+      # STEP 2 — SCRAPER + TRANSFORM + NORMALIZE
+      # =========================
+
+      # --- BASKETBALL ---
+      - name: Run basketball scraper
+        run: python docs/win/basketball/scripts/00_parsing/basketball_drat_scraper.py
+
+      - name: Run basketball transform
+        run: |
+          python docs/win/basketball/scripts/00_parsing/transform_basketball.py \
+            --nba   docs/win/basketball/00_intake/drat_raw/${DATE}_nba_raw.json \
+            --ncaab docs/win/basketball/00_intake/drat_raw/${DATE}_ncaab_raw.json
+
+      - name: Run basketball name normalization
+        run: python docs/win/basketball/scripts/00_parsing/name_normalization.py
+
+      # --- HOCKEY ---
+      - name: Run hockey scraper
+        run: python docs/win/hockey/scripts/00_parsing/hockey_drat_scraper.py
+
+      - name: Run hockey transform
+        run: |
+          python docs/win/hockey/scripts/00_parsing/transform_hockey.py \
+            --nhl docs/win/hockey/00_intake/drat_raw/${DATE}_nhl_raw.json
+
+      - name: Run hockey name normalization
+        run: python docs/win/hockey/scripts/00_parsing/name_normalization.py
+
+      # --- BASEBALL ---
+      - name: Run baseball scraper
+        run: python docs/win/baseball/scripts/00_parsing/baseball_drat_scraper.py
+
+      - name: Run baseball transform
+        run: python docs/win/baseball/scripts/00_parsing/transform_baseball.py
+
+      - name: Run baseball name normalization
+        run: python docs/win/baseball/scripts/00_parsing/name_normalization.py
+
+      # =========================
+      # STEP 3 — FULL PIPELINE
+      # =========================
+
+      # --- HOCKEY ---
+      - name: Hockey odds parse
+        run: python docs/win/hockey/scripts/00_parsing/odds_parse.py
+
+      - name: Hockey normalization (pre)
+        run: python docs/win/hockey/scripts/00_parsing/name_normalization.py
+
+      # --- BASKETBALL ---
+      - name: Basketball odds parse
+        run: python docs/win/basketball/scripts/00_parsing/odds_parse.py
+
+      - name: Basketball normalization (pre)
+        run: python docs/win/basketball/scripts/00_parsing/name_normalization.py
+
+      # --- BASEBALL ---
+      - name: Baseball odds parse
+        run: python docs/win/baseball/scripts/00_parsing/odds_parse.py docs/win/baseball/odds/${DATE}.json
+
+      - name: Baseball normalization (pre)
+        run: python docs/win/baseball/scripts/00_parsing/name_normalization.py
+
+      # --- VERIFY INGESTION OUTPUT ---
+      - name: Verify ingestion output written
+        run: |
+          hockey_count=$(ls docs/win/hockey/00_intake/sportsbook/hockey_*.csv 2>/dev/null | wc -l)
+          basketball_count=$(ls docs/win/basketball/00_intake/sportsbook/basketball_NBA_*.csv 2>/dev/null | wc -l)
+          baseball_count=$(ls docs/win/baseball/00_intake/sportsbook/*_MLB.csv 2>/dev/null | wc -l)
+
+          echo "Hockey files: $hockey_count"
+          echo "Basketball files: $basketball_count"
+          echo "Baseball files: $baseball_count"
+
+          if [ "$hockey_count" -eq 0 ] || [ "$basketball_count" -eq 0 ] || [ "$baseball_count" -eq 0 ]; then
+            echo "ERROR: Missing expected ingestion outputs"
+            exit 1
+          fi
+
+      - name: Clean old select outputs
+        run: |
+          rm -rf docs/win/basketball/04_select/daily_slate/*
+          rm -f docs/win/hockey/04_select/*.csv
+          rm -rf docs/win/soccer/04_select/daily_slate/*
+          rm -rf docs/win/baseball/04_select/*
+
+      - name: Run pipeline
+        run: python scripts/pipeline.py
+
+      - name: Show pipeline log
+        run: |
+          echo "------ PIPELINE LOG ------"
+          if [ -f docs/win/errors/pipeline_log.txt ]; then
+            cat docs/win/errors/pipeline_log.txt
+          else
+            echo "No log file found."
+          fi
+
+      # =========================
+      # DAILY PICKS
+      # =========================
+
+      - name: Run daily picks script
+        run: python scripts/daily_picks.py
+
+      # =========================
+      # COMMIT ALL OUTPUTS
+      # =========================
+      - name: Commit and push all outputs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git
+
+          git add -A docs/win/
+          git add mappings/hockey/no_map/ 2>/dev/null || true
+          git add mappings/basketball/no_map/ 2>/dev/null || true
+          git add mappings/baseball/no_map/ 2>/dev/null || true
+
+          git diff --cached --quiet || git commit -m "Full pipeline run $(date +'%Y-%m-%d')"
+          git push
