@@ -15,6 +15,7 @@ markets:
         ev_max: 0.099
         kelly_min: 0.00
         kelly_max: 0.99
+
 ###################################################
       away:
         enabled: true
@@ -29,7 +30,9 @@ markets:
 ###################################################
     run_line:
       enabled: true
-      pick_preference: best_ev
+      # pick_preference: best_ev
+      pick_preference: best_prob
+      # pick_preference: all
 
       home:
         enabled: true
@@ -37,25 +40,22 @@ markets:
           - [-1.5, 1.5]
         odds_bands:
           - [-300, 300]
-##          - [-109, 102]
-##          - [126, 300]
-        ev_min: 0.000
+        ev_min: 0.00
         ev_max: 0.99
-        kelly_min: 0.00
+        prob_min: 0.52
+        kelly_min: 0.01
         kelly_max: 0.99
 
-###################################################
       away:
         enabled: true
         line_bands:
           - [-1.5, 1.5]
         odds_bands:
           - [-300, 300]
-##          - [-109, 102]
-##          - [126, 300]
-        ev_min: 0.000
+        ev_min: 0.00
         ev_max: 0.99
-        kelly_min: 0.00
+        prob_min: 0.52
+        kelly_min: 0.01
         kelly_max: 0.99
 
 ###################################################        
@@ -74,7 +74,7 @@ markets:
         kelly_min: 0.00
         kelly_max: 0.99
 
-  ###################################################     
+###################################################     
 
       under:
         enabled: true
