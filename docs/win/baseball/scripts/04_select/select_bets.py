@@ -1,3 +1,4 @@
+# docs/win/baseball/scripts/04_select/select_bets.py
 #!/usr/bin/env python3
 
 import math
@@ -7,12 +8,18 @@ from datetime import datetime, UTC
 import traceback
 import yaml
 
+# =========================
+# CONFIG
+# =========================
+
 INPUT_DIR   = Path("docs/win/baseball/03_edges/ev_kelly")
 OUTPUT_DIR  = Path("docs/win/baseball/04_select")
 CONFIG_PATH = Path("docs/win/baseball/config/markets.yaml")
 
 ERROR_DIR = Path("docs/win/baseball/errors/04_select")
 ERROR_LOG = ERROR_DIR / "select_bets.txt"
+
+DEBUG = True
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
@@ -82,13 +89,18 @@ def select_candidate(candidates, preference):
         return candidates
 
     if preference == "best_prob":
-        return [max(candidates, key=lambda x: (x["model_prob"] or 0))]
+        best = max(candidates, key=lambda x: (x["model_prob"] or 0))
+        if DEBUG:
+            print(f"[SELECT best_prob] {best['side']} prob={best['model_prob']} ev={best['ev']}")
+        return [best]
 
-    # default = best_ev
-    return [max(candidates, key=lambda x: (x["ev"] or 0))]
+    best = max(candidates, key=lambda x: (x["ev"] or 0))
+    if DEBUG:
+        print(f"[SELECT best_ev] {best['side']} ev={best['ev']} prob={best['model_prob']}")
+    return [best]
 
 # =========================
-# PROCESSORS
+# PROCESS RUN LINE
 # =========================
 
 def process_run_line(row, counters):
@@ -104,100 +116,26 @@ def process_run_line(row, counters):
         odds  = f(row.get(f"{side}_dk_run_line_american"))
         dec   = f(row.get(f"{side}_dk_run_line_decimal"))
         line  = f(row.get(f"{side}_run_line"))
+        prob  = f(row.get(f"{side}_run_line_prob"))  # FIXED
 
-        # ✅ FIXED COLUMN NAME
-        raw_prob = f(row.get(f"{side}_run_line_prob"))
-
-        if not check_rules(ev, kelly, odds, line, raw_prob, rules, counters["run_line"][side]):
+        if not check_rules(ev, kelly, odds, line, prob, rules, counters["run_line"][side]):
             continue
 
         candidates.append({
             "market_type": "run_line",
             "bet_side": side,
-            "market": "run_line",
             "side": side,
             "line": line,
             "take_bet": f"{side}_run_line",
             "dk_odds_american": odds,
             "dk_odds_decimal": dec,
-            "model_prob": raw_prob,
+            "model_prob": prob,
             "ev": ev,
             "kelly": kelly,
         })
 
-    preference = CONFIG["run_line"].get("pick_preference", "best_ev")
-    return select_candidate(candidates, preference)
-
-def process_moneyline(row, counters):
-    candidates = []
-
-    for side in ["home", "away"]:
-        rules = CONFIG["moneyline"][side]
-        if not rules["enabled"]:
-            continue
-
-        ev    = f(row.get(f"{side}_ml_ev"))
-        kelly = f(row.get(f"{side}_ml_kelly"))
-        odds  = f(row.get(f"{side}_dk_moneyline_american"))
-        dec   = f(row.get(f"{side}_dk_decimal_moneyline"))
-        raw_prob = f(row.get(f"{side}_prob"))
-        model_prob = rescale_prob(raw_prob)
-
-        if not check_rules(ev, kelly, odds, None, model_prob, rules, counters["moneyline"][side]):
-            continue
-
-        candidates.append({
-            "market_type": "moneyline",
-            "bet_side": side,
-            "market": "moneyline",
-            "side": side,
-            "line": "",
-            "take_bet": f"{side}_moneyline",
-            "dk_odds_american": odds,
-            "dk_odds_decimal": dec,
-            "model_prob": model_prob,
-            "ev": ev,
-            "kelly": kelly,
-        })
-
-    preference = CONFIG["moneyline"].get("pick_preference", "best_ev")
-    return select_candidate(candidates, preference)
-
-def process_total(row, counters):
-    candidates = []
-
-    for side in ["over", "under"]:
-        rules = CONFIG["total"][side]
-        if not rules["enabled"]:
-            continue
-
-        ev    = f(row.get(f"{side}_ev"))
-        kelly = f(row.get(f"{side}_kelly"))
-        odds  = f(row.get(f"dk_total_{side}_american"))
-        dec   = f(row.get(f"dk_total_{side}_decimal"))
-        line  = f(row.get("total"))
-        raw_prob = f(row.get(f"{side}_prob"))
-        model_prob = rescale_prob(raw_prob)
-
-        if not check_rules(ev, kelly, odds, line, model_prob, rules, counters["total"][side]):
-            continue
-
-        candidates.append({
-            "market_type": "total",
-            "bet_side": side,
-            "market": "total",
-            "side": side,
-            "line": line,
-            "take_bet": f"{side}_total",
-            "dk_odds_american": odds,
-            "dk_odds_decimal": dec,
-            "model_prob": model_prob,
-            "ev": ev,
-            "kelly": kelly,
-        })
-
-    preference = CONFIG["total"].get("pick_preference", "best_ev")
-    return select_candidate(candidates, preference)
+    pref = CONFIG["run_line"].get("pick_preference", "best_ev")
+    return select_candidate(candidates, pref)
 
 # =========================
 # MAIN
@@ -206,40 +144,26 @@ def process_total(row, counters):
 def main():
     with open(ERROR_LOG, "w") as log:
         try:
-            log.write(f"=== SELECT BETS RUN {datetime.now(UTC)} ===\n")
+            log.write(f"=== RUN {datetime.now(UTC)} ===\n")
 
-            files = sorted(INPUT_DIR.glob("*_mlb_*.csv"))
+            files = sorted(INPUT_DIR.glob("*_mlb_run_line.csv"))
             if not files:
-                log.write("ERROR: No input files found\n")
+                log.write("No files\n")
                 return
 
-            slates = {}
-            for fp in files:
-                key = fp.name.split("_mlb_")[0]
-                slates.setdefault(key, []).append(fp)
-
-            for slate in slates:
-                ml_path = INPUT_DIR / f"{slate}_mlb_moneyline.csv"
-                rl_path = INPUT_DIR / f"{slate}_mlb_run_line.csv"
-                tt_path = INPUT_DIR / f"{slate}_mlb_total.csv"
-
-                ml_df = pd.read_csv(ml_path) if ml_path.exists() else None
-                rl_df = pd.read_csv(rl_path) if rl_path.exists() else None
-                tt_df = pd.read_csv(tt_path) if tt_path.exists() else None
-
-                if rl_df is None or rl_df.empty:
-                    continue
-
-                counters = {
-                    "moneyline": {"home": {}, "away": {}},
-                    "run_line": {"home": {}, "away": {}},
-                    "total": {"over": {}, "under": {}},
+            counters = {
+                "run_line": {
+                    "home": {"passed":0,"ev_fail":0,"kelly_fail":0,"odds_fail":0,"line_fail":0,"missing":0},
+                    "away": {"passed":0,"ev_fail":0,"kelly_fail":0,"odds_fail":0,"line_fail":0,"missing":0},
                 }
+            }
 
-                final = []
-                seen = set()
+            final = []
 
-                for _, row in rl_df.iterrows():
+            for fp in files:
+                df = pd.read_csv(fp)
+
+                for _, row in df.iterrows():
                     base = {
                         "game_id": row["game_id"],
                         "game_date": row["game_date"],
@@ -249,17 +173,19 @@ def main():
                     }
 
                     for r in process_run_line(row, counters):
-                        k = f"{row['game_id']}_{r['market_type']}_{r['bet_side']}"
-                        if k not in seen:
-                            final.append({**base, **r})
-                            seen.add(k)
+                        final.append({**base, **r})
 
-                if final:
-                    out = OUTPUT_DIR / f"{slate}_MLB.csv"
-                    pd.DataFrame(final).to_csv(out, index=False)
+            if final:
+                out = OUTPUT_DIR / "selected_run_line.csv"
+                pd.DataFrame(final).to_csv(out, index=False)
+                log.write(f"Wrote {len(final)} bets\n")
+
+            log.write("\n=== COUNTERS ===\n")
+            for side in counters["run_line"]:
+                log.write(f"{side}: {counters['run_line'][side]}\n")
 
         except Exception as e:
-            log.write(f"\nFATAL ERROR:\n{e}\n{traceback.format_exc()}")
+            log.write(f"ERROR: {e}\n{traceback.format_exc()}")
 
 if __name__ == "__main__":
     main()
