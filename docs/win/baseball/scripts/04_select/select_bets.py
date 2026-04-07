@@ -8,10 +8,6 @@ from datetime import datetime, UTC
 import traceback
 import yaml
 
-# =========================
-# CONFIG
-# =========================
-
 INPUT_DIR   = Path("docs/win/baseball/03_edges/ev_kelly")
 OUTPUT_DIR  = Path("docs/win/baseball/04_select")
 CONFIG_PATH = Path("docs/win/baseball/config/markets.yaml")
@@ -38,7 +34,7 @@ def f(x):
         if pd.isna(x):
             return None
         return float(x)
-    except:
+    except Exception:
         return None
 
 def in_range(val, ranges):
@@ -47,10 +43,37 @@ def in_range(val, ranges):
     return any(lo <= val <= hi for lo, hi in ranges)
 
 def rescale_prob(p, k=3.0):
-    if p is None or not (0 < p < 1):
+    if p is None:
+        return None
+    if not (0 < p < 1):
         return p
     logit = math.log(p / (1 - p))
     return 1 / (1 + math.exp(-k * logit))
+
+def violates_exclude_rules(ev, kelly, odds, line, prob, rules):
+    for r in rules.get("exclude_rules", []):
+        if "ev_min" in r and (ev is None or ev < r["ev_min"]):
+            continue
+        if "ev_max" in r and (ev is None or ev > r["ev_max"]):
+            continue
+        if "kelly_min" in r and (kelly is None or kelly < r["kelly_min"]):
+            continue
+        if "kelly_max" in r and (kelly is None or kelly > r["kelly_max"]):
+            continue
+        if "odds_min" in r and (odds is None or odds < r["odds_min"]):
+            continue
+        if "odds_max" in r and (odds is None or odds > r["odds_max"]):
+            continue
+        if "line_min" in r and (line is None or line < r["line_min"]):
+            continue
+        if "line_max" in r and (line is None or line > r["line_max"]):
+            continue
+        if "prob_min" in r and (prob is None or prob < r["prob_min"]):
+            continue
+        if "prob_max" in r and (prob is None or prob > r["prob_max"]):
+            continue
+        return True
+    return False
 
 def check_rules(ev, kelly, odds, line, prob, rules, counters):
     if ev is None or kelly is None:
@@ -73,35 +96,108 @@ def check_rules(ev, kelly, odds, line, prob, rules, counters):
         counters["line_fail"] += 1
         return False
 
-    if "prob_min" in rules and prob is not None and prob < rules["prob_min"]:
-        counters.setdefault("prob_fail", 0)
-        counters["prob_fail"] += 1
+    if "prob_min" in rules:
+        if prob is None or prob < rules["prob_min"]:
+            counters.setdefault("prob_fail", 0)
+            counters["prob_fail"] += 1
+            return False
+
+    if "prob_max" in rules:
+        if prob is None or prob > rules["prob_max"]:
+            counters.setdefault("prob_fail", 0)
+            counters["prob_fail"] += 1
+            return False
+
+    if violates_exclude_rules(ev, kelly, odds, line, prob, rules):
+        counters["excluded"] += 1
         return False
 
     counters["passed"] += 1
     return True
 
-def select_candidate(candidates, preference):
+def select_candidate(candidates, preference, market_name=None, game_id=None):
     if not candidates:
         return []
 
     if preference == "all":
+        if DEBUG:
+            print(f"[SELECT all] game={game_id} market={market_name} count={len(candidates)}")
         return candidates
 
     if preference == "best_prob":
-        best = max(candidates, key=lambda x: (x["model_prob"] or 0))
+        best = max(candidates, key=lambda x: (x["model_prob"] if x["model_prob"] is not None else -999))
         if DEBUG:
-            print(f"[SELECT best_prob] {best['side']} prob={best['model_prob']} ev={best['ev']}")
+            print(
+                f"[SELECT best_prob] game={game_id} market={market_name} "
+                f"side={best['side']} prob={best['model_prob']} ev={best['ev']} "
+                f"odds={best['dk_odds_american']} line={best['line']}"
+            )
         return [best]
 
-    best = max(candidates, key=lambda x: (x["ev"] or 0))
+    best = max(candidates, key=lambda x: (x["ev"] if x["ev"] is not None else -999))
     if DEBUG:
-        print(f"[SELECT best_ev] {best['side']} ev={best['ev']} prob={best['model_prob']}")
+        print(
+            f"[SELECT best_ev] game={game_id} market={market_name} "
+            f"side={best['side']} ev={best['ev']} prob={best['model_prob']} "
+            f"odds={best['dk_odds_american']} line={best['line']}"
+        )
     return [best]
 
+def init_counter():
+    return {
+        "passed": 0,
+        "ev_fail": 0,
+        "kelly_fail": 0,
+        "odds_fail": 0,
+        "line_fail": 0,
+        "prob_fail": 0,
+        "excluded": 0,
+        "missing": 0,
+    }
+
 # =========================
-# PROCESS RUN LINE
+# PROCESSORS
 # =========================
+
+def process_moneyline(row, counters):
+    candidates = []
+
+    for side in ["home", "away"]:
+        rules = CONFIG["moneyline"][side]
+        if not rules["enabled"]:
+            continue
+
+        ev        = f(row.get(f"{side}_ml_ev"))
+        kelly     = f(row.get(f"{side}_ml_kelly"))
+        odds      = f(row.get(f"{side}_dk_moneyline_american"))
+        dec       = f(row.get(f"{side}_dk_decimal_moneyline"))
+        raw_prob  = f(row.get(f"{side}_prob"))
+        model_prob = rescale_prob(raw_prob)
+
+        if not check_rules(ev, kelly, odds, None, model_prob, rules, counters["moneyline"][side]):
+            continue
+
+        candidates.append({
+            "market_type": "moneyline",
+            "bet_side": side,
+            "market": "moneyline",
+            "side": side,
+            "line": "",
+            "take_bet": f"{side}_moneyline",
+            "dk_odds_american": odds,
+            "dk_odds_decimal": dec,
+            "model_prob": model_prob,
+            "ev": ev,
+            "kelly": kelly,
+        })
+
+    preference = CONFIG["moneyline"].get("pick_preference", "best_ev")
+    return select_candidate(
+        candidates,
+        preference,
+        market_name="moneyline",
+        game_id=row.get("game_id"),
+    )
 
 def process_run_line(row, counters):
     candidates = []
@@ -116,26 +212,73 @@ def process_run_line(row, counters):
         odds  = f(row.get(f"{side}_dk_run_line_american"))
         dec   = f(row.get(f"{side}_dk_run_line_decimal"))
         line  = f(row.get(f"{side}_run_line"))
-        prob  = f(row.get(f"{side}_run_line_prob"))  # FIXED
+        raw_prob = f(row.get(f"{side}_run_line_prob"))
 
-        if not check_rules(ev, kelly, odds, line, prob, rules, counters["run_line"][side]):
+        if not check_rules(ev, kelly, odds, line, raw_prob, rules, counters["run_line"][side]):
             continue
 
         candidates.append({
             "market_type": "run_line",
             "bet_side": side,
+            "market": "run_line",
             "side": side,
             "line": line,
             "take_bet": f"{side}_run_line",
             "dk_odds_american": odds,
             "dk_odds_decimal": dec,
-            "model_prob": prob,
+            "model_prob": raw_prob,
             "ev": ev,
             "kelly": kelly,
         })
 
-    pref = CONFIG["run_line"].get("pick_preference", "best_ev")
-    return select_candidate(candidates, pref)
+    preference = CONFIG["run_line"].get("pick_preference", "best_ev")
+    return select_candidate(
+        candidates,
+        preference,
+        market_name="run_line",
+        game_id=row.get("game_id"),
+    )
+
+def process_total(row, counters):
+    candidates = []
+
+    for side in ["over", "under"]:
+        rules = CONFIG["total"][side]
+        if not rules["enabled"]:
+            continue
+
+        ev        = f(row.get(f"{side}_ev"))
+        kelly     = f(row.get(f"{side}_kelly"))
+        odds      = f(row.get(f"dk_total_{side}_american"))
+        dec       = f(row.get(f"dk_total_{side}_decimal"))
+        line      = f(row.get("total"))
+        raw_prob  = f(row.get(f"{side}_prob"))
+        model_prob = rescale_prob(raw_prob)
+
+        if not check_rules(ev, kelly, odds, line, model_prob, rules, counters["total"][side]):
+            continue
+
+        candidates.append({
+            "market_type": "total",
+            "bet_side": side,
+            "market": "total",
+            "side": side,
+            "line": line,
+            "take_bet": f"{side}_total",
+            "dk_odds_american": odds,
+            "dk_odds_decimal": dec,
+            "model_prob": model_prob,
+            "ev": ev,
+            "kelly": kelly,
+        })
+
+    preference = CONFIG["total"].get("pick_preference", "best_ev")
+    return select_candidate(
+        candidates,
+        preference,
+        market_name="total",
+        game_id=row.get("game_id"),
+    )
 
 # =========================
 # MAIN
@@ -144,48 +287,110 @@ def process_run_line(row, counters):
 def main():
     with open(ERROR_LOG, "w") as log:
         try:
-            log.write(f"=== RUN {datetime.now(UTC)} ===\n")
+            log.write(f"=== SELECT BETS RUN {datetime.now(UTC)} ===\n")
 
-            files = sorted(INPUT_DIR.glob("*_mlb_run_line.csv"))
+            files = sorted(INPUT_DIR.glob("*_mlb_*.csv"))
+            log.write(f"Files found: {len(files)}\n")
+
             if not files:
-                log.write("No files\n")
+                log.write("ERROR: No input files found\n")
                 return
 
-            counters = {
-                "run_line": {
-                    "home": {"passed":0,"ev_fail":0,"kelly_fail":0,"odds_fail":0,"line_fail":0,"missing":0},
-                    "away": {"passed":0,"ev_fail":0,"kelly_fail":0,"odds_fail":0,"line_fail":0,"missing":0},
-                }
-            }
-
-            final = []
-
+            slates = {}
             for fp in files:
-                df = pd.read_csv(fp)
+                key = fp.name.split("_mlb_")[0]
+                slates.setdefault(key, []).append(fp)
 
-                for _, row in df.iterrows():
+            for slate, _ in slates.items():
+                log.write(f"\n--- Slate: {slate} ---\n")
+
+                ml_path = INPUT_DIR / f"{slate}_mlb_moneyline.csv"
+                rl_path = INPUT_DIR / f"{slate}_mlb_run_line.csv"
+                tt_path = INPUT_DIR / f"{slate}_mlb_total.csv"
+
+                ml_df = pd.read_csv(ml_path) if ml_path.exists() else None
+                rl_df = pd.read_csv(rl_path) if rl_path.exists() else None
+                tt_df = pd.read_csv(tt_path) if tt_path.exists() else None
+
+                if rl_df is None or rl_df.empty:
+                    log.write("WARNING: No run_line file — skipping slate\n")
+                    continue
+
+                counters = {
+                    "moneyline": {
+                        "home": init_counter(),
+                        "away": init_counter(),
+                    },
+                    "run_line": {
+                        "home": init_counter(),
+                        "away": init_counter(),
+                    },
+                    "total": {
+                        "over": init_counter(),
+                        "under": init_counter(),
+                    },
+                }
+
+                final = []
+                seen = set()
+
+                for _, row in rl_df.iterrows():
+                    game_id   = row["game_id"]
+                    game_date = row["game_date"]
+                    away      = row["away_team"]
+                    home      = row["home_team"]
+
                     base = {
-                        "game_id": row["game_id"],
-                        "game_date": row["game_date"],
+                        "game_id": game_id,
+                        "game_date": game_date,
                         "league": LEAGUE_CODE,
-                        "away_team": row["away_team"],
-                        "home_team": row["home_team"],
+                        "away_team": away,
+                        "home_team": home,
                     }
 
+                    # Run line
                     for r in process_run_line(row, counters):
-                        final.append({**base, **r})
+                        k = f"{game_id}_{r['market_type']}_{r['bet_side']}"
+                        if k not in seen:
+                            final.append({**base, **r})
+                            seen.add(k)
 
-            if final:
-                out = OUTPUT_DIR / "selected_run_line.csv"
-                pd.DataFrame(final).to_csv(out, index=False)
-                log.write(f"Wrote {len(final)} bets\n")
+                    # Total
+                    if tt_df is not None and not tt_df.empty:
+                        match = tt_df[(tt_df["away_team"] == away) & (tt_df["home_team"] == home)]
+                        for _, t in match.iterrows():
+                            for r in process_total(t, counters):
+                                k = f"{game_id}_{r['market_type']}_{r['bet_side']}"
+                                if k not in seen:
+                                    final.append({**base, **r})
+                                    seen.add(k)
 
-            log.write("\n=== COUNTERS ===\n")
-            for side in counters["run_line"]:
-                log.write(f"{side}: {counters['run_line'][side]}\n")
+                    # Moneyline
+                    if ml_df is not None and not ml_df.empty:
+                        match = ml_df[(ml_df["away_team"] == away) & (ml_df["home_team"] == home)]
+                        for _, m in match.iterrows():
+                            for r in process_moneyline(m, counters):
+                                k = f"{game_id}_{r['market_type']}_{r['bet_side']}"
+                                if k not in seen:
+                                    final.append({**base, **r})
+                                    seen.add(k)
+
+                if final:
+                    out = OUTPUT_DIR / f"{slate}_MLB.csv"
+                    pd.DataFrame(final).to_csv(out, index=False)
+                    log.write(f"Output: {out.name} — {len(final)} rows\n")
+                else:
+                    log.write("WARNING: No bets passed filters\n")
+
+                log.write("Breakdown:\n")
+                for market in counters:
+                    for side in counters[market]:
+                        log.write(f"  {market}-{side}: {counters[market][side]}\n")
 
         except Exception as e:
-            log.write(f"ERROR: {e}\n{traceback.format_exc()}")
+            log.write(f"\nFATAL ERROR:\n{e}\n{traceback.format_exc()}")
 
+if __name__ == "__main__":
+    main()
 if __name__ == "__main__":
     main()
