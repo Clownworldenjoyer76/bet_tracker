@@ -1,0 +1,37 @@
+name: TEST Select MLB Bets
+
+on:
+  workflow_dispatch:   # ✅ manual only
+
+permissions:
+  contents: write   # ✅ allows writing CSV output
+
+jobs:
+  run-select:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install pandas pyyaml
+
+      - name: Run select script
+        run: |
+          python docs/win/baseball/scripts/04_select/select_bets.py
+
+      - name: Commit outputs
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add docs/win/baseball/04_select/*
+          git add docs/win/baseball/errors/*
+          git commit -m "Run select bets" || echo "No changes"
+          git push
