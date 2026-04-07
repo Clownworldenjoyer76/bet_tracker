@@ -38,8 +38,8 @@ pipeline = [
 
     # Soccer
     ["python", "docs/win/soccer/scripts/01_merge/merge_intake.py"],
-    ["python", "docs/win/soccer/scripts/01_merge/market_model.py"],
-    ["python", "docs/win/soccer/scripts/01_merge/validate_merge.py", current_date_str],
+    ["python", "docs/win/soccer/scripts/01_merge/build_juice_files.py"],
+
 
     # Hockey + Basketball
     ["python", "docs/win/hockey/scripts/01_merge/merge_intake.py"],
