@@ -39,26 +39,31 @@ markets:
       home:
         enabled: true
         line_bands:
-          - [-20, -3.0]
-          - [-0.5, 0]
+          - [-30, 30]
+        #  - [-20, -3.0]
+        #  - [-0.5, 0]
         ev_min: 0.0
         ev_max: 0.10
         kelly_min: 0.0
-        kelly_max: 0.25
+        kelly_max: 0.99
+      #  kelly_max: 0.25
 
-        exclude_rules:
-          - line_min: -3.0
-            line_max: 0
-            ev_max: 0.0
+      #  exclude_rules:
+     #     - line_min: -3.0
+       #     line_max: 0
+        #    ev_max: 0.0
 
       away:
         enabled: true
         line_bands:
-          - [5, 8]
+          - [-30, 30]
+      #    - [5, 8]
         ev_min: 0.0
-        ev_max: 0.15
+        ev_max: 0.99
+       # ev_max: 0.15
         kelly_min: 0.0
-        kelly_max: 0.25
+        kelly_max: 0.99
+       # kelly_max: 0.25
 
 #################################################################
 ## NBA TOTAL ####################################################
@@ -71,37 +76,44 @@ markets:
       over:
         enabled: true
         line_bands:
-          - [200, 225]
-          - [225, 230]
-          - [230, 260]
+          - [200, 280]
+       #   - [200, 225]
+       #   - [225, 230]
+       #   - [230, 260]
         ev_min: 0.0
-        ev_max: 0.075
+        ev_max: 0.99
+        #ev_max: 0.075
         kelly_min: 0.0
-        kelly_max: 0.25
+        kelly_max: 0.99
+      #  kelly_max: 0.25
 
-        exclude_rules:
-          - line_min: 230
-            line_max: 260
-            ev_max: 0.02
+       # exclude_rules:
+        #  - line_min: 230
+         #   line_max: 260
+          #  ev_max: 0.02
 
       under:
         enabled: true
         line_bands:
-          - [215, 228]
-          - [233, 245]
-          - [200, 260]
+          - [200, 280]
+         # - [215, 228]
+         # - [233, 245]
+         # - [200, 260]
         odds_bands:
-          - [-109, 100]
-          - [-149, -110]
+          - [-300, 300]
+        #  - [-109, 100]
+        #  - [-149, -110]
         ev_min: 0.0
-        ev_max: 0.05
+        ev_max: 0.99
+        #ev_max: 0.05
         kelly_min: 0.0
-        kelly_max: 0.25
+        kelly_max: 0.99
+        #kelly_max: 0.25
 
-        exclude_rules:
-          - line_min: 200
-            line_max: 215
-            ev_max: 0.02
+        #exclude_rules:
+         # - line_min: 200
+          #  line_max: 215
+           # ev_max: 0.02
 
 ###################################################################################################
 # NCAAB CONFIG ####################################################################################
