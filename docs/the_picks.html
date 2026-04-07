@@ -161,31 +161,19 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   box-shadow: 0 0 8px var(--picks-green-glow);
 }
 
-/* ── League grid ────────────────────────────────────────────────────────── */
+/* ── Picks body ─────────────────────────────────────────────────────────── */
 #games {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
-  gap: 0;
   padding: 24px;
-  align-items: start;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
 }
 
-/* Gap via padding so borders collapse cleanly */
+/* ── Sport section — stacks header above a horizontal card grid ─────────── */
 .league-column {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 0 16px 0 0;
-  border-right: 1px solid var(--picks-border);
-}
-
-.league-column:last-child {
-  border-right: none;
-  padding-right: 0;
-}
-
-.league-column + .league-column {
-  padding-left: 16px;
 }
 
 /* ── League header ──────────────────────────────────────────────────────── */
@@ -201,6 +189,18 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   margin-bottom: 4px;
   display: flex;
   align-items: center;
+  gap: 8px;
+}
+
+/* ── Cards within a league section flow horizontally ───────────────────── */
+.league-column .pick-card {
+  /* cards are direct children — wrap them with a sub-grid via display:contents trick */
+}
+
+/* Wrap all pick-cards in a grid using a generated cards container */
+.league-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
   gap: 8px;
 }
 
@@ -549,15 +549,11 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 /* ── Responsive ─────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
   #games {
-    grid-template-columns: 1fr;
     padding: 16px;
   }
-  .league-column {
-    padding: 0 0 20px !important;
-    border-right: none !important;
-    border-bottom: 1px solid var(--picks-border);
+  .league-cards-grid {
+    grid-template-columns: 1fr;
   }
-  .league-column:last-child { border-bottom: none; }
 }
 
 </style>
@@ -591,6 +587,27 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   <script src="js/config.js"></script>
   <script src="js/nav.js"></script>
   <script src="js/app.js"></script>
+
+  <script>
+    // After app.js renders picks into each .league-column, wrap all
+    // .pick-card siblings into a .league-cards grid div so they
+    // flow horizontally instead of stacking vertically.
+    function wrapPickCards() {
+      document.querySelectorAll('.league-column').forEach(col => {
+        const cards = [...col.querySelectorAll(':scope > .pick-card')];
+        if (cards.length === 0) return;
+        const grid = document.createElement('div');
+        grid.className = 'league-cards';
+        cards[0].before(grid);
+        cards.forEach(c => grid.appendChild(c));
+      });
+    }
+
+    // Observe #games for mutations so we catch whenever app.js renders
+    const observer = new MutationObserver(() => wrapPickCards());
+    const games = document.getElementById('games');
+    if (games) observer.observe(games, { childList: true, subtree: true });
+  </script>
 
 </body>
 </html>
