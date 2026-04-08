@@ -9,7 +9,7 @@ BASE = Path(__file__).resolve().parents[2]
 
 INPUT_DIR = BASE / "03_edges"
 OUTPUT_DIR = BASE / "04_select"
-CONFIG_PATH = BASE.parents[3] / "config" / "soccer" / "markets.yaml"
+CONFIG_PATH = BASE / "config" / "markets.yaml"
 
 ERROR_DIR = BASE / "errors" / "04_select"
 ERROR_LOG = ERROR_DIR / "select_bets.txt"
@@ -111,8 +111,10 @@ def process_totals(df, config):
             ev = f(row.get(f"{side}_ev"))
             kelly = f(row.get(f"{side}_kelly"))
 
-            odds = f(row.get("dk_over25_decimal") or row.get("dk_over35_decimal")) if side == "over" else \
-                   f(row.get("dk_under25_decimal") or row.get("dk_under35_decimal"))
+            if side == "over":
+                odds = f(row.get("dk_over25_decimal") or row.get("dk_over35_decimal"))
+            else:
+                odds = f(row.get("dk_under25_decimal") or row.get("dk_under35_decimal"))
 
             if not check_rules(ev, kelly, odds, rules):
                 continue
