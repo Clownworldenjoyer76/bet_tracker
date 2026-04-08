@@ -20,34 +20,10 @@ ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 
 # =========================
-# LOAD CONFIG (ROBUST)
+# LOAD CONFIG
 # =========================
-try:
-    with open(CONFIG_PATH, "r") as f:
-        raw = yaml.safe_load(f)
-
-    if "markets" not in raw:
-        raise SystemExit("Config missing 'markets' root key")
-
-    if "soccer" not in raw["markets"]:
-        raise SystemExit("Config missing 'markets.soccer' section")
-
-    CONFIG = raw["markets"]["soccer"]
-
-    if "match_odds" not in CONFIG:
-        raise SystemExit("Missing match_odds config")
-
-    if "totals" not in CONFIG:
-        raise SystemExit("Missing totals config")
-
-    if "btts" not in CONFIG:
-        raise SystemExit("Missing btts config")
-
-    if "yes" not in CONFIG["btts"] or "no" not in CONFIG["btts"]:
-        raise SystemExit("btts config must contain 'yes' and 'no'")
-
-except Exception as e:
-    raise SystemExit(f"CONFIG LOAD ERROR: {e}")
+with open(CONFIG_PATH, "r") as f:
+    CONFIG = yaml.safe_load(f)["markets"]["soccer"]
 
 
 # =========================
@@ -58,7 +34,7 @@ def f(x):
         if pd.isna(x):
             return None
         return float(x)
-    except Exception:
+    except:
         return None
 
 
@@ -108,11 +84,13 @@ def process_match(df):
                 continue
 
             results.append({
+                "game_id": row.get("game_id"),
+                "sport": row.get("sport"),
+                "league": row.get("league"),
+                "match_date": row.get("match_date"),
+                "match_time": row.get("match_time"),
                 "market": "match_odds",
                 "side": side,
-                "game_id": row.get("game_id"),
-                "home_team": row.get("home_team"),
-                "away_team": row.get("away_team"),
                 "odds": odds,
                 "ev": ev,
                 "kelly": kelly
@@ -145,11 +123,13 @@ def process_totals(df):
                 continue
 
             results.append({
+                "game_id": row.get("game_id"),
+                "sport": row.get("sport"),
+                "league": row.get("league"),
+                "match_date": row.get("match_date"),
+                "match_time": row.get("match_time"),
                 "market": "total",
                 "side": side,
-                "game_id": row.get("game_id"),
-                "home_team": row.get("home_team"),
-                "away_team": row.get("away_team"),
                 "odds": odds,
                 "ev": ev,
                 "kelly": kelly
@@ -178,11 +158,13 @@ def process_btts(df):
                 continue
 
             results.append({
+                "game_id": row.get("game_id"),
+                "sport": row.get("sport"),
+                "league": row.get("league"),
+                "match_date": row.get("match_date"),
+                "match_time": row.get("match_time"),
                 "market": "btts",
                 "side": side,
-                "game_id": row.get("game_id"),
-                "home_team": row.get("home_team"),
-                "away_team": row.get("away_team"),
                 "odds": odds,
                 "ev": ev,
                 "kelly": kelly
@@ -198,24 +180,33 @@ def main():
     with open(ERROR_LOG, "w") as log:
         log.write(f"{datetime.now(UTC).isoformat()}\n")
 
-    final = []
+    all_bets = []
 
     try:
         for file in INPUT_DIR.glob("*.csv"):
             df = pd.read_csv(file)
 
             if "match_odds" in file.name:
-                final += process_match(df)
+                all_bets += process_match(df)
 
             elif "total" in file.name:
-                final += process_totals(df)
+                all_bets += process_totals(df)
 
             elif "btts" in file.name:
-                final += process_btts(df)
+                all_bets += process_btts(df)
 
-        if final:
-            out = pd.DataFrame(final)
-            out.to_csv(OUTPUT_DIR / "soccer_bets.csv", index=False)
+        if not all_bets:
+            print("no bets found")
+            return
+
+        df = pd.DataFrame(all_bets)
+
+        # =========================
+        # SPLIT BY DATE
+        # =========================
+        for date, group in df.groupby("match_date"):
+            out_path = OUTPUT_DIR / f"{date}_soccer_bets.csv"
+            group.to_csv(out_path, index=False)
 
         print("select bets complete")
 
