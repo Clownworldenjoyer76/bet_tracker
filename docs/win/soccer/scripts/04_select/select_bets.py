@@ -4,6 +4,7 @@ import pandas as pd
 from pathlib import Path
 from datetime import datetime, UTC
 import yaml
+import traceback
 
 BASE = Path(__file__).resolve().parents[2]
 
@@ -19,10 +20,34 @@ ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 
 # =========================
-# LOAD CONFIG
+# LOAD CONFIG (ROBUST)
 # =========================
-with open(CONFIG_PATH, "r") as f:
-    CONFIG = yaml.safe_load(f)["markets"]["soccer"]
+try:
+    with open(CONFIG_PATH, "r") as f:
+        raw = yaml.safe_load(f)
+
+    if "markets" not in raw:
+        raise SystemExit("Config missing 'markets' root key")
+
+    if "soccer" not in raw["markets"]:
+        raise SystemExit("Config missing 'markets.soccer' section")
+
+    CONFIG = raw["markets"]["soccer"]
+
+    if "match_odds" not in CONFIG:
+        raise SystemExit("Missing match_odds config")
+
+    if "totals" not in CONFIG:
+        raise SystemExit("Missing totals config")
+
+    if "btts" not in CONFIG:
+        raise SystemExit("Missing btts config")
+
+    if "yes" not in CONFIG["btts"] or "no" not in CONFIG["btts"]:
+        raise SystemExit("btts config must contain 'yes' and 'no'")
+
+except Exception as e:
+    raise SystemExit(f"CONFIG LOAD ERROR: {e}")
 
 
 # =========================
@@ -33,7 +58,7 @@ def f(x):
         if pd.isna(x):
             return None
         return float(x)
-    except:
+    except Exception:
         return None
 
 
@@ -66,13 +91,13 @@ def check_rules(ev, kelly, odds, rules):
 # =========================
 # MATCH ODDS
 # =========================
-def process_match(df, config):
+def process_match(df):
     results = []
 
     for _, row in df.iterrows():
         for side in ["home", "draw", "away"]:
-            rules = config[side]
-            if not rules["enabled"]:
+            rules = CONFIG["match_odds"].get(side)
+            if not rules or not rules.get("enabled"):
                 continue
 
             ev = f(row.get(f"{side}_ev"))
@@ -85,9 +110,9 @@ def process_match(df, config):
             results.append({
                 "market": "match_odds",
                 "side": side,
-                "game_id": row["game_id"],
-                "home_team": row["home_team"],
-                "away_team": row["away_team"],
+                "game_id": row.get("game_id"),
+                "home_team": row.get("home_team"),
+                "away_team": row.get("away_team"),
                 "odds": odds,
                 "ev": ev,
                 "kelly": kelly
@@ -99,13 +124,13 @@ def process_match(df, config):
 # =========================
 # TOTALS
 # =========================
-def process_totals(df, config):
+def process_totals(df):
     results = []
 
     for _, row in df.iterrows():
         for side in ["over", "under"]:
-            rules = config[side]
-            if not rules["enabled"]:
+            rules = CONFIG["totals"].get(side)
+            if not rules or not rules.get("enabled"):
                 continue
 
             ev = f(row.get(f"{side}_ev"))
@@ -122,9 +147,9 @@ def process_totals(df, config):
             results.append({
                 "market": "total",
                 "side": side,
-                "game_id": row["game_id"],
-                "home_team": row["home_team"],
-                "away_team": row["away_team"],
+                "game_id": row.get("game_id"),
+                "home_team": row.get("home_team"),
+                "away_team": row.get("away_team"),
                 "odds": odds,
                 "ev": ev,
                 "kelly": kelly
@@ -136,13 +161,13 @@ def process_totals(df, config):
 # =========================
 # BTTS
 # =========================
-def process_btts(df, config):
+def process_btts(df):
     results = []
 
     for _, row in df.iterrows():
         for side in ["yes", "no"]:
-            rules = config[side]
-            if not rules["enabled"]:
+            rules = CONFIG["btts"].get(side)
+            if not rules or not rules.get("enabled"):
                 continue
 
             ev = f(row.get(f"{side}_ev"))
@@ -155,9 +180,9 @@ def process_btts(df, config):
             results.append({
                 "market": "btts",
                 "side": side,
-                "game_id": row["game_id"],
-                "home_team": row["home_team"],
-                "away_team": row["away_team"],
+                "game_id": row.get("game_id"),
+                "home_team": row.get("home_team"),
+                "away_team": row.get("away_team"),
                 "odds": odds,
                 "ev": ev,
                 "kelly": kelly
@@ -175,23 +200,28 @@ def main():
 
     final = []
 
-    for file in INPUT_DIR.glob("*.csv"):
-        df = pd.read_csv(file)
+    try:
+        for file in INPUT_DIR.glob("*.csv"):
+            df = pd.read_csv(file)
 
-        if "match_odds" in file.name:
-            final += process_match(df, CONFIG["match_odds"])
+            if "match_odds" in file.name:
+                final += process_match(df)
 
-        elif "total" in file.name:
-            final += process_totals(df, CONFIG["totals"])
+            elif "total" in file.name:
+                final += process_totals(df)
 
-        elif "btts" in file.name:
-            final += process_btts(df, CONFIG["btts"])
+            elif "btts" in file.name:
+                final += process_btts(df)
 
-    if final:
-        out = pd.DataFrame(final)
-        out.to_csv(OUTPUT_DIR / "soccer_bets.csv", index=False)
+        if final:
+            out = pd.DataFrame(final)
+            out.to_csv(OUTPUT_DIR / "soccer_bets.csv", index=False)
 
-    print("select bets complete")
+        print("select bets complete")
+
+    except Exception as e:
+        with open(ERROR_LOG, "a") as log:
+            log.write(f"ERROR: {e}\n{traceback.format_exc()}")
 
 
 if __name__ == "__main__":
