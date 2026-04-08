@@ -9,6 +9,10 @@ NCAAB_INPUT = Path("docs/win/final_scores/results/ncaab/graded/NCAAB_final.csv")
 OUTPUT_DIR = Path("docs/win/final_scores/intermediate")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
+# Wipe existing intermediate outputs before regenerating
+for stale in OUTPUT_DIR.glob("*.csv"):
+    stale.unlink(missing_ok=True)
+
 
 def get_col(row, *names):
     for name in names:
