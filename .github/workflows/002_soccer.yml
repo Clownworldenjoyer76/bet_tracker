@@ -1,0 +1,56 @@
+name: Soccer Pipeline
+
+on:
+  workflow_dispatch:
+
+jobs:
+  run-soccer-pipeline:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: .
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install pandas numpy pyyaml
+
+      - name: Run merge_intake
+        run: |
+          python docs/win/soccer/scripts/01_merge/merge_intake.py
+
+      - name: Run build_juice_files
+        run: |
+          python docs/win/soccer/scripts/01_merge/build_juice_files.py
+
+      - name: Run apply_juice
+        run: |
+          python docs/win/soccer/scripts/02_juice/apply_juice.py
+
+      - name: Run build_edges
+        run: |
+          python docs/win/soccer/scripts/03_edges/build_edges.py
+
+      - name: Run select_bets
+        run: |
+          python docs/win/soccer/scripts/04_select/select_bets.py
+
+      - name: Verify output exists
+        run: |
+          ls docs/win/soccer/04_select
+          test -f docs/win/soccer/04_select/soccer_bets.csv
+
+      - name: Upload output artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: soccer-bets
+          path: docs/win/soccer/04_select/soccer_bets.csv
