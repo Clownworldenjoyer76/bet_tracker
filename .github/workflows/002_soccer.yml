@@ -1,4 +1,4 @@
-name: 002 Soccer Pipeline
+name: Soccer Pipeline
 
 on:
   workflow_dispatch:
@@ -7,10 +7,6 @@ jobs:
   run-soccer-pipeline:
     runs-on: ubuntu-latest
 
-    defaults:
-      run:
-        working-directory: .
-
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -18,39 +14,106 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install pandas numpy scipy pyyaml
 
+      # =========================
+      # OPTIONAL: PARSING (ENABLE IF NEEDED)
+      # =========================
+      - name: Run parsing (if needed)
+        run: |
+          python docs/win/soccer/scripts/00_parsing/fetch_soccer_odds.py || true
+          python docs/win/soccer/scripts/00_parsing/soccert_drat.py || true
+          python docs/win/soccer/scripts/00_parsing/name_normalization.py || true
+          python docs/win/soccer/scripts/00_parsing/soccer_cleaner.py || true
+
+      # =========================
+      # VERIFY INTAKE EXISTS
+      # =========================
+      - name: Check intake data
+        run: |
+          echo "Checking intake directory..."
+          ls -R docs/win/soccer/00_intake || true
+
+          if [ -z "$(ls -A docs/win/soccer/00_intake 2>/dev/null)" ]; then
+            echo "ERROR: No intake data found. Pipeline cannot proceed."
+            exit 1
+          fi
+
+      # =========================
+      # MERGE
+      # =========================
       - name: Run merge_intake
         run: |
           python docs/win/soccer/scripts/01_merge/merge_intake.py
+
+      - name: Debug after merge
+        run: |
+          echo "01_merge contents:"
+          ls -R docs/win/soccer/01_merge || true
 
       - name: Run build_juice_files
         run: |
           python docs/win/soccer/scripts/01_merge/build_juice_files.py
 
+      - name: Debug after build_juice_files
+        run: |
+          ls -R docs/win/soccer/01_merge || true
+
+      # =========================
+      # JUICE
+      # =========================
       - name: Run apply_juice
         run: |
           python docs/win/soccer/scripts/02_juice/apply_juice.py
 
+      - name: Debug after juice
+        run: |
+          ls -R docs/win/soccer/02_juice || true
+
+      # =========================
+      # EDGES
+      # =========================
       - name: Run build_edges
         run: |
           python docs/win/soccer/scripts/03_edges/build_edges.py
 
+      - name: Debug after edges
+        run: |
+          ls -R docs/win/soccer/03_edges || true
+
+      # =========================
+      # SELECT
+      # =========================
       - name: Run select_bets
         run: |
           python docs/win/soccer/scripts/04_select/select_bets.py
 
+      - name: Debug after select
+        run: |
+          ls -R docs/win/soccer/04_select || true
+
+      # =========================
+      # VERIFY FINAL OUTPUT
+      # =========================
       - name: Verify output exists
         run: |
-          ls docs/win/soccer/04_select
-          test -f docs/win/soccer/04_select/soccer_bets.csv
+          if [ ! -f docs/win/soccer/04_select/soccer_bets.csv ]; then
+            echo "ERROR: soccer_bets.csv not created"
+            exit 1
+          fi
 
-      - name: Upload output artifact
+          echo "Final output preview:"
+          head -n 20 docs/win/soccer/04_select/soccer_bets.csv
+
+      # =========================
+      # UPLOAD OUTPUT
+      # =========================
+      - name: Upload soccer bets
         uses: actions/upload-artifact@v4
         with:
           name: soccer-bets
