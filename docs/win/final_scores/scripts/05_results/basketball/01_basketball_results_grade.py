@@ -95,6 +95,10 @@ def grade_league(league):
     output_dir = NBA_OUTPUT      if league == "NBA" else NCAAB_OUTPUT
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    # Wipe existing graded output before regenerating
+    for stale in output_dir.glob("*.csv"):
+        stale.unlink(missing_ok=True)
+
     # Load the select file for this league
     pattern = "*nba*.csv" if league == "NBA" else "*ncaab*.csv"
     select_files = list(SELECT_DIR.glob(pattern))
