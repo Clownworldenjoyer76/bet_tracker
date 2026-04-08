@@ -174,7 +174,7 @@ def process_totals(df):
 
     df = to_numeric(df, numeric_cols)
 
-    # convert fair odds → probabilities (guard against zero/NaN)
+    # convert fair odds -> probabilities (guard against zero/NaN)
     df["over_prob"] = 1 / df["fair_over"].where(df["fair_over"] > 0)
     df["under_prob"] = 1 / df["fair_under"].where(df["fair_under"] > 0)
 
@@ -209,6 +209,10 @@ def process_totals(df):
 # =========================
 
 def main():
+
+    # Clear all existing outputs before regenerating to prevent stale data
+    for stale in OUTPUT_DIR.glob("*.csv"):
+        stale.unlink(missing_ok=True)
 
     files = list(INPUT_DIR.glob("*.csv"))
 
