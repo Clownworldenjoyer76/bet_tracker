@@ -2,7 +2,7 @@
 
 from pathlib import Path
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, UTC
 
 BASE = Path(__file__).resolve().parents[2]
 
@@ -17,7 +17,7 @@ LOG_FILE = ERROR_DIR / "edges_log.txt"
 
 def log(msg):
     with open(LOG_FILE, "a") as f:
-        f.write(f"{datetime.utcnow().isoformat()} | {msg}\n")
+        f.write(f"{datetime.now(UTC).isoformat()} | {msg}\n")
 
 
 # =========================
@@ -25,21 +25,34 @@ def log(msg):
 # =========================
 
 def calc_edge(book_odds, fair_odds):
-    if book_odds and fair_odds:
-        return (book_odds / fair_odds) - 1
+    try:
+        if book_odds and fair_odds:
+            return (float(book_odds) / float(fair_odds)) - 1
+    except Exception:
+        pass
     return None
 
 
 def calc_ev(p, odds):
-    if p and odds:
-        return (p * (odds - 1)) - (1 - p)
+    try:
+        if p and odds:
+            p = float(p)
+            odds = float(odds)
+            return (p * (odds - 1)) - (1 - p)
+    except Exception:
+        pass
     return None
 
 
 def calc_kelly(p, odds):
-    if p and odds:
-        k = ((p * odds) - 1) / (odds - 1)
-        return max(0, k)  # no negative bets
+    try:
+        if p and odds:
+            p = float(p)
+            odds = float(odds)
+            k = ((p * odds) - 1) / (odds - 1)
+            return max(0, k)
+    except Exception:
+        pass
     return None
 
 
@@ -139,26 +152,29 @@ def process_btts(df):
 
 def main():
     with open(LOG_FILE, "w") as f:
-        f.write("=== edges run ===\n")
+        f.write(f"=== edges run {datetime.now(UTC).isoformat()} ===\n")
 
     for file in INPUT_DIR.glob("*.csv"):
-        df = pd.read_csv(file)
+        try:
+            df = pd.read_csv(file)
+            name = file.name
 
-        name = file.name
+            if "match_odds" in name:
+                out = process_match(df)
+            elif "total" in name:
+                out = process_totals(df)
+            elif "btts" in name:
+                out = process_btts(df)
+            else:
+                continue
 
-        if "match_odds" in name:
-            out = process_match(df)
-        elif "total" in name:
-            out = process_totals(df)
-        elif "btts" in name:
-            out = process_btts(df)
-        else:
-            continue
+            out_path = OUTPUT_DIR / name
+            out.to_csv(out_path, index=False)
 
-        out_path = OUTPUT_DIR / name
-        out.to_csv(out_path, index=False)
+            log(f"WROTE {out_path}")
 
-        log(f"WROTE {out_path}")
+        except Exception as e:
+            log(f"ERROR {file.name}: {e}")
 
     print("edges complete")
 
