@@ -1,6 +1,7 @@
-#docs/win/hockey/scripts/00_intake/hockey_drat_scraper.py
+# docs/win/hockey/scripts/00_intake/hockey_drat_scraper.py
 
 import json
+import traceback
 from pathlib import Path
 from datetime import datetime
 import pytz
@@ -13,6 +14,17 @@ URLS = {
 
 UTC = pytz.utc
 ET  = pytz.timezone("America/New_York")
+
+ERROR_DIR = Path("docs/win/hockey/errors/00_intake")
+ERROR_DIR.mkdir(parents=True, exist_ok=True)
+LOG_FILE = ERROR_DIR / "hockey_drat_scraper.txt"
+
+with open(LOG_FILE, "w", encoding="utf-8") as f:
+    f.write(f"=== hockey_drat_scraper RUN {datetime.now(ET).isoformat()} ===\n")
+
+def log(msg: str) -> None:
+    with open(LOG_FILE, "a", encoding="utf-8") as f:
+        f.write(f"{datetime.now(ET).isoformat()} | {msg}\n")
 
 
 def convert_utc_to_et(date_time_str: str) -> str:
@@ -55,7 +67,6 @@ def normalize_team(name: str) -> str:
 
 
 def is_game_row(row):
-    """Must have at least 6 cols and teams field must contain a newline."""
     return len(row) >= 6 and "\n" in row[1]
 
 
@@ -64,38 +75,19 @@ def parse_nhl(row):
         return None
 
     try:
-        # ── Upcoming game (11 columns) ─────────────────────────────────────
-        # col 0: date/time
-        # col 1: teams
-        # col 2: goalies          ← NEW column vs old scraper assumption
-        # col 3: win pcts
-        # col 4: moneylines
-        # col 5: spreads
-        # col 6: proj scores
-        # col 7: total
-        # col 8: over/under lines
-        # col 9: volatility label (may be empty)
-        # col 10: empty string
         if len(row) == 11:
             date_time = convert_utc_to_et(row[0].replace("\n", " "))
-
             t = row[1].split("\n")
             team1, team2 = t[0].strip(), t[1].strip()
-
             wp = row[3].split("\n")
             wp1, wp2 = wp[0], wp[1]
-
             ml = row[4].split("\n")
             ml1, ml2 = ml[0], ml[1]
-
             sp = row[5].split("\n")
             sp1, sp2 = sp[0], sp[1]
-
             ps = row[6].split("\n")
             proj1, proj2 = ps[0], ps[1]
-
             total = row[7]
-
             ou = row[8].split("\n")
             over_line, under_line = ou[0], ou[1]
 
@@ -120,30 +112,16 @@ def parse_nhl(row):
                 "game_status":     "upcoming",
             }
 
-        # ── Completed game (8 columns) ─────────────────────────────────────
-        # col 0: date/time
-        # col 1: teams (no record appended for completed)
-        # col 2: win pcts
-        # col 3: moneylines
-        # col 4: spreads
-        # col 5: scores  e.g. "1\n6"
-        # col 6: decimal value (model metric)
-        # col 7: decimal value (model metric)
         elif len(row) == 8:
             date_time = convert_utc_to_et(row[0].replace("\n", " "))
-
             t = row[1].split("\n")
             team1, team2 = t[0].strip(), t[1].strip()
-
             wp = row[2].split("\n")
             wp1, wp2 = wp[0], wp[1]
-
             ml = row[3].split("\n")
             ml1, ml2 = ml[0], ml[1]
-
             sp = row[4].split("\n")
             sp1, sp2 = sp[0], sp[1]
-
             sc = row[5].split("\n")
             score1, score2 = sc[0].strip(), sc[1].strip()
 
@@ -169,7 +147,7 @@ def parse_nhl(row):
             }
 
     except Exception as e:
-        print(f"  WARNING: parse_nhl failed on row (len={len(row)}): {e}")
+        log(f"WARNING: parse_nhl failed on row (len={len(row)}): {e}")
 
     return None
 
@@ -181,7 +159,7 @@ def scrape_page(page, url):
     return [[c.inner_text().strip() for c in r.query_selector_all("td")] for r in rows]
 
 
-def save_final_scores(completed: list):
+def save_final_scores(completed: list, files_written: list):
     if not completed:
         return
 
@@ -210,8 +188,7 @@ def save_final_scores(completed: list):
                 "home_puck_line": home_pl,
             })
         except Exception as e:
-            print(f"  WARNING: could not process completed game "
-                  f"{g.get('team1')} vs {g.get('team2')}: {e}")
+            log(f"WARNING: could not process completed game {g.get('team1')} vs {g.get('team2')}: {e}")
 
     if not rows:
         return
@@ -233,79 +210,107 @@ def save_final_scores(completed: list):
         else:
             group.to_csv(out_path, index=False)
 
-        print(f"  Saved {len(group)} completed games -> {out_path}")
+        files_written.append((str(out_path), len(group)))
+        log(f"WROTE final scores -> {out_path} ({len(group)} rows)")
 
 
 def main():
-    date = datetime.now(ET).strftime("%Y_%m_%d")
+    files_written  = []
+    parse_errors   = 0
 
-    raw_dir = Path("docs/win/hockey/00_intake/drat_raw")
-    raw_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        date = datetime.now(ET).strftime("%Y_%m_%d")
 
-    pred_dir = Path("docs/win/hockey/00_intake/predictions")
-    pred_dir.mkdir(parents=True, exist_ok=True)
+        raw_dir = Path("docs/win/hockey/00_intake/drat_raw")
+        raw_dir.mkdir(parents=True, exist_ok=True)
 
-    scraper_dir = pred_dir / "scraper"
-    scraper_dir.mkdir(parents=True, exist_ok=True)
+        pred_dir = Path("docs/win/hockey/00_intake/predictions")
+        pred_dir.mkdir(parents=True, exist_ok=True)
 
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
+        scraper_dir = pred_dir / "scraper"
+        scraper_dir.mkdir(parents=True, exist_ok=True)
 
-        page.set_extra_http_headers({
-            "User-Agent": (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/122.0.0.0 Safari/537.36"
-            )
-        })
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            page    = browser.new_page()
 
-        raw = scrape_page(page, URLS["nhl"])
+            page.set_extra_http_headers({
+                "User-Agent": (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/122.0.0.0 Safari/537.36"
+                )
+            })
 
-        # Save raw rows for debugging
-        raw_rows_path = raw_dir / f"{date}_nhl_raw_rows.json"
-        with open(raw_rows_path, "w") as f:
-            json.dump(raw, f, indent=2)
+            raw = scrape_page(page, URLS["nhl"])
 
-        # Log column count distribution
-        col_counts = {}
-        for r in raw:
-            n = len(r)
-            col_counts[n] = col_counts.get(n, 0) + 1
-        print(f"  Column count distribution: {col_counts}")
+            raw_rows_path = raw_dir / f"{date}_nhl_raw_rows.json"
+            with open(raw_rows_path, "w") as f:
+                json.dump(raw, f, indent=2)
+            files_written.append((str(raw_rows_path), len(raw)))
 
-        games = [parse_nhl(r) for r in raw]
-        games = [g for g in games if g]
+            col_counts = {}
+            for r in raw:
+                n = len(r)
+                col_counts[n] = col_counts.get(n, 0) + 1
+            log(f"Column count distribution: {col_counts}")
 
-        # Save full parsed JSON
-        raw_path = raw_dir / f"{date}_nhl_raw.json"
-        with open(raw_path, "w") as f:
-            json.dump(games, f, indent=2)
+            games = []
+            for r in raw:
+                result = parse_nhl(r)
+                if result:
+                    games.append(result)
+                elif is_game_row(r):
+                    parse_errors += 1
 
-        # ── Upcoming ───────────────────────────────────────────────────────
-        upcoming = [g for g in games if g["game_status"] == "upcoming"]
-        print(f"  Upcoming games found: {len(upcoming)}")
+            raw_path = raw_dir / f"{date}_nhl_raw.json"
+            with open(raw_path, "w") as f:
+                json.dump(games, f, indent=2)
+            files_written.append((str(raw_path), len(games)))
 
-        if upcoming:
-            df_up        = pd.DataFrame(upcoming)
-            final_path   = pred_dir / f"hockey_{date}.csv"
-            scraper_path = scraper_dir / f"{date}_nhl_predictions.csv"
-            df_up.to_csv(final_path,   index=False)
-            df_up.to_csv(scraper_path, index=False)
-            print(f"  Saved {len(df_up)} upcoming games -> {final_path}")
-        else:
-            print("  No upcoming games found.")
+            upcoming  = [g for g in games if g["game_status"] == "upcoming"]
+            completed = [g for g in games if g["game_status"] == "completed"]
 
-        # ── Completed ──────────────────────────────────────────────────────
-        completed = [g for g in games if g["game_status"] == "completed"]
-        print(f"  Completed games found: {len(completed)}")
+            log(f"Upcoming games: {len(upcoming)}")
+            log(f"Completed games: {len(completed)}")
 
-        if completed:
-            save_final_scores(completed)
-        else:
-            print("  No completed games found.")
+            if upcoming:
+                df_up        = pd.DataFrame(upcoming)
+                final_path   = pred_dir / f"hockey_{date}.csv"
+                scraper_path = scraper_dir / f"{date}_nhl_predictions.csv"
+                df_up.to_csv(final_path,   index=False)
+                df_up.to_csv(scraper_path, index=False)
+                files_written.append((str(final_path),   len(df_up)))
+                files_written.append((str(scraper_path), len(df_up)))
+                log(f"WROTE upcoming -> {final_path} ({len(df_up)} rows)")
+            else:
+                log("No upcoming games found.")
 
-        browser.close()
+            if completed:
+                save_final_scores(completed, files_written)
+            else:
+                log("No completed games found.")
+
+            browser.close()
+
+        # =========================
+        # SUMMARY
+        # =========================
+        log("--- SUMMARY ---")
+        log(f"Raw rows scraped: {len(raw)}")
+        log(f"Games parsed: {len(games)}")
+        log(f"Parse errors: {parse_errors}")
+        log(f"Upcoming: {len(upcoming)}")
+        log(f"Completed: {len(completed)}")
+        log(f"Files written: {len(files_written)}")
+        for path, count in files_written:
+            log(f"  FILE: {path} ({count} rows)")
+        log("STATUS: SUCCESS")
+
+    except Exception as e:
+        log(f"FATAL ERROR: {e}\n{traceback.format_exc()}")
+        log("STATUS: FAILED")
+        raise
 
     print("\nDone.")
 
