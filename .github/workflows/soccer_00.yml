@@ -1,0 +1,75 @@
+name: Soccer Odds Intake Group
+
+on:
+  workflow_dispatch:
+
+jobs:
+  soccer-pipeline:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install Playwright browsers
+        run: playwright install chromium --with-deps
+
+      # ✅ Ensure ALL required output directories exist
+      - name: Create output directories
+        run: |
+          mkdir -p docs/win/soccer/errors/00_intake/
+          mkdir -p mappings/soccer/no_map/
+          mkdir -p docs/win/soccer/00_intake/predictions/
+          mkdir -p docs/win/soccer/00_intake/predictions/normalized/
+          mkdir -p docs/win/soccer/00_intake/sportsbook/
+          mkdir -p docs/win/soccer/00_intake/sportsbook/normalized/
+          mkdir -p docs/win/final_scores/results/soccer/final_scores/
+
+      - name: Fetch Soccer Odds
+        env:
+          CLOUD_API: ${{ secrets.CLOUD_API }}
+        run: python docs/win/soccer/scripts/00_intake/fetch_soccer_odds.py
+
+      - name: Soccer Draft
+        run: python docs/win/soccer/scripts/00_intake/soccer_drat.py
+
+      - name: Name Normalization
+        run: python docs/win/soccer/scripts/00_intake/name_normalization.py
+
+      - name: Soccer Cleaner
+        run: python docs/win/soccer/scripts/00_intake/soccer_cleaner.py
+
+      # ✅ Commit ALL required outputs explicitly
+      - name: Commit outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Intake errors + logs
+          git add docs/win/soccer/errors/00_intake/
+          git add docs/win/soccer/errors/00_intake/soccer_drat_log.txt
+
+          # No-map mappings
+          git add mappings/soccer/no_map/
+
+          # Predictions (league + normalized)
+          git add docs/win/soccer/00_intake/predictions/
+          git add docs/win/soccer/00_intake/predictions/normalized/
+
+          # Sportsbook (raw + normalized)
+          git add docs/win/soccer/00_intake/sportsbook/
+          git add docs/win/soccer/00_intake/sportsbook/normalized/
+
+          # Final scores
+          git add docs/win/final_scores/results/soccer/final_scores/
+
+          git diff --cached --quiet || git commit -m "chore: soccer intake run $(date -u +'%Y-%m-%d %H:%M UTC')"
+          git push
