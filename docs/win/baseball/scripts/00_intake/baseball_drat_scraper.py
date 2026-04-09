@@ -38,73 +38,20 @@ def convert_utc_to_et(date_time_str: str) -> str:
         return date_time_str
 
 
-def is_float(val: str) -> bool:
+def is_completed_row(cells):
+    """
+    Detect completed game rows:
+    - scores exist in row[5] as "x\ny"
+    - row[6] is single float (log loss)
+    """
     try:
-        float(val)
-        return True
+        if len(cells) >= 7 and "\n" in cells[5]:
+            scores = cells[5].split("\n")
+            if len(scores) == 2 and scores[0].isdigit() and scores[1].isdigit():
+                return True
     except:
-        return False
-
-
-def detect_row_type(cells):
-    """
-    Determine if row is:
-    - 'future' (has projections)
-    - 'completed' (has final scores + log loss)
-    - 'unknown'
-    """
-
-    # completed games → row[5] is scores like "6\n8"
-    if len(cells) >= 7 and "\n" in cells[5]:
-        parts = cells[5].split("\n")
-        if len(parts) == 2 and parts[0].isdigit() and parts[1].isdigit():
-            return "completed"
-
-    # future games → row[6] is projections like "3.4\n4.7" and row[7] is float
-    if len(cells) >= 8 and "\n" in cells[6]:
-        parts = cells[6].split("\n")
-        if len(parts) == 2 and all(is_float(x) for x in parts) and is_float(cells[7]):
-            return "future"
-
-    return "unknown"
-
-
-def normalize_row(cells):
-    """
-    Normalize all rows into a consistent structure.
-    """
-
-    row_type = detect_row_type(cells)
-
-    try:
-        # -------------------------
-        # FUTURE GAME
-        # -------------------------
-        if row_type == "future":
-            return {
-                "type": "future",
-                "raw": cells
-            }
-
-        # -------------------------
-        # COMPLETED GAME
-        # -------------------------
-        elif row_type == "completed":
-            return {
-                "type": "completed",
-                "raw": cells
-            }
-
-        # -------------------------
-        # UNKNOWN
-        # -------------------------
-        else:
-            log(f"UNKNOWN FORMAT ROW: {cells}")
-            return None
-
-    except Exception as e:
-        log(f"NORMALIZE ERROR: {e} | ROW: {cells}")
-        return None
+        pass
+    return False
 
 
 def scrape_page(page, url):
@@ -116,23 +63,30 @@ def scrape_page(page, url):
 
     for table in tables:
         rows = table.query_selector_all("tbody tr")
+
         for r in rows:
             cells = [c.inner_text().strip() for c in r.query_selector_all("td")]
 
             if not cells:
                 continue
 
+            # normalize datetime
             try:
                 cells[0] = convert_utc_to_et(cells[0].replace("\n", " "))
             except:
                 pass
 
-            normalized = normalize_row(cells)
+            # -------------------------
+            # 🔥 CRITICAL FIX
+            # -------------------------
+            if is_completed_row(cells):
+                log(f"COMPLETED ROW DETECTED: {cells[1]}")
 
-            if normalized:
-                all_rows.append(normalized)
-            else:
-                log(f"SKIPPED ROW (failed normalization)")
+                # truncate to force len < 8
+                # ensures transform script treats it as completed
+                cells = cells[:6]
+
+            all_rows.append(cells)
 
     return all_rows
 
@@ -159,15 +113,7 @@ def main():
             })
 
             raw = scrape_page(page, URLS["mlb"])
-
-            log(f"Normalized rows scraped: {len(raw)}")
-
-            # breakdown for sanity
-            future_count    = sum(1 for r in raw if r["type"] == "future")
-            completed_count = sum(1 for r in raw if r["type"] == "completed")
-
-            log(f"Future rows: {future_count}")
-            log(f"Completed rows: {completed_count}")
+            log(f"Raw rows scraped: {len(raw)}")
 
             raw_path = raw_dir / f"{date}_mlb_raw.json"
 
@@ -180,9 +126,7 @@ def main():
             browser.close()
 
         log("--- SUMMARY ---")
-        log(f"Rows scraped: {len(raw)}")
-        log(f"Future rows: {future_count}")
-        log(f"Completed rows: {completed_count}")
+        log(f"Raw rows scraped: {len(raw)}")
         log(f"Files written: {len(files_written)}")
 
         for path, count in files_written:
