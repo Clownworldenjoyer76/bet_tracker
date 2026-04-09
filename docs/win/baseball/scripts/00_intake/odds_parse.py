@@ -3,12 +3,24 @@
 import sys
 import json
 import csv
+import traceback
 from pathlib import Path
 from datetime import datetime
-from zoneinfo import ZoneInfo  # ✅ handles DST correctly
+from zoneinfo import ZoneInfo
+
+ERROR_DIR = Path("docs/win/baseball/errors/00_intake")
+ERROR_DIR.mkdir(parents=True, exist_ok=True)
+LOG_FILE = ERROR_DIR / "odds_parse.txt"
+
+with open(LOG_FILE, "w", encoding="utf-8") as f:
+    f.write(f"=== odds_parse RUN {datetime.now().isoformat()} ===\n")
+
+def log(msg: str) -> None:
+    with open(LOG_FILE, "a", encoding="utf-8") as f:
+        f.write(f"{datetime.now().isoformat()} | {msg}\n")
 
 # -----------------------
-# INPUT HANDLING (FIXED)
+# INPUT HANDLING
 # -----------------------
 
 if len(sys.argv) > 1:
@@ -17,10 +29,12 @@ else:
     INPUT_PATH = Path("docs/win/baseball/odds")
 
 if not INPUT_PATH.exists():
+    log(f"FATAL ERROR: Input path does not exist: {INPUT_PATH}")
+    log("STATUS: FAILED")
     raise FileNotFoundError(f"Input path does not exist: {INPUT_PATH}")
 
 # -----------------------
-# TIME CONVERSION (UTC -> NY)
+# TIME CONVERSION
 # -----------------------
 def utc_to_est(utc_str):
     dt = datetime.fromisoformat(utc_str.replace("Z", "+00:00"))
@@ -41,7 +55,11 @@ def decimal_to_american(decimal_odds):
 # -----------------------
 # PROCESS ONE FILE
 # -----------------------
-def process_file(file_path):
+def process_file(file_path, files_written):
+    log(f"Processing {file_path.name}")
+    games_parsed  = 0
+    games_skipped = 0
+
     with open(file_path, "r") as f:
         data = json.load(f)
 
@@ -50,7 +68,7 @@ def process_file(file_path):
     for game in data:
         game_id = game.get("id")
 
-        sport = "baseball"
+        sport  = "baseball"
         league = "mlb"
 
         game_date, game_time = utc_to_est(game["commence_time"])
@@ -58,18 +76,12 @@ def process_file(file_path):
         away_team = game["away_team"]
         home_team = game["home_team"]
 
-        away_run_line = None
-        home_run_line = None
-        total = None
-
-        away_rl_dec = None
-        home_rl_dec = None
-        over_dec = None
-        under_dec = None
-        away_ml_dec = None
-        home_ml_dec = None
+        away_run_line = home_run_line = total = None
+        away_rl_dec = home_rl_dec = over_dec = under_dec = None
+        away_ml_dec = home_ml_dec = None
 
         if not game.get("bookmakers"):
+            games_skipped += 1
             continue
 
         markets = game["bookmakers"][0].get("markets", [])
@@ -88,15 +100,14 @@ def process_file(file_path):
                 for o in market["outcomes"]:
                     if o["name"] == away_team:
                         away_run_line = o["point"]
-                        away_rl_dec = o["price"]
+                        away_rl_dec   = o["price"]
                     elif o["name"] == home_team:
                         home_run_line = o["point"]
-                        home_rl_dec = o["price"]
+                        home_rl_dec   = o["price"]
 
             elif key == "totals":
                 if market["outcomes"]:
                     total = market["outcomes"][0]["point"]
-
                 for o in market["outcomes"]:
                     if o["name"] == "Over":
                         over_dec = o["price"]
@@ -119,6 +130,7 @@ def process_file(file_path):
         ]
 
         grouped_rows.setdefault(game_date, []).append(row)
+        games_parsed += 1
 
     base_output_dir = Path("docs/win/baseball/00_intake/sportsbook")
     base_output_dir.mkdir(parents=True, exist_ok=True)
@@ -140,18 +152,42 @@ def process_file(file_path):
             ])
             writer.writerows(rows)
 
-        print(f"Saved {output_path}")
+        files_written.append((str(output_path), len(rows)))
+        log(f"  WROTE {output_path} ({len(rows)} games)")
+
+    log(f"  games_parsed={games_parsed}, games_skipped={games_skipped}")
 
 # -----------------------
 # ENTRY
 # -----------------------
-if INPUT_PATH.is_file():
-    process_file(INPUT_PATH)
-elif INPUT_PATH.is_dir():
-    files = list(INPUT_PATH.glob("*.json"))
-    if not files:
-        raise FileNotFoundError(f"No JSON files found in {INPUT_PATH}")
-    for file in sorted(files):
-        process_file(file)
-else:
-    raise ValueError(f"Invalid input path: {INPUT_PATH}")
+
+def main():
+    files_written = []
+
+    try:
+        if INPUT_PATH.is_file():
+            process_file(INPUT_PATH, files_written)
+        elif INPUT_PATH.is_dir():
+            files = list(INPUT_PATH.glob("*.json"))
+            if not files:
+                log(f"No JSON files found in {INPUT_PATH}")
+                log("STATUS: SUCCESS (nothing to do)")
+                return
+            for file in sorted(files):
+                process_file(file, files_written)
+        else:
+            raise ValueError(f"Invalid input path: {INPUT_PATH}")
+
+        log("--- SUMMARY ---")
+        log(f"Files written: {len(files_written)}")
+        for path, count in files_written:
+            log(f"  FILE: {path} ({count} games)")
+        log("STATUS: SUCCESS")
+
+    except Exception as e:
+        log(f"FATAL ERROR: {e}\n{traceback.format_exc()}")
+        log("STATUS: FAILED")
+        raise
+
+if __name__ == "__main__":
+    main()
