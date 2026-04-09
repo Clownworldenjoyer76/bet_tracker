@@ -63,6 +63,9 @@ def main():
     row_issues    = 0
     empty_files   = 0
 
+    for f in OUTPUT_DIR.glob("*.csv"):
+        f.unlink()
+    
     try:
         files = glob.glob(str(INPUT_DIR / "hockey_NHL_*.csv"))
         log(f"Input files found: {len(files)}")
