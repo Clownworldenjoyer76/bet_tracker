@@ -1,3 +1,5 @@
+#docs/win/hockey/scripts/00_intake/hockey_drat_scraper.py
+
 import json
 from pathlib import Path
 from datetime import datetime
