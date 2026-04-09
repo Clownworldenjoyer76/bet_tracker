@@ -90,20 +90,58 @@ def load_sportsbook_lookup(date):
 # MAIN PROCESS
 # -------------------------
 
-def process_file(file_path, files_written):
+def is_future_game(row):
+    """Future games have pitchers (row[2] with \n) and projected runs (row[6] with \n)."""
+    return (
+        len(row) >= 8
+        and "\n" in str(row[2])
+        and "\n" in str(row[6])
+    )
+
+
+def is_live_game(row):
+    """Live/in-progress games have inning text in row[5] (non-numeric, e.g. '5th\nBOT')."""
+    if len(row) < 6:
+        return False
+    parts = str(row[5]).split("\n")
+    # If either part is non-numeric, it's inning text
+    return any(not p.strip().lstrip("-").isdigit() for p in parts)
+
+
+def is_completed_game(row):
+    """Completed games have two numeric values in row[5] (away score\nhome score)."""
+    if len(row) < 6:
+        return False
+    parts = str(row[5]).split("\n")
+    if len(parts) != 2:
+        return False
+    return all(p.strip().lstrip("-").isdigit() for p in parts)
+
+
+SUMMARY_ROW_PREFIXES = {"Sportsbooks", "DRatings"}
+
+def is_summary_row(row):
+    return row and str(row[0]).strip() in SUMMARY_ROW_PREFIXES
+
+
+def process_file(file_path, files_written, seen_final_keys):
     log(f"Processing {file_path.name}")
 
     with open(file_path, "r") as f:
         data = json.load(f)
 
-    today = datetime.now().date()
-
     predictions_by_date  = {}
     final_scores_by_date = {}
     parse_errors         = 0
+    skipped_summary      = 0
+    skipped_duplicate    = 0
 
     for row in data:
         if not row or len(row) < 2:
+            continue
+
+        if is_summary_row(row):
+            skipped_summary += 1
             continue
 
         try:
@@ -111,8 +149,6 @@ def process_file(file_path, files_written):
         except:
             parse_errors += 1
             continue
-
-        is_past = dt.date() < today
 
         teams = row[1].split("\n")
         if len(teams) < 2:
@@ -122,7 +158,11 @@ def process_file(file_path, files_written):
         home_team = clean_team(teams[1])
         key       = (home_team, away_team)
 
-        if not is_past and len(row) >= 8:
+        if is_live_game(row):
+            log(f"  SKIPPING live game: {away_team} @ {home_team} ({game_date})")
+            continue
+
+        if is_future_game(row):
             try:
                 pitchers     = row[2].split("\n")
                 home_pitcher = pitchers[0].strip()
@@ -152,8 +192,14 @@ def process_file(file_path, files_written):
                 parse_errors += 1
                 continue
 
-        if is_past and len(row) >= 6:
+        if is_completed_game(row):
             try:
+                dedup_key = (game_date, home_team, away_team)
+                if dedup_key in seen_final_keys:
+                    skipped_duplicate += 1
+                    continue
+                seen_final_keys.add(dedup_key)
+
                 scores     = row[5].split("\n")
                 away_score = int(scores[0])
                 home_score = int(scores[1])
@@ -209,7 +255,7 @@ def process_file(file_path, files_written):
         files_written.append((str(out), len(rows)))
         log(f"WROTE final scores -> {out} ({len(rows)} rows)")
 
-    log(f"  parse_errors={parse_errors}, predictions_dates={len(predictions_by_date)}, final_score_dates={len(final_scores_by_date)}")
+    log(f"  parse_errors={parse_errors}, skipped_summary={skipped_summary}, skipped_duplicate={skipped_duplicate}, predictions_dates={len(predictions_by_date)}, final_score_dates={len(final_scores_by_date)}")
 
 
 # -------------------------
@@ -217,14 +263,15 @@ def process_file(file_path, files_written):
 # -------------------------
 
 def main():
-    files_written = []
+    files_written   = []
+    seen_final_keys = set()
 
     try:
         raw_files = sorted(RAW_DIR.glob("*_mlb_raw.json"))
         log(f"Raw files found: {len(raw_files)}")
 
         for file in raw_files:
-            process_file(file, files_written)
+            process_file(file, files_written, seen_final_keys)
 
         log("--- SUMMARY ---")
         log(f"Raw files processed: {len(raw_files)}")
