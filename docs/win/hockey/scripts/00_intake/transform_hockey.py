@@ -4,13 +4,26 @@ import os
 import re
 import json
 import argparse
+import traceback
 import pandas as pd
+from pathlib import Path
 from datetime import datetime
+
+
+ERROR_DIR = Path("docs/win/hockey/errors/00_intake")
+ERROR_DIR.mkdir(parents=True, exist_ok=True)
+LOG_FILE = ERROR_DIR / "transform_hockey.txt"
+
+with open(LOG_FILE, "w", encoding="utf-8") as f:
+    f.write(f"=== transform_hockey RUN {datetime.now().isoformat()} ===\n")
+
+def log(msg: str) -> None:
+    with open(LOG_FILE, "a", encoding="utf-8") as f:
+        f.write(f"{datetime.now().isoformat()} | {msg}\n")
 
 
 def normalize_team(name: str) -> str:
     name = str(name).strip().lower()
-
     replacements = {
         "st. louis": "st louis",
         "ny rangers": "new york rangers",
@@ -18,10 +31,8 @@ def normalize_team(name: str) -> str:
         "nj devils": "new jersey devils",
         "la kings": "los angeles kings",
     }
-
     for k, v in replacements.items():
         name = name.replace(k, v)
-
     return name
 
 
@@ -51,6 +62,7 @@ def ensure_dir(path: str):
 def save(df: pd.DataFrame, path: str):
     ensure_dir(path)
     df.to_csv(path, index=False)
+    log(f"WROTE {path} ({len(df)} rows)")
     print(f"  Saved {len(df)} rows -> {path}")
 
 
@@ -68,19 +80,18 @@ def games_to_df(games: list) -> pd.DataFrame:
 
     df["team1"] = df["team1"].apply(strip_record).apply(normalize_team)
     df["team2"] = df["team2"].apply(strip_record).apply(normalize_team)
-
     df["game_date"] = df["date_time"].apply(parse_date)
     df["game_time"] = df["date_time"].apply(parse_time)
 
     return df
 
 
-def process_predictions(df: pd.DataFrame):
-    mask = df["score1"].isna() | (df["score1"].astype(str).str.strip() == "")
+def process_predictions(df: pd.DataFrame, files_written: list):
+    mask     = df["score1"].isna() | (df["score1"].astype(str).str.strip() == "")
     upcoming = df[mask].copy()
 
     if upcoming.empty:
-        print("  No upcoming NHL games found.")
+        log("No upcoming NHL games found.")
         return
 
     for date_val, group in upcoming.groupby("game_date"):
@@ -94,8 +105,8 @@ def process_predictions(df: pd.DataFrame):
                 home_prob = away_prob = ""
 
             try:
-                away_proj = float(row["proj_score_1"])
-                home_proj = float(row["proj_score_2"])
+                away_proj  = float(row["proj_score_1"])
+                home_proj  = float(row["proj_score_2"])
                 total_proj = round(away_proj + home_proj, 2)
             except:
                 away_proj = home_proj = total_proj = ""
@@ -114,15 +125,16 @@ def process_predictions(df: pd.DataFrame):
                 "total_projected_goals": total_proj,
             })
 
-        out = pd.DataFrame(rows)
+        out  = pd.DataFrame(rows)
         path = f"docs/win/hockey/00_intake/predictions/hockey_{date_val}.csv"
         save(out, path)
+        files_written.append((path, len(out)))
 
 
 def load_sportsbook(date_val: str):
     path = f"docs/win/hockey/00_intake/sportsbook/hockey_{date_val}.csv"
     if not os.path.exists(path):
-        print(f"  WARNING: sportsbook missing: {path}")
+        log(f"WARNING: sportsbook missing: {path}")
         return None
 
     sb = pd.read_csv(path)
@@ -141,11 +153,10 @@ def get_dk_values(sb, home_team, away_team):
     ]
 
     if match.empty:
-        print(f"  NO MATCH: {away_team} @ {home_team}")
+        log(f"NO SPORTSBOOK MATCH: {away_team} @ {home_team}")
         return {}
 
     row = match.iloc[0]
-
     return {
         "dk_away_puck_line": row.get("away_puck_line", ""),
         "dk_home_puck_line": row.get("home_puck_line", ""),
@@ -153,16 +164,16 @@ def get_dk_values(sb, home_team, away_team):
     }
 
 
-def process_final_scores(df: pd.DataFrame):
-    mask = df["score1"].notna() & (df["score1"].astype(str).str.strip() != "")
+def process_final_scores(df: pd.DataFrame, files_written: list):
+    mask      = df["score1"].notna() & (df["score1"].astype(str).str.strip() != "")
     completed = df[mask].copy()
 
     if completed.empty:
-        print("  No completed NHL games found.")
+        log("No completed NHL games found.")
         return
 
     for date_val, group in completed.groupby("game_date"):
-        sb = load_sportsbook(date_val)
+        sb   = load_sportsbook(date_val)
         rows = []
 
         for _, row in group.iterrows():
@@ -195,9 +206,10 @@ def process_final_scores(df: pd.DataFrame):
                 "dk_total":          dk.get("dk_total", ""),
             })
 
-        out = pd.DataFrame(rows)
+        out  = pd.DataFrame(rows)
         path = f"docs/win/final_scores/results/nhl/final_scores/{date_val}_final_scores_NHL.csv"
         save(out, path)
+        files_written.append((path, len(out)))
 
 
 def main():
@@ -205,16 +217,36 @@ def main():
     parser.add_argument("--nhl", required=True)
     args = parser.parse_args()
 
-    print(f"\nProcessing NHL: {args.nhl}")
+    files_written = []
 
-    games = load_json(args.nhl)
-    df = games_to_df(games)
+    try:
+        log(f"Input file: {args.nhl}")
+        games = load_json(args.nhl)
+        log(f"Games loaded: {len(games)}")
 
-    print(f"  TOTAL ROWS: {len(df)}")
+        df = games_to_df(games)
+        log(f"Rows after transform: {len(df)}")
 
-    if not df.empty:
-        process_predictions(df)
-        process_final_scores(df)
+        if not df.empty:
+            process_predictions(df, files_written)
+            process_final_scores(df, files_written)
+        else:
+            log("No data to process.")
+
+        # =========================
+        # SUMMARY
+        # =========================
+        log("--- SUMMARY ---")
+        log(f"Games loaded: {len(games)}")
+        log(f"Files written: {len(files_written)}")
+        for path, count in files_written:
+            log(f"  FILE: {path} ({count} rows)")
+        log("STATUS: SUCCESS")
+
+    except Exception as e:
+        log(f"FATAL ERROR: {e}\n{traceback.format_exc()}")
+        log("STATUS: FAILED")
+        raise
 
     print("\nDone.")
 
