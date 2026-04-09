@@ -22,7 +22,6 @@ LOG_FILE = ERROR_DIR / "baseball_drat_scraper.txt"
 with open(LOG_FILE, "w", encoding="utf-8") as f:
     f.write(f"=== baseball_drat_scraper RUN {datetime.now(ET).isoformat()} ===\n")
 
-
 def log(msg: str) -> None:
     with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write(f"{datetime.now(ET).isoformat()} | {msg}\n")
@@ -38,30 +37,6 @@ def convert_utc_to_et(date_time_str: str) -> str:
         return date_time_str
 
 
-def is_completed_row(cells):
-    """
-    ONLY detect completed rows when:
-    - row[5] is exactly two integers (scores)
-    Example:
-        "6\n8"  -> valid
-        "+1½-180\n-1½+185" -> NOT valid
-    """
-    try:
-        if len(cells) >= 6 and "\n" in cells[5]:
-            parts = [x.strip() for x in cells[5].split("\n")]
-
-            if (
-                len(parts) == 2 and
-                parts[0].isdigit() and
-                parts[1].isdigit()
-            ):
-                return True
-    except:
-        pass
-
-    return False
-
-
 def scrape_page(page, url):
     page.goto(url)
     page.wait_for_selector("table")
@@ -71,29 +46,14 @@ def scrape_page(page, url):
 
     for table in tables:
         rows = table.query_selector_all("tbody tr")
-
         for r in rows:
             cells = [c.inner_text().strip() for c in r.query_selector_all("td")]
-
-            if not cells:
-                continue
-
-            # normalize datetime
-            try:
-                cells[0] = convert_utc_to_et(cells[0].replace("\n", " "))
-            except:
-                pass
-
-            # -------------------------
-            # FIXED COMPLETED DETECTION
-            # -------------------------
-            if is_completed_row(cells):
-                log(f"COMPLETED ROW DETECTED: {cells[1]}")
-
-                # truncate so transform treats as completed
-                cells = cells[:6]
-
-            all_rows.append(cells)
+            if cells:
+                try:
+                    cells[0] = convert_utc_to_et(cells[0].replace("\n", " "))
+                except:
+                    pass
+                all_rows.append(cells)
 
     return all_rows
 
@@ -123,8 +83,7 @@ def main():
             log(f"Raw rows scraped: {len(raw)}")
 
             raw_path = raw_dir / f"{date}_mlb_raw.json"
-
-            with open(raw_path, "w", encoding="utf-8") as f:
+            with open(raw_path, "w") as f:
                 json.dump(raw, f, indent=2)
 
             files_written.append((str(raw_path), len(raw)))
@@ -135,10 +94,8 @@ def main():
         log("--- SUMMARY ---")
         log(f"Raw rows scraped: {len(raw)}")
         log(f"Files written: {len(files_written)}")
-
         for path, count in files_written:
             log(f"  FILE: {path} ({count} rows)")
-
         log("STATUS: SUCCESS")
 
     except Exception as e:
