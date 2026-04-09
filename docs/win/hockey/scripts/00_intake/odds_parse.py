@@ -1,6 +1,5 @@
+# docs/win/hockey/scripts/00_intake/odds_parse.py
 #!/usr/bin/env python3
-
-# docs/win/hockey/scripts/00_parsing/odds_parse.py
 
 import csv
 import json
