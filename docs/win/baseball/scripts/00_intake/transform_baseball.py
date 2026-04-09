@@ -3,17 +3,28 @@
 
 import json
 import csv
+import traceback
 from pathlib import Path
 from datetime import datetime
+
+ERROR_DIR = Path("docs/win/baseball/errors/00_intake")
+ERROR_DIR.mkdir(parents=True, exist_ok=True)
+LOG_FILE = ERROR_DIR / "transform_baseball.txt"
+
+with open(LOG_FILE, "w", encoding="utf-8") as f:
+    f.write(f"=== transform_baseball RUN {datetime.now().isoformat()} ===\n")
+
+def log(msg: str) -> None:
+    with open(LOG_FILE, "a", encoding="utf-8") as f:
+        f.write(f"{datetime.now().isoformat()} | {msg}\n")
 
 # -------------------------
 # PATHS
 # -------------------------
 
-RAW_DIR = Path("docs/win/baseball/00_intake/drat_raw")
-PRED_DIR = Path("docs/win/baseball/00_intake/predictions")
-FINAL_DIR = Path("docs/win/final_scores/results/mlb/final_scores")
-
+RAW_DIR        = Path("docs/win/baseball/00_intake/drat_raw")
+PRED_DIR       = Path("docs/win/baseball/00_intake/predictions")
+FINAL_DIR      = Path("docs/win/final_scores/results/mlb/final_scores")
 SPORTSBOOK_DIR = Path("docs/win/baseball/00_intake/sportsbook")
 
 PRED_DIR.mkdir(parents=True, exist_ok=True)
@@ -46,28 +57,23 @@ def split_lines(val):
 # -------------------------
 
 def load_predictions_lookup(date):
-    path = PRED_DIR / f"{date}_MLB.csv"
+    path   = PRED_DIR / f"{date}_MLB.csv"
     lookup = {}
-
     if not path.exists():
         return lookup
-
     with open(path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for r in reader:
             key = (r["home_team"], r["away_team"])
             lookup[key] = r.get("game_id")
-
     return lookup
 
 
 def load_sportsbook_lookup(date):
-    path = SPORTSBOOK_DIR / f"{date}_MLB.csv"
+    path   = SPORTSBOOK_DIR / f"{date}_MLB.csv"
     lookup = {}
-
     if not path.exists():
         return lookup
-
     with open(path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for r in reader:
@@ -75,9 +81,8 @@ def load_sportsbook_lookup(date):
             lookup[key] = {
                 "away_run_line": r.get("away_run_line"),
                 "home_run_line": r.get("home_run_line"),
-                "total": r.get("total"),
+                "total":         r.get("total"),
             }
-
     return lookup
 
 
@@ -85,14 +90,17 @@ def load_sportsbook_lookup(date):
 # MAIN PROCESS
 # -------------------------
 
-def process_file(file_path):
+def process_file(file_path, files_written):
+    log(f"Processing {file_path.name}")
+
     with open(file_path, "r") as f:
         data = json.load(f)
 
     today = datetime.now().date()
 
-    predictions_by_date = {}
+    predictions_by_date  = {}
     final_scores_by_date = {}
+    parse_errors         = 0
 
     for row in data:
         if not row or len(row) < 2:
@@ -101,71 +109,52 @@ def process_file(file_path):
         try:
             dt, game_date, game_time = parse_datetime(row[0])
         except:
+            parse_errors += 1
             continue
 
         is_past = dt.date() < today
 
-        # -------------------------
-        # TEAM PARSE
-        # -------------------------
         teams = row[1].split("\n")
         if len(teams) < 2:
             continue
 
         away_team = clean_team(teams[0])
         home_team = clean_team(teams[1])
+        key       = (home_team, away_team)
 
-        key = (home_team, away_team)
-
-        # -------------------------
-        # PREDICTIONS
-        # -------------------------
         if not is_past and len(row) >= 8:
-
             try:
-                pitchers = row[2].split("\n")
+                pitchers     = row[2].split("\n")
                 home_pitcher = pitchers[0].strip()
                 away_pitcher = pitchers[1].strip()
 
-                probs = row[3].split("\n")
+                probs     = row[3].split("\n")
                 away_prob = pct_to_decimal(probs[0])
                 home_prob = pct_to_decimal(probs[1])
 
-                runs = row[6].split("\n")
+                runs      = row[6].split("\n")
                 away_runs = runs[0]
                 home_runs = runs[1]
 
                 total_runs = row[7]
 
                 pred_row = [
-                    "",  # game_id blank
-                    "baseball",
-                    "mlb",
-                    game_date,
-                    game_time,
-                    home_team,
-                    away_team,
-                    home_pitcher,
-                    away_pitcher,
-                    home_prob,
-                    away_prob,
-                    away_runs,
-                    home_runs,
-                    total_runs
+                    "", "baseball", "mlb", game_date, game_time,
+                    home_team, away_team,
+                    home_pitcher, away_pitcher,
+                    home_prob, away_prob,
+                    away_runs, home_runs, total_runs
                 ]
 
                 predictions_by_date.setdefault(game_date, []).append(pred_row)
 
             except:
+                parse_errors += 1
                 continue
 
-        # -------------------------
-        # FINAL SCORES
-        # -------------------------
         if is_past and len(row) >= 6:
-
             try:
-                scores = row[5].split("\n")
+                scores     = row[5].split("\n")
                 away_score = int(scores[0])
                 home_score = int(scores[1])
                 final_total = str(away_score + home_score)
@@ -174,20 +163,13 @@ def process_file(file_path):
                 book_lookup = load_sportsbook_lookup(game_date)
 
                 game_id = pred_lookup.get(key, "")
-
-                book = book_lookup.get(key, {})
+                book    = book_lookup.get(key, {})
 
                 final_row = [
-                    "baseball",
-                    "mlb",
-                    game_id,
-                    game_date,
-                    game_time,
-                    home_team,
-                    away_team,
-                    str(away_score),
-                    str(home_score),
-                    final_total,
+                    "baseball", "mlb", game_id,
+                    game_date, game_time,
+                    home_team, away_team,
+                    str(away_score), str(home_score), final_total,
                     book.get("away_run_line"),
                     book.get("home_run_line"),
                     book.get("total"),
@@ -196,14 +178,11 @@ def process_file(file_path):
                 final_scores_by_date.setdefault(game_date, []).append(final_row)
 
             except:
+                parse_errors += 1
                 continue
 
-    # -------------------------
-    # WRITE PREDICTIONS
-    # -------------------------
     for date, rows in predictions_by_date.items():
         out = PRED_DIR / f"{date}_MLB.csv"
-
         with open(out, "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
             writer.writerow([
@@ -213,13 +192,11 @@ def process_file(file_path):
                 "away_projected_runs","home_projected_runs","total_projected_runs"
             ])
             writer.writerows(rows)
+        files_written.append((str(out), len(rows)))
+        log(f"WROTE predictions -> {out} ({len(rows)} rows)")
 
-    # -------------------------
-    # WRITE FINAL SCORES
-    # -------------------------
     for date, rows in final_scores_by_date.items():
         out = FINAL_DIR / f"{date}_final_scores_MLB.csv"
-
         with open(out, "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
             writer.writerow([
@@ -229,12 +206,40 @@ def process_file(file_path):
                 "away_run_line","home_run_line","total"
             ])
             writer.writerows(rows)
+        files_written.append((str(out), len(rows)))
+        log(f"WROTE final scores -> {out} ({len(rows)} rows)")
+
+    log(f"  parse_errors={parse_errors}, predictions_dates={len(predictions_by_date)}, final_score_dates={len(final_scores_by_date)}")
 
 
 # -------------------------
 # ENTRY
 # -------------------------
 
+def main():
+    files_written = []
+
+    try:
+        raw_files = sorted(RAW_DIR.glob("*_mlb_raw.json"))
+        log(f"Raw files found: {len(raw_files)}")
+
+        for file in raw_files:
+            process_file(file, files_written)
+
+        log("--- SUMMARY ---")
+        log(f"Raw files processed: {len(raw_files)}")
+        log(f"Files written: {len(files_written)}")
+        for path, count in files_written:
+            log(f"  FILE: {path} ({count} rows)")
+        log("STATUS: SUCCESS")
+
+    except Exception as e:
+        log(f"FATAL ERROR: {e}\n{traceback.format_exc()}")
+        log("STATUS: FAILED")
+        raise
+
+    print("Baseball transform complete.")
+
+
 if __name__ == "__main__":
-    for file in sorted(RAW_DIR.glob("*_mlb_raw.json")):
-        process_file(file)
+    main()
