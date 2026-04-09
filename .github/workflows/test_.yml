@@ -1,0 +1,42 @@
+name: _______TEST___________
+on:
+  workflow_dispatch:
+
+jobs:
+  run-baseball-intake:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+
+      # Ensure output directories exist in repo
+      - name: Create required directories
+        run: |
+          mkdir -p docs/win/baseball/00_intake/predictions
+          mkdir -p docs/win/final_scores/results/mlb/final_scores
+
+      - name: Baseball transform
+        run: python docs/win/baseball/scripts/00_intake/transform_baseball.py
+
+      - name: Baseball normalization (post)
+        run: python docs/win/baseball/scripts/00_intake/name_normalization.py
+
+      # Commit outputs back to repo
+      - name: Commit and push outputs
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add docs/win/baseball/00_intake/predictions/
+          git add docs/win/final_scores/results/mlb/final_scores/
+          git commit -m "Baseball intake outputs [manual run]" || echo "No changes"
+          git push
