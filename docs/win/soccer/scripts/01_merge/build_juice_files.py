@@ -16,7 +16,7 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 LOG_DIR  = Path("docs/win/soccer/errors/01_merge")
 LOG_DIR.mkdir(parents=True, exist_ok=True)
-LOG_FILE = LOG_DIR / "build_juice_files_log.txt"
+LOG_FILE = LOG_DIR / "build_juice_files.txt"
 
 LEAGUES = ["epl", "laliga", "ligue1", "bundesliga", "seriea", "mls"]
 
@@ -258,10 +258,11 @@ def main():
             f"row_issues={summary['row_issues']} | "
             f"errors={summary['errors']}"
         )
-        log("COMPLETE")
+        log("STATUS: SUCCESS")
 
     except Exception as e:
         log(f"FATAL: {e}\n{traceback.format_exc()}")
+        log("STATUS: FAILED")
         raise
 
 
