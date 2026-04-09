@@ -40,17 +40,21 @@ def convert_utc_to_et(date_time_str: str) -> str:
 
 def is_completed_row(cells):
     """
-    Detect completed game rows:
-    - scores exist in row[5] as "x\ny"
-    - row[6] is single float (log loss)
+    Correct detection:
+    - row[5] must be scores like "6\n8"
+    - BOTH values must be integers
     """
+
     try:
-        if len(cells) >= 7 and "\n" in cells[5]:
-            scores = cells[5].split("\n")
-            if len(scores) == 2 and scores[0].isdigit() and scores[1].isdigit():
+        if len(cells) >= 6 and "\n" in cells[5]:
+            parts = [x.strip() for x in cells[5].split("\n")]
+
+            if len(parts) == 2 and all(p.isdigit() for p in parts):
                 return True
+
     except:
         pass
+
     return False
 
 
@@ -77,13 +81,12 @@ def scrape_page(page, url):
                 pass
 
             # -------------------------
-            # 🔥 CRITICAL FIX
+            # FIXED DETECTION
             # -------------------------
             if is_completed_row(cells):
                 log(f"COMPLETED ROW DETECTED: {cells[1]}")
 
-                # truncate to force len < 8
-                # ensures transform script treats it as completed
+                # truncate to ensure transform handles correctly
                 cells = cells[:6]
 
             all_rows.append(cells)
