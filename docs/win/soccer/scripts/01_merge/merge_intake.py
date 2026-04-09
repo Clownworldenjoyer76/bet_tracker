@@ -14,7 +14,7 @@ LOG_DIR  = Path("docs/win/soccer/errors/01_merge")
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
-LOG_FILE = LOG_DIR / "merge_intake_log.txt"
+LOG_FILE = LOG_DIR / "merge_intake.txt"
 
 LEAGUES = ["epl", "laliga", "ligue1", "bundesliga", "seriea", "mls"]
 
@@ -63,8 +63,7 @@ def process_slate(date, league, summary):
             summary["skipped"] += 1
             return
 
-        pred_idx = build_game_id_index(preds)
-
+        pred_idx  = build_game_id_index(preds)
         matched   = 0
         unmatched = 0
 
@@ -91,21 +90,10 @@ def process_slate(date, league, summary):
                 p["home_xg"], p["away_xg"], p["expected_total_goals"],
             ]
 
-            match_odds_rows.append(base + [
-                b["dk_home_decimal"], b["dk_draw_decimal"], b["dk_away_decimal"],
-            ])
-
-            total_25_rows.append(base + [
-                b["dk_over25_decimal"], b["dk_under25_decimal"],
-            ])
-
-            total_35_rows.append(base + [
-                b["dk_over35_decimal"], b["dk_under35_decimal"],
-            ])
-
-            btts_rows.append(base + [
-                b["btts_yes"], b["btts_no"],
-            ])
+            match_odds_rows.append(base + [b["dk_home_decimal"], b["dk_draw_decimal"], b["dk_away_decimal"]])
+            total_25_rows.append(base + [b["dk_over25_decimal"], b["dk_under25_decimal"]])
+            total_35_rows.append(base + [b["dk_over35_decimal"], b["dk_under35_decimal"]])
+            btts_rows.append(base + [b["btts_yes"], b["btts_no"]])
 
         log(f"{date} {league} | matched={matched} | unmatched={unmatched}")
         summary["total_matched"]   += matched
@@ -130,26 +118,10 @@ def process_slate(date, league, summary):
             log(f"WROTE {path} ({len(rows)} rows)")
             summary["files_written"] += 1
 
-        write(
-            f"{date}_{league}_match_odds.csv",
-            base_header + ["dk_home_decimal", "dk_draw_decimal", "dk_away_decimal"],
-            match_odds_rows,
-        )
-        write(
-            f"{date}_{league}_total_25.csv",
-            base_header + ["dk_over25_decimal", "dk_under25_decimal"],
-            total_25_rows,
-        )
-        write(
-            f"{date}_{league}_total_35.csv",
-            base_header + ["dk_over35_decimal", "dk_under35_decimal"],
-            total_35_rows,
-        )
-        write(
-            f"{date}_{league}_btts.csv",
-            base_header + ["btts_yes", "btts_no"],
-            btts_rows,
-        )
+        write(f"{date}_{league}_match_odds.csv", base_header + ["dk_home_decimal", "dk_draw_decimal", "dk_away_decimal"], match_odds_rows)
+        write(f"{date}_{league}_total_25.csv",   base_header + ["dk_over25_decimal", "dk_under25_decimal"],               total_25_rows)
+        write(f"{date}_{league}_total_35.csv",   base_header + ["dk_over35_decimal", "dk_under35_decimal"],               total_35_rows)
+        write(f"{date}_{league}_btts.csv",        base_header + ["btts_yes", "btts_no"],                                  btts_rows)
 
     except Exception as e:
         log(f"ERROR {date} {league}: {e}\n{traceback.format_exc()}")
@@ -196,8 +168,9 @@ if __name__ == "__main__":
             f"total_unmatched={summary['total_unmatched']} | "
             f"errors={summary['errors']}"
         )
-        log("COMPLETE")
+        log("STATUS: SUCCESS")
 
     except Exception as e:
         log(f"FATAL: {e}\n{traceback.format_exc()}")
+        log("STATUS: FAILED")
         raise
