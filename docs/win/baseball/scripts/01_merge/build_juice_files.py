@@ -315,6 +315,9 @@ def main():
         "errors":        0,
     }
 
+    for f in OUTPUT_DIR.glob("*.csv"):
+        f.unlink()
+        
     try:
         moneyline_files = sorted(glob.glob(str(INPUT_DIR / "*_mlb_moneyline.csv")))
         run_line_files  = sorted(glob.glob(str(INPUT_DIR / "*_mlb_run_line.csv")))
