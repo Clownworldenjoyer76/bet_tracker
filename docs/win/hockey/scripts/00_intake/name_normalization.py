@@ -1,5 +1,5 @@
+# docs/win/hockey/scripts/00_intake/name_normalization.py
 #!/usr/bin/env python3
-# docs/win/hockey/scripts/00_parsing/name_normalization.py
 
 import csv
 from pathlib import Path
