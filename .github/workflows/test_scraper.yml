@@ -1,0 +1,61 @@
+name: TEST Baseball DRatings Scraper
+
+on:
+  workflow_dispatch:
+
+jobs:
+  baseball-scraper:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      # -------------------------
+      # SET DATE (optional but consistent with your setup)
+      # -------------------------
+      - name: Set date
+        run: echo "DATE=$(TZ='America/New_York' date +%Y_%m_%d)" >> $GITHUB_ENV
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install playwright pytz
+
+      - name: Install Playwright browsers
+        run: playwright install chromium --with-deps
+
+      # -------------------------
+      # ENSURE OUTPUT DIRECTORIES
+      # -------------------------
+      - name: Create output directories
+        run: |
+          mkdir -p docs/win/baseball/00_intake/drat_raw/
+          mkdir -p docs/win/baseball/errors/00_intake/
+
+      # -------------------------
+      # RUN SCRAPER
+      # -------------------------
+      - name: Run Baseball DRatings Scraper
+        run: python docs/win/baseball/scripts/00_intake/baseball_drat_scraper.py
+
+      # -------------------------
+      # COMMIT OUTPUTS
+      # -------------------------
+      - name: Commit outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add docs/win/baseball/00_intake/drat_raw/
+          git add docs/win/baseball/errors/00_intake/
+
+          git diff --cached --quiet || git commit -m "chore: baseball drat scraper run $(date -u +'%Y-%m-%d %H:%M UTC')"
+
+          git pull --rebase origin main
+          git push
