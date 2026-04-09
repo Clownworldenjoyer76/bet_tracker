@@ -1,212 +1,235 @@
 #!/usr/bin/env python3
-# docs/win/basketball/scripts/01_merge/merge_intake.py
+# docs/win/baseball/scripts/01_merge/merge_intake.py
 
-import sys
 import csv
-import pandas as pd
+import traceback
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 
-# =========================
-# LOGGER UTILITY
-# =========================
+PRED_DIR = Path("docs/win/baseball/00_intake/predictions")
+BOOK_DIR = Path("docs/win/baseball/00_intake/sportsbook")
+OUT_DIR  = Path("docs/win/baseball/01_merge")
+LOG_DIR  = Path("docs/win/baseball/errors/01_merge")
 
-def audit(log_path, stage, status, msg="", df=None):
-    ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    log_path = Path(log_path)
-    log_path.parent.mkdir(parents=True, exist_ok=True)
+OUT_DIR.mkdir(parents=True, exist_ok=True)
+LOG_DIR.mkdir(parents=True, exist_ok=True)
 
-    with open(log_path, "a") as f:
-        f.write(f"\n[{ts}] [{stage}] {status}\n")
-        if msg: f.write(f"  MSG: {msg}\n")
-        if df is not None and isinstance(df, pd.DataFrame):
-            f.write(f"  STATS: {len(df)} rows | {len(df.columns)} cols\n")
-            f.write(f"  NULLS: {df.isnull().sum().sum()} total\n")
-            f.write(f"  SAMPLE:\n{df.head(3).to_string(index=False)}\n")
-        f.write("-" * 40 + "\n")
-
-# =========================
-# CONSTANTS
-# =========================
-
-ROOT_DIR = Path("docs/win/basketball")
-INTAKE_DIR = ROOT_DIR / "00_intake"
-MERGE_DIR = ROOT_DIR / "01_merge"
-ERROR_DIR = ROOT_DIR / "errors/01_merge"
-
-MERGE_DIR.mkdir(parents=True, exist_ok=True)
-ERROR_DIR.mkdir(parents=True, exist_ok=True)
-
-LOG_FILE = ERROR_DIR / "merge_intake.txt"
+LOG_FILE = LOG_DIR / "merge_intake.txt"
 
 with open(LOG_FILE, "w", encoding="utf-8") as f:
-    f.write("")
+    f.write(f"=== merge_intake RUN {datetime.now(timezone.utc).isoformat()} ===\n")
 
 def log(msg):
     with open(LOG_FILE, "a", encoding="utf-8") as f:
-        f.write(f"{datetime.now().isoformat()} | {msg}\n")
+        f.write(f"{datetime.now(timezone.utc).isoformat()} | {msg}\n")
 
-# =========================
-# HELPERS
-# =========================
 
-def load_rows(path):
+def norm(s):
+    return (s or "").strip().lower()
+
+
+def load_csv(path):
     rows = []
+    if not path.exists():
+        log(f"MISSING FILE: {path}")
+        return rows
     with open(path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for r in reader:
             rows.append(r)
     return rows
 
-def build_key(r):
-    return (r["game_date"], r["home_team"], r["away_team"])
 
-def build_team_set(r):
-    return (r["game_date"], frozenset([r["home_team"], r["away_team"]]))
+def build_team_index(rows):
+    idx = {}
+    for r in rows:
+        key = (norm(r["home_team"]), norm(r["away_team"]))
+        idx[key] = r
+    return idx
 
-# =========================
-# FIELD STRUCTURE
-# =========================
 
-FIELDNAMES = [
-    "league","market","game_date","game_time",
-    "home_team","away_team","game_id",
-    "home_prob","away_prob",
-    "away_projected_points","home_projected_points","total_projected_points",
-    "away_spread","home_spread","total",
-    "away_dk_spread_american","home_dk_spread_american",
-    "dk_total_over_american","dk_total_under_american",
-    "away_dk_moneyline_american","home_dk_moneyline_american",
-]
-
-# =========================
-# WIPE OLD OUTPUTS
-# =========================
-
-for stale in MERGE_DIR.glob("basketball_*.csv"):
-    stale.unlink(missing_ok=True)
-
-# =========================
-# DISCOVER SLATES
-# =========================
-
-prediction_dir = INTAKE_DIR / "predictions"
-sportsbook_dir = INTAKE_DIR / "sportsbook"
-
-prediction_files = list(prediction_dir.glob("basketball_*_*.csv"))
-
-slates = []
-for f in prediction_files:
-    parts = f.stem.split("_")
-    league = parts[1]
-    slate_date = "_".join(parts[2:])
-    slates.append((league, slate_date))
-
-# =========================
-# PROCESS
-# =========================
-
-for league, slate_date in slates:
-
-    PRED_FILE = prediction_dir / f"basketball_{league}_{slate_date}.csv"
-    SPORTSBOOK_FILE = sportsbook_dir / f"basketball_{league}_{slate_date}.csv"
-    OUTFILE = MERGE_DIR / f"basketball_{league}_{slate_date}.csv"
-
-    if not PRED_FILE.exists() or not SPORTSBOOK_FILE.exists():
-        log(f"{league} {slate_date} missing file. Skipping.")
-        continue
-
-    pred_rows = load_rows(PRED_FILE)
-    book_rows = load_rows(SPORTSBOOK_FILE)
-
-    # build maps
-    pred_map = {build_key(r): r for r in pred_rows}
-    book_map = {build_key(r): r for r in book_rows}
-
-    # team-set maps (for detecting flips)
-    pred_team_map = {build_team_set(r): r for r in pred_rows}
-    book_team_map = {build_team_set(r): r for r in book_rows}
-
-    merged_rows = []
-
-    # =========================
-    # MAIN MERGE
-    # =========================
-
-    for key, p in pred_map.items():
-
-        # normal match
-        if key in book_map:
-            d = book_map[key]
-
+def american_to_prob(odds):
+    try:
+        odds = float(odds)
+        if odds > 0:
+            return 100 / (odds + 100)
         else:
-            # check for flipped orientation
-            team_key = build_team_set(p)
+            return -odds / (-odds + 100)
+    except:
+        return None
 
-            if team_key in book_team_map:
-                d_raw = book_team_map[team_key]
 
-                log(
-                    f"ORIENTATION MISMATCH (swapping) | {league} {slate_date} | "
-                    f"PRED: {p['home_team']} vs {p['away_team']} | "
-                    f"BOOK: {d_raw['home_team']} vs {d_raw['away_team']}"
-                )
+def normalize_probs(p1, p2):
+    if p1 is None or p2 is None:
+        return "", ""
+    total = p1 + p2
+    if total == 0:
+        return "", ""
+    return str(p1 / total), str(p2 / total)
 
-                # Book has home/away flipped relative to prediction — swap fields
-                d = dict(d_raw)
-                d["away_spread"]                = d_raw.get("home_spread", "")
-                d["home_spread"]                = d_raw.get("away_spread", "")
-                d["away_dk_spread_american"]    = d_raw.get("home_dk_spread_american", "")
-                d["home_dk_spread_american"]    = d_raw.get("away_dk_spread_american", "")
-                d["away_dk_moneyline_american"] = d_raw.get("home_dk_moneyline_american", "")
-                d["home_dk_moneyline_american"] = d_raw.get("away_dk_moneyline_american", "")
-                # total/over/under are symmetric — no swap needed
 
-            else:
-                log(
-                    f"MISSING MATCH | {league} {slate_date} | "
-                    f"{p['home_team']} vs {p['away_team']}"
-                )
-                continue
+def process_date(date, summary):
+    pred_path = PRED_DIR / f"{date}_MLB.csv"
+    book_path = BOOK_DIR / f"{date}_MLB.csv"
 
-        game_id = f"{p['game_date']}_{p['away_team']}_{p['home_team']}"
+    preds = load_csv(pred_path)
+    books = load_csv(book_path)
 
-        merged_rows.append({
-            "league": p.get("league",""),
-            "market": p.get("market",""),
-            "game_date": p.get("game_date",""),
-            "game_time": d.get("game_time",""),
-            "home_team": p.get("home_team",""),
-            "away_team": p.get("away_team",""),
-            "game_id": game_id,
-            "home_prob": p.get("home_prob",""),
-            "away_prob": p.get("away_prob",""),
-            "away_projected_points": p.get("away_projected_points",""),
-            "home_projected_points": p.get("home_projected_points",""),
-            "total_projected_points": p.get("total_projected_points",""),
-            "away_spread": d.get("away_spread",""),
-            "home_spread": d.get("home_spread",""),
-            "total": d.get("total",""),
-            "away_dk_spread_american": d.get("away_dk_spread_american",""),
-            "home_dk_spread_american": d.get("home_dk_spread_american",""),
-            "dk_total_over_american": d.get("dk_total_over_american",""),
-            "dk_total_under_american": d.get("dk_total_under_american",""),
-            "away_dk_moneyline_american": d.get("away_dk_moneyline_american",""),
-            "home_dk_moneyline_american": d.get("home_dk_moneyline_american",""),
-        })
+    if not preds:
+        log(f"SKIP {date}: no predictions")
+        summary["skipped"] += 1
+        return
 
-    if not merged_rows:
-        log(f"No matches for {league} {slate_date}")
-        continue
+    if not books:
+        log(f"SKIP {date}: no sportsbook")
+        summary["skipped"] += 1
+        return
 
-    # write
-    with open(OUTFILE, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
-        writer.writeheader()
-        for r in merged_rows:
-            writer.writerow(r)
+    pred_idx  = build_team_index(preds)
+    matched   = 0
+    unmatched = 0
 
-    log(f"SUCCESS {league} {slate_date} | {len(merged_rows)} rows")
+    ml_rows  = []
+    rl_rows  = []
+    tot_rows = []
 
-    df = pd.DataFrame(merged_rows)
-    audit(LOG_FILE, "MERGE_STAGE", "SUCCESS", f"{league} {slate_date}", df)
+    for b in books:
+        key = (norm(b["home_team"]), norm(b["away_team"]))
+        p   = pred_idx.get(key)
+
+        if not p:
+            unmatched += 1
+            log(f"UNMATCHED: {key}")
+            continue
+
+        matched += 1
+
+        ml_rows.append([
+            b["game_id"], b["sport"], b["league"], b["game_date"], b["game_time"],
+            b["home_team"], b["away_team"],
+            b["away_run_line"], b["home_run_line"], b["total"],
+            b["away_dk_moneyline_american"], b["home_dk_moneyline_american"],
+            b["away_dk_moneyline_decimal"], b["home_dk_moneyline_decimal"],
+            p["home_pitcher"], p["away_pitcher"],
+            p["home_prob"], p["away_prob"],
+            p["away_projected_runs"], p["home_projected_runs"], p["total_projected_runs"]
+        ])
+
+        try:
+            home_prob_ml = float(p["home_prob"])
+            away_prob_ml = float(p["away_prob"])
+            home_rl_prob = home_prob_ml * 0.75
+            away_rl_prob = away_prob_ml * 0.75
+        except:
+            home_rl_prob, away_rl_prob = "", ""
+
+        rl_rows.append([
+            b["game_id"], b["sport"], b["league"], b["game_date"], b["game_time"],
+            b["home_team"], b["away_team"],
+            b["away_run_line"], b["home_run_line"], b["total"],
+            b["away_dk_run_line_american"], b["home_dk_run_line_american"],
+            b["away_dk_run_line_decimal"], b["home_dk_run_line_decimal"],
+            p["home_pitcher"], p["away_pitcher"],
+            p["home_prob"], p["away_prob"],
+            p["away_projected_runs"], p["home_projected_runs"], p["total_projected_runs"],
+            home_rl_prob, away_rl_prob
+        ])
+
+        over_raw  = american_to_prob(b["dk_total_over_american"])
+        under_raw = american_to_prob(b["dk_total_under_american"])
+        over_prob, under_prob = normalize_probs(over_raw, under_raw)
+
+        tot_rows.append([
+            b["game_id"], b["sport"], b["league"], b["game_date"], b["game_time"],
+            b["home_team"], b["away_team"],
+            b["away_run_line"], b["home_run_line"], b["total"],
+            b["dk_total_over_american"], b["dk_total_under_american"],
+            b["dk_total_over_decimal"], b["dk_total_under_decimal"],
+            p["home_pitcher"], p["away_pitcher"],
+            p["home_prob"], p["away_prob"],
+            p["away_projected_runs"], p["home_projected_runs"], p["total_projected_runs"],
+            over_prob, under_prob
+        ])
+
+    log(f"{date} | matched={matched} | unmatched={unmatched}")
+    summary["total_matched"]   += matched
+    summary["total_unmatched"] += unmatched
+
+    def write(path, header, rows):
+        with open(path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(header)
+            writer.writerows(rows)
+        log(f"WROTE {path} ({len(rows)} rows)")
+        summary["files_written"] += 1
+
+    write(
+        OUT_DIR / f"{date}_mlb_moneyline.csv",
+        ["game_id","sport","league","game_date","game_time","home_team","away_team",
+         "away_run_line","home_run_line","total",
+         "away_dk_moneyline_american","home_dk_moneyline_american",
+         "away_dk_moneyline_decimal","home_dk_moneyline_decimal",
+         "home_pitcher","away_pitcher","home_prob","away_prob",
+         "away_projected_runs","home_projected_runs","total_projected_runs"],
+        ml_rows
+    )
+
+    write(
+        OUT_DIR / f"{date}_mlb_run_line.csv",
+        ["game_id","sport","league","game_date","game_time","home_team","away_team",
+         "away_run_line","home_run_line","total",
+         "away_dk_run_line_american","home_dk_run_line_american",
+         "away_dk_run_line_decimal","home_dk_run_line_decimal",
+         "home_pitcher","away_pitcher","home_prob","away_prob",
+         "away_projected_runs","home_projected_runs","total_projected_runs",
+         "home_run_line_prob","away_run_line_prob"],
+        rl_rows
+    )
+
+    write(
+        OUT_DIR / f"{date}_mlb_total.csv",
+        ["game_id","sport","league","game_date","game_time","home_team","away_team",
+         "away_run_line","home_run_line","total",
+         "dk_total_over_american","dk_total_under_american",
+         "dk_total_over_decimal","dk_total_under_decimal",
+         "home_pitcher","away_pitcher","home_prob","away_prob",
+         "away_projected_runs","home_projected_runs","total_projected_runs",
+         "total_runs_over_prob","total_runs_under_prob"],
+        tot_rows
+    )
+
+    summary["slates_written"] += 1
+
+
+if __name__ == "__main__":
+    summary = {
+        "slates_processed": 0,
+        "slates_written":   0,
+        "skipped":          0,
+        "files_written":    0,
+        "total_matched":    0,
+        "total_unmatched":  0,
+    }
+
+    try:
+        pred_files = sorted(PRED_DIR.glob("*_MLB.csv"))
+        log(f"Prediction files found: {len(pred_files)}")
+
+        for file in pred_files:
+            date = file.stem.replace("_MLB", "")
+            summary["slates_processed"] += 1
+            process_date(date, summary)
+
+        log("--- SUMMARY ---")
+        log(f"Slates processed: {summary['slates_processed']}")
+        log(f"Slates written: {summary['slates_written']}")
+        log(f"Slates skipped: {summary['skipped']}")
+        log(f"Files written: {summary['files_written']}")
+        log(f"Total matched: {summary['total_matched']}")
+        log(f"Total unmatched: {summary['total_unmatched']}")
+        log("STATUS: SUCCESS")
+
+    except Exception as e:
+        log(f"FATAL ERROR: {e}\n{traceback.format_exc()}")
+        log("STATUS: FAILED")
+        raise
