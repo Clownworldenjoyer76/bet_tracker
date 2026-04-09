@@ -3,6 +3,7 @@
 
 import csv
 import json
+import traceback
 from pathlib import Path
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -20,6 +21,17 @@ NY_TZ = ZoneInfo('America/New_York')
 UTC_TZ = ZoneInfo('UTC')
 
 BOOKMAKER_KEY = 'draftkings'
+
+ERROR_DIR = Path("docs/win/hockey/errors/00_intake")
+ERROR_DIR.mkdir(parents=True, exist_ok=True)
+LOG_FILE = ERROR_DIR / "odds_parse.txt"
+
+with open(LOG_FILE, "w", encoding="utf-8") as f:
+    f.write(f"=== odds_parse RUN {datetime.now().isoformat()} ===\n")
+
+def log(msg: str) -> None:
+    with open(LOG_FILE, "a", encoding="utf-8") as f:
+        f.write(f"{datetime.now().isoformat()} | {msg}\n")
 
 # =========================
 # DECIMAL TO AMERICAN
@@ -131,46 +143,80 @@ def parse_game(game):
 # =========================
 
 def main():
-    json_files = sorted(ODDS_DIR.glob('*.json'))
-    if not json_files:
-        print(f'No JSON files found in {ODDS_DIR}')
-        return
+    files_written = []
+    games_skipped = 0
+    games_parsed  = 0
 
-    for json_path in json_files:
-        print(f'Processing {json_path.name}...')
+    try:
+        json_files = sorted(ODDS_DIR.glob('*.json'))
+        if not json_files:
+            log(f'No JSON files found in {ODDS_DIR}')
+            log("STATUS: SUCCESS (nothing to do)")
+            return
 
-        with open(json_path, 'r', encoding='utf-8') as f:
-            games = json.load(f)
+        for json_path in json_files:
+            log(f'Processing {json_path.name}')
 
-        by_date = defaultdict(list)
+            try:
+                with open(json_path, 'r', encoding='utf-8') as f:
+                    games = json.load(f)
 
-        for game in games:
-            game_date, row = parse_game(game)
-            if row is not None:
-                by_date[game_date].append(row)
+                by_date = defaultdict(list)
 
-        fieldnames = [
-            'league', 'market', 'game_date', 'game_time',
-            'home_team', 'away_team', 'game_id', 'odds_last_update',
-            'away_puck_line', 'home_puck_line', 'total',
-            'away_dk_moneyline_american', 'home_dk_moneyline_american',
-            'away_dk_puck_line_american', 'home_dk_puck_line_american',
-            'dk_total_over_american', 'dk_total_under_american',
-            'away_dk_moneyline_decimal', 'home_dk_moneyline_decimal',
-            'away_dk_puck_line_decimal', 'home_dk_puck_line_decimal',
-            'dk_total_over_decimal', 'dk_total_under_decimal',
-        ]
+                for game in games:
+                    try:
+                        game_date, row = parse_game(game)
+                        if row is not None:
+                            by_date[game_date].append(row)
+                            games_parsed += 1
+                        else:
+                            games_skipped += 1
+                    except Exception as e:
+                        games_skipped += 1
+                        log(f"  ERROR parsing game {game.get('id', '?')}: {e}\n{traceback.format_exc()}")
 
-        for game_date, rows in by_date.items():
-            date_str = game_date.replace('-', '_')
-            out_path = OUTPUT_DIR / f'hockey_{date_str}.csv'
+                fieldnames = [
+                    'league', 'market', 'game_date', 'game_time',
+                    'home_team', 'away_team', 'game_id', 'odds_last_update',
+                    'away_puck_line', 'home_puck_line', 'total',
+                    'away_dk_moneyline_american', 'home_dk_moneyline_american',
+                    'away_dk_puck_line_american', 'home_dk_puck_line_american',
+                    'dk_total_over_american', 'dk_total_under_american',
+                    'away_dk_moneyline_decimal', 'home_dk_moneyline_decimal',
+                    'away_dk_puck_line_decimal', 'home_dk_puck_line_decimal',
+                    'dk_total_over_decimal', 'dk_total_under_decimal',
+                ]
 
-            with open(out_path, 'w', newline='', encoding='utf-8') as csvfile:
-                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-                writer.writeheader()
-                writer.writerows(rows)
+                for game_date, rows in by_date.items():
+                    date_str = game_date.replace('-', '_')
+                    out_path = OUTPUT_DIR / f'hockey_{date_str}.csv'
 
-            print(f'  Wrote {out_path.name} ({len(rows)} games)')
+                    with open(out_path, 'w', newline='', encoding='utf-8') as csvfile:
+                        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                        writer.writeheader()
+                        writer.writerows(rows)
+
+                    files_written.append((str(out_path), len(rows)))
+                    log(f'  WROTE {out_path.name} ({len(rows)} games)')
+
+            except Exception as e:
+                log(f"ERROR processing {json_path.name}: {e}\n{traceback.format_exc()}")
+
+        # =========================
+        # SUMMARY
+        # =========================
+        log("--- SUMMARY ---")
+        log(f"Games parsed: {games_parsed}")
+        log(f"Games skipped (no DraftKings odds): {games_skipped}")
+        log(f"Files written: {len(files_written)}")
+        for path, count in files_written:
+            log(f"  FILE: {path} ({count} games)")
+        log("STATUS: SUCCESS")
+
+    except Exception as e:
+        log(f"FATAL ERROR: {e}\n{traceback.format_exc()}")
+        log("STATUS: FAILED")
+        raise
 
 if __name__ == '__main__':
     main()
