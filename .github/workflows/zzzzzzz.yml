@@ -76,7 +76,9 @@ jobs:
         run: python docs/win/hockey/scripts/00_intake/hockey_drat_scraper.py
 
       - name: Hockey Transform
-        run: python docs/win/hockey/scripts/00_intake/transform_hockey.py
+        run: |
+          python docs/win/hockey/scripts/00_intake/transform_hockey.py \
+            --nhl docs/win/hockey/00_intake/drat_raw/${DATE}_nhl_raw.json
 
       - name: Hockey Name Normalization (2)
         run: python docs/win/hockey/scripts/00_intake/name_normalization.py
@@ -106,4 +108,5 @@ jobs:
           git add mappings/hockey/no_map/
 
           git diff --cached --quiet || git commit -m "chore: soccer+hockey intake run $(date -u +'%Y-%m-%d %H:%M UTC')"
+          git pull --rebase origin main
           git push
