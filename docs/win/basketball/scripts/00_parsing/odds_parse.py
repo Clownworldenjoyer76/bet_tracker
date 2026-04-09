@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# docs/win/basketball/scripts/00_parsing/odds_parse.py
+# docs/win/basketball/scripts/00_intake/odds_parse.py
 
 import csv
 import json
