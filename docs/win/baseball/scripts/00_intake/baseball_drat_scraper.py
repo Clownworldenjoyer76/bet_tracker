@@ -118,7 +118,13 @@ def is_completed_game(row):
     return all(p.strip().lstrip("-").isdigit() for p in parts)
 
 
-def process_file(file_path, files_written):
+SUMMARY_ROW_PREFIXES = {"Sportsbooks", "DRatings"}
+
+def is_summary_row(row):
+    return row and str(row[0]).strip() in SUMMARY_ROW_PREFIXES
+
+
+def process_file(file_path, files_written, seen_final_keys):
     log(f"Processing {file_path.name}")
 
     with open(file_path, "r") as f:
@@ -127,9 +133,15 @@ def process_file(file_path, files_written):
     predictions_by_date  = {}
     final_scores_by_date = {}
     parse_errors         = 0
+    skipped_summary      = 0
+    skipped_duplicate    = 0
 
     for row in data:
         if not row or len(row) < 2:
+            continue
+
+        if is_summary_row(row):
+            skipped_summary += 1
             continue
 
         try:
@@ -182,6 +194,12 @@ def process_file(file_path, files_written):
 
         if is_completed_game(row):
             try:
+                dedup_key = (game_date, home_team, away_team)
+                if dedup_key in seen_final_keys:
+                    skipped_duplicate += 1
+                    continue
+                seen_final_keys.add(dedup_key)
+
                 scores     = row[5].split("\n")
                 away_score = int(scores[0])
                 home_score = int(scores[1])
@@ -237,7 +255,7 @@ def process_file(file_path, files_written):
         files_written.append((str(out), len(rows)))
         log(f"WROTE final scores -> {out} ({len(rows)} rows)")
 
-    log(f"  parse_errors={parse_errors}, predictions_dates={len(predictions_by_date)}, final_score_dates={len(final_scores_by_date)}")
+    log(f"  parse_errors={parse_errors}, skipped_summary={skipped_summary}, skipped_duplicate={skipped_duplicate}, predictions_dates={len(predictions_by_date)}, final_score_dates={len(final_scores_by_date)}")
 
 
 # -------------------------
@@ -245,14 +263,15 @@ def process_file(file_path, files_written):
 # -------------------------
 
 def main():
-    files_written = []
+    files_written   = []
+    seen_final_keys = set()
 
     try:
         raw_files = sorted(RAW_DIR.glob("*_mlb_raw.json"))
         log(f"Raw files found: {len(raw_files)}")
 
         for file in raw_files:
-            process_file(file, files_written)
+            process_file(file, files_written, seen_final_keys)
 
         log("--- SUMMARY ---")
         log(f"Raw files processed: {len(raw_files)}")
