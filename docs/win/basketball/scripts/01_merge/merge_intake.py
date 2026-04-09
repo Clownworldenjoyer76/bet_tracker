@@ -15,7 +15,7 @@ def audit(log_path, stage, status, msg="", df=None):
     ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     log_path = Path(log_path)
     log_path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     with open(log_path, "a") as f:
         f.write(f"\n[{ts}] [{stage}] {status}\n")
         if msg: f.write(f"  MSG: {msg}\n")
@@ -78,6 +78,13 @@ FIELDNAMES = [
     "dk_total_over_american","dk_total_under_american",
     "away_dk_moneyline_american","home_dk_moneyline_american",
 ]
+
+# =========================
+# WIPE OLD OUTPUTS
+# =========================
+
+for stale in MERGE_DIR.glob("basketball_*.csv"):
+    stale.unlink(missing_ok=True)
 
 # =========================
 # DISCOVER SLATES
@@ -147,10 +154,10 @@ for league, slate_date in slates:
 
                 # Book has home/away flipped relative to prediction — swap fields
                 d = dict(d_raw)
-                d["away_spread"]               = d_raw.get("home_spread", "")
-                d["home_spread"]               = d_raw.get("away_spread", "")
-                d["away_dk_spread_american"]   = d_raw.get("home_dk_spread_american", "")
-                d["home_dk_spread_american"]   = d_raw.get("away_dk_spread_american", "")
+                d["away_spread"]                = d_raw.get("home_spread", "")
+                d["home_spread"]                = d_raw.get("away_spread", "")
+                d["away_dk_spread_american"]    = d_raw.get("home_dk_spread_american", "")
+                d["home_dk_spread_american"]    = d_raw.get("away_dk_spread_american", "")
                 d["away_dk_moneyline_american"] = d_raw.get("home_dk_moneyline_american", "")
                 d["home_dk_moneyline_american"] = d_raw.get("away_dk_moneyline_american", "")
                 # total/over/under are symmetric — no swap needed

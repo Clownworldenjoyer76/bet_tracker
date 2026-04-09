@@ -37,8 +37,8 @@ pipeline = [
     # --------------------------------
 
     # Soccer
-    ["python", "docs/win/soccer/scripts/01_merge/merge_intake.py"],
-    ["python", "docs/win/soccer/scripts/01_merge/build_juice_files.py"],
+   # ["python", "docs/win/soccer/scripts/01_merge/merge_intake.py"],
+    #["python", "docs/win/soccer/scripts/01_merge/build_juice_files.py"],
 
 
     # Hockey + Basketball
@@ -58,7 +58,7 @@ pipeline = [
     # --------------------------------
 
     # Soccer
-    ["python", "docs/win/soccer/scripts/02_juice/apply_juice.py"],
+    ## ["python", "docs/win/soccer/scripts/02_juice/apply_juice.py"],
 
     # Hockey
     ["python", "docs/win/hockey/scripts/02_juice/apply_moneyline_juice.py"],
@@ -81,9 +81,9 @@ pipeline = [
     # --------------------------------
 
     # Soccer / Hockey / Basketball
-    ["python", "docs/win/soccer/scripts/03_edges/compute_edges.py"],
-    ["python", "docs/win/hockey/scripts/03_edges/compute_edges.py"],
-    ["python", "docs/win/basketball/scripts/03_edges/compute_edges.py"],
+  #  ["python", "docs/win/soccer/scripts/03_edges/compute_edges.py"],
+  #  ["python", "docs/win/hockey/scripts/03_edges/compute_edges.py"],
+ #   ["python", "docs/win/basketball/scripts/03_edges/compute_edges.py"],
 
     # Baseball
     ["python", "docs/win/baseball/scripts/03_edges/compute_edges.py"],
@@ -98,7 +98,7 @@ pipeline = [
     # 04 SELECT
     # --------------------------------
 
-    ["python", "docs/win/soccer/scripts/04_select/select_bets.py"],
+  #  ["python", "docs/win/soccer/scripts/04_select/select_bets.py"],
     ["python", "docs/win/hockey/scripts/04_select/select_bets.py"],
     ["python", "docs/win/basketball/scripts/04_select/select_bets.py"],
     ["python", "docs/win/baseball/scripts/04_select/select_bets.py"],
@@ -121,9 +121,9 @@ pipeline = [
     ["python", "docs/win/final_scores/scripts/05_results/hockey/03_nhl_results_reports.py"],
 
     # Soccer
-    ["python", "docs/win/final_scores/scripts/05_results/soccer/01_soccer_results_grade.py"],
-    ["python", "docs/win/final_scores/scripts/05_results/soccer/02_soccer_results_analyze.py"],
-    ["python", "docs/win/final_scores/scripts/05_results/soccer/03_soccer_results_reports.py"],
+  #  ["python", "docs/win/final_scores/scripts/05_results/soccer/01_soccer_results_grade.py"],
+  #  ["python", "docs/win/final_scores/scripts/05_results/soccer/02_soccer_results_analyze.py"],
+  #  ["python", "docs/win/final_scores/scripts/05_results/soccer/03_soccer_results_reports.py"],
 
     # MLB
     ["python", "docs/win/final_scores/scripts/05_results/mlb/01_mlb_results_grade.py"],

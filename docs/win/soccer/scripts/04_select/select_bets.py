@@ -1,386 +1,224 @@
 #!/usr/bin/env python3
-# docs/win/soccer/scripts/04_select/select_bets.py
 
 import pandas as pd
 from pathlib import Path
-from datetime import datetime
-import traceback
-import re
+from datetime import datetime, UTC
 import yaml
+import traceback
 
-# =========================
-# PATHS
-# =========================
-INPUT_DIR = Path("docs/win/soccer/03_edges")
-OUTPUT_DIR = Path("docs/win/soccer/04_select")
-ERROR_DIR = Path("docs/win/soccer/errors/04_select")
+BASE = Path(__file__).resolve().parents[2]
+
+INPUT_DIR = BASE / "03_edges"
+OUTPUT_DIR = BASE / "04_select"
+CONFIG_PATH = BASE / "config" / "markets.yaml"
+
+ERROR_DIR = BASE / "errors" / "04_select"
 ERROR_LOG = ERROR_DIR / "select_bets.txt"
 
-CONFIG_PATH = Path("docs/win/soccer/config/markets.yaml")
-
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+OUTPUT_DIR.mkdir(exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
+
 
 # =========================
 # LOAD CONFIG
 # =========================
 with open(CONFIG_PATH, "r") as f:
-    MARKET_CONFIG = yaml.safe_load(f)["markets"]
+    CONFIG = yaml.safe_load(f)["markets"]["soccer"]
 
-# =========================
-# CONFIG (fallbacks only)
-# =========================
-KELLY_FRACTION = 0.25
-MIN_EDGE_FALLBACK = 0.00001
 
 # =========================
 # HELPERS
 # =========================
-def parse_match_time(time_str):
-
-    if pd.isna(time_str):
-        return None
-
-    time_str = str(time_str).strip()
-
-    for fmt in ("%I:%M %p", "%H:%M"):
-        try:
-            return datetime.strptime(time_str, fmt)
-        except Exception:
-            pass
-
-    return None
-
-
-def calculate_kelly(prob, odds, fraction=0.25):
-
-    if pd.isna(prob) or pd.isna(odds):
-        return 0
-
-    if odds <= 1 or prob <= 0:
-        return 0
-
-    f_star = (odds * prob - 1) / (odds - 1)
-
-    return max(0, f_star * fraction)
-
-
-def decimal_to_american(decimal):
-
-    if pd.isna(decimal):
-        return None
-
+def f(x):
     try:
-        decimal = float(decimal)
-
-        if decimal <= 1:
+        if pd.isna(x):
             return None
-
-        if decimal >= 2:
-            return round((decimal - 1) * 100)
-
-        return round(-100 / (decimal - 1))
-
-    except Exception:
+        return float(x)
+    except:
         return None
 
 
-def get_market_min_edge(row, market_type):
-
-    market = row.get("market")
-    market_cfg = MARKET_CONFIG.get(market, {})
-    type_cfg = market_cfg.get(market_type, {})
-
-    return type_cfg.get("min_edge", MIN_EDGE_FALLBACK)
-
-
-def get_result_prob(row, side):
-    return row.get(f"{side}_prob")
+def in_range(val, ranges):
+    if val is None:
+        return False
+    for lo, hi in ranges:
+        if lo <= val <= hi:
+            return True
+    return False
 
 
-def get_total_prob(row, side):
+def check_rules(ev, kelly, odds, rules):
+    if ev is None or kelly is None:
+        return False
 
-    if side == "over25":
-        return row.get("over25_prob")
+    if ev < rules["ev_min"] or ev > rules["ev_max"]:
+        return False
 
-    if side == "under25":
-        over_prob = row.get("over25_prob")
-        return None if pd.isna(over_prob) else 1 - over_prob
+    if kelly < rules["kelly_min"] or kelly > rules["kelly_max"]:
+        return False
 
-    if side == "over35":
-        return row.get("over35_prob")
+    if "odds_bands" in rules:
+        if not in_range(odds, rules["odds_bands"]):
+            return False
 
-    if side == "under35":
-        over_prob = row.get("over35_prob")
-        return None if pd.isna(over_prob) else 1 - over_prob
-
-    return None
-
-
-def get_btts_prob(row, side):
-
-    if side == "btts_yes":
-        return row.get("btts_prob")
-
-    if side == "btts_no":
-        prob = row.get("btts_prob")
-        return None if pd.isna(prob) else 1 - prob
-
-    return None
+    return True
 
 
 # =========================
-# BUILD SELECTION
+# MATCH ODDS
 # =========================
-def build_selection(row, market_name, take_bet, edge_pct, prob, odds_decimal=None, odds_american=None):
+def process_match(df):
+    results = []
 
-    if odds_decimal is None:
-        odds_decimal = row.get(f"{take_bet}_dk_decimal")
+    for _, row in df.iterrows():
+        for side in ["home", "draw", "away"]:
+            rules = CONFIG["match_odds"].get(side)
+            if not rules or not rules.get("enabled"):
+                continue
 
-    if odds_american is None:
-        odds_american = row.get(f"dk_{take_bet}_american")
+            ev = f(row.get(f"{side}_ev"))
+            kelly = f(row.get(f"{side}_kelly"))
+            odds = f(row.get(f"dk_{side}_decimal"))
 
-    stake = calculate_kelly(prob, odds_decimal, KELLY_FRACTION)
+            if not check_rules(ev, kelly, odds, rules):
+                continue
 
-    return {
-        "league": "Soccer",
-        "market": row.get("market"),
-        "game_date": row.get("match_date"),
-        "match_time": row.get("match_time"),
-        "home_team": row.get("home_team"),
-        "away_team": row.get("away_team"),
-        "game_id": row.get("game_id"),
-        "market_type": market_name,
-        "take_bet": take_bet,
-        "odds_american": odds_american,
-        "odds_decimal": odds_decimal,
-        "edge_pct": edge_pct,
-        "kelly_stake_pct": round(stake * 100, 2),
-        "expected_goals": row.get("expected_total_goals", "")
-    }
+            results.append({
+                "game_id": row.get("game_id"),
+                "sport": row.get("sport"),
+                "league": row.get("league"),
+                "match_date": row.get("match_date"),
+                "match_time": row.get("match_time"),
+                "home_team": row.get("home_team"),
+                "away_team": row.get("away_team"),
+                "market": "match_odds",
+                "side": side,
+                "odds": odds,
+                "ev": ev,
+                "kelly": kelly
+            })
 
-
-# =========================
-# RESULT
-# =========================
-def select_best_result_side(row, columns):
-
-    min_edge = get_market_min_edge(row, "result")
-    candidates = {}
-
-    for side in ["home", "draw", "away"]:
-
-        edge = row.get(f"{side}_edge_pct")
-
-        if pd.isna(edge) or edge <= min_edge:
-            continue
-
-        candidates[side] = edge
-
-    if not candidates:
-        return None
-
-    best = max(candidates, key=candidates.get)
-    prob = get_result_prob(row, best)
-
-    return build_selection(row, "result", best, candidates[best], prob)
+    return results
 
 
 # =========================
-# TOTAL
+# TOTALS
 # =========================
-def select_best_total(row, columns):
+def process_totals(df):
+    results = []
 
-    min_edge = get_market_min_edge(row, "total")
-    candidates = {}
+    for _, row in df.iterrows():
+        for side in ["over", "under"]:
+            rules = CONFIG["totals"].get(side)
+            if not rules or not rules.get("enabled"):
+                continue
 
-    has_25 = not pd.isna(row.get("over25_prob"))
-    has_35 = not pd.isna(row.get("over35_prob"))
+            ev = f(row.get(f"{side}_ev"))
+            kelly = f(row.get(f"{side}_kelly"))
 
-    if has_25:
-        sides = ["over25", "under25"]
-    elif has_35:
-        sides = ["over35", "under35"]
-    else:
-        return None
+            if side == "over":
+                odds = f(row.get("dk_over25_decimal") or row.get("dk_over35_decimal"))
+            else:
+                odds = f(row.get("dk_under25_decimal") or row.get("dk_under35_decimal"))
 
-    for side in sides:
+            if not check_rules(ev, kelly, odds, rules):
+                continue
 
-        edge = row.get(f"{side}_edge_pct")
-        prob = get_total_prob(row, side)
+            results.append({
+                "game_id": row.get("game_id"),
+                "sport": row.get("sport"),
+                "league": row.get("league"),
+                "match_date": row.get("match_date"),
+                "match_time": row.get("match_time"),
+                "home_team": row.get("home_team"),
+                "away_team": row.get("away_team"),
+                "market": "total",
+                "side": side,
+                "odds": odds,
+                "ev": ev,
+                "kelly": kelly
+            })
 
-        if pd.isna(edge) or edge <= min_edge or prob is None:
-            continue
-
-        candidates[side] = edge
-
-    if not candidates:
-        return None
-
-    best = max(candidates, key=candidates.get)
-    prob = get_total_prob(row, best)
-
-    return build_selection(row, "total", best, candidates[best], prob)
+    return results
 
 
 # =========================
 # BTTS
 # =========================
-def select_best_btts(row, columns):
+def process_btts(df):
+    results = []
 
-    min_edge = get_market_min_edge(row, "btts")
+    for _, row in df.iterrows():
+        for side in ["yes", "no"]:
+            rules = CONFIG["btts"].get(side)
+            if not rules or not rules.get("enabled"):
+                continue
 
-    prob_yes = row.get("btts_prob")
+            ev = f(row.get(f"{side}_ev"))
+            kelly = f(row.get(f"{side}_kelly"))
+            odds = f(row.get(f"btts_{side}"))
 
-    if pd.isna(prob_yes):
-        return None
+            if not check_rules(ev, kelly, odds, rules):
+                continue
 
-    prob_no = 1 - prob_yes
+            results.append({
+                "game_id": row.get("game_id"),
+                "sport": row.get("sport"),
+                "league": row.get("league"),
+                "match_date": row.get("match_date"),
+                "match_time": row.get("match_time"),
+                "home_team": row.get("home_team"),
+                "away_team": row.get("away_team"),
+                "market": "btts",
+                "side": side,
+                "odds": odds,
+                "ev": ev,
+                "kelly": kelly
+            })
 
-    yes_edge = row.get("btts_yes_edge_pct")
-    no_edge = row.get("btts_no_edge_pct")
-
-    candidates = {}
-
-    if not pd.isna(yes_edge) and yes_edge > min_edge:
-        candidates["btts_yes"] = (yes_edge, prob_yes)
-
-    if not pd.isna(no_edge) and no_edge > min_edge:
-        candidates["btts_no"] = (no_edge, prob_no)
-
-    if not candidates:
-        return None
-
-    best = max(candidates, key=lambda x: candidates[x][0])
-    edge, prob = candidates[best]
-
-    odds_decimal = row.get(f"{best}_adjusted_decimal")
-
-    if pd.isna(odds_decimal):
-        return None
-
-    odds_american = decimal_to_american(odds_decimal)
-
-    return build_selection(
-        row=row,
-        market_name="btts",
-        take_bet=best,
-        edge_pct=edge,
-        prob=prob,
-        odds_decimal=odds_decimal,
-        odds_american=odds_american
-    )
+    return results
 
 
 # =========================
 # MAIN
 # =========================
 def main():
+    with open(ERROR_LOG, "w") as log:
+        log.write(f"{datetime.now(UTC).isoformat()}\n")
 
-    with open(ERROR_LOG, "a") as log:
+    all_bets = []
 
-        log.write(f"=== SELECT BETS RUN: {datetime.utcnow().isoformat()}Z ===\n")
+    try:
+        for file in INPUT_DIR.glob("*.csv"):
+            df = pd.read_csv(file)
 
-        try:
+            if "match_odds" in file.name:
+                all_bets += process_match(df)
 
-            input_files = sorted(INPUT_DIR.glob("soccer_*.csv"))
+            elif "total" in file.name:
+                all_bets += process_totals(df)
 
-            if not input_files:
-                log.write("No input files found.\n")
-                return
+            elif "btts" in file.name:
+                all_bets += process_btts(df)
 
-            for input_path in input_files:
+        if not all_bets:
+            print("no bets found")
+            return
 
-                df = pd.read_csv(input_path)
-                columns = set(df.columns)
-
-                selections = []
-
-                for _, row in df.iterrows():
-
-                    r = select_best_result_side(row, columns)
-                    if r:
-                        selections.append(r)
-
-                    t = select_best_total(row, columns)
-                    if t:
-                        selections.append(t)
-
-                    b = select_best_btts(row, columns)
-                    if b:
-                        selections.append(b)
-
-                if not selections:
-                    log.write(f"No plays for {input_path.name}\n")
-                    continue
-
-                sel_df = pd.DataFrame(selections)
-
-                sel_df["_sort_time"] = sel_df["match_time"].apply(parse_match_time)
-
-                sel_df = sel_df.sort_values(
-                    by=["game_date", "_sort_time", "home_team", "away_team", "market_type"],
-                    na_position="last"
-                ).drop(columns=["_sort_time"])
-
-                output_path = OUTPUT_DIR / input_path.name
-
-                sel_df.to_csv(output_path, index=False)
-
-                log.write(f"Wrote {len(sel_df)} rows to {output_path}\n")
-
-        except Exception as e:
-
-            log.write(f"\nCRITICAL ERROR: {str(e)}\n{traceback.format_exc()}\n")
-
+        df = pd.DataFrame(all_bets)
 
         # =========================
-        # DAILY COMBINED
+        # SPLIT BY DATE
         # =========================
-        try:
+        for date, group in df.groupby("match_date"):
+            out_path = OUTPUT_DIR / f"{date}_soccer_bets.csv"
+            group.to_csv(out_path, index=False)
 
-            date_groups = {}
+        print("select bets complete")
 
-            for csv_file in OUTPUT_DIR.glob("soccer_*.csv"):
-
-                match = re.search(r"(\d{4}_\d{2}_\d{2})", csv_file.name)
-
-                if not match:
-                    continue
-
-                date_str = match.group(1)
-                date_groups.setdefault(date_str, []).append(csv_file)
-
-            for date_str, files in date_groups.items():
-
-                dfs = []
-
-                for f in files:
-                    try:
-                        df = pd.read_csv(f)
-                        if not df.empty:
-                            dfs.append(df)
-                    except:
-                        continue
-
-                if not dfs:
-                    continue
-
-                combined = pd.concat(dfs, ignore_index=True)
-
-                combined = combined.drop_duplicates(
-                    subset=["game_date", "home_team", "away_team", "market_type"]
-                )
-
-                out_path = OUTPUT_DIR / f"{date_str}_soccer.csv"
-
-                combined.to_csv(out_path, index=False)
-
-                log.write(f"Created {out_path}\n")
-
-        except Exception as e:
-
-            log.write(f"\nERROR BUILDING DAILY: {str(e)}\n{traceback.format_exc()}\n")
+    except Exception as e:
+        with open(ERROR_LOG, "a") as log:
+            log.write(f"ERROR: {e}\n{traceback.format_exc()}")
 
 
 if __name__ == "__main__":
