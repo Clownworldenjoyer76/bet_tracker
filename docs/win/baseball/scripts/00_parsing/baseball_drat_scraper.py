@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# docs/win/baseball/scripts/00_parsing/baseball_drat_scraper.py
+# docs/win/baseball/scripts/00_intake/baseball_drat_scraper.py
 
 import json
 from pathlib import Path
