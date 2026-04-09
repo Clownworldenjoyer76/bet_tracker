@@ -1,3 +1,5 @@
+# docs/win/soccer/scripts/00_intake/soccer_drat.py
+
 import re
 import time
 import random
@@ -7,16 +9,18 @@ from pathlib import Path
 from datetime import datetime, timezone
 from playwright.sync_api import sync_playwright
 
-ERROR_DIR = Path("docs/win/soccer/errors/00_parsing")
+ERROR_DIR = Path("docs/win/soccer/errors/00_intake")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
-LOG_FILE  = ERROR_DIR / "soccert_drat_log.txt"
+LOG_FILE  = ERROR_DIR / "soccer_drat.txt"
 
 with open(LOG_FILE, "w", encoding="utf-8") as f:
-    f.write(f"=== soccert_drat RUN {datetime.now(timezone.utc).isoformat()} ===\n")
+    f.write(f"=== soccer_drat RUN {datetime.now(timezone.utc).isoformat()} ===\n")
 
 def log(msg: str) -> None:
     with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write(f"{datetime.now(timezone.utc).isoformat()} | {msg}\n")
+
+files_written = []  # tracks (path, sample_row) for summary
 
 URLS = {
     "mls":        "https://www.dratings.com/predictor/mls-soccer-predictions/",
@@ -169,6 +173,8 @@ def main():
                         pred_path = Path(f"docs/win/soccer/00_intake/predictions/{league}/{match_date}_{league}.csv")
                         pred_path.parent.mkdir(parents=True, exist_ok=True)
                         group.to_csv(pred_path, index=False)
+                        sample = group.iloc[0].to_dict()
+                        files_written.append((str(pred_path), sample))
                         log(f"WROTE predictions → {pred_path} ({len(group)} rows)")
 
                 # ── Write finals grouped by game_date ─────────────────────
@@ -178,6 +184,8 @@ def main():
                         final_path = Path(f"docs/win/final_scores/results/soccer/final_scores/{league}/{game_date}_{league}.csv")
                         final_path.parent.mkdir(parents=True, exist_ok=True)
                         group.to_csv(final_path, index=False)
+                        sample = group.iloc[0].to_dict()
+                        files_written.append((str(final_path), sample))
                         log(f"WROTE finals → {final_path} ({len(group)} rows)")
 
             except Exception as e:
@@ -187,12 +195,23 @@ def main():
 
         browser.close()
 
-    log("COMPLETE")
+    # =========================
+    # SUMMARY
+    # =========================
+    log("--- FILES WRITTEN ---")
+    if files_written:
+        for path, sample in files_written:
+            log(f"  FILE: {path}")
+            log(f"  SAMPLE ROW: {sample}")
+    else:
+        log("  No files written.")
+
+    log("STATUS: SUCCESS")
 
 if __name__ == "__main__":
     try:
         main()
     except Exception as e:
-        with open(LOG_FILE, "a", encoding="utf-8") as f:
-            f.write(f"FATAL:\n{e}\n{traceback.format_exc()}")
+        log(f"FATAL ERROR: {e}\n{traceback.format_exc()}")
+        log("STATUS: FAILED")
         raise
