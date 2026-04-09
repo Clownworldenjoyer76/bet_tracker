@@ -1,4 +1,4 @@
-# docs/win/baseball/scripts/00_parsing/odds_parse.py
+# docs/win/baseball/scripts/00_intake/odds_parse.py
 
 import sys
 import json
