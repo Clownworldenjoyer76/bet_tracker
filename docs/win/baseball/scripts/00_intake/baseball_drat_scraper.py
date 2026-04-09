@@ -40,18 +40,22 @@ def convert_utc_to_et(date_time_str: str) -> str:
 
 def is_completed_row(cells):
     """
-    Correct detection:
-    - row[5] must be scores like "6\n8"
-    - BOTH values must be integers
+    ONLY detect completed rows when:
+    - row[5] is exactly two integers (scores)
+    Example:
+        "6\n8"  -> valid
+        "+1½-180\n-1½+185" -> NOT valid
     """
-
     try:
         if len(cells) >= 6 and "\n" in cells[5]:
             parts = [x.strip() for x in cells[5].split("\n")]
 
-            if len(parts) == 2 and all(p.isdigit() for p in parts):
+            if (
+                len(parts) == 2 and
+                parts[0].isdigit() and
+                parts[1].isdigit()
+            ):
                 return True
-
     except:
         pass
 
@@ -81,12 +85,12 @@ def scrape_page(page, url):
                 pass
 
             # -------------------------
-            # FIXED DETECTION
+            # FIXED COMPLETED DETECTION
             # -------------------------
             if is_completed_row(cells):
                 log(f"COMPLETED ROW DETECTED: {cells[1]}")
 
-                # truncate to ensure transform handles correctly
+                # truncate so transform treats as completed
                 cells = cells[:6]
 
             all_rows.append(cells)
