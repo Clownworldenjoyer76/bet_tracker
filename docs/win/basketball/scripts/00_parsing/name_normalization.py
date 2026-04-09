@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# docs/win/basketball/scripts/00_parsing/name_normalization.py
+# docs/win/basketball/scripts/00_intake/name_normalization.py
 
 import csv
 import pandas as pd
