@@ -49,6 +49,14 @@ jobs:
           mkdir -p docs/win/hockey/errors/00_intake/
           mkdir -p mappings/hockey/no_map/
 
+          # Baseball
+          mkdir -p docs/win/baseball/00_intake/sportsbook/
+          mkdir -p docs/win/baseball/00_intake/drat_raw/
+          mkdir -p docs/win/baseball/00_intake/predictions/
+          mkdir -p docs/win/final_scores/results/mlb/final_scores/
+          mkdir -p docs/win/baseball/errors/00_intake/
+          mkdir -p mappings/baseball/no_map/
+
       - name: Fetch Soccer Odds
         env:
           CLOUD_API: ${{ secrets.CLOUD_API }}
@@ -83,6 +91,24 @@ jobs:
       - name: Hockey Name Normalization (2)
         run: python docs/win/hockey/scripts/00_intake/name_normalization.py
 
+      # -------------------------
+      # BASEBALL PIPELINE (ORDERED)
+      # -------------------------
+      - name: Baseball odds parse
+        run: python docs/win/baseball/scripts/00_intake/odds_parse.py docs/win/baseball/odds/${DATE}.json
+
+      - name: Baseball normalization (pre)
+        run: python docs/win/baseball/scripts/00_intake/name_normalization.py
+
+      - name: Baseball scraper
+        run: python docs/win/baseball/scripts/00_intake/baseball_drat_scraper.py
+
+      - name: Baseball transform
+        run: python docs/win/baseball/scripts/00_intake/transform_baseball.py
+
+      - name: Baseball normalization (post)
+        run: python docs/win/baseball/scripts/00_intake/name_normalization.py
+
       # ✅ Commit ALL required outputs explicitly
       - name: Commit outputs
         run: |
@@ -107,6 +133,14 @@ jobs:
           git add docs/win/hockey/errors/00_intake/
           git add mappings/hockey/no_map/
 
-          git diff --cached --quiet || git commit -m "chore: soccer+hockey intake run $(date -u +'%Y-%m-%d %H:%M UTC')"
+          # Baseball
+          git add docs/win/baseball/00_intake/sportsbook/
+          git add docs/win/baseball/00_intake/drat_raw/
+          git add docs/win/baseball/00_intake/predictions/
+          git add docs/win/final_scores/results/mlb/final_scores/
+          git add docs/win/baseball/errors/00_intake/
+          git add mappings/baseball/no_map/
+
+          git diff --cached --quiet || git commit -m "chore: all intake run $(date -u +'%Y-%m-%d %H:%M UTC')"
           git pull --rebase origin main
           git push
