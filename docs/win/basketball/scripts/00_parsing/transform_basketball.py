@@ -1,3 +1,5 @@
+# docs/win/basketball/scripts/00_intake/transform_basketball.py
+
 """
 Transform basketball raw JSON into prediction and final score files.
 
