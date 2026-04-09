@@ -1,0 +1,99 @@
+name: 00 Intake Group
+
+on:
+  workflow_dispatch:
+
+jobs:
+  merge-group:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Create output directories
+        run: |
+          # Soccer
+          mkdir -p docs/win/soccer/01_merge/
+          mkdir -p docs/win/soccer/01_merge/01_merguiced/
+          mkdir -p docs/win/soccer/errors/01_merge/
+
+          # Hockey
+          mkdir -p docs/win/hockey/01_merge/
+          mkdir -p docs/win/hockey/01_merge/01_merguiced/
+          mkdir -p docs/win/hockey/errors/01_merge/
+
+          # Baseball
+          mkdir -p docs/win/baseball/01_merge/
+          mkdir -p docs/win/baseball/01_merge/01_merguiced/
+          mkdir -p docs/win/baseball/errors/01_merge/
+
+          # Basketball
+          mkdir -p docs/win/basketball/01_merge/
+          mkdir -p docs/win/basketball/01_merge/01_merguiced/
+          mkdir -p docs/win/basketball/errors/01_merge/
+
+      # -------------------------
+      # SOCCER
+      # -------------------------
+      - name: Soccer Merge Intake
+        run: python docs/win/soccer/scripts/01_merge/merge_intake.py
+
+      - name: Soccer Build Juice Files
+        run: python docs/win/soccer/scripts/01_merge/build_juice_files.py
+
+      # -------------------------
+      # HOCKEY
+      # -------------------------
+      - name: Hockey Merge Intake
+        run: python docs/win/hockey/scripts/01_merge/merge_intake.py
+
+      - name: Hockey Build Juice Files
+        run: python docs/win/hockey/scripts/01_merge/build_juice_files.py
+
+      # -------------------------
+      # BASEBALL
+      # -------------------------
+      - name: Baseball Merge Intake
+        run: python docs/win/baseball/scripts/01_merge/merge_intake.py
+
+      - name: Baseball Build Juice Files
+        run: python docs/win/baseball/scripts/01_merge/build_juice_files.py
+
+      # -------------------------
+      # BASKETBALL
+      # -------------------------
+      - name: Basketball Merge Intake
+        run: python docs/win/basketball/scripts/01_merge/merge_intake.py
+
+      - name: Basketball Build Juice Files
+        run: python docs/win/basketball/scripts/01_merge/build_juice_files.py
+
+      - name: Commit outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add docs/win/soccer/01_merge/
+          git add docs/win/soccer/errors/01_merge/
+
+          git add docs/win/hockey/01_merge/
+          git add docs/win/hockey/errors/01_merge/
+
+          git add docs/win/baseball/01_merge/
+          git add docs/win/baseball/errors/01_merge/
+
+          git add docs/win/basketball/01_merge/
+          git add docs/win/basketball/errors/01_merge/
+
+          git diff --cached --quiet || git commit -m "chore: 01 merge intake group run $(date -u +'%Y-%m-%d %H:%M UTC')"
+          git pull --rebase origin main
+          git push
