@@ -57,6 +57,18 @@ jobs:
           mkdir -p docs/win/baseball/errors/00_intake/
           mkdir -p mappings/baseball/no_map/
 
+          # Basketball
+          mkdir -p docs/win/basketball/00_intake/sportsbook/
+          mkdir -p docs/win/basketball/00_intake/drat_raw/
+          mkdir -p docs/win/basketball/00_intake/predictions/
+          mkdir -p docs/win/final_scores/results/nba/final_scores/
+          mkdir -p docs/win/final_scores/results/ncaab/final_scores/
+          mkdir -p docs/win/basketball/errors/00_intake/
+          mkdir -p mappings/basketball/no_map/
+
+      # -------------------------
+      # SOCCER
+      # -------------------------
       - name: Fetch Soccer Odds
         env:
           CLOUD_API: ${{ secrets.CLOUD_API }}
@@ -72,7 +84,7 @@ jobs:
         run: python docs/win/soccer/scripts/00_intake/soccer_cleaner.py
 
       # -------------------------
-      # HOCKEY PIPELINE (ORDERED)
+      # HOCKEY
       # -------------------------
       - name: Hockey Odds Parse
         run: python docs/win/hockey/scripts/00_intake/odds_parse.py
@@ -92,7 +104,7 @@ jobs:
         run: python docs/win/hockey/scripts/00_intake/name_normalization.py
 
       # -------------------------
-      # BASEBALL PIPELINE (ORDERED)
+      # BASEBALL
       # -------------------------
       - name: Baseball odds parse
         run: python docs/win/baseball/scripts/00_intake/odds_parse.py docs/win/baseball/odds/${DATE}.json
@@ -109,7 +121,27 @@ jobs:
       - name: Baseball normalization (post)
         run: python docs/win/baseball/scripts/00_intake/name_normalization.py
 
-      # ✅ Commit ALL required outputs explicitly
+      # -------------------------
+      # BASKETBALL
+      # -------------------------
+      - name: Basketball Odds Parse
+        run: python docs/win/basketball/scripts/00_intake/odds_parse.py
+
+      - name: Basketball Name Normalization (1)
+        run: python docs/win/basketball/scripts/00_intake/name_normalization.py
+
+      - name: Basketball Drat Scraper
+        run: python docs/win/basketball/scripts/00_intake/basketball_drat_scraper.py
+
+      - name: Basketball Transform
+        run: python docs/win/basketball/scripts/00_intake/transform_basketball.py
+
+      - name: Basketball Name Normalization (2)
+        run: python docs/win/basketball/scripts/00_intake/name_normalization.py
+
+      # -------------------------
+      # COMMIT
+      # -------------------------
       - name: Commit outputs
         run: |
           git config user.name "github-actions[bot]"
@@ -140,6 +172,15 @@ jobs:
           git add docs/win/final_scores/results/mlb/final_scores/
           git add docs/win/baseball/errors/00_intake/
           git add mappings/baseball/no_map/
+
+          # Basketball
+          git add docs/win/basketball/00_intake/sportsbook/
+          git add docs/win/basketball/00_intake/drat_raw/
+          git add docs/win/basketball/00_intake/predictions/
+          git add docs/win/final_scores/results/nba/final_scores/
+          git add docs/win/final_scores/results/ncaab/final_scores/
+          git add docs/win/basketball/errors/00_intake/
+          git add mappings/basketball/no_map/
 
           git diff --cached --quiet || git commit -m "chore: all intake run $(date -u +'%Y-%m-%d %H:%M UTC')"
           git pull --rebase origin main
