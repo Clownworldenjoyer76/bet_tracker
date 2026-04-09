@@ -1,26 +1,26 @@
 #!/usr/bin/env python3
-
 # docs/win/hockey/scripts/01_merge/build_juice_files.py
 
 import pandas as pd
 import glob
 import sys
 import traceback
+import math
 from pathlib import Path
 from datetime import datetime, UTC
 from scipy.stats import skellam, poisson
-import math
 
-INPUT_DIR = Path("docs/win/hockey/01_merge")
+INPUT_DIR  = Path("docs/win/hockey/01_merge")
 OUTPUT_DIR = INPUT_DIR / "01_merguiced"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 ERROR_DIR = Path("docs/win/hockey/errors/01_merge")
-ERROR_LOG = ERROR_DIR / "build_juice_files.txt"
+ERROR_DIR.mkdir(parents=True, exist_ok=True)
+LOG_FILE = ERROR_DIR / "build_juice_files.txt"
 
-# FIX #6: Required columns that must be present in every merged file.
-# If any are missing the script aborts that file with a clear error rather than
-# silently producing NaN-filled output columns.
+with open(LOG_FILE, "w", encoding="utf-8") as f:
+    f.write(f"=== build_juice_files RUN {datetime.now(UTC).isoformat()} ===\n")
+
 REQUIRED_COLUMNS = [
     "league", "market", "game_date", "game_time",
     "home_team", "away_team", "game_id",
@@ -34,7 +34,7 @@ REQUIRED_COLUMNS = [
 
 
 def log(msg):
-    with open(ERROR_LOG, "a", encoding="utf-8") as f:
+    with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write(f"{datetime.now(UTC).isoformat()} | {msg}\n")
 
 
@@ -43,163 +43,142 @@ def american_to_decimal(odds):
         if pd.isna(odds):
             return None
         odds = float(odds)
-
         if odds == 0:
             return None
-
         if odds > 0:
             return 1 + (odds / 100)
         else:
             return 1 + (100 / abs(odds))
-
     except Exception:
         return None
 
 
 def poisson_cdf(k, lam):
-    # scipy handles large lambda without factorial overflow
     return poisson.cdf(k, lam)
 
 
 def main():
-
-    with open(ERROR_LOG, "w", encoding="utf-8") as f:
-        f.write(f"{datetime.now(UTC).isoformat()}\n")
+    files_written = []
+    schema_errors = 0
+    row_issues    = 0
+    empty_files   = 0
 
     try:
-
         files = glob.glob(str(INPUT_DIR / "hockey_NHL_*.csv"))
+        log(f"Input files found: {len(files)}")
 
         for file_path in files:
-
             df = pd.read_csv(file_path)
 
             if df.empty:
-                log(f"NO OUTPUT: {file_path} is empty — skipping juice")
+                log(f"EMPTY: {file_path} — skipping")
+                empty_files += 1
                 continue
 
-            # FIX #6: Validate schema before any processing.
             missing_cols = [c for c in REQUIRED_COLUMNS if c not in df.columns]
             if missing_cols:
                 log(f"SCHEMA ERROR: {file_path} missing columns: {missing_cols}")
+                schema_errors += 1
                 continue
-
-            # =========================
-            # ENFORCE NUMERIC TYPES
-            # =========================
 
             num_cols = [
                 "home_prob", "away_prob",
                 "total_projected_goals", "home_projected_goals", "away_projected_goals",
-                "total",
-                "home_puck_line", "away_puck_line",
+                "total", "home_puck_line", "away_puck_line",
             ]
-
             for col in num_cols:
                 df[col] = pd.to_numeric(df[col], errors="coerce")
-
-            # =========================
-            # ROW VALIDATION
-            # =========================
 
             for i, r in df.iterrows():
                 if pd.isna(r["home_prob"]) or pd.isna(r["away_prob"]):
                     log(f"ROW ISSUE: {file_path} idx={i} bad probs")
+                    row_issues += 1
 
-            # FIX #7: Derive slate_date from the source filename rather than
-            # df.iloc[0] so output filenames are always correct and never collide.
-            stem = Path(file_path).stem          # e.g. "hockey_NHL_2026_03_20"
+            stem       = Path(file_path).stem
             slate_date = stem.replace("hockey_NHL_", "")
-            market = df["market"].iloc[0]
+            market     = df["market"].iloc[0]
 
             # =========================
             # MONEYLINE
             # =========================
 
             ml = df.copy()
-
-            ml["away_dk_decimal_moneyline"] = ml["away_dk_moneyline_american"].apply(american_to_decimal)
-            ml["home_dk_decimal_moneyline"] = ml["home_dk_moneyline_american"].apply(american_to_decimal)
-
+            ml["away_dk_decimal_moneyline"]  = ml["away_dk_moneyline_american"].apply(american_to_decimal)
+            ml["home_dk_decimal_moneyline"]  = ml["home_dk_moneyline_american"].apply(american_to_decimal)
             ml["away_fair_decimal_moneyline"] = ml["away_prob"].apply(
                 lambda x: 1 / x if pd.notna(x) and x > 0 else None
             )
             ml["home_fair_decimal_moneyline"] = ml["home_prob"].apply(
                 lambda x: 1 / x if pd.notna(x) and x > 0 else None
             )
-
-            ml.to_csv(OUTPUT_DIR / f"{slate_date}_{market}_moneyline.csv", index=False)
+            ml_path = OUTPUT_DIR / f"{slate_date}_{market}_moneyline.csv"
+            ml.to_csv(ml_path, index=False)
+            files_written.append((str(ml_path), len(ml)))
+            log(f"WROTE {ml_path} ({len(ml)} rows)")
 
             # =========================
             # TOTAL
             # =========================
 
             tot = df.copy()
-
-            tot["dk_total_over_decimal"] = tot["dk_total_over_american"].apply(american_to_decimal)
+            tot["dk_total_over_decimal"]  = tot["dk_total_over_american"].apply(american_to_decimal)
             tot["dk_total_under_decimal"] = tot["dk_total_under_american"].apply(american_to_decimal)
 
-            over = []
+            over  = []
             under = []
 
             for i, r in tot.iterrows():
-
                 lam = r["total_projected_goals"]
-                T = r["total"]
+                T   = r["total"]
 
                 if pd.isna(lam) or pd.isna(T) or lam <= 0:
                     log(f"ROW ISSUE: {file_path} idx={i} bad total inputs")
+                    row_issues += 1
                     over.append(None)
                     under.append(None)
                     continue
 
-                # FIX #8: Guard against whole-number totals, which create a push
-                # scenario the current model cannot handle. NHL totals are almost
-                # always half-points; a whole number is most likely a data-entry
-                # error. Log it loudly and skip rather than silently assigning the
-                # push probability to the under.
                 if T % 1 == 0:
-                    log(
-                        f"WHOLE NUMBER TOTAL: {file_path} idx={i} total={T} — "
-                        f"push not modelled; skipping row"
-                    )
+                    log(f"WHOLE NUMBER TOTAL: {file_path} idx={i} total={T} — push not modelled; skipping row")
+                    row_issues += 1
                     over.append(None)
                     under.append(None)
                     continue
 
-                k = math.floor(T)
+                k       = math.floor(T)
                 p_under = poisson_cdf(k, lam)
-                p_over = 1 - p_under
+                p_over  = 1 - p_under
 
                 under.append(1 / p_under if p_under > 0 else None)
-                over.append(1 / p_over if p_over > 0 else None)
+                over.append(1 / p_over   if p_over  > 0 else None)
 
-            tot["fair_total_over_decimal"] = over
+            tot["fair_total_over_decimal"]  = over
             tot["fair_total_under_decimal"] = under
-
-            tot.to_csv(OUTPUT_DIR / f"{slate_date}_{market}_total.csv", index=False)
+            tot_path = OUTPUT_DIR / f"{slate_date}_{market}_total.csv"
+            tot.to_csv(tot_path, index=False)
+            files_written.append((str(tot_path), len(tot)))
+            log(f"WROTE {tot_path} ({len(tot)} rows)")
 
             # =========================
             # PUCK LINE
             # =========================
 
             pl = df.copy()
-
             pl["home_dk_puck_line_decimal"] = pl["home_dk_puck_line_american"].apply(american_to_decimal)
             pl["away_dk_puck_line_decimal"] = pl["away_dk_puck_line_american"].apply(american_to_decimal)
 
-            home_vals = []
-            away_vals = []
+            home_vals  = []
+            away_vals  = []
             home_probs = []
             away_probs = []
 
             for i, r in pl.iterrows():
-
                 lambda_home = r["home_projected_goals"]
                 lambda_away = r["away_projected_goals"]
 
                 if pd.isna(lambda_home) or pd.isna(lambda_away) or lambda_home <= 0 or lambda_away <= 0:
                     log(f"ROW ISSUE: {file_path} idx={i} puck invalid lambdas")
+                    row_issues += 1
                     home_vals.append(None)
                     away_vals.append(None)
                     home_probs.append(None)
@@ -212,43 +191,49 @@ def main():
                 if home_line == -1.5:
                     p_home = 1 - skellam.cdf(1, lambda_home, lambda_away)
                     p_away = 1 - p_home
-
                 elif away_line == -1.5:
                     p_away = 1 - skellam.cdf(1, lambda_away, lambda_home)
                     p_home = 1 - p_away
-
                 else:
                     log(f"ROW ISSUE: {file_path} idx={i} unexpected puck lines: home={home_line} away={away_line}")
+                    row_issues += 1
                     home_vals.append(None)
                     away_vals.append(None)
                     home_probs.append(None)
                     away_probs.append(None)
                     continue
 
-                # Safety clamp
                 p_home = min(max(p_home, 0.01), 0.99)
                 p_away = min(max(p_away, 0.01), 0.99)
 
                 home_probs.append(p_home)
                 away_probs.append(p_away)
-
                 home_vals.append(1 / p_home)
                 away_vals.append(1 / p_away)
 
             pl["home_fair_puck_line_decimal"] = home_vals
             pl["away_fair_puck_line_decimal"] = away_vals
-            pl["home_prob_puck_line"] = home_probs
-            pl["away_prob_puck_line"] = away_probs
+            pl["home_prob_puck_line"]         = home_probs
+            pl["away_prob_puck_line"]         = away_probs
 
-            pl.to_csv(OUTPUT_DIR / f"{slate_date}_{market}_puck_line.csv", index=False)
+            pl_path = OUTPUT_DIR / f"{slate_date}_{market}_puck_line.csv"
+            pl.to_csv(pl_path, index=False)
+            files_written.append((str(pl_path), len(pl)))
+            log(f"WROTE {pl_path} ({len(pl)} rows)")
 
-            log(f"Processed: {file_path}")
-
-        log("Completed successfully.")
+        log("--- SUMMARY ---")
+        log(f"Input files processed: {len(files)}")
+        log(f"Empty files skipped: {empty_files}")
+        log(f"Schema errors: {schema_errors}")
+        log(f"Row issues: {row_issues}")
+        log(f"Files written: {len(files_written)}")
+        for path, count in files_written:
+            log(f"  FILE: {path} ({count} rows)")
+        log("STATUS: SUCCESS")
 
     except Exception as e:
-        traceback.print_exc()
-        log(f"ERROR: {e}")
+        log(f"FATAL ERROR: {e}\n{traceback.format_exc()}")
+        log("STATUS: FAILED")
         sys.exit(1)
 
 
