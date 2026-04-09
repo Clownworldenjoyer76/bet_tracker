@@ -237,6 +237,9 @@ def main():
         "errors":        0,
     }
 
+    for f in OUTPUT_DIR.glob("*.csv"):
+        f.unlink()
+        
     try:
         for f in sorted(INPUT_DIR.glob("*_match_odds.csv")):
             process_match_odds(str(f), summary)
