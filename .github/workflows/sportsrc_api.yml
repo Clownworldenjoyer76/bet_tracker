@@ -27,17 +27,20 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests
 
-      - name: Ensure output folder exists
-        run: mkdir -p docs/win/final_scores/results/soccer/final_scores
+      - name: Ensure output and error folders exist
+        run: |
+          mkdir -p docs/win/final_scores/results/soccer/final_scores
+          mkdir -p docs/win/final_scores/errors
 
       - name: Run soccer final scores script
         run: python docs/win/final_scores/scripts/05_results/sportsrc.py
 
-      - name: Commit output files
+      - name: Commit output and error files
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add docs/win/final_scores/results/soccer/final_scores/
+          git add docs/win/final_scores/errors/
           git diff --cached --quiet || git commit -m "Update soccer final scores output"
 
       - name: Push changes
