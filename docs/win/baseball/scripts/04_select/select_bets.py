@@ -286,6 +286,10 @@ def process_total(row, counters):
 
 def main():
     with open(ERROR_LOG, "w") as log:
+
+        for f in OUTPUT_DIR.glob("*.csv"):
+        f.unlink()
+        
         try:
             log.write(f"=== SELECT BETS RUN {datetime.now(UTC)} ===\n")
 
