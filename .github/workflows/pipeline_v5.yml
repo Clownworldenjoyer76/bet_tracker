@@ -1,0 +1,288 @@
+name: 00 All Groups
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: full-pipeline-group
+  cancel-in-progress: false
+
+jobs:
+  full-pipeline:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
+          pip install pandas pyyaml numpy scipy
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Create commit helper
+        run: |
+          cat > /tmp/commit_stage.sh <<'EOF'
+          #!/usr/bin/env bash
+          set -e
+
+          MESSAGE="$1"
+          shift
+
+          for path in "$@"; do
+            git add "$path"
+          done
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit for: $MESSAGE"
+          else
+            git commit -m "$MESSAGE"
+            git pull --rebase origin "${GITHUB_REF_NAME}"
+            git push origin HEAD:"${GITHUB_REF_NAME}"
+          fi
+          EOF
+
+          chmod +x /tmp/commit_stage.sh
+
+      - name: Stage 01 - Merge
+        run: |
+          echo "::group::Stage 01 - Create output directories"
+          mkdir -p docs/win/soccer/01_merge/
+          mkdir -p docs/win/soccer/01_merge/01_merguiced/
+          mkdir -p docs/win/soccer/errors/01_merge/
+
+          mkdir -p docs/win/hockey/01_merge/
+          mkdir -p docs/win/hockey/01_merge/01_merguiced/
+          mkdir -p docs/win/hockey/errors/01_merge/
+
+          mkdir -p docs/win/baseball/01_merge/
+          mkdir -p docs/win/baseball/01_merge/01_merguiced/
+          mkdir -p docs/win/baseball/errors/01_merge/
+
+          mkdir -p docs/win/basketball/01_merge/
+          mkdir -p docs/win/basketball/01_merge/01_merguiced/
+          mkdir -p docs/win/basketball/errors/01_merge/
+          echo "::endgroup::"
+
+          echo "::group::Stage 01 - Run scripts"
+          python docs/win/soccer/scripts/01_merge/merge_intake.py
+          python docs/win/soccer/scripts/01_merge/build_juice_files.py
+
+          python docs/win/hockey/scripts/01_merge/merge_intake.py
+          python docs/win/hockey/scripts/01_merge/build_juice_files.py
+
+          python docs/win/baseball/scripts/01_merge/merge_intake.py
+          python docs/win/baseball/scripts/01_merge/build_juice_files.py
+
+          python docs/win/basketball/scripts/01_merge/merge_intake.py
+          python docs/win/basketball/scripts/01_merge/build_juice_files.py
+          echo "::endgroup::"
+
+          echo "::group::Stage 01 - Commit outputs"
+          /tmp/commit_stage.sh \
+            "chore: run 01 merge group $(date -u +'%Y-%m-%d %H:%M UTC')" \
+            docs/win/soccer/01_merge/ \
+            docs/win/soccer/errors/01_merge/ \
+            docs/win/hockey/01_merge/ \
+            docs/win/hockey/errors/01_merge/ \
+            docs/win/baseball/01_merge/ \
+            docs/win/baseball/errors/01_merge/ \
+            docs/win/basketball/01_merge/ \
+            docs/win/basketball/errors/01_merge/
+          echo "::endgroup::"
+
+      - name: Stage 02 - Juice
+        run: |
+          echo "::group::Stage 02 - Create output directories"
+          mkdir -p docs/win/soccer/errors/02_juice/
+          mkdir -p docs/win/soccer/02_juice/
+
+          mkdir -p docs/win/hockey/errors/02_juice/
+          mkdir -p docs/win/hockey/02_juice/
+
+          mkdir -p docs/win/baseball/errors/02_juice/
+          mkdir -p docs/win/baseball/02_juice/
+
+          mkdir -p docs/win/basketball/errors/02_juice/
+          mkdir -p docs/win/basketball/02_juice/
+          echo "::endgroup::"
+
+          echo "::group::Stage 02 - Run scripts"
+          python docs/win/soccer/scripts/02_juice/apply_juice.py
+
+          python docs/win/hockey/scripts/02_juice/apply_moneyline_juice.py
+          python docs/win/hockey/scripts/02_juice/apply_puck_line_juice.py
+          python docs/win/hockey/scripts/02_juice/apply_total_juice.py
+
+          python docs/win/baseball/scripts/02_juice/apply_moneyline_juice.py
+          python docs/win/baseball/scripts/02_juice/apply_run_line_juice.py
+          python docs/win/baseball/scripts/02_juice/apply_total_juice.py
+
+          python docs/win/basketball/scripts/02_juice/apply_moneyline_juice.py
+          python docs/win/basketball/scripts/02_juice/apply_spread_juice.py
+          python docs/win/basketball/scripts/02_juice/apply_total_juice.py
+          echo "::endgroup::"
+
+          echo "::group::Stage 02 - Commit outputs"
+          /tmp/commit_stage.sh \
+            "chore: run 02 juice group $(date -u +'%Y-%m-%d %H:%M UTC')" \
+            docs/win/soccer/errors/02_juice/ \
+            docs/win/soccer/02_juice/ \
+            docs/win/hockey/errors/02_juice/ \
+            docs/win/hockey/02_juice/ \
+            docs/win/baseball/errors/02_juice/ \
+            docs/win/baseball/02_juice/ \
+            docs/win/basketball/errors/02_juice/ \
+            docs/win/basketball/02_juice/
+          echo "::endgroup::"
+
+      - name: Stage 03 - Edges
+        run: |
+          echo "::group::Stage 03 - Create output directories"
+          mkdir -p docs/win/soccer/errors/03_edges/
+          mkdir -p docs/win/soccer/03_edges/
+
+          mkdir -p docs/win/hockey/errors/03_edges/
+          mkdir -p docs/win/hockey/03_edges/
+          mkdir -p docs/win/hockey/03_edges/ev_kelly/
+
+          mkdir -p docs/win/baseball/errors/03_edges/
+          mkdir -p docs/win/baseball/03_edges/
+          mkdir -p docs/win/baseball/03_edges/ev_kelly/
+
+          mkdir -p docs/win/basketball/errors/03_edges/
+          mkdir -p docs/win/basketball/03_edges/
+          mkdir -p docs/win/basketball/03_edges/ev_kelly/
+          echo "::endgroup::"
+
+          echo "::group::Stage 03 - Run scripts"
+          python docs/win/soccer/scripts/03_edges/build_edges.py
+
+          python docs/win/hockey/scripts/03_edges/compute_edges.py
+          python docs/win/hockey/scripts/03_edges/compute_ev_kelly.py
+
+          python docs/win/baseball/scripts/03_edges/compute_edges.py
+          python docs/win/baseball/scripts/03_edges/compute_ev_kelly.py
+
+          python docs/win/basketball/scripts/03_edges/compute_edges.py
+          python docs/win/basketball/scripts/03_edges/compute_ev_kelly.py
+          echo "::endgroup::"
+
+          echo "::group::Stage 03 - Commit outputs"
+          /tmp/commit_stage.sh \
+            "chore: run 03 edges group $(date -u +'%Y-%m-%d %H:%M UTC')" \
+            docs/win/soccer/errors/03_edges/ \
+            docs/win/soccer/03_edges/ \
+            docs/win/hockey/errors/03_edges/ \
+            docs/win/hockey/03_edges/ \
+            docs/win/baseball/errors/03_edges/ \
+            docs/win/baseball/03_edges/ \
+            docs/win/basketball/errors/03_edges/ \
+            docs/win/basketball/03_edges/
+          echo "::endgroup::"
+
+      - name: Stage 04 - Select
+        run: |
+          echo "::group::Stage 04 - Create output directories"
+          mkdir -p docs/win/soccer/04_select/
+          mkdir -p docs/win/soccer/errors/04_select/
+
+          mkdir -p docs/win/hockey/04_select/
+          mkdir -p docs/win/hockey/errors/04_select/
+
+          mkdir -p docs/win/baseball/04_select/
+          mkdir -p docs/win/baseball/errors/04_select/
+
+          mkdir -p docs/win/basketball/04_select/
+          mkdir -p docs/win/basketball/04_select/daily_slate/
+          mkdir -p docs/win/basketball/errors/04_select/
+          echo "::endgroup::"
+
+          echo "::group::Stage 04 - Run scripts"
+          python docs/win/soccer/scripts/04_select/soccer_select_bets.py
+          python docs/win/hockey/scripts/04_select/hockey_select_bets.py
+          python docs/win/baseball/scripts/04_select/baseball_select_bets.py
+          python docs/win/basketball/scripts/04_select/basketball_select_bets.py
+          echo "::endgroup::"
+
+          echo "::group::Stage 04 - Commit outputs"
+          /tmp/commit_stage.sh \
+            "chore: run 04 select group $(date -u +'%Y-%m-%d %H:%M UTC')" \
+            docs/win/soccer/04_select/ \
+            docs/win/soccer/errors/04_select/ \
+            docs/win/hockey/04_select/ \
+            docs/win/hockey/errors/04_select/ \
+            docs/win/baseball/04_select/ \
+            docs/win/baseball/errors/04_select/ \
+            docs/win/basketball/04_select/ \
+            docs/win/basketball/errors/04_select/
+          echo "::endgroup::"
+
+      - name: Stage 05 - Final
+        run: |
+          echo "::group::Stage 05 - Create output directories"
+          mkdir -p docs/win/final_scores/intermediate/
+          mkdir -p docs/win/final_scores/errors/
+
+          mkdir -p docs/win/final_scores/results/soccer/graded/
+          mkdir -p docs/win/final_scores/deeper_summaries/soccer/
+
+          mkdir -p docs/win/final_scores/results/nhl/graded/
+          mkdir -p docs/win/final_scores/deeper_summaries/nhl/
+          mkdir -p docs/win/final_scores/deeper_summaries/nhl/by_market/
+
+          mkdir -p docs/win/final_scores/results/mlb/graded/
+          mkdir -p docs/win/final_scores/deeper_summaries/mlb/
+          mkdir -p docs/win/final_scores/deeper_summaries/mlb/by_market/
+
+          mkdir -p docs/win/final_scores/results/nba/graded/
+          mkdir -p docs/win/final_scores/results/ncaab/graded/
+          mkdir -p docs/win/final_scores/deeper_summaries/nba/
+          mkdir -p docs/win/final_scores/deeper_summaries/nba/by_market/
+          mkdir -p docs/win/final_scores/deeper_summaries/ncaab/
+          mkdir -p docs/win/final_scores/deeper_summaries/ncaab/by_market/
+
+          touch docs/win/final_scores/soccer_market_tally.csv
+          echo "::endgroup::"
+
+          echo "::group::Stage 05 - Run scripts"
+          python docs/win/final_scores/scripts/05_results/soccer/01_soccer_results_grade.py
+          python docs/win/final_scores/scripts/05_results/soccer/02_soccer_results_analyze.py
+          python docs/win/final_scores/scripts/05_results/soccer/03_soccer_results_reports.py
+
+          python docs/win/final_scores/scripts/05_results/hockey/01_nhl_results_grade.py
+          python docs/win/final_scores/scripts/05_results/hockey/02_nhl_results_analyze.py
+          python docs/win/final_scores/scripts/05_results/hockey/03_nhl_results_reports.py
+
+          python docs/win/final_scores/scripts/05_results/mlb/01_mlb_results_grade.py
+          python docs/win/final_scores/scripts/05_results/mlb/02_mlb_results_analyze.py
+          python docs/win/final_scores/scripts/05_results/mlb/03_mlb_results_reports.py
+
+          python docs/win/final_scores/scripts/05_results/basketball/01_basketball_results_grade.py
+          python docs/win/final_scores/scripts/05_results/basketball/02_basketball_results_analyze.py
+          python docs/win/final_scores/scripts/05_results/basketball/03_basketball_results_reports.py
+          echo "::endgroup::"
+
+          echo "::group::Stage 05 - Commit outputs"
+          /tmp/commit_stage.sh \
+            "chore: run 05 final group $(date -u +'%Y-%m-%d %H:%M UTC')" \
+            docs/win/final_scores/
+          echo "::endgroup::"
