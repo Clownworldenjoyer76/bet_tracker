@@ -8,10 +8,10 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-INPUT_DIR  = Path("docs/win/baseball/02_juice")
+INPUT_DIR = Path("docs/win/baseball/02_juice")
 OUTPUT_DIR = Path("docs/win/baseball/03_edges")
-ERROR_DIR  = Path("docs/win/baseball/errors/03_edges")
-LOG_FILE   = ERROR_DIR / "compute_edges.txt"
+ERROR_DIR = Path("docs/win/baseball/errors/03_edges")
+LOG_FILE = ERROR_DIR / "compute_edges.txt"
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
@@ -26,8 +26,8 @@ def _now():
 
 
 def _log(msg: str, level: str = "INFO"):
-    with open(LOG_FILE, "a", encoding="utf-8") as f:
-        f.write(f"{_now()} | {level:<5} | {msg.rstrip()}\n")
+    with open(LOG_FILE, "a", encoding="utf-8") as log_f:
+        log_f.write(f"{_now()} | {level:<5} | {msg.rstrip()}\n")
 
 
 def _write_summary(summary: dict, per_file: list) -> None:
@@ -52,10 +52,12 @@ def _write_summary(summary: dict, per_file: list) -> None:
             f"  {pf['name']:<48} {pf['market']:<12} {pf['rows']:>5} "
             f"{pf['null_edges']:>10} {pf['status']:>10}"
         )
+
     status = "SUCCESS" if summary["errors"] == 0 else "COMPLETED WITH ERRORS"
     lines += ["", f"STATUS: {status}", "=" * 60]
-    with open(LOG_FILE, "a", encoding="utf-8") as f:
-        f.write("\n".join(lines) + "\n")
+
+    with open(LOG_FILE, "a", encoding="utf-8") as log_f:
+        log_f.write("\n".join(lines) + "\n")
 
 
 # =========================
@@ -63,16 +65,16 @@ def _write_summary(summary: dict, per_file: list) -> None:
 # =========================
 
 def safe_edge(dk, p):
-    dk  = pd.to_numeric(dk, errors="coerce")
-    p   = pd.to_numeric(p,  errors="coerce")
-    out = pd.Series(np.nan, index=dk.index)
+    dk = pd.to_numeric(dk, errors="coerce")
+    p = pd.to_numeric(p, errors="coerce")
+    out = pd.Series(np.nan, index=dk.index, dtype="float64")
     valid = (dk > 1) & (p > 0) & (p < 1) & np.isfinite(dk) & np.isfinite(p)
-    out[valid] = p[valid] * dk[valid] - 1
+    out.loc[valid] = p.loc[valid] * dk.loc[valid] - 1
     return out
 
 
 def count_null_edges(df, cols):
-    return sum(df[c].isna().sum() for c in cols if c in df.columns)
+    return sum(df[col].isna().sum() for col in cols if col in df.columns)
 
 
 # =========================
@@ -86,9 +88,13 @@ def compute_moneyline(df):
     df["away_edge_decimal_moneyline"] = safe_edge(
         df["away_dk_decimal_moneyline"], df["away_normalized_prob_moneyline"]
     )
-    null_edges = count_null_edges(df, [
-        "home_edge_decimal_moneyline", "away_edge_decimal_moneyline"
-    ])
+    null_edges = count_null_edges(
+        df,
+        [
+            "home_edge_decimal_moneyline",
+            "away_edge_decimal_moneyline",
+        ],
+    )
     return df, null_edges
 
 
@@ -99,20 +105,34 @@ def compute_run_line(df):
     df["away_edge_decimal_run_line"] = safe_edge(
         df["away_dk_run_line_decimal"], df["away_normalized_prob_run_line"]
     )
-    null_edges = count_null_edges(df, [
-        "home_edge_decimal_run_line", "away_edge_decimal_run_line"
-    ])
+    null_edges = count_null_edges(
+        df,
+        [
+            "home_edge_decimal_run_line",
+            "away_edge_decimal_run_line",
+        ],
+    )
     return df, null_edges
 
 
 def compute_total(df):
-    df["over_prob"]  = 1 / pd.to_numeric(df["fair_total_over_decimal"],  errors="coerce")
+    df["over_prob"] = 1 / pd.to_numeric(df["fair_total_over_decimal"], errors="coerce")
     df["under_prob"] = 1 / pd.to_numeric(df["fair_total_under_decimal"], errors="coerce")
-    df["over_edge_decimal_total"]  = safe_edge(df["dk_total_over_decimal"],  df["over_normalized_prob_total"])
-    df["under_edge_decimal_total"] = safe_edge(df["dk_total_under_decimal"], df["under_normalized_prob_total"])
-    null_edges = count_null_edges(df, [
-        "over_edge_decimal_total", "under_edge_decimal_total"
-    ])
+
+    df["over_edge_decimal_total"] = safe_edge(
+        df["dk_total_over_decimal"], df["over_normalized_prob_total"]
+    )
+    df["under_edge_decimal_total"] = safe_edge(
+        df["dk_total_under_decimal"], df["under_normalized_prob_total"]
+    )
+
+    null_edges = count_null_edges(
+        df,
+        [
+            "over_edge_decimal_total",
+            "under_edge_decimal_total",
+        ],
+    )
     return df, null_edges
 
 
@@ -121,13 +141,18 @@ def compute_total(df):
 # =========================
 
 def main():
-    with open(LOG_FILE, "w", encoding="utf-8") as f:
-        f.write(f"=== compute_edges RUN {_now()} ===\n")
+    with open(LOG_FILE, "w", encoding="utf-8") as log_f:
+        log_f.write(f"=== compute_edges RUN {_now()} ===\n")
 
     summary = {
-        "files_processed": 0, "rows_processed": 0,
-        "moneyline_files": 0, "run_line_files": 0, "total_files": 0,
-        "skipped": 0, "null_edges": 0, "errors": 0,
+        "files_processed": 0,
+        "rows_processed": 0,
+        "moneyline_files": 0,
+        "run_line_files": 0,
+        "total_files": 0,
+        "skipped": 0,
+        "null_edges": 0,
+        "errors": 0,
     }
     per_file = []
 
@@ -137,11 +162,19 @@ def main():
     input_files = sorted(INPUT_DIR.glob("*.csv"))
     _log(f"Files found: {len(input_files)}")
 
-    for f in input_files:
-        name   = f.name.lower()
+    for out_file in OUTPUT_DIR.glob("*.csv"):
+        out_file.unlink()
+
+    for input_file in input_files:
+        name = input_file.name.lower()
         market = None
-        pf     = {"name": f.name, "market": "unknown", "rows": 0,
-                  "null_edges": 0, "status": "ok"}
+        pf = {
+            "name": input_file.name,
+            "market": "unknown",
+            "rows": 0,
+            "null_edges": 0,
+            "status": "ok",
+        }
 
         if "moneyline" in name:
             market = "moneyline"
@@ -150,23 +183,20 @@ def main():
         elif "total" in name:
             market = "total"
         else:
-            _log(f"SKIP unrecognized file: {f.name}")
+            _log(f"SKIP unrecognized file: {input_file.name}")
             pf["status"] = "skipped"
             summary["skipped"] += 1
             per_file.append(pf)
             continue
 
         pf["market"] = market
-        _log(f"--- FILE: {f.name}  market={market}")
+        _log(f"--- FILE: {input_file.name}  market={market}")
 
-        for f in OUTPUT_DIR.glob("*.csv"):
-        f.unlink()
-        
         try:
-            df = pd.read_csv(f)
+            df = pd.read_csv(input_file)
 
             if df.empty:
-                _log(f"{f.name} empty — skipping")
+                _log(f"{input_file.name} empty — skipping")
                 pf["status"] = "empty"
                 summary["skipped"] += 1
                 per_file.append(pf)
@@ -185,18 +215,23 @@ def main():
                 df, null_edges = compute_total(df)
                 summary["total_files"] += 1
 
-            pf["null_edges"]      = null_edges
+            pf["null_edges"] = null_edges
             summary["null_edges"] += null_edges
 
             if null_edges > 0:
-                _log(f"{f.name} | {null_edges} null edges", "WARN")
+                _log(f"{input_file.name} | {null_edges} null edges", "WARN")
 
-            df.to_csv(OUTPUT_DIR / f.name, index=False)
+            output_path = OUTPUT_DIR / input_file.name
+            df.to_csv(output_path, index=False)
+
             summary["files_processed"] += 1
-            _log(f"WROTE: {OUTPUT_DIR / f.name} ({len(df)} rows, {null_edges} null edges)")
+            _log(f"WROTE: {output_path} ({len(df)} rows, {null_edges} null edges)")
 
         except Exception as e:
-            _log(f"{f.name} FAILED: {e}\n{traceback.format_exc()}", "ERROR")
+            _log(
+                f"{input_file.name} FAILED: {e}\n{traceback.format_exc()}",
+                "ERROR",
+            )
             pf["status"] = "error"
             summary["errors"] += 1
 
