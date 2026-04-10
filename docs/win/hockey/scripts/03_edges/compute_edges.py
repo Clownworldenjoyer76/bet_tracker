@@ -246,6 +246,9 @@ def main():
     _log(f"INPUT_DIR : {INPUT_DIR}")
     _log(f"OUTPUT_DIR: {OUTPUT_DIR}")
 
+    for f in OUTPUT_DIR.glob("*.csv"):
+        f.unlink()
+        
     try:
         process_pattern("*_NHL_moneyline.csv", compute_moneyline_edges, "moneyline", summary, per_file)
         process_pattern("*_NHL_puck_line.csv", compute_puck_line_edges, "puck_line", summary, per_file)
