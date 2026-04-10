@@ -1,0 +1,77 @@
+name: 02_juice_group
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  juice-group:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Create output folders
+        run: |
+          mkdir -p docs/win/soccer/errors/02_juice/
+          mkdir -p docs/win/soccer/02_juice/
+          mkdir -p docs/win/hockey/errors/02_juice/
+          mkdir -p docs/win/hockey/02_juice/
+          mkdir -p docs/win/baseball/errors/02_juice/
+          mkdir -p docs/win/baseball/02_juice/
+          mkdir -p docs/win/basketball/errors/02_juice/
+          mkdir -p docs/win/basketball/02_juice/
+
+      - name: Run soccer juice
+        run: python docs/win/soccer/scripts/02_juice/apply_juice.py
+
+      - name: Run hockey moneyline juice
+        run: python docs/win/hockey/scripts/02_juice/apply_moneyline_juice.py
+
+      - name: Run hockey puck line juice
+        run: python docs/win/hockey/scripts/02_juice/apply_puck_line_juice.py
+
+      - name: Run hockey total juice
+        run: python docs/win/hockey/scripts/02_juice/apply_total_juice.py
+
+      - name: Run baseball moneyline juice
+        run: python docs/win/baseball/scripts/02_juice/apply_moneyline_juice.py
+
+      - name: Run baseball run line juice
+        run: python docs/win/baseball/scripts/02_juice/apply_run_line_juice.py
+
+      - name: Run baseball total juice
+        run: python docs/win/baseball/scripts/02_juice/apply_total_juice.py
+
+      - name: Run basketball moneyline juice
+        run: python docs/win/basketball/scripts/02_juice/apply_moneyline_juice.py
+
+      - name: Run basketball spread juice
+        run: python docs/win/basketball/scripts/02_juice/apply_spread_juice.py
+
+      - name: Run basketball total juice
+        run: python docs/win/basketball/scripts/02_juice/apply_total_juice.py
+
+      - name: Commit and push output files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/win/soccer/errors/02_juice/ docs/win/soccer/02_juice/
+          git add docs/win/hockey/errors/02_juice/ docs/win/hockey/02_juice/
+          git add docs/win/baseball/errors/02_juice/ docs/win/baseball/02_juice/
+          git add docs/win/basketball/errors/02_juice/ docs/win/basketball/02_juice/
+          git diff --cached --quiet || git commit -m "Run 02 juice group workflow outputs"
+          git push
