@@ -128,28 +128,57 @@ def process_match(df):
             odds  = fv(row.get(f"dk_{side}_decimal"))
             if not check_rules(ev, kelly, odds, rules):
                 continue
-            results.append({**base_row(row),
-                             "market": "match_odds", "side": side,
-                             "odds": odds, "ev": ev, "kelly": kelly})
+            results.append({
+                **base_row(row),
+                "market": "match_odds",
+                "side": side,
+                "odds": odds,
+                "ev": ev,
+                "kelly": kelly
+            })
     return results
 
 
-def process_totals(df):
+def process_totals(df, file_name):
     results = []
+
+    if "total_25" in file_name:
+        market = "total25"
+        over_odds_col = "dk_over25_decimal"
+        under_odds_col = "dk_under25_decimal"
+    elif "total_35" in file_name:
+        market = "total35"
+        over_odds_col = "dk_over35_decimal"
+        under_odds_col = "dk_under35_decimal"
+    else:
+        return results
+
     for _, row in df.iterrows():
         for side in ["over", "under"]:
             rules = CONFIG["totals"].get(side)
             if not rules or not rules.get("enabled"):
                 continue
-            ev    = fv(row.get(f"{side}_ev"))
+
+            ev = fv(row.get(f"{side}_ev"))
             kelly = fv(row.get(f"{side}_kelly"))
-            odds  = fv(row.get("dk_over25_decimal") if side == "over" else row.get("dk_under25_decimal")) or \
-                    fv(row.get("dk_over35_decimal")  if side == "over" else row.get("dk_under35_decimal"))
+
+            if side == "over":
+                odds = fv(row.get(over_odds_col))
+            else:
+                odds = fv(row.get(under_odds_col))
+
             if not check_rules(ev, kelly, odds, rules):
                 continue
-            results.append({**base_row(row),
-                             "market": "total", "side": side,
-                             "odds": odds, "ev": ev, "kelly": kelly})
+
+            results.append({
+                **base_row(row),
+                "market": market,
+                "side": side,
+                "odds": odds,
+                "ev": ev,
+                "kelly": kelly
+            })
+
     return results
 
 
@@ -165,9 +194,14 @@ def process_btts(df):
             odds  = fv(row.get(f"btts_{side}"))
             if not check_rules(ev, kelly, odds, rules):
                 continue
-            results.append({**base_row(row),
-                             "market": "btts", "side": side,
-                             "odds": odds, "ev": ev, "kelly": kelly})
+            results.append({
+                **base_row(row),
+                "market": "btts",
+                "side": side,
+                "odds": odds,
+                "ev": ev,
+                "kelly": kelly
+            })
     return results
 
 
@@ -180,12 +214,15 @@ def main():
         f.write(f"=== soccer select_bets RUN {_now()} ===\n")
 
     summary = {
-        "files_processed": 0, "total_bets": 0,
-        "dates_written": 0, "skipped": 0, "errors": 0,
+        "files_processed": 0,
+        "total_bets": 0,
+        "dates_written": 0,
+        "skipped": 0,
+        "errors": 0,
     }
     per_market: dict = {}
-    per_date:   dict = {}
-    all_bets         = []
+    per_date: dict = {}
+    all_bets = []
 
     _log(f"INPUT_DIR : {INPUT_DIR}")
     _log(f"OUTPUT_DIR: {OUTPUT_DIR}")
@@ -207,7 +244,7 @@ def main():
                 if "match_odds" in file.name:
                     bets = process_match(df)
                 elif "total" in file.name:
-                    bets = process_totals(df)
+                    bets = process_totals(df, file.name)
                 elif "btts" in file.name:
                     bets = process_btts(df)
                 else:
