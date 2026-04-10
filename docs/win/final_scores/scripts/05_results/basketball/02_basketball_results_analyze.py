@@ -9,9 +9,9 @@ NCAAB_INPUT = Path("docs/win/final_scores/results/ncaab/graded/NCAAB_final.csv")
 OUTPUT_DIR = Path("docs/win/final_scores/intermediate")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-# Wipe existing intermediate outputs before regenerating
-for stale in OUTPUT_DIR.glob("*.csv"):
-    stale.unlink(missing_ok=True)
+# Only wipe basketball intermediate outputs before regenerating
+for stale_name in ["work_nba.csv", "work_ncaab.csv"]:
+    (OUTPUT_DIR / stale_name).unlink(missing_ok=True)
 
 
 def get_col(row, *names):
@@ -143,8 +143,6 @@ def odds_bucket(value):
         return "plus_101_to_plus_125"
     if value <= 150:
         return "plus_126_to_plus_150"
-    if value <= 200:
-        return "plus_151_to_plus_200"
     return "plus_201_or_higher"
 
 
