@@ -181,10 +181,16 @@ def process_total(file_path, summary):
                 continue
 
             if total_line % 1 == 0:
-                log(f"WHOLE NUMBER TOTAL: {file_path} idx={i} total={total_line} — push not modelled; skipping row")
-                summary["row_issues"] += 1
-                over.append(None)
-                under.append(None)
+                # Whole-number total: push is possible when score lands exactly on the line.
+                # p_over  = P(score > total_line) strictly, excludes push
+                # p_under = P(score < total_line) strictly, excludes push
+                k       = int(total_line)
+                p_over  = 1 - poisson.cdf(k, lam)
+                p_under = poisson.cdf(k - 1, lam)
+                p_push  = poisson.pmf(k, lam)
+                log(f"WHOLE NUMBER TOTAL: {file_path} idx={i} total={total_line} lam={lam:.3f} p_push={p_push:.4f} — modelled with push")
+                under.append(1 / p_under if p_under > 0 else None)
+                over.append(1 / p_over   if p_over  > 0 else None)
                 continue
 
             k       = math.floor(total_line)
