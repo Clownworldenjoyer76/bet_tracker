@@ -170,6 +170,9 @@ def main():
     }
     per_file = []
 
+    for f in OUTPUT_DIR.glob("*.csv"):
+        f.unlink()
+        
     try:
         _log(f"INPUT_DIR : {INPUT_DIR}")
         _log(f"JUICE_FILE: {JUICE_FILE}")
