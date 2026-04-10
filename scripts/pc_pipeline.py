@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# local_pipeline.py
+# scripts/pc_pipeline.py
 
 import subprocess
 import sys
