@@ -1,0 +1,44 @@
+name: 06 Soccer Scores
+
+on:
+  workflow_dispatch:
+
+jobs:
+  soccer-final-scores:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    env:
+      SPORTSRC_API: ${{ secrets.SPORTSRC_API }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+
+      - name: Ensure output folder exists
+        run: mkdir -p docs/win/final_scores/results/soccer/final_scores
+
+      - name: Run soccer final scores script
+        run: python docs/win/final_scores/scripts/05_results/soccer_final_scores.py
+
+      - name: Commit output files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/win/final_scores/results/soccer/final_scores/
+          git diff --cached --quiet || git commit -m "Update soccer final scores output"
+
+      - name: Push changes
+        run: git push
