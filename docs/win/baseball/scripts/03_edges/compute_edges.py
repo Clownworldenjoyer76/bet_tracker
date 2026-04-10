@@ -159,6 +159,9 @@ def main():
         pf["market"] = market
         _log(f"--- FILE: {f.name}  market={market}")
 
+        for f in OUTPUT_DIR.glob("*.csv"):
+        f.unlink()
+        
         try:
             df = pd.read_csv(f)
 
