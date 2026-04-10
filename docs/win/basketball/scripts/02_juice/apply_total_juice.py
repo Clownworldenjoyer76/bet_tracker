@@ -1,64 +1,96 @@
 #!/usr/bin/env python3
 # docs/win/basketball/scripts/02_juice/apply_total_juice.py
 
-import pandas as pd
-from pathlib import Path
 import math
-from datetime import datetime, UTC
-import traceback
 import sys
+import traceback
+from datetime import datetime, UTC
+from pathlib import Path
+
+import pandas as pd
 
 # =========================
-# LOGGER UTILITY
+# PATHS
 # =========================
 
-def audit(log_path, stage, status, msg="", df=None):
-    ts = datetime.now(UTC).strftime('%Y-%m-%d %H:%M:%S')
-    log_path = Path(log_path)
-    log_path.parent.mkdir(parents=True, exist_ok=True)
-
-    with open(log_path, "a") as f:
-        f.write(f"\n[{ts}] [{stage}] {status}\n")
-        if msg:
-            f.write(f"  MSG: {msg}\n")
-        if df is not None and isinstance(df, pd.DataFrame):
-            f.write(f"  STATS: {len(df)} rows | {len(df.columns)} cols\n")
-            f.write(f"  NULLS: {df.isnull().sum().sum()} total\n")
-            f.write(f"  SAMPLE:\n{df.head(3).to_string(index=False)}\n")
-        f.write("-" * 40 + "\n")
-
-
-# =========================
-# PATHS (UPDATED)
-# =========================
-
-INPUT_DIR = Path("docs/win/basketball/01_merge/01_merguiced")
+INPUT_DIR  = Path("docs/win/basketball/01_merge/01_merguiced")
 OUTPUT_DIR = Path("docs/win/basketball/02_juice")
-ERROR_DIR = Path("docs/win/basketball/errors/02_juice")
+ERROR_DIR  = Path("docs/win/basketball/errors/02_juice")
 
-NBA_CONFIG = Path("config/basketball/nba/nba_totals_juice.csv")
+NBA_CONFIG   = Path("config/basketball/nba/nba_totals_juice.csv")
 NCAAB_CONFIG = Path("config/basketball/ncaab/ncaab_totals_juice.csv")
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
-ERROR_LOG = ERROR_DIR / "apply_total_juice.txt"
+LOG_FILE = ERROR_DIR / "apply_total_juice.txt"
 
 
 # =========================
-# CLEAN OLD OUTPUTS
+# LOGGING
 # =========================
 
-for f in OUTPUT_DIR.glob("*_NBA_total.csv"):
-    f.unlink(missing_ok=True)
-
-for f in OUTPUT_DIR.glob("*_NCAAB_total.csv"):
-    f.unlink(missing_ok=True)
+def _now():
+    return datetime.now(UTC).isoformat()
 
 
-def log(msg):
-    with open(ERROR_LOG, "a", encoding="utf-8") as f:
-        f.write(f"{datetime.now(UTC).isoformat()} | {msg}\n")
+def _log(msg: str, level: str = "INFO"):
+    with open(LOG_FILE, "a", encoding="utf-8") as f:
+        f.write(f"{_now()} | {level:<5} | {msg.rstrip()}\n")
+
+
+def _audit(stage: str, status: str, msg: str = "", df: pd.DataFrame = None):
+    lines = [f"  [{stage}] {status}"]
+    if msg:
+        lines.append(f"    MSG  : {msg}")
+    if df is not None:
+        lines.append(f"    ROWS : {len(df)}  COLS: {len(df.columns)}  NULLS: {df.isnull().sum().sum()}")
+        lines.append(f"    SAMPLE:\n{df.head(3).to_string(index=False)}")
+    lines.append("  " + "-" * 40)
+    with open(LOG_FILE, "a", encoding="utf-8") as f:
+        f.write("\n".join(lines) + "\n")
+
+
+def _write_summary(summary: dict, per_file: list) -> None:
+    lines = [
+        "",
+        "=" * 60,
+        f"SUMMARY  {_now()}",
+        "=" * 60,
+        f"  files_found   : {summary['files_found']}",
+        f"  files_written : {summary['files_written']}",
+        f"  nba_files     : {summary['nba_files']}",
+        f"  ncaab_files   : {summary['ncaab_files']}",
+        f"  total_rows    : {summary['total_rows']}",
+        f"  errors        : {summary['errors']}",
+        "",
+        f"  {'file':<50} {'league':>6} {'rows':>6} {'nulls':>6} {'status':>10}",
+    ]
+    for pf in per_file:
+        lines.append(
+            f"  {pf['name']:<50} {pf['league']:>6} {pf['rows']:>6} "
+            f"{pf['nulls']:>6} {pf['status']:>10}"
+        )
+    status = "SUCCESS" if summary["errors"] == 0 else "COMPLETED WITH ERRORS"
+    lines += ["", f"STATUS: {status}", "=" * 60]
+    with open(LOG_FILE, "a", encoding="utf-8") as f:
+        f.write("\n".join(lines) + "\n")
+
+
+# =========================
+# HELPERS
+# =========================
+
+def decimal_to_american(d):
+    if d is None or not math.isfinite(d) or d <= 1:
+        return ""
+    return f"+{int(round((d - 1) * 100))}" if d >= 2 else f"-{int(round(100 / (d - 1)))}"
+
+
+def validate_columns(df, cols):
+    missing = [c for c in cols if c not in df.columns]
+    if missing:
+        raise ValueError(f"Missing required columns: {missing}")
 
 
 def atomic_write(df, path):
@@ -68,48 +100,21 @@ def atomic_write(df, path):
 
 
 # =========================
-# CONFIG LOAD
+# LOAD CONFIG
 # =========================
 
 try:
-    NBA_JUICE = pd.read_csv(NBA_CONFIG)
+    NBA_JUICE   = pd.read_csv(NBA_CONFIG)
     NCAAB_JUICE = pd.read_csv(NCAAB_CONFIG)
 except FileNotFoundError as e:
     raise SystemExit(f"ERROR: Missing juice config file — {e}") from e
 
-NBA_JUICE["band_min"] = pd.to_numeric(NBA_JUICE["band_min"], errors="coerce")
-NBA_JUICE["band_max"] = pd.to_numeric(NBA_JUICE["band_max"], errors="coerce")
+NBA_JUICE["band_min"]    = pd.to_numeric(NBA_JUICE["band_min"],    errors="coerce")
+NBA_JUICE["band_max"]    = pd.to_numeric(NBA_JUICE["band_max"],    errors="coerce")
 NBA_JUICE["extra_juice"] = pd.to_numeric(NBA_JUICE["extra_juice"], errors="coerce")
 
-NCAAB_JUICE["over_under"] = pd.to_numeric(NCAAB_JUICE["over_under"], errors="coerce")
+NCAAB_JUICE["over_under"]  = pd.to_numeric(NCAAB_JUICE["over_under"],  errors="coerce")
 NCAAB_JUICE["extra_juice"] = pd.to_numeric(NCAAB_JUICE["extra_juice"], errors="coerce")
-
-
-# =========================
-# ODDS CONVERSION
-# =========================
-
-def decimal_to_american(d):
-
-    if d is None or not math.isfinite(d) or d <= 1:
-        return ""
-
-    if d >= 2:
-        return f"+{int(round((d - 1) * 100))}"
-
-    return f"-{int(round(100 / (d - 1)))}"
-
-
-# =========================
-# VALIDATION
-# =========================
-
-def validate_columns(df, cols):
-
-    missing = [c for c in cols if c not in df.columns]
-
-    if missing:
-        raise ValueError(f"Missing required columns: {missing}")
 
 
 # =========================
@@ -117,97 +122,77 @@ def validate_columns(df, cols):
 # =========================
 
 def apply_nba(df):
-
     validate_columns(df, ["total", "acceptable_over", "acceptable_under"])
 
     def process(row, side):
-
         total = pd.to_numeric(row.get("total"), errors="coerce")
         if pd.isna(total):
             return None, ""
-
-        base_col = "acceptable_over" if side == "over" else "acceptable_under"
+        base_col     = "acceptable_over" if side == "over" else "acceptable_under"
         base_decimal = pd.to_numeric(row.get(base_col), errors="coerce")
-
         if pd.isna(base_decimal) or not math.isfinite(base_decimal) or base_decimal <= 1:
             return None, ""
-
-        band = NBA_JUICE[
+        band  = NBA_JUICE[
             (NBA_JUICE["band_min"] <= total) &
             (total <= NBA_JUICE["band_max"]) &
             (NBA_JUICE["side"] == side)
         ]
-
-        extra = band.iloc[0]["extra_juice"] if not band.empty else 0.0
-
+        extra = float(band.iloc[0]["extra_juice"]) if not band.empty else 0.0
+        if band.empty:
+            _log(f"no band match: total={total} side={side}", "WARN")
         if pd.isna(extra) or not math.isfinite(extra):
             extra = 0.0
-
-        final_decimal = base_decimal * (1 + extra)
-
-        if not math.isfinite(final_decimal) or final_decimal <= 1:
+        final = base_decimal * (1 + extra)
+        if not math.isfinite(final) or final <= 1:
             return None, ""
+        return final, decimal_to_american(final)
 
-        return final_decimal, decimal_to_american(final_decimal)
-
-    df[["total_over_juice_decimal", "total_over_juice_odds"]] = \
-        df.apply(lambda r: process(r, "over"), axis=1, result_type="expand")
-
+    df[["total_over_juice_decimal",  "total_over_juice_odds"]]  = \
+        df.apply(lambda r: process(r, "over"),  axis=1, result_type="expand")
     df[["total_under_juice_decimal", "total_under_juice_odds"]] = \
         df.apply(lambda r: process(r, "under"), axis=1, result_type="expand")
 
-    df["acceptable_over"] = df["total_over_juice_decimal"]
+    df["acceptable_over"]  = df["total_over_juice_decimal"]
     df["acceptable_under"] = df["total_under_juice_decimal"]
 
     return df
 
 
 # =========================
-# NCAAB PROCESSING (FIXED)
+# NCAAB PROCESSING
 # =========================
 
 def apply_ncaab(df):
-
     validate_columns(df, ["total", "acceptable_over", "acceptable_under"])
 
     def process(row, side):
-
         total = pd.to_numeric(row.get("total"), errors="coerce")
         if pd.isna(total):
             return None, ""
-
-        base_col = "acceptable_over" if side == "over" else "acceptable_under"
+        base_col     = "acceptable_over" if side == "over" else "acceptable_under"
         base_decimal = pd.to_numeric(row.get(base_col), errors="coerce")
-
         if pd.isna(base_decimal) or not math.isfinite(base_decimal) or base_decimal <= 1:
             return None, ""
-
         jt_side = NCAAB_JUICE[NCAAB_JUICE["side"] == side].copy()
-
         if jt_side.empty:
             extra = 0.0
         else:
             jt_side["diff"] = (jt_side["over_under"] - total).abs()
             nearest = jt_side.loc[jt_side["diff"].idxmin()]
-            extra = nearest["extra_juice"]
-
+            extra   = float(nearest["extra_juice"])
         if pd.isna(extra) or not math.isfinite(extra):
             extra = 0.0
-
-        final_decimal = base_decimal * (1 + extra)
-
-        if not math.isfinite(final_decimal) or final_decimal <= 1:
+        final = base_decimal * (1 + extra)
+        if not math.isfinite(final) or final <= 1:
             return None, ""
+        return final, decimal_to_american(final)
 
-        return final_decimal, decimal_to_american(final_decimal)
-
-    df[["total_over_juice_decimal", "total_over_juice_odds"]] = \
-        df.apply(lambda r: process(r, "over"), axis=1, result_type="expand")
-
+    df[["total_over_juice_decimal",  "total_over_juice_odds"]]  = \
+        df.apply(lambda r: process(r, "over"),  axis=1, result_type="expand")
     df[["total_under_juice_decimal", "total_under_juice_odds"]] = \
         df.apply(lambda r: process(r, "under"), axis=1, result_type="expand")
 
-    df["acceptable_over"] = df["total_over_juice_decimal"]
+    df["acceptable_over"]  = df["total_over_juice_decimal"]
     df["acceptable_under"] = df["total_under_juice_decimal"]
 
     return df
@@ -218,61 +203,86 @@ def apply_ncaab(df):
 # =========================
 
 def main():
+    with open(LOG_FILE, "w", encoding="utf-8") as f:
+        f.write(f"=== apply_total_juice RUN {_now()} ===\n")
 
-    with open(ERROR_LOG, "w", encoding="utf-8") as f:
-        f.write(f"=== APPLY TOTAL JUICE START {datetime.now(UTC).isoformat()}Z ===\n")
+    summary = {
+        "files_found": 0, "files_written": 0,
+        "nba_files": 0, "ncaab_files": 0,
+        "total_rows": 0, "errors": 0,
+    }
+    per_file = []
+
+    # clean old outputs
+    for f in OUTPUT_DIR.glob("*_NBA_total.csv"):
+        f.unlink(missing_ok=True)
+    for f in OUTPUT_DIR.glob("*_NCAAB_total.csv"):
+        f.unlink(missing_ok=True)
 
     try:
+        _log(f"INPUT_DIR   : {INPUT_DIR}")
+        _log(f"NBA_CONFIG  : {NBA_CONFIG}")
+        _log(f"NCAAB_CONFIG: {NCAAB_CONFIG}")
 
-        files_found = 0
+        input_files = sorted(INPUT_DIR.iterdir())
+        _log(f"Files in input dir: {len(input_files)}")
 
-        for f in INPUT_DIR.iterdir():
-
-            name = f.name
+        for f in input_files:
+            name   = f.name
+            league = None
 
             if name.endswith("_NBA_total.csv"):
-
-                df = pd.read_csv(f)
-                df = apply_nba(df)
-
-                atomic_write(df, OUTPUT_DIR / name)
-
-                log(f"Processed NBA file: {name}")
-
-                audit(ERROR_LOG, "JUICE_TOTAL_NBA", "SUCCESS",
-                      msg=f"Applied NBA Totals Juice to {name}", df=df)
-
-                files_found += 1
-
-
+                league = "NBA"
             elif name.endswith("_NCAAB_total.csv"):
+                league = "NCAAB"
+            else:
+                continue
 
+            summary["files_found"] += 1
+            pf = {"name": name, "league": league, "rows": 0, "nulls": 0, "status": "ok"}
+            _log(f"--- FILE: {name}")
+
+            try:
                 df = pd.read_csv(f)
-                df = apply_ncaab(df)
 
-                atomic_write(df, OUTPUT_DIR / name)
+                if df.empty:
+                    _log(f"{name} empty — skipping")
+                    pf["status"] = "empty"
+                    per_file.append(pf)
+                    continue
 
-                log(f"Processed NCAAB file: {name}")
+                pf["rows"] = len(df)
+                summary["total_rows"] += len(df)
 
-                audit(ERROR_LOG, "JUICE_TOTAL_NCAAB", "SUCCESS",
-                      msg=f"Applied NCAAB Totals Juice to {name}", df=df)
+                df = apply_nba(df) if league == "NBA" else apply_ncaab(df)
 
-                files_found += 1
+                pf["nulls"] = int(df.isnull().sum().sum())
+                out_path    = OUTPUT_DIR / name
+                atomic_write(df, out_path)
 
+                summary["files_written"] += 1
+                summary[f"{league.lower()}_files"] += 1
 
-        log(f"Total files processed: {files_found}")
-        log("=== APPLY TOTAL JUICE END ===")
+                _log(f"WROTE: {out_path} ({len(df)} rows, {pf['nulls']} nulls)")
+                _audit(f"JUICE_TOTAL_{league}", "SUCCESS",
+                       msg=f"Applied {league} Totals Juice to {name}", df=df)
 
+            except Exception as e:
+                _log(f"{name} FAILED: {e}\n{traceback.format_exc()}", "ERROR")
+                _audit(f"JUICE_TOTAL_{league}", "FAILED", msg=str(e))
+                pf["status"] = "error"
+                summary["errors"] += 1
+
+            per_file.append(pf)
 
     except Exception as e:
-
-        log("=== ERROR ===")
-        log(str(e))
-        log(traceback.format_exc())
-
-        audit(ERROR_LOG, "JUICE_TOTAL_CRITICAL", "FAILED", msg=str(e))
-
+        _log(f"FATAL: {e}\n{traceback.format_exc()}", "ERROR")
+        _audit("JUICE_TOTAL_CRITICAL", "FAILED", msg=str(e))
+        _write_summary(summary, per_file)
         sys.exit(1)
+
+    _write_summary(summary, per_file)
+    print("apply_total_juice complete.")
 
 
 if __name__ == "__main__":
