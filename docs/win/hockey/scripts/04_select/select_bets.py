@@ -229,6 +229,9 @@ def main():
         log.write("=== NHL SELECT BETS RUN ===\n")
         log.write(f"{datetime.now(UTC).isoformat()}\n\n")
 
+        for f in OUTPUT_DIR.glob("*.csv"):
+        f.unlink()
+        
         try:
             files = sorted(INPUT_DIR.glob("*_NHL_*.csv"))
             slates = {}
