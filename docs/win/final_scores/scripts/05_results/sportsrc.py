@@ -2,8 +2,9 @@
 
 import csv
 import os
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import requests
 
@@ -33,7 +34,12 @@ HEADERS = [
 
 
 def get_target_date() -> str:
-    return (datetime.now(UTC) - timedelta(days=1)).strftime("%Y-%m-%d")
+    env_date = os.getenv("TARGET_DATE", "").strip()
+    if env_date:
+        return env_date
+
+    eastern = ZoneInfo("America/New_York")
+    return (datetime.now(eastern) - timedelta(days=1)).strftime("%Y-%m-%d")
 
 
 def format_game_date(date_str: str) -> str:
@@ -44,8 +50,9 @@ def format_match_time(timestamp_ms):
     if timestamp_ms in (None, "", 0):
         return ""
 
-    dt_utc = datetime.fromtimestamp(int(timestamp_ms) / 1000, UTC)
-    return dt_utc.strftime("%I:%M %p")
+    eastern = ZoneInfo("America/New_York")
+    dt_eastern = datetime.fromtimestamp(int(timestamp_ms) / 1000, eastern)
+    return dt_eastern.strftime("%I:%M %p")
 
 
 def fetch_finished_matches(date_str: str, api_key: str) -> dict:
