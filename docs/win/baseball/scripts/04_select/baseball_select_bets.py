@@ -132,12 +132,20 @@ def check_rules(ev, kelly, odds, line, prob, rules, counters):
     if not (rules["kelly_min"] <= kelly <= rules["kelly_max"]):
         counters["kelly_fail"] += 1
         return False
-    if "odds_bands" in rules and not in_range(odds, rules["odds_bands"]):
-        counters["odds_fail"] += 1
-        return False
-    if "line_bands" in rules and not in_range(line, rules["line_bands"]):
-        counters["line_fail"] += 1
-        return False
+    if "odds_bands" in rules:
+        if odds is None:
+            counters["odds_fail"] += 1
+            return False
+        if not in_range(odds, rules["odds_bands"]):
+            counters["odds_fail"] += 1
+            return False
+    if "line_bands" in rules:
+        if line is None:
+            counters["line_fail"] += 1
+            return False
+        if not in_range(line, rules["line_bands"]):
+            counters["line_fail"] += 1
+            return False
     if "prob_min" in rules and (prob is None or prob < rules["prob_min"]):
         counters["prob_fail"] = counters.get("prob_fail", 0) + 1
         return False
