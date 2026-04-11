@@ -1,280 +1,101 @@
 #!/usr/bin/env python3
-# docs/win/baseball/scripts/00_intake/transform_baseball.py
+# docs/win/baseball/scripts/00_intake/baseball_drat_scraper.py
 
 import json
-import csv
+import time
+import random
 import traceback
 from pathlib import Path
 from datetime import datetime
+import pytz
+from playwright.sync_api import sync_playwright
+
+URLS = {
+    "mlb": "https://www.dratings.com/predictor/mlb-baseball-predictions/",
+}
+
+UTC = pytz.utc
+ET  = pytz.timezone("America/New_York")
 
 ERROR_DIR = Path("docs/win/baseball/errors/00_intake")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
-LOG_FILE = ERROR_DIR / "transform_baseball.txt"
+LOG_FILE = ERROR_DIR / "baseball_drat_scraper.txt"
 
 with open(LOG_FILE, "w", encoding="utf-8") as f:
-    f.write(f"=== transform_baseball RUN {datetime.now().isoformat()} ===\n")
+    f.write(f"=== baseball_drat_scraper RUN {datetime.now(ET).isoformat()} ===\n")
 
 def log(msg: str) -> None:
     with open(LOG_FILE, "a", encoding="utf-8") as f:
-        f.write(f"{datetime.now().isoformat()} | {msg}\n")
-
-# -------------------------
-# PATHS
-# -------------------------
-
-RAW_DIR        = Path("docs/win/baseball/00_intake/drat_raw")
-PRED_DIR       = Path("docs/win/baseball/00_intake/predictions")
-FINAL_DIR      = Path("docs/win/final_scores/results/mlb/final_scores")
-SPORTSBOOK_DIR = Path("docs/win/baseball/00_intake/sportsbook")
-
-PRED_DIR.mkdir(parents=True, exist_ok=True)
-FINAL_DIR.mkdir(parents=True, exist_ok=True)
-
-# -------------------------
-# HELPERS
-# -------------------------
-
-def parse_datetime(dt_str):
-    dt = datetime.strptime(dt_str.strip(), "%m/%d/%Y %I:%M %p")
-    return dt, dt.strftime("%Y_%m_%d"), dt.strftime("%I:%M %p")
+        f.write(f"{datetime.now(ET).isoformat()} | {msg}\n")
 
 
-def clean_team(team_str):
-    return team_str.split("(")[0].strip()
+def convert_utc_to_et(date_time_str: str) -> str:
+    try:
+        dt     = datetime.strptime(date_time_str.strip(), "%m/%d/%Y %I:%M %p")
+        dt_utc = UTC.localize(dt)
+        dt_et  = dt_utc.astimezone(ET)
+        return dt_et.strftime("%m/%d/%Y %I:%M %p")
+    except Exception:
+        return date_time_str
 
 
-def pct_to_decimal(p):
-    return str(round(float(p.replace("%", "")) / 100, 3))
+def scrape_page(page, url):
+    page.goto(url)
+    page.wait_for_selector("table")
+    all_rows = []
+    tables = page.query_selector_all("table")
+    for table in tables:
+        rows = table.query_selector_all("tbody tr")
+        for r in rows:
+            cells = [c.inner_text().strip() for c in r.query_selector_all("td")]
+            if cells:
+                try:
+                    cells[0] = convert_utc_to_et(cells[0].replace("\n", " "))
+                except Exception:
+                    pass
+                all_rows.append(cells)
+    return all_rows
 
-
-def split_lines(val):
-    parts = val.split("\n")
-    return parts[0].strip(), parts[1].strip() if len(parts) > 1 else ("", "")
-
-
-# -------------------------
-# LOAD LOOKUPS
-# -------------------------
-
-def load_predictions_lookup(date):
-    path   = PRED_DIR / f"{date}_MLB.csv"
-    lookup = {}
-    if not path.exists():
-        return lookup
-    with open(path, newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for r in reader:
-            key = (r["home_team"], r["away_team"])
-            lookup[key] = r.get("game_id")
-    return lookup
-
-
-def load_sportsbook_lookup(date):
-    path   = SPORTSBOOK_DIR / f"{date}_MLB.csv"
-    lookup = {}
-    if not path.exists():
-        return lookup
-    with open(path, newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for r in reader:
-            key = (r["home_team"], r["away_team"])
-            lookup[key] = {
-                "away_run_line": r.get("away_run_line"),
-                "home_run_line": r.get("home_run_line"),
-                "total":         r.get("total"),
-            }
-    return lookup
-
-
-# -------------------------
-# MAIN PROCESS
-# -------------------------
-
-def is_future_game(row):
-    """Future games have pitchers (row[2] with \n) and projected runs (row[6] with \n)."""
-    return (
-        len(row) >= 8
-        and "\n" in str(row[2])
-        and "\n" in str(row[6])
-    )
-
-
-def is_live_game(row):
-    """Live/in-progress games have inning text in row[5] (non-numeric, e.g. '5th\nBOT')."""
-    if len(row) < 6:
-        return False
-    parts = str(row[5]).split("\n")
-    # If either part is non-numeric, it's inning text
-    return any(not p.strip().lstrip("-").isdigit() for p in parts)
-
-
-def is_completed_game(row):
-    """Completed games have two numeric values in row[5] (away score\nhome score)."""
-    if len(row) < 6:
-        return False
-    parts = str(row[5]).split("\n")
-    if len(parts) != 2:
-        return False
-    return all(p.strip().lstrip("-").isdigit() for p in parts)
-
-
-SUMMARY_ROW_PREFIXES = {"Sportsbooks", "DRatings"}
-
-def is_summary_row(row):
-    return row and str(row[0]).strip() in SUMMARY_ROW_PREFIXES
-
-
-def process_file(file_path, files_written, seen_final_keys):
-    log(f"Processing {file_path.name}")
-
-    with open(file_path, "r") as f:
-        data = json.load(f)
-
-    predictions_by_date  = {}
-    final_scores_by_date = {}
-    parse_errors         = 0
-    skipped_summary      = 0
-    skipped_duplicate    = 0
-
-    for row in data:
-        if not row or len(row) < 2:
-            continue
-
-        if is_summary_row(row):
-            skipped_summary += 1
-            continue
-
-        try:
-            dt, game_date, game_time = parse_datetime(row[0])
-        except:
-            parse_errors += 1
-            continue
-
-        teams = row[1].split("\n")
-        if len(teams) < 2:
-            continue
-
-        away_team = clean_team(teams[0])
-        home_team = clean_team(teams[1])
-        key       = (home_team, away_team)
-
-        if is_live_game(row):
-            log(f"  SKIPPING live game: {away_team} @ {home_team} ({game_date})")
-            continue
-
-        if is_future_game(row):
-            try:
-                pitchers     = row[2].split("\n")
-                home_pitcher = pitchers[0].strip()
-                away_pitcher = pitchers[1].strip()
-
-                probs     = row[3].split("\n")
-                away_prob = pct_to_decimal(probs[0])
-                home_prob = pct_to_decimal(probs[1])
-
-                runs      = row[6].split("\n")
-                away_runs = runs[0]
-                home_runs = runs[1]
-
-                total_runs = row[7]
-
-                pred_row = [
-                    "", "baseball", "mlb", game_date, game_time,
-                    home_team, away_team,
-                    home_pitcher, away_pitcher,
-                    home_prob, away_prob,
-                    away_runs, home_runs, total_runs
-                ]
-
-                predictions_by_date.setdefault(game_date, []).append(pred_row)
-
-            except:
-                parse_errors += 1
-                continue
-
-        if is_completed_game(row):
-            try:
-                dedup_key = (game_date, home_team, away_team)
-                if dedup_key in seen_final_keys:
-                    skipped_duplicate += 1
-                    continue
-                seen_final_keys.add(dedup_key)
-
-                scores     = row[5].split("\n")
-                away_score = int(scores[0])
-                home_score = int(scores[1])
-                final_total = str(away_score + home_score)
-
-                pred_lookup = load_predictions_lookup(game_date)
-                book_lookup = load_sportsbook_lookup(game_date)
-
-                game_id = pred_lookup.get(key, "")
-                book    = book_lookup.get(key, {})
-
-                final_row = [
-                    "baseball", "mlb", game_id,
-                    game_date, game_time,
-                    home_team, away_team,
-                    str(away_score), str(home_score), final_total,
-                    book.get("away_run_line"),
-                    book.get("home_run_line"),
-                    book.get("total"),
-                ]
-
-                final_scores_by_date.setdefault(game_date, []).append(final_row)
-
-            except:
-                parse_errors += 1
-                continue
-
-    for date, rows in predictions_by_date.items():
-        out = PRED_DIR / f"{date}_MLB.csv"
-        with open(out, "w", newline="", encoding="utf-8") as f:
-            writer = csv.writer(f)
-            writer.writerow([
-                "game_id","sport","league","game_date","game_time",
-                "home_team","away_team","home_pitcher","away_pitcher",
-                "home_prob","away_prob",
-                "away_projected_runs","home_projected_runs","total_projected_runs"
-            ])
-            writer.writerows(rows)
-        files_written.append((str(out), len(rows)))
-        log(f"WROTE predictions -> {out} ({len(rows)} rows)")
-
-    for date, rows in final_scores_by_date.items():
-        out = FINAL_DIR / f"{date}_final_scores_MLB.csv"
-        with open(out, "w", newline="", encoding="utf-8") as f:
-            writer = csv.writer(f)
-            writer.writerow([
-                "sport","league","game_id","game_date","game_time",
-                "home_team","away_team",
-                "final_away_score","final_home_score","final_total",
-                "away_run_line","home_run_line","total"
-            ])
-            writer.writerows(rows)
-        files_written.append((str(out), len(rows)))
-        log(f"WROTE final scores -> {out} ({len(rows)} rows)")
-
-    log(f"  parse_errors={parse_errors}, skipped_summary={skipped_summary}, skipped_duplicate={skipped_duplicate}, predictions_dates={len(predictions_by_date)}, final_score_dates={len(final_scores_by_date)}")
-
-
-# -------------------------
-# ENTRY
-# -------------------------
 
 def main():
-    files_written   = []
-    seen_final_keys = set()
+    files_written = []
 
     try:
-        raw_files = sorted(RAW_DIR.glob("*_mlb_raw.json"))
-        log(f"Raw files found: {len(raw_files)}")
+        date    = datetime.now(ET).strftime("%Y_%m_%d")
+        raw_dir = Path("docs/win/baseball/00_intake/drat_raw")
+        raw_dir.mkdir(parents=True, exist_ok=True)
 
-        for file in raw_files:
-            process_file(file, files_written, seen_final_keys)
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            page    = browser.new_page()
+            page.set_extra_http_headers({
+                "User-Agent": (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/122.0.0.0 Safari/537.36"
+                )
+            })
+
+            for sport, url in URLS.items():
+                log(f"Scraping {sport.upper()}")
+                try:
+                    raw      = scrape_page(page, url)
+                    raw_path = raw_dir / f"{date}_{sport}_raw.json"
+
+                    with open(raw_path, "w") as f:
+                        json.dump(raw, f, indent=2)
+
+                    files_written.append((str(raw_path), len(raw)))
+                    log(f"WROTE {raw_path} ({len(raw)} rows)")
+
+                except Exception as e:
+                    log(f"ERROR scraping {sport}: {e}\n{traceback.format_exc()}")
+
+                time.sleep(random.uniform(2, 4))
+
+            browser.close()
 
         log("--- SUMMARY ---")
-        log(f"Raw files processed: {len(raw_files)}")
         log(f"Files written: {len(files_written)}")
         for path, count in files_written:
             log(f"  FILE: {path} ({count} rows)")
@@ -285,7 +106,7 @@ def main():
         log("STATUS: FAILED")
         raise
 
-    print("Baseball transform complete.")
+    print("Baseball drat scraper complete.")
 
 
 if __name__ == "__main__":
