@@ -71,15 +71,15 @@
     /* MODAL */
     .info-trigger { font-size:11px;letter-spacing:0.06em;color:var(--accent-blue);cursor:pointer;border-bottom:1px dashed var(--accent-blue);transition:opacity 0.15s;white-space:nowrap; }
     .info-trigger:hover { opacity:0.7; }
-    .modal-overlay { display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:99999;align-items:center;justify-content:center;padding:20px; }
-    .modal { background:var(--background);border:1px solid var(--border-soft);max-width:620px;width:100%;position:relative;animation:modalIn 0.2s ease; }
+    .cal-overlay { display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:99999;align-items:center;justify-content:center;padding:20px; }
+    .cal-box { background:#0b0f14 !important;border:1px solid #1a1f26 !important;max-width:620px;width:100%;position:relative;animation:modalIn 0.2s ease; }
     @keyframes modalIn { from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);} }
-    .modal-header { padding:16px 20px;border-bottom:1px solid var(--border-soft);display:flex;align-items:center;justify-content:space-between; }
-    .modal-title { font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:900;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent-green); }
-    .modal-close { background:none;border:none;color:var(--text-muted);font-size:18px;cursor:pointer;padding:0 4px;line-height:1; }
-    .modal-close:hover { color:var(--text-main); }
-    .modal-body { padding:20px; }
-    .modal-graphic { display:flex;gap:10px;margin-bottom:18px; }
+    .cal-header { padding:16px 20px;border-bottom:1px solid var(--border-soft);display:flex;align-items:center;justify-content:space-between; }
+    .cal-title { font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:900;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent-green); }
+    .cal-close { background:none;border:none;color:var(--text-muted);font-size:18px;cursor:pointer;padding:0 4px;line-height:1; }
+    .cal-close:hover { color:var(--text-main); }
+    .cal-body { padding:20px; }
+    .cal-graphic { display:flex;gap:10px;margin-bottom:18px; }
     .cal-demo { flex:1;border:1px solid var(--border-soft);padding:10px 12px; }
     .cal-demo-title { font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--text-muted);text-transform:uppercase;margin-bottom:8px; }
     .cal-demo-row { display:flex;align-items:center;gap:6px;margin-bottom:6px; }
@@ -91,15 +91,15 @@
     .act-over  { background:var(--accent-red); }
     .act-under { background:var(--accent-yellow); }
     .cal-demo-note { font-size:9px;min-width:60px;text-align:right; }
-    .modal-legend { display:flex;gap:14px;margin-bottom:16px;font-size:10px;color:var(--text-muted); }
+    .cal-legend { display:flex;gap:14px;margin-bottom:16px;font-size:10px;color:var(--text-muted); }
     .legend-dot { display:inline-block;width:8px;height:8px;margin-right:4px;vertical-align:middle; }
-    .modal-text p { font-size:11px;color:var(--text-muted);line-height:1.7;margin-bottom:10px; }
-    .modal-text p:last-child { margin-bottom:0; }
-    .modal-text strong { color:var(--text-main); }
-    .modal-text .hl-green { color:var(--accent-green); }
-    .modal-text .hl-blue  { color:var(--accent-blue); }
-    .modal-text .hl-red   { color:var(--accent-red); }
-    .modal-text .hl-yellow{ color:var(--accent-yellow); }
+    .cal-text p { font-size:11px;color:var(--text-muted);line-height:1.7;margin-bottom:10px; }
+    .cal-text p:last-child { margin-bottom:0; }
+    .cal-text strong { color:var(--text-main); }
+    .cal-text .hl-green { color:var(--accent-green); }
+    .cal-text .hl-blue  { color:var(--accent-blue); }
+    .cal-text .hl-red   { color:var(--accent-red); }
+    .cal-text .hl-yellow{ color:var(--accent-yellow); }
   </style>
 </head>
 <body>
@@ -132,16 +132,16 @@
 <script src="js/nav.js"></script>
 
 <!-- MODAL -->
-<div class="modal-overlay" id="cal-modal" onclick="if(event.target===this)closeModal()">
-  <div class="modal">
-    <div class="modal-header">
-      <div class="modal-title">What is Model Validation?</div>
-      <button class="modal-close" onclick="closeModal()">✕</button>
+<div class="cal-overlay" id="cal-modal" onclick="if(event.target===this)closeModal()">
+  <div class="cal-box">
+    <div class="cal-header">
+      <div class="cal-title">What is Model Validation?</div>
+      <button class="cal-close" onclick="closeModal()">✕</button>
     </div>
-    <div class="modal-body">
+    <div class="cal-body">
 
       <!-- graphic -->
-      <div class="modal-graphic">
+      <div class="cal-graphic">
         <div class="cal-demo">
           <div class="cal-demo-title">Perfectly Calibrated</div>
           <div class="cal-demo-row">
@@ -180,12 +180,12 @@
         </div>
       </div>
 
-      <div class="modal-legend">
+      <div class="cal-legend">
         <span><span class="legend-dot" style="background:rgba(0,191,255,0.5)"></span>Predicted probability (blue bar)</span>
         <span><span class="legend-dot" style="background:var(--accent-green)"></span>Actual win rate (green bar)</span>
       </div>
 
-      <div class="modal-text">
+      <div class="cal-text">
         <p>The model assigns a probability to each bet before the game is played. For example, <strong>"this team has a <span class="hl-blue">65%</span> chance to cover."</strong></p>
         <p>Calibration measures whether those predictions are accurate in reality. If the model says <span class="hl-blue">65%</span> and teams actually win <span class="hl-green">65%</span> of the time in that bucket — the model is <strong>perfectly calibrated.</strong></p>
         <p>If it predicts <span class="hl-blue">65%</span> but they only win <span class="hl-red">50%</span>, the model is <strong class="hl-red">overconfident</strong>. If they win <span class="hl-yellow">75%</span>, it's <strong class="hl-yellow">underestimating.</strong></p>
