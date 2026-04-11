@@ -1,0 +1,208 @@
+name: 00 Odds API Pull + Intake Group - All
+
+on:
+  workflow_dispatch:
+
+jobs:
+  run-pipeline:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      # -------------------------
+      # SET DATE (CRITICAL)
+      # -------------------------
+      - name: Set date
+        run: echo "DATE=$(TZ='America/New_York' date +%Y_%m_%d)" >> $GITHUB_ENV
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install Playwright browsers
+        run: playwright install chromium --with-deps
+
+      # ✅ Ensure ALL required output directories exist
+      - name: Create output directories
+        run: |
+          # Soccer
+          mkdir -p docs/win/soccer/errors/00_intake/
+          mkdir -p mappings/soccer/no_map/
+          mkdir -p docs/win/soccer/00_intake/predictions/
+          mkdir -p docs/win/soccer/00_intake/predictions/normalized/
+          mkdir -p docs/win/soccer/00_intake/sportsbook/
+          mkdir -p docs/win/soccer/00_intake/sportsbook/normalized/
+          mkdir -p docs/win/final_scores/results/soccer/final_scores/
+
+          # Hockey
+          mkdir -p docs/win/hockey/00_intake/sportsbook/
+          mkdir -p docs/win/hockey/00_intake/drat_raw/
+          mkdir -p docs/win/hockey/00_intake/predictions/
+          mkdir -p docs/win/hockey/00_intake/predictions/scraper/
+          mkdir -p docs/win/final_scores/results/nhl/final_scores/
+          mkdir -p docs/win/hockey/errors/00_intake/
+          mkdir -p mappings/hockey/no_map/
+
+          # Baseball
+          mkdir -p docs/win/baseball/00_intake/sportsbook/
+          mkdir -p docs/win/baseball/00_intake/drat_raw/
+          mkdir -p docs/win/baseball/00_intake/predictions/
+          mkdir -p docs/win/final_scores/results/mlb/final_scores/
+          mkdir -p docs/win/baseball/errors/00_intake/
+          mkdir -p mappings/baseball/no_map/
+
+          # Basketball
+          mkdir -p docs/win/basketball/00_intake/sportsbook/
+          mkdir -p docs/win/basketball/00_intake/drat_raw/
+          mkdir -p docs/win/basketball/00_intake/predictions/
+          mkdir -p docs/win/final_scores/results/nba/final_scores/
+          mkdir -p docs/win/final_scores/results/ncaab/final_scores/
+          mkdir -p docs/win/basketball/errors/00_intake/
+          mkdir -p mappings/basketball/no_map/
+
+          # Odds API
+          mkdir -p docs/win/basketball/odds/
+          mkdir -p docs/win/hockey/odds/
+          mkdir -p docs/win/baseball/odds/
+
+      # -------------------------
+      # ODDS API
+      # -------------------------
+      - name: Run Odds API script
+        env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+        run: python scripts/odds_api.py
+
+      # -------------------------
+      # SOCCER
+      # -------------------------
+      - name: Fetch Soccer Odds
+        env:
+          CLOUD_API: ${{ secrets.CLOUD_API }}
+        run: python docs/win/soccer/scripts/00_intake/fetch_soccer_odds.py
+
+      - name: Soccer Draft
+        run: python docs/win/soccer/scripts/00_intake/soccer_drat.py
+
+      - name: Name Normalization
+        run: python docs/win/soccer/scripts/00_intake/name_normalization.py
+
+      - name: Soccer Cleaner
+        run: python docs/win/soccer/scripts/00_intake/soccer_cleaner.py
+
+      # -------------------------
+      # HOCKEY
+      # -------------------------
+      - name: Hockey Odds Parse
+        run: python docs/win/hockey/scripts/00_intake/odds_parse.py
+
+      - name: Hockey Name Normalization (1)
+        run: python docs/win/hockey/scripts/00_intake/name_normalization.py
+
+      - name: Hockey Drat Scraper
+        run: python docs/win/hockey/scripts/00_intake/hockey_drat_scraper.py
+
+      - name: Hockey Transform
+        run: |
+          python docs/win/hockey/scripts/00_intake/transform_hockey.py \
+            --nhl docs/win/hockey/00_intake/drat_raw/${DATE}_nhl_raw.json
+
+      - name: Hockey Name Normalization (2)
+        run: python docs/win/hockey/scripts/00_intake/name_normalization.py
+
+      # -------------------------
+      # BASEBALL
+      # -------------------------
+      - name: Baseball odds parse
+        run: python docs/win/baseball/scripts/00_intake/odds_parse.py docs/win/baseball/odds/${DATE}.json
+
+      - name: Baseball normalization (pre)
+        run: python docs/win/baseball/scripts/00_intake/name_normalization.py
+
+      - name: Baseball scraper
+        run: python docs/win/baseball/scripts/00_intake/baseball_drat_scraper.py
+
+      - name: Baseball transform
+        run: python docs/win/baseball/scripts/00_intake/transform_baseball.py
+
+      - name: Baseball normalization (post)
+        run: python docs/win/baseball/scripts/00_intake/name_normalization.py
+
+      # -------------------------
+      # BASKETBALL
+      # -------------------------
+      - name: Basketball Odds Parse
+        run: python docs/win/basketball/scripts/00_intake/basketball_odds_parse.py
+
+      - name: Basketball Name Normalization (1)
+        run: python docs/win/basketball/scripts/00_intake/basketball_name_normalization.py
+
+      - name: Basketball Drat Scraper
+        run: python docs/win/basketball/scripts/00_intake/basketball_drat_scraper.py
+
+      - name: Basketball Transform
+        run: python docs/win/basketball/scripts/00_intake/transform_basketball.py
+
+      - name: Basketball Name Normalization (2)
+        run: python docs/win/basketball/scripts/00_intake/basketball_name_normalization.py
+
+      # -------------------------
+      # COMMIT ALL
+      # -------------------------
+      - name: Commit outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Odds
+          git add docs/win/basketball/odds/
+          git add docs/win/hockey/odds/
+          git add docs/win/baseball/odds/
+
+          # Soccer
+          git add docs/win/soccer/errors/00_intake/
+          git add mappings/soccer/no_map/
+          git add docs/win/soccer/00_intake/predictions/
+          git add docs/win/soccer/00_intake/predictions/normalized/
+          git add docs/win/soccer/00_intake/sportsbook/
+          git add docs/win/soccer/00_intake/sportsbook/normalized/
+          git add docs/win/final_scores/results/soccer/final_scores/
+
+          # Hockey
+          git add docs/win/hockey/00_intake/sportsbook/
+          git add docs/win/hockey/00_intake/drat_raw/
+          git add docs/win/hockey/00_intake/predictions/
+          git add docs/win/hockey/00_intake/predictions/scraper/
+          git add docs/win/final_scores/results/nhl/final_scores/
+          git add docs/win/hockey/errors/00_intake/
+          git add mappings/hockey/no_map/
+
+          # Baseball
+          git add docs/win/baseball/00_intake/sportsbook/
+          git add docs/win/baseball/00_intake/drat_raw/
+          git add docs/win/baseball/00_intake/predictions/
+          git add docs/win/final_scores/results/mlb/final_scores/
+          git add docs/win/baseball/errors/00_intake/
+          git add mappings/baseball/no_map/
+
+          # Basketball
+          git add docs/win/basketball/00_intake/sportsbook/
+          git add docs/win/basketball/00_intake/drat_raw/
+          git add docs/win/basketball/00_intake/predictions/
+          git add docs/win/final_scores/results/nba/final_scores/
+          git add docs/win/final_scores/results/ncaab/final_scores/
+          git add docs/win/basketball/errors/00_intake/
+          git add mappings/basketball/no_map/
+
+          git diff --cached --quiet || git commit -m "chore: odds + intake run $(date -u +'%Y-%m-%d %H:%M UTC')"
+          git pull --rebase origin main
+          git push
