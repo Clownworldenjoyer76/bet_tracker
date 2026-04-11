@@ -67,6 +67,40 @@
     .mkt-stat-label { color:var(--text-muted); }
     .mkt-stat-val { font-family:'Barlow Condensed',sans-serif;font-weight:700;color:var(--text-main); }
     .empty-state { text-align:center;padding:60px 20px;color:var(--text-muted);font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase; }
+
+    /* MODAL */
+    .info-trigger { font-size:11px;letter-spacing:0.06em;color:var(--accent-blue);cursor:pointer;border-bottom:1px dashed var(--accent-blue);transition:opacity 0.15s;white-space:nowrap; }
+    .info-trigger:hover { opacity:0.7; }
+    .modal-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:1000;align-items:center;justify-content:center;padding:20px; }
+    .modal-overlay.open { display:flex; }
+    .modal { background:var(--background);border:1px solid var(--border-soft);max-width:620px;width:100%;position:relative;animation:modalIn 0.2s ease; }
+    @keyframes modalIn { from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);} }
+    .modal-header { padding:16px 20px;border-bottom:1px solid var(--border-soft);display:flex;align-items:center;justify-content:space-between; }
+    .modal-title { font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:900;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent-green); }
+    .modal-close { background:none;border:none;color:var(--text-muted);font-size:18px;cursor:pointer;padding:0 4px;line-height:1; }
+    .modal-close:hover { color:var(--text-main); }
+    .modal-body { padding:20px; }
+    .modal-graphic { display:flex;gap:10px;margin-bottom:18px; }
+    .cal-demo { flex:1;border:1px solid var(--border-soft);padding:10px 12px; }
+    .cal-demo-title { font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.12em;color:var(--text-muted);text-transform:uppercase;margin-bottom:8px; }
+    .cal-demo-row { display:flex;align-items:center;gap:6px;margin-bottom:6px; }
+    .cal-demo-lbl { font-size:9px;color:var(--text-muted);min-width:28px; }
+    .cal-demo-bar { flex:1;height:10px;background:var(--bg-card);border:1px solid var(--border-soft);position:relative; }
+    .cal-demo-pred { position:absolute;top:0;left:0;height:100%;background:rgba(0,191,255,0.35); }
+    .cal-demo-act  { position:absolute;bottom:0;left:0;height:5px; }
+    .act-good  { background:var(--accent-green); }
+    .act-over  { background:var(--accent-red); }
+    .act-under { background:var(--accent-yellow); }
+    .cal-demo-note { font-size:9px;min-width:60px;text-align:right; }
+    .modal-legend { display:flex;gap:14px;margin-bottom:16px;font-size:10px;color:var(--text-muted); }
+    .legend-dot { display:inline-block;width:8px;height:8px;margin-right:4px;vertical-align:middle; }
+    .modal-text p { font-size:11px;color:var(--text-muted);line-height:1.7;margin-bottom:10px; }
+    .modal-text p:last-child { margin-bottom:0; }
+    .modal-text strong { color:var(--text-main); }
+    .modal-text .hl-green { color:var(--accent-green); }
+    .modal-text .hl-blue  { color:var(--accent-blue); }
+    .modal-text .hl-red   { color:var(--accent-red); }
+    .modal-text .hl-yellow{ color:var(--accent-yellow); }
   </style>
 </head>
 <body>
@@ -74,7 +108,7 @@
 <div class="page-header">
   <div>
     <div class="page-title">Model Validation</div>
-    <div class="page-subtitle">MODEL PROB vs ACTUAL OUTCOME · CALIBRATION · EV TRACKING</div>
+    <div class="page-subtitle">MODEL PROB vs ACTUAL OUTCOME · CALIBRATION · EV TRACKING · <span class="info-trigger" onclick="document.getElementById('cal-modal').classList.add('open')">What is Model Validation?</span></div>
   </div>
 </div>
 <div class="controls">
@@ -97,6 +131,71 @@
 <div class="main" id="val-main"></div>
 
 <script src="js/nav.js"></script>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="cal-modal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">What is Model Validation?</div>
+      <button class="modal-close" onclick="document.getElementById('cal-modal').classList.remove('open')">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <!-- graphic -->
+      <div class="modal-graphic">
+        <div class="cal-demo">
+          <div class="cal-demo-title">Perfectly Calibrated</div>
+          <div class="cal-demo-row">
+            <span class="cal-demo-lbl">45%</span>
+            <div class="cal-demo-bar"><div class="cal-demo-pred" style="width:45%"></div><div class="cal-demo-act act-good" style="width:46%"></div></div>
+            <span class="cal-demo-note" style="color:var(--accent-green)">+1% ✓</span>
+          </div>
+          <div class="cal-demo-row">
+            <span class="cal-demo-lbl">60%</span>
+            <div class="cal-demo-bar"><div class="cal-demo-pred" style="width:60%"></div><div class="cal-demo-act act-good" style="width:61%"></div></div>
+            <span class="cal-demo-note" style="color:var(--accent-green)">+1% ✓</span>
+          </div>
+          <div class="cal-demo-row">
+            <span class="cal-demo-lbl">75%</span>
+            <div class="cal-demo-bar"><div class="cal-demo-pred" style="width:75%"></div><div class="cal-demo-act act-good" style="width:74%"></div></div>
+            <span class="cal-demo-note" style="color:var(--accent-green)">-1% ✓</span>
+          </div>
+        </div>
+        <div class="cal-demo">
+          <div class="cal-demo-title">Overconfident Model</div>
+          <div class="cal-demo-row">
+            <span class="cal-demo-lbl">45%</span>
+            <div class="cal-demo-bar"><div class="cal-demo-pred" style="width:45%"></div><div class="cal-demo-act act-over" style="width:30%"></div></div>
+            <span class="cal-demo-note" style="color:var(--accent-red)">-15% ✗</span>
+          </div>
+          <div class="cal-demo-row">
+            <span class="cal-demo-lbl">60%</span>
+            <div class="cal-demo-bar"><div class="cal-demo-pred" style="width:60%"></div><div class="cal-demo-act act-over" style="width:44%"></div></div>
+            <span class="cal-demo-note" style="color:var(--accent-red)">-16% ✗</span>
+          </div>
+          <div class="cal-demo-row">
+            <span class="cal-demo-lbl">75%</span>
+            <div class="cal-demo-bar"><div class="cal-demo-pred" style="width:75%"></div><div class="cal-demo-act act-over" style="width:55%"></div></div>
+            <span class="cal-demo-note" style="color:var(--accent-red)">-20% ✗</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-legend">
+        <span><span class="legend-dot" style="background:rgba(0,191,255,0.5)"></span>Predicted probability (blue bar)</span>
+        <span><span class="legend-dot" style="background:var(--accent-green)"></span>Actual win rate (green bar)</span>
+      </div>
+
+      <div class="modal-text">
+        <p>The model assigns a probability to each bet before the game is played. For example, <strong>"this team has a <span class="hl-blue">65%</span> chance to cover."</strong></p>
+        <p>Calibration measures whether those predictions are accurate in reality. If the model says <span class="hl-blue">65%</span> and teams actually win <span class="hl-green">65%</span> of the time in that bucket — the model is <strong>perfectly calibrated.</strong></p>
+        <p>If it predicts <span class="hl-blue">65%</span> but they only win <span class="hl-red">50%</span>, the model is <strong class="hl-red">overconfident</strong>. If they win <span class="hl-yellow">75%</span>, it's <strong class="hl-yellow">underestimating.</strong></p>
+        <p>The bars show <span class="hl-blue">predicted probability in blue</span> and <span class="hl-green">actual win rate in green</span>. If these align closely across all buckets, the model's confidence levels are trustworthy — not just that it wins bets.</p>
+      </div>
+
+    </div>
+  </div>
+</div>
 <script>
 var REPO   = 'Clownworldenjoyer76/bet_tracker';
 var BRANCH = 'main';
