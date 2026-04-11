@@ -276,9 +276,10 @@ function normalizeRow(r, sourceLabel) {
   // league — prefer explicit league col; use source label as fallback
   var leagueRaw = (r.league || '').toUpperCase().trim();
   var soccerLeagues = ['BUNDESLIGA','EPL','LALIGA','LIGUE1','SERIEA','MLS','SOCCER'];
+  var sportCategories = ['BASKETBALL','FOOTBALL','BASEBALL','HOCKEY','TENNIS'];
   var league = leagueRaw;
   if (soccerLeagues.indexOf(leagueRaw) !== -1 && leagueRaw !== 'SOCCER') league = 'SOCCER';
-  if (!league) league = sourceLabel;
+  if (!league || sportCategories.indexOf(leagueRaw) !== -1) league = sourceLabel;
 
   // bet_side / side
   var betSide = (r.bet_side || r.side || r.take_bet || '').toLowerCase().trim();
