@@ -36,6 +36,7 @@ jobs:
           mkdir -p mappings/soccer/no_map/
           mkdir -p docs/win/soccer/00_intake/predictions/
           mkdir -p docs/win/soccer/00_intake/predictions/normalized/
+          mkdir -p docs/win/soccer/00_intake/predictions/drat_raw/
           mkdir -p docs/win/soccer/00_intake/sportsbook/
           mkdir -p docs/win/soccer/00_intake/sportsbook/normalized/
           mkdir -p docs/win/final_scores/results/soccer/final_scores/
@@ -134,7 +135,10 @@ jobs:
         run: python docs/win/basketball/scripts/00_intake/basketball_drat_scraper.py
 
       - name: Basketball Transform
-        run: python docs/win/basketball/scripts/00_intake/transform_basketball.py
+        run: |
+          python docs/win/basketball/scripts/00_intake/transform_basketball.py \
+            --nba  docs/win/basketball/00_intake/drat_raw/${DATE}_nba_raw.json \
+            --ncaab docs/win/basketball/00_intake/drat_raw/${DATE}_ncaab_raw.json
 
       - name: Basketball Name Normalization (2)
         run: python docs/win/basketball/scripts/00_intake/basketball_name_normalization.py
@@ -152,6 +156,7 @@ jobs:
           git add mappings/soccer/no_map/
           git add docs/win/soccer/00_intake/predictions/
           git add docs/win/soccer/00_intake/predictions/normalized/
+          git add docs/win/soccer/00_intake/predictions/drat_raw/
           git add docs/win/soccer/00_intake/sportsbook/
           git add docs/win/soccer/00_intake/sportsbook/normalized/
           git add docs/win/final_scores/results/soccer/final_scores/
