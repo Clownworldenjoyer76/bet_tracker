@@ -28,10 +28,6 @@ with open(CONFIG_PATH, "r", encoding="utf-8") as f:
 DEBUG_COUNTS = defaultdict(int)
 
 
-# =========================
-# LOGGING
-# =========================
-
 def _now():
     return datetime.now(UTC).isoformat()
 
@@ -72,10 +68,6 @@ def _write_summary(summary: dict, per_file: list) -> None:
     with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n")
 
-
-# =========================
-# HELPERS
-# =========================
 
 def fv(x):
     try:
@@ -167,10 +159,6 @@ def pick_side(valid_sides, preference):
                key=lambda x: x["kelly"] if preference == "best_kelly" else x["ev"])
 
 
-# =========================
-# MARKET LOGIC
-# =========================
-
 def moneyline(row, league):
     cfg  = market_cfg(league, "moneyline")
     if not cfg.get("enabled", True):
@@ -228,20 +216,18 @@ def total(row, league):
         scfg  = cfg[side]
         if not scfg.get("enabled", True):
             continue
+        odds  = fv(row.get(f"dk_total_{side}_american"))
         ev    = fv(row.get(f"{side}_ev"))
         kelly = fv(row.get(f"{side}_kelly"))
         if (in_bands(line, scfg["line_bands"])
+                and in_bands(odds, scfg.get("odds_bands", [[-10000, 10000]]))
                 and ev_ok(ev, scfg)
                 and kelly_ok(kelly, scfg)
-                and not violates_exclude_rules(ev, kelly, None, line, scfg)):
+                and not violates_exclude_rules(ev, kelly, odds, line, scfg)):
             sides.append({"side": side, "line": line, "ev": ev, "kelly": kelly})
     pick = pick_side(sides, pref)
     return (True, pick["side"], pick["line"], pick["ev"]) if pick else (False, "", "", 0)
 
-
-# =========================
-# FILE PROCESSOR
-# =========================
 
 def process_file(file):
     df = pd.read_csv(file)
@@ -277,10 +263,6 @@ def process_file(file):
     _log(f"{file.name} | {len(rows)} selected from {len(df)} rows")
     return pd.DataFrame(rows), len(rows)
 
-
-# =========================
-# MAIN
-# =========================
 
 def main():
     with open(LOG_FILE, "w", encoding="utf-8") as f:
