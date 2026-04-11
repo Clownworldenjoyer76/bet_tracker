@@ -258,8 +258,14 @@ function normalizeRow(r, sourceLabel) {
   else if (resultVal === 'loss' || resultVal === 'l' || resultVal === '0' || resultVal === 'false') win = false;
   // push stays null
 
-  // market type — handles all sport variants
-  var mkt = (r.market_type || r.market || '').toLowerCase();
+  // market type — prefer market_type col; fall back to market only if it looks like a market (not a league name)
+  var leagueNames = ['NBA','NCAAB','NHL','MLB','SOCCER','BUNDESLIGA','EPL','LALIGA','LIGUE1','SERIEA','MLS'];
+  var mktRaw = r.market_type || '';
+  if (!mktRaw) {
+    var mktCandidate = (r.market || '').toUpperCase().trim();
+    if (leagueNames.indexOf(mktCandidate) === -1) mktRaw = r.market || '';
+  }
+  var mkt = mktRaw.toLowerCase();
   var mktNorm = 'other';
   if (mkt === 'moneyline') mktNorm = 'moneyline';
   else if (mkt === 'spread' || mkt === 'puck_line' || mkt === 'run_line') mktNorm = 'spread';
@@ -267,38 +273,52 @@ function normalizeRow(r, sourceLabel) {
            mkt === 'btts'  || mkt === 'total25'    || mkt === 'total35') mktNorm = 'total';
   else if (mkt === 'match_odds') mktNorm = 'moneyline';
 
-  // league — use source label as fallback so soccer rows aren't "BUNDESLIGA"
+  // league — prefer explicit league col; use source label as fallback
   var leagueRaw = (r.league || '').toUpperCase().trim();
   var soccerLeagues = ['BUNDESLIGA','EPL','LALIGA','LIGUE1','SERIEA','MLS','SOCCER'];
   var league = leagueRaw;
   if (soccerLeagues.indexOf(leagueRaw) !== -1 && leagueRaw !== 'SOCCER') league = 'SOCCER';
   if (!league) league = sourceLabel;
 
-  // model_prob — soccer uses decimal odds in an "odds" column, not model_prob
+  // bet_side / side
+  var betSide = (r.bet_side || r.side || r.take_bet || '').toLowerCase().trim();
+
+  // model_prob — explicit col first; derive from home_prob/away_prob based on bet_side
   var modelProb = parseFloat(r.model_prob) || null;
+  if (modelProb === null) {
+    if (betSide === 'home' && r.home_prob) modelProb = parseFloat(r.home_prob);
+    else if (betSide === 'away' && r.away_prob) modelProb = parseFloat(r.away_prob);
+    else if (betSide === 'over' && r.over_prob) modelProb = parseFloat(r.over_prob);
+    else if (betSide === 'under' && r.under_prob) modelProb = parseFloat(r.under_prob);
+    if (isNaN(modelProb)) modelProb = null;
+  }
 
-  // ev — soccer stores edge_pct or ev
-  var ev = parseFloat(r.ev) || parseFloat(r.edge_pct) || null;
+  // ev — explicit col first; fall back to selected_ev or edge_pct
+  var ev = parseFloat(r.ev) || parseFloat(r.selected_ev) || parseFloat(r.edge_pct) || null;
 
-  // odds — american preferred, soccer has decimal
+  // odds — american preferred; derive from bet_side for basketball graded files
   var oddsAmerican = parseFloat(r.dk_odds_american) || parseFloat(r.odds_american) || null;
+  if (!oddsAmerican) {
+    // try side-specific DK american odds cols
+    if (betSide === 'home') oddsAmerican = parseFloat(r.home_dk_moneyline_american) || parseFloat(r.home_dk_spread_american) || null;
+    else if (betSide === 'away') oddsAmerican = parseFloat(r.away_dk_moneyline_american) || parseFloat(r.away_dk_spread_american) || null;
+    else if (betSide === 'over') oddsAmerican = parseFloat(r.dk_total_over_american) || null;
+    else if (betSide === 'under') oddsAmerican = parseFloat(r.dk_total_under_american) || null;
+  }
   if (!oddsAmerican) {
     var dec = parseFloat(r.odds) || parseFloat(r.dk_odds_decimal) || null;
     if (dec) oddsAmerican = dec >= 2 ? Math.round((dec - 1) * 100) : Math.round(-100 / (dec - 1));
   }
-
-  // bet_side / side
-  var betSide = r.bet_side || r.side || r.take_bet || '';
 
   // line
   var line = parseFloat(r.line) || null;
 
   return {
     league:     league,
-    league_sub: leagueRaw,   // bundesliga, epl etc for soccer sub-filter
+    league_sub: leagueRaw,
     market:     mktNorm,
-    market_raw: r.market_type || r.market || '',
-    bet_side:   betSide,
+    market_raw: mktRaw || r.market_type || r.market || '',
+    bet_side:   r.bet_side || r.side || r.take_bet || '',
     line:       line,
     model_prob: modelProb,
     ev:         ev,
