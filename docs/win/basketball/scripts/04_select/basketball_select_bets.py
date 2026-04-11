@@ -204,12 +204,14 @@ def spread(row, league):
         if not scfg.get("enabled", True):
             continue
         line  = fv(row.get(f"{side}_spread"))
+        odds  = fv(row.get(f"{side}_dk_spread_american"))
         ev    = fv(row.get(f"{side}_spread_ev"))
         kelly = fv(row.get(f"{side}_spread_kelly"))
         if (in_bands(line, scfg["line_bands"])
+                and in_bands(odds, scfg.get("odds_bands", [[-10000, 10000]]))
                 and ev_ok(ev, scfg)
                 and kelly_ok(kelly, scfg)
-                and not violates_exclude_rules(ev, kelly, None, line, scfg)):
+                and not violates_exclude_rules(ev, kelly, odds, line, scfg)):
             sides.append({"side": side, "line": line, "ev": ev, "kelly": kelly})
     pick = pick_side(sides, pref)
     return (True, pick["side"], pick["line"], pick["ev"]) if pick else (False, "", "", 0)
