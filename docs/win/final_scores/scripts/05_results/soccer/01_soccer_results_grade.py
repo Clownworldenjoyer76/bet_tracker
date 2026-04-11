@@ -23,7 +23,6 @@ SUMMARY_LOG = ERROR_DIR / "soccer_results_grade_summary.txt"
 
 MASTER_FILE = OUTPUT_DIR / "SOCCER_final.csv"
 
-# select file league value → score file subfolder/filename (uppercase)
 LEAGUE_MAP = {
     "epl":        "EPL",
     "bundesliga": "BUNDESLIGA",
@@ -74,26 +73,21 @@ def safe_read(path):
 
 
 def derive_take_bet(market: str, side: str) -> str:
-    """Derive the take_bet identifier from market + side columns."""
     market = str(market).lower().strip()
     side   = str(side).lower().strip()
 
     if market == "match_odds":
-        return side                    # "home" | "draw" | "away"
+        return side
     if market == "total25":
-        return f"{side}25"             # "over25" | "under25"
+        return f"{side}25"
     if market == "total35":
-        return f"{side}35"             # "over35" | "under35"
+        return f"{side}35"
     if market == "btts":
-        return f"btts_{side}"          # "btts_yes" | "btts_no"
-    return market                      # fallback
+        return f"btts_{side}"
+    return market
 
 
 def find_score_file(game_date: str, league_raw: str) -> Path | None:
-    """
-    Locate the score file for a given date and league.
-    Tries uppercase folder/filename first, then lowercase fallback.
-    """
     league_upper = LEAGUE_MAP.get(league_raw.lower(), league_raw.upper())
     league_lower = league_upper.lower()
 
@@ -149,7 +143,6 @@ def grade_row(row) -> str:
 
         goals = home + away
 
-        # Match odds / result
         if take_bet == "home":
             return "Win" if home > away else "Loss"
         if take_bet == "away":
@@ -157,19 +150,16 @@ def grade_row(row) -> str:
         if take_bet == "draw":
             return "Win" if home == away else "Loss"
 
-        # Total 2.5
         if take_bet == "over25":
             return "Win" if goals > 2.5 else "Loss"
         if take_bet == "under25":
             return "Win" if goals < 2.5 else "Loss"
 
-        # Total 3.5
         if take_bet == "over35":
             return "Win" if goals > 3.5 else "Loss"
         if take_bet == "under35":
             return "Win" if goals < 3.5 else "Loss"
 
-        # BTTS
         if take_bet == "btts_yes":
             return "Win" if home > 0 and away > 0 else "Loss"
         if take_bet == "btts_no":
@@ -186,7 +176,6 @@ def grade_row(row) -> str:
 # =========================
 
 def process():
-    # Select files are named {date}_soccer_bets.csv
     select_files = sorted(SELECT_DIR.glob("*_soccer_bets.csv"))
     log_summary(f"Select files found: {len(select_files)}")
 
@@ -197,7 +186,6 @@ def process():
     all_rows = []
 
     for file in select_files:
-        # Extract date from filename: 2026_04_10_soccer_bets.csv → 2026_04_10
         game_date = file.stem.replace("_soccer_bets", "")
         log_summary(f"Processing: {file.name} | date={game_date}")
 
@@ -210,6 +198,8 @@ def process():
             if col in bets_df.columns:
                 bets_df[col] = bets_df[col].astype(str).str.strip()
 
+        # ── FIX: stamp game_date onto bets so merge key exists ──
+        bets_df["game_date"]     = game_date
         bets_df["league_lower"]  = bets_df["league"].str.lower()
         bets_df["market_type"]   = bets_df["market"].str.lower()
         bets_df["take_bet"]      = bets_df.apply(
@@ -218,17 +208,15 @@ def process():
         bets_df["odds_american"] = pd.to_numeric(bets_df.get("odds"), errors="coerce")
         bets_df["edge_pct"]      = pd.to_numeric(bets_df.get("ev"),   errors="coerce")
 
-        # Load and merge scores per league present in this slate
         merged_frames = []
         for league_raw, league_bets in bets_df.groupby("league_lower"):
             scores = load_scores_for_league_date(game_date, league_raw)
             if scores.empty:
                 log_error(f"NO SCORES MERGED | league={league_raw} date={game_date}")
-                # still keep bets, they'll grade as Push
                 league_bets = league_bets.copy()
-                league_bets["home_score"]      = None
-                league_bets["away_score"]      = None
-                league_bets["league_score"]    = league_raw
+                league_bets["home_score"]       = None
+                league_bets["away_score"]       = None
+                league_bets["league_score"]     = league_raw
                 league_bets["market_scorefile"] = league_raw
                 merged_frames.append(league_bets)
                 continue
