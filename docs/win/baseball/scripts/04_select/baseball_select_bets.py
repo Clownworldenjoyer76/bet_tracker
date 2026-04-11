@@ -259,7 +259,6 @@ def main():
     }
     per_slate = []
 
-    # FIX: correct indentation — old.unlink() is the loop body
     for old in OUTPUT_DIR.glob("*.csv"):
         old.unlink()
 
@@ -282,7 +281,6 @@ def main():
 
         summary["slates_found"] = len(slates)
 
-        # accumulate counters across all slates
         global_counters = {
             "moneyline": {"home": init_counter(), "away": init_counter()},
             "run_line":  {"home": init_counter(), "away": init_counter()},
@@ -328,9 +326,14 @@ def main():
                             seen.add(k)
                             ps["rl"] += 1
 
-                    # Total
+                    # Total — filter by game_date, away_team, and home_team
                     if tt_df is not None and not tt_df.empty:
-                        for _, t in tt_df[(tt_df["away_team"] == away) & (tt_df["home_team"] == home)].iterrows():
+                        mask = (
+                            (tt_df["away_team"] == away) &
+                            (tt_df["home_team"] == home) &
+                            (tt_df["game_date"] == game_date)
+                        )
+                        for _, t in tt_df[mask].iterrows():
                             for r in process_total(t, global_counters):
                                 k = f"{game_id}_{r['market_type']}_{r['bet_side']}"
                                 if k not in seen:
@@ -338,9 +341,14 @@ def main():
                                     seen.add(k)
                                     ps["tot"] += 1
 
-                    # Moneyline
+                    # Moneyline — filter by game_date, away_team, and home_team
                     if ml_df is not None and not ml_df.empty:
-                        for _, m in ml_df[(ml_df["away_team"] == away) & (ml_df["home_team"] == home)].iterrows():
+                        mask = (
+                            (ml_df["away_team"] == away) &
+                            (ml_df["home_team"] == home) &
+                            (ml_df["game_date"] == game_date)
+                        )
+                        for _, m in ml_df[mask].iterrows():
                             for r in process_moneyline(m, global_counters):
                                 k = f"{game_id}_{r['market_type']}_{r['bet_side']}"
                                 if k not in seen:
