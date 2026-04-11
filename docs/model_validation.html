@@ -71,8 +71,7 @@
     /* MODAL */
     .info-trigger { font-size:11px;letter-spacing:0.06em;color:var(--accent-blue);cursor:pointer;border-bottom:1px dashed var(--accent-blue);transition:opacity 0.15s;white-space:nowrap; }
     .info-trigger:hover { opacity:0.7; }
-    .modal-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:1000;align-items:center;justify-content:center;padding:20px; }
-    .modal-overlay.open { display:flex !important; }
+    .modal-overlay { display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:99999;align-items:center;justify-content:center;padding:20px; }
     .modal { background:var(--background);border:1px solid var(--border-soft);max-width:620px;width:100%;position:relative;animation:modalIn 0.2s ease; }
     @keyframes modalIn { from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);} }
     .modal-header { padding:16px 20px;border-bottom:1px solid var(--border-soft);display:flex;align-items:center;justify-content:space-between; }
@@ -108,7 +107,7 @@
 <div class="page-header">
   <div>
     <div class="page-title">Model Validation</div>
-    <div class="page-subtitle">MODEL PROB vs ACTUAL OUTCOME · CALIBRATION · EV TRACKING · <span class="info-trigger" onclick="document.getElementById('cal-modal').classList.add('open')">What is Model Validation?</span></div>
+    <div class="page-subtitle">MODEL PROB vs ACTUAL OUTCOME · CALIBRATION · EV TRACKING · <span class="info-trigger" onclick="openModal()">What is Model Validation?</span></div>
   </div>
 </div>
 <div class="controls">
@@ -133,11 +132,11 @@
 <script src="js/nav.js"></script>
 
 <!-- MODAL -->
-<div class="modal-overlay" id="cal-modal" onclick="if(event.target===this)this.classList.remove('open')">
+<div class="modal-overlay" id="cal-modal" onclick="if(event.target===this)closeModal()">
   <div class="modal">
     <div class="modal-header">
       <div class="modal-title">What is Model Validation?</div>
-      <button class="modal-close" onclick="document.getElementById('cal-modal').classList.remove('open')">✕</button>
+      <button class="modal-close" onclick="closeModal()">✕</button>
     </div>
     <div class="modal-body">
 
@@ -198,6 +197,25 @@
 </div>
 <script>
 var REPO   = 'Clownworldenjoyer76/bet_tracker';
+
+function openModal() {
+  var m = document.getElementById('cal-modal');
+  m.style.display = 'flex';
+  m.style.position = 'fixed';
+  m.style.top = '0';
+  m.style.left = '0';
+  m.style.right = '0';
+  m.style.bottom = '0';
+  m.style.zIndex = '99999';
+  m.style.alignItems = 'center';
+  m.style.justifyContent = 'center';
+  m.style.padding = '20px';
+  m.style.background = 'rgba(0,0,0,0.85)';
+}
+
+function closeModal() {
+  document.getElementById('cal-modal').style.display = 'none';
+}
 var BRANCH = 'main';
 var BASE   = 'https://raw.githubusercontent.com/' + REPO + '/' + BRANCH + '/';
 
