@@ -358,6 +358,11 @@ function loadAll() {
     });
     var graded = allRows.filter(function(r){ return r.win !== null; }).length;
     setStatus(allRows.length + ' bets loaded · ' + graded + ' graded', 'green');
+    console.log('TOTAL ROWS:', allRows.length, 'GRADED:', graded);
+    console.log('SAMPLE ROW 0:', JSON.stringify(allRows[0]));
+    var nbaRows = allRows.filter(function(r){ return r.league === 'NBA'; });
+    console.log('NBA ROWS:', nbaRows.length);
+    if (nbaRows.length) console.log('NBA SAMPLE:', JSON.stringify(nbaRows[0]));
     render();
   });
 }
@@ -395,7 +400,7 @@ function render() {
     { val: wins + '-' + losses,              lbl: 'W-L Record',    cls: winRate >= 0.55 ? 'val-green' : winRate < 0.45 ? 'val-red' : 'val-yellow' },
     { val: (winRate*100).toFixed(1) + '%',   lbl: 'Win Rate',      cls: winRate >= 0.55 ? 'val-green' : winRate < 0.45 ? 'val-red' : 'val-yellow' },
     { val: (avgProb*100).toFixed(1) + '%',   lbl: 'Avg Model Prob',cls: 'val-blue' },
-    { val: (totalEV*100).toFixed(2) + '%',   lbl: 'Total EV',      cls: totalEV >= 0 ? 'val-green' : 'val-red' },
+    { val: totalEV.toFixed(2),                lbl: 'Total EV',      cls: totalEV >= 0 ? 'val-green' : 'val-red' },
   ].forEach(function(s) {
     strip.innerHTML += '<div class="summary-item"><div class="summary-val ' + s.cls + '">' + s.val + '</div><div class="summary-lbl">' + s.lbl + '</div></div>';
   });
@@ -443,7 +448,7 @@ function render() {
       '<div class="mkt-stat-row"><span class="mkt-stat-label">Bets</span><span class="mkt-stat-val">' + mktRows.length + '</span></div>' +
       '<div class="mkt-stat-row"><span class="mkt-stat-label">W-L</span><span class="mkt-stat-val">' + mWins + '-' + (mktRows.length - mWins) + '</span></div>' +
       '<div class="mkt-stat-row"><span class="mkt-stat-label">Win Rate</span><span class="mkt-stat-val" style="color:' + (mRate>=0.55?'var(--accent-green)':mRate<0.45?'var(--accent-red)':'var(--accent-yellow)') + '">' + (mRate*100).toFixed(1) + '%</span></div>' +
-      '<div class="mkt-stat-row"><span class="mkt-stat-label">Total EV</span><span class="mkt-stat-val" style="color:' + (mEV>=0?'var(--accent-green)':'var(--accent-red)') + '">' + (mEV*100).toFixed(2) + '%</span></div>' +
+      '<div class="mkt-stat-row"><span class="mkt-stat-label">Total EV</span><span class="mkt-stat-val" style="color:' + (mEV>=0?'var(--accent-green)':'var(--accent-red)') + '">' + mEV.toFixed(2) + '</span></div>' +
     '</div>';
   }).join('');
 
@@ -471,7 +476,7 @@ function render() {
       '<td>' + (r.bet_side || '—') + (r.line ? ' ' + r.line : '') + '</td>' +
       '<td>' + oddsStr + '</td>' +
       '<td class="' + probCls + '">' + (r.model_prob !== null ? (r.model_prob*100).toFixed(1) + '%' : '—') + '</td>' +
-      '<td class="' + evCls + '">'  + (r.ev !== null ? (r.ev*100).toFixed(2) + '%' : '—') + '</td>' +
+      '<td class="' + evCls + '">'  + (r.ev !== null ? r.ev.toFixed(2) : '—') + '</td>' +
       '<td class="' + outcls + '">' + outTxt + '</td>' +
     '</tr>';
   }).join('');
