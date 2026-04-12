@@ -1,43 +1,94 @@
-Phase 1 — Data Pipeline
-Parse & consolidate all 450+ files into a single structured dataset (Parquet or SQLite). Normalize fighter names (casing, nicknames). Output: one row per fight with all fields.
-Feature engineering per fighter — computed from historical records prior to each fight date (no leakage):
+## UFC Prediction Model — Step-by-Step Plan
 
-Win rate (last 5, last 10, all-time)
-Finish rate (KO/TKO vs decision)
-Opponent quality (avg win% of who they beat/lost to)
-Days since last fight
-Win/loss streak
-Sportsbook implied probability (derived from moneyline)
+---
 
+### Phase 1 — Data Pipeline
 
-Phase 2 — Model
-Target variable: result_fighter_1 (binary win/loss)
-Baseline first: Logistic regression on implied probability alone. This is your benchmark — it's hard to beat consistently.
-Then try: XGBoost or LightGBM with all engineered features. These handle tabular sports data well.
-Key concern — calibration: You want calibrated probabilities, not just accuracy. Use Brier score and log loss as metrics, not just accuracy.
-Validation: Time-based split only. Never random split — future fights can't train past predictions. Train on years 1–5, test on year 6.
+1. Write a Python script to loop through all 450+ files, parse each one, and append to a single master dataframe
+2. Standardize fighter names across all files (lowercase, strip whitespace, handle known aliases)
+3. Save master dataframe as a SQLite database or Parquet file — this is your source of truth
+4. Validate: check for duplicates, missing results, date gaps
 
-Phase 3 — Edge Detection (the actual goal)
-Raw prediction accuracy isn't enough. You need edge over the sportsbook:
-edge = model_probability - implied_probability
-Only bet when edge > threshold (e.g., >5%). Backtest this on your holdout year.
-Track:
+---
 
-ROI by edge bucket
-ROI by favorite vs underdog
-ROI by weight class (some are more predictable than others)
+### Phase 2 — Fighter Attribute Scraping
 
+5. Identify your scrape source — UFC Stats (ufcstats.com) is the best free option; it has reach, height, stance, age, and full record
+6. Build a scraper (requests + BeautifulSoup) to pull attributes for every unique fighter in your dataset
+7. Store scraped attributes in a separate table/file joined on fighter name
+8. For each fight row, calculate **fighter age at fight date** from DOB (not current age)
 
-Phase 4 — Betting Simulation
-Use Kelly Criterion (fractional Kelly, e.g., 25%) for sizing. Never flat bet without validating edge first.
-Backtest on year 6 with realistic assumptions: -110 juice on even lines, closing line odds (not opening).
+---
 
-What you're missing that would help
+### Phase 3 — Feature Engineering
 
-Fighter attributes: age, reach, height, stance, record at fight time
-Fight context: title fight, main card vs prelim, weight class
-Closing line vs opening line movement (sharp money signal)
+*All features must be computed using only data before that fight's date — no leakage.*
 
+9. For each fighter, compute rolling historical stats up to fight date:
+   - Win rate (all-time, last 5 fights)
+   - Win streak / loss streak
+   - Total fights (experience proxy)
+   - Days since last fight
+   - Average opponent win rate (strength of schedule)
+10. Compute **sportsbook implied probability** from moneylines:
+    - Positive line: `100 / (moneyline + 100)`
+    - Negative line: `abs(moneyline) / (abs(moneyline) + 100)`
+    - Then normalize both to remove the vig so they sum to 1
+11. Compute **differential features** (fighter 1 minus fighter 2):
+    - Win rate diff, experience diff, days rest diff, reach diff, age diff
+12. Flag: title fight, weight class (if scrapeable), home country advantage if fight location available
 
-Honest caveat
-UFC is harder to model than team sports. Small sample per fighter, high variance outcomes, and sportsbooks are sharp. Consistent edge of even 3–4% ROI would be genuinely good. The model's main value is identifying mispriced underdogs, not picking favorites.
+---
+
+### Phase 4 — Dataset Assembly
+
+13. Final row structure: one fight = one row, from fighter 1's perspective
+14. Also add the mirror row (fighter 2's perspective, labels flipped) to double your training data and remove position bias
+15. Drop any rows where result is missing
+16. Save final feature matrix as a Parquet file
+
+---
+
+### Phase 5 — Modeling
+
+17. Time-based train/test split — train on years 1–5, test on year 6. Never random split
+18. Start with **logistic regression on implied probability only** as your baseline — record its Brier score and log loss
+19. Train **XGBoost or LightGBM** on all features — these are the best fit for this type of tabular data in Python
+20. Tune with cross-validation using **TimeSeriesSplit** to respect chronological order
+21. Evaluate on test set using Brier score, log loss, and ROI simulation — not accuracy
+
+---
+
+### Phase 6 — Edge Detection & Backtesting
+
+22. For every fight in your test set, compute: `edge = model_probability - implied_probability`
+23. Simulate flat betting only when edge exceeds a threshold (start with 3%, 5%, 7% — test all three)
+24. Track ROI separately by: edge bucket, favorite vs underdog, weight class
+25. Use **fractional Kelly (25% Kelly)** for stake sizing in the simulation
+26. Report: total bets placed, win rate, ROI — if no consistent positive ROI at any threshold, the model needs more features before going live
+
+---
+
+### Phase 7 — Live Predictions
+
+27. When new fight cards are announced, scrape current sportsbook odds for moneylines
+28. Pull latest fighter stats (update your scraped attributes if needed)
+29. Run the same feature engineering pipeline on the upcoming matchups
+30. Output: model probability, implied probability, edge — only flag fights where edge clears your backtested threshold
+
+---
+
+### Stack Summary
+
+| Task | Tool |
+|---|---|
+| Data parsing | pandas |
+| Storage | SQLite (via sqlite3) or Parquet (via pandas) |
+| Scraping | requests + BeautifulSoup |
+| Modeling | scikit-learn, XGBoost or LightGBM |
+| Validation | scikit-learn TimeSeriesSplit |
+| Environment | Python, PowerShell for file ops, GitHub for version control |
+
+---
+
+Ready to start at Step 1 whenever you are — share one of your data files and I'll write the parser.
