@@ -44,6 +44,9 @@ jobs:
           mkdir -p docs/win/final_scores/deeper_summaries/ncaab/by_market/
           touch docs/win/final_scores/soccer_market_tally.csv
 
+      - name: Normalize final score team names
+        run: python docs/win/final_scores/scripts/05_results/00_normalize_final_score_team_names.py
+
       - name: Run soccer results grade
         run: python docs/win/final_scores/scripts/05_results/soccer/01_soccer_results_grade.py
 
