@@ -1,43 +1,43 @@
-Clean roadmap
-Phase 1
+Phase 1 — Data Pipeline
+Parse & consolidate all 450+ files into a single structured dataset (Parquet or SQLite). Normalize fighter names (casing, nicknames). Output: one row per fight with all fields.
+Feature engineering per fighter — computed from historical records prior to each fight date (no leakage):
 
-Use only:
+Win rate (last 5, last 10, all-time)
+Finish rate (KO/TKO vs decision)
+Opponent quality (avg win% of who they beat/lost to)
+Days since last fight
+Win/loss streak
+Sportsbook implied probability (derived from moneyline)
 
-dratings probabilities
-sportsbook odds
-result
 
-Build baseline predictive model.
+Phase 2 — Model
+Target variable: result_fighter_1 (binary win/loss)
+Baseline first: Logistic regression on implied probability alone. This is your benchmark — it's hard to beat consistently.
+Then try: XGBoost or LightGBM with all engineered features. These handle tabular sports data well.
+Key concern — calibration: You want calibrated probabilities, not just accuracy. Use Brier score and log loss as metrics, not just accuracy.
+Validation: Time-based split only. Never random split — future fights can't train past predictions. Train on years 1–5, test on year 6.
 
-Phase 2
+Phase 3 — Edge Detection (the actual goal)
+Raw prediction accuracy isn't enough. You need edge over the sportsbook:
+edge = model_probability - implied_probability
+Only bet when edge > threshold (e.g., >5%). Backtest this on your holdout year.
+Track:
 
-Add rolling fighter history features.
+ROI by edge bucket
+ROI by favorite vs underdog
+ROI by weight class (some are more predictable than others)
 
-Phase 3
 
-Add outside stats later:
+Phase 4 — Betting Simulation
+Use Kelly Criterion (fractional Kelly, e.g., 25%) for sizing. Never flat bet without validating edge first.
+Backtest on year 6 with realistic assumptions: -110 juice on even lines, closing line odds (not opening).
 
-age
-reach
-stance
-significant strike differential
-takedown stats
-layoff days
-promotion level
+What you're missing that would help
 
-That is where it can get much stronger.
+Fighter attributes: age, reach, height, stance, record at fight time
+Fight context: title fight, main card vs prelim, weight class
+Closing line vs opening line movement (sharp money signal)
 
-My recommendation
 
-Start with odds + dratings + rolling fighter history.
-
-That is the best balance of:
-
-easy to build
-interpretable
-actually useful
-
-Do not start with just fighter name.
-Do not start with a giant all-purpose system.
-
-Start with a fight-level CSV master, engineer features, train logistic regression, then move to XGBoost.
+Honest caveat
+UFC is harder to model than team sports. Small sample per fighter, high variance outcomes, and sportsbooks are sharp. Consistent edge of even 3–4% ROI would be genuinely good. The model's main value is identifying mispriced underdogs, not picking favorites.
