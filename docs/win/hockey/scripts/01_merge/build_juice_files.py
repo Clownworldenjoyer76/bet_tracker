@@ -114,7 +114,7 @@ def main():
             ml["home_fair_decimal_moneyline"] = ml["home_prob"].apply(
                 lambda x: 1 / x if pd.notna(x) and x > 0 else None
             )
-            ml_path = OUTPUT_DIR / f"{slate_date}_{market}_moneyline.csv"
+            ml_path = OUTPUT_DIR / f"{slate_date}_NHL_moneyline.csv"
             ml.to_csv(ml_path, index=False)
             files_written.append((str(ml_path), len(ml)))
             log(f"WROTE {ml_path} ({len(ml)} rows)")
@@ -157,7 +157,7 @@ def main():
 
             tot["fair_total_over_decimal"]  = over
             tot["fair_total_under_decimal"] = under
-            tot_path = OUTPUT_DIR / f"{slate_date}_{market}_total.csv"
+            tot_path = OUTPUT_DIR / f"{slate_date}_NHL_total.csv"
             tot.to_csv(tot_path, index=False)
             files_written.append((str(tot_path), len(tot)))
             log(f"WROTE {tot_path} ({len(tot)} rows)")
@@ -219,7 +219,7 @@ def main():
             pl["home_prob_puck_line"]         = home_probs
             pl["away_prob_puck_line"]         = away_probs
 
-            pl_path = OUTPUT_DIR / f"{slate_date}_{market}_puck_line.csv"
+            pl_path = OUTPUT_DIR / f"{slate_date}_NHL_puck_line.csv"
             pl.to_csv(pl_path, index=False)
             files_written.append((str(pl_path), len(pl)))
             log(f"WROTE {pl_path} ({len(pl)} rows)")
