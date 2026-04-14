@@ -126,10 +126,10 @@ def check_rules(ev, kelly, odds, line, prob, rules, counters):
     if ev is None or kelly is None:
         counters["missing"] += 1
         return False
-    if not (rules["ev_min"] <= ev <= rules["ev_max"]):
+    if not in_range(ev, rules.get("ev_bands", [])):
         counters["ev_fail"] += 1
         return False
-    if not (rules["kelly_min"] <= kelly <= rules["kelly_max"]):
+    if not in_range(kelly, rules.get("kelly_bands", [])):
         counters["kelly_fail"] += 1
         return False
     if "odds_bands" in rules:
@@ -334,7 +334,7 @@ def main():
                             seen.add(k)
                             ps["rl"] += 1
 
-                    # Total — filter by game_date, away_team, and home_team
+                    # Total
                     if tt_df is not None and not tt_df.empty:
                         mask = (
                             (tt_df["away_team"] == away) &
@@ -349,7 +349,7 @@ def main():
                                     seen.add(k)
                                     ps["tot"] += 1
 
-                    # Moneyline — filter by game_date, away_team, and home_team
+                    # Moneyline
                     if ml_df is not None and not ml_df.empty:
                         mask = (
                             (ml_df["away_team"] == away) &
