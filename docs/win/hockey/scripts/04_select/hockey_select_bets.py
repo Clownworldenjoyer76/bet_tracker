@@ -32,6 +32,8 @@ except yaml.YAMLError as e:
 except KeyError as e:
     raise SystemExit(f"Missing expected key {e} in {CONFIG_PATH}")
 
+VALID_TOTALS = {"5.5", "6.5"}
+
 
 # =========================
 # LOGGING
@@ -93,12 +95,43 @@ def in_range(val, ranges):
     return any(lo <= val <= hi for lo, hi in ranges)
 
 
-def check_rules(ev, kelly, odds, line, rules):
+def resolve_total_key(row):
+    """Return '5.5' or '6.5' string key, or None if invalid/missing."""
+    raw = fv(row.get("total"))
+    if raw is None:
+        return None
+    key = f"{raw:.1f}"
+    return key if key in VALID_TOTALS else None
+
+
+def check_rules_flat(ev, kelly, odds, line, rules):
+    """Used for total market — flat band rules, no by_total."""
     if ev is None or kelly is None:
         return False
-    if ev < rules["ev_min"] or ev > rules["ev_max"]:
+    if not in_range(ev, rules.get("ev_bands", [])):
         return False
-    if kelly < rules["kelly_min"] or kelly > rules["kelly_max"]:
+    if not in_range(kelly, rules.get("kelly_bands", [])):
+        return False
+    if "odds_bands" in rules and not in_range(odds, rules["odds_bands"]):
+        return False
+    if "line_bands" in rules and not in_range(line, rules["line_bands"]):
+        return False
+    return True
+
+
+def check_rules_by_total(ev, kelly, odds, line, side_rules, total_key):
+    """Used for moneyline and puck_line — rules vary by game total."""
+    if total_key is None:
+        return False
+    by_total = side_rules.get("by_total", {})
+    rules = by_total.get(total_key)
+    if rules is None:
+        return False
+    if ev is None or kelly is None:
+        return False
+    if not in_range(ev, rules.get("ev_bands", [])):
+        return False
+    if not in_range(kelly, rules.get("kelly_bands", [])):
         return False
     if "odds_bands" in rules and not in_range(odds, rules["odds_bands"]):
         return False
@@ -126,16 +159,17 @@ def rescale_prob(p, k=3.0):
 
 def process_moneyline(row, config):
     results = []
+    total_key = resolve_total_key(row)
     for side in ["home", "away"]:
-        rules = config[side]
-        if not rules["enabled"]:
+        side_rules = config[side]
+        if not side_rules["enabled"]:
             continue
         ev         = fv(row.get(f"{side}_ml_ev"))
         kelly      = fv(row.get(f"{side}_ml_kelly"))
         odds       = fv(row.get(f"{side}_dk_moneyline_american"))
         dec        = fv(row.get(f"{side}_dk_decimal_moneyline"))
         model_prob = rescale_prob(fv(row.get(f"{side}_prob")))
-        if not check_rules(ev, kelly, odds, None, rules):
+        if not check_rules_by_total(ev, kelly, odds, None, side_rules, total_key):
             continue
         results.append({
             "market_type": "moneyline", "bet_side": side,
@@ -148,9 +182,10 @@ def process_moneyline(row, config):
 
 def process_puck_line(row, config):
     results = []
+    total_key = resolve_total_key(row)
     for side in ["home", "away"]:
-        rules = config[side]
-        if not rules["enabled"]:
+        side_rules = config[side]
+        if not side_rules["enabled"]:
             continue
         ev         = fv(row.get(f"{side}_puck_line_ev"))
         kelly      = fv(row.get(f"{side}_puck_line_kelly"))
@@ -158,7 +193,7 @@ def process_puck_line(row, config):
         dec        = fv(row.get(f"{side}_dk_puck_line_decimal"))
         line       = fv(row.get(f"{side}_puck_line"))
         model_prob = rescale_prob(fv(row.get(f"{side}_prob_puck_line")))
-        if not check_rules(ev, kelly, odds, line, rules):
+        if not check_rules_by_total(ev, kelly, odds, line, side_rules, total_key):
             continue
         results.append({
             "market_type": "puck_line", "bet_side": side,
@@ -181,7 +216,7 @@ def process_total(row, config):
         dec        = fv(row.get(f"dk_total_{side}_decimal"))
         line       = fv(row.get("total"))
         model_prob = rescale_prob(fv(row.get(f"{side}_prob")))
-        if not check_rules(ev, kelly, odds, line, rules):
+        if not check_rules_flat(ev, kelly, odds, line, rules):
             continue
         results.append({
             "market_type": "total", "bet_side": side,
@@ -207,7 +242,6 @@ def main():
     }
     per_slate = []
 
-    # FIX: correct indentation — f.unlink() is the loop body
     for old in OUTPUT_DIR.glob("*.csv"):
         old.unlink()
 
