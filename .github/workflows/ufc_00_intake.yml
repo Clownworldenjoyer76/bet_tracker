@@ -1,0 +1,46 @@
+name: UFC Intake Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  intake:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install playwright
+          playwright install chromium
+
+      - name: Run odds scraper
+        run: python docs/win/mma/ufc/scripts/00_intake/00_scrape_odds.py
+
+      - name: Run predictions scraper
+        run: python docs/win/mma/ufc/scripts/00_intake/00_scrape_predictions.py
+
+      - name: Run name normalization
+        run: python docs/win/mma/ufc/scripts/00_intake/00_name_normalization.py
+
+      - name: Show output files
+        run: |
+          echo "--- Intake files ---"
+          ls -lh docs/win/mma/ufc/00_intake/sportsbook/ || echo "No intake files found"
+          echo "--- Unmapped names ---"
+          cat mappings/mma/ufc/no_map_fighter_name.csv || echo "No unmapped names file found"
+
+      - name: Upload intake artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ufc-intake-output
+          path: |
+            docs/win/mma/ufc/00_intake/sportsbook/
+            mappings/mma/ufc/no_map_fighter_name.csv
