@@ -88,19 +88,31 @@ python scripts/fix_unmatched_fighters.py
 
 ---
 
-### 6. `build_features.py`
-Engineers all model features from the clean fight data and fighter attributes. All rolling stats are computed strictly from data before each fight date to prevent data leakage. Produces mirror rows (each fight from both fighters' perspectives) to remove position bias. Key features include:
+### 6. `scrape_historical_stats.py`
+Scrapes each fighter's full fight-by-fight history from ufcstats.com. For every fight in the dataset, computes cumulative stats (career record, SLpM, strike accuracy, takedown accuracy) up to but not including that fight date — preventing data leakage. Takes approximately 35–40 minutes for ~1,167 fighters.
 
-- Rolling win rate (all-time and last 5 fights)
+**Input:** `data/processed/ufc_master_clean.parquet`
+**Output:** `data/processed/fighter_history.json`, `data/processed/fighter_historical_stats.parquet`
+
+```powershell
+python scripts/scrape_historical_stats.py
+```
+
+---
+
+### 7. `build_features.py`
+Engineers all model features from the clean fight data, fighter attributes, and time-gated historical stats. All rolling stats are computed strictly from data before each fight date to prevent data leakage. Produces mirror rows (each fight from both fighters' perspectives) to remove position bias. Key features include:
+
+- Rolling win rate (all-time and last 5 fights, from dataset)
 - Win/loss streak, experience, days since last fight
 - Strength of schedule (average opponent win rate)
 - Sportsbook implied probability (vig-removed)
 - Fighter age at fight date
 - Physical differentials: reach, height, age
-- Career record at time of fight
-- SLpM, SApM, takedown accuracy/defense differentials
+- Time-gated career record (wins, losses, win rate) from ufcstats fight history
+- Time-gated SLpM, strike accuracy, takedown accuracy differentials
 
-**Input:** `data/processed/ufc_master_clean.parquet`, `data/processed/fighter_attributes.json`
+**Input:** `data/processed/ufc_master_clean.parquet`, `data/processed/fighter_attributes.json`, `data/processed/fighter_historical_stats.parquet`
 **Output:** `data/processed/ufc_features.parquet`
 
 ```powershell
@@ -109,14 +121,26 @@ python scripts/build_features.py
 
 ---
 
-### 7. `train_model_weighted.py`
-Trains and evaluates the prediction model. Uses a time-based train/test split (train on fights before 2025, test on 2025 onward). Applies exponential recency weighting (half-life 365 days) so recent fights count more than older ones. Compares logistic regression baseline vs XGBoost. Evaluates using Brier score, log loss, and ROI simulation at multiple edge thresholds using fractional Kelly sizing.
+### 8. `train_model_weighted.py`
+Trains and evaluates the prediction model. Uses a time-based train/test split (train on fights before 2025, test on 2025 onward). Applies exponential recency weighting (half-life 365 days) so recent fights count more than older ones. Compares logistic regression baseline vs XGBoost. Evaluates using Brier score, log loss, and ROI simulation at multiple edge thresholds.
 
 **Input:** `data/processed/ufc_features.parquet`
 **Output:** `data/processed/ufc_model.pkl`, `data/processed/test_predictions.csv`
 
 ```powershell
 python scripts/train_model_weighted.py
+```
+
+---
+
+### 9. `evaluate_roi.py`
+Loads the saved model and runs a detailed ROI simulation on the test set, broken out by all fighters, underdogs only, and favorites only. Uses capped fractional Kelly staking (25% Kelly, max 10% of bankroll per bet).
+
+**Input:** `data/processed/ufc_features.parquet`, `data/processed/ufc_model.pkl`
+**Output:** `data/processed/test_predictions.csv` (updated)
+
+```powershell
+python scripts/evaluate_roi.py
 ```
 
 ---
@@ -134,31 +158,48 @@ python scripts/train_model_weighted.py
 
 **Brier score:** Lower is better. Measures calibration of predicted probabilities. Baseline (sportsbook implied prob only) is ~0.198.
 
-**Kelly criterion:** Stake = `(p * (odds + 1) - 1) / odds`. Use 25% of full Kelly to reduce variance.
+**Calibration:** When the model predicts 70%, fighters win ~70% of the time. Confirmed across all probability buckets on 648 test fights.
+
+**Kelly criterion:** Stake = `(p * (odds + 1) - 1) / odds`. Use 25% of full Kelly, capped at 10% of bankroll per bet to reduce variance.
+
+**Data leakage prevention:** All historical stats (career record, SLpM, strike accuracy, TD accuracy) are computed from fight-by-fight history strictly before each fight date. Static career stats from ufcstats were confirmed to cause leakage and were replaced with time-gated equivalents.
 
 ---
 
 ## Data Sources
 
-- **Fight results & odds:** 434 CSV files (one per event, 2020–2026)
-- **Fighter attributes & stats:** [ufcstats.com](http://ufcstats.com)
+- **Fight results & odds:** 434 CSV files (one per event, 2020–2026), 2,876 fights total
+- **Fighter attributes & stats:** [ufcstats.com](http://ufcstats.com), 1,168 fighters scraped
 
 ---
 
-## Current Model Performance (as of last run)
+## Current Model Performance
 
 | Model | Brier Score | Log Loss |
 |---|---|---|
 | Baseline (implied prob only) | 0.1979 | 0.5796 |
-| Logistic Regression (all features) | 0.2000 | 0.5845 |
-| XGBoost (recency weighted) | 0.2128 | 0.6198 |
+| Logistic Regression (recency weighted) | 0.1828 | 0.5488 |
+| XGBoost (recency weighted) | 0.1796 | 0.5411 |
 
-ROI simulation at 3% edge threshold: ~-13% (648 test fights, 2025–2026)
+**Test set:** 648 fights, January 2025 – April 2026
+
+**Calibration (XGBoost on test set):**
+
+| Model Probability | Actual Win Rate | Count |
+|---|---|---|
+| 0–40% | 23% | 270 |
+| 40–50% | 51% | 51 |
+| 50–60% | 59% | 46 |
+| 60–70% | 64% | 56 |
+| 70–80% | 76% | 58 |
+| 80–90% | 81% | 89 |
+| 90–100% | 88% | 78 |
+
+**Top features:** `diff_h_career_wr`, `implied_prob_f1`, `diff_win_rate_all`, `diff_h_str_acc`
 
 ---
 
 ## Next Steps
 
-- Rebuild `ufc_features.parquet` with new career record and strike/TD features
-- Retrain model with expanded feature set
-- Build live prediction pipeline for upcoming cards
+- Phase 6: Edge detection and backtesting
+- Phase 7: Live prediction pipeline for upcoming cards
