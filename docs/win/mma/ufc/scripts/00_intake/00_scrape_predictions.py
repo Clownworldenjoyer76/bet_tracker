@@ -10,7 +10,7 @@ from pathlib import Path
 
 
 URL = "https://www.dratings.com/predictor/ufc-mma-predictions/"
-OUTDIR = Path("docs/win/mma/ufc/00_intake/sportsbook")
+OUTDIR = Path("docs/win/mma/ufc/00_intake/predictions")
 
 NOISE_LINES = {
     "Sports Ratings, Prediction, & Analysis",
