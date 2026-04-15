@@ -30,17 +30,11 @@ jobs:
       - name: Run name normalization
         run: python docs/win/mma/ufc/scripts/00_intake/00_name_normalization.py
 
-      - name: Show output files
+      - name: Commit output files to repo
         run: |
-          echo "--- Intake files ---"
-          ls -lh docs/win/mma/ufc/00_intake/sportsbook/ || echo "No intake files found"
-          echo "--- Unmapped names ---"
-          cat mappings/mma/ufc/no_map_fighter_name.csv || echo "No unmapped names file found"
-
-      - name: Upload intake artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: ufc-intake-output
-          path: |
-            docs/win/mma/ufc/00_intake/sportsbook/
-            mappings/mma/ufc/no_map_fighter_name.csv
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/win/mma/ufc/00_intake/sportsbook/
+          git add mappings/mma/ufc/no_map_fighter_name.csv
+          git diff --cached --quiet || git commit -m "chore: ufc intake run $(date -u +'%Y-%m-%d %H:%M UTC')"
+          git push
