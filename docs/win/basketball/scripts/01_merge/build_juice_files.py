@@ -80,8 +80,8 @@ def to_american(dec):
 def clamp_probability(p):
     return min(max(p, 0.05), 0.95)
 
-def get_market_settings(market):
-    if market == "NBA":
+def get__settings():
+    if  == "NBA":
         return {
             "ML_EDGE":     NBA_EDGE,
             "TOTAL_EDGE":  NBA_TOTAL_EDGE,
@@ -126,12 +126,12 @@ def main():
                 files_skipped += 1
                 continue
 
-            if "market" not in df.columns or "game_date" not in df.columns:
+            if "" not in df.columns or "game_date" not in df.columns:
                 log(f"MISSING COLUMNS: {file_path} — skipping")
                 files_skipped += 1
                 continue
 
-            market    = df["market"].iloc[0]
+            market = str(df["market"].iloc[0]).upper()
             game_date = df["game_date"].iloc[0]
             settings  = get_market_settings(market)
 
