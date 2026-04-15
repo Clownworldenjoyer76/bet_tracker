@@ -80,8 +80,8 @@ def to_american(dec):
 def clamp_probability(p):
     return min(max(p, 0.05), 0.95)
 
-def get__settings():
-    if  == "NBA":
+def get_market_settings(market):
+    if market == "NBA":
         return {
             "ML_EDGE":     NBA_EDGE,
             "TOTAL_EDGE":  NBA_TOTAL_EDGE,
@@ -126,7 +126,7 @@ def main():
                 files_skipped += 1
                 continue
 
-            if "" not in df.columns or "game_date" not in df.columns:
+            if "market" not in df.columns or "game_date" not in df.columns:
                 log(f"MISSING COLUMNS: {file_path} — skipping")
                 files_skipped += 1
                 continue
@@ -170,19 +170,21 @@ def main():
             # TOTALS
             # =====================================================
 
-            total_df  = df.copy()
-            fair_over = []
+            total_df   = df.copy()
+            fair_over  = []
             fair_under = []
-            acc_over  = []
-            acc_under = []
+            acc_over   = []
+            acc_under  = []
 
             for _, row in total_df.iterrows():
                 T    = row["total"]
                 mean = row["total_projected_points"]
 
                 if pd.isna(T):
-                    fair_over.append(""); fair_under.append("")
-                    acc_over.append("");  acc_under.append("")
+                    fair_over.append("")
+                    fair_under.append("")
+                    acc_over.append("")
+                    acc_under.append("")
                     row_issues += 1
                     continue
 
@@ -227,14 +229,16 @@ def main():
                 try:
                     home_line = float(row["home_spread"])
                 except:
-                    fair_home.append(""); fair_away.append("")
-                    acc_home.append("");  acc_away.append("")
+                    fair_home.append("")
+                    fair_away.append("")
+                    acc_home.append("")
+                    acc_away.append("")
                     row_issues += 1
                     continue
 
-                p_home     = 1 - norm.cdf(home_line, loc=mean_margin, scale=SPREAD_STD)
-                p_home     = clamp_probability(p_home)
-                p_away     = 1 - p_home
+                p_home        = 1 - norm.cdf(home_line, loc=mean_margin, scale=SPREAD_STD)
+                p_home        = clamp_probability(p_home)
+                p_away        = 1 - p_home
                 fair_home_dec = 1 / p_home
                 fair_away_dec = 1 / p_away
                 fair_home.append(fair_home_dec)
@@ -242,10 +246,10 @@ def main():
                 acc_home.append(fair_home_dec * (1 + SPREAD_EDGE))
                 acc_away.append(fair_away_dec * (1 + SPREAD_EDGE))
 
-            spread_df["fair_home_spread_decimal"]       = fair_home
-            spread_df["fair_away_spread_decimal"]       = fair_away
-            spread_df["home_acceptable_spread_decimal"] = acc_home
-            spread_df["away_acceptable_spread_decimal"] = acc_away
+            spread_df["fair_home_spread_decimal"]        = fair_home
+            spread_df["fair_away_spread_decimal"]        = fair_away
+            spread_df["home_acceptable_spread_decimal"]  = acc_home
+            spread_df["away_acceptable_spread_decimal"]  = acc_away
             spread_df["home_acceptable_spread_american"] = spread_df["home_acceptable_spread_decimal"].apply(to_american)
             spread_df["away_acceptable_spread_american"] = spread_df["away_acceptable_spread_decimal"].apply(to_american)
 
