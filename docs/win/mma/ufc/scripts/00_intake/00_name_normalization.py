@@ -9,7 +9,7 @@ Usage:
 
 Reads all files matching:
     docs/win/mma/ufc/00_intake/sportsbook/*_ufc_odds.csv
-    docs/win/mma/ufc/00_intake/sportsbook/*_ufc_predictions.csv
+    docs/win/mma/ufc/00_intake/predictions/*_ufc_predictions.csv
 
 Normalizes fighter_1 and fighter_2 columns in place.
 Outputs unmapped names to mappings/mma/ufc/no_map_fighter_name.csv.
@@ -22,7 +22,9 @@ from pathlib import Path
 
 NAME_MAP_PATH = Path("mappings/mma/ufc/fighter_name_map.csv")
 NO_MAP_PATH = Path("mappings/mma/ufc/no_map_fighter_name.csv")
-INTAKE_DIR = Path("docs/win/mma/ufc/00_intake/sportsbook")
+
+SPORTSBOOK_DIR = Path("docs/win/mma/ufc/00_intake/sportsbook")
+PREDICTIONS_DIR = Path("docs/win/mma/ufc/00_intake/predictions")
 
 
 def load_name_map(path: Path) -> dict[str, str]:
@@ -53,17 +55,17 @@ def normalize_file(filepath: Path, name_map: dict[str, str], lower_map: dict[str
         fieldnames = reader.fieldnames or []
 
     if not rows:
-        print(f"  SKIP {filepath.name} — no rows")
+        print(f"  SKIP {filepath} — no rows")
         return []
 
     unmapped = []
     for row in rows:
         for col in ["fighter_1", "fighter_2"]:
-            if col not in row:
+            if col not in row or row[col] is None:
                 continue
             original = row[col].strip()
             normalized, found = normalize_name(original, name_map, lower_map)
-            if not found:
+            if original and not found:
                 unmapped.append(original)
             row[col] = normalized
 
@@ -72,7 +74,7 @@ def normalize_file(filepath: Path, name_map: dict[str, str], lower_map: dict[str
         writer.writeheader()
         writer.writerows(rows)
 
-    print(f"  OK {filepath.name} — {len(rows)} rows normalized, {len(unmapped)} unmapped")
+    print(f"  OK {filepath} — {len(rows)} rows normalized, {len(unmapped)} unmapped")
     return unmapped
 
 
@@ -103,13 +105,12 @@ def main() -> int:
     lower_map = {k.lower(): v for k, v in name_map.items()}
     print(f"Loaded {len(name_map)} name mappings\n")
 
-    patterns = ["*_ufc_odds.csv", "*_ufc_predictions.csv"]
     files = []
-    for pattern in patterns:
-        files.extend(sorted(INTAKE_DIR.glob(pattern)))
+    files.extend(sorted(SPORTSBOOK_DIR.glob("*_ufc_odds.csv")))
+    files.extend(sorted(PREDICTIONS_DIR.glob("*_ufc_predictions.csv")))
 
     if not files:
-        print(f"No intake files found in {INTAKE_DIR}")
+        print("No intake files found in sportsbook or predictions directories")
         return 1
 
     print(f"Found {len(files)} files to normalize")
