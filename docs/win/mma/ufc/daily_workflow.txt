@@ -8,3 +8,15 @@ It builds features for each upcoming fight
 It runs the model and computes edge, EV, and Kelly per fighter
 It filters picks using your markets.yaml settings
 All output CSVs are committed back to the repo
+
+######################################################
+
+On updating data/model files:
+When to update data/model/ files:
+
+After retraining the model (train_model_weighted.py) → upload new ufc_model.pkl
+After scraping new fighter stats (scrape_fighter_stats.py, fix_unmatched_fighters.py) → upload new fighter_attributes.json
+After scraping new fight history (scrape_historical_stats.py) → upload new fighter_history.json and fighter_historical_stats.parquet
+After adding new fights to master dataset → upload new ufc_master_clean.parquet
+
+How to update: Go to bet_tracker/data/model/ on the model-data branch on GitHub → click the file → click the pencil/upload icon → upload the new version → commit to model-data.
