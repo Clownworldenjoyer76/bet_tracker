@@ -24,14 +24,14 @@ jobs:
       - name: Create output directories
         run: |
           mkdir -p docs/win/mma/ufc/00_intake/sportsbook
-          mkdir -p docs/win/mma/ufc/00_intake/sportsbook
+          mkdir -p docs/win/mma/ufc/00_intake/predictions
           mkdir -p mappings/mma/ufc
 
-    #  - name: Run odds scraper
-    #    run: python docs/win/mma/ufc/scripts/00_intake/00_scrape_odds.py
+      - name: Run odds scraper
+        run: python docs/win/mma/ufc/scripts/00_scrape_odds.py
 
       - name: Run predictions scraper
-        run: python docs/win/mma/ufc/scripts/00_intake/00_scrape_predictions.py
+        run: python docs/win/mma/ufc/scripts/00_scrape_predictions.py
 
       - name: Run name normalization
         run: python docs/win/mma/ufc/scripts/00_intake/00_name_normalization.py
