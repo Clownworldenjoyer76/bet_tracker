@@ -10,8 +10,21 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repo
+      - name: Checkout main branch
         uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Pull model files from model-data branch
+        run: |
+          git fetch origin model-data
+          git checkout origin/model-data -- data/model/fighter_attributes.json
+          git checkout origin/model-data -- data/model/fighter_history.json
+          git checkout origin/model-data -- data/model/fighter_historical_stats.parquet
+          git checkout origin/model-data -- data/model/ufc_master_clean.parquet
+          git checkout origin/model-data -- data/model/ufc_model.pkl
+          echo "Model files pulled:"
+          ls -lh data/model/
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -61,4 +74,4 @@ jobs:
           git add docs/win/mma/ufc/02_edges/*_ufc_edges.csv
           git add docs/win/mma/ufc/03_select/*_ufc_select.csv
           git diff --cached --quiet || git commit -m "chore: ufc pipeline run $(date -u +'%Y-%m-%d %H:%M UTC')"
-          git push
+          git push origin main
