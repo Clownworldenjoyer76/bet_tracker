@@ -7,7 +7,7 @@ merges with dratings predictions, computes edge, EV, and Kelly.
 Input:
     docs/win/mma/ufc/01_feature_engineering/{date}_ufc_features.csv
     docs/win/mma/ufc/00_intake/predictions/{date}_ufc_predictions.csv
-    data/processed/ufc_model.pkl
+    data/model/ufc_model.pkl
 
 Output:
     docs/win/mma/ufc/02_edges/{date}_ufc_edges.csv
@@ -25,7 +25,7 @@ import pandas as pd
 # --- Paths ---
 FEATURES_DIR = Path("docs/win/mma/ufc/01_feature_engineering")
 PREDICTIONS_DIR = Path("docs/win/mma/ufc/00_intake/predictions")
-MODEL_PATH = Path("data/processed/ufc_model.pkl")
+MODEL_PATH = Path("data/model/ufc_model.pkl")
 OUT_DIR = Path("docs/win/mma/ufc/02_edges")
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -46,23 +46,19 @@ def implied_prob_from_ml(moneyline: str) -> float | None:
         return None
 
 def compute_ev(model_prob: float, implied_prob: float) -> float:
-    """EV = (model_prob * odds_payout) - (1 - model_prob)"""
     if implied_prob <= 0 or implied_prob >= 1:
         return 0.0
     odds = (1 - implied_prob) / implied_prob
     return round((model_prob * odds) - (1 - model_prob), 4)
 
 def compute_kelly(model_prob: float, implied_prob: float, fraction: float = 0.25) -> float:
-    """Fractional Kelly stake as a fraction of bankroll"""
     if implied_prob <= 0 or implied_prob >= 1:
         return 0.0
     odds = (1 - implied_prob) / implied_prob
     kelly = (model_prob * (odds + 1) - 1) / odds
     return round(max(0, kelly * fraction), 4)
 
-# --- Load dratings predictions into lookup ---
 def load_dratings(date_str: str) -> dict:
-    """Returns dict keyed by (fighter_1, fighter_2) -> {f1_prob, f2_prob}"""
     path = PREDICTIONS_DIR / f"{date_str}_ufc_predictions.csv"
     lookup = {}
     if not path.exists():
@@ -93,7 +89,6 @@ for feat_file in feature_files:
         print(f"No rows in {feat_file.name}, skipping")
         continue
 
-    # Build feature matrix
     df = pd.DataFrame(rows)
     for col in FEATURES:
         if col in df.columns:
@@ -129,9 +124,8 @@ for feat_file in feature_files:
         kelly1 = compute_kelly(mp1, ip1) if ip1 else None
         kelly2 = compute_kelly(mp2, ip2) if ip2 else None
 
-        # Dratings
         dr = dratings.get((f1, f2)) or dratings.get((f2, f1), {})
-        if dr and list(dratings.keys()) and (f2, f1) in dratings:
+        if (f2, f1) in dratings:
             dr_f1 = dr.get("dratings_prob_f2")
             dr_f2 = dr.get("dratings_prob_f1")
         else:
