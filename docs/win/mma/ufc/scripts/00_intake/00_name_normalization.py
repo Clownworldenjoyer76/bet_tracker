@@ -4,14 +4,11 @@
 Normalizes fighter names in odds and predictions intake CSV files
 using the fighter name map at mappings/mma/ufc/fighter_name_map.csv.
 
-Usage:
-    python docs/win/mma/ufc/scripts/00_intake/00_name_normalization.py
-
-Reads all files matching:
+Reads:
     docs/win/mma/ufc/00_intake/sportsbook/*_ufc_odds.csv
     docs/win/mma/ufc/00_intake/predictions/*_ufc_predictions.csv
 
-Normalizes fighter_1 and fighter_2 columns in place.
+Normalizes fighter_1 and fighter_2 in place.
 Outputs unmapped names to mappings/mma/ufc/no_map_fighter_name.csv.
 """
 
@@ -23,8 +20,10 @@ from pathlib import Path
 NAME_MAP_PATH = Path("mappings/mma/ufc/fighter_name_map.csv")
 NO_MAP_PATH = Path("mappings/mma/ufc/no_map_fighter_name.csv")
 
-SPORTSBOOK_DIR = Path("docs/win/mma/ufc/00_intake/sportsbook")
-PREDICTIONS_DIR = Path("docs/win/mma/ufc/00_intake/predictions")
+INTAKE_FILES = [
+    (Path("docs/win/mma/ufc/00_intake/sportsbook"), "*_ufc_odds.csv"),
+    (Path("docs/win/mma/ufc/00_intake/predictions"), "*_ufc_predictions.csv"),
+]
 
 
 def load_name_map(path: Path) -> dict[str, str]:
@@ -48,24 +47,23 @@ def normalize_name(name: str, name_map: dict[str, str], lower_map: dict[str, str
 
 
 def normalize_file(filepath: Path, name_map: dict[str, str], lower_map: dict[str, str]) -> list[str]:
-    """Returns list of unmapped names found in this file."""
     with filepath.open(encoding="utf-8") as f:
         reader = csv.DictReader(f)
         rows = list(reader)
         fieldnames = reader.fieldnames or []
 
     if not rows:
-        print(f"  SKIP {filepath} — no rows")
+        print(f"  SKIP {filepath.name} — no rows")
         return []
 
     unmapped = []
     for row in rows:
         for col in ["fighter_1", "fighter_2"]:
-            if col not in row or row[col] is None:
+            if col not in row:
                 continue
             original = row[col].strip()
             normalized, found = normalize_name(original, name_map, lower_map)
-            if original and not found:
+            if not found:
                 unmapped.append(original)
             row[col] = normalized
 
@@ -74,7 +72,7 @@ def normalize_file(filepath: Path, name_map: dict[str, str], lower_map: dict[str
         writer.writeheader()
         writer.writerows(rows)
 
-    print(f"  OK {filepath} — {len(rows)} rows normalized, {len(unmapped)} unmapped")
+    print(f"  OK {filepath.name} — {len(rows)} rows normalized, {len(unmapped)} unmapped")
     return unmapped
 
 
@@ -106,11 +104,11 @@ def main() -> int:
     print(f"Loaded {len(name_map)} name mappings\n")
 
     files = []
-    files.extend(sorted(SPORTSBOOK_DIR.glob("*_ufc_odds.csv")))
-    files.extend(sorted(PREDICTIONS_DIR.glob("*_ufc_predictions.csv")))
+    for directory, pattern in INTAKE_FILES:
+        files.extend(sorted(directory.glob(pattern)))
 
     if not files:
-        print("No intake files found in sportsbook or predictions directories")
+        print("No intake files found")
         return 1
 
     print(f"Found {len(files)} files to normalize")
