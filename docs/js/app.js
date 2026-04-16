@@ -64,10 +64,9 @@ async function fetchMultiCSV(paths) {
 // ─── Row Matching ─────────────────────────────────────────────────────────────
 
 function rowMatchesLeague(row, cfg, target) {
-  if (cfg.filterFn) return true; // filterFn handles everything
+  if (cfg.filterFn) return true;
   if (cfg.leagueColumn) return (row[cfg.leagueColumn] || "").trim().toUpperCase() === target;
   if (cfg.marketColumn) return (row[cfg.marketColumn] || "").trim().toUpperCase() === target;
-  // fallback: try both
   const league = (row.league || "").trim().toUpperCase();
   const market = (row.market || "").trim().toUpperCase();
   return league === target || market === target;
@@ -81,11 +80,9 @@ function filterRows(allRows, dateFormatted, leagueName, cfg) {
     return rowMatchesLeague(r, cfg, target);
   });
 
-  // Strict date match
   const dated = leagueRows.filter(r => normDate(r.game_date) === dateFormatted);
   if (dated.length > 0) return { rows: dated, stale: false, fromDate: dateFormatted };
 
-  // Fallback: latest date in file
   if (leagueRows.length === 0) return { rows: [], stale: false, fromDate: null };
   leagueRows.sort((a, b) => normDate(b.game_date).localeCompare(normDate(a.game_date)));
   const latestDate = normDate(leagueRows[0].game_date);
@@ -111,15 +108,12 @@ function buildMap(rows, cfg) {
   return map;
 }
 
-// ─── Merge: pull game_time from pred when select doesn't have it (MLB) ────────
-
 function mergeRows(selectRows, predMap, bookMap, cfg) {
   return selectRows.map(sel => {
     const key  = makeKey(sel, cfg);
     const pred = predMap[key] || {};
     const book = bookMap[key] || {};
     const merged = { ...pred, ...book, ...sel, __key: key };
-    // If select has no game_time, pull from pred
     if (!merged.game_time && pred.game_time) merged.game_time = pred.game_time;
     return merged;
   });
@@ -142,14 +136,13 @@ function buildBetText(p, r, cfg) {
   const odds   = p.dk_odds_american || p.take_odds || "";
 
   let label    = "";
-  let american = odds; // default to generic odds column
+  let american = odds;
 
   if (side === "home")  label = r.home_team || "Home";
   if (side === "away")  label = r.away_team || "Away";
   if (side === "over")  label = "Over";
   if (side === "under") label = "Under";
 
-  // Spread-type markets: spread (NBA/NCAAB), puck_line (NHL), run_line (MLB)
   if (["spread", "puck_line", "run_line"].includes(market)) {
     if (side === "home") american = r.home_dk_spread_american || r.home_dk_puck_line_american || r.home_dk_run_line_american || odds;
     if (side === "away") american = r.away_dk_spread_american || r.away_dk_puck_line_american || r.away_dk_run_line_american || odds;
@@ -225,13 +218,12 @@ function buildModalHtml(r, picks, cfg) {
   const spreadAwayOdds = r[`away_dk_${spreadKey}_american`] || r.away_dk_spread_american || "—";
   const spreadHomeOdds = r[`home_dk_${spreadKey}_american`] || r.home_dk_spread_american || "—";
 
-  const pitcherRow = isBaseball && (r.home_pitcher || r.away_pitcher) ? `
-    <div class="modal-pitchers">
-      <span class="modal-pitcher-label">SP</span>
-      <span>${r.away_pitcher || "—"}</span>
-      <span class="modal-pitcher-vs">vs</span>
-      <span>${r.home_pitcher || "—"}</span>
-    </div>` : "";
+  const pitcherRow = isBaseball && (r.away_pitcher || r.home_pitcher)
+    ? `<div class="modal-pitchers">
+        <span class="modal-pitcher-label">SP</span>
+        ${r.away_pitcher || "?"} <span class="modal-pitcher-vs">vs</span> ${r.home_pitcher || "?"}
+       </div>`
+    : "";
 
   const picksHtml = picks.map(p => {
     const betText = buildBetText(p, r, cfg);
@@ -307,11 +299,177 @@ function buildCard(p, r, cfg) {
   return card;
 }
 
+// ─── UFC: Find Nearest Event ──────────────────────────────────────────────────
+
+const BASE_RAW = "https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/docs/";
+
+async function findUFCEventDate() {
+  const today = new Date();
+  const candidates = [];
+
+  // Check 30 days forward and 30 days back
+  for (let offset = -30; offset <= 30; offset++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + offset);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    candidates.push({ date: `${y}_${m}_${day}`, offset: Math.abs(offset) });
+  }
+
+  // Try all candidates in parallel
+  const results = await Promise.all(
+    candidates.map(async ({ date, offset }) => {
+      const url = `${BASE_RAW}win/mma/ufc/03_select/${date}_ufc_select.csv`;
+      try {
+        const r = await fetch(url, { method: "HEAD" });
+        return r.ok ? { date, offset } : null;
+      } catch {
+        return null;
+      }
+    })
+  );
+
+  // Return the valid date closest to today
+  const valid = results.filter(Boolean).sort((a, b) => a.offset - b.offset);
+  return valid.length ? valid[0].date : null;
+}
+
+// ─── UFC: Build Card ──────────────────────────────────────────────────────────
+
+function buildUFCCard(row) {
+  const card = document.createElement("div");
+  card.className = "pick-card";
+
+  const fighter  = row.fighter  || "—";
+  const opponent = row.opponent || "—";
+  const ml       = row.moneyline || "—";
+  const ev       = parseFloat(row.ev || 0);
+  const edge     = parseFloat(row.edge || 0);
+
+  card.innerHTML = `
+    <div class="card-top">
+      <span class="card-time">MMA</span>
+      <span class="card-league-tag">UFC</span>
+    </div>
+    <div class="card-matchup">
+      <span class="card-team">${fighter}</span>
+      <span class="card-at">vs</span>
+      <span class="card-team">${opponent}</span>
+    </div>
+    <div class="card-bet">${fighter} ${ml}</div>
+    <div class="card-footer">
+      <span class="card-ev ${ev >= 0 ? "pos" : "neg"}">${ev >= 0 ? "+" : ""}${(ev * 100).toFixed(1)}%</span>
+      ${edgeDots(edge)}
+    </div>`;
+
+  card.addEventListener("click", () => openModal(buildUFCModalHtml(row)));
+  return card;
+}
+
+// ─── UFC: Build Modal ─────────────────────────────────────────────────────────
+
+function buildUFCModalHtml(row) {
+  const fighter     = row.fighter      || "—";
+  const opponent    = row.opponent     || "—";
+  const ml          = row.moneyline    || "—";
+  const impliedProb = parseFloat(row.implied_prob || 0);
+  const modelProb   = parseFloat(row.model_prob   || 0);
+  const edge        = parseFloat(row.edge         || 0);
+  const ev          = parseFloat(row.ev           || 0);
+  const kelly       = parseFloat(row.kelly        || 0);
+
+  const fmt = (n, dec = 1) => isNaN(n) ? "—" : (n * 100).toFixed(dec) + "%";
+
+  return `
+    <div class="modal-header">
+      <span class="modal-league-tag">UFC</span>
+      <span class="modal-game-time">${row.match_date ? row.match_date.replaceAll("_", "-") : ""}</span>
+    </div>
+    <h2 class="modal-title">${fighter} <span class="modal-at">vs</span> ${opponent}</h2>
+    <div class="modal-proj">
+      <span>Moneyline: <strong>${ml}</strong></span>
+      <span>Implied: <strong>${fmt(impliedProb)}</strong></span>
+      <span>Model: <strong>${fmt(modelProb)}</strong></span>
+    </div>
+    <div class="modal-picks-section">
+      <div class="modal-picks-label">EDGE ANALYSIS</div>
+      <div class="modal-picks">
+        <div class="modal-pick-row">
+          <div class="modal-bet">${fighter} to Win</div>
+          <div class="modal-pick-stats">
+            <span class="modal-ev ${ev >= 0 ? "pos" : "neg"}">${ev >= 0 ? "+" : ""}${(ev * 100).toFixed(2)}% EV</span>
+            <span class="modal-kelly">Kelly ${(kelly * 100).toFixed(2)}%</span>
+            <span class="modal-kelly">Edge ${(edge * 100).toFixed(2)}%</span>
+            ${edgeDots(edge)}
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+// ─── UFC: Load ────────────────────────────────────────────────────────────────
+
+async function loadUFC() {
+  const cfg = REPO_CONFIG["UFC"];
+  const eventDate = await findUFCEventDate();
+
+  // Update event selector if present
+  const ufcSelector = document.getElementById("ufc-event-selector");
+  if (ufcSelector) {
+    if (eventDate) {
+      ufcSelector.textContent = eventDate.replaceAll("_", "-");
+    } else {
+      ufcSelector.textContent = "No upcoming event";
+    }
+  }
+
+  if (!eventDate) return { league: "UFC", cfg, picks: 0, error: "No event found" };
+
+  const url = `${BASE_RAW}win/mma/ufc/03_select/${eventDate}_ufc_select.csv`;
+  const res = await fetchCSV(url);
+
+  if (!res.ok || res.rows.length === 0) return { league: "UFC", cfg, picks: 0 };
+
+  return { league: "UFC", cfg, eventDate, rows: res.rows, picks: res.rows.length };
+}
+
+// ─── UFC: Render Column ───────────────────────────────────────────────────────
+
+function renderUFCColumn(result) {
+  const col = document.createElement("div");
+  col.className = "league-column";
+  col.dataset.league = "UFC";
+
+  const hdr = document.createElement("div");
+  hdr.className = "league-header";
+  hdr.textContent = "UFC";
+  col.appendChild(hdr);
+
+  if (result.error || !result.rows || result.rows.length === 0) {
+    col.innerHTML += `<div class="col-state empty">No UFC Picks</div>`;
+    return { col, count: 0 };
+  }
+
+  const grid = document.createElement("div");
+  grid.className = "league-cards";
+
+  result.rows.forEach(row => {
+    grid.appendChild(buildUFCCard(row));
+  });
+
+  col.appendChild(grid);
+  return { col, count: result.rows.length };
+}
+
 // ─── League Loader ────────────────────────────────────────────────────────────
 
 async function loadLeague(league, dateFormatted) {
   const cfg = REPO_CONFIG[league];
   if (!cfg) return { league, error: "No config" };
+
+  // UFC uses its own loader
+  if (cfg.isUFC) return loadUFC();
 
   const [selectRes, predRes, bookRes] = await Promise.all([
     fetchMultiCSV(cfg.selectFiles(dateFormatted)),
@@ -328,14 +486,12 @@ async function loadLeague(league, dateFormatted) {
   const bookMap = buildMap(bookRes.rows, cfg);
   const merged  = mergeRows(selectRows, predMap, bookMap, cfg);
 
-  // Group by game key
   const grouped = {};
   merged.forEach(r => {
     if (!grouped[r.__key]) grouped[r.__key] = [];
     grouped[r.__key].push(r);
   });
 
-  // Sort games by time
   const keys = Object.keys(grouped).sort((a, b) =>
     parseTime(grouped[a][0].game_time) - parseTime(grouped[b][0].game_time)
   );
@@ -346,6 +502,9 @@ async function loadLeague(league, dateFormatted) {
 // ─── Render Column ────────────────────────────────────────────────────────────
 
 function renderColumn(result) {
+  // UFC uses its own renderer
+  if (result.league === "UFC") return renderUFCColumn(result);
+
   const col = document.createElement("div");
   col.className = "league-column";
   col.dataset.league = result.league;
@@ -360,8 +519,8 @@ function renderColumn(result) {
     return { col, count: 0 };
   }
 
-    hdr.innerHTML = result.league;
-    col.appendChild(hdr);
+  hdr.innerHTML = result.league;
+  col.appendChild(hdr);
 
   if (result.stale || !result.keys || result.keys.length === 0) {
     col.innerHTML += `<div class="col-state empty">No Picks Today</div>`;

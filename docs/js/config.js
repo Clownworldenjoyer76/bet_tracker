@@ -1,6 +1,6 @@
 window.REPO_CONFIG = {
 
-  leagues: ["NHL", "NBA", "NCAAB", "MLB"],
+  leagues: ["NHL", "NBA", "NCAAB", "MLB", "UFC"],
 
   // ─── NHL ──────────────────────────────────────────────────────────────────
   NHL: {
@@ -42,11 +42,20 @@ window.REPO_CONFIG = {
     league:       "MLB",
     displayName:  "MLB",
     isBaseball:   true,
-    leagueColumn: "league",        // matched case-insensitively
-    joinKey:      "game_id",       // join select ↔ pred on game_id
+    leagueColumn: "league",
+    joinKey:      "game_id",
     selectFiles:  (date) => [`win/baseball/04_select/${date}_MLB.csv`],
     predFile:     (date) => `win/baseball/00_intake/predictions/${date}_MLB.csv`,
     bookFile:     (date) => `win/baseball/00_intake/sportsbook/${date}_MLB.csv`,
+  },
+
+  // ─── UFC ──────────────────────────────────────────────────────────────────
+  UFC: {
+    sport:        "mma",
+    league:       "UFC",
+    displayName:  "UFC",
+    isUFC:        true,
+    selectFiles:  (date) => [`win/mma/ufc/03_select/${date}_ufc_select.csv`],
   },
 
 };
@@ -63,6 +72,7 @@ window.REPO_CONFIG = {
        joinKey       — (optional) column to join select↔pred. Default: game_date|home_team|away_team
        isHockey      — true → uses goals/puck_line in modal
        isBaseball    — true → uses runs/run_line/pitchers in modal
+       isUFC         — true → uses UFC fighter card/modal, event selector instead of date picker
        selectFiles   — fn(date) => string[]   date format: YYYY_MM_DD
        predFile      — fn(date) => string
        bookFile      — fn(date) => string
