@@ -4,185 +4,191 @@ A machine learning pipeline to predict UFC fight outcomes and identify betting e
 
 ---
 
-## Project Structure
+## Repo Structure
 
 ```
-ufc-model/
+bet_tracker/
 ├── data/
-│   ├── raw/          # Original CSV files (one per event date, 434 files)
-│   └── processed/    # Generated data files (parquet, json, pkl, csv)
-├── scripts/          # All Python scripts
-├── name_corrections.json
-├── .gitignore
-└── README.md
+│   └── model/                          # model-data branch only — never commit to main
+│       ├── fighter_attributes.json
+│       ├── fighter_history.json
+│       ├── fighter_historical_stats.parquet
+│       ├── ufc_master_clean.parquet
+│       └── ufc_model.pkl
+├── docs/win/mma/ufc/
+│   ├── 00_intake/
+│   │   ├── sportsbook/                 # *_ufc_odds.csv (output of 00_scrape_odds.py)
+│   │   └── predictions/                # *_ufc_predictions.csv (output of 00_scrape_predictions.py)
+│   ├── 01_feature_engineering/         # *_ufc_features.csv (output of 01_build_features.py)
+│   ├── 02_edges/                       # *_ufc_edges.csv (output of 02_edges.py)
+│   ├── 03_select/                      # *_ufc_select.csv (output of 03_select.py)
+│   ├── config/
+│   │   └── markets.yaml                # adjustable filter settings for 03_select.py
+│   └── scripts/
+│       ├── 00_intake/
+│       │   ├── 00_scrape_odds.py
+│       │   ├── 00_scrape_predictions.py
+│       │   └── 00_name_normalization.py
+│       ├── 01_feature_engineering/
+│       │   └── 01_build_features.py
+│       ├── 02_edges/
+│       │   └── 02_edges.py
+│       ├── 03_select/
+│       │   └── 03_select.py
+│       └── builder_scripts/            # local machine only — model training and data prep
+│           ├── parse_ufc_files.py
+│           ├── fix_fighter_names.py
+│           ├── apply_corrections.py
+│           ├── scrape_fighter_stats.py
+│           ├── fix_unmatched_fighters.py
+│           ├── scrape_historical_stats.py
+│           ├── build_features.py
+│           ├── train_model_weighted.py
+│           ├── evaluate_roi.py
+│           └── phase6_backtest.py
+├── mappings/mma/ufc/
+│   ├── fighter_name_map.csv            # alias -> canonical name mapping
+│   └── no_map_fighter_name.csv         # fighters not found in name map (auto-generated)
+└── .github/workflows/
+    └── ufc_daily_pipeline.yml
 ```
 
 ---
 
-## Setup
+## Local Machine Setup
+
+All builder scripts run from `C:\Users\ntmal\Downloads\bet_tracker_files\UFC_Master\`.
 
 ```powershell
-pip install pandas pyarrow requests beautifulsoup4 scikit-learn xgboost
+pip install pandas pyarrow requests beautifulsoup4 scikit-learn xgboost pyyaml
 ```
 
 ---
 
-## Scripts — Run in This Order
+## Daily Pipeline — How to Run
 
-### 1. `parse_ufc_files.py`
-Reads all CSV files from `data/raw/`, standardizes fighter names and dates, validates for duplicates and missing results, and saves a consolidated dataset.
+1. Go to your GitHub repo → click **Actions** tab
+2. Click **UFC Daily Pipeline** on the left
+3. Click **Run workflow** → green **Run workflow** button
+4. Pipeline runs automatically in this order:
+   - Scrapes odds from oddstrader.com
+   - Scrapes win predictions from dratings.com
+   - Normalizes fighter names against `mappings/mma/ufc/fighter_name_map.csv`
+   - Builds features for each upcoming fight
+   - Runs the model and computes edge, EV, Kelly per fighter
+   - Filters picks using `docs/win/mma/ufc/config/markets.yaml`
+   - Commits all output CSVs back to main branch
+5. Check output files in repo — one CSV per event date in each output folder
 
-**Input:** `data/raw/*.csv`
-**Output:** `data/processed/ufc_master.parquet`
-
-```powershell
-python scripts/parse_ufc_files.py
-```
-
----
-
-### 2. `fix_fighter_names.py`
-Generates a template JSON file listing all unique fighter names that need manual correction review.
-
-**Input:** `data/processed/ufc_master.parquet`
-**Output:** `name_corrections_template.json`
-
-```powershell
-python scripts/fix_fighter_names.py
-```
+**After the run, check `mappings/mma/ufc/no_map_fighter_name.csv`** — any fighters listed there were not found in the name map and need to be resolved before the model can score them (see New Fighter Process below).
 
 ---
 
-### 3. `apply_corrections.py`
-Applies name corrections from `name_corrections.json` to fix mangled fighter names caused by multi-word last names being split incorrectly in source files.
+## When to Update `data/model/` Files
 
-**Input:** `data/processed/ufc_master.parquet`, `name_corrections.json`
-**Output:** `data/processed/ufc_master_clean.parquet`
+These 5 files live on the `model-data` branch at `bet_tracker/data/model/`. The daily pipeline pulls them automatically. Update them as follows:
 
-```powershell
-python scripts/apply_corrections.py
-```
+### `ufc_model.pkl`
+- **When:** After retraining the model on your local machine
+- **How often:** Monthly — after enough new UFC event results have been added to retrain on
 
----
+### `ufc_master_clean.parquet`
+- **When:** After adding new completed UFC event CSVs and re-running `parse_ufc_files.py` and `apply_corrections.py` locally
+- **How often:** After every UFC event — roughly 2-3 times per month
 
-### 4. `scrape_fighter_stats.py`
-Scrapes ufcstats.com for all fighters in the dataset. Pulls height, weight, reach, stance, DOB, career record, SLpM, SApM, takedown accuracy and defense. Runs at 1.5 second delay per fighter. Takes ~45 minutes for 1,168 fighters.
+### `fighter_attributes.json`
+- **When:** After running `scrape_fighter_stats.py` or `add_missing_fighters.py` locally to add new fighters
+- **How often:** Only when new fighters appear in `no_map_fighter_name.csv` after a pipeline run
 
-**Input:** `data/processed/ufc_master_clean.parquet`
-**Output:** `data/processed/fighter_attributes.json`
+### `fighter_history.json` and `fighter_historical_stats.parquet`
+- **When:** After running `scrape_historical_stats.py` locally
+- **How often:** Same as `ufc_master_clean.parquet` — after every UFC event
 
-```powershell
-python scripts/scrape_fighter_stats.py
-```
-
----
-
-### 5. `fix_unmatched_fighters.py`
-Resolves fighters whose names didn't match the ufcstats index due to capitalization or alternate name formats. Uses a manual mapping dictionary.
-
-**Input:** `data/processed/fighter_attributes.json`
-**Output:** `data/processed/fighter_attributes.json` (updated in place)
-
-```powershell
-python scripts/fix_unmatched_fighters.py
-```
+### How to upload updated files to `model-data` branch:
+1. Go to `bet_tracker` repo on GitHub
+2. Switch to `model-data` branch
+3. Navigate to `data/model/`
+4. Click the file to replace → click `...` → **Delete file** → commit to `model-data`
+5. Go back to `data/model/` → **Add file** → **Upload files** → upload new version → commit to `model-data`
 
 ---
 
-### 6. `scrape_historical_stats.py`
-Scrapes each fighter's full fight-by-fight history from ufcstats.com. Computes cumulative stats (career record, SLpM, strike accuracy, TD accuracy) up to but not including each fight date — preventing data leakage. Takes ~35-40 minutes.
+## New Fighter Process
 
-**Input:** `data/processed/ufc_master_clean.parquet`
-**Output:** `data/processed/fighter_history.json`, `data/processed/fighter_historical_stats.parquet`
+When `no_map_fighter_name.csv` contains fighters after a pipeline run:
 
-```powershell
-python scripts/scrape_historical_stats.py
-```
-
----
-
-### 7. `build_features.py`
-Engineers all model features. All rolling stats are computed strictly before each fight date to prevent leakage. Produces mirror rows (each fight from both fighters' perspectives) to remove position bias.
-
-Key features:
-- Rolling win rate (all-time and last 5 fights)
-- Win/loss streak, experience, days since last fight
-- Strength of schedule
-- Sportsbook implied probability (vig-removed)
-- Fighter age at fight date
-- Physical differentials: reach, height, age
-- Time-gated career record, SLpM, strike accuracy, TD accuracy
-
-**Input:** `data/processed/ufc_master_clean.parquet`, `data/processed/fighter_attributes.json`, `data/processed/fighter_historical_stats.parquet`
-**Output:** `data/processed/ufc_features.parquet`
-
-```powershell
-python scripts/build_features.py
-```
+1. Run `add_missing_fighters.py` locally — scrapes ufcstats and adds to `fighter_attributes.json`
+2. If fighter is not found on ufcstats, add them manually to `fighter_name_map.csv` with `alias,canonical` — model will use median fill values for their features
+3. Upload updated `fighter_attributes.json` to `model-data` branch
+4. Add the fighter's name to `mappings/mma/ufc/fighter_name_map.csv` on main branch
 
 ---
 
-### 8. `train_model_weighted.py`
-Trains and evaluates the prediction model. Time-based train/test split (train < 2025, test >= 2025). Applies exponential recency weighting (365-day half-life). Compares logistic regression baseline vs XGBoost with TimeSeriesSplit CV.
+## Model Retraining Process (Local Machine)
 
-**Input:** `data/processed/ufc_features.parquet`
-**Output:** `data/processed/ufc_model.pkl`, `data/processed/test_predictions.csv`
+Run these scripts in order from `C:\Users\ntmal\Downloads\bet_tracker_files\UFC_Master\scripts\builder_scripts\`:
 
-```powershell
-python scripts/train_model_weighted.py
-```
-
----
-
-### 9. `evaluate_roi.py`
-Loads the saved model and runs ROI simulation on the test set broken out by all fighters, underdogs, and favorites. Uses capped fractional Kelly staking (25% Kelly, max 5% per bet).
-
-**Input:** `data/processed/ufc_features.parquet`, `data/processed/ufc_model.pkl`
-**Output:** `data/processed/test_predictions.csv` (updated)
-
-```powershell
-python scripts/evaluate_roi.py
-```
+1. `parse_ufc_files.py` — parses all raw CSV event files into master dataset
+2. `apply_corrections.py` — fixes mangled fighter names
+3. `scrape_historical_stats.py` — scrapes fight-by-fight history from ufcstats (~35-40 min)
+4. `build_features.py` — builds full feature matrix
+5. `train_model_weighted.py` — retrains XGBoost model with recency weighting
+6. `evaluate_roi.py` — evaluates ROI on test set
+7. Upload updated `ufc_model.pkl`, `ufc_master_clean.parquet`, `fighter_history.json`, `fighter_historical_stats.parquet` to `model-data` branch
 
 ---
 
-### 10. `phase6_backtest.py`
-Full backtesting report across 6 sections: flat betting by threshold, Kelly sizing, edge bucket breakdown, favorite vs underdog, implied probability bucket, and monthly trend.
+## markets.yaml — Adjusting Filters
 
-**Input:** `data/processed/ufc_features.parquet`, `data/processed/ufc_model.pkl`
-**Output:** `data/processed/backtest_results.csv`
+Located at `docs/win/mma/ufc/config/markets.yaml`. Edit directly on GitHub to adjust pick filters without rerunning anything — changes take effect on the next pipeline run.
 
-```powershell
-python scripts/phase6_backtest.py
+```yaml
+ufc:
+  moneyline:
+    enabled: true
+    pick_preference: best_ev        # options: best_ev, best_edge, best_kelly, best_model_prob, best_dratings_prob
+    odds_bands:
+      - [-360, -150]
+      - [-120, 150]
+    edge_bands:
+      - [0.01, 0.25]
+    ev_bands:
+      - [0.01, 0.25]
+    kelly_bands:
+      - [0.01, 0.25]
+    model_probability_minimum: 0.40
+    dratings_probability_minimum: 0.35
 ```
 
 ---
 
 ## Key Concepts
 
-**Edge:** `model_probability - sportsbook_implied_probability`. Only bet when edge exceeds a threshold (3–10%).
+**Edge:** `model_probability - sportsbook_implied_probability`. Positive edge means the model thinks the fighter is underpriced by the book.
 
 **Implied probability from moneyline:**
 - Positive line (underdog): `100 / (line + 100)`
 - Negative line (favorite): `|line| / (|line| + 100)`
 - Both normalized to remove the vig so they sum to 1.
 
-**Recency weighting:** Exponential decay with 365-day half-life downweights older fights. Fights from 2020–2021 are lower quality signal as fighters evolve.
+**EV (Expected Value):** `(model_prob × odds_payout) - (1 - model_prob)`. Positive EV means the bet is theoretically profitable.
 
-**Brier score:** Lower is better. Measures calibration of predicted probabilities.
+**Kelly criterion:** `((model_prob × (odds + 1)) - 1) / odds × 0.25`. Fractional Kelly (25%) used to reduce variance. Capped at 5% of bankroll per bet.
 
-**Calibration:** When the model predicts 70%, fighters win ~70% of the time. Confirmed across all probability buckets on 648 test fights.
+**Recency weighting:** Exponential decay with 365-day half-life. Fights from 2020–2021 count less than recent fights during model training.
 
-**Kelly criterion:** Stake = `(p * (odds + 1) - 1) / odds`. Use 25% of full Kelly, capped at 5% of bankroll per bet.
+**Brier score:** Lower is better. Measures how well-calibrated the predicted probabilities are.
 
-**Data leakage prevention:** All historical stats are computed from fight-by-fight history strictly before each fight date. Static career stats from ufcstats were confirmed to cause leakage and replaced with time-gated equivalents.
+**Data leakage prevention:** All historical stats (career record, SLpM, strike accuracy, TD accuracy) are computed from fight-by-fight history strictly before each fight date.
 
 ---
 
 ## Data Sources
 
 - **Fight results & odds:** 434 CSV files (one per event, 2020–2026), 2,876 fights total
-- **Fighter attributes & stats:** [ufcstats.com](http://ufcstats.com), 1,168 fighters scraped
+- **Fighter attributes & fight history:** [ufcstats.com](http://ufcstats.com), 1,168 fighters
+- **Win predictions:** [dratings.com](https://www.dratings.com/predictor/ufc-mma-predictions/)
+- **Live odds:** [oddstrader.com](https://www.oddstrader.com/ufc/)
 
 ---
 
@@ -228,9 +234,3 @@ python scripts/phase6_backtest.py
 
 **Kelly sizing (25% Kelly, max 5%/bet, $1,000 start):**
 - 3% threshold: $5,270 final bankroll, 427% ROI over 15 months
-
----
-
-## Next Steps
-
-- Phase 7: Live prediction pipeline for upcoming cards
