@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# docs/win/basketball/scripts/00_intake/cloudbet_odds_pull.py
+# docs/win/basketball/scripts/00_intake/00_ncaam_wnba_cloudbet_odds_pull.py
 
 import json
 import os
