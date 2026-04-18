@@ -29,9 +29,18 @@ jobs:
           mkdir -p docs/win/basketball/odds
           mkdir -p docs/win/basketball/errors/00_intake
 
+      - name: Verify Cloudbet API key is present
+        env:
+          CLOUDBET_API_KEY: ${{ secrets.CLOUD_API }}
+        run: |
+          if [ -z "$CLOUDBET_API_KEY" ]; then
+            echo "CLOUD_API secret is missing."
+            exit 1
+          fi
+
       - name: Run Cloudbet odds pull
         env:
-          CLOUDBET_API_KEY: ${{ secrets.CLOUDBET_API_KEY }}
+          CLOUDBET_API_KEY: ${{ secrets.CLOUD_API }}
         run: |
           python docs/win/basketball/scripts/00_intake/00_ncaam_wnba_cloudbet_odds_pull.py
 
