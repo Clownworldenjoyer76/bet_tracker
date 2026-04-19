@@ -305,16 +305,17 @@ const BASE_RAW = "https://raw.githubusercontent.com/Clownworldenjoyer76/bet_trac
 
 async function findUFCEventDate() {
   const today = new Date();
+  today.setHours(0, 0, 0, 0);
   const candidates = [];
 
-  // Check 30 days forward and 30 days back
-  for (let offset = -30; offset <= 30; offset++) {
+  // Check today + 30 days forward, then up to 3 days back as fallback
+  for (let offset = 0; offset <= 30; offset++) {
     const d = new Date(today);
     d.setDate(today.getDate() + offset);
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, "0");
     const day = String(d.getDate()).padStart(2, "0");
-    candidates.push({ date: `${y}_${m}_${day}`, offset: Math.abs(offset) });
+    candidates.push({ date: `${y}_${m}_${day}`, offset });
   }
 
   // Try all candidates in parallel
@@ -330,7 +331,7 @@ async function findUFCEventDate() {
     })
   );
 
-  // Return the valid date closest to today
+  // Return the nearest upcoming (or today) event
   const valid = results.filter(Boolean).sort((a, b) => a.offset - b.offset);
   return valid.length ? valid[0].date : null;
 }
