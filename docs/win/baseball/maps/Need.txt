@@ -4,3 +4,155 @@ gameGuid",
 "gameNumber",
 "day_night",
 
+Exactly right. Here’s how I’d structure it:
+
+Three new components:
+1. Venue Master File (static, maintain once)
+One row per ballpark. Fields: team, venue name, surface, roof type (open/retractable/dome), day/night factor flag, lat/lon for weather API calls, and your park factor data (condition splits if you have them — day/night/roof).
+2. Games Today Generator (runs once early AM)
+Pulls that day’s schedule and outputs a base file with: game_date, game_time, home_team, away_team, venue (joined from master), roof type, park factors. This is your scaffold — everything else attaches to it.
+3. Daily Weather File (runs after Games Today, refreshes)
+Uses venue lat/lon to call weather API per game time. Fields: temperature, wind speed, wind direction, precipitation. Refreshes on a schedule since forecasts update throughout the day.
+4. Starter/Lineup Scraper (hourly poller)
+Attaches to Games Today rows. Fills in SP when available, then lineup slots closer to game time. Stops polling once all fields are populated for that game, or at a cutoff (e.g. 30 min before first pitch).
+
+——
+
+Yes, those are foundational. Without them the joins break everywhere.
+
+What you actually need:
+Team Master
+Canonical team name, abbreviations (multiple — sportsbooks, stats sites, and your prediction source all use different ones), team ID per data source, home venue ID linking to your venue master.
+Player Master
+Canonical player name, player ID per data source (MLB MLBAM ID, your stats CSV already uses these), position, team, status (active/IL/minors). This is your anchor for deduplication.
+Name Normalization Tables
+Separate lookup tables — one for teams, one for players — mapping every known variant to the canonical name. This is what your existing name_normalization.py script presumably does, but right now it’s probably patching holes reactively. A proper lookup table makes it proactive.
+
+Honest warning:
+Player master is the hardest to maintain. Trades, callups, and IL moves happen daily. You’d need either a daily refresh from an authoritative source (MLB Stats API is free and has this), or you’ll be constantly chasing stale data.
+Question before you go further: Are your player IDs already consistent across your batting, pitching, fielding, and baserunning CSVs? Because if those MLBAM IDs are already aligned, that’s your player master backbone — you’d mainly need to add the team/status layer on top.​​​​​​​​​​​​​​​​
+
+—
+Pitching stats 
+
+Good question to narrow. Here’s what the pitching fields you have can actually do:
+
+Game-Level Run Environment (Totals)
+xBA, xSLG, xwOBA, xiso allowed are your cleanest inputs — they strip out defense and luck, giving you a truer picture of how hittable a pitcher is. Compare both starters’ numbers to set an expected run total, then compare that to the sportsbook line to find over/under edges.
+
+Pitcher Quality Mismatch (Moneyline/Run Line)
+When one starter has meaningfully better K%, whiff%, barrel rate allowed, and hard hit% than the other, that’s a quantifiable advantage. You can build a simple “pitcher edge score” from these and flag games where the gap is large — those are candidates for moneyline value on the better-pitching side.
+
+Regression Candidates
+BA allowed vs xBA allowed gap tells you if a pitcher has been getting lucky (BA much lower than xBA) or unlucky (BA higher). Same for SLG vs xSLG. Fading lucky pitchers and backing unlucky ones is a direct application — especially mid-season when books are still pricing on surface stats.
+
+Strikeout/Walk Profile for Totals
+K% and BB% together define how many plate appearances go “three true outcomes.” High K%, low BB% pitchers suppress scoring more reliably. This is a sharper input for totals than ERA alone.
+
+What you’d need operationally:
+Each game row needs the confirmed starter’s stats attached before selection runs. That’s the Games Today → starter scraper → pitching stats join chain you already outlined.
+
+Biggest immediate win is probably the xBA/xSLG vs actual gap for regression — it’s directly actionable and doesn’t require lineup data, just the confirmed starter.​​​​​​​​​​​​​​​​
+
+—
+Batting stats
+
+Good narrowing. Here’s what the batting fields can actually do:
+
+Lineup Run Expectancy (Totals)
+xwOBA and wOBA at the lineup level are your best aggregate run predictors. Average across the expected lineup, weight by order position if you have it, and you get an expected offensive output per team. Stack both teams against each starters’ pitching profile and you have a ground-up total estimate to compare against the sportsbook line.
+
+Hard Contact Profile vs Pitcher (Totals/Moneyline)
+Hard hit%, barrel rate, and avg best speed tell you how damaging contact is when it happens. A lineup with high barrel rate facing a pitcher with high barrel rate allowed is a high-variance, high-scoring game. Useful for totals and also for identifying games where the underdog has more upset potential than the line implies.
+
+Strikeout Suppression (Totals)
+K% at the lineup level directly caps scoring ceiling. A high-K lineup facing a high-K pitcher is a strong lean toward the under. This is one of the cleaner signals because both sides of the data are in your available fields.
+
+Walk Rate for OBP-Driven Offenses
+BB% aggregated across a lineup identifies teams that grind counts and create baserunners without needing hits. Combined with baserunning run value (which you also have), this can surface offenses that score more than their hit totals suggest.
+
+Regression Candidates
+BA vs xBA and SLG vs xSLG gaps work on the batting side too. A lineup hitting well above their xBA is due to cool off — lean under or fade that team’s moneyline if the gap is large. Opposite for underperforming lineups.
+
+Swing Profile for Pitcher Matchup
+Whiff%, swing%, and avg swing speed tell you how a lineup performs against quality stuff. A high-whiff lineup facing a high-K pitcher is a strong under signal and weakens that team’s moneyline case.
+
+What you’d need operationally:
+Batting stats are player-level, so you need confirmed lineups before this runs. That makes batting the last data layer to attach — after venue, weather, and starters are already in place. Without lineup confirmation, you can still use team-level rolling aggregates as a proxy, but it’s noisier.
+
+Biggest immediate win on the batting side is probably the K% matchup signal for totals — lineup K% vs starter K% is clean, available before lineups are confirmed if you use team averages, and directly actionable.​​​​​​​​​​​​​​​​
+
+—
+
+Weather and venue
+
+Good. These are your most underutilized inputs relative to how actionable they are.
+
+Park Factors (Totals)
+Your park factor data has HR, 1B, 2B, 3B, R, OBP, H all adjusted by venue. This is a direct scalar on your expected run total. A game at Coors plays differently than one at Petco — the park factor lets you adjust both teams’ offensive and pitching projections before comparing to the sportsbook line. Most third-party models already bake this in partially, so the edge is in the condition splits — day/night and roof open/closed are where books are laziest.
+
+Day/Night Splits
+Your park factor data explicitly supports day/night conditions. Night games at certain parks play significantly differently than day games. If your venue master captures this and your sportsbook line doesn’t fully reflect it, that’s a direct edge — particularly for totals.
+
+Dome/Roof Status (Totals)
+Retractable roof decisions get made day-of based on weather. If a game that was priced as an outdoor game gets the roof closed, the run environment changes and the line may not have moved yet. This requires knowing the roof decision early — which ties back to your venue master having roof type flagged.
+
+Temperature (Totals)
+Ball carries measurably farther in heat. Cold suppresses offense. Generally above 80°F leans over, below 50°F leans under, with the effect strongest at hitter-friendly parks. This is well-documented and quantifiable if you have historical data to calibrate against.
+
+Wind Speed and Direction (Totals/HR Props)
+This is your sharpest weather input. Wind blowing out to center or the power alleys meaningfully inflates scoring. Wind blowing in suppresses it. The effect is park-specific — 15mph out at Wrigley is more impactful than 15mph out at Dodger Stadium due to dimensions. You’d want venue dimensions in your master file to weight this properly.
+
+Precipitation (Game Status)
+Less about bet selection, more about risk management. If precipitation probability is high, a game could be delayed or postponed. Some books don’t refund postponed game bets depending on how far in the game was played. Worth flagging high-precipitation games as higher risk in your selection output.
+
+What you’d need operationally:
+Venue master with roof type, lat/lon, and park dimensions is the foundation. Weather API keyed to venue lat/lon and game time gives you temperature, wind speed, wind direction, and precipitation per game. Park factor condition splits (day/night/dome) layer on top.
+
+Biggest immediate win is wind direction + speed for totals — it’s available before lineups, it’s underpriced by books at extreme values, and it’s directly combinable with your park factor data right now.​​​​​​​​​​​​​​​​
+
+—-
+
+No, and you probably don’t want to throw it away.
+
+What it still gives you:
+Third-party projections are already doing a lot of aggregation work — team strength, recent form, probable pitchers when known, travel, rest days, and factors you may not have direct data for. That’s signal you’d have to rebuild from scratch to replace.
+
+How the relationship changes:
+Right now your pipeline treats the third-party number as the probability. The goal with adding batting, pitching, weather, and venue data is to validate, adjust, or fade that number rather than replace it entirely.
+For example:
+	•	Third party says home team 58% — but wind is blowing in hard, both starters have elite K rates, and the lineup K% is high. Your enriched model might shade that total down even if the moneyline stays similar.
+	•	Third party total is 8.5 — but it’s a day game at Wrigley with wind blowing out at 20mph to center. Your weather/venue layer flags that as an under-priced over.
+
+The practical framing:
+Think of your third-party projection as a prior and your added data layers as adjustments. The output isn’t a replacement probability — it’s a confidence modifier on whether the third-party number is trustworthy for that specific game context.
+
+Biggest risk of ditching it entirely is losing signal on things like rest, travel, and bullpen usage that your current data sources don’t cover. What does your third-party source actually model — do you know?​​​​​​​​​​​​​​​​
+
+
+—-
+
+
+Based on your pipeline structure, they belong at 00_intake — but as a new parallel track, not inside your existing scrapers.
+
+Here’s how it fits:
+00_intake (existing)
+	•	Prediction CSVs (third-party probabilities)
+	•	Sportsbook odds
+00_intake (new parallel track)
+	•	Games Today generator
+	•	Venue master lookup
+	•	Weather file
+	•	Starter scraper → pitching stats join
+	•	Lineup scraper → batting stats join
+01_merge (where it comes together)
+This is where your new enriched game context merges with the third-party predictions and sportsbook odds. By the time a game row hits 01_merge, it should carry both the original third-party probability AND the adjustment factors.
+02_juice (unchanged)
+Still just removing vig.
+03_edges (where adjustments are applied)
+This is where your park/weather/pitching/batting signals actually modify edge calculations. Your compute_edges.py would need logic to shade the third-party probability up or down based on the adjustment layer before comparing to the no-vig sportsbook implied probability.
+04_select (unchanged in structure)
+Still selecting bets by edge threshold — but now the edges going in are better calibrated.
+
+Short answer: Intake for data collection, merge for joining, edges for applying. Your existing pipeline stages hold — you’re adding inputs, not restructuring the flow.
+Do you want to map out what the enriched game row schema should look like at the 01_merge output?​​​​​​​​​​​​​​​​
