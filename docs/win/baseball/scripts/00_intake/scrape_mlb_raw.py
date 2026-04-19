@@ -130,10 +130,25 @@ def build_row(game: dict, live: dict) -> dict:
     return row
 
 
+def load_existing_game_pks(out_path: Path) -> set:
+    """Return the set of gamePk values already written to the file."""
+    if not out_path.exists():
+        return set()
+    with out_path.open("r", newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        return {row["gamePk"] for row in reader}
+
+
 def main() -> int:
     target_date = sys.argv[1] if len(sys.argv) > 1 else datetime.now().strftime("%Y-%m-%d")
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+    out_path = OUTPUT_DIR / f"{target_date.replace('-', '_')}_mlb_raw.csv"
+
+    # Load already-written gamePks so we don't duplicate rows
+    existing_pks = load_existing_game_pks(out_path)
+    file_exists = out_path.exists()
 
     schedule = fetch_json(SCHEDULE_URL.format(date=target_date))
     dates = schedule.get("dates", [])
@@ -145,18 +160,18 @@ def main() -> int:
         if detailed_state not in {"Pre-Game", "Scheduled"}:
             continue
 
-        game_pk = safe_get(game, "gamePk")
-        if not game_pk:
+        game_pk = str(safe_get(game, "gamePk"))
+        if not game_pk or game_pk in existing_pks:
             continue
 
         live = fetch_json(LIVE_URL.format(game_pk=game_pk))
         rows.append(build_row(game, live))
 
-    out_path = OUTPUT_DIR / f"{target_date.replace('-', '_')}_mlb_raw.csv"
-
-    with out_path.open("w", newline="", encoding="utf-8") as f:
+    # Append mode: write header only if the file is new
+    with out_path.open("a", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=CSV_HEADERS)
-        writer.writeheader()
+        if not file_exists:
+            writer.writeheader()
         writer.writerows(rows)
 
     print(out_path.as_posix())
