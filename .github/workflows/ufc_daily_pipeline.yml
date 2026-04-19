@@ -10,8 +10,6 @@ jobs:
     steps:
       - name: Checkout main branch
         uses: actions/checkout@v4
-        with:
-          ref: main
 
       - name: Pull model files from model-data branch
         run: |
@@ -31,7 +29,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install playwright pandas pyarrow numpy scikit-learn xgboost pyyaml
+          pip install --retries 5 playwright pandas pyarrow numpy scikit-learn xgboost pyyaml
           playwright install chromium
 
       - name: Create output directories
