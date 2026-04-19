@@ -14,6 +14,7 @@ SCHEDULE_URL = (
     "?sportId=1&date={date}&hydrate=probablePitcher"
 )
 LIVE_URL = "https://statsapi.mlb.com/api/v1.1/game/{game_pk}/feed/live"
+LINEUP_URL = "https://statsapi.mlb.com/api/v1/game/{game_pk}/lineups"
 
 OUTPUT_DIR = Path("docs/win/baseball/00_intake/mlb_raw")
 
@@ -52,10 +53,6 @@ CSV_HEADERS = [
 
 
 def fetch_json(url: str) -> dict:
-    req_headers = {
-        "User-Agent": "Mozilla/5.0",
-        "Accept": "application/json",
-    }
     try:
         with urlopen(url, timeout=30) as response:
             return json.loads(response.read().decode("utf-8"))
@@ -78,25 +75,47 @@ def safe_get(mapping: dict, *keys, default=""):
 
 def batting_slot(batting_order: list, idx: int) -> str:
     if idx < len(batting_order):
-        return batting_order[idx]
+        return str(batting_order[idx])
     return ""
 
 
+def get_lineup(game_pk) -> tuple[list, list]:
+    """
+    Fetch pre-game lineup from /lineups endpoint.
+    Returns (home_order, away_order) as lists of player IDs.
+    Falls back to empty lists if not yet available.
+    """
+    try:
+        data = fetch_json(LINEUP_URL.format(game_pk=game_pk))
+        home = [p["id"] for p in data.get("homePlayers", []) if "id" in p]
+        away = [p["id"] for p in data.get("awayPlayers", []) if "id" in p]
+        return home, away
+    except RuntimeError:
+        return [], []
+
+
 def build_row(game: dict, live: dict) -> dict:
-    home_batting_order = safe_get(
-        live, "liveData", "boxscore", "teams", "home", "battingOrder", default=[]
-    )
-    away_batting_order = safe_get(
-        live, "liveData", "boxscore", "teams", "away", "battingOrder", default=[]
-    )
+    game_pk = safe_get(game, "gamePk")
 
-    if not isinstance(home_batting_order, list):
-        home_batting_order = []
-    if not isinstance(away_batting_order, list):
-        away_batting_order = []
+    home_lineup, away_lineup = get_lineup(game_pk)
 
-    row = {
-        "gamePk": safe_get(game, "gamePk"),
+    # Fall back to boxscore battingOrder if lineups endpoint is empty
+    if not home_lineup:
+        home_lineup = safe_get(
+            live, "liveData", "boxscore", "teams", "home", "battingOrder", default=[]
+        )
+        if not isinstance(home_lineup, list):
+            home_lineup = []
+
+    if not away_lineup:
+        away_lineup = safe_get(
+            live, "liveData", "boxscore", "teams", "away", "battingOrder", default=[]
+        )
+        if not isinstance(away_lineup, list):
+            away_lineup = []
+
+    return {
+        "gamePk": game_pk,
         "gameGuid": safe_get(game, "gameGuid"),
         "game_date": safe_get(game, "officialDate"),
         "game_time": safe_get(game, "gameDate"),
@@ -108,74 +127,85 @@ def build_row(game: dict, live: dict) -> dict:
         "home_pitcher_id": safe_get(live, "gameData", "probablePitchers", "home", "id"),
         "away_pitcher_id": safe_get(live, "gameData", "probablePitchers", "away", "id"),
         "day_night": safe_get(game, "dayNight"),
-        "home_bat_1_id": batting_slot(home_batting_order, 0),
-        "home_bat_2_id": batting_slot(home_batting_order, 1),
-        "home_bat_3_id": batting_slot(home_batting_order, 2),
-        "home_bat_4_id": batting_slot(home_batting_order, 3),
-        "home_bat_5_id": batting_slot(home_batting_order, 4),
-        "home_bat_6_id": batting_slot(home_batting_order, 5),
-        "home_bat_7_id": batting_slot(home_batting_order, 6),
-        "home_bat_8_id": batting_slot(home_batting_order, 7),
-        "home_bat_9_id": batting_slot(home_batting_order, 8),
-        "away_bat_1_id": batting_slot(away_batting_order, 0),
-        "away_bat_2_id": batting_slot(away_batting_order, 1),
-        "away_bat_3_id": batting_slot(away_batting_order, 2),
-        "away_bat_4_id": batting_slot(away_batting_order, 3),
-        "away_bat_5_id": batting_slot(away_batting_order, 4),
-        "away_bat_6_id": batting_slot(away_batting_order, 5),
-        "away_bat_7_id": batting_slot(away_batting_order, 6),
-        "away_bat_8_id": batting_slot(away_batting_order, 7),
-        "away_bat_9_id": batting_slot(away_batting_order, 8),
+        "home_bat_1_id": batting_slot(home_lineup, 0),
+        "home_bat_2_id": batting_slot(home_lineup, 1),
+        "home_bat_3_id": batting_slot(home_lineup, 2),
+        "home_bat_4_id": batting_slot(home_lineup, 3),
+        "home_bat_5_id": batting_slot(home_lineup, 4),
+        "home_bat_6_id": batting_slot(home_lineup, 5),
+        "home_bat_7_id": batting_slot(home_lineup, 6),
+        "home_bat_8_id": batting_slot(home_lineup, 7),
+        "home_bat_9_id": batting_slot(home_lineup, 8),
+        "away_bat_1_id": batting_slot(away_lineup, 0),
+        "away_bat_2_id": batting_slot(away_lineup, 1),
+        "away_bat_3_id": batting_slot(away_lineup, 2),
+        "away_bat_4_id": batting_slot(away_lineup, 3),
+        "away_bat_5_id": batting_slot(away_lineup, 4),
+        "away_bat_6_id": batting_slot(away_lineup, 5),
+        "away_bat_7_id": batting_slot(away_lineup, 6),
+        "away_bat_8_id": batting_slot(away_lineup, 7),
+        "away_bat_9_id": batting_slot(away_lineup, 8),
     }
-    return row
 
 
-def load_existing_game_pks(out_path: Path) -> set:
-    """Return the set of gamePk values already written to the file."""
+def load_existing_rows(out_path: Path) -> dict:
+    """Return existing rows as a dict keyed by gamePk string."""
     if not out_path.exists():
-        return set()
+        return {}
     with out_path.open("r", newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
-        return {row["gamePk"] for row in reader}
+        return {row["gamePk"]: row for row in reader}
+
+
+def merge_row(existing: dict, new: dict) -> dict:
+    """Update existing row with non-empty values from new row."""
+    merged = dict(existing)
+    for key, value in new.items():
+        if value != "":
+            merged[key] = value
+    return merged
 
 
 def main() -> int:
     target_date = sys.argv[1] if len(sys.argv) > 1 else datetime.now().strftime("%Y-%m-%d")
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-
     out_path = OUTPUT_DIR / f"{target_date.replace('-', '_')}_mlb_raw.csv"
 
-    # Load already-written gamePks so we don't duplicate rows
-    existing_pks = load_existing_game_pks(out_path)
-    file_exists = out_path.exists()
+    existing_rows = load_existing_rows(out_path)
 
     schedule = fetch_json(SCHEDULE_URL.format(date=target_date))
     dates = schedule.get("dates", [])
     games = dates[0].get("games", []) if dates else []
 
-    rows = []
+    rows_written = 0
     for game in games:
         detailed_state = safe_get(game, "status", "detailedState")
         if detailed_state not in {"Pre-Game", "Scheduled"}:
             continue
 
         game_pk = str(safe_get(game, "gamePk"))
-        if not game_pk or game_pk in existing_pks:
+        if not game_pk:
             continue
 
         live = fetch_json(LIVE_URL.format(game_pk=game_pk))
-        rows.append(build_row(game, live))
+        new_row = build_row(game, live)
+        new_row["gamePk"] = game_pk
 
-    # Append mode: write header only if the file is new
-    with out_path.open("a", newline="", encoding="utf-8") as f:
+        if game_pk in existing_rows:
+            existing_rows[game_pk] = merge_row(existing_rows[game_pk], new_row)
+        else:
+            existing_rows[game_pk] = new_row
+
+        rows_written += 1
+
+    with out_path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=CSV_HEADERS)
-        if not file_exists:
-            writer.writeheader()
-        writer.writerows(rows)
+        writer.writeheader()
+        writer.writerows(existing_rows.values())
 
     print(out_path.as_posix())
-    print(f"rows_written={len(rows)}")
+    print(f"rows_written={rows_written}")
     return 0
 
 
