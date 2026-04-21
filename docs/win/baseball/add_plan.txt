@@ -125,4 +125,149 @@ Add context-aware filters in `markets.yaml`:
 
 ## What to Build First
 
-Before writing any code, I need to know: what does your weather API look like? Do you have an endpoint URL, and what does a sample response look like? That's the one piece I can't infer from what you've shared.
+Good call. Let me look at what you have first.Based on the headers you shared, here's the storage and cleaning plan:
+
+---
+
+## File Storage
+
+Add a `data/` folder to your pipeline root:
+
+```
+docs/win/baseball/
+└───data/
+    ├───batting/
+    │       batting_2026.csv
+    │       batting_2025.csv
+    │       batting_2020_2024.csv
+    │
+    ├───pitching/
+    │       pitching_2026.csv
+    │       pitching_2025.csv
+    │       pitching_2020_2024.csv
+    │
+    ├───fielding/
+    │       fielding_2026.csv
+    │       fielding_2025.csv
+    │       fielding_2020_2024.csv
+    │
+    ├───baserunning/
+    │       baserunning_2026.csv
+    │       baserunning_2025.csv
+    │
+    └───park_factors/
+            park_L_day.csv
+            park_L_night.csv
+            park_L_roof_closed.csv
+            park_L_open_air.csv
+            park_R_day.csv
+            park_R_night.csv
+            park_R_roof_closed.csv
+            park_R_open_air.csv
+            park_B_day.csv
+            park_B_night.csv
+            park_B_roof_closed.csv
+            park_B_open_air.csv
+```
+
+---
+
+## Cleaning Rules Per Dataset
+
+### Batting & Pitching (Statcast)
+
+**Join key issue:** Statcast uses `player_id`, your mlb_raw uses `batter_id`/`pitcher_id` from the MLB API. These are the **same MLBAM IDs** — no translation needed, just make sure both columns are typed as integers when joining.
+
+**Minimum PA thresholds — drop rows below these before storing:**
+- Current season (2026): 25 PA minimum — early season data is noisy
+- 2025: 100 PA minimum
+- 2020-2024: 150 PA minimum
+
+**Columns to drop entirely** — they're redundant or not useful for your purpose:
+- `year`, `player_age` — you have this in maps
+- `single`, `double`, `triple` — decomposed counting stats, not needed when you have xwoba/slg
+- `hit`, `ab` — raw counts, PA is sufficient
+- `swords` — swing/miss on sword pitches, too granular for game-level modeling
+- `attack_direction`, `vertical_swing_path` — not predictive at game level
+
+**Columns to keep and rename for clarity:**
+
+| Raw name | Rename to |
+|---|---|
+| `player_id` | `player_id` |
+| `last_name, first_name` | `player_name` |
+| `pa` | `pa` |
+| `k_percent` | `k_pct` |
+| `bb_percent` | `bb_pct` |
+| `xwoba` | `xwoba` |
+| `xba` | `xba` |
+| `xslg` | `xslg` |
+| `barrel_batted_rate` | `barrel_pct` |
+| `hard_hit_percent` | `hard_hit_pct` |
+| `whiff_percent` | `whiff_pct` |
+| `exit_velocity_avg` | `exit_velo` |
+| `sweet_spot_percent` | `sweet_spot_pct` |
+| `avg_swing_speed` | `swing_speed` |
+
+**One flag to add:** `sample_flag` = `"low"` if PA < 75 in 2026 or PA < 200 in 2025. You'll use this in select_bets to optionally skip low-sample games.
+
+---
+
+### Fielding Run Value
+
+**Join key issue:** Uses `id` (not `player_id`) — confirm this is also MLBAM ID before assuming. The `name` column is just for human reference.
+
+**Drop:** `outs_2` through `outs_9` — these are positional out counts, not useful for game-level modeling.
+
+**Keep:** `id`, `name`, `total_runs`, `framing_runs`, `throwing_runs`, `blocking_runs`, `range_runs`, `arm_runs`
+
+**Note:** Catchers are the only players where `framing_runs` is non-null. Don't aggregate framing into your lineup sum — handle it separately as a catcher-specific signal.
+
+---
+
+### Baserunning Run Value
+
+**Keep all columns** — this dataset is already lean.
+
+**One rename:** `entity_name` → `player_name` for consistency.
+
+**Note:** `start_year`/`end_year` exist because Savant allows multi-year pulls. For your 2026 file these will both be 2026. Don't use them as a join key — join only on `player_id`.
+
+---
+
+### Park Factors
+
+**Current header:** `Team, Venue, Year, Park Factor, wOBAcon, xwOBAcon, BACON, xBACON, HardHit, R, OBP, H, 1B, 2B, 3B, HR, BB, SO, PA`
+
+**Add a `bat_side` and `condition` column to each file** when you store them — you'll need these when joining:
+
+| File | bat_side | condition |
+|---|---|---|
+| park_L_day.csv | L | day |
+| park_R_night.csv | R | night |
+| park_B_roof_closed.csv | B | roof_closed |
+| etc. | | |
+
+**Join key issue:** Park factor files use `Team` (team name) and `Venue`. Your venue map has `venue_id` and `venue_name`, your team map has `team_id`. You need to add `venue_id` and `team_id` to the park factor files as a one-time manual mapping — there are only 30 rows. Do this once and save it into the files.
+
+**Columns to keep:**
+`team_id`, `venue_id`, `bat_side`, `condition`, `Park Factor`, `wOBAcon`, `xwOBAcon`, `HR`, `R`
+
+Drop: `BACON`, `xBACON`, `OBP`, `H`, `1B`, `2B`, `3B`, `BB`, `SO`, `PA`, `Year`, `Team`, `Venue` — those are component stats you don't need once you have the top-level factors.
+
+---
+
+## One Script to Build: `prep_savant_data.py`
+
+Put this in `scripts/00_parsing/` (you already have that folder). It runs once (or when you refresh Savant data) and:
+1. Reads raw files from `data/`
+2. Applies the PA filters
+3. Drops/renames columns
+4. Adds `sample_flag`
+5. Writes cleaned versions back to the same `data/` subfolders with a `_clean` suffix
+
+This keeps your raw files intact if you ever need to go back.
+
+---
+
+Ready for the weather API response when you have it.
