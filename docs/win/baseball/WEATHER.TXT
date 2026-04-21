@@ -1,0 +1,91 @@
+Good. The API is straightforward. Here's what to keep and how to use it:
+
+---
+
+## Fields to Capture
+
+| API field | Column name | Notes |
+|---|---|---|
+| `time` | `weather_time` | Confirmation of matched hour |
+| `temp_f` | `temp_f` | Primary temp signal |
+| `wind_mph` | `wind_mph` | Use for offense adjustment |
+| `wind_dir` | `wind_dir` | Cardinal direction (W, NW, etc.) |
+| `gust_mph` | `gust_mph` | Secondary wind signal |
+| `precip_in` | `precip_in` | Rain exclusion filter |
+| `humidity` | `humidity` | Minor signal, keep it |
+| `chance_of_rain` | `chance_of_rain` | Use for exclusion logic |
+| `will_it_rain` | `will_it_rain` | Boolean flag for hard exclusion |
+
+---
+
+## Fields to Drop
+
+- `feelslike_f` — redundant with temp at game level
+- `cloud` — not predictive enough
+- `dewpoint_f` — too granular
+- `vis_miles` — irrelevant for baseball
+- `uv` — irrelevant
+- `text` — returned blank in your sample, unreliable
+
+---
+
+## Indoor/Roof Logic
+
+Before calling the API at all, check `roof_type` from your venue map. WeatherAPI has no concept of a dome.
+
+| `roof_type` | Call API? | Weather columns |
+|---|---|---|
+| `open` | Yes | Populated normally |
+| `outdoor` | Yes | Populated normally |
+| `retractable` | Yes | Populate — roof status at game time is unknown ahead of time |
+| `indoor` / `dome` | **No** | Set all weather columns to `null`, set `weather_applicable = 0` |
+
+Add a `weather_applicable` flag (1/0) to your game context output so downstream scripts can easily skip weather adjustments for domes.
+
+---
+
+## Hour Logic
+
+Your call uses `$hour = "21"` — that's the game hour in local time. Your venue map has `time_zone_id`. The call should:
+
+1. Take `game_time` from mlb_raw
+2. Convert to local venue time using `time_zone_id`
+3. Extract the hour and pass it to the API
+
+One edge case: doubleheaders. Use `game_time` per game — don't assume both games share the same weather hour.
+
+---
+
+## Wind Direction — How to Use It
+
+Raw cardinal direction (`W`, `NW`, etc.) isn't directly usable. You need to know if wind is **blowing in or out** relative to home plate, which varies by stadium orientation.
+
+You have two options:
+
+**Option A (Simple):** Store a `wind_out_direction` column in your venue map — the cardinal direction that blows toward center field (out) for each park. Then compute:
+
+```
+wind_out = (wind_dir == venue_wind_out_direction)  → True/False
+```
+
+**Option B (Skip for now):** Treat wind speed only, ignore direction. Use `wind_mph > 12` as a variance flag without directionality.
+
+I'd recommend **Option A** — it's a one-time 30-row manual addition to `mlb_venue_ids.csv`. I can help you build that lookup if you want.
+
+---
+
+## Where the API Call Lives
+
+In `enrich_game_context.py`, one call per game, per day. Cache results to `data/weather/{date}_weather.csv` so you're not re-calling the API every time the pipeline re-runs on the same day. Structure:
+
+```
+data/
+└───weather/
+        2026_04_21_weather.csv
+```
+
+One row per game with all the fields above. If the file already exists for that date, skip the API call and read from cache.
+
+---
+
+Ready to start building `enrich_game_context.py` or `prep_savant_data.py` first?
