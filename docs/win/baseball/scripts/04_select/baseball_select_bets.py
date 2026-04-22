@@ -9,9 +9,10 @@ from pathlib import Path
 import pandas as pd
 import yaml
 
-INPUT_DIR   = Path("docs/win/baseball/03_edges/ev_kelly")
-OUTPUT_DIR  = Path("docs/win/baseball/04_select")
-CONFIG_PATH = Path("docs/win/baseball/config/markets.yaml")
+INPUT_DIR        = Path("docs/win/baseball/03_edges/ev_kelly")
+OUTPUT_DIR       = Path("docs/win/baseball/04_select")
+CONFIG_PATH      = Path("docs/win/baseball/config/markets.yaml")
+FILTER_PATH      = Path("docs/win/baseball/config/select_filter.yaml")
 
 ERROR_DIR = Path("docs/win/baseball/errors/04_select")
 LOG_FILE  = ERROR_DIR / "select_bets.txt"
@@ -23,6 +24,9 @@ LEAGUE_CODE = "MLB"
 
 with open(CONFIG_PATH, "r") as f:
     CONFIG = yaml.safe_load(f)["markets"]["mlb"]
+
+with open(FILTER_PATH, "r") as f:
+    FILTERS = yaml.safe_load(f)["mlb"]
 
 
 # =========================
@@ -44,14 +48,17 @@ def _write_summary(summary: dict, per_slate: list) -> None:
         "=" * 60,
         f"SUMMARY  {_now()}",
         "=" * 60,
-        f"  slates_found    : {summary['slates_found']}",
-        f"  slates_written  : {summary['slates_written']}",
-        f"  total_bets      : {summary['total_bets']}",
-        f"  moneyline_bets  : {summary['moneyline_bets']}",
-        f"  run_line_bets   : {summary['run_line_bets']}",
-        f"  total_mkt_bets  : {summary['total_mkt_bets']}",
-        f"  skipped_slates  : {summary['skipped_slates']}",
-        f"  errors          : {summary['errors']}",
+        f"  slates_found      : {summary['slates_found']}",
+        f"  slates_written    : {summary['slates_written']}",
+        f"  total_bets        : {summary['total_bets']}",
+        f"  moneyline_bets    : {summary['moneyline_bets']}",
+        f"  run_line_bets     : {summary['run_line_bets']}",
+        f"  total_mkt_bets    : {summary['total_mkt_bets']}",
+        f"  skipped_slates    : {summary['skipped_slates']}",
+        f"  rain_excluded     : {summary['rain_excluded']}",
+        f"  sp_sample_excluded: {summary['sp_sample_excluded']}",
+        f"  low_confidence    : {summary['low_confidence']}",
+        f"  errors            : {summary['errors']}",
         "",
         "--- Filter Breakdown ---",
     ]
@@ -87,6 +94,26 @@ def fv(x):
         if pd.isna(x):
             return None
         return float(x)
+    except Exception:
+        return None
+
+
+def iv(x):
+    """Integer value — returns None if missing."""
+    try:
+        if pd.isna(x):
+            return None
+        return int(x)
+    except Exception:
+        return None
+
+
+def sv(x):
+    """String value — returns None if missing."""
+    try:
+        if pd.isna(x):
+            return None
+        return str(x).strip()
     except Exception:
         return None
 
@@ -172,6 +199,56 @@ def select_candidate(candidates, preference, market_name=None, game_id=None):
     if preference == "best_prob":
         return [max(candidates, key=lambda x: x["model_prob"] or -999)]
     return [max(candidates, key=lambda x: x["ev"] or -999)]
+
+
+# =========================
+# CONTEXT FILTERS
+# =========================
+
+def rain_excluded(row) -> bool:
+    """
+    Return True (exclude bet) if rain conditions are met.
+    Always returns False for dome/indoor venues.
+    """
+    weather_applicable = iv(row.get("weather_applicable"))
+    if weather_applicable == 0:
+        return False  # dome — skip weather check entirely
+
+    will_it_rain   = iv(row.get("will_it_rain"))
+    chance_of_rain = fv(row.get("chance_of_rain"))
+    rain_max       = FILTERS.get("rain_chance_max", 40)
+
+    if will_it_rain == 1:
+        return True
+    if chance_of_rain is not None and chance_of_rain > rain_max:
+        return True
+    return False
+
+
+def sp_sample_excluded_for_total(row) -> bool:
+    """
+    Return True (exclude total bet) if either SP has sample_flag = 'low'.
+    Only applied when sp_sample_exclude_totals is true in config.
+    """
+    if not FILTERS.get("sp_sample_exclude_totals", True):
+        return False
+    home_flag = sv(row.get("home_sp_sample_flag"))
+    away_flag = sv(row.get("away_sp_sample_flag"))
+    return home_flag == "low" or away_flag == "low"
+
+
+def is_low_confidence(row) -> int:
+    """
+    Return 1 if home or away low_sample_count exceeds the warning threshold.
+    """
+    warn = FILTERS.get("lineup_low_sample_warn", 3)
+    home_low = fv(row.get("home_low_sample_count"))
+    away_low = fv(row.get("away_low_sample_count"))
+    if home_low is not None and home_low > warn:
+        return 1
+    if away_low is not None and away_low > warn:
+        return 1
+    return 0
 
 
 # =========================
@@ -263,7 +340,8 @@ def main():
     summary = {
         "slates_found": 0, "slates_written": 0, "total_bets": 0,
         "moneyline_bets": 0, "run_line_bets": 0, "total_mkt_bets": 0,
-        "skipped_slates": 0, "errors": 0, "counters": {},
+        "skipped_slates": 0, "rain_excluded": 0, "sp_sample_excluded": 0,
+        "low_confidence": 0, "errors": 0, "counters": {},
     }
     per_slate = []
 
@@ -272,6 +350,9 @@ def main():
 
     _log(f"INPUT_DIR : {INPUT_DIR}")
     _log(f"OUTPUT_DIR: {OUTPUT_DIR}")
+    _log(f"Rain max: {FILTERS.get('rain_chance_max')}% | "
+         f"SP sample exclude totals: {FILTERS.get('sp_sample_exclude_totals')} | "
+         f"Lineup low sample warn: {FILTERS.get('lineup_low_sample_warn')}")
 
     try:
         files = sorted(INPUT_DIR.glob("*_mlb_*.csv"))
@@ -315,7 +396,7 @@ def main():
                     per_slate.append(ps)
                     continue
 
-                final   = []
+                final    = []
                 seen: set = set()
 
                 for _, row in rl_df.iterrows():
@@ -326,15 +407,29 @@ def main():
                     base      = {"game_id": game_id, "game_date": game_date,
                                  "league": LEAGUE_CODE, "away_team": away, "home_team": home}
 
-                    # Run line
+                    # Compute low_confidence from run line row (has lineup context)
+                    low_conf = is_low_confidence(row)
+
+                    # ── Rain filter (applies to all markets for this game) ──
+                    game_rain_excluded = rain_excluded(row)
+                    if game_rain_excluded:
+                        summary["rain_excluded"] += 1
+                        _log(f"  {game_id} rain excluded "
+                             f"(will_it_rain={iv(row.get('will_it_rain'))} "
+                             f"chance={fv(row.get('chance_of_rain'))}%)", "WARN")
+                        continue
+
+                    # ── Run line ──────────────────────────────────────────
                     for r in process_run_line(row, global_counters):
                         k = f"{game_id}_{r['market_type']}_{r['bet_side']}"
                         if k not in seen:
-                            final.append({**base, **r})
+                            if low_conf:
+                                summary["low_confidence"] += 1
+                            final.append({**base, **r, "low_confidence": low_conf})
                             seen.add(k)
                             ps["rl"] += 1
 
-                    # Total
+                    # ── Total ─────────────────────────────────────────────
                     if tt_df is not None and not tt_df.empty:
                         mask = (
                             (tt_df["away_team"] == away) &
@@ -342,14 +437,23 @@ def main():
                             (tt_df["game_date"] == game_date)
                         )
                         for _, t in tt_df[mask].iterrows():
+                            # SP sample flag exclusion for totals
+                            if sp_sample_excluded_for_total(t):
+                                summary["sp_sample_excluded"] += 1
+                                _log(f"  {game_id} total SP sample excluded "
+                                     f"(home={sv(t.get('home_sp_sample_flag'))} "
+                                     f"away={sv(t.get('away_sp_sample_flag'))})", "WARN")
+                                continue
                             for r in process_total(t, global_counters):
                                 k = f"{game_id}_{r['market_type']}_{r['bet_side']}"
                                 if k not in seen:
-                                    final.append({**base, **r})
+                                    if low_conf:
+                                        summary["low_confidence"] += 1
+                                    final.append({**base, **r, "low_confidence": low_conf})
                                     seen.add(k)
                                     ps["tot"] += 1
 
-                    # Moneyline
+                    # ── Moneyline ─────────────────────────────────────────
                     if ml_df is not None and not ml_df.empty:
                         mask = (
                             (ml_df["away_team"] == away) &
@@ -360,7 +464,9 @@ def main():
                             for r in process_moneyline(m, global_counters):
                                 k = f"{game_id}_{r['market_type']}_{r['bet_side']}"
                                 if k not in seen:
-                                    final.append({**base, **r})
+                                    if low_conf:
+                                        summary["low_confidence"] += 1
+                                    final.append({**base, **r, "low_confidence": low_conf})
                                     seen.add(k)
                                     ps["ml"] += 1
 
