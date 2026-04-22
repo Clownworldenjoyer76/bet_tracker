@@ -48,6 +48,7 @@ CONTEXT_COLS = [
     "weather_applicable", "weather_time",
     "temp_f", "wind_mph", "wind_dir", "gust_mph",
     "precip_in", "humidity", "chance_of_rain", "will_it_rain", "wind_blowing_out",
+    "sp_data_available", "lineup_data_available",
 ]
 MONEYLINE_REQUIRED_COLUMNS = [
     "game_id","sport","league","game_date","game_time","home_team","away_team",
