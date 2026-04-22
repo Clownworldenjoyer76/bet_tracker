@@ -69,7 +69,7 @@ def _write_summary(summary: dict, per_file: list) -> None:
 def find_band_row(juice_df, total, side):
     band = juice_df[
         (juice_df["band_min"] <= total) &
-        (total <= juice_df["band_max"]) &
+        (total < juice_df["band_max"]) &
         (juice_df["side"] == side)
     ]
     if band.empty:
