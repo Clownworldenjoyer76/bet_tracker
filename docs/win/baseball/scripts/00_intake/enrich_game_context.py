@@ -2,8 +2,8 @@
 # docs/win/baseball/scripts/00_intake/enrich_game_context.py
 #
 # Runs hourly after scrape_mlb_raw.py.
-# Joins Statcast, park factors, and weather (from cache) to produce
-# {date}_game_context.csv at docs/win/baseball/00_intake/mlb_raw/
+# Joins Statcast, park factors (lineup-weighted by bat side), and weather
+# (from cache) to produce {date}_game_context.csv.
 #
 # Weather is NOT fetched here. Run fetch_weather.py once per day first.
 
@@ -17,12 +17,12 @@ import pandas as pd
 # PATHS
 # ─────────────────────────────────────────────
 
-BASE_DIR      = Path("docs/win/baseball")
-MLBraw_DIR    = BASE_DIR / "00_intake/mlb_raw"
-MAPS_DIR      = BASE_DIR / "maps"
-DATA_DIR      = BASE_DIR / "data"
-WEATHER_DIR   = DATA_DIR / "weather"
-ERROR_DIR     = BASE_DIR / "errors/00_intake"
+BASE_DIR    = Path("docs/win/baseball")
+MLBraw_DIR  = BASE_DIR / "00_intake/mlb_raw"
+MAPS_DIR    = BASE_DIR / "maps"
+DATA_DIR    = BASE_DIR / "data"
+WEATHER_DIR = DATA_DIR / "weather"
+ERROR_DIR   = BASE_DIR / "errors/00_intake"
 
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE = ERROR_DIR / "enrich_game_context.txt"
@@ -81,15 +81,10 @@ BATTING_COLS  = ["player_id", "pa", "xwoba", "barrel_pct", "hard_hit_pct",
 PITCHING_COLS = ["player_id", "pa", "xwoba", "k_pct", "bb_pct",
                  "barrel_pct", "whiff_pct", "exit_velo", "sample_flag"]
 
-# Oldest to newest — newer years overwrite older on duplicate player_id
 STATCAST_PRIORITY = ["2022", "2023", "2024", "2025", "2026"]
 
 
 def _load_statcast(directory: Path, cols: list, id_col: str = "player_id") -> dict:
-    """
-    Load clean Statcast files in priority order: 2026 > 2025 > 2024 > 2023 > 2022.
-    Returns dict keyed by player_id -> row dict. Most recent year wins.
-    """
     merged = {}
     for yr in STATCAST_PRIORITY:
         files = list(directory.glob(f"*{yr}*_clean.csv"))
@@ -129,13 +124,29 @@ def load_statcast():
 # LOAD PARK FACTORS (once at startup)
 # ─────────────────────────────────────────────
 
-def load_park_factors() -> list:
-    rows = []
-    for f in sorted((DATA_DIR / "park_factors").glob("park_B_*_clean.csv")):
+PARK_COLS = ["Park Factor", "wOBAcon", "xwOBAcon", "HR", "R"]
+
+
+def load_park_factors() -> dict:
+    """
+    Returns nested dict:
+      park_index[venue_id][condition][bat_side] -> row dict
+    bat_side is L, R, or B.
+    Loads all 12 clean park factor files.
+    """
+    park_index = {}
+    for f in sorted((DATA_DIR / "park_factors").glob("park_*_clean.csv")):
+        # filename: park_{side}_{condition}_clean.csv
+        parts = f.stem.replace("_clean", "").split("_", 2)
+        if len(parts) != 3:
+            continue
+        _, bat_side, condition = parts
         df = pd.read_csv(f, dtype={"venue_id": str})
         df["venue_id"] = df["venue_id"].str.strip()
-        rows.extend(df.to_dict("records"))
-    return rows
+        for _, row in df.iterrows():
+            vid = str(row["venue_id"]).strip()
+            park_index.setdefault(vid, {}).setdefault(condition, {})[bat_side] = row.to_dict()
+    return park_index
 
 
 def get_park_condition(roof_type: str, day_night: str) -> str:
@@ -148,12 +159,52 @@ def get_park_condition(roof_type: str, day_night: str) -> str:
     return "open_air"
 
 
-def lookup_park(park_rows: list, venue_id: str, condition: str) -> dict:
-    for row in park_rows:
-        if (str(row.get("venue_id", "")).strip() == str(venue_id) and
-                str(row.get("condition", "")).strip().lower() == condition.lower()):
-            return row
-    return {}
+def weighted_park_factor(park_index: dict, venue_id: str, condition: str,
+                         n_left: int, n_right: int, n_switch: int) -> dict:
+    """
+    Compute a lineup-weighted park factor for the given venue/condition.
+
+    Switch hitters are split 50/50 between L and R for weighting purposes.
+    Falls back to B (both) if L or R files are missing for this venue/condition.
+
+    Returns dict with weighted values for each park stat column,
+    plus the raw B baseline for reference.
+    """
+    venue_cond = park_index.get(venue_id, {}).get(condition, {})
+
+    row_B = venue_cond.get("B", {})
+    row_L = venue_cond.get("L", {})
+    row_R = venue_cond.get("R", {})
+
+    # If no data at all for this venue/condition, return empty
+    if not row_B and not row_L and not row_R:
+        return {}
+
+    # Switch hitters: treat as 0.5 L + 0.5 R for weighting
+    eff_L = n_left  + (n_switch * 0.5)
+    eff_R = n_right + (n_switch * 0.5)
+    total = eff_L + eff_R
+
+    result = {}
+    for col in PARK_COLS:
+        val_B = row_B.get(col)
+        val_L = row_L.get(col)
+        val_R = row_R.get(col)
+
+        # Always store B baseline
+        result[f"park_{col}_B"] = val_B
+
+        # Weighted value — fall back to B if L or R missing
+        if total > 0 and val_L is not None and val_R is not None:
+            try:
+                weighted = (float(val_L) * eff_L + float(val_R) * eff_R) / total
+                result[f"park_{col}"] = round(weighted, 4)
+            except (ValueError, TypeError):
+                result[f"park_{col}"] = val_B
+        else:
+            result[f"park_{col}"] = val_B
+
+    return result
 
 
 # ─────────────────────────────────────────────
@@ -161,10 +212,6 @@ def lookup_park(park_rows: list, venue_id: str, condition: str) -> dict:
 # ─────────────────────────────────────────────
 
 def load_weather(date_str: str) -> dict:
-    """
-    Returns dict: gamePk -> weather row dict.
-    If no weather file exists, returns empty dict and logs a warning.
-    """
     weather_path = WEATHER_DIR / f"{date_str}_weather.csv"
     if not weather_path.exists():
         _log(f"  No weather file for {date_str} — run fetch_weather.py first. Weather columns will be null.", "WARN")
@@ -191,17 +238,34 @@ BATTER_AVG_COLS = ["xwoba", "barrel_pct", "hard_hit_pct", "k_pct", "bb_pct", "ex
 
 
 def aggregate_lineup(batter_ids: list, batting: dict, fielding: dict,
-                     baserunning: dict, batter_map: dict, side: str) -> dict:
+                     baserunning: dict, batter_map: dict, side: str) -> tuple:
+    """
+    Aggregate Statcast stats for a 9-batter lineup.
+    Returns (result_dict, n_left, n_right, n_switch) for park factor weighting.
+    """
     avg_accum       = {c: [] for c in BATTER_AVG_COLS}
     frv_sum         = 0.0
     brv_sum         = 0.0
     low_sample      = 0
     catcher_framing = None
+    n_left = n_right = n_switch = 0
 
     for i, bid in enumerate(batter_ids):
         bid   = str(bid).strip()
         label = f"{side}_bat_{i+1}"
 
+        bmap_row = batter_map.get(bid, {})
+
+        # Bat side count for park factor weighting
+        bat_side = str(bmap_row.get("bat_side_code", "")).strip().upper()
+        if bat_side == "L":
+            n_left   += 1
+        elif bat_side == "R":
+            n_right  += 1
+        elif bat_side == "S":
+            n_switch += 1
+
+        # Batting Statcast
         bstats = batting.get(bid)
         if not bstats:
             _log(f"  Batter {bid} ({label}) not found in any Statcast file", "WARN")
@@ -216,19 +280,21 @@ def aggregate_lineup(batter_ids: list, batting: dict, fielding: dict,
             if bstats.get("sample_flag") == "low":
                 low_sample += 1
 
+        # Fielding
         fstats = fielding.get(bid, {})
         try:
             frv_sum += float(fstats.get("total_runs", 0) or 0)
         except (ValueError, TypeError):
             pass
 
-        bmap_row = batter_map.get(bid, {})
+        # Catcher framing
         if str(bmap_row.get("primary_position_code", "")).strip() == "2":
             try:
                 catcher_framing = float(fstats.get("framing_runs", 0) or 0)
             except (ValueError, TypeError):
                 catcher_framing = None
 
+        # Baserunning
         brstats = baserunning.get(bid, {})
         try:
             brv_sum += float(brstats.get("runner_runs_tot", 0) or 0)
@@ -244,7 +310,11 @@ def aggregate_lineup(batter_ids: list, batting: dict, fielding: dict,
     result[f"{side}_lineup_brv"]       = brv_sum
     result[f"{side}_catcher_framing"]  = catcher_framing
     result[f"{side}_low_sample_count"] = low_sample
-    return result
+    result[f"{side}_n_left"]           = n_left
+    result[f"{side}_n_right"]          = n_right
+    result[f"{side}_n_switch"]         = n_switch
+
+    return result, n_left, n_right, n_switch
 
 
 # ─────────────────────────────────────────────
@@ -253,7 +323,7 @@ def aggregate_lineup(batter_ids: list, batting: dict, fielding: dict,
 
 def process_date(date_str: str, venue_map: dict, pitcher_map: dict, batter_map: dict,
                  batting: dict, pitching: dict, fielding: dict, baserunning: dict,
-                 park_rows: list, summary: dict) -> None:
+                 park_index: dict, summary: dict) -> None:
 
     raw_path = MLBraw_DIR / f"{date_str}_mlb_raw.csv"
     if not raw_path.exists():
@@ -290,59 +360,77 @@ def process_date(date_str: str, venue_map: dict, pitcher_map: dict, batter_map: 
         home_bats = [row.get(f"home_bat_{i}_id", "") for i in range(1, 10)]
         away_bats = [row.get(f"away_bat_{i}_id", "") for i in range(1, 10)]
 
-        home_agg = aggregate_lineup(home_bats, batting, fielding, baserunning, batter_map, "home")
-        away_agg = aggregate_lineup(away_bats, batting, fielding, baserunning, batter_map, "away")
+        home_agg, home_L, home_R, home_S = aggregate_lineup(
+            home_bats, batting, fielding, baserunning, batter_map, "home"
+        )
+        away_agg, away_L, away_R, away_S = aggregate_lineup(
+            away_bats, batting, fielding, baserunning, batter_map, "away"
+        )
 
+        # Park factors — weighted average of home and away lineup bat sides
         condition = get_park_condition(roof_type, day_night)
-        park_row  = lookup_park(park_rows, venue_id, condition)
-        if not park_row:
+        total_L   = home_L + away_L
+        total_R   = home_R + away_R
+        total_S   = home_S + away_S
+
+        park = weighted_park_factor(park_index, venue_id, condition,
+                                    total_L, total_R, total_S)
+        if not park:
             _log(f"  Park factor not found: venue={venue_id} condition={condition}", "WARN")
 
-        # Weather — read from cache only, never call API
+        # Weather — read from cache only
         w = weather_map.get(game_pk, {})
 
         output_rows.append({
-            "game_date":             game_date,
-            "gamePk":                game_pk,
-            "home_team_id":          home_tid,
-            "away_team_id":          away_tid,
-            "venue_id":              venue_id,
-            "roof_type":             roof_type,
-            "turf_type":             turf_type,
-            "home_pitcher_id":       home_pid,
-            "away_pitcher_id":       away_pid,
-            "home_pitcher_hand":     home_hand,
-            "away_pitcher_hand":     away_hand,
-            "home_sp_xwoba":         hpstats.get("xwoba"),
-            "away_sp_xwoba":         apstats.get("xwoba"),
-            "home_sp_k_pct":         hpstats.get("k_pct"),
-            "away_sp_k_pct":         apstats.get("k_pct"),
-            "home_sp_bb_pct":        hpstats.get("bb_pct"),
-            "away_sp_bb_pct":        apstats.get("bb_pct"),
-            "home_sp_barrel_pct":    hpstats.get("barrel_pct"),
-            "away_sp_barrel_pct":    apstats.get("barrel_pct"),
-            "home_sp_whiff_pct":     hpstats.get("whiff_pct"),
-            "away_sp_whiff_pct":     apstats.get("whiff_pct"),
-            "home_sp_sample_flag":   hpstats.get("sample_flag"),
-            "away_sp_sample_flag":   apstats.get("sample_flag"),
+            "game_date":                  game_date,
+            "gamePk":                     game_pk,
+            "home_team_id":               home_tid,
+            "away_team_id":               away_tid,
+            "venue_id":                   venue_id,
+            "roof_type":                  roof_type,
+            "turf_type":                  turf_type,
+            "home_pitcher_id":            home_pid,
+            "away_pitcher_id":            away_pid,
+            "home_pitcher_hand":          home_hand,
+            "away_pitcher_hand":          away_hand,
+            "home_sp_xwoba":              hpstats.get("xwoba"),
+            "away_sp_xwoba":              apstats.get("xwoba"),
+            "home_sp_k_pct":              hpstats.get("k_pct"),
+            "away_sp_k_pct":              apstats.get("k_pct"),
+            "home_sp_bb_pct":             hpstats.get("bb_pct"),
+            "away_sp_bb_pct":             apstats.get("bb_pct"),
+            "home_sp_barrel_pct":         hpstats.get("barrel_pct"),
+            "away_sp_barrel_pct":         apstats.get("barrel_pct"),
+            "home_sp_whiff_pct":          hpstats.get("whiff_pct"),
+            "away_sp_whiff_pct":          apstats.get("whiff_pct"),
+            "home_sp_sample_flag":        hpstats.get("sample_flag"),
+            "away_sp_sample_flag":        apstats.get("sample_flag"),
             **home_agg,
             **away_agg,
-            "park_factor":           park_row.get("Park Factor"),
-            "park_wOBAcon":          park_row.get("wOBAcon"),
-            "park_xwOBAcon":         park_row.get("xwOBAcon"),
-            "park_HR":               park_row.get("HR"),
-            "park_R":                park_row.get("R"),
-            "weather_applicable":    w.get("weather_applicable"),
-            "weather_time":          w.get("weather_time"),
-            "temp_f":                w.get("temp_f"),
-            "wind_mph":              w.get("wind_mph"),
-            "wind_dir":              w.get("wind_dir"),
-            "gust_mph":              w.get("gust_mph"),
-            "precip_in":             w.get("precip_in"),
-            "humidity":              w.get("humidity"),
-            "chance_of_rain":        w.get("chance_of_rain"),
-            "will_it_rain":          w.get("will_it_rain"),
-            "wind_blowing_out":      w.get("wind_blowing_out"),
+            # Weighted park factors (by combined lineup bat sides)
+            "park_factor":                park.get("park_Park Factor"),
+            "park_wOBAcon":               park.get("park_wOBAcon"),
+            "park_xwOBAcon":              park.get("park_xwOBAcon"),
+            "park_HR":                    park.get("park_HR"),
+            "park_R":                     park.get("park_R"),
+            # B baseline for reference
+            "park_factor_B":              park.get("park_Park Factor_B"),
+            "park_wOBAcon_B":             park.get("park_wOBAcon_B"),
+            "park_xwOBAcon_B":            park.get("park_xwOBAcon_B"),
+            "park_HR_B":                  park.get("park_HR_B"),
+            "park_R_B":                   park.get("park_R_B"),
+            # Weather
+            "weather_applicable":         w.get("weather_applicable"),
+            "weather_time":               w.get("weather_time"),
+            "temp_f":                     w.get("temp_f"),
+            "wind_mph":                   w.get("wind_mph"),
+            "wind_dir":                   w.get("wind_dir"),
+            "gust_mph":                   w.get("gust_mph"),
+            "precip_in":                  w.get("precip_in"),
+            "humidity":                   w.get("humidity"),
+            "chance_of_rain":             w.get("chance_of_rain"),
+            "will_it_rain":               w.get("will_it_rain"),
+            "wind_blowing_out":           w.get("wind_blowing_out"),
         })
 
     if output_rows:
@@ -378,8 +466,11 @@ def main():
         _log(f"  batting: {len(batting)} | pitching: {len(pitching)} | fielding: {len(fielding)} | baserunning: {len(baserunning)}")
 
         _log("Loading park factors...")
-        park_rows = load_park_factors()
-        _log(f"  park_rows: {len(park_rows)}")
+        park_index = load_park_factors()
+        total_park = sum(
+            len(conds) for v in park_index.values() for conds in v.values()
+        )
+        _log(f"  park_index venues: {len(park_index)} | total entries: {total_park}")
 
         raw_files = sorted(MLBraw_DIR.glob("*_mlb_raw.csv"))
         _log(f"mlb_raw files found: {len(raw_files)}")
@@ -389,7 +480,7 @@ def main():
             try:
                 process_date(date_str, venue_map, pitcher_map, batter_map,
                              batting, pitching, fielding, baserunning,
-                             park_rows, summary)
+                             park_index, summary)
             except Exception as e:
                 _log(f"{date_str} FAILED: {e}\n{traceback.format_exc()}", "ERROR")
                 summary["errors"] += 1
