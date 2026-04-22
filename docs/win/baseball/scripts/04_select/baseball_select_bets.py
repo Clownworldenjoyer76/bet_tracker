@@ -124,6 +124,12 @@ def in_range(val, ranges):
     return any(lo <= val <= hi for lo, hi in ranges)
 
 
+def clamp_prob(p):
+    if p is None:
+        return None
+    return max(0.0, min(1.0, p))
+
+
 def rescale_prob(p, k=3.0):
     if p is None:
         return None
@@ -251,6 +257,61 @@ def is_low_confidence(row) -> int:
     return 0
 
 
+def total_context_nudges(row) -> dict:
+    """
+    Small probability nudges for totals only.
+
+    Rules:
+    - Skip wind/temp nudges for dome/indoor venues (weather_applicable = 0).
+    - Wind only helps over when wind_mph >= threshold and wind_blowing_out = 1.
+    - Cold helps under.
+    - Hot helps over.
+    - Park factor uses 100 as neutral baseline.
+
+    Returns:
+        {
+            "over_nudge": float,
+            "under_nudge": float,
+        }
+    """
+    over_nudge = 0.0
+    under_nudge = 0.0
+
+    weather_applicable = iv(row.get("weather_applicable"))
+    wind_mph = fv(row.get("wind_mph"))
+    wind_blowing_out = iv(row.get("wind_blowing_out"))
+    temp_f = fv(row.get("temp_f"))
+    park_factor = fv(row.get("park_factor"))
+
+    wind_threshold = fv(FILTERS.get("wind_nudge_threshold", 12))
+    temp_cold = fv(FILTERS.get("temp_cold_threshold", 50))
+    temp_hot = fv(FILTERS.get("temp_hot_threshold", 80))
+    park_edge_scale = fv(FILTERS.get("park_edge_scale", 0.002))
+
+    # Weather nudges only if weather is applicable
+    if weather_applicable != 0:
+        if wind_mph is not None and wind_threshold is not None:
+            if wind_mph >= wind_threshold and wind_blowing_out == 1:
+                over_nudge += 0.01
+
+        if temp_f is not None:
+            if temp_cold is not None and temp_f < temp_cold:
+                under_nudge += 0.01
+            elif temp_hot is not None and temp_f > temp_hot:
+                over_nudge += 0.01
+
+    # Park factor nudge always applies if present; 100 is neutral
+    if park_factor is not None and park_edge_scale is not None:
+        park_adj = (park_factor - 100.0) * park_edge_scale
+        over_nudge += park_adj
+        under_nudge -= park_adj
+
+    return {
+        "over_nudge": over_nudge,
+        "under_nudge": under_nudge,
+    }
+
+
 # =========================
 # MARKET PROCESSORS
 # =========================
@@ -306,24 +367,36 @@ def process_run_line(row, counters):
 
 def process_total(row, counters):
     candidates = []
+    nudges = total_context_nudges(row)
+
     for side in ["over", "under"]:
         rules = CONFIG["total"][side]
         if not rules["enabled"]:
             continue
+
         ev         = fv(row.get(f"{side}_ev"))
         kelly      = fv(row.get(f"{side}_kelly"))
         odds       = fv(row.get(f"dk_total_{side}_american"))
         dec        = fv(row.get(f"dk_total_{side}_decimal"))
         line       = fv(row.get("total"))
         model_prob = rescale_prob(fv(row.get(f"{side}_prob")))
+
+        if model_prob is not None:
+            if side == "over":
+                model_prob = clamp_prob(model_prob + nudges["over_nudge"])
+            else:
+                model_prob = clamp_prob(model_prob + nudges["under_nudge"])
+
         if not check_rules(ev, kelly, odds, line, model_prob, rules, counters["total"][side]):
             continue
+
         candidates.append({
             "market_type": "total", "bet_side": side, "market": "total",
             "side": side, "line": line, "take_bet": f"{side}_total",
             "dk_odds_american": odds, "dk_odds_decimal": dec,
             "model_prob": model_prob, "ev": ev, "kelly": kelly,
         })
+
     return select_candidate(candidates,
                             CONFIG["total"].get("pick_preference", "best_ev"),
                             "total", row.get("game_id"))
@@ -350,9 +423,15 @@ def main():
 
     _log(f"INPUT_DIR : {INPUT_DIR}")
     _log(f"OUTPUT_DIR: {OUTPUT_DIR}")
-    _log(f"Rain max: {FILTERS.get('rain_chance_max')}% | "
-         f"SP sample exclude totals: {FILTERS.get('sp_sample_exclude_totals')} | "
-         f"Lineup low sample warn: {FILTERS.get('lineup_low_sample_warn')}")
+    _log(
+        f"Rain max: {FILTERS.get('rain_chance_max')}% | "
+        f"SP sample exclude totals: {FILTERS.get('sp_sample_exclude_totals')} | "
+        f"Lineup low sample warn: {FILTERS.get('lineup_low_sample_warn')} | "
+        f"Wind nudge threshold: {FILTERS.get('wind_nudge_threshold')} mph | "
+        f"Temp cold threshold: {FILTERS.get('temp_cold_threshold')}F | "
+        f"Temp hot threshold: {FILTERS.get('temp_hot_threshold')}F | "
+        f"Park edge scale: {FILTERS.get('park_edge_scale')}"
+    )
 
     try:
         files = sorted(INPUT_DIR.glob("*_mlb_*.csv"))
@@ -396,7 +475,7 @@ def main():
                     per_slate.append(ps)
                     continue
 
-                final    = []
+                final = []
                 seen: set = set()
 
                 for _, row in rl_df.iterrows():
