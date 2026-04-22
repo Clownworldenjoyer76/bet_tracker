@@ -9,23 +9,21 @@
 # enrich_game_context.py reads from that cache — it never calls the API.
 
 import os
-import traceback
-import requests
 from datetime import datetime, UTC
 from pathlib import Path
-from zoneinfo import ZoneInfo
 
 import pandas as pd
+import requests
 
 # ─────────────────────────────────────────────
 # PATHS
 # ─────────────────────────────────────────────
 
-BASE_DIR      = Path("docs/win/baseball")
-GAMES_DIR     = BASE_DIR / "00_intake/games"
-MAPS_DIR      = BASE_DIR / "maps"
-WEATHER_DIR   = BASE_DIR / "data/weather"
-ERROR_DIR     = BASE_DIR / "errors/00_intake"
+BASE_DIR    = Path("docs/win/baseball")
+GAMES_DIR   = BASE_DIR / "00_intake/games"
+MAPS_DIR    = BASE_DIR / "maps"
+WEATHER_DIR = BASE_DIR / "data/weather"
+ERROR_DIR   = BASE_DIR / "errors/00_intake"
 
 WEATHER_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
@@ -51,7 +49,6 @@ def _log(msg: str, level: str = "INFO"):
 # ─────────────────────────────────────────────
 
 def load_venue_map() -> dict:
-    """Returns dict: venue_id -> venue row dict."""
     df = pd.read_csv(
         MAPS_DIR / "mlb_venue_ids.csv",
         dtype={"venue_id": str},
@@ -61,36 +58,27 @@ def load_venue_map() -> dict:
     return df.set_index("venue_id").to_dict("index")
 
 
-def book_time_to_utc_approx(game_time_str: str, game_date_str: str, tz_id: str) -> str:
-    """
-    Convert sportsbook local time (HH:MM:SS) + date + timezone
-    to a UTC datetime string for the weather API.
-    game_date_str format: YYYY-MM-DD or YYYY_MM_DD
-    """
-    try:
-        date_clean = game_date_str.replace("_", "-")
-        dt_local = datetime.strptime(
-            f"{date_clean} {game_time_str}", "%Y-%m-%d %H:%M:%S"
-        )
-        dt_local = dt_local.replace(tzinfo=ZoneInfo(tz_id))
-        dt_utc   = dt_local.astimezone(ZoneInfo("UTC"))
-        return dt_utc.strftime("%Y-%m-%dT%H:%M:%SZ"), date_clean, str(dt_local.hour)
-    except Exception as e:
-        _log(f"Time conversion failed for {game_date_str} {game_time_str} {tz_id}: {e}", "WARN")
-        return None, None, None
-
-
 def call_weather_api(lat: str, lon: str, local_date: str, local_hour: str) -> dict:
-    """Call weatherapi.com and return the matched hour data."""
+    """
+    Call weatherapi.com over HTTPS.
+    API key is passed via params dict — never embedded in a string,
+    never constructed into a loggable URL, never written to disk.
+    """
     if not WEATHER_API_KEY:
         _log("WEATHER_API not set — cannot fetch weather", "WARN")
         return {}
     try:
-        url = (
-            f"http://api.weatherapi.com/v1/forecast.json"
-            f"?key={WEATHER_API_KEY}&q={lat},{lon}&days=1&dt={local_date}&hour={local_hour}"
+        r = requests.get(
+            "https://api.weatherapi.com/v1/forecast.json",
+            params={
+                "key":  WEATHER_API_KEY,
+                "q":    f"{lat},{lon}",
+                "days": 1,
+                "dt":   local_date,
+                "hour": local_hour,
+            },
+            timeout=10,
         )
-        r = requests.get(url, timeout=10)
         r.raise_for_status()
         hour_data = r.json()["forecast"]["forecastday"][0]["hour"][0]
         return {
@@ -104,8 +92,11 @@ def call_weather_api(lat: str, lon: str, local_date: str, local_hour: str) -> di
             "chance_of_rain": hour_data.get("chance_of_rain"),
             "will_it_rain":   hour_data.get("will_it_rain"),
         }
+    except requests.HTTPError as e:
+        _log(f"Weather API HTTP error: status={e.response.status_code} lat={lat} lon={lon} date={local_date} hr={local_hour}", "ERROR")
+        return {}
     except Exception as e:
-        _log(f"Weather API failed for {lat},{lon} {local_date} hr={local_hour}: {e}", "ERROR")
+        _log(f"Weather API failed: lat={lat} lon={lon} date={local_date} hr={local_hour} error={type(e).__name__}", "ERROR")
         return {}
 
 
@@ -122,47 +113,59 @@ def process_date(date_str: str, venue_map: dict, summary: dict) -> None:
         summary["skipped"] += 1
         return
 
-    # If weather file already exists for today, skip entirely
+    games_df    = pd.read_csv(games_path, dtype=str)
+    total_games = len(games_df)
+
+    # Preserve original game order using gamePk sequence from games_df
+    game_order = {str(pk).strip(): i for i, pk in enumerate(games_df["gamePk"])}
+
+    # Load existing weather rows — only fetch missing gamePks
+    existing_by_pk = {}
     if weather_path.exists():
-        _log(f"{date_str} | weather file already exists — skipping (delete to re-fetch)")
-        summary["skipped"] += 1
-        return
+        existing_df = pd.read_csv(weather_path, dtype=str)
+        existing_by_pk = {
+            str(r["gamePk"]).strip(): r
+            for r in existing_df.to_dict("records")
+        }
+        already = len(existing_by_pk)
+        if already >= total_games:
+            _log(f"{date_str} | all {total_games} games already have weather — skipping")
+            summary["skipped"] += 1
+            return
+        _log(f"{date_str} | {already}/{total_games} games have weather — fetching {total_games - already} missing")
 
-    games_df = pd.read_csv(games_path, dtype=str)
-    _log(f"--- {date_str} | {len(games_df)} games")
+    _log(f"--- {date_str} | {total_games} games total")
 
-    # Build one weather row per game (keyed on venue+hour to avoid duplicate API calls)
-    seen_keys  = {}  # cache_key -> weather dict
-    output_rows = []
+    seen_keys = {}  # cache_key -> weather dict (within this run)
 
     for _, row in games_df.iterrows():
-        game_pk  = row.get("gamePk", "")
-        venue_id = str(row.get("venue_id", "")).strip()
-        game_time = row.get("game_time", "")   # HH:MM:SS local sportsbook time
+        game_pk = str(row.get("gamePk", "")).strip()
+
+        if game_pk in existing_by_pk:
+            continue
+
+        venue_id  = str(row.get("venue_id", "")).strip()
+        game_time = row.get("game_time", "")
         game_date = row.get("game_date", "")
 
         vinfo     = venue_map.get(venue_id, {})
         roof_type = str(vinfo.get("roof_type", "")).strip().lower()
         lat       = str(vinfo.get("latitude", "")).strip()
         lon       = str(vinfo.get("longitude", "")).strip()
-        tz_id     = vinfo.get("time_zone_id", "America/New_York")
         wind_out  = str(vinfo.get("wind_out_direction", "")).strip()
 
-        # Skip domes/indoor — weather not applicable
         weather_applicable = 0 if roof_type in ("dome", "indoor") else 1
-
-        weather = {}
-        wind_blowing_out = None
+        weather            = {}
+        wind_blowing_out   = None
 
         if weather_applicable and lat and lon and game_time:
-            # game_time from sportsbook is already local — derive local_date and hour
             try:
                 date_clean = game_date.replace("_", "-")
                 dt_local   = datetime.strptime(f"{date_clean} {game_time}", "%Y-%m-%d %H:%M:%S")
                 local_date = dt_local.strftime("%Y-%m-%d")
                 local_hour = str(dt_local.hour)
             except Exception as e:
-                _log(f"  {game_pk} time parse failed: {e}", "WARN")
+                _log(f"  {game_pk} time parse failed: {type(e).__name__}", "WARN")
                 local_date = local_hour = None
 
             if local_date and local_hour:
@@ -170,39 +173,40 @@ def process_date(date_str: str, venue_map: dict, summary: dict) -> None:
 
                 if cache_key in seen_keys:
                     weather = seen_keys[cache_key]
-                    _log(f"  {game_pk} | reused weather for {cache_key}")
+                    _log(f"  {game_pk} | reused weather venue={venue_id} hr={local_hour}")
                 else:
                     weather = call_weather_api(lat, lon, local_date, local_hour)
                     if weather:
                         seen_keys[cache_key] = weather
                         summary["api_calls"] += 1
-                        _log(f"  {game_pk} | fetched weather for {cache_key}")
+                        _log(f"  {game_pk} | fetched weather venue={venue_id} hr={local_hour}")
                     else:
-                        _log(f"  {game_pk} | weather fetch failed for {cache_key}", "WARN")
+                        _log(f"  {game_pk} | weather fetch failed venue={venue_id} hr={local_hour}", "WARN")
 
                 if weather.get("wind_dir") and wind_out and wind_out not in ("NULL", ""):
                     wind_blowing_out = 1 if weather["wind_dir"].strip().upper() == wind_out.strip().upper() else 0
 
-        output_rows.append({
-            "gamePk":              game_pk,
-            "venue_id":            venue_id,
-            "weather_applicable":  weather_applicable,
-            "weather_time":        weather.get("weather_time"),
-            "temp_f":              weather.get("temp_f"),
-            "wind_mph":            weather.get("wind_mph"),
-            "wind_dir":            weather.get("wind_dir"),
-            "gust_mph":            weather.get("gust_mph"),
-            "precip_in":           weather.get("precip_in"),
-            "humidity":            weather.get("humidity"),
-            "chance_of_rain":      weather.get("chance_of_rain"),
-            "will_it_rain":        weather.get("will_it_rain"),
-            "wind_blowing_out":    wind_blowing_out,
-        })
+        existing_by_pk[game_pk] = {
+            "gamePk":             game_pk,
+            "venue_id":           venue_id,
+            "weather_applicable": weather_applicable,
+            "weather_time":       weather.get("weather_time"),
+            "temp_f":             weather.get("temp_f"),
+            "wind_mph":           weather.get("wind_mph"),
+            "wind_dir":           weather.get("wind_dir"),
+            "gust_mph":           weather.get("gust_mph"),
+            "precip_in":          weather.get("precip_in"),
+            "humidity":           weather.get("humidity"),
+            "chance_of_rain":     weather.get("chance_of_rain"),
+            "will_it_rain":       weather.get("will_it_rain"),
+            "wind_blowing_out":   wind_blowing_out,
+        }
 
-    if output_rows:
-        pd.DataFrame(output_rows).to_csv(weather_path, index=False)
-        _log(f"  WROTE: {weather_path.name} ({len(output_rows)} rows, {summary['api_calls']} API calls)")
-        summary["files_written"] += 1
+    # Write in original game order from games_df
+    ordered = sorted(existing_by_pk.values(), key=lambda r: game_order.get(str(r["gamePk"]).strip(), 999))
+    pd.DataFrame(ordered).to_csv(weather_path, index=False)
+    _log(f"  WROTE: {weather_path.name} ({len(ordered)} rows)")
+    summary["files_written"] += 1
 
 
 # ─────────────────────────────────────────────
@@ -232,11 +236,11 @@ def main():
             try:
                 process_date(date_str, venue_map, summary)
             except Exception as e:
-                _log(f"{date_str} FAILED: {e}\n{traceback.format_exc()}", "ERROR")
+                _log(f"{date_str} FAILED: {type(e).__name__}", "ERROR")
                 summary["errors"] += 1
 
     except Exception as e:
-        _log(f"FATAL: {e}\n{traceback.format_exc()}", "ERROR")
+        _log(f"FATAL: {type(e).__name__}", "ERROR")
         summary["errors"] += 1
 
     status = "SUCCESS" if summary["errors"] == 0 else "COMPLETED WITH ERRORS"
