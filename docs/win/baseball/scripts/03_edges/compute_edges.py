@@ -13,7 +13,7 @@ INPUT_DIR   = Path("docs/win/baseball/02_juice")
 OUTPUT_DIR  = Path("docs/win/baseball/03_edges")
 ERROR_DIR   = Path("docs/win/baseball/errors/03_edges")
 LOG_FILE    = ERROR_DIR / "compute_edges.txt"
-CONFIG_PATH = Path("config/baseball/mlb/edge_adjustments.yaml")
+CONFIG_PATH = Path("docs/win/baseball/config/edge_adjustments.yaml")
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
