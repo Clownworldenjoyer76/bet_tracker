@@ -22,6 +22,33 @@ LOG_FILE = ERROR_DIR / "build_juice_files.txt"
 with open(LOG_FILE, "w", encoding="utf-8") as f:
     f.write(f"=== build_juice_files RUN {datetime.now(UTC).isoformat()} ===\n")
 
+
+CONTEXT_COLS = [
+    "gamePk",
+    "home_team_id", "away_team_id", "venue_id",
+    "roof_type", "turf_type",
+    "home_pitcher_id", "away_pitcher_id",
+    "home_pitcher_hand", "away_pitcher_hand",
+    "home_sp_xwoba", "away_sp_xwoba",
+    "home_sp_k_pct", "away_sp_k_pct",
+    "home_sp_bb_pct", "away_sp_bb_pct",
+    "home_sp_barrel_pct", "away_sp_barrel_pct",
+    "home_sp_whiff_pct", "away_sp_whiff_pct",
+    "home_sp_sample_flag", "away_sp_sample_flag",
+    "home_lineup_xwoba", "home_lineup_barrel_pct", "home_lineup_hard_hit_pct",
+    "home_lineup_k_pct", "home_lineup_bb_pct", "home_lineup_exit_velo",
+    "home_lineup_frv", "home_lineup_brv", "home_catcher_framing",
+    "home_low_sample_count", "home_n_left", "home_n_right", "home_n_switch",
+    "away_lineup_xwoba", "away_lineup_barrel_pct", "away_lineup_hard_hit_pct",
+    "away_lineup_k_pct", "away_lineup_bb_pct", "away_lineup_exit_velo",
+    "away_lineup_frv", "away_lineup_brv", "away_catcher_framing",
+    "away_low_sample_count", "away_n_left", "away_n_right", "away_n_switch",
+    "park_factor", "park_wOBAcon", "park_xwOBAcon", "park_HR", "park_R",
+    "park_factor_B", "park_wOBAcon_B", "park_xwOBAcon_B", "park_HR_B", "park_R_B",
+    "weather_applicable", "weather_time",
+    "temp_f", "wind_mph", "wind_dir", "gust_mph",
+    "precip_in", "humidity", "chance_of_rain", "will_it_rain", "wind_blowing_out",
+]
 MONEYLINE_REQUIRED_COLUMNS = [
     "game_id","sport","league","game_date","game_time","home_team","away_team",
     "away_run_line","home_run_line","total",
@@ -29,7 +56,7 @@ MONEYLINE_REQUIRED_COLUMNS = [
     "away_dk_moneyline_decimal","home_dk_moneyline_decimal",
     "home_pitcher","away_pitcher","home_prob","away_prob",
     "away_projected_runs","home_projected_runs","total_projected_runs",
-]
+] + CONTEXT_COLS
 
 RUN_LINE_REQUIRED_COLUMNS = [
     "game_id","sport","league","game_date","game_time","home_team","away_team",
@@ -39,7 +66,7 @@ RUN_LINE_REQUIRED_COLUMNS = [
     "home_pitcher","away_pitcher","home_prob","away_prob",
     "away_projected_runs","home_projected_runs","total_projected_runs",
     "home_run_line_prob","away_run_line_prob",
-]
+] + CONTEXT_COLS
 
 TOTAL_REQUIRED_COLUMNS = [
     "game_id","sport","league","game_date","game_time","home_team","away_team",
@@ -49,7 +76,7 @@ TOTAL_REQUIRED_COLUMNS = [
     "home_pitcher","away_pitcher","home_prob","away_prob",
     "away_projected_runs","home_projected_runs","total_projected_runs",
     "total_runs_over_prob","total_runs_under_prob",
-]
+] + CONTEXT_COLS
 
 
 def log(msg):
