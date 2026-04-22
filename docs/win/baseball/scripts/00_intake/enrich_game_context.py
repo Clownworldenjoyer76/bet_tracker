@@ -225,13 +225,14 @@ def load_weather(date_str: str) -> dict:
 # STATCAST LOOKUP HELPERS
 # ─────────────────────────────────────────────
 
-def get_pitcher_stats(pitcher_id: str, pitching: dict) -> dict:
+def get_pitcher_stats(pitcher_id: str, pitching: dict) -> tuple:
+    """Returns (stats_dict, found: bool)"""
     pid = str(pitcher_id).strip()
     row = pitching.get(pid)
     if not row:
         _log(f"  Pitcher {pid} not found in any Statcast file", "WARN")
-        return {}
-    return row
+        return {}, False
+    return row, True
 
 
 BATTER_AVG_COLS = ["xwoba", "barrel_pct", "hard_hit_pct", "k_pct", "bb_pct", "exit_velo"]
@@ -249,6 +250,7 @@ def aggregate_lineup(batter_ids: list, batting: dict, fielding: dict,
     low_sample      = 0
     catcher_framing = None
     n_left = n_right = n_switch = 0
+    batters_found   = 0
 
     for i, bid in enumerate(batter_ids):
         bid   = str(bid).strip()
@@ -270,6 +272,7 @@ def aggregate_lineup(batter_ids: list, batting: dict, fielding: dict,
         if not bstats:
             _log(f"  Batter {bid} ({label}) not found in any Statcast file", "WARN")
         else:
+            batters_found += 1
             for col in BATTER_AVG_COLS:
                 val = bstats.get(col)
                 if val is not None:
@@ -314,7 +317,7 @@ def aggregate_lineup(batter_ids: list, batting: dict, fielding: dict,
     result[f"{side}_n_right"]          = n_right
     result[f"{side}_n_switch"]         = n_switch
 
-    return result, n_left, n_right, n_switch
+    return result, n_left, n_right, n_switch, batters_found
 
 
 # ─────────────────────────────────────────────
@@ -354,16 +357,16 @@ def process_date(date_str: str, venue_map: dict, pitcher_map: dict, batter_map: 
         home_hand = pitcher_map.get(home_pid, None)
         away_hand = pitcher_map.get(away_pid, None)
 
-        hpstats = get_pitcher_stats(home_pid, pitching)
-        apstats = get_pitcher_stats(away_pid, pitching)
+        hpstats, home_sp_found = get_pitcher_stats(home_pid, pitching)
+        apstats, away_sp_found = get_pitcher_stats(away_pid, pitching)
 
         home_bats = [row.get(f"home_bat_{i}_id", "") for i in range(1, 10)]
         away_bats = [row.get(f"away_bat_{i}_id", "") for i in range(1, 10)]
 
-        home_agg, home_L, home_R, home_S = aggregate_lineup(
+        home_agg, home_L, home_R, home_S, home_batters_found = aggregate_lineup(
             home_bats, batting, fielding, baserunning, batter_map, "home"
         )
-        away_agg, away_L, away_R, away_S = aggregate_lineup(
+        away_agg, away_L, away_R, away_S, away_batters_found = aggregate_lineup(
             away_bats, batting, fielding, baserunning, batter_map, "away"
         )
 
@@ -419,6 +422,9 @@ def process_date(date_str: str, venue_map: dict, pitcher_map: dict, batter_map: 
             "park_xwOBAcon_B":            park.get("park_xwOBAcon_B"),
             "park_HR_B":                  park.get("park_HR_B"),
             "park_R_B":                   park.get("park_R_B"),
+            # Data availability indicators
+            "sp_data_available":          1 if (home_sp_found and away_sp_found) else 0,
+            "lineup_data_available":      1 if (home_batters_found == 9 and away_batters_found == 9) else 0,
             # Weather
             "weather_applicable":         w.get("weather_applicable"),
             "weather_time":               w.get("weather_time"),
