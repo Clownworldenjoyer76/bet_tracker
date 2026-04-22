@@ -13,7 +13,7 @@ INPUT_DIR   = Path("docs/win/baseball/02_juice")
 OUTPUT_DIR  = Path("docs/win/baseball/03_edges")
 ERROR_DIR   = Path("docs/win/baseball/errors/03_edges")
 LOG_FILE    = ERROR_DIR / "compute_edges.txt"
-CONFIG_PATH = Path("docs/win/baseball/config/edge_adjustments.yaml")
+CONFIG_PATH = Path("config/baseball/mlb/edge_adjustments.yaml")
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
@@ -343,6 +343,15 @@ def main():
 
             # Contextual adjustments
             if market in ("moneyline", "run_line"):
+                if "sp_data_available" in df.columns and "lineup_data_available" in df.columns:
+                    missing_sp     = int((df["sp_data_available"]     == 0).sum())
+                    missing_lineup = int((df["lineup_data_available"] == 0).sum())
+                    if missing_sp > 0:
+                        _log(f"{input_file.name} | {missing_sp} rows missing SP data — SP adjustment will use 0 diff", "WARN")
+                    if missing_lineup > 0:
+                        _log(f"{input_file.name} | {missing_lineup} rows missing lineup data — lineup/park adjustments will use 0 diff", "WARN")
+                else:
+                    _log(f"{input_file.name} | data availability columns not present — adjustments applied without indicators", "WARN")
                 df = adjust_moneyline_run_line(df, cfg, market)
             else:
                 df = adjust_totals(df, cfg)
