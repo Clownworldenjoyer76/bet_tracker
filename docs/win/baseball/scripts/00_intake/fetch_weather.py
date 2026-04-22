@@ -118,10 +118,10 @@ def call_weather_api(lat: str, lon: str, local_date: str, local_hour: str) -> di
             "will_it_rain":   hour_data.get("will_it_rain"),
         }
     except requests.HTTPError as e:
-        _log(f"Weather API HTTP error: status={e.response.status_code} lat={lat} lon={lon} date={local_date} hr={local_hour}", "ERROR")
+        _log(f"Weather API HTTP error: status={e.response.status_code} date={local_date} hr={local_hour}", "ERROR")
         return {}
     except Exception:
-        _log(f"Weather API failed: lat={lat} lon={lon} date={local_date} hr={local_hour}", "ERROR")
+        _log(f"Weather API failed: date={local_date} hr={local_hour}", "ERROR")
         return {}
 
 
