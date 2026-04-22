@@ -11,3 +11,5 @@ Please do not:
 - Break things just to prove you can 😵‍💫
 - Make the site worse than it already is 😵‍💫
 - Announce your discovery like you just breached the Pentagon 😵‍💫
+
+If you are determined to flip this broken table over, then you probably already have my contact information anyway. 
