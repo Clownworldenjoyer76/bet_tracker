@@ -101,6 +101,7 @@ CONTEXT_COLS = [
     "weather_applicable", "weather_time",
     "temp_f", "wind_mph", "wind_dir", "gust_mph",
     "precip_in", "humidity", "chance_of_rain", "will_it_rain", "wind_blowing_out",
+    "sp_data_available", "lineup_data_available",
 ]
 
 NULL_CONTEXT = {col: "" for col in CONTEXT_COLS}
