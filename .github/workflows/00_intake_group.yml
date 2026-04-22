@@ -28,8 +28,19 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ hashFiles('requirements.txt') }}
+
+      - name: Install Playwright system deps
+        run: playwright install-deps chromium
+
       - name: Install Playwright browsers
-        run: playwright install chromium --with-deps
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: playwright install chromium
 
       # ✅ Ensure ALL required output directories exist
       - name: Create output directories
@@ -57,6 +68,8 @@ jobs:
           mkdir -p docs/win/baseball/00_intake/sportsbook/
           mkdir -p docs/win/baseball/00_intake/drat_raw/
           mkdir -p docs/win/baseball/00_intake/predictions/
+          mkdir -p docs/win/baseball/00_intake/games/
+          mkdir -p docs/win/baseball/00_intake/mlb_raw/
           mkdir -p docs/win/final_scores/results/mlb/final_scores/
           mkdir -p docs/win/baseball/errors/00_intake/
           mkdir -p mappings/baseball/no_map/
@@ -147,6 +160,12 @@ jobs:
         run: python docs/win/basketball/scripts/00_intake/basketball_name_normalization.py
 
       # -------------------------
+      # BASEBALL - BUILD GAMES LIST (runs last)
+      # -------------------------
+      - name: Baseball Build Games List
+        run: python docs/win/baseball/scripts/00_intake/build_games_list.py
+
+      # -------------------------
       # COMMIT
       # -------------------------
       - name: Commit outputs
@@ -177,6 +196,7 @@ jobs:
           git add docs/win/baseball/00_intake/sportsbook/
           git add docs/win/baseball/00_intake/drat_raw/
           git add docs/win/baseball/00_intake/predictions/
+          git add docs/win/baseball/00_intake/games/
           git add docs/win/final_scores/results/mlb/final_scores/
           git add docs/win/baseball/errors/00_intake/
           git add mappings/baseball/no_map/
