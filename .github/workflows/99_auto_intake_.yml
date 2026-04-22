@@ -1,7 +1,10 @@
-name: 00 Intake Group - All
+name: 99 Auto Intake Group - 520am
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '20 5 * * *'
+      timezone: 'America/New_York'
 
 permissions:
   contents: write
@@ -73,6 +76,7 @@ jobs:
           mkdir -p docs/win/final_scores/results/mlb/final_scores/
           mkdir -p docs/win/baseball/errors/00_intake/
           mkdir -p mappings/baseball/no_map/
+          mkdir -p docs/win/baseball/data/weather/
 
           # Basketball
           mkdir -p docs/win/basketball/00_intake/sportsbook/
@@ -160,10 +164,18 @@ jobs:
         run: python docs/win/basketball/scripts/00_intake/basketball_name_normalization.py
 
       # -------------------------
-      # BASEBALL - BUILD GAMES LIST (runs last)
+      # BASEBALL - BUILD GAMES LIST
       # -------------------------
       - name: Baseball Build Games List
         run: python docs/win/baseball/scripts/00_intake/build_games_list.py
+
+      # -------------------------
+      # BASEBALL - Fetch Weather
+      # -------------------------
+      - name: Baseball Fetch Weather
+        env:
+          WEATHER_API: ${{ secrets.WEATHER_API }}
+        run: python docs/win/baseball/scripts/00_intake/fetch_weather.py
 
       # -------------------------
       # COMMIT
@@ -200,6 +212,7 @@ jobs:
           git add docs/win/final_scores/results/mlb/final_scores/
           git add docs/win/baseball/errors/00_intake/
           git add mappings/baseball/no_map/
+          git add docs/win/baseball/data/weather/
 
           # Basketball
           git add docs/win/basketball/00_intake/sportsbook/
