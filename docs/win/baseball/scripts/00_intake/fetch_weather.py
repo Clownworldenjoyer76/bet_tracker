@@ -9,6 +9,7 @@
 # enrich_game_context.py reads from that cache — it never calls the API.
 
 import os
+import re
 from datetime import datetime, UTC
 from pathlib import Path
 
@@ -39,9 +40,24 @@ def _now():
     return datetime.now(UTC).isoformat()
 
 
+def _sanitize_log_message(msg: str) -> str:
+    sanitized = str(msg)
+    # Redact key-value coordinate fields that may contain private location data.
+    sanitized = re.sub(r"(?i)\blat\s*=\s*[^,\s|]+", "lat=<redacted>", sanitized)
+    sanitized = re.sub(r"(?i)\blon\s*=\s*[^,\s|]+", "lon=<redacted>", sanitized)
+    # Redact raw coordinate pairs (e.g., "40.7128,-74.0060").
+    sanitized = re.sub(
+        r"\b-?\d{1,3}(?:\.\d+)?\s*,\s*-?\d{1,3}(?:\.\d+)?\b",
+        "<redacted-coordinates>",
+        sanitized,
+    )
+    return sanitized
+
+
 def _log(msg: str, level: str = "INFO"):
+    safe_msg = _sanitize_log_message(msg).rstrip()
     with open(LOG_FILE, "a", encoding="utf-8") as f:
-        f.write(f"{_now()} | {level:<5} | {msg.rstrip()}\n")
+        f.write(f"{_now()} | {level:<5} | {safe_msg}\n")
 
 
 # ─────────────────────────────────────────────
