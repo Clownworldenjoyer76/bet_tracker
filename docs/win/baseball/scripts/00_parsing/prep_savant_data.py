@@ -45,9 +45,11 @@ def _log(msg: str, level: str = "INFO"):
 
 # Minimum PA to keep a row
 PA_THRESHOLDS = {
-    "2026":      25,
-    "2025":      100,
-    "2020_2024": 150,
+    "2026": 25,
+    "2025": 100,
+    "2024": 150,
+    "2023": 150,
+    "2022": 150,
 }
 
 # sample_flag thresholds
@@ -129,12 +131,9 @@ def _parse_park_filename(stem: str):
 def _year_key(filename: str) -> str:
     """Extract year key from filename for PA threshold lookup."""
     stem = Path(filename).stem
-    if "2026" in stem:
-        return "2026"
-    if "2025" in stem:
-        return "2025"
-    if "2020" in stem or "2024" in stem:
-        return "2020_2024"
+    for yr in ["2026", "2025", "2024", "2023", "2022"]:
+        if yr in stem:
+            return yr
     return None
 
 
@@ -201,7 +200,7 @@ def clean_batting_pitching(filepath: Path, summary: dict) -> None:
         _log(f"  sample_flag=low count: {low_count} (threshold PA<{threshold})")
         summary["sample_flag_low"] += low_count
     else:
-        # 2020_2024 — no sample_flag threshold defined, mark all ok
+        # 2022/2023/2024 — no sample_flag threshold defined, mark all ok
         df["sample_flag"] = "ok"
 
     # Duplicate check
