@@ -7,6 +7,7 @@
 # Handles doubleheaders by using game hour as a tiebreaker.
 
 import csv
+import re
 import traceback
 from datetime import datetime, timezone
 from pathlib import Path
@@ -48,14 +49,19 @@ def log(msg: str, level: str = "INFO"):
 # ─────────────────────────────────────────────
 
 def norm(s):
-    return (s or "").strip().lower()
+    """Lowercase, strip punctuation, collapse spaces for team name matching."""
+    import re
+    s = (s or "").lower().strip()
+    s = re.sub(r"[^a-z0-9 ]", "", s)
+    s = re.sub(r"\s+", " ", s)
+    return s
 
 
 def load_csv(path: Path) -> list:
     if not path.exists():
         log(f"MISSING: {path}", "WARN")
         return []
-    with open(path, newline="", encoding="utf-8") as f:
+    with open(path, newline="", encoding="utf-8-sig") as f:
         return list(csv.DictReader(f))
 
 
@@ -64,11 +70,19 @@ def load_team_map() -> dict:
     rows = load_csv(MAPS_DIR / "mlb_team_ids.csv")
     m = {}
     for r in rows:
-        for col in ["name", "team_name", "location_name", "short_name", "club_name"]:
+        tid = r.get("team_id", "").strip()
+        if not tid:
+            continue
+        for col in ["name", "team_name", "short_name", "club_name", "franchise_name"]:
             val = norm(r.get(col, ""))
             if val:
-                m[val] = r["team_id"]
+                m[val] = tid
     return m
+
+
+def build_id_to_name_map(rows: list) -> dict:
+    """Returns dict: team_id -> full name"""
+    return {r.get("team_id", "").strip(): r.get("name", "").strip() for r in rows}
 
 
 def utc_to_local_hour(utc_str: str, tz_id: str = "America/New_York") -> int:
@@ -93,7 +107,7 @@ def parse_book_hour(time_str: str) -> int:
 # PROCESS ONE DATE
 # ─────────────────────────────────────────────
 
-def process_date(date_str: str, team_map: dict, summary: dict) -> None:
+def process_date(date_str: str, team_map: dict, id_to_name: dict, summary: dict) -> None:
     raw_path  = MLB_RAW_DIR / f"{date_str}_mlb_raw.csv"
     book_path = BOOK_DIR    / f"{date_str}_MLB.csv"
 
@@ -130,19 +144,9 @@ def process_date(date_str: str, team_map: dict, summary: dict) -> None:
         home_tid   = r.get("home_team_id", "")
         away_tid   = r.get("away_team_id", "")
 
-        # Get team names from team_map (reverse lookup by team_id)
-        # Build reverse map: team_id -> name on first use
-        # Instead, look up names from the raw row via team_map by id
-        # mlb_raw only has team IDs — look up names from maps
-        home_name = r.get("home_team", "")
-        away_name = r.get("away_team", "")
-
-        # If mlb_raw doesn't have team names, derive from team_map reverse
-        # team_map is norm(name)->id, so build reverse
-        if not home_name or not away_name:
-            rev = {v: k for k, v in team_map.items()}
-            home_name = rev.get(home_tid, "")
-            away_name = rev.get(away_tid, "")
+        # Look up team names from id_to_name map
+        home_name = id_to_name.get(home_tid, "")
+        away_name = id_to_name.get(away_tid, "")
 
         # Get local hour from UTC game_time
         local_hour = utc_to_local_hour(game_time)
@@ -220,7 +224,9 @@ def main():
 
     try:
         team_map = load_team_map()
-        log(f"Team map loaded: {len(team_map)} entries")
+        team_rows = load_csv(MAPS_DIR / "mlb_team_ids.csv")
+        id_to_name = build_id_to_name_map(team_rows)
+        log(f"Team map loaded: {len(team_map)} entries | id_to_name: {len(id_to_name)} entries")
 
         # Process all dates that have an mlb_raw file
         raw_files = sorted(MLB_RAW_DIR.glob("*_mlb_raw.csv"))
@@ -229,7 +235,7 @@ def main():
         for rf in raw_files:
             date_str = rf.stem.replace("_mlb_raw", "")
             try:
-                process_date(date_str, team_map, summary)
+                process_date(date_str, team_map, id_to_name, summary)
             except Exception as e:
                 log(f"{date_str} FAILED: {e}\n{traceback.format_exc()}", "ERROR")
                 summary["errors"] += 1
