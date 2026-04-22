@@ -1,21 +1,13 @@
-# Security Policy
-
-## Supported Versions
-
-Use this section to tell people about which versions of your project are
-currently being supported with security updates.
-
-| Version | Supported          |
-| ------- | ------------------ |
-| 5.1.x   | :white_check_mark: |
-| 5.0.x   | :x:                |
-| 4.0.x   | :white_check_mark: |
-| < 4.0   | :x:                |
+# ⚠️🤡⚠️ Security Policy ⚠️🤡⚠️ # 
 
 ## Reporting a Vulnerability
 
-Use this section to tell people how to report a vulnerability.
+If you somehow discover a security vulnerability on this site, first of all: congratulations on choosing the least financially rewarding target imaginable.
 
-Tell them where to go, how often they can expect to get an update on a
-reported vulnerability, what to expect if the vulnerability is accepted or
-declined, etc.
+This website is of such limited importance that any successful attack would likely raise more questions about your life choices than my infrastructure.
+
+Please do not:
+- Access data that is not yours 😵‍💫
+- Break things just to prove you can 😵‍💫
+- Make the site worse than it already is 😵‍💫
+- Announce your discovery like you just breached the Pentagon 😵‍💫
