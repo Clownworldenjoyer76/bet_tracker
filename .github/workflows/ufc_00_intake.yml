@@ -3,6 +3,9 @@ name: UFC Intake Test
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   intake:
     runs-on: ubuntu-latest
@@ -31,7 +34,7 @@ jobs:
         run: python docs/win/mma/ufc/scripts/00_intake/00_scrape_odds.py
 
       - name: Run predictions scraper
-        run: python docs/win/mma/ufc/scripts//00_intake/00_scrape_predictions.py
+        run: python docs/win/mma/ufc/scripts/00_intake/00_scrape_predictions.py
 
       - name: Run name normalization
         run: python docs/win/mma/ufc/scripts/00_intake/00_name_normalization.py
