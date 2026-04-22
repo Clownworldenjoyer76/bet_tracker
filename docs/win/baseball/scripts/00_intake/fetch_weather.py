@@ -104,7 +104,7 @@ def call_weather_api(lat: str, lon: str, local_date: str, local_hour: str) -> di
             {}
         )
         if not hour_data:
-            _log(f"Weather API returned no matching hour for hr={local_hour} lat={lat} lon={lon} date={local_date}", "WARN")
+            _log(f"Weather API returned no matching hour for hr={local_hour} date={local_date}", "WARN")
             return {}
         return {
             "weather_time":   hour_data.get("time"),
