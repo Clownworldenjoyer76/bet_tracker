@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
 # docs/win/baseball/scripts/00_intake/enrich_game_context.py
 #
-# Runs daily after scrape_mlb_raw.py.
-# Reads {date}_mlb_raw.csv and joins all contextual data to produce
+# Runs hourly after scrape_mlb_raw.py.
+# Joins Statcast, park factors, and weather (from cache) to produce
 # {date}_game_context.csv at docs/win/baseball/00_intake/mlb_raw/
+#
+# Weather is NOT fetched here. Run fetch_weather.py once per day first.
 
-import os
 import traceback
-import requests
 from datetime import datetime, UTC
 from pathlib import Path
-from zoneinfo import ZoneInfo
 
 import pandas as pd
 
@@ -22,14 +21,11 @@ BASE_DIR      = Path("docs/win/baseball")
 MLBraw_DIR    = BASE_DIR / "00_intake/mlb_raw"
 MAPS_DIR      = BASE_DIR / "maps"
 DATA_DIR      = BASE_DIR / "data"
-WEATHER_CACHE = DATA_DIR / "weather"
+WEATHER_DIR   = DATA_DIR / "weather"
 ERROR_DIR     = BASE_DIR / "errors/00_intake"
 
-WEATHER_CACHE.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE = ERROR_DIR / "enrich_game_context.txt"
-
-WEATHER_API_KEY = os.environ.get("WEATHER_API", "")
 
 # ─────────────────────────────────────────────
 # LOGGING
@@ -110,7 +106,6 @@ def load_statcast():
     batting  = _load_statcast(DATA_DIR / "batting",  BATTING_COLS)
     pitching = _load_statcast(DATA_DIR / "pitching", PITCHING_COLS)
 
-    # Fielding: oldest to newest, newest wins per player
     fielding = {}
     for yr in STATCAST_PRIORITY:
         for f in sorted((DATA_DIR / "fielding").glob(f"*{yr}*_clean.csv")):
@@ -119,7 +114,6 @@ def load_statcast():
             for _, row in df.iterrows():
                 fielding[row["id"]] = row.to_dict()
 
-    # Baserunning: oldest to newest, newest wins per player
     baserunning = {}
     for yr in STATCAST_PRIORITY:
         for f in sorted((DATA_DIR / "baserunning").glob(f"*{yr}*_clean.csv")):
@@ -136,7 +130,6 @@ def load_statcast():
 # ─────────────────────────────────────────────
 
 def load_park_factors() -> list:
-    """Returns list of dicts from all park_B_*_clean.csv files."""
     rows = []
     for f in sorted((DATA_DIR / "park_factors").glob("park_B_*_clean.csv")):
         df = pd.read_csv(f, dtype={"venue_id": str})
@@ -152,7 +145,6 @@ def get_park_condition(roof_type: str, day_night: str) -> str:
         return "roof_closed"
     if rt == "retractable":
         return "day" if dn == "day" else "night"
-    # open / outdoor
     return "open_air"
 
 
@@ -165,61 +157,21 @@ def lookup_park(park_rows: list, venue_id: str, condition: str) -> dict:
 
 
 # ─────────────────────────────────────────────
-# WEATHER
+# LOAD WEATHER CACHE
 # ─────────────────────────────────────────────
 
-def _game_local_hour(game_time_utc: str, tz_id: str) -> tuple:
-    """Convert UTC game_time string to local date and hour."""
-    try:
-        dt_utc = datetime.strptime(game_time_utc.strip(), "%Y-%m-%dT%H:%M:%SZ")
-        dt_utc = dt_utc.replace(tzinfo=ZoneInfo("UTC"))
-        dt_loc = dt_utc.astimezone(ZoneInfo(tz_id))
-        return dt_loc.strftime("%Y-%m-%d"), str(dt_loc.hour)
-    except Exception as e:
-        _log(f"Timezone conversion failed for {game_time_utc} / {tz_id}: {e}", "WARN")
-        return None, None
-
-
-def fetch_weather(lat: str, lon: str, game_time_utc: str, tz_id: str,
-                  cache_df: pd.DataFrame) -> dict:
-    """Fetch weather from API or cache."""
-    local_date, local_hour = _game_local_hour(game_time_utc, tz_id)
-    if not local_date or not local_hour:
+def load_weather(date_str: str) -> dict:
+    """
+    Returns dict: gamePk -> weather row dict.
+    If no weather file exists, returns empty dict and logs a warning.
+    """
+    weather_path = WEATHER_DIR / f"{date_str}_weather.csv"
+    if not weather_path.exists():
+        _log(f"  No weather file for {date_str} — run fetch_weather.py first. Weather columns will be null.", "WARN")
         return {}
-
-    cache_key = f"{lat}_{lon}_{local_date}_{local_hour}"
-
-    if not cache_df.empty and cache_key in cache_df["cache_key"].values:
-        _log(f"  Weather cache hit: {cache_key}")
-        return cache_df[cache_df["cache_key"] == cache_key].iloc[0].to_dict()
-
-    if not WEATHER_API_KEY:
-        _log("WEATHER_API not set — skipping weather fetch", "WARN")
-        return {}
-
-    try:
-        url = (
-            f"http://api.weatherapi.com/v1/forecast.json"
-            f"?key={WEATHER_API_KEY}&q={lat},{lon}&days=1&dt={local_date}&hour={local_hour}"
-        )
-        r = requests.get(url, timeout=10)
-        r.raise_for_status()
-        hour_data = r.json()["forecast"]["forecastday"][0]["hour"][0]
-        return {
-            "cache_key":      cache_key,
-            "weather_time":   hour_data.get("time"),
-            "temp_f":         hour_data.get("temp_f"),
-            "wind_mph":       hour_data.get("wind_mph"),
-            "wind_dir":       hour_data.get("wind_dir"),
-            "gust_mph":       hour_data.get("gust_mph"),
-            "precip_in":      hour_data.get("precip_in"),
-            "humidity":       hour_data.get("humidity"),
-            "chance_of_rain": hour_data.get("chance_of_rain"),
-            "will_it_rain":   hour_data.get("will_it_rain"),
-        }
-    except Exception as e:
-        _log(f"Weather API failed for {lat},{lon} {local_date} hr={local_hour}: {e}", "ERROR")
-        return {}
+    df = pd.read_csv(weather_path, dtype={"gamePk": str})
+    df["gamePk"] = df["gamePk"].str.strip()
+    return df.set_index("gamePk").to_dict("index")
 
 
 # ─────────────────────────────────────────────
@@ -240,7 +192,6 @@ BATTER_AVG_COLS = ["xwoba", "barrel_pct", "hard_hit_pct", "k_pct", "bb_pct", "ex
 
 def aggregate_lineup(batter_ids: list, batting: dict, fielding: dict,
                      baserunning: dict, batter_map: dict, side: str) -> dict:
-    """Aggregate stats for a 9-batter lineup."""
     avg_accum       = {c: [] for c in BATTER_AVG_COLS}
     frv_sum         = 0.0
     brv_sum         = 0.0
@@ -251,7 +202,6 @@ def aggregate_lineup(batter_ids: list, batting: dict, fielding: dict,
         bid   = str(bid).strip()
         label = f"{side}_bat_{i+1}"
 
-        # Batting Statcast
         bstats = batting.get(bid)
         if not bstats:
             _log(f"  Batter {bid} ({label}) not found in any Statcast file", "WARN")
@@ -266,14 +216,12 @@ def aggregate_lineup(batter_ids: list, batting: dict, fielding: dict,
             if bstats.get("sample_flag") == "low":
                 low_sample += 1
 
-        # Fielding — total_runs sum (exclude framing)
         fstats = fielding.get(bid, {})
         try:
             frv_sum += float(fstats.get("total_runs", 0) or 0)
         except (ValueError, TypeError):
             pass
 
-        # Catcher framing — position code 2 = catcher
         bmap_row = batter_map.get(bid, {})
         if str(bmap_row.get("primary_position_code", "")).strip() == "2":
             try:
@@ -281,7 +229,6 @@ def aggregate_lineup(batter_ids: list, batting: dict, fielding: dict,
             except (ValueError, TypeError):
                 catcher_framing = None
 
-        # Baserunning
         brstats = baserunning.get(bid, {})
         try:
             brv_sum += float(brstats.get("runner_runs_tot", 0) or 0)
@@ -314,21 +261,15 @@ def process_date(date_str: str, venue_map: dict, pitcher_map: dict, batter_map: 
         summary["missing_raw"] += 1
         return
 
-    df = pd.read_csv(raw_path, dtype=str)
-    _log(f"--- {date_str} | {len(df)} games")
+    df          = pd.read_csv(raw_path, dtype=str)
+    weather_map = load_weather(date_str)
+    _log(f"--- {date_str} | {len(df)} games | weather rows: {len(weather_map)}")
 
-    weather_cache_path = WEATHER_CACHE / f"{date_str}_weather.csv"
-    cache_df = pd.read_csv(weather_cache_path, dtype=str) if weather_cache_path.exists() else pd.DataFrame()
-    if not cache_df.empty:
-        _log(f"  Weather cache loaded: {len(cache_df)} entries")
-
-    new_weather_rows = []
-    output_rows      = []
+    output_rows = []
 
     for _, row in df.iterrows():
-        game_pk   = row.get("gamePk", "")
+        game_pk   = str(row.get("gamePk", "")).strip()
         game_date = row.get("game_date", "")
-        game_time = row.get("game_time", "")
         venue_id  = str(row.get("venue_id", "")).strip()
         day_night = str(row.get("day_night", "")).strip().lower()
         home_tid  = str(row.get("home_team_id", "")).strip()
@@ -339,10 +280,6 @@ def process_date(date_str: str, venue_map: dict, pitcher_map: dict, batter_map: 
         vinfo     = venue_map.get(venue_id, {})
         roof_type = vinfo.get("roof_type", "")
         turf_type = vinfo.get("turf_type", "")
-        lat       = str(vinfo.get("latitude", ""))
-        lon       = str(vinfo.get("longitude", ""))
-        tz_id     = vinfo.get("time_zone_id", "America/New_York")
-        wind_out  = vinfo.get("wind_out_direction", "")
 
         home_hand = pitcher_map.get(home_pid, None)
         away_hand = pitcher_map.get(away_pid, None)
@@ -361,19 +298,8 @@ def process_date(date_str: str, venue_map: dict, pitcher_map: dict, batter_map: 
         if not park_row:
             _log(f"  Park factor not found: venue={venue_id} condition={condition}", "WARN")
 
-        rt_lower           = roof_type.strip().lower()
-        weather_applicable = 0 if rt_lower in ("dome", "indoor") else 1
-        weather            = {}
-        wind_blowing_out   = None
-
-        if weather_applicable and lat and lon and game_time:
-            weather = fetch_weather(lat, lon, game_time, tz_id, cache_df)
-            if weather and weather not in new_weather_rows:
-                new_weather_rows.append(weather)
-            if weather.get("wind_dir") and wind_out and wind_out not in ("NULL", ""):
-                wind_blowing_out = 1 if weather["wind_dir"].strip().upper() == wind_out.strip().upper() else 0
-
-        summary["weather_calls"] += (1 if weather and "weather_time" in weather else 0)
+        # Weather — read from cache only, never call API
+        w = weather_map.get(game_pk, {})
 
         output_rows.append({
             "game_date":             game_date,
@@ -406,17 +332,17 @@ def process_date(date_str: str, venue_map: dict, pitcher_map: dict, batter_map: 
             "park_xwOBAcon":         park_row.get("xwOBAcon"),
             "park_HR":               park_row.get("HR"),
             "park_R":                park_row.get("R"),
-            "weather_applicable":    weather_applicable,
-            "weather_time":          weather.get("weather_time"),
-            "temp_f":                weather.get("temp_f"),
-            "wind_mph":              weather.get("wind_mph"),
-            "wind_dir":              weather.get("wind_dir"),
-            "gust_mph":              weather.get("gust_mph"),
-            "precip_in":             weather.get("precip_in"),
-            "humidity":              weather.get("humidity"),
-            "chance_of_rain":        weather.get("chance_of_rain"),
-            "will_it_rain":          weather.get("will_it_rain"),
-            "wind_blowing_out":      wind_blowing_out,
+            "weather_applicable":    w.get("weather_applicable"),
+            "weather_time":          w.get("weather_time"),
+            "temp_f":                w.get("temp_f"),
+            "wind_mph":              w.get("wind_mph"),
+            "wind_dir":              w.get("wind_dir"),
+            "gust_mph":              w.get("gust_mph"),
+            "precip_in":             w.get("precip_in"),
+            "humidity":              w.get("humidity"),
+            "chance_of_rain":        w.get("chance_of_rain"),
+            "will_it_rain":          w.get("will_it_rain"),
+            "wind_blowing_out":      w.get("wind_blowing_out"),
         })
 
     if output_rows:
@@ -425,13 +351,6 @@ def process_date(date_str: str, venue_map: dict, pitcher_map: dict, batter_map: 
         _log(f"  WROTE: {out_path.name} ({len(output_rows)} rows)")
         summary["files_written"] += 1
         summary["rows_written"]  += len(output_rows)
-
-    if new_weather_rows:
-        new_df   = pd.DataFrame(new_weather_rows)
-        combined = pd.concat([cache_df, new_df]).drop_duplicates(subset=["cache_key"]) if not cache_df.empty else new_df
-        combined.to_csv(weather_cache_path, index=False)
-        _log(f"  Weather cache updated: {len(combined)} entries -> {weather_cache_path.name}")
-        summary["cache_writes"] += 1
 
 
 # ─────────────────────────────────────────────
@@ -446,8 +365,6 @@ def main():
         "files_written": 0,
         "rows_written":  0,
         "missing_raw":   0,
-        "weather_calls": 0,
-        "cache_writes":  0,
         "errors":        0,
     }
 
@@ -490,8 +407,6 @@ def main():
         f"  files_written  : {summary['files_written']}",
         f"  rows_written   : {summary['rows_written']}",
         f"  missing_raw    : {summary['missing_raw']}",
-        f"  weather_calls  : {summary['weather_calls']}",
-        f"  cache_writes   : {summary['cache_writes']}",
         f"  errors         : {summary['errors']}",
         "",
         f"STATUS: {status}",
