@@ -61,8 +61,8 @@ def load_venue_map() -> dict:
 def call_weather_api(lat: str, lon: str, local_date: str, local_hour: str) -> dict:
     """
     Call weatherapi.com over HTTPS.
-    API key is passed via params dict — never embedded in a string,
-    never constructed into a loggable URL, never written to disk.
+    API key passed via params dict — never embedded in a string or logged.
+    Matches returned hour by time string, not by array index.
     """
     if not WEATHER_API_KEY:
         _log("WEATHER_API not set — cannot fetch weather", "WARN")
@@ -80,7 +80,16 @@ def call_weather_api(lat: str, lon: str, local_date: str, local_hour: str) -> di
             timeout=10,
         )
         r.raise_for_status()
-        hour_data = r.json()["forecast"]["forecastday"][0]["hour"][0]
+        hours = r.json()["forecast"]["forecastday"][0]["hour"]
+        # Match by time string (e.g. "2026-04-19 21:00") rather than assuming [0] is correct
+        target_suffix = f"{int(local_hour):02d}:00"
+        hour_data = next(
+            (h for h in hours if str(h.get("time", "")).endswith(target_suffix)),
+            {}
+        )
+        if not hour_data:
+            _log(f"Weather API returned no matching hour for hr={local_hour} lat={lat} lon={lon} date={local_date}", "WARN")
+            return {}
         return {
             "weather_time":   hour_data.get("time"),
             "temp_f":         hour_data.get("temp_f"),
@@ -95,8 +104,8 @@ def call_weather_api(lat: str, lon: str, local_date: str, local_hour: str) -> di
     except requests.HTTPError as e:
         _log(f"Weather API HTTP error: status={e.response.status_code} lat={lat} lon={lon} date={local_date} hr={local_hour}", "ERROR")
         return {}
-    except Exception as e:
-        _log(f"Weather API failed: lat={lat} lon={lon} date={local_date} hr={local_hour} error={type(e).__name__}", "ERROR")
+    except Exception:
+        _log(f"Weather API failed: lat={lat} lon={lon} date={local_date} hr={local_hour}", "ERROR")
         return {}
 
 
@@ -115,11 +124,10 @@ def process_date(date_str: str, venue_map: dict, summary: dict) -> None:
 
     games_df    = pd.read_csv(games_path, dtype=str)
     total_games = len(games_df)
+    game_pks    = {str(pk).strip() for pk in games_df["gamePk"]}
+    game_order  = {str(pk).strip(): i for i, pk in enumerate(games_df["gamePk"])}
 
-    # Preserve original game order using gamePk sequence from games_df
-    game_order = {str(pk).strip(): i for i, pk in enumerate(games_df["gamePk"])}
-
-    # Load existing weather rows — only fetch missing gamePks
+    # Load existing weather rows keyed by gamePk
     existing_by_pk = {}
     if weather_path.exists():
         existing_df = pd.read_csv(weather_path, dtype=str)
@@ -127,12 +135,16 @@ def process_date(date_str: str, venue_map: dict, summary: dict) -> None:
             str(r["gamePk"]).strip(): r
             for r in existing_df.to_dict("records")
         }
-        already = len(existing_by_pk)
-        if already >= total_games:
-            _log(f"{date_str} | all {total_games} games already have weather — skipping")
-            summary["skipped"] += 1
-            return
-        _log(f"{date_str} | {already}/{total_games} games have weather — fetching {total_games - already} missing")
+
+    # Check coverage by set comparison, not count
+    missing_pks = game_pks - set(existing_by_pk.keys())
+    if not missing_pks:
+        _log(f"{date_str} | all {total_games} games already have weather — skipping")
+        summary["skipped"] += 1
+        return
+
+    if existing_by_pk:
+        _log(f"{date_str} | {len(existing_by_pk)}/{total_games} games have weather — fetching {len(missing_pks)} missing")
 
     _log(f"--- {date_str} | {total_games} games total")
 
@@ -141,7 +153,7 @@ def process_date(date_str: str, venue_map: dict, summary: dict) -> None:
     for _, row in games_df.iterrows():
         game_pk = str(row.get("gamePk", "")).strip()
 
-        if game_pk in existing_by_pk:
+        if game_pk not in missing_pks:
             continue
 
         venue_id  = str(row.get("venue_id", "")).strip()
@@ -164,8 +176,8 @@ def process_date(date_str: str, venue_map: dict, summary: dict) -> None:
                 dt_local   = datetime.strptime(f"{date_clean} {game_time}", "%Y-%m-%d %H:%M:%S")
                 local_date = dt_local.strftime("%Y-%m-%d")
                 local_hour = str(dt_local.hour)
-            except Exception as e:
-                _log(f"  {game_pk} time parse failed: {type(e).__name__}", "WARN")
+            except Exception:
+                _log(f"  {game_pk} time parse failed", "WARN")
                 local_date = local_hour = None
 
             if local_date and local_hour:
@@ -203,7 +215,10 @@ def process_date(date_str: str, venue_map: dict, summary: dict) -> None:
         }
 
     # Write in original game order from games_df
-    ordered = sorted(existing_by_pk.values(), key=lambda r: game_order.get(str(r["gamePk"]).strip(), 999))
+    ordered = sorted(
+        existing_by_pk.values(),
+        key=lambda r: game_order.get(str(r["gamePk"]).strip(), 999)
+    )
     pd.DataFrame(ordered).to_csv(weather_path, index=False)
     _log(f"  WROTE: {weather_path.name} ({len(ordered)} rows)")
     summary["files_written"] += 1
@@ -235,12 +250,12 @@ def main():
             date_str = gf.stem.replace("_games", "")
             try:
                 process_date(date_str, venue_map, summary)
-            except Exception as e:
-                _log(f"{date_str} FAILED: {type(e).__name__}", "ERROR")
+            except Exception:
+                _log(f"{date_str} FAILED", "ERROR")
                 summary["errors"] += 1
 
-    except Exception as e:
-        _log(f"FATAL: {type(e).__name__}", "ERROR")
+    except Exception:
+        _log("FATAL", "ERROR")
         summary["errors"] += 1
 
     status = "SUCCESS" if summary["errors"] == 0 else "COMPLETED WITH ERRORS"
