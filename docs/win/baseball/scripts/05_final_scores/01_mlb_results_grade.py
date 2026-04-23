@@ -201,6 +201,10 @@ def grade_league():
         log_error("SCORE FILES MISSING game_id COLUMN — cannot match")
         return
 
+    # ── Normalize game_id type before merge ───────────────────
+    all_bets["game_id"]   = all_bets["game_id"].astype(str).str.strip().str.split(".").str[0]
+    all_scores["game_id"] = all_scores["game_id"].astype(str).str.strip().str.split(".").str[0]
+
     # ── Merge on game_id ───────────────────────────────────────
     # Suffix _s = from scores, _b = from bets; we prefer score values for
     # score-side columns and bet values for bet-side columns.
