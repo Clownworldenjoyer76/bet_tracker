@@ -110,7 +110,7 @@ def normalize_file(file_path: Path):
 
     try:
         df = pd.read_csv(file_path, dtype=str)
-        df = df.applymap(lambda x: x.strip() if isinstance(x, str) else x)
+        df = df.apply(lambda col: col.map(lambda x: x.strip() if isinstance(x, str) else x))
     except Exception as e:
         log(f"ERROR reading | {file_path} | {e}")
         return []
