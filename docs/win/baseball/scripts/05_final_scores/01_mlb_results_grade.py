@@ -103,10 +103,12 @@ def resolve_suffixed_cols(merged):
             base = col[:-6]
             if base not in merged.columns:
                 merged[base] = merged[col]
-    merged = merged.drop(
-        columns=[c for c in merged.columns if c.endswith("_bet") or c.endswith("_score")],
-        errors="ignore"
-    )
+    # Only drop columns that were created by the merge suffix (_bet/_score appended by pandas)
+    # Do NOT drop columns whose natural name ends in _score (e.g. final_away_score, final_home_score)
+    suffixed = [c for c in merged.columns if
+                (c.endswith("_bet") and c[:-4] in merged.columns) or
+                (c.endswith("_score") and c[:-6] in merged.columns)]
+    merged = merged.drop(columns=suffixed, errors="ignore")
     return merged
 
 ###############################################################
