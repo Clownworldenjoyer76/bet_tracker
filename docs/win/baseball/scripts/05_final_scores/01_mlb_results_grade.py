@@ -86,7 +86,7 @@ def safe_read(path):
         if df is None or df.empty:
             log_error(f"EMPTY FILE | {path}")
             return pd.DataFrame()
-        df = df.applymap(lambda x: x.strip() if isinstance(x, str) else x)
+        df = df.apply(lambda col: col.map(lambda x: x.strip() if isinstance(x, str) else x))
         return df
     except Exception as e:
         log_error(f"READ ERROR | {path} | {e}")
