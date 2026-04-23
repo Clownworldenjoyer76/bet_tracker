@@ -119,6 +119,7 @@ def normalize_file(file_path: Path):
         log(f"SKIP — no game_id column | {file_path}")
         return []
 
+    df["game_id"] = df["game_id"].astype(object)
     rows_needing_id = df["game_id"].isna() | (df["game_id"].astype(str).str.strip() == "")
 
     if not rows_needing_id.any():
