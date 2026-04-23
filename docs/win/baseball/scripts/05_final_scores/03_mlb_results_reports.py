@@ -27,7 +27,11 @@ LEAGUE = "MLB"
 
 def to_float(value):
     try:
-        return float(value)
+        v = float(value)
+        import math
+        if math.isnan(v):
+            return None
+        return v
     except Exception:
         return None
 
