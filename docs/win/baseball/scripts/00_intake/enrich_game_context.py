@@ -359,6 +359,10 @@ def process_date(date_str: str, venue_map: dict, pitcher_map: dict, batter_map: 
 
         hpstats, home_sp_found = get_pitcher_stats(home_pid, pitching)
         apstats, away_sp_found = get_pitcher_stats(away_pid, pitching)
+        if not home_sp_found:
+            summary["missing_pitcher"] += 1
+        if not away_sp_found:
+            summary["missing_pitcher"] += 1
 
         home_bats = [row.get(f"home_bat_{i}_id", "") for i in range(1, 10)]
         away_bats = [row.get(f"away_bat_{i}_id", "") for i in range(1, 10)]
@@ -369,6 +373,7 @@ def process_date(date_str: str, venue_map: dict, pitcher_map: dict, batter_map: 
         away_agg, away_L, away_R, away_S, away_batters_found = aggregate_lineup(
             away_bats, batting, fielding, baserunning, batter_map, "away"
         )
+        summary["missing_batter"] += (9 - home_batters_found) + (9 - away_batters_found)
 
         # Park factors — weighted average of home and away lineup bat sides
         condition = get_park_condition(roof_type, day_night)
@@ -383,6 +388,8 @@ def process_date(date_str: str, venue_map: dict, pitcher_map: dict, batter_map: 
 
         # Weather — read from cache only
         w = weather_map.get(game_pk, {})
+        if w:
+            summary["weather_cache_hits"] += 1
 
         output_rows.append({
             "game_date":                  game_date,
@@ -456,10 +463,13 @@ def main():
         f.write(f"=== enrich_game_context RUN {_now()} ===\n")
 
     summary = {
-        "files_written": 0,
-        "rows_written":  0,
-        "missing_raw":   0,
-        "errors":        0,
+        "files_written":     0,
+        "rows_written":      0,
+        "missing_raw":       0,
+        "missing_pitcher":   0,
+        "missing_batter":    0,
+        "weather_cache_hits": 0,
+        "errors":            0,
     }
 
     try:
@@ -501,10 +511,13 @@ def main():
         "=" * 60,
         f"SUMMARY  {_now()}",
         "=" * 60,
-        f"  files_written  : {summary['files_written']}",
-        f"  rows_written   : {summary['rows_written']}",
-        f"  missing_raw    : {summary['missing_raw']}",
-        f"  errors         : {summary['errors']}",
+        f"  files_written     : {summary['files_written']}",
+        f"  rows_written      : {summary['rows_written']}",
+        f"  missing_raw       : {summary['missing_raw']}",
+        f"  missing_pitcher   : {summary['missing_pitcher']}",
+        f"  missing_batter    : {summary['missing_batter']}",
+        f"  weather_cache_hits: {summary['weather_cache_hits']}",
+        f"  errors            : {summary['errors']}",
         "",
         f"STATUS: {status}",
         "=" * 60,
