@@ -49,7 +49,7 @@ def load_games_file(game_date_str):
         return None
     try:
         df = pd.read_csv(games_file, dtype=str)
-        df = df.applymap(lambda x: x.strip() if isinstance(x, str) else x)
+        df = df.apply(lambda col: col.map(lambda x: x.strip() if isinstance(x, str) else x))
         return df
     except Exception as e:
         log(f"ERROR loading games file | {games_file} | {e}")
