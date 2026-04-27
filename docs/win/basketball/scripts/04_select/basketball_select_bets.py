@@ -115,10 +115,10 @@ def ev_ok(ev, cfg):
         DEBUG_COUNTS["fail_null"] += 1
         return False
 
-    if "edge_bands" in cfg:
-        ok = in_bands(ev, cfg["edge_bands"])
+    if "ev_bands" in cfg:
+        ok = in_bands(ev, cfg["ev_bands"])
         if not ok:
-            DEBUG_COUNTS["fail_edge_band"] += 1
+            DEBUG_COUNTS["fail_ev_band"] += 1
         return ok
 
     if ev < cfg["ev_min"]:
