@@ -82,21 +82,31 @@ def in_bands(value, bands):
     if value is None:
         DEBUG_COUNTS["fail_null"] += 1
         return False
+
     ok = any(lo <= value <= hi for lo, hi in bands)
+
     if not ok:
         DEBUG_COUNTS["fail_band"] += 1
+
     return ok
 
 
 def violates_exclude_rules(ev, kelly, odds, line, rules):
     for r in rules.get("exclude_rules", []):
-        if "ev_min"   in r and (ev   is None or ev   < r["ev_min"]):   continue
-        if "ev_max"   in r and (ev   is None or ev   > r["ev_max"]):   continue
-        if "odds_min" in r and (odds is None or odds < r["odds_min"]): continue
-        if "odds_max" in r and (odds is None or odds > r["odds_max"]): continue
-        if "line_min" in r and (line is None or line < r["line_min"]): continue
-        if "line_max" in r and (line is None or line > r["line_max"]): continue
+        if "ev_min" in r and (ev is None or ev < r["ev_min"]):
+            continue
+        if "ev_max" in r and (ev is None or ev > r["ev_max"]):
+            continue
+        if "odds_min" in r and (odds is None or odds < r["odds_min"]):
+            continue
+        if "odds_max" in r and (odds is None or odds > r["odds_max"]):
+            continue
+        if "line_min" in r and (line is None or line < r["line_min"]):
+            continue
+        if "line_max" in r and (line is None or line > r["line_max"]):
+            continue
         return True
+
     return False
 
 
@@ -104,12 +114,21 @@ def ev_ok(ev, cfg):
     if ev is None:
         DEBUG_COUNTS["fail_null"] += 1
         return False
+
+    if "edge_bands" in cfg:
+        ok = in_bands(ev, cfg["edge_bands"])
+        if not ok:
+            DEBUG_COUNTS["fail_edge_band"] += 1
+        return ok
+
     if ev < cfg["ev_min"]:
         DEBUG_COUNTS["fail_ev_min"] += 1
         return False
+
     if ev > cfg.get("ev_max", float("inf")):
         DEBUG_COUNTS["fail_ev_max"] += 1
         return False
+
     return True
 
 
@@ -117,26 +136,38 @@ def kelly_ok(kelly, cfg):
     if kelly is None:
         DEBUG_COUNTS["fail_null"] += 1
         return False
+
     if not (cfg["kelly_min"] <= kelly <= cfg["kelly_max"]):
         DEBUG_COUNTS["fail_kelly"] += 1
         return False
+
     return True
 
 
 def detect_league(filename):
     name = filename.lower()
+
     if "ncaab" in name:
         return "NCAAB"
+
     if "nba" in name:
         return "NBA"
+
     raise ValueError(f"Unknown league in filename: {filename}")
 
 
 def detect_market_type(filename):
     name = filename.lower()
-    if "moneyline" in name: return "moneyline"
-    if "spread"    in name: return "spread"
-    if "total"     in name: return "total"
+
+    if "moneyline" in name:
+        return "moneyline"
+
+    if "spread" in name:
+        return "spread"
+
+    if "total" in name:
+        return "total"
+
     return ""
 
 
@@ -155,93 +186,128 @@ def market_cfg(league, market_type):
 def pick_side(valid_sides, preference):
     if not valid_sides:
         return None
-    return max(valid_sides,
-               key=lambda x: x["kelly"] if preference == "best_kelly" else x["ev"])
+
+    return max(
+        valid_sides,
+        key=lambda x: x["kelly"] if preference == "best_kelly" else x["ev"],
+    )
 
 
 def moneyline(row, league):
-    cfg  = market_cfg(league, "moneyline")
+    cfg = market_cfg(league, "moneyline")
+
     if not cfg.get("enabled", True):
         return False, "", "", 0
+
     pref = cfg.get("pick_preference", "best_ev")
     sides = []
+
     for side in ["home", "away"]:
-        scfg  = cfg[side]
+        scfg = cfg[side]
+
         if not scfg.get("enabled", True):
             continue
-        odds  = fv(row.get(f"{side}_dk_moneyline_american"))
-        ev    = fv(row.get(f"{side}_ml_ev"))
+
+        odds = fv(row.get(f"{side}_dk_moneyline_american"))
+        ev = fv(row.get(f"{side}_ml_ev"))
         kelly = fv(row.get(f"{side}_ml_kelly"))
-        if (in_bands(odds, scfg["odds_bands"])
-                and ev_ok(ev, scfg)
-                and kelly_ok(kelly, scfg)
-                and not violates_exclude_rules(ev, kelly, odds, None, scfg)):
+
+        if (
+            in_bands(odds, scfg["odds_bands"])
+            and ev_ok(ev, scfg)
+            and kelly_ok(kelly, scfg)
+            and not violates_exclude_rules(ev, kelly, odds, None, scfg)
+        ):
             sides.append({"side": side, "line": odds, "ev": ev, "kelly": kelly})
+
     pick = pick_side(sides, pref)
+
     return (True, pick["side"], pick["line"], pick["ev"]) if pick else (False, "", "", 0)
 
 
 def spread(row, league):
-    cfg  = market_cfg(league, "spread")
+    cfg = market_cfg(league, "spread")
+
     if not cfg.get("enabled", True):
         return False, "", "", 0
+
     pref = cfg.get("pick_preference", "best_ev")
     sides = []
+
     for side in ["home", "away"]:
-        scfg  = cfg[side]
+        scfg = cfg[side]
+
         if not scfg.get("enabled", True):
             continue
-        line  = fv(row.get(f"{side}_spread"))
-        odds  = fv(row.get(f"{side}_dk_spread_american"))
-        ev    = fv(row.get(f"{side}_spread_ev"))
+
+        line = fv(row.get(f"{side}_spread"))
+        odds = fv(row.get(f"{side}_dk_spread_american"))
+        ev = fv(row.get(f"{side}_spread_ev"))
         kelly = fv(row.get(f"{side}_spread_kelly"))
-        if (in_bands(line, scfg["line_bands"])
-                and in_bands(odds, scfg.get("odds_bands", [[-10000, 10000]]))
-                and ev_ok(ev, scfg)
-                and kelly_ok(kelly, scfg)
-                and not violates_exclude_rules(ev, kelly, odds, line, scfg)):
+
+        if (
+            in_bands(line, scfg["line_bands"])
+            and in_bands(odds, scfg.get("odds_bands", [[-10000, 10000]]))
+            and ev_ok(ev, scfg)
+            and kelly_ok(kelly, scfg)
+            and not violates_exclude_rules(ev, kelly, odds, line, scfg)
+        ):
             sides.append({"side": side, "line": line, "ev": ev, "kelly": kelly})
+
     pick = pick_side(sides, pref)
+
     return (True, pick["side"], pick["line"], pick["ev"]) if pick else (False, "", "", 0)
 
 
 def total(row, league):
-    cfg  = market_cfg(league, "total")
+    cfg = market_cfg(league, "total")
+
     if not cfg.get("enabled", True):
         return False, "", "", 0
+
     pref = cfg.get("pick_preference", "best_ev")
     line = fv(row.get("total"))
     sides = []
+
     for side in ["over", "under"]:
-        scfg  = cfg[side]
+        scfg = cfg[side]
+
         if not scfg.get("enabled", True):
             continue
-        odds  = fv(row.get(f"dk_total_{side}_american"))
-        ev    = fv(row.get(f"{side}_ev"))
+
+        odds = fv(row.get(f"dk_total_{side}_american"))
+        ev = fv(row.get(f"{side}_ev"))
         kelly = fv(row.get(f"{side}_kelly"))
-        if (in_bands(line, scfg["line_bands"])
-                and in_bands(odds, scfg.get("odds_bands", [[-10000, 10000]]))
-                and ev_ok(ev, scfg)
-                and kelly_ok(kelly, scfg)
-                and not violates_exclude_rules(ev, kelly, odds, line, scfg)):
+
+        if (
+            in_bands(line, scfg["line_bands"])
+            and in_bands(odds, scfg.get("odds_bands", [[-10000, 10000]]))
+            and ev_ok(ev, scfg)
+            and kelly_ok(kelly, scfg)
+            and not violates_exclude_rules(ev, kelly, odds, line, scfg)
+        ):
             sides.append({"side": side, "line": line, "ev": ev, "kelly": kelly})
+
     pick = pick_side(sides, pref)
+
     return (True, pick["side"], pick["line"], pick["ev"]) if pick else (False, "", "", 0)
 
 
 def process_file(file):
     df = pd.read_csv(file)
+
     if df.empty:
         _log(f"EMPTY: {file.name}", "WARN")
         return pd.DataFrame(), 0
 
-    league      = detect_league(file.name)
+    league = detect_league(file.name)
     market_type = detect_market_type(file.name)
-    game_date   = extract_date(file.name)
+    game_date = extract_date(file.name)
 
     _log(f"--- FILE: {file.name}  league={league} market={market_type} rows={len(df)}")
 
     rows = []
+
     for _, row in df.iterrows():
         if market_type == "moneyline":
             ok, side, line, ev = moneyline(row, league)
@@ -252,15 +318,25 @@ def process_file(file):
 
         if ok:
             DEBUG_COUNTS["selected"] += 1
+
             r = row.to_dict()
-            r.update({"bet_side": side, "line": line, "selected_ev": ev,
-                      "market_type": market_type, "market": league,
-                      "league": "basketball", "game_date": game_date})
+            r.update(
+                {
+                    "bet_side": side,
+                    "line": line,
+                    "selected_ev": ev,
+                    "market_type": market_type,
+                    "market": league,
+                    "league": "basketball",
+                    "game_date": game_date,
+                }
+            )
             rows.append(r)
         else:
             DEBUG_COUNTS["rejected"] += 1
 
     _log(f"{file.name} | {len(rows)} selected from {len(df)} rows")
+
     return pd.DataFrame(rows), len(rows)
 
 
@@ -269,9 +345,12 @@ def main():
         f.write(f"=== basketball select_bets RUN {_now()} ===\n")
 
     summary = {
-        "files_processed": 0, "total_selected": 0,
-        "nba_bets": 0, "ncaab_bets": 0,
-        "skipped": 0, "errors": 0,
+        "files_processed": 0,
+        "total_selected": 0,
+        "nba_bets": 0,
+        "ncaab_bets": 0,
+        "skipped": 0,
+        "errors": 0,
     }
     per_file = []
 
@@ -283,9 +362,16 @@ def main():
         _log(f"Files found: {len(input_files)}")
 
         dfs = []
+
         for file in input_files:
-            pf = {"name": file.name, "market": detect_market_type(file.name),
-                  "league": "?", "selected": 0, "status": "ok"}
+            pf = {
+                "name": file.name,
+                "market": detect_market_type(file.name),
+                "league": "?",
+                "selected": 0,
+                "status": "ok",
+            }
+
             try:
                 pf["league"] = detect_league(file.name)
             except ValueError:
@@ -295,7 +381,7 @@ def main():
                 df, n_selected = process_file(file)
                 pf["selected"] = n_selected
                 summary["files_processed"] += 1
-                summary["total_selected"]  += n_selected
+                summary["total_selected"] += n_selected
 
                 if pf["league"] == "NBA":
                     summary["nba_bets"] += n_selected
@@ -309,6 +395,7 @@ def main():
                 _log(f"{file.name} SKIP: {e}", "WARN")
                 pf["status"] = "skipped"
                 summary["skipped"] += 1
+
             except Exception as e:
                 _log(f"{file.name} FAILED: {e}\n{traceback.format_exc()}", "ERROR")
                 pf["status"] = "error"
@@ -323,13 +410,13 @@ def main():
             _write_summary(summary, per_file)
             return
 
-        nba_df   = final_df[final_df["market"] == "NBA"]
+        nba_df = final_df[final_df["market"] == "NBA"]
         ncaab_df = final_df[final_df["market"] == "NCAAB"]
 
-        nba_path   = DAILY_DIR / "nba_selected.csv"
+        nba_path = DAILY_DIR / "nba_selected.csv"
         ncaab_path = DAILY_DIR / "ncaab_selected.csv"
 
-        nba_df.to_csv(nba_path,   index=False)
+        nba_df.to_csv(nba_path, index=False)
         ncaab_df.to_csv(ncaab_path, index=False)
 
         _log(f"WROTE: {nba_path}   ({len(nba_df)} rows)")
