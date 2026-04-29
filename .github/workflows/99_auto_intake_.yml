@@ -17,9 +17,6 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      # -------------------------
-      # SET DATE (CRITICAL)
-      # -------------------------
       - name: Set date
         run: echo "DATE=$(TZ='America/New_York' date +%Y_%m_%d)" >> $GITHUB_ENV
 
@@ -42,10 +39,8 @@ jobs:
         run: playwright install-deps chromium
 
       - name: Install Playwright browsers
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: playwright install chromium
 
-      # ✅ Ensure ALL required output directories exist
       - name: Create output directories
         run: |
           # Soccer
