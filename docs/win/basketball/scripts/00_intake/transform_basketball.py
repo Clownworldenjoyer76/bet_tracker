@@ -148,14 +148,9 @@ def process_final_scores(df: pd.DataFrame, market: str, folder: str, files_writt
                 "home_puck_line": "",
             })
 
-        out = pd.DataFrame(rows)
-
+        out  = pd.DataFrame(rows)
         path = f"docs/win/final_scores/results/{folder}/final_scores/{date_val}_final_scores_{market}.csv"
         save(out, path, files_written)
-
-        if market == "MLB":
-        baseball_path = f"docs/win/baseball/05_final_scores/results/final_scores/{date_val}_final_scores_{market}.csv"
-        save(out, baseball_path, files_written)
 
 
 def main():
