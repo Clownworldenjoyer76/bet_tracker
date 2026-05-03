@@ -1,10 +1,7 @@
-name: 99 Auto 510am - Daily Odds Pull
+name: 00 All Odds Pull
 
 on:
   workflow_dispatch:
- # schedule:
-  #  - cron: '12 5 * * *'
-  #    timezone: 'America/New_York'
 
 permissions:
   contents: write
@@ -37,15 +34,15 @@ jobs:
       - name: Verify API keys are present
         env:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
-          CLOUDBET_API_KEY: ${{ secrets.CLOUD_API }}
+          API_ODDS: ${{ secrets.API_ODDS }}
         run: |
           if [ -z "$ODDS_API_KEY" ]; then
             echo "ODDS_API_KEY secret is missing."
             exit 1
           fi
 
-          if [ -z "$CLOUDBET_API_KEY" ]; then
-            echo "CLOUDBET_API_KEY secret is missing."
+          if [ -z "$API_ODDS" ]; then
+            echo "API_ODDS secret is missing."
             exit 1
           fi
 
@@ -55,17 +52,20 @@ jobs:
         run: |
           python scripts/odds_api.py
 
-      - name: Run Cloudbet odds pull (WNBA / NCAAM)
+      - name: Run WNBA Odds API pull
         env:
-          CLOUDBET_API_KEY: ${{ secrets.CLOUD_API }}
+          API_ODDS: ${{ secrets.API_ODDS }}
         run: |
-          python docs/win/basketball/scripts/00_intake/00_ncaam_wnba_cloudbet_odds_pull.py
+          python docs/win/basketball/scripts/00_parsing/wnba_odds_api.py
 
       - name: Commit and push outputs
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
 
+          git add docs/win/basketball/odds/wnba/
+          git add docs/win/basketball/odds/nba/
+          git add docs/win/basketball/odds/ncaam/
           git add docs/win/basketball/odds/
           git add docs/win/hockey/odds/
           git add docs/win/baseball/odds/
