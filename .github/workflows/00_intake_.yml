@@ -71,22 +71,10 @@ jobs:
           mkdir -p mappings/baseball/no_map/
           mkdir -p docs/win/baseball/data/weather/
 
-          # Basketball
-          mkdir -p docs/win/basketball/00_intake/sportsbook/
-          mkdir -p docs/win/basketball/00_intake/drat_raw/
-          mkdir -p docs/win/basketball/00_intake/predictions/
-          mkdir -p docs/win/final_scores/results/nba/final_scores/
-          mkdir -p docs/win/final_scores/results/ncaab/final_scores/
-          mkdir -p docs/win/basketball/errors/00_intake/
-          mkdir -p mappings/basketball/no_map/
 
       # -------------------------
       # SOCCER
       # -------------------------
-      - name: Fetch Soccer Odds
-        env:
-          CLOUD_API: ${{ secrets.CLOUD_API }}
-        run: python docs/win/soccer/scripts/00_intake/fetch_soccer_odds.py
 
       - name: Soccer Draft
         run: python docs/win/soccer/scripts/00_intake/soccer_drat.py
@@ -136,27 +124,6 @@ jobs:
         run: python docs/win/baseball/scripts/00_intake/name_normalization.py
 
       # -------------------------
-      # BASKETBALL
-      # -------------------------
-      - name: Basketball Odds Parse
-        run: python docs/win/basketball/scripts/00_intake/basketball_odds_parse.py
-
-      - name: Basketball Name Normalization (1)
-        run: python docs/win/basketball/scripts/00_intake/basketball_name_normalization.py
-
-      - name: Basketball Drat Scraper
-        run: python docs/win/basketball/scripts/00_intake/basketball_drat_scraper.py
-
-      - name: Basketball Transform
-        run: |
-          python docs/win/basketball/scripts/00_intake/transform_basketball.py \
-            --nba  docs/win/basketball/00_intake/drat_raw/${DATE}_nba_raw.json \
-            --ncaab docs/win/basketball/00_intake/drat_raw/${DATE}_ncaab_raw.json
-
-      - name: Basketball Name Normalization (2)
-        run: python docs/win/basketball/scripts/00_intake/basketball_name_normalization.py
-
-      # -------------------------
       # BASEBALL - BUILD GAMES LIST
       # -------------------------
       - name: Baseball Build Games List
@@ -180,13 +147,13 @@ jobs:
 
           # Soccer
           git add docs/win/soccer/errors/00_intake/
-          git add mappings/soccer/no_map/
-          git add docs/win/soccer/00_intake/predictions/
-          git add docs/win/soccer/00_intake/predictions/normalized/
           git add docs/win/soccer/00_intake/predictions/drat_raw/
-          git add docs/win/soccer/00_intake/sportsbook/
-          git add docs/win/soccer/00_intake/sportsbook/normalized/
+          git add docs/win/soccer/00_intake/predictions/
           git add docs/win/final_scores/results/soccer/final_scores/
+          git add mappings/soccer/no_map/
+          git add docs/win/soccer/00_intake/sportsbook/
+          git add docs/win/soccer/00_intake/predictions/normalized/
+          git add docs/win/soccer/00_intake/sportsbook/normalized/
 
           # Hockey
           git add docs/win/hockey/00_intake/sportsbook/
@@ -209,14 +176,7 @@ jobs:
           git add mappings/baseball/no_map/
           git add docs/win/baseball/data/weather/
 
-          # Basketball
-          git add docs/win/basketball/00_intake/sportsbook/
-          git add docs/win/basketball/00_intake/drat_raw/
-          git add docs/win/basketball/00_intake/predictions/
-          git add docs/win/final_scores/results/nba/final_scores/
-          git add docs/win/final_scores/results/ncaab/final_scores/
-          git add docs/win/basketball/errors/00_intake/
-          git add mappings/basketball/no_map/
+    
 
           git diff --cached --quiet || git commit -m "chore: all intake run $(date -u +'%Y-%m-%d %H:%M UTC')"
           git pull --rebase origin main
