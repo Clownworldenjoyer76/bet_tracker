@@ -1,4 +1,4 @@
-name: Basketball Pipeline 01-05
+name: Pipeline Basketball
 
 on:
   workflow_dispatch:
@@ -24,8 +24,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pandas numpy scipy pyyaml
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          python -m pip install -r requirements.txt
 
       - name: Run basketball master pipeline
         run: python docs/win/basketball/scripts/master_scripts/basketball.py
@@ -34,7 +33,7 @@ jobs:
         if: always()
         run: |
           echo "=== Master log ==="
-          cat docs/win/basketball/errors/master_scripts/basketball.txt || true
+          cat docs/win/basketball/errors/master_scripts/basketball_pipeline.txt || true
 
           echo ""
           echo "=== Basketball output files ==="
