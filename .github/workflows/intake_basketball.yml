@@ -67,6 +67,16 @@ jobs:
 
           mkdir -p mappings/basketball/no_map
 
+      - name: Start output check log
+        run: |
+          mkdir -p docs/win/basketball/errors/00_intake
+          {
+            echo "=== basketball 00 intake output checks ==="
+            echo "DATE=${DATE}"
+            echo "RUN_UTC=$(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+            echo ""
+          } > docs/win/basketball/errors/00_intake/output_checks.txt
+
       - name: Basketball Odds Parse WNBA
         run: python docs/win/basketball/scripts/00_intake/basketball_odds_parse_wnba.py
 
@@ -77,19 +87,54 @@ jobs:
         run: python docs/win/basketball/scripts/00_intake/basketball_drat_scraper.py
 
       - name: Check today's Drat raw outputs
+        if: always()
         run: |
-          test -f "docs/win/basketball/00_intake/drat_raw/nba/${DATE}_nba_raw.json"
-          test -f "docs/win/basketball/00_intake/drat_raw/ncaam/${DATE}_ncaam_raw.json"
-          test -f "docs/win/basketball/00_intake/drat_raw/wnba/${DATE}_wnba_raw.json"
+          echo "--- Drat raw output check ---" | tee -a docs/win/basketball/errors/00_intake/output_checks.txt
+
+          for f in \
+            "docs/win/basketball/00_intake/drat_raw/nba/${DATE}_nba_raw.json" \
+            "docs/win/basketball/00_intake/drat_raw/ncaam/${DATE}_ncaam_raw.json" \
+            "docs/win/basketball/00_intake/drat_raw/wnba/${DATE}_wnba_raw.json"
+          do
+            if [ -f "$f" ]; then
+              echo "FOUND: $f" | tee -a docs/win/basketball/errors/00_intake/output_checks.txt
+            else
+              echo "MISSING: $f" | tee -a docs/win/basketball/errors/00_intake/output_checks.txt
+            fi
+          done
+
+          echo "" | tee -a docs/win/basketball/errors/00_intake/output_checks.txt
 
       - name: Basketball Transform
         run: python docs/win/basketball/scripts/00_intake/transform_basketball.py
 
       - name: Check today's prediction outputs
+        if: always()
         run: |
-          test -f "docs/win/basketball/00_intake/predictions/nba/${DATE}_NBA_predictions.csv"
-          test -f "docs/win/basketball/00_intake/predictions/ncaam/${DATE}_NCAAM_predictions.csv"
-          test -f "docs/win/basketball/00_intake/predictions/wnba/${DATE}_WNBA_predictions.csv"
+          echo "--- Prediction output check ---" | tee -a docs/win/basketball/errors/00_intake/output_checks.txt
+
+          echo "--- NBA predictions folder ---" | tee -a docs/win/basketball/errors/00_intake/output_checks.txt
+          ls -lah docs/win/basketball/00_intake/predictions/nba/ | tee -a docs/win/basketball/errors/00_intake/output_checks.txt || true
+
+          echo "--- NCAAM predictions folder ---" | tee -a docs/win/basketball/errors/00_intake/output_checks.txt
+          ls -lah docs/win/basketball/00_intake/predictions/ncaam/ | tee -a docs/win/basketball/errors/00_intake/output_checks.txt || true
+
+          echo "--- WNBA predictions folder ---" | tee -a docs/win/basketball/errors/00_intake/output_checks.txt
+          ls -lah docs/win/basketball/00_intake/predictions/wnba/ | tee -a docs/win/basketball/errors/00_intake/output_checks.txt || true
+
+          for f in \
+            "docs/win/basketball/00_intake/predictions/nba/${DATE}_NBA_predictions.csv" \
+            "docs/win/basketball/00_intake/predictions/ncaam/${DATE}_NCAAM_predictions.csv" \
+            "docs/win/basketball/00_intake/predictions/wnba/${DATE}_WNBA_predictions.csv"
+          do
+            if [ -f "$f" ]; then
+              echo "FOUND: $f" | tee -a docs/win/basketball/errors/00_intake/output_checks.txt
+            else
+              echo "MISSING: $f" | tee -a docs/win/basketball/errors/00_intake/output_checks.txt
+            fi
+          done
+
+          echo "" | tee -a docs/win/basketball/errors/00_intake/output_checks.txt
 
       - name: Basketball Name Normalization
         run: python docs/win/basketball/scripts/00_intake/basketball_name_normalization.py
@@ -98,16 +143,57 @@ jobs:
         run: python docs/win/basketball/scripts/00_intake/basketball_daily_games.py
 
       - name: Check today's daily games outputs
+        if: always()
         run: |
-          test -f "docs/win/basketball/daily_games/nba/${DATE}_NBA.csv"
-          test -f "docs/win/basketball/daily_games/ncaam/${DATE}_NCAAM.csv"
-          test -f "docs/win/basketball/daily_games/wnba/${DATE}_WNBA.csv"
+          echo "--- Daily games output check ---" | tee -a docs/win/basketball/errors/00_intake/output_checks.txt
+
+          echo "--- NBA daily games folder ---" | tee -a docs/win/basketball/errors/00_intake/output_checks.txt
+          ls -lah docs/win/basketball/daily_games/nba/ | tee -a docs/win/basketball/errors/00_intake/output_checks.txt || true
+
+          echo "--- NCAAM daily games folder ---" | tee -a docs/win/basketball/errors/00_intake/output_checks.txt
+          ls -lah docs/win/basketball/daily_games/ncaam/ | tee -a docs/win/basketball/errors/00_intake/output_checks.txt || true
+
+          echo "--- WNBA daily games folder ---" | tee -a docs/win/basketball/errors/00_intake/output_checks.txt
+          ls -lah docs/win/basketball/daily_games/wnba/ | tee -a docs/win/basketball/errors/00_intake/output_checks.txt || true
+
+          for f in \
+            "docs/win/basketball/daily_games/nba/${DATE}_NBA.csv" \
+            "docs/win/basketball/daily_games/ncaam/${DATE}_NCAAM.csv" \
+            "docs/win/basketball/daily_games/wnba/${DATE}_WNBA.csv"
+          do
+            if [ -f "$f" ]; then
+              echo "FOUND: $f" | tee -a docs/win/basketball/errors/00_intake/output_checks.txt
+            else
+              echo "MISSING: $f" | tee -a docs/win/basketball/errors/00_intake/output_checks.txt
+            fi
+          done
+
+          echo "" | tee -a docs/win/basketball/errors/00_intake/output_checks.txt
 
       - name: Basketball Game ID
         run: python docs/win/basketball/scripts/00_intake/basketball_game_id.py
 
       - name: Basketball Clean Inputs
         run: python docs/win/basketball/scripts/00_intake/clean_basketball_inputs.py
+
+      - name: Check cleaned outputs
+        if: always()
+        run: |
+          echo "--- Cleaned output check ---" | tee -a docs/win/basketball/errors/00_intake/output_checks.txt
+
+          for d in \
+            "docs/win/basketball/00_intake/predictions/predictions_cleaned/nba" \
+            "docs/win/basketball/00_intake/predictions/predictions_cleaned/ncaam" \
+            "docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba" \
+            "docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba" \
+            "docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/ncaam" \
+            "docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba"
+          do
+            echo "--- $d ---" | tee -a docs/win/basketball/errors/00_intake/output_checks.txt
+            ls -lah "$d" | tee -a docs/win/basketball/errors/00_intake/output_checks.txt || true
+          done
+
+          echo "" | tee -a docs/win/basketball/errors/00_intake/output_checks.txt
 
       - name: Upload intake logs
         if: always()
