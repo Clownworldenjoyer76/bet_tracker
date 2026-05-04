@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# docs/win/soccer/odds_api_soccer_pull.py
+# docs/win/soccer/scripts/00_parsing/odds_soccer.py
 
 import csv
 import json
