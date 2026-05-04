@@ -1,0 +1,96 @@
+name: Soccer Pipeline
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  merge-group:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Create output directories
+        run: |
+          # Soccer
+          mkdir -p docs/win/soccer/01_merge/
+          mkdir -p docs/win/soccer/01_merge/01_merguiced/
+          mkdir -p docs/win/soccer/errors/01_merge/
+          mkdir -p docs/win/soccer/errors/02_juice/
+          mkdir -p docs/win/soccer/02_juice/
+          mkdir -p docs/win/soccer/errors/03_edges/
+          mkdir -p docs/win/soccer/03_edges/
+          mkdir -p docs/win/soccer/04_select/
+          mkdir -p docs/win/soccer/errors/04_select/
+          mkdir -p docs/win/final_scores/intermediate/
+          mkdir -p docs/win/final_scores/errors/
+          mkdir -p docs/win/final_scores/results/soccer/graded/
+          mkdir -p docs/win/final_scores/deeper_summaries/soccer/
+          touch docs/win/final_scores/soccer_market_tally.csv
+
+          
+      # -------------------------
+      # SOCCER PIPELINE
+      # -------------------------
+      - name: Soccer Merge Intake
+        run: python docs/win/soccer/scripts/01_merge/merge_intake.py
+
+      - name: Soccer Build Juice Files
+        run: python docs/win/soccer/scripts/01_merge/build_juice_files.py
+
+      - name: Soccer Juice
+        run: python docs/win/soccer/scripts/02_juice/apply_juice.py
+        
+      - name: Soccer Edges
+        run: python docs/win/soccer/scripts/03_edges/build_edges.py
+        
+      - name: Soccer Select
+        run: python docs/win/soccer/scripts/04_select/soccer_select_bets.py
+        
+      - name: Normalize final score team names
+        run: python docs/win/final_scores/scripts/05_results/00_normalize_final_score_team_names.py
+
+      - name: Run soccer results grade
+        run: python docs/win/final_scores/scripts/05_results/soccer/01_soccer_results_grade.py
+
+      - name: Run soccer results analyze
+        run: python docs/win/final_scores/scripts/05_results/soccer/02_soccer_results_analyze.py
+
+      - name: Run soccer results reports
+        run: python docs/win/final_scores/scripts/05_results/soccer/03_soccer_results_reports.py
+      
+
+      - name: Commit outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add docs/win/soccer/01_merge/
+          git add docs/win/soccer/errors/01_merge/
+          git add docs/win/soccer/errors/02_juice/ 
+          git add docs/win/soccer/02_juice/
+          git add docs/win/soccer/errors/03_edges/ 
+          git add docs/win/soccer/03_edges/
+          git add docs/win/soccer/04_select/ 
+          git add docs/win/soccer/errors/04_select/
+          git add docs/win/final_scores/
+
+       
+
+          git commit -m "chore: Soccer Pipeline run $(date -u +'%Y-%m-%d %H:%M UTC')"
+          git pull --rebase origin main
+          git push
