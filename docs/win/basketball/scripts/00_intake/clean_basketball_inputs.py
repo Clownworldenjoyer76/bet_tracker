@@ -65,12 +65,6 @@ LEAGUE_LOG_FILES = {
 # SETTINGS
 # =========================
 
-MONEYLINE_HOLD_MIN = 1.01
-MONEYLINE_HOLD_MAX = 1.08
-
-ODDS_HOLD_MIN = MONEYLINE_HOLD_MIN
-ODDS_HOLD_MAX = MONEYLINE_HOLD_MAX
-
 ODDS_CHECKS = [
     ("home_dk_moneyline_decimal", "away_dk_moneyline_decimal", "ML"),
     ("dk_total_over_decimal",     "dk_total_under_decimal",    "TOTAL"),
@@ -140,6 +134,28 @@ def to_float(value):
         return float(value)
     except Exception:
         return None
+
+
+def odds_malformed_reason(raw_a, raw_b):
+    raw_a_str = "" if raw_a is None else str(raw_a).strip()
+    raw_b_str = "" if raw_b is None else str(raw_b).strip()
+
+    if raw_a_str == "" and raw_b_str == "":
+        return "BOTH_BLANK"
+
+    if raw_a_str == "" or raw_b_str == "":
+        return "MISSING_PAIRED_ODDS"
+
+    dec_a = to_float(raw_a)
+    dec_b = to_float(raw_b)
+
+    if dec_a is None or dec_b is None:
+        return "NON_NUMERIC"
+
+    if dec_a <= 1 or dec_b <= 1:
+        return "DECIMAL_LESS_THAN_OR_EQUAL_1"
+
+    return None
 
 
 def row_key(row):
@@ -217,7 +233,7 @@ def load_all(dir_map):
 
 
 # =========================
-# STEP 1: DROP BAD ODDS ROWS
+# STEP 1: DROP MALFORMED ODDS ROWS ONLY
 # =========================
 
 def drop_bad_odds_rows(book_files):
@@ -241,36 +257,24 @@ def drop_bad_odds_rows(book_files):
                     if col_a not in fieldset or col_b not in fieldset:
                         continue
 
-                    dec_a = to_float(row.get(col_a))
-                    dec_b = to_float(row.get(col_b))
+                    raw_a = row.get(col_a)
+                    raw_b = row.get(col_b)
+                    reason = odds_malformed_reason(raw_a, raw_b)
 
-                    if dec_a is None or dec_b is None or dec_a <= 1 or dec_b <= 1:
-                        drop_reason = (market, "MALFORMED", row.get(col_a), row.get(col_b), None)
-                        break
-
-                    hold = (1.0 / dec_a) + (1.0 / dec_b)
-
-                    if hold < ODDS_HOLD_MIN or hold > ODDS_HOLD_MAX:
-                        drop_reason = (market, "HOLD", dec_a, dec_b, hold)
+                    if reason is not None:
+                        drop_reason = (market, reason, raw_a, raw_b)
                         break
 
                 if drop_reason is not None:
-                    market, kind, val_a, val_b, hold = drop_reason
+                    market, reason, val_a, val_b = drop_reason
                     removed_by_market[league][market] += 1
                     file_removed += 1
 
-                    if kind == "MALFORMED":
-                        log_league(
-                            league,
-                            f"DROP_BAD_{market}_MALFORMED | {path} | {row_key(row)} | "
-                            f"a={val_a!r} b={val_b!r}"
-                        )
-                    else:
-                        log_league(
-                            league,
-                            f"DROP_BAD_{market}_HOLD | {path} | {row_key(row)} | "
-                            f"a={val_a} b={val_b} hold={round(hold, 6)}"
-                        )
+                    log_league(
+                        league,
+                        f"DROP_BAD_{market}_MALFORMED | {path} | {row_key(row)} | "
+                        f"reason={reason} a={val_a!r} b={val_b!r}"
+                    )
                     continue
 
                 kept.append(row)
@@ -643,11 +647,15 @@ def main():
     init_logs()
 
     log_master("INFO | Starting basketball input cleanup")
+    log_master("INFO | Odds cleanup active: drops only blank, missing paired, non-numeric, or decimal <= 1 odds")
+    log_master("INFO | Hold-based odds filtering removed")
     log_master("INFO | Spread outlier fix active: sportsbook home_spread is converted to model-margin convention using -home_spread")
     log_master(f"INFO | League logs: {LEAGUE_LOG_FILES}")
 
     for league in ("NBA", "NCAAM", "WNBA"):
         log_league(league, "INFO | Starting league cleanup")
+        log_league(league, "INFO | Odds cleanup active: drops only blank, missing paired, non-numeric, or decimal <= 1 odds")
+        log_league(league, "INFO | Hold-based odds filtering removed")
         log_league(league, "INFO | Spread outlier fix active: compare model home-away margin to -book_home_spread")
 
     pred_files = load_all(PREDICTION_DIRS)
