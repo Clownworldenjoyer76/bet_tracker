@@ -94,7 +94,7 @@
       </div>
       <div>
         <label for="market">Market</label>
-        <select id="market"><option value="">-- placeholder --</option></select>
+        <select id="market" onchange="updateSources()"><option value="">-- placeholder --</option></select>
       </div>
       <div>
         <label for="source">Source</label>
@@ -104,6 +104,7 @@
           <option value="Predictions">Predictions</option>
           <option value="Scores">Scores</option>
           <option value="Soccer Totals">Soccer Totals</option>
+          <option value="UFC Results">UFC Results</option>
         </select>
       </div>
     </div>
@@ -122,7 +123,8 @@
   <script>
     const OWNER = "Clownworldenjoyer76";
     const REPO  = "bet_tracker";
-    const WORKFLOW_FILE = "_00_manual_data.yml";
+    const WORKFLOW_FILE_DEFAULT = "_00_manual_data.yml";
+    const WORKFLOW_FILE_UFC     = "ufc_manual_final.yml";
     const REF = "main";
 
     const MARKET_MAP = {
@@ -131,7 +133,7 @@
       baseball: ["MLB"],
       hockey: ["NHL"],
       soccer: ["MLS", "EPL", "Ligue 1", "Serie A", "La Liga", "Bundesliga"],
-      final_scores: ["NBA", "NCAAB", "NHL", "WNBA"],
+      final_scores: ["NBA", "NCAAB", "NHL", "WNBA", "UFC"],
       final_soccer_scores: [
         { val: "epl", text: "EPL" }, { val: "laliga", text: "LA LIGA" },
         { val: "ligue1", text: "LIGUE 1" }, { val: "bundesliga", text: "BUNDESLIGA" },
@@ -155,6 +157,16 @@
         mSel.appendChild(opt);
       });
       if (l === "final_soccer_scores") sSel.value = "Scores";
+      updateSources();
+    }
+
+    function updateSources() {
+      const l = document.getElementById("league").value;
+      const m = document.getElementById("market").value;
+      const sSel = document.getElementById("source");
+      if (l === "final_scores" && m === "UFC") {
+        sSel.value = "UFC Results";
+      }
     }
 
     async function dispatch() {
@@ -172,13 +184,16 @@
         return;
       }
 
+      const isUFC = (league === "final_scores" && market === "UFC" && source === "UFC Results");
+      const workflowFile = isUFC ? WORKFLOW_FILE_UFC : WORKFLOW_FILE_DEFAULT;
+
       btn.classList.add("submitting");
       btn.disabled = true;
       btn.textContent = "Processing...";
       out.textContent = "";
 
       try {
-        const url = `https://api.github.com/repos/${OWNER}/${REPO}/actions/workflows/${WORKFLOW_FILE}/dispatches`;
+        const url = `https://api.github.com/repos/${OWNER}/${REPO}/actions/workflows/${workflowFile}/dispatches`;
         const res = await fetch(url, {
           method: "POST",
           headers: {
