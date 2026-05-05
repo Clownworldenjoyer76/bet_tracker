@@ -71,6 +71,32 @@ ODDS_CHECKS = [
     ("home_dk_spread_decimal",    "away_dk_spread_decimal",    "SPREAD"),
 ]
 
+MARKET_FIELDS = {
+    "ML": [
+        "home_dk_moneyline_american",
+        "away_dk_moneyline_american",
+        "home_dk_moneyline_decimal",
+        "away_dk_moneyline_decimal",
+        "home_decimal",
+        "away_decimal",
+    ],
+    "TOTAL": [
+        "total",
+        "dk_total_over_american",
+        "dk_total_under_american",
+        "dk_total_over_decimal",
+        "dk_total_under_decimal",
+    ],
+    "SPREAD": [
+        "home_spread",
+        "away_spread",
+        "home_dk_spread_american",
+        "away_dk_spread_american",
+        "home_dk_spread_decimal",
+        "away_dk_spread_decimal",
+    ],
+}
+
 SPREAD_OUTLIER_MAX = 25.0
 TOTAL_OUTLIER_MAX = 40.0
 
@@ -210,6 +236,26 @@ def book_home_spread_to_model_margin(home_spread):
     return -home_spread
 
 
+def blank_market_fields(row, fieldnames, market):
+    blanked = []
+
+    for col in MARKET_FIELDS.get(market, []):
+        if col in fieldnames:
+            old = row.get(col, "")
+            if str(old).strip() != "":
+                blanked.append(col)
+            row[col] = ""
+
+    return blanked
+
+
+def add_market_action(actions, league, path, key, market, reason):
+    actions.setdefault(league, {})
+    actions[league].setdefault(path, {})
+    actions[league][path].setdefault(key, {})
+    actions[league][path][key][market] = reason
+
+
 # =========================
 # LOAD ALL ORIGINALS INTO MEMORY
 # =========================
@@ -233,11 +279,11 @@ def load_all(dir_map):
 
 
 # =========================
-# STEP 1: DROP MALFORMED ODDS ROWS ONLY
+# STEP 1: BLANK MALFORMED MARKET ODDS ONLY
 # =========================
 
-def drop_bad_odds_rows(book_files):
-    removed_by_market = {
+def blank_bad_market_odds(book_files):
+    blanked_by_market = {
         league: {market: 0 for _, _, market in ODDS_CHECKS}
         for league in book_files
     }
@@ -247,11 +293,10 @@ def drop_bad_odds_rows(book_files):
             fieldnames, rows = data
             fieldset = set(fieldnames)
 
-            kept = []
-            file_removed = 0
+            file_blanked = 0
 
             for row in rows:
-                drop_reason = None
+                key = row_key(row)
 
                 for col_a, col_b, market in ODDS_CHECKS:
                     if col_a not in fieldset or col_b not in fieldset:
@@ -261,33 +306,95 @@ def drop_bad_odds_rows(book_files):
                     raw_b = row.get(col_b)
                     reason = odds_malformed_reason(raw_a, raw_b)
 
-                    if reason is not None:
-                        drop_reason = (market, reason, raw_a, raw_b)
-                        break
+                    if reason is None:
+                        continue
 
-                if drop_reason is not None:
-                    market, reason, val_a, val_b = drop_reason
-                    removed_by_market[league][market] += 1
-                    file_removed += 1
+                    blanked_cols = blank_market_fields(row, fieldnames, market)
+                    blanked_by_market[league][market] += 1
+                    file_blanked += 1
 
                     log_league(
                         league,
-                        f"DROP_BAD_{market}_MALFORMED | {path} | {row_key(row)} | "
-                        f"reason={reason} a={val_a!r} b={val_b!r}"
+                        f"BLANK_BAD_{market}_MALFORMED | {path} | {key} | "
+                        f"reason={reason} a={raw_a!r} b={raw_b!r} "
+                        f"blanked_cols={blanked_cols}"
                     )
-                    continue
 
-                kept.append(row)
+            if file_blanked:
+                log_league(
+                    league,
+                    f"MARKET_BLANKED | {path} | bad_market_odds_blank_events={file_blanked}"
+                )
 
-            if file_removed:
-                data[1] = kept
-                log_league(league, f"FILTERED | {path} | removed_bad_odds={file_removed}")
-
-    return removed_by_market
+    return blanked_by_market
 
 
 # =========================
-# STEP 2: BUILD INDEXES
+# STEP 2: BLANK BAD MARKET LINES ONLY
+# =========================
+
+def blank_bad_market_lines(book_files):
+    blanked_by_market = {
+        league: {"TOTAL": 0, "SPREAD": 0}
+        for league in book_files
+    }
+
+    for league, files in book_files.items():
+        for path, data in files.items():
+            fieldnames, rows = data
+            fieldset = set(fieldnames)
+
+            file_blanked = 0
+
+            for row in rows:
+                key = row_key(row)
+
+                if "total" in fieldset:
+                    book_total = to_float(row.get("total"))
+
+                    if book_total is not None and book_total <= 0:
+                        blanked_cols = blank_market_fields(row, fieldnames, "TOTAL")
+                        blanked_by_market[league]["TOTAL"] += 1
+                        file_blanked += 1
+
+                        log_league(
+                            league,
+                            f"BLANK_BAD_TOTAL_LINE | {path} | {key} | "
+                            f"reason=TOTAL_LESS_THAN_OR_EQUAL_0 total={book_total} "
+                            f"blanked_cols={blanked_cols}"
+                        )
+
+                if "home_spread" in fieldset and "away_spread" in fieldset:
+                    home_spread = to_float(row.get("home_spread"))
+                    away_spread = to_float(row.get("away_spread"))
+
+                    if home_spread is None and away_spread is None:
+                        continue
+
+                    if home_spread is None or away_spread is None:
+                        blanked_cols = blank_market_fields(row, fieldnames, "SPREAD")
+                        blanked_by_market[league]["SPREAD"] += 1
+                        file_blanked += 1
+
+                        log_league(
+                            league,
+                            f"BLANK_BAD_SPREAD_LINE | {path} | {key} | "
+                            f"reason=MISSING_PAIRED_SPREAD_LINE "
+                            f"home_spread={row.get('home_spread')!r} away_spread={row.get('away_spread')!r} "
+                            f"blanked_cols={blanked_cols}"
+                        )
+
+            if file_blanked:
+                log_league(
+                    league,
+                    f"MARKET_BLANKED | {path} | bad_market_line_blank_events={file_blanked}"
+                )
+
+    return blanked_by_market
+
+
+# =========================
+# STEP 3: BUILD INDEXES
 # =========================
 
 def build_pred_index(pred_files):
@@ -318,6 +425,7 @@ def build_book_index(book_files):
                     index.setdefault(key, []).append({
                         "league": league,
                         "path": path,
+                        "fieldnames": fieldnames,
                         "row": row,
                     })
 
@@ -325,11 +433,12 @@ def build_book_index(book_files):
 
 
 # =========================
-# STEP 3: FIND MODEL VS BOOK OUTLIERS
+# STEP 4: FIND MODEL VS BOOK MARKET OUTLIERS
 # =========================
 
-def find_outlier_keys(pred_index, book_index):
-    drop_keys = set()
+def find_market_outlier_actions(pred_index, book_index):
+    actions = {}
+
     outlier_counts = {
         "NBA": {"spread": 0, "total": 0},
         "NCAAM": {"spread": 0, "total": 0},
@@ -349,6 +458,7 @@ def find_outlier_keys(pred_index, book_index):
 
         for book_item in book_index[key]:
             book = book_item["row"]
+            book_path = book_item["path"]
 
             book_home_spread = to_float(book.get("home_spread"))
             book_total = to_float(book.get("total"))
@@ -359,12 +469,20 @@ def find_outlier_keys(pred_index, book_index):
                 spread_diff = abs(model_spread - book_model_margin)
 
                 if spread_diff > SPREAD_OUTLIER_MAX:
-                    drop_keys.add(key)
+                    add_market_action(
+                        actions,
+                        league,
+                        book_path,
+                        key,
+                        "SPREAD",
+                        f"SPREAD_OUTLIER_DIFF_{round(spread_diff, 4)}",
+                    )
+
                     outlier_counts[league]["spread"] += 1
 
                     log_league(
                         league,
-                        f"DROP_OUTLIER_SPREAD | {key} | "
+                        f"BLANK_OUTLIER_SPREAD | {key} | {book_path} | "
                         f"model_spread_home_minus_away={round(model_spread, 4)} "
                         f"book_home_spread={book_home_spread} "
                         f"book_spread_converted_to_home_margin={round(book_model_margin, 4)} "
@@ -375,12 +493,20 @@ def find_outlier_keys(pred_index, book_index):
                 total_diff = abs(model_total - book_total)
 
                 if total_diff > TOTAL_OUTLIER_MAX:
-                    drop_keys.add(key)
+                    add_market_action(
+                        actions,
+                        league,
+                        book_path,
+                        key,
+                        "TOTAL",
+                        f"TOTAL_OUTLIER_DIFF_{round(total_diff, 4)}",
+                    )
+
                     outlier_counts[league]["total"] += 1
 
                     log_league(
                         league,
-                        f"DROP_OUTLIER_TOTAL | {key} | "
+                        f"BLANK_OUTLIER_TOTAL | {key} | {book_path} | "
                         f"model_total={model_total} book_total={book_total} "
                         f"diff={round(total_diff, 4)}"
                     )
@@ -391,45 +517,56 @@ def find_outlier_keys(pred_index, book_index):
             f"OUTLIER SUMMARY | spread_outliers={counts['spread']} total_outliers={counts['total']}"
         )
 
-    return drop_keys, outlier_counts
+    return actions, outlier_counts
 
 
 # =========================
-# STEP 4: DROP OUTLIER KEYS
+# STEP 5: APPLY MARKET OUTLIER BLANKS
 # =========================
 
-def drop_outlier_keys(loaded_files, drop_keys, label):
-    removed_by_league = {league: 0 for league in loaded_files}
+def apply_market_outlier_actions(book_files, actions):
+    blanked_by_league = {league: 0 for league in book_files}
 
-    for league, files in loaded_files.items():
+    for league, files in book_files.items():
+        league_actions = actions.get(league, {})
+
         for path, data in files.items():
-            fieldnames, rows = data
+            path_actions = league_actions.get(path, {})
+            if not path_actions:
+                continue
 
-            kept = []
-            file_removed = 0
+            fieldnames, rows = data
+            file_blanked = 0
 
             for row in rows:
                 key = row_key(row)
+                market_actions = path_actions.get(key, {})
 
-                if key in drop_keys:
-                    removed_by_league[league] += 1
-                    file_removed += 1
+                if not market_actions:
                     continue
 
-                kept.append(row)
+                for market, reason in market_actions.items():
+                    blanked_cols = blank_market_fields(row, fieldnames, market)
+                    blanked_by_league[league] += 1
+                    file_blanked += 1
 
-            if file_removed:
-                data[1] = kept
+                    log_league(
+                        league,
+                        f"MARKET_OUTLIER_BLANKED | SPORTSBOOK | {path} | {key} | "
+                        f"market={market} reason={reason} blanked_cols={blanked_cols}"
+                    )
+
+            if file_blanked:
                 log_league(
                     league,
-                    f"FILTERED | {label} | {path} | removed_outliers={file_removed}"
+                    f"MARKET_BLANKED | SPORTSBOOK | {path} | outlier_market_blank_events={file_blanked}"
                 )
 
-    return removed_by_league
+    return blanked_by_league
 
 
 # =========================
-# STEP 5: APPLY PREDICTION BIASES
+# STEP 6: APPLY PREDICTION BIASES
 # =========================
 
 def apply_prediction_biases(pred_files):
@@ -506,7 +643,7 @@ def apply_prediction_biases(pred_files):
 
 
 # =========================
-# STEP 6: WRITE CLEANED FILES
+# STEP 7: WRITE CLEANED FILES
 # =========================
 
 def write_cleaned(loaded_files, cleaned_dirs, label):
@@ -547,19 +684,23 @@ def sum_nested(stats, league, key, default=0):
 def write_league_summaries(
     pred_files,
     book_files,
-    bad_odds_removed,
+    bad_odds_blanked,
+    bad_lines_blanked,
     outlier_counts,
-    pred_outliers_removed,
-    book_outliers_removed,
+    sportsbook_outlier_market_blanked,
     bias_stats,
     pred_write_stats,
     book_write_stats,
 ):
     for league in ("NBA", "NCAAM", "WNBA"):
-        bad_ml = bad_odds_removed.get(league, {}).get("ML", 0)
-        bad_total = bad_odds_removed.get(league, {}).get("TOTAL", 0)
-        bad_spread = bad_odds_removed.get(league, {}).get("SPREAD", 0)
-        bad_total_all = bad_ml + bad_total + bad_spread
+        bad_ml = bad_odds_blanked.get(league, {}).get("ML", 0)
+        bad_total = bad_odds_blanked.get(league, {}).get("TOTAL", 0)
+        bad_spread = bad_odds_blanked.get(league, {}).get("SPREAD", 0)
+        bad_odds_total_all = bad_ml + bad_total + bad_spread
+
+        bad_total_lines = bad_lines_blanked.get(league, {}).get("TOTAL", 0)
+        bad_spread_lines = bad_lines_blanked.get(league, {}).get("SPREAD", 0)
+        bad_lines_total_all = bad_total_lines + bad_spread_lines
 
         spread_outliers = outlier_counts.get(league, {}).get("spread", 0)
         total_outliers = outlier_counts.get(league, {}).get("total", 0)
@@ -568,23 +709,27 @@ def write_league_summaries(
         log_league(league, "============================================================")
         log_league(league, "SUMMARY")
         log_league(league, "============================================================")
-        log_league(league, f"prediction_files_loaded          : {len(pred_files.get(league, {}))}")
-        log_league(league, f"sportsbook_files_loaded          : {len(book_files.get(league, {}))}")
-        log_league(league, f"bad_ml_rows_removed              : {bad_ml}")
-        log_league(league, f"bad_total_rows_removed           : {bad_total}")
-        log_league(league, f"bad_spread_rows_removed          : {bad_spread}")
-        log_league(league, f"bad_odds_rows_removed_total      : {bad_total_all}")
-        log_league(league, f"spread_outlier_events_found      : {spread_outliers}")
-        log_league(league, f"total_outlier_events_found       : {total_outliers}")
-        log_league(league, f"prediction_outlier_rows_removed  : {pred_outliers_removed.get(league, 0)}")
-        log_league(league, f"sportsbook_outlier_rows_removed  : {book_outliers_removed.get(league, 0)}")
-        log_league(league, f"bias_files_with_adjusted_rows    : {sum_nested(bias_stats, league, 'files_with_biased_rows')}")
-        log_league(league, f"bias_rows_adjusted               : {sum_nested(bias_stats, league, 'rows_adjusted')}")
-        log_league(league, f"bias_rows_skipped_already_flagged: {sum_nested(bias_stats, league, 'rows_skipped_already_flagged')}")
-        log_league(league, f"prediction_files_written         : {sum_nested(pred_write_stats, league, 'files_written')}")
-        log_league(league, f"prediction_rows_written          : {sum_nested(pred_write_stats, league, 'rows_written')}")
-        log_league(league, f"sportsbook_files_written         : {sum_nested(book_write_stats, league, 'files_written')}")
-        log_league(league, f"sportsbook_rows_written          : {sum_nested(book_write_stats, league, 'rows_written')}")
+        log_league(league, f"prediction_files_loaded              : {len(pred_files.get(league, {}))}")
+        log_league(league, f"sportsbook_files_loaded              : {len(book_files.get(league, {}))}")
+        log_league(league, f"bad_ml_market_rows_blanked           : {bad_ml}")
+        log_league(league, f"bad_total_market_rows_blanked        : {bad_total}")
+        log_league(league, f"bad_spread_market_rows_blanked       : {bad_spread}")
+        log_league(league, f"bad_odds_market_rows_blanked_total   : {bad_odds_total_all}")
+        log_league(league, f"bad_total_line_rows_blanked          : {bad_total_lines}")
+        log_league(league, f"bad_spread_line_rows_blanked         : {bad_spread_lines}")
+        log_league(league, f"bad_line_rows_blanked_total          : {bad_lines_total_all}")
+        log_league(league, f"spread_outlier_events_found          : {spread_outliers}")
+        log_league(league, f"total_outlier_events_found           : {total_outliers}")
+        log_league(league, f"sportsbook_outlier_market_rows_blanked: {sportsbook_outlier_market_blanked.get(league, 0)}")
+        log_league(league, f"prediction_rows_removed              : 0")
+        log_league(league, f"sportsbook_rows_removed              : 0")
+        log_league(league, f"bias_files_with_adjusted_rows        : {sum_nested(bias_stats, league, 'files_with_biased_rows')}")
+        log_league(league, f"bias_rows_adjusted                   : {sum_nested(bias_stats, league, 'rows_adjusted')}")
+        log_league(league, f"bias_rows_skipped_already_flagged    : {sum_nested(bias_stats, league, 'rows_skipped_already_flagged')}")
+        log_league(league, f"prediction_files_written             : {sum_nested(pred_write_stats, league, 'files_written')}")
+        log_league(league, f"prediction_rows_written              : {sum_nested(pred_write_stats, league, 'rows_written')}")
+        log_league(league, f"sportsbook_files_written             : {sum_nested(book_write_stats, league, 'files_written')}")
+        log_league(league, f"sportsbook_rows_written              : {sum_nested(book_write_stats, league, 'rows_written')}")
         log_league(league, "STATUS: SUCCESS")
         log_league(league, "============================================================")
 
@@ -592,10 +737,10 @@ def write_league_summaries(
 def write_master_summary(
     pred_files,
     book_files,
-    bad_odds_removed,
+    bad_odds_blanked,
+    bad_lines_blanked,
     outlier_counts,
-    pred_outliers_removed,
-    book_outliers_removed,
+    sportsbook_outlier_market_blanked,
     bias_stats,
     pred_write_stats,
     book_write_stats,
@@ -606,33 +751,41 @@ def write_master_summary(
     log_master("============================================================")
 
     for league in ("NBA", "NCAAM", "WNBA"):
-        bad_ml = bad_odds_removed.get(league, {}).get("ML", 0)
-        bad_total = bad_odds_removed.get(league, {}).get("TOTAL", 0)
-        bad_spread = bad_odds_removed.get(league, {}).get("SPREAD", 0)
-        bad_total_all = bad_ml + bad_total + bad_spread
+        bad_ml = bad_odds_blanked.get(league, {}).get("ML", 0)
+        bad_total = bad_odds_blanked.get(league, {}).get("TOTAL", 0)
+        bad_spread = bad_odds_blanked.get(league, {}).get("SPREAD", 0)
+        bad_odds_total_all = bad_ml + bad_total + bad_spread
+
+        bad_total_lines = bad_lines_blanked.get(league, {}).get("TOTAL", 0)
+        bad_spread_lines = bad_lines_blanked.get(league, {}).get("SPREAD", 0)
+        bad_lines_total_all = bad_total_lines + bad_spread_lines
 
         spread_outliers = outlier_counts.get(league, {}).get("spread", 0)
         total_outliers = outlier_counts.get(league, {}).get("total", 0)
 
         log_master("")
         log_master(f"--- {league} ---")
-        log_master(f"prediction_files_loaded          : {len(pred_files.get(league, {}))}")
-        log_master(f"sportsbook_files_loaded          : {len(book_files.get(league, {}))}")
-        log_master(f"bad_ml_rows_removed              : {bad_ml}")
-        log_master(f"bad_total_rows_removed           : {bad_total}")
-        log_master(f"bad_spread_rows_removed          : {bad_spread}")
-        log_master(f"bad_odds_rows_removed_total      : {bad_total_all}")
-        log_master(f"spread_outlier_events_found      : {spread_outliers}")
-        log_master(f"total_outlier_events_found       : {total_outliers}")
-        log_master(f"prediction_outlier_rows_removed  : {pred_outliers_removed.get(league, 0)}")
-        log_master(f"sportsbook_outlier_rows_removed  : {book_outliers_removed.get(league, 0)}")
-        log_master(f"bias_files_with_adjusted_rows    : {sum_nested(bias_stats, league, 'files_with_biased_rows')}")
-        log_master(f"bias_rows_adjusted               : {sum_nested(bias_stats, league, 'rows_adjusted')}")
-        log_master(f"prediction_files_written         : {sum_nested(pred_write_stats, league, 'files_written')}")
-        log_master(f"prediction_rows_written          : {sum_nested(pred_write_stats, league, 'rows_written')}")
-        log_master(f"sportsbook_files_written         : {sum_nested(book_write_stats, league, 'files_written')}")
-        log_master(f"sportsbook_rows_written          : {sum_nested(book_write_stats, league, 'rows_written')}")
-        log_master(f"league_detail_log                : {LEAGUE_LOG_FILES[league]}")
+        log_master(f"prediction_files_loaded              : {len(pred_files.get(league, {}))}")
+        log_master(f"sportsbook_files_loaded              : {len(book_files.get(league, {}))}")
+        log_master(f"bad_ml_market_rows_blanked           : {bad_ml}")
+        log_master(f"bad_total_market_rows_blanked        : {bad_total}")
+        log_master(f"bad_spread_market_rows_blanked       : {bad_spread}")
+        log_master(f"bad_odds_market_rows_blanked_total   : {bad_odds_total_all}")
+        log_master(f"bad_total_line_rows_blanked          : {bad_total_lines}")
+        log_master(f"bad_spread_line_rows_blanked         : {bad_spread_lines}")
+        log_master(f"bad_line_rows_blanked_total          : {bad_lines_total_all}")
+        log_master(f"spread_outlier_events_found          : {spread_outliers}")
+        log_master(f"total_outlier_events_found           : {total_outliers}")
+        log_master(f"sportsbook_outlier_market_rows_blanked: {sportsbook_outlier_market_blanked.get(league, 0)}")
+        log_master(f"prediction_rows_removed              : 0")
+        log_master(f"sportsbook_rows_removed              : 0")
+        log_master(f"bias_files_with_adjusted_rows        : {sum_nested(bias_stats, league, 'files_with_biased_rows')}")
+        log_master(f"bias_rows_adjusted                   : {sum_nested(bias_stats, league, 'rows_adjusted')}")
+        log_master(f"prediction_files_written             : {sum_nested(pred_write_stats, league, 'files_written')}")
+        log_master(f"prediction_rows_written              : {sum_nested(pred_write_stats, league, 'rows_written')}")
+        log_master(f"sportsbook_files_written             : {sum_nested(book_write_stats, league, 'files_written')}")
+        log_master(f"sportsbook_rows_written              : {sum_nested(book_write_stats, league, 'rows_written')}")
+        log_master(f"league_detail_log                    : {LEAGUE_LOG_FILES[league]}")
 
     log_master("")
     log_master("STATUS: SUCCESS")
@@ -647,16 +800,20 @@ def main():
     init_logs()
 
     log_master("INFO | Starting basketball input cleanup")
-    log_master("INFO | Odds cleanup active: drops only blank, missing paired, non-numeric, or decimal <= 1 odds")
+    log_master("INFO | Odds cleanup active: blanks only the affected market; does not drop entire games")
+    log_master("INFO | Missing market odds are treated as unavailable market, not bad game")
     log_master("INFO | Hold-based odds filtering removed")
     log_master("INFO | Spread outlier fix active: sportsbook home_spread is converted to model-margin convention using -home_spread")
+    log_master("INFO | Outlier cleanup active: blanks only affected sportsbook market fields; prediction rows are retained")
     log_master(f"INFO | League logs: {LEAGUE_LOG_FILES}")
 
     for league in ("NBA", "NCAAM", "WNBA"):
         log_league(league, "INFO | Starting league cleanup")
-        log_league(league, "INFO | Odds cleanup active: drops only blank, missing paired, non-numeric, or decimal <= 1 odds")
+        log_league(league, "INFO | Odds cleanup active: blanks only the affected market; does not drop entire games")
+        log_league(league, "INFO | Missing market odds are treated as unavailable market, not bad game")
         log_league(league, "INFO | Hold-based odds filtering removed")
         log_league(league, "INFO | Spread outlier fix active: compare model home-away margin to -book_home_spread")
+        log_league(league, "INFO | Outlier cleanup active: blanks only affected sportsbook market fields; prediction rows are retained")
 
     pred_files = load_all(PREDICTION_DIRS)
     book_files = load_all(SPORTSBOOK_DIRS)
@@ -665,15 +822,14 @@ def main():
     book_loaded = sum(len(v) for v in book_files.values())
     log_master(f"LOADED | predictions_files={pred_loaded} sportsbook_files={book_loaded}")
 
-    bad_odds_removed = drop_bad_odds_rows(book_files)
+    bad_odds_blanked = blank_bad_market_odds(book_files)
+    bad_lines_blanked = blank_bad_market_lines(book_files)
 
     pred_index = build_pred_index(pred_files)
     book_index = build_book_index(book_files)
 
-    outlier_keys, outlier_counts = find_outlier_keys(pred_index, book_index)
-
-    pred_outliers_removed = drop_outlier_keys(pred_files, outlier_keys, "PREDICTIONS")
-    book_outliers_removed = drop_outlier_keys(book_files, outlier_keys, "SPORTSBOOK")
+    market_outlier_actions, outlier_counts = find_market_outlier_actions(pred_index, book_index)
+    sportsbook_outlier_market_blanked = apply_market_outlier_actions(book_files, market_outlier_actions)
 
     bias_stats = apply_prediction_biases(pred_files)
 
@@ -692,10 +848,10 @@ def main():
     write_league_summaries(
         pred_files=pred_files,
         book_files=book_files,
-        bad_odds_removed=bad_odds_removed,
+        bad_odds_blanked=bad_odds_blanked,
+        bad_lines_blanked=bad_lines_blanked,
         outlier_counts=outlier_counts,
-        pred_outliers_removed=pred_outliers_removed,
-        book_outliers_removed=book_outliers_removed,
+        sportsbook_outlier_market_blanked=sportsbook_outlier_market_blanked,
         bias_stats=bias_stats,
         pred_write_stats=pred_write_stats,
         book_write_stats=book_write_stats,
@@ -704,10 +860,10 @@ def main():
     write_master_summary(
         pred_files=pred_files,
         book_files=book_files,
-        bad_odds_removed=bad_odds_removed,
+        bad_odds_blanked=bad_odds_blanked,
+        bad_lines_blanked=bad_lines_blanked,
         outlier_counts=outlier_counts,
-        pred_outliers_removed=pred_outliers_removed,
-        book_outliers_removed=book_outliers_removed,
+        sportsbook_outlier_market_blanked=sportsbook_outlier_market_blanked,
         bias_stats=bias_stats,
         pred_write_stats=pred_write_stats,
         book_write_stats=book_write_stats,
