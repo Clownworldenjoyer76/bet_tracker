@@ -60,14 +60,8 @@ def pct_to_decimal(value: str) -> str:
 def build_game_id_index() -> dict:
     index = {}
 
-    for sb_file in sorted(SPORTSBOOK_DIR.glob("*/*.csv")):
-        if sb_file.parent.name == "normalized":
-            continue
-
+    for sb_file in sorted(SB_NORM_DIR.glob("*.csv")):
         if not DATE_PAT.search(sb_file.stem):
-            continue
-
-        if not sb_file.stem.endswith("_soccer"):
             continue
 
         try:
