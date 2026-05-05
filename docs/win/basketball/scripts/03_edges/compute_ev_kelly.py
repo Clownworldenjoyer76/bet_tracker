@@ -123,8 +123,7 @@ def compute_kelly(model_prob, book_decimal):
     b = book_decimal - 1
     q = 1 - model_prob
     k = ((b * model_prob) - q) / b
-    return k.where(k > 0)
-
+    return k.clip(lower=0).fillna(0)
 
 def atomic_write_csv(df, path):
     tmp = path.with_suffix(".tmp")
