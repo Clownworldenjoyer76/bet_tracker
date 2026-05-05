@@ -114,14 +114,26 @@ These 5 files live on the `model-data` branch at `bet_tracker/data/model/`. The 
 ---
 
 ## New Fighter Process
+## old instructions ##
+#When `no_map_fighter_name.csv` contains fighters after a pipeline run:
+#
+#1. Run `add_missing_fighters.py` locally — scrapes ufcstats and adds to `fighter_attributes.json`
+#2. If fighter is not found on ufcstats, add them manually to `fighter_name_map.csv` with `alias,canonical` — model will use median fill values for their features
+#3. Upload updated `fighter_attributes.json` to `model-data` branch
+#4. Add the fighter's name to `mappings/mma/ufc/fighter_name_map.csv` on main branch
 
-When `no_map_fighter_name.csv` contains fighters after a pipeline run:
+## NEW  instructions ##
 
-1. Run `add_missing_fighters.py` locally — scrapes ufcstats and adds to `fighter_attributes.json`
-2. If fighter is not found on ufcstats, add them manually to `fighter_name_map.csv` with `alias,canonical` — model will use median fill values for their features
-3. Upload updated `fighter_attributes.json` to `model-data` branch
-4. Add the fighter's name to `mappings/mma/ufc/fighter_name_map.csv` on main branch
+How to run:
 
+Download mappings/mma/ufc/no_map_fighter_name.csv from your GitHub repo
+Save it to Downloads\bet_tracker_files\UFC_Master\mappings\mma\ufc\no_map_fighter_name.csv
+From the UFC_Master folder, run:
+
+powershell python scripts\builder_scripts\add_missing_fighters.py
+
+After it finishes, upload the updated fighter_attributes.json to the model-data branch
+For any fighters reported as "Not found on ufcstats", add them manually to mappings/mma/ufc/fighter_name_map.csv on the main branch
 ---
 
 ## Model Retraining Process (Local Machine)
