@@ -93,9 +93,11 @@ BIAS_FLAG_VALUE = "1"
 with open(LOG_FILE, "w", encoding="utf-8") as f:
     f.write(f"=== clean_basketball_inputs RUN {datetime.now().isoformat()} ===\n")
 
+
 def log(msg: str) -> None:
     with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write(f"{datetime.now().isoformat()} | {msg}\n")
+
 
 # =========================
 # HELPERS
@@ -112,6 +114,7 @@ def to_float(value):
     except Exception:
         return None
 
+
 def row_key(row):
     game_id = str(row.get("game_id", "")).strip()
     if game_id:
@@ -123,12 +126,14 @@ def row_key(row):
         str(row.get("away_team", "")).strip(),
     ])
 
+
 def read_csv(path: Path):
     with open(path, "r", newline="", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
         rows = list(reader)
         fieldnames = reader.fieldnames or []
     return fieldnames, rows
+
 
 def write_csv(path: Path, fieldnames, rows):
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -137,11 +142,13 @@ def write_csv(path: Path, fieldnames, rows):
         writer.writeheader()
         writer.writerows(rows)
 
+
 def csv_files(folder: Path):
     if not folder.exists():
         log(f"WARN | Missing folder: {folder}")
         return []
     return sorted(folder.rglob("*.csv"))
+
 
 # =========================
 # LOAD ALL ORIGINALS INTO MEMORY
@@ -156,6 +163,7 @@ def load_all(dir_map):
             fieldnames, rows = read_csv(path)
             loaded[league][path] = [fieldnames, rows]
     return loaded
+
 
 # =========================
 # STEP 1: DROP BAD ODDS ROWS (IN MEMORY)
@@ -191,8 +199,7 @@ def drop_bad_odds_rows(book_files):
                     dec_b = to_float(row.get(col_b))
 
                     if dec_a is None or dec_b is None or dec_a <= 1 or dec_b <= 1:
-                        drop_reason = (market, "MALFORMED",
-                                       row.get(col_a), row.get(col_b), None)
+                        drop_reason = (market, "MALFORMED", row.get(col_a), row.get(col_b), None)
                         break
 
                     hold = (1.0 / dec_a) + (1.0 / dec_b)
@@ -204,6 +211,7 @@ def drop_bad_odds_rows(book_files):
                     market, kind, val_a, val_b, hold = drop_reason
                     removed_by_market[market] += 1
                     file_removed += 1
+
                     if kind == "MALFORMED":
                         log(
                             f"DROP_BAD_{market}_MALFORMED | {path} | {row_key(row)} | "
@@ -224,31 +232,44 @@ def drop_bad_odds_rows(book_files):
 
     return removed_by_market
 
+
 # =========================
 # STEP 2: BUILD INDEXES FROM IN-MEMORY DATA
 # =========================
 
 def build_pred_index(pred_files):
     index = {}
+
     for league, files in pred_files.items():
         for path, (fieldnames, rows) in files.items():
             for row in rows:
                 key = row_key(row)
                 if key:
-                    index[key] = {"league": league, "path": path, "row": row}
+                    index[key] = {
+                        "league": league,
+                        "path": path,
+                        "row": row,
+                    }
+
     return index
+
 
 def build_book_index(book_files):
     index = {}
+
     for league, files in book_files.items():
         for path, (fieldnames, rows) in files.items():
             for row in rows:
                 key = row_key(row)
                 if key:
-                    index.setdefault(key, []).append(
-                        {"league": league, "path": path, "row": row}
-                    )
+                    index.setdefault(key, []).append({
+                        "league": league,
+                        "path": path,
+                        "row": row,
+                    })
+
     return index
+
 
 # =========================
 # STEP 3: FIND MODEL VS BOOK OUTLIERS
@@ -270,19 +291,29 @@ def find_outlier_keys(pred_index, book_index):
         for book_item in book_index[key]:
             book = book_item["row"]
 
-            book_spread = to_float(book.get("home_spread"))
+            book_home_spread = to_float(book.get("home_spread"))
             book_total = to_float(book.get("total"))
 
-            if home_proj is not None and away_proj is not None and book_spread is not None:
-                model_spread = home_proj - away_proj
-                spread_diff = abs(model_spread - book_spread)
+            if home_proj is not None and away_proj is not None and book_home_spread is not None:
+                # Model spread here means projected HOME margin:
+                #   home_projected_points - away_projected_points
+                #
+                # Sportsbook home_spread is usually a betting line:
+                #   home favored by 17 => home_spread = -17
+                #
+                # Convert sportsbook home_spread into implied HOME margin before comparing.
+                model_home_margin = home_proj - away_proj
+                book_home_margin = -book_home_spread
+                spread_diff = abs(model_home_margin - book_home_margin)
 
                 if spread_diff > SPREAD_OUTLIER_MAX:
                     drop_keys.add(key)
                     log(
                         f"DROP_OUTLIER_SPREAD | {key} | "
-                        f"model_spread={round(model_spread, 4)} "
-                        f"book_spread={book_spread} diff={round(spread_diff, 4)}"
+                        f"model_home_margin={round(model_home_margin, 4)} "
+                        f"book_home_spread={book_home_spread} "
+                        f"book_home_margin={round(book_home_margin, 4)} "
+                        f"diff={round(spread_diff, 4)}"
                     )
 
             if model_total is not None and book_total is not None:
@@ -292,11 +323,13 @@ def find_outlier_keys(pred_index, book_index):
                     drop_keys.add(key)
                     log(
                         f"DROP_OUTLIER_TOTAL | {key} | "
-                        f"model_total={model_total} book_total={book_total} "
+                        f"model_total={model_total} "
+                        f"book_total={book_total} "
                         f"diff={round(total_diff, 4)}"
                     )
 
     return drop_keys
+
 
 # =========================
 # STEP 4: DROP OUTLIER KEYS FROM IN-MEMORY DATA
@@ -318,6 +351,7 @@ def drop_outlier_keys(loaded_files, drop_keys, label):
                     removed += 1
                     file_removed += 1
                     continue
+
                 kept.append(row)
 
             if file_removed:
@@ -325,6 +359,7 @@ def drop_outlier_keys(loaded_files, drop_keys, label):
                 log(f"FILTERED | {label} | {path} | removed_outliers={file_removed}")
 
     return removed
+
 
 # =========================
 # STEP 5: APPLY PREDICTION BIASES (IN MEMORY)
@@ -367,9 +402,9 @@ def apply_prediction_biases(pred_files):
             file_skipped = 0
 
             for row in rows:
-                # Defensive: skip rows that already carry the flag (originals
-                # should never have this column, but if a manual copy slipped
-                # through, don't double-bias it).
+                # Defensive: skip rows that already carry the flag. Originals
+                # should not have this column, but if a manual copy slipped
+                # through, do not double-bias it.
                 if str(row.get(BIAS_FLAG_COLUMN, "")).strip() == BIAS_FLAG_VALUE:
                     file_skipped += 1
                     rows_skipped_already_flagged += 1
@@ -404,6 +439,7 @@ def apply_prediction_biases(pred_files):
 
     return files_with_biased_rows, rows_adjusted, rows_skipped_already_flagged
 
+
 # =========================
 # STEP 6: WRITE EVERYTHING TO CLEANED FOLDERS
 # =========================
@@ -418,11 +454,14 @@ def write_cleaned(loaded_files, cleaned_dirs, label):
         for path, (fieldnames, rows) in files.items():
             new_path = cleaned_root / path.name
             write_csv(new_path, fieldnames, rows)
+
             files_written += 1
             rows_written += len(rows)
+
             log(f"WROTE | {label} | {new_path} | rows={len(rows)}")
 
     return files_written, rows_written
+
 
 # =========================
 # MAIN
@@ -441,8 +480,8 @@ def main():
 
     # Step 1: drop bad odds rows across all leagues / all markets (in memory)
     bad_odds_removed = drop_bad_odds_rows(book_files)
-    bad_ml_removed     = bad_odds_removed.get("ML", 0)
-    bad_total_removed  = bad_odds_removed.get("TOTAL", 0)
+    bad_ml_removed = bad_odds_removed.get("ML", 0)
+    bad_total_removed = bad_odds_removed.get("TOTAL", 0)
     bad_spread_removed = bad_odds_removed.get("SPREAD", 0)
     bad_total_removed_total = bad_ml_removed + bad_total_removed + bad_spread_removed
 
@@ -462,10 +501,14 @@ def main():
 
     # Step 6: write everything to cleaned folders
     pred_files_written, pred_rows_written = write_cleaned(
-        pred_files, CLEANED_PREDICTION_DIRS, "PREDICTIONS"
+        pred_files,
+        CLEANED_PREDICTION_DIRS,
+        "PREDICTIONS",
     )
     book_files_written, book_rows_written = write_cleaned(
-        book_files, CLEANED_SPORTSBOOK_DIRS, "SPORTSBOOK"
+        book_files,
+        CLEANED_SPORTSBOOK_DIRS,
+        "SPORTSBOOK",
     )
 
     log("")
@@ -505,6 +548,7 @@ def main():
     print(f"sportsbook_files_written         : {book_files_written}")
     print(f"sportsbook_rows_written          : {book_rows_written}")
     print(f"log_file                         : {LOG_FILE}")
+
 
 if __name__ == "__main__":
     try:
