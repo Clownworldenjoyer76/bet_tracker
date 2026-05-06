@@ -1,24 +1,134 @@
-=== odds_mls RUN 2026-05-05T03:15:30.239516-04:00 ===
-2026-05-05T03:15:30.239617-04:00 | START league=MLS slug=usa-mls bookmaker=FanDuel
-2026-05-05T03:15:30.541203-04:00 | EVENTS league=MLS count=15
-2026-05-05T03:15:30.747817-04:00 | ROW league=MLS game_id=66299122 Inter Miami CF at Toronto FC ML=(3.30,3.90,2.00) O25/U25=(,) O35/U35=(,) BTTS=(,)
-2026-05-05T03:15:31.148090-04:00 | ROW league=MLS game_id=66299118 New York Red Bulls at Chicago Fire ML=(1.53,4.40,5.10) O25/U25=(,) O35/U35=(,) BTTS=(,)
-2026-05-05T03:15:31.545124-04:00 | ROW league=MLS game_id=66299120 Orlando City SC at CF Montreal ML=(1.77,4.10,3.80) O25/U25=(,) O35/U35=(,) BTTS=(,)
-2026-05-05T03:15:31.952256-04:00 | ROW league=MLS game_id=66299124 Los Angeles Galaxy at Atlanta United FC ML=(2.55,3.70,2.50) O25/U25=(,) O35/U35=(,) BTTS=(,)
-2026-05-05T03:15:32.361516-04:00 | ROW league=MLS game_id=66299126 FC Cincinnati at Charlotte FC ML=(2.05,3.80,3.30) O25/U25=(,) O35/U35=(,) BTTS=(,)
-2026-05-05T03:15:32.782339-04:00 | ROW league=MLS game_id=66299128 Philadelphia Union at New England Revolution ML=(2.65,3.40,2.60) O25/U25=(,) O35/U35=(,) BTTS=(,)
-2026-05-05T03:15:33.183811-04:00 | ROW league=MLS game_id=66299130 Real Salt Lake at FC Dallas ML=(2.15,3.80,2.90) O25/U25=(,) O35/U35=(,) BTTS=(,)
-2026-05-05T03:15:33.589190-04:00 | ROW league=MLS game_id=66299132 DC United at Nashville SC ML=(1.48,4.10,6.00) O25/U25=(,) O35/U35=(,) BTTS=(,)
-2026-05-05T03:15:34.066557-04:00 | ROW league=MLS game_id=66299134 Saint Louis City SC at Colorado Rapids ML=(2.05,3.80,3.30) O25/U25=(,) O35/U35=(,) BTTS=(,)
-2026-05-05T03:15:34.546503-04:00 | ROW league=MLS game_id=66299136 Sporting Kansas City at Portland Timbers ML=(1.48,4.80,5.50) O25/U25=(,) O35/U35=(,) BTTS=(,)
-2026-05-05T03:15:34.947478-04:00 | ROW league=MLS game_id=66299138 Vancouver Whitecaps FC at San Jose Earthquakes ML=(2.85,3.70,2.20) O25/U25=(,) O35/U35=(,) BTTS=(,)
-2026-05-05T03:15:36.321373-04:00 | ROW league=MLS game_id=66299140 San Diego FC at Seattle Sounders ML=(1.69,3.90,4.30) O25/U25=(,) O35/U35=(,) BTTS=(,)
-2026-05-05T03:15:36.722871-04:00 | ROW league=MLS game_id=66299142 Columbus Crew at New York City FC ML=(2.40,3.60,2.70) O25/U25=(,) O35/U35=(,) BTTS=(,)
-2026-05-05T03:15:38.878675-04:00 | ROW league=MLS game_id=66299144 Austin FC at Minnesota United FC ML=(1.61,4.00,4.60) O25/U25=(,) O35/U35=(,) BTTS=(,)
-2026-05-05T03:15:39.272161-04:00 | ROW league=MLS game_id=66299146 Houston Dynamo at Los Angeles FC ML=(1.59,4.20,5.10) O25/U25=(,) O35/U35=(,) BTTS=(,)
-2026-05-05T03:15:39.473872-04:00 | --- SUMMARY ---
-2026-05-05T03:15:39.473925-04:00 | Rows written: 15
-2026-05-05T03:15:39.473947-04:00 | Odds errors: 0
-2026-05-05T03:15:39.473969-04:00 | CSV output: docs/win/soccer/00_intake/sportsbook/mls/2026_05_05_mls_soccer.csv
-2026-05-05T03:15:39.473988-04:00 | JSON output: docs/win/soccer/00_intake/odds_api_raw/mls/2026_05_05_mls_soccer_odds.json
-2026-05-05T03:15:39.474007-04:00 | STATUS: SUCCESS
+=== odds_mls RUN 2026-05-06T03:15:25.831320-04:00 ===
+2026-05-06T03:15:25.831488-04:00 | START league=MLS slug=usa-mls bookmaker=FanDuel
+2026-05-06T03:15:25.999656-04:00 | EVENTS league=MLS count=15
+2026-05-06T03:15:26.144663-04:00 | ERROR odds event_id=66299122: HTTP 404 for https://api.odds-api.io/v3/odds | body={"error":"No event found"}
+2026-05-06T03:15:26.148434-04:00 | Traceback (most recent call last):
+  File "/home/runner/work/bet_tracker/bet_tracker/docs/win/soccer/scripts/00_parsing/odds_mls.py", line 295, in main
+    odds_payload = fetch_odds(api_key, event_id)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/bet_tracker/bet_tracker/docs/win/soccer/scripts/00_parsing/odds_mls.py", line 217, in fetch_odds
+    payload = request_json(
+              ^^^^^^^^^^^^^
+  File "/home/runner/work/bet_tracker/bet_tracker/docs/win/soccer/scripts/00_parsing/odds_mls.py", line 74, in request_json
+    raise RuntimeError(
+RuntimeError: HTTP 404 for https://api.odds-api.io/v3/odds | body={"error":"No event found"}
+
+2026-05-06T03:15:26.496670-04:00 | ROW league=MLS game_id=66299118 New York Red Bulls at Chicago Fire ML=(1.50,4.50,5.10) O25/U25=(,) O35/U35=(,) BTTS=(,)
+2026-05-06T03:15:26.836630-04:00 | ROW league=MLS game_id=66299120 Orlando City SC at CF Montreal ML=(1.83,4.00,3.40) O25/U25=(,) O35/U35=(,) BTTS=(,)
+2026-05-06T03:15:27.173003-04:00 | ERROR odds event_id=66299124: HTTP 404 for https://api.odds-api.io/v3/odds | body={"error":"No event found"}
+2026-05-06T03:15:27.173310-04:00 | Traceback (most recent call last):
+  File "/home/runner/work/bet_tracker/bet_tracker/docs/win/soccer/scripts/00_parsing/odds_mls.py", line 295, in main
+    odds_payload = fetch_odds(api_key, event_id)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/bet_tracker/bet_tracker/docs/win/soccer/scripts/00_parsing/odds_mls.py", line 217, in fetch_odds
+    payload = request_json(
+              ^^^^^^^^^^^^^
+  File "/home/runner/work/bet_tracker/bet_tracker/docs/win/soccer/scripts/00_parsing/odds_mls.py", line 74, in request_json
+    raise RuntimeError(
+RuntimeError: HTTP 404 for https://api.odds-api.io/v3/odds | body={"error":"No event found"}
+
+2026-05-06T03:15:27.510456-04:00 | ROW league=MLS game_id=66299126 FC Cincinnati at Charlotte FC ML=(2.10,3.90,3.10) O25/U25=(,) O35/U35=(,) BTTS=(,)
+2026-05-06T03:15:27.853046-04:00 | ERROR odds event_id=66299128: HTTP 404 for https://api.odds-api.io/v3/odds | body={"error":"No event found"}
+2026-05-06T03:15:27.853351-04:00 | Traceback (most recent call last):
+  File "/home/runner/work/bet_tracker/bet_tracker/docs/win/soccer/scripts/00_parsing/odds_mls.py", line 295, in main
+    odds_payload = fetch_odds(api_key, event_id)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/bet_tracker/bet_tracker/docs/win/soccer/scripts/00_parsing/odds_mls.py", line 217, in fetch_odds
+    payload = request_json(
+              ^^^^^^^^^^^^^
+  File "/home/runner/work/bet_tracker/bet_tracker/docs/win/soccer/scripts/00_parsing/odds_mls.py", line 74, in request_json
+    raise RuntimeError(
+RuntimeError: HTTP 404 for https://api.odds-api.io/v3/odds | body={"error":"No event found"}
+
+2026-05-06T03:15:28.192234-04:00 | ERROR odds event_id=66299130: HTTP 404 for https://api.odds-api.io/v3/odds | body={"error":"No event found"}
+2026-05-06T03:15:28.192534-04:00 | Traceback (most recent call last):
+  File "/home/runner/work/bet_tracker/bet_tracker/docs/win/soccer/scripts/00_parsing/odds_mls.py", line 295, in main
+    odds_payload = fetch_odds(api_key, event_id)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/bet_tracker/bet_tracker/docs/win/soccer/scripts/00_parsing/odds_mls.py", line 217, in fetch_odds
+    payload = request_json(
+              ^^^^^^^^^^^^^
+  File "/home/runner/work/bet_tracker/bet_tracker/docs/win/soccer/scripts/00_parsing/odds_mls.py", line 74, in request_json
+    raise RuntimeError(
+RuntimeError: HTTP 404 for https://api.odds-api.io/v3/odds | body={"error":"No event found"}
+
+2026-05-06T03:15:28.635523-04:00 | ERROR odds event_id=66299132: HTTP 404 for https://api.odds-api.io/v3/odds | body={"error":"No event found"}
+2026-05-06T03:15:28.635856-04:00 | Traceback (most recent call last):
+  File "/home/runner/work/bet_tracker/bet_tracker/docs/win/soccer/scripts/00_parsing/odds_mls.py", line 295, in main
+    odds_payload = fetch_odds(api_key, event_id)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/bet_tracker/bet_tracker/docs/win/soccer/scripts/00_parsing/odds_mls.py", line 217, in fetch_odds
+    payload = request_json(
+              ^^^^^^^^^^^^^
+  File "/home/runner/work/bet_tracker/bet_tracker/docs/win/soccer/scripts/00_parsing/odds_mls.py", line 74, in request_json
+    raise RuntimeError(
+RuntimeError: HTTP 404 for https://api.odds-api.io/v3/odds | body={"error":"No event found"}
+
+2026-05-06T03:15:28.974318-04:00 | ERROR odds event_id=66299134: HTTP 404 for https://api.odds-api.io/v3/odds | body={"error":"No event found"}
+2026-05-06T03:15:28.974597-04:00 | Traceback (most recent call last):
+  File "/home/runner/work/bet_tracker/bet_tracker/docs/win/soccer/scripts/00_parsing/odds_mls.py", line 295, in main
+    odds_payload = fetch_odds(api_key, event_id)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/bet_tracker/bet_tracker/docs/win/soccer/scripts/00_parsing/odds_mls.py", line 217, in fetch_odds
+    payload = request_json(
+              ^^^^^^^^^^^^^
+  File "/home/runner/work/bet_tracker/bet_tracker/docs/win/soccer/scripts/00_parsing/odds_mls.py", line 74, in request_json
+    raise RuntimeError(
+RuntimeError: HTTP 404 for https://api.odds-api.io/v3/odds | body={"error":"No event found"}
+
+2026-05-06T03:15:29.314048-04:00 | ERROR odds event_id=66299136: HTTP 404 for https://api.odds-api.io/v3/odds | body={"error":"No event found"}
+2026-05-06T03:15:29.314330-04:00 | Traceback (most recent call last):
+  File "/home/runner/work/bet_tracker/bet_tracker/docs/win/soccer/scripts/00_parsing/odds_mls.py", line 295, in main
+    odds_payload = fetch_odds(api_key, event_id)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/bet_tracker/bet_tracker/docs/win/soccer/scripts/00_parsing/odds_mls.py", line 217, in fetch_odds
+    payload = request_json(
+              ^^^^^^^^^^^^^
+  File "/home/runner/work/bet_tracker/bet_tracker/docs/win/soccer/scripts/00_parsing/odds_mls.py", line 74, in request_json
+    raise RuntimeError(
+RuntimeError: HTTP 404 for https://api.odds-api.io/v3/odds | body={"error":"No event found"}
+
+2026-05-06T03:15:29.660504-04:00 | ROW league=MLS game_id=66299138 Vancouver Whitecaps FC at San Jose Earthquakes ML=(2.75,3.60,2.35) O25/U25=(,) O35/U35=(,) BTTS=(,)
+2026-05-06T03:15:30.006865-04:00 | ERROR odds event_id=66299140: HTTP 404 for https://api.odds-api.io/v3/odds | body={"error":"No event found"}
+2026-05-06T03:15:30.007157-04:00 | Traceback (most recent call last):
+  File "/home/runner/work/bet_tracker/bet_tracker/docs/win/soccer/scripts/00_parsing/odds_mls.py", line 295, in main
+    odds_payload = fetch_odds(api_key, event_id)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/bet_tracker/bet_tracker/docs/win/soccer/scripts/00_parsing/odds_mls.py", line 217, in fetch_odds
+    payload = request_json(
+              ^^^^^^^^^^^^^
+  File "/home/runner/work/bet_tracker/bet_tracker/docs/win/soccer/scripts/00_parsing/odds_mls.py", line 74, in request_json
+    raise RuntimeError(
+RuntimeError: HTTP 404 for https://api.odds-api.io/v3/odds | body={"error":"No event found"}
+
+2026-05-06T03:15:30.342349-04:00 | ERROR odds event_id=66299142: HTTP 404 for https://api.odds-api.io/v3/odds | body={"error":"No event found"}
+2026-05-06T03:15:30.342637-04:00 | Traceback (most recent call last):
+  File "/home/runner/work/bet_tracker/bet_tracker/docs/win/soccer/scripts/00_parsing/odds_mls.py", line 295, in main
+    odds_payload = fetch_odds(api_key, event_id)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/bet_tracker/bet_tracker/docs/win/soccer/scripts/00_parsing/odds_mls.py", line 217, in fetch_odds
+    payload = request_json(
+              ^^^^^^^^^^^^^
+  File "/home/runner/work/bet_tracker/bet_tracker/docs/win/soccer/scripts/00_parsing/odds_mls.py", line 74, in request_json
+    raise RuntimeError(
+RuntimeError: HTTP 404 for https://api.odds-api.io/v3/odds | body={"error":"No event found"}
+
+2026-05-06T03:15:30.681497-04:00 | ROW league=MLS game_id=66299144 Austin FC at Minnesota United FC ML=(1.61,4.00,4.60) O25/U25=(,) O35/U35=(,) BTTS=(,)
+2026-05-06T03:15:31.026388-04:00 | ERROR odds event_id=66299146: HTTP 404 for https://api.odds-api.io/v3/odds | body={"error":"No event found"}
+2026-05-06T03:15:31.026662-04:00 | Traceback (most recent call last):
+  File "/home/runner/work/bet_tracker/bet_tracker/docs/win/soccer/scripts/00_parsing/odds_mls.py", line 295, in main
+    odds_payload = fetch_odds(api_key, event_id)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/bet_tracker/bet_tracker/docs/win/soccer/scripts/00_parsing/odds_mls.py", line 217, in fetch_odds
+    payload = request_json(
+              ^^^^^^^^^^^^^
+  File "/home/runner/work/bet_tracker/bet_tracker/docs/win/soccer/scripts/00_parsing/odds_mls.py", line 74, in request_json
+    raise RuntimeError(
+RuntimeError: HTTP 404 for https://api.odds-api.io/v3/odds | body={"error":"No event found"}
+
+2026-05-06T03:15:31.228938-04:00 | --- SUMMARY ---
+2026-05-06T03:15:31.228979-04:00 | Rows written: 5
+2026-05-06T03:15:31.229000-04:00 | Odds errors: 10
+2026-05-06T03:15:31.229024-04:00 | CSV output: docs/win/soccer/00_intake/sportsbook/mls/2026_05_06_mls_soccer.csv
+2026-05-06T03:15:31.229043-04:00 | JSON output: docs/win/soccer/00_intake/odds_api_raw/mls/2026_05_06_mls_soccer_odds.json
+2026-05-06T03:15:31.229061-04:00 | STATUS: SUCCESS
