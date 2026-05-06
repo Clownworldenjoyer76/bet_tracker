@@ -139,6 +139,14 @@
       final_scores: ["NBA", "NCAAB", "NHL", "WNBA", "UFC"]
     };
 
+    function normalizeKey(value) {
+      return (value || "")
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, "")
+        .replace(/_/g, "");
+    }
+
     function updateMarkets() {
       const l = document.getElementById("league").value;
       const mSel = document.getElementById("market");
@@ -179,32 +187,37 @@
       const out    = document.getElementById("out");
       const btn    = document.getElementById("btn");
 
-      if (!league || !source || !token || !raw.trim()) {
+      if (!league || !market || !source || !token || !raw.trim()) {
         out.className = "failure";
         out.textContent = "Major Failure Bro";
         return;
       }
 
+      const leagueKey = normalizeKey(league);
+      const marketKey = normalizeKey(market);
+      const sourceKey = normalizeKey(source);
+
       const isUFC = (
-        league === "final_scores" &&
-        market === "UFC" &&
-        source === "UFC Results"
+        leagueKey === "finalscores" &&
+        marketKey === "ufc" &&
+        sourceKey === "ufcresults"
       );
 
       let workflowFile = WORKFLOW_FILE_DEFAULT;
 
       if (isUFC) {
         workflowFile = WORKFLOW_FILE_UFC;
-      } else if (league === "soccer" && source === "Soccer Totals") {
+      } else if (leagueKey === "soccer" && sourceKey === "soccertotals") {
         workflowFile = WORKFLOW_FILE_SOCCER_SCORES;
-      } else if (league === "soccer" && source === "Predictions") {
+      } else if (leagueKey === "soccer" && sourceKey === "predictions") {
         workflowFile = WORKFLOW_FILE_SOCCER_PRED;
       }
 
       btn.classList.add("submitting");
       btn.disabled = true;
       btn.textContent = "Processing...";
-      out.textContent = "";
+      out.className = "";
+      out.textContent = `Submitting to ${workflowFile}...`;
 
       try {
         const url = `https://api.github.com/repos/${OWNER}/${REPO}/actions/workflows/${workflowFile}/dispatches`;
@@ -229,13 +242,13 @@
 
         if (res.status === 204) {
           out.className = "success";
-          out.textContent = "Successfully Submitted";
+          out.textContent = `Successfully Submitted: ${workflowFile}`;
         } else {
           throw new Error();
         }
       } catch (e) {
         out.className = "failure";
-        out.textContent = "Major Failure Bro";
+        out.textContent = `Major Failure Bro: ${workflowFile}`;
       } finally {
         btn.classList.remove("submitting");
         btn.disabled = false;
