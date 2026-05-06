@@ -1,5 +1,5 @@
-# docs/win/soccer/scripts/00_intake/name_normalization.py
 #!/usr/bin/env python3
+# docs/win/soccer/scripts/00_intake/name_normalization.py
 
 import csv
 import re
@@ -8,6 +8,8 @@ from pathlib import Path
 from datetime import datetime, timezone
 
 INTAKE_DIR = Path("docs/win/soccer/00_intake")
+FINAL_SCORES_DIR = Path("docs/win/soccer/05_final_scores/results/final_scores")
+
 MAP_FILE = Path("mappings/soccer/team_map_soccer.csv")
 
 NO_MAP_DIR = Path("mappings/soccer/no_map")
@@ -99,6 +101,17 @@ if sb_dir.exists():
 pred_dir = INTAKE_DIR / "predictions"
 if pred_dir.exists():
     for league_dir in sorted(pred_dir.iterdir()):
+        if not league_dir.is_dir():
+            continue
+
+        league = league_dir.name
+
+        for f in sorted(league_dir.glob("*.csv")):
+            if DATE_PAT.search(f.stem) and f.stem.endswith(f"_{league}"):
+                files_to_process.append(f)
+
+if FINAL_SCORES_DIR.exists():
+    for league_dir in sorted(FINAL_SCORES_DIR.iterdir()):
         if not league_dir.is_dir():
             continue
 

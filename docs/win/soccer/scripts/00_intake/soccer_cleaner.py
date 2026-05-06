@@ -1,5 +1,5 @@
-# docs/win/soccer/scripts/00_intake/soccer_cleaner.py
 #!/usr/bin/env python3
+# docs/win/soccer/scripts/00_intake/soccer_cleaner.py
 
 import csv
 import re
@@ -38,8 +38,36 @@ pred_files_written = []
 total_missing_ids = 0
 
 
+# =========================
+# LEAGUE NORMALIZATION
+# =========================
+
+LEAGUE_MAP = {
+    "la liga": "laliga",
+    "la_liga": "laliga",
+    "laliga": "laliga",
+
+    "epl": "epl",
+
+    "serie a": "seriea",
+    "serie_a": "seriea",
+    "seriea": "seriea",
+
+    "bundesliga": "bundesliga",
+
+    "ligue 1": "ligue1",
+    "ligue_1": "ligue1",
+    "ligue1": "ligue1",
+
+    "mls": "mls",
+}
+
+
 def normalize_league(value: str) -> str:
-    return (value or "").strip().lower().replace(" ", "_")
+    if not value:
+        return ""
+
+    return LEAGUE_MAP.get(value.strip().lower(), value.strip().lower())
 
 
 def pct_to_decimal(value: str) -> str:
@@ -57,6 +85,7 @@ def pct_to_decimal(value: str) -> str:
 # =========================
 # SPORTSBOOK GAME_ID INDEX
 # =========================
+
 def build_game_id_index() -> dict:
     index = {}
 
@@ -88,6 +117,7 @@ def build_game_id_index() -> dict:
 # =========================
 # 1. CLEAN SPORTSBOOK
 # =========================
+
 def clean_sportsbook():
     sb_fields = [
         "sport",
@@ -160,12 +190,12 @@ def clean_sportsbook():
 # =========================
 # 2. CLEAN PREDICTIONS
 # =========================
+
 PROB_COLS = ["home_prob", "draw_prob", "away_prob"]
 
 PRED_FIELDS = [
     "sport",
     "league",
-    "market",
     "game_id",
     "match_date",
     "match_time",
@@ -226,6 +256,7 @@ def clean_predictions(game_id_index: dict):
                             log(f"  NO GAME_ID match: {key}")
 
                         row["game_id"] = game_id
+                        row["league"] = row_league
 
                         for col in PROB_COLS:
                             row[col] = pct_to_decimal(row.get(col, ""))
@@ -256,6 +287,7 @@ def clean_predictions(game_id_index: dict):
 # =========================
 # MAIN
 # =========================
+
 def main():
     log("START")
 
@@ -269,6 +301,7 @@ def main():
     # =========================
     # SUMMARY
     # =========================
+
     log("--- SUMMARY ---")
 
     log(f"Sportsbook files written: {len(sb_files_written)}")
