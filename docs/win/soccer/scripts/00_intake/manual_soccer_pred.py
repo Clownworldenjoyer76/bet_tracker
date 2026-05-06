@@ -3,9 +3,8 @@
 
 import argparse
 import csv
+import re
 from pathlib import Path
-from datetime import datetime
-from zoneinfo import ZoneInfo
 
 
 BASE_OUT_DIR = Path("docs/win/soccer/00_intake/predictions")
@@ -24,6 +23,18 @@ CSV_HEADERS = [
     "away_xg",
     "expected_total_goals",
 ]
+
+DATE_RE = re.compile(r"^\d{2}/\d{2}/\d{4}$")
+TIME_RE = re.compile(r"^\d{1,2}:\d{2}\s*(AM|PM)$", re.IGNORECASE)
+RECORD_RE = re.compile(r"\s*\([^)]*\)\s*$")
+
+IGNORE_LINES = {
+    "Time\tTeams\tWin\tDraw\tBest",
+    "ML\tGoals\tTotal",
+    "Goals\tBest",
+    "O/U\tBet",
+    "Value\tMore Details",
+}
 
 
 def clean_market_for_path(value: str) -> str:
@@ -46,29 +57,36 @@ def clean_market_for_league_value(value: str) -> str:
     )
 
 
-def today_yyyy_mm_dd() -> str:
-    return datetime.now(ZoneInfo("America/New_York")).strftime("%Y_%m_%d")
-
-
 def normalize_match_date(value: str) -> str:
     value = (value or "").strip()
 
-    if not value:
-        return today_yyyy_mm_dd()
+    if not DATE_RE.match(value):
+        raise ValueError(f"Invalid match date format: {value}")
 
-    value = value.replace("-", "_").replace("/", "_")
-
-    parts = value.split("_")
-
-    if len(parts) != 3:
-      raise ValueError(f"Invalid match date format: {value}")
-
-    year, month, day = parts
-
-    if len(year) != 4:
-      raise ValueError(f"Invalid match date year: {value}")
-
+    month, day, year = value.split("/")
     return f"{year}_{month.zfill(2)}_{day.zfill(2)}"
+
+
+def normalize_match_time(value: str) -> str:
+    value = (value or "").strip().upper()
+
+    if not TIME_RE.match(value):
+        raise ValueError(f"Invalid match time format: {value}")
+
+    time_part, ampm = value.split()
+    hour, minute = time_part.split(":")
+
+    return f"{hour.zfill(2)}:{minute} {ampm}"
+
+
+def clean_team(value: str) -> str:
+    value = (value or "").strip()
+    value = RECORD_RE.sub("", value)
+    return value.strip()
+
+
+def split_tabs(value: str) -> list[str]:
+    return [part.strip() for part in (value or "").split("\t") if part.strip()]
 
 
 def read_raw_lines(raw_file: Path) -> list[str]:
@@ -76,34 +94,117 @@ def read_raw_lines(raw_file: Path) -> list[str]:
     return text.splitlines()
 
 
-def write_numbered_raw_lines(path: Path, raw_lines: list[str]) -> None:
-    with open(path, "w", encoding="utf-8", newline="") as f:
-        for i, line in enumerate(raw_lines, start=1):
-            f.write(f"{i}: {line}\n")
+def clean_raw_lines(raw_lines: list[str]) -> list[str]:
+    cleaned = []
+
+    for line in raw_lines:
+        line = line.strip()
+
+        if not line:
+            continue
+
+        if line in IGNORE_LINES:
+            continue
+
+        cleaned.append(line)
+
+    return cleaned
 
 
-def write_placeholder_csv(path: Path, raw_lines: list[str], league_value: str, match_date: str) -> None:
-    non_blank_lines = [line for line in raw_lines if line.strip()]
+def parse_game_block(lines: list[str], start_index: int, league_value: str) -> tuple[dict, int]:
+    match_date_raw = lines[start_index]
+    match_date = normalize_match_date(match_date_raw)
+
+    try:
+        match_time_raw = lines[start_index + 1]
+        away_team_raw = lines[start_index + 2]
+        home_team_and_away_prob_raw = lines[start_index + 3]
+        home_prob_and_draw_prob_raw = lines[start_index + 4]
+        away_xg_raw = lines[start_index + 5]
+        home_xg_and_total_raw = lines[start_index + 6]
+    except IndexError:
+        raise ValueError(f"Incomplete game block starting at raw date line: {match_date_raw}")
+
+    match_time = normalize_match_time(match_time_raw)
+
+    away_team = clean_team(away_team_raw)
+
+    home_team_parts = split_tabs(home_team_and_away_prob_raw)
+    if len(home_team_parts) < 2:
+        raise ValueError(f"Could not parse home_team and away_prob from: {home_team_and_away_prob_raw}")
+
+    home_team = clean_team(home_team_parts[0])
+    away_prob = home_team_parts[1]
+
+    prob_parts = split_tabs(home_prob_and_draw_prob_raw)
+    if len(prob_parts) < 2:
+        raise ValueError(f"Could not parse home_prob and draw_prob from: {home_prob_and_draw_prob_raw}")
+
+    home_prob = prob_parts[0]
+    draw_prob = prob_parts[1]
+
+    away_xg = away_xg_raw.strip()
+
+    xg_parts = split_tabs(home_xg_and_total_raw)
+    if len(xg_parts) < 2:
+        raise ValueError(f"Could not parse home_xg and expected_total_goals from: {home_xg_and_total_raw}")
+
+    home_xg = xg_parts[0]
+    expected_total_goals = xg_parts[1]
+
+    row = {
+        "sport": "soccer",
+        "league": league_value,
+        "match_date": match_date,
+        "match_time": match_time,
+        "home_team": home_team,
+        "away_team": away_team,
+        "home_prob": home_prob,
+        "draw_prob": draw_prob,
+        "away_prob": away_prob,
+        "home_xg": home_xg,
+        "away_xg": away_xg,
+        "expected_total_goals": expected_total_goals,
+    }
+
+    return row, start_index + 7
+
+
+def parse_rows(raw_lines: list[str], league_value: str) -> list[dict]:
+    lines = clean_raw_lines(raw_lines)
+    rows = []
+
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+
+        if DATE_RE.match(line):
+            row, next_index = parse_game_block(lines, i, league_value)
+            rows.append(row)
+            i = next_index
+        else:
+            i += 1
+
+    return rows
+
+
+def group_rows_by_match_date(rows: list[dict]) -> dict[str, list[dict]]:
+    grouped = {}
+
+    for row in rows:
+        match_date = row["match_date"]
+        grouped.setdefault(match_date, []).append(row)
+
+    return grouped
+
+
+def write_csv(path: Path, rows: list[dict]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
 
     with open(path, "w", encoding="utf-8", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=CSV_HEADERS)
         writer.writeheader()
-
-        for _line in non_blank_lines:
-            writer.writerow({
-                "sport": "soccer",
-                "league": league_value,
-                "match_date": match_date,
-                "match_time": "",
-                "home_team": "",
-                "away_team": "",
-                "home_prob": "",
-                "draw_prob": "",
-                "away_prob": "",
-                "home_xg": "",
-                "away_xg": "",
-                "expected_total_goals": "",
-            })
+        writer.writerows(rows)
 
 
 def main() -> None:
@@ -122,7 +223,6 @@ def main() -> None:
 
     market_path_value = clean_market_for_path(args.market)
     league_value = clean_market_for_league_value(args.market)
-    match_date = normalize_match_date(args.match_date)
 
     if not market_path_value:
         raise ValueError("Market value is empty after cleanup")
@@ -130,19 +230,20 @@ def main() -> None:
     if not league_value:
         raise ValueError("League value is empty after cleanup")
 
-    out_dir = BASE_OUT_DIR / market_path_value
-    out_dir.mkdir(parents=True, exist_ok=True)
-
-    csv_path = out_dir / f"{match_date}_{market_path_value}.csv"
-    numbered_raw_path = out_dir / f"{match_date}_{market_path_value}_raw_lines_numbered.txt"
-
     raw_lines = read_raw_lines(raw_file)
+    rows = parse_rows(raw_lines, league_value)
 
-    write_numbered_raw_lines(numbered_raw_path, raw_lines)
-    write_placeholder_csv(csv_path, raw_lines, league_value, match_date)
+    if not rows:
+        raise ValueError("No soccer prediction rows were parsed from raw input")
 
-    print(f"WROTE CSV: {csv_path}")
-    print(f"WROTE NUMBERED RAW LINES: {numbered_raw_path}")
+    grouped_rows = group_rows_by_match_date(rows)
+
+    out_dir = BASE_OUT_DIR / market_path_value
+
+    for match_date, date_rows in grouped_rows.items():
+        csv_path = out_dir / f"{match_date}_{market_path_value}.csv"
+        write_csv(csv_path, date_rows)
+        print(f"WROTE CSV: {csv_path} ({len(date_rows)} rows)")
 
 
 if __name__ == "__main__":
