@@ -1,595 +1,598 @@
-=== clean_basketball_inputs RUN 2026-05-05T14:42:46.478626 ===
+=== clean_basketball_inputs RUN 2026-05-06T09:51:05.872202 ===
 === LEAGUE LOG: NBA ===
-2026-05-05T14:42:46.479351 | INFO | Starting league cleanup
-2026-05-05T14:42:46.479370 | INFO | Odds cleanup active: blanks only the affected market; does not drop entire games
-2026-05-05T14:42:46.479389 | INFO | Missing market odds are treated as unavailable market, not bad game
-2026-05-05T14:42:46.479406 | INFO | Hold-based odds filtering removed
-2026-05-05T14:42:46.479424 | INFO | Spread outlier fix active: compare model home-away margin to -book_home_spread
-2026-05-05T14:42:46.479441 | INFO | Outlier cleanup active: blanks only affected sportsbook market fields; prediction rows are retained
-2026-05-05T14:42:46.506172 | LOADED | folder=docs/win/basketball/00_intake/predictions/nba files=185
-2026-05-05T14:42:46.550117 | LOADED | folder=docs/win/basketball/00_intake/sportsbook/nba files=187
-2026-05-05T14:42:46.628729 | OUTLIER SUMMARY | spread_outliers=0 total_outliers=0
-2026-05-05T14:42:46.628991 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_10_21_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=2 skipped_already_flagged=0
-2026-05-05T14:42:46.629072 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_10_22_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=12 skipped_already_flagged=0
-2026-05-05T14:42:46.629108 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_10_23_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=2 skipped_already_flagged=0
-2026-05-05T14:42:46.629168 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_10_24_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=12 skipped_already_flagged=0
-2026-05-05T14:42:46.629208 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_10_25_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=5 skipped_already_flagged=0
-2026-05-05T14:42:46.629260 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_10_26_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=9 skipped_already_flagged=0
-2026-05-05T14:42:46.629315 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_10_27_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=11 skipped_already_flagged=0
-2026-05-05T14:42:46.629354 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_10_28_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=5 skipped_already_flagged=0
-2026-05-05T14:42:46.629407 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_10_29_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=10 skipped_already_flagged=0
-2026-05-05T14:42:46.629443 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_10_30_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=4 skipped_already_flagged=0
-2026-05-05T14:42:46.629490 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_10_31_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
-2026-05-05T14:42:46.629531 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_01_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=6 skipped_already_flagged=0
-2026-05-05T14:42:46.629577 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_02_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
-2026-05-05T14:42:46.629625 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_03_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=9 skipped_already_flagged=0
-2026-05-05T14:42:46.629662 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_04_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=5 skipped_already_flagged=0
-2026-05-05T14:42:46.629719 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_05_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=12 skipped_already_flagged=0
-2026-05-05T14:42:46.629759 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_06_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=1 skipped_already_flagged=0
-2026-05-05T14:42:46.629813 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_07_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=11 skipped_already_flagged=0
-2026-05-05T14:42:46.629859 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_08_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
-2026-05-05T14:42:46.629927 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_09_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=7 skipped_already_flagged=0
-2026-05-05T14:42:46.629976 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_10_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=9 skipped_already_flagged=0
-2026-05-05T14:42:46.630013 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_11_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=5 skipped_already_flagged=0
-2026-05-05T14:42:46.630071 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_12_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=13 skipped_already_flagged=0
-2026-05-05T14:42:46.630102 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_13_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=3 skipped_already_flagged=0
-2026-05-05T14:42:46.630153 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_14_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=9 skipped_already_flagged=0
-2026-05-05T14:42:46.630191 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_15_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=5 skipped_already_flagged=0
-2026-05-05T14:42:46.630237 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_16_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
-2026-05-05T14:42:46.630286 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_17_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
-2026-05-05T14:42:46.630324 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_18_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=5 skipped_already_flagged=0
-2026-05-05T14:42:46.630375 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_19_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=10 skipped_already_flagged=0
-2026-05-05T14:42:46.630408 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_20_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=4 skipped_already_flagged=0
-2026-05-05T14:42:46.630454 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_21_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=9 skipped_already_flagged=0
-2026-05-05T14:42:46.630496 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_22_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=7 skipped_already_flagged=0
-2026-05-05T14:42:46.630540 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_23_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
-2026-05-05T14:42:46.630589 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_24_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=10 skipped_already_flagged=0
-2026-05-05T14:42:46.630617 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_25_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=2 skipped_already_flagged=0
-2026-05-05T14:42:46.630667 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_26_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=10 skipped_already_flagged=0
-2026-05-05T14:42:46.630728 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_28_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=11 skipped_already_flagged=0
-2026-05-05T14:42:46.630773 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_29_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
-2026-05-05T14:42:46.630824 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_30_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
-2026-05-05T14:42:46.630896 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_01_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=9 skipped_already_flagged=0
-2026-05-05T14:42:46.630938 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_02_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=5 skipped_already_flagged=0
-2026-05-05T14:42:46.630990 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_03_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=10 skipped_already_flagged=0
-2026-05-05T14:42:46.631027 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_04_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=5 skipped_already_flagged=0
-2026-05-05T14:42:46.631084 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_05_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=12 skipped_already_flagged=0
-2026-05-05T14:42:46.631126 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_06_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=7 skipped_already_flagged=0
-2026-05-05T14:42:46.631167 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_07_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=7 skipped_already_flagged=0
-2026-05-05T14:42:46.631197 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_08_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=3 skipped_already_flagged=0
-2026-05-05T14:42:46.631225 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_09_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=2 skipped_already_flagged=0
-2026-05-05T14:42:46.631253 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_10_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=2 skipped_already_flagged=0
-2026-05-05T14:42:46.631287 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_11_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=4 skipped_already_flagged=0
-2026-05-05T14:42:46.631328 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_12_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=7 skipped_already_flagged=0
-2026-05-05T14:42:46.631358 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_13_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=2 skipped_already_flagged=0
-2026-05-05T14:42:46.631402 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_14_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
-2026-05-05T14:42:46.631437 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_15_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=5 skipped_already_flagged=0
-2026-05-05T14:42:46.631463 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_16_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=1 skipped_already_flagged=0
-2026-05-05T14:42:46.631490 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_17_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=2 skipped_already_flagged=0
-2026-05-05T14:42:46.631544 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_18_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=12 skipped_already_flagged=0
-2026-05-05T14:42:46.631588 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_19_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=5 skipped_already_flagged=0
-2026-05-05T14:42:46.631637 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_20_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=10 skipped_already_flagged=0
-2026-05-05T14:42:46.631676 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_21_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=6 skipped_already_flagged=0
-2026-05-05T14:42:46.631717 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_22_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=7 skipped_already_flagged=0
-2026-05-05T14:42:46.631776 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_23_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=14 skipped_already_flagged=0
-2026-05-05T14:42:46.631816 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_25_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=5 skipped_already_flagged=0
-2026-05-05T14:42:46.631881 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_26_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=9 skipped_already_flagged=0
-2026-05-05T14:42:46.631937 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_27_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=9 skipped_already_flagged=0
-2026-05-05T14:42:46.631977 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_28_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=6 skipped_already_flagged=0
-2026-05-05T14:42:46.632031 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_29_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=11 skipped_already_flagged=0
-2026-05-05T14:42:46.632062 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_30_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=3 skipped_already_flagged=0
-2026-05-05T14:42:46.632113 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_31_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=10 skipped_already_flagged=0
-2026-05-05T14:42:46.632149 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_01_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=5 skipped_already_flagged=0
-2026-05-05T14:42:46.632199 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_02_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=10 skipped_already_flagged=0
-2026-05-05T14:42:46.632242 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_03_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
-2026-05-05T14:42:46.632287 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_04_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
-2026-05-05T14:42:46.632330 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_05_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
-2026-05-05T14:42:46.632366 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_06_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=5 skipped_already_flagged=0
-2026-05-05T14:42:46.632423 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_07_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=13 skipped_already_flagged=0
-2026-05-05T14:42:46.632453 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_08_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=3 skipped_already_flagged=0
-2026-05-05T14:42:46.632503 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_09_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=10 skipped_already_flagged=0
-2026-05-05T14:42:46.632548 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_10_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=6 skipped_already_flagged=0
-2026-05-05T14:42:46.632598 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_11_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=10 skipped_already_flagged=0
-2026-05-05T14:42:46.632637 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_12_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=6 skipped_already_flagged=0
-2026-05-05T14:42:46.632676 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_13_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=6 skipped_already_flagged=0
-2026-05-05T14:42:46.632721 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_14_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
-2026-05-05T14:42:46.632767 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_15_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=9 skipped_already_flagged=0
-2026-05-05T14:42:46.632807 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_16_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=6 skipped_already_flagged=0
-2026-05-05T14:42:46.632854 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_17_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=9 skipped_already_flagged=0
-2026-05-05T14:42:46.632919 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_18_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=6 skipped_already_flagged=0
-2026-05-05T14:42:46.632970 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_19_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=9 skipped_already_flagged=0
-2026-05-05T14:42:46.633012 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_20_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=7 skipped_already_flagged=0
-2026-05-05T14:42:46.633054 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_21_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=7 skipped_already_flagged=0
-2026-05-05T14:42:46.633098 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_22_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
-2026-05-05T14:42:46.633142 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_23_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
-2026-05-05T14:42:46.633181 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_24_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=6 skipped_already_flagged=0
-2026-05-05T14:42:46.633220 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_25_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=6 skipped_already_flagged=0
-2026-05-05T14:42:46.633262 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_26_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=7 skipped_already_flagged=0
-2026-05-05T14:42:46.633302 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_27_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=7 skipped_already_flagged=0
-2026-05-05T14:42:46.633349 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_28_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=9 skipped_already_flagged=0
-2026-05-05T14:42:46.633393 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_29_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
-2026-05-05T14:42:46.633444 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_30_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=9 skipped_already_flagged=0
-2026-05-05T14:42:46.633491 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_31_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=6 skipped_already_flagged=0
-2026-05-05T14:42:46.633541 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_02_01_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=10 skipped_already_flagged=0
-2026-05-05T14:42:46.633574 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_02_02_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=4 skipped_already_flagged=0
-2026-05-05T14:42:46.633623 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_02_03_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=9 skipped_already_flagged=0
-2026-05-05T14:42:46.633667 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_02_04_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
-2026-05-05T14:42:46.633711 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_02_05_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
-2026-05-05T14:42:46.633749 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_02_06_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=6 skipped_already_flagged=0
-2026-05-05T14:42:46.633799 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_02_07_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=10 skipped_already_flagged=0
-2026-05-05T14:42:46.633833 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_02_08_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=4 skipped_already_flagged=0
-2026-05-05T14:42:46.633903 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_02_09_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=10 skipped_already_flagged=0
-2026-05-05T14:42:46.633941 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_02_10_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=4 skipped_already_flagged=0
-2026-05-05T14:42:46.634004 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_02_11_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=14 skipped_already_flagged=0
-2026-05-05T14:42:46.634034 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_02_12_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=3 skipped_already_flagged=0
-2026-05-05T14:42:46.634083 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_02_19_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=10 skipped_already_flagged=0
-2026-05-05T14:42:46.634129 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_02_20_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=9 skipped_already_flagged=0
-2026-05-05T14:42:46.634168 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_02_21_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=6 skipped_already_flagged=0
-2026-05-05T14:42:46.634221 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_02_22_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=11 skipped_already_flagged=0
-2026-05-05T14:42:46.634251 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_02_23_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=3 skipped_already_flagged=0
-2026-05-05T14:42:46.634302 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_02_24_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=11 skipped_already_flagged=0
-2026-05-05T14:42:46.634341 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_02_25_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=6 skipped_already_flagged=0
-2026-05-05T14:42:46.634391 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_02_26_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=10 skipped_already_flagged=0
-2026-05-05T14:42:46.634434 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_02_27_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=5 skipped_already_flagged=0
-2026-05-05T14:42:46.634471 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_02_28_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=5 skipped_already_flagged=0
-2026-05-05T14:42:46.634524 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_01_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=11 skipped_already_flagged=0
-2026-05-05T14:42:46.634554 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_02_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=3 skipped_already_flagged=0
-2026-05-05T14:42:46.634601 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_03_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=9 skipped_already_flagged=0
-2026-05-05T14:42:46.634642 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_04_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=7 skipped_already_flagged=0
-2026-05-05T14:42:46.634689 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_05_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=9 skipped_already_flagged=0
-2026-05-05T14:42:46.634731 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_06_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=7 skipped_already_flagged=0
-2026-05-05T14:42:46.634769 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_07_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=6 skipped_already_flagged=0
-2026-05-05T14:42:46.634819 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_08_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=10 skipped_already_flagged=0
-2026-05-05T14:42:46.634854 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_09_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=5 skipped_already_flagged=0
-2026-05-05T14:42:46.634932 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_10_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=11 skipped_already_flagged=0
-2026-05-05T14:42:46.634968 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_11_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=4 skipped_already_flagged=0
-2026-05-05T14:42:46.635016 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_12_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=9 skipped_already_flagged=0
-2026-05-05T14:42:46.635061 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_13_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
-2026-05-05T14:42:46.635108 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_14_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=7 skipped_already_flagged=0
-2026-05-05T14:42:46.635151 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_15_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=7 skipped_already_flagged=0
-2026-05-05T14:42:46.635196 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_16_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
-2026-05-05T14:42:46.635240 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_17_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
-2026-05-05T14:42:46.635288 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_18_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=9 skipped_already_flagged=0
-2026-05-05T14:42:46.635332 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_19_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
-2026-05-05T14:42:46.635377 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_20_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=6 skipped_already_flagged=0
-2026-05-05T14:42:46.635429 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_21_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=10 skipped_already_flagged=0
-2026-05-05T14:42:46.635466 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_22_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=5 skipped_already_flagged=0
-2026-05-05T14:42:46.635516 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_23_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=10 skipped_already_flagged=0
-2026-05-05T14:42:46.635548 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_24_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=4 skipped_already_flagged=0
-2026-05-05T14:42:46.635603 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_25_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=12 skipped_already_flagged=0
-2026-05-05T14:42:46.635634 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_26_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=3 skipped_already_flagged=0
-2026-05-05T14:42:46.635683 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_27_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=10 skipped_already_flagged=0
-2026-05-05T14:42:46.635718 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_28_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=5 skipped_already_flagged=0
-2026-05-05T14:42:46.635762 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_29_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
-2026-05-05T14:42:46.635803 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_30_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=7 skipped_already_flagged=0
-2026-05-05T14:42:46.635838 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_31_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=5 skipped_already_flagged=0
-2026-05-05T14:42:46.635905 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_01_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
-2026-05-05T14:42:46.635948 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_02_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=6 skipped_already_flagged=0
-2026-05-05T14:42:46.635992 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_03_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
-2026-05-05T14:42:46.636023 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_04_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=3 skipped_already_flagged=0
-2026-05-05T14:42:46.636074 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_05_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=10 skipped_already_flagged=0
-2026-05-05T14:42:46.636107 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_06_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=4 skipped_already_flagged=0
-2026-05-05T14:42:46.636152 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_07_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=9 skipped_already_flagged=0
-2026-05-05T14:42:46.636188 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_08_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=5 skipped_already_flagged=0
-2026-05-05T14:42:46.636215 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_09_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=2 skipped_already_flagged=0
-2026-05-05T14:42:46.636283 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_10_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=14 skipped_already_flagged=0
-2026-05-05T14:42:46.636343 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_12_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=14 skipped_already_flagged=0
-2026-05-05T14:42:46.636371 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_14_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=2 skipped_already_flagged=0
-2026-05-05T14:42:46.636399 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_15_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=2 skipped_already_flagged=0
-2026-05-05T14:42:46.636426 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_17_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=2 skipped_already_flagged=0
-2026-05-05T14:42:46.636457 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_18_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=3 skipped_already_flagged=0
-2026-05-05T14:42:46.636488 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_19_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=3 skipped_already_flagged=0
-2026-05-05T14:42:46.636515 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_20_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=2 skipped_already_flagged=0
-2026-05-05T14:42:46.636546 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_21_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=3 skipped_already_flagged=0
-2026-05-05T14:42:46.636578 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_22_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=2 skipped_already_flagged=0
-2026-05-05T14:42:46.636610 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_23_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=3 skipped_already_flagged=0
-2026-05-05T14:42:46.636641 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_24_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=3 skipped_already_flagged=0
-2026-05-05T14:42:46.636675 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_25_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=4 skipped_already_flagged=0
-2026-05-05T14:42:46.636708 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_26_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=4 skipped_already_flagged=0
-2026-05-05T14:42:46.636739 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_27_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=3 skipped_already_flagged=0
-2026-05-05T14:42:46.636766 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_28_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=2 skipped_already_flagged=0
-2026-05-05T14:42:46.636795 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_29_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=3 skipped_already_flagged=0
-2026-05-05T14:42:46.636826 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_30_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=3 skipped_already_flagged=0
-2026-05-05T14:42:46.636856 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_05_01_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=3 skipped_already_flagged=0
-2026-05-05T14:42:46.636906 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_05_03_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=2 skipped_already_flagged=0
-2026-05-05T14:42:46.636939 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_05_04_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=1 skipped_already_flagged=0
-2026-05-05T14:42:46.636968 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_05_05_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=2 skipped_already_flagged=0
-2026-05-05T14:42:46.655788 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_10_21_NBA_predictions.csv | rows=2
-2026-05-05T14:42:46.656040 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_10_22_NBA_predictions.csv | rows=12
-2026-05-05T14:42:46.656213 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_10_23_NBA_predictions.csv | rows=2
-2026-05-05T14:42:46.656417 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_10_24_NBA_predictions.csv | rows=12
-2026-05-05T14:42:46.656595 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_10_25_NBA_predictions.csv | rows=5
-2026-05-05T14:42:46.656785 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_10_26_NBA_predictions.csv | rows=9
-2026-05-05T14:42:46.657002 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_10_27_NBA_predictions.csv | rows=11
-2026-05-05T14:42:46.657189 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_10_28_NBA_predictions.csv | rows=5
-2026-05-05T14:42:46.657379 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_10_29_NBA_predictions.csv | rows=10
-2026-05-05T14:42:46.657547 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_10_30_NBA_predictions.csv | rows=4
-2026-05-05T14:42:46.657727 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_10_31_NBA_predictions.csv | rows=8
-2026-05-05T14:42:46.657923 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_01_NBA_predictions.csv | rows=6
-2026-05-05T14:42:46.658108 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_02_NBA_predictions.csv | rows=8
-2026-05-05T14:42:46.658289 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_03_NBA_predictions.csv | rows=9
-2026-05-05T14:42:46.658458 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_04_NBA_predictions.csv | rows=5
-2026-05-05T14:42:46.658650 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_05_NBA_predictions.csv | rows=12
-2026-05-05T14:42:46.658806 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_06_NBA_predictions.csv | rows=1
-2026-05-05T14:42:46.659016 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_07_NBA_predictions.csv | rows=11
-2026-05-05T14:42:46.659199 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_08_NBA_predictions.csv | rows=8
-2026-05-05T14:42:46.659374 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_09_NBA_predictions.csv | rows=7
-2026-05-05T14:42:46.659556 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_10_NBA_predictions.csv | rows=9
-2026-05-05T14:42:46.659724 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_11_NBA_predictions.csv | rows=5
-2026-05-05T14:42:46.660073 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_12_NBA_predictions.csv | rows=13
-2026-05-05T14:42:46.660238 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_13_NBA_predictions.csv | rows=3
-2026-05-05T14:42:46.660427 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_14_NBA_predictions.csv | rows=9
-2026-05-05T14:42:46.660596 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_15_NBA_predictions.csv | rows=5
-2026-05-05T14:42:46.660780 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_16_NBA_predictions.csv | rows=8
-2026-05-05T14:42:46.660982 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_17_NBA_predictions.csv | rows=8
-2026-05-05T14:42:46.661148 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_18_NBA_predictions.csv | rows=5
-2026-05-05T14:42:46.661330 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_19_NBA_predictions.csv | rows=10
-2026-05-05T14:42:46.661491 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_20_NBA_predictions.csv | rows=4
-2026-05-05T14:42:46.661673 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_21_NBA_predictions.csv | rows=9
-2026-05-05T14:42:46.661845 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_22_NBA_predictions.csv | rows=7
-2026-05-05T14:42:46.662047 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_23_NBA_predictions.csv | rows=8
-2026-05-05T14:42:46.662231 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_24_NBA_predictions.csv | rows=10
-2026-05-05T14:42:46.662372 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_25_NBA_predictions.csv | rows=2
-2026-05-05T14:42:46.662538 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_26_NBA_predictions.csv | rows=10
-2026-05-05T14:42:46.662744 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_28_NBA_predictions.csv | rows=11
-2026-05-05T14:42:46.662929 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_29_NBA_predictions.csv | rows=8
-2026-05-05T14:42:46.663125 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_30_NBA_predictions.csv | rows=8
-2026-05-05T14:42:46.663305 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_01_NBA_predictions.csv | rows=9
-2026-05-05T14:42:46.663457 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_02_NBA_predictions.csv | rows=5
-2026-05-05T14:42:46.663640 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_03_NBA_predictions.csv | rows=10
-2026-05-05T14:42:46.663806 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_04_NBA_predictions.csv | rows=5
-2026-05-05T14:42:46.664019 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_05_NBA_predictions.csv | rows=12
-2026-05-05T14:42:46.664192 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_06_NBA_predictions.csv | rows=7
-2026-05-05T14:42:46.664367 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_07_NBA_predictions.csv | rows=7
-2026-05-05T14:42:46.664528 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_08_NBA_predictions.csv | rows=3
-2026-05-05T14:42:46.664686 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_09_NBA_predictions.csv | rows=2
-2026-05-05T14:42:46.664839 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_10_NBA_predictions.csv | rows=2
-2026-05-05T14:42:46.665034 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_11_NBA_predictions.csv | rows=4
-2026-05-05T14:42:46.665205 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_12_NBA_predictions.csv | rows=7
-2026-05-05T14:42:46.665361 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_13_NBA_predictions.csv | rows=2
-2026-05-05T14:42:46.665539 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_14_NBA_predictions.csv | rows=8
-2026-05-05T14:42:46.665692 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_15_NBA_predictions.csv | rows=5
-2026-05-05T14:42:46.665857 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_16_NBA_predictions.csv | rows=1
-2026-05-05T14:42:46.666039 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_17_NBA_predictions.csv | rows=2
-2026-05-05T14:42:46.666213 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_18_NBA_predictions.csv | rows=12
-2026-05-05T14:42:46.666391 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_19_NBA_predictions.csv | rows=5
-2026-05-05T14:42:46.666576 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_20_NBA_predictions.csv | rows=10
-2026-05-05T14:42:46.666744 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_21_NBA_predictions.csv | rows=6
-2026-05-05T14:42:46.666936 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_22_NBA_predictions.csv | rows=7
-2026-05-05T14:42:46.667134 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_23_NBA_predictions.csv | rows=14
-2026-05-05T14:42:46.667285 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_25_NBA_predictions.csv | rows=5
-2026-05-05T14:42:46.667467 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_26_NBA_predictions.csv | rows=9
-2026-05-05T14:42:46.667645 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_27_NBA_predictions.csv | rows=9
-2026-05-05T14:42:46.667813 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_28_NBA_predictions.csv | rows=6
-2026-05-05T14:42:46.668024 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_29_NBA_predictions.csv | rows=11
-2026-05-05T14:42:46.668185 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_30_NBA_predictions.csv | rows=3
-2026-05-05T14:42:46.668376 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_31_NBA_predictions.csv | rows=10
-2026-05-05T14:42:46.668526 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_01_NBA_predictions.csv | rows=5
-2026-05-05T14:42:46.668728 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_02_NBA_predictions.csv | rows=10
-2026-05-05T14:42:46.668927 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_03_NBA_predictions.csv | rows=8
-2026-05-05T14:42:46.669107 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_04_NBA_predictions.csv | rows=8
-2026-05-05T14:42:46.669287 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_05_NBA_predictions.csv | rows=8
-2026-05-05T14:42:46.669450 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_06_NBA_predictions.csv | rows=5
-2026-05-05T14:42:46.669636 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_07_NBA_predictions.csv | rows=13
-2026-05-05T14:42:46.669780 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_08_NBA_predictions.csv | rows=3
-2026-05-05T14:42:46.670003 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_09_NBA_predictions.csv | rows=10
-2026-05-05T14:42:46.670177 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_10_NBA_predictions.csv | rows=6
-2026-05-05T14:42:46.670360 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_11_NBA_predictions.csv | rows=10
-2026-05-05T14:42:46.670529 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_12_NBA_predictions.csv | rows=6
-2026-05-05T14:42:46.670684 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_13_NBA_predictions.csv | rows=6
-2026-05-05T14:42:46.670847 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_14_NBA_predictions.csv | rows=8
-2026-05-05T14:42:46.671054 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_15_NBA_predictions.csv | rows=9
-2026-05-05T14:42:46.671226 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_16_NBA_predictions.csv | rows=6
-2026-05-05T14:42:46.671392 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_17_NBA_predictions.csv | rows=9
-2026-05-05T14:42:46.671564 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_18_NBA_predictions.csv | rows=6
-2026-05-05T14:42:46.671740 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_19_NBA_predictions.csv | rows=9
-2026-05-05T14:42:46.671934 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_20_NBA_predictions.csv | rows=7
-2026-05-05T14:42:46.672134 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_21_NBA_predictions.csv | rows=7
-2026-05-05T14:42:46.672368 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_22_NBA_predictions.csv | rows=8
-2026-05-05T14:42:46.672582 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_23_NBA_predictions.csv | rows=8
-2026-05-05T14:42:46.672797 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_24_NBA_predictions.csv | rows=6
-2026-05-05T14:42:46.673019 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_25_NBA_predictions.csv | rows=6
-2026-05-05T14:42:46.673200 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_26_NBA_predictions.csv | rows=7
-2026-05-05T14:42:46.673377 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_27_NBA_predictions.csv | rows=7
-2026-05-05T14:42:46.673560 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_28_NBA_predictions.csv | rows=9
-2026-05-05T14:42:46.673736 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_29_NBA_predictions.csv | rows=8
-2026-05-05T14:42:46.673938 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_30_NBA_predictions.csv | rows=9
-2026-05-05T14:42:46.674110 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_31_NBA_predictions.csv | rows=6
-2026-05-05T14:42:46.674296 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_02_01_NBA_predictions.csv | rows=10
-2026-05-05T14:42:46.674451 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_02_02_NBA_predictions.csv | rows=4
-2026-05-05T14:42:46.674647 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_02_03_NBA_predictions.csv | rows=9
-2026-05-05T14:42:46.674826 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_02_04_NBA_predictions.csv | rows=8
-2026-05-05T14:42:46.675029 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_02_05_NBA_predictions.csv | rows=8
-2026-05-05T14:42:46.675203 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_02_06_NBA_predictions.csv | rows=6
-2026-05-05T14:42:46.675415 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_02_07_NBA_predictions.csv | rows=10
-2026-05-05T14:42:46.675592 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_02_08_NBA_predictions.csv | rows=4
-2026-05-05T14:42:46.675776 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_02_09_NBA_predictions.csv | rows=10
-2026-05-05T14:42:46.675974 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_02_10_NBA_predictions.csv | rows=4
-2026-05-05T14:42:46.676176 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_02_11_NBA_predictions.csv | rows=14
-2026-05-05T14:42:46.676334 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_02_12_NBA_predictions.csv | rows=3
-2026-05-05T14:42:46.676519 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_02_19_NBA_predictions.csv | rows=10
-2026-05-05T14:42:46.676699 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_02_20_NBA_predictions.csv | rows=9
-2026-05-05T14:42:46.676900 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_02_21_NBA_predictions.csv | rows=6
-2026-05-05T14:42:46.677108 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_02_22_NBA_predictions.csv | rows=11
-2026-05-05T14:42:46.677270 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_02_23_NBA_predictions.csv | rows=3
-2026-05-05T14:42:46.677454 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_02_24_NBA_predictions.csv | rows=11
-2026-05-05T14:42:46.677627 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_02_25_NBA_predictions.csv | rows=6
-2026-05-05T14:42:46.677813 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_02_26_NBA_predictions.csv | rows=10
-2026-05-05T14:42:46.678002 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_02_27_NBA_predictions.csv | rows=5
-2026-05-05T14:42:46.678170 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_02_28_NBA_predictions.csv | rows=5
-2026-05-05T14:42:46.678359 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_01_NBA_predictions.csv | rows=11
-2026-05-05T14:42:46.678516 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_02_NBA_predictions.csv | rows=3
-2026-05-05T14:42:46.678695 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_03_NBA_predictions.csv | rows=9
-2026-05-05T14:42:46.678896 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_04_NBA_predictions.csv | rows=7
-2026-05-05T14:42:46.679086 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_05_NBA_predictions.csv | rows=9
-2026-05-05T14:42:46.679266 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_06_NBA_predictions.csv | rows=7
-2026-05-05T14:42:46.679435 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_07_NBA_predictions.csv | rows=6
-2026-05-05T14:42:46.679618 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_08_NBA_predictions.csv | rows=10
-2026-05-05T14:42:46.679784 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_09_NBA_predictions.csv | rows=5
-2026-05-05T14:42:46.679980 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_10_NBA_predictions.csv | rows=11
-2026-05-05T14:42:46.680141 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_11_NBA_predictions.csv | rows=4
-2026-05-05T14:42:46.680322 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_12_NBA_predictions.csv | rows=9
-2026-05-05T14:42:46.680500 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_13_NBA_predictions.csv | rows=8
-2026-05-05T14:42:46.680663 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_14_NBA_predictions.csv | rows=7
-2026-05-05T14:42:46.680855 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_15_NBA_predictions.csv | rows=7
-2026-05-05T14:42:46.681056 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_16_NBA_predictions.csv | rows=8
-2026-05-05T14:42:46.681235 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_17_NBA_predictions.csv | rows=8
-2026-05-05T14:42:46.681417 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_18_NBA_predictions.csv | rows=9
-2026-05-05T14:42:46.681593 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_19_NBA_predictions.csv | rows=8
-2026-05-05T14:42:46.681762 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_20_NBA_predictions.csv | rows=6
-2026-05-05T14:42:46.681968 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_21_NBA_predictions.csv | rows=10
-2026-05-05T14:42:46.682138 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_22_NBA_predictions.csv | rows=5
-2026-05-05T14:42:46.682320 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_23_NBA_predictions.csv | rows=10
-2026-05-05T14:42:46.682481 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_24_NBA_predictions.csv | rows=4
-2026-05-05T14:42:46.682669 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_25_NBA_predictions.csv | rows=12
-2026-05-05T14:42:46.682827 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_26_NBA_predictions.csv | rows=3
-2026-05-05T14:42:46.683032 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_27_NBA_predictions.csv | rows=10
-2026-05-05T14:42:46.683184 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_28_NBA_predictions.csv | rows=5
-2026-05-05T14:42:46.683363 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_29_NBA_predictions.csv | rows=8
-2026-05-05T14:42:46.683534 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_30_NBA_predictions.csv | rows=7
-2026-05-05T14:42:46.683702 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_31_NBA_predictions.csv | rows=5
-2026-05-05T14:42:46.683904 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_01_NBA_predictions.csv | rows=8
-2026-05-05T14:42:46.684081 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_02_NBA_predictions.csv | rows=6
-2026-05-05T14:42:46.684257 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_03_NBA_predictions.csv | rows=8
-2026-05-05T14:42:46.684416 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_04_NBA_predictions.csv | rows=3
-2026-05-05T14:42:46.684600 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_05_NBA_predictions.csv | rows=10
-2026-05-05T14:42:46.684760 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_06_NBA_predictions.csv | rows=4
-2026-05-05T14:42:46.684961 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_07_NBA_predictions.csv | rows=9
-2026-05-05T14:42:46.685130 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_08_NBA_predictions.csv | rows=5
-2026-05-05T14:42:46.685286 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_09_NBA_predictions.csv | rows=2
-2026-05-05T14:42:46.685482 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_10_NBA_predictions.csv | rows=14
-2026-05-05T14:42:46.685679 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_12_NBA_predictions.csv | rows=14
-2026-05-05T14:42:46.685846 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_14_NBA_predictions.csv | rows=2
-2026-05-05T14:42:46.686042 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_15_NBA_predictions.csv | rows=2
-2026-05-05T14:42:46.686200 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_17_NBA_predictions.csv | rows=2
-2026-05-05T14:42:46.686360 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_18_NBA_predictions.csv | rows=3
-2026-05-05T14:42:46.686533 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_19_NBA_predictions.csv | rows=3
-2026-05-05T14:42:46.686690 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_20_NBA_predictions.csv | rows=2
-2026-05-05T14:42:46.686849 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_21_NBA_predictions.csv | rows=3
-2026-05-05T14:42:46.687029 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_22_NBA_predictions.csv | rows=2
-2026-05-05T14:42:46.687188 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_23_NBA_predictions.csv | rows=3
-2026-05-05T14:42:46.687346 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_24_NBA_predictions.csv | rows=3
-2026-05-05T14:42:46.687508 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_25_NBA_predictions.csv | rows=4
-2026-05-05T14:42:46.687672 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_26_NBA_predictions.csv | rows=4
-2026-05-05T14:42:46.687832 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_27_NBA_predictions.csv | rows=3
-2026-05-05T14:42:46.688012 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_28_NBA_predictions.csv | rows=2
-2026-05-05T14:42:46.688172 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_29_NBA_predictions.csv | rows=3
-2026-05-05T14:42:46.688338 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_30_NBA_predictions.csv | rows=3
-2026-05-05T14:42:46.688495 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_05_01_NBA_predictions.csv | rows=3
-2026-05-05T14:42:46.688650 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_05_03_NBA_predictions.csv | rows=2
-2026-05-05T14:42:46.688802 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_05_04_NBA_predictions.csv | rows=1
-2026-05-05T14:42:46.688965 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_05_05_NBA_predictions.csv | rows=2
-2026-05-05T14:42:46.745696 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_10_21_NBA_odds.csv | rows=2
-2026-05-05T14:42:46.745957 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_10_22_NBA_odds.csv | rows=12
-2026-05-05T14:42:46.746150 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_10_23_NBA_odds.csv | rows=2
-2026-05-05T14:42:46.746400 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_10_24_NBA_odds.csv | rows=12
-2026-05-05T14:42:46.746572 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_10_25_NBA_odds.csv | rows=5
-2026-05-05T14:42:46.746828 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_10_26_NBA_odds.csv | rows=9
-2026-05-05T14:42:46.747082 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_10_27_NBA_odds.csv | rows=11
-2026-05-05T14:42:46.747280 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_10_28_NBA_odds.csv | rows=5
-2026-05-05T14:42:46.747508 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_10_29_NBA_odds.csv | rows=10
-2026-05-05T14:42:46.747707 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_10_30_NBA_odds.csv | rows=4
-2026-05-05T14:42:46.747965 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_10_31_NBA_odds.csv | rows=8
-2026-05-05T14:42:46.748186 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_01_NBA_odds.csv | rows=6
-2026-05-05T14:42:46.748415 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_02_NBA_odds.csv | rows=8
-2026-05-05T14:42:46.748646 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_03_NBA_odds.csv | rows=9
-2026-05-05T14:42:46.748889 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_04_NBA_odds.csv | rows=6
-2026-05-05T14:42:46.749133 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_05_NBA_odds.csv | rows=11
-2026-05-05T14:42:46.749323 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_06_NBA_odds.csv | rows=1
-2026-05-05T14:42:46.749559 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_07_NBA_odds.csv | rows=11
-2026-05-05T14:42:46.749778 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_08_NBA_odds.csv | rows=8
-2026-05-05T14:42:46.750009 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_09_NBA_odds.csv | rows=7
-2026-05-05T14:42:46.750232 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_10_NBA_odds.csv | rows=9
-2026-05-05T14:42:46.750443 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_11_NBA_odds.csv | rows=6
-2026-05-05T14:42:46.750694 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_12_NBA_odds.csv | rows=12
-2026-05-05T14:42:46.750919 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_13_NBA_odds.csv | rows=3
-2026-05-05T14:42:46.751145 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_14_NBA_odds.csv | rows=9
-2026-05-05T14:42:46.751357 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_15_NBA_odds.csv | rows=5
-2026-05-05T14:42:46.751588 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_16_NBA_odds.csv | rows=8
-2026-05-05T14:42:46.751817 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_17_NBA_odds.csv | rows=8
-2026-05-05T14:42:46.752049 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_18_NBA_odds.csv | rows=6
-2026-05-05T14:42:46.752279 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_19_NBA_odds.csv | rows=9
-2026-05-05T14:42:46.752482 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_20_NBA_odds.csv | rows=4
-2026-05-05T14:42:46.752712 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_21_NBA_odds.csv | rows=9
-2026-05-05T14:42:46.752944 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_22_NBA_odds.csv | rows=7
-2026-05-05T14:42:46.753175 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_23_NBA_odds.csv | rows=8
-2026-05-05T14:42:46.753409 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_24_NBA_odds.csv | rows=10
-2026-05-05T14:42:46.753600 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_25_NBA_odds.csv | rows=3
-2026-05-05T14:42:46.753824 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_26_NBA_odds.csv | rows=9
-2026-05-05T14:42:46.754082 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_28_NBA_odds.csv | rows=11
-2026-05-05T14:42:46.754306 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_29_NBA_odds.csv | rows=8
-2026-05-05T14:42:46.754535 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_30_NBA_odds.csv | rows=8
-2026-05-05T14:42:46.754761 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_01_NBA_odds.csv | rows=9
-2026-05-05T14:42:46.754987 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_02_NBA_odds.csv | rows=6
-2026-05-05T14:42:46.755211 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_03_NBA_odds.csv | rows=9
-2026-05-05T14:42:46.755418 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_04_NBA_odds.csv | rows=5
-2026-05-05T14:42:46.755655 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_05_NBA_odds.csv | rows=12
-2026-05-05T14:42:46.755889 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_06_NBA_odds.csv | rows=7
-2026-05-05T14:42:46.756107 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_07_NBA_odds.csv | rows=7
-2026-05-05T14:42:46.756308 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_08_NBA_odds.csv | rows=3
-2026-05-05T14:42:46.756501 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_09_NBA_odds.csv | rows=2
-2026-05-05T14:42:46.756693 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_10_NBA_odds.csv | rows=2
-2026-05-05T14:42:46.756855 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_11_NBA_odds.csv | rows=4
-2026-05-05T14:42:46.757122 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_12_NBA_odds.csv | rows=7
-2026-05-05T14:42:46.757288 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_13_NBA_odds.csv | rows=2
-2026-05-05T14:42:46.757539 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_14_NBA_odds.csv | rows=8
-2026-05-05T14:42:46.757751 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_15_NBA_odds.csv | rows=5
-2026-05-05T14:42:46.757952 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_16_NBA_odds.csv | rows=1
-2026-05-05T14:42:46.758138 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_17_NBA_odds.csv | rows=2
-2026-05-05T14:42:46.758366 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_18_NBA_odds.csv | rows=12
-2026-05-05T14:42:46.758592 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_19_NBA_odds.csv | rows=5
-2026-05-05T14:42:46.758824 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_20_NBA_odds.csv | rows=10
-2026-05-05T14:42:46.759049 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_21_NBA_odds.csv | rows=6
-2026-05-05T14:42:46.759224 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_22_NBA_odds.csv | rows=7
-2026-05-05T14:42:46.759428 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_23_NBA_odds.csv | rows=14
-2026-05-05T14:42:46.759591 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_25_NBA_odds.csv | rows=5
-2026-05-05T14:42:46.759850 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_26_NBA_odds.csv | rows=9
-2026-05-05T14:42:46.760095 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_27_NBA_odds.csv | rows=9
-2026-05-05T14:42:46.760307 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_28_NBA_odds.csv | rows=6
-2026-05-05T14:42:46.760529 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_29_NBA_odds.csv | rows=11
-2026-05-05T14:42:46.760743 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_30_NBA_odds.csv | rows=4
-2026-05-05T14:42:46.760989 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_31_NBA_odds.csv | rows=9
-2026-05-05T14:42:46.761202 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_01_NBA_odds.csv | rows=5
-2026-05-05T14:42:46.761416 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_02_NBA_odds.csv | rows=10
-2026-05-05T14:42:46.761649 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_03_NBA_odds.csv | rows=8
-2026-05-05T14:42:46.761893 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_04_NBA_odds.csv | rows=8
-2026-05-05T14:42:46.762113 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_05_NBA_odds.csv | rows=8
-2026-05-05T14:42:46.762284 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_06_NBA_odds.csv | rows=6
-2026-05-05T14:42:46.762522 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_07_NBA_odds.csv | rows=12
-2026-05-05T14:42:46.762728 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_08_NBA_odds.csv | rows=3
-2026-05-05T14:42:46.762985 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_09_NBA_odds.csv | rows=10
-2026-05-05T14:42:46.763204 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_10_NBA_odds.csv | rows=6
-2026-05-05T14:42:46.763439 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_11_NBA_odds.csv | rows=10
-2026-05-05T14:42:46.763655 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_12_NBA_odds.csv | rows=6
-2026-05-05T14:42:46.763898 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_13_NBA_odds.csv | rows=7
-2026-05-05T14:42:46.764119 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_14_NBA_odds.csv | rows=7
-2026-05-05T14:42:46.764341 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_15_NBA_odds.csv | rows=9
-2026-05-05T14:42:46.764556 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_16_NBA_odds.csv | rows=6
-2026-05-05T14:42:46.764786 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_17_NBA_odds.csv | rows=9
-2026-05-05T14:42:46.765009 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_18_NBA_odds.csv | rows=6
-2026-05-05T14:42:46.765232 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_19_NBA_odds.csv | rows=9
-2026-05-05T14:42:46.765451 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_20_NBA_odds.csv | rows=7
-2026-05-05T14:42:46.765671 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_21_NBA_odds.csv | rows=7
-2026-05-05T14:42:46.765911 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_22_NBA_odds.csv | rows=8
-2026-05-05T14:42:46.766142 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_23_NBA_odds.csv | rows=8
-2026-05-05T14:42:46.766356 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_24_NBA_odds.csv | rows=6
-2026-05-05T14:42:46.766570 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_25_NBA_odds.csv | rows=6
-2026-05-05T14:42:46.766784 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_26_NBA_odds.csv | rows=7
-2026-05-05T14:42:46.767013 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_27_NBA_odds.csv | rows=7
-2026-05-05T14:42:46.767237 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_28_NBA_odds.csv | rows=9
-2026-05-05T14:42:46.767454 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_29_NBA_odds.csv | rows=8
-2026-05-05T14:42:46.767687 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_30_NBA_odds.csv | rows=9
-2026-05-05T14:42:46.767910 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_31_NBA_odds.csv | rows=6
-2026-05-05T14:42:46.768147 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_02_01_NBA_odds.csv | rows=10
-2026-05-05T14:42:46.768353 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_02_02_NBA_odds.csv | rows=4
-2026-05-05T14:42:46.768588 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_02_03_NBA_odds.csv | rows=10
-2026-05-05T14:42:46.768804 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_02_04_NBA_odds.csv | rows=7
-2026-05-05T14:42:46.769040 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_02_05_NBA_odds.csv | rows=8
-2026-05-05T14:42:46.769268 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_02_06_NBA_odds.csv | rows=6
-2026-05-05T14:42:46.769502 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_02_07_NBA_odds.csv | rows=10
-2026-05-05T14:42:46.769715 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_02_08_NBA_odds.csv | rows=4
-2026-05-05T14:42:46.769960 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_02_09_NBA_odds.csv | rows=10
-2026-05-05T14:42:46.770162 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_02_10_NBA_odds.csv | rows=4
-2026-05-05T14:42:46.770406 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_02_11_NBA_odds.csv | rows=14
-2026-05-05T14:42:46.770602 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_02_12_NBA_odds.csv | rows=3
-2026-05-05T14:42:46.770889 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_02_19_NBA_odds.csv | rows=10
-2026-05-05T14:42:46.771163 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_02_20_NBA_odds.csv | rows=9
-2026-05-05T14:42:46.771380 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_02_21_NBA_odds.csv | rows=6
-2026-05-05T14:42:46.771612 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_02_22_NBA_odds.csv | rows=11
-2026-05-05T14:42:46.771813 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_02_23_NBA_odds.csv | rows=3
-2026-05-05T14:42:46.772066 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_02_24_NBA_odds.csv | rows=11
-2026-05-05T14:42:46.772284 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_02_25_NBA_odds.csv | rows=6
-2026-05-05T14:42:46.772523 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_02_26_NBA_odds.csv | rows=10
-2026-05-05T14:42:46.772729 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_02_27_NBA_odds.csv | rows=5
-2026-05-05T14:42:46.772953 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_02_28_NBA_odds.csv | rows=5
-2026-05-05T14:42:46.773192 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_01_NBA_odds.csv | rows=11
-2026-05-05T14:42:46.773393 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_02_NBA_odds.csv | rows=4
-2026-05-05T14:42:46.773636 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_03_NBA_odds.csv | rows=10
-2026-05-05T14:42:46.773845 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_04_NBA_odds.csv | rows=6
-2026-05-05T14:42:46.774085 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_05_NBA_odds.csv | rows=9
-2026-05-05T14:42:46.774294 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_06_NBA_odds.csv | rows=7
-2026-05-05T14:42:46.774496 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_07_NBA_odds.csv | rows=6
-2026-05-05T14:42:46.774720 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_08_NBA_odds.csv | rows=10
-2026-05-05T14:42:46.774954 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_09_NBA_odds.csv | rows=5
-2026-05-05T14:42:46.775154 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_10_NBA_odds.csv | rows=11
-2026-05-05T14:42:46.775350 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_11_NBA_odds.csv | rows=5
-2026-05-05T14:42:46.775625 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_12_NBA_odds.csv | rows=9
-2026-05-05T14:42:46.775808 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_13_NBA_odds.csv | rows=8
-2026-05-05T14:42:46.776070 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_14_NBA_odds.csv | rows=7
-2026-05-05T14:42:46.776276 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_15_NBA_odds.csv | rows=7
-2026-05-05T14:42:46.776514 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_16_NBA_odds.csv | rows=8
-2026-05-05T14:42:46.776734 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_17_NBA_odds.csv | rows=8
-2026-05-05T14:42:46.776980 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_18_NBA_odds.csv | rows=9
-2026-05-05T14:42:46.777208 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_19_NBA_odds.csv | rows=8
-2026-05-05T14:42:46.777413 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_20_NBA_odds.csv | rows=6
-2026-05-05T14:42:46.777653 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_21_NBA_odds.csv | rows=10
-2026-05-05T14:42:46.777884 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_22_NBA_odds.csv | rows=5
-2026-05-05T14:42:46.778126 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_23_NBA_odds.csv | rows=10
-2026-05-05T14:42:46.778320 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_24_NBA_odds.csv | rows=4
-2026-05-05T14:42:46.778566 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_25_NBA_odds.csv | rows=12
-2026-05-05T14:42:46.778726 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_26_NBA_odds.csv | rows=3
-2026-05-05T14:42:46.778972 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_27_NBA_odds.csv | rows=10
-2026-05-05T14:42:46.779188 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_28_NBA_odds.csv | rows=6
-2026-05-05T14:42:46.779418 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_29_NBA_odds.csv | rows=9
-2026-05-05T14:42:46.779643 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_30_NBA_odds.csv | rows=8
-2026-05-05T14:42:46.779880 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_31_NBA_odds.csv | rows=7
-2026-05-05T14:42:46.780099 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_01_NBA_odds.csv | rows=9
-2026-05-05T14:42:46.780304 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_02_NBA_odds.csv | rows=6
-2026-05-05T14:42:46.780520 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_03_NBA_odds.csv | rows=9
-2026-05-05T14:42:46.780713 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_04_NBA_odds.csv | rows=3
-2026-05-05T14:42:46.780978 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_05_NBA_odds.csv | rows=11
-2026-05-05T14:42:46.781181 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_06_NBA_odds.csv | rows=5
-2026-05-05T14:42:46.781407 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_07_NBA_odds.csv | rows=10
-2026-05-05T14:42:46.781621 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_08_NBA_odds.csv | rows=7
-2026-05-05T14:42:46.781834 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_09_NBA_odds.csv | rows=6
-2026-05-05T14:42:46.782116 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_10_NBA_odds.csv | rows=15
-2026-05-05T14:42:46.782343 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_12_NBA_odds.csv | rows=15
-2026-05-05T14:42:46.782508 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_14_NBA_odds.csv | rows=2
-2026-05-05T14:42:46.782673 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_15_NBA_odds.csv | rows=2
-2026-05-05T14:42:46.782835 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_17_NBA_odds.csv | rows=2
-2026-05-05T14:42:46.783034 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_18_NBA_odds.csv | rows=4
-2026-05-05T14:42:46.783206 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_19_NBA_odds.csv | rows=4
-2026-05-05T14:42:46.783372 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_20_NBA_odds.csv | rows=3
-2026-05-05T14:42:46.783539 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_21_NBA_odds.csv | rows=3
-2026-05-05T14:42:46.783702 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_22_NBA_odds.csv | rows=2
-2026-05-05T14:42:46.783887 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_23_NBA_odds.csv | rows=3
-2026-05-05T14:42:46.784058 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_24_NBA_odds.csv | rows=3
-2026-05-05T14:42:46.784231 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_25_NBA_odds.csv | rows=4
-2026-05-05T14:42:46.784403 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_26_NBA_odds.csv | rows=4
-2026-05-05T14:42:46.784566 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_27_NBA_odds.csv | rows=3
-2026-05-05T14:42:46.784737 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_28_NBA_odds.csv | rows=3
-2026-05-05T14:42:46.784924 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_29_NBA_odds.csv | rows=3
-2026-05-05T14:42:46.785080 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_30_NBA_odds.csv | rows=3
-2026-05-05T14:42:46.785253 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_05_01_NBA_odds.csv | rows=3
-2026-05-05T14:42:46.785408 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_05_02_NBA_odds.csv | rows=1
-2026-05-05T14:42:46.785571 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_05_03_NBA_odds.csv | rows=2
-2026-05-05T14:42:46.785731 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_05_04_NBA_odds.csv | rows=2
-2026-05-05T14:42:46.785912 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_05_05_NBA_odds.csv | rows=2
-2026-05-05T14:42:46.786076 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_05_06_NBA_odds.csv | rows=2
-2026-05-05T14:42:46.854012 | 
-2026-05-05T14:42:46.854031 | ============================================================
-2026-05-05T14:42:46.854047 | SUMMARY
-2026-05-05T14:42:46.854081 | ============================================================
-2026-05-05T14:42:46.854100 | prediction_files_loaded              : 185
-2026-05-05T14:42:46.854116 | sportsbook_files_loaded              : 187
-2026-05-05T14:42:46.854139 | bad_ml_market_rows_blanked           : 0
-2026-05-05T14:42:46.854156 | bad_total_market_rows_blanked        : 0
-2026-05-05T14:42:46.854171 | bad_spread_market_rows_blanked       : 0
-2026-05-05T14:42:46.854187 | bad_odds_market_rows_blanked_total   : 0
-2026-05-05T14:42:46.854202 | bad_total_line_rows_blanked          : 0
-2026-05-05T14:42:46.854217 | bad_spread_line_rows_blanked         : 0
-2026-05-05T14:42:46.854232 | bad_line_rows_blanked_total          : 0
-2026-05-05T14:42:46.854248 | spread_outlier_events_found          : 0
-2026-05-05T14:42:46.854263 | total_outlier_events_found           : 0
-2026-05-05T14:42:46.854279 | sportsbook_outlier_market_rows_blanked: 0
-2026-05-05T14:42:46.854294 | prediction_rows_removed              : 0
-2026-05-05T14:42:46.854309 | sportsbook_rows_removed              : 0
-2026-05-05T14:42:46.854326 | bias_files_with_adjusted_rows        : 185
-2026-05-05T14:42:46.854342 | bias_rows_adjusted                   : 1262
-2026-05-05T14:42:46.854358 | bias_rows_skipped_already_flagged    : 0
-2026-05-05T14:42:46.854374 | prediction_files_written             : 185
-2026-05-05T14:42:46.854390 | prediction_rows_written              : 1262
-2026-05-05T14:42:46.854406 | sportsbook_files_written             : 187
-2026-05-05T14:42:46.854421 | sportsbook_rows_written              : 1290
-2026-05-05T14:42:46.854436 | STATUS: SUCCESS
-2026-05-05T14:42:46.854452 | ============================================================
+2026-05-06T09:51:05.872642 | INFO | Starting league cleanup
+2026-05-06T09:51:05.872656 | INFO | Odds cleanup active: blanks only the affected market; does not drop entire games
+2026-05-06T09:51:05.872686 | INFO | Missing market odds are treated as unavailable market, not bad game
+2026-05-06T09:51:05.872706 | INFO | Hold-based odds filtering removed
+2026-05-06T09:51:05.872721 | INFO | Spread outlier fix active: compare model home-away margin to -book_home_spread
+2026-05-06T09:51:05.872734 | INFO | Outlier cleanup active: blanks only affected sportsbook market fields; prediction rows are retained
+2026-05-06T09:51:05.883922 | LOADED | folder=docs/win/basketball/00_intake/predictions/nba files=186
+2026-05-06T09:51:05.916291 | LOADED | folder=docs/win/basketball/00_intake/sportsbook/nba files=188
+2026-05-06T09:51:05.975491 | OUTLIER SUMMARY | spread_outliers=0 total_outliers=0
+2026-05-06T09:51:05.975648 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_10_21_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=2 skipped_already_flagged=0
+2026-05-06T09:51:05.975716 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_10_22_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=12 skipped_already_flagged=0
+2026-05-06T09:51:05.975741 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_10_23_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=2 skipped_already_flagged=0
+2026-05-06T09:51:05.975783 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_10_24_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=12 skipped_already_flagged=0
+2026-05-06T09:51:05.975815 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_10_25_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=5 skipped_already_flagged=0
+2026-05-06T09:51:05.975854 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_10_26_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=9 skipped_already_flagged=0
+2026-05-06T09:51:05.975898 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_10_27_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=11 skipped_already_flagged=0
+2026-05-06T09:51:05.975924 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_10_28_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=5 skipped_already_flagged=0
+2026-05-06T09:51:05.975959 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_10_29_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=10 skipped_already_flagged=0
+2026-05-06T09:51:05.975984 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_10_30_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=4 skipped_already_flagged=0
+2026-05-06T09:51:05.976018 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_10_31_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
+2026-05-06T09:51:05.976046 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_01_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=6 skipped_already_flagged=0
+2026-05-06T09:51:05.976078 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_02_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
+2026-05-06T09:51:05.976112 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_03_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=9 skipped_already_flagged=0
+2026-05-06T09:51:05.976137 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_04_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=5 skipped_already_flagged=0
+2026-05-06T09:51:05.976177 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_05_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=12 skipped_already_flagged=0
+2026-05-06T09:51:05.976202 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_06_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=1 skipped_already_flagged=0
+2026-05-06T09:51:05.976240 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_07_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=11 skipped_already_flagged=0
+2026-05-06T09:51:05.976270 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_08_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
+2026-05-06T09:51:05.976298 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_09_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=7 skipped_already_flagged=0
+2026-05-06T09:51:05.976331 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_10_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=9 skipped_already_flagged=0
+2026-05-06T09:51:05.976355 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_11_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=5 skipped_already_flagged=0
+2026-05-06T09:51:05.976397 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_12_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=13 skipped_already_flagged=0
+2026-05-06T09:51:05.976418 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_13_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=3 skipped_already_flagged=0
+2026-05-06T09:51:05.976451 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_14_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=9 skipped_already_flagged=0
+2026-05-06T09:51:05.976476 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_15_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=5 skipped_already_flagged=0
+2026-05-06T09:51:05.976509 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_16_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
+2026-05-06T09:51:05.976540 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_17_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
+2026-05-06T09:51:05.976566 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_18_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=5 skipped_already_flagged=0
+2026-05-06T09:51:05.976604 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_19_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=10 skipped_already_flagged=0
+2026-05-06T09:51:05.976631 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_20_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=4 skipped_already_flagged=0
+2026-05-06T09:51:05.976677 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_21_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=9 skipped_already_flagged=0
+2026-05-06T09:51:05.976708 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_22_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=7 skipped_already_flagged=0
+2026-05-06T09:51:05.976741 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_23_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
+2026-05-06T09:51:05.976777 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_24_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=10 skipped_already_flagged=0
+2026-05-06T09:51:05.976796 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_25_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=2 skipped_already_flagged=0
+2026-05-06T09:51:05.976831 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_26_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=10 skipped_already_flagged=0
+2026-05-06T09:51:05.976872 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_28_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=11 skipped_already_flagged=0
+2026-05-06T09:51:05.976905 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_29_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
+2026-05-06T09:51:05.976935 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_11_30_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
+2026-05-06T09:51:05.976967 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_01_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=9 skipped_already_flagged=0
+2026-05-06T09:51:05.976992 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_02_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=5 skipped_already_flagged=0
+2026-05-06T09:51:05.977027 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_03_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=10 skipped_already_flagged=0
+2026-05-06T09:51:05.977051 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_04_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=5 skipped_already_flagged=0
+2026-05-06T09:51:05.977095 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_05_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=12 skipped_already_flagged=0
+2026-05-06T09:51:05.977124 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_06_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=7 skipped_already_flagged=0
+2026-05-06T09:51:05.977152 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_07_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=7 skipped_already_flagged=0
+2026-05-06T09:51:05.977173 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_08_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=3 skipped_already_flagged=0
+2026-05-06T09:51:05.977192 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_09_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=2 skipped_already_flagged=0
+2026-05-06T09:51:05.977211 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_10_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=2 skipped_already_flagged=0
+2026-05-06T09:51:05.977234 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_11_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=4 skipped_already_flagged=0
+2026-05-06T09:51:05.977262 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_12_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=7 skipped_already_flagged=0
+2026-05-06T09:51:05.977281 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_13_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=2 skipped_already_flagged=0
+2026-05-06T09:51:05.977310 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_14_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
+2026-05-06T09:51:05.977336 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_15_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=5 skipped_already_flagged=0
+2026-05-06T09:51:05.977353 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_16_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=1 skipped_already_flagged=0
+2026-05-06T09:51:05.977372 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_17_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=2 skipped_already_flagged=0
+2026-05-06T09:51:05.977410 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_18_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=12 skipped_already_flagged=0
+2026-05-06T09:51:05.977438 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_19_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=5 skipped_already_flagged=0
+2026-05-06T09:51:05.977475 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_20_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=10 skipped_already_flagged=0
+2026-05-06T09:51:05.977504 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_21_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=6 skipped_already_flagged=0
+2026-05-06T09:51:05.977532 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_22_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=7 skipped_already_flagged=0
+2026-05-06T09:51:05.977576 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_23_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=14 skipped_already_flagged=0
+2026-05-06T09:51:05.977601 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_25_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=5 skipped_already_flagged=0
+2026-05-06T09:51:05.977635 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_26_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=9 skipped_already_flagged=0
+2026-05-06T09:51:05.977685 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_27_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=9 skipped_already_flagged=0
+2026-05-06T09:51:05.977726 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_28_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=6 skipped_already_flagged=0
+2026-05-06T09:51:05.977764 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_29_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=11 skipped_already_flagged=0
+2026-05-06T09:51:05.977789 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_30_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=3 skipped_already_flagged=0
+2026-05-06T09:51:05.977825 | BIASED | docs/win/basketball/00_intake/predictions/nba/2025_12_31_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=10 skipped_already_flagged=0
+2026-05-06T09:51:05.977850 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_01_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=5 skipped_already_flagged=0
+2026-05-06T09:51:05.977886 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_02_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=10 skipped_already_flagged=0
+2026-05-06T09:51:05.977916 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_03_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
+2026-05-06T09:51:05.977947 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_04_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
+2026-05-06T09:51:05.977976 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_05_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
+2026-05-06T09:51:05.978001 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_06_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=5 skipped_already_flagged=0
+2026-05-06T09:51:05.978040 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_07_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=13 skipped_already_flagged=0
+2026-05-06T09:51:05.978061 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_08_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=3 skipped_already_flagged=0
+2026-05-06T09:51:05.978097 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_09_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=10 skipped_already_flagged=0
+2026-05-06T09:51:05.978126 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_10_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=6 skipped_already_flagged=0
+2026-05-06T09:51:05.978160 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_11_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=10 skipped_already_flagged=0
+2026-05-06T09:51:05.978187 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_12_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=6 skipped_already_flagged=0
+2026-05-06T09:51:05.978214 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_13_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=6 skipped_already_flagged=0
+2026-05-06T09:51:05.978245 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_14_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
+2026-05-06T09:51:05.978277 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_15_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=9 skipped_already_flagged=0
+2026-05-06T09:51:05.978303 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_16_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=6 skipped_already_flagged=0
+2026-05-06T09:51:05.978336 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_17_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=9 skipped_already_flagged=0
+2026-05-06T09:51:05.978362 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_18_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=6 skipped_already_flagged=0
+2026-05-06T09:51:05.978394 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_19_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=9 skipped_already_flagged=0
+2026-05-06T09:51:05.978422 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_20_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=7 skipped_already_flagged=0
+2026-05-06T09:51:05.978451 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_21_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=7 skipped_already_flagged=0
+2026-05-06T09:51:05.978482 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_22_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
+2026-05-06T09:51:05.978512 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_23_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
+2026-05-06T09:51:05.978540 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_24_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=6 skipped_already_flagged=0
+2026-05-06T09:51:05.978567 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_25_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=6 skipped_already_flagged=0
+2026-05-06T09:51:05.978595 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_26_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=7 skipped_already_flagged=0
+2026-05-06T09:51:05.978624 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_27_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=7 skipped_already_flagged=0
+2026-05-06T09:51:05.978659 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_28_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=9 skipped_already_flagged=0
+2026-05-06T09:51:05.978702 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_29_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
+2026-05-06T09:51:05.978735 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_30_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=9 skipped_already_flagged=0
+2026-05-06T09:51:05.978764 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_01_31_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=6 skipped_already_flagged=0
+2026-05-06T09:51:05.978800 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_02_01_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=10 skipped_already_flagged=0
+2026-05-06T09:51:05.978822 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_02_02_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=4 skipped_already_flagged=0
+2026-05-06T09:51:05.978854 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_02_03_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=9 skipped_already_flagged=0
+2026-05-06T09:51:05.978884 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_02_04_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
+2026-05-06T09:51:05.978914 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_02_05_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
+2026-05-06T09:51:05.978941 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_02_06_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=6 skipped_already_flagged=0
+2026-05-06T09:51:05.978975 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_02_07_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=10 skipped_already_flagged=0
+2026-05-06T09:51:05.978998 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_02_08_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=4 skipped_already_flagged=0
+2026-05-06T09:51:05.979033 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_02_09_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=10 skipped_already_flagged=0
+2026-05-06T09:51:05.979056 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_02_10_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=4 skipped_already_flagged=0
+2026-05-06T09:51:05.979104 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_02_11_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=14 skipped_already_flagged=0
+2026-05-06T09:51:05.979137 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_02_12_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=3 skipped_already_flagged=0
+2026-05-06T09:51:05.979183 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_02_19_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=10 skipped_already_flagged=0
+2026-05-06T09:51:05.979228 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_02_20_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=9 skipped_already_flagged=0
+2026-05-06T09:51:05.979269 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_02_21_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=6 skipped_already_flagged=0
+2026-05-06T09:51:05.979323 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_02_22_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=11 skipped_already_flagged=0
+2026-05-06T09:51:05.979350 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_02_23_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=3 skipped_already_flagged=0
+2026-05-06T09:51:05.979401 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_02_24_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=11 skipped_already_flagged=0
+2026-05-06T09:51:05.979438 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_02_25_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=6 skipped_already_flagged=0
+2026-05-06T09:51:05.979489 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_02_26_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=10 skipped_already_flagged=0
+2026-05-06T09:51:05.979529 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_02_27_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=5 skipped_already_flagged=0
+2026-05-06T09:51:05.979564 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_02_28_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=5 skipped_already_flagged=0
+2026-05-06T09:51:05.979614 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_01_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=11 skipped_already_flagged=0
+2026-05-06T09:51:05.979642 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_02_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=3 skipped_already_flagged=0
+2026-05-06T09:51:05.979708 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_03_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=9 skipped_already_flagged=0
+2026-05-06T09:51:05.979751 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_04_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=7 skipped_already_flagged=0
+2026-05-06T09:51:05.979797 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_05_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=9 skipped_already_flagged=0
+2026-05-06T09:51:05.979841 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_06_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=7 skipped_already_flagged=0
+2026-05-06T09:51:05.979881 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_07_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=6 skipped_already_flagged=0
+2026-05-06T09:51:05.979933 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_08_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=10 skipped_already_flagged=0
+2026-05-06T09:51:05.979959 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_09_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=5 skipped_already_flagged=0
+2026-05-06T09:51:05.979995 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_10_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=11 skipped_already_flagged=0
+2026-05-06T09:51:05.980018 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_11_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=4 skipped_already_flagged=0
+2026-05-06T09:51:05.980049 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_12_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=9 skipped_already_flagged=0
+2026-05-06T09:51:05.980083 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_13_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
+2026-05-06T09:51:05.980113 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_14_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=7 skipped_already_flagged=0
+2026-05-06T09:51:05.980143 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_15_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=7 skipped_already_flagged=0
+2026-05-06T09:51:05.980175 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_16_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
+2026-05-06T09:51:05.980205 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_17_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
+2026-05-06T09:51:05.980238 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_18_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=9 skipped_already_flagged=0
+2026-05-06T09:51:05.980268 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_19_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
+2026-05-06T09:51:05.980299 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_20_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=6 skipped_already_flagged=0
+2026-05-06T09:51:05.980333 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_21_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=10 skipped_already_flagged=0
+2026-05-06T09:51:05.980358 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_22_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=5 skipped_already_flagged=0
+2026-05-06T09:51:05.980395 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_23_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=10 skipped_already_flagged=0
+2026-05-06T09:51:05.980418 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_24_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=4 skipped_already_flagged=0
+2026-05-06T09:51:05.980457 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_25_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=12 skipped_already_flagged=0
+2026-05-06T09:51:05.980477 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_26_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=3 skipped_already_flagged=0
+2026-05-06T09:51:05.980512 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_27_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=10 skipped_already_flagged=0
+2026-05-06T09:51:05.980536 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_28_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=5 skipped_already_flagged=0
+2026-05-06T09:51:05.980566 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_29_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
+2026-05-06T09:51:05.980595 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_30_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=7 skipped_already_flagged=0
+2026-05-06T09:51:05.980619 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_03_31_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=5 skipped_already_flagged=0
+2026-05-06T09:51:05.980648 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_01_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
+2026-05-06T09:51:05.980696 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_02_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=6 skipped_already_flagged=0
+2026-05-06T09:51:05.980732 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_03_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=8 skipped_already_flagged=0
+2026-05-06T09:51:05.980753 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_04_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=3 skipped_already_flagged=0
+2026-05-06T09:51:05.980788 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_05_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=10 skipped_already_flagged=0
+2026-05-06T09:51:05.980811 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_06_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=4 skipped_already_flagged=0
+2026-05-06T09:51:05.980843 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_07_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=9 skipped_already_flagged=0
+2026-05-06T09:51:05.980867 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_08_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=5 skipped_already_flagged=0
+2026-05-06T09:51:05.980886 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_09_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=2 skipped_already_flagged=0
+2026-05-06T09:51:05.980934 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_10_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=14 skipped_already_flagged=0
+2026-05-06T09:51:05.980977 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_12_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=14 skipped_already_flagged=0
+2026-05-06T09:51:05.980996 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_14_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=2 skipped_already_flagged=0
+2026-05-06T09:51:05.981014 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_15_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=2 skipped_already_flagged=0
+2026-05-06T09:51:05.981033 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_17_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=2 skipped_already_flagged=0
+2026-05-06T09:51:05.981053 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_18_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=3 skipped_already_flagged=0
+2026-05-06T09:51:05.981074 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_19_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=3 skipped_already_flagged=0
+2026-05-06T09:51:05.981092 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_20_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=2 skipped_already_flagged=0
+2026-05-06T09:51:05.981113 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_21_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=3 skipped_already_flagged=0
+2026-05-06T09:51:05.981135 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_22_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=2 skipped_already_flagged=0
+2026-05-06T09:51:05.981156 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_23_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=3 skipped_already_flagged=0
+2026-05-06T09:51:05.981186 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_24_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=3 skipped_already_flagged=0
+2026-05-06T09:51:05.981214 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_25_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=4 skipped_already_flagged=0
+2026-05-06T09:51:05.981237 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_26_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=4 skipped_already_flagged=0
+2026-05-06T09:51:05.981258 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_27_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=3 skipped_already_flagged=0
+2026-05-06T09:51:05.981277 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_28_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=2 skipped_already_flagged=0
+2026-05-06T09:51:05.981297 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_29_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=3 skipped_already_flagged=0
+2026-05-06T09:51:05.981318 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_04_30_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=3 skipped_already_flagged=0
+2026-05-06T09:51:05.981339 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_05_01_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=3 skipped_already_flagged=0
+2026-05-06T09:51:05.981357 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_05_03_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=2 skipped_already_flagged=0
+2026-05-06T09:51:05.981380 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_05_04_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=1 skipped_already_flagged=0
+2026-05-06T09:51:05.981399 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_05_05_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=2 skipped_already_flagged=0
+2026-05-06T09:51:05.981418 | BIASED | docs/win/basketball/00_intake/predictions/nba/2026_05_06_NBA_predictions.csv | league=NBA margin_bias=0.4 total_bias=0.4 adjusted=2 skipped_already_flagged=0
+2026-05-06T09:51:05.994448 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_10_21_NBA_predictions.csv | rows=2
+2026-05-06T09:51:05.994586 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_10_22_NBA_predictions.csv | rows=12
+2026-05-06T09:51:05.994724 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_10_23_NBA_predictions.csv | rows=2
+2026-05-06T09:51:05.994892 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_10_24_NBA_predictions.csv | rows=12
+2026-05-06T09:51:05.995025 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_10_25_NBA_predictions.csv | rows=5
+2026-05-06T09:51:05.995173 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_10_26_NBA_predictions.csv | rows=9
+2026-05-06T09:51:05.995325 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_10_27_NBA_predictions.csv | rows=11
+2026-05-06T09:51:05.995464 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_10_28_NBA_predictions.csv | rows=5
+2026-05-06T09:51:05.995608 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_10_29_NBA_predictions.csv | rows=10
+2026-05-06T09:51:05.995754 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_10_30_NBA_predictions.csv | rows=4
+2026-05-06T09:51:05.995897 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_10_31_NBA_predictions.csv | rows=8
+2026-05-06T09:51:05.996032 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_01_NBA_predictions.csv | rows=6
+2026-05-06T09:51:05.996173 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_02_NBA_predictions.csv | rows=8
+2026-05-06T09:51:05.996318 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_03_NBA_predictions.csv | rows=9
+2026-05-06T09:51:05.996442 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_04_NBA_predictions.csv | rows=5
+2026-05-06T09:51:05.996593 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_05_NBA_predictions.csv | rows=12
+2026-05-06T09:51:05.996716 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_06_NBA_predictions.csv | rows=1
+2026-05-06T09:51:05.996861 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_07_NBA_predictions.csv | rows=11
+2026-05-06T09:51:05.997003 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_08_NBA_predictions.csv | rows=8
+2026-05-06T09:51:05.997138 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_09_NBA_predictions.csv | rows=7
+2026-05-06T09:51:05.997279 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_10_NBA_predictions.csv | rows=9
+2026-05-06T09:51:05.997409 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_11_NBA_predictions.csv | rows=5
+2026-05-06T09:51:05.997560 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_12_NBA_predictions.csv | rows=13
+2026-05-06T09:51:05.997691 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_13_NBA_predictions.csv | rows=3
+2026-05-06T09:51:05.997834 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_14_NBA_predictions.csv | rows=9
+2026-05-06T09:51:05.997960 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_15_NBA_predictions.csv | rows=5
+2026-05-06T09:51:05.998097 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_16_NBA_predictions.csv | rows=8
+2026-05-06T09:51:05.998234 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_17_NBA_predictions.csv | rows=8
+2026-05-06T09:51:05.998360 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_18_NBA_predictions.csv | rows=5
+2026-05-06T09:51:05.998506 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_19_NBA_predictions.csv | rows=10
+2026-05-06T09:51:05.998626 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_20_NBA_predictions.csv | rows=4
+2026-05-06T09:51:05.998779 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_21_NBA_predictions.csv | rows=9
+2026-05-06T09:51:05.998912 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_22_NBA_predictions.csv | rows=7
+2026-05-06T09:51:05.999038 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_23_NBA_predictions.csv | rows=8
+2026-05-06T09:51:05.999182 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_24_NBA_predictions.csv | rows=10
+2026-05-06T09:51:05.999298 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_25_NBA_predictions.csv | rows=2
+2026-05-06T09:51:05.999447 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_26_NBA_predictions.csv | rows=10
+2026-05-06T09:51:05.999630 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_28_NBA_predictions.csv | rows=11
+2026-05-06T09:51:05.999790 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_29_NBA_predictions.csv | rows=8
+2026-05-06T09:51:05.999905 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_11_30_NBA_predictions.csv | rows=8
+2026-05-06T09:51:06.000007 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_01_NBA_predictions.csv | rows=9
+2026-05-06T09:51:06.000099 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_02_NBA_predictions.csv | rows=5
+2026-05-06T09:51:06.000203 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_03_NBA_predictions.csv | rows=10
+2026-05-06T09:51:06.000296 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_04_NBA_predictions.csv | rows=5
+2026-05-06T09:51:06.000402 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_05_NBA_predictions.csv | rows=12
+2026-05-06T09:51:06.000498 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_06_NBA_predictions.csv | rows=7
+2026-05-06T09:51:06.000592 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_07_NBA_predictions.csv | rows=7
+2026-05-06T09:51:06.000690 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_08_NBA_predictions.csv | rows=3
+2026-05-06T09:51:06.000778 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_09_NBA_predictions.csv | rows=2
+2026-05-06T09:51:06.000867 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_10_NBA_predictions.csv | rows=2
+2026-05-06T09:51:06.000951 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_11_NBA_predictions.csv | rows=4
+2026-05-06T09:51:06.001047 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_12_NBA_predictions.csv | rows=7
+2026-05-06T09:51:06.001128 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_13_NBA_predictions.csv | rows=2
+2026-05-06T09:51:06.001225 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_14_NBA_predictions.csv | rows=8
+2026-05-06T09:51:06.001314 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_15_NBA_predictions.csv | rows=5
+2026-05-06T09:51:06.001397 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_16_NBA_predictions.csv | rows=1
+2026-05-06T09:51:06.001483 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_17_NBA_predictions.csv | rows=2
+2026-05-06T09:51:06.001589 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_18_NBA_predictions.csv | rows=12
+2026-05-06T09:51:06.001692 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_19_NBA_predictions.csv | rows=5
+2026-05-06T09:51:06.001802 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_20_NBA_predictions.csv | rows=10
+2026-05-06T09:51:06.001901 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_21_NBA_predictions.csv | rows=6
+2026-05-06T09:51:06.001999 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_22_NBA_predictions.csv | rows=7
+2026-05-06T09:51:06.002110 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_23_NBA_predictions.csv | rows=14
+2026-05-06T09:51:06.002200 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_25_NBA_predictions.csv | rows=5
+2026-05-06T09:51:06.002301 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_26_NBA_predictions.csv | rows=9
+2026-05-06T09:51:06.002399 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_27_NBA_predictions.csv | rows=9
+2026-05-06T09:51:06.002495 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_28_NBA_predictions.csv | rows=6
+2026-05-06T09:51:06.002598 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_29_NBA_predictions.csv | rows=11
+2026-05-06T09:51:06.002693 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_30_NBA_predictions.csv | rows=3
+2026-05-06T09:51:06.002801 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2025_12_31_NBA_predictions.csv | rows=10
+2026-05-06T09:51:06.002888 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_01_NBA_predictions.csv | rows=5
+2026-05-06T09:51:06.002990 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_02_NBA_predictions.csv | rows=10
+2026-05-06T09:51:06.003085 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_03_NBA_predictions.csv | rows=8
+2026-05-06T09:51:06.003180 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_04_NBA_predictions.csv | rows=8
+2026-05-06T09:51:06.003283 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_05_NBA_predictions.csv | rows=8
+2026-05-06T09:51:06.003374 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_06_NBA_predictions.csv | rows=5
+2026-05-06T09:51:06.003483 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_07_NBA_predictions.csv | rows=13
+2026-05-06T09:51:06.003566 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_08_NBA_predictions.csv | rows=3
+2026-05-06T09:51:06.003679 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_09_NBA_predictions.csv | rows=10
+2026-05-06T09:51:06.003776 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_10_NBA_predictions.csv | rows=6
+2026-05-06T09:51:06.003877 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_11_NBA_predictions.csv | rows=10
+2026-05-06T09:51:06.003966 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_12_NBA_predictions.csv | rows=6
+2026-05-06T09:51:06.004057 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_13_NBA_predictions.csv | rows=6
+2026-05-06T09:51:06.004152 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_14_NBA_predictions.csv | rows=8
+2026-05-06T09:51:06.004250 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_15_NBA_predictions.csv | rows=9
+2026-05-06T09:51:06.004341 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_16_NBA_predictions.csv | rows=6
+2026-05-06T09:51:06.004440 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_17_NBA_predictions.csv | rows=9
+2026-05-06T09:51:06.004531 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_18_NBA_predictions.csv | rows=6
+2026-05-06T09:51:06.004628 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_19_NBA_predictions.csv | rows=9
+2026-05-06T09:51:06.004735 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_20_NBA_predictions.csv | rows=7
+2026-05-06T09:51:06.004831 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_21_NBA_predictions.csv | rows=7
+2026-05-06T09:51:06.004925 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_22_NBA_predictions.csv | rows=8
+2026-05-06T09:51:06.005019 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_23_NBA_predictions.csv | rows=8
+2026-05-06T09:51:06.005109 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_24_NBA_predictions.csv | rows=6
+2026-05-06T09:51:06.005200 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_25_NBA_predictions.csv | rows=6
+2026-05-06T09:51:06.005292 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_26_NBA_predictions.csv | rows=7
+2026-05-06T09:51:06.005393 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_27_NBA_predictions.csv | rows=7
+2026-05-06T09:51:06.005494 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_28_NBA_predictions.csv | rows=9
+2026-05-06T09:51:06.005590 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_29_NBA_predictions.csv | rows=8
+2026-05-06T09:51:06.005703 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_30_NBA_predictions.csv | rows=9
+2026-05-06T09:51:06.005798 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_01_31_NBA_predictions.csv | rows=6
+2026-05-06T09:51:06.005903 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_02_01_NBA_predictions.csv | rows=10
+2026-05-06T09:51:06.005989 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_02_02_NBA_predictions.csv | rows=4
+2026-05-06T09:51:06.006085 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_02_03_NBA_predictions.csv | rows=9
+2026-05-06T09:51:06.006184 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_02_04_NBA_predictions.csv | rows=8
+2026-05-06T09:51:06.006280 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_02_05_NBA_predictions.csv | rows=8
+2026-05-06T09:51:06.006371 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_02_06_NBA_predictions.csv | rows=6
+2026-05-06T09:51:06.006473 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_02_07_NBA_predictions.csv | rows=10
+2026-05-06T09:51:06.006556 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_02_08_NBA_predictions.csv | rows=4
+2026-05-06T09:51:06.006657 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_02_09_NBA_predictions.csv | rows=10
+2026-05-06T09:51:06.006759 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_02_10_NBA_predictions.csv | rows=4
+2026-05-06T09:51:06.006873 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_02_11_NBA_predictions.csv | rows=14
+2026-05-06T09:51:06.006956 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_02_12_NBA_predictions.csv | rows=3
+2026-05-06T09:51:06.007058 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_02_19_NBA_predictions.csv | rows=10
+2026-05-06T09:51:06.007155 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_02_20_NBA_predictions.csv | rows=9
+2026-05-06T09:51:06.007243 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_02_21_NBA_predictions.csv | rows=6
+2026-05-06T09:51:06.007345 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_02_22_NBA_predictions.csv | rows=11
+2026-05-06T09:51:06.007425 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_02_23_NBA_predictions.csv | rows=3
+2026-05-06T09:51:06.056399 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_02_24_NBA_predictions.csv | rows=11
+2026-05-06T09:51:06.056617 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_02_25_NBA_predictions.csv | rows=6
+2026-05-06T09:51:06.056794 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_02_26_NBA_predictions.csv | rows=10
+2026-05-06T09:51:06.056930 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_02_27_NBA_predictions.csv | rows=5
+2026-05-06T09:51:06.057061 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_02_28_NBA_predictions.csv | rows=5
+2026-05-06T09:51:06.057217 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_01_NBA_predictions.csv | rows=11
+2026-05-06T09:51:06.057336 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_02_NBA_predictions.csv | rows=3
+2026-05-06T09:51:06.057484 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_03_NBA_predictions.csv | rows=9
+2026-05-06T09:51:06.057617 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_04_NBA_predictions.csv | rows=7
+2026-05-06T09:51:06.057776 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_05_NBA_predictions.csv | rows=9
+2026-05-06T09:51:06.057907 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_06_NBA_predictions.csv | rows=7
+2026-05-06T09:51:06.058042 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_07_NBA_predictions.csv | rows=6
+2026-05-06T09:51:06.058186 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_08_NBA_predictions.csv | rows=10
+2026-05-06T09:51:06.058314 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_09_NBA_predictions.csv | rows=5
+2026-05-06T09:51:06.058460 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_10_NBA_predictions.csv | rows=11
+2026-05-06T09:51:06.058586 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_11_NBA_predictions.csv | rows=4
+2026-05-06T09:51:06.058737 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_12_NBA_predictions.csv | rows=9
+2026-05-06T09:51:06.058877 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_13_NBA_predictions.csv | rows=8
+2026-05-06T09:51:06.059008 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_14_NBA_predictions.csv | rows=7
+2026-05-06T09:51:06.059144 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_15_NBA_predictions.csv | rows=7
+2026-05-06T09:51:06.059281 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_16_NBA_predictions.csv | rows=8
+2026-05-06T09:51:06.059419 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_17_NBA_predictions.csv | rows=8
+2026-05-06T09:51:06.059560 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_18_NBA_predictions.csv | rows=9
+2026-05-06T09:51:06.059735 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_19_NBA_predictions.csv | rows=8
+2026-05-06T09:51:06.059877 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_20_NBA_predictions.csv | rows=6
+2026-05-06T09:51:06.060025 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_21_NBA_predictions.csv | rows=10
+2026-05-06T09:51:06.060125 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_22_NBA_predictions.csv | rows=5
+2026-05-06T09:51:06.060281 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_23_NBA_predictions.csv | rows=10
+2026-05-06T09:51:06.060400 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_24_NBA_predictions.csv | rows=4
+2026-05-06T09:51:06.060546 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_25_NBA_predictions.csv | rows=12
+2026-05-06T09:51:06.060665 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_26_NBA_predictions.csv | rows=3
+2026-05-06T09:51:06.060822 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_27_NBA_predictions.csv | rows=10
+2026-05-06T09:51:06.060943 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_28_NBA_predictions.csv | rows=5
+2026-05-06T09:51:06.061078 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_29_NBA_predictions.csv | rows=8
+2026-05-06T09:51:06.061206 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_30_NBA_predictions.csv | rows=7
+2026-05-06T09:51:06.061335 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_03_31_NBA_predictions.csv | rows=5
+2026-05-06T09:51:06.061469 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_01_NBA_predictions.csv | rows=8
+2026-05-06T09:51:06.061599 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_02_NBA_predictions.csv | rows=6
+2026-05-06T09:51:06.061751 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_03_NBA_predictions.csv | rows=8
+2026-05-06T09:51:06.061872 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_04_NBA_predictions.csv | rows=3
+2026-05-06T09:51:06.062015 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_05_NBA_predictions.csv | rows=10
+2026-05-06T09:51:06.062137 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_06_NBA_predictions.csv | rows=4
+2026-05-06T09:51:06.062261 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_07_NBA_predictions.csv | rows=9
+2026-05-06T09:51:06.062388 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_08_NBA_predictions.csv | rows=5
+2026-05-06T09:51:06.062497 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_09_NBA_predictions.csv | rows=2
+2026-05-06T09:51:06.062649 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_10_NBA_predictions.csv | rows=14
+2026-05-06T09:51:06.062813 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_12_NBA_predictions.csv | rows=14
+2026-05-06T09:51:06.062925 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_14_NBA_predictions.csv | rows=2
+2026-05-06T09:51:06.063041 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_15_NBA_predictions.csv | rows=2
+2026-05-06T09:51:06.063170 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_17_NBA_predictions.csv | rows=2
+2026-05-06T09:51:06.063295 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_18_NBA_predictions.csv | rows=3
+2026-05-06T09:51:06.063411 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_19_NBA_predictions.csv | rows=3
+2026-05-06T09:51:06.063528 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_20_NBA_predictions.csv | rows=2
+2026-05-06T09:51:06.063643 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_21_NBA_predictions.csv | rows=3
+2026-05-06T09:51:06.063778 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_22_NBA_predictions.csv | rows=2
+2026-05-06T09:51:06.063898 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_23_NBA_predictions.csv | rows=3
+2026-05-06T09:51:06.064017 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_24_NBA_predictions.csv | rows=3
+2026-05-06T09:51:06.064138 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_25_NBA_predictions.csv | rows=4
+2026-05-06T09:51:06.064243 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_26_NBA_predictions.csv | rows=4
+2026-05-06T09:51:06.064372 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_27_NBA_predictions.csv | rows=3
+2026-05-06T09:51:06.064488 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_28_NBA_predictions.csv | rows=2
+2026-05-06T09:51:06.064611 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_29_NBA_predictions.csv | rows=3
+2026-05-06T09:51:06.064737 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_04_30_NBA_predictions.csv | rows=3
+2026-05-06T09:51:06.064854 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_05_01_NBA_predictions.csv | rows=3
+2026-05-06T09:51:06.064970 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_05_03_NBA_predictions.csv | rows=2
+2026-05-06T09:51:06.065078 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_05_04_NBA_predictions.csv | rows=1
+2026-05-06T09:51:06.065193 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_05_05_NBA_predictions.csv | rows=2
+2026-05-06T09:51:06.065325 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_05_06_NBA_predictions.csv | rows=2
+2026-05-06T09:51:06.107316 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_10_21_NBA_odds.csv | rows=2
+2026-05-06T09:51:06.107465 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_10_22_NBA_odds.csv | rows=12
+2026-05-06T09:51:06.107569 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_10_23_NBA_odds.csv | rows=2
+2026-05-06T09:51:06.107729 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_10_24_NBA_odds.csv | rows=12
+2026-05-06T09:51:06.107846 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_10_25_NBA_odds.csv | rows=5
+2026-05-06T09:51:06.107977 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_10_26_NBA_odds.csv | rows=9
+2026-05-06T09:51:06.108115 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_10_27_NBA_odds.csv | rows=11
+2026-05-06T09:51:06.108227 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_10_28_NBA_odds.csv | rows=5
+2026-05-06T09:51:06.108359 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_10_29_NBA_odds.csv | rows=10
+2026-05-06T09:51:06.108466 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_10_30_NBA_odds.csv | rows=4
+2026-05-06T09:51:06.108592 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_10_31_NBA_odds.csv | rows=8
+2026-05-06T09:51:06.108719 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_01_NBA_odds.csv | rows=6
+2026-05-06T09:51:06.108846 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_02_NBA_odds.csv | rows=8
+2026-05-06T09:51:06.108973 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_03_NBA_odds.csv | rows=9
+2026-05-06T09:51:06.109087 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_04_NBA_odds.csv | rows=6
+2026-05-06T09:51:06.109221 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_05_NBA_odds.csv | rows=11
+2026-05-06T09:51:06.109314 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_06_NBA_odds.csv | rows=1
+2026-05-06T09:51:06.109446 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_07_NBA_odds.csv | rows=11
+2026-05-06T09:51:06.109568 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_08_NBA_odds.csv | rows=8
+2026-05-06T09:51:06.109699 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_09_NBA_odds.csv | rows=7
+2026-05-06T09:51:06.109835 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_10_NBA_odds.csv | rows=9
+2026-05-06T09:51:06.109952 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_11_NBA_odds.csv | rows=6
+2026-05-06T09:51:06.110090 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_12_NBA_odds.csv | rows=12
+2026-05-06T09:51:06.110193 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_13_NBA_odds.csv | rows=3
+2026-05-06T09:51:06.110318 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_14_NBA_odds.csv | rows=9
+2026-05-06T09:51:06.110428 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_15_NBA_odds.csv | rows=5
+2026-05-06T09:51:06.110552 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_16_NBA_odds.csv | rows=8
+2026-05-06T09:51:06.110693 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_17_NBA_odds.csv | rows=8
+2026-05-06T09:51:06.110829 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_18_NBA_odds.csv | rows=6
+2026-05-06T09:51:06.110960 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_19_NBA_odds.csv | rows=9
+2026-05-06T09:51:06.111067 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_20_NBA_odds.csv | rows=4
+2026-05-06T09:51:06.111194 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_21_NBA_odds.csv | rows=9
+2026-05-06T09:51:06.111310 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_22_NBA_odds.csv | rows=7
+2026-05-06T09:51:06.111441 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_23_NBA_odds.csv | rows=8
+2026-05-06T09:51:06.111571 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_24_NBA_odds.csv | rows=10
+2026-05-06T09:51:06.111684 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_25_NBA_odds.csv | rows=3
+2026-05-06T09:51:06.111816 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_26_NBA_odds.csv | rows=9
+2026-05-06T09:51:06.111949 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_28_NBA_odds.csv | rows=11
+2026-05-06T09:51:06.112062 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_29_NBA_odds.csv | rows=8
+2026-05-06T09:51:06.112189 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_11_30_NBA_odds.csv | rows=8
+2026-05-06T09:51:06.112314 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_01_NBA_odds.csv | rows=9
+2026-05-06T09:51:06.112430 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_02_NBA_odds.csv | rows=6
+2026-05-06T09:51:06.112558 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_03_NBA_odds.csv | rows=9
+2026-05-06T09:51:06.112659 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_04_NBA_odds.csv | rows=5
+2026-05-06T09:51:06.112820 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_05_NBA_odds.csv | rows=12
+2026-05-06T09:51:06.112942 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_06_NBA_odds.csv | rows=7
+2026-05-06T09:51:06.113062 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_07_NBA_odds.csv | rows=7
+2026-05-06T09:51:06.113163 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_08_NBA_odds.csv | rows=3
+2026-05-06T09:51:06.113266 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_09_NBA_odds.csv | rows=2
+2026-05-06T09:51:06.113363 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_10_NBA_odds.csv | rows=2
+2026-05-06T09:51:06.113469 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_11_NBA_odds.csv | rows=4
+2026-05-06T09:51:06.113586 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_12_NBA_odds.csv | rows=7
+2026-05-06T09:51:06.113696 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_13_NBA_odds.csv | rows=2
+2026-05-06T09:51:06.113821 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_14_NBA_odds.csv | rows=8
+2026-05-06T09:51:06.113930 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_15_NBA_odds.csv | rows=5
+2026-05-06T09:51:06.114014 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_16_NBA_odds.csv | rows=1
+2026-05-06T09:51:06.114119 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_17_NBA_odds.csv | rows=2
+2026-05-06T09:51:06.114258 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_18_NBA_odds.csv | rows=12
+2026-05-06T09:51:06.114370 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_19_NBA_odds.csv | rows=5
+2026-05-06T09:51:06.114498 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_20_NBA_odds.csv | rows=10
+2026-05-06T09:51:06.114614 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_21_NBA_odds.csv | rows=6
+2026-05-06T09:51:06.114745 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_22_NBA_odds.csv | rows=7
+2026-05-06T09:51:06.114894 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_23_NBA_odds.csv | rows=14
+2026-05-06T09:51:06.115005 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_25_NBA_odds.csv | rows=5
+2026-05-06T09:51:06.115131 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_26_NBA_odds.csv | rows=9
+2026-05-06T09:51:06.115257 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_27_NBA_odds.csv | rows=9
+2026-05-06T09:51:06.115372 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_28_NBA_odds.csv | rows=6
+2026-05-06T09:51:06.115505 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_29_NBA_odds.csv | rows=11
+2026-05-06T09:51:06.115612 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_30_NBA_odds.csv | rows=4
+2026-05-06T09:51:06.115754 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2025_12_31_NBA_odds.csv | rows=9
+2026-05-06T09:51:06.115871 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_01_NBA_odds.csv | rows=5
+2026-05-06T09:51:06.116007 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_02_NBA_odds.csv | rows=10
+2026-05-06T09:51:06.116130 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_03_NBA_odds.csv | rows=8
+2026-05-06T09:51:06.116253 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_04_NBA_odds.csv | rows=8
+2026-05-06T09:51:06.116383 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_05_NBA_odds.csv | rows=8
+2026-05-06T09:51:06.116498 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_06_NBA_odds.csv | rows=6
+2026-05-06T09:51:06.116640 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_07_NBA_odds.csv | rows=12
+2026-05-06T09:51:06.116754 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_08_NBA_odds.csv | rows=3
+2026-05-06T09:51:06.116886 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_09_NBA_odds.csv | rows=10
+2026-05-06T09:51:06.116998 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_10_NBA_odds.csv | rows=6
+2026-05-06T09:51:06.117129 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_11_NBA_odds.csv | rows=10
+2026-05-06T09:51:06.117231 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_12_NBA_odds.csv | rows=6
+2026-05-06T09:51:06.117355 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_13_NBA_odds.csv | rows=7
+2026-05-06T09:51:06.117479 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_14_NBA_odds.csv | rows=7
+2026-05-06T09:51:06.117604 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_15_NBA_odds.csv | rows=9
+2026-05-06T09:51:06.117732 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_16_NBA_odds.csv | rows=6
+2026-05-06T09:51:06.117860 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_17_NBA_odds.csv | rows=9
+2026-05-06T09:51:06.117975 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_18_NBA_odds.csv | rows=6
+2026-05-06T09:51:06.118101 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_19_NBA_odds.csv | rows=9
+2026-05-06T09:51:06.118218 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_20_NBA_odds.csv | rows=7
+2026-05-06T09:51:06.118338 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_21_NBA_odds.csv | rows=7
+2026-05-06T09:51:06.118459 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_22_NBA_odds.csv | rows=8
+2026-05-06T09:51:06.118580 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_23_NBA_odds.csv | rows=8
+2026-05-06T09:51:06.118721 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_24_NBA_odds.csv | rows=6
+2026-05-06T09:51:06.118847 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_25_NBA_odds.csv | rows=6
+2026-05-06T09:51:06.118964 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_26_NBA_odds.csv | rows=7
+2026-05-06T09:51:06.119084 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_27_NBA_odds.csv | rows=7
+2026-05-06T09:51:06.119214 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_28_NBA_odds.csv | rows=9
+2026-05-06T09:51:06.119337 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_29_NBA_odds.csv | rows=8
+2026-05-06T09:51:06.119465 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_30_NBA_odds.csv | rows=9
+2026-05-06T09:51:06.119579 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_01_31_NBA_odds.csv | rows=6
+2026-05-06T09:51:06.119721 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_02_01_NBA_odds.csv | rows=10
+2026-05-06T09:51:06.119829 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_02_02_NBA_odds.csv | rows=4
+2026-05-06T09:51:06.119958 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_02_03_NBA_odds.csv | rows=10
+2026-05-06T09:51:06.120079 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_02_04_NBA_odds.csv | rows=7
+2026-05-06T09:51:06.120200 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_02_05_NBA_odds.csv | rows=8
+2026-05-06T09:51:06.120314 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_02_06_NBA_odds.csv | rows=6
+2026-05-06T09:51:06.120443 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_02_07_NBA_odds.csv | rows=10
+2026-05-06T09:51:06.120549 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_02_08_NBA_odds.csv | rows=4
+2026-05-06T09:51:06.120689 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_02_09_NBA_odds.csv | rows=10
+2026-05-06T09:51:06.120800 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_02_10_NBA_odds.csv | rows=4
+2026-05-06T09:51:06.120945 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_02_11_NBA_odds.csv | rows=14
+2026-05-06T09:51:06.121048 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_02_12_NBA_odds.csv | rows=3
+2026-05-06T09:51:06.121178 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_02_19_NBA_odds.csv | rows=10
+2026-05-06T09:51:06.121305 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_02_20_NBA_odds.csv | rows=9
+2026-05-06T09:51:06.121420 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_02_21_NBA_odds.csv | rows=6
+2026-05-06T09:51:06.121553 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_02_22_NBA_odds.csv | rows=11
+2026-05-06T09:51:06.121655 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_02_23_NBA_odds.csv | rows=3
+2026-05-06T09:51:06.121803 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_02_24_NBA_odds.csv | rows=11
+2026-05-06T09:51:06.121917 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_02_25_NBA_odds.csv | rows=6
+2026-05-06T09:51:06.122049 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_02_26_NBA_odds.csv | rows=10
+2026-05-06T09:51:06.122158 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_02_27_NBA_odds.csv | rows=5
+2026-05-06T09:51:06.122268 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_02_28_NBA_odds.csv | rows=5
+2026-05-06T09:51:06.122401 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_01_NBA_odds.csv | rows=11
+2026-05-06T09:51:06.122535 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_02_NBA_odds.csv | rows=4
+2026-05-06T09:51:06.122690 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_03_NBA_odds.csv | rows=10
+2026-05-06T09:51:06.122810 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_04_NBA_odds.csv | rows=6
+2026-05-06T09:51:06.122938 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_05_NBA_odds.csv | rows=9
+2026-05-06T09:51:06.123058 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_06_NBA_odds.csv | rows=7
+2026-05-06T09:51:06.123174 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_07_NBA_odds.csv | rows=6
+2026-05-06T09:51:06.123304 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_08_NBA_odds.csv | rows=10
+2026-05-06T09:51:06.123413 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_09_NBA_odds.csv | rows=5
+2026-05-06T09:51:06.123550 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_10_NBA_odds.csv | rows=11
+2026-05-06T09:51:06.123659 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_11_NBA_odds.csv | rows=5
+2026-05-06T09:51:06.123807 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_12_NBA_odds.csv | rows=9
+2026-05-06T09:51:06.123934 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_13_NBA_odds.csv | rows=8
+2026-05-06T09:51:06.124053 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_14_NBA_odds.csv | rows=7
+2026-05-06T09:51:06.124171 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_15_NBA_odds.csv | rows=7
+2026-05-06T09:51:06.124294 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_16_NBA_odds.csv | rows=8
+2026-05-06T09:51:06.124415 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_17_NBA_odds.csv | rows=8
+2026-05-06T09:51:06.124541 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_18_NBA_odds.csv | rows=9
+2026-05-06T09:51:06.124663 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_19_NBA_odds.csv | rows=8
+2026-05-06T09:51:06.124792 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_20_NBA_odds.csv | rows=6
+2026-05-06T09:51:06.124922 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_21_NBA_odds.csv | rows=10
+2026-05-06T09:51:06.125036 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_22_NBA_odds.csv | rows=5
+2026-05-06T09:51:06.125164 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_23_NBA_odds.csv | rows=10
+2026-05-06T09:51:06.125268 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_24_NBA_odds.csv | rows=4
+2026-05-06T09:51:06.125400 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_25_NBA_odds.csv | rows=12
+2026-05-06T09:51:06.125501 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_26_NBA_odds.csv | rows=3
+2026-05-06T09:51:06.125628 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_27_NBA_odds.csv | rows=10
+2026-05-06T09:51:06.125756 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_28_NBA_odds.csv | rows=6
+2026-05-06T09:51:06.125885 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_29_NBA_odds.csv | rows=9
+2026-05-06T09:51:06.126005 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_30_NBA_odds.csv | rows=8
+2026-05-06T09:51:06.126123 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_03_31_NBA_odds.csv | rows=7
+2026-05-06T09:51:06.126251 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_01_NBA_odds.csv | rows=9
+2026-05-06T09:51:06.126372 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_02_NBA_odds.csv | rows=6
+2026-05-06T09:51:06.126509 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_03_NBA_odds.csv | rows=9
+2026-05-06T09:51:06.126610 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_04_NBA_odds.csv | rows=3
+2026-05-06T09:51:06.126755 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_05_NBA_odds.csv | rows=11
+2026-05-06T09:51:06.126870 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_06_NBA_odds.csv | rows=5
+2026-05-06T09:51:06.126996 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_07_NBA_odds.csv | rows=10
+2026-05-06T09:51:06.127112 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_08_NBA_odds.csv | rows=7
+2026-05-06T09:51:06.127226 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_09_NBA_odds.csv | rows=6
+2026-05-06T09:51:06.127376 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_10_NBA_odds.csv | rows=15
+2026-05-06T09:51:06.127521 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_12_NBA_odds.csv | rows=15
+2026-05-06T09:51:06.127608 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_14_NBA_odds.csv | rows=2
+2026-05-06T09:51:06.127724 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_15_NBA_odds.csv | rows=2
+2026-05-06T09:51:06.127823 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_17_NBA_odds.csv | rows=2
+2026-05-06T09:51:06.127928 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_18_NBA_odds.csv | rows=4
+2026-05-06T09:51:06.128032 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_19_NBA_odds.csv | rows=4
+2026-05-06T09:51:06.128135 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_20_NBA_odds.csv | rows=3
+2026-05-06T09:51:06.128238 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_21_NBA_odds.csv | rows=3
+2026-05-06T09:51:06.128338 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_22_NBA_odds.csv | rows=2
+2026-05-06T09:51:06.128436 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_23_NBA_odds.csv | rows=3
+2026-05-06T09:51:06.128536 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_24_NBA_odds.csv | rows=3
+2026-05-06T09:51:06.128640 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_25_NBA_odds.csv | rows=4
+2026-05-06T09:51:06.128757 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_26_NBA_odds.csv | rows=4
+2026-05-06T09:51:06.128859 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_27_NBA_odds.csv | rows=3
+2026-05-06T09:51:06.128959 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_28_NBA_odds.csv | rows=3
+2026-05-06T09:51:06.129058 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_29_NBA_odds.csv | rows=3
+2026-05-06T09:51:06.129158 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_04_30_NBA_odds.csv | rows=3
+2026-05-06T09:51:06.129257 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_05_01_NBA_odds.csv | rows=3
+2026-05-06T09:51:06.129340 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_05_02_NBA_odds.csv | rows=1
+2026-05-06T09:51:06.129442 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_05_03_NBA_odds.csv | rows=2
+2026-05-06T09:51:06.129540 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_05_04_NBA_odds.csv | rows=2
+2026-05-06T09:51:06.129637 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_05_05_NBA_odds.csv | rows=2
+2026-05-06T09:51:06.129750 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_05_06_NBA_odds.csv | rows=2
+2026-05-06T09:51:06.129868 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/2026_05_07_NBA_odds.csv | rows=2
+2026-05-06T09:51:06.173763 | 
+2026-05-06T09:51:06.173777 | ============================================================
+2026-05-06T09:51:06.173790 | SUMMARY
+2026-05-06T09:51:06.173809 | ============================================================
+2026-05-06T09:51:06.173822 | prediction_files_loaded              : 186
+2026-05-06T09:51:06.173835 | sportsbook_files_loaded              : 188
+2026-05-06T09:51:06.173848 | bad_ml_market_rows_blanked           : 0
+2026-05-06T09:51:06.173860 | bad_total_market_rows_blanked        : 0
+2026-05-06T09:51:06.173873 | bad_spread_market_rows_blanked       : 0
+2026-05-06T09:51:06.173885 | bad_odds_market_rows_blanked_total   : 0
+2026-05-06T09:51:06.173898 | bad_total_line_rows_blanked          : 0
+2026-05-06T09:51:06.173910 | bad_spread_line_rows_blanked         : 0
+2026-05-06T09:51:06.173922 | bad_line_rows_blanked_total          : 0
+2026-05-06T09:51:06.173935 | spread_outlier_events_found          : 0
+2026-05-06T09:51:06.173947 | total_outlier_events_found           : 0
+2026-05-06T09:51:06.173960 | sportsbook_outlier_market_rows_blanked: 0
+2026-05-06T09:51:06.173973 | prediction_rows_removed              : 0
+2026-05-06T09:51:06.173985 | sportsbook_rows_removed              : 0
+2026-05-06T09:51:06.173999 | bias_files_with_adjusted_rows        : 186
+2026-05-06T09:51:06.174012 | bias_rows_adjusted                   : 1264
+2026-05-06T09:51:06.174025 | bias_rows_skipped_already_flagged    : 0
+2026-05-06T09:51:06.174037 | prediction_files_written             : 186
+2026-05-06T09:51:06.174050 | prediction_rows_written              : 1264
+2026-05-06T09:51:06.174062 | sportsbook_files_written             : 188
+2026-05-06T09:51:06.174075 | sportsbook_rows_written              : 1292
+2026-05-06T09:51:06.174087 | STATUS: SUCCESS
+2026-05-06T09:51:06.174100 | ============================================================
