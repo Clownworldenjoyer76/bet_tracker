@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# docs/win/soccer/scripts/00_intake/manual_soccer_pred.py
 
 import argparse
 import csv
