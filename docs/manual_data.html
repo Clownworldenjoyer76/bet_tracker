@@ -123,8 +123,12 @@
   <script>
     const OWNER = "Clownworldenjoyer76";
     const REPO  = "bet_tracker";
-    const WORKFLOW_FILE_DEFAULT = "_00_manual_data.yml";
-    const WORKFLOW_FILE_UFC     = "ufc_manual_final.yml";
+
+    const WORKFLOW_FILE_DEFAULT       = "_00_manual_data.yml";
+    const WORKFLOW_FILE_UFC           = "ufc_manual_final.yml";
+    const WORKFLOW_FILE_SOCCER_PRED   = "manual_soccer_pred.yml";
+    const WORKFLOW_FILE_SOCCER_SCORES = "manual_soccer_scores.yml";
+
     const REF = "main";
 
     const MARKET_MAP = {
@@ -135,8 +139,10 @@
       soccer: ["MLS", "EPL", "Ligue 1", "Serie A", "La Liga", "Bundesliga"],
       final_scores: ["NBA", "NCAAB", "NHL", "WNBA", "UFC"],
       final_soccer_scores: [
-        { val: "epl", text: "EPL" }, { val: "laliga", text: "LA LIGA" },
-        { val: "ligue1", text: "LIGUE 1" }, { val: "bundesliga", text: "BUNDESLIGA" },
+        { val: "epl", text: "EPL" },
+        { val: "laliga", text: "LA LIGA" },
+        { val: "ligue1", text: "LIGUE 1" },
+        { val: "bundesliga", text: "BUNDESLIGA" },
         { val: "seriea", text: "SERIE A" }
       ]
     };
@@ -145,18 +151,25 @@
       const l = document.getElementById("league").value;
       const mSel = document.getElementById("market");
       const sSel = document.getElementById("source");
+
       mSel.innerHTML = "";
+
       if (!l || !MARKET_MAP[l]) {
         mSel.innerHTML = "<option value=''>-- placeholder --</option>";
         return;
       }
+
       MARKET_MAP[l].forEach(m => {
         const opt = document.createElement("option");
-        opt.value = typeof m === 'object' ? m.val : m;
-        opt.textContent = typeof m === 'object' ? m.text : m;
+        opt.value = typeof m === "object" ? m.val : m;
+        opt.textContent = typeof m === "object" ? m.text : m;
         mSel.appendChild(opt);
       });
-      if (l === "final_soccer_scores") sSel.value = "Scores";
+
+      if (l === "final_soccer_scores") {
+        sSel.value = "Scores";
+      }
+
       updateSources();
     }
 
@@ -164,6 +177,7 @@
       const l = document.getElementById("league").value;
       const m = document.getElementById("market").value;
       const sSel = document.getElementById("source");
+
       if (l === "final_scores" && m === "UFC") {
         sSel.value = "UFC Results";
       }
@@ -184,8 +198,21 @@
         return;
       }
 
-      const isUFC = (league === "final_scores" && market === "UFC" && source === "UFC Results");
-      const workflowFile = isUFC ? WORKFLOW_FILE_UFC : WORKFLOW_FILE_DEFAULT;
+      const isUFC = (
+        league === "final_scores" &&
+        market === "UFC" &&
+        source === "UFC Results"
+      );
+
+      let workflowFile = WORKFLOW_FILE_DEFAULT;
+
+      if (isUFC) {
+        workflowFile = WORKFLOW_FILE_UFC;
+      } else if (league === "soccer") {
+        workflowFile = WORKFLOW_FILE_SOCCER_PRED;
+      } else if (league === "final_soccer_scores") {
+        workflowFile = WORKFLOW_FILE_SOCCER_SCORES;
+      }
 
       btn.classList.add("submitting");
       btn.disabled = true;
@@ -194,6 +221,7 @@
 
       try {
         const url = `https://api.github.com/repos/${OWNER}/${REPO}/actions/workflows/${workflowFile}/dispatches`;
+
         const res = await fetch(url, {
           method: "POST",
           headers: {
@@ -201,7 +229,15 @@
             "Authorization": `Bearer ${token}`,
             "Content-Type": "application/json"
           },
-          body: JSON.stringify({ ref: REF, inputs: { league, market, source, raw_text: raw } })
+          body: JSON.stringify({
+            ref: REF,
+            inputs: {
+              league,
+              market,
+              source,
+              raw_text: raw
+            }
+          })
         });
 
         if (res.status === 204) {
