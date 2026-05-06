@@ -89,7 +89,6 @@
           <option value="hockey">Hockey</option>
           <option value="soccer">Soccer</option>
           <option value="final_scores">Final Scores</option>
-          <option value="final_soccer_scores">Final Soccer Scores</option>
         </select>
       </div>
       <div>
@@ -137,20 +136,12 @@
       baseball: ["MLB"],
       hockey: ["NHL"],
       soccer: ["MLS", "EPL", "Ligue 1", "Serie A", "La Liga", "Bundesliga"],
-      final_scores: ["NBA", "NCAAB", "NHL", "WNBA", "UFC"],
-      final_soccer_scores: [
-        { val: "epl", text: "EPL" },
-        { val: "laliga", text: "LA LIGA" },
-        { val: "ligue1", text: "LIGUE 1" },
-        { val: "bundesliga", text: "BUNDESLIGA" },
-        { val: "seriea", text: "SERIE A" }
-      ]
+      final_scores: ["NBA", "NCAAB", "NHL", "WNBA", "UFC"]
     };
 
     function updateMarkets() {
       const l = document.getElementById("league").value;
       const mSel = document.getElementById("market");
-      const sSel = document.getElementById("source");
 
       mSel.innerHTML = "";
 
@@ -165,10 +156,6 @@
         opt.textContent = typeof m === "object" ? m.text : m;
         mSel.appendChild(opt);
       });
-
-      if (l === "final_soccer_scores") {
-        sSel.value = "Scores";
-      }
 
       updateSources();
     }
@@ -208,10 +195,10 @@
 
       if (isUFC) {
         workflowFile = WORKFLOW_FILE_UFC;
-      } else if (league === "soccer") {
-        workflowFile = WORKFLOW_FILE_SOCCER_PRED;
-      } else if (league === "final_soccer_scores") {
+      } else if (league === "soccer" && source === "Soccer Totals") {
         workflowFile = WORKFLOW_FILE_SOCCER_SCORES;
+      } else if (league === "soccer" && source === "Predictions") {
+        workflowFile = WORKFLOW_FILE_SOCCER_PRED;
       }
 
       btn.classList.add("submitting");
