@@ -7,7 +7,8 @@ import random
 import traceback
 import pandas as pd
 from pathlib import Path
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from playwright.sync_api import sync_playwright
 
 ERROR_DIR = Path("docs/win/soccer/errors/00_intake")
@@ -16,6 +17,8 @@ LOG_FILE = ERROR_DIR / "soccer_drat.txt"
 
 RAW_DIR = Path("docs/win/soccer/00_intake/predictions/drat_raw")
 RAW_DIR.mkdir(parents=True, exist_ok=True)
+
+NY_TZ = ZoneInfo("America/New_York")
 
 with open(LOG_FILE, "w", encoding="utf-8") as f:
     f.write(f"=== soccer_drat RUN {datetime.now(timezone.utc).isoformat()} ===\n")
@@ -45,10 +48,6 @@ LEAGUE_MAP = {
     "bundesliga": "BUNDESLIGA",
     "seriea":     "SERIEA",
 }
-
-# Only MLS needs this based on sportsbook comparison:
-# DRatings MLS 2026_05_10 12:30 AM == sportsbook 2026_05_09 08:30 PM
-MLS_TIME_SHIFT_HOURS = -4
 
 MLS_RECORD_PAT = re.compile(r"\s*\(\d+-\d+-\d+\)\s*$")
 
@@ -82,25 +81,27 @@ def dump_raw(league: str, today: str, raw_rows: list) -> None:
     log(f"RAW DUMP → {raw_path} ({len(raw_rows)} rows)")
 
 
-def split_date_time(dt: str, shift_hours: int = 0):
+def split_date_time(dt: str):
+    """
+    DRatings time is treated as UTC.
+    Output is converted to America/New_York to match sportsbook.
+    """
     parts = dt.replace("\n", " ").split()
 
     raw_date = parts[0]
     raw_time = " ".join(parts[1:])
 
-    parsed = datetime.strptime(f"{raw_date} {raw_time}", "%m/%d/%Y %I:%M %p")
+    parsed_utc = datetime.strptime(
+        f"{raw_date} {raw_time}",
+        "%m/%d/%Y %I:%M %p"
+    ).replace(tzinfo=timezone.utc)
 
-    if shift_hours:
-        parsed = parsed + timedelta(hours=shift_hours)
+    parsed_ny = parsed_utc.astimezone(NY_TZ)
 
-    date = parsed.strftime("%Y_%m_%d")
-    time_ = parsed.strftime("%I:%M %p")
+    date = parsed_ny.strftime("%Y_%m_%d")
+    time_ = parsed_ny.strftime("%I:%M %p")
 
     return date, time_
-
-
-def league_time_shift(league: str) -> int:
-    return MLS_TIME_SHIFT_HOURS if league == "MLS" else 0
 
 
 def safe_split(val: str) -> list:
@@ -117,7 +118,7 @@ def is_final(cells: list) -> bool:
 
 def parse_prediction(cells: list, league: str) -> dict | None:
     try:
-        date, time_ = split_date_time(cells[0], league_time_shift(league))
+        date, time_ = split_date_time(cells[0])
 
         teams = safe_split(cells[1])
         away_team = strip_record(teams[0])
@@ -158,7 +159,7 @@ def parse_prediction(cells: list, league: str) -> dict | None:
 
 def parse_final(cells: list, league: str) -> dict | None:
     try:
-        date, time_ = split_date_time(cells[0], league_time_shift(league))
+        date, time_ = split_date_time(cells[0])
 
         teams = safe_split(cells[1])
         away_team = strip_record(teams[0])
