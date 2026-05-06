@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# docs/win/soccer/scripts/05_final_scores/manual_soccer_scores.py
+# docs/win/soccer/scripts/00_intake/manual_soccer_scores.py
 
 import argparse
 import csv
