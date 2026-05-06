@@ -27,6 +27,8 @@ CSV_HEADERS = [
 DATE_RE = re.compile(r"^\d{2}/\d{2}/\d{4}$")
 TIME_RE = re.compile(r"^\d{1,2}:\d{2}\s*(AM|PM)$", re.IGNORECASE)
 RECORD_RE = re.compile(r"\s*\([^)]*\)\s*$")
+DECIMAL_RE = re.compile(r"^\d+(?:\.\d+)?$")
+DECIMAL_PAIR_RE = re.compile(r"^\d+(?:\.\d+)?\t\d+(?:\.\d+)?\t?$")
 
 IGNORE_LINES = {
     "Time\tTeams\tWin\tDraw\tBest",
@@ -111,48 +113,76 @@ def clean_raw_lines(raw_lines: list[str]) -> list[str]:
     return cleaned
 
 
-def parse_game_block(lines: list[str], start_index: int, league_value: str) -> tuple[dict, int]:
-    match_date_raw = lines[start_index]
-    match_date = normalize_match_date(match_date_raw)
+def split_into_game_blocks(lines: list[str]) -> list[list[str]]:
+    blocks = []
+    current_block = []
 
-    try:
-        match_time_raw = lines[start_index + 1]
-        away_team_raw = lines[start_index + 2]
-        home_team_and_away_prob_raw = lines[start_index + 3]
-        home_prob_and_draw_prob_raw = lines[start_index + 4]
-        away_xg_raw = lines[start_index + 5]
-        home_xg_and_total_raw = lines[start_index + 6]
-    except IndexError:
-        raise ValueError(f"Incomplete game block starting at raw date line: {match_date_raw}")
+    for line in lines:
+        if DATE_RE.match(line):
+            if current_block:
+                blocks.append(current_block)
+            current_block = [line]
+        elif current_block:
+            current_block.append(line)
 
-    match_time = normalize_match_time(match_time_raw)
+    if current_block:
+        blocks.append(current_block)
 
-    away_team = clean_team(away_team_raw)
+    return blocks
 
-    home_team_parts = split_tabs(home_team_and_away_prob_raw)
+
+def find_xg_values(block: list[str]) -> tuple[str, str, str]:
+    away_xg = ""
+    home_xg = ""
+    expected_total_goals = ""
+
+    for i, line in enumerate(block[5:], start=5):
+        if not away_xg and DECIMAL_RE.match(line):
+            away_xg = line
+            continue
+
+        if away_xg and DECIMAL_PAIR_RE.match(line):
+            xg_parts = split_tabs(line)
+
+            if len(xg_parts) >= 2:
+                home_xg = xg_parts[0]
+                expected_total_goals = xg_parts[1]
+                break
+
+    if not away_xg:
+        raise ValueError(f"Could not parse away_xg from block: {block}")
+
+    if not home_xg or not expected_total_goals:
+        raise ValueError(f"Could not parse home_xg and expected_total_goals from block: {block}")
+
+    return away_xg, home_xg, expected_total_goals
+
+
+def parse_game_block(block: list[str], league_value: str) -> dict:
+    if len(block) < 5:
+        raise ValueError(f"Incomplete game block: {block}")
+
+    match_date = normalize_match_date(block[0])
+    match_time = normalize_match_time(block[1])
+    away_team = clean_team(block[2])
+
+    home_team_parts = split_tabs(block[3])
     if len(home_team_parts) < 2:
-        raise ValueError(f"Could not parse home_team and away_prob from: {home_team_and_away_prob_raw}")
+        raise ValueError(f"Could not parse home_team and away_prob from: {block[3]}")
 
     home_team = clean_team(home_team_parts[0])
     away_prob = home_team_parts[1]
 
-    prob_parts = split_tabs(home_prob_and_draw_prob_raw)
+    prob_parts = split_tabs(block[4])
     if len(prob_parts) < 2:
-        raise ValueError(f"Could not parse home_prob and draw_prob from: {home_prob_and_draw_prob_raw}")
+        raise ValueError(f"Could not parse home_prob and draw_prob from: {block[4]}")
 
     home_prob = prob_parts[0]
     draw_prob = prob_parts[1]
 
-    away_xg = away_xg_raw.strip()
+    away_xg, home_xg, expected_total_goals = find_xg_values(block)
 
-    xg_parts = split_tabs(home_xg_and_total_raw)
-    if len(xg_parts) < 2:
-        raise ValueError(f"Could not parse home_xg and expected_total_goals from: {home_xg_and_total_raw}")
-
-    home_xg = xg_parts[0]
-    expected_total_goals = xg_parts[1]
-
-    row = {
+    return {
         "sport": "soccer",
         "league": league_value,
         "match_date": match_date,
@@ -167,23 +197,16 @@ def parse_game_block(lines: list[str], start_index: int, league_value: str) -> t
         "expected_total_goals": expected_total_goals,
     }
 
-    return row, start_index + 7
-
 
 def parse_rows(raw_lines: list[str], league_value: str) -> list[dict]:
     lines = clean_raw_lines(raw_lines)
+    blocks = split_into_game_blocks(lines)
+
     rows = []
 
-    i = 0
-    while i < len(lines):
-        line = lines[i]
-
-        if DATE_RE.match(line):
-            row, next_index = parse_game_block(lines, i, league_value)
-            rows.append(row)
-            i = next_index
-        else:
-            i += 1
+    for block in blocks:
+        row = parse_game_block(block, league_value)
+        rows.append(row)
 
     return rows
 
