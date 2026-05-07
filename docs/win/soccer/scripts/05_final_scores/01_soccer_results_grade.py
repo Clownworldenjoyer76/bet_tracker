@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# docs/win/final_scores/scripts/05_results/soccer/01_soccer_results_grade.py
+# docs/win/soccer/scripts/05_final_scores/01_soccer_results_grade.py
 
 from datetime import datetime
 from pathlib import Path
@@ -10,12 +10,12 @@ import pandas as pd
 # =========================
 
 SELECT_DIR       = Path("docs/win/soccer/04_select")
-FINAL_SCORES_DIR = Path("docs/win/final_scores/results/soccer/final_scores")
+FINAL_SCORES_DIR = Path("docs/win/soccer/05_final_scores")
 
-OUTPUT_DIR = Path("docs/win/final_scores/results/soccer/graded")
+OUTPUT_DIR = Path("docs/win/soccer/05_final_scores/results/graded")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-ERROR_DIR = Path("docs/win/final_scores/errors")
+ERROR_DIR = Path("docs/win/soccer/05_final_scores/errors")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 ERROR_LOG   = ERROR_DIR / "soccer_results_grade_errors.txt"
