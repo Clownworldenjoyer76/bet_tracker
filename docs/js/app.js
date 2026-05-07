@@ -116,7 +116,17 @@ function mergeRows(selectRows, predMap, bookMap, cfg) {
     const key  = makeKey(sel, cfg);
     const pred = predMap[key] || {};
     const book = bookMap[key] || {};
-    const merged = { ...pred, ...book, ...sel, __key: key };
+    // Layer pred → book → sel, but DON'T let an empty select value
+    // overwrite a real value from book/pred. This happens when a select
+    // row is for one market type (e.g. a total pick) and the moneyline /
+    // spread columns on that same row are blank — without this guard we'd
+    // wipe out the book file's real ML/spread odds during the merge.
+    const merged = { ...pred, ...book };
+    Object.keys(sel).forEach(k => {
+      const v = sel[k];
+      if (v !== "" && v !== null && v !== undefined) merged[k] = v;
+    });
+    merged.__key = key;
     if (!merged.game_time && pred.game_time) merged.game_time = pred.game_time;
     return merged;
   });
@@ -167,15 +177,20 @@ function buildBetText(p, r, cfg) {
   return `${side} ${line} ${odds}`.trim();
 }
 
-// ─── Edge ─────────────────────────────────────────────────────────────────────
+// ─── Edge / EV / Kelly ────────────────────────────────────────────────────────
+
+// Centralized accessors so column-name drift doesn't silently zero these out
+// in one place but not another. Order matters: prefer the per-pick fields the
+// select files actually write today, then fall back to legacy names.
+function getEv(p)    { return parseFloat(p.bet_ev    || p.ev    || p.selected_ev || 0); }
+function getKelly(p) { return parseFloat(p.bet_kelly || p.kelly || 0); }
 
 function extractEdge(p) {
-  const market = (p.market_type || "").toLowerCase();
-  const side   = (p.bet_side    || "").toLowerCase();
-
-  if (market === "total")                                    return parseFloat(p[`${side}_edge_pct`]        || p.ev || 0);
-  if (["spread","puck_line","run_line"].includes(market))    return parseFloat(p[`${side}_spread_edge_pct`] || p.ev || 0);
-  if (market === "moneyline")                                return parseFloat(p[`${side}_ml_edge_pct`]     || p.ev || 0);
+  // Select files write a per-pick edge for the chosen side; that's the
+  // single source of truth. Fall back to ev only if it isn't present.
+  if (p.bet_edge_vs_market !== undefined && p.bet_edge_vs_market !== "") {
+    return parseFloat(p.bet_edge_vs_market);
+  }
   return parseFloat(p.ev || p.selected_ev || 0);
 }
 
@@ -212,9 +227,9 @@ function buildModalHtml(r, picks, cfg) {
   if (cfg.isSoccer) {
     const picksHtml = picks.map(p => {
       const betText = buildBetText(p, r, cfg);
-      const ev      = parseFloat(p.ev || 0);
-      const kelly   = parseFloat(p.kelly || 0);
-      const edge    = ev; // soccer file has no separate edge column; ev is the proxy
+      const ev      = getEv(p);
+      const kelly   = getKelly(p);
+      const edge    = extractEdge(p);
       return `
         <div class="modal-pick-row">
           <div class="modal-bet">${betText}</div>
@@ -260,8 +275,8 @@ function buildModalHtml(r, picks, cfg) {
 
   const picksHtml = picks.map(p => {
     const betText = buildBetText(p, r, cfg);
-    const ev      = parseFloat(p.ev || p.selected_ev || 0);
-    const kelly   = parseFloat(p.kelly || p.home_spread_kelly || p.away_spread_kelly || p.home_ml_kelly || p.away_ml_kelly || 0);
+    const ev      = getEv(p);
+    const kelly   = getKelly(p);
     const edge    = extractEdge(p);
     return `
       <div class="modal-pick-row">
@@ -305,14 +320,22 @@ function buildCard(p, r, cfg) {
 
   const betText    = buildBetText(p, r, cfg);
   const edge       = extractEdge(p);
-  const ev         = parseFloat(p.ev || p.selected_ev || 0);
+  const ev         = getEv(p);
   const isBaseball = !!cfg.isBaseball;
 
   const pitcherLine = isBaseball && (r.away_pitcher || r.home_pitcher)
     ? `<div class="card-pitchers">${r.away_pitcher || "?"} vs ${r.home_pitcher || "?"}</div>`
     : "";
 
+  // MLB-only: warn when lineup info isn't yet available for this game.
+  // Pick still renders normally; this just flags reduced confidence.
+  const lowConf = isBaseball && (p.low_confidence === "1" || p.low_confidence === 1);
+  const warningBar = lowConf
+    ? `<div class="card-warning">Lineups not available yet</div>`
+    : "";
+
   card.innerHTML = `
+    ${warningBar}
     <div class="card-top">
       <span class="card-time">${r.game_time || "—"}</span>
       <span class="card-league-tag">${cfg.displayName}</span>
@@ -335,23 +358,46 @@ function buildCard(p, r, cfg) {
 // ─── UFC: Find Nearest Event ──────────────────────────────────────────────────
 
 const BASE_RAW = "https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/docs/";
+const UFC_MANIFEST_PATH = "win/mma/ufc/03_select/_index.json";
+
+function ymdToFileDate(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}_${m}_${day}`;
+}
 
 async function findUFCEventDate() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const candidates = [];
+  const todayStr = ymdToFileDate(today);
 
-  // Check today + 30 days forward, then up to 3 days back as fallback
-  for (let offset = 0; offset <= 30; offset++) {
+  // 1) Preferred path: read the manifest. No probing, no console noise.
+  //    Schema: ["YYYY_MM_DD", ...]
+  try {
+    const r = await fetch(UFC_MANIFEST_PATH, { cache: "no-store" });
+    if (r.ok) {
+      const dates = await r.json();
+      if (Array.isArray(dates) && dates.length) {
+        const sorted  = [...dates].sort();
+        const upcoming = sorted.find(d => d >= todayStr);
+        if (upcoming) return upcoming;
+        // Nothing upcoming — show the most recent past event so the page
+        // isn't empty between fight cards.
+        return sorted[sorted.length - 1];
+      }
+    }
+  } catch { /* fall through to probe */ }
+
+  // 2) Fallback: small probe (today + 7 days) so the console shows at most
+  //    7 misses instead of 31 if the manifest is missing.
+  const candidates = [];
+  for (let offset = 0; offset <= 7; offset++) {
     const d = new Date(today);
     d.setDate(today.getDate() + offset);
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    candidates.push({ date: `${y}_${m}_${day}`, offset });
+    candidates.push({ date: ymdToFileDate(d), offset });
   }
 
-  // Try all candidates in parallel
   const results = await Promise.all(
     candidates.map(async ({ date, offset }) => {
       const url = `${BASE_RAW}win/mma/ufc/03_select/${date}_ufc_select.csv`;
@@ -364,7 +410,6 @@ async function findUFCEventDate() {
     })
   );
 
-  // Return the nearest upcoming (or today) event
   const valid = results.filter(Boolean).sort((a, b) => a.offset - b.offset);
   return valid.length ? valid[0].date : null;
 }
