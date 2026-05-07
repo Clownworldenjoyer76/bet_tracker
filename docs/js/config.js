@@ -66,6 +66,7 @@ window.REPO_CONFIG = {
     sport:        "hockey",
     league:       "NHL",
     displayName:  "NHL",
+    enabled: true
     isHockey:     true,
     leagueColumn: "league",
     selectFiles:  (date) => [`win/hockey/04_select/${date}_NHL.csv`],
@@ -78,6 +79,7 @@ window.REPO_CONFIG = {
     sport:        "basketball",
     league:       "NBA",
     displayName:  "NBA",
+    enabled: true
     leagueColumn: "league",
     joinKey:      "game_id",
     selectFiles:  (date) => [
@@ -93,6 +95,7 @@ window.REPO_CONFIG = {
     sport:        "basketball",
     league:       "WNBA",
     displayName:  "WNBA",
+    enabled: true
     leagueColumn: "league",
     joinKey:      "game_id",
     selectFiles:  (date) => [
@@ -108,6 +111,7 @@ window.REPO_CONFIG = {
     sport:        "basketball",
     league:       "NCAAM",
     displayName:  "NCAAM",
+    enabled: false
     leagueColumn: "league",
     joinKey:      "game_id",
     selectFiles:  (date) => [
@@ -123,6 +127,7 @@ window.REPO_CONFIG = {
     sport:        "baseball",
     league:       "MLB",
     displayName:  "MLB",
+    enabled: true
     isBaseball:   true,
     leagueColumn: "league",
     joinKey:      "game_id",
@@ -135,18 +140,19 @@ window.REPO_CONFIG = {
   // All 6 entries inherit from SOCCER_BASE and only override what they need.
   // The CSV's `league` column values must match the `league` field below
   // (case-insensitive — the row matcher uppercases both sides).
-  EPL:        Object.assign({}, SOCCER_BASE, { league: "EPL",        displayName: "EPL"        }),
-  MLS:        Object.assign({}, SOCCER_BASE, { league: "MLS",        displayName: "MLS"        }),
-  LIGUE1:     Object.assign({}, SOCCER_BASE, { league: "LIGUE1",     displayName: "Ligue 1"    }),
-  LALIGA:     Object.assign({}, SOCCER_BASE, { league: "LALIGA",     displayName: "La Liga"    }),
-  SERIEA:     Object.assign({}, SOCCER_BASE, { league: "SERIEA",     displayName: "Serie A"    }),
-  BUNDESLIGA: Object.assign({}, SOCCER_BASE, { league: "BUNDESLIGA", displayName: "Bundesliga" }),
+  EPL:        Object.assign({}, SOCCER_BASE, { league: "EPL",        displayName: "EPL",        enabled: true }),
+  MLS:        Object.assign({}, SOCCER_BASE, { league: "MLS",        displayName: "MLS",        enabled: true }),
+  LIGUE1:     Object.assign({}, SOCCER_BASE, { league: "LIGUE1",     displayName: "Ligue 1",    enabled: true }),
+  LALIGA:     Object.assign({}, SOCCER_BASE, { league: "LALIGA",     displayName: "La Liga",    enabled: true }),
+  SERIEA:     Object.assign({}, SOCCER_BASE, { league: "SERIEA",     displayName: "Serie A",    enabled: true }),
+  BUNDESLIGA: Object.assign({}, SOCCER_BASE, { league: "BUNDESLIGA", displayName: "Bundesliga", enabled: true }),
 
   // ─── UFC ──────────────────────────────────────────────────────────────────
   UFC: {
     sport:        "mma",
     league:       "UFC",
     displayName:  "UFC",
+    enabled: true
     isUFC:        true,
     selectFiles:  (date) => [`win/mma/ufc/03_select/${date}_ufc_select.csv`],
   },
