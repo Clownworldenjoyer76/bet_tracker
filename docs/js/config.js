@@ -132,7 +132,7 @@ window.REPO_CONFIG = {
     leagueColumn: "league",
     joinKey:      "game_id",
     selectFiles:  (date) => [`win/baseball/04_select/${date}_MLB.csv`],
-    predFile:     (date) => `win/baseball/00_intake/predictions/${date}_MLB.csv`,
+    predFile:     (date) => `win/baseball/00_intake/predictions//pred_with_game_id/${date}_MLB.csv`,
     bookFile:     (date) => `win/baseball/00_intake/sportsbook/${date}_MLB.csv`,
   },
 
