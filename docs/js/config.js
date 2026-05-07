@@ -66,7 +66,7 @@ window.REPO_CONFIG = {
     sport:        "hockey",
     league:       "NHL",
     displayName:  "NHL",
-    enabled: true
+    enabled: true,
     isHockey:     true,
     leagueColumn: "league",
     selectFiles:  (date) => [`win/hockey/04_select/${date}_NHL.csv`],
@@ -79,7 +79,7 @@ window.REPO_CONFIG = {
     sport:        "basketball",
     league:       "NBA",
     displayName:  "NBA",
-    enabled: true
+    enabled: true,
     leagueColumn: "league",
     joinKey:      "game_id",
     selectFiles:  (date) => [
@@ -95,7 +95,7 @@ window.REPO_CONFIG = {
     sport:        "basketball",
     league:       "WNBA",
     displayName:  "WNBA",
-    enabled: true
+    enabled: true,
     leagueColumn: "league",
     joinKey:      "game_id",
     selectFiles:  (date) => [
@@ -111,7 +111,7 @@ window.REPO_CONFIG = {
     sport:        "basketball",
     league:       "NCAAM",
     displayName:  "NCAAM",
-    enabled: false
+    enabled: false,
     leagueColumn: "league",
     joinKey:      "game_id",
     selectFiles:  (date) => [
@@ -127,7 +127,7 @@ window.REPO_CONFIG = {
     sport:        "baseball",
     league:       "MLB",
     displayName:  "MLB",
-    enabled: true
+    enabled: true,
     isBaseball:   true,
     leagueColumn: "league",
     joinKey:      "game_id",
@@ -152,7 +152,7 @@ window.REPO_CONFIG = {
     sport:        "mma",
     league:       "UFC",
     displayName:  "UFC",
-    enabled: true
+    enabled: true,
     isUFC:        true,
     selectFiles:  (date) => [`win/mma/ufc/03_select/${date}_ufc_select.csv`],
   },
