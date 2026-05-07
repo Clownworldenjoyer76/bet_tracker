@@ -6,458 +6,119 @@
   <title>Bet History · Edgelytics</title>
   <link rel="stylesheet" href="css/matstheme.css">
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    *, *::before, *::after { box-sizing:border-box;margin:0;padding:0; }
+    body { background:var(--background);color:var(--text-main);font-family:'IBM Plex Mono',monospace;font-size:13px;min-height:100vh; }
 
-    body {
-      background: var(--background);
-      color: var(--text-main);
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 13px;
-      min-height: 100vh;
-    }
+    .page-header { border-bottom:1px solid var(--border-soft);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px; }
+    .page-title { font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;letter-spacing:0.08em;text-transform:uppercase;color:var(--accent-green); }
+    .page-subtitle { color:var(--text-muted);font-size:11px;letter-spacing:0.06em;margin-top:2px; }
 
-    .page-header {
-      border-bottom: 1px solid var(--border-soft);
-      padding: 16px 24px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 12px;
-    }
-
-    .page-title {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 22px;
-      font-weight: 900;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--accent-green);
-    }
-
-    .page-subtitle {
-      color: var(--text-muted);
-      font-size: 11px;
-      letter-spacing: 0.06em;
-      margin-top: 2px;
-      text-transform: uppercase;
-    }
-
-    .controls {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 12px 24px;
-      border-bottom: 1px solid var(--border-soft);
-      flex-wrap: wrap;
-    }
-
+    .controls { display:flex;align-items:center;gap:8px;padding:12px 24px;border-bottom:1px solid var(--border-soft);flex-wrap:wrap; }
     .league-pill,
     .market-pill,
     .result-pill {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      border: 1px solid var(--border-soft);
-      background: transparent;
-      color: var(--text-muted);
-      cursor: pointer;
-      transition: all 0.15s;
-      text-transform: uppercase;
+      font-family:'Barlow Condensed',sans-serif;
+      font-size:12px;
+      font-weight:700;
+      letter-spacing:0.08em;
+      padding:4px 10px;
+      border:1px solid var(--border-soft);
+      background:transparent;
+      color:var(--text-muted);
+      cursor:pointer;
+      transition:all 0.15s;
+      text-transform:uppercase;
     }
+    .league-pill { font-size:13px;padding:4px 12px; }
+    .league-pill:hover { border-color:var(--accent-blue);color:var(--accent-blue); }
+    .league-pill.active { border-color:var(--accent-green);color:var(--accent-green);background:rgba(0,255,132,0.06); }
 
-    .league-pill {
-      font-size: 13px;
-      padding: 4px 12px;
-    }
+    .market-pill:hover { border-color:var(--accent-yellow);color:var(--accent-yellow); }
+    .market-pill.active { border-color:var(--accent-yellow);color:var(--accent-yellow);background:rgba(250,204,21,0.06); }
 
-    .market-pill,
-    .result-pill {
-      font-size: 12px;
-      padding: 4px 10px;
-    }
-
-    .league-pill:hover {
-      border-color: var(--accent-blue);
-      color: var(--accent-blue);
-    }
-
-    .league-pill.active {
-      border-color: var(--accent-green);
-      color: var(--accent-green);
-      background: rgba(0,255,132,0.06);
-    }
-
-    .market-pill:hover {
-      border-color: var(--accent-yellow);
-      color: var(--accent-yellow);
-    }
-
-    .market-pill.active {
-      border-color: var(--accent-yellow);
-      color: var(--accent-yellow);
-      background: rgba(250,204,21,0.06);
-    }
-
-    .result-pill:hover {
-      border-color: var(--accent-blue);
-      color: var(--accent-blue);
-    }
-
-    .result-pill.active {
-      border-color: var(--accent-blue);
-      color: var(--accent-blue);
-      background: rgba(0,191,255,0.06);
-    }
-
-    .search-input {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 11px;
-      color: var(--text-main);
-      background: var(--bg-card);
-      border: 1px solid var(--border-soft);
-      padding: 6px 9px;
-      min-width: 220px;
-      outline: none;
-    }
-
-    .search-input:focus {
-      border-color: var(--accent-blue);
-    }
-
-    .search-input::placeholder {
-      color: var(--text-muted);
-    }
+    .result-pill:hover { border-color:var(--accent-blue);color:var(--accent-blue); }
+    .result-pill.active { border-color:var(--accent-blue);color:var(--accent-blue);background:rgba(0,191,255,0.06); }
 
     .refresh-btn {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.1em;
-      padding: 5px 14px;
-      border: 1px solid var(--border-soft);
-      background: transparent;
-      color: var(--text-muted);
-      cursor: pointer;
-      text-transform: uppercase;
-      transition: all 0.15s;
-      margin-left: auto;
+      font-family:'Barlow Condensed',sans-serif;
+      font-size:12px;
+      font-weight:700;
+      letter-spacing:0.1em;
+      padding:5px 14px;
+      border:1px solid var(--border-soft);
+      background:transparent;
+      color:var(--text-muted);
+      cursor:pointer;
+      text-transform:uppercase;
+      transition:all 0.15s;
+      margin-left:auto;
     }
+    .refresh-btn:hover { border-color:var(--accent-blue);color:var(--accent-blue); }
 
-    .refresh-btn:hover {
-      border-color: var(--accent-blue);
-      color: var(--accent-blue);
-    }
+    .status-bar { padding:8px 24px;font-size:11px;color:var(--text-muted);border-bottom:1px solid var(--border-soft);display:flex;align-items:center;gap:10px; }
+    .status-dot { width:6px;height:6px;border-radius:50%;background:var(--text-muted);display:inline-block;flex-shrink:0; }
+    .status-dot.green { background:var(--accent-green);box-shadow:0 0 6px var(--accent-green); }
+    .status-dot.yellow { background:var(--accent-yellow);animation:pulse 1s infinite; }
+    .status-dot.red { background:var(--accent-red); }
+    @keyframes pulse { 0%,100%{opacity:1;}50%{opacity:0.3;} }
 
-    .status-bar {
-      padding: 8px 24px;
-      font-size: 11px;
-      color: var(--text-muted);
-      border-bottom: 1px solid var(--border-soft);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
+    .main { padding:20px 24px;display:flex;flex-direction:column;gap:20px; }
 
-    .status-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: var(--text-muted);
-      display: inline-block;
-      flex-shrink: 0;
-    }
+    .summary-strip { display:flex;border:1px solid var(--border-soft); }
+    .summary-item { flex:1;padding:14px 18px;border-right:1px solid var(--border-soft);display:flex;flex-direction:column;gap:3px; }
+    .summary-item:last-child { border-right:none; }
+    .summary-val { font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:900;line-height:1; }
+    .summary-lbl { font-size:9px;letter-spacing:0.12em;color:var(--text-muted);text-transform:uppercase; }
 
-    .status-dot.green {
-      background: var(--accent-green);
-      box-shadow: 0 0 6px var(--accent-green);
-    }
+    .val-green { color:var(--accent-green); }
+    .val-red { color:var(--accent-red); }
+    .val-yellow { color:var(--accent-yellow); }
+    .val-blue { color:var(--accent-blue); }
 
-    .status-dot.yellow {
-      background: var(--accent-yellow);
-      animation: pulse 1s infinite;
-    }
+    .section { background:var(--bg-card);border:1px solid var(--border-soft);padding:14px 16px; }
+    .section-title { font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;color:var(--text-muted);text-transform:uppercase;border-bottom:1px solid var(--border-soft);padding-bottom:4px;margin-bottom:12px; }
 
-    .status-dot.red {
-      background: var(--accent-red);
-    }
+    .breakdown-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px; }
+    .breakdown-card { background:var(--bg-card);border:1px solid var(--border-soft);padding:10px 12px; }
+    .breakdown-title { font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.1em;color:var(--accent-yellow);text-transform:uppercase;margin-bottom:8px; }
+    .stat-row { display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid var(--border-soft); }
+    .stat-row:last-child { border-bottom:none; }
+    .stat-label { color:var(--text-muted); }
+    .stat-value { font-family:'Barlow Condensed',sans-serif;font-weight:700;color:var(--text-main); }
 
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.3; }
-    }
+    .bets-table { width:100%;border-collapse:collapse;font-size:11px; }
+    .bets-table th { font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);padding:4px 6px;text-align:left;border-bottom:1px solid var(--border-soft);white-space:nowrap; }
+    .bets-table th:not(:first-child):not(:nth-child(2)):not(:nth-child(3)) { text-align:right; }
+    .bets-table td { padding:5px 6px;border-bottom:1px solid var(--border-soft);color:var(--text-muted);white-space:nowrap; }
+    .bets-table td:not(:first-child):not(:nth-child(2)):not(:nth-child(3)) { text-align:right; }
+    .bets-table tr:last-child td { border-bottom:none; }
 
-    .main {
-      padding: 20px 24px;
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-    }
+    .outcome-w { color:var(--accent-green);font-family:'Barlow Condensed',sans-serif;font-weight:700; }
+    .outcome-l { color:var(--accent-red);font-family:'Barlow Condensed',sans-serif;font-weight:700; }
+    .outcome-p { color:var(--text-muted);font-family:'Barlow Condensed',sans-serif;font-weight:700; }
 
-    .summary-strip {
-      display: flex;
-      border: 1px solid var(--border-soft);
-    }
+    .prob-high { color:var(--accent-green); }
+    .prob-mid { color:var(--accent-yellow); }
+    .prob-low { color:var(--accent-red); }
 
-    .summary-item {
-      flex: 1;
-      padding: 14px 18px;
-      border-right: 1px solid var(--border-soft);
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-    }
+    .empty-state { text-align:center;padding:60px 20px;color:var(--text-muted);font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase; }
 
-    .summary-item:last-child {
-      border-right: none;
-    }
-
-    .summary-val {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 28px;
-      font-weight: 900;
-      line-height: 1;
-    }
-
-    .summary-lbl {
-      font-size: 9px;
-      letter-spacing: 0.12em;
-      color: var(--text-muted);
-      text-transform: uppercase;
-    }
-
-    .val-green { color: var(--accent-green); }
-    .val-red { color: var(--accent-red); }
-    .val-yellow { color: var(--accent-yellow); }
-    .val-blue { color: var(--accent-blue); }
-
-    .section {
-      background: var(--bg-card);
-      border: 1px solid var(--border-soft);
-      padding: 14px 16px;
-    }
-
-    .section-title {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.14em;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      border-bottom: 1px solid var(--border-soft);
-      padding-bottom: 4px;
-      margin-bottom: 12px;
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-    }
-
-    .section-note {
-      color: var(--text-muted);
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 10px;
-      font-weight: 400;
-      letter-spacing: 0;
-      text-transform: none;
-    }
-
-    .breakdown-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-      gap: 12px;
-    }
-
-    .breakdown-card {
-      border: 1px solid var(--border-soft);
-      padding: 10px 12px;
-      background: var(--bg-card);
-    }
-
-    .breakdown-title {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.1em;
-      color: var(--accent-green);
-      text-transform: uppercase;
-      margin-bottom: 8px;
-    }
-
-    .breakdown-row {
-      display: flex;
-      justify-content: space-between;
-      font-size: 11px;
-      padding: 3px 0;
-      border-bottom: 1px solid var(--border-soft);
-    }
-
-    .breakdown-row:last-child {
-      border-bottom: none;
-    }
-
-    .breakdown-label {
-      color: var(--text-muted);
-    }
-
-    .breakdown-value {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 700;
-      color: var(--text-main);
-    }
-
-    .table-wrap {
-      overflow-x: auto;
-    }
-
-    .bets-table,
-    .source-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 11px;
-    }
-
-    .bets-table th,
-    .source-table th {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 9px;
-      font-weight: 700;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--text-muted);
-      padding: 4px 6px;
-      text-align: left;
-      border-bottom: 1px solid var(--border-soft);
-      white-space: nowrap;
-    }
-
-    .bets-table td,
-    .source-table td {
-      padding: 5px 6px;
-      border-bottom: 1px solid var(--border-soft);
-      color: var(--text-muted);
-      white-space: nowrap;
-    }
-
-    .bets-table tr:last-child td,
-    .source-table tr:last-child td {
-      border-bottom: none;
-    }
-
-    .bets-table th:not(:first-child):not(:nth-child(2)):not(:nth-child(3)):not(:nth-child(4)):not(:nth-child(5)),
-    .bets-table td:not(:first-child):not(:nth-child(2)):not(:nth-child(3)):not(:nth-child(4)):not(:nth-child(5)) {
-      text-align: right;
-    }
-
-    .outcome-w {
-      color: var(--accent-green);
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 700;
-    }
-
-    .outcome-l {
-      color: var(--accent-red);
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 700;
-    }
-
-    .outcome-p {
-      color: var(--text-muted);
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 700;
-    }
-
-    .prob-high { color: var(--accent-green); }
-    .prob-mid { color: var(--accent-yellow); }
-    .prob-low { color: var(--accent-red); }
-
-    .source-ok {
-      color: var(--accent-green);
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-
-    .source-fail {
-      color: var(--accent-red);
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-
-    .path-cell {
-      color: var(--text-main);
-      font-size: 10px;
-    }
-
-    .empty-state {
-      text-align: center;
-      padding: 60px 20px;
-      color: var(--text-muted);
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 14px;
-      font-weight: 700;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      border: 1px solid var(--border-soft);
-      background: var(--bg-card);
-    }
-
-    .empty-sub {
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: 11px;
-      color: var(--text-muted);
-      margin-top: 10px;
-      font-weight: 400;
-      letter-spacing: 0;
-      text-transform: none;
-    }
-
-    @media (max-width: 900px) {
-      .summary-strip {
-        flex-wrap: wrap;
-      }
-
-      .summary-item {
-        min-width: 33.333%;
-        border-bottom: 1px solid var(--border-soft);
-      }
-
-      .refresh-btn {
-        margin-left: 0;
-      }
-    }
-
-    @media (max-width: 640px) {
-      .controls {
-        align-items: stretch;
-      }
-
-      .search-input {
-        width: 100%;
-      }
-
-      .summary-item {
-        min-width: 50%;
-      }
-
-      .main {
-        padding: 16px;
-      }
+    @media (max-width: 820px) {
+      .summary-strip { flex-direction:column; }
+      .summary-item { border-right:none;border-bottom:1px solid var(--border-soft); }
+      .summary-item:last-child { border-bottom:none; }
+      .refresh-btn { margin-left:0; }
     }
   </style>
 </head>
-
 <body>
 <div id="nav-placeholder"></div>
 
 <div class="page-header">
   <div>
     <div class="page-title">Bet History</div>
-    <div class="page-subtitle">Settled wagers · graded results · source audit</div>
+    <div class="page-subtitle">GRADED BETS · RESULTS · MODEL PROBABILITY · EV · ODDS</div>
   </div>
 </div>
 
@@ -478,16 +139,14 @@
   <div class="result-pill active" data-result="all">All Results</div>
   <div class="result-pill" data-result="win">Wins</div>
   <div class="result-pill" data-result="loss">Losses</div>
-  <div class="result-pill" data-result="push">Push / Void</div>
-
-  <input class="search-input" id="search-input" type="search" placeholder="Search team, league, market, side..." />
+  <div class="result-pill" data-result="push">Push</div>
 
   <button class="refresh-btn" onclick="loadAll()">↻ Refresh</button>
 </div>
 
 <div class="status-bar" id="history-status">
   <span class="status-dot yellow" id="status-dot"></span>
-  <span id="status-text">Loading graded bet sources...</span>
+  <span id="status-text">Loading bet history...</span>
 </div>
 
 <div class="main" id="history-main"></div>
@@ -499,51 +158,49 @@ var REPO = 'Clownworldenjoyer76/bet_tracker';
 var BRANCH = 'main';
 var BASE = 'https://raw.githubusercontent.com/' + REPO + '/' + BRANCH + '/';
 
+/*
+  Toggle leagues here.
+
+  Use enabled:false to deactivate a league without deleting its path.
+  Example: Soccer is currently disabled.
+*/
 var SOURCES = [
   {
+    url: BASE + 'docs/win/baseball/05_final_scores/results/graded/MLB_final.csv',
     label: 'MLB',
-    path: 'docs/win/baseball/05_final_scores/results/graded/MLB_final.csv',
-    note: 'Baseball graded bets'
+    enabled: true
   },
   {
+    url: BASE + 'docs/win/basketball/05_final_scores/results/nba/graded/NBA_final.csv',
     label: 'NBA',
-    path: 'docs/win/basketball/05_final_scores/results/nba/graded/NBA_final.csv',
-    note: 'NBA graded bets'
+    enabled: true
   },
   {
+    url: BASE + 'docs/win/basketball/05_final_scores/results/ncaam/graded/NCAAM_final.csv',
     label: 'NCAAM',
-    path: 'docs/win/basketball/05_final_scores/results/ncaam/graded/NCAAM_final.csv',
-    note: "Men's college basketball graded bets"
+    enabled: true
   },
   {
+    url: BASE + 'docs/win/basketball/05_final_scores/results/wnba/graded/WNBA_final.csv',
     label: 'WNBA',
-    path: 'docs/win/basketball/05_final_scores/results/wnba/graded/WNBA_final.csv',
-    note: 'WNBA graded bets'
+    enabled: true
   },
   {
+    url: BASE + 'docs/win/final_scores/results/nhl/graded/NHL_final.csv',
     label: 'NHL',
-    path: 'docs/win/final_scores/results/nhl/graded/NHL_final.csv',
-    note: 'Hockey graded bets'
+    enabled: true
   },
   {
+    url: BASE + 'docs/win/soccer/05_final_scores/results/graded/SOCCER_final.csv',
     label: 'SOCCER',
-    path: 'docs/win/soccer/05_final_scores/results/graded/SOCCER_final.csv',
-    note: 'All soccer leagues; specific league is in the CSV league column'
+    enabled: false
   }
 ];
-
-SOURCES.forEach(function(src) {
-  src.url = BASE + src.path;
-  src.status = 'pending';
-  src.count = 0;
-  src.error = '';
-});
 
 var allRows = [];
 var activeLeague = 'all';
 var activeMarket = 'all';
 var activeResult = 'all';
-var searchQuery = '';
 
 function setStatus(text, dotCls) {
   document.getElementById('status-text').textContent = text;
@@ -551,582 +208,385 @@ function setStatus(text, dotCls) {
 }
 
 function parseCSV(text) {
-  var lines = text.trim().split(/\r?\n/);
-  if (lines.length < 2) return [];
+  var rows = [];
+  var current = [];
+  var field = '';
+  var inQuotes = false;
 
-  var headers = splitCSVLine(lines[0]).map(function(h) {
-    return h.trim().toLowerCase().replace(/^"|"$/g, '');
+  for (var i = 0; i < text.length; i++) {
+    var char = text[i];
+    var next = text[i + 1];
+
+    if (char === '"' && inQuotes && next === '"') {
+      field += '"';
+      i++;
+    } else if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === ',' && !inQuotes) {
+      current.push(field);
+      field = '';
+    } else if ((char === '\n' || char === '\r') && !inQuotes) {
+      if (char === '\r' && next === '\n') i++;
+      current.push(field);
+      field = '';
+      if (current.some(function(v){ return v.trim() !== ''; })) rows.push(current);
+      current = [];
+    } else {
+      field += char;
+    }
+  }
+
+  if (field || current.length) {
+    current.push(field);
+    if (current.some(function(v){ return v.trim() !== ''; })) rows.push(current);
+  }
+
+  if (rows.length < 2) return [];
+
+  var headers = rows[0].map(function(h) {
+    return h.trim().toLowerCase().replace(/"/g, '');
   });
 
-  return lines.slice(1).filter(function(line) {
-    return line.trim() !== '';
-  }).map(function(line) {
-    var vals = splitCSVLine(line);
+  return rows.slice(1).map(function(row) {
     var obj = {};
     headers.forEach(function(h, i) {
-      obj[h] = (vals[i] || '').trim().replace(/^"|"$/g, '');
+      obj[h] = (row[i] || '').trim().replace(/^"|"$/g, '');
     });
     return obj;
   });
 }
 
-function splitCSVLine(line) {
-  var result = [];
-  var current = '';
-  var inQuotes = false;
+function parseNum(value) {
+  var n = parseFloat(value);
+  return isNaN(n) ? null : n;
+}
 
-  for (var i = 0; i < line.length; i++) {
-    var ch = line[i];
-    var next = line[i + 1];
+function normalizeResult(r) {
+  var resultCol = ['bet_result','result','outcome','win','won','correct'].find(function(c) {
+    return r[c] !== undefined && r[c] !== '';
+  });
 
-    if (ch === '"' && inQuotes && next === '"') {
-      current += '"';
-      i++;
-    } else if (ch === '"') {
-      inQuotes = !inQuotes;
-    } else if (ch === ',' && !inQuotes) {
-      result.push(current);
-      current = '';
-    } else {
-      current += ch;
+  var resultVal = resultCol ? String(r[resultCol]).toLowerCase().trim() : '';
+
+  if (resultVal === 'win' || resultVal === 'w' || resultVal === '1' || resultVal === 'true') return 'win';
+  if (resultVal === 'loss' || resultVal === 'l' || resultVal === '0' || resultVal === 'false') return 'loss';
+  if (resultVal === 'push' || resultVal === 'p' || resultVal === 'void' || resultVal === 'tie') return 'push';
+
+  return 'unknown';
+}
+
+function normalizeMarket(r) {
+  var leagueNames = ['NBA','NCAAM','NCAAB','WNBA','NHL','MLB','SOCCER','BUNDESLIGA','EPL','LALIGA','LIGUE1','SERIEA','MLS'];
+  var mktRaw = r.market_type || '';
+
+  if (!mktRaw) {
+    var candidate = (r.market || '').toUpperCase().trim();
+    if (leagueNames.indexOf(candidate) === -1) mktRaw = r.market || '';
+  }
+
+  var mkt = String(mktRaw).toLowerCase().trim();
+
+  if (mkt === 'moneyline' || mkt === 'match_odds' || mkt === 'ml') return 'moneyline';
+  if (mkt === 'spread' || mkt === 'puck_line' || mkt === 'run_line' || mkt === 'line') return 'spread';
+  if (mkt === 'total' || mkt === 'over_total' || mkt === 'under_total' || mkt === 'btts' || mkt === 'total25' || mkt === 'total35') return 'total';
+
+  return 'other';
+}
+
+function normalizeLeague(r, sourceLabel) {
+  var leagueRaw = (r.league || '').toUpperCase().trim();
+
+  if (sourceLabel === 'SOCCER') return 'SOCCER';
+  if (leagueRaw === 'NCAAB') return 'NCAAM';
+  if (leagueRaw) return leagueRaw;
+
+  return sourceLabel;
+}
+
+function normalizeOdds(r, betSide) {
+  var oddsAmerican =
+    parseNum(r.dk_odds_american) ||
+    parseNum(r.odds_american) ||
+    parseNum(r.american_odds) ||
+    null;
+
+  if (!oddsAmerican) {
+    if (betSide === 'home') {
+      oddsAmerican = parseNum(r.home_dk_moneyline_american) || parseNum(r.home_dk_spread_american) || null;
+    } else if (betSide === 'away') {
+      oddsAmerican = parseNum(r.away_dk_moneyline_american) || parseNum(r.away_dk_spread_american) || null;
+    } else if (betSide === 'over') {
+      oddsAmerican = parseNum(r.dk_total_over_american) || null;
+    } else if (betSide === 'under') {
+      oddsAmerican = parseNum(r.dk_total_under_american) || null;
     }
   }
 
-  result.push(current);
-  return result;
-}
-
-function firstValue(row, names) {
-  for (var i = 0; i < names.length; i++) {
-    var key = names[i];
-    if (row[key] !== undefined && row[key] !== null && String(row[key]).trim() !== '') {
-      return String(row[key]).trim();
-    }
-  }
-  return '';
-}
-
-function firstNumber(row, names) {
-  for (var i = 0; i < names.length; i++) {
-    var raw = firstValue(row, [names[i]]);
-    if (raw !== '') {
-      var n = parseFloat(raw);
-      if (!isNaN(n)) return n;
-    }
-  }
-  return null;
-}
-
-function normalizeResult(row) {
-  var raw = firstValue(row, [
-    'bet_result',
-    'result',
-    'outcome',
-    'grade',
-    'graded_result',
-    'win',
-    'won',
-    'correct'
-  ]).toLowerCase();
-
-  if (raw === 'win' || raw === 'w' || raw === '1' || raw === 'true' || raw === 'won') return 'win';
-  if (raw === 'loss' || raw === 'l' || raw === '0' || raw === 'false' || raw === 'lost') return 'loss';
-  if (raw === 'push' || raw === 'p' || raw === 'void' || raw === 'no action' || raw === 'na') return 'push';
-
-  return 'push';
-}
-
-function normalizeMarket(row) {
-  var raw = firstValue(row, [
-    'market_type',
-    'bet_type',
-    'market',
-    'wager_type'
-  ]);
-
-  var m = raw.toLowerCase().trim();
-
-  if (m === 'moneyline' || m === 'ml' || m === 'match_odds') return 'moneyline';
-  if (m === 'spread' || m === 'puck_line' || m === 'run_line' || m === 'line') return 'spread';
-  if (
-    m === 'total' ||
-    m === 'over_total' ||
-    m === 'under_total' ||
-    m === 'totals' ||
-    m === 'btts' ||
-    m === 'total25' ||
-    m === 'total35'
-  ) return 'total';
-
-  return m || 'other';
-}
-
-function normalizeLeague(row, sourceLabel) {
-  var leagueRaw = firstValue(row, ['league', 'competition', 'league_name']).toUpperCase();
-
-  if (sourceLabel === 'SOCCER') {
-    return {
-      league: 'SOCCER',
-      leagueSub: leagueRaw || 'SOCCER'
-    };
-  }
-
-  return {
-    league: sourceLabel,
-    leagueSub: leagueRaw && leagueRaw !== sourceLabel ? leagueRaw : ''
-  };
-}
-
-function normalizeRow(row, sourceLabel) {
-  var leagueInfo = normalizeLeague(row, sourceLabel);
-  var market = normalizeMarket(row);
-  var result = normalizeResult(row);
-
-  var date = firstValue(row, [
-    'game_date',
-    'date',
-    'match_date',
-    'event_date',
-    'commence_time'
-  ]);
-
-  var homeTeam = firstValue(row, [
-    'home_team',
-    'home',
-    'team_home'
-  ]);
-
-  var awayTeam = firstValue(row, [
-    'away_team',
-    'away',
-    'team_away'
-  ]);
-
-  var matchup = firstValue(row, [
-    'matchup',
-    'game',
-    'event',
-    'fixture'
-  ]);
-
-  if (!matchup && awayTeam && homeTeam) matchup = awayTeam + ' @ ' + homeTeam;
-
-  var side = firstValue(row, [
-    'bet_side',
-    'side',
-    'take_bet',
-    'selection',
-    'pick',
-    'team',
-    'bet'
-  ]);
-
-  var line = firstNumber(row, [
-    'line',
-    'point',
-    'points',
-    'spread',
-    'total',
-    'handicap'
-  ]);
-
-  var odds = firstNumber(row, [
-    'dk_odds_american',
-    'odds_american',
-    'american_odds',
-    'odds',
-    'price'
-  ]);
-
-  if (odds === null) {
-    var decimalOdds = firstNumber(row, [
-      'dk_odds_decimal',
-      'decimal_odds'
-    ]);
-
-    if (decimalOdds !== null && decimalOdds > 1) {
-      odds = decimalOdds >= 2
-        ? Math.round((decimalOdds - 1) * 100)
-        : Math.round(-100 / (decimalOdds - 1));
+  if (!oddsAmerican) {
+    var dec = parseNum(r.odds) || parseNum(r.dk_odds_decimal) || null;
+    if (dec) {
+      oddsAmerican = dec >= 2 ? Math.round((dec - 1) * 100) : Math.round(-100 / (dec - 1));
     }
   }
 
-  var modelProb = firstNumber(row, [
-    'model_prob',
-    'probability',
-    'selected_prob',
-    'pred_prob',
-    'win_prob'
-  ]);
+  return oddsAmerican;
+}
+
+function normalizeModelProb(r, betSide) {
+  var modelProb = parseNum(r.model_prob);
+
+  if (modelProb === null) {
+    if (betSide === 'home' && r.home_prob) modelProb = parseNum(r.home_prob);
+    else if (betSide === 'away' && r.away_prob) modelProb = parseNum(r.away_prob);
+    else if (betSide === 'over' && r.over_prob) modelProb = parseNum(r.over_prob);
+    else if (betSide === 'under' && r.under_prob) modelProb = parseNum(r.under_prob);
+  }
 
   if (modelProb !== null && modelProb > 1) modelProb = modelProb / 100;
 
-  var ev = firstNumber(row, [
-    'ev',
-    'selected_ev',
-    'edge',
-    'edge_pct'
-  ]);
+  return modelProb;
+}
+
+function normalizeRow(r, sourceLabel) {
+  var betSide = String(r.bet_side || r.side || r.take_bet || r.pick || '').toLowerCase().trim();
+
+  var league = normalizeLeague(r, sourceLabel);
+  var leagueSub = (r.league || '').toUpperCase().trim();
 
   return {
     source: sourceLabel,
-    league: leagueInfo.league,
-    leagueSub: leagueInfo.leagueSub,
-    market: market,
-    marketRaw: firstValue(row, ['market_type', 'bet_type', 'market', 'wager_type']) || market,
-    result: result,
-    date: date,
-    matchup: matchup || '—',
-    side: side || '—',
-    line: line,
-    odds: odds,
-    modelProb: modelProb,
-    ev: ev,
-    raw: row
+    league: league,
+    league_sub: leagueSub,
+    game_date: r.game_date || r.match_date || r.date || '',
+    matchup: r.matchup || r.game || r.event || r.home_away || '',
+    market: normalizeMarket(r),
+    market_raw: r.market_type || r.market || '',
+    bet_side: r.bet_side || r.side || r.take_bet || r.pick || '',
+    line: parseNum(r.line),
+    odds: normalizeOdds(r, betSide),
+    model_prob: normalizeModelProb(r, betSide),
+    ev: parseNum(r.ev) || parseNum(r.selected_ev) || parseNum(r.edge_pct),
+    kelly: parseNum(r.kelly),
+    result: normalizeResult(r)
   };
 }
 
 function loadAll() {
-  setStatus('Fetching graded bet sources from GitHub...', 'yellow');
-  document.getElementById('history-main').innerHTML = '';
-
-  allRows = [];
-
-  SOURCES.forEach(function(src) {
-    src.status = 'pending';
-    src.count = 0;
-    src.error = '';
+  var activeSources = SOURCES.filter(function(src) {
+    return src.enabled !== false;
   });
 
-  var promises = SOURCES.map(function(src) {
+  if (!activeSources.length) {
+    allRows = [];
+    setStatus('No leagues are currently enabled.', 'red');
+    render();
+    return;
+  }
+
+  setStatus(
+    'Fetching data from GitHub: ' + activeSources.map(function(s){ return s.label; }).join(', ') + '...',
+    'yellow'
+  );
+
+  document.getElementById('history-main').innerHTML = '';
+
+  var promises = activeSources.map(function(src) {
     return fetch(src.url)
       .then(function(res) {
         if (!res.ok) throw new Error(src.label + ' ' + res.status);
         return res.text();
       })
       .then(function(text) {
-        var rows = parseCSV(text);
-        src.status = 'loaded';
-        src.count = rows.length;
-        return {
-          label: src.label,
-          rows: rows
-        };
+        return { label: src.label, rows: parseCSV(text) };
       })
       .catch(function(err) {
-        src.status = 'failed';
-        src.error = err.message;
-        src.count = 0;
         console.warn('Failed to load ' + src.label + ':', err);
-        return {
-          label: src.label,
-          rows: []
-        };
+        return { label: src.label, rows: [] };
       });
   });
 
   Promise.all(promises).then(function(results) {
+    allRows = [];
+
     results.forEach(function(result) {
       result.rows.forEach(function(row) {
         allRows.push(normalizeRow(row, result.label));
       });
     });
 
-    var loadedSources = SOURCES.filter(function(s) { return s.status === 'loaded'; }).length;
-    var failedSources = SOURCES.filter(function(s) { return s.status === 'failed'; }).length;
-    var graded = allRows.filter(function(r) { return r.result === 'win' || r.result === 'loss'; }).length;
-    var push = allRows.filter(function(r) { return r.result === 'push'; }).length;
+    var graded = allRows.filter(function(r) {
+      return r.result === 'win' || r.result === 'loss' || r.result === 'push';
+    }).length;
 
-    if (failedSources > 0) {
-      setStatus(loadedSources + '/6 sources loaded · ' + allRows.length + ' bets loaded · ' + failedSources + ' source failed', 'red');
-    } else {
-      setStatus(allRows.length + ' bets loaded · ' + graded + ' graded · ' + push + ' push/void', 'green');
-    }
+    setStatus(
+      allRows.length + ' bets loaded · ' + graded + ' graded · active: ' + activeSources.map(function(s){ return s.label; }).join(', '),
+      'green'
+    );
 
     render();
   });
 }
 
 function filteredRows() {
-  return allRows.filter(function(row) {
-    if (activeLeague !== 'all' && row.league !== activeLeague) return false;
-    if (activeMarket !== 'all' && row.market !== activeMarket) return false;
-    if (activeResult !== 'all' && row.result !== activeResult) return false;
-
-    if (searchQuery) {
-      var haystack = [
-        row.date,
-        row.league,
-        row.leagueSub,
-        row.market,
-        row.marketRaw,
-        row.matchup,
-        row.side,
-        row.result,
-        row.source
-      ].join(' ').toLowerCase();
-
-      if (haystack.indexOf(searchQuery) === -1) return false;
-    }
-
+  return allRows.filter(function(r) {
+    if (activeLeague !== 'all' && r.league !== activeLeague) return false;
+    if (activeMarket !== 'all' && r.market !== activeMarket) return false;
+    if (activeResult !== 'all' && r.result !== activeResult) return false;
     return true;
   });
 }
 
-function formatPct(value) {
-  if (value === null || value === undefined || isNaN(value)) return '—';
-  return (value * 100).toFixed(1) + '%';
-}
-
-function formatOdds(value) {
-  if (value === null || value === undefined || isNaN(value)) return '—';
-  return value > 0 ? '+' + value : String(value);
-}
-
-function formatLine(value) {
-  if (value === null || value === undefined || isNaN(value)) return '';
-  return value > 0 ? '+' + value : String(value);
-}
-
-function resultLabel(result) {
-  if (result === 'win') return 'WIN';
-  if (result === 'loss') return 'LOSS';
-  return 'PUSH';
-}
-
-function resultClass(result) {
-  if (result === 'win') return 'outcome-w';
-  if (result === 'loss') return 'outcome-l';
-  return 'outcome-p';
-}
-
-function probClass(value) {
-  if (value === null || value === undefined || isNaN(value)) return '';
-  if (value >= 0.65) return 'prob-high';
-  if (value >= 0.5) return 'prob-mid';
-  return 'prob-low';
-}
-
-function evClass(value) {
-  if (value === null || value === undefined || isNaN(value)) return '';
-  return value >= 0 ? 'val-green' : 'val-red';
-}
-
 function render() {
   var rows = filteredRows();
+  var graded = rows.filter(function(r) {
+    return r.result === 'win' || r.result === 'loss' || r.result === 'push';
+  });
+
   var main = document.getElementById('history-main');
   main.innerHTML = '';
 
-  if (!allRows.length) {
-    main.innerHTML = '<div class="empty-state">No bet records loaded<div class="empty-sub">Check the graded CSV paths in the source audit below.</div></div>';
-    renderSourceAudit(main);
+  if (!graded.length) {
+    main.innerHTML = '<div class="empty-state">No graded bets match the current filter</div>';
     return;
   }
 
-  renderSummary(main, rows);
-  renderLeagueBreakdown(main, rows);
-  renderMarketBreakdown(main, rows);
-  renderBetTable(main, rows);
-  renderSourceAudit(main);
-}
-
-function renderSummary(main, rows) {
-  var wins = rows.filter(function(r) { return r.result === 'win'; }).length;
-  var losses = rows.filter(function(r) { return r.result === 'loss'; }).length;
-  var pushes = rows.filter(function(r) { return r.result === 'push'; }).length;
-  var graded = wins + losses;
-  var winRate = graded ? wins / graded : null;
-
-  var rowsWithOdds = rows.filter(function(r) { return r.odds !== null; });
-  var avgOdds = rowsWithOdds.length
-    ? rowsWithOdds.reduce(function(sum, r) { return sum + r.odds; }, 0) / rowsWithOdds.length
-    : null;
-
-  var rowsWithProb = rows.filter(function(r) { return r.modelProb !== null; });
-  var avgProb = rowsWithProb.length
-    ? rowsWithProb.reduce(function(sum, r) { return sum + r.modelProb; }, 0) / rowsWithProb.length
-    : null;
-
-  var rowsWithEV = rows.filter(function(r) { return r.ev !== null; });
-  var avgEV = rowsWithEV.length
-    ? rowsWithEV.reduce(function(sum, r) { return sum + r.ev; }, 0) / rowsWithEV.length
-    : null;
+  var wins = graded.filter(function(r){ return r.result === 'win'; }).length;
+  var losses = graded.filter(function(r){ return r.result === 'loss'; }).length;
+  var pushes = graded.filter(function(r){ return r.result === 'push'; }).length;
+  var decisions = wins + losses;
+  var winRate = decisions ? wins / decisions : 0;
+  var avgProbRows = graded.filter(function(r){ return r.model_prob !== null; });
+  var avgProb = avgProbRows.length ? avgProbRows.reduce(function(s,r){ return s + r.model_prob; }, 0) / avgProbRows.length : 0;
+  var evRows = graded.filter(function(r){ return r.ev !== null; });
+  var totalEV = evRows.reduce(function(s,r){ return s + r.ev; }, 0);
 
   var strip = document.createElement('div');
   strip.className = 'summary-strip';
 
-  var items = [
-    {
-      val: rows.length,
-      lbl: 'Filtered Bets',
-      cls: ''
-    },
-    {
-      val: wins + '-' + losses + '-' + pushes,
-      lbl: 'W-L-P',
-      cls: winRate !== null && winRate >= 0.55 ? 'val-green' : winRate !== null && winRate < 0.45 ? 'val-red' : 'val-yellow'
-    },
-    {
-      val: winRate === null ? '—' : (winRate * 100).toFixed(1) + '%',
-      lbl: 'Win Rate',
-      cls: winRate !== null && winRate >= 0.55 ? 'val-green' : winRate !== null && winRate < 0.45 ? 'val-red' : 'val-yellow'
-    },
-    {
-      val: avgOdds === null ? '—' : formatOdds(Math.round(avgOdds)),
-      lbl: 'Avg Odds',
-      cls: 'val-blue'
-    },
-    {
-      val: avgProb === null ? '—' : formatPct(avgProb),
-      lbl: 'Avg Model Prob',
-      cls: 'val-blue'
-    },
-    {
-      val: avgEV === null ? '—' : avgEV.toFixed(2),
-      lbl: 'Avg EV',
-      cls: avgEV !== null && avgEV >= 0 ? 'val-green' : 'val-red'
-    }
-  ];
-
-  items.forEach(function(item) {
-    strip.innerHTML +=
-      '<div class="summary-item">' +
-        '<div class="summary-val ' + item.cls + '">' + item.val + '</div>' +
-        '<div class="summary-lbl">' + item.lbl + '</div>' +
-      '</div>';
+  [
+    { val: graded.length, lbl: 'Graded Bets', cls: '' },
+    { val: wins + '-' + losses + (pushes ? '-' + pushes : ''), lbl: 'W-L-P Record', cls: winRate >= 0.55 ? 'val-green' : winRate < 0.45 ? 'val-red' : 'val-yellow' },
+    { val: (winRate * 100).toFixed(1) + '%', lbl: 'Win Rate', cls: winRate >= 0.55 ? 'val-green' : winRate < 0.45 ? 'val-red' : 'val-yellow' },
+    { val: avgProbRows.length ? (avgProb * 100).toFixed(1) + '%' : '—', lbl: 'Avg Model Prob', cls: 'val-blue' },
+    { val: evRows.length ? totalEV.toFixed(2) : '—', lbl: 'Total EV', cls: totalEV >= 0 ? 'val-green' : 'val-red' }
+  ].forEach(function(s) {
+    strip.innerHTML += '<div class="summary-item"><div class="summary-val ' + s.cls + '">' + s.val + '</div><div class="summary-lbl">' + s.lbl + '</div></div>';
   });
 
   main.appendChild(strip);
+
+  renderLeagueBreakdown(main, graded);
+  renderMarketBreakdown(main, graded);
+  renderBetsTable(main, graded);
 }
 
-function renderLeagueBreakdown(main, rows) {
-  var leagues = ['MLB', 'NBA', 'NCAAM', 'WNBA', 'NHL', 'SOCCER'];
-  var html = '';
+function renderLeagueBreakdown(main, graded) {
+  var leagues = [];
 
-  leagues.forEach(function(league) {
-    var leagueRows = rows.filter(function(r) { return r.league === league; });
-    if (!leagueRows.length) return;
-
-    var wins = leagueRows.filter(function(r) { return r.result === 'win'; }).length;
-    var losses = leagueRows.filter(function(r) { return r.result === 'loss'; }).length;
-    var pushes = leagueRows.filter(function(r) { return r.result === 'push'; }).length;
-    var graded = wins + losses;
-    var rate = graded ? wins / graded : null;
-
-    html +=
-      '<div class="breakdown-card">' +
-        '<div class="breakdown-title">' + league + '</div>' +
-        '<div class="breakdown-row"><span class="breakdown-label">Bets</span><span class="breakdown-value">' + leagueRows.length + '</span></div>' +
-        '<div class="breakdown-row"><span class="breakdown-label">W-L-P</span><span class="breakdown-value">' + wins + '-' + losses + '-' + pushes + '</span></div>' +
-        '<div class="breakdown-row"><span class="breakdown-label">Win Rate</span><span class="breakdown-value ' + (rate !== null && rate >= 0.55 ? 'val-green' : rate !== null && rate < 0.45 ? 'val-red' : 'val-yellow') + '">' + (rate === null ? '—' : (rate * 100).toFixed(1) + '%') + '</span></div>' +
-      '</div>';
+  graded.forEach(function(r) {
+    if (leagues.indexOf(r.league) === -1) leagues.push(r.league);
   });
 
-  if (!html) return;
+  leagues.sort();
+
+  var html = leagues.map(function(league) {
+    var rows = graded.filter(function(r){ return r.league === league; });
+    var wins = rows.filter(function(r){ return r.result === 'win'; }).length;
+    var losses = rows.filter(function(r){ return r.result === 'loss'; }).length;
+    var decisions = wins + losses;
+    var rate = decisions ? wins / decisions : 0;
+    var ev = rows.reduce(function(s,r){ return s + (r.ev || 0); }, 0);
+
+    return '<div class="breakdown-card">' +
+      '<div class="breakdown-title">' + league + '</div>' +
+      '<div class="stat-row"><span class="stat-label">Bets</span><span class="stat-value">' + rows.length + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">W-L</span><span class="stat-value">' + wins + '-' + losses + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Win Rate</span><span class="stat-value" style="color:' + (rate >= 0.55 ? 'var(--accent-green)' : rate < 0.45 ? 'var(--accent-red)' : 'var(--accent-yellow)') + '">' + (rate * 100).toFixed(1) + '%</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Total EV</span><span class="stat-value" style="color:' + (ev >= 0 ? 'var(--accent-green)' : 'var(--accent-red)') + '">' + ev.toFixed(2) + '</span></div>' +
+    '</div>';
+  }).join('');
 
   var sec = document.createElement('div');
   sec.className = 'section';
-  sec.innerHTML =
-    '<div class="section-title">Performance by League</div>' +
-    '<div class="breakdown-grid">' + html + '</div>';
-
+  sec.innerHTML = '<div class="section-title">Performance by League</div><div class="breakdown-grid">' + html + '</div>';
   main.appendChild(sec);
 }
 
-function renderMarketBreakdown(main, rows) {
-  var markets = [
-    { key: 'moneyline', label: 'Moneyline' },
-    { key: 'spread', label: 'Spread / Line' },
-    { key: 'total', label: 'Total' },
-    { key: 'other', label: 'Other' }
-  ];
+function renderMarketBreakdown(main, graded) {
+  var markets = ['moneyline', 'spread', 'total', 'other'];
 
-  var html = '';
+  var html = markets.map(function(market) {
+    var rows = graded.filter(function(r){ return r.market === market; });
+    if (!rows.length) return '';
 
-  markets.forEach(function(market) {
-    var marketRows = rows.filter(function(r) { return r.market === market.key; });
-    if (!marketRows.length) return;
+    var wins = rows.filter(function(r){ return r.result === 'win'; }).length;
+    var losses = rows.filter(function(r){ return r.result === 'loss'; }).length;
+    var decisions = wins + losses;
+    var rate = decisions ? wins / decisions : 0;
+    var ev = rows.reduce(function(s,r){ return s + (r.ev || 0); }, 0);
+    var label = market === 'spread' ? 'Spread / Line' : market.charAt(0).toUpperCase() + market.slice(1);
 
-    var wins = marketRows.filter(function(r) { return r.result === 'win'; }).length;
-    var losses = marketRows.filter(function(r) { return r.result === 'loss'; }).length;
-    var pushes = marketRows.filter(function(r) { return r.result === 'push'; }).length;
-    var graded = wins + losses;
-    var rate = graded ? wins / graded : null;
+    return '<div class="breakdown-card">' +
+      '<div class="breakdown-title">' + label + '</div>' +
+      '<div class="stat-row"><span class="stat-label">Bets</span><span class="stat-value">' + rows.length + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">W-L</span><span class="stat-value">' + wins + '-' + losses + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Win Rate</span><span class="stat-value" style="color:' + (rate >= 0.55 ? 'var(--accent-green)' : rate < 0.45 ? 'var(--accent-red)' : 'var(--accent-yellow)') + '">' + (rate * 100).toFixed(1) + '%</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Total EV</span><span class="stat-value" style="color:' + (ev >= 0 ? 'var(--accent-green)' : 'var(--accent-red)') + '">' + ev.toFixed(2) + '</span></div>' +
+    '</div>';
+  }).join('');
 
-    html +=
-      '<div class="breakdown-card">' +
-        '<div class="breakdown-title">' + market.label + '</div>' +
-        '<div class="breakdown-row"><span class="breakdown-label">Bets</span><span class="breakdown-value">' + marketRows.length + '</span></div>' +
-        '<div class="breakdown-row"><span class="breakdown-label">W-L-P</span><span class="breakdown-value">' + wins + '-' + losses + '-' + pushes + '</span></div>' +
-        '<div class="breakdown-row"><span class="breakdown-label">Win Rate</span><span class="breakdown-value ' + (rate !== null && rate >= 0.55 ? 'val-green' : rate !== null && rate < 0.45 ? 'val-red' : 'val-yellow') + '">' + (rate === null ? '—' : (rate * 100).toFixed(1) + '%') + '</span></div>' +
-      '</div>';
-  });
-
-  if (!html) return;
+  if (!html.replace(/\s/g, '')) return;
 
   var sec = document.createElement('div');
   sec.className = 'section';
-  sec.innerHTML =
-    '<div class="section-title">Performance by Market</div>' +
-    '<div class="breakdown-grid">' + html + '</div>';
-
+  sec.innerHTML = '<div class="section-title">Performance by Market</div><div class="breakdown-grid">' + html + '</div>';
   main.appendChild(sec);
 }
 
-function renderBetTable(main, rows) {
-  var sec = document.createElement('div');
-  sec.className = 'section';
-
-  if (!rows.length) {
-    sec.innerHTML =
-      '<div class="section-title">Graded Bets</div>' +
-      '<div class="empty-state">No bets match current filters<div class="empty-sub">Try changing league, market, result, or search.</div></div>';
-    main.appendChild(sec);
-    return;
-  }
-
-  var sortedRows = rows.slice().sort(function(a, b) {
-    return String(b.date).localeCompare(String(a.date));
+function renderBetsTable(main, graded) {
+  var sorted = graded.slice().sort(function(a, b) {
+    return String(b.game_date).localeCompare(String(a.game_date));
   });
 
-  var tableRows = sortedRows.slice(0, 250).map(function(r) {
-    var leagueText = r.league;
-    if (r.league === 'SOCCER' && r.leagueSub && r.leagueSub !== 'SOCCER') {
-      leagueText += ' · ' + r.leagueSub;
-    }
-
-    var sideText = r.side;
-    if (r.line !== null) sideText += ' ' + formatLine(r.line);
+  var tableRows = sorted.slice(0, 250).map(function(r) {
+    var outCls = r.result === 'win' ? 'outcome-w' : r.result === 'loss' ? 'outcome-l' : 'outcome-p';
+    var outTxt = r.result === 'win' ? 'WIN' : r.result === 'loss' ? 'LOSS' : 'PUSH';
+    var probCls = (r.model_prob || 0) >= 0.65 ? 'prob-high' : (r.model_prob || 0) >= 0.5 ? 'prob-mid' : 'prob-low';
+    var evCls = (r.ev || 0) >= 0 ? 'val-green' : 'val-red';
+    var oddsStr = r.odds !== null ? (r.odds > 0 ? '+' + r.odds : r.odds) : '—';
+    var probStr = r.model_prob !== null ? (r.model_prob * 100).toFixed(1) + '%' : '—';
+    var evStr = r.ev !== null ? r.ev.toFixed(2) : '—';
+    var lineStr = r.line !== null ? ' ' + r.line : '';
+    var leagueDisplay = r.league === 'SOCCER' && r.league_sub && r.league_sub !== 'SOCCER'
+      ? r.league + ' · ' + r.league_sub
+      : r.league;
 
     return '<tr>' +
-      '<td>' + (r.date || '—') + '</td>' +
-      '<td>' + leagueText + '</td>' +
-      '<td>' + (r.matchup || '—') + '</td>' +
-      '<td>' + (r.marketRaw || r.market || '—') + '</td>' +
-      '<td>' + sideText + '</td>' +
-      '<td>' + formatOdds(r.odds) + '</td>' +
-      '<td class="' + probClass(r.modelProb) + '">' + formatPct(r.modelProb) + '</td>' +
-      '<td class="' + evClass(r.ev) + '">' + (r.ev !== null ? r.ev.toFixed(2) : '—') + '</td>' +
-      '<td class="' + resultClass(r.result) + '">' + resultLabel(r.result) + '</td>' +
+      '<td>' + (r.game_date || '—') + '</td>' +
+      '<td>' + leagueDisplay + '</td>' +
+      '<td>' + (r.market_raw || r.market || '—') + '</td>' +
+      '<td>' + (r.bet_side || '—') + lineStr + '</td>' +
+      '<td>' + oddsStr + '</td>' +
+      '<td class="' + probCls + '">' + probStr + '</td>' +
+      '<td class="' + evCls + '">' + evStr + '</td>' +
+      '<td class="' + outCls + '">' + outTxt + '</td>' +
     '</tr>';
   }).join('');
 
+  var sec = document.createElement('div');
+  sec.className = 'section';
   sec.innerHTML =
-    '<div class="section-title">' +
-      '<span>Graded Bets</span>' +
-      '<span class="section-note">Showing ' + Math.min(sortedRows.length, 250) + ' of ' + sortedRows.length + '</span>' +
-    '</div>' +
-    '<div class="table-wrap">' +
+    '<div class="section-title">Graded Bet History</div>' +
+    '<div style="overflow-x:auto">' +
       '<table class="bets-table">' +
         '<thead>' +
           '<tr>' +
             '<th>Date</th>' +
             '<th>League</th>' +
-            '<th>Matchup</th>' +
             '<th>Market</th>' +
-            '<th>Side / Pick</th>' +
+            '<th>Side / Line</th>' +
             '<th>Odds</th>' +
-            '<th>Model %</th>' +
+            '<th>Model%</th>' +
             '<th>EV</th>' +
             '<th>Result</th>' +
           '</tr>' +
@@ -1135,58 +595,16 @@ function renderBetTable(main, rows) {
       '</table>' +
     '</div>';
 
-  main.appendChild(sec);
-}
-
-function renderSourceAudit(main) {
-  var sec = document.createElement('div');
-  sec.className = 'section';
-
-  var rows = SOURCES.map(function(src) {
-    var statusClass = src.status === 'loaded' ? 'source-ok' : src.status === 'failed' ? 'source-fail' : '';
-    var statusText = src.status === 'loaded'
-      ? 'Loaded'
-      : src.status === 'failed'
-        ? 'Failed'
-        : 'Pending';
-
-    return '<tr>' +
-      '<td>' + src.label + '</td>' +
-      '<td class="' + statusClass + '">' + statusText + '</td>' +
-      '<td>' + src.count + '</td>' +
-      '<td class="path-cell">' + src.path + '</td>' +
-      '<td>' + (src.error || src.note || '') + '</td>' +
-    '</tr>';
-  }).join('');
-
-  sec.innerHTML =
-    '<div class="section-title">' +
-      '<span>Source Audit</span>' +
-      '<span class="section-note">Current graded-bet CSV paths</span>' +
-    '</div>' +
-    '<div class="table-wrap">' +
-      '<table class="source-table">' +
-        '<thead>' +
-          '<tr>' +
-            '<th>Source</th>' +
-            '<th>Status</th>' +
-            '<th>Rows</th>' +
-            '<th>Path</th>' +
-            '<th>Note</th>' +
-          '</tr>' +
-        '</thead>' +
-        '<tbody>' + rows + '</tbody>' +
-      '</table>' +
-    '</div>';
+  if (sorted.length > 250) {
+    sec.innerHTML += '<div style="font-size:10px;color:var(--text-muted);padding:8px 0;text-align:center">Showing most recent 250 of ' + sorted.length + ' graded bets</div>';
+  }
 
   main.appendChild(sec);
 }
 
 document.querySelectorAll('.league-pill').forEach(function(pill) {
   pill.addEventListener('click', function() {
-    document.querySelectorAll('.league-pill').forEach(function(p) {
-      p.classList.remove('active');
-    });
+    document.querySelectorAll('.league-pill').forEach(function(p){ p.classList.remove('active'); });
     pill.classList.add('active');
     activeLeague = pill.dataset.league;
     if (allRows.length) render();
@@ -1195,9 +613,7 @@ document.querySelectorAll('.league-pill').forEach(function(pill) {
 
 document.querySelectorAll('.market-pill').forEach(function(pill) {
   pill.addEventListener('click', function() {
-    document.querySelectorAll('.market-pill').forEach(function(p) {
-      p.classList.remove('active');
-    });
+    document.querySelectorAll('.market-pill').forEach(function(p){ p.classList.remove('active'); });
     pill.classList.add('active');
     activeMarket = pill.dataset.market;
     if (allRows.length) render();
@@ -1206,18 +622,11 @@ document.querySelectorAll('.market-pill').forEach(function(pill) {
 
 document.querySelectorAll('.result-pill').forEach(function(pill) {
   pill.addEventListener('click', function() {
-    document.querySelectorAll('.result-pill').forEach(function(p) {
-      p.classList.remove('active');
-    });
+    document.querySelectorAll('.result-pill').forEach(function(p){ p.classList.remove('active'); });
     pill.classList.add('active');
     activeResult = pill.dataset.result;
     if (allRows.length) render();
   });
-});
-
-document.getElementById('search-input').addEventListener('input', function(e) {
-  searchQuery = e.target.value.trim().toLowerCase();
-  if (allRows.length) render();
 });
 
 loadAll();
