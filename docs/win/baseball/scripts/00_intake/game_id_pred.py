@@ -10,6 +10,13 @@
 #
 # Output:
 #   docs/win/baseball/00_intake/predictions/pred_with_game_id/{date}_MLB.csv
+#
+# Matching logic:
+#   1. Match prediction row to games row by:
+#        normalized home_team + normalized away_team + parsed local hour
+#   2. Prediction times may be 12-hour format, e.g. "03:05 PM"
+#   3. Games times may be 24-hour format, e.g. "15:05:00"
+#   4. No team-only fallback is used here, because that can be unsafe for doubleheaders.
 
 import csv
 import re
@@ -56,6 +63,10 @@ def log(msg: str, level: str = "INFO"):
 
 
 def norm(s: str) -> str:
+    """
+    Lowercase, strip punctuation, collapse spaces.
+    Used for team name matching.
+    """
     s = (s or "").lower().strip()
     s = re.sub(r"[^a-z0-9 ]", "", s)
     s = re.sub(r"\s+", " ", s)
@@ -73,13 +84,38 @@ def load_csv(path: Path) -> list[dict]:
 
 def parse_hour(time_str: str) -> int:
     """
-    Parses HH:MM:SS or HH:MM into integer hour.
+    Parses common game_time formats into a 0-23 hour.
+
+    Supported examples:
+      "03:05 PM"  -> 15
+      "3:05 PM"   -> 15
+      "04:10 PM"  -> 16
+      "15:05:00"  -> 15
+      "15:05"     -> 15
+
     Returns -1 if invalid.
     """
-    try:
-        return int((time_str or "").strip().split(":")[0])
-    except Exception:
+    s = (time_str or "").strip()
+    if not s:
         return -1
+
+    # Normalize spacing around AM/PM.
+    s = re.sub(r"\s+", " ", s).strip().upper()
+
+    formats = [
+        "%I:%M %p",
+        "%I:%M:%S %p",
+        "%H:%M:%S",
+        "%H:%M",
+    ]
+
+    for fmt in formats:
+        try:
+            return datetime.strptime(s, fmt).hour
+        except ValueError:
+            continue
+
+    return -1
 
 
 def build_games_index(games_rows: list[dict], date_str: str) -> dict:
@@ -87,7 +123,7 @@ def build_games_index(games_rows: list[dict], date_str: str) -> dict:
     Builds index:
         (home_team_norm, away_team_norm, hour) -> game_id
 
-    This matches the same doubleheader approach used by build_games_list.py:
+    This preserves the doubleheader-safe intent:
         same teams + game hour
     """
     idx = {}
@@ -101,8 +137,11 @@ def build_games_index(games_rows: list[dict], date_str: str) -> dict:
         if not home or not away or hour < 0 or not game_id:
             log(
                 f"{date_str} | bad games row skipped: "
-                f"home={g.get('home_team')} away={g.get('away_team')} "
-                f"time={g.get('game_time')} game_id={game_id}",
+                f"home={g.get('home_team', '')} "
+                f"away={g.get('away_team', '')} "
+                f"time={g.get('game_time', '')} "
+                f"parsed_hour={hour} "
+                f"game_id={game_id}",
                 "WARN",
             )
             continue
@@ -110,7 +149,11 @@ def build_games_index(games_rows: list[dict], date_str: str) -> dict:
         key = (home, away, hour)
 
         if key in idx:
-            log(f"{date_str} | duplicate games key: {key}", "WARN")
+            log(
+                f"{date_str} | duplicate games key; later row overwrote earlier row: "
+                f"key={key} old_game_id={idx[key]} new_game_id={game_id}",
+                "WARN",
+            )
 
         idx[key] = game_id
 
@@ -141,9 +184,13 @@ def process_date(date_str: str, pred_path: Path, summary: dict) -> None:
     unmatched = 0
 
     for p in pred_rows:
-        home = norm(p.get("home_team", ""))
-        away = norm(p.get("away_team", ""))
-        hour = parse_hour(p.get("game_time", ""))
+        home_raw = p.get("home_team", "")
+        away_raw = p.get("away_team", "")
+        time_raw = p.get("game_time", "")
+
+        home = norm(home_raw)
+        away = norm(away_raw)
+        hour = parse_hour(time_raw)
 
         key = (home, away, hour)
         game_id = games_idx.get(key, "")
@@ -154,8 +201,8 @@ def process_date(date_str: str, pred_path: Path, summary: dict) -> None:
             unmatched += 1
             log(
                 f"{date_str} | unmatched prediction: "
-                f"{p.get('away_team')} at {p.get('home_team')} "
-                f"time={p.get('game_time')} hour={hour}",
+                f"away={away_raw} home={home_raw} "
+                f"time={time_raw} parsed_hour={hour} key={key}",
                 "WARN",
             )
 
