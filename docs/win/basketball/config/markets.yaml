@@ -129,8 +129,8 @@ markets:
         # Heavy favorites (mp 70%+) win at high WR but lose to vig. The 50-60%
         # model_prob band is where the model adds true signal vs the market.
         enabled: true
-        odds_bands:           [[-10000, -110], [100, 10000]]
-        ev_bands:             [[0.0, 0.05]]
+        odds_bands:           [[-10000, -110], [101, 10000]]
+        ev_bands:             [[0.0, 0.03], [0.4, 0.05]]
         kelly_bands:          [[0.0, 1.0]]
         model_prob_bands:     [[0.50, 0.60]]
         edge_vs_market_bands: [[-100.0, 100.0]]
@@ -141,8 +141,8 @@ markets:
         # Sweet spot: moderate EV (3-10%) with small Kelly (<5%). Big-Kelly
         # underdogs lose at -27% WR. Tight EV bound prevents the 10%+ tail.
         enabled: true
-        odds_bands:           [[-10000, -125], [100, 125]]
-        ev_bands:             [[0.03, 0.075]]
+        odds_bands:           [[-10000, -125]]
+        ev_bands:             [[0.03, 0.04], [0.05, 0.075]]
         kelly_bands:          [[0.025, 0.05]]
         model_prob_bands:     [[0.40, 1.0]]
         edge_vs_market_bands: [[-100.0, 100.0]]
@@ -163,7 +163,7 @@ markets:
         odds_bands:           [[-10000, 10000]]
         ev_bands:             [[0.01, 1.0]]
         kelly_bands:          [[0.0, 0.025], [0.20, 1.0]]
-        model_prob_bands:     [[0.0, 1.0]]
+        model_prob_bands:     [[0.0, 0.6], [0.7, 1.0]]
         edge_vs_market_bands: [[-100.0, 100.0]]
         months:               []
         exclude_days_of_week: []
@@ -174,10 +174,10 @@ markets:
         # |away_spread|>=6 means away_spread <=-6 OR >=6.
         enabled: true
         line_bands:           [[-99.0, -6.0], [6.0, 99.0]]
-        odds_bands:           [[-110, 100]]
+        odds_bands:           [[-124, -100]]
         ev_bands:             [[0.01, 0.03], [0.04, 1.0]]
-        kelly_bands:          [[0.0, 1.0]]
-        model_prob_bands:     [[0.0, 1.0]]
+        kelly_bands:          [[0.0, 0.2]]
+        model_prob_bands:     [[0.0, 0.6], [0.7, 1.0]]
         edge_vs_market_bands: [[-100.0, 100.0]]
         months:               []
         exclude_days_of_week: []
@@ -188,11 +188,10 @@ markets:
       pick_preference: { metric: ev, direction: max }
 
       over:
-        # No profitable over slice. Disabled.
         enabled: true
-        line_bands:           [[100.0, 300.0]]
-        odds_bands:           [[-10000, 10000]]
-        ev_bands:             [[0.0, 1.0]]
+        line_bands:           [[100.0, 125.0], [135.0, 140.0], [145.0, 150.0], [155.0, 165.0], [175.0, 180.0]]
+        odds_bands:           [[-10000, -124], [-109, 10000]]
+        ev_bands:             [[0.01, 0.03], [0.04, 0.05], [0.075, 0.01]]
         kelly_bands:          [[0.0, 1.0]]
         model_prob_bands:     [[0.0, 1.0]]
         edge_vs_market_bands: [[-100.0, 100.0]]
