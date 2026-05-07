@@ -86,20 +86,23 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add docs/win/soccer/01_merge/
-          git add docs/win/soccer/errors/01_merge/
+          echo "Changed files before staging:"
+          git status --short
 
-          git add docs/win/soccer/02_juice/
-          git add docs/win/soccer/errors/02_juice/
+          # Stage all soccer pipeline outputs/scripts touched by this workflow
+          git add -A docs/win/soccer/
 
-          git add docs/win/soccer/03_edges/
-          git add docs/win/soccer/errors/03_edges/
+          echo "Changed files after staging:"
+          git status --short
 
-          git add docs/win/soccer/04_select/
-          git add docs/win/soccer/errors/04_select/
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: Soccer Pipeline run $(date -u +'%Y-%m-%d %H:%M UTC')"
+          fi
 
-          git add docs/win/soccer/05_final_scores/
+          echo "Changed files after commit:"
+          git status --short
 
-          git commit -m "chore: Soccer Pipeline run $(date -u +'%Y-%m-%d %H:%M UTC')" || echo "No changes to commit"
           git pull --rebase origin main
           git push
