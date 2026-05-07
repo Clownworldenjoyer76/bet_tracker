@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-# docs/win/final_scores/scripts/05_results/soccer/02_soccer_results_analyze.py
+# docs/win/soccer/scripts/05_final_scores/02_soccer_results_analyze.py
 
 from datetime import datetime
 from pathlib import Path
 import pandas as pd
 
-OUTPUT_DIR       = Path("docs/win/final_scores/results/soccer/graded")
-INTERMEDIATE_DIR = Path("docs/win/final_scores/intermediate")
-ERROR_DIR        = Path("docs/win/final_scores/errors")
+OUTPUT_DIR       = Path("docs/win/soccer/05_final_scores/results/graded")
+INTERMEDIATE_DIR = Path("docs/win/soccer/05_final_scores/intermediate")
+ERROR_DIR        = Path("docs/win/soccer/05_final_scores/errors")
 
 INTERMEDIATE_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
