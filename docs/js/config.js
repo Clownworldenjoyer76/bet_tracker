@@ -1,6 +1,62 @@
+// ─── Soccer shared base ───────────────────────────────────────────────────────
+// One CSV at win/soccer/04_select/{date}_soccer_bets.csv contains all 6 leagues.
+// Each league entry below extends this base and only sets its own league/displayName.
+const SOCCER_BASE = {
+  sport:        "soccer",
+  isSoccer:     true,
+  leagueColumn: "league",
+  joinKey:      "game_id",
+  selectFiles:  (date) => [`win/soccer/04_select/${date}_soccer_bets.csv`],
+  // Soccer CSV uses different column names than the basketball/baseball/hockey schema.
+  // Remap into the canonical shape so the existing renderer/filter code "just works".
+  normalizeRow: (r) => ({
+    ...r,
+    game_date:   r.match_date,
+    game_time:   r.match_time,
+    bet_side:    r.side,
+    market_type: r.market,
+  }),
+  // Soccer markets aren't spread/total/moneyline. Format them appropriately.
+  // Odds are decimal in this file (e.g. 1.68), not American.
+  buildBetText: (p, r) => {
+    const market = (p.market || p.market_type || "").toLowerCase();
+    const side   = (p.side   || p.bet_side    || "").toLowerCase();
+    const odds   = p.odds || "";
+
+    const sideLabel = (() => {
+      if (side === "home")  return r.home_team || "Home";
+      if (side === "away")  return r.away_team || "Away";
+      if (side === "draw")  return "Draw";
+      if (side === "yes")   return "Yes";
+      if (side === "no")    return "No";
+      if (side === "over")  return "Over";
+      if (side === "under") return "Under";
+      return side;
+    })();
+
+    const marketLabel = (() => {
+      if (market === "match_odds")     return "1X2";
+      if (market === "btts")           return "BTTS";
+      if (market === "double_chance")  return "DC";
+      if (market === "draw_no_bet")    return "DNB";
+      if (market === "over_under" ||
+          market === "total" ||
+          market === "goals")          return "Total";
+      // Unknown market — show it cleanly rather than crashing.
+      return market.toUpperCase().replace(/_/g, " ");
+    })();
+
+    return `${marketLabel}: ${sideLabel} (${odds})`;
+  },
+};
+
 window.REPO_CONFIG = {
 
-  leagues: ["NHL", "NBA", "WNBA", "NCAAM", "MLB", "UFC"],
+  leagues: [
+    "NHL", "NBA", "WNBA", "NCAAM", "MLB",
+    "EPL", "MLS", "LIGUE1", "LALIGA", "SERIEA", "BUNDESLIGA",
+    "UFC",
+  ],
 
   // ─── NHL ──────────────────────────────────────────────────────────────────
   NHL: {
@@ -69,6 +125,17 @@ window.REPO_CONFIG = {
     bookFile:     (date) => `win/baseball/00_intake/sportsbook/${date}_MLB.csv`,
   },
 
+  // ─── Soccer (6 leagues, one shared file) ──────────────────────────────────
+  // All 6 entries inherit from SOCCER_BASE and only override what they need.
+  // The CSV's `league` column values must match the `league` field below
+  // (case-insensitive — the row matcher uppercases both sides).
+  EPL:        Object.assign({}, SOCCER_BASE, { league: "EPL",        displayName: "EPL"        }),
+  MLS:        Object.assign({}, SOCCER_BASE, { league: "MLS",        displayName: "MLS"        }),
+  LIGUE1:     Object.assign({}, SOCCER_BASE, { league: "LIGUE1",     displayName: "Ligue 1"    }),
+  LALIGA:     Object.assign({}, SOCCER_BASE, { league: "LALIGA",     displayName: "La Liga"    }),
+  SERIEA:     Object.assign({}, SOCCER_BASE, { league: "SERIEA",     displayName: "Serie A"    }),
+  BUNDESLIGA: Object.assign({}, SOCCER_BASE, { league: "BUNDESLIGA", displayName: "Bundesliga" }),
+
   // ─── UFC ──────────────────────────────────────────────────────────────────
   UFC: {
     sport:        "mma",
@@ -85,7 +152,7 @@ window.REPO_CONFIG = {
   ───────────────────
   1. Add name to `leagues` array.
   2. Add config block:
-       displayName   — UI label
+       displayName   — UI label (shown in column header + filter pill)
        leagueColumn  — CSV column name whose value = league  (e.g. "league")
          OR
        marketColumn  — CSV column name whose value = league  (e.g. "market")
@@ -93,16 +160,27 @@ window.REPO_CONFIG = {
        isHockey      — true → uses goals/puck_line in modal
        isBaseball    — true → uses runs/run_line/pitchers in modal
        isUFC         — true → uses UFC fighter card/modal, event selector instead of date picker
+       isSoccer      — true → uses slim soccer modal
        selectFiles   — fn(date) => string[]   date format: YYYY_MM_DD
                        Multiple paths = fallback list. The FIRST one that loads wins;
-                       subsequent paths are ignored. Use this for "new path with old as
-                       fallback" migrations.
-       predFile      — fn(date) => string
-       bookFile      — fn(date) => string
+                       subsequent paths are ignored.
+       predFile      — (optional) fn(date) => string
+       bookFile      — (optional) fn(date) => string
+       enabled       — (optional) set to `false` to hide this league from the page
+                       without deleting its config block. Useful at season end.
   3. Nothing else needs to change.
+
+  HOW TO DISABLE A LEAGUE
+  ───────────────────────
+  Either remove its name from the `leagues` array, OR set `enabled: false`
+  on its config block. Setting `enabled: false` is preferred because it
+  preserves the league config for next season.
 
   ADVANCED OVERRIDES
   ──────────────────
-  filterFn:     (row, dateFormatted, leagueName) => bool   — custom row filter
-  buildBetText: (pick, gameRow) => string                  — custom bet label
+  filterFn:      (row, dateFormatted, leagueName) => bool — custom row filter
+  buildBetText:  (pick, gameRow) => string                — custom bet label
+  normalizeRow:  (row) => row                             — column rename / shape fix
+                                                            applied right after fetch,
+                                                            before any other logic
 */
