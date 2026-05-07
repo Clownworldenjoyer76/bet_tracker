@@ -26,23 +26,34 @@ jobs:
 
       - name: Create output directories
         run: |
-          # Soccer
+          # Soccer merge
           mkdir -p docs/win/soccer/01_merge/
           mkdir -p docs/win/soccer/01_merge/01_merguiced/
           mkdir -p docs/win/soccer/errors/01_merge/
-          mkdir -p docs/win/soccer/errors/02_juice/
+
+          # Soccer juice
           mkdir -p docs/win/soccer/02_juice/
-          mkdir -p docs/win/soccer/errors/03_edges/
+          mkdir -p docs/win/soccer/errors/02_juice/
+
+          # Soccer edges
           mkdir -p docs/win/soccer/03_edges/
+          mkdir -p docs/win/soccer/errors/03_edges/
+
+          # Soccer select
           mkdir -p docs/win/soccer/04_select/
           mkdir -p docs/win/soccer/errors/04_select/
-          mkdir -p docs/win/final_scores/intermediate/
-          mkdir -p docs/win/final_scores/errors/
-          mkdir -p docs/win/final_scores/results/soccer/graded/
-          mkdir -p docs/win/final_scores/deeper_summaries/soccer/
-          touch docs/win/final_scores/soccer_market_tally.csv
 
-          
+          # Soccer final scores
+          mkdir -p docs/win/soccer/05_final_scores/
+          mkdir -p docs/win/soccer/05_final_scores/intermediate/
+          mkdir -p docs/win/soccer/05_final_scores/errors/
+          mkdir -p docs/win/soccer/05_final_scores/results/
+          mkdir -p docs/win/soccer/05_final_scores/results/graded/
+          mkdir -p docs/win/soccer/05_final_scores/deeper_summaries/
+          mkdir -p docs/win/soccer/05_final_scores/deeper_summaries/soccer/
+
+          touch docs/win/soccer/05_final_scores/soccer_market_tally.csv
+
       # -------------------------
       # SOCCER PIPELINE
       # -------------------------
@@ -54,25 +65,21 @@ jobs:
 
       - name: Soccer Juice
         run: python docs/win/soccer/scripts/02_juice/apply_juice.py
-        
+
       - name: Soccer Edges
         run: python docs/win/soccer/scripts/03_edges/build_edges.py
-        
+
       - name: Soccer Select
         run: python docs/win/soccer/scripts/04_select/soccer_select_bets.py
-        
-      - name: Normalize final score team names
-        run: python docs/win/final_scores/scripts/05_results/00_normalize_final_score_team_names.py
 
       - name: Run soccer results grade
-        run: python docs/win/final_scores/scripts/05_results/soccer/01_soccer_results_grade.py
+        run: python docs/win/soccer/scripts/05_final_scores/01_soccer_results_grade.py
 
       - name: Run soccer results analyze
-        run: python docs/win/final_scores/scripts/05_results/soccer/02_soccer_results_analyze.py
+        run: python docs/win/soccer/scripts/05_final_scores/02_soccer_results_analyze.py
 
       - name: Run soccer results reports
-        run: python docs/win/final_scores/scripts/05_results/soccer/03_soccer_results_reports.py
-      
+        run: python docs/win/soccer/scripts/05_final_scores/03_soccer_results_reports.py
 
       - name: Commit outputs
         run: |
@@ -81,16 +88,18 @@ jobs:
 
           git add docs/win/soccer/01_merge/
           git add docs/win/soccer/errors/01_merge/
-          git add docs/win/soccer/errors/02_juice/ 
+
           git add docs/win/soccer/02_juice/
-          git add docs/win/soccer/errors/03_edges/ 
+          git add docs/win/soccer/errors/02_juice/
+
           git add docs/win/soccer/03_edges/
-          git add docs/win/soccer/04_select/ 
+          git add docs/win/soccer/errors/03_edges/
+
+          git add docs/win/soccer/04_select/
           git add docs/win/soccer/errors/04_select/
-          git add docs/win/final_scores/
 
-       
+          git add docs/win/soccer/05_final_scores/
 
-          git commit -m "chore: Soccer Pipeline run $(date -u +'%Y-%m-%d %H:%M UTC')"
+          git commit -m "chore: Soccer Pipeline run $(date -u +'%Y-%m-%d %H:%M UTC')" || echo "No changes to commit"
           git pull --rebase origin main
           git push
