@@ -1,6 +1,6 @@
 window.REPO_CONFIG = {
 
-  leagues: ["NHL", "NBA", "NCAAB", "MLB", "UFC"],
+  leagues: ["NHL", "NBA", "WNBA", "NCAAM", "MLB", "UFC"],
 
   // ─── NHL ──────────────────────────────────────────────────────────────────
   NHL: {
@@ -19,21 +19,41 @@ window.REPO_CONFIG = {
     sport:        "basketball",
     league:       "NBA",
     displayName:  "NBA",
-    marketColumn: "market",
-    selectFiles:  (date) => [`win/basketball/04_select/daily_slate/nba_selected.csv`],
+    leagueColumn: "league",
+    selectFiles:  (date) => [
+      `win/basketball/04_select/nba/daily_picks/${date}_nba_selected.csv`,
+      `win/basketball/04_select/daily_slate/nba_selected.csv`,
+    ],
     predFile:     (date) => `win/basketball/00_intake/predictions/basketball_NBA_${date}.csv`,
     bookFile:     (date) => `win/basketball/00_intake/sportsbook/basketball_NBA_${date}.csv`,
   },
 
-  // ─── NCAAB ────────────────────────────────────────────────────────────────
-  NCAAB: {
+  // ─── WNBA ─────────────────────────────────────────────────────────────────
+  WNBA: {
     sport:        "basketball",
-    league:       "NCAAB",
-    displayName:  "NCAAB",
-    marketColumn: "market",
-    selectFiles:  (date) => [`win/basketball/04_select/daily_slate/ncaab_selected.csv`],
-    predFile:     (date) => `win/basketball/00_intake/predictions/basketball_NCAAB_${date}.csv`,
-    bookFile:     (date) => `win/basketball/00_intake/sportsbook/basketball_NCAAB_${date}.csv`,
+    league:       "WNBA",
+    displayName:  "WNBA",
+    leagueColumn: "league",
+    selectFiles:  (date) => [
+      `win/basketball/04_select/wnba/daily_picks/${date}_wnba_selected.csv`,
+      `win/basketball/04_select/daily_slate/wnba_selected.csv`,
+    ],
+    predFile:     (date) => `win/basketball/00_intake/predictions/basketball_WNBA_${date}.csv`,
+    bookFile:     (date) => `win/basketball/00_intake/sportsbook/basketball_WNBA_${date}.csv`,
+  },
+
+  // ─── NCAAM (replaces NCAAB) ───────────────────────────────────────────────
+  NCAAM: {
+    sport:        "basketball",
+    league:       "NCAAM",
+    displayName:  "NCAAM",
+    leagueColumn: "league",
+    selectFiles:  (date) => [
+      `win/basketball/04_select/ncaam/daily_picks/${date}_ncaam_selected.csv`,
+      `win/basketball/04_select/daily_slate/ncaam_selected.csv`,
+    ],
+    predFile:     (date) => `win/basketball/00_intake/predictions/basketball_NCAAM_${date}.csv`,
+    bookFile:     (date) => `win/basketball/00_intake/sportsbook/basketball_NCAAM_${date}.csv`,
   },
 
   // ─── MLB ──────────────────────────────────────────────────────────────────
@@ -74,6 +94,9 @@ window.REPO_CONFIG = {
        isBaseball    — true → uses runs/run_line/pitchers in modal
        isUFC         — true → uses UFC fighter card/modal, event selector instead of date picker
        selectFiles   — fn(date) => string[]   date format: YYYY_MM_DD
+                       Multiple paths = fallback list. The FIRST one that loads wins;
+                       subsequent paths are ignored. Use this for "new path with old as
+                       fallback" migrations.
        predFile      — fn(date) => string
        bookFile      — fn(date) => string
   3. Nothing else needs to change.
