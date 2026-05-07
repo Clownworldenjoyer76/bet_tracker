@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-# docs/win/final_scores/scripts/05_results/soccer/03_soccer_results_reports.py
+# docs/win/soccer/scripts/05_final_scores/03_soccer_results_reports.py
 
 from datetime import datetime
 from pathlib import Path
 import pandas as pd
 
-INTERMEDIATE  = Path("docs/win/final_scores/intermediate/work_soccer.csv")
-SUMMARY_DIR   = Path("docs/win/final_scores/deeper_summaries/soccer")
-ERROR_DIR     = Path("docs/win/final_scores/errors")
-MARKET_TALLY  = Path("docs/win/final_scores/soccer_market_tally.csv")
+INTERMEDIATE  = Path("docs/win/soccer/scripts/05_final_scores/intermediate/work_soccer.csv")
+SUMMARY_DIR   = Path("docs/win/soccer/scripts/05_final_scores/deeper_summaries/soccer")
+ERROR_DIR     = Path("docs/win/soccer/scripts/05_final_scores/errors")
+MARKET_TALLY  = Path("docs/win/soccer/scripts/05_final_scores/soccer_market_tally.csv")
 ERROR_LOG     = ERROR_DIR / "soccer_results_reports_errors.txt"
 
 SUMMARY_DIR.mkdir(parents=True, exist_ok=True)
