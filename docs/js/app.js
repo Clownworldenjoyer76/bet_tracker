@@ -208,6 +208,36 @@ function openModal(html) {
 }
 
 function buildModalHtml(r, picks, cfg) {
+  // Soccer: simpler modal — no projections / spreads / totals exist for these markets.
+  if (cfg.isSoccer) {
+    const picksHtml = picks.map(p => {
+      const betText = buildBetText(p, r, cfg);
+      const ev      = parseFloat(p.ev || 0);
+      const kelly   = parseFloat(p.kelly || 0);
+      const edge    = ev; // soccer file has no separate edge column; ev is the proxy
+      return `
+        <div class="modal-pick-row">
+          <div class="modal-bet">${betText}</div>
+          <div class="modal-pick-stats">
+            <span class="modal-ev ${ev >= 0 ? "pos" : "neg"}">${ev >= 0 ? "+" : ""}${(ev * 100).toFixed(2)}% EV</span>
+            <span class="modal-kelly">Kelly ${(kelly * 100).toFixed(2)}%</span>
+            ${edgeDots(edge)}
+          </div>
+        </div>`;
+    }).join("");
+
+    return `
+      <div class="modal-header">
+        <span class="modal-league-tag">${cfg.displayName}</span>
+        <span class="modal-game-time">${r.game_time || ""}</span>
+      </div>
+      <h2 class="modal-title">${r.home_team || "—"} <span class="modal-at">vs</span> ${r.away_team || "—"}</h2>
+      <div class="modal-picks-section">
+        <div class="modal-picks-label">PICKS</div>
+        <div class="modal-picks">${picksHtml}</div>
+      </div>`;
+  }
+
   const isHockey   = !!cfg.isHockey;
   const isBaseball = !!cfg.isBaseball;
 
@@ -475,15 +505,21 @@ async function loadLeague(league, dateFormatted) {
   // UFC uses its own loader
   if (cfg.isUFC) return loadUFC();
 
+  const emptyRes = Promise.resolve({ ok: false, rows: [] });
   const [selectRes, predRes, bookRes] = await Promise.all([
     fetchMultiCSV(cfg.selectFiles(dateFormatted)),
-    fetchCSV(cfg.predFile(dateFormatted)),
-    fetchCSV(cfg.bookFile(dateFormatted)),
+    cfg.predFile ? fetchCSV(cfg.predFile(dateFormatted)) : emptyRes,
+    cfg.bookFile ? fetchCSV(cfg.bookFile(dateFormatted)) : emptyRes,
   ]);
 
   if (!selectRes.ok) return { league, cfg, error: "File not found", picks: 0 };
 
-  const { rows: selectRows, stale, fromDate } = filterRows(selectRes.rows, dateFormatted, league, cfg);
+  // Allow leagues with non-canonical column names (e.g. soccer's match_date)
+  // to remap into the standard shape before any other logic touches the rows.
+  const normalize = cfg.normalizeRow ? (r) => cfg.normalizeRow(r) : (r) => r;
+  const normalizedSelect = selectRes.rows.map(normalize);
+
+  const { rows: selectRows, stale, fromDate } = filterRows(normalizedSelect, dateFormatted, league, cfg);
   if (selectRows.length === 0) return { league, cfg, picks: 0, stale, fromDate };
 
   const predMap = buildMap(predRes.rows, cfg);
@@ -517,13 +553,13 @@ function renderColumn(result) {
   hdr.className = "league-header";
 
   if (result.error) {
-    hdr.textContent = result.league;
+    hdr.textContent = (result.cfg && result.cfg.displayName) || result.league;
     col.appendChild(hdr);
     col.innerHTML += `<div class="col-state empty">No Picks Today</div>`;
     return { col, count: 0 };
   }
 
-  hdr.innerHTML = result.league;
+  hdr.innerHTML = (result.cfg && result.cfg.displayName) || result.league;
   col.appendChild(hdr);
 
   if (result.stale || !result.keys || result.keys.length === 0) {
@@ -599,7 +635,12 @@ async function loadPage() {
   statusEl.className   = "status loading";
   gamesEl.innerHTML    = "";
 
-  const leagues = REPO_CONFIG.leagues || [];
+  // Honor `enabled: false` on a league config so it disappears from the page
+  // (header + filter pill + data load) without deleting its config block.
+  const leagues = (REPO_CONFIG.leagues || []).filter(l => {
+    const cfg = REPO_CONFIG[l];
+    return cfg && cfg.enabled !== false;
+  });
   buildFilters(leagues);
 
   const results = await Promise.all(leagues.map(l => loadLeague(l, dateFormatted)));
