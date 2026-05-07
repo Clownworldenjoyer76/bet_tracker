@@ -51,14 +51,17 @@ async function fetchCSV(path) {
   }
 }
 
+// Try paths in order. First one that loads wins; the rest are skipped.
+// This gives us "new path, fall back to old" semantics for league migrations
+// without ever loading the same data twice.
+// If every path fails, log the full list so the next silent breakage is visible.
 async function fetchMultiCSV(paths) {
-  let rows = [];
-  let anyOk = false;
   for (const p of paths) {
     const res = await fetchCSV(p);
-    if (res.ok) { rows = rows.concat(res.rows); anyOk = true; }
+    if (res.ok) return { ok: true, rows: res.rows, source: p };
   }
-  return { ok: anyOk, rows };
+  console.warn("[picks] No data file loaded. Tried:", paths);
+  return { ok: false, rows: [] };
 }
 
 // ─── Row Matching ─────────────────────────────────────────────────────────────
