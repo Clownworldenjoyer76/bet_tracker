@@ -42,6 +42,9 @@ const SOCCER_BASE = {
       if (market === "over_under" ||
           market === "total" ||
           market === "goals")          return "Total";
+      // total25 → "Total 2.5"; total35 → "Total 3.5"; total105 → "Total 10.5"
+      const totalMatch = market.match(/^total(\d{2,3})$/);
+      if (totalMatch) return `Total ${parseInt(totalMatch[1], 10) / 10}`;
       // Unknown market — show it cleanly rather than crashing.
       return market.toUpperCase().replace(/_/g, " ");
     })();
@@ -76,12 +79,13 @@ window.REPO_CONFIG = {
     league:       "NBA",
     displayName:  "NBA",
     leagueColumn: "league",
+    joinKey:      "game_id",
     selectFiles:  (date) => [
       `win/basketball/04_select/nba/daily_picks/${date}_nba_selected.csv`,
       `win/basketball/04_select/daily_slate/nba_selected.csv`,
     ],
     predFile:     (date) => `win/basketball/00_intake/predictions/basketball_NBA_${date}.csv`,
-    bookFile:     (date) => `win/basketball/00_intake/sportsbook/basketball_NBA_${date}.csv`,
+    bookFile:     (date) => `win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/${date}_NBA_odds.csv`,
   },
 
   // ─── WNBA ─────────────────────────────────────────────────────────────────
@@ -90,12 +94,13 @@ window.REPO_CONFIG = {
     league:       "WNBA",
     displayName:  "WNBA",
     leagueColumn: "league",
+    joinKey:      "game_id",
     selectFiles:  (date) => [
       `win/basketball/04_select/wnba/daily_picks/${date}_wnba_selected.csv`,
       `win/basketball/04_select/daily_slate/wnba_selected.csv`,
     ],
     predFile:     (date) => `win/basketball/00_intake/predictions/basketball_WNBA_${date}.csv`,
-    bookFile:     (date) => `win/basketball/00_intake/sportsbook/basketball_WNBA_${date}.csv`,
+    bookFile:     (date) => `win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/${date}_WNBA_odds.csv`,
   },
 
   // ─── NCAAM (replaces NCAAB) ───────────────────────────────────────────────
@@ -104,12 +109,13 @@ window.REPO_CONFIG = {
     league:       "NCAAM",
     displayName:  "NCAAM",
     leagueColumn: "league",
+    joinKey:      "game_id",
     selectFiles:  (date) => [
       `win/basketball/04_select/ncaam/daily_picks/${date}_ncaam_selected.csv`,
       `win/basketball/04_select/daily_slate/ncaam_selected.csv`,
     ],
     predFile:     (date) => `win/basketball/00_intake/predictions/basketball_NCAAM_${date}.csv`,
-    bookFile:     (date) => `win/basketball/00_intake/sportsbook/basketball_NCAAM_${date}.csv`,
+    bookFile:     (date) => `win/basketball/00_intake/sportsbook/sportsbook_cleaned/ncaam/${date}_NCAAM_odds.csv`,
   },
 
   // ─── MLB ──────────────────────────────────────────────────────────────────
