@@ -8,7 +8,7 @@ import pandas as pd
 INTERMEDIATE  = Path("docs/win/soccer/scripts/05_final_scores/intermediate/work_soccer.csv")
 SUMMARY_DIR   = Path("docs/win/soccer/scripts/05_final_scores/deeper_summaries/soccer")
 ERROR_DIR     = Path("docs/win/soccer/scripts/05_final_scores/errors")
-MARKET_TALLY  = Path("docs/win/soccer/scripts/05_final_scores/soccer_market_tally.csv")
+MARKET_TALLY  = Path("docs/win/soccer/05_final_scores/soccer_market_tally.csv")
 ERROR_LOG     = ERROR_DIR / "soccer_results_reports_errors.txt"
 
 SUMMARY_DIR.mkdir(parents=True, exist_ok=True)
