@@ -1,0 +1,34 @@
+name: UFC Reports
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  reports:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run UFC reports
+        run: python docs/win/mma/ufc/scripts/04_final/ufc_reports.py
+
+      - name: Commit and push outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/win/mma/ufc/04_final
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "UFC reports: update 04_final outputs"
+            git push
+          fi
