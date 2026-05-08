@@ -91,6 +91,7 @@ window.REPO_CONFIG = {
   },
 
   // ─── WNBA ─────────────────────────────────────────────────────────────────
+ 
   WNBA: {
     sport:        "basketball",
     league:       "WNBA",
@@ -104,8 +105,54 @@ window.REPO_CONFIG = {
     ],
     predFile:     (date) => `win/basketball/00_intake/predictions/basketball_WNBA_${date}.csv`,
     bookFile:     (date) => `win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/${date}_WNBA_odds.csv`,
-  },
 
+    buildBetText: (p, r) => {
+      const market = (p.market_type || "").toLowerCase();
+      const side   = (p.bet_side || "").toLowerCase();
+
+      const fmtLine = (line) => {
+        const n = parseFloat(line);
+        if (isNaN(n)) return line || "";
+        return n > 0 ? "+" + n : String(n);
+      };
+
+      let label = "";
+      if (side === "home") label = r.home_team || "Home";
+      if (side === "away") label = r.away_team || "Away";
+      if (side === "over") label = "Over";
+      if (side === "under") label = "Under";
+
+      if (market === "spread") {
+        const line = side === "home"
+          ? (p.line || r.home_spread || "")
+          : (p.line || r.away_spread || "");
+
+        const odds = side === "home"
+          ? (r.home_dk_spread_american || p.dk_odds_american || p.take_odds || "")
+          : (r.away_dk_spread_american || p.dk_odds_american || p.take_odds || "");
+
+        return `${label} ${fmtLine(line)} (${odds})`.trim();
+      }
+
+      if (market === "total") {
+        const odds = side === "over"
+          ? (r.dk_total_over_american || p.dk_odds_american || p.take_odds || "")
+          : (r.dk_total_under_american || p.dk_odds_american || p.take_odds || "");
+
+        return `${label} ${p.line || r.total || ""} (${odds})`.trim();
+      }
+
+      if (market === "moneyline") {
+        const odds = side === "home"
+          ? (r.home_dk_moneyline_american || p.dk_odds_american || p.take_odds || "")
+          : (r.away_dk_moneyline_american || p.dk_odds_american || p.take_odds || "");
+
+        return `${label} (${odds})`.trim();
+      }
+
+      return `${label || side} ${p.line || ""} ${p.dk_odds_american || p.take_odds || ""}`.trim();
+    },
+  },
   // ─── NCAAM (replaces NCAAB) ───────────────────────────────────────────────
   NCAAM: {
     sport:        "basketball",
