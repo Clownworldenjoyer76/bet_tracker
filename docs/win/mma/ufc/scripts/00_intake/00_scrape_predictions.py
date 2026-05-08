@@ -12,6 +12,8 @@ from pathlib import Path
 URL = "https://www.dratings.com/predictor/ufc-mma-predictions/"
 OUTDIR = Path("docs/win/mma/ufc/00_intake/predictions")
 
+PLAYWRIGHT_TIMEZONE = "America/New_York"
+
 NOISE_LINES = {
     "Sports Ratings, Prediction, & Analysis",
     "Ratings",
@@ -53,6 +55,7 @@ def ensure_pkg(pkg: str, import_name: str | None = None) -> None:
 
 
 ensure_pkg("playwright")
+
 try:
     from playwright.sync_api import sync_playwright
 except Exception:
@@ -115,12 +118,14 @@ def split_fighter_and_prob(value: str) -> tuple[str | None, str | None]:
 def scrape_body_text() -> str:
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
-        page = playwright.chromium.launch(headless=True).new_page()  # fallback-safe init
-        browser.close()
 
-    with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(headless=True)
-        page = browser.new_page(viewport={"width": 1600, "height": 4000})
+        context = browser.new_context(
+            viewport={"width": 1600, "height": 4000},
+            timezone_id=PLAYWRIGHT_TIMEZONE,
+            locale="en-US",
+        )
+
+        page = context.new_page()
 
         page.goto(URL, wait_until="domcontentloaded", timeout=120000)
         page.wait_for_timeout(6000)
@@ -130,6 +135,7 @@ def scrape_body_text() -> str:
             page.wait_for_timeout(600)
 
         body_text = page.locator("body").inner_text(timeout=30000)
+
         browser.close()
         return body_text
 
