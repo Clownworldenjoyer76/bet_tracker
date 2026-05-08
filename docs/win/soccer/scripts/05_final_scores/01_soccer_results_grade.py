@@ -1,16 +1,21 @@
 #!/usr/bin/env python3
 # docs/win/soccer/scripts/05_final_scores/01_soccer_results_grade.py
 
+from __future__ import annotations
+
 from datetime import datetime
 from pathlib import Path
+import traceback
+
 import pandas as pd
+
 
 # =========================
 # PATHS
 # =========================
 
-SELECT_DIR       = Path("docs/win/soccer/04_select")
-FINAL_SCORES_DIR = Path("docs/win/soccer/05_final_scores")
+SELECT_DIR = Path("docs/win/soccer/04_select")
+FINAL_SCORES_DIR = Path("docs/win/soccer/05_final_scores/results/final_scores")
 
 OUTPUT_DIR = Path("docs/win/soccer/05_final_scores/results/graded")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -18,36 +23,63 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR = Path("docs/win/soccer/05_final_scores/errors")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
-ERROR_LOG   = ERROR_DIR / "soccer_results_grade_errors.txt"
+ERROR_LOG = ERROR_DIR / "soccer_results_grade_errors.txt"
 SUMMARY_LOG = ERROR_DIR / "soccer_results_grade_summary.txt"
 
 MASTER_FILE = OUTPUT_DIR / "SOCCER_final.csv"
 
 LEAGUE_MAP = {
-    "epl":        "EPL",
+    "epl": "EPL",
     "bundesliga": "BUNDESLIGA",
-    "laliga":     "LALIGA",
-    "ligue1":     "LIGUE1",
-    "seriea":     "SERIEA",
-    "mls":        "MLS",
+    "laliga": "LALIGA",
+    "ligue1": "LIGUE1",
+    "seriea": "SERIEA",
+    "mls": "MLS",
 }
+
+SELECT_REQUIRED = [
+    "game_id",
+    "sport",
+    "league",
+    "match_date",
+    "match_time",
+    "home_team",
+    "away_team",
+    "market",
+    "side",
+    "odds",
+    "ev",
+    "kelly",
+]
+
+SCORES_REQUIRED = [
+    "sport",
+    "league",
+    "game_id",
+    "game_date",
+    "match_time",
+    "home_team",
+    "away_team",
+    "home_score",
+    "away_score",
+]
 
 
 # =========================
 # LOGGING
 # =========================
 
-def reset_logs():
+def reset_logs() -> None:
     ERROR_LOG.write_text("", encoding="utf-8")
     SUMMARY_LOG.write_text("", encoding="utf-8")
 
 
-def log_error(msg):
+def log_error(msg: str) -> None:
     with open(ERROR_LOG, "a", encoding="utf-8") as f:
         f.write(f"[{datetime.now().isoformat()}] {msg}\n")
 
 
-def log_summary(msg):
+def log_summary(msg: str) -> None:
     with open(SUMMARY_LOG, "a", encoding="utf-8") as f:
         f.write(f"[{datetime.now().isoformat()}] {msg}\n")
 
@@ -56,76 +88,100 @@ def log_summary(msg):
 # HELPERS
 # =========================
 
-def safe_read(path):
+def safe_read(path: Path) -> pd.DataFrame:
     try:
-        path = Path(path)
         if not path.exists():
             log_error(f"MISSING FILE | {path}")
             return pd.DataFrame()
+
         df = pd.read_csv(path)
+
         if df.empty:
             log_error(f"EMPTY FILE | {path}")
             return pd.DataFrame()
+
         return df
+
     except Exception as e:
         log_error(f"READ ERROR | {path} | {e}")
+        log_error(traceback.format_exc())
         return pd.DataFrame()
+
+
+def validate_headers(df: pd.DataFrame, required: list[str], path: Path) -> bool:
+    missing = [c for c in required if c not in df.columns]
+
+    if missing:
+        log_error(f"MISSING HEADERS | {path}")
+        log_error(f"Missing: {missing}")
+        log_error(f"Available: {list(df.columns)}")
+        return False
+
+    return True
 
 
 def derive_take_bet(market: str, side: str) -> str:
     market = str(market).lower().strip()
-    side   = str(side).lower().strip()
+    side = str(side).lower().strip()
 
     if market == "match_odds":
         return side
+
     if market == "total25":
         return f"{side}25"
+
     if market == "total35":
         return f"{side}35"
+
     if market == "btts":
         return f"btts_{side}"
+
     return market
 
 
 def find_score_file(game_date: str, league_raw: str) -> Path | None:
-    league_upper = LEAGUE_MAP.get(league_raw.lower(), league_raw.upper())
-    league_lower = league_upper.lower()
+    league_key = str(league_raw).lower().strip()
+    league_upper = LEAGUE_MAP.get(league_key, league_key.upper())
 
-    candidates = [
-        FINAL_SCORES_DIR / league_upper / f"{game_date}_{league_upper}.csv",
-        FINAL_SCORES_DIR / league_lower / f"{game_date}_{league_lower}.csv",
-        FINAL_SCORES_DIR / league_upper / f"{game_date}_{league_lower}.csv",
-        FINAL_SCORES_DIR / league_lower / f"{game_date}_{league_upper}.csv",
-    ]
-    for path in candidates:
-        if path.exists():
-            return path
+    path = FINAL_SCORES_DIR / league_upper / f"{game_date}_{league_upper}.csv"
+
+    if path.exists():
+        return path
+
     return None
 
 
 def load_scores_for_league_date(game_date: str, league_raw: str) -> pd.DataFrame:
     path = find_score_file(game_date, league_raw)
+
     if path is None:
         log_error(f"NO SCORE FILE | league={league_raw} date={game_date}")
         return pd.DataFrame()
 
     df = safe_read(path)
+
     if df.empty:
         return pd.DataFrame()
 
-    needed = ["sport", "league", "game_date", "match_time",
-              "home_team", "away_team", "home_score", "away_score"]
-    missing = [c for c in needed if c not in df.columns]
-    if missing:
-        log_error(f"MISSING COLUMNS {missing} | {path}")
+    if not validate_headers(df, SCORES_REQUIRED, path):
         return pd.DataFrame()
 
-    df = df[needed].copy()
-    for col in ["home_team", "away_team", "game_date"]:
-        df[col] = df[col].astype(str).str.strip()
-    df["league_score"] = df["league"].astype(str).str.lower().str.strip()
+    df = df[SCORES_REQUIRED].copy()
 
-    return df.drop_duplicates(subset=["league_score", "home_team", "away_team", "game_date"])
+    df["game_id"] = df["game_id"].astype(str).str.strip()
+    df["home_score"] = pd.to_numeric(df["home_score"], errors="coerce")
+    df["away_score"] = pd.to_numeric(df["away_score"], errors="coerce")
+
+    before = len(df)
+
+    df = df.drop_duplicates(subset=["game_id"])
+
+    after = len(df)
+
+    if before != after:
+        log_error(f"DUPLICATE SCORE GAME_ID REMOVED | {path} | before={before} after={after}")
+
+    return df
 
 
 # =========================
@@ -135,8 +191,8 @@ def load_scores_for_league_date(game_date: str, league_raw: str) -> pd.DataFrame
 def grade_row(row) -> str:
     try:
         take_bet = str(row.get("take_bet", "")).lower().strip()
-        home     = pd.to_numeric(row.get("home_score"), errors="coerce")
-        away     = pd.to_numeric(row.get("away_score"), errors="coerce")
+        home = pd.to_numeric(row.get("home_score"), errors="coerce")
+        away = pd.to_numeric(row.get("away_score"), errors="coerce")
 
         if pd.isna(home) or pd.isna(away):
             return "Push"
@@ -145,123 +201,206 @@ def grade_row(row) -> str:
 
         if take_bet == "home":
             return "Win" if home > away else "Loss"
+
         if take_bet == "away":
             return "Win" if away > home else "Loss"
+
         if take_bet == "draw":
             return "Win" if home == away else "Loss"
 
         if take_bet == "over25":
             return "Win" if goals > 2.5 else "Loss"
+
         if take_bet == "under25":
             return "Win" if goals < 2.5 else "Loss"
 
         if take_bet == "over35":
             return "Win" if goals > 3.5 else "Loss"
+
         if take_bet == "under35":
             return "Win" if goals < 3.5 else "Loss"
 
         if take_bet == "btts_yes":
             return "Win" if home > 0 and away > 0 else "Loss"
+
         if take_bet == "btts_no":
             return "Win" if home == 0 or away == 0 else "Loss"
 
-    except Exception as e:
-        log_error(f"GRADE ERROR | game_id={row.get('game_id', '')} take_bet={row.get('take_bet', '')} | {e}")
+        log_error(
+            f"UNKNOWN TAKE_BET | game_id={row.get('game_id', '')} "
+            f"market={row.get('market', '')} side={row.get('side', '')} take_bet={take_bet}"
+        )
 
-    return "Push"
+        return "Push"
+
+    except Exception as e:
+        log_error(
+            f"GRADE ERROR | game_id={row.get('game_id', '')} "
+            f"take_bet={row.get('take_bet', '')} | {e}"
+        )
+        log_error(traceback.format_exc())
+        return "Push"
 
 
 # =========================
 # PROCESS
 # =========================
 
-def process():
+def process() -> None:
     select_files = sorted(SELECT_DIR.glob("*_soccer_bets.csv"))
+
     log_summary(f"Select files found: {len(select_files)}")
 
     if not select_files:
-        log_error("NO SELECT FILES FOUND")
+        log_error(f"NO SELECT FILES FOUND | {SELECT_DIR}")
         return
 
     all_rows = []
 
     for file in select_files:
         game_date = file.stem.replace("_soccer_bets", "")
-        log_summary(f"Processing: {file.name} | date={game_date}")
+
+        log_summary(f"PROCESSING SELECT | {file.name} | date={game_date}")
 
         bets_df = safe_read(file)
+
         if bets_df.empty:
             continue
 
-        # Normalise key columns
-        for col in ["market", "side", "league", "home_team", "away_team"]:
-            if col in bets_df.columns:
-                bets_df[col] = bets_df[col].astype(str).str.strip()
+        if not validate_headers(bets_df, SELECT_REQUIRED, file):
+            continue
 
-        # ── FIX: stamp game_date onto bets so merge key exists ──
-        bets_df["game_date"]     = game_date
-        bets_df["league_lower"]  = bets_df["league"].str.lower()
-        bets_df["market_type"]   = bets_df["market"].str.lower()
-        bets_df["take_bet"]      = bets_df.apply(
-            lambda r: derive_take_bet(r["market"], r["side"]), axis=1
+        for col in ["game_id", "market", "side", "league", "home_team", "away_team", "match_date"]:
+            bets_df[col] = bets_df[col].astype(str).str.strip()
+
+        bets_df["game_date"] = game_date
+        bets_df["league_lower"] = bets_df["league"].astype(str).str.lower().str.strip()
+        bets_df["market_type"] = bets_df["market"].astype(str).str.lower().str.strip()
+
+        bets_df["take_bet"] = bets_df.apply(
+            lambda r: derive_take_bet(r["market"], r["side"]),
+            axis=1,
         )
-        bets_df["odds_american"] = pd.to_numeric(bets_df.get("odds"), errors="coerce")
-        bets_df["edge_pct"]      = pd.to_numeric(bets_df.get("ev"),   errors="coerce")
+
+        bets_df["odds_american"] = pd.to_numeric(bets_df["odds"], errors="coerce")
+        bets_df["edge_pct"] = pd.to_numeric(bets_df["ev"], errors="coerce")
 
         merged_frames = []
+
         for league_raw, league_bets in bets_df.groupby("league_lower"):
+            league_bets = league_bets.copy()
+            league_bets["game_id"] = league_bets["game_id"].astype(str).str.strip()
+
             scores = load_scores_for_league_date(game_date, league_raw)
+
             if scores.empty:
-                log_error(f"NO SCORES MERGED | league={league_raw} date={game_date}")
-                league_bets = league_bets.copy()
-                league_bets["home_score"]       = None
-                league_bets["away_score"]       = None
-                league_bets["league_score"]     = league_raw
-                league_bets["market_scorefile"] = league_raw
+                log_error(f"NO SCORES LOADED | league={league_raw} date={game_date}")
+
+                league_bets["home_score"] = pd.NA
+                league_bets["away_score"] = pd.NA
+                league_bets["score_league"] = pd.NA
+                league_bets["score_game_date"] = pd.NA
+                league_bets["score_match_time"] = pd.NA
+                league_bets["score_home_team"] = pd.NA
+                league_bets["score_away_team"] = pd.NA
+
                 merged_frames.append(league_bets)
                 continue
 
-            scores["league_lower"] = scores["league_score"]
+            scores_for_merge = scores.rename(
+                columns={
+                    "league": "score_league",
+                    "game_date": "score_game_date",
+                    "match_time": "score_match_time",
+                    "home_team": "score_home_team",
+                    "away_team": "score_away_team",
+                }
+            )
 
             merged = league_bets.merge(
-                scores[["league_lower", "home_team", "away_team",
-                         "game_date", "home_score", "away_score", "league_score"]],
-                on=["league_lower", "home_team", "away_team", "game_date"],
-                how="left"
+                scores_for_merge[
+                    [
+                        "game_id",
+                        "score_league",
+                        "score_game_date",
+                        "score_match_time",
+                        "score_home_team",
+                        "score_away_team",
+                        "home_score",
+                        "away_score",
+                    ]
+                ],
+                on="game_id",
+                how="left",
             )
-            merged["market_scorefile"] = merged["league_score"].fillna(league_raw)
+
+            missing = merged["home_score"].isna() | merged["away_score"].isna()
+            missing_count = int(missing.sum())
+
+            if missing_count:
+                missing_games = merged.loc[
+                    missing,
+                    [
+                        "game_id",
+                        "league",
+                        "match_date",
+                        "home_team",
+                        "away_team",
+                        "market",
+                        "side",
+                    ],
+                ].drop_duplicates()
+
+                log_error(
+                    f"MISSING SCORE MERGE | select={file.name} league={league_raw} "
+                    f"rows={len(merged)} missing_rows={missing_count} unique_missing={len(missing_games)}"
+                )
+                log_error(missing_games.to_string(index=False))
+
             merged_frames.append(merged)
 
         if not merged_frames:
             continue
 
         day_df = pd.concat(merged_frames, ignore_index=True)
+
         day_df["bet_result"] = day_df.apply(grade_row, axis=1)
 
-        wins   = (day_df["bet_result"] == "Win").sum()
-        losses = (day_df["bet_result"] == "Loss").sum()
-        pushes = (day_df["bet_result"] == "Push").sum()
-        log_summary(f"  {file.name} | rows={len(day_df)} W={wins} L={losses} P={pushes}")
+        wins = int((day_df["bet_result"] == "Win").sum())
+        losses = int((day_df["bet_result"] == "Loss").sum())
+        pushes = int((day_df["bet_result"] == "Push").sum())
+
+        log_summary(
+            f"DAY RESULT | {file.name} | rows={len(day_df)} W={wins} L={losses} P={pushes}"
+        )
 
         out_file = OUTPUT_DIR / f"{game_date}_results_SOCCER.csv"
         day_df.to_csv(out_file, index=False)
-        log_summary(f"  WROTE: {out_file}")
+
+        log_summary(f"WROTE | {out_file}")
 
         all_rows.append(day_df)
 
     if all_rows:
         final = pd.concat(all_rows, ignore_index=True)
         final.to_csv(MASTER_FILE, index=False)
-        log_summary(f"MASTER FILE WRITTEN | rows={len(final)} | {MASTER_FILE}")
+
+        wins = int((final["bet_result"] == "Win").sum())
+        losses = int((final["bet_result"] == "Loss").sum())
+        pushes = int((final["bet_result"] == "Push").sum())
+
+        log_summary(
+            f"MASTER WRITTEN | rows={len(final)} W={wins} L={losses} P={pushes} | {MASTER_FILE}"
+        )
     else:
-        log_summary("NO ROWS TO WRITE — master file not updated")
+        log_summary("NO ROWS TO WRITE | master file not updated")
 
 
 # =========================
 # MAIN
 # =========================
 
-def main():
+def main() -> None:
     reset_logs()
     log_summary(f"=== START 01_soccer_results_grade.py {datetime.now().isoformat()} ===")
     process()
