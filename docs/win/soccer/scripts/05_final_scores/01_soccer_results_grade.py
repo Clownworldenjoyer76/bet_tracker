@@ -89,19 +89,12 @@ def log_summary(msg: str) -> None:
 # =========================
 
 def normalize_game_id(value) -> str:
-    """
-    Normalizes game_id values so these match:
-        33780392
-        33780392.0
-        "33780392"
-        "33780392.0"
-    """
     if pd.isna(value):
         return ""
 
     s = str(value).strip()
 
-    if not s:
+    if s.lower() in {"", "nan", "none", "<na>"}:
         return ""
 
     if s.endswith(".0"):
@@ -196,17 +189,13 @@ def load_scores_for_league_date(game_date: str, league_raw: str) -> pd.DataFrame
 
     before = len(df)
 
-    df_with_game_id = df[df["game_id"] != ""].copy()
-    df_without_game_id = df[df["game_id"] == ""].copy()
+    df = df[df["game_id"] != ""].copy()
+    df = df.drop_duplicates(subset=["game_id"])
 
-    df_with_game_id = df_with_game_id.drop_duplicates(subset=["game_id"])
-
-    after = len(df_with_game_id) + len(df_without_game_id)
+    after = len(df)
 
     if before != after:
-        log_error(f"DUPLICATE SCORE GAME_ID REMOVED | {path} | before={before} after={after}")
-
-    df = pd.concat([df_with_game_id, df_without_game_id], ignore_index=True)
+        log_error(f"SCORE GAME_ID ROWS REMOVED | {path} | before={before} after={after}")
 
     return df
 
@@ -222,7 +211,7 @@ def grade_row(row) -> str:
         away = pd.to_numeric(row.get("away_score"), errors="coerce")
 
         if pd.isna(home) or pd.isna(away):
-            return "Push"
+            return "Missing Score"
 
         goals = home + away
 
@@ -258,7 +247,7 @@ def grade_row(row) -> str:
             f"market={row.get('market', '')} side={row.get('side', '')} take_bet={take_bet}"
         )
 
-        return "Push"
+        return "Unknown Market"
 
     except Exception as e:
         log_error(
@@ -266,7 +255,7 @@ def grade_row(row) -> str:
             f"take_bet={row.get('take_bet', '')} | {e}"
         )
         log_error(traceback.format_exc())
-        return "Push"
+        return "Grade Error"
 
 
 # =========================
@@ -398,9 +387,14 @@ def process() -> None:
         wins = int((day_df["bet_result"] == "Win").sum())
         losses = int((day_df["bet_result"] == "Loss").sum())
         pushes = int((day_df["bet_result"] == "Push").sum())
+        missing_scores = int((day_df["bet_result"] == "Missing Score").sum())
+        unknown_markets = int((day_df["bet_result"] == "Unknown Market").sum())
+        grade_errors = int((day_df["bet_result"] == "Grade Error").sum())
 
         log_summary(
-            f"DAY RESULT | {file.name} | rows={len(day_df)} W={wins} L={losses} P={pushes}"
+            f"DAY RESULT | {file.name} | rows={len(day_df)} "
+            f"W={wins} L={losses} P={pushes} "
+            f"MISSING_SCORE={missing_scores} UNKNOWN_MARKET={unknown_markets} GRADE_ERROR={grade_errors}"
         )
 
         out_file = OUTPUT_DIR / f"{game_date}_results_SOCCER.csv"
@@ -417,9 +411,14 @@ def process() -> None:
         wins = int((final["bet_result"] == "Win").sum())
         losses = int((final["bet_result"] == "Loss").sum())
         pushes = int((final["bet_result"] == "Push").sum())
+        missing_scores = int((final["bet_result"] == "Missing Score").sum())
+        unknown_markets = int((final["bet_result"] == "Unknown Market").sum())
+        grade_errors = int((final["bet_result"] == "Grade Error").sum())
 
         log_summary(
-            f"MASTER WRITTEN | rows={len(final)} W={wins} L={losses} P={pushes} | {MASTER_FILE}"
+            f"MASTER WRITTEN | rows={len(final)} "
+            f"W={wins} L={losses} P={pushes} "
+            f"MISSING_SCORE={missing_scores} UNKNOWN_MARKET={unknown_markets} GRADE_ERROR={grade_errors} | {MASTER_FILE}"
         )
     else:
         log_summary("NO ROWS TO WRITE | master file not updated")
