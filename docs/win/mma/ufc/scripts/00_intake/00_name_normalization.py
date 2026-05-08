@@ -24,7 +24,7 @@ NO_MAP_PATH = Path("mappings/mma/ufc/no_map_fighter_name.csv")
 INTAKE_FILES = [
     (Path("docs/win/mma/ufc/00_intake/sportsbook"), "*_ufc_odds.csv"),
     (Path("docs/win/mma/ufc/00_intake/predictions"), "*_ufc_predictions.csv"),
-    (Path("docs/win/mma/ufc/manual_files"), "*_ufc.csv"
+    (Path("docs/win/mma/ufc/manual_files"), "*_ufc.csv"),
 ]
 
 
