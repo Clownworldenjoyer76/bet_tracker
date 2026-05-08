@@ -132,8 +132,7 @@ function normalizeRow(r, sourceLabel) {
     line: parseNum(r.line),
     odds: normalizeOdds(r, betSide),
     model_prob: normalizeModelProb(r, betSide),
-    ev: parseNum(r.ev) || parseNum(r.selected_ev) || parseNum(r.edge_pct),
-    kelly: parseNum(r.kelly),
+    ev: parseNum(r.bet_ev) || parseNum(r.ev) || parseNum(r.selected_ev) || parseNum(r.edge_pct),    kelly: parseNum(r.kelly),
     result: normalizeResult(r)
   };
 }
