@@ -88,6 +88,28 @@ def log_summary(msg: str) -> None:
 # HELPERS
 # =========================
 
+def normalize_game_id(value) -> str:
+    """
+    Normalizes game_id values so these match:
+        33780392
+        33780392.0
+        "33780392"
+        "33780392.0"
+    """
+    if pd.isna(value):
+        return ""
+
+    s = str(value).strip()
+
+    if not s:
+        return ""
+
+    if s.endswith(".0"):
+        s = s[:-2]
+
+    return s.strip()
+
+
 def safe_read(path: Path) -> pd.DataFrame:
     try:
         if not path.exists():
@@ -118,25 +140,6 @@ def validate_headers(df: pd.DataFrame, required: list[str], path: Path) -> bool:
         return False
 
     return True
-
-
-def clean_game_id(value) -> str:
-    if pd.isna(value):
-        return ""
-
-    s = str(value).strip()
-
-    if s.lower() in {"nan", "none", "<na>"}:
-        return ""
-
-    if s.endswith(".0"):
-        s = s[:-2]
-
-    return s
-
-
-def clean_game_id_series(series: pd.Series) -> pd.Series:
-    return series.apply(clean_game_id)
 
 
 def derive_take_bet(market: str, side: str) -> str:
@@ -187,19 +190,23 @@ def load_scores_for_league_date(game_date: str, league_raw: str) -> pd.DataFrame
 
     df = df[SCORES_REQUIRED].copy()
 
-    df["game_id"] = clean_game_id_series(df["game_id"])
+    df["game_id"] = df["game_id"].apply(normalize_game_id)
     df["home_score"] = pd.to_numeric(df["home_score"], errors="coerce")
     df["away_score"] = pd.to_numeric(df["away_score"], errors="coerce")
 
     before = len(df)
 
-    df = df[df["game_id"] != ""].copy()
-    df = df.drop_duplicates(subset=["game_id"])
+    df_with_game_id = df[df["game_id"] != ""].copy()
+    df_without_game_id = df[df["game_id"] == ""].copy()
 
-    after = len(df)
+    df_with_game_id = df_with_game_id.drop_duplicates(subset=["game_id"])
+
+    after = len(df_with_game_id) + len(df_without_game_id)
 
     if before != after:
-        log_error(f"SCORE GAME_ID ROWS REMOVED | {path} | before={before} after={after}")
+        log_error(f"DUPLICATE SCORE GAME_ID REMOVED | {path} | before={before} after={after}")
+
+    df = pd.concat([df_with_game_id, df_without_game_id], ignore_index=True)
 
     return df
 
@@ -293,7 +300,7 @@ def process() -> None:
         for col in ["market", "side", "league", "home_team", "away_team", "match_date"]:
             bets_df[col] = bets_df[col].astype(str).str.strip()
 
-        bets_df["game_id"] = clean_game_id_series(bets_df["game_id"])
+        bets_df["game_id"] = bets_df["game_id"].apply(normalize_game_id)
 
         bets_df["game_date"] = game_date
         bets_df["league_lower"] = bets_df["league"].astype(str).str.lower().str.strip()
@@ -311,7 +318,7 @@ def process() -> None:
 
         for league_raw, league_bets in bets_df.groupby("league_lower"):
             league_bets = league_bets.copy()
-            league_bets["game_id"] = clean_game_id_series(league_bets["game_id"])
+            league_bets["game_id"] = league_bets["game_id"].apply(normalize_game_id)
 
             scores = load_scores_for_league_date(game_date, league_raw)
 
