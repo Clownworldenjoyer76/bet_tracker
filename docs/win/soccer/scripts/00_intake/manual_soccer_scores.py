@@ -8,14 +8,13 @@ from pathlib import Path
 
 
 OUT_DIRS = [
-    Path("docs/win/final_scores/results/soccer/final_scores"),
-    Path("docs/win/soccer/05_final_scores/results/final_scores"),
+    Path("docs/win/soccer/05_final_scores/results/final_scores_dirty"),
 ]
 
 CSV_HEADERS = [
     "sport",
     "league",
-    "game_date",
+    "match_date",
     "match_time",
     "home_team",
     "away_team",
@@ -57,11 +56,11 @@ def clean_market_for_league_value(value: str) -> str:
     )
 
 
-def normalize_game_date(value: str) -> str:
+def normalize_match_date(value: str) -> str:
     value = (value or "").strip()
 
     if not DATE_RE.match(value):
-        raise ValueError(f"Invalid game date format: {value}")
+        raise ValueError(f"Invalid match date format: {value}")
 
     month, day, year = value.split("/")
     return f"{year}_{month.zfill(2)}_{day.zfill(2)}"
@@ -111,7 +110,7 @@ def clean_raw_lines(raw_lines: list[str]) -> list[str]:
     return cleaned
 
 
-def split_into_game_blocks(lines: list[str]) -> list[list[str]]:
+def split_into_match_blocks(lines: list[str]) -> list[list[str]]:
     blocks = []
     current_block = []
 
@@ -189,11 +188,11 @@ def parse_scores(block: list[str], start_index: int) -> tuple[str, str]:
     raise ValueError(f"Could not parse scores from block: {block}")
 
 
-def parse_game_block(block: list[str], league_value: str) -> dict:
+def parse_match_block(block: list[str], league_value: str) -> dict:
     if len(block) < 4:
-        raise ValueError(f"Incomplete game block: {block}")
+        raise ValueError(f"Incomplete match block: {block}")
 
-    game_date = normalize_game_date(block[0])
+    match_date = normalize_match_date(block[0])
     match_time, away_team, next_index = parse_time_and_away_team(block)
     home_team, next_index = parse_home_team(block, next_index)
     home_score, away_score = parse_scores(block, next_index)
@@ -201,7 +200,7 @@ def parse_game_block(block: list[str], league_value: str) -> dict:
     return {
         "sport": "soccer",
         "league": league_value,
-        "game_date": game_date,
+        "match_date": match_date,
         "match_time": match_time,
         "home_team": home_team,
         "away_team": away_team,
@@ -212,30 +211,30 @@ def parse_game_block(block: list[str], league_value: str) -> dict:
 
 def parse_rows(raw_lines: list[str], league_value: str) -> list[dict]:
     lines = clean_raw_lines(raw_lines)
-    blocks = split_into_game_blocks(lines)
+    blocks = split_into_match_blocks(lines)
 
     rows = []
 
     for block in blocks:
-        row = parse_game_block(block, league_value)
+        row = parse_match_block(block, league_value)
         rows.append(row)
 
     return rows
 
 
-def group_rows_by_game_date(rows: list[dict]) -> dict[str, list[dict]]:
+def group_rows_by_match_date(rows: list[dict]) -> dict[str, list[dict]]:
     grouped = {}
 
     for row in rows:
-        game_date = row["game_date"]
-        grouped.setdefault(game_date, []).append(row)
+        match_date = row["match_date"]
+        grouped.setdefault(match_date, []).append(row)
 
     return grouped
 
 
 def row_key(row: dict) -> tuple[str, str, str, str]:
     return (
-        row.get("game_date", "").strip(),
+        row.get("match_date", "").strip(),
         row.get("match_time", "").strip(),
         row.get("home_team", "").strip(),
         row.get("away_team", "").strip(),
@@ -319,8 +318,8 @@ def write_outputs(grouped_rows: dict[str, list[dict]], market_path_value: str) -
     for base_dir in OUT_DIRS:
         out_dir = base_dir / market_path_value
 
-        for game_date, incoming_rows in grouped_rows.items():
-            csv_path = out_dir / f"{game_date}_{market_path_value}.csv"
+        for match_date, incoming_rows in grouped_rows.items():
+            csv_path = out_dir / f"{match_date}_{market_path_value}.csv"
 
             existing_rows = read_existing_rows(csv_path)
             final_rows = merge_rows(existing_rows, incoming_rows)
@@ -358,7 +357,7 @@ def main() -> None:
     if not rows:
         raise ValueError("No soccer final score rows were parsed from raw input")
 
-    grouped_rows = group_rows_by_game_date(rows)
+    grouped_rows = group_rows_by_match_date(rows)
 
     write_outputs(grouped_rows, market_path_value)
 
