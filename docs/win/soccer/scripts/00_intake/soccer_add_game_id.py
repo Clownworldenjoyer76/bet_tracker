@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# docs/win/soccer/scripts/05_final_scores/01_soccer_add_game_id.py
+# docs/win/soccer/scripts/01_intake/soccer_add_game_id.py
 
 from __future__ import annotations
 
