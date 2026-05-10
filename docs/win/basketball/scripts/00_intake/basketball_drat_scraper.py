@@ -28,8 +28,11 @@ with open(LOG_FILE, "w", encoding="utf-8") as f:
 
 
 def log(msg: str) -> None:
+    line = f"{datetime.now(ET).isoformat()} | {msg}"
+    print(line, flush=True)
+
     with open(LOG_FILE, "a", encoding="utf-8") as f:
-        f.write(f"{datetime.now(ET).isoformat()} | {msg}\n")
+        f.write(line + "\n")
 
 
 def convert_utc_to_et(date_time_str: str) -> str:
@@ -120,8 +123,10 @@ def parse_nba_ncaa(row, sport):
         elif len(row) >= 7:
             sc = row[5].split("\n")
             score1 = sc[0].strip()
+
             if len(sc) > 1:
                 score2 = sc[1].strip()
+
             elif len(row) > 6 and is_score(row[6]):
                 score2 = row[6].strip()
 
@@ -146,54 +151,47 @@ def parse_nba_ncaa(row, sport):
             "game_status":     game_status,
         }
 
-    except Exception:
+    except Exception as e:
+        log(
+            f"NBA/NCAA PARSE ERROR | sport={sport} | "
+            f"row_len={len(row)} | error={e} | "
+            f"row={json.dumps(row)}\n{traceback.format_exc()}"
+        )
         return None
 
 
 def parse_wnba(row):
     """
     WNBA-specific parser.
-
-    Confirmed WNBA page shapes:
-      Future rows:    10 cells
-        0 date/time
-        1 teams, with records
-        2 win %
-        3 blank/moneyline
-        4 blank/spread
-        5 projected scores
-        6 total
-        7 blank/O-U
-        8 blank
-        9 blank
-
-      Completed rows: 8 cells
-        0 date/time
-        1 teams
-        2 win %
-        3 moneyline
-        4 spread
-        5 final score
-        6 rating/stat junk
-        7 rating/stat junk
-
-      Summary rows:   6 cells
-        rejected
     """
+
     if len(row) not in (8, 10):
+        log(
+            f"WNBA REJECTED ROW LENGTH | "
+            f"len={len(row)} | row={json.dumps(row)}"
+        )
         return None
 
     try:
         date_time = convert_utc_to_et(row[0].replace("\n", " "))
 
         team1, team2 = split_pair(row[1])
+
         team1 = strip_wnba_record(team1)
         team2 = strip_wnba_record(team2)
 
         if not team1 or not team2:
+            log(
+                f"WNBA REJECTED EMPTY TEAM | "
+                f"row={json.dumps(row)}"
+            )
             return None
 
         if team1.lower() == "sportsbooks" or team1.lower() == "dratings":
+            log(
+                f"WNBA REJECTED HEADER ROW | "
+                f"row={json.dumps(row)}"
+            )
             return None
 
         wp1, wp2 = split_pair(row[2])
@@ -205,8 +203,12 @@ def parse_wnba(row):
 
         if len(row) == 10:
             proj1, proj2 = split_pair(row[5])
+
             total = row[6].strip() if len(row) > 6 else ""
-            over_line, under_line = split_pair(row[7]) if len(row) > 7 else ("", "")
+
+            over_line, under_line = (
+                split_pair(row[7]) if len(row) > 7 else ("", "")
+            )
 
         elif len(row) == 8:
             score1, score2 = split_pair(row[5])
@@ -232,7 +234,12 @@ def parse_wnba(row):
             "game_status":     game_status,
         }
 
-    except Exception:
+    except Exception as e:
+        log(
+            f"WNBA PARSE ERROR | "
+            f"row_len={len(row)} | error={e} | "
+            f"row={json.dumps(row)}\n{traceback.format_exc()}"
+        )
         return None
 
 
@@ -245,9 +252,25 @@ def parse_row(row, sport):
 
 def scrape_page(page, url):
     page.goto(url)
+
     page.wait_for_selector("table")
+
     rows = page.query_selector_all("table tbody tr")
-    return [[c.inner_text().strip() for c in r.query_selector_all("td")] for r in rows]
+
+    parsed_rows = []
+
+    for idx, r in enumerate(rows):
+        cells = [c.inner_text().strip() for c in r.query_selector_all("td")]
+
+        log(
+            f"RAW TABLE ROW | idx={idx} | "
+            f"cell_count={len(cells)} | "
+            f"cells={json.dumps(cells)}"
+        )
+
+        parsed_rows.append(cells)
+
+    return parsed_rows
 
 
 def main():
@@ -255,11 +278,14 @@ def main():
 
     try:
         date = datetime.now(ET).strftime("%Y_%m_%d")
+
         base_out_dir = Path("docs/win/basketball/00_intake/drat_raw")
 
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
+
             page = browser.new_page()
+
             page.set_extra_http_headers({
                 "User-Agent": (
                     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -273,12 +299,44 @@ def main():
 
                 try:
                     raw = scrape_page(page, url)
-                    log(f"  RAW ROWS: {len(raw)}")
 
-                    games = [parse_row(r, sport) for r in raw]
-                    games = [g for g in games if g]
+                    log(f"RAW ROWS: {len(raw)}")
+
+                    games = []
+
+                    for idx, row in enumerate(raw):
+                        try:
+                            parsed = parse_row(row, sport)
+
+                            if parsed:
+                                games.append(parsed)
+
+                                log(
+                                    f"PARSED GAME | sport={sport} | "
+                                    f"idx={idx} | "
+                                    f"{parsed.get('team1')} vs {parsed.get('team2')}"
+                                )
+
+                            else:
+                                log(
+                                    f"REJECTED ROW | sport={sport} | "
+                                    f"idx={idx} | "
+                                    f"row_len={len(row)} | "
+                                    f"row={json.dumps(row)}"
+                                )
+
+                        except Exception as e:
+                            log(
+                                f"ROW ERROR | sport={sport} | "
+                                f"idx={idx} | "
+                                f"row_len={len(row)} | "
+                                f"error={e} | "
+                                f"row={json.dumps(row)}\n"
+                                f"{traceback.format_exc()}"
+                            )
 
                     label = "ncaam" if sport == "ncaa" else sport
+
                     out_dir = base_out_dir / label
                     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -288,7 +346,8 @@ def main():
                         json.dump(games, f, indent=2)
 
                     files_written.append((str(path), len(games)))
-                    log(f"  WROTE {path} ({len(games)} games)")
+
+                    log(f"WROTE {path} ({len(games)} games)")
 
                 except Exception as e:
                     log(f"ERROR scraping {sport}: {e}\n{traceback.format_exc()}")
@@ -301,7 +360,7 @@ def main():
         log(f"Files written: {len(files_written)}")
 
         for path, count in files_written:
-            log(f"  FILE: {path} ({count} games)")
+            log(f"FILE: {path} ({count} games)")
 
         log("STATUS: SUCCESS")
 
