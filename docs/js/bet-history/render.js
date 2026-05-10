@@ -17,16 +17,12 @@ function formatOdds(odds, oddsDisplay) {
 }
 
 function formatProfit(value, profitDisplay) {
-  if (profitDisplay !== null && profitDisplay !== undefined && String(profitDisplay).trim() !== '') {
-    return profitDisplay;
-  }
-
   if (value === null || value === undefined || value === '') return '—';
 
   var n = parseFloat(value);
   if (isNaN(n)) return value;
 
-  return n > 0 ? '+' + n.toFixed(2) : n.toFixed(2);
+  return n > 0 ? '+' + n.toFixed(2) + 'u' : n.toFixed(2) + 'u';
 }
 
 function profitClass(value) {
@@ -270,13 +266,13 @@ function renderBetsTable(main, graded) {
     var profitCls = profitClass(r.profit_unit);
 
     return '<tr>' +
-      '<td>' + formatDateDisplay(r.game_date) + '</td>' +
-      '<td>' + leagueDisplayName(r) + '</td>' +
-      '<td>' + (r.matchup || '—') + '</td>' +
-      '<td>' + (r.pick || r.bet_side || '—') + '</td>' +
-      '<td>' + formatOdds(r.odds, r.odds_display) + '</td>' +
-      '<td class="' + outCls + '">' + outTxt + '</td>' +
-      '<td class="' + profitCls + '">' + formatProfit(r.profit_unit, r.profit_display) + '</td>' +
+      '<td><span class="history-date">' + formatDateDisplay(r.game_date) + '</span></td>' +
+      '<td><span class="history-league-pill">' + leagueDisplayName(r) + '</span></td>' +
+      '<td><span class="history-matchup">' + (r.matchup || '—') + '</span></td>' +
+      '<td><span class="history-pick">' + (r.pick || r.bet_side || '—') + '</span></td>' +
+      '<td><span class="history-odds">' + formatOdds(r.odds, r.odds_display) + '</span></td>' +
+      '<td><span class="history-result-badge ' + outCls + '">' + outTxt + '</span></td>' +
+      '<td><span class="history-profit-badge ' + profitCls + '">' + formatProfit(r.profit_unit, r.profit_display) + '</span></td>' +
     '</tr>';
   }).join('');
 
@@ -295,7 +291,7 @@ function renderBetsTable(main, graded) {
             '<th>Pick</th>' +
             '<th>Odds</th>' +
             '<th>Result</th>' +
-            '<th>Profit / Loss</th>' +
+            '<th>P/L Units</th>' +
           '</tr>' +
         '</thead>' +
         '<tbody>' + tableRows + '</tbody>' +
