@@ -1,3 +1,62 @@
+function formatDateDisplay(date) {
+  if (!date) return '—';
+  return String(date).replaceAll('_', '-');
+}
+
+function formatOdds(odds, oddsDisplay) {
+  if (oddsDisplay !== null && oddsDisplay !== undefined && String(oddsDisplay).trim() !== '') {
+    return oddsDisplay;
+  }
+
+  if (odds === null || odds === undefined || odds === '') return '—';
+
+  var n = parseFloat(odds);
+  if (isNaN(n)) return odds;
+
+  return n > 0 ? '+' + n : String(n);
+}
+
+function formatProfit(value, profitDisplay) {
+  if (profitDisplay !== null && profitDisplay !== undefined && String(profitDisplay).trim() !== '') {
+    return profitDisplay;
+  }
+
+  if (value === null || value === undefined || value === '') return '—';
+
+  var n = parseFloat(value);
+  if (isNaN(n)) return value;
+
+  return n > 0 ? '+' + n.toFixed(2) : n.toFixed(2);
+}
+
+function profitClass(value) {
+  var n = parseFloat(value);
+
+  if (isNaN(n) || n === 0) return 'profit-flat';
+  return n > 0 ? 'val-green' : 'val-red';
+}
+
+function outcomeClass(result) {
+  if (result === 'win') return 'outcome-w';
+  if (result === 'loss') return 'outcome-l';
+  return 'outcome-p';
+}
+
+function outcomeText(result) {
+  if (result === 'win') return 'WIN';
+  if (result === 'loss') return 'LOSS';
+  if (result === 'push') return 'PUSH';
+  return '—';
+}
+
+function leagueDisplayName(r) {
+  if (r.league === 'SOCCER' && r.league_sub && r.league_sub !== 'SOCCER') {
+    return r.league + ' · ' + r.league_sub;
+  }
+
+  return r.league || '—';
+}
+
 function render() {
   var rows = filteredRows();
 
@@ -9,7 +68,7 @@ function render() {
   main.innerHTML = '';
 
   if (!graded.length) {
-    main.innerHTML = '<div class="empty-state">No graded bets match the current filter</div>';
+    main.innerHTML = '<div class="empty-state">No completed bets match the current filter</div>';
     return;
   }
 
@@ -35,13 +94,21 @@ function render() {
     return s + r.ev;
   }, 0);
 
+  var profitRows = graded.filter(function(r) {
+    return r.profit_unit !== null;
+  });
+
+  var totalProfit = profitRows.reduce(function(s, r) {
+    return s + r.profit_unit;
+  }, 0);
+
   var strip = document.createElement('div');
   strip.className = 'summary-strip';
 
   [
     {
       val: graded.length,
-      lbl: 'Graded Bets',
+      lbl: 'Completed Bets',
       cls: ''
     },
     {
@@ -58,6 +125,11 @@ function render() {
       val: avgProbRows.length ? (avgProb * 100).toFixed(1) + '%' : '—',
       lbl: 'Avg Model Prob',
       cls: 'val-blue'
+    },
+    {
+      val: profitRows.length ? formatProfit(totalProfit) : '—',
+      lbl: 'Profit / Loss',
+      cls: totalProfit >= 0 ? 'val-green' : 'val-red'
     },
     {
       val: evRows.length ? totalEV.toFixed(2) : '—',
@@ -98,8 +170,20 @@ function renderLeagueBreakdown(main, graded) {
     var decisions = wins + losses;
     var rate = decisions ? wins / decisions : 0;
 
-    var ev = rows.reduce(function(s, r) {
-      return s + (r.ev || 0);
+    var evRows = rows.filter(function(r) {
+      return r.ev !== null;
+    });
+
+    var ev = evRows.reduce(function(s, r) {
+      return s + r.ev;
+    }, 0);
+
+    var profitRows = rows.filter(function(r) {
+      return r.profit_unit !== null;
+    });
+
+    var profit = profitRows.reduce(function(s, r) {
+      return s + r.profit_unit;
     }, 0);
 
     return '<div class="breakdown-card">' +
@@ -107,7 +191,8 @@ function renderLeagueBreakdown(main, graded) {
       '<div class="stat-row"><span class="stat-label">Bets</span><span class="stat-value">' + rows.length + '</span></div>' +
       '<div class="stat-row"><span class="stat-label">W-L</span><span class="stat-value">' + wins + '-' + losses + '</span></div>' +
       '<div class="stat-row"><span class="stat-label">Win Rate</span><span class="stat-value" style="color:' + (rate >= 0.55 ? 'var(--accent-green)' : rate < 0.45 ? 'var(--accent-red)' : 'var(--accent-yellow)') + '">' + (rate * 100).toFixed(1) + '%</span></div>' +
-      '<div class="stat-row"><span class="stat-label">Total EV</span><span class="stat-value" style="color:' + (ev >= 0 ? 'var(--accent-green)' : 'var(--accent-red)') + '">' + ev.toFixed(2) + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">P/L</span><span class="stat-value" style="color:' + (profit >= 0 ? 'var(--accent-green)' : 'var(--accent-red)') + '">' + (profitRows.length ? formatProfit(profit) : '—') + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Total EV</span><span class="stat-value" style="color:' + (ev >= 0 ? 'var(--accent-green)' : 'var(--accent-red)') + '">' + (evRows.length ? ev.toFixed(2) : '—') + '</span></div>' +
     '</div>';
   }).join('');
 
@@ -133,8 +218,20 @@ function renderMarketBreakdown(main, graded) {
     var decisions = wins + losses;
     var rate = decisions ? wins / decisions : 0;
 
-    var ev = rows.reduce(function(s, r) {
-      return s + (r.ev || 0);
+    var evRows = rows.filter(function(r) {
+      return r.ev !== null;
+    });
+
+    var ev = evRows.reduce(function(s, r) {
+      return s + r.ev;
+    }, 0);
+
+    var profitRows = rows.filter(function(r) {
+      return r.profit_unit !== null;
+    });
+
+    var profit = profitRows.reduce(function(s, r) {
+      return s + r.profit_unit;
     }, 0);
 
     var label = market === 'spread'
@@ -146,7 +243,8 @@ function renderMarketBreakdown(main, graded) {
       '<div class="stat-row"><span class="stat-label">Bets</span><span class="stat-value">' + rows.length + '</span></div>' +
       '<div class="stat-row"><span class="stat-label">W-L</span><span class="stat-value">' + wins + '-' + losses + '</span></div>' +
       '<div class="stat-row"><span class="stat-label">Win Rate</span><span class="stat-value" style="color:' + (rate >= 0.55 ? 'var(--accent-green)' : rate < 0.45 ? 'var(--accent-red)' : 'var(--accent-yellow)') + '">' + (rate * 100).toFixed(1) + '%</span></div>' +
-      '<div class="stat-row"><span class="stat-label">Total EV</span><span class="stat-value" style="color:' + (ev >= 0 ? 'var(--accent-green)' : 'var(--accent-red)') + '">' + ev.toFixed(2) + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">P/L</span><span class="stat-value" style="color:' + (profit >= 0 ? 'var(--accent-green)' : 'var(--accent-red)') + '">' + (profitRows.length ? formatProfit(profit) : '—') + '</span></div>' +
+      '<div class="stat-row"><span class="stat-label">Total EV</span><span class="stat-value" style="color:' + (ev >= 0 ? 'var(--accent-green)' : 'var(--accent-red)') + '">' + (evRows.length ? ev.toFixed(2) : '—') + '</span></div>' +
     '</div>';
   }).join('');
 
@@ -164,44 +262,21 @@ function renderBetsTable(main, graded) {
     return String(b.game_date).localeCompare(String(a.game_date));
   });
 
-  var tableRows = sorted.slice(0, 250).map(function(r) {
-    var outCls = r.result === 'win'
-      ? 'outcome-w'
-      : r.result === 'loss'
-        ? 'outcome-l'
-        : 'outcome-p';
+  var displayRows = sorted.slice(0, 500);
 
-    var outTxt = r.result === 'win'
-      ? 'WIN'
-      : r.result === 'loss'
-        ? 'LOSS'
-        : 'PUSH';
-
-    var probCls = (r.model_prob || 0) >= 0.65
-      ? 'prob-high'
-      : (r.model_prob || 0) >= 0.5
-        ? 'prob-mid'
-        : 'prob-low';
-
-    var evCls = (r.ev || 0) >= 0 ? 'val-green' : 'val-red';
-    var oddsStr = r.odds !== null ? (r.odds > 0 ? '+' + r.odds : r.odds) : '—';
-    var probStr = r.model_prob !== null ? (r.model_prob * 100).toFixed(1) + '%' : '—';
-    var evStr = r.ev !== null ? r.ev.toFixed(2) : '—';
-    var lineStr = r.line !== null ? ' ' + r.line : '';
-
-    var leagueDisplay = r.league === 'SOCCER' && r.league_sub && r.league_sub !== 'SOCCER'
-      ? r.league + ' · ' + r.league_sub
-      : r.league;
+  var tableRows = displayRows.map(function(r) {
+    var outCls = outcomeClass(r.result);
+    var outTxt = outcomeText(r.result);
+    var profitCls = profitClass(r.profit_unit);
 
     return '<tr>' +
-      '<td>' + (r.game_date || '—') + '</td>' +
-      '<td>' + leagueDisplay + '</td>' +
-      '<td>' + (r.market_raw || r.market || '—') + '</td>' +
-      '<td>' + (r.bet_side || '—') + lineStr + '</td>' +
-      '<td>' + oddsStr + '</td>' +
-      '<td class="' + probCls + '">' + probStr + '</td>' +
-      '<td class="' + evCls + '">' + evStr + '</td>' +
+      '<td>' + formatDateDisplay(r.game_date) + '</td>' +
+      '<td>' + leagueDisplayName(r) + '</td>' +
+      '<td>' + (r.matchup || '—') + '</td>' +
+      '<td>' + (r.pick || r.bet_side || '—') + '</td>' +
+      '<td>' + formatOdds(r.odds, r.odds_display) + '</td>' +
       '<td class="' + outCls + '">' + outTxt + '</td>' +
+      '<td class="' + profitCls + '">' + formatProfit(r.profit_unit, r.profit_display) + '</td>' +
     '</tr>';
   }).join('');
 
@@ -209,27 +284,26 @@ function renderBetsTable(main, graded) {
   sec.className = 'section';
 
   sec.innerHTML =
-    '<div class="section-title">Graded Bet History</div>' +
+    '<div class="section-title">Completed Bet History</div>' +
     '<div style="overflow-x:auto">' +
       '<table class="bets-table">' +
         '<thead>' +
           '<tr>' +
             '<th>Date</th>' +
             '<th>League</th>' +
-            '<th>Market</th>' +
-            '<th>Side / Line</th>' +
+            '<th>Game / Matchup</th>' +
+            '<th>Pick</th>' +
             '<th>Odds</th>' +
-            '<th>Model%</th>' +
-            '<th>EV</th>' +
             '<th>Result</th>' +
+            '<th>Profit / Loss</th>' +
           '</tr>' +
         '</thead>' +
         '<tbody>' + tableRows + '</tbody>' +
       '</table>' +
     '</div>';
 
-  if (sorted.length > 250) {
-    sec.innerHTML += '<div style="font-size:10px;color:var(--text-muted);padding:8px 0;text-align:center">Showing most recent 250 of ' + sorted.length + ' graded bets</div>';
+  if (sorted.length > 500) {
+    sec.innerHTML += '<div style="font-size:10px;color:var(--text-muted);padding:8px 0;text-align:center">Showing most recent 500 of ' + sorted.length + ' completed bets</div>';
   }
 
   main.appendChild(sec);
