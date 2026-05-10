@@ -46,10 +46,6 @@ def convert_utc_to_et(date_time_str: str) -> str:
 
 
 def normalize_cell(value) -> str:
-    """
-    Normalizes table cell text without changing the actual sportsbook strings.
-    Handles normal newlines, CRLF, tabs, and common unicode line separators.
-    """
     value = "" if value is None else str(value)
     value = value.replace("\r\n", "\n")
     value = value.replace("\r", "\n")
@@ -60,15 +56,6 @@ def normalize_cell(value) -> str:
 
 
 def split_pair(value):
-    """
-    Safe 2-part splitter.
-
-    Important:
-      - Never throws.
-      - If only one side exists, returns (side, "").
-      - Handles newlines, carriage returns, pipes, and unicode line separators.
-      - Keeps the game row alive even if one sportsbook cell is malformed.
-    """
     value = normalize_cell(value)
 
     if not value:
@@ -91,10 +78,6 @@ def split_pair(value):
 
 
 def split_pair_expected(value, label: str, sport: str, row) -> tuple:
-    """
-    Same as split_pair, but logs when the field was expected to contain 2 values
-    and only gave 1. This is what caught the missing NBA game.
-    """
     a, b = split_pair(value)
 
     if a and not b:
@@ -107,19 +90,12 @@ def split_pair_expected(value, label: str, sport: str, row) -> tuple:
     return a, b
 
 
-def first_piece(value: str) -> str:
-    first, _ = split_pair(value)
-    return first
-
-
 def strip_record(team: str) -> str:
-    """
-    Removes trailing records like:
-      Team Name (53-29)
-      Team Name (0-0)
-      Team Name (12-3-1)
-    """
-    return re.sub(r"\s*\(\d+[-–]\d+[-–]?\d*\)\s*$", "", (team or "").strip()).strip()
+    return re.sub(
+        r"\s*\(\d+[-–]\d+[-–]?\d*\)\s*$",
+        "",
+        (team or "").strip()
+    ).strip()
 
 
 def strip_wnba_record(team: str) -> str:
@@ -175,20 +151,18 @@ def parse_nba_ncaa(row, sport):
         proj1 = proj2 = total = over_line = under_line = ""
         score1 = score2 = game_status = ""
 
-        first_col_5 = first_piece(row[5]) if len(row) > 5 else ""
-
-        # Future rows:
-        #   10 cells usually
-        #   row[5] = projected scores away/home
-        #   row[6] = total projected
-        #   row[7] = O/U lines
-        if len(row) >= 10 and first_col_5 and not is_score(first_col_5):
+        # IMPORTANT:
+        # NBA/NCAAM future rows can have numeric projected scores like:
+        #   row[5] = "107.0\n104.5"
+        # Those are NOT final scores.
+        # So 10-cell rows must be handled as future prediction rows BEFORE any score logic.
+        if len(row) >= 10:
             proj1, proj2 = split_pair_expected(row[5], "projected_scores", sport, row)
             total = normalize_cell(row[6]) if len(row) > 6 else ""
             over_line, under_line = split_pair_expected(row[7], "over_under", sport, row)
 
-        # Older completed/result rows that include total/status/score.
-        elif len(row) >= 9 and first_col_5 and not is_score(first_col_5):
+        # Some older/in-between rows may have total/O-U/status/score.
+        elif len(row) >= 9 and not is_score(normalize_cell(row[5])):
             total = normalize_cell(row[5]) if len(row) > 5 else ""
             over_line, under_line = split_pair_expected(row[6], "over_under", sport, row)
             game_status = " ".join(
@@ -197,7 +171,6 @@ def parse_nba_ncaa(row, sport):
             score1, score2 = split_pair_expected(row[8], "score", sport, row)
 
         # Completed rows:
-        #   8 cells usually
         #   row[5] = final score away/home
         elif len(row) >= 7:
             score1, score2 = split_pair_expected(row[5], "score", sport, row)
@@ -236,12 +209,6 @@ def parse_nba_ncaa(row, sport):
 
 
 def parse_wnba(row):
-    """
-    WNBA-specific parser.
-
-    Kept intentionally close to the existing logic, but pair splitting is now safe.
-    """
-
     if is_summary_row(row):
         return None
 
