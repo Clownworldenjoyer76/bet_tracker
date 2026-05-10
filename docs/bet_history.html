@@ -87,16 +87,159 @@
     .stat-label { color:var(--text-muted); }
     .stat-value { font-family:'Barlow Condensed',sans-serif;font-weight:700;color:var(--text-main); }
 
-    .bets-table { width:100%;border-collapse:collapse;font-size:11px; }
-    .bets-table th { font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);padding:4px 6px;text-align:left;border-bottom:1px solid var(--border-soft);white-space:nowrap; }
-    .bets-table th:not(:first-child):not(:nth-child(2)):not(:nth-child(3)) { text-align:right; }
-    .bets-table td { padding:5px 6px;border-bottom:1px solid var(--border-soft);color:var(--text-muted);white-space:nowrap; }
-    .bets-table td:not(:first-child):not(:nth-child(2)):not(:nth-child(3)) { text-align:right; }
+    .bets-table {
+      width:100%;
+      border-collapse:collapse;
+      font-size:11px;
+    }
+
+    .bets-table th {
+      font-family:'Barlow Condensed',sans-serif;
+      font-size:9px;
+      font-weight:700;
+      letter-spacing:0.12em;
+      text-transform:uppercase;
+      color:var(--text-muted);
+      padding:8px 10px;
+      text-align:left;
+      border-bottom:1px solid var(--border-soft);
+      white-space:nowrap;
+      background:rgba(255,255,255,0.015);
+    }
+
+    .bets-table th:not(:first-child):not(:nth-child(2)):not(:nth-child(3)):not(:nth-child(4)) {
+      text-align:right;
+    }
+
+    .bets-table td {
+      padding:10px 10px;
+      border-bottom:1px solid var(--border-soft);
+      color:var(--text-muted);
+      white-space:nowrap;
+      line-height:1.35;
+      vertical-align:middle;
+    }
+
+    .bets-table td:not(:first-child):not(:nth-child(2)):not(:nth-child(3)):not(:nth-child(4)) {
+      text-align:right;
+    }
+
+    .bets-table td:nth-child(3),
+    .bets-table td:nth-child(4) {
+      white-space:normal;
+    }
+
     .bets-table tr:last-child td { border-bottom:none; }
+
+    .bets-table tbody tr {
+      transition:background 0.15s ease;
+    }
+
+    .bets-table tbody tr:hover {
+      background:rgba(255,255,255,0.025);
+    }
+
+    .history-date {
+      color:var(--text-muted);
+      font-size:10px;
+      letter-spacing:0.04em;
+    }
+
+    .history-league-pill {
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      min-width:42px;
+      padding:3px 8px;
+      border:1px solid rgba(250,204,21,0.24);
+      background:rgba(250,204,21,0.055);
+      color:var(--accent-yellow);
+      font-family:'Barlow Condensed',sans-serif;
+      font-size:10px;
+      font-weight:800;
+      letter-spacing:0.12em;
+      text-transform:uppercase;
+      line-height:1;
+    }
+
+    .history-matchup {
+      color:var(--text-main);
+      font-weight:600;
+      letter-spacing:0.01em;
+    }
+
+    .history-pick {
+      color:var(--accent-green);
+      font-weight:700;
+    }
+
+    .history-odds {
+      display:inline-flex;
+      justify-content:flex-end;
+      min-width:44px;
+      color:var(--text-main);
+      font-family:'IBM Plex Mono',monospace;
+      font-size:11px;
+      font-weight:600;
+    }
+
+    .history-result-badge,
+    .history-profit-badge {
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      min-width:52px;
+      padding:3px 8px;
+      border:1px solid var(--border-soft);
+      font-family:'Barlow Condensed',sans-serif;
+      font-size:10px;
+      font-weight:800;
+      letter-spacing:0.12em;
+      text-transform:uppercase;
+      line-height:1;
+    }
+
+    .history-result-badge.outcome-w {
+      color:var(--accent-green);
+      border-color:rgba(0,255,132,0.28);
+      background:rgba(0,255,132,0.06);
+    }
+
+    .history-result-badge.outcome-l {
+      color:var(--accent-red);
+      border-color:rgba(255,45,45,0.28);
+      background:rgba(255,45,45,0.06);
+    }
+
+    .history-result-badge.outcome-p {
+      color:var(--accent-yellow);
+      border-color:rgba(250,204,21,0.25);
+      background:rgba(250,204,21,0.05);
+    }
+
+    .history-profit-badge.val-green {
+      color:var(--accent-green);
+      border-color:rgba(0,255,132,0.28);
+      background:rgba(0,255,132,0.06);
+    }
+
+    .history-profit-badge.val-red {
+      color:var(--accent-red);
+      border-color:rgba(255,45,45,0.28);
+      background:rgba(255,45,45,0.06);
+    }
+
+    .history-profit-badge.profit-flat {
+      color:var(--text-muted);
+      border-color:var(--border-soft);
+      background:rgba(255,255,255,0.025);
+    }
 
     .outcome-w { color:var(--accent-green);font-family:'Barlow Condensed',sans-serif;font-weight:700; }
     .outcome-l { color:var(--accent-red);font-family:'Barlow Condensed',sans-serif;font-weight:700; }
     .outcome-p { color:var(--text-muted);font-family:'Barlow Condensed',sans-serif;font-weight:700; }
+
+    .profit-flat { color:var(--text-muted); }
 
     .prob-high { color:var(--accent-green); }
     .prob-mid { color:var(--accent-yellow); }
