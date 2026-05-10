@@ -45,14 +45,37 @@ def convert_utc_to_et(date_time_str: str) -> str:
         return date_time_str
 
 
-def split_pair(value: str):
-    value = (value or "").strip()
+def normalize_cell(value) -> str:
+    """
+    Normalizes table cell text without changing the actual sportsbook strings.
+    Handles normal newlines, CRLF, tabs, and common unicode line separators.
+    """
+    value = "" if value is None else str(value)
+    value = value.replace("\r\n", "\n")
+    value = value.replace("\r", "\n")
+    value = value.replace("\u2028", "\n")
+    value = value.replace("\u2029", "\n")
+    value = value.replace("\xa0", " ")
+    return value.strip()
+
+
+def split_pair(value):
+    """
+    Safe 2-part splitter.
+
+    Important:
+      - Never throws.
+      - If only one side exists, returns (side, "").
+      - Handles newlines, carriage returns, pipes, and unicode line separators.
+      - Keeps the game row alive even if one sportsbook cell is malformed.
+    """
+    value = normalize_cell(value)
 
     if not value:
         return "", ""
 
     if "\n" in value:
-        parts = [p.strip() for p in value.split("\n") if p.strip()]
+        parts = [p.strip() for p in re.split(r"[\n]+", value) if p.strip()]
     elif "|" in value:
         parts = [p.strip() for p in value.split("|") if p.strip()]
     else:
@@ -67,68 +90,120 @@ def split_pair(value: str):
     return "", ""
 
 
+def split_pair_expected(value, label: str, sport: str, row) -> tuple:
+    """
+    Same as split_pair, but logs when the field was expected to contain 2 values
+    and only gave 1. This is what caught the missing NBA game.
+    """
+    a, b = split_pair(value)
+
+    if a and not b:
+        log(
+            f"MALFORMED PAIR | sport={sport} | field={label} | "
+            f"value={json.dumps(normalize_cell(value))} | "
+            f"row={json.dumps(row)}"
+        )
+
+    return a, b
+
+
+def first_piece(value: str) -> str:
+    first, _ = split_pair(value)
+    return first
+
+
+def strip_record(team: str) -> str:
+    """
+    Removes trailing records like:
+      Team Name (53-29)
+      Team Name (0-0)
+      Team Name (12-3-1)
+    """
+    return re.sub(r"\s*\(\d+[-–]\d+[-–]?\d*\)\s*$", "", (team or "").strip()).strip()
+
+
 def strip_wnba_record(team: str) -> str:
-    return re.sub(r"\s*\(\d+-\d+\)\s*$", "", (team or "").strip()).strip()
+    return strip_record(team)
 
 
 def is_game_row(row):
-    return len(row) >= 5 and "\n" in row[1]
+    if len(row) < 5:
+        return False
+
+    teams = normalize_cell(row[1])
+    return "\n" in teams
 
 
 def is_score(s):
     try:
-        v = float(s)
+        v = float(str(s).strip())
         return v >= 0 and v == int(v) and v < 250
     except (ValueError, TypeError):
         return False
 
 
+def is_summary_row(row):
+    if not row:
+        return False
+
+    first = normalize_cell(row[0]).lower()
+    return first in {"sportsbooks", "dratings"}
+
+
 def parse_nba_ncaa(row, sport):
+    if is_summary_row(row):
+        return None
+
     if not is_game_row(row):
         return None
 
     try:
-        date_time = convert_utc_to_et(row[0].replace("\n", " "))
+        date_time = convert_utc_to_et(normalize_cell(row[0]).replace("\n", " "))
 
-        t = row[1].split("\n")
-        team1, team2 = t[0].strip(), t[1].strip()
+        team1, team2 = split_pair_expected(row[1], "teams", sport, row)
+        wp1, wp2     = split_pair_expected(row[2], "win_pct", sport, row)
+        ml1, ml2     = split_pair_expected(row[3], "moneyline", sport, row)
+        sp1, sp2     = split_pair_expected(row[4], "spread", sport, row)
 
-        w = row[2].split("\n")
-        wp1, wp2 = w[0].strip(), w[1].strip()
-
-        m = row[3].split("\n")
-        ml1, ml2 = m[0].strip(), m[1].strip()
-
-        s = row[4].split("\n")
-        sp1, sp2 = s[0].strip(), s[1].strip()
+        if not team1 or not team2:
+            log(
+                f"{sport.upper()} REJECTED EMPTY TEAM | "
+                f"row_len={len(row)} | row={json.dumps(row)}"
+            )
+            return None
 
         proj1 = proj2 = total = over_line = under_line = ""
         score1 = score2 = game_status = ""
 
-        if len(row) >= 10 and "\n" in row[5] and not is_score(row[5].split("\n")[0]):
-            ps = row[5].split("\n")
-            proj1, proj2 = ps[0], ps[1]
-            total = row[6]
-            ou = row[7].split("\n")
-            over_line, under_line = ou[0], ou[1]
+        first_col_5 = first_piece(row[5]) if len(row) > 5 else ""
 
-        elif len(row) >= 9 and not is_score(row[5]):
-            total = row[5]
-            ou = row[6].split("\n")
-            over_line, under_line = ou[0], ou[1]
-            game_status = " ".join(row[7].split("\n"))
-            sc = row[8].split("\n")
-            score1, score2 = sc[0], sc[1]
+        # Future rows:
+        #   10 cells usually
+        #   row[5] = projected scores away/home
+        #   row[6] = total projected
+        #   row[7] = O/U lines
+        if len(row) >= 10 and first_col_5 and not is_score(first_col_5):
+            proj1, proj2 = split_pair_expected(row[5], "projected_scores", sport, row)
+            total = normalize_cell(row[6]) if len(row) > 6 else ""
+            over_line, under_line = split_pair_expected(row[7], "over_under", sport, row)
 
+        # Older completed/result rows that include total/status/score.
+        elif len(row) >= 9 and first_col_5 and not is_score(first_col_5):
+            total = normalize_cell(row[5]) if len(row) > 5 else ""
+            over_line, under_line = split_pair_expected(row[6], "over_under", sport, row)
+            game_status = " ".join(
+                [p for p in re.split(r"[\n]+", normalize_cell(row[7])) if p.strip()]
+            ) if len(row) > 7 else ""
+            score1, score2 = split_pair_expected(row[8], "score", sport, row)
+
+        # Completed rows:
+        #   8 cells usually
+        #   row[5] = final score away/home
         elif len(row) >= 7:
-            sc = row[5].split("\n")
-            score1 = sc[0].strip()
+            score1, score2 = split_pair_expected(row[5], "score", sport, row)
 
-            if len(sc) > 1:
-                score2 = sc[1].strip()
-
-            elif len(row) > 6 and is_score(row[6]):
-                score2 = row[6].strip()
+            if not score2 and len(row) > 6 and is_score(row[6]):
+                score2 = normalize_cell(row[6])
 
         return {
             "sport":           sport,
@@ -163,7 +238,12 @@ def parse_nba_ncaa(row, sport):
 def parse_wnba(row):
     """
     WNBA-specific parser.
+
+    Kept intentionally close to the existing logic, but pair splitting is now safe.
     """
+
+    if is_summary_row(row):
+        return None
 
     if len(row) not in (8, 10):
         log(
@@ -173,9 +253,9 @@ def parse_wnba(row):
         return None
 
     try:
-        date_time = convert_utc_to_et(row[0].replace("\n", " "))
+        date_time = convert_utc_to_et(normalize_cell(row[0]).replace("\n", " "))
 
-        team1, team2 = split_pair(row[1])
+        team1, team2 = split_pair_expected(row[1], "teams", "wnba", row)
 
         team1 = strip_wnba_record(team1)
         team2 = strip_wnba_record(team2)
@@ -194,24 +274,20 @@ def parse_wnba(row):
             )
             return None
 
-        wp1, wp2 = split_pair(row[2])
-        ml1, ml2 = split_pair(row[3]) if len(row) > 3 else ("", "")
-        sp1, sp2 = split_pair(row[4]) if len(row) > 4 else ("", "")
+        wp1, wp2 = split_pair_expected(row[2], "win_pct", "wnba", row)
+        ml1, ml2 = split_pair_expected(row[3], "moneyline", "wnba", row) if len(row) > 3 else ("", "")
+        sp1, sp2 = split_pair_expected(row[4], "spread", "wnba", row) if len(row) > 4 else ("", "")
 
         proj1 = proj2 = total = over_line = under_line = ""
         score1 = score2 = game_status = ""
 
         if len(row) == 10:
-            proj1, proj2 = split_pair(row[5])
-
-            total = row[6].strip() if len(row) > 6 else ""
-
-            over_line, under_line = (
-                split_pair(row[7]) if len(row) > 7 else ("", "")
-            )
+            proj1, proj2 = split_pair_expected(row[5], "projected_scores", "wnba", row)
+            total = normalize_cell(row[6]) if len(row) > 6 else ""
+            over_line, under_line = split_pair_expected(row[7], "over_under", "wnba", row) if len(row) > 7 else ("", "")
 
         elif len(row) == 8:
-            score1, score2 = split_pair(row[5])
+            score1, score2 = split_pair_expected(row[5], "score", "wnba", row)
 
         return {
             "sport":           "wnba",
@@ -251,16 +327,16 @@ def parse_row(row, sport):
 
 
 def scrape_page(page, url):
-    page.goto(url)
+    page.goto(url, wait_until="domcontentloaded", timeout=60000)
 
-    page.wait_for_selector("table")
+    page.wait_for_selector("table", timeout=60000)
 
     rows = page.query_selector_all("table tbody tr")
 
     parsed_rows = []
 
     for idx, r in enumerate(rows):
-        cells = [c.inner_text().strip() for c in r.query_selector_all("td")]
+        cells = [normalize_cell(c.inner_text()) for c in r.query_selector_all("td")]
 
         log(
             f"RAW TABLE ROW | idx={idx} | "
