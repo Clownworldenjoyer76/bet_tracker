@@ -1,5 +1,15 @@
 var historySearch = '';
 var historySort = 'newest';
+var historyCurrentGradedRows = [];
+
+function escapeHtml(value) {
+  return String(value === null || value === undefined ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
 
 function formatDateDisplay(date) {
   if (!date) return '—';
@@ -137,12 +147,12 @@ function sortHistoryRows(rows) {
 
 function onHistorySearchInput(value) {
   historySearch = value || '';
-  render();
+  updateCompletedHistoryResults();
 }
 
 function onHistorySortChange(value) {
   historySort = value || 'newest';
-  render();
+  updateCompletedHistoryResults();
 }
 
 function render() {
@@ -227,8 +237,8 @@ function render() {
   ].forEach(function(s) {
     strip.innerHTML +=
       '<div class="summary-item">' +
-        '<div class="summary-val ' + s.cls + '">' + s.val + '</div>' +
-        '<div class="summary-lbl">' + s.lbl + '</div>' +
+        '<div class="summary-val ' + s.cls + '">' + escapeHtml(s.val) + '</div>' +
+        '<div class="summary-lbl">' + escapeHtml(s.lbl) + '</div>' +
       '</div>';
   });
 
@@ -275,7 +285,7 @@ function renderLeagueBreakdown(main, graded) {
     }, 0);
 
     return '<div class="breakdown-card">' +
-      '<div class="breakdown-title">' + league + '</div>' +
+      '<div class="breakdown-title">' + escapeHtml(league) + '</div>' +
       '<div class="stat-row"><span class="stat-label">Bets</span><span class="stat-value">' + rows.length + '</span></div>' +
       '<div class="stat-row"><span class="stat-label">W-L</span><span class="stat-value">' + wins + '-' + losses + '</span></div>' +
       '<div class="stat-row"><span class="stat-label">Win Rate</span><span class="stat-value" style="color:' + (rate >= 0.55 ? 'var(--accent-green)' : rate < 0.45 ? 'var(--accent-red)' : 'var(--accent-yellow)') + '">' + (rate * 100).toFixed(1) + '%</span></div>' +
@@ -327,7 +337,7 @@ function renderMarketBreakdown(main, graded) {
       : market.charAt(0).toUpperCase() + market.slice(1);
 
     return '<div class="breakdown-card">' +
-      '<div class="breakdown-title">' + label + '</div>' +
+      '<div class="breakdown-title">' + escapeHtml(label) + '</div>' +
       '<div class="stat-row"><span class="stat-label">Bets</span><span class="stat-value">' + rows.length + '</span></div>' +
       '<div class="stat-row"><span class="stat-label">W-L</span><span class="stat-value">' + wins + '-' + losses + '</span></div>' +
       '<div class="stat-row"><span class="stat-label">Win Rate</span><span class="stat-value" style="color:' + (rate >= 0.55 ? 'var(--accent-green)' : rate < 0.45 ? 'var(--accent-red)' : 'var(--accent-yellow)') + '">' + (rate * 100).toFixed(1) + '%</span></div>' +
@@ -345,28 +355,26 @@ function renderMarketBreakdown(main, graded) {
   main.appendChild(sec);
 }
 
-function renderBetsTable(main, graded) {
-  var sortedRows = sortHistoryRows(graded);
-  var searchedRows = applyHistorySearch(sortedRows);
-  var displayRows = searchedRows.slice(0, 500);
-
-  var tableRows = displayRows.map(function(r) {
+function buildHistoryTableRows(displayRows) {
+  return displayRows.map(function(r) {
     var outCls = outcomeClass(r.result);
     var outTxt = outcomeText(r.result);
     var profitCls = profitClass(r.profit_unit);
 
     return '<tr>' +
-      '<td><span class="history-date">' + formatDateDisplay(r.game_date) + '</span></td>' +
-      '<td><span class="history-league-pill">' + leagueDisplayName(r) + '</span></td>' +
-      '<td><span class="history-matchup">' + (r.matchup || '—') + '</span></td>' +
-      '<td><span class="history-pick">' + (r.pick || r.bet_side || '—') + '</span></td>' +
-      '<td><span class="history-odds">' + formatOdds(r.odds, r.odds_display) + '</span></td>' +
-      '<td><span class="history-result-badge ' + outCls + '">' + outTxt + '</span></td>' +
-      '<td><span class="history-profit-badge ' + profitCls + '">' + formatProfit(r.profit_unit, r.profit_display) + '</span></td>' +
+      '<td><span class="history-date">' + escapeHtml(formatDateDisplay(r.game_date)) + '</span></td>' +
+      '<td><span class="history-league-pill">' + escapeHtml(leagueDisplayName(r)) + '</span></td>' +
+      '<td><span class="history-matchup">' + escapeHtml(r.matchup || '—') + '</span></td>' +
+      '<td><span class="history-pick">' + escapeHtml(r.pick || r.bet_side || '—') + '</span></td>' +
+      '<td><span class="history-odds">' + escapeHtml(formatOdds(r.odds, r.odds_display)) + '</span></td>' +
+      '<td><span class="history-result-badge ' + outCls + '">' + escapeHtml(outTxt) + '</span></td>' +
+      '<td><span class="history-profit-badge ' + profitCls + '">' + escapeHtml(formatProfit(r.profit_unit, r.profit_display)) + '</span></td>' +
     '</tr>';
   }).join('');
+}
 
-  var cards = displayRows.map(function(r) {
+function buildHistoryCards(displayRows) {
+  return displayRows.map(function(r) {
     var outCls = outcomeClass(r.result);
     var outTxt = outcomeText(r.result);
     var profitCls = profitClass(r.profit_unit);
@@ -374,39 +382,89 @@ function renderBetsTable(main, graded) {
     return '<div class="history-card">' +
       '<div class="history-card-top">' +
         '<div class="history-card-meta">' +
-          '<span class="history-league-pill">' + leagueDisplayName(r) + '</span>' +
-          '<span class="history-card-date">' + formatDateDisplay(r.game_date) + '</span>' +
+          '<span class="history-league-pill">' + escapeHtml(leagueDisplayName(r)) + '</span>' +
+          '<span class="history-card-date">' + escapeHtml(formatDateDisplay(r.game_date)) + '</span>' +
         '</div>' +
-        '<span class="history-result-badge ' + outCls + '">' + outTxt + '</span>' +
+        '<span class="history-result-badge ' + outCls + '">' + escapeHtml(outTxt) + '</span>' +
       '</div>' +
-      '<div class="history-card-matchup">' + (r.matchup || '—') + '</div>' +
-      '<div class="history-card-pick">' + (r.pick || r.bet_side || '—') + '</div>' +
+      '<div class="history-card-matchup">' + escapeHtml(r.matchup || '—') + '</div>' +
+      '<div class="history-card-pick">' + escapeHtml(r.pick || r.bet_side || '—') + '</div>' +
       '<div class="history-card-stats">' +
         '<div>' +
           '<div class="history-card-stat-label">Odds</div>' +
-          '<div class="history-card-stat-value">' + formatOdds(r.odds, r.odds_display) + '</div>' +
+          '<div class="history-card-stat-value">' + escapeHtml(formatOdds(r.odds, r.odds_display)) + '</div>' +
         '</div>' +
         '<div>' +
           '<div class="history-card-stat-label">Result</div>' +
-          '<div class="history-card-stat-value"><span class="' + outCls + '">' + outTxt + '</span></div>' +
+          '<div class="history-card-stat-value"><span class="' + outCls + '">' + escapeHtml(outTxt) + '</span></div>' +
         '</div>' +
         '<div>' +
           '<div class="history-card-stat-label">P/L</div>' +
-          '<div class="history-card-stat-value"><span class="' + profitCls + '">' + formatProfit(r.profit_unit, r.profit_display) + '</span></div>' +
+          '<div class="history-card-stat-value"><span class="' + profitCls + '">' + escapeHtml(formatProfit(r.profit_unit, r.profit_display)) + '</span></div>' +
         '</div>' +
       '</div>' +
     '</div>';
   }).join('');
+}
 
-  var emptyHtml = '<div class="history-empty-results">No bets match your search</div>';
+function updateCompletedHistoryResults() {
+  var results = document.getElementById('completed-history-results');
+  var count = document.getElementById('history-count');
+
+  if (!results) return;
+
+  var sortedRows = sortHistoryRows(historyCurrentGradedRows);
+  var searchedRows = applyHistorySearch(sortedRows);
+  var displayRows = searchedRows.slice(0, 500);
+
+  if (count) {
+    count.textContent = searchedRows.length + ' shown';
+  }
+
+  if (!searchedRows.length) {
+    results.innerHTML = '<div class="history-empty-results">No bets match your search</div>';
+    return;
+  }
+
+  results.innerHTML =
+    '<div class="bets-table-wrap">' +
+      '<table class="bets-table">' +
+        '<thead>' +
+          '<tr>' +
+            '<th>Date</th>' +
+            '<th>League</th>' +
+            '<th>Game / Matchup</th>' +
+            '<th>Pick</th>' +
+            '<th>Odds</th>' +
+            '<th>Result</th>' +
+            '<th>P/L Units</th>' +
+          '</tr>' +
+        '</thead>' +
+        '<tbody>' + buildHistoryTableRows(displayRows) + '</tbody>' +
+      '</table>' +
+    '</div>' +
+    '<div class="history-card-list">' + buildHistoryCards(displayRows) + '</div>' +
+    (
+      searchedRows.length > 500
+        ? '<div class="history-limit-note">Showing first 500 of ' + searchedRows.length + ' matching completed bets</div>'
+        : ''
+    );
+}
+
+function renderBetsTable(main, graded) {
+  historyCurrentGradedRows = graded.slice();
+
+  var sortedRows = sortHistoryRows(historyCurrentGradedRows);
+  var searchedRows = applyHistorySearch(sortedRows);
 
   var sec = document.createElement('div');
   sec.className = 'section';
+  sec.id = 'completed-history-section';
 
   sec.innerHTML =
     '<div class="section-title">Completed Bet History</div>' +
     '<div class="history-tools">' +
-      '<input class="history-search" type="search" placeholder="Search completed bets..." value="' + historySearch.replace(/"/g, '&quot;') + '" oninput="onHistorySearchInput(this.value)">' +
+      '<input class="history-search" type="search" placeholder="Search completed bets..." value="' + escapeHtml(historySearch) + '" oninput="onHistorySearchInput(this.value)">' +
       '<select class="history-sort" onchange="onHistorySortChange(this.value)">' +
         '<option value="newest"' + (historySort === 'newest' ? ' selected' : '') + '>Newest First</option>' +
         '<option value="oldest"' + (historySort === 'oldest' ? ' selected' : '') + '>Oldest First</option>' +
@@ -416,33 +474,10 @@ function renderBetsTable(main, graded) {
         '<option value="lowest_ev"' + (historySort === 'lowest_ev' ? ' selected' : '') + '>Lowest EV</option>' +
         '<option value="league"' + (historySort === 'league' ? ' selected' : '') + '>League A-Z</option>' +
       '</select>' +
-      '<div class="history-count">' + searchedRows.length + ' shown</div>' +
+      '<div class="history-count" id="history-count">' + searchedRows.length + ' shown</div>' +
     '</div>' +
-    (
-      searchedRows.length
-        ? '<div class="bets-table-wrap">' +
-            '<table class="bets-table">' +
-              '<thead>' +
-                '<tr>' +
-                  '<th>Date</th>' +
-                  '<th>League</th>' +
-                  '<th>Game / Matchup</th>' +
-                  '<th>Pick</th>' +
-                  '<th>Odds</th>' +
-                  '<th>Result</th>' +
-                  '<th>P/L Units</th>' +
-                '</tr>' +
-              '</thead>' +
-              '<tbody>' + tableRows + '</tbody>' +
-            '</table>' +
-          '</div>' +
-          '<div class="history-card-list">' + cards + '</div>'
-        : emptyHtml
-    );
-
-  if (searchedRows.length > 500) {
-    sec.innerHTML += '<div style="font-size:10px;color:var(--text-muted);padding:8px 0;text-align:center">Showing first 500 of ' + searchedRows.length + ' matching completed bets</div>';
-  }
+    '<div id="completed-history-results"></div>';
 
   main.appendChild(sec);
+  updateCompletedHistoryResults();
 }
