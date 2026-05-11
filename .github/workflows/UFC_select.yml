@@ -29,7 +29,7 @@ jobs:
       - name: Create output folders
         run: |
           mkdir -p docs/win/mma/ufc/03_select
-          mkdir -p docs/win/mma/ufc/errors/03_select
+          mkdir -p docs/win/mma/ufc/03_select/detailed
 
       - name: Run UFC select script
         run: |
@@ -38,12 +38,12 @@ jobs:
       - name: Show select outputs
         if: always()
         run: |
-          echo "=== UFC select outputs ==="
-          find docs/win/mma/ufc/03_select -type f | sort || true
+          echo "=== UFC legacy select outputs ==="
+          find docs/win/mma/ufc/03_select -maxdepth 1 -type f -name "*_ufc_select.csv" | sort || true
 
           echo ""
-          echo "=== UFC select errors/logs ==="
-          find docs/win/mma/ufc/errors/03_select -type f -maxdepth 1 -print -exec cat {} \; || true
+          echo "=== UFC detailed select outputs ==="
+          find docs/win/mma/ufc/03_select/detailed -maxdepth 1 -type f -name "*_ufc_select_detailed.csv" | sort || true
 
       - name: Commit outputs
         if: always()
@@ -52,7 +52,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           git add docs/win/mma/ufc/03_select/
-          git add docs/win/mma/ufc/errors/03_select/ || true
+          git add docs/win/mma/ufc/03_select/detailed/
 
           if git diff --cached --quiet; then
             echo "No changes to commit."
