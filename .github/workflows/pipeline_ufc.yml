@@ -41,7 +41,6 @@ jobs:
           mkdir -p docs/win/mma/ufc/00_intake/predictions
           mkdir -p docs/win/mma/ufc/01_feature_engineering
           mkdir -p docs/win/mma/ufc/02_edges
-          mkdir -p docs/win/mma/ufc/03_select
           mkdir -p mappings/mma/ufc
 
       - name: 00 - Scrape odds
@@ -59,8 +58,6 @@ jobs:
       - name: 02 - Compute edges
         run: python docs/win/mma/ufc/scripts/02_edges/02_edges.py
 
-      - name: 03 - Select picks
-        run: python docs/win/mma/ufc/scripts/03_select/03_select.py
 
       - name: Commit and push all output files
         run: |
@@ -71,6 +68,5 @@ jobs:
           git add mappings/mma/ufc/no_map_fighter_name.csv
           git add docs/win/mma/ufc/01_feature_engineering/*_ufc_features.csv
           git add docs/win/mma/ufc/02_edges/*_ufc_edges.csv
-          git add docs/win/mma/ufc/03_select/*_ufc_select.csv
           git diff --cached --quiet || git commit -m "chore: ufc pipeline run $(date -u +'%Y-%m-%d %H:%M UTC')"
           git push origin main
