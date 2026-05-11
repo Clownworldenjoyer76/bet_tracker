@@ -65,22 +65,7 @@ pip install pandas pyarrow requests beautifulsoup4 scikit-learn xgboost pyyaml
 
 ---
 
-## Daily Pipeline — How to Run
-
-1. Go to your GitHub repo → click **Actions** tab
-2. Click **UFC Daily Pipeline** on the left
-3. Click **Run workflow** → green **Run workflow** button
-4. Pipeline runs automatically in this order:
-   - Scrapes odds from oddstrader.com
-   - Scrapes win predictions from dratings.com
-   - Normalizes fighter names against `mappings/mma/ufc/fighter_name_map.csv`
-   - Builds features for each upcoming fight
-   - Runs the model and computes edge, EV, Kelly per fighter
-   - Filters picks using `docs/win/mma/ufc/config/markets.yaml`
-   - Commits all output CSVs back to main branch
-5. Check output files in repo — one CSV per event date in each output folder
-
-**After the run, check `mappings/mma/ufc/no_map_fighter_name.csv`** — any fighters listed there were not found in the name map and need to be resolved before the model can score them (see New Fighter Process below).
+## Daily Pipeline 
 
 ---
 
