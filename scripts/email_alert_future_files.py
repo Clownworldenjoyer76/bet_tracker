@@ -1,17 +1,5 @@
 #!/usr/bin/env python3
 # scripts/email_alert_future_files.py
-"""
-Future-date file count alerts.
-
-Creates alert_body.txt only when at least one configured folder has
-1 or fewer future-dated files.
-
-Checks:
-
-1. docs/win/mma/ufc/00_intake/predictions/{date}_ufc_predictions.csv
-2. docs/win/mma/ufc/00_intake/sportsbook/{date}_ufc_odds.csv
-3. docs/win/soccer/00_intake/predictions/{league}/{date}_{league}.csv
-"""
 
 from __future__ import annotations
 
@@ -36,17 +24,27 @@ def parse_date(date_str: str):
         return None
 
 
+def leading_file_date(path: Path):
+    """
+    Extract date only from the START of the filename.
+
+    Examples:
+      2026_06_10_BUNDESLIGA.csv -> 2026-06-10
+      2026_05_09_ufc_predictions.csv -> 2026-05-09
+    """
+    m = re.match(r"^(\d{4}_\d{2}_\d{2})_", path.name)
+    if not m:
+        return None
+    return parse_date(m.group(1))
+
+
 def latest_file_name(files: list[Path]) -> str:
     if not files:
         return "NONE"
 
     dated = []
     for path in files:
-        m = re.search(r"(\d{4}_\d{2}_\d{2})", path.name)
-        if not m:
-            continue
-
-        d = parse_date(m.group(1))
+        d = leading_file_date(path)
         if d:
             dated.append((d, path.name))
 
@@ -61,30 +59,21 @@ def check_folder(
     league: str,
     folder: Path,
     pattern: str,
-    date_regex: str,
 ) -> dict | None:
     files = sorted(folder.glob(pattern)) if folder.exists() else []
 
     future_files = []
-    date_re = re.compile(date_regex)
-
     for path in files:
-        m = date_re.search(path.name)
-        if not m:
-            continue
-
-        d = parse_date(m.group(1))
+        d = leading_file_date(path)
         if d and d > TODAY:
             future_files.append(path)
 
     if len(future_files) <= 1:
-        latest = latest_file_name(future_files if future_files else files)
-
         return {
             "league": league,
             "folder": str(folder),
             "future_count": len(future_files),
-            "latest_file": latest,
+            "latest_file": latest_file_name(future_files if future_files else files),
         }
 
     return None
@@ -108,27 +97,28 @@ def main() -> int:
 
     alerts = []
 
-    # UFC predictions
-    alert = check_folder(
-        league="ufc_predictions",
-        folder=UFC_PRED_DIR,
-        pattern="*_ufc_predictions.csv",
-        date_regex=r"(\d{4}_\d{2}_\d{2})_ufc_predictions\.csv$",
-    )
-    if alert:
-        alerts.append(alert)
+    alerts_to_check = [
+        {
+            "league": "ufc_predictions",
+            "folder": UFC_PRED_DIR,
+            "pattern": "*_ufc_predictions.csv",
+        },
+        {
+            "league": "ufc_sportsbook",
+            "folder": UFC_BOOK_DIR,
+            "pattern": "*_ufc_odds.csv",
+        },
+    ]
 
-    # UFC sportsbook odds
-    alert = check_folder(
-        league="ufc_sportsbook",
-        folder=UFC_BOOK_DIR,
-        pattern="*_ufc_odds.csv",
-        date_regex=r"(\d{4}_\d{2}_\d{2})_ufc_odds\.csv$",
-    )
-    if alert:
-        alerts.append(alert)
+    for item in alerts_to_check:
+        alert = check_folder(
+            league=item["league"],
+            folder=item["folder"],
+            pattern=item["pattern"],
+        )
+        if alert:
+            alerts.append(alert)
 
-    # Soccer predictions by league folder
     if SOCCER_PRED_BASE.exists():
         for league_dir in sorted(SOCCER_PRED_BASE.iterdir()):
             if not league_dir.is_dir():
@@ -140,7 +130,6 @@ def main() -> int:
                 league=league,
                 folder=league_dir,
                 pattern=f"*_{league}.csv",
-                date_regex=rf"(\d{{4}}_\d{{2}}_\d{{2}})_{re.escape(league)}\.csv$",
             )
             if alert:
                 alerts.append(alert)
