@@ -10,6 +10,9 @@ Input:
 
 Output:
     docs/win/mma/ufc/03_select/{date}_ufc_select.csv
+
+Every run starts with a clean slate: all existing *_ufc_select.csv files in
+the output directory are deleted before processing.
 """
 
 from __future__ import annotations
@@ -24,6 +27,11 @@ EDGES_DIR = Path("docs/win/mma/ufc/02_edges")
 CONFIG_PATH = Path("docs/win/mma/ufc/config/markets.yaml")
 OUT_DIR = Path("docs/win/mma/ufc/03_select")
 OUT_DIR.mkdir(parents=True, exist_ok=True)
+
+# --- Clean slate: remove every stale select file before this run ---
+for stale in OUT_DIR.glob("*_ufc_select.csv"):
+    stale.unlink()
+    print(f"DELETED stale {stale}")
 
 # --- Load config ---
 with CONFIG_PATH.open(encoding="utf-8") as f:
