@@ -87,6 +87,68 @@
     .stat-label { color:var(--text-muted); }
     .stat-value { font-family:'Barlow Condensed',sans-serif;font-weight:700;color:var(--text-main); }
 
+    .history-tools {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      margin-bottom:12px;
+      flex-wrap:wrap;
+    }
+
+    .history-search {
+      flex:1;
+      min-width:240px;
+      background:rgba(255,255,255,0.025);
+      border:1px solid var(--border-soft);
+      color:var(--text-main);
+      font-family:'IBM Plex Mono',monospace;
+      font-size:11px;
+      padding:8px 10px;
+      outline:none;
+      transition:border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .history-search::placeholder {
+      color:var(--text-muted);
+    }
+
+    .history-search:focus {
+      border-color:rgba(0,255,132,0.35);
+      box-shadow:0 0 0 3px rgba(0,255,132,0.06);
+    }
+
+    .history-sort {
+      min-width:160px;
+      background:rgba(255,255,255,0.025);
+      border:1px solid var(--border-soft);
+      color:var(--text-main);
+      font-family:'IBM Plex Mono',monospace;
+      font-size:11px;
+      padding:8px 10px;
+      outline:none;
+      cursor:pointer;
+      text-transform:uppercase;
+      letter-spacing:0.04em;
+    }
+
+    .history-sort:focus {
+      border-color:rgba(0,191,255,0.35);
+      box-shadow:0 0 0 3px rgba(0,191,255,0.06);
+    }
+
+    .history-count {
+      font-size:10px;
+      color:var(--text-muted);
+      letter-spacing:0.08em;
+      text-transform:uppercase;
+      white-space:nowrap;
+    }
+
+    .bets-table-wrap {
+      overflow-x:auto;
+    }
+
     .bets-table {
       width:100%;
       border-collapse:collapse;
@@ -235,6 +297,100 @@
       background:rgba(255,255,255,0.025);
     }
 
+    .history-card-list {
+      display:none;
+      flex-direction:column;
+      gap:10px;
+    }
+
+    .history-card {
+      border:1px solid var(--border-soft);
+      background:rgba(255,255,255,0.018);
+      padding:12px;
+      transition:background 0.15s ease, border-color 0.15s ease;
+    }
+
+    .history-card:hover {
+      background:rgba(255,255,255,0.028);
+      border-color:rgba(0,255,132,0.18);
+    }
+
+    .history-card-top {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      margin-bottom:8px;
+    }
+
+    .history-card-meta {
+      display:flex;
+      align-items:center;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+
+    .history-card-date {
+      color:var(--text-muted);
+      font-size:10px;
+      letter-spacing:0.04em;
+    }
+
+    .history-card-matchup {
+      color:var(--text-main);
+      font-family:'Barlow Condensed',sans-serif;
+      font-size:18px;
+      font-weight:800;
+      letter-spacing:0.04em;
+      line-height:1.15;
+      margin-bottom:6px;
+    }
+
+    .history-card-pick {
+      color:var(--accent-green);
+      font-size:12px;
+      font-weight:700;
+      line-height:1.35;
+      margin-bottom:10px;
+    }
+
+    .history-card-stats {
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:8px;
+      border-top:1px solid var(--border-soft);
+      padding-top:9px;
+    }
+
+    .history-card-stat-label {
+      color:var(--text-muted);
+      font-family:'Barlow Condensed',sans-serif;
+      font-size:9px;
+      font-weight:700;
+      letter-spacing:0.12em;
+      text-transform:uppercase;
+      margin-bottom:4px;
+    }
+
+    .history-card-stat-value {
+      color:var(--text-main);
+      font-family:'IBM Plex Mono',monospace;
+      font-size:11px;
+      font-weight:600;
+    }
+
+    .history-empty-results {
+      padding:34px 12px;
+      text-align:center;
+      border:1px dashed var(--border-soft);
+      color:var(--text-muted);
+      font-family:'Barlow Condensed',sans-serif;
+      font-size:13px;
+      font-weight:700;
+      letter-spacing:0.12em;
+      text-transform:uppercase;
+    }
+
     .outcome-w { color:var(--accent-green);font-family:'Barlow Condensed',sans-serif;font-weight:700; }
     .outcome-l { color:var(--accent-red);font-family:'Barlow Condensed',sans-serif;font-weight:700; }
     .outcome-p { color:var(--text-muted);font-family:'Barlow Condensed',sans-serif;font-weight:700; }
@@ -252,6 +408,33 @@
       .summary-item { border-right:none;border-bottom:1px solid var(--border-soft); }
       .summary-item:last-child { border-bottom:none; }
       .refresh-btn { margin-left:0; }
+    }
+
+    @media (max-width: 760px) {
+      .main { padding:16px; }
+
+      .history-tools {
+        flex-direction:column;
+        align-items:stretch;
+      }
+
+      .history-search,
+      .history-sort {
+        width:100%;
+        min-width:0;
+      }
+
+      .history-count {
+        text-align:left;
+      }
+
+      .bets-table-wrap {
+        display:none;
+      }
+
+      .history-card-list {
+        display:flex;
+      }
     }
   </style>
 </head>
