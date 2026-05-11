@@ -34,6 +34,6 @@ var SOURCES = [
   {
     url: BASE + 'docs/win/soccer/05_final_scores/results/graded/SOCCER_final.csv',
     label: 'SOCCER',
-    enabled: false
+    enabled: true
   }
 ];
