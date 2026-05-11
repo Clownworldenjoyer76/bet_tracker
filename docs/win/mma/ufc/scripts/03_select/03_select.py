@@ -8,11 +8,18 @@ Input:
     docs/win/mma/ufc/02_edges/{date}_ufc_edges.csv
     docs/win/mma/ufc/config/markets.yaml
 
-Output:
+Outputs:
     docs/win/mma/ufc/03_select/{date}_ufc_select.csv
+        Legacy format. Picks only, sorted by pick_preference. Consumed by
+        the_picks.html and kelly_calculator.html. Not written when no picks.
 
-Every run starts with a clean slate: all existing *_ufc_select.csv files in
-the output directory are deleted before processing.
+    docs/win/mma/ufc/03_select/detailed/{date}_ufc_select_detailed.csv
+        Full audit format. Every fight from the edges file in edges-file
+        order, with a `bet` column = fighter_1 | fighter_2 | no_bet.
+        Always written, even when every row is no_bet.
+
+Every run starts with a clean slate: existing files in both output directories
+are deleted before processing.
 """
 
 from __future__ import annotations
@@ -26,12 +33,18 @@ import yaml
 EDGES_DIR = Path("docs/win/mma/ufc/02_edges")
 CONFIG_PATH = Path("docs/win/mma/ufc/config/markets.yaml")
 OUT_DIR = Path("docs/win/mma/ufc/03_select")
+DETAILED_DIR = OUT_DIR / "detailed"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
+DETAILED_DIR.mkdir(parents=True, exist_ok=True)
 
-# --- Clean slate: remove every stale select file before this run ---
+# --- Clean slate: remove every stale select file (both dirs) before this run ---
 for stale in OUT_DIR.glob("*_ufc_select.csv"):
     stale.unlink()
-    print(f"DELETED stale {stale}")
+    print(f"DELETED stale legacy {stale}")
+
+for stale in DETAILED_DIR.glob("*_ufc_select_detailed.csv"):
+    stale.unlink()
+    print(f"DELETED stale detailed {stale}")
 
 # --- Load config ---
 with CONFIG_PATH.open(encoding="utf-8") as f:
@@ -144,7 +157,7 @@ def passes_filters(ml, edge, ev, kelly, model_prob, dratings_prob):
 
 def make_candidate(row: dict, fighter_key: str) -> dict:
     """
-    Build one fighter candidate from a fight row.
+    Build one fighter candidate (legacy format) from a fight row.
 
     fighter_key:
         f1 = fighter_1 side
@@ -201,8 +214,37 @@ def candidate_passes(row: dict, fighter_key: str) -> bool:
     )
 
 
-# Output column order.
-OUTPUT_FIELDS = [
+def make_detailed_row(row: dict, bet_value: str) -> dict:
+    """
+    Build one detailed (audit) row from a fight row.
+
+    bet_value:
+        'fighter_1' | 'fighter_2' | 'no_bet'
+    """
+    return {
+        "match_date": row["match_date"],
+        "fighter_1": row["fighter_1"],
+        "fighter_2": row["fighter_2"],
+        "moneyline_f1": row["moneyline_f1"],
+        "moneyline_f2": row["moneyline_f2"],
+        "implied_prob_f1": row["implied_prob_f1"],
+        "implied_prob_f2": row["implied_prob_f2"],
+        "model_prob_f1": row["model_prob_f1"],
+        "model_prob_f2": row["model_prob_f2"],
+        "dratings_prob_f1": row["dratings_prob_f1"],
+        "dratings_prob_f2": row["dratings_prob_f2"],
+        "edge_f1": row["edge_f1"],
+        "edge_f2": row["edge_f2"],
+        "ev_f1": row["ev_f1"],
+        "ev_f2": row["ev_f2"],
+        "kelly_f1": row["kelly_f1"],
+        "kelly_f2": row["kelly_f2"],
+        "bet": bet_value,
+    }
+
+
+# Output column orders.
+LEGACY_FIELDS = [
     "match_date",
     "fighter",
     "opponent",
@@ -213,6 +255,27 @@ OUTPUT_FIELDS = [
     "edge",
     "ev",
     "kelly",
+]
+
+DETAILED_FIELDS = [
+    "match_date",
+    "fighter_1",
+    "fighter_2",
+    "moneyline_f1",
+    "moneyline_f2",
+    "implied_prob_f1",
+    "implied_prob_f2",
+    "model_prob_f1",
+    "model_prob_f2",
+    "dratings_prob_f1",
+    "dratings_prob_f2",
+    "edge_f1",
+    "edge_f2",
+    "ev_f1",
+    "ev_f2",
+    "kelly_f1",
+    "kelly_f2",
+    "bet",
 ]
 
 
@@ -234,36 +297,50 @@ for edges_file in edges_files:
         print(f"No rows in {edges_file.name}, skipping")
         continue
 
-    selected = []
+    selected = []          # legacy output: picks only
+    detailed_rows = []     # detailed output: every fight in edges-file order
 
     for row in rows:
-        candidates = []
+        candidates = []  # list of (side_label, candidate_dict)
 
-        # Check fighter 1
         if candidate_passes(row, "f1"):
-            candidates.append(make_candidate(row, "f1"))
+            candidates.append(("fighter_1", make_candidate(row, "f1")))
 
-        # Check fighter 2
         if candidate_passes(row, "f2"):
-            candidates.append(make_candidate(row, "f2"))
+            candidates.append(("fighter_2", make_candidate(row, "f2")))
 
-        # Pick best candidate from this fight per pick_preference
         if candidates:
-            best = max(candidates, key=lambda c: pick_metric_from_values(c, pick_pref))
-            selected.append(best)
+            best_side, best_candidate = max(
+                candidates,
+                key=lambda sc: pick_metric_from_values(sc[1], pick_pref),
+            )
+            selected.append(best_candidate)
+            bet_value = best_side
+        else:
+            bet_value = "no_bet"
 
-    # Final sort across all selected picks uses pick_preference.
+        detailed_rows.append(make_detailed_row(row, bet_value))
+
+    # Legacy: sort all picks by pick_preference.
     selected.sort(key=lambda c: pick_metric_from_values(c, pick_pref), reverse=True)
 
-    out_file = OUT_DIR / f"{date_str}_ufc_select.csv"
+    # --- Write detailed (always, edges-file order) ---
+    detailed_file = DETAILED_DIR / f"{date_str}_ufc_select_detailed.csv"
+    with detailed_file.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=DETAILED_FIELDS)
+        writer.writeheader()
+        writer.writerows(detailed_rows)
 
+    bet_count = sum(1 for r in detailed_rows if r["bet"] != "no_bet")
+    print(f"WROTE {detailed_file} ({len(detailed_rows)} fights, {bet_count} bets)")
+
+    # --- Write legacy (only when there are picks) ---
+    out_file = OUT_DIR / f"{date_str}_ufc_select.csv"
     if selected:
         with out_file.open("w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=OUTPUT_FIELDS)
+            writer = csv.DictWriter(f, fieldnames=LEGACY_FIELDS)
             writer.writeheader()
             writer.writerows(selected)
-
         print(f"WROTE {out_file} ({len(selected)} picks)")
-
     else:
         print(f"No picks passed filters for {date_str}")
