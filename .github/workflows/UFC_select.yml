@@ -1,0 +1,63 @@
+name: UFC Select Bets
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  ufc-select:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyyaml
+
+      - name: Create output folders
+        run: |
+          mkdir -p docs/win/mma/ufc/03_select
+          mkdir -p docs/win/mma/ufc/errors/03_select
+
+      - name: Run UFC select script
+        run: |
+          python docs/win/mma/ufc/scripts/03_select.py
+
+      - name: Show select outputs
+        if: always()
+        run: |
+          echo "=== UFC select outputs ==="
+          find docs/win/mma/ufc/03_select -type f | sort || true
+
+          echo ""
+          echo "=== UFC select errors/logs ==="
+          find docs/win/mma/ufc/errors/03_select -type f -maxdepth 1 -print -exec cat {} \; || true
+
+      - name: Commit outputs
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add docs/win/mma/ufc/03_select/
+          git add docs/win/mma/ufc/errors/03_select/ || true
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "chore: run UFC select $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git pull --rebase origin main
+            git push
+          fi
