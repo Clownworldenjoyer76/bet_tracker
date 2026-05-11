@@ -1,0 +1,52 @@
+name: UFC Grade Bets
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  ufc-grade:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Create output folders
+        run: |
+          mkdir -p docs/win/mma/ufc/04_final/graded
+
+      - name: Run UFC grader
+        run: |
+          python docs/win/mma/ufc/scripts/04_final/ufc_grader.py
+
+      - name: Show graded outputs
+        if: always()
+        run: |
+          echo "=== UFC graded outputs ==="
+          find docs/win/mma/ufc/04_final/graded -maxdepth 1 -type f -name "*_ufc_graded.csv" | sort || true
+
+      - name: Commit outputs
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add docs/win/mma/ufc/04_final/graded/
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "chore: run UFC grader $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git pull --rebase origin main
+            git push
+          fi
