@@ -38,6 +38,65 @@ function formatProfit(value, profitDisplay) {
   return n > 0 ? '+' + n.toFixed(2) + 'u' : n.toFixed(2) + 'u';
 }
 
+function formatPercent(value) {
+  if (value === null || value === undefined || value === '') return '—';
+
+  var n = parseFloat(value);
+  if (isNaN(n)) return '—';
+
+  if (Math.abs(n) <= 1) n = n * 100;
+
+  return n.toFixed(1) + '%';
+}
+
+function formatEV(value) {
+  if (value === null || value === undefined || value === '') return '—';
+
+  var n = parseFloat(value);
+  if (isNaN(n)) return '—';
+
+  return n > 0 ? '+' + n.toFixed(2) : n.toFixed(2);
+}
+
+function formatKelly(value) {
+  if (value === null || value === undefined || value === '') return '—';
+
+  var n = parseFloat(value);
+  if (isNaN(n)) return '—';
+
+  if (Math.abs(n) <= 1) return (n * 100).toFixed(1) + '%';
+
+  return n.toFixed(2);
+}
+
+function formatMarketLabel(market) {
+  if (!market) return '—';
+
+  if (market === 'moneyline') return 'Moneyline';
+  if (market === 'spread') return 'Spread / Line';
+  if (market === 'total') return 'Total';
+
+  return String(market).charAt(0).toUpperCase() + String(market).slice(1);
+}
+
+function valueClass(value) {
+  var n = parseFloat(value);
+
+  if (isNaN(n) || n === 0) return '';
+  return n > 0 ? 'val-green' : 'val-red';
+}
+
+function probabilityClass(value) {
+  var n = parseFloat(value);
+
+  if (isNaN(n)) return '';
+  if (n > 1) n = n / 100;
+
+  if (n >= 0.65) return 'val-green';
+  if (n >= 0.5) return 'val-yellow';
+  return 'val-red';
+}
+
 function profitClass(value) {
   var n = parseFloat(value);
 
@@ -84,7 +143,10 @@ function historySearchText(r) {
     formatOdds(r.odds, r.odds_display),
     outcomeText(r.result),
     formatProfit(r.profit_unit, r.profit_display),
-    r.ev !== null && r.ev !== undefined ? String(r.ev) : ''
+    r.model_prob !== null && r.model_prob !== undefined ? formatPercent(r.model_prob) : '',
+    r.ev !== null && r.ev !== undefined ? String(r.ev) : '',
+    r.kelly !== null && r.kelly !== undefined ? String(r.kelly) : '',
+    r.source || ''
   ].join(' ').toLowerCase();
 }
 
@@ -143,6 +205,27 @@ function sortHistoryRows(rows) {
   });
 
   return sorted;
+}
+
+function groupRowsByDate(rows) {
+  var groups = [];
+  var groupMap = {};
+
+  rows.forEach(function(r) {
+    var date = formatDateDisplay(r.game_date);
+
+    if (!groupMap[date]) {
+      groupMap[date] = {
+        date: date,
+        rows: []
+      };
+      groups.push(groupMap[date]);
+    }
+
+    groupMap[date].rows.push(r);
+  });
+
+  return groups;
 }
 
 function onHistorySearchInput(value) {
@@ -332,9 +415,7 @@ function renderMarketBreakdown(main, graded) {
       return s + r.profit_unit;
     }, 0);
 
-    var label = market === 'spread'
-      ? 'Spread / Line'
-      : market.charAt(0).toUpperCase() + market.slice(1);
+    var label = formatMarketLabel(market);
 
     return '<div class="breakdown-card">' +
       '<div class="breakdown-title">' + escapeHtml(label) + '</div>' +
@@ -373,36 +454,76 @@ function buildHistoryTableRows(displayRows) {
   }).join('');
 }
 
-function buildHistoryCards(displayRows) {
-  return displayRows.map(function(r) {
-    var outCls = outcomeClass(r.result);
-    var outTxt = outcomeText(r.result);
-    var profitCls = profitClass(r.profit_unit);
+function buildDetailItem(label, value, cls) {
+  return '<div class="history-detail-item">' +
+    '<div class="history-detail-label">' + escapeHtml(label) + '</div>' +
+    '<div class="history-detail-value ' + (cls || '') + '">' + escapeHtml(value) + '</div>' +
+  '</div>';
+}
 
-    return '<div class="history-card">' +
-      '<div class="history-card-top">' +
-        '<div class="history-card-meta">' +
-          '<span class="history-league-pill">' + escapeHtml(leagueDisplayName(r)) + '</span>' +
-          '<span class="history-card-date">' + escapeHtml(formatDateDisplay(r.game_date)) + '</span>' +
-        '</div>' +
-        '<span class="history-result-badge ' + outCls + '">' + escapeHtml(outTxt) + '</span>' +
+function buildCardDetails(r) {
+  var modelProb = formatPercent(r.model_prob);
+  var ev = formatEV(r.ev);
+  var kelly = formatKelly(r.kelly);
+  var market = formatMarketLabel(r.market);
+  var marketRaw = r.market_raw || '—';
+  var source = r.source || '—';
+
+  return '<details class="history-details">' +
+    '<summary>Details</summary>' +
+    '<div class="history-details-grid">' +
+      buildDetailItem('Market', market, '') +
+      buildDetailItem('Raw Market', marketRaw, '') +
+      buildDetailItem('Model Prob', modelProb, probabilityClass(r.model_prob)) +
+      buildDetailItem('EV', ev, valueClass(r.ev)) +
+      buildDetailItem('Kelly', kelly, valueClass(r.kelly)) +
+      buildDetailItem('Source', source, '') +
+    '</div>' +
+  '</details>';
+}
+
+function buildSingleHistoryCard(r) {
+  var outCls = outcomeClass(r.result);
+  var outTxt = outcomeText(r.result);
+  var profitCls = profitClass(r.profit_unit);
+
+  return '<div class="history-card">' +
+    '<div class="history-card-top">' +
+      '<div class="history-card-meta">' +
+        '<span class="history-league-pill">' + escapeHtml(leagueDisplayName(r)) + '</span>' +
       '</div>' +
-      '<div class="history-card-matchup">' + escapeHtml(r.matchup || '—') + '</div>' +
-      '<div class="history-card-pick">' + escapeHtml(r.pick || r.bet_side || '—') + '</div>' +
-      '<div class="history-card-stats">' +
-        '<div>' +
-          '<div class="history-card-stat-label">Odds</div>' +
-          '<div class="history-card-stat-value">' + escapeHtml(formatOdds(r.odds, r.odds_display)) + '</div>' +
-        '</div>' +
-        '<div>' +
-          '<div class="history-card-stat-label">Result</div>' +
-          '<div class="history-card-stat-value"><span class="' + outCls + '">' + escapeHtml(outTxt) + '</span></div>' +
-        '</div>' +
-        '<div>' +
-          '<div class="history-card-stat-label">P/L</div>' +
-          '<div class="history-card-stat-value"><span class="' + profitCls + '">' + escapeHtml(formatProfit(r.profit_unit, r.profit_display)) + '</span></div>' +
-        '</div>' +
+      '<span class="history-result-badge ' + outCls + '">' + escapeHtml(outTxt) + '</span>' +
+    '</div>' +
+    '<div class="history-card-matchup">' + escapeHtml(r.matchup || '—') + '</div>' +
+    '<div class="history-card-pick">' + escapeHtml(r.pick || r.bet_side || '—') + '</div>' +
+    '<div class="history-card-stats">' +
+      '<div>' +
+        '<div class="history-card-stat-label">Odds</div>' +
+        '<div class="history-card-stat-value">' + escapeHtml(formatOdds(r.odds, r.odds_display)) + '</div>' +
       '</div>' +
+      '<div>' +
+        '<div class="history-card-stat-label">P/L</div>' +
+        '<div class="history-card-stat-value"><span class="' + profitCls + '">' + escapeHtml(formatProfit(r.profit_unit, r.profit_display)) + '</span></div>' +
+      '</div>' +
+    '</div>' +
+    buildCardDetails(r) +
+  '</div>';
+}
+
+function buildHistoryCards(displayRows) {
+  var groups = groupRowsByDate(displayRows);
+
+  return groups.map(function(group) {
+    var cards = group.rows.map(function(r) {
+      return buildSingleHistoryCard(r);
+    }).join('');
+
+    return '<div class="history-date-group">' +
+      '<div class="history-date-header">' +
+        '<span>' + escapeHtml(group.date) + '</span>' +
+        '<span class="history-date-count">' + group.rows.length + ' bet' + (group.rows.length === 1 ? '' : 's') + '</span>' +
+      '</div>' +
+      '<div class="history-card-grid">' + cards + '</div>' +
     '</div>';
   }).join('');
 }
