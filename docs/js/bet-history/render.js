@@ -16,6 +16,40 @@ function formatDateDisplay(date) {
   return String(date).replaceAll('_', '-');
 }
 
+function formatDateLong(date) {
+  if (!date) return '—';
+
+  var clean = String(date).replaceAll('_', '-').trim();
+  var parts = clean.split('-');
+
+  if (parts.length !== 3) return clean;
+
+  var year = parseInt(parts[0], 10);
+  var month = parseInt(parts[1], 10);
+  var day = parseInt(parts[2], 10);
+
+  if (isNaN(year) || isNaN(month) || isNaN(day)) return clean;
+
+  var monthNames = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December'
+  ];
+
+  if (month < 1 || month > 12) return clean;
+
+  return monthNames[month - 1] + ' ' + day + ', ' + year;
+}
+
 function formatOdds(odds, oddsDisplay) {
   if (oddsDisplay !== null && oddsDisplay !== undefined && String(oddsDisplay).trim() !== '') {
     return oddsDisplay;
@@ -134,6 +168,7 @@ function numericOrNull(value) {
 function historySearchText(r) {
   return [
     formatDateDisplay(r.game_date),
+    formatDateLong(r.game_date),
     leagueDisplayName(r),
     r.matchup || '',
     r.pick || '',
@@ -212,20 +247,29 @@ function groupRowsByDate(rows) {
   var groupMap = {};
 
   rows.forEach(function(r) {
-    var date = formatDateDisplay(r.game_date);
+    var dateKey = formatDateDisplay(r.game_date);
 
-    if (!groupMap[date]) {
-      groupMap[date] = {
-        date: date,
+    if (!groupMap[dateKey]) {
+      groupMap[dateKey] = {
+        date: dateKey,
+        longDate: formatDateLong(r.game_date),
         rows: []
       };
-      groups.push(groupMap[date]);
+      groups.push(groupMap[dateKey]);
     }
 
-    groupMap[date].rows.push(r);
+    groupMap[dateKey].rows.push(r);
   });
 
   return groups;
+}
+
+function groupRecordText(rows) {
+  var wins = rows.filter(function(r) { return r.result === 'win'; }).length;
+  var losses = rows.filter(function(r) { return r.result === 'loss'; }).length;
+  var pushes = rows.filter(function(r) { return r.result === 'push'; }).length;
+
+  return wins + '-' + losses + '-' + pushes;
 }
 
 function onHistorySearchInput(value) {
@@ -520,8 +564,9 @@ function buildHistoryCards(displayRows) {
 
     return '<div class="history-date-group">' +
       '<div class="history-date-header">' +
-        '<span>' + escapeHtml(group.date) + '</span>' +
+        '<span>' + escapeHtml(group.longDate) + '</span>' +
         '<span class="history-date-count">' + group.rows.length + ' bet' + (group.rows.length === 1 ? '' : 's') + '</span>' +
+        '<span class="history-date-record">W/L/P: ' + escapeHtml(groupRecordText(group.rows)) + '</span>' +
       '</div>' +
       '<div class="history-card-grid">' + cards + '</div>' +
     '</div>';
