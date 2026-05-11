@@ -1,3 +1,6 @@
+var historySearch = '';
+var historySort = 'newest';
+
 function formatDateDisplay(date) {
   if (!date) return '—';
   return String(date).replaceAll('_', '-');
@@ -51,6 +54,95 @@ function leagueDisplayName(r) {
   }
 
   return r.league || '—';
+}
+
+function numericOrNull(value) {
+  if (value === null || value === undefined || value === '') return null;
+  var n = parseFloat(value);
+  return isNaN(n) ? null : n;
+}
+
+function historySearchText(r) {
+  return [
+    formatDateDisplay(r.game_date),
+    leagueDisplayName(r),
+    r.matchup || '',
+    r.pick || '',
+    r.bet_side || '',
+    r.market || '',
+    r.market_raw || '',
+    formatOdds(r.odds, r.odds_display),
+    outcomeText(r.result),
+    formatProfit(r.profit_unit, r.profit_display),
+    r.ev !== null && r.ev !== undefined ? String(r.ev) : ''
+  ].join(' ').toLowerCase();
+}
+
+function applyHistorySearch(rows) {
+  var q = String(historySearch || '').trim().toLowerCase();
+
+  if (!q) return rows;
+
+  return rows.filter(function(r) {
+    return historySearchText(r).indexOf(q) !== -1;
+  });
+}
+
+function compareNumberWithMissing(a, b, getter, direction) {
+  var av = numericOrNull(getter(a));
+  var bv = numericOrNull(getter(b));
+
+  if (av === null && bv === null) return 0;
+  if (av === null) return 1;
+  if (bv === null) return -1;
+
+  return direction === 'asc' ? av - bv : bv - av;
+}
+
+function sortHistoryRows(rows) {
+  var sorted = rows.slice();
+
+  sorted.sort(function(a, b) {
+    if (historySort === 'oldest') {
+      return String(a.game_date).localeCompare(String(b.game_date));
+    }
+
+    if (historySort === 'best_profit') {
+      return compareNumberWithMissing(a, b, function(r) { return r.profit_unit; }, 'desc');
+    }
+
+    if (historySort === 'worst_profit') {
+      return compareNumberWithMissing(a, b, function(r) { return r.profit_unit; }, 'asc');
+    }
+
+    if (historySort === 'highest_ev') {
+      return compareNumberWithMissing(a, b, function(r) { return r.ev; }, 'desc');
+    }
+
+    if (historySort === 'lowest_ev') {
+      return compareNumberWithMissing(a, b, function(r) { return r.ev; }, 'asc');
+    }
+
+    if (historySort === 'league') {
+      var leagueCompare = leagueDisplayName(a).localeCompare(leagueDisplayName(b));
+      if (leagueCompare !== 0) return leagueCompare;
+      return String(b.game_date).localeCompare(String(a.game_date));
+    }
+
+    return String(b.game_date).localeCompare(String(a.game_date));
+  });
+
+  return sorted;
+}
+
+function onHistorySearchInput(value) {
+  historySearch = value || '';
+  render();
+}
+
+function onHistorySortChange(value) {
+  historySort = value || 'newest';
+  render();
 }
 
 function render() {
@@ -254,11 +346,9 @@ function renderMarketBreakdown(main, graded) {
 }
 
 function renderBetsTable(main, graded) {
-  var sorted = graded.slice().sort(function(a, b) {
-    return String(b.game_date).localeCompare(String(a.game_date));
-  });
-
-  var displayRows = sorted.slice(0, 500);
+  var sortedRows = sortHistoryRows(graded);
+  var searchedRows = applyHistorySearch(sortedRows);
+  var displayRows = searchedRows.slice(0, 500);
 
   var tableRows = displayRows.map(function(r) {
     var outCls = outcomeClass(r.result);
@@ -276,30 +366,82 @@ function renderBetsTable(main, graded) {
     '</tr>';
   }).join('');
 
+  var cards = displayRows.map(function(r) {
+    var outCls = outcomeClass(r.result);
+    var outTxt = outcomeText(r.result);
+    var profitCls = profitClass(r.profit_unit);
+
+    return '<div class="history-card">' +
+      '<div class="history-card-top">' +
+        '<div class="history-card-meta">' +
+          '<span class="history-league-pill">' + leagueDisplayName(r) + '</span>' +
+          '<span class="history-card-date">' + formatDateDisplay(r.game_date) + '</span>' +
+        '</div>' +
+        '<span class="history-result-badge ' + outCls + '">' + outTxt + '</span>' +
+      '</div>' +
+      '<div class="history-card-matchup">' + (r.matchup || '—') + '</div>' +
+      '<div class="history-card-pick">' + (r.pick || r.bet_side || '—') + '</div>' +
+      '<div class="history-card-stats">' +
+        '<div>' +
+          '<div class="history-card-stat-label">Odds</div>' +
+          '<div class="history-card-stat-value">' + formatOdds(r.odds, r.odds_display) + '</div>' +
+        '</div>' +
+        '<div>' +
+          '<div class="history-card-stat-label">Result</div>' +
+          '<div class="history-card-stat-value"><span class="' + outCls + '">' + outTxt + '</span></div>' +
+        '</div>' +
+        '<div>' +
+          '<div class="history-card-stat-label">P/L</div>' +
+          '<div class="history-card-stat-value"><span class="' + profitCls + '">' + formatProfit(r.profit_unit, r.profit_display) + '</span></div>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+
+  var emptyHtml = '<div class="history-empty-results">No bets match your search</div>';
+
   var sec = document.createElement('div');
   sec.className = 'section';
 
   sec.innerHTML =
     '<div class="section-title">Completed Bet History</div>' +
-    '<div style="overflow-x:auto">' +
-      '<table class="bets-table">' +
-        '<thead>' +
-          '<tr>' +
-            '<th>Date</th>' +
-            '<th>League</th>' +
-            '<th>Game / Matchup</th>' +
-            '<th>Pick</th>' +
-            '<th>Odds</th>' +
-            '<th>Result</th>' +
-            '<th>P/L Units</th>' +
-          '</tr>' +
-        '</thead>' +
-        '<tbody>' + tableRows + '</tbody>' +
-      '</table>' +
-    '</div>';
+    '<div class="history-tools">' +
+      '<input class="history-search" type="search" placeholder="Search completed bets..." value="' + historySearch.replace(/"/g, '&quot;') + '" oninput="onHistorySearchInput(this.value)">' +
+      '<select class="history-sort" onchange="onHistorySortChange(this.value)">' +
+        '<option value="newest"' + (historySort === 'newest' ? ' selected' : '') + '>Newest First</option>' +
+        '<option value="oldest"' + (historySort === 'oldest' ? ' selected' : '') + '>Oldest First</option>' +
+        '<option value="best_profit"' + (historySort === 'best_profit' ? ' selected' : '') + '>Best P/L</option>' +
+        '<option value="worst_profit"' + (historySort === 'worst_profit' ? ' selected' : '') + '>Worst P/L</option>' +
+        '<option value="highest_ev"' + (historySort === 'highest_ev' ? ' selected' : '') + '>Highest EV</option>' +
+        '<option value="lowest_ev"' + (historySort === 'lowest_ev' ? ' selected' : '') + '>Lowest EV</option>' +
+        '<option value="league"' + (historySort === 'league' ? ' selected' : '') + '>League A-Z</option>' +
+      '</select>' +
+      '<div class="history-count">' + searchedRows.length + ' shown</div>' +
+    '</div>' +
+    (
+      searchedRows.length
+        ? '<div class="bets-table-wrap">' +
+            '<table class="bets-table">' +
+              '<thead>' +
+                '<tr>' +
+                  '<th>Date</th>' +
+                  '<th>League</th>' +
+                  '<th>Game / Matchup</th>' +
+                  '<th>Pick</th>' +
+                  '<th>Odds</th>' +
+                  '<th>Result</th>' +
+                  '<th>P/L Units</th>' +
+                '</tr>' +
+              '</thead>' +
+              '<tbody>' + tableRows + '</tbody>' +
+            '</table>' +
+          '</div>' +
+          '<div class="history-card-list">' + cards + '</div>'
+        : emptyHtml
+    );
 
-  if (sorted.length > 500) {
-    sec.innerHTML += '<div style="font-size:10px;color:var(--text-muted);padding:8px 0;text-align:center">Showing most recent 500 of ' + sorted.length + ' completed bets</div>';
+  if (searchedRows.length > 500) {
+    sec.innerHTML += '<div style="font-size:10px;color:var(--text-muted);padding:8px 0;text-align:center">Showing first 500 of ' + searchedRows.length + ' matching completed bets</div>';
   }
 
   main.appendChild(sec);
