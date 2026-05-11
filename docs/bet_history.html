@@ -109,9 +109,7 @@
       transition:border-color 0.15s, box-shadow 0.15s;
     }
 
-    .history-search::placeholder {
-      color:var(--text-muted);
-    }
+    .history-search::placeholder { color:var(--text-muted); }
 
     .history-search:focus {
       border-color:rgba(0,255,132,0.35);
@@ -198,14 +196,6 @@
     }
 
     .bets-table tr:last-child td { border-bottom:none; }
-
-    .bets-table tbody tr {
-      transition:background 0.15s ease;
-    }
-
-    .bets-table tbody tr:hover {
-      background:rgba(255,255,255,0.025);
-    }
 
     .history-date {
       color:var(--text-muted);
@@ -303,7 +293,54 @@
       background:rgba(255,255,255,0.025);
     }
 
+    .history-date-group {
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      margin-bottom:18px;
+    }
+
+    .history-date-group:last-child {
+      margin-bottom:0;
+    }
+
+    .history-date-header {
+      display:flex;
+      align-items:center;
+      gap:10px;
+      font-family:'Barlow Condensed',sans-serif;
+      font-size:13px;
+      font-weight:800;
+      letter-spacing:0.14em;
+      color:var(--accent-blue);
+      text-transform:uppercase;
+      padding:4px 0 6px;
+      border-bottom:1px solid var(--border-soft);
+    }
+
+    .history-date-header::after {
+      content:'';
+      flex:1;
+      height:1px;
+      background:rgba(255,255,255,0.04);
+    }
+
+    .history-date-count {
+      color:var(--text-muted);
+      font-family:'IBM Plex Mono',monospace;
+      font-size:9px;
+      font-weight:500;
+      letter-spacing:0.08em;
+      text-transform:uppercase;
+    }
+
     .history-card-list {
+      display:flex;
+      flex-direction:column;
+      gap:18px;
+    }
+
+    .history-card-grid {
       display:grid;
       grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
       gap:10px;
@@ -363,7 +400,7 @@
 
     .history-card-stats {
       display:grid;
-      grid-template-columns:repeat(3,1fr);
+      grid-template-columns:repeat(2,1fr);
       gap:8px;
       border-top:1px solid var(--border-soft);
       padding-top:9px;
@@ -385,6 +422,88 @@
       font-size:11px;
       font-weight:600;
     }
+
+    .history-details {
+      margin-top:10px;
+      border-top:1px solid var(--border-soft);
+      padding-top:8px;
+    }
+
+    .history-details summary {
+      list-style:none;
+      cursor:pointer;
+      color:var(--text-muted);
+      font-family:'Barlow Condensed',sans-serif;
+      font-size:10px;
+      font-weight:800;
+      letter-spacing:0.14em;
+      text-transform:uppercase;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+      transition:color 0.15s;
+    }
+
+    .history-details summary::-webkit-details-marker {
+      display:none;
+    }
+
+    .history-details summary:hover {
+      color:var(--accent-blue);
+    }
+
+    .history-details summary::after {
+      content:'▾';
+      color:var(--accent-blue);
+      font-size:10px;
+      transition:transform 0.15s ease;
+    }
+
+    .history-details[open] summary {
+      color:var(--accent-blue);
+      margin-bottom:8px;
+    }
+
+    .history-details[open] summary::after {
+      transform:rotate(180deg);
+    }
+
+    .history-details-grid {
+      display:grid;
+      grid-template-columns:repeat(2,1fr);
+      gap:6px 10px;
+      background:rgba(255,255,255,0.018);
+      border:1px solid var(--border-soft);
+      padding:9px 10px;
+    }
+
+    .history-detail-item {
+      min-width:0;
+    }
+
+    .history-detail-label {
+      color:var(--text-muted);
+      font-family:'Barlow Condensed',sans-serif;
+      font-size:9px;
+      font-weight:700;
+      letter-spacing:0.12em;
+      text-transform:uppercase;
+      margin-bottom:3px;
+    }
+
+    .history-detail-value {
+      color:var(--text-main);
+      font-family:'IBM Plex Mono',monospace;
+      font-size:11px;
+      line-height:1.35;
+      overflow-wrap:anywhere;
+    }
+
+    .history-detail-value.val-green { color:var(--accent-green); }
+    .history-detail-value.val-red { color:var(--accent-red); }
+    .history-detail-value.val-yellow { color:var(--accent-yellow); }
+    .history-detail-value.val-blue { color:var(--accent-blue); }
 
     .history-empty-results {
       padding:34px 12px;
@@ -442,7 +561,11 @@
         text-align:left;
       }
 
-      .history-card-list {
+      .history-card-grid {
+        grid-template-columns:1fr;
+      }
+
+      .history-details-grid {
         grid-template-columns:1fr;
       }
     }
