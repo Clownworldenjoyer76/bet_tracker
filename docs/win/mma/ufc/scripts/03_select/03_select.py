@@ -39,8 +39,11 @@ edge_bands = ml_config.get("edge_bands", [])
 ev_bands = ml_config.get("ev_bands", [])
 kelly_bands = ml_config.get("kelly_bands", [])
 
-model_prob_min = ml_config.get("model_probability_minimum", 0.0)
-dratings_prob_min = ml_config.get("dratings_probability_minimum", 0.0)
+# Default to None. When the key is absent from markets.yaml, no minimum is
+# enforced. When the key is present, the corresponding probability is strictly
+# required: missing / blank / non-numeric values fail the candidate.
+model_prob_min = ml_config.get("model_probability_minimum", None)
+dratings_prob_min = ml_config.get("dratings_probability_minimum", None)
 
 
 def safe_float(val):
@@ -73,22 +76,25 @@ def in_any_band(value, bands):
         return False
 
 
+# Maps pick_preference -> candidate dict key for sorting/selection.
+PICK_METRIC_MAP = {
+    "best_ev": "ev",
+    "best_edge": "edge",
+    "best_kelly": "kelly",
+    "best_model_prob": "model_prob",
+    "best_dratings_prob": "dratings_prob",
+}
+
+
 def pick_metric_from_values(candidate: dict, pref: str) -> float:
     """
-    Return the metric value used for final sorting and within-fight selection.
+    Return the metric value used for within-fight selection and final sorting.
 
-    Uses candidate output keys, not raw row keys.
+    Uses candidate output keys. Missing / non-numeric values sort last.
     """
-    mapping = {
-        "best_ev": "ev",
-        "best_edge": "edge",
-        "best_kelly": "kelly",
-        "best_model_prob": "model_prob",
-        "best_dratings_prob": "dratings_prob",
-    }
-
-    col = mapping.get(pref, "ev")
-    return safe_float(candidate.get(col)) or 0.0
+    col = PICK_METRIC_MAP.get(pref, "ev")
+    v = safe_float(candidate.get(col))
+    return v if v is not None else float("-inf")
 
 
 def passes_filters(ml, edge, ev, kelly, model_prob, dratings_prob):
@@ -107,18 +113,22 @@ def passes_filters(ml, edge, ev, kelly, model_prob, dratings_prob):
     if kelly_bands and not in_any_band(kelly, kelly_bands):
         return False
 
-    # Required when configured.
-    # Blank / missing / non-numeric model probability now fails.
+    # When model_probability_minimum is configured, model_prob is strictly required.
+    # Blank / missing / non-numeric model probability fails.
     if model_prob_min is not None:
         model_prob_val = safe_float(model_prob)
-        if model_prob_val is None or model_prob_val < float(model_prob_min):
+        if model_prob_val is None:
+            return False
+        if model_prob_val < float(model_prob_min):
             return False
 
-    # Required when configured.
-    # Blank / missing / non-numeric DRatings probability now fails.
+    # When dratings_probability_minimum is configured, dratings_prob is strictly required.
+    # Blank / missing / non-numeric DRatings probability fails.
     if dratings_prob_min is not None:
         dratings_prob_val = safe_float(dratings_prob)
-        if dratings_prob_val is None or dratings_prob_val < float(dratings_prob_min):
+        if dratings_prob_val is None:
+            return False
+        if dratings_prob_val < float(dratings_prob_min):
             return False
 
     return True
@@ -183,6 +193,21 @@ def candidate_passes(row: dict, fighter_key: str) -> bool:
     )
 
 
+# Output column order.
+OUTPUT_FIELDS = [
+    "match_date",
+    "fighter",
+    "opponent",
+    "moneyline",
+    "implied_prob",
+    "model_prob",
+    "dratings_prob",
+    "edge",
+    "ev",
+    "kelly",
+]
+
+
 # --- Process each edges file ---
 edges_files = sorted(EDGES_DIR.glob("*_ufc_edges.csv"))
 
@@ -208,32 +233,25 @@ for edges_file in edges_files:
 
         # Check fighter 1
         if candidate_passes(row, "f1"):
-            c1 = make_candidate(row, "f1")
-            c1["_sort_val"] = pick_metric_from_values(c1, pick_pref)
-            candidates.append(c1)
+            candidates.append(make_candidate(row, "f1"))
 
         # Check fighter 2
         if candidate_passes(row, "f2"):
-            c2 = make_candidate(row, "f2")
-            c2["_sort_val"] = pick_metric_from_values(c2, pick_pref)
-            candidates.append(c2)
+            candidates.append(make_candidate(row, "f2"))
 
         # Pick best candidate from this fight per pick_preference
         if candidates:
-            best = max(candidates, key=lambda x: x["_sort_val"])
+            best = max(candidates, key=lambda c: pick_metric_from_values(c, pick_pref))
             selected.append(best)
 
-    # Sort all selected picks by the same pick_preference used above.
-    selected.sort(key=lambda x: x["_sort_val"], reverse=True)
-
-    for row in selected:
-        row.pop("_sort_val", None)
+    # Final sort across all selected picks uses pick_preference.
+    selected.sort(key=lambda c: pick_metric_from_values(c, pick_pref), reverse=True)
 
     out_file = OUT_DIR / f"{date_str}_ufc_select.csv"
 
     if selected:
         with out_file.open("w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=list(selected[0].keys()))
+            writer = csv.DictWriter(f, fieldnames=OUTPUT_FIELDS)
             writer.writeheader()
             writer.writerows(selected)
 
