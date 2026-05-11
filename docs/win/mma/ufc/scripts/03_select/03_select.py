@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-03_select.py
+# docs/win/mma/ufc/scripts/03_select/03_select.py
 
 Filters edge output using rules defined in docs/win/mma/ufc/config/markets.yaml.
 
