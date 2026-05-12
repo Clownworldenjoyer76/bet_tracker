@@ -152,33 +152,21 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   box-shadow: 0 0 8px var(--g-green-glow);
 }
 
-/* ── League grid ─────────────────────────────────────────────────────────── */
+/* ── League sections ─────────────────────────────────────────────────────── */
 #gt-games {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 0;
-  padding: 24px;
-  align-items: start;
-}
-
-.gt-league-column {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 0 16px 0 0;
-  border-right: 1px solid var(--g-border);
+  gap: 28px;
+  padding: 24px;
 }
 
-.gt-league-column:last-child {
-  border-right: none;
-  padding-right: 0;
+.gt-league-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
-.gt-league-column + .gt-league-column {
-  padding-left: 16px;
-}
-
-/* ── League header ───────────────────────────────────────────────────────── */
 .gt-league-header {
   font-family: 'Barlow Condensed', sans-serif;
   font-size: 18px;
@@ -188,7 +176,13 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   color: var(--text-muted);
   padding-bottom: 10px;
   border-bottom: 2px solid var(--g-border);
-  margin-bottom: 4px;
+}
+
+.gt-league-games {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  align-items: start;
 }
 
 .gt-col-state {
@@ -370,7 +364,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 /* ── Empty state ─────────────────────────────────────────────────────────── */
 .gt-empty-state {
-  grid-column: 1 / -1;
   text-align: center;
   font-size: 11px;
   letter-spacing: 4px;
@@ -612,15 +605,13 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 /* ── Responsive ──────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
   #gt-games {
-    grid-template-columns: 1fr;
     padding: 16px;
+    gap: 24px;
   }
-  .gt-league-column {
-    padding: 0 0 20px !important;
-    border-right: none !important;
-    border-bottom: 1px solid var(--g-border);
+
+  .gt-league-games {
+    grid-template-columns: 1fr;
   }
-  .gt-league-column:last-child { border-bottom: none; }
 }
 
 </style>
