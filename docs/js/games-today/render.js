@@ -64,8 +64,8 @@ export function buildFilters(results) {
 
     const selected = pill.dataset.league;
 
-    document.querySelectorAll(".gt-league-column").forEach(column => {
-      column.style.display = selected === "all" || column.dataset.league === selected ? "" : "none";
+    document.querySelectorAll(".gt-league-section").forEach(section => {
+      section.style.display = selected === "all" || section.dataset.league === selected ? "" : "none";
     });
   };
 }
@@ -127,26 +127,30 @@ export function renderResults(results, dateStr) {
   let totalGames = 0;
 
   results.forEach(result => {
-    const column = document.createElement("div");
-    column.className = "gt-league-column";
-    column.dataset.league = result.league;
+    const section = document.createElement("section");
+    section.className = "gt-league-section";
+    section.dataset.league = result.league;
 
     const header = document.createElement("div");
     header.className = "gt-league-header";
     header.textContent = result.displayName;
-    column.appendChild(header);
+    section.appendChild(header);
+
+    const grid = document.createElement("div");
+    grid.className = "gt-league-games";
 
     if (!result.games || result.games.length === 0) {
-      column.innerHTML += `<div class="gt-col-state empty">No games</div>`;
+      grid.innerHTML = `<div class="gt-col-state empty">No games</div>`;
     } else {
       result.games.forEach(game => {
-        column.appendChild(buildGameCard(game));
+        grid.appendChild(buildGameCard(game));
       });
 
       totalGames += result.games.length;
     }
 
-    gamesEl.appendChild(column);
+    section.appendChild(grid);
+    gamesEl.appendChild(section);
   });
 
   if (totalGames === 0) {
