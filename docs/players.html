@@ -7,101 +7,696 @@
   <link rel="stylesheet" href="css/matstheme.css">
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }    body { background:var(--background);color:var(--text-main);font-family:'IBM Plex Mono',monospace;font-size:13px;min-height:100vh; }
-    .page-header { border-bottom:1px solid var(--border-soft);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px; }
-    .page-title { font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;letter-spacing:0.08em;text-transform:uppercase;color:var(--accent-green); }
-    .page-subtitle { color:var(--text-muted);font-size:11px;letter-spacing:0.06em;margin-top:2px; }
-    .controls { display:flex;align-items:center;gap:8px;padding:12px 24px;border-bottom:1px solid var(--border-soft);flex-wrap:wrap; }
-    .league-pill { font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:0.08em;padding:4px 12px;border:1px solid var(--border-soft);background:transparent;color:var(--text-muted);cursor:pointer;transition:all 0.15s;text-transform:uppercase; }
-    .league-pill:hover { border-color:var(--accent-blue);color:var(--accent-blue); }
-    .league-pill.active { border-color:var(--accent-green);color:var(--accent-green);background:rgba(0,255,132,0.06); }
-    .team-select { background:var(--bg-card);border:1px solid var(--border-soft);color:var(--text-main);font-family:'IBM Plex Mono',monospace;font-size:12px;padding:5px 10px;outline:none;min-width:200px; }
-    .team-select:focus { border-color:var(--accent-blue); }
-    .status-bar { padding:8px 24px;font-size:11px;color:var(--text-muted);border-bottom:1px solid var(--border-soft);display:flex;align-items:center;gap:10px; }
-    .status-dot { width:6px;height:6px;border-radius:50%;background:var(--text-muted);display:inline-block;flex-shrink:0; }
-    .status-dot.green { background:var(--accent-green);box-shadow:0 0 6px var(--accent-green); }
-    .status-dot.yellow { background:var(--accent-yellow);animation:pulse 1s infinite; }
-    @keyframes pulse { 0%,100%{opacity:1;}50%{opacity:0.3;} }
-    .main { padding:20px 24px; }
-    .roster-header { display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border-soft); }
-    .roster-logo { width:40px;height:40px;object-fit:contain; }
-    .roster-team-name { font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:900;color:var(--text-main);letter-spacing:0.04em; }
-    .roster-group-header { font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;color:var(--text-muted);text-transform:uppercase;padding:8px 0 4px;border-bottom:1px solid var(--border-soft);margin-bottom:4px;margin-top:12px; }
-    .players-table { width:100%;border-collapse:collapse;font-size:12px; }
-    .players-table thead tr { border-bottom:1px solid var(--border-soft); }
-    .players-table th { font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-muted);padding:5px 8px;text-align:left; }
-    .players-table tbody tr { border-bottom:1px solid var(--border-soft);transition:background 0.1s;cursor:pointer; }
-    .players-table tbody tr:hover { background:var(--bg-card); }
-    .players-table tbody tr:hover .player-name-cell { color:var(--accent-green); }
-    .players-table td { padding:7px 8px;color:var(--text-muted); }
-    .player-name-cell { font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;color:var(--text-main);letter-spacing:0.04em;transition:color 0.15s; }
-    .inj-badge { font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;padding:1px 5px;color:var(--accent-red);border:1px solid rgba(255,68,68,0.3);background:rgba(255,68,68,0.08); }
-    .empty-state { text-align:center;padding:60px 20px;color:var(--text-muted);font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase; }
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--background);
+      color: var(--text-main);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px;
+      min-height: 100vh;
+    }
+
+    .page-header {
+      border-bottom: 1px solid var(--border-soft);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .page-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent-green);
+    }
+
+    .page-subtitle {
+      color: var(--text-muted);
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      margin-top: 2px;
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      border-bottom: 1px solid var(--border-soft);
+      flex-wrap: wrap;
+    }
+
+    .league-pill {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      padding: 4px 12px;
+      border: 1px solid var(--border-soft);
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s;
+      text-transform: uppercase;
+    }
+
+    .league-pill:hover {
+      border-color: var(--accent-blue);
+      color: var(--accent-blue);
+    }
+
+    .league-pill.active {
+      border-color: var(--accent-green);
+      color: var(--accent-green);
+      background: rgba(0,255,132,0.06);
+    }
+
+    .league-pill.placeholder {
+      border-style: dashed;
+      opacity: 0.7;
+    }
+
+    .league-pill.placeholder.active {
+      border-color: var(--accent-yellow);
+      color: var(--accent-yellow);
+      background: rgba(255,204,0,0.06);
+    }
+
+    .team-select-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: 4px;
+    }
+
+    .team-select-wrap.hidden {
+      display: none;
+    }
+
+    .team-select-label {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .team-select {
+      background: var(--bg-card);
+      border: 1px solid var(--border-soft);
+      color: var(--text-main);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      padding: 5px 10px;
+      outline: none;
+      min-width: 220px;
+    }
+
+    .team-select:focus {
+      border-color: var(--accent-blue);
+    }
+
+    .status-bar {
+      padding: 8px 24px;
+      font-size: 11px;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border-soft);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      display: inline-block;
+      flex-shrink: 0;
+    }
+
+    .status-dot.green {
+      background: var(--accent-green);
+      box-shadow: 0 0 6px var(--accent-green);
+    }
+
+    .status-dot.yellow {
+      background: var(--accent-yellow);
+      animation: pulse 1s infinite;
+    }
+
+    .status-dot.red {
+      background: var(--accent-red);
+      box-shadow: 0 0 6px var(--accent-red);
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.3;
+      }
+    }
+
+    .main {
+      padding: 20px 24px;
+    }
+
+    .roster-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-soft);
+    }
+
+    .roster-logo {
+      width: 40px;
+      height: 40px;
+      object-fit: contain;
+    }
+
+    .roster-team-name {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 20px;
+      font-weight: 900;
+      color: var(--text-main);
+      letter-spacing: 0.04em;
+    }
+
+    .roster-team-meta {
+      font-size: 10px;
+      color: var(--text-muted);
+      letter-spacing: 0.08em;
+      margin-top: 2px;
+      text-transform: uppercase;
+    }
+
+    .players-wrap {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    .roster-group-row td {
+      padding: 8px 8px 4px;
+      border-bottom: 1px solid var(--border-soft);
+    }
+
+    .roster-group-header {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .players-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      min-width: 720px;
+    }
+
+    .players-table thead tr {
+      border-bottom: 1px solid var(--border-soft);
+    }
+
+    .players-table th {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      padding: 5px 8px;
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    .players-table tbody tr {
+      border-bottom: 1px solid var(--border-soft);
+      transition: background 0.1s;
+    }
+
+    .players-table tbody tr.player-row {
+      cursor: pointer;
+    }
+
+    .players-table tbody tr.player-row:hover {
+      background: var(--bg-card);
+    }
+
+    .players-table tbody tr.player-row:hover .player-name-cell {
+      color: var(--accent-green);
+    }
+
+    .players-table td {
+      padding: 7px 8px;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    .player-name-cell {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-main);
+      letter-spacing: 0.04em;
+      transition: color 0.15s;
+    }
+
+    .inj-badge {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 5px;
+      color: var(--accent-red);
+      border: 1px solid rgba(255,68,68,0.3);
+      background: rgba(255,68,68,0.08);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .placeholder-state {
+      max-width: 760px;
+      margin: 40px auto;
+      padding: 28px;
+      border: 1px dashed var(--border-soft);
+      background: rgba(255,255,255,0.02);
+      text-align: center;
+    }
+
+    .placeholder-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: 0.1em;
+      color: var(--accent-yellow);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .placeholder-copy {
+      color: var(--text-muted);
+      font-size: 12px;
+      line-height: 1.7;
+    }
+
+    .error-details {
+      margin-top: 10px;
+      color: var(--accent-red);
+      font-size: 10px;
+      word-break: break-all;
+      line-height: 1.5;
+    }
 
     /* MODAL */
-    .modal-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:1000;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto; }
-    .modal-overlay.open { display:flex; }
-    .modal-box { background:var(--bg-card);border:1px solid var(--border-soft);width:100%;max-width:600px;position:relative;margin:auto; }
-    .modal-close { position:absolute;top:12px;right:14px;font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;color:var(--text-muted);cursor:pointer;letter-spacing:0.1em;background:none;border:none;z-index:2; }
-    .modal-close:hover { color:var(--text-main); }
-    .modal-player-header { display:flex;align-items:center;gap:16px;padding:20px 24px 14px;border-bottom:1px solid var(--border-soft); }
-    .modal-headshot { width:56px;height:56px;object-fit:cover;border-radius:2px;flex-shrink:0; }
-    .modal-headshot-placeholder { width:56px;height:56px;background:var(--bg-card);border:1px solid var(--border-soft);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:18px;color:var(--text-muted); }
-    .modal-player-name { font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;color:var(--text-main);letter-spacing:0.04em; }
-    .modal-player-meta { font-size:11px;color:var(--text-muted);margin-top:3px;display:flex;gap:10px;flex-wrap:wrap; }
-    .modal-player-meta .tag { font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;color:var(--accent-green); }
-    .modal-tabs { display:flex;border-bottom:1px solid var(--border-soft);overflow-x:auto; }
-    .modal-tab { font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;padding:8px 14px;color:var(--text-muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all 0.15s;flex-shrink:0; }
-    .modal-tab:hover { color:var(--text-main); }
-    .modal-tab.active { color:var(--accent-green);border-bottom-color:var(--accent-green); }
-    .modal-panel { padding:16px 20px;display:none;min-height:100px;max-height:65vh;overflow-y:auto; }
-    .modal-panel.active { display:block; }
-    .modal-subtitle { font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.14em;color:var(--text-muted);text-transform:uppercase;border-bottom:1px solid var(--border-soft);padding-bottom:4px;margin-bottom:8px;margin-top:14px; }
-    .modal-subtitle:first-child { margin-top:0; }
-    .info-grid { display:grid;grid-template-columns:repeat(3,1fr);gap:8px 12px;margin-bottom:12px; }
-    .info-item { display:flex;flex-direction:column;gap:1px; }
-    .info-label { font-size:9px;letter-spacing:0.1em;color:var(--text-muted);text-transform:uppercase; }
-    .info-val { font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;color:var(--text-main); }
-    .stat-table { width:100%;border-collapse:collapse;font-size:11px; }
-    .stat-table th { font-family:'Barlow Condensed',sans-serif;font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);padding:4px 6px;text-align:right;border-bottom:1px solid var(--border-soft);white-space:nowrap; }
-    .stat-table th:first-child { text-align:left; }
-    .stat-table td { padding:4px 6px;border-bottom:1px solid var(--border-soft);color:var(--text-muted);text-align:right;white-space:nowrap; }
-    .stat-table td:first-child { text-align:left;color:var(--text-main); }
-    .stat-table tr:last-child td { border-bottom:none; }
-    .stat-table tr:hover td { background:var(--bg-card); }
-    .news-item { padding:8px 0;border-bottom:1px solid var(--border-soft); }
-    .news-item:last-child { border-bottom:none; }
-    .news-headline { font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;color:var(--text-main);line-height:1.2;margin-bottom:3px; }
-    .news-meta { font-size:10px;color:var(--text-muted); }
-    .news-link { font-size:10px;color:var(--accent-green);text-decoration:none;letter-spacing:0.08em; }
-    .news-link:hover { text-decoration:underline; }
-    .bio-row { display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border-soft);font-size:11px; }
-    .bio-row:last-child { border-bottom:none; }
-    .bio-label { color:var(--text-muted);letter-spacing:0.06em; }
-    .bio-val { color:var(--text-main); }
-    .modal-loading { color:var(--text-muted);font-size:11px;padding:20px 0;text-align:center; }
-    .modal-error { color:var(--accent-red);font-size:11px;padding:12px 0;text-align:center; }
-    .no-data { color:var(--text-muted);font-size:11px;padding:12px 0;text-align:center;letter-spacing:0.08em; }
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.88);
+      z-index: 1000;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 20px;
+      overflow-y: auto;
+    }
+
+    .modal-overlay.open {
+      display: flex;
+    }
+
+    .modal-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border-soft);
+      width: 100%;
+      max-width: 680px;
+      position: relative;
+      margin: auto;
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 12px;
+      right: 14px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-muted);
+      cursor: pointer;
+      letter-spacing: 0.1em;
+      background: none;
+      border: none;
+      z-index: 2;
+    }
+
+    .modal-close:hover {
+      color: var(--text-main);
+    }
+
+    .modal-player-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 20px 24px 14px;
+      border-bottom: 1px solid var(--border-soft);
+    }
+
+    .modal-headshot {
+      width: 56px;
+      height: 56px;
+      object-fit: cover;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+
+    .modal-headshot-placeholder {
+      width: 56px;
+      height: 56px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-soft);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 18px;
+      color: var(--text-muted);
+    }
+
+    .modal-player-name {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 22px;
+      font-weight: 900;
+      color: var(--text-main);
+      letter-spacing: 0.04em;
+    }
+
+    .modal-player-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 3px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .modal-player-meta .tag {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent-green);
+    }
+
+    .modal-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border-soft);
+      overflow-x: auto;
+    }
+
+    .modal-tab {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 8px 14px;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      white-space: nowrap;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+
+    .modal-tab:hover {
+      color: var(--text-main);
+    }
+
+    .modal-tab.active {
+      color: var(--accent-green);
+      border-bottom-color: var(--accent-green);
+    }
+
+    .modal-panel {
+      padding: 16px 20px;
+      display: none;
+      min-height: 100px;
+      max-height: 65vh;
+      overflow-y: auto;
+    }
+
+    .modal-panel.active {
+      display: block;
+    }
+
+    .modal-subtitle {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border-soft);
+      padding-bottom: 4px;
+      margin-bottom: 8px;
+      margin-top: 14px;
+    }
+
+    .modal-subtitle:first-child {
+      margin-top: 0;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(3,1fr);
+      gap: 8px 12px;
+      margin-bottom: 12px;
+    }
+
+    .info-item {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .info-label {
+      font-size: 9px;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .info-val {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .stat-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+      min-width: 560px;
+    }
+
+    .stat-table th {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      padding: 4px 6px;
+      text-align: right;
+      border-bottom: 1px solid var(--border-soft);
+      white-space: nowrap;
+    }
+
+    .stat-table th:first-child {
+      text-align: left;
+    }
+
+    .stat-table td {
+      padding: 4px 6px;
+      border-bottom: 1px solid var(--border-soft);
+      color: var(--text-muted);
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .stat-table td:first-child {
+      text-align: left;
+      color: var(--text-main);
+    }
+
+    .stat-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .stat-table tr:hover td {
+      background: var(--bg-card);
+    }
+
+    .news-item {
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border-soft);
+    }
+
+    .news-item:last-child {
+      border-bottom: none;
+    }
+
+    .news-headline {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-main);
+      line-height: 1.2;
+      margin-bottom: 3px;
+    }
+
+    .news-meta {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .news-link {
+      font-size: 10px;
+      color: var(--accent-green);
+      text-decoration: none;
+      letter-spacing: 0.08em;
+    }
+
+    .news-link:hover {
+      text-decoration: underline;
+    }
+
+    .bio-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 5px 0;
+      border-bottom: 1px solid var(--border-soft);
+      font-size: 11px;
+    }
+
+    .bio-row:last-child {
+      border-bottom: none;
+    }
+
+    .bio-label {
+      color: var(--text-muted);
+      letter-spacing: 0.06em;
+    }
+
+    .bio-val {
+      color: var(--text-main);
+      text-align: right;
+    }
+
+    .modal-loading {
+      color: var(--text-muted);
+      font-size: 11px;
+      padding: 20px 0;
+      text-align: center;
+    }
+
+    .modal-error {
+      color: var(--accent-red);
+      font-size: 11px;
+      padding: 12px 0;
+      text-align: center;
+    }
+
+    .no-data {
+      color: var(--text-muted);
+      font-size: 11px;
+      padding: 12px 0;
+      text-align: center;
+      letter-spacing: 0.08em;
+    }
+
+    @media (max-width: 720px) {
+      .page-header,
+      .controls,
+      .status-bar,
+      .main {
+        padding-left: 14px;
+        padding-right: 14px;
+      }
+
+      .team-select-wrap {
+        width: 100%;
+        margin-left: 0;
+      }
+
+      .team-select {
+        width: 100%;
+        min-width: 0;
+      }
+
+      .info-grid {
+        grid-template-columns: repeat(2,1fr);
+      }
+
+      .modal-player-header {
+        padding-right: 52px;
+      }
+    }
   </style>
 </head>
 <body>
 <div id="nav-placeholder"></div>
+
 <div class="page-header">
   <div>
     <div class="page-title">Players</div>
     <div class="page-subtitle">ESPN · ROSTER BY TEAM · CLICK PLAYER FOR PROFILE</div>
   </div>
 </div>
+
 <div class="controls">
-  <div class="league-pill active" data-sport="basketball" data-league="nba">NBA</div>
-  <div class="league-pill" data-sport="hockey" data-league="nhl">NHL</div>
-  <div class="league-pill" data-sport="baseball" data-league="mlb">MLB</div>
-  <select class="team-select" id="team-select"><option value="">— Select Team —</option></select>
+  <div id="league-controls"></div>
+  <div class="team-select-wrap" id="team-select-wrap">
+    <span class="team-select-label">Team</span>
+    <select class="team-select" id="team-select">
+      <option value="">— Select Team —</option>
+    </select>
+  </div>
 </div>
+
 <div class="status-bar" id="players-status">
   <span class="status-dot yellow" id="status-dot"></span>
-  <span id="status-text">Select a league and team</span>
+  <span id="status-text">Loading players page...</span>
 </div>
+
 <div class="main" id="players-main">
   <div class="empty-state">Select a team to view roster</div>
 </div>
@@ -116,329 +711,6 @@
 </div>
 
 <script src="js/nav.js"></script>
-<script>
-var activeSport  = 'basketball';
-var activeLeague = 'nba';
-var allTeams     = [];
-
-function setStatus(text, dotCls) {
-  document.getElementById('status-text').textContent = text;
-  document.getElementById('status-dot').className = 'status-dot ' + (dotCls || '');
-}
-
-async function loadTeamList() {
-  setStatus('Loading teams...', 'yellow');
-  var sel = document.getElementById('team-select');
-  sel.innerHTML = '<option value="">— Select Team —</option>';
-  allTeams = [];
-  try {
-    var r    = await fetch('https://site.api.espn.com/apis/site/v2/sports/' + activeSport + '/' + activeLeague + '/teams?limit=200');
-    var data = await r.json();
-    allTeams = (data.sports[0].leagues[0].teams || []).map(function(t) {
-      return { id: t.team.id, name: t.team.displayName, logo: t.team.logos && t.team.logos[0] ? t.team.logos[0].href : '' };
-    }).sort(function(a, b) { return a.name.localeCompare(b.name); });
-    allTeams.forEach(function(t) {
-      var opt = document.createElement('option');
-      opt.value = t.id;
-      opt.textContent = t.name;
-      sel.appendChild(opt);
-    });
-    setStatus('Select a team', '');
-    document.getElementById('players-main').innerHTML = '<div class="empty-state">Select a team to view roster</div>';
-  } catch(e) { setStatus('Failed to load teams', ''); }
-}
-
-async function loadRoster(teamId) {
-  var team = allTeams.find(function(t) { return t.id == teamId; });
-  if (!team) return;
-  setStatus('Loading roster...', 'yellow');
-  try {
-    var r    = await fetch('https://site.api.espn.com/apis/site/v2/sports/' + activeSport + '/' + activeLeague + '/teams/' + teamId + '/roster');
-    var data = await r.json();
-    var groups = data.athletes || [];
-    var main   = document.getElementById('players-main');
-    main.innerHTML = '';
-
-    var logoHtml = team.logo ? '<img class="roster-logo" src="' + team.logo + '">' : '';
-    var hdr = document.createElement('div');
-    hdr.className = 'roster-header';
-    hdr.innerHTML = logoHtml + '<div class="roster-team-name">' + team.name + '</div>';
-    main.appendChild(hdr);
-
-    var colsByLeague = { nba:['#','Name','Pos','Age','HT','WT'], nhl:['#','Name','Pos','Age','HT','WT'], mlb:['#','Name','Pos','Age','HT','WT','B/T'] };
-    var cols = colsByLeague[activeLeague] || ['#','Name','Pos','Age'];
-
-    var groupMap = [];
-    groups.forEach(function(group) {
-      var players = group.items && group.items.length ? group.items : group.athletes && group.athletes.length ? group.athletes : (group.displayName === undefined && group.id ? [group] : []);
-      if (players.length) groupMap.push({ label: group.displayName || '', players: players });
-    });
-    if (groupMap.length === 0 && groups.length > 0) groupMap = [{ label: '', players: groups }];
-
-    var table = document.createElement('table');
-    table.className = 'players-table';
-    table.innerHTML = '<thead><tr>' + cols.map(function(c) { return '<th>' + c + '</th>'; }).join('') + '<th>Status</th></tr></thead>';
-    var tbody = document.createElement('tbody');
-
-    groupMap.forEach(function(grp) {
-      if (grp.label) {
-        var gh = document.createElement('tr');
-        gh.innerHTML = '<td colspan="' + (cols.length + 1) + '" class="roster-group-header" style="padding:8px 8px 4px;">' + grp.label + '</td>';
-        tbody.appendChild(gh);
-      }
-      grp.players.forEach(function(p) {
-        var pos    = p.position ? (p.position.abbreviation || p.position.name || '—') : '—';
-        var jersey = p.jersey || '—';
-        var age    = p.age || '—';
-        var ht     = p.displayHeight || '—';
-        var wt     = p.displayWeight || '—';
-        var batsVal   = p.bats   ? (typeof p.bats   === 'string' ? p.bats   : (p.bats.abbreviation   || p.bats.displayValue   || '—')) : '—';
-        var throwsVal = p.throws ? (typeof p.throws === 'string' ? p.throws : (p.throws.abbreviation || p.throws.displayValue || '—')) : '—';
-        var bt  = (batsVal !== '—' || throwsVal !== '—') ? batsVal + '/' + throwsVal : '—';
-        var inj = p.injuries && p.injuries.length ? '<span class="inj-badge">' + p.injuries[0].status + '</span>' : '—';
-        var cells = [jersey, '<span class="player-name-cell">' + (p.displayName || p.fullName || '—') + '</span>', pos, age, ht, wt];
-        if (activeLeague === 'mlb') cells.push(bt);
-        cells = cells.slice(0, cols.length);
-        var tr = document.createElement('tr');
-        tr.innerHTML = cells.map(function(c) { return '<td>' + c + '</td>'; }).join('') + '<td>' + inj + '</td>';
-        if (p.id) {
-          tr.style.cursor = 'pointer';
-          tr.addEventListener('click', function() { openPlayerModal(p); });
-        }
-        tbody.appendChild(tr);
-      });
-    });
-
-    table.appendChild(tbody);
-    main.appendChild(table);
-    setStatus(team.name + ' · click any player for profile', 'green');
-  } catch(e) { setStatus('Failed to load roster', ''); }
-}
-
-// ── PLAYER MODAL ──────────────────────────────────────────────────────────
-
-var PLAYER_TABS = [
-  { key: 'overview', label: 'Overview' },
-  { key: 'gamelog',  label: 'Game Log' },
-  { key: 'splits',   label: 'Splits'   },
-  { key: 'news',     label: 'News'     },
-  { key: 'bio',      label: 'Bio'      }
-];
-
-function switchTab(tabKey) {
-  document.querySelectorAll('.modal-tab').forEach(function(t) { t.classList.remove('active'); });
-  document.querySelectorAll('.modal-panel').forEach(function(p) { p.classList.remove('active'); });
-  var t = document.querySelector('.modal-tab[data-tab="' + tabKey + '"]');
-  var p = document.getElementById('ppanel-' + tabKey);
-  if (t) t.classList.add('active');
-  if (p) p.classList.add('active');
-}
-
-// cache overview data per player so all tabs share one fetch
-var playerDataCache = {};
-
-async function loadPlayerPanel(panelId, p, tab) {
-  var panel = document.getElementById(panelId);
-  if (!panel || panel.dataset.loaded) return;
-  panel.innerHTML = '<div class="modal-loading">Loading...</div>';
-
-  try {
-    var data = playerDataCache[p.id];
-    if (!data) {
-      var url = 'https://site.web.api.espn.com/apis/common/v3/sports/' + activeSport + '/' + activeLeague + '/athletes/' + p.id + '/overview';
-      var r   = await fetch(url);
-      data    = await r.json();
-      playerDataCache[p.id] = data;
-    }
-    var html = '';
-    if      (tab === 'overview') html = buildOverview(data, p);
-    else if (tab === 'gamelog')  html = buildGamelog(data);
-    else if (tab === 'splits')   html = buildSplits(data);
-    else if (tab === 'news')     html = buildNews(data);
-    else if (tab === 'bio')      html = buildBio(data, p);
-    panel.innerHTML = html || '<div class="no-data">No data available</div>';
-    panel.dataset.loaded = '1';
-  } catch(e) {
-    panel.innerHTML = '<div class="modal-error">Failed to load</div>';
-  }
-}
-
-function buildOverview(data, p) {
-  // statistics: labels/names at data.statistics, values in data.statistics.splits[i].stats
-  var stats   = data.statistics || {};
-  var labels  = stats.labels || [];
-  var names   = stats.names  || [];
-  var splits  = Array.isArray(stats.splits) ? stats.splits : [];
-  // use first split (season totals)
-  var vals    = splits.length ? (splits[0].stats || []) : [];
-  var html    = '<div class="modal-subtitle">Season Stats</div>';
-  if (vals.length && labels.length) {
-    html += '<div class="info-grid">';
-    labels.slice(0, 12).forEach(function(lbl, i) {
-      html += '<div class="info-item"><div class="info-label">' + lbl + '</div><div class="info-val">' + (vals[i] !== undefined ? vals[i] : '—') + '</div></div>';
-    });
-    html += '</div>';
-  } else {
-    html += '<div class="no-data">No season stats available</div>';
-  }
-  // rotowire note
-  var roto = data.rotowire;
-  if (roto && roto.headline) {
-    html += '<div class="modal-subtitle" style="margin-top:12px">Latest Note</div>';
-    html += '<div style="font-size:11px;color:var(--text-muted);line-height:1.6">' + (roto.headline || '') + '</div>';
-    if (roto.story) html += '<div style="font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.6">' + roto.story + '</div>';
-  }
-  return html;
-}
-
-function buildGamelog(data) {
-  var gl         = data.gameLog || {};
-  var statGroups = gl.statistics || [];
-  var eventsDict = gl.events    || {};
-
-  if (!statGroups.length) return '<div class="no-data">No game log data</div>';
-
-  var sg     = statGroups[0];
-  var labels = sg.labels || [];
-  // sg.events: [{eventId, stats[]}]
-  var sgEvents = sg.events || [];
-  if (!sgEvents.length) return '<div class="no-data">No games found</div>';
-
-  var thead = '<tr><th>Date</th><th>Opp</th><th>Result</th>' +
-    labels.slice(0, 8).map(function(l) { return '<th>' + l + '</th>'; }).join('') + '</tr>';
-
-  var rows = sgEvents.slice(0, 25).map(function(entry) {
-    var ev      = eventsDict[entry.eventId] || {};
-    var dateStr = ev.gameDate ? new Date(ev.gameDate).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '—';
-    var opp     = ev.opponent ? (ev.opponent.abbreviation || ev.opponent.displayName || ev.atVs || '—') : (ev.atVs || '—');
-    var result  = ev.gameResult || '';
-    var resCls  = result === 'W' ? 'style="color:var(--accent-green);font-weight:700"' : result === 'L' ? 'style="color:var(--accent-red);font-weight:700"' : '';
-    var statVals = entry.stats || [];
-    return '<tr><td>' + dateStr + '</td><td>' + opp + '</td><td ' + resCls + '>' + result + '</td>' +
-      statVals.slice(0, 8).map(function(v) { return '<td>' + (v !== null && v !== undefined ? v : '—') + '</td>'; }).join('') + '</tr>';
-  }).join('');
-
-  return '<div style="overflow-x:auto"><table class="stat-table"><thead>' + thead + '</thead><tbody>' + rows + '</tbody></table></div>';
-}
-
-function buildSplits(data) {
-  // splits lives in data.statistics.splits — array of {displayName, stats[]}
-  var stats  = data.statistics || {};
-  var labels = stats.labels || [];
-  var splits = Array.isArray(stats.splits) ? stats.splits : [];
-  if (!splits.length) return '<div class="no-data">No splits data</div>';
-  var html = '<div style="overflow-x:auto"><table class="stat-table"><thead><tr><th>Split</th>' +
-    labels.slice(0, 8).map(function(l){return '<th>'+l+'</th>';}).join('') +
-    '</tr></thead><tbody>';
-  splits.forEach(function(sp) {
-    var vals = sp.stats || [];
-    html += '<tr><td>' + (sp.displayName || '—') + '</td>' +
-      vals.slice(0, 8).map(function(v){return '<td>'+(v!==null&&v!==undefined?v:'—')+'</td>';}).join('') + '</tr>';
-  });
-  html += '</tbody></table></div>';
-  return html;
-}
-
-function buildNews(data) {
-  // data.news is a list directly
-  var articles = Array.isArray(data.news) ? data.news : (data.news && data.news.articles ? data.news.articles : []);
-  if (!articles.length) return '<div class="no-data">No news available</div>';
-  return articles.slice(0, 10).map(function(a) {
-    var date = a.published ? new Date(a.published).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
-    var url  = a.links && a.links.web ? a.links.web.href : (a.links && a.links.mobile ? a.links.mobile.href : '#');
-    return '<div class="news-item">' +
-      '<div class="news-headline">' + (a.headline || '') + '</div>' +
-      '<div class="news-meta">' + (a.source || 'ESPN') + (date ? ' · ' + date : '') + '</div>' +
-      '<a class="news-link" href="' + url + '" target="_blank" rel="noopener">READ →</a>' +
-    '</div>';
-  }).join('');
-}
-
-function buildBio(data, p) {
-  // bio info from roster player object — overview doesn't have a bio endpoint
-  var roto = data.rotowire || {};
-  var rows = [
-    ['Name',       p.displayName || p.fullName || '—'],
-    ['Position',   p.position ? (p.position.displayName || p.position.name || '—') : '—'],
-    ['Jersey',     p.jersey ? '#' + p.jersey : '—'],
-    ['Age',        p.age || '—'],
-    ['Height',     p.displayHeight || '—'],
-    ['Weight',     p.displayWeight || '—'],
-    ['Status',     p.status ? (p.status.name || p.status.type || '—') : '—']
-  ];
-  if (p.injuries && p.injuries.length) rows.push(['Injury', p.injuries[0].status || '—']);
-  var html = rows.map(function(r) {
-    return '<div class="bio-row"><span class="bio-label">'+r[0]+'</span><span class="bio-val">'+r[1]+'</span></div>';
-  }).join('');
-  if (roto.story) {
-    html += '<div class="modal-subtitle" style="margin-top:12px">Rotowire</div>';
-    html += '<div style="font-size:11px;color:var(--text-muted);line-height:1.6">' + roto.story + '</div>';
-  }
-  return html;
-}
-
-function openPlayerModal(p) {
-  var overlay  = document.getElementById('modal-overlay');
-  var hdrEl    = document.getElementById('modal-player-header');
-  var tabsEl   = document.getElementById('modal-tabs');
-  var panelsEl = document.getElementById('modal-panels');
-  overlay.classList.add('open');
-
-  var headshot = p.headshot ? (p.headshot.href || '') : '';
-  var imgHtml  = headshot
-    ? '<img class="modal-headshot" src="' + headshot + '">'
-    : '<div class="modal-headshot-placeholder">👤</div>';
-  var pos    = p.position ? (p.position.abbreviation || p.position.name || '') : '';
-  var jersey = p.jersey ? '#' + p.jersey : '';
-  var team   = p.team ? (p.team.displayName || p.team.abbreviation || '') : '';
-
-  hdrEl.innerHTML = imgHtml +
-    '<div><div class="modal-player-name">' + (p.displayName || p.fullName || '') + '</div>' +
-    '<div class="modal-player-meta">' +
-      (pos    ? '<span class="tag">' + pos + '</span>' : '') +
-      (jersey ? '<span>' + jersey + '</span>' : '') +
-      (team   ? '<span>' + team + '</span>' : '') +
-      '<span>' + activeLeague.toUpperCase() + '</span>' +
-    '</div></div>';
-
-  tabsEl.innerHTML = PLAYER_TABS.map(function(tb) {
-    return '<div class="modal-tab' + (tb.key === 'overview' ? ' active' : '') + '" data-tab="' + tb.key + '">' + tb.label + '</div>';
-  }).join('');
-
-  panelsEl.innerHTML = PLAYER_TABS.map(function(tb) {
-    return '<div class="modal-panel' + (tb.key === 'overview' ? ' active' : '') + '" id="ppanel-' + tb.key + '"><div class="modal-loading">Loading...</div></div>';
-  }).join('');
-
-  tabsEl.querySelectorAll('.modal-tab').forEach(function(tabEl) {
-    tabEl.addEventListener('click', function() {
-      switchTab(tabEl.dataset.tab);
-      loadPlayerPanel('ppanel-' + tabEl.dataset.tab, p, tabEl.dataset.tab);
-    });
-  });
-
-  loadPlayerPanel('ppanel-overview', p, 'overview');
-}
-
-document.getElementById('modal-close').addEventListener('click', function() {
-  document.getElementById('modal-overlay').classList.remove('open');
-});
-document.getElementById('modal-overlay').addEventListener('click', function(e) {
-  if (e.target === this) this.classList.remove('open');
-});
-document.querySelectorAll('.league-pill').forEach(function(pill) {
-  pill.addEventListener('click', function() {
-    document.querySelectorAll('.league-pill').forEach(function(p) { p.classList.remove('active'); });
-    pill.classList.add('active');
-    activeSport  = pill.dataset.sport;
-    activeLeague = pill.dataset.league;
-    loadTeamList();
-  });
-});
-document.getElementById('team-select').addEventListener('change', function() {
-  if (this.value) loadRoster(this.value);
-});
-
-loadTeamList();
-</script>
+<script src="js/players/render.js"></script>
 </body>
 </html>
