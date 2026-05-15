@@ -44,7 +44,7 @@
     {
       key: 'ncaam',
       label: 'NCAAM',
-      enabled: true,
+      enabled: false,
       sport: 'basketball',
       league: 'mens-college-basketball',
       type: 'team-roster',
@@ -64,7 +64,7 @@
     {
       key: 'epl',
       label: 'EPL',
-      enabled: true,
+      enabled: false,
       sport: 'soccer',
       league: 'eng.1',
       type: 'team-roster',
@@ -84,7 +84,7 @@
     {
       key: 'laliga',
       label: 'LA LIGA',
-      enabled: true,
+      enabled: false,
       sport: 'soccer',
       league: 'esp.1',
       type: 'team-roster',
@@ -94,7 +94,7 @@
     {
       key: 'ligue1',
       label: 'LIGUE 1',
-      enabled: true,
+      enabled: false,
       sport: 'soccer',
       league: 'fra.1',
       type: 'team-roster',
@@ -104,7 +104,7 @@
     {
       key: 'seriea',
       label: 'SERIE A',
-      enabled: true,
+      enabled: false,
       sport: 'soccer',
       league: 'ita.1',
       type: 'team-roster',
@@ -114,7 +114,7 @@
     {
       key: 'bundesliga',
       label: 'BUNDESLIGA',
-      enabled: true,
+      enabled: false,
       sport: 'soccer',
       league: 'ger.1',
       type: 'team-roster',
@@ -124,7 +124,7 @@
     {
       key: 'ufc',
       label: 'UFC',
-      enabled: true,
+      enabled: false,
       sport: 'mma',
       league: 'ufc',
       type: 'placeholder',
