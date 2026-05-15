@@ -4,10 +4,17 @@
   var CURRENT_SEASON = 2026;
   var CORE_API_ROOT = 'https://sports.core.api.espn.com/v2';
 
+  /*
+    League activation controls:
+    - enabled: true  = show and load the league
+    - enabled: false = hide the league completely
+    - placeholder: true = show the league as a placeholder, if enabled is not false
+  */
   var LEAGUES = [
     {
       key: 'nba',
       label: 'NBA',
+      enabled: true,
       sport: 'basketball',
       league: 'nba',
       type: 'team-roster',
@@ -17,6 +24,7 @@
     {
       key: 'nhl',
       label: 'NHL',
+      enabled: true,
       sport: 'hockey',
       league: 'nhl',
       type: 'team-roster',
@@ -26,6 +34,7 @@
     {
       key: 'wnba',
       label: 'WNBA',
+      enabled: true,
       sport: 'basketball',
       league: 'wnba',
       type: 'team-roster',
@@ -35,6 +44,7 @@
     {
       key: 'ncaam',
       label: 'NCAAM',
+      enabled: true,
       sport: 'basketball',
       league: 'mens-college-basketball',
       type: 'team-roster',
@@ -44,6 +54,7 @@
     {
       key: 'mlb',
       label: 'MLB',
+      enabled: true,
       sport: 'baseball',
       league: 'mlb',
       type: 'team-roster',
@@ -53,6 +64,7 @@
     {
       key: 'epl',
       label: 'EPL',
+      enabled: true,
       sport: 'soccer',
       league: 'eng.1',
       type: 'team-roster',
@@ -62,6 +74,7 @@
     {
       key: 'mls',
       label: 'MLS',
+      enabled: true,
       sport: 'soccer',
       league: 'usa.1',
       type: 'team-roster',
@@ -71,6 +84,7 @@
     {
       key: 'laliga',
       label: 'LA LIGA',
+      enabled: true,
       sport: 'soccer',
       league: 'esp.1',
       type: 'team-roster',
@@ -80,6 +94,7 @@
     {
       key: 'ligue1',
       label: 'LIGUE 1',
+      enabled: true,
       sport: 'soccer',
       league: 'fra.1',
       type: 'team-roster',
@@ -89,6 +104,7 @@
     {
       key: 'seriea',
       label: 'SERIE A',
+      enabled: true,
       sport: 'soccer',
       league: 'ita.1',
       type: 'team-roster',
@@ -98,6 +114,7 @@
     {
       key: 'bundesliga',
       label: 'BUNDESLIGA',
+      enabled: true,
       sport: 'soccer',
       league: 'ger.1',
       type: 'team-roster',
@@ -107,6 +124,7 @@
     {
       key: 'ufc',
       label: 'UFC',
+      enabled: true,
       sport: 'mma',
       league: 'ufc',
       type: 'placeholder',
@@ -115,7 +133,7 @@
     }
   ];
 
-  var activeLeagueKey = 'nba';
+  var activeLeagueKey = getDefaultLeagueKey();
   var activeLeague = getLeague(activeLeagueKey);
   var allTeams = [];
   var playerDataCache = {};
@@ -133,10 +151,36 @@
     return document.getElementById(id);
   }
 
+  function getEnabledLeagues() {
+    return LEAGUES.filter(function(league) {
+      return league.enabled !== false;
+    });
+  }
+
+  function getDefaultLeagueKey() {
+    var enabledLeagues = getEnabledLeagues();
+
+    if (!enabledLeagues.length) {
+      return '';
+    }
+
+    var preferred = enabledLeagues.find(function(league) {
+      return league.key === 'nba';
+    });
+
+    return preferred ? preferred.key : enabledLeagues[0].key;
+  }
+
   function getLeague(key) {
-    return LEAGUES.find(function(lg) {
+    var enabledLeagues = getEnabledLeagues();
+
+    if (!enabledLeagues.length) {
+      return null;
+    }
+
+    return enabledLeagues.find(function(lg) {
       return lg.key === key;
-    }) || LEAGUES[0];
+    }) || enabledLeagues[0];
   }
 
   function esc(value) {
@@ -302,6 +346,12 @@
   function init() {
     renderLeagueControls();
     bindStaticEvents();
+
+    if (!activeLeague) {
+      showNoEnabledLeagues();
+      return;
+    }
+
     activateLeague(activeLeagueKey);
   }
 
@@ -309,8 +359,16 @@
     var host = $('league-controls');
     if (!host) return;
 
+    var enabledLeagues = getEnabledLeagues();
+
     host.style.display = 'contents';
-    host.innerHTML = LEAGUES.map(function(league) {
+
+    if (!enabledLeagues.length) {
+      host.innerHTML = '';
+      return;
+    }
+
+    host.innerHTML = enabledLeagues.map(function(league) {
       var cls = 'league-pill';
 
       if (league.key === activeLeagueKey) cls += ' active';
@@ -359,13 +417,20 @@
   }
 
   function activateLeague(key) {
-    activeLeagueKey = key;
-    activeLeague = getLeague(key);
+    var league = getLeague(key);
+
+    if (!league) {
+      showNoEnabledLeagues();
+      return;
+    }
+
+    activeLeagueKey = league.key;
+    activeLeague = league;
     allTeams = [];
     playerDataCache = {};
 
     document.querySelectorAll('.league-pill').forEach(function(pill) {
-      pill.classList.toggle('active', pill.dataset.leagueKey === key);
+      pill.classList.toggle('active', pill.dataset.leagueKey === activeLeagueKey);
     });
 
     if (activeLeague.type === 'placeholder') {
@@ -377,6 +442,22 @@
     if (wrap) wrap.classList.remove('hidden');
 
     loadTeamList();
+  }
+
+  function showNoEnabledLeagues() {
+    var wrap = $('team-select-wrap');
+    var sel = $('team-select');
+
+    if (wrap) wrap.classList.add('hidden');
+    if (sel) sel.innerHTML = '<option value="">— Select Team —</option>';
+
+    setStatus('No player leagues enabled', 'yellow');
+    setMain(
+      '<div class="placeholder-state">' +
+        '<div class="placeholder-title">No Leagues Enabled</div>' +
+        '<div class="placeholder-copy">Enable at least one league in docs/js/players/render.js to show player coverage.</div>' +
+      '</div>'
+    );
   }
 
   function showPlaceholderLeague(league) {
@@ -401,7 +482,7 @@
 
   async function loadTeamList() {
     var sel = $('team-select');
-    if (!sel) return;
+    if (!sel || !activeLeague) return;
 
     setStatus('Loading ' + activeLeague.label + ' teams...', 'yellow');
 
@@ -482,7 +563,7 @@
       return String(t.id) === String(teamId);
     });
 
-    if (!team) return;
+    if (!team || !activeLeague) return;
 
     setStatus('Loading ' + team.name + ' roster...', 'yellow');
 
