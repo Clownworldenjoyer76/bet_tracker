@@ -106,16 +106,23 @@ def win_prob_bucket(value):
     v = to_float(value)
     if v is None:
         return "UNBUCKETED"
+
     # normalize to 0-1 scale
     if v > 1.0:
         v = v / 100.0
+
     import math
-    floor = math.floor(v * 100) / 100   # 0.01-wide
-    hi    = floor + 0.01
-    if floor < 0.0:
+
+    # 0.05-wide bands
+    if v < 0.0:
         return "<0.00"
-    if floor >= 1.0:
+    if v >= 1.0:
         return "1.00_plus"
+
+    bucket_size = 0.05
+    floor = math.floor(v / bucket_size) * bucket_size
+    hi    = floor + bucket_size
+
     return f"{floor:.2f}_to_{hi:.2f}"
 
 
@@ -169,14 +176,17 @@ def enrich(df):
         lambda r: units_won(r.get("dk_odds_american"), r["bet_result"]), axis=1
     )
 
-    # Bucket columns (use pre-computed ones from analyze if present, else recompute)
-    df["ev_bucket"]        = df["ev"].apply(ev_bucket)
-    df["odds_bucket"]      = df["dk_odds_american"].apply(odds_bucket)
-    df["kelly_bucket"]     = df["kelly"].apply(kelly_bucket)
-    df["win_prob_bucket"]  = df["model_prob"].apply(win_prob_bucket)
+    # Bucket columns
+    df["ev_bucket"]          = df["ev"].apply(ev_bucket)
+    df["odds_bucket"]        = df["dk_odds_american"].apply(odds_bucket)
+    df["kelly_bucket"]       = df["kelly"].apply(kelly_bucket)
+    df["win_prob_bucket"]    = df["model_prob"].apply(win_prob_bucket)
     df["total_range_bucket"] = df.get("total_value", df.get("total", pd.Series(dtype=str))).apply(total_range_bucket)
-    df["run_line_side"]    = df.apply(
-        lambda r: run_line_side_bucket(r.get("home_run_line") if r.get("side_group") == "HOME" else r.get("away_run_line")),
+
+    df["run_line_side"] = df.apply(
+        lambda r: run_line_side_bucket(
+            r.get("home_run_line") if r.get("side_group") == "HOME" else r.get("away_run_line")
+        ),
         axis=1
     )
 
@@ -202,30 +212,41 @@ def agg(df, group_cols, variable_label=None):
     for keys, sub in df.groupby(group_cols, dropna=False):
         if not isinstance(keys, tuple):
             keys = (keys,)
+
         wins   = int((sub["bet_result"] == "Win").sum())
         losses = int((sub["bet_result"] == "Loss").sum())
         pushes = int((sub["bet_result"] == "Push").sum())
         total  = wins + losses + pushes
+
         win_pct = round(wins / (wins + losses), 4) if (wins + losses) > 0 else 0.0
+
         unit_vals = sub["bet_units"].dropna()
         total_units = round(float(unit_vals.sum()), 4) if not unit_vals.empty else 0.0
         roi = round(total_units / total, 4) if total > 0 else 0.0
 
-        ev_vals  = pd.to_numeric(sub["ev"], errors="coerce").dropna()
-        avg_ev   = round(float(ev_vals.mean()), 4) if not ev_vals.empty else None
-        od_vals  = pd.to_numeric(sub["dk_odds_american"], errors="coerce").dropna()
+        ev_vals = pd.to_numeric(sub["ev"], errors="coerce").dropna()
+        avg_ev = round(float(ev_vals.mean()), 4) if not ev_vals.empty else None
+
+        od_vals = pd.to_numeric(sub["dk_odds_american"], errors="coerce").dropna()
         avg_odds = round(float(od_vals.mean()), 1) if not od_vals.empty else None
 
         row = {}
         for i, col in enumerate(group_cols):
             label = "variable" if (variable_label and i == len(group_cols) - 1) else col
             row[label] = keys[i]
+
         row.update({
-            "Win": wins, "Loss": losses, "Push": pushes,
-            "Total": total, "Win_Pct": win_pct,
-            "units": total_units, "roi": roi,
-            "avg_ev": avg_ev, "avg_odds": avg_odds,
+            "Win": wins,
+            "Loss": losses,
+            "Push": pushes,
+            "Total": total,
+            "Win_Pct": win_pct,
+            "units": total_units,
+            "roi": roi,
+            "avg_ev": avg_ev,
+            "avg_odds": avg_odds,
         })
+
         rows.append(row)
 
     out = pd.DataFrame(rows)
@@ -236,23 +257,35 @@ def agg_simple(df, group_cols):
     """league + market_type tally — used for top-level summary."""
     if df.empty:
         return pd.DataFrame(columns=["league", "market_type", "Win", "Loss", "Push", "Total", "Win_Pct"])
+
     rows = []
     for keys, sub in df.groupby(group_cols, dropna=False):
         if not isinstance(keys, tuple):
             keys = (keys,)
+
         wins   = int((sub["bet_result"] == "Win").sum())
         losses = int((sub["bet_result"] == "Loss").sum())
         pushes = int((sub["bet_result"] == "Push").sum())
         total  = wins + losses + pushes
+
         win_pct = round(wins / (wins + losses), 4) if (wins + losses) > 0 else 0.0
+
         row = {col: keys[i] for i, col in enumerate(group_cols)}
-        row.update({"Win": wins, "Loss": losses, "Push": pushes, "Total": total, "Win_Pct": win_pct})
+        row.update({
+            "Win": wins,
+            "Loss": losses,
+            "Push": pushes,
+            "Total": total,
+            "Win_Pct": win_pct,
+        })
+
         rows.append(row)
+
     return pd.DataFrame(rows).sort_values(group_cols).reset_index(drop=True)
 
 
 ###############################################################
-###################### REPORT BUILDERS #######################
+###################### REPORT BUILDERS ########################
 ###############################################################
 
 # ── TOP-LEVEL SUMMARY ─────────────────────────────────────────
@@ -272,14 +305,18 @@ def build_overview(df):
     write_csv(agg(df, ["league"]), OVERVIEW_DIR / "mlb_summary_overall.csv")
 
     # By market
-    write_csv(agg(df, ["league", "market_type"], variable_label="market_type"),
-              OVERVIEW_DIR / "mlb_summary_by_market.csv")
+    write_csv(
+        agg(df, ["league", "market_type"], variable_label="market_type"),
+        OVERVIEW_DIR / "mlb_summary_by_market.csv"
+    )
 
     # By side group
-    write_csv(agg(df, ["league", "side_group"], variable_label="side_group"),
-              OVERVIEW_DIR / "mlb_summary_by_side_group.csv")
+    write_csv(
+        agg(df, ["league", "side_group"], variable_label="side_group"),
+        OVERVIEW_DIR / "mlb_summary_by_side_group.csv"
+    )
 
-    # By date (with cumulative units)
+    # By date with cumulative units
     date_df = agg(df, ["league", "game_date"], variable_label="game_date")
     date_df = date_df.sort_values("variable")
     date_df["cumulative_units"] = date_df["units"].cumsum().round(4)
@@ -287,19 +324,37 @@ def build_overview(df):
 
     # By day/night
     if "day_night" in df.columns:
-        write_csv(agg(df, ["league", "day_night"], variable_label="day_night"),
-                  OVERVIEW_DIR / "mlb_summary_by_day_night.csv")
+        write_csv(
+            agg(df, ["league", "day_night"], variable_label="day_night"),
+            OVERVIEW_DIR / "mlb_summary_by_day_night.csv"
+        )
 
     # By low_confidence
     if "low_confidence" in df.columns:
-        write_csv(agg(df, ["league", "low_confidence"], variable_label="low_confidence"),
-                  OVERVIEW_DIR / "mlb_summary_by_low_confidence.csv")
+        write_csv(
+            agg(df, ["league", "low_confidence"], variable_label="low_confidence"),
+            OVERVIEW_DIR / "mlb_summary_by_low_confidence.csv"
+        )
 
     # Bet log
-    log_cols = ["game_date", "game_id", "away_team", "home_team", "market_type",
-                "bet_side", "line", "dk_odds_american", "ev", "kelly",
-                "model_prob", "low_confidence", "day_night",
-                "bet_result", "bet_units"]
+    log_cols = [
+        "game_date",
+        "game_id",
+        "away_team",
+        "home_team",
+        "market_type",
+        "bet_side",
+        "line",
+        "dk_odds_american",
+        "ev",
+        "kelly",
+        "model_prob",
+        "low_confidence",
+        "day_night",
+        "bet_result",
+        "bet_units",
+    ]
+
     available = [c for c in log_cols if c in df.columns]
     write_csv(df[available].copy(), OVERVIEW_DIR / "mlb_bet_log.csv")
 
@@ -310,16 +365,28 @@ def build_moneyline(df):
     ml = df[df["market_type"] == "moneyline"].copy()
     if ml.empty:
         return
+
     ml["league"] = LEAGUE
 
     def _write(src, bucket_col, fname, home_away=False):
         if src.empty:
             return
+
         src = src[src[bucket_col] != "UNBUCKETED"].copy()
+
         if home_away:
-            result = agg(src, ["league", "market_type", "side_group", bucket_col], variable_label=bucket_col)
+            result = agg(
+                src,
+                ["league", "market_type", "side_group", bucket_col],
+                variable_label=bucket_col
+            )
         else:
-            result = agg(src, ["league", "market_type", bucket_col], variable_label=bucket_col)
+            result = agg(
+                src,
+                ["league", "market_type", bucket_col],
+                variable_label=bucket_col
+            )
+
         write_csv(result, ML_DIR / fname)
 
     _write(ml, "ev_bucket",       "mlb_moneyline_by_ev.csv")
@@ -328,6 +395,7 @@ def build_moneyline(df):
     _write(ml, "win_prob_bucket", "mlb_moneyline_by_win_prob.csv")
 
     ha = ml[ml["side_group"].isin(["HOME", "AWAY"])]
+
     _write(ha, "ev_bucket",       "mlb_moneyline_by_ev_home_away_summary.csv",       home_away=True)
     _write(ha, "odds_bucket",     "mlb_moneyline_by_odds_home_away_summary.csv",     home_away=True)
     _write(ha, "kelly_bucket",    "mlb_moneyline_by_kelly_home_away_summary.csv",    home_away=True)
@@ -340,16 +408,28 @@ def build_run_line(df):
     rl = df[df["market_type"] == "run_line"].copy()
     if rl.empty:
         return
+
     rl["league"] = LEAGUE
 
     def _write(src, bucket_col, fname, home_away=False):
         if src.empty:
             return
+
         src = src[src[bucket_col] != "UNBUCKETED"].copy()
+
         if home_away:
-            result = agg(src, ["league", "market_type", "side_group", bucket_col], variable_label=bucket_col)
+            result = agg(
+                src,
+                ["league", "market_type", "side_group", bucket_col],
+                variable_label=bucket_col
+            )
         else:
-            result = agg(src, ["league", "market_type", bucket_col], variable_label=bucket_col)
+            result = agg(
+                src,
+                ["league", "market_type", bucket_col],
+                variable_label=bucket_col
+            )
+
         write_csv(result, RL_DIR / fname)
 
     _write(rl, "ev_bucket",       "mlb_run_line_by_ev.csv")
@@ -359,6 +439,7 @@ def build_run_line(df):
     _write(rl, "run_line_side",   "mlb_run_line_by_side.csv")
 
     ha = rl[rl["side_group"].isin(["HOME", "AWAY"])]
+
     _write(ha, "ev_bucket",       "mlb_run_line_by_ev_home_away_summary.csv",       home_away=True)
     _write(ha, "odds_bucket",     "mlb_run_line_by_odds_home_away_summary.csv",     home_away=True)
     _write(ha, "kelly_bucket",    "mlb_run_line_by_kelly_home_away_summary.csv",    home_away=True)
@@ -372,16 +453,28 @@ def build_totals(df):
     tot = df[df["market_type"] == "total"].copy()
     if tot.empty:
         return
+
     tot["league"] = LEAGUE
 
     def _write(src, bucket_col, fname, home_away=False):
         if src.empty:
             return
+
         src = src[src[bucket_col] != "UNBUCKETED"].copy()
+
         if home_away:
-            result = agg(src, ["league", "market_type", "side_group", bucket_col], variable_label=bucket_col)
+            result = agg(
+                src,
+                ["league", "market_type", "side_group", bucket_col],
+                variable_label=bucket_col
+            )
         else:
-            result = agg(src, ["league", "market_type", bucket_col], variable_label=bucket_col)
+            result = agg(
+                src,
+                ["league", "market_type", bucket_col],
+                variable_label=bucket_col
+            )
+
         write_csv(result, TOT_DIR / fname)
 
     _write(tot, "ev_bucket",          "mlb_total_by_ev.csv")
@@ -392,6 +485,7 @@ def build_totals(df):
     _write(tot, "side_group",         "mlb_total_by_side.csv")
 
     ou = tot[tot["side_group"].isin(["OVER", "UNDER"])]
+
     _write(ou, "ev_bucket",          "mlb_total_by_ev_home_away_summary.csv",          home_away=True)
     _write(ou, "odds_bucket",        "mlb_total_by_odds_home_away_summary.csv",        home_away=True)
     _write(ou, "kelly_bucket",       "mlb_total_by_kelly_home_away_summary.csv",       home_away=True)
