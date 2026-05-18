@@ -41,7 +41,7 @@
     {
       key: 'ncaam',
       label: 'NCAAM',
-      enabled: true,
+      enabled: false,
       sport: 'basketball',
       league: 'mens-college-basketball',
       type: 'team-roster',
@@ -113,7 +113,7 @@
     {
       key: 'ufc',
       label: 'UFC',
-      enabled: true,
+      enabled: false,
       sport: 'mma',
       league: 'ufc',
       type: 'placeholder',
