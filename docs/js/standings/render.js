@@ -49,7 +49,7 @@
     {
       key: 'ncaam',
       label: 'NCAAM',
-      enabled: true,
+      enabled: false,
       sport: 'basketball',
       league: 'mens-college-basketball',
       cdnSlug: 'mens-college-basketball',
@@ -145,7 +145,7 @@
     {
       key: 'ufc',
       label: 'UFC',
-      enabled: true,
+      enabled: false,
       sport: 'mma',
       league: 'ufc',
       cdnSlug: 'ufc',
