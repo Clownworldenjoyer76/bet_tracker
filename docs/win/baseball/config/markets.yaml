@@ -1,123 +1,138 @@
+# docs/win/baseball/config/markets.yaml
 markets:
 
   mlb:
-
     # ── Context / Environment Settings ──────────────────────────
-    rain_chance_max: 90          # skip bets above this % rain chance threshold  
-    lineup_low_sample_warn: 3    # flag bet as low_confidence if this many batters have low sample
+    rain_exclude_on_will_it_rain: false
+
+    # If symbol_code contains one of these terms, the game is excluded.
+    rain_symbol_terms:
+      - rain
+      - heavyrain
+      - lightrain
+      - sleet
+      - snow
+      - thunder
+
+    # Set false to allow more totals through even when one/both SP samples are low.
+    sp_sample_exclude_totals: false
+
+    # Flag only. Does not exclude bets.
+    lineup_low_sample_warn: 4
 
     ###################################################
-    # ── Filters applied earlier in pipeline  ──────────────────────────
+    # ── Moneyline ────────────────────────────────────
+    ###################################################
 
-   # sp_min_pa: 50                # minimum pitcher PA in current season to avoid low-sample exclusion
-   # wind_nudge_threshold: 12     # mph minimum to apply directional wind nudge
-   # temp_cold_threshold: 50      # °F below which cold-weather suppression applies
-   # temp_hot_threshold: 80       # °F above which heat offense boost applies
-   # park_edge_scale: 0.002       # multiplier for park factor edge adjustment (tune after tracking results)
-
-   # select script now supports:
-   # prob_bands:
-   # - [0.50, 0.55]
-   # - [0.60, 0.65]
-
-###################################################
     moneyline:
       enabled: true
+      # best_ev = one ML side max per game
+      # all = can select both if both pass
       pick_preference: best_ev
 
       home:
         enabled: true
         odds_bands:
-          - [-300, -1]
-          - [-0.9, 300]
+          - [-350, 350]
         ev_bands:
-          - [0.03, 0.04]
-          - [0.05, 0.06]
-          - [0.07, 0.099]
+          - [0.005, 0.07]
+          - [0.08, 0.99]
         kelly_bands:
-          - [0.00, 0.99]
-        prob_min: 0.20
-        prob_max: 0.92
+          - [0.001, 0.10]
+          - [0.15, 0.99]
+        prob_bands:
+          - [0.20, 0.30]
+          - [0.45, 0.99]
 
-###################################################
       away:
         enabled: true
         odds_bands:
-          - [-145, -125]
-          - [115, 150]
+          - [-350, 350]
         ev_bands:
-          - [0.03, 0.045]
-          - [0.065, 0.134]
+          - [0.005, 0.99]
         kelly_bands:
-          - [0.00, 0.99]
+          - [0.10, 0.99]
+        prob_bands:
+          - [0.50, 0.99]
 
-###################################################
+    ###################################################
+    # ── Run Line ─────────────────────────────────────
+    ###################################################
+
     run_line:
       enabled: true
-      pick_preference: best_prob
+      # best_prob allows the more likely RL side when both pass.
+      # Use all if you want maximum volume.
+      pick_preference: all
 
       home:
         enabled: true
         line_bands:
-          - [-1.5, 1.5]
+          - [-2.5, 2.5]
         odds_bands:
-          - [-300, -150]
-          - [-100, 300]
+          - [-130, -100]
+          - [110, 130]
         ev_bands:
-          - [0.01, 0.02]
-          - [0.03, 0.04]
+          - [0.04, 0.05]
+          - [0.07, 0.10]
         kelly_bands:
-          - [0.00, 0.99]
-        prob_min: 0.40
+          - [0.001, 0.99]
+        prob_bands:
+          - [0.20, 0.99]
 
       away:
         enabled: true
         line_bands:
-          - [-1.5, 1.5]
+          - [-2.5, 2.5]
         odds_bands:
-          - [-300, -150]
-          - [-100, 300]
+          - [-350, 130]
+          - [150, 350]
         ev_bands:
-          - [0.075, 0.99]
+          - [0.05, 0.07]
+          - [0.09, 0.99]
         kelly_bands:
-          - [0.00, 0.99]
-        prob_min: 0.40
+          - [0.001, 0.99]
+        prob_bands:
+          - [0.20, 0.99]
 
-###################################################
+    ###################################################
+    # ── Totals ───────────────────────────────────────
+    ###################################################
+
     total:
       enabled: true
-      pick_preference: best_ev
+      # best_ev = one total side max per game.
+      # all = can select both over and under if both pass.
+      pick_preference: all
 
       over:
         enabled: true
+        # MLB totals usually live here, but this is intentionally broad.
         line_bands:
-          - [6.0, 9.0]
+          - [5.0, 9.5]
         odds_bands:
-          - [-300, -121]
-          - [-114, 300]
+          - [-350, 350]
         ev_bands:
-          - [0.01, 0.02]
-          - [0.05, 0.07]
-          - [0.1, 0.99]
+          - [0.03, 0.99]
         kelly_bands:
-          - [0.00, 0.99]
+          - [0.001, 0.05]
+          - [0.15, 0.99]
         prob_bands:
-          - [0.20, 0.35]
-          - [0.50, 0.65]
-          - [0.75, 0.99]
+          - [0.20, 0.85]
 
-###################################################
       under:
         enabled: true
         line_bands:
-          - [6.0, 8.5]
-          - [9.5, 9.9]
+          - [8.0, 9.5]
+          - [10.5, 12.5]
         odds_bands:
-          - [-300, -113]
-          - [-108, -106]
-          - [-104, 300]
+          - [-350, 350]
         ev_bands:
+          - [0.005, 0.02]
           - [0.04, 0.08]
+          - [0.10, 0.99]
         kelly_bands:
-          - [0.05, 0.22]
-        prob_max: 0.79
+          - [0.001, 0.10]
+          - [0.30, 0.99]
+        prob_bands:
+          - [0.60, 0.99]
