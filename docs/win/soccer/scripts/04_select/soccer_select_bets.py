@@ -5,28 +5,31 @@
 # filters from markets.yaml. Picks bet(s) per game according to the configured
 # selection_mode and pick_preference.
 #
-# Input layout (matches stage-3 output):
+# Input layout:
 #   docs/win/soccer/03_edges/{date}_{league}_match_odds.csv
 #   docs/win/soccer/03_edges/{date}_{league}_btts.csv
 #   docs/win/soccer/03_edges/{date}_{league}_total_25.csv
 #   docs/win/soccer/03_edges/{date}_{league}_total_35.csv
 #
-# Output (preserves the schema 01_soccer_results_grade.py expects):
+# Output:
 #   docs/win/soccer/04_select/{date}_soccer_bets.csv
-#   columns: game_id, sport, league, match_date, match_time,
-#            home_team, away_team, market, side, odds, ev, kelly
 #
-# Filters per side (each is a list of [lo, hi] bands; pass = value in ANY band):
-#   odds_bands              (decimal odds)
-#   american_odds_bands     (American odds converted from decimal odds inside this script)
-#   ev_bands                (decimal EV)
-#   kelly_bands             (decimal Kelly fraction)
-#   model_prob_bands        (decimal probability, from engine_*_prob)
-#   edge_bands              (decimal edge, from *_edge)
+# Output columns:
+#   game_id, sport, league, match_date, match_time,
+#   home_team, away_team, market, side,
+#   odds, american_odds, ev, kelly
+#
+# Filters per side:
+#   odds_bands              decimal odds
+#   american_odds_bands     American odds converted from decimal odds inside this script
+#   ev_bands                decimal EV
+#   kelly_bands             decimal Kelly fraction
+#   model_prob_bands        decimal probability, from engine_*_prob
+#   edge_bands              decimal edge, from *_edge
 #
 # Date filters per side:
-#   months                (list of ints 1-12; empty = all months allowed)
-#   exclude_days_of_week  (list of ints 0=Mon ... 6=Sun)
+#   months                list of ints 1-12; empty = all months allowed
+#   exclude_days_of_week  list of ints 0=Mon ... 6=Sun
 #
 # Per-market:
 #   enabled
@@ -57,9 +60,6 @@ ERROR_DIR.mkdir(parents=True, exist_ok=True)
 with open(CONFIG_PATH, "r", encoding="utf-8") as f:
     CONFIG = yaml.safe_load(f)["markets"]["soccer"]
 
-# Map filename suffix -> internal market_type written to output.
-# Internal market_type is kept as 'total25' / 'total35' so the existing grade
-# script (which checks `market == "total25"` / `"total35"`) keeps working.
 MARKET_FROM_SUFFIX = {
     "_match_odds": "match_odds",
     "_btts":       "btts",
@@ -100,6 +100,7 @@ def _write_summary(summary: dict, per_market: dict, per_date: dict, per_league: 
         "--- By Market ---",
         f"  {'market':<15} {'bets':>6}",
     ]
+
     for m, c in sorted(per_market.items()):
         lines.append(f"  {m:<15} {c:>6}")
 
@@ -108,6 +109,7 @@ def _write_summary(summary: dict, per_market: dict, per_date: dict, per_league: 
         "--- By League ---",
         f"  {'league':<15} {'bets':>6}",
     ]
+
     for lg, c in sorted(per_league.items()):
         lines.append(f"  {lg:<15} {c:>6}")
 
@@ -116,10 +118,12 @@ def _write_summary(summary: dict, per_market: dict, per_date: dict, per_league: 
         "--- By Date ---",
         f"  {'date':<14} {'bets':>6} {'file'}",
     ]
+
     for date, info in sorted(per_date.items()):
         lines.append(f"  {date:<14} {info['bets']:>6}  {info['file']}")
 
     lines += ["", "--- Filter Reject Counts ---"]
+
     for k, v in sorted(DEBUG_COUNTS.items()):
         lines.append(f"  {k:<28} : {v}")
 
@@ -152,10 +156,9 @@ def decimal_to_american(decimal_odds):
       1.50 -> -200
       2.00 -> +100
       2.50 -> +150
-
-    Returns None when decimal odds are missing or invalid.
     """
     d = fv(decimal_odds)
+
     if d is None or d <= 1:
         return None
 
@@ -166,7 +169,7 @@ def decimal_to_american(decimal_odds):
 
 
 def in_any_band(value, bands):
-    """True if value falls inside any [lo, hi] band (inclusive)."""
+    """True if value falls inside any [lo, hi] band inclusive."""
     if value is None or not bands:
         return False
     return any(lo <= value <= hi for lo, hi in bands)
@@ -184,6 +187,7 @@ def date_ok(game_date, months, exclude_dow):
         return True
 
     dt = parse_date(game_date) if isinstance(game_date, str) else None
+
     if dt is None:
         return True
 
@@ -199,30 +203,35 @@ def date_ok(game_date, months, exclude_dow):
 
 
 def passes_filters(values: dict, scfg: dict, game_date: str) -> bool:
-    if "odds_bands" in scfg and not in_any_band(values.get("odds"), scfg["odds_bands"]):
-        DEBUG_COUNTS["fail_odds"] += 1
-        return False
+    if "odds_bands" in scfg and scfg.get("odds_bands"):
+        if not in_any_band(values.get("odds"), scfg["odds_bands"]):
+            DEBUG_COUNTS["fail_odds"] += 1
+            return False
 
     if "american_odds_bands" in scfg and scfg.get("american_odds_bands"):
         if not in_any_band(values.get("american_odds"), scfg["american_odds_bands"]):
             DEBUG_COUNTS["fail_american_odds"] += 1
             return False
 
-    if "ev_bands" in scfg and not in_any_band(values.get("ev"), scfg["ev_bands"]):
-        DEBUG_COUNTS["fail_ev"] += 1
-        return False
+    if "ev_bands" in scfg and scfg.get("ev_bands"):
+        if not in_any_band(values.get("ev"), scfg["ev_bands"]):
+            DEBUG_COUNTS["fail_ev"] += 1
+            return False
 
-    if "kelly_bands" in scfg and not in_any_band(values.get("kelly"), scfg["kelly_bands"]):
-        DEBUG_COUNTS["fail_kelly"] += 1
-        return False
+    if "kelly_bands" in scfg and scfg.get("kelly_bands"):
+        if not in_any_band(values.get("kelly"), scfg["kelly_bands"]):
+            DEBUG_COUNTS["fail_kelly"] += 1
+            return False
 
-    if "model_prob_bands" in scfg and not in_any_band(values.get("model_prob"), scfg["model_prob_bands"]):
-        DEBUG_COUNTS["fail_model_prob"] += 1
-        return False
+    if "model_prob_bands" in scfg and scfg.get("model_prob_bands"):
+        if not in_any_band(values.get("model_prob"), scfg["model_prob_bands"]):
+            DEBUG_COUNTS["fail_model_prob"] += 1
+            return False
 
-    if "edge_bands" in scfg and not in_any_band(values.get("edge"), scfg["edge_bands"]):
-        DEBUG_COUNTS["fail_edge"] += 1
-        return False
+    if "edge_bands" in scfg and scfg.get("edge_bands"):
+        if not in_any_band(values.get("edge"), scfg["edge_bands"]):
+            DEBUG_COUNTS["fail_edge"] += 1
+            return False
 
     if not date_ok(
         game_date,
@@ -259,6 +268,7 @@ def market_cfg(league, market_type):
 
 def make_values(odds, ev, kelly, model_prob, edge):
     american_odds = decimal_to_american(odds)
+
     return {
         "odds": odds,
         "american_odds": american_odds,
@@ -271,6 +281,7 @@ def make_values(odds, ev, kelly, model_prob, edge):
 
 def make_side(side, odds, ev, kelly, model_prob, edge):
     american_odds = decimal_to_american(odds)
+
     return {
         "side": side,
         "odds": odds,
@@ -290,7 +301,6 @@ def parse_filename(name: str):
     """
     Returns (date, league, market_type) or (None, None, None) if not recognized.
     File pattern: {YYYY_MM_DD}_{league}_{market_suffix}.csv
-    market_suffix in {match_odds, btts, total_25, total_35}
     """
     stem = name[:-4] if name.endswith(".csv") else name
 
@@ -307,6 +317,7 @@ def parse_filename(name: str):
         return None, None, None
 
     m = re.match(r"^(\d{4}_\d{2}_\d{2})_(.+)$", league_part)
+
     if not m:
         return None, None, None
 
@@ -322,6 +333,7 @@ def build_match_odds_sides(row, game_date, cfg):
 
     for side in ("home", "draw", "away"):
         scfg = cfg.get(side)
+
         if not scfg or not scfg.get("enabled", True):
             continue
 
@@ -346,6 +358,7 @@ def build_btts_sides(row, game_date, cfg):
 
     for side in ("yes", "no"):
         scfg = cfg.get(side)
+
         if not scfg or not scfg.get("enabled", True):
             continue
 
@@ -366,11 +379,11 @@ def build_btts_sides(row, game_date, cfg):
 
 
 def build_totals_sides(row, game_date, cfg, line_tag):
-    """line_tag is '25' or '35' — picks the right dk_*N_decimal column."""
     sides = []
 
     for side in ("over", "under"):
         scfg = cfg.get(side)
+
         if not scfg or not scfg.get("enabled", True):
             continue
 
@@ -435,7 +448,7 @@ def process_file(file: Path):
     preference     = cfg.get("pick_preference", {"metric": "ev", "direction": "max"})
 
     _log(
-        f"--- FILE: {file.name}  league={league_key} market={market_type} "
+        f"--- FILE: {file.name} league={league_key} market={market_type} "
         f"rows={len(df)} mode={selection_mode}"
     )
 
@@ -466,13 +479,15 @@ def process_file(file: Path):
 
         for sel in picks:
             DEBUG_COUNTS["selected"] += 1
+
             out_rows.append({
                 **base_row(row),
-                "market": market_type,
-                "side":   sel["side"],
-                "odds":   sel["odds"],
-                "ev":     sel["ev"],
-                "kelly":  sel["kelly"],
+                "market":        market_type,
+                "side":          sel["side"],
+                "odds":          sel["odds"],
+                "american_odds": sel["american_odds"],
+                "ev":            sel["ev"],
+                "kelly":         sel["kelly"],
             })
 
     _log(f"{file.name} | {len(out_rows)} selected from {len(df)} rows")
@@ -511,11 +526,7 @@ def main():
             try:
                 rows, status = process_file(file)
 
-                if status == "skip":
-                    summary["skipped"] += 1
-                    continue
-
-                if status in ("empty", "disabled"):
+                if status in ("skip", "empty", "disabled"):
                     summary["skipped"] += 1
                     continue
 
@@ -550,7 +561,10 @@ def main():
             group.to_csv(out_path, index=False)
 
             summary["dates_written"] += 1
-            per_date[str(date)] = {"bets": len(group), "file": out_path.name}
+            per_date[str(date)] = {
+                "bets": len(group),
+                "file": out_path.name,
+            }
 
             _log(f"WROTE: {out_path} ({len(group)} bets)")
 
