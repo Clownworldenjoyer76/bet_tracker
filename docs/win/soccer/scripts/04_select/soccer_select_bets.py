@@ -125,7 +125,7 @@ def _write_summary(summary: dict, per_market: dict, per_date: dict, per_league: 
     lines += ["", "--- Filter Reject Counts ---"]
 
     for k, v in sorted(DEBUG_COUNTS.items()):
-        lines.append(f"  {k:<28} : {v}")
+        lines.append(f"  {k:<36} : {v}")
 
     status = "SUCCESS" if summary["errors"] == 0 else "COMPLETED WITH ERRORS"
     lines += ["", f"STATUS: {status}", "=" * 70]
@@ -350,6 +350,18 @@ def make_side(side, odds, ev, kelly, model_prob, edge):
     }
 
 
+def clear_old_outputs() -> None:
+    deleted = 0
+
+    for old_file in sorted(OUTPUT_DIR.glob("*_soccer_bets.csv")):
+        old_file.unlink()
+        deleted += 1
+        _log(f"DELETED OLD SELECT FILE: {old_file}")
+
+    DEBUG_COUNTS["deleted_old_select_files"] += deleted
+    _log(f"Old select files deleted: {deleted}")
+
+
 # =========================
 # FILENAME PARSING
 # =========================
@@ -535,6 +547,26 @@ def process_file(file: Path):
             picks = [p] if p else []
 
         for sel in picks:
+            sel_ev = fv(sel.get("ev"))
+
+            if sel_ev is None:
+                DEBUG_COUNTS["blocked_missing_ev"] += 1
+                _log(
+                    f"BLOCKED MISSING EV | file={file.name} "
+                    f"league={league_key} market={market_type} side={sel.get('side')} ev={sel.get('ev')}",
+                    "WARN",
+                )
+                continue
+
+            if sel_ev < 0:
+                DEBUG_COUNTS["blocked_negative_ev"] += 1
+                _log(
+                    f"BLOCKED NEGATIVE EV | file={file.name} "
+                    f"league={league_key} market={market_type} side={sel.get('side')} ev={sel_ev}",
+                    "WARN",
+                )
+                continue
+
             DEBUG_COUNTS["selected"] += 1
 
             out_rows.append({
@@ -543,7 +575,7 @@ def process_file(file: Path):
                 "side":          sel["side"],
                 "odds":          sel["odds"],
                 "american_odds": sel["american_odds"],
-                "ev":            sel["ev"],
+                "ev":            sel_ev,
                 "kelly":         sel["kelly"],
             })
 
@@ -558,6 +590,8 @@ def process_file(file: Path):
 def main():
     with open(LOG_FILE, "w", encoding="utf-8") as f:
         f.write(f"=== soccer select_bets RUN {_now()} ===\n")
+
+    clear_old_outputs()
 
     summary = {
         "files_processed": 0,
