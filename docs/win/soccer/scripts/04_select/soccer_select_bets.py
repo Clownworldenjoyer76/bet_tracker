@@ -27,6 +27,8 @@
 #   model_prob_bands        decimal probability, from engine_*_prob
 #   edge_bands              decimal edge, from *_edge
 #
+# Empty filter lists are ignored.
+#
 # Date filters per side:
 #   months                list of ints 1-12; empty = all months allowed
 #   exclude_days_of_week  list of ints 0=Mon ... 6=Sun
@@ -37,6 +39,7 @@
 #   pick_preference: { metric: ev|kelly|model_prob|edge|odds|american_odds, direction: max|min }
 
 import re
+import sys
 import traceback
 from collections import defaultdict
 from datetime import datetime, UTC
@@ -56,9 +59,6 @@ LOG_FILE  = ERROR_DIR / "select_bets.txt"
 
 OUTPUT_DIR.mkdir(exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
-
-with open(CONFIG_PATH, "r", encoding="utf-8") as f:
-    CONFIG = yaml.safe_load(f)["markets"]["soccer"]
 
 MARKET_FROM_SUFFIX = {
     "_match_odds": "match_odds",
@@ -135,6 +135,32 @@ def _write_summary(summary: dict, per_market: dict, per_date: dict, per_league: 
 
 
 # =========================
+# CONFIG
+# =========================
+
+def load_config() -> dict:
+    try:
+        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+
+        config = data["markets"]["soccer"]
+
+        if not isinstance(config, dict):
+            raise ValueError("markets.soccer must be a mapping")
+
+        return config
+
+    except Exception as e:
+        with open(LOG_FILE, "w", encoding="utf-8") as f:
+            f.write(f"=== soccer select_bets RUN {_now()} ===\n")
+        _log(f"CONFIG LOAD FAILED | {CONFIG_PATH} | {e}\n{traceback.format_exc()}", "ERROR")
+        raise
+
+
+CONFIG = load_config()
+
+
+# =========================
 # HELPERS
 # =========================
 
@@ -168,11 +194,53 @@ def decimal_to_american(decimal_odds):
     return round(-100 / (d - 1))
 
 
+def normalize_bands(raw_bands, label: str = "") -> list:
+    """
+    Normalize YAML bands into numeric [lo, hi] pairs.
+
+    Empty / missing bands return [] and are ignored by passes_filters().
+    Invalid bands raise ValueError so bad YAML does not silently pass.
+    """
+    if raw_bands is None:
+        return []
+
+    if raw_bands == []:
+        return []
+
+    if not isinstance(raw_bands, list):
+        raise ValueError(f"{label} must be a list of [lo, hi] bands")
+
+    bands = []
+
+    for i, band in enumerate(raw_bands):
+        if not isinstance(band, (list, tuple)) or len(band) != 2:
+            raise ValueError(f"{label}[{i}] must be [lo, hi], got {band!r}")
+
+        lo = fv(band[0])
+        hi = fv(band[1])
+
+        if lo is None or hi is None:
+            raise ValueError(f"{label}[{i}] has non-numeric bounds: {band!r}")
+
+        if lo > hi:
+            raise ValueError(f"{label}[{i}] lower bound > upper bound: {band!r}")
+
+        bands.append((lo, hi))
+
+    return bands
+
+
 def in_any_band(value, bands):
     """True if value falls inside any [lo, hi] band inclusive."""
     if value is None or not bands:
         return False
-    return any(lo <= value <= hi for lo, hi in bands)
+
+    v = fv(value)
+
+    if v is None:
+        return False
+
+    return any(lo <= v <= hi for lo, hi in bands)
 
 
 def parse_date(s):
@@ -203,34 +271,23 @@ def date_ok(game_date, months, exclude_dow):
 
 
 def passes_filters(values: dict, scfg: dict, game_date: str) -> bool:
-    if "odds_bands" in scfg and scfg.get("odds_bands"):
-        if not in_any_band(values.get("odds"), scfg["odds_bands"]):
-            DEBUG_COUNTS["fail_odds"] += 1
-            return False
+    filter_map = [
+        ("odds_bands", "odds", "fail_odds"),
+        ("american_odds_bands", "american_odds", "fail_american_odds"),
+        ("ev_bands", "ev", "fail_ev"),
+        ("kelly_bands", "kelly", "fail_kelly"),
+        ("model_prob_bands", "model_prob", "fail_model_prob"),
+        ("edge_bands", "edge", "fail_edge"),
+    ]
 
-    if "american_odds_bands" in scfg and scfg.get("american_odds_bands"):
-        if not in_any_band(values.get("american_odds"), scfg["american_odds_bands"]):
-            DEBUG_COUNTS["fail_american_odds"] += 1
-            return False
+    for band_key, value_key, fail_key in filter_map:
+        bands = normalize_bands(scfg.get(band_key), band_key)
 
-    if "ev_bands" in scfg and scfg.get("ev_bands"):
-        if not in_any_band(values.get("ev"), scfg["ev_bands"]):
-            DEBUG_COUNTS["fail_ev"] += 1
-            return False
+        if not bands:
+            continue
 
-    if "kelly_bands" in scfg and scfg.get("kelly_bands"):
-        if not in_any_band(values.get("kelly"), scfg["kelly_bands"]):
-            DEBUG_COUNTS["fail_kelly"] += 1
-            return False
-
-    if "model_prob_bands" in scfg and scfg.get("model_prob_bands"):
-        if not in_any_band(values.get("model_prob"), scfg["model_prob_bands"]):
-            DEBUG_COUNTS["fail_model_prob"] += 1
-            return False
-
-    if "edge_bands" in scfg and scfg.get("edge_bands"):
-        if not in_any_band(values.get("edge"), scfg["edge_bands"]):
-            DEBUG_COUNTS["fail_edge"] += 1
+        if not in_any_band(values.get(value_key), bands):
+            DEBUG_COUNTS[fail_key] += 1
             return False
 
     if not date_ok(
@@ -517,6 +574,7 @@ def main():
 
     _log(f"INPUT_DIR : {INPUT_DIR}")
     _log(f"OUTPUT_DIR: {OUTPUT_DIR}")
+    _log(f"CONFIG    : {CONFIG_PATH}")
 
     input_files = sorted(INPUT_DIR.glob("*.csv"))
     _log(f"Files found: {len(input_files)}")
@@ -571,6 +629,8 @@ def main():
     except Exception as e:
         _log(f"FATAL: {e}\n{traceback.format_exc()}", "ERROR")
         summary["errors"] += 1
+        _write_summary(summary, per_market, per_date, per_league)
+        sys.exit(1)
 
     _write_summary(summary, per_market, per_date, per_league)
     print("soccer select_bets complete.")
