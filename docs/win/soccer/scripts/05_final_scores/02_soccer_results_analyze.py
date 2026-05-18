@@ -77,6 +77,17 @@ def log_summary(msg: str) -> None:
         f.write(f"[{datetime.now().isoformat()}] {msg}\n")
 
 
+def clear_output_files() -> None:
+    deleted = 0
+
+    if WORK_FILE.exists():
+        WORK_FILE.unlink()
+        deleted += 1
+        log_summary(f"DELETED OLD OUTPUT | {WORK_FILE}")
+
+    log_summary(f"OLD OUTPUT FILES DELETED | count={deleted}")
+
+
 # =========================
 # IO HELPERS
 # =========================
@@ -313,9 +324,11 @@ def prepare() -> None:
     df = safe_read_csv(MASTER_FILE)
 
     if df.empty:
+        log_summary("NO WORK FILE WRITTEN | master file missing, empty, or unreadable")
         return
 
     if not validate_headers(df, REQUIRED_COLUMNS, MASTER_FILE):
+        log_summary("NO WORK FILE WRITTEN | master file failed required-header validation")
         return
 
     text_cols = [
@@ -390,6 +403,7 @@ def prepare() -> None:
 def main() -> None:
     reset_logs()
     log_summary(f"=== START 02_soccer_results_analyze.py {datetime.now().isoformat()} ===")
+    clear_output_files()
     prepare()
     log_summary(f"=== END 02_soccer_results_analyze.py {datetime.now().isoformat()} ===")
     print("Soccer analytics preparation complete.")
