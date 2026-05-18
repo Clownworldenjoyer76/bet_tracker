@@ -250,7 +250,7 @@ def load_match_odds_edges(game_date: str, league_lower: str) -> pd.DataFrame:
         _edges_cache[key] = df
         return df
 
-    needed = ["game_id", "home_prob", "draw_prob", "away_prob"]
+    needed = ["game_id", "engine_home_prob", "engine_draw_prob", "engine_away_prob"]
     have = [c for c in needed if c in df.columns]
 
     if "game_id" not in have:
@@ -288,7 +288,7 @@ def attach_win_prob(df: pd.DataFrame) -> pd.DataFrame:
             continue
 
         merged = grp.merge(
-            edges[["game_id", "home_prob", "draw_prob", "away_prob"]],
+            edges[["game_id", "engine_home_prob", "engine_draw_prob", "engine_away_prob"]],
             on="game_id",
             how="left",
             suffixes=("", "_edge"),
@@ -299,9 +299,9 @@ def attach_win_prob(df: pd.DataFrame) -> pd.DataFrame:
         for _, r in merged.iterrows():
             s = str(r["side"]).lower().strip()
             col = {
-                "home": "home_prob",
-                "draw": "draw_prob",
-                "away": "away_prob",
+                "home": "engine_home_prob",
+                "draw": "engine_draw_prob",
+                "away": "engine_away_prob",
             }.get(s)
 
             if col is None:
