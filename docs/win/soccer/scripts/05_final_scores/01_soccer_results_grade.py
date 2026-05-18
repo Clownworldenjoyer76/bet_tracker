@@ -84,6 +84,17 @@ def log_summary(msg: str) -> None:
         f.write(f"[{datetime.now().isoformat()}] {msg}\n")
 
 
+def clear_output_files() -> None:
+    deleted = 0
+
+    for path in sorted(OUTPUT_DIR.glob("*.csv")):
+        path.unlink()
+        deleted += 1
+        log_summary(f"DELETED OLD OUTPUT | {path}")
+
+    log_summary(f"OLD OUTPUT FILES DELETED | count={deleted}")
+
+
 # =========================
 # HELPERS
 # =========================
@@ -288,6 +299,7 @@ def process() -> None:
 
     if not select_files:
         log_error(f"NO SELECT FILES FOUND | {SELECT_DIR}")
+        log_summary("NO SELECT FILES FOUND | output directory was already cleared")
         return
 
     all_rows = []
@@ -452,7 +464,7 @@ def process() -> None:
             f"MISSING_SCORE={missing_scores} UNKNOWN_MARKET={unknown_markets} GRADE_ERROR={grade_errors} | {MASTER_FILE}"
         )
     else:
-        log_summary("NO ROWS TO WRITE | master file not updated")
+        log_summary("NO ROWS TO WRITE | output directory was already cleared; master file not written")
 
 
 # =========================
@@ -462,6 +474,7 @@ def process() -> None:
 def main() -> None:
     reset_logs()
     log_summary(f"=== START 01_soccer_results_grade.py {datetime.now().isoformat()} ===")
+    clear_output_files()
     process()
     log_summary(f"=== END 01_soccer_results_grade.py {datetime.now().isoformat()} ===")
     print("Soccer grading complete.")
