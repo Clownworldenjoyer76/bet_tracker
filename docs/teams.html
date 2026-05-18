@@ -7,97 +7,550 @@
   <link rel="stylesheet" href="css/matstheme.css">
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background:var(--background);color:var(--text-main);font-family:'IBM Plex Mono',monospace;font-size:13px;min-height:100vh; }
-    .page-header { border-bottom:1px solid var(--border-soft);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px; }
-    .page-title { font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;letter-spacing:0.08em;text-transform:uppercase;color:var(--accent-green); }
-    .page-subtitle { color:var(--text-muted);font-size:11px;letter-spacing:0.06em;margin-top:2px; }
-    .controls { display:flex;align-items:center;gap:8px;padding:12px 24px;border-bottom:1px solid var(--border-soft);flex-wrap:wrap; }
-    .league-pill { font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:0.08em;padding:4px 12px;border:1px solid var(--border-soft);background:transparent;color:var(--text-muted);cursor:pointer;transition:all 0.15s;text-transform:uppercase; }
-    .league-pill:hover { border-color:var(--accent-blue);color:var(--accent-blue); }
-    .league-pill.active { border-color:var(--accent-green);color:var(--accent-green);background:rgba(0,255,132,0.06); }
-    .search-box { margin-left:auto;background:var(--bg-card);border:1px solid var(--border-soft);color:var(--text-main);font-family:'IBM Plex Mono',monospace;font-size:12px;padding:5px 10px;width:200px;outline:none; }
-    .search-box:focus { border-color:var(--accent-blue); }
-    .search-box::placeholder { color:var(--text-muted); }
-    .status-bar { padding:8px 24px;font-size:11px;color:var(--text-muted);border-bottom:1px solid var(--border-soft);display:flex;align-items:center;gap:10px; }
-    .status-dot { width:6px;height:6px;border-radius:50%;background:var(--text-muted);display:inline-block;flex-shrink:0; }
-    .status-dot.green { background:var(--accent-green);box-shadow:0 0 6px var(--accent-green); }
-    .status-dot.yellow { background:var(--accent-yellow);animation:pulse 1s infinite; }
-    .status-dot.red { background:var(--accent-red);box-shadow:0 0 6px var(--accent-red); }
-    @keyframes pulse { 0%,100%{opacity:1;}50%{opacity:0.3;} }
-    .main { padding:20px 24px; }
-    .team-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px; }
-    .team-card { background:var(--bg-card);border:1px solid var(--border-soft);padding:12px 14px;cursor:pointer;transition:border-color 0.15s,background 0.15s;display:flex;align-items:center;gap:12px; }
-    .team-card:hover { border-color:var(--accent-green);background:var(--bg-card); }
-    .team-logo { width:32px;height:32px;object-fit:contain;flex-shrink:0; }
-    .team-logo-placeholder { width:32px;height:32px;flex-shrink:0; }
-    .team-info { display:flex;flex-direction:column;gap:2px;min-width:0; }
-    .team-name { font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;color:var(--text-main);letter-spacing:0.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
-    .team-abbr { font-size:10px;color:var(--text-muted);letter-spacing:0.1em; }
-    .empty-state { text-align:center;padding:60px 20px;color:var(--text-muted);font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase; }
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-    .modal-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:1000;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto; }
-    .modal-overlay.open { display:flex; }
-    .modal-box { background:var(--bg-card);border:1px solid var(--border-soft);width:100%;max-width:580px;position:relative;margin:auto; }
-    .modal-close { position:absolute;top:12px;right:14px;font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;color:var(--text-muted);cursor:pointer;letter-spacing:0.1em;background:none;border:none;z-index:2; }
-    .modal-close:hover { color:var(--text-main); }
+    body {
+      background: var(--background);
+      color: var(--text-main);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px;
+      min-height: 100vh;
+    }
 
-    .modal-team-header { display:flex;align-items:center;gap:14px;padding:20px 24px 14px;border-bottom:1px solid var(--border-soft); }
-    .modal-logo { width:48px;height:48px;object-fit:contain;flex-shrink:0; }
-    .modal-team-name { font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;color:var(--text-main);letter-spacing:0.04em; }
-    .modal-team-sub { font-size:11px;color:var(--text-muted);margin-top:3px;display:flex;gap:12px;flex-wrap:wrap; }
-    .modal-team-sub span { color:var(--accent-green); }
+    .page-header {
+      border-bottom: 1px solid var(--border-soft);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
 
-    .modal-tabs { display:flex;border-bottom:1px solid var(--border-soft);overflow-x:auto; }
-    .modal-tab { font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;padding:8px 16px;color:var(--text-muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all 0.15s;flex-shrink:0; }
-    .modal-tab:hover { color:var(--text-main); }
-    .modal-tab.active { color:var(--accent-green);border-bottom-color:var(--accent-green); }
+    .page-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent-green);
+    }
 
-    .modal-panel { padding:16px 20px;display:none;min-height:120px; }
-    .modal-panel.active { display:block; }
+    .page-subtitle {
+      color: var(--text-muted);
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      margin-top: 2px;
+    }
 
-    .modal-subtitle { font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.14em;color:var(--text-muted);text-transform:uppercase;border-bottom:1px solid var(--border-soft);padding-bottom:4px;margin-bottom:8px;margin-top:12px; }
-    .modal-subtitle:first-child { margin-top:0; }
-    .info-grid { display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;margin-bottom:10px; }
-    .info-item { display:flex;flex-direction:column;gap:1px; }
-    .info-label { font-size:9px;letter-spacing:0.1em;color:var(--text-muted);text-transform:uppercase; }
-    .info-val { font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;color:var(--text-main); }
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      border-bottom: 1px solid var(--border-soft);
+      flex-wrap: wrap;
+    }
 
-    .roster-table { width:100%;border-collapse:collapse;font-size:11px; }
-    .roster-table th { font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);padding:4px 6px;text-align:left;border-bottom:1px solid var(--border-soft); }
-    .roster-table td { padding:5px 6px;border-bottom:1px solid var(--border-soft);color:var(--text-muted);vertical-align:middle; }
-    .roster-table tr:last-child td { border-bottom:none; }
-    .roster-table tr:hover td { background:var(--bg-card); }
-    .p-name { font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;color:var(--text-main);letter-spacing:0.04em; }
-    .inj-dot { display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent-red);margin-left:5px;vertical-align:middle; }
+    .league-pill {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      padding: 4px 12px;
+      border: 1px solid var(--border-soft);
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s;
+      text-transform: uppercase;
+    }
 
-    .bio-row { display:flex;justify-content:space-between;gap:16px;padding:5px 0;border-bottom:1px solid var(--border-soft);font-size:11px; }
-    .bio-row:last-child { border-bottom:none; }
-    .bio-label { color:var(--text-muted);letter-spacing:0.06em; }
-    .bio-val { color:var(--text-main);text-align:right; }
+    .league-pill:hover {
+      border-color: var(--accent-blue);
+      color: var(--accent-blue);
+    }
 
-    .modal-loading { color:var(--text-muted);font-size:11px;padding:20px 0;text-align:center; }
-    .modal-error { color:var(--accent-red);font-size:11px;padding:12px 0;text-align:center; }
-    .no-data { color:var(--text-muted);font-size:11px;padding:12px 0;text-align:center;letter-spacing:0.08em; }
+    .league-pill.active {
+      border-color: var(--accent-green);
+      color: var(--accent-green);
+      background: rgba(0,255,132,0.06);
+    }
+
+    .league-pill.placeholder {
+      border-style: dashed;
+      opacity: 0.75;
+    }
+
+    .league-pill.placeholder.active {
+      border-color: var(--accent-yellow);
+      color: var(--accent-yellow);
+      background: rgba(255,204,0,0.06);
+    }
+
+    .search-box {
+      margin-left: auto;
+      background: var(--bg-card);
+      border: 1px solid var(--border-soft);
+      color: var(--text-main);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      padding: 5px 10px;
+      width: 200px;
+      outline: none;
+    }
+
+    .search-box:focus {
+      border-color: var(--accent-blue);
+    }
+
+    .search-box::placeholder {
+      color: var(--text-muted);
+    }
+
+    .status-bar {
+      padding: 8px 24px;
+      font-size: 11px;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border-soft);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      display: inline-block;
+      flex-shrink: 0;
+    }
+
+    .status-dot.green {
+      background: var(--accent-green);
+      box-shadow: 0 0 6px var(--accent-green);
+    }
+
+    .status-dot.yellow {
+      background: var(--accent-yellow);
+      animation: pulse 1s infinite;
+    }
+
+    .status-dot.red {
+      background: var(--accent-red);
+      box-shadow: 0 0 6px var(--accent-red);
+    }
+
+    @keyframes pulse {
+      0%,100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.3;
+      }
+    }
+
+    .main {
+      padding: 20px 24px;
+    }
+
+    .team-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill,minmax(200px,1fr));
+      gap: 8px;
+    }
+
+    .team-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-soft);
+      padding: 12px 14px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .team-card:hover {
+      border-color: var(--accent-green);
+      background: var(--bg-card);
+    }
+
+    .team-logo {
+      width: 32px;
+      height: 32px;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
+
+    .team-logo-placeholder {
+      width: 32px;
+      height: 32px;
+      flex-shrink: 0;
+    }
+
+    .team-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .team-name {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-main);
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .team-abbr {
+      font-size: 10px;
+      color: var(--text-muted);
+      letter-spacing: 0.1em;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .placeholder-state {
+      max-width: 760px;
+      margin: 40px auto;
+      padding: 28px;
+      border: 1px dashed var(--border-soft);
+      background: rgba(255,255,255,0.02);
+      text-align: center;
+    }
+
+    .placeholder-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: 0.1em;
+      color: var(--accent-yellow);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .placeholder-copy {
+      color: var(--text-muted);
+      font-size: 12px;
+      line-height: 1.7;
+    }
+
+    .error-details {
+      margin-top: 10px;
+      color: var(--accent-red);
+      font-size: 10px;
+      word-break: break-all;
+      line-height: 1.5;
+    }
+
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.88);
+      z-index: 1000;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 20px;
+      overflow-y: auto;
+    }
+
+    .modal-overlay.open {
+      display: flex;
+    }
+
+    .modal-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border-soft);
+      width: 100%;
+      max-width: 680px;
+      position: relative;
+      margin: auto;
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 12px;
+      right: 14px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-muted);
+      cursor: pointer;
+      letter-spacing: 0.1em;
+      background: none;
+      border: none;
+      z-index: 2;
+    }
+
+    .modal-close:hover {
+      color: var(--text-main);
+    }
+
+    .modal-team-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 20px 24px 14px;
+      border-bottom: 1px solid var(--border-soft);
+    }
+
+    .modal-logo {
+      width: 48px;
+      height: 48px;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
+
+    .modal-team-name {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 22px;
+      font-weight: 900;
+      color: var(--text-main);
+      letter-spacing: 0.04em;
+    }
+
+    .modal-team-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 3px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .modal-team-sub span {
+      color: var(--accent-green);
+    }
+
+    .modal-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border-soft);
+      overflow-x: auto;
+    }
+
+    .modal-tab {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 8px 16px;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      white-space: nowrap;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+
+    .modal-tab:hover {
+      color: var(--text-main);
+    }
+
+    .modal-tab.active {
+      color: var(--accent-green);
+      border-bottom-color: var(--accent-green);
+    }
+
+    .modal-panel {
+      padding: 16px 20px;
+      display: none;
+      min-height: 120px;
+      max-height: 65vh;
+      overflow-y: auto;
+    }
+
+    .modal-panel.active {
+      display: block;
+    }
+
+    .modal-subtitle {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border-soft);
+      padding-bottom: 4px;
+      margin-bottom: 8px;
+      margin-top: 12px;
+    }
+
+    .modal-subtitle:first-child {
+      margin-top: 0;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(3,1fr);
+      gap: 8px 16px;
+      margin-bottom: 10px;
+    }
+
+    .info-item {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .info-label {
+      font-size: 9px;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .info-val {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .roster-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+      min-width: 560px;
+    }
+
+    .roster-table th {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      padding: 4px 6px;
+      text-align: left;
+      border-bottom: 1px solid var(--border-soft);
+      white-space: nowrap;
+    }
+
+    .roster-table td {
+      padding: 5px 6px;
+      border-bottom: 1px solid var(--border-soft);
+      color: var(--text-muted);
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+
+    .roster-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .roster-table tr:hover td {
+      background: var(--bg-card);
+    }
+
+    .p-name {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-main);
+      letter-spacing: 0.04em;
+    }
+
+    .inj-dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-red);
+      margin-left: 5px;
+      vertical-align: middle;
+    }
+
+    .bio-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 5px 0;
+      border-bottom: 1px solid var(--border-soft);
+      font-size: 11px;
+    }
+
+    .bio-row:last-child {
+      border-bottom: none;
+    }
+
+    .bio-label {
+      color: var(--text-muted);
+      letter-spacing: 0.06em;
+    }
+
+    .bio-val {
+      color: var(--text-main);
+      text-align: right;
+    }
+
+    .modal-loading {
+      color: var(--text-muted);
+      font-size: 11px;
+      padding: 20px 0;
+      text-align: center;
+    }
+
+    .modal-error {
+      color: var(--accent-red);
+      font-size: 11px;
+      padding: 12px 0;
+      text-align: center;
+    }
+
+    .no-data {
+      color: var(--text-muted);
+      font-size: 11px;
+      padding: 12px 0;
+      text-align: center;
+      letter-spacing: 0.08em;
+    }
 
     @media (max-width: 720px) {
       .page-header,
       .controls,
       .status-bar,
       .main {
-        padding-left:14px;
-        padding-right:14px;
+        padding-left: 14px;
+        padding-right: 14px;
       }
 
       .search-box {
-        width:100%;
-        margin-left:0;
+        width: 100%;
+        margin-left: 0;
+      }
+
+      .info-grid {
+        grid-template-columns: repeat(2,1fr);
       }
     }
   </style>
 </head>
 <body>
 <div id="nav-placeholder"></div>
+
 <div class="page-header">
   <div>
     <div class="page-title">Teams</div>
@@ -127,744 +580,6 @@
 </div>
 
 <script src="js/nav.js"></script>
-<script>
-(function() {
-  'use strict';
-
-  var CURRENT_SEASON = 2026;
-  var CORE_API_ROOT = 'https://sports.core.api.espn.com/v2';
-
-  var LEAGUES = [
-    {
-      key: 'nba',
-      label: 'NBA',
-      enabled: true,
-      sport: 'basketball',
-      league: 'nba',
-      season: CURRENT_SEASON
-    },
-    {
-      key: 'nhl',
-      label: 'NHL',
-      enabled: true,
-      sport: 'hockey',
-      league: 'nhl',
-      season: CURRENT_SEASON
-    },
-    {
-      key: 'mlb',
-      label: 'MLB',
-      enabled: true,
-      sport: 'baseball',
-      league: 'mlb',
-      season: CURRENT_SEASON
-    },
-    {
-      key: 'ncaam',
-      label: 'NCAAM',
-      enabled: true,
-      sport: 'basketball',
-      league: 'mens-college-basketball',
-      season: CURRENT_SEASON
-    }
-  ];
-
-  var activeLeagueKey = getDefaultLeagueKey();
-  var activeLeague = getLeague(activeLeagueKey);
-  var allTeams = [];
-  var searchQuery = '';
-  var refCache = {};
-  var rosterCache = {};
-
-  var TEAM_TABS = [
-    { key: 'overview', label: 'Overview' },
-    { key: 'roster', label: 'Roster' },
-    { key: 'schedule', label: 'Schedule' },
-    { key: 'depth', label: 'Depth' },
-    { key: 'history', label: 'History' }
-  ];
-
-  function $(id) {
-    return document.getElementById(id);
-  }
-
-  function esc(value) {
-    if (value === null || value === undefined) return '';
-    return String(value)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-  }
-
-  function valueOrDash(value) {
-    if (value === null || value === undefined || value === '') return '—';
-    return value;
-  }
-
-  function normalizeRefUrl(url) {
-    if (!url) return '';
-    return String(url).replace(/^http:\/\//i, 'https://');
-  }
-
-  function isRefItem(item) {
-    return item && typeof item === 'object' && item.$ref;
-  }
-
-  function getRefUrl(item) {
-    if (!item) return '';
-    if (typeof item === 'string') return normalizeRefUrl(item);
-    if (item.$ref) return normalizeRefUrl(item.$ref);
-    return '';
-  }
-
-  function getEnabledLeagues() {
-    return LEAGUES.filter(function(league) {
-      return league.enabled !== false;
-    });
-  }
-
-  function getDefaultLeagueKey() {
-    var enabled = getEnabledLeagues();
-    if (!enabled.length) return '';
-
-    var preferred = enabled.find(function(league) {
-      return league.key === 'nba';
-    });
-
-    return preferred ? preferred.key : enabled[0].key;
-  }
-
-  function getLeague(key) {
-    var enabled = getEnabledLeagues();
-    if (!enabled.length) return null;
-
-    return enabled.find(function(league) {
-      return league.key === key;
-    }) || enabled[0];
-  }
-
-  function setStatus(text, dotCls) {
-    var statusText = $('status-text');
-    var statusDot = $('status-dot');
-
-    if (statusText) statusText.textContent = text || '';
-    if (statusDot) statusDot.className = 'status-dot ' + (dotCls || '');
-  }
-
-  function setMain(html) {
-    var main = $('teams-main');
-    if (main) main.innerHTML = html;
-  }
-
-  function coreLeagueBase(league) {
-    return CORE_API_ROOT + '/sports/' + league.sport + '/leagues/' + league.league;
-  }
-
-  function coreTeamsUrl(league) {
-    return coreLeagueBase(league) + '/teams?limit=500';
-  }
-
-  function coreRosterUrl(league, teamId) {
-    return coreLeagueBase(league) +
-      '/seasons/' + encodeURIComponent(league.season || CURRENT_SEASON) +
-      '/teams/' + encodeURIComponent(teamId) +
-      '/athletes?limit=500';
-  }
-
-  async function fetchJson(url) {
-    var finalUrl = normalizeRefUrl(url);
-    var response = await fetch(finalUrl);
-
-    if (!response.ok) {
-      throw new Error('HTTP ' + response.status + ' · ' + finalUrl);
-    }
-
-    return response.json();
-  }
-
-  async function fetchRef(item) {
-    var url = getRefUrl(item);
-
-    if (!url) {
-      return item;
-    }
-
-    if (refCache[url]) {
-      return refCache[url];
-    }
-
-    refCache[url] = fetchJson(url).catch(function(error) {
-      delete refCache[url];
-      throw error;
-    });
-
-    return refCache[url];
-  }
-
-  async function fetchRefs(items, limit) {
-    var list = Array.isArray(items) ? items.slice(0, limit || items.length) : [];
-    var results = [];
-    var concurrency = 12;
-    var index = 0;
-
-    async function worker() {
-      while (index < list.length) {
-        var currentIndex = index++;
-        var item = list[currentIndex];
-
-        try {
-          results[currentIndex] = isRefItem(item) ? await fetchRef(item) : item;
-        } catch (e) {
-          results[currentIndex] = null;
-        }
-      }
-    }
-
-    var workers = [];
-    var workerCount = Math.min(concurrency, list.length);
-
-    for (var i = 0; i < workerCount; i++) {
-      workers.push(worker());
-    }
-
-    await Promise.all(workers);
-
-    return results.filter(Boolean);
-  }
-
-  async function hydrateAthleteRefs(player) {
-    if (!player || typeof player !== 'object') return player;
-
-    var tasks = [];
-
-    if (isRefItem(player.position)) {
-      tasks.push(fetchRef(player.position).then(function(position) {
-        player.position = position;
-      }).catch(function() {}));
-    }
-
-    if (isRefItem(player.team)) {
-      tasks.push(fetchRef(player.team).then(function(team) {
-        player.team = team;
-      }).catch(function() {}));
-    }
-
-    if (isRefItem(player.country)) {
-      tasks.push(fetchRef(player.country).then(function(country) {
-        player.country = country;
-      }).catch(function() {}));
-    }
-
-    await Promise.all(tasks);
-
-    return player;
-  }
-
-  function init() {
-    renderLeagueControls();
-    bindEvents();
-
-    if (!activeLeague) {
-      showNoEnabledLeagues();
-      return;
-    }
-
-    activateLeague(activeLeagueKey);
-  }
-
-  function renderLeagueControls() {
-    var host = $('league-controls');
-    if (!host) return;
-
-    var search = $('team-search');
-    var searchHtml = search ? search.outerHTML : '<input type="text" class="search-box" id="team-search" placeholder="Search team...">';
-    var enabled = getEnabledLeagues();
-
-    host.innerHTML = enabled.map(function(league) {
-      var cls = 'league-pill';
-      if (league.key === activeLeagueKey) cls += ' active';
-
-      return '<div class="' + cls + '" data-league-key="' + esc(league.key) + '">' + esc(league.label) + '</div>';
-    }).join('') + searchHtml;
-  }
-
-  function bindEvents() {
-    var controls = $('league-controls');
-
-    if (controls) {
-      controls.addEventListener('click', function(e) {
-        var pill = e.target.closest('.league-pill');
-        if (!pill) return;
-
-        activateLeague(pill.dataset.leagueKey);
-      });
-    }
-
-    document.addEventListener('input', function(e) {
-      if (e.target && e.target.id === 'team-search') {
-        searchQuery = e.target.value.trim();
-        render();
-      }
-    });
-
-    var closeBtn = $('modal-close');
-    var overlay = $('modal-overlay');
-
-    if (closeBtn) {
-      closeBtn.addEventListener('click', closeTeamModal);
-    }
-
-    if (overlay) {
-      overlay.addEventListener('click', function(e) {
-        if (e.target === this) closeTeamModal();
-      });
-    }
-
-    document.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape') closeTeamModal();
-    });
-  }
-
-  function activateLeague(key) {
-    var league = getLeague(key);
-
-    if (!league) {
-      showNoEnabledLeagues();
-      return;
-    }
-
-    activeLeagueKey = league.key;
-    activeLeague = league;
-    allTeams = [];
-    searchQuery = '';
-
-    document.querySelectorAll('.league-pill').forEach(function(pill) {
-      pill.classList.toggle('active', pill.dataset.leagueKey === activeLeagueKey);
-    });
-
-    var search = $('team-search');
-    if (search) search.value = '';
-
-    loadTeams();
-  }
-
-  function showNoEnabledLeagues() {
-    setStatus('No team leagues enabled', 'yellow');
-    setMain('<div class="empty-state">No leagues enabled</div>');
-  }
-
-  function render() {
-    var main = $('teams-main');
-    var empty = $('teams-empty');
-
-    if (!main || !empty) return;
-
-    main.innerHTML = '';
-
-    var teams = allTeams.slice();
-
-    if (searchQuery) {
-      var q = searchQuery.toLowerCase();
-
-      teams = teams.filter(function(t) {
-        return String(t.name || '').toLowerCase().indexOf(q) !== -1 ||
-          String(t.abbr || '').toLowerCase().indexOf(q) !== -1 ||
-          String(t.location || '').toLowerCase().indexOf(q) !== -1 ||
-          String(t.nickname || '').toLowerCase().indexOf(q) !== -1;
-      });
-    }
-
-    if (!teams.length) {
-      empty.style.display = '';
-      return;
-    }
-
-    empty.style.display = 'none';
-
-    var grid = document.createElement('div');
-    grid.className = 'team-grid';
-
-    teams.forEach(function(team) {
-      var card = document.createElement('div');
-      card.className = 'team-card';
-
-      var imgHtml = team.logo
-        ? '<img class="team-logo" src="' + esc(team.logo) + '" loading="lazy" alt="' + esc(team.name) + ' logo">'
-        : '<div class="team-logo-placeholder"></div>';
-
-      card.innerHTML =
-        imgHtml +
-        '<div class="team-info">' +
-          '<div class="team-name">' + esc(team.name) + '</div>' +
-          '<div class="team-abbr">' + esc(team.abbr || team.location || activeLeague.label) + '</div>' +
-        '</div>';
-
-      card.addEventListener('click', function() {
-        openTeamModal(team);
-      });
-
-      grid.appendChild(card);
-    });
-
-    main.appendChild(grid);
-  }
-
-  async function loadTeams() {
-    if (!activeLeague) return;
-
-    setStatus('Loading ' + activeLeague.label + ' teams...', 'yellow');
-    allTeams = [];
-
-    var empty = $('teams-empty');
-    if (empty) empty.style.display = 'none';
-
-    setMain('');
-
-    var url = coreTeamsUrl(activeLeague);
-
-    try {
-      var data = await fetchJson(url);
-      var teamItems = Array.isArray(data.items) ? data.items : [];
-      var hydratedTeams = await fetchRefs(teamItems, 500);
-
-      allTeams = normalizeTeams(hydratedTeams);
-
-      render();
-      setStatus(allTeams.length + ' teams · ' + activeLeague.label, 'green');
-    } catch(e) {
-      setStatus('Failed to load ' + activeLeague.label + ' teams', 'red');
-      setMain(
-        '<div class="empty-state">' +
-          'Failed to load teams' +
-          '<div style="font-size:10px;color:var(--accent-red);margin-top:10px;word-break:break-all;">' +
-            esc(e.message || url) +
-          '</div>' +
-        '</div>'
-      );
-    }
-  }
-
-  function normalizeTeams(rawTeams) {
-    var teams = Array.isArray(rawTeams) ? rawTeams : [];
-
-    return teams.map(function(team) {
-      var logos = Array.isArray(team.logos) ? team.logos : [];
-      var logo = '';
-
-      if (logos.length) {
-        logo = logos[0].href || logos[0].url || '';
-      }
-
-      return {
-        id: team.id || team.uid || team.abbreviation || '',
-        uid: team.uid || '',
-        name: team.displayName || team.name || team.shortDisplayName || team.abbreviation || 'Unknown Team',
-        abbr: team.abbreviation || '',
-        location: team.location || '',
-        nickname: team.nickname || '',
-        slug: team.slug || '',
-        logo: logo,
-        sport: activeLeague.sport,
-        league: activeLeague.league,
-        leagueLabel: activeLeague.label,
-        raw: team
-      };
-    }).filter(function(team) {
-      return team.id && team.name;
-    }).sort(function(a, b) {
-      return a.name.localeCompare(b.name);
-    });
-  }
-
-  function switchTab(tabName) {
-    document.querySelectorAll('.modal-tab').forEach(function(tab) {
-      tab.classList.remove('active');
-    });
-
-    document.querySelectorAll('.modal-panel').forEach(function(panel) {
-      panel.classList.remove('active');
-    });
-
-    var tab = document.querySelector('.modal-tab[data-tab="' + tabName + '"]');
-    var panel = $('panel-' + tabName);
-
-    if (tab) tab.classList.add('active');
-    if (panel) panel.classList.add('active');
-  }
-
-  function openTeamModal(team) {
-    var overlay = $('modal-overlay');
-    var hdr = $('modal-team-header');
-    var tabsEl = $('modal-tabs');
-    var panelsEl = $('modal-panels');
-
-    if (!overlay || !hdr || !tabsEl || !panelsEl) return;
-
-    overlay.classList.add('open');
-
-    var logoHtml = team.logo
-      ? '<img class="modal-logo" src="' + esc(team.logo) + '" alt="' + esc(team.name) + ' logo">'
-      : '';
-
-    hdr.innerHTML =
-      logoHtml +
-      '<div>' +
-        '<div class="modal-team-name">' + esc(team.name) + '</div>' +
-        '<div class="modal-team-sub"><span>' + esc(team.leagueLabel || activeLeague.label) + '</span>' +
-          (team.abbr ? '<span>' + esc(team.abbr) + '</span>' : '') +
-        '</div>' +
-      '</div>';
-
-    tabsEl.innerHTML = TEAM_TABS.map(function(tab) {
-      return '<div class="modal-tab' + (tab.key === 'overview' ? ' active' : '') + '" data-tab="' + esc(tab.key) + '">' + esc(tab.label) + '</div>';
-    }).join('');
-
-    panelsEl.innerHTML = TEAM_TABS.map(function(tab) {
-      return '<div class="modal-panel' + (tab.key === 'overview' ? ' active' : '') + '" id="panel-' + esc(tab.key) + '">' +
-        '<div class="modal-loading">Loading...</div>' +
-      '</div>';
-    }).join('');
-
-    tabsEl.querySelectorAll('.modal-tab').forEach(function(tabEl) {
-      tabEl.addEventListener('click', function() {
-        switchTab(tabEl.dataset.tab);
-        loadPanel('panel-' + tabEl.dataset.tab, team, tabEl.dataset.tab);
-      });
-    });
-
-    loadPanel('panel-overview', team, 'overview');
-  }
-
-  async function loadPanel(panelId, team, tab) {
-    var panel = $(panelId);
-    if (!panel || panel.dataset.loaded) return;
-
-    panel.innerHTML = '<div class="modal-loading">Loading...</div>';
-
-    try {
-      var html = '';
-
-      if (tab === 'overview') {
-        html = buildOverviewPanel(team);
-      } else if (tab === 'roster') {
-        var players = await loadRoster(team);
-        html = buildRosterPanel(players);
-      } else if (tab === 'schedule') {
-        html = '<div class="no-data">Schedule is not wired on this ESPN Core version yet</div>';
-      } else if (tab === 'depth') {
-        html = '<div class="no-data">Depth chart is not wired on this ESPN Core version yet</div>';
-      } else if (tab === 'history') {
-        html = buildHistoryPanel(team);
-      }
-
-      panel.innerHTML = html || '<div class="no-data">No data</div>';
-      panel.dataset.loaded = '1';
-    } catch(e) {
-      panel.innerHTML =
-        '<div class="modal-error">' +
-          'Failed to load' +
-          '<div style="font-size:10px;margin-top:8px;word-break:break-all;">' + esc(e.message || '') + '</div>' +
-        '</div>';
-    }
-  }
-
-  function buildOverviewPanel(team) {
-    var raw = team.raw || {};
-
-    var rows = [
-      ['League', team.leagueLabel || activeLeague.label],
-      ['Team ID', team.id || '—'],
-      ['Abbreviation', team.abbr || '—'],
-      ['Location', team.location || '—'],
-      ['Nickname', team.nickname || '—'],
-      ['Slug', team.slug || '—']
-    ];
-
-    if (raw.color) rows.push(['Primary Color', '#' + raw.color]);
-    if (raw.alternateColor) rows.push(['Alt Color', '#' + raw.alternateColor]);
-
-    var html = '<div class="modal-subtitle">Team Snapshot</div><div class="info-grid">';
-
-    rows.forEach(function(row) {
-      html +=
-        '<div class="info-item">' +
-          '<div class="info-label">' + esc(row[0]) + '</div>' +
-          '<div class="info-val">' + esc(valueOrDash(row[1])) + '</div>' +
-        '</div>';
-    });
-
-    html += '</div>';
-
-    if (raw.links && Array.isArray(raw.links) && raw.links.length) {
-      var web = raw.links.find(function(link) {
-        return link && link.rel && link.rel.indexOf('clubhouse') !== -1;
-      }) || raw.links[0];
-
-      if (web && web.href) {
-        html += '<div class="modal-subtitle">ESPN</div>';
-        html += '<a href="' + esc(normalizeRefUrl(web.href)) + '" target="_blank" rel="noopener" style="font-size:11px;color:var(--accent-green);text-decoration:none;">OPEN TEAM PAGE →</a>';
-      }
-    }
-
-    return html;
-  }
-
-  async function loadRoster(team) {
-    var cacheKey = activeLeague.key + ':' + team.id;
-
-    if (rosterCache[cacheKey]) {
-      return rosterCache[cacheKey];
-    }
-
-    var url = coreRosterUrl(activeLeague, team.id);
-    var data = await fetchJson(url);
-    var athleteItems = Array.isArray(data.items) ? data.items : [];
-    var athletes = await fetchRefs(athleteItems, 500);
-
-    await Promise.all(athletes.map(function(player) {
-      return hydrateAthleteRefs(player);
-    }));
-
-    athletes.forEach(function(player) {
-      if (!player.team) player.team = team.raw || team;
-      player.__team = team;
-    });
-
-    rosterCache[cacheKey] = athletes;
-
-    return athletes;
-  }
-
-  function buildRosterPanel(players) {
-    var list = Array.isArray(players) ? players.slice() : [];
-
-    if (!list.length) {
-      return '<div class="no-data">No roster data</div>';
-    }
-
-    list.sort(sortPlayers);
-
-    var rows = list.map(function(player) {
-      var pos = getPosition(player);
-      var jersey = player.jersey || player.uniformNumber ? '#' + (player.jersey || player.uniformNumber) : '—';
-      var inj = player.injuries && player.injuries.length ? '<span class="inj-dot" title="' + esc(player.injuries[0].status || 'Injured') + '"></span>' : '';
-
-      return '<tr>' +
-        '<td>' + esc(jersey) + '</td>' +
-        '<td><span class="p-name">' + esc(getPlayerName(player)) + '</span>' + inj + '</td>' +
-        '<td>' + esc(pos) + '</td>' +
-        '<td>' + esc(formatHeight(player)) + '</td>' +
-        '<td>' + esc(formatWeight(player)) + '</td>' +
-      '</tr>';
-    }).join('');
-
-    return '<table class="roster-table"><thead><tr><th>#</th><th>Name</th><th>Pos</th><th>HT</th><th>WT</th></tr></thead><tbody>' + rows + '</tbody></table>';
-  }
-
-  function buildHistoryPanel(team) {
-    var raw = team.raw || {};
-
-    var rows = [
-      ['Name', team.name || '—'],
-      ['League', team.leagueLabel || activeLeague.label],
-      ['Team ID', team.id || '—'],
-      ['UID', team.uid || '—'],
-      ['Abbreviation', team.abbr || '—'],
-      ['Location', team.location || '—'],
-      ['Nickname', team.nickname || '—'],
-      ['Slug', team.slug || '—']
-    ];
-
-    if (raw.color) rows.push(['Primary Color', '#' + raw.color]);
-    if (raw.alternateColor) rows.push(['Alt Color', '#' + raw.alternateColor]);
-
-    return rows.map(function(row) {
-      return '<div class="bio-row"><span class="bio-label">' + esc(row[0]) + '</span><span class="bio-val">' + esc(valueOrDash(row[1])) + '</span></div>';
-    }).join('');
-  }
-
-  function getPlayerName(player) {
-    if (!player) return '—';
-
-    return player.displayName ||
-      player.fullName ||
-      player.shortName ||
-      player.name ||
-      [player.firstName, player.lastName].filter(Boolean).join(' ') ||
-      '—';
-  }
-
-  function getPosition(player) {
-    if (!player || !player.position) return '—';
-
-    if (typeof player.position === 'string') return player.position;
-
-    return player.position.abbreviation ||
-      player.position.name ||
-      player.position.displayName ||
-      player.position.shortDisplayName ||
-      '—';
-  }
-
-  function formatHeight(player) {
-    if (!player) return '—';
-
-    if (player.displayHeight) return player.displayHeight;
-
-    var height = player.height;
-
-    if (!height) return '—';
-
-    if (typeof height === 'string') return height;
-
-    var inches = Number(height);
-
-    if (!inches || isNaN(inches)) return '—';
-
-    var feet = Math.floor(inches / 12);
-    var rem = inches % 12;
-
-    return feet + "'" + rem + '"';
-  }
-
-  function formatWeight(player) {
-    if (!player) return '—';
-
-    if (player.displayWeight) return player.displayWeight;
-
-    var weight = player.weight;
-
-    if (!weight) return '—';
-
-    if (typeof weight === 'string') return weight;
-
-    return String(weight) + ' lbs';
-  }
-
-  function sortPlayers(a, b) {
-    var aNum = parseInt(a.jersey || a.uniformNumber || '999', 10);
-    var bNum = parseInt(b.jersey || b.uniformNumber || '999', 10);
-
-    if (!isNaN(aNum) && !isNaN(bNum) && aNum !== bNum) {
-      return aNum - bNum;
-    }
-
-    return getPlayerName(a).localeCompare(getPlayerName(b));
-  }
-
-  function closeTeamModal() {
-    var overlay = $('modal-overlay');
-    if (overlay) overlay.classList.remove('open');
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
-  }
-})();
-</script>
+<script src="js/teams/render.js"></script>
 </body>
 </html>
