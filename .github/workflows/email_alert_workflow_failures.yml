@@ -1,0 +1,39 @@
+name: Email Alert - Workflow Failures
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check-workflow-failures:
+    runs-on: ubuntu-latest
+
+    permissions:
+      actions: read
+      contents: read
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Check selected workflow failures
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python scripts/email_alert_workflow_failures.py
+
+      - name: Send workflow failure summary email
+        if: hashFiles('alert_body.txt') != ''
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "GitHub Workflow Failure Alert: ${{ github.repository }}"
+          to: ${{ secrets.ALERT_EMAIL }}
+          from: GitHub Actions
+          body: file://alert_body.txt
