@@ -38,6 +38,8 @@
 
 from datetime import datetime
 from pathlib import Path
+import shutil
+import traceback
 
 import pandas as pd
 
@@ -83,6 +85,15 @@ BUCKETS = [
 
 VALID_RESULTS = {"Win", "Loss", "Push"}
 
+LEAGUE_TALLY_FILES = [
+    FINAL_DIR / "epl_market_tally.csv",
+    FINAL_DIR / "bundesliga_market_tally.csv",
+    FINAL_DIR / "laliga_market_tally.csv",
+    FINAL_DIR / "ligue1_market_tally.csv",
+    FINAL_DIR / "seriea_market_tally.csv",
+    FINAL_DIR / "mls_market_tally.csv",
+]
+
 
 # =========================
 # LOGGING
@@ -101,6 +112,72 @@ def log_error(msg: str) -> None:
 def log_summary(msg: str) -> None:
     with open(SUMMARY_LOG, "a", encoding="utf-8") as f:
         f.write(f"[{datetime.now().isoformat()}] {msg}\n")
+
+
+def clear_output_files() -> None:
+    deleted_files = 0
+    deleted_dirs = 0
+
+    if ALL_TALLY.exists():
+        ALL_TALLY.unlink()
+        deleted_files += 1
+        log_summary(f"DELETED OLD OUTPUT | {ALL_TALLY}")
+
+    for path in LEAGUE_TALLY_FILES:
+        if path.exists():
+            path.unlink()
+            deleted_files += 1
+            log_summary(f"DELETED OLD OUTPUT | {path}")
+
+    for path in sorted(FINAL_DIR.glob("*_market_tally.csv")):
+        if path.exists():
+            path.unlink()
+            deleted_files += 1
+            log_summary(f"DELETED OLD OUTPUT | {path}")
+
+    if REPORTS_DIR.exists():
+        shutil.rmtree(REPORTS_DIR)
+        deleted_dirs += 1
+        log_summary(f"DELETED OLD REPORTS DIR | {REPORTS_DIR}")
+
+    REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+
+    log_summary(
+        f"OLD REPORT OUTPUTS DELETED | files={deleted_files} dirs={deleted_dirs}"
+    )
+
+
+# =========================
+# IO HELPERS
+# =========================
+
+def safe_read_intermediate(path: Path) -> pd.DataFrame:
+    try:
+        if not path.exists():
+            log_error(f"INTERMEDIATE FILE MISSING | {path} — run 02 first")
+            return pd.DataFrame()
+
+        df = pd.read_csv(
+            path,
+            dtype={
+                "month_bucket":    str,
+                "ev_bucket":       str,
+                "kelly_bucket":    str,
+                "odds_bucket":     str,
+                "win_prob_bucket": str,
+            },
+        )
+
+        if df.empty:
+            log_error(f"INTERMEDIATE FILE EMPTY | {path}")
+            return pd.DataFrame()
+
+        return df
+
+    except Exception as e:
+        log_error(f"READ ERROR | {path} | {e}")
+        log_error(traceback.format_exc())
+        return pd.DataFrame()
 
 
 # =========================
@@ -125,6 +202,10 @@ def write_csv(df: pd.DataFrame, path: Path) -> None:
 
 def filter_graded(df: pd.DataFrame) -> pd.DataFrame:
     """Keep only rows with a valid bet_result (Win/Loss/Push)."""
+    if "bet_result" not in df.columns:
+        log_error("MISSING COLUMN | bet_result")
+        return pd.DataFrame()
+
     return df[df["bet_result"].astype(str).isin(VALID_RESULTS)].copy()
 
 
@@ -135,21 +216,37 @@ def filter_graded(df: pd.DataFrame) -> pd.DataFrame:
 def build_all_tally(df: pd.DataFrame) -> None:
     """One row per (market, side) across all leagues."""
     rows = []
+
     for (market, side), sub in df.groupby(["market_type", "side"], dropna=False):
         s = summarize(sub)
         rows.append({"market": market, "market_type": side, **s})
-    out = pd.DataFrame(rows, columns=["market", "market_type", "Win", "Loss", "Push", "Total", "Win_Pct"])
-    out = out.sort_values(["market", "market_type"]).reset_index(drop=True)
+
+    out = pd.DataFrame(
+        rows,
+        columns=["market", "market_type", "Win", "Loss", "Push", "Total", "Win_Pct"],
+    )
+
+    if not out.empty:
+        out = out.sort_values(["market", "market_type"]).reset_index(drop=True)
+
     write_csv(out, ALL_TALLY)
 
 
 def build_league_tally(df: pd.DataFrame, league: str) -> None:
     rows = []
+
     for (market, side), sub in df.groupby(["market_type", "side"], dropna=False):
         s = summarize(sub)
         rows.append({"market": market, "market_type": side, **s})
-    out = pd.DataFrame(rows, columns=["market", "market_type", "Win", "Loss", "Push", "Total", "Win_Pct"])
-    out = out.sort_values(["market", "market_type"]).reset_index(drop=True)
+
+    out = pd.DataFrame(
+        rows,
+        columns=["market", "market_type", "Win", "Loss", "Push", "Total", "Win_Pct"],
+    )
+
+    if not out.empty:
+        out = out.sort_values(["market", "market_type"]).reset_index(drop=True)
+
     path = FINAL_DIR / f"{league}_market_tally.csv"
     write_csv(out, path)
 
@@ -161,33 +258,40 @@ def build_league_tally(df: pd.DataFrame, league: str) -> None:
 def by_bucket(df: pd.DataFrame, bucket_col: str, sort_col: str) -> pd.DataFrame:
     """Combined across sides: bucket -> W/L/P/T/Win_Pct."""
     rows = []
+
     for bucket, sub in df.groupby(bucket_col, dropna=False):
         sort_val = sub[sort_col].dropna().iloc[0] if sub[sort_col].notna().any() else None
         s = summarize(sub)
         rows.append({"bucket": bucket, "_sort": sort_val, **s})
+
     if not rows:
         return pd.DataFrame(columns=["bucket", "Win", "Loss", "Push", "Total", "Win_Pct"])
+
     out = pd.DataFrame(rows)
-    # Sort by numeric key when present; missing buckets go last.
     out["_sort"] = pd.to_numeric(out["_sort"], errors="coerce")
     out = out.sort_values(["_sort", "bucket"], na_position="last").reset_index(drop=True)
     out = out.drop(columns=["_sort"])
+
     return out[["bucket", "Win", "Loss", "Push", "Total", "Win_Pct"]]
 
 
 def by_bucket_by_side(df: pd.DataFrame, bucket_col: str, sort_col: str) -> pd.DataFrame:
     """Per-side breakdown: (bucket, side) -> W/L/P/T/Win_Pct."""
     rows = []
+
     for (bucket, side), sub in df.groupby([bucket_col, "side"], dropna=False):
         sort_val = sub[sort_col].dropna().iloc[0] if sub[sort_col].notna().any() else None
         s = summarize(sub)
         rows.append({"bucket": bucket, "side": side, "_sort": sort_val, **s})
+
     if not rows:
         return pd.DataFrame(columns=["bucket", "side", "Win", "Loss", "Push", "Total", "Win_Pct"])
+
     out = pd.DataFrame(rows)
     out["_sort"] = pd.to_numeric(out["_sort"], errors="coerce")
     out = out.sort_values(["_sort", "bucket", "side"], na_position="last").reset_index(drop=True)
     out = out.drop(columns=["_sort"])
+
     return out[["bucket", "side", "Win", "Loss", "Push", "Total", "Win_Pct"]]
 
 
@@ -200,6 +304,7 @@ def build_market_reports(df: pd.DataFrame, league: str, market_type: str) -> Non
     out_dir = REPORTS_DIR / league / folder_name
 
     sub = df[df["market_type"].astype(str) == market_type]
+
     if sub.empty:
         log_summary(f"NO ROWS | league={league} market={market_type} — skipping reports")
         return
@@ -207,15 +312,18 @@ def build_market_reports(df: pd.DataFrame, league: str, market_type: str) -> Non
     for bucket_col, sort_col, by_label, allowed in BUCKETS:
         if allowed and market_type not in allowed:
             continue
+
         if bucket_col not in sub.columns:
             log_error(f"MISSING COLUMN | {bucket_col} (league={league} market={market_type})")
             continue
 
-        # by_X.csv (combined across sides)
+        if sort_col not in sub.columns:
+            log_error(f"MISSING COLUMN | {sort_col} (league={league} market={market_type})")
+            continue
+
         combined = by_bucket(sub, bucket_col, sort_col)
         write_csv(combined, out_dir / f"{league}_{folder_name}_by_{by_label}.csv")
 
-        # by_X_<sides>_summary.csv (per side per bucket)
         bysd = by_bucket_by_side(sub, bucket_col, sort_col)
         write_csv(bysd, out_dir / f"{league}_{folder_name}_by_{by_label}_{sides_label}_summary.csv")
 
@@ -228,46 +336,49 @@ def main() -> None:
     reset_logs()
     log_summary(f"=== START 03_soccer_results_reports.py {datetime.now().isoformat()} ===")
 
-    if not INTERMEDIATE.exists():
-        log_error(f"INTERMEDIATE FILE MISSING | {INTERMEDIATE} — run 02 first")
-        print("ERROR: intermediate file missing.")
-        return
+    clear_output_files()
 
-    raw = pd.read_csv(
-        INTERMEDIATE,
-        dtype={
-            "month_bucket":    str,
-            "ev_bucket":       str,
-            "kelly_bucket":    str,
-            "odds_bucket":     str,
-            "win_prob_bucket": str,
-        },
-    )
+    raw = safe_read_intermediate(INTERMEDIATE)
+
     if raw.empty:
-        log_error("INTERMEDIATE FILE EMPTY")
-        print("ERROR: intermediate file empty.")
+        log_error("NO REPORTS WRITTEN | intermediate file missing, empty, unreadable, or invalid")
+        log_summary(f"=== END 03_soccer_results_reports.py {datetime.now().isoformat()} ===")
+        print("ERROR: no intermediate rows to report on.")
         return
 
     df = filter_graded(raw)
+
     if df.empty:
         log_error("NO ROWS WITH VALID bet_result (Win/Loss/Push)")
+        log_summary("NO REPORTS WRITTEN | old report outputs were already cleared")
+        log_summary(f"=== END 03_soccer_results_reports.py {datetime.now().isoformat()} ===")
         print("ERROR: no graded rows to report on.")
         return
 
-    df["league_lower"]  = df["league_lower"].astype(str).str.lower().str.strip()
-    df["market_type"]   = df["market_type"].astype(str).str.lower().str.strip()
-    df["side"]          = df["side"].astype(str).str.lower().str.strip()
+    required_cols = ["league_lower", "market_type", "side"]
+
+    missing_required = [c for c in required_cols if c not in df.columns]
+
+    if missing_required:
+        log_error(f"MISSING REQUIRED REPORT COLUMNS | {missing_required}")
+        log_summary("NO REPORTS WRITTEN | old report outputs were already cleared")
+        log_summary(f"=== END 03_soccer_results_reports.py {datetime.now().isoformat()} ===")
+        print("ERROR: required report columns missing.")
+        return
+
+    df["league_lower"] = df["league_lower"].astype(str).str.lower().str.strip()
+    df["market_type"] = df["market_type"].astype(str).str.lower().str.strip()
+    df["side"] = df["side"].astype(str).str.lower().str.strip()
 
     log_summary(f"Rows loaded (graded only): {len(df)}")
     log_summary(f"market_type counts: {df['market_type'].value_counts().to_dict()}")
     log_summary(f"leagues: {df['league_lower'].value_counts().to_dict()}")
 
-    # --- Tallies ---
     build_all_tally(df)
+
     for league, league_df in df.groupby("league_lower"):
         build_league_tally(league_df, league)
 
-    # --- Per-league per-market bucket reports ---
     for (league, market_type), grp in df.groupby(["league_lower", "market_type"]):
         build_market_reports(grp, league, market_type)
 
