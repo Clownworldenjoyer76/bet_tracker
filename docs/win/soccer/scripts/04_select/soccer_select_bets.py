@@ -17,7 +17,7 @@
 # Output columns:
 #   game_id, sport, league, match_date, match_time,
 #   home_team, away_team, market, side,
-#   odds, american_odds, ev, kelly
+#   odds, american_odds, ev, kelly, model_prob, edge
 #
 # Filters per side:
 #   odds_bands              decimal odds
@@ -577,6 +577,8 @@ def process_file(file: Path):
                 "american_odds": sel["american_odds"],
                 "ev":            sel_ev,
                 "kelly":         sel["kelly"],
+                "model_prob":    sel["model_prob"],
+                "edge":          sel["edge"],
             })
 
     _log(f"{file.name} | {len(out_rows)} selected from {len(df)} rows")
