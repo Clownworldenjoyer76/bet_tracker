@@ -1,3 +1,5 @@
+# docs/win/mma/ufc/scripts/00_intake/00_scrape_predictions.py
+
 from __future__ import annotations
 
 import csv
