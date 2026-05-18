@@ -103,6 +103,25 @@ def normalize_game_id(value) -> str:
     return s.strip()
 
 
+def decimal_to_american(dec) -> float | None:
+    """Convert decimal odds to American odds."""
+    if dec is None or pd.isna(dec):
+        return None
+
+    try:
+        d = float(dec)
+    except Exception:
+        return None
+
+    if d <= 1.0:
+        return None
+
+    if d >= 2.0:
+        return round((d - 1.0) * 100.0)
+
+    return round(-100.0 / (d - 1.0))
+
+
 def safe_read(path: Path) -> pd.DataFrame:
     try:
         if not path.exists():
@@ -300,7 +319,19 @@ def process() -> None:
             axis=1,
         )
 
-        bets_df["odds_american"] = pd.to_numeric(bets_df["odds"], errors="coerce")
+        # odds is decimal in soccer select output.
+        bets_df["odds_decimal"] = pd.to_numeric(bets_df["odds"], errors="coerce")
+
+        # Prefer american_odds from select output if present; otherwise convert from decimal odds.
+        if "american_odds" in bets_df.columns:
+            bets_df["odds_american"] = pd.to_numeric(bets_df["american_odds"], errors="coerce")
+            missing_american = bets_df["odds_american"].isna()
+            bets_df.loc[missing_american, "odds_american"] = (
+                bets_df.loc[missing_american, "odds_decimal"].apply(decimal_to_american)
+            )
+        else:
+            bets_df["odds_american"] = bets_df["odds_decimal"].apply(decimal_to_american)
+
         bets_df["edge_pct"] = pd.to_numeric(bets_df["ev"], errors="coerce")
 
         merged_frames = []
