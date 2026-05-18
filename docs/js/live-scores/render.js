@@ -38,7 +38,7 @@
     {
       key: 'NCAAM',
       label: 'NCAAM',
-      enabled: true,
+      enabled: false,
       sport: 'basketball',
       league: 'mens-college-basketball',
       type: 'scoreboard'
@@ -102,7 +102,7 @@
     {
       key: 'UFC',
       label: 'UFC',
-      enabled: true,
+      enabled: false,
       sport: 'mma',
       league: 'ufc',
       type: 'placeholder',
