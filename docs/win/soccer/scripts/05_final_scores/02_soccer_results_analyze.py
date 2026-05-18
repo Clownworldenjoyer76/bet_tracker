@@ -136,11 +136,11 @@ def step_bucket(value, step: float, decimals: int) -> tuple[str, float | None]:
 
 
 def ev_bucket(v):
-    return step_bucket(v, 0.01, 2)
+    return step_bucket(v, 0.05, 2)
 
 
 def kelly_bucket(v):
-    return step_bucket(v, 0.01, 2)
+    return step_bucket(v, 0.05, 2)
 
 
 def win_prob_bucket(v):
