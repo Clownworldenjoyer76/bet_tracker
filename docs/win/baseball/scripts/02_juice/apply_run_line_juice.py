@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pandas as pd
 
-INPUT_DIR  = Path("docs/win/baseball/01_merge")
+INPUT_DIR  = Path("docs/win/baseball/01_merge/01_merguiced")
 OUTPUT_DIR = Path("docs/win/baseball/02_juice")
 JUICE_FILE = Path("config/baseball/mlb/mlb_run_line_juice.csv")
 

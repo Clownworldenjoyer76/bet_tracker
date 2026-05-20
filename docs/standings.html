@@ -7,366 +7,503 @@
   <link rel="stylesheet" href="css/matstheme.css">
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }    body { background:var(--background);color:var(--text-main);font-family:'IBM Plex Mono',monospace;font-size:13px;min-height:100vh; }
-    .page-header { border-bottom:1px solid var(--border-soft);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px; }
-    .page-title { font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;letter-spacing:0.08em;text-transform:uppercase;color:var(--accent-green); }
-    .page-subtitle { color:var(--text-muted);font-size:11px;letter-spacing:0.06em;margin-top:2px; }
-    .controls { display:flex;align-items:center;gap:8px;padding:12px 24px;border-bottom:1px solid var(--border-soft);flex-wrap:wrap; }
-    .league-pill { font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:0.08em;padding:4px 12px;border:1px solid var(--border-soft);background:transparent;color:var(--text-muted);cursor:pointer;transition:all 0.15s;text-transform:uppercase; }
-    .league-pill:hover { border-color:var(--accent-blue);color:var(--accent-blue); }
-    .league-pill.active { border-color:var(--accent-green);color:var(--accent-green);background:rgba(0,255,132,0.06); }
-    .view-pill { font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:0.08em;padding:4px 12px;border:1px solid var(--border-soft);background:transparent;color:var(--text-muted);cursor:pointer;transition:all 0.15s;text-transform:uppercase;margin-left:auto; }
-    .view-pill:hover { border-color:var(--accent-yellow);color:var(--accent-yellow); }
-    .view-pill.active { border-color:var(--accent-yellow);color:var(--accent-yellow);background:rgba(250,204,21,0.06); }
-    .view-pill.hidden { display:none; }
-    .status-bar { padding:8px 24px;font-size:11px;color:var(--text-muted);border-bottom:1px solid var(--border-soft);display:flex;align-items:center;gap:10px; }
-    .status-dot { width:6px;height:6px;border-radius:50%;background:var(--text-muted);display:inline-block;flex-shrink:0; }
-    .status-dot.green { background:var(--accent-green);box-shadow:0 0 6px var(--accent-green); }
-    .status-dot.yellow { background:var(--accent-yellow);animation:pulse 1s infinite; }
-    @keyframes pulse { 0%,100%{opacity:1;}50%{opacity:0.3;} }
-    .main { padding:20px 24px;display:flex;flex-direction:column;gap:28px; }
-    .conferences-wrap { display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px;align-items:start; }
-    .conference-block { background:var(--bg-card);border:1px solid var(--border-soft);padding:14px 16px; }
-    .conference-header { font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:900;letter-spacing:0.1em;color:var(--text-main);text-transform:uppercase;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--border-soft); }
-    .division-block { margin-bottom:20px; }
-    .division-header { font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;color:var(--text-muted);text-transform:uppercase;padding:0 0 6px;border-bottom:1px solid var(--border-soft);margin-bottom:6px; }
-    .standings-table { width:100%;border-collapse:collapse;font-size:12px; }
-    .standings-table thead tr { border-bottom:1px solid var(--border-soft); }
-    .standings-table th { font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-muted);padding:5px 6px;text-align:right; }
-    .standings-table th:first-child { text-align:right;width:20px;padding-right:4px; }
-    .standings-table th:nth-child(2) { text-align:left;padding-left:4px; }
-    .standings-table tbody tr { border-bottom:1px solid var(--border-soft);transition:background 0.1s; }
-    .standings-table tbody tr:hover { background:var(--bg-card); }
-    .standings-table td { padding:5px 6px;text-align:right;color:var(--text-muted);vertical-align:middle; }
-    .standings-table td:first-child { text-align:right; }
-    .standings-table td:nth-child(2) { text-align:left; }
-    .team-cell { display:flex;align-items:center;gap:6px;white-space:nowrap; }
-    .team-logo-sm { width:18px;height:18px;object-fit:contain;flex-shrink:0;vertical-align:middle; }
-    .team-name-cell { font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;color:var(--text-main);letter-spacing:0.04em; }
-    .rank-cell { color:var(--text-muted);font-size:11px;width:20px;text-align:right;padding-right:4px; }
-    /* playoff cutoff line */
-    .standings-table tr.playoff-cutoff td { border-bottom:2px solid rgba(0,255,132,0.4); }
-    .playoff-label { font-size:9px;letter-spacing:0.1em;color:rgba(0,255,132,0.5);text-align:right;padding:2px 6px 4px; }
-    /* rankings */
-    .rankings-wrap { display:flex;flex-direction:column;gap:16px; }
-    .poll-block { background:var(--bg-card);border:1px solid var(--border-soft);padding:14px 16px; }
-    .poll-header { font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:900;letter-spacing:0.1em;color:var(--accent-yellow);text-transform:uppercase;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--border-soft); }
-    .rankings-table { width:100%;border-collapse:collapse;font-size:12px; }
-    .rankings-table th { font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-muted);padding:5px 6px;text-align:right;border-bottom:1px solid var(--border-soft); }
-    .rankings-table th:nth-child(2) { text-align:left; }
-    .rankings-table td { padding:5px 6px;text-align:right;color:var(--text-muted);vertical-align:middle;border-bottom:1px solid var(--border-soft); }
-    .rankings-table td:nth-child(2) { text-align:left; }
-    .rankings-table tr:hover td { background:var(--bg-card); }
-    .rankings-table tr:last-child td { border-bottom:none; }
-    .rank-num { font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:900;color:var(--accent-yellow); }
-    .rank-chg-up   { color:var(--accent-green);font-size:10px; }
-    .rank-chg-down { color:var(--accent-red);font-size:10px; }
-    .rank-chg-same { color:var(--text-muted);font-size:10px; }
-    .empty-state { text-align:center;padding:60px 20px;color:var(--text-muted);font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase; }
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--background);
+      color: var(--text-main);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px;
+      min-height: 100vh;
+    }
+
+    .page-header {
+      border-bottom: 1px solid var(--border-soft);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .page-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent-green);
+    }
+
+    .page-subtitle {
+      color: var(--text-muted);
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      margin-top: 2px;
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      border-bottom: 1px solid var(--border-soft);
+      flex-wrap: wrap;
+    }
+
+    .league-pill {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      padding: 4px 12px;
+      border: 1px solid var(--border-soft);
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s;
+      text-transform: uppercase;
+    }
+
+    .league-pill:hover {
+      border-color: var(--accent-blue);
+      color: var(--accent-blue);
+    }
+
+    .league-pill.active {
+      border-color: var(--accent-green);
+      color: var(--accent-green);
+      background: rgba(0,255,132,0.06);
+    }
+
+    .league-pill.placeholder {
+      border-style: dashed;
+      opacity: 0.75;
+    }
+
+    .league-pill.placeholder.active {
+      border-color: var(--accent-yellow);
+      color: var(--accent-yellow);
+      background: rgba(250,204,21,0.06);
+    }
+
+    .view-pill {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      padding: 4px 12px;
+      border: 1px solid var(--border-soft);
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s;
+      text-transform: uppercase;
+      margin-left: auto;
+    }
+
+    .view-pill:hover {
+      border-color: var(--accent-yellow);
+      color: var(--accent-yellow);
+    }
+
+    .view-pill.active {
+      border-color: var(--accent-yellow);
+      color: var(--accent-yellow);
+      background: rgba(250,204,21,0.06);
+    }
+
+    .view-pill.hidden {
+      display: none;
+    }
+
+    .status-bar {
+      padding: 8px 24px;
+      font-size: 11px;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border-soft);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      display: inline-block;
+      flex-shrink: 0;
+    }
+
+    .status-dot.green {
+      background: var(--accent-green);
+      box-shadow: 0 0 6px var(--accent-green);
+    }
+
+    .status-dot.yellow {
+      background: var(--accent-yellow);
+      animation: pulse 1s infinite;
+    }
+
+    .status-dot.red {
+      background: var(--accent-red);
+      box-shadow: 0 0 6px var(--accent-red);
+    }
+
+    @keyframes pulse {
+      0%,100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.3;
+      }
+    }
+
+    .main {
+      padding: 20px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+
+    .conferences-wrap {
+      display: grid;
+      grid-template-columns: repeat(auto-fit,minmax(340px,1fr));
+      gap: 16px;
+      align-items: start;
+    }
+
+    .conference-block {
+      background: var(--bg-card);
+      border: 1px solid var(--border-soft);
+      padding: 14px 16px;
+    }
+
+    .conference-header {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: 0.1em;
+      color: var(--text-main);
+      text-transform: uppercase;
+      margin-bottom: 12px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border-soft);
+    }
+
+    .division-block {
+      margin-bottom: 20px;
+    }
+
+    .division-block:last-child {
+      margin-bottom: 0;
+    }
+
+    .division-header {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      padding: 0 0 6px;
+      border-bottom: 1px solid var(--border-soft);
+      margin-bottom: 6px;
+    }
+
+    .standings-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .standings-table thead tr {
+      border-bottom: 1px solid var(--border-soft);
+    }
+
+    .standings-table th {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      padding: 5px 6px;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .standings-table th:first-child {
+      text-align: right;
+      width: 20px;
+      padding-right: 4px;
+    }
+
+    .standings-table th:nth-child(2) {
+      text-align: left;
+      padding-left: 4px;
+    }
+
+    .standings-table tbody tr {
+      border-bottom: 1px solid var(--border-soft);
+      transition: background 0.1s;
+    }
+
+    .standings-table tbody tr:hover {
+      background: var(--bg-card);
+    }
+
+    .standings-table td {
+      padding: 5px 6px;
+      text-align: right;
+      color: var(--text-muted);
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+
+    .standings-table td:first-child {
+      text-align: right;
+    }
+
+    .standings-table td:nth-child(2) {
+      text-align: left;
+    }
+
+    .team-cell {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .team-logo-sm {
+      width: 18px;
+      height: 18px;
+      object-fit: contain;
+      flex-shrink: 0;
+      vertical-align: middle;
+    }
+
+    .team-name-cell {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-main);
+      letter-spacing: 0.04em;
+    }
+
+    .rank-cell {
+      color: var(--text-muted);
+      font-size: 11px;
+      width: 20px;
+      text-align: right;
+      padding-right: 4px;
+    }
+
+    .standings-table tr.playoff-cutoff td {
+      border-bottom: 2px solid rgba(0,255,132,0.4);
+    }
+
+    .playoff-label {
+      font-size: 9px;
+      letter-spacing: 0.1em;
+      color: rgba(0,255,132,0.5);
+      text-align: right;
+      padding: 2px 6px 4px;
+    }
+
+    .rankings-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .poll-block {
+      background: var(--bg-card);
+      border: 1px solid var(--border-soft);
+      padding: 14px 16px;
+    }
+
+    .poll-header {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: 0.1em;
+      color: var(--accent-yellow);
+      text-transform: uppercase;
+      margin-bottom: 12px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border-soft);
+    }
+
+    .rankings-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .rankings-table th {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      padding: 5px 6px;
+      text-align: right;
+      border-bottom: 1px solid var(--border-soft);
+      white-space: nowrap;
+    }
+
+    .rankings-table th:nth-child(2) {
+      text-align: left;
+    }
+
+    .rankings-table td {
+      padding: 5px 6px;
+      text-align: right;
+      color: var(--text-muted);
+      vertical-align: middle;
+      border-bottom: 1px solid var(--border-soft);
+      white-space: nowrap;
+    }
+
+    .rankings-table td:nth-child(2) {
+      text-align: left;
+    }
+
+    .rankings-table tr:hover td {
+      background: var(--bg-card);
+    }
+
+    .rankings-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .rank-num {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 16px;
+      font-weight: 900;
+      color: var(--accent-yellow);
+    }
+
+    .rank-chg-up {
+      color: var(--accent-green);
+      font-size: 10px;
+    }
+
+    .rank-chg-down {
+      color: var(--accent-red);
+      font-size: 10px;
+    }
+
+    .rank-chg-same {
+      color: var(--text-muted);
+      font-size: 10px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .placeholder-state {
+      max-width: 760px;
+      margin: 40px auto;
+      padding: 28px;
+      border: 1px dashed var(--border-soft);
+      background: rgba(255,255,255,0.02);
+      text-align: center;
+    }
+
+    .placeholder-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: 0.1em;
+      color: var(--accent-yellow);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .placeholder-copy {
+      color: var(--text-muted);
+      font-size: 12px;
+      line-height: 1.7;
+    }
+
+    .error-details {
+      margin-top: 10px;
+      color: var(--accent-red);
+      font-size: 10px;
+      word-break: break-all;
+      line-height: 1.5;
+      text-transform: none;
+      letter-spacing: 0;
+      font-family: 'IBM Plex Mono', monospace;
+      font-weight: 400;
+    }
+
+    .table-scroll {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    @media (max-width: 720px) {
+      .page-header,
+      .controls,
+      .status-bar,
+      .main {
+        padding-left: 14px;
+        padding-right: 14px;
+      }
+
+      .view-pill {
+        margin-left: 0;
+      }
+
+      .conferences-wrap {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body>
 <div id="nav-placeholder"></div>
+
 <div class="page-header">
   <div>
     <div class="page-title">Standings</div>
     <div class="page-subtitle">ESPN · CURRENT SEASON</div>
   </div>
 </div>
-<div class="controls">
-  <div class="league-pill active" data-sport="basketball" data-league="nba">NBA</div>
-  <div class="league-pill" data-sport="hockey" data-league="nhl">NHL</div>
-  <div class="league-pill" data-sport="baseball" data-league="mlb">MLB</div>
-  <div class="league-pill" data-sport="basketball" data-league="mens-college-basketball">NCAAB</div>
+
+<div class="controls" id="league-controls">
   <div class="view-pill hidden" id="rankings-pill">Rankings</div>
 </div>
+
 <div class="status-bar" id="standings-status">
   <span class="status-dot yellow" id="status-dot"></span>
   <span id="status-text">Loading...</span>
 </div>
+
 <div class="main" id="standings-main"></div>
 <div class="empty-state" id="standings-empty" style="display:none">No data available</div>
+
 <script src="js/nav.js"></script>
-<script>
-var activeSport   = 'basketball';
-var activeLeague  = 'nba';
-var activeView    = 'standings'; // 'standings' or 'rankings'
-
-// playoff cutoff spots per league (number of teams that make playoffs per conference/division)
-var PLAYOFF_SPOTS = { nba: 8, nhl: 8, mlb: 3 };
-
-function setStatus(text, dotCls) {
-  document.getElementById('status-text').textContent = text;
-  document.getElementById('status-dot').className = 'status-dot ' + (dotCls || '');
-}
-
-function getStat(stats, names) {
-  if (!stats) return '—';
-  var nameList = Array.isArray(names) ? names : [names];
-  for (var i = 0; i < stats.length; i++) {
-    var s = stats[i];
-    var n = (s.name || s.shortDisplayName || s.displayName || '').toLowerCase();
-    for (var j = 0; j < nameList.length; j++) {
-      if (n === nameList[j].toLowerCase()) return s.displayValue || s.value || '—';
-    }
-  }
-  return '—';
-}
-
-function sortEntries(entries) {
-  return entries.slice().sort(function(a, b) {
-    var getWins = function(e) {
-      var stats = e.stats || [];
-      for (var i = 0; i < stats.length; i++) {
-        var n = (stats[i].name || '').toLowerCase();
-        if (n === 'wins' || n === 'w') return parseFloat(stats[i].value) || 0;
-        // NHL — sort by points if no wins
-        if (n === 'points' || n === 'pts') return parseFloat(stats[i].value) || 0;
-      }
-      return 0;
-    };
-    // NHL: sort by points first
-    if (activeSport === 'hockey') {
-      var getPts = function(e) {
-        var stats = e.stats || [];
-        for (var i = 0; i < stats.length; i++) {
-          var n = (stats[i].name || '').toLowerCase();
-          if (n === 'points' || n === 'pts') return parseFloat(stats[i].value) || 0;
-        }
-        return 0;
-      };
-      return getPts(b) - getPts(a);
-    }
-    return getWins(b) - getWins(a);
-  });
-}
-
-function buildTable(entries, sport, cutoff) {
-  var cols;
-  if (sport === 'basketball') cols = [
-    { label:'W',    names:['wins','w'] },
-    { label:'L',    names:['losses','l'] },
-    { label:'PCT',  names:['winpercent','pct','win%'] },
-    { label:'GB',   names:['gamesbehind','gb'] },
-    { label:'STRK', names:['streak'] }
-  ];
-  else if (sport === 'hockey') cols = [
-    { label:'GP',   names:['gamesplayed','gp'] },
-    { label:'W',    names:['wins','w'] },
-    { label:'L',    names:['losses','l'] },
-    { label:'OTL',  names:['otlosses','otl'] },
-    { label:'PTS',  names:['points','pts'] },
-    { label:'STRK', names:['streak'] }
-  ];
-  else if (sport === 'baseball') cols = [
-    { label:'W',    names:['wins','w'] },
-    { label:'L',    names:['losses','l'] },
-    { label:'PCT',  names:['winpercent','pct'] },
-    { label:'GB',   names:['gamesbehind','gb'] },
-    { label:'STRK', names:['streak'] }
-  ];
-  else cols = [
-    { label:'W',    names:['wins','w'] },
-    { label:'L',    names:['losses','l'] },
-    { label:'PCT',  names:['winpercent','pct'] }
-  ];
-
-  var thead = '<thead><tr><th>#</th><th>Team</th>' +
-    cols.map(function(c) { return '<th>' + c.label + '</th>'; }).join('') +
-    '</tr></thead>';
-
-  var rows = entries.map(function(e, idx) {
-    var team  = e.team || {};
-    var stats = e.stats || [];
-    var logo  = team.logos && team.logos[0] ? '<img class="team-logo-sm" src="' + team.logos[0].href + '" loading="lazy">' : '';
-    var name  = team.shortDisplayName || team.displayName || team.name || '—';
-    var statCells = cols.map(function(c) { return '<td>' + getStat(stats, c.names) + '</td>'; }).join('');
-    var cutoffClass = (cutoff && idx === cutoff - 1) ? ' class="playoff-cutoff"' : '';
-    return '<tr' + cutoffClass + '>' +
-      '<td class="rank-cell">' + (idx + 1) + '</td>' +
-      '<td><div class="team-cell">' + logo + '<span class="team-name-cell">' + name + '</span></div></td>' +
-      statCells + '</tr>';
-  }).join('');
-
-  var cutoffNote = cutoff ? '<tr><td colspan="' + (cols.length + 2) + '" class="playoff-label">— PLAYOFF LINE —</td></tr>' : '';
-
-  return '<table class="standings-table">' + thead + '<tbody>' + rows + cutoffNote + '</tbody></table>';
-}
-
-async function loadStandings() {
-  setStatus('Loading...', 'yellow');
-  var main  = document.getElementById('standings-main');
-  var empty = document.getElementById('standings-empty');
-  main.innerHTML = '';
-  empty.style.display = 'none';
-
-  try {
-    var url  = 'https://site.api.espn.com/apis/v2/sports/' + activeSport + '/' + activeLeague + '/standings';
-    var r    = await fetch(url);
-    var data = await r.json();
-    var cutoff = PLAYOFF_SPOTS[activeLeague] || null;
-    var groups = data.children || [];
-
-    if (groups.length === 0) {
-      var entries = data.standings && data.standings.entries ? sortEntries(data.standings.entries) : [];
-      if (!entries.length) { empty.style.display = ''; setStatus('No data', ''); return; }
-      var block = document.createElement('div');
-      block.innerHTML = buildTable(entries, activeSport, cutoff);
-      main.appendChild(block);
-      setStatus('Standings loaded', 'green');
-      return;
-    }
-
-    var confWrap = document.createElement('div');
-    confWrap.className = 'conferences-wrap';
-
-    groups.forEach(function(conf) {
-      var confBlock = document.createElement('div');
-      confBlock.className = 'conference-block';
-      var confName = conf.name || conf.abbreviation || '';
-      if (confName) {
-        var ch = document.createElement('div');
-        ch.className = 'conference-header';
-        ch.textContent = confName;
-        confBlock.appendChild(ch);
-      }
-      var divisions = conf.children || [];
-      if (divisions.length > 0) {
-        // MLB: cutoff per division = 1 (division winner) + wildcard handled at conf level
-        // For simplicity show cutoff only at conference level when no divisions shown separately
-        divisions.forEach(function(div) {
-          var divBlock = document.createElement('div');
-          divBlock.className = 'division-block';
-          var entries = sortEntries(div.standings && div.standings.entries ? div.standings.entries : []);
-          var divName = div.name || '';
-          if (divName) {
-            var dh = document.createElement('div');
-            dh.className = 'division-header';
-            dh.textContent = divName;
-            divBlock.appendChild(dh);
-          }
-          // MLB: mark division winner (1 per division)
-          var divCutoff = (activeSport === 'baseball') ? 1 : null;
-          divBlock.innerHTML += buildTable(entries, activeSport, divCutoff);
-          confBlock.appendChild(divBlock);
-        });
-      } else {
-        var entries = sortEntries(conf.standings && conf.standings.entries ? conf.standings.entries : []);
-        confBlock.innerHTML += buildTable(entries, activeSport, cutoff);
-      }
-      confWrap.appendChild(confBlock);
-    });
-
-    main.appendChild(confWrap);
-    setStatus('Standings loaded', 'green');
-  } catch(e) {
-    setStatus('Failed to load', '');
-    empty.style.display = '';
-  }
-}
-
-async function loadRankings() {
-  setStatus('Loading rankings...', 'yellow');
-  var main  = document.getElementById('standings-main');
-  var empty = document.getElementById('standings-empty');
-  main.innerHTML = '';
-  empty.style.display = 'none';
-
-  try {
-    var url  = 'https://site.api.espn.com/apis/site/v2/sports/' + activeSport + '/' + activeLeague + '/rankings';
-    var r    = await fetch(url);
-    var data = await r.json();
-    var polls = data.rankings || [];
-
-    if (!polls.length) { empty.style.display = ''; setStatus('No rankings available', ''); return; }
-
-    var wrap = document.createElement('div');
-    wrap.className = 'rankings-wrap';
-
-    polls.forEach(function(poll) {
-      var block = document.createElement('div');
-      block.className = 'poll-block';
-      var pollName = poll.name || poll.shortName || 'Poll';
-      var updated  = poll.lastUpdated ? new Date(poll.lastUpdated).toLocaleDateString('en-US', { month:'short', day:'numeric' }) : '';
-      block.innerHTML = '<div class="poll-header">' + pollName + (updated ? ' <span style="font-size:10px;color:var(--text-muted);font-weight:400">· Updated ' + updated + '</span>' : '') + '</div>';
-
-      var ranks = poll.ranks || [];
-      if (!ranks.length) { block.innerHTML += '<div style="font-size:11px;color:var(--text-muted);padding:8px 0">No data</div>'; wrap.appendChild(block); return; }
-
-      var rows = ranks.map(function(entry) {
-        var team    = entry.team || {};
-        var logo    = team.logos && team.logos[0] ? '<img class="team-logo-sm" src="' + team.logos[0].href + '" loading="lazy">' : '';
-        var name    = team.displayName || team.name || '—';
-        var record  = entry.recordSummary || '';
-        var pts     = entry.points !== undefined ? entry.points : '—';
-        var prevRank= entry.previousRank || 0;
-        var curRank = entry.current || entry.rank || 0;
-        var chg = '';
-        if (prevRank && curRank) {
-          var diff = prevRank - curRank;
-          if (diff > 0)      chg = '<span class="rank-chg-up">▲' + diff + '</span>';
-          else if (diff < 0) chg = '<span class="rank-chg-down">▼' + Math.abs(diff) + '</span>';
-          else               chg = '<span class="rank-chg-same">—</span>';
-        }
-        return '<tr>' +
-          '<td><span class="rank-num">' + curRank + '</span></td>' +
-          '<td><div class="team-cell">' + logo + '<span class="team-name-cell">' + name + '</span></div></td>' +
-          '<td>' + record + '</td>' +
-          '<td>' + pts + '</td>' +
-          '<td>' + chg + '</td>' +
-        '</tr>';
-      }).join('');
-
-      block.innerHTML += '<table class="rankings-table"><thead><tr><th>#</th><th>Team</th><th>Record</th><th>Pts</th><th>Chg</th></tr></thead><tbody>' + rows + '</tbody></table>';
-      wrap.appendChild(block);
-    });
-
-    main.appendChild(wrap);
-    setStatus(polls.length + ' poll' + (polls.length > 1 ? 's' : '') + ' loaded', 'green');
-  } catch(e) {
-    setStatus('Failed to load rankings', '');
-    empty.style.display = '';
-  }
-}
-
-function showRankingsPill(show) {
-  var pill = document.getElementById('rankings-pill');
-  if (show) pill.classList.remove('hidden');
-  else      pill.classList.add('hidden');
-  if (!show && activeView === 'rankings') {
-    activeView = 'standings';
-    pill.classList.remove('active');
-  }
-}
-
-document.getElementById('rankings-pill').addEventListener('click', function() {
-  if (activeView === 'rankings') {
-    activeView = 'standings';
-    this.classList.remove('active');
-    loadStandings();
-  } else {
-    activeView = 'rankings';
-    this.classList.add('active');
-    loadRankings();
-  }
-});
-
-document.querySelectorAll('.league-pill').forEach(function(pill) {
-  pill.addEventListener('click', function() {
-    document.querySelectorAll('.league-pill').forEach(function(p) { p.classList.remove('active'); });
-    pill.classList.add('active');
-    activeSport  = pill.dataset.sport;
-    activeLeague = pill.dataset.league;
-    activeView   = 'standings';
-    document.getElementById('rankings-pill').classList.remove('active');
-    showRankingsPill(activeLeague === 'mens-college-basketball');
-    loadStandings();
-  });
-});
-
-// init
-showRankingsPill(activeLeague === 'mens-college-basketball');
-loadStandings();
-</script>
+<script src="js/standings/render.js"></script>
 </body>
 </html>

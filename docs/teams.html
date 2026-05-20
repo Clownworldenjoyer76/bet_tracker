@@ -3,117 +3,570 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Teams · Edgelytics</title>
+  <title>Teams</title>
   <link rel="stylesheet" href="css/matstheme.css">
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }    body { background:var(--background);color:var(--text-main);font-family:'IBM Plex Mono',monospace;font-size:13px;min-height:100vh; }
-    .page-header { border-bottom:1px solid var(--border-soft);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px; }
-    .page-title { font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;letter-spacing:0.08em;text-transform:uppercase;color:var(--accent-green); }
-    .page-subtitle { color:var(--text-muted);font-size:11px;letter-spacing:0.06em;margin-top:2px; }
-    .controls { display:flex;align-items:center;gap:8px;padding:12px 24px;border-bottom:1px solid var(--border-soft);flex-wrap:wrap; }
-    .league-pill { font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:0.08em;padding:4px 12px;border:1px solid var(--border-soft);background:transparent;color:var(--text-muted);cursor:pointer;transition:all 0.15s;text-transform:uppercase; }
-    .league-pill:hover { border-color:var(--accent-blue);color:var(--accent-blue); }
-    .league-pill.active { border-color:var(--accent-green);color:var(--accent-green);background:rgba(0,255,132,0.06); }
-    .search-box { margin-left:auto;background:var(--bg-card);border:1px solid var(--border-soft);color:var(--text-main);font-family:'IBM Plex Mono',monospace;font-size:12px;padding:5px 10px;width:200px;outline:none; }
-    .search-box:focus { border-color:var(--accent-blue); }
-    .search-box::placeholder { color:var(--text-muted); }
-    .status-bar { padding:8px 24px;font-size:11px;color:var(--text-muted);border-bottom:1px solid var(--border-soft);display:flex;align-items:center;gap:10px; }
-    .status-dot { width:6px;height:6px;border-radius:50%;background:var(--text-muted);display:inline-block;flex-shrink:0; }
-    .status-dot.green { background:var(--accent-green);box-shadow:0 0 6px var(--accent-green); }
-    .status-dot.yellow { background:var(--accent-yellow);animation:pulse 1s infinite; }
-    @keyframes pulse { 0%,100%{opacity:1;}50%{opacity:0.3;} }
-    .main { padding:20px 24px; }
-    .team-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px; }
-    .team-card { background:var(--bg-card);border:1px solid var(--border-soft);padding:12px 14px;cursor:pointer;transition:border-color 0.15s,background 0.15s;display:flex;align-items:center;gap:12px; }
-    .team-card:hover { border-color:var(--accent-green);background:var(--bg-card); }
-    .team-logo { width:32px;height:32px;object-fit:contain;flex-shrink:0; }
-    .team-logo-placeholder { width:32px;height:32px;flex-shrink:0; }
-    .team-info { display:flex;flex-direction:column;gap:2px;min-width:0; }
-    .team-name { font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;color:var(--text-main);letter-spacing:0.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
-    .team-abbr { font-size:10px;color:var(--text-muted);letter-spacing:0.1em; }
-    .empty-state { text-align:center;padding:60px 20px;color:var(--text-muted);font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase; }
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-    /* MODAL */
-    .modal-overlay { display:none;position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:1000;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto; }
-    .modal-overlay.open { display:flex; }
-    .modal-box { background:var(--bg-card);border:1px solid var(--border-soft);width:100%;max-width:580px;position:relative;margin:auto; }
-    .modal-close { position:absolute;top:12px;right:14px;font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;color:var(--text-muted);cursor:pointer;letter-spacing:0.1em;background:none;border:none;z-index:2; }
-    .modal-close:hover { color:var(--text-main); }
+    body {
+      background: var(--background);
+      color: var(--text-main);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px;
+      min-height: 100vh;
+    }
 
-    .modal-team-header { display:flex;align-items:center;gap:14px;padding:20px 24px 14px;border-bottom:1px solid var(--border-soft); }
-    .modal-logo { width:48px;height:48px;object-fit:contain;flex-shrink:0; }
-    .modal-team-name { font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;color:var(--text-main);letter-spacing:0.04em; }
-    .modal-team-sub { font-size:11px;color:var(--text-muted);margin-top:3px;display:flex;gap:12px;flex-wrap:wrap; }
-    .modal-team-sub span { color:var(--accent-green); }
+    .page-header {
+      border-bottom: 1px solid var(--border-soft);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
 
-    .modal-tabs { display:flex;border-bottom:1px solid var(--border-soft);overflow-x:auto; }
-    .modal-tab { font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;padding:8px 16px;color:var(--text-muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all 0.15s;flex-shrink:0; }
-    .modal-tab:hover { color:var(--text-main); }
-    .modal-tab.active { color:var(--accent-green);border-bottom-color:var(--accent-green); }
+    .page-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent-green);
+    }
 
-    .modal-panel { padding:16px 20px;display:none;min-height:120px; }
-    .modal-panel.active { display:block; }
+    .page-subtitle {
+      color: var(--text-muted);
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      margin-top: 2px;
+    }
 
-    .modal-subtitle { font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.14em;color:var(--text-muted);text-transform:uppercase;border-bottom:1px solid var(--border-soft);padding-bottom:4px;margin-bottom:8px;margin-top:12px; }
-    .modal-subtitle:first-child { margin-top:0; }
-    .info-grid { display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;margin-bottom:10px; }
-    .info-item { display:flex;flex-direction:column;gap:1px; }
-    .info-label { font-size:9px;letter-spacing:0.1em;color:var(--text-muted);text-transform:uppercase; }
-    .info-val { font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;color:var(--text-main); }
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      border-bottom: 1px solid var(--border-soft);
+      flex-wrap: wrap;
+    }
 
-    .roster-table { width:100%;border-collapse:collapse;font-size:11px; }
-    .roster-table th { font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-muted);padding:4px 6px;text-align:left;border-bottom:1px solid var(--border-soft); }
-    .roster-table td { padding:5px 6px;border-bottom:1px solid var(--border-soft);color:var(--text-muted);vertical-align:middle; }
-    .roster-table tr:last-child td { border-bottom:none; }
-    .roster-table tr:hover td { background:var(--bg-card); }
-    .p-name { font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;color:var(--text-main);letter-spacing:0.04em; }
-    .inj-dot { display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent-red);margin-left:5px;vertical-align:middle; }
+    .league-pill {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      padding: 4px 12px;
+      border: 1px solid var(--border-soft);
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s;
+      text-transform: uppercase;
+    }
 
-    .schedule-row { display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border-soft);font-size:11px; }
-    .schedule-row:last-child { border-bottom:none; }
-    .sch-date { color:var(--text-muted);min-width:60px;font-size:10px; }
-    .sch-opp { font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;color:var(--text-main);flex:1;padding:0 8px; }
-    .sch-result { font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700; }
-    .sch-w { color:var(--accent-green); }
-    .sch-l { color:var(--accent-red); }
-    .sch-upcoming { color:var(--text-muted);font-size:11px; }
+    .league-pill:hover {
+      border-color: var(--accent-blue);
+      color: var(--accent-blue);
+    }
 
-    .depth-group { margin-bottom:12px; }
-    .depth-pos-header { font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.1em;color:var(--accent-blue);text-transform:uppercase;margin-bottom:4px; }
-    .depth-row { display:flex;align-items:center;gap:8px;padding:3px 0;border-bottom:1px solid var(--border-soft);font-size:11px; }
-    .depth-row:last-child { border-bottom:none; }
-    .depth-rank { color:var(--text-muted);min-width:16px;font-size:10px; }
-    .depth-name { font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;color:var(--text-main); }
+    .league-pill.active {
+      border-color: var(--accent-green);
+      color: var(--accent-green);
+      background: rgba(0,255,132,0.06);
+    }
 
-    .history-row { padding:5px 0;border-bottom:1px solid var(--border-soft);font-size:11px;color:var(--text-muted); }
-    .history-row:last-child { border-bottom:none; }
-    .history-year { font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;color:var(--text-main);min-width:50px;display:inline-block; }
+    .league-pill.placeholder {
+      border-style: dashed;
+      opacity: 0.75;
+    }
 
-    .modal-loading { color:var(--text-muted);font-size:11px;padding:20px 0;text-align:center; }
-    .modal-error { color:var(--accent-red);font-size:11px;padding:12px 0;text-align:center; }
-    .no-data { color:var(--text-muted);font-size:11px;padding:12px 0;text-align:center;letter-spacing:0.08em; }
+    .league-pill.placeholder.active {
+      border-color: var(--accent-yellow);
+      color: var(--accent-yellow);
+      background: rgba(255,204,0,0.06);
+    }
+
+    .search-box {
+      margin-left: auto;
+      background: var(--bg-card);
+      border: 1px solid var(--border-soft);
+      color: var(--text-main);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      padding: 5px 10px;
+      width: 200px;
+      outline: none;
+    }
+
+    .search-box:focus {
+      border-color: var(--accent-blue);
+    }
+
+    .search-box::placeholder {
+      color: var(--text-muted);
+    }
+
+    .status-bar {
+      padding: 8px 24px;
+      font-size: 11px;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border-soft);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      display: inline-block;
+      flex-shrink: 0;
+    }
+
+    .status-dot.green {
+      background: var(--accent-green);
+      box-shadow: 0 0 6px var(--accent-green);
+    }
+
+    .status-dot.yellow {
+      background: var(--accent-yellow);
+      animation: pulse 1s infinite;
+    }
+
+    .status-dot.red {
+      background: var(--accent-red);
+      box-shadow: 0 0 6px var(--accent-red);
+    }
+
+    @keyframes pulse {
+      0%,100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.3;
+      }
+    }
+
+    .main {
+      padding: 20px 24px;
+    }
+
+    .team-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill,minmax(200px,1fr));
+      gap: 8px;
+    }
+
+    .team-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-soft);
+      padding: 12px 14px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .team-card:hover {
+      border-color: var(--accent-green);
+      background: var(--bg-card);
+    }
+
+    .team-logo {
+      width: 32px;
+      height: 32px;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
+
+    .team-logo-placeholder {
+      width: 32px;
+      height: 32px;
+      flex-shrink: 0;
+    }
+
+    .team-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .team-name {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-main);
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .team-abbr {
+      font-size: 10px;
+      color: var(--text-muted);
+      letter-spacing: 0.1em;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .placeholder-state {
+      max-width: 760px;
+      margin: 40px auto;
+      padding: 28px;
+      border: 1px dashed var(--border-soft);
+      background: rgba(255,255,255,0.02);
+      text-align: center;
+    }
+
+    .placeholder-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: 0.1em;
+      color: var(--accent-yellow);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .placeholder-copy {
+      color: var(--text-muted);
+      font-size: 12px;
+      line-height: 1.7;
+    }
+
+    .error-details {
+      margin-top: 10px;
+      color: var(--accent-red);
+      font-size: 10px;
+      word-break: break-all;
+      line-height: 1.5;
+    }
+
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.88);
+      z-index: 1000;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 20px;
+      overflow-y: auto;
+    }
+
+    .modal-overlay.open {
+      display: flex;
+    }
+
+    .modal-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border-soft);
+      width: 100%;
+      max-width: 680px;
+      position: relative;
+      margin: auto;
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 12px;
+      right: 14px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-muted);
+      cursor: pointer;
+      letter-spacing: 0.1em;
+      background: none;
+      border: none;
+      z-index: 2;
+    }
+
+    .modal-close:hover {
+      color: var(--text-main);
+    }
+
+    .modal-team-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 20px 24px 14px;
+      border-bottom: 1px solid var(--border-soft);
+    }
+
+    .modal-logo {
+      width: 48px;
+      height: 48px;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
+
+    .modal-team-name {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 22px;
+      font-weight: 900;
+      color: var(--text-main);
+      letter-spacing: 0.04em;
+    }
+
+    .modal-team-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 3px;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .modal-team-sub span {
+      color: var(--accent-green);
+    }
+
+    .modal-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border-soft);
+      overflow-x: auto;
+    }
+
+    .modal-tab {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 8px 16px;
+      color: var(--text-muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      white-space: nowrap;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+
+    .modal-tab:hover {
+      color: var(--text-main);
+    }
+
+    .modal-tab.active {
+      color: var(--accent-green);
+      border-bottom-color: var(--accent-green);
+    }
+
+    .modal-panel {
+      padding: 16px 20px;
+      display: none;
+      min-height: 120px;
+      max-height: 65vh;
+      overflow-y: auto;
+    }
+
+    .modal-panel.active {
+      display: block;
+    }
+
+    .modal-subtitle {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border-soft);
+      padding-bottom: 4px;
+      margin-bottom: 8px;
+      margin-top: 12px;
+    }
+
+    .modal-subtitle:first-child {
+      margin-top: 0;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(3,1fr);
+      gap: 8px 16px;
+      margin-bottom: 10px;
+    }
+
+    .info-item {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .info-label {
+      font-size: 9px;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .info-val {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .roster-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+      min-width: 560px;
+    }
+
+    .roster-table th {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      padding: 4px 6px;
+      text-align: left;
+      border-bottom: 1px solid var(--border-soft);
+      white-space: nowrap;
+    }
+
+    .roster-table td {
+      padding: 5px 6px;
+      border-bottom: 1px solid var(--border-soft);
+      color: var(--text-muted);
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+
+    .roster-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .roster-table tr:hover td {
+      background: var(--bg-card);
+    }
+
+    .p-name {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-main);
+      letter-spacing: 0.04em;
+    }
+
+    .inj-dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-red);
+      margin-left: 5px;
+      vertical-align: middle;
+    }
+
+    .bio-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 5px 0;
+      border-bottom: 1px solid var(--border-soft);
+      font-size: 11px;
+    }
+
+    .bio-row:last-child {
+      border-bottom: none;
+    }
+
+    .bio-label {
+      color: var(--text-muted);
+      letter-spacing: 0.06em;
+    }
+
+    .bio-val {
+      color: var(--text-main);
+      text-align: right;
+    }
+
+    .modal-loading {
+      color: var(--text-muted);
+      font-size: 11px;
+      padding: 20px 0;
+      text-align: center;
+    }
+
+    .modal-error {
+      color: var(--accent-red);
+      font-size: 11px;
+      padding: 12px 0;
+      text-align: center;
+    }
+
+    .no-data {
+      color: var(--text-muted);
+      font-size: 11px;
+      padding: 12px 0;
+      text-align: center;
+      letter-spacing: 0.08em;
+    }
+
+    @media (max-width: 720px) {
+      .page-header,
+      .controls,
+      .status-bar,
+      .main {
+        padding-left: 14px;
+        padding-right: 14px;
+      }
+
+      .search-box {
+        width: 100%;
+        margin-left: 0;
+      }
+
+      .info-grid {
+        grid-template-columns: repeat(2,1fr);
+      }
+    }
   </style>
 </head>
 <body>
 <div id="nav-placeholder"></div>
+
 <div class="page-header">
   <div>
     <div class="page-title">Teams</div>
-    <div class="page-subtitle">ESPN · ROSTER &amp; TEAM INFO</div>
+    <div class="page-subtitle">ESPN CORE · TEAM INFO &amp; ROSTERS</div>
   </div>
 </div>
-<div class="controls">
-  <div class="league-pill active" data-sport="basketball" data-league="nba">NBA</div>
-  <div class="league-pill" data-sport="hockey" data-league="nhl">NHL</div>
-  <div class="league-pill" data-sport="baseball" data-league="mlb">MLB</div>
-  <div class="league-pill" data-sport="basketball" data-league="mens-college-basketball">NCAAB</div>
+
+<div class="controls" id="league-controls">
   <input type="text" class="search-box" id="team-search" placeholder="Search team...">
 </div>
+
 <div class="status-bar" id="teams-status">
   <span class="status-dot yellow" id="status-dot"></span>
   <span id="status-text">Loading...</span>
 </div>
+
 <div class="main" id="teams-main"></div>
 <div class="empty-state" id="teams-empty" style="display:none">No teams found</div>
 
@@ -127,356 +580,6 @@
 </div>
 
 <script src="js/nav.js"></script>
-<script>
-var activeSport  = 'basketball';
-var activeLeague = 'nba';
-var allTeams     = [];
-var searchQuery  = '';
-var TABBED_LEAGUES = ['nba','nhl','mlb'];
-
-function setStatus(text, dotCls) {
-  document.getElementById('status-text').textContent = text;
-  document.getElementById('status-dot').className = 'status-dot ' + (dotCls || '');
-}
-
-function render() {
-  var main  = document.getElementById('teams-main');
-  var empty = document.getElementById('teams-empty');
-  main.innerHTML = '';
-  var teams = allTeams.slice();
-  if (searchQuery) {
-    var q = searchQuery.toLowerCase();
-    teams = teams.filter(function(t) { return t.name.toLowerCase().indexOf(q) !== -1 || t.abbr.toLowerCase().indexOf(q) !== -1; });
-  }
-  if (teams.length === 0) { empty.style.display = ''; return; }
-  empty.style.display = 'none';
-  var grid = document.createElement('div');
-  grid.className = 'team-grid';
-  teams.forEach(function(t) {
-    var card = document.createElement('div');
-    card.className = 'team-card';
-    var imgHtml = t.logo ? '<img class="team-logo" src="' + t.logo + '" loading="lazy">' : '<div class="team-logo-placeholder"></div>';
-    card.innerHTML = imgHtml + '<div class="team-info"><div class="team-name">' + t.name + '</div><div class="team-abbr">' + t.abbr + '</div></div>';
-    card.addEventListener('click', function() { openTeamModal(t); });
-    grid.appendChild(card);
-  });
-  main.appendChild(grid);
-}
-
-async function loadTeams() {
-  setStatus('Loading...', 'yellow');
-  allTeams = [];
-  try {
-    var url  = 'https://site.api.espn.com/apis/site/v2/sports/' + activeSport + '/' + activeLeague + '/teams?limit=200';
-    var r    = await fetch(url);
-    var data = await r.json();
-    var raw  = data.sports[0].leagues[0].teams || [];
-    allTeams = raw.map(function(t) {
-      var team = t.team;
-      var logo = team.logos && team.logos[0] ? team.logos[0].href : '';
-      return { id: team.id, name: team.displayName, abbr: team.abbreviation || '', location: team.location || '', nickname: team.nickname || '', logo: logo, sport: activeSport, league: activeLeague };
-    }).sort(function(a, b) { return a.name.localeCompare(b.name); });
-    render();
-    setStatus(allTeams.length + ' teams', 'green');
-  } catch(e) { setStatus('Failed to load', ''); }
-}
-
-// ── MODAL ─────────────────────────────────────────────────────────────────
-
-function safeGet(obj) { try { return obj; } catch(e) { return null; } }
-
-function fmtDate(str) {
-  if (!str) return '—';
-  var d = new Date(str);
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
-
-function buildOverviewPanel(data, t) {
-  var team    = data.team || {};
-  // record summary e.g. '49-24' or '38-25-10'
-  var recItem = team.record && team.record.items && team.record.items[0];
-  var recStr  = recItem ? (recItem.summary || '') : '';
-  // win% from stats array
-  var stats   = recItem ? recItem.stats || [] : [];
-  var getStat = function(name) {
-    for (var i = 0; i < stats.length; i++) {
-      var n = (stats[i].name || '').toLowerCase();
-      if (n === name.toLowerCase()) {
-        var v = stats[i].displayValue || stats[i].value;
-        return v !== undefined && v !== null ? String(v) : '—';
-      }
-    }
-    return '—';
-  };
-  var pct      = getStat('winpercent');
-  if (pct !== '—') { pct = (parseFloat(pct) * 100).toFixed(1) + '%'; }
-  var standing = team.standingSummary || '—';
-  // next game from nextEvent
-  var nextGame = '';
-  if (team.nextEvent && team.nextEvent.length) {
-    var ne = team.nextEvent[0];
-    var neDate = ne.date ? new Date(ne.date).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '';
-    nextGame = (ne.shortName || ne.name || '') + (neDate ? ' · ' + neDate : '');
-  }
-  // venue from nextEvent competition if available
-  var venue = '—';
-  if (team.nextEvent && team.nextEvent.length) {
-    var comp = team.nextEvent[0].competitions && team.nextEvent[0].competitions[0];
-    if (comp && comp.venue) venue = comp.venue.fullName || '—';
-  }
-
-  var html = '<div class="info-grid">' +
-    '<div class="info-item"><div class="info-label">Record</div><div class="info-val">' + (recStr || '—') + '</div></div>' +
-    '<div class="info-item"><div class="info-label">Win %</div><div class="info-val">' + pct + '</div></div>' +
-    '<div class="info-item"><div class="info-label">Standing</div><div class="info-val" style="font-size:11px">' + standing + '</div></div>' +
-    '</div>' +
-    (nextGame ? '<div class="modal-subtitle">Next Game</div><div style="font-size:12px;color:var(--text-muted)">' + nextGame + '</div>' : '') +
-    (venue !== '—' ? '<div class="modal-subtitle" style="margin-top:10px">Venue</div><div style="font-size:12px;color:var(--text-muted)">' + venue + '</div>' : '');
-  return html;
-}
-
-function buildRosterPanel(data) {
-  var groups = data.athletes || [];
-  if (!groups.length) return '<div class="no-data">No roster data</div>';
-
-  var players = [];
-  groups.forEach(function(g) {
-    var items = g.items || g.athletes || (g.id ? [g] : []);
-    items.forEach(function(p) { players.push(p); });
-  });
-  if (!players.length) return '<div class="no-data">No players found</div>';
-
-  var rows = players.map(function(p) {
-    var pos    = p.position ? (p.position.abbreviation || p.position.name || '—') : '—';
-    var jersey = p.jersey ? '#' + p.jersey : '—';
-    var inj    = p.injuries && p.injuries.length ? '<span class="inj-dot" title="' + p.injuries[0].status + '"></span>' : '';
-    return '<tr><td>' + jersey + '</td><td><span class="p-name">' + (p.displayName || '—') + '</span>' + inj + '</td><td>' + pos + '</td><td>' + (p.displayHeight || '—') + '</td><td>' + (p.displayWeight || '—') + '</td></tr>';
-  }).join('');
-
-  return '<table class="roster-table"><thead><tr><th>#</th><th>Name</th><th>Pos</th><th>HT</th><th>WT</th></tr></thead><tbody>' + rows + '</tbody></table>';
-}
-
-function buildSchedulePanel(data, teamId) {
-  var events = data.events || [];
-  if (!events.length) return '<div class="no-data">No schedule data</div>';
-
-  var now      = new Date();
-  var past     = [];
-  var upcoming = [];
-
-  events.forEach(function(ev) {
-    var comp      = ev.competitions && ev.competitions[0];
-    if (!comp) return;
-    var completed = comp.status && comp.status.type && comp.status.type.completed;
-    var evDate    = new Date(ev.date);
-    var comps     = comp.competitors || [];
-    var me  = comps.find(function(c) { return String(c.id) === String(teamId); });
-    var opp = comps.find(function(c) { return String(c.id) !== String(teamId); });
-    if (!me || !opp) { me = comps[0]; opp = comps[1]; }
-    if (!me || !opp) return;
-
-    var oppName = opp.team ? (opp.team.abbreviation || opp.team.displayName || '?') : '?';
-    var atHome  = me.homeAway === 'home';
-    var label   = atHome ? 'vs ' + oppName : '@ ' + oppName;
-    var result  = '';
-
-    if (completed) {
-      var myScore  = me.score  ? (me.score.displayValue  || String(me.score.value  || 0)) : '0';
-      var oppScore = opp.score ? (opp.score.displayValue || String(opp.score.value || 0)) : '0';
-      var win      = me.winner === true;
-      result = '<span class="sch-result ' + (win ? 'sch-w' : 'sch-l') + '">' + (win ? 'W' : 'L') + ' ' + myScore + '-' + oppScore + '</span>';
-      past.push({ date: evDate, row: '<div class="schedule-row"><span class="sch-date">' + fmtDate(ev.date) + '</span><span class="sch-opp">' + label + '</span>' + result + '</div>' });
-    } else {
-      var detail = comp.status && comp.status.type ? (comp.status.type.shortDetail || comp.status.type.detail || '') : '';
-      var timeStr = evDate > now ? evDate.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', timeZoneName:'short' }) : detail;
-      result = '<span class="sch-upcoming">' + timeStr + '</span>';
-      upcoming.push({ date: evDate, row: '<div class="schedule-row"><span class="sch-date">' + fmtDate(ev.date) + '</span><span class="sch-opp">' + label + '</span>' + result + '</div>' });
-    }
-  });
-
-  // sort past descending (most recent first), upcoming ascending (soonest first)
-  past.sort(function(a,b) { return b.date - a.date; });
-  upcoming.sort(function(a,b) { return a.date - b.date; });
-
-  var html = '';
-  if (upcoming.length) {
-    html += '<div class="modal-subtitle">Upcoming</div>';
-    html += upcoming.slice(0, 10).map(function(r) { return r.row; }).join('');
-  }
-  if (past.length) {
-    html += '<div class="modal-subtitle" style="margin-top:12px">Recent Results</div>';
-    html += past.slice(0, 15).map(function(r) { return r.row; }).join('');
-  }
-  return html || '<div class="no-data">No games found</div>';
-}
-
-function buildDepthPanel(data) {
-  var charts = data.depthchart || data.depthCharts || data.items || [];
-  if (!charts.length) return '<div class="no-data">Depth chart not available for this league</div>';
-  var positions = charts[0].positions || {};
-  var keys = Object.keys(positions);
-  if (!keys.length) return '<div class="no-data">No depth chart data</div>';
-  var html = '';
-  keys.forEach(function(posKey) {
-    var posObj   = positions[posKey];
-    var posName  = posObj.position ? (posObj.position.displayName || posObj.position.abbreviation || posKey.toUpperCase()) : posKey.toUpperCase();
-    var athletes = posObj.athletes || [];
-    if (!athletes.length) return;
-    html += '<div class="depth-group"><div class="depth-pos-header">' + posName + '</div>';
-    athletes.forEach(function(a, i) {
-      var name = a.displayName || (a.athlete && a.athlete.displayName) || (a.firstName ? (a.firstName + ' ' + a.lastName) : '—');
-      html += '<div class="depth-row"><span class="depth-rank">' + (i+1) + '</span><span class="depth-name">' + name + '</span></div>';
-    });
-    html += '</div>';
-  });
-  return html || '<div class="no-data">No depth chart data</div>';
-}
-
-function buildHistoryPanel(data) {
-  // ESPN /history returns empty for NBA/NHL/MLB — use record items instead (home/away/overall splits)
-  var team    = data.team || data;
-  var recItems = team.record && team.record.items ? team.record.items : [];
-  if (!recItems.length) return '<div class="no-data">No record data available</div>';
-  var html = '<table class="roster-table"><thead><tr><th>Type</th><th>Record</th><th>W</th><th>L</th></tr></thead><tbody>';
-  recItems.forEach(function(item) {
-    var type    = item.description || item.type || '—';
-    var summary = item.summary || '—';
-    var stats   = item.stats || [];
-    var getS    = function(name) {
-      for (var i=0;i<stats.length;i++) { if ((stats[i].name||'').toLowerCase()===name.toLowerCase()) return stats[i].value!==undefined?stats[i].value:'—'; }
-      return '—';
-    };
-    var w = getS('wins'); var l = getS('losses');
-    html += '<tr><td style="color:var(--text-muted)">' + type + '</td><td style="font-family:Barlow Condensed,sans-serif;font-weight:700;color:var(--text-main)">' + summary + '</td><td>' + w + '</td><td>' + l + '</td></tr>';
-  });
-  html += '</tbody></table>';
-  return html;
-}
-
-async function loadPanel(panelId, t, tab) {
-  var panel = document.getElementById(panelId);
-  if (!panel) return;
-  if (panel.dataset.loaded) return; // cached
-  panel.innerHTML = '<div class="modal-loading">Loading...</div>';
-
-  var base = 'https://site.api.espn.com/apis/site/v2/sports/' + t.sport + '/' + t.league + '/teams/' + t.id;
-  try {
-    var r, data, html;
-    if (tab === 'overview') {
-      r = await fetch(base + '?enable=roster,projection,stats');
-      data = await r.json();
-      html = buildOverviewPanel(data, t);
-    } else if (tab === 'roster') {
-      r = await fetch(base + '/roster');
-      data = await r.json();
-      html = buildRosterPanel(data);
-    } else if (tab === 'schedule') {
-      r = await fetch(base + '/schedule');
-      data = await r.json();
-      html = buildSchedulePanel(data, t.id);
-    } else if (tab === 'depth') {
-      r = await fetch(base + '/depthcharts');
-      data = await r.json();
-      html = buildDepthPanel(data);
-    } else if (tab === 'history') {
-      r = await fetch(base + '?enable=roster,projection,stats');
-      data = await r.json();
-      html = buildHistoryPanel(data);
-    }
-    panel.innerHTML = html || '<div class="no-data">No data</div>';
-    panel.dataset.loaded = '1';
-  } catch(e) {
-    panel.innerHTML = '<div class="modal-error">Failed to load</div>';
-  }
-}
-
-function switchTab(tabName) {
-  document.querySelectorAll('.modal-tab').forEach(function(t) { t.classList.remove('active'); });
-  document.querySelectorAll('.modal-panel').forEach(function(p) { p.classList.remove('active'); });
-  var tab   = document.querySelector('.modal-tab[data-tab="' + tabName + '"]');
-  var panel = document.getElementById('panel-' + tabName);
-  if (tab)   tab.classList.add('active');
-  if (panel) panel.classList.add('active');
-}
-
-async function openTeamModal(t) {
-  var overlay = document.getElementById('modal-overlay');
-  var hdr     = document.getElementById('modal-team-header');
-  var tabsEl  = document.getElementById('modal-tabs');
-  var panelsEl= document.getElementById('modal-panels');
-  overlay.classList.add('open');
-
-  var logoHtml = t.logo ? '<img class="modal-logo" src="' + t.logo + '">' : '';
-  hdr.innerHTML = logoHtml +
-    '<div><div class="modal-team-name">' + t.name + '</div>' +
-    '<div class="modal-team-sub">' + t.league.toUpperCase() + '</div></div>';
-
-  var usesTabs = TABBED_LEAGUES.indexOf(t.league) !== -1;
-
-  if (usesTabs) {
-    var tabs = [
-      { key: 'overview',  label: 'Overview' },
-      { key: 'roster',    label: 'Roster'   },
-      { key: 'schedule',  label: 'Schedule' },
-      { key: 'depth',     label: 'Depth'    },
-      { key: 'history',   label: 'History'  }
-    ];
-
-    tabsEl.innerHTML = tabs.map(function(tb) {
-      return '<div class="modal-tab' + (tb.key === 'overview' ? ' active' : '') + '" data-tab="' + tb.key + '">' + tb.label + '</div>';
-    }).join('');
-
-    panelsEl.innerHTML = tabs.map(function(tb) {
-      return '<div class="modal-panel' + (tb.key === 'overview' ? ' active' : '') + '" id="panel-' + tb.key + '"><div class="modal-loading">Loading...</div></div>';
-    }).join('');
-
-    tabsEl.querySelectorAll('.modal-tab').forEach(function(tabEl) {
-      tabEl.addEventListener('click', function() {
-        switchTab(tabEl.dataset.tab);
-        loadPanel('panel-' + tabEl.dataset.tab, t, tabEl.dataset.tab);
-      });
-    });
-
-    // load first tab immediately
-    loadPanel('panel-overview', t, 'overview');
-
-  } else {
-    // NCAAB — roster only, no tabs
-    tabsEl.innerHTML = '';
-    panelsEl.innerHTML = '<div class="modal-panel active" id="panel-roster"><div class="modal-loading">Loading roster...</div></div>';
-    try {
-      var r    = await fetch('https://site.api.espn.com/apis/site/v2/sports/' + t.sport + '/' + t.league + '/teams/' + t.id + '/roster');
-      var data = await r.json();
-      document.getElementById('panel-roster').innerHTML = buildRosterPanel(data);
-    } catch(e) {
-      document.getElementById('panel-roster').innerHTML = '<div class="modal-error">Failed to load roster</div>';
-    }
-  }
-}
-
-document.getElementById('modal-close').addEventListener('click', function() {
-  document.getElementById('modal-overlay').classList.remove('open');
-});
-document.getElementById('modal-overlay').addEventListener('click', function(e) {
-  if (e.target === this) this.classList.remove('open');
-});
-document.querySelectorAll('.league-pill').forEach(function(pill) {
-  pill.addEventListener('click', function() {
-    document.querySelectorAll('.league-pill').forEach(function(p) { p.classList.remove('active'); });
-    pill.classList.add('active');
-    activeSport  = pill.dataset.sport;
-    activeLeague = pill.dataset.league;
-    searchQuery  = '';
-    document.getElementById('team-search').value = '';
-    loadTeams();
-  });
-});
-document.getElementById('team-search').addEventListener('input', function(e) {
-  searchQuery = e.target.value.trim();
-  render();
-});
-
-loadTeams();
-</script>
+<script src="js/teams/render.js"></script>
 </body>
 </html>

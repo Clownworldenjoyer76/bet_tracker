@@ -43,14 +43,15 @@ def _write_summary(summary: dict, per_file: list) -> None:
         f"  total_files      : {summary['total_files']}",
         f"  skipped          : {summary['skipped']}",
         f"  neg_kelly_clipped: {summary['neg_kelly_clipped']}",
+        f"  missing_adj_ev   : {summary['missing_adj_ev']}",
         f"  errors           : {summary['errors']}",
         "",
-        f"  {'file':<48} {'market':<12} {'rows':>5} {'neg_kelly':>10} {'status':>10}",
+        f"  {'file':<48} {'market':<12} {'rows':>5} {'neg_kelly':>10} {'missing_adj':>12} {'status':>10}",
     ]
     for pf in per_file:
         lines.append(
             f"  {pf['name']:<48} {pf['market']:<12} {pf['rows']:>5} "
-            f"{pf['neg_kelly']:>10} {pf['status']:>10}"
+            f"{pf['neg_kelly']:>10} {pf['missing_adj']:>12} {pf['status']:>10}"
         )
 
     status = "SUCCESS" if summary["errors"] == 0 else "COMPLETED WITH ERRORS"
@@ -92,13 +93,43 @@ def compute_kelly(p, dec, file_name=""):
     return k, len(neg)
 
 
+def adjusted_ev(df, adjusted_col, fallback_ev, file_name):
+    """
+    Use YAML-adjusted edge column as EV.
+    Fallback to raw EV only where adjusted column is missing/NaN.
+    """
+    raw = pd.to_numeric(fallback_ev, errors="coerce")
+
+    if adjusted_col not in df.columns:
+        _log(f"{file_name} | missing adjusted EV column: {adjusted_col}; using raw EV fallback", "WARN")
+        return raw, len(raw)
+
+    adj = pd.to_numeric(df[adjusted_col], errors="coerce")
+    missing = int(adj.isna().sum())
+
+    if missing > 0:
+        _log(
+            f"{file_name} | {missing} rows missing adjusted EV in {adjusted_col}; using raw EV fallback for those rows",
+            "WARN",
+        )
+
+    return adj.where(adj.notna(), raw), missing
+
+
 # =========================
 # MARKET PROCESSORS
 # =========================
 
 def process_moneyline(df, file_name):
-    df["home_ml_ev"] = compute_ev(df["home_prob"], df["home_dk_decimal_moneyline"])
-    df["away_ml_ev"] = compute_ev(df["away_prob"], df["away_dk_decimal_moneyline"])
+    raw_home_ev = compute_ev(df["home_prob"], df["home_dk_decimal_moneyline"])
+    raw_away_ev = compute_ev(df["away_prob"], df["away_dk_decimal_moneyline"])
+
+    df["home_ml_ev"], h_missing = adjusted_ev(
+        df, "home_edge_decimal_moneyline", raw_home_ev, file_name
+    )
+    df["away_ml_ev"], a_missing = adjusted_ev(
+        df, "away_edge_decimal_moneyline", raw_away_ev, file_name
+    )
 
     home_kelly, h_neg = compute_kelly(
         df["home_prob"], df["home_dk_decimal_moneyline"], file_name
@@ -110,15 +141,22 @@ def process_moneyline(df, file_name):
     df["home_ml_kelly"] = home_kelly
     df["away_ml_kelly"] = away_kelly
 
-    return df, h_neg + a_neg
+    return df, h_neg + a_neg, h_missing + a_missing
 
 
 def process_run_line(df, file_name):
-    df["home_rl_ev"] = compute_ev(
+    raw_home_ev = compute_ev(
         df["home_normalized_prob_run_line"], df["home_dk_run_line_decimal"]
     )
-    df["away_rl_ev"] = compute_ev(
+    raw_away_ev = compute_ev(
         df["away_normalized_prob_run_line"], df["away_dk_run_line_decimal"]
+    )
+
+    df["home_rl_ev"], h_missing = adjusted_ev(
+        df, "home_edge_decimal_run_line", raw_home_ev, file_name
+    )
+    df["away_rl_ev"], a_missing = adjusted_ev(
+        df, "away_edge_decimal_run_line", raw_away_ev, file_name
     )
 
     home_kelly, h_neg = compute_kelly(
@@ -131,15 +169,22 @@ def process_run_line(df, file_name):
     df["home_rl_kelly"] = home_kelly
     df["away_rl_kelly"] = away_kelly
 
-    return df, h_neg + a_neg
+    return df, h_neg + a_neg, h_missing + a_missing
 
 
 def process_total(df, file_name):
     df["over_prob"] = 1 / pd.to_numeric(df["fair_total_over_decimal"], errors="coerce")
     df["under_prob"] = 1 / pd.to_numeric(df["fair_total_under_decimal"], errors="coerce")
 
-    df["over_ev"] = compute_ev(df["over_prob"], df["dk_total_over_decimal"])
-    df["under_ev"] = compute_ev(df["under_prob"], df["dk_total_under_decimal"])
+    raw_over_ev = compute_ev(df["over_prob"], df["dk_total_over_decimal"])
+    raw_under_ev = compute_ev(df["under_prob"], df["dk_total_under_decimal"])
+
+    df["over_ev"], o_missing = adjusted_ev(
+        df, "over_edge_decimal_total", raw_over_ev, file_name
+    )
+    df["under_ev"], u_missing = adjusted_ev(
+        df, "under_edge_decimal_total", raw_under_ev, file_name
+    )
 
     over_kelly, o_neg = compute_kelly(
         df["over_prob"], df["dk_total_over_decimal"], file_name
@@ -151,7 +196,7 @@ def process_total(df, file_name):
     df["over_kelly"] = over_kelly
     df["under_kelly"] = under_kelly
 
-    return df, o_neg + u_neg
+    return df, o_neg + u_neg, o_missing + u_missing
 
 
 # =========================
@@ -170,6 +215,7 @@ def main():
         "total_files": 0,
         "skipped": 0,
         "neg_kelly_clipped": 0,
+        "missing_adj_ev": 0,
         "errors": 0,
     }
     per_file = []
@@ -191,6 +237,7 @@ def main():
             "market": "unknown",
             "rows": 0,
             "neg_kelly": 0,
+            "missing_adj": 0,
             "status": "ok",
         }
 
@@ -224,23 +271,28 @@ def main():
             summary["rows_processed"] += len(df)
 
             if market == "moneyline":
-                df, neg_kelly = process_moneyline(df, input_file.name)
+                df, neg_kelly, missing_adj = process_moneyline(df, input_file.name)
                 summary["moneyline_files"] += 1
             elif market == "run_line":
-                df, neg_kelly = process_run_line(df, input_file.name)
+                df, neg_kelly, missing_adj = process_run_line(df, input_file.name)
                 summary["run_line_files"] += 1
             else:
-                df, neg_kelly = process_total(df, input_file.name)
+                df, neg_kelly, missing_adj = process_total(df, input_file.name)
                 summary["total_files"] += 1
 
             pf["neg_kelly"] = neg_kelly
+            pf["missing_adj"] = missing_adj
             summary["neg_kelly_clipped"] += neg_kelly
+            summary["missing_adj_ev"] += missing_adj
 
             output_path = OUTPUT_DIR / input_file.name
             df.to_csv(output_path, index=False)
 
             summary["files_processed"] += 1
-            _log(f"WROTE: {output_path} ({len(df)} rows, {neg_kelly} kelly clipped)")
+            _log(
+                f"WROTE: {output_path} "
+                f"({len(df)} rows, {neg_kelly} kelly clipped, {missing_adj} adjusted EV fallback)"
+            )
 
         except Exception as e:
             _log(

@@ -1,3 +1,5 @@
+# docs/win/mma/ufc/scripts/00_intake/00_scrape_predictions.py
+
 from __future__ import annotations
 
 import csv
@@ -11,6 +13,8 @@ from pathlib import Path
 
 URL = "https://www.dratings.com/predictor/ufc-mma-predictions/"
 OUTDIR = Path("docs/win/mma/ufc/00_intake/predictions")
+
+PLAYWRIGHT_TIMEZONE = "America/New_York"
 
 NOISE_LINES = {
     "Sports Ratings, Prediction, & Analysis",
@@ -36,8 +40,12 @@ NOISE_LINES = {
     "More Details",
 }
 
-STOP_PATTERNS = [
+SECTION_HEADER_PATTERNS = [
+    r"^Upcoming Fights for ",
     r"^Fights for ",
+]
+
+STOP_PATTERNS = [
     r"^Completed Fights$",
     r"^Load More Fights$",
     r"^Season Prediction Results$",
@@ -53,6 +61,7 @@ def ensure_pkg(pkg: str, import_name: str | None = None) -> None:
 
 
 ensure_pkg("playwright")
+
 try:
     from playwright.sync_api import sync_playwright
 except Exception:
@@ -88,6 +97,14 @@ def is_moneyline(value: str) -> bool:
     return bool(re.fullmatch(r"[+-]\d{2,5}", value))
 
 
+def is_section_header(value: str) -> bool:
+    return any(re.search(pattern, value, re.I) for pattern in SECTION_HEADER_PATTERNS)
+
+
+def is_stop_line(value: str) -> bool:
+    return any(re.search(pattern, value, re.I) for pattern in STOP_PATTERNS)
+
+
 def normalize_date(value: str) -> str:
     dt = datetime.strptime(value, "%m/%d/%Y")
     return dt.strftime("%Y_%m_%d")
@@ -112,95 +129,194 @@ def split_fighter_and_prob(value: str) -> tuple[str | None, str | None]:
     return fighter, prob
 
 
+def expand_embedded_percent_line(value: str) -> list[str]:
+    """
+    Handles lines like:
+      Song Yadong 33.1%
+
+    Converts them into:
+      Song Yadong
+      33.1%
+
+    Leaves normal lines unchanged.
+    """
+    fighter, prob = split_fighter_and_prob(value)
+    if fighter and prob:
+        raw_pct = f"{float(prob) * 100:.1f}%"
+        return [fighter, raw_pct]
+    return [value]
+
+
 def scrape_body_text() -> str:
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
-        page = playwright.chromium.launch(headless=True).new_page()  # fallback-safe init
-        browser.close()
 
-    with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(headless=True)
-        page = browser.new_page(viewport={"width": 1600, "height": 4000})
+        context = browser.new_context(
+            viewport={"width": 1600, "height": 5000},
+            timezone_id=PLAYWRIGHT_TIMEZONE,
+            locale="en-US",
+        )
+
+        page = context.new_page()
 
         page.goto(URL, wait_until="domcontentloaded", timeout=120000)
         page.wait_for_timeout(6000)
 
-        for _ in range(10):
+        for _ in range(16):
             page.mouse.wheel(0, 2500)
-            page.wait_for_timeout(600)
+            page.wait_for_timeout(700)
 
         body_text = page.locator("body").inner_text(timeout=30000)
+
         browser.close()
         return body_text
 
 
+def normalize_lines(body_text: str) -> list[str]:
+    raw_lines = [clean_line(line) for line in body_text.splitlines()]
+    raw_lines = [line for line in raw_lines if line and line not in NOISE_LINES]
+
+    lines: list[str] = []
+    for line in raw_lines:
+        lines.extend(expand_embedded_percent_line(line))
+
+    return [line for line in lines if line and line not in NOISE_LINES]
+
+
+def parse_fight_block(raw_date: str, block: list[str]) -> dict[str, str] | None:
+    """
+    Handles both formats:
+
+      05/30/2026
+      04:00 AM
+      Deiveson Figueiredo
+      Song Yadong
+      33.1%
+      66.9%
+      +330
+      -415
+
+    And older / compressed text like:
+
+      04/18/2026
+      05:00 PM
+      Gilbert Burns
+      Mike Malott 25.4%
+      74.6%
+      +290
+      -330
+
+    Moneylines are optional because some Dratings rows do not show them.
+    This predictions file only needs fighter names and win probabilities.
+    """
+    expanded: list[str] = []
+    for item in block:
+        expanded.extend(expand_embedded_percent_line(item))
+
+    percents = [x for x in expanded if is_percent_line(x)]
+    non_market_text = [
+        x for x in expanded
+        if not is_percent_line(x)
+        and not is_moneyline(x)
+        and not is_time_line(x)
+        and not is_date_line(x)
+        and not is_section_header(x)
+        and not is_stop_line(x)
+        and x not in NOISE_LINES
+    ]
+
+    if len(non_market_text) < 2 or len(percents) < 2:
+        return None
+
+    fighter_1 = non_market_text[0].strip()
+    fighter_2 = non_market_text[1].strip()
+
+    if not fighter_1 or not fighter_2:
+        return None
+
+    return {
+        "match_date": normalize_date(raw_date),
+        "fighter_1": fighter_1,
+        "fighter_2": fighter_2,
+        "fighter_1_win_prob": pct_to_decimal_str(percents[0]),
+        "fighter_2_win_prob": pct_to_decimal_str(percents[1]),
+    }
+
+
 def parse_rows(body_text: str) -> list[dict[str, str]]:
-    lines = [clean_line(line) for line in body_text.splitlines()]
-    lines = [line for line in lines if line and line not in NOISE_LINES]
+    lines = normalize_lines(body_text)
 
     rows: list[dict[str, str]] = []
-    in_upcoming = False
     idx = 0
 
     while idx < len(lines):
         line = lines[idx]
 
-        if line.startswith("Upcoming Fights for "):
-            in_upcoming = True
-            idx += 1
-            continue
-
-        if in_upcoming and any(re.search(pattern, line, re.I) for pattern in STOP_PATTERNS):
+        if is_stop_line(line):
             break
 
-        if not in_upcoming:
+        if not is_date_line(line):
             idx += 1
             continue
 
-        # Expected upcoming block:
-        # 04/18/2026
-        # 05:00 PM
-        # Gilbert Burns
-        # Mike Malott 25.4%
-        # 74.6%
-        # +290
-        # -330
-        if idx + 6 < len(lines) and is_date_line(lines[idx]) and is_time_line(lines[idx + 1]):
-            raw_date = lines[idx]
-            fighter_1 = lines[idx + 2]
-            fighter_2_line = lines[idx + 3]
-            fighter_2_prob_line = lines[idx + 4]
-            moneyline_1 = lines[idx + 5]
-            moneyline_2 = lines[idx + 6]
+        if idx + 1 >= len(lines) or not is_time_line(lines[idx + 1]):
+            idx += 1
+            continue
 
-            fighter_2, fighter_1_prob = split_fighter_and_prob(fighter_2_line)
+        raw_date = lines[idx]
+        idx += 2
 
-            if (
-                fighter_2
-                and fighter_1
-                and is_percent_line(fighter_2_prob_line)
-                and is_moneyline(moneyline_1)
-                and is_moneyline(moneyline_2)
-            ):
-                rows.append(
-                    {
-                        "match_date": normalize_date(raw_date),
-                        "fighter_1": fighter_1,
-                        "fighter_2": fighter_2,
-                        "fighter_1_win_prob": fighter_1_prob,
-                        "fighter_2_win_prob": pct_to_decimal_str(fighter_2_prob_line),
-                    }
-                )
-                idx += 7
+        block: list[str] = []
+
+        while idx < len(lines):
+            current = lines[idx]
+
+            if is_stop_line(current):
+                break
+
+            if is_section_header(current):
+                idx += 1
                 continue
 
-        idx += 1
+            if is_date_line(current):
+                break
+
+            block.append(current)
+            idx += 1
+
+        parsed = parse_fight_block(raw_date, block)
+        if parsed:
+            rows.append(parsed)
+        else:
+            print(f"SKIP unparsable block | date={raw_date} | block={block}")
 
     return rows
 
 
+def dedupe_rows(rows: list[dict[str, str]]) -> list[dict[str, str]]:
+    seen: set[tuple[str, str, str]] = set()
+    out: list[dict[str, str]] = []
+
+    for row in rows:
+        key = (
+            row["match_date"],
+            row["fighter_1"].strip().lower(),
+            row["fighter_2"].strip().lower(),
+        )
+
+        if key in seen:
+            continue
+
+        seen.add(key)
+        out.append(row)
+
+    return out
+
+
 def write_output_files(rows: list[dict[str, str]]) -> None:
     OUTDIR.mkdir(parents=True, exist_ok=True)
+
+    rows = dedupe_rows(rows)
 
     rows_by_date: dict[str, list[dict[str, str]]] = defaultdict(list)
     for row in rows:

@@ -7,6 +7,7 @@ using the fighter name map at mappings/mma/ufc/fighter_name_map.csv.
 Reads:
     docs/win/mma/ufc/00_intake/sportsbook/*_ufc_odds.csv
     docs/win/mma/ufc/00_intake/predictions/*_ufc_predictions.csv
+    docs/win/mma/ufc/manual_files/*_ufc.csv
 
 Normalizes fighter_1 and fighter_2 in place.
 Outputs unmapped names to mappings/mma/ufc/no_map_fighter_name.csv.
@@ -23,6 +24,7 @@ NO_MAP_PATH = Path("mappings/mma/ufc/no_map_fighter_name.csv")
 INTAKE_FILES = [
     (Path("docs/win/mma/ufc/00_intake/sportsbook"), "*_ufc_odds.csv"),
     (Path("docs/win/mma/ufc/00_intake/predictions"), "*_ufc_predictions.csv"),
+    (Path("docs/win/mma/ufc/manual_files"), "*_ufc.csv"),
 ]
 
 

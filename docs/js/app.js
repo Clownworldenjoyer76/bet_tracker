@@ -51,23 +51,25 @@ async function fetchCSV(path) {
   }
 }
 
+// Try paths in order. First one that loads wins; the rest are skipped.
+// This gives us "new path, fall back to old" semantics for league migrations
+// without ever loading the same data twice.
+// If every path fails, log the full list so the next silent breakage is visible.
 async function fetchMultiCSV(paths) {
-  let rows = [];
-  let anyOk = false;
   for (const p of paths) {
     const res = await fetchCSV(p);
-    if (res.ok) { rows = rows.concat(res.rows); anyOk = true; }
+    if (res.ok) return { ok: true, rows: res.rows, source: p };
   }
-  return { ok: anyOk, rows };
+  console.warn("[picks] No data file loaded. Tried:", paths);
+  return { ok: false, rows: [] };
 }
 
 // ─── Row Matching ─────────────────────────────────────────────────────────────
 
 function rowMatchesLeague(row, cfg, target) {
-  if (cfg.filterFn) return true; // filterFn handles everything
+  if (cfg.filterFn) return true;
   if (cfg.leagueColumn) return (row[cfg.leagueColumn] || "").trim().toUpperCase() === target;
   if (cfg.marketColumn) return (row[cfg.marketColumn] || "").trim().toUpperCase() === target;
-  // fallback: try both
   const league = (row.league || "").trim().toUpperCase();
   const market = (row.market || "").trim().toUpperCase();
   return league === target || market === target;
@@ -81,11 +83,9 @@ function filterRows(allRows, dateFormatted, leagueName, cfg) {
     return rowMatchesLeague(r, cfg, target);
   });
 
-  // Strict date match
   const dated = leagueRows.filter(r => normDate(r.game_date) === dateFormatted);
   if (dated.length > 0) return { rows: dated, stale: false, fromDate: dateFormatted };
 
-  // Fallback: latest date in file
   if (leagueRows.length === 0) return { rows: [], stale: false, fromDate: null };
   leagueRows.sort((a, b) => normDate(b.game_date).localeCompare(normDate(a.game_date)));
   const latestDate = normDate(leagueRows[0].game_date);
@@ -111,15 +111,22 @@ function buildMap(rows, cfg) {
   return map;
 }
 
-// ─── Merge: pull game_time from pred when select doesn't have it (MLB) ────────
-
 function mergeRows(selectRows, predMap, bookMap, cfg) {
   return selectRows.map(sel => {
     const key  = makeKey(sel, cfg);
     const pred = predMap[key] || {};
     const book = bookMap[key] || {};
-    const merged = { ...pred, ...book, ...sel, __key: key };
-    // If select has no game_time, pull from pred
+    // Layer pred → book → sel, but DON'T let an empty select value
+    // overwrite a real value from book/pred. This happens when a select
+    // row is for one market type (e.g. a total pick) and the moneyline /
+    // spread columns on that same row are blank — without this guard we'd
+    // wipe out the book file's real ML/spread odds during the merge.
+    const merged = { ...pred, ...book };
+    Object.keys(sel).forEach(k => {
+      const v = sel[k];
+      if (v !== "" && v !== null && v !== undefined) merged[k] = v;
+    });
+    merged.__key = key;
     if (!merged.game_time && pred.game_time) merged.game_time = pred.game_time;
     return merged;
   });
@@ -142,14 +149,13 @@ function buildBetText(p, r, cfg) {
   const odds   = p.dk_odds_american || p.take_odds || "";
 
   let label    = "";
-  let american = odds; // default to generic odds column
+  let american = odds;
 
   if (side === "home")  label = r.home_team || "Home";
   if (side === "away")  label = r.away_team || "Away";
   if (side === "over")  label = "Over";
   if (side === "under") label = "Under";
 
-  // Spread-type markets: spread (NBA/NCAAB), puck_line (NHL), run_line (MLB)
   if (["spread", "puck_line", "run_line"].includes(market)) {
     if (side === "home") american = r.home_dk_spread_american || r.home_dk_puck_line_american || r.home_dk_run_line_american || odds;
     if (side === "away") american = r.away_dk_spread_american || r.away_dk_puck_line_american || r.away_dk_run_line_american || odds;
@@ -171,15 +177,20 @@ function buildBetText(p, r, cfg) {
   return `${side} ${line} ${odds}`.trim();
 }
 
-// ─── Edge ─────────────────────────────────────────────────────────────────────
+// ─── Edge / EV / Kelly ────────────────────────────────────────────────────────
+
+// Centralized accessors so column-name drift doesn't silently zero these out
+// in one place but not another. Order matters: prefer the per-pick fields the
+// select files actually write today, then fall back to legacy names.
+function getEv(p)    { return parseFloat(p.bet_ev    || p.ev    || p.selected_ev || 0); }
+function getKelly(p) { return parseFloat(p.bet_kelly || p.kelly || 0); }
 
 function extractEdge(p) {
-  const market = (p.market_type || "").toLowerCase();
-  const side   = (p.bet_side    || "").toLowerCase();
-
-  if (market === "total")                                    return parseFloat(p[`${side}_edge_pct`]        || p.ev || 0);
-  if (["spread","puck_line","run_line"].includes(market))    return parseFloat(p[`${side}_spread_edge_pct`] || p.ev || 0);
-  if (market === "moneyline")                                return parseFloat(p[`${side}_ml_edge_pct`]     || p.ev || 0);
+  // Select files write a per-pick edge for the chosen side; that's the
+  // single source of truth. Fall back to ev only if it isn't present.
+  if (p.bet_edge_vs_market !== undefined && p.bet_edge_vs_market !== "") {
+    return parseFloat(p.bet_edge_vs_market);
+  }
   return parseFloat(p.ev || p.selected_ev || 0);
 }
 
@@ -212,6 +223,36 @@ function openModal(html) {
 }
 
 function buildModalHtml(r, picks, cfg) {
+  // Soccer: simpler modal — no projections / spreads / totals exist for these markets.
+  if (cfg.isSoccer) {
+    const picksHtml = picks.map(p => {
+      const betText = buildBetText(p, r, cfg);
+      const ev      = getEv(p);
+      const kelly   = getKelly(p);
+      const edge    = extractEdge(p);
+      return `
+        <div class="modal-pick-row">
+          <div class="modal-bet">${betText}</div>
+          <div class="modal-pick-stats">
+            <span class="modal-ev ${ev >= 0 ? "pos" : "neg"}">${ev >= 0 ? "+" : ""}${(ev * 100).toFixed(2)}% EV</span>
+            <span class="modal-kelly">Kelly ${(kelly * 100).toFixed(2)}%</span>
+            ${edgeDots(edge)}
+          </div>
+        </div>`;
+    }).join("");
+
+    return `
+      <div class="modal-header">
+        <span class="modal-league-tag">${cfg.displayName}</span>
+        <span class="modal-game-time">${r.game_time || ""}</span>
+      </div>
+      <h2 class="modal-title">${r.home_team || "—"} <span class="modal-at">vs</span> ${r.away_team || "—"}</h2>
+      <div class="modal-picks-section">
+        <div class="modal-picks-label">PICKS</div>
+        <div class="modal-picks">${picksHtml}</div>
+      </div>`;
+  }
+
   const isHockey   = !!cfg.isHockey;
   const isBaseball = !!cfg.isBaseball;
 
@@ -225,18 +266,17 @@ function buildModalHtml(r, picks, cfg) {
   const spreadAwayOdds = r[`away_dk_${spreadKey}_american`] || r.away_dk_spread_american || "—";
   const spreadHomeOdds = r[`home_dk_${spreadKey}_american`] || r.home_dk_spread_american || "—";
 
-  const pitcherRow = isBaseball && (r.home_pitcher || r.away_pitcher) ? `
-    <div class="modal-pitchers">
-      <span class="modal-pitcher-label">SP</span>
-      <span>${r.away_pitcher || "—"}</span>
-      <span class="modal-pitcher-vs">vs</span>
-      <span>${r.home_pitcher || "—"}</span>
-    </div>` : "";
+  const pitcherRow = isBaseball && (r.away_pitcher || r.home_pitcher)
+    ? `<div class="modal-pitchers">
+        <span class="modal-pitcher-label">SP</span>
+        ${r.away_pitcher || "?"} <span class="modal-pitcher-vs">vs</span> ${r.home_pitcher || "?"}
+       </div>`
+    : "";
 
   const picksHtml = picks.map(p => {
     const betText = buildBetText(p, r, cfg);
-    const ev      = parseFloat(p.ev || p.selected_ev || 0);
-    const kelly   = parseFloat(p.kelly || p.home_spread_kelly || p.away_spread_kelly || p.home_ml_kelly || p.away_ml_kelly || 0);
+    const ev      = getEv(p);
+    const kelly   = getKelly(p);
     const edge    = extractEdge(p);
     return `
       <div class="modal-pick-row">
@@ -280,14 +320,22 @@ function buildCard(p, r, cfg) {
 
   const betText    = buildBetText(p, r, cfg);
   const edge       = extractEdge(p);
-  const ev         = parseFloat(p.ev || p.selected_ev || 0);
+  const ev         = getEv(p);
   const isBaseball = !!cfg.isBaseball;
 
   const pitcherLine = isBaseball && (r.away_pitcher || r.home_pitcher)
     ? `<div class="card-pitchers">${r.away_pitcher || "?"} vs ${r.home_pitcher || "?"}</div>`
     : "";
 
+  // MLB-only: warn when lineup info isn't yet available for this game.
+  // Pick still renders normally; this just flags reduced confidence.
+  const lowConf = isBaseball && (p.low_confidence === "1" || p.low_confidence === 1);
+  const warningBar = lowConf
+    ? `<div class="card-warning">Lineups not available yet</div>`
+    : "";
+
   card.innerHTML = `
+    ${warningBar}
     <div class="card-top">
       <span class="card-time">${r.game_time || "—"}</span>
       <span class="card-league-tag">${cfg.displayName}</span>
@@ -307,35 +355,228 @@ function buildCard(p, r, cfg) {
   return card;
 }
 
+// ─── UFC: Find Nearest Event ──────────────────────────────────────────────────
+
+const BASE_RAW = "https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/docs/";
+const UFC_MANIFEST_PATH = "win/mma/ufc/03_select/_index.json";
+
+function ymdToFileDate(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}_${m}_${day}`;
+}
+
+async function findUFCEventDate() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayStr = ymdToFileDate(today);
+
+  // 1) Preferred path: read the manifest. No probing, no console noise.
+  //    Schema: ["YYYY_MM_DD", ...]
+  try {
+    const r = await fetch(UFC_MANIFEST_PATH, { cache: "no-store" });
+    if (r.ok) {
+      const dates = await r.json();
+      if (Array.isArray(dates) && dates.length) {
+        const sorted  = [...dates].sort();
+        const upcoming = sorted.find(d => d >= todayStr);
+        if (upcoming) return upcoming;
+        // Nothing upcoming — show the most recent past event so the page
+        // isn't empty between fight cards.
+        return sorted[sorted.length - 1];
+      }
+    }
+  } catch { /* fall through to probe */ }
+
+  // 2) Fallback: small probe (today + 7 days) so the console shows at most
+  //    7 misses instead of 31 if the manifest is missing.
+  const candidates = [];
+  for (let offset = 0; offset <= 7; offset++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + offset);
+    candidates.push({ date: ymdToFileDate(d), offset });
+  }
+
+  const results = await Promise.all(
+    candidates.map(async ({ date, offset }) => {
+      const url = `${BASE_RAW}win/mma/ufc/03_select/${date}_ufc_select.csv`;
+      try {
+        const r = await fetch(url, { method: "HEAD" });
+        return r.ok ? { date, offset } : null;
+      } catch {
+        return null;
+      }
+    })
+  );
+
+  const valid = results.filter(Boolean).sort((a, b) => a.offset - b.offset);
+  return valid.length ? valid[0].date : null;
+}
+
+// ─── UFC: Build Card ──────────────────────────────────────────────────────────
+
+function buildUFCCard(row) {
+  const card = document.createElement("div");
+  card.className = "pick-card";
+
+  const fighter  = row.fighter  || "—";
+  const opponent = row.opponent || "—";
+  const ml       = row.moneyline || "—";
+  const ev       = parseFloat(row.ev || 0);
+  const edge     = parseFloat(row.edge || 0);
+
+  card.innerHTML = `
+    <div class="card-top">
+      <span class="card-time">MMA</span>
+      <span class="card-league-tag">UFC</span>
+    </div>
+    <div class="card-matchup">
+      <span class="card-team">${fighter}</span>
+      <span class="card-at">vs</span>
+      <span class="card-team">${opponent}</span>
+    </div>
+    <div class="card-bet">${fighter} ${ml}</div>
+    <div class="card-footer">
+      <span class="card-ev ${ev >= 0 ? "pos" : "neg"}">${ev >= 0 ? "+" : ""}${(ev * 100).toFixed(1)}%</span>
+      ${edgeDots(edge)}
+    </div>`;
+
+  card.addEventListener("click", () => openModal(buildUFCModalHtml(row)));
+  return card;
+}
+
+// ─── UFC: Build Modal ─────────────────────────────────────────────────────────
+
+function buildUFCModalHtml(row) {
+  const fighter     = row.fighter      || "—";
+  const opponent    = row.opponent     || "—";
+  const ml          = row.moneyline    || "—";
+  const impliedProb = parseFloat(row.implied_prob || 0);
+  const modelProb   = parseFloat(row.model_prob   || 0);
+  const edge        = parseFloat(row.edge         || 0);
+  const ev          = parseFloat(row.ev           || 0);
+  const kelly       = parseFloat(row.kelly        || 0);
+
+  const fmt = (n, dec = 1) => isNaN(n) ? "—" : (n * 100).toFixed(dec) + "%";
+
+  return `
+    <div class="modal-header">
+      <span class="modal-league-tag">UFC</span>
+      <span class="modal-game-time">${row.match_date ? row.match_date.replaceAll("_", "-") : ""}</span>
+    </div>
+    <h2 class="modal-title">${fighter} <span class="modal-at">vs</span> ${opponent}</h2>
+    <div class="modal-proj">
+      <span>Moneyline: <strong>${ml}</strong></span>
+      <span>Implied: <strong>${fmt(impliedProb)}</strong></span>
+      <span>Model: <strong>${fmt(modelProb)}</strong></span>
+    </div>
+    <div class="modal-picks-section">
+      <div class="modal-picks-label">EDGE ANALYSIS</div>
+      <div class="modal-picks">
+        <div class="modal-pick-row">
+          <div class="modal-bet">${fighter} to Win</div>
+          <div class="modal-pick-stats">
+            <span class="modal-ev ${ev >= 0 ? "pos" : "neg"}">${ev >= 0 ? "+" : ""}${(ev * 100).toFixed(2)}% EV</span>
+            <span class="modal-kelly">Kelly ${(kelly * 100).toFixed(2)}%</span>
+            <span class="modal-kelly">Edge ${(edge * 100).toFixed(2)}%</span>
+            ${edgeDots(edge)}
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+// ─── UFC: Load ────────────────────────────────────────────────────────────────
+
+async function loadUFC() {
+  const cfg = REPO_CONFIG["UFC"];
+  const eventDate = await findUFCEventDate();
+
+  // Update event selector if present
+  const ufcSelector = document.getElementById("ufc-event-selector");
+  if (ufcSelector) {
+    if (eventDate) {
+      ufcSelector.textContent = eventDate.replaceAll("_", "-");
+    } else {
+      ufcSelector.textContent = "No upcoming event";
+    }
+  }
+
+  if (!eventDate) return { league: "UFC", cfg, picks: 0, error: "No event found" };
+
+  const url = `${BASE_RAW}win/mma/ufc/03_select/${eventDate}_ufc_select.csv`;
+  const res = await fetchCSV(url);
+
+  if (!res.ok || res.rows.length === 0) return { league: "UFC", cfg, picks: 0 };
+
+  return { league: "UFC", cfg, eventDate, rows: res.rows, picks: res.rows.length };
+}
+
+// ─── UFC: Render Column ───────────────────────────────────────────────────────
+
+function renderUFCColumn(result) {
+  const col = document.createElement("div");
+  col.className = "league-column";
+  col.dataset.league = "UFC";
+
+  const hdr = document.createElement("div");
+  hdr.className = "league-header";
+  hdr.textContent = "UFC";
+  col.appendChild(hdr);
+
+  if (result.error || !result.rows || result.rows.length === 0) {
+    col.innerHTML += `<div class="col-state empty">No UFC Picks</div>`;
+    return { col, count: 0 };
+  }
+
+  const grid = document.createElement("div");
+  grid.className = "league-cards";
+
+  result.rows.forEach(row => {
+    grid.appendChild(buildUFCCard(row));
+  });
+
+  col.appendChild(grid);
+  return { col, count: result.rows.length };
+}
+
 // ─── League Loader ────────────────────────────────────────────────────────────
 
 async function loadLeague(league, dateFormatted) {
   const cfg = REPO_CONFIG[league];
   if (!cfg) return { league, error: "No config" };
 
+  // UFC uses its own loader
+  if (cfg.isUFC) return loadUFC();
+
+  const emptyRes = Promise.resolve({ ok: false, rows: [] });
   const [selectRes, predRes, bookRes] = await Promise.all([
     fetchMultiCSV(cfg.selectFiles(dateFormatted)),
-    fetchCSV(cfg.predFile(dateFormatted)),
-    fetchCSV(cfg.bookFile(dateFormatted)),
+    cfg.predFile ? fetchCSV(cfg.predFile(dateFormatted)) : emptyRes,
+    cfg.bookFile ? fetchCSV(cfg.bookFile(dateFormatted)) : emptyRes,
   ]);
 
   if (!selectRes.ok) return { league, cfg, error: "File not found", picks: 0 };
 
-  const { rows: selectRows, stale, fromDate } = filterRows(selectRes.rows, dateFormatted, league, cfg);
+  // Allow leagues with non-canonical column names (e.g. soccer's match_date)
+  // to remap into the standard shape before any other logic touches the rows.
+  const normalize = cfg.normalizeRow ? (r) => cfg.normalizeRow(r) : (r) => r;
+  const normalizedSelect = selectRes.rows.map(normalize);
+
+  const { rows: selectRows, stale, fromDate } = filterRows(normalizedSelect, dateFormatted, league, cfg);
   if (selectRows.length === 0) return { league, cfg, picks: 0, stale, fromDate };
 
   const predMap = buildMap(predRes.rows, cfg);
   const bookMap = buildMap(bookRes.rows, cfg);
   const merged  = mergeRows(selectRows, predMap, bookMap, cfg);
 
-  // Group by game key
   const grouped = {};
   merged.forEach(r => {
     if (!grouped[r.__key]) grouped[r.__key] = [];
     grouped[r.__key].push(r);
   });
 
-  // Sort games by time
   const keys = Object.keys(grouped).sort((a, b) =>
     parseTime(grouped[a][0].game_time) - parseTime(grouped[b][0].game_time)
   );
@@ -346,6 +587,9 @@ async function loadLeague(league, dateFormatted) {
 // ─── Render Column ────────────────────────────────────────────────────────────
 
 function renderColumn(result) {
+  // UFC uses its own renderer
+  if (result.league === "UFC") return renderUFCColumn(result);
+
   const col = document.createElement("div");
   col.className = "league-column";
   col.dataset.league = result.league;
@@ -354,14 +598,14 @@ function renderColumn(result) {
   hdr.className = "league-header";
 
   if (result.error) {
-    hdr.textContent = result.league;
+    hdr.textContent = (result.cfg && result.cfg.displayName) || result.league;
     col.appendChild(hdr);
     col.innerHTML += `<div class="col-state empty">No Picks Today</div>`;
     return { col, count: 0 };
   }
 
-    hdr.innerHTML = result.league;
-    col.appendChild(hdr);
+  hdr.innerHTML = (result.cfg && result.cfg.displayName) || result.league;
+  col.appendChild(hdr);
 
   if (result.stale || !result.keys || result.keys.length === 0) {
     col.innerHTML += `<div class="col-state empty">No Picks Today</div>`;
@@ -436,7 +680,12 @@ async function loadPage() {
   statusEl.className   = "status loading";
   gamesEl.innerHTML    = "";
 
-  const leagues = REPO_CONFIG.leagues || [];
+  // Honor `enabled: false` on a league config so it disappears from the page
+  // (header + filter pill + data load) without deleting its config block.
+  const leagues = (REPO_CONFIG.leagues || []).filter(l => {
+    const cfg = REPO_CONFIG[l];
+    return cfg && cfg.enabled !== false;
+  });
   buildFilters(leagues);
 
   const results = await Promise.all(leagues.map(l => loadLeague(l, dateFormatted)));

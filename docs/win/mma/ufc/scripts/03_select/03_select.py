@@ -1,5 +1,6 @@
+#!/usr/bin/env python3
 """
-03_select.py
+# docs/win/mma/ufc/scripts/03_select/03_select.py
 
 Filters edge output using rules defined in docs/win/mma/ufc/config/markets.yaml.
 
@@ -7,8 +8,18 @@ Input:
     docs/win/mma/ufc/02_edges/{date}_ufc_edges.csv
     docs/win/mma/ufc/config/markets.yaml
 
-Output:
+Outputs:
     docs/win/mma/ufc/03_select/{date}_ufc_select.csv
+        Legacy format. Picks only, sorted by pick_preference. Consumed by
+        the_picks.html and kelly_calculator.html. Not written when no picks.
+
+    docs/win/mma/ufc/03_select/detailed/{date}_ufc_select_detailed.csv
+        Full audit format. Every fight from the edges file in edges-file
+        order, with a `bet` column = fighter_1 | fighter_2 | no_bet.
+        Always written, even when every row is no_bet.
+
+Every run starts with a clean slate: existing files in both output directories
+are deleted before processing.
 """
 
 from __future__ import annotations
@@ -22,80 +33,259 @@ import yaml
 EDGES_DIR = Path("docs/win/mma/ufc/02_edges")
 CONFIG_PATH = Path("docs/win/mma/ufc/config/markets.yaml")
 OUT_DIR = Path("docs/win/mma/ufc/03_select")
+DETAILED_DIR = OUT_DIR / "detailed"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
+DETAILED_DIR.mkdir(parents=True, exist_ok=True)
+
+# --- Clean slate: remove every stale select file (both dirs) before this run ---
+for stale in OUT_DIR.glob("*_ufc_select.csv"):
+    stale.unlink()
+    print(f"DELETED stale legacy {stale}")
+
+for stale in DETAILED_DIR.glob("*_ufc_select_detailed.csv"):
+    stale.unlink()
+    print(f"DELETED stale detailed {stale}")
 
 # --- Load config ---
 with CONFIG_PATH.open(encoding="utf-8") as f:
     config = yaml.safe_load(f)
 
 ml_config = config["ufc"]["moneyline"]
+
 enabled = ml_config.get("enabled", True)
 pick_pref = ml_config.get("pick_preference", "best_ev")
+
 odds_bands = ml_config.get("odds_bands", [])
 edge_bands = ml_config.get("edge_bands", [])
 ev_bands = ml_config.get("ev_bands", [])
 kelly_bands = ml_config.get("kelly_bands", [])
-model_prob_min = ml_config.get("model_probability_minimum", 0.0)
-dratings_prob_min = ml_config.get("dratings_probability_minimum", 0.0)
 
-def in_any_band(value, bands):
-    """Returns True if value falls within at least one [min, max] band."""
-    if value is None or value == "":
-        return False
-    try:
-        v = float(value)
-        return any(lo <= v <= hi for lo, hi in bands)
-    except:
-        return False
+# Default to None. When the key is absent from markets.yaml, no minimum is
+# enforced. When the key is present, the corresponding probability is strictly
+# required: missing / blank / non-numeric values fail the candidate.
+model_prob_min = ml_config.get("model_probability_minimum", None)
+dratings_prob_min = ml_config.get("dratings_probability_minimum", None)
 
-def ml_to_float(ml_str):
-    try:
-        return float(str(ml_str).replace("+", ""))
-    except:
-        return None
 
 def safe_float(val):
     try:
-        return float(val)
-    except:
+        if val is None:
+            return None
+
+        s = str(val).strip()
+        if s == "":
+            return None
+
+        return float(s.replace("+", ""))
+    except Exception:
         return None
 
-def pick_metric(row, fighter_key, pref):
-    """Return the metric value used for pick_preference sorting."""
-    suffix = "_f1" if fighter_key == "f1" else "_f2"
-    mapping = {
-        "best_ev": f"ev{suffix}",
-        "best_edge": f"edge{suffix}",
-        "best_kelly": f"kelly{suffix}",
-        "best_model_prob": f"model_prob{suffix}",
-        "best_dratings_prob": f"dratings_prob{suffix}",
-    }
-    col = mapping.get(pref, f"ev{suffix}")
-    return safe_float(row.get(col)) or 0.0
+
+def ml_to_float(ml_str):
+    return safe_float(ml_str)
+
+
+def in_any_band(value, bands):
+    """Returns True if value falls within at least one [min, max] band."""
+    v = safe_float(value)
+    if v is None:
+        return False
+
+    try:
+        return any(float(lo) <= v <= float(hi) for lo, hi in bands)
+    except Exception:
+        return False
+
+
+# Maps pick_preference -> candidate dict key for sorting/selection.
+PICK_METRIC_MAP = {
+    "best_ev": "ev",
+    "best_edge": "edge",
+    "best_kelly": "kelly",
+    "best_model_prob": "model_prob",
+    "best_dratings_prob": "dratings_prob",
+}
+
+
+def pick_metric_from_values(candidate: dict, pref: str) -> float:
+    """
+    Return the metric value used for within-fight selection and final sorting.
+
+    Uses candidate output keys. Missing / non-numeric values sort last.
+    """
+    col = PICK_METRIC_MAP.get(pref, "ev")
+    v = safe_float(candidate.get(col))
+    return v if v is not None else float("-inf")
+
 
 def passes_filters(ml, edge, ev, kelly, model_prob, dratings_prob):
     if not enabled:
         return False
+
     if odds_bands and not in_any_band(ml, odds_bands):
         return False
+
     if edge_bands and not in_any_band(edge, edge_bands):
         return False
+
     if ev_bands and not in_any_band(ev, ev_bands):
         return False
+
     if kelly_bands and not in_any_band(kelly, kelly_bands):
         return False
-    if model_prob is not None and model_prob < model_prob_min:
-        return False
-    if dratings_prob is not None and dratings_prob != "" and safe_float(dratings_prob) is not None:
-        if safe_float(dratings_prob) < dratings_prob_min:
+
+    # When model_probability_minimum is configured, model_prob is strictly required.
+    # Blank / missing / non-numeric model probability fails.
+    if model_prob_min is not None:
+        model_prob_val = safe_float(model_prob)
+        if model_prob_val is None:
             return False
+        if model_prob_val < float(model_prob_min):
+            return False
+
+    # When dratings_probability_minimum is configured, dratings_prob is strictly required.
+    # Blank / missing / non-numeric DRatings probability fails.
+    if dratings_prob_min is not None:
+        dratings_prob_val = safe_float(dratings_prob)
+        if dratings_prob_val is None:
+            return False
+        if dratings_prob_val < float(dratings_prob_min):
+            return False
+
     return True
+
+
+def make_candidate(row: dict, fighter_key: str) -> dict:
+    """
+    Build one fighter candidate (legacy format) from a fight row.
+
+    fighter_key:
+        f1 = fighter_1 side
+        f2 = fighter_2 side
+    """
+    if fighter_key == "f1":
+        return {
+            "match_date": row["match_date"],
+            "fighter": row["fighter_1"],
+            "opponent": row["fighter_2"],
+            "moneyline": row["moneyline_f1"],
+            "implied_prob": row["implied_prob_f1"],
+            "model_prob": row["model_prob_f1"],
+            "dratings_prob": row["dratings_prob_f1"],
+            "edge": row["edge_f1"],
+            "ev": row["ev_f1"],
+            "kelly": row["kelly_f1"],
+        }
+
+    return {
+        "match_date": row["match_date"],
+        "fighter": row["fighter_2"],
+        "opponent": row["fighter_1"],
+        "moneyline": row["moneyline_f2"],
+        "implied_prob": row["implied_prob_f2"],
+        "model_prob": row["model_prob_f2"],
+        "dratings_prob": row["dratings_prob_f2"],
+        "edge": row["edge_f2"],
+        "ev": row["ev_f2"],
+        "kelly": row["kelly_f2"],
+    }
+
+
+def candidate_passes(row: dict, fighter_key: str) -> bool:
+    """
+    Apply filters to one fighter side from the raw edge row.
+    """
+    suffix = "_f1" if fighter_key == "f1" else "_f2"
+
+    ml = ml_to_float(row.get(f"moneyline{suffix}"))
+    edge = safe_float(row.get(f"edge{suffix}"))
+    ev = safe_float(row.get(f"ev{suffix}"))
+    kelly = safe_float(row.get(f"kelly{suffix}"))
+    model_prob = safe_float(row.get(f"model_prob{suffix}"))
+    dratings_prob = safe_float(row.get(f"dratings_prob{suffix}"))
+
+    return passes_filters(
+        ml=ml,
+        edge=edge,
+        ev=ev,
+        kelly=kelly,
+        model_prob=model_prob,
+        dratings_prob=dratings_prob,
+    )
+
+
+def make_detailed_row(row: dict, bet_value: str) -> dict:
+    """
+    Build one detailed (audit) row from a fight row.
+
+    bet_value:
+        'fighter_1' | 'fighter_2' | 'no_bet'
+    """
+    return {
+        "match_date": row["match_date"],
+        "fighter_1": row["fighter_1"],
+        "fighter_2": row["fighter_2"],
+        "moneyline_f1": row["moneyline_f1"],
+        "moneyline_f2": row["moneyline_f2"],
+        "implied_prob_f1": row["implied_prob_f1"],
+        "implied_prob_f2": row["implied_prob_f2"],
+        "model_prob_f1": row["model_prob_f1"],
+        "model_prob_f2": row["model_prob_f2"],
+        "dratings_prob_f1": row["dratings_prob_f1"],
+        "dratings_prob_f2": row["dratings_prob_f2"],
+        "edge_f1": row["edge_f1"],
+        "edge_f2": row["edge_f2"],
+        "ev_f1": row["ev_f1"],
+        "ev_f2": row["ev_f2"],
+        "kelly_f1": row["kelly_f1"],
+        "kelly_f2": row["kelly_f2"],
+        "bet": bet_value,
+    }
+
+
+# Output column orders.
+LEGACY_FIELDS = [
+    "match_date",
+    "fighter",
+    "opponent",
+    "moneyline",
+    "implied_prob",
+    "model_prob",
+    "dratings_prob",
+    "edge",
+    "ev",
+    "kelly",
+]
+
+DETAILED_FIELDS = [
+    "match_date",
+    "fighter_1",
+    "fighter_2",
+    "moneyline_f1",
+    "moneyline_f2",
+    "implied_prob_f1",
+    "implied_prob_f2",
+    "model_prob_f1",
+    "model_prob_f2",
+    "dratings_prob_f1",
+    "dratings_prob_f2",
+    "edge_f1",
+    "edge_f2",
+    "ev_f1",
+    "ev_f2",
+    "kelly_f1",
+    "kelly_f2",
+    "bet",
+]
+
 
 # --- Process each edges file ---
 edges_files = sorted(EDGES_DIR.glob("*_ufc_edges.csv"))
+
 if not edges_files:
     print("No edges files found.")
     raise SystemExit(1)
+
 
 for edges_file in edges_files:
     date_str = edges_file.stem.replace("_ufc_edges", "")
@@ -107,69 +297,48 @@ for edges_file in edges_files:
         print(f"No rows in {edges_file.name}, skipping")
         continue
 
-    selected = []
+    selected = []          # legacy output: picks only
+    detailed_rows = []     # detailed output: every fight in edges-file order
+
     for row in rows:
-        candidates = []
+        candidates = []  # list of (side_label, candidate_dict)
 
-        # Check fighter 1
-        ml1 = ml_to_float(row.get("moneyline_f1"))
-        edge1 = safe_float(row.get("edge_f1"))
-        ev1 = safe_float(row.get("ev_f1"))
-        kelly1 = safe_float(row.get("kelly_f1"))
-        mp1 = safe_float(row.get("model_prob_f1"))
-        dr1 = safe_float(row.get("dratings_prob_f1"))
+        if candidate_passes(row, "f1"):
+            candidates.append(("fighter_1", make_candidate(row, "f1")))
 
-        if passes_filters(ml1, edge1, ev1, kelly1, mp1, dr1):
-            candidates.append({
-                "match_date": row["match_date"],
-                "fighter": row["fighter_1"],
-                "opponent": row["fighter_2"],
-                "moneyline": row["moneyline_f1"],
-                "implied_prob": row["implied_prob_f1"],
-                "model_prob": row["model_prob_f1"],
-                "dratings_prob": row["dratings_prob_f1"],
-                "edge": row["edge_f1"],
-                "ev": row["ev_f1"],
-                "kelly": row["kelly_f1"],
-                "_sort_val": pick_metric(row, "f1", pick_pref),
-            })
+        if candidate_passes(row, "f2"):
+            candidates.append(("fighter_2", make_candidate(row, "f2")))
 
-        # Check fighter 2
-        ml2 = ml_to_float(row.get("moneyline_f2"))
-        edge2 = safe_float(row.get("edge_f2"))
-        ev2 = safe_float(row.get("ev_f2"))
-        kelly2 = safe_float(row.get("kelly_f2"))
-        mp2 = safe_float(row.get("model_prob_f2"))
-        dr2 = safe_float(row.get("dratings_prob_f2"))
-
-        if passes_filters(ml2, edge2, ev2, kelly2, mp2, dr2):
-            candidates.append({
-                "match_date": row["match_date"],
-                "fighter": row["fighter_2"],
-                "opponent": row["fighter_1"],
-                "moneyline": row["moneyline_f2"],
-                "implied_prob": row["implied_prob_f2"],
-                "model_prob": row["model_prob_f2"],
-                "dratings_prob": row["dratings_prob_f2"],
-                "edge": row["edge_f2"],
-                "ev": row["ev_f2"],
-                "kelly": row["kelly_f2"],
-                "_sort_val": pick_metric(row, "f2", pick_pref),
-            })
-
-        # Pick best candidate from this fight per pick_preference
         if candidates:
-            best = max(candidates, key=lambda x: x["_sort_val"])
-            best.pop("_sort_val")
-            selected.append(best)
+            best_side, best_candidate = max(
+                candidates,
+                key=lambda sc: pick_metric_from_values(sc[1], pick_pref),
+            )
+            selected.append(best_candidate)
+            bet_value = best_side
+        else:
+            bet_value = "no_bet"
 
-    # Sort all selected picks by sort metric descending
-    selected.sort(key=lambda x: safe_float(x.get("ev")) or 0, reverse=True)
+        detailed_rows.append(make_detailed_row(row, bet_value))
 
+    # Legacy: sort all picks by pick_preference.
+    selected.sort(key=lambda c: pick_metric_from_values(c, pick_pref), reverse=True)
+
+    # --- Write detailed (always, edges-file order) ---
+    detailed_file = DETAILED_DIR / f"{date_str}_ufc_select_detailed.csv"
+    with detailed_file.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=DETAILED_FIELDS)
+        writer.writeheader()
+        writer.writerows(detailed_rows)
+
+    bet_count = sum(1 for r in detailed_rows if r["bet"] != "no_bet")
+    print(f"WROTE {detailed_file} ({len(detailed_rows)} fights, {bet_count} bets)")
+
+    # --- Write legacy (only when there are picks) ---
     out_file = OUT_DIR / f"{date_str}_ufc_select.csv"
     if selected:
         with out_file.open("w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=list(selected[0].keys()))
+            writer = csv.DictWriter(f, fieldnames=LEGACY_FIELDS)
             writer.writeheader()
             writer.writerows(selected)
         print(f"WROTE {out_file} ({len(selected)} picks)")

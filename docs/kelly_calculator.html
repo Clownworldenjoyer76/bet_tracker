@@ -94,6 +94,19 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   cursor: pointer;
 }
 
+/* UFC Event display */
+#kelly-ufc-event {
+  background: var(--picks-card);
+  border: 1px solid rgba(0,255,132,0.2);
+  color: var(--picks-green);
+  padding: 7px 12px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  border-radius: var(--picks-radius);
+  letter-spacing: 1px;
+  min-width: 120px;
+}
+
 .bankroll-wrap {
   display: flex;
   align-items: center;
@@ -201,8 +214,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 /* SPORT SECTION */
-.sport-section {}
-
 .sport-section-header {
   display: flex;
   align-items: center;
@@ -224,6 +235,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .sport-section-title.nba { color: var(--picks-yellow); }
 .sport-section-title.mlb { color: var(--picks-blue); }
 .sport-section-title.nhl { color: var(--picks-green); }
+.sport-section-title.ufc { color: #ff7043; }
 
 .pick-count {
   font-size: 10px;
@@ -293,43 +305,39 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   border: 1px solid rgba(0,191,255,0.2);
 }
 
-.pick-odds {
-  font-size: 11px;
-  color: var(--text-muted);
-  letter-spacing: 1px;
+.pick-market-tag.ufc {
+  color: #ff7043;
+  background: rgba(255,112,67,0.08);
+  border: 1px solid rgba(255,112,67,0.2);
 }
 
 .pick-matchup {
-  font-size: 11px;
-  color: var(--text-muted);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-main);
   margin-bottom: 4px;
   letter-spacing: 0.5px;
 }
 
 .pick-bet {
-  font-family: 'Barlow Condensed', sans-serif;
-  font-size: 17px;
-  font-weight: 600;
+  font-size: 11px;
   color: var(--picks-blue);
-  letter-spacing: 1px;
   margin-bottom: 10px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .pick-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: 10px;
+  padding-top: 8px;
   border-top: 1px solid var(--picks-border);
 }
 
 .pick-ev {
   font-size: 10px;
-  letter-spacing: 1px;
   color: var(--picks-green);
+  letter-spacing: 1px;
 }
 
 .pick-kelly {
@@ -385,6 +393,10 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     <input type="date" id="date-picker">
   </div>
   <div class="ctrl-group">
+    <span class="ctrl-label">UFC Event</span>
+    <div id="kelly-ufc-event">Loading...</div>
+  </div>
+  <div class="ctrl-group">
     <span class="ctrl-label">Bankroll</span>
     <div class="bankroll-wrap">
       <span class="dollar">$</span>
@@ -423,8 +435,9 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 <script src="js/nav.js"></script>
 <script>
 const BASE = 'https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/';
+const BASE_DOCS = BASE + 'docs/';
 let fraction = 1.0;
-const allPicks = { nba: [], mlb: [], nhl: [] };
+const allPicks = { nba: [], mlb: [], nhl: [], ufc: [] };
 
 function toDateStr(v) { return v.replaceAll('-', '_'); }
 
@@ -536,6 +549,63 @@ function processPicks(rows, sport, dateStr) {
   }).filter(Boolean);
 }
 
+// ─── UFC: Find nearest event ───────────────────────────────────────────────
+async function findUFCEventDate() {
+  const today = new Date();
+  const candidates = [];
+  for (let offset = -30; offset <= 30; offset++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + offset);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    candidates.push({ date: `${y}_${m}_${day}`, offset: Math.abs(offset) });
+  }
+  const results = await Promise.all(
+    candidates.map(async ({ date, offset }) => {
+      const url = `${BASE_DOCS}win/mma/ufc/03_select/${date}_ufc_select.csv`;
+      try {
+        const r = await fetch(url, { method: 'HEAD' });
+        return r.ok ? { date, offset } : null;
+      } catch { return null; }
+    })
+  );
+  const valid = results.filter(Boolean).sort((a, b) => a.offset - b.offset);
+  return valid.length ? valid[0].date : null;
+}
+
+async function loadUFCPicks() {
+  const eventDate = await findUFCEventDate();
+  const el = document.getElementById('kelly-ufc-event');
+  if (!eventDate) {
+    if (el) el.textContent = 'No event';
+    return [];
+  }
+  if (el) el.textContent = eventDate.replaceAll('_', '-');
+
+  try {
+    const url = `${BASE_DOCS}win/mma/ufc/03_select/${eventDate}_ufc_select.csv`;
+    const r = await fetch(url);
+    if (!r.ok) return [];
+    const rows = parseCSV(await r.text());
+    return rows.map(row => {
+      const kelly = parseFloat(row.kelly || 0);
+      const ev = parseFloat(row.ev || 0);
+      if (isNaN(kelly) || kelly <= 0) return null;
+      return {
+        matchup: `${row.fighter} vs ${row.opponent}`,
+        time: '',
+        market_type: 'ufc',
+        side: `${row.fighter} ${row.moneyline || ''}`,
+        odds: row.moneyline || '—',
+        ev: isNaN(ev) ? null : ev,
+        kelly,
+        isUFC: true,
+      };
+    }).filter(Boolean);
+  } catch { return []; }
+}
+
 function render() {
   const bankroll = parseFloat(document.getElementById('bankroll').value) || 0;
   const container = document.getElementById('picks-container');
@@ -543,6 +613,7 @@ function render() {
     { key: 'nba', label: 'NBA' },
     { key: 'mlb', label: 'MLB' },
     { key: 'nhl', label: 'NHL' },
+    { key: 'ufc', label: 'UFC' },
   ];
 
   let totalPicks = 0, totalBet = 0, html = '';
@@ -561,7 +632,7 @@ function render() {
       </div>`;
 
     if (picks.length === 0) {
-      html += `<div class="no-picks">No picks for this date</div>`;
+      html += `<div class="no-picks">No picks${key === 'ufc' ? ' for upcoming event' : ' for this date'}</div>`;
     } else {
       html += `<div class="picks-grid">`;
       for (const p of picks) {
@@ -604,16 +675,19 @@ async function loadAll() {
     { sport: 'nhl', url: `${BASE}docs/win/hockey/04_select/${date}_NHL.csv` },
   ];
 
-  await Promise.all(files.map(async ({ sport, url }) => {
-    try {
-      const r = await fetch(url);
-      if (!r.ok) throw new Error(r.status);
-      const rows = parseCSV(await r.text());
-      allPicks[sport] = processPicks(rows, sport, date);
-    } catch {
-      allPicks[sport] = [];
-    }
-  }));
+  await Promise.all([
+    ...files.map(async ({ sport, url }) => {
+      try {
+        const r = await fetch(url);
+        if (!r.ok) throw new Error(r.status);
+        const rows = parseCSV(await r.text());
+        allPicks[sport] = processPicks(rows, sport, date);
+      } catch {
+        allPicks[sport] = [];
+      }
+    }),
+    loadUFCPicks().then(picks => { allPicks.ufc = picks; }),
+  ]);
 
   render();
 }

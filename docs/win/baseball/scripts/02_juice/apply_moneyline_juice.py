@@ -85,8 +85,8 @@ def process_row(df, juice_df, idx, row):
     try:
         home_american = float(row["home_dk_moneyline_american"])
         away_american = float(row["away_dk_moneyline_american"])
-        home_fair     = float(row["home_dk_moneyline_decimal"])
-        away_fair     = float(row["away_dk_moneyline_decimal"])
+        home_fair     = float(row["home_fair_decimal_moneyline"])
+        away_fair     = float(row["away_fair_decimal_moneyline"])
     except Exception:
         _log(f"row={idx} reason=conversion_failed", "SKIP")
         return df, "bad"
@@ -108,8 +108,8 @@ def process_row(df, juice_df, idx, row):
         _log(f"row={idx} reason=band_lookup_failed home={home_american} away={away_american}", "SKIP")
         return df, "noband"
 
-    home_juiced_decimal = home_fair * (1 - home_extra) if home_fav_ud == "favorite" else home_fair * (1 + home_extra)
-    away_juiced_decimal = away_fair * (1 - away_extra) if away_fav_ud == "favorite" else away_fair * (1 + away_extra)
+    home_juiced_decimal = home_fair * (1 - home_extra)
+    away_juiced_decimal = away_fair * (1 - away_extra)
 
     if home_juiced_decimal <= 1 or away_juiced_decimal <= 1:
         _log(f"row={idx} reason=invalid_juiced_decimal home={home_juiced_decimal} away={away_juiced_decimal}", "SKIP")

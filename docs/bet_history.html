@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html> 
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -7,25 +7,640 @@
   <link rel="stylesheet" href="css/matstheme.css">
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    *, *::before, *::after { box-sizing:border-box;margin:0;padding:0; }
     body { background:var(--background);color:var(--text-main);font-family:'IBM Plex Mono',monospace;font-size:13px;min-height:100vh; }
-    .page-header { border-bottom:1px solid var(--border-soft);padding:16px 24px; }
+
+    .page-header { border-bottom:1px solid var(--border-soft);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px; }
     .page-title { font-family:'Barlow Condensed',sans-serif;font-size:22px;font-weight:900;letter-spacing:0.08em;text-transform:uppercase;color:var(--accent-green); }
     .page-subtitle { color:var(--text-muted);font-size:11px;letter-spacing:0.06em;margin-top:2px; }
-    .empty-state { text-align:center;padding:100px 20px;color:var(--text-muted);font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase; }
-    .empty-sub { font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text-muted);margin-top:10px;font-weight:400;letter-spacing:0; }
+
+    .controls { display:flex;align-items:center;gap:8px;padding:12px 24px;border-bottom:1px solid var(--border-soft);flex-wrap:wrap; }
+    .league-pill,
+    .market-pill,
+    .result-pill {
+      font-family:'Barlow Condensed',sans-serif;
+      font-size:12px;
+      font-weight:700;
+      letter-spacing:0.08em;
+      padding:4px 10px;
+      border:1px solid var(--border-soft);
+      background:transparent;
+      color:var(--text-muted);
+      cursor:pointer;
+      transition:all 0.15s;
+      text-transform:uppercase;
+    }
+    .league-pill { font-size:13px;padding:4px 12px; }
+    .league-pill:hover { border-color:var(--accent-blue);color:var(--accent-blue); }
+    .league-pill.active { border-color:var(--accent-green);color:var(--accent-green);background:rgba(0,255,132,0.06); }
+
+    .market-pill:hover { border-color:var(--accent-yellow);color:var(--accent-yellow); }
+    .market-pill.active { border-color:var(--accent-yellow);color:var(--accent-yellow);background:rgba(250,204,21,0.06); }
+
+    .result-pill:hover { border-color:var(--accent-blue);color:var(--accent-blue); }
+    .result-pill.active { border-color:var(--accent-blue);color:var(--accent-blue);background:rgba(0,191,255,0.06); }
+
+    .refresh-btn {
+      font-family:'Barlow Condensed',sans-serif;
+      font-size:12px;
+      font-weight:700;
+      letter-spacing:0.1em;
+      padding:5px 14px;
+      border:1px solid var(--border-soft);
+      background:transparent;
+      color:var(--text-muted);
+      cursor:pointer;
+      text-transform:uppercase;
+      transition:all 0.15s;
+      margin-left:auto;
+    }
+    .refresh-btn:hover { border-color:var(--accent-blue);color:var(--accent-blue); }
+
+    .status-bar { padding:8px 24px;font-size:11px;color:var(--text-muted);border-bottom:1px solid var(--border-soft);display:flex;align-items:center;gap:10px; }
+    .status-dot { width:6px;height:6px;border-radius:50%;background:var(--text-muted);display:inline-block;flex-shrink:0; }
+    .status-dot.green { background:var(--accent-green);box-shadow:0 0 6px var(--accent-green); }
+    .status-dot.yellow { background:var(--accent-yellow);animation:pulse 1s infinite; }
+    .status-dot.red { background:var(--accent-red); }
+    @keyframes pulse { 0%,100%{opacity:1;}50%{opacity:0.3;} }
+
+    .main { padding:20px 24px;display:flex;flex-direction:column;gap:20px; }
+
+    .summary-strip { display:flex;border:1px solid var(--border-soft); }
+    .summary-item { flex:1;padding:14px 18px;border-right:1px solid var(--border-soft);display:flex;flex-direction:column;gap:3px; }
+    .summary-item:last-child { border-right:none; }
+    .summary-val { font-family:'Barlow Condensed',sans-serif;font-size:28px;font-weight:900;line-height:1; }
+    .summary-lbl { font-size:9px;letter-spacing:0.12em;color:var(--text-muted);text-transform:uppercase; }
+
+    .val-green { color:var(--accent-green); }
+    .val-red { color:var(--accent-red); }
+    .val-yellow { color:var(--accent-yellow); }
+    .val-blue { color:var(--accent-blue); }
+
+    .section { background:var(--bg-card);border:1px solid var(--border-soft);padding:14px 16px; }
+    .section-title { font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.14em;color:var(--text-muted);text-transform:uppercase;border-bottom:1px solid var(--border-soft);padding-bottom:4px;margin-bottom:12px; }
+
+    .breakdown-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px; }
+    .breakdown-card { background:var(--bg-card);border:1px solid var(--border-soft);padding:10px 12px; }
+    .breakdown-title { font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:0.1em;color:var(--accent-yellow);text-transform:uppercase;margin-bottom:8px; }
+    .stat-row { display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid var(--border-soft); }
+    .stat-row:last-child { border-bottom:none; }
+    .stat-label { color:var(--text-muted); }
+    .stat-value { font-family:'Barlow Condensed',sans-serif;font-weight:700;color:var(--text-main); }
+
+    .history-tools {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      margin-bottom:12px;
+      flex-wrap:wrap;
+    }
+
+    .history-search {
+      flex:1;
+      min-width:240px;
+      background:rgba(255,255,255,0.025);
+      border:1px solid var(--border-soft);
+      color:var(--text-main);
+      font-family:'IBM Plex Mono',monospace;
+      font-size:11px;
+      padding:8px 10px;
+      outline:none;
+      transition:border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .history-search::placeholder { color:var(--text-muted); }
+
+    .history-search:focus {
+      border-color:rgba(0,255,132,0.35);
+      box-shadow:0 0 0 3px rgba(0,255,132,0.06);
+    }
+
+    .history-sort {
+      min-width:170px;
+      background:rgba(255,255,255,0.025);
+      border:1px solid var(--border-soft);
+      color:var(--text-main);
+      font-family:'IBM Plex Mono',monospace;
+      font-size:11px;
+      padding:8px 10px;
+      outline:none;
+      cursor:pointer;
+      text-transform:uppercase;
+      letter-spacing:0.04em;
+    }
+
+    .history-sort option {
+      background:#0c1118;
+      color:#e5e7eb;
+    }
+
+    .history-sort:focus {
+      border-color:rgba(0,191,255,0.35);
+      box-shadow:0 0 0 3px rgba(0,191,255,0.06);
+    }
+
+    .history-count {
+      font-size:10px;
+      color:var(--text-muted);
+      letter-spacing:0.08em;
+      text-transform:uppercase;
+      white-space:nowrap;
+    }
+
+    .bets-table-wrap {
+      display:none;
+      overflow-x:auto;
+    }
+
+    .bets-table {
+      width:100%;
+      border-collapse:collapse;
+      font-size:11px;
+    }
+
+    .bets-table th {
+      font-family:'Barlow Condensed',sans-serif;
+      font-size:9px;
+      font-weight:700;
+      letter-spacing:0.12em;
+      text-transform:uppercase;
+      color:var(--text-muted);
+      padding:8px 10px;
+      text-align:left;
+      border-bottom:1px solid var(--border-soft);
+      white-space:nowrap;
+      background:rgba(255,255,255,0.015);
+    }
+
+    .bets-table th:not(:first-child):not(:nth-child(2)):not(:nth-child(3)):not(:nth-child(4)) {
+      text-align:right;
+    }
+
+    .bets-table td {
+      padding:10px 10px;
+      border-bottom:1px solid var(--border-soft);
+      color:var(--text-muted);
+      white-space:nowrap;
+      line-height:1.35;
+      vertical-align:middle;
+    }
+
+    .bets-table td:not(:first-child):not(:nth-child(2)):not(:nth-child(3)):not(:nth-child(4)) {
+      text-align:right;
+    }
+
+    .bets-table td:nth-child(3),
+    .bets-table td:nth-child(4) {
+      white-space:normal;
+    }
+
+    .bets-table tr:last-child td { border-bottom:none; }
+
+    .history-date {
+      color:var(--text-muted);
+      font-size:10px;
+      letter-spacing:0.04em;
+    }
+
+    .history-league-pill {
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      min-width:42px;
+      padding:3px 8px;
+      border:1px solid rgba(250,204,21,0.24);
+      background:rgba(250,204,21,0.055);
+      color:var(--accent-yellow);
+      font-family:'Barlow Condensed',sans-serif;
+      font-size:10px;
+      font-weight:800;
+      letter-spacing:0.12em;
+      text-transform:uppercase;
+      line-height:1;
+    }
+
+    .history-matchup {
+      color:var(--text-main);
+      font-weight:600;
+      letter-spacing:0.01em;
+    }
+
+    .history-pick {
+      color:var(--accent-green);
+      font-weight:700;
+    }
+
+    .history-odds {
+      display:inline-flex;
+      justify-content:flex-end;
+      min-width:44px;
+      color:var(--text-main);
+      font-family:'IBM Plex Mono',monospace;
+      font-size:11px;
+      font-weight:600;
+    }
+
+    .history-result-badge,
+    .history-profit-badge {
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      min-width:52px;
+      padding:3px 8px;
+      border:1px solid var(--border-soft);
+      font-family:'Barlow Condensed',sans-serif;
+      font-size:10px;
+      font-weight:800;
+      letter-spacing:0.12em;
+      text-transform:uppercase;
+      line-height:1;
+    }
+
+    .history-result-badge.outcome-w {
+      color:var(--accent-green);
+      border-color:rgba(0,255,132,0.28);
+      background:rgba(0,255,132,0.06);
+    }
+
+    .history-result-badge.outcome-l {
+      color:var(--accent-red);
+      border-color:rgba(255,45,45,0.28);
+      background:rgba(255,45,45,0.06);
+    }
+
+    .history-result-badge.outcome-p {
+      color:var(--accent-yellow);
+      border-color:rgba(250,204,21,0.25);
+      background:rgba(250,204,21,0.05);
+    }
+
+    .history-profit-badge.val-green {
+      color:var(--accent-green);
+      border-color:rgba(0,255,132,0.28);
+      background:rgba(0,255,132,0.06);
+    }
+
+    .history-profit-badge.val-red {
+      color:var(--accent-red);
+      border-color:rgba(255,45,45,0.28);
+      background:rgba(255,45,45,0.06);
+    }
+
+    .history-profit-badge.profit-flat {
+      color:var(--text-muted);
+      border-color:var(--border-soft);
+      background:rgba(255,255,255,0.025);
+    }
+
+    .history-date-group {
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      margin-bottom:18px;
+    }
+
+    .history-date-group:last-child {
+      margin-bottom:0;
+    }
+
+    .history-date-header {
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex-wrap:wrap;
+      font-family:'Barlow Condensed',sans-serif;
+      font-size:13px;
+      font-weight:800;
+      letter-spacing:0.14em;
+      color:var(--accent-blue);
+      text-transform:uppercase;
+      padding:4px 0 6px;
+      border-bottom:1px solid var(--border-soft);
+    }
+
+    .history-date-header::after {
+      content:'';
+      flex:1;
+      min-width:40px;
+      height:1px;
+      background:rgba(255,255,255,0.04);
+    }
+
+    .history-date-count {
+      color:var(--text-muted);
+      font-family:'IBM Plex Mono',monospace;
+      font-size:9px;
+      font-weight:500;
+      letter-spacing:0.08em;
+      text-transform:uppercase;
+    }
+
+    .history-date-record {
+      color:var(--accent-green);
+      border:1px solid rgba(0,255,132,0.22);
+      background:rgba(0,255,132,0.045);
+      padding:2px 7px;
+      font-family:'IBM Plex Mono',monospace;
+      font-size:9px;
+      font-weight:500;
+      letter-spacing:0.06em;
+      text-transform:uppercase;
+      line-height:1.2;
+    }
+
+    .history-card-list {
+      display:flex;
+      flex-direction:column;
+      gap:18px;
+    }
+
+    .history-card-grid {
+      display:grid;
+      grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
+      gap:10px;
+    }
+
+    .history-card {
+      border:1px solid var(--border-soft);
+      background:rgba(255,255,255,0.018);
+      padding:12px;
+      transition:background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+    }
+
+    .history-card:hover {
+      background:rgba(255,255,255,0.028);
+      border-color:rgba(0,255,132,0.18);
+      transform:translateY(-1px);
+    }
+
+    .history-card-top {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      margin-bottom:8px;
+    }
+
+    .history-card-meta {
+      display:flex;
+      align-items:center;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+
+    .history-card-date {
+      color:var(--text-muted);
+      font-size:10px;
+      letter-spacing:0.04em;
+    }
+
+    .history-card-matchup {
+      color:var(--text-main);
+      font-family:'Barlow Condensed',sans-serif;
+      font-size:18px;
+      font-weight:800;
+      letter-spacing:0.04em;
+      line-height:1.15;
+      margin-bottom:6px;
+    }
+
+    .history-card-pick {
+      color:var(--accent-green);
+      font-size:12px;
+      font-weight:700;
+      line-height:1.35;
+      margin-bottom:10px;
+    }
+
+    .history-card-stats {
+      display:grid;
+      grid-template-columns:repeat(2,1fr);
+      gap:8px;
+      border-top:1px solid var(--border-soft);
+      padding-top:9px;
+    }
+
+    .history-card-stat-label {
+      color:var(--text-muted);
+      font-family:'Barlow Condensed',sans-serif;
+      font-size:9px;
+      font-weight:700;
+      letter-spacing:0.12em;
+      text-transform:uppercase;
+      margin-bottom:4px;
+    }
+
+    .history-card-stat-value {
+      color:var(--text-main);
+      font-family:'IBM Plex Mono',monospace;
+      font-size:11px;
+      font-weight:600;
+    }
+
+    .history-details {
+      margin-top:10px;
+      border-top:1px solid var(--border-soft);
+      padding-top:8px;
+    }
+
+    .history-details summary {
+      list-style:none;
+      cursor:pointer;
+      color:var(--text-muted);
+      font-family:'Barlow Condensed',sans-serif;
+      font-size:10px;
+      font-weight:800;
+      letter-spacing:0.14em;
+      text-transform:uppercase;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+      transition:color 0.15s;
+    }
+
+    .history-details summary::-webkit-details-marker {
+      display:none;
+    }
+
+    .history-details summary:hover {
+      color:var(--accent-blue);
+    }
+
+    .history-details summary::after {
+      content:'▾';
+      color:var(--accent-blue);
+      font-size:10px;
+      transition:transform 0.15s ease;
+    }
+
+    .history-details[open] summary {
+      color:var(--accent-blue);
+      margin-bottom:8px;
+    }
+
+    .history-details[open] summary::after {
+      transform:rotate(180deg);
+    }
+
+    .history-details-grid {
+      display:grid;
+      grid-template-columns:repeat(2,1fr);
+      gap:6px 10px;
+      background:rgba(255,255,255,0.018);
+      border:1px solid var(--border-soft);
+      padding:9px 10px;
+    }
+
+    .history-detail-item {
+      min-width:0;
+    }
+
+    .history-detail-label {
+      color:var(--text-muted);
+      font-family:'Barlow Condensed',sans-serif;
+      font-size:9px;
+      font-weight:700;
+      letter-spacing:0.12em;
+      text-transform:uppercase;
+      margin-bottom:3px;
+    }
+
+    .history-detail-value {
+      color:var(--text-main);
+      font-family:'IBM Plex Mono',monospace;
+      font-size:11px;
+      line-height:1.35;
+      overflow-wrap:anywhere;
+    }
+
+    .history-detail-value.val-green { color:var(--accent-green); }
+    .history-detail-value.val-red { color:var(--accent-red); }
+    .history-detail-value.val-yellow { color:var(--accent-yellow); }
+    .history-detail-value.val-blue { color:var(--accent-blue); }
+
+    .history-empty-results {
+      padding:34px 12px;
+      text-align:center;
+      border:1px dashed var(--border-soft);
+      color:var(--text-muted);
+      font-family:'Barlow Condensed',sans-serif;
+      font-size:13px;
+      font-weight:700;
+      letter-spacing:0.12em;
+      text-transform:uppercase;
+    }
+
+    .history-limit-note {
+      font-size:10px;
+      color:var(--text-muted);
+      padding:8px 0 0;
+      text-align:center;
+    }
+
+    .outcome-w { color:var(--accent-green);font-family:'Barlow Condensed',sans-serif;font-weight:700; }
+    .outcome-l { color:var(--accent-red);font-family:'Barlow Condensed',sans-serif;font-weight:700; }
+    .outcome-p { color:var(--text-muted);font-family:'Barlow Condensed',sans-serif;font-weight:700; }
+
+    .profit-flat { color:var(--text-muted); }
+
+    .prob-high { color:var(--accent-green); }
+    .prob-mid { color:var(--accent-yellow); }
+    .prob-low { color:var(--accent-red); }
+
+    .empty-state { text-align:center;padding:60px 20px;color:var(--text-muted);font-family:'Barlow Condensed',sans-serif;font-size:14px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase; }
+
+    @media (max-width: 820px) {
+      .summary-strip { flex-direction:column; }
+      .summary-item { border-right:none;border-bottom:1px solid var(--border-soft); }
+      .summary-item:last-child { border-bottom:none; }
+      .refresh-btn { margin-left:0; }
+    }
+
+    @media (max-width: 760px) {
+      .main { padding:16px; }
+
+      .history-tools {
+        flex-direction:column;
+        align-items:stretch;
+      }
+
+      .history-search,
+      .history-sort {
+        width:100%;
+        min-width:0;
+      }
+
+      .history-count {
+        text-align:left;
+      }
+
+      .history-date-header {
+        align-items:flex-start;
+        gap:7px;
+      }
+
+      .history-date-header::after {
+        display:none;
+      }
+
+      .history-card-grid {
+        grid-template-columns:1fr;
+      }
+
+      .history-details-grid {
+        grid-template-columns:1fr;
+      }
+    }
   </style>
 </head>
 <body>
 <div id="nav-placeholder"></div>
+
 <div class="page-header">
-  <div class="page-title">Bet History</div>
-  <div class="page-subtitle">COMING SOON</div>
+  <div>
+    <div class="page-title">Bet History</div>
+    <div class="page-subtitle">GRADED BETS · RESULTS · MODEL PROBABILITY · EV · ODDS</div>
+  </div>
 </div>
-<div class="empty-state">
-  Under Construction
-  <div class="empty-sub">Bet history tracking coming soon.</div>
+
+<div class="controls">
+  <div class="league-pill active" data-league="all">All</div>
+  <div class="league-pill" data-league="MLB">MLB</div>
+  <div class="league-pill" data-league="NBA">NBA</div>
+  <div class="league-pill" data-league="NCAAM">NCAAM</div>
+  <div class="league-pill" data-league="WNBA">WNBA</div>
+  <div class="league-pill" data-league="NHL">NHL</div>
+  <div class="league-pill" data-league="SOCCER">Soccer</div>
+
+  <div class="market-pill active" data-market="all">All Markets</div>
+  <div class="market-pill" data-market="moneyline">Moneyline</div>
+  <div class="market-pill" data-market="spread">Spread / Line</div>
+  <div class="market-pill" data-market="total">Total</div>
+
+  <div class="result-pill active" data-result="all">All Results</div>
+  <div class="result-pill" data-result="win">Wins</div>
+  <div class="result-pill" data-result="loss">Losses</div>
+  <div class="result-pill" data-result="push">Push</div>
+
+  <button class="refresh-btn" onclick="loadAll()">↻ Refresh</button>
 </div>
+
+<div class="status-bar" id="history-status">
+  <span class="status-dot yellow" id="status-dot"></span>
+  <span id="status-text">Loading bet history...</span>
+</div>
+
+<div class="main" id="history-main"></div>
+
 <script src="js/nav.js"></script>
+
+<script src="js/bet-history/config.js"></script>
+<script src="js/bet-history/sources.js"></script>
+<script src="js/bet-history/csv.js"></script>
+<script src="js/bet-history/normalize.js"></script>
+<script src="js/bet-history/render.js"></script>
+<script src="js/bet-history/app.js"></script>
 </body>
 </html>

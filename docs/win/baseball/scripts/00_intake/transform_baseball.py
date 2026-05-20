@@ -14,21 +14,26 @@ LOG_FILE = ERROR_DIR / "transform_baseball.txt"
 with open(LOG_FILE, "w", encoding="utf-8") as f:
     f.write(f"=== transform_baseball RUN {datetime.now().isoformat()} ===\n")
 
+
 def log(msg: str) -> None:
     with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write(f"{datetime.now().isoformat()} | {msg}\n")
+
 
 # -------------------------
 # PATHS
 # -------------------------
 
-RAW_DIR        = Path("docs/win/baseball/00_intake/drat_raw")
-PRED_DIR       = Path("docs/win/baseball/00_intake/predictions")
-FINAL_DIR      = Path("docs/win/final_scores/results/mlb/final_scores")
-SPORTSBOOK_DIR = Path("docs/win/baseball/00_intake/sportsbook")
+RAW_DIR             = Path("docs/win/baseball/00_intake/drat_raw")
+PRED_DIR            = Path("docs/win/baseball/00_intake/predictions")
+FINAL_DIR           = Path("docs/win/final_scores/results/mlb/final_scores")
+BASEBALL_FINAL_DIR  = Path("docs/win/baseball/05_final_scores/results/final_scores")
+SPORTSBOOK_DIR      = Path("docs/win/baseball/00_intake/sportsbook")
 
 PRED_DIR.mkdir(parents=True, exist_ok=True)
 FINAL_DIR.mkdir(parents=True, exist_ok=True)
+BASEBALL_FINAL_DIR.mkdir(parents=True, exist_ok=True)
+
 
 # -------------------------
 # HELPERS
@@ -52,23 +57,28 @@ def pct_to_decimal(p):
 # -------------------------
 
 def load_predictions_lookup(date):
-    path   = PRED_DIR / f"{date}_MLB.csv"
+    path = PRED_DIR / f"{date}_MLB.csv"
     lookup = {}
+
     if not path.exists():
         return lookup
+
     with open(path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for r in reader:
             key = (r["home_team"], r["away_team"])
             lookup[key] = r.get("game_id")
+
     return lookup
 
 
 def load_sportsbook_lookup(date):
-    path   = SPORTSBOOK_DIR / f"{date}_MLB.csv"
+    path = SPORTSBOOK_DIR / f"{date}_MLB.csv"
     lookup = {}
+
     if not path.exists():
         return lookup
+
     with open(path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for r in reader:
@@ -76,8 +86,9 @@ def load_sportsbook_lookup(date):
             lookup[key] = {
                 "away_run_line": r.get("away_run_line"),
                 "home_run_line": r.get("home_run_line"),
-                "total":         r.get("total"),
+                "total": r.get("total"),
             }
+
     return lookup
 
 
@@ -98,8 +109,25 @@ def is_completed_game(row):
 
 SUMMARY_ROW_PREFIXES = {"Sportsbooks", "DRatings"}
 
+
 def is_summary_row(row):
     return row and str(row[0]).strip() in SUMMARY_ROW_PREFIXES
+
+
+# -------------------------
+# WRITE HELPERS
+# -------------------------
+
+def write_csv(path, header, rows, files_written, label):
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(header)
+        writer.writerows(rows)
+
+    files_written.append((str(path), len(rows)))
+    log(f"WROTE {label} -> {path} ({len(rows)} rows)")
 
 
 # -------------------------
@@ -112,11 +140,11 @@ def process_file(file_path, files_written, seen_final_keys):
     with open(file_path, "r") as f:
         data = json.load(f)
 
-    predictions_by_date  = {}
+    predictions_by_date = {}
     final_scores_by_date = {}
-    parse_errors         = 0
-    skipped_summary      = 0
-    skipped_duplicate    = 0
+    parse_errors = 0
+    skipped_summary = 0
+    skipped_duplicate = 0
 
     for row in data:
         if not row or len(row) < 2:
@@ -138,7 +166,7 @@ def process_file(file_path, files_written, seen_final_keys):
 
         away_team = clean_team(teams[0])
         home_team = clean_team(teams[1])
-        key       = (home_team, away_team)
+        key = (home_team, away_team)
 
         if is_future_game(row):
             # Cell layout (11 cells):
@@ -154,15 +182,15 @@ def process_file(file_path, files_written, seen_final_keys):
             #   9: bet value label
             #  10: (empty)
             try:
-                pitchers     = row[2].split("\n")
+                pitchers = row[2].split("\n")
                 away_pitcher = pitchers[0].strip()
                 home_pitcher = pitchers[1].strip() if len(pitchers) > 1 else ""
 
-                probs     = row[3].split("\n")
+                probs = row[3].split("\n")
                 away_prob = pct_to_decimal(probs[0])
                 home_prob = pct_to_decimal(probs[1]) if len(probs) > 1 else ""
 
-                runs      = row[6].split("\n")
+                runs = row[6].split("\n")
                 away_runs = runs[0].strip()
                 home_runs = runs[1].strip() if len(runs) > 1 else ""
 
@@ -194,21 +222,23 @@ def process_file(file_path, files_written, seen_final_keys):
             #   7: rating
             try:
                 dedup_key = (game_date, home_team, away_team)
+
                 if dedup_key in seen_final_keys:
                     skipped_duplicate += 1
                     continue
+
                 seen_final_keys.add(dedup_key)
 
-                scores      = row[5].split("\n")
-                away_score  = int(scores[0].strip())
-                home_score  = int(scores[1].strip()) if len(scores) > 1 else 0
+                scores = row[5].split("\n")
+                away_score = int(scores[0].strip())
+                home_score = int(scores[1].strip()) if len(scores) > 1 else 0
                 final_total = str(away_score + home_score)
 
                 pred_lookup = load_predictions_lookup(game_date)
                 book_lookup = load_sportsbook_lookup(game_date)
 
                 game_id = pred_lookup.get(key, "")
-                book    = book_lookup.get(key, {})
+                book = book_lookup.get(key, {})
 
                 final_row = [
                     "baseball", "mlb", game_id,
@@ -229,35 +259,40 @@ def process_file(file_path, files_written, seen_final_keys):
         else:
             log(f"  SKIPPED unknown row ({len(row)} cells): {row[0]} | {row[1]}")
 
+    prediction_header = [
+        "game_id", "sport", "league", "game_date", "game_time",
+        "home_team", "away_team", "home_pitcher", "away_pitcher",
+        "home_prob", "away_prob",
+        "away_projected_runs", "home_projected_runs", "total_projected_runs",
+    ]
+
     for date, rows in predictions_by_date.items():
         out = PRED_DIR / f"{date}_MLB.csv"
-        with open(out, "w", newline="", encoding="utf-8") as f:
-            writer = csv.writer(f)
-            writer.writerow([
-                "game_id", "sport", "league", "game_date", "game_time",
-                "home_team", "away_team", "home_pitcher", "away_pitcher",
-                "home_prob", "away_prob",
-                "away_projected_runs", "home_projected_runs", "total_projected_runs",
-            ])
-            writer.writerows(rows)
-        files_written.append((str(out), len(rows)))
-        log(f"WROTE predictions -> {out} ({len(rows)} rows)")
+        write_csv(out, prediction_header, rows, files_written, "predictions")
+
+    final_header = [
+        "sport", "league", "game_id", "game_date", "game_time",
+        "home_team", "away_team",
+        "final_away_score", "final_home_score", "final_total",
+        "away_run_line", "home_run_line", "total",
+    ]
 
     for date, rows in final_scores_by_date.items():
-        out = FINAL_DIR / f"{date}_final_scores_MLB.csv"
-        with open(out, "w", newline="", encoding="utf-8") as f:
-            writer = csv.writer(f)
-            writer.writerow([
-                "sport", "league", "game_id", "game_date", "game_time",
-                "home_team", "away_team",
-                "final_away_score", "final_home_score", "final_total",
-                "away_run_line", "home_run_line", "total",
-            ])
-            writer.writerows(rows)
-        files_written.append((str(out), len(rows)))
-        log(f"WROTE final scores -> {out} ({len(rows)} rows)")
+        output_paths = [
+            FINAL_DIR / f"{date}_final_scores_MLB.csv",
+            BASEBALL_FINAL_DIR / f"{date}_final_scores_MLB.csv",
+        ]
 
-    log(f"  parse_errors={parse_errors}, skipped_summary={skipped_summary}, skipped_duplicate={skipped_duplicate}, predictions_dates={len(predictions_by_date)}, final_score_dates={len(final_scores_by_date)}")
+        for out in output_paths:
+            write_csv(out, final_header, rows, files_written, "final scores")
+
+    log(
+        f"  parse_errors={parse_errors}, "
+        f"skipped_summary={skipped_summary}, "
+        f"skipped_duplicate={skipped_duplicate}, "
+        f"predictions_dates={len(predictions_by_date)}, "
+        f"final_score_dates={len(final_scores_by_date)}"
+    )
 
 
 # -------------------------
@@ -265,7 +300,7 @@ def process_file(file_path, files_written, seen_final_keys):
 # -------------------------
 
 def main():
-    files_written   = []
+    files_written = []
     seen_final_keys = set()
 
     try:
@@ -278,8 +313,10 @@ def main():
         log("--- SUMMARY ---")
         log(f"Raw files processed: {len(raw_files)}")
         log(f"Files written: {len(files_written)}")
+
         for path, count in files_written:
             log(f"  FILE: {path} ({count} rows)")
+
         log("STATUS: SUCCESS")
 
     except Exception as e:
