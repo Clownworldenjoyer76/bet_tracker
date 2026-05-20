@@ -88,6 +88,7 @@
           <option value="baseball">Baseball</option>
           <option value="hockey">Hockey</option>
           <option value="soccer">Soccer</option>
+          <option value="mma">MMA</option>
           <option value="final_scores">Final Scores</option>
         </select>
       </div>
@@ -136,6 +137,7 @@
       baseball: ["MLB"],
       hockey: ["NHL"],
       soccer: ["MLS", "EPL", "Ligue 1", "Serie A", "La Liga", "Bundesliga"],
+      mma: ["UFC"],
       final_scores: ["NBA", "NCAAB", "NHL", "WNBA", "UFC"]
     };
 
@@ -155,6 +157,7 @@
 
       if (!l || !MARKET_MAP[l]) {
         mSel.innerHTML = "<option value=''>-- placeholder --</option>";
+        updateSources();
         return;
       }
 
@@ -175,6 +178,8 @@
 
       if (l === "final_scores" && m === "UFC") {
         sSel.value = "UFC Results";
+      } else if (l === "mma" && m === "UFC") {
+        sSel.value = "Predictions";
       }
     }
 
@@ -197,20 +202,28 @@
       const marketKey = normalizeKey(market);
       const sourceKey = normalizeKey(source);
 
-      const isUFC = (
+      const isUFCFinalScores = (
         leagueKey === "finalscores" &&
         marketKey === "ufc" &&
         sourceKey === "ufcresults"
       );
 
+      const isMMAPredictions = (
+        leagueKey === "mma" &&
+        marketKey === "ufc" &&
+        sourceKey === "predictions"
+      );
+
       let workflowFile = WORKFLOW_FILE_DEFAULT;
 
-      if (isUFC) {
+      if (isUFCFinalScores) {
         workflowFile = WORKFLOW_FILE_UFC;
       } else if (leagueKey === "soccer" && sourceKey === "soccertotals") {
         workflowFile = WORKFLOW_FILE_SOCCER_SCORES;
       } else if (leagueKey === "soccer" && sourceKey === "predictions") {
         workflowFile = WORKFLOW_FILE_SOCCER_PRED;
+      } else if (isMMAPredictions) {
+        workflowFile = WORKFLOW_FILE_DEFAULT;
       }
 
       btn.classList.add("submitting");
