@@ -1,125 +1,316 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Admin — Data Import</title>
-  <link rel="stylesheet" href="css/matstheme.css" />
-  <style>
-    .row { display: flex; gap: 16px; margin-bottom: 20px; }
-    .row > div { flex: 1; }
-    
-    label { display: block; margin-bottom: 5px; color: var(--text-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
-    
-    select, input, textarea {
-      width: 100%;
-      background: var(--bg-card);
-      color: var(--text-main);
-      padding: 12px;
-      font-family: inherit;
-      border-radius: 4px;
-      border: none;
-      border-bottom: 2px solid var(--border-soft);
-      transition: all 0.2s ease;
-      appearance: none;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manual Data</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=Barlow+Condensed:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/matstheme.css">
+<style>
 
-    select {
-      background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2300ff84'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 12px center;
-      background-size: 18px;
-    }
+.topbar {
+  margin: 0;
+}
 
-    select:focus, input:focus, textarea:focus {
-      outline: none;
-      border-bottom-color: var(--accent-green);
-      box-shadow: 0 4px 12px -4px rgba(0, 255, 132, 0.3);
-    }
+/* ── Page-level overrides ───────────────────────────────────────────────── */
+body {
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  background: var(--background);
+  padding: 0;
+}
 
-    textarea { height: 200px; resize: none; border: 1px solid var(--border-soft); }
+/* ── Manual-data tokens ─────────────────────────────────────────────────── */
+:root {
+  --manual-green:      #00ff84;
+  --manual-green-dim:  rgba(0, 255, 132, 0.08);
+  --manual-green-glow: rgba(0, 255, 132, 0.2);
+  --manual-yellow:     #facc15;
+  --manual-red:        #ff2d2d;
+  --manual-blue:       #00bfff;
+  --manual-border:     rgba(255,255,255,0.06);
+  --manual-card:       #0c1118;
+  --manual-card-hover: #111822;
+  --manual-radius:     3px;
+}
 
-    @keyframes pulse-yellow {
-      0% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.7); }
-      70% { box-shadow: 0 0 0 10px rgba(250, 204, 21, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0); }
-    }
+/* ── Page header ────────────────────────────────────────────────────────── */
+.manual-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--manual-border);
+}
 
-    button {
-      background: var(--accent-green);
-      color: var(--background);
-      border: none;
-      padding: 14px;
-      font-weight: 900;
-      cursor: pointer;
-      border-radius: 4px;
-      width: 100%;
-      margin-top: 20px;
-      text-transform: uppercase;
-      letter-spacing: 2px;
-      transition: all 0.3s ease;
-    }
+.manual-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: 6px;
+  text-transform: uppercase;
+  color: var(--manual-green);
+  line-height: 1;
+  margin: 0;
+}
 
-    button.submitting {
-      background: var(--bg-card) !important;
-      color: var(--accent-yellow) !important;
-      border: 1px solid var(--accent-yellow);
-      animation: pulse-yellow 1.5s infinite;
-      cursor: wait;
-    }
+.manual-title-slash {
+  color: rgba(0,255,132,0.25);
+  margin: 0 4px;
+}
 
-    #out { margin-top: 20px; font-family: monospace; font-weight: bold; text-align: center; }
-    .success { color: var(--accent-green); }
-    .failure { color: var(--accent-red); }
-  </style>
+#status {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-left: auto;
+}
+
+#status.loading {
+  color: var(--manual-green);
+  animation: pulse-text 1.2s ease infinite;
+}
+
+@keyframes pulse-text {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.35; }
+}
+
+/* ── Controls bar ───────────────────────────────────────────────────────── */
+.manual-controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 24px;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--manual-border);
+  flex-wrap: wrap;
+}
+
+.control-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 180px;
+  flex: 1;
+}
+
+.control-label {
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+select,
+input,
+textarea {
+  background: var(--manual-card);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-main);
+  padding: 7px 12px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  border-radius: var(--manual-radius);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+
+select {
+  appearance: none;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2300ff84'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 16px;
+  padding-right: 34px;
+}
+
+select:focus,
+input:focus,
+textarea:focus {
+  border-color: var(--manual-green);
+  box-shadow: 0 0 0 3px var(--manual-green-dim);
+}
+
+input[type="password"] {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* ── Body ───────────────────────────────────────────────────────────────── */
+.manual-body {
+  padding: 24px;
+}
+
+.manual-card {
+  background: var(--manual-card);
+  border: 1px solid var(--manual-border);
+  border-left: 3px solid transparent;
+  border-radius: var(--manual-radius);
+  padding: 18px;
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+
+.manual-card:hover {
+  border-left-color: var(--manual-green);
+  background: var(--manual-card-hover);
+}
+
+.raw-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.raw-label {
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.raw-hint {
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: var(--manual-blue);
+  text-transform: uppercase;
+}
+
+textarea {
+  width: 100%;
+  min-height: 280px;
+  resize: vertical;
+  box-sizing: border-box;
+  line-height: 1.5;
+  background: #080c11;
+}
+
+@keyframes pulse-yellow {
+  0% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.7); }
+  70% { box-shadow: 0 0 0 10px rgba(250, 204, 21, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0); }
+}
+
+button {
+  margin-top: 16px;
+  width: 100%;
+  background: transparent;
+  color: var(--manual-green);
+  border: 1px solid rgba(0,255,132,0.3);
+  padding: 12px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  cursor: pointer;
+  border-radius: var(--manual-radius);
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+button:hover {
+  background: var(--manual-green-dim);
+  border-color: var(--manual-green);
+}
+
+button.submitting {
+  background: var(--manual-card) !important;
+  color: var(--manual-yellow) !important;
+  border-color: rgba(250,204,21,0.45) !important;
+  animation: pulse-yellow 1.5s infinite;
+  cursor: wait;
+}
+
+#out {
+  margin-top: 16px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.success { color: var(--manual-green); }
+.failure { color: var(--manual-red); }
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .manual-controls { gap: 14px; }
+  .control-wrap { min-width: 100%; }
+  .manual-body { padding: 16px; }
+}
+
+</style>
 </head>
 <body>
+
   <div id="nav-placeholder"></div>
 
-  <div class="container">
-    <h2>Data Dump</h2>
+  <div class="manual-header">
+    <h1 class="manual-title">MANUAL<span class="manual-title-slash">/</span>DATA</h1>
+    <div id="status" class="status"></div>
+  </div>
 
-    <div class="row">
-      <div>
-        <label for="league">League</label>
-        <select id="league" onchange="updateMarkets()">
-          <option value="">-- select --</option>
-          <option value="basketball">Basketball</option>
-          <option value="football">Football</option>
-          <option value="baseball">Baseball</option>
-          <option value="hockey">Hockey</option>
-          <option value="soccer">Soccer</option>
-          <option value="mma">MMA</option>
-          <option value="final_scores">Final Scores</option>
-        </select>
-      </div>
-      <div>
-        <label for="market">Market</label>
-        <select id="market" onchange="updateSources()"><option value="">-- placeholder --</option></select>
-      </div>
-      <div>
-        <label for="source">Source</label>
-        <select id="source">
-          <option value="">-- select --</option>
-          <option value="DraftKings">DraftKings</option>
-          <option value="Predictions">Predictions</option>
-          <option value="Scores">Scores</option>
-          <option value="Soccer Totals">Soccer Totals</option>
-          <option value="UFC Results">UFC Results</option>
-        </select>
-      </div>
+  <div class="manual-controls">
+    <div class="control-wrap">
+      <span class="control-label">League</span>
+      <select id="league" onchange="updateMarkets()">
+        <option value="">-- select --</option>
+        <option value="basketball">Basketball</option>
+        <option value="football">Football</option>
+        <option value="baseball">Baseball</option>
+        <option value="hockey">Hockey</option>
+        <option value="soccer">Soccer</option>
+        <option value="mma">MMA</option>
+        <option value="final_scores">Final Scores</option>
+      </select>
     </div>
 
-    <label for="token">Magic</label>
-    <input id="token" type="password" placeholder="••••••••" />
+    <div class="control-wrap">
+      <span class="control-label">Market</span>
+      <select id="market" onchange="updateSources()">
+        <option value="">-- placeholder --</option>
+      </select>
+    </div>
 
-    <label for="raw" style="margin-top:20px;">Raw Text</label>
-    <textarea id="raw"></textarea>
+    <div class="control-wrap">
+      <span class="control-label">Source</span>
+      <select id="source">
+        <option value="">-- select --</option>
+        <option value="DraftKings">DraftKings</option>
+        <option value="Predictions">Predictions</option>
+        <option value="Scores">Scores</option>
+        <option value="Soccer Totals">Soccer Totals</option>
+        <option value="UFC Results">UFC Results</option>
+      </select>
+    </div>
 
-    <button id="btn" onclick="dispatch()">Create File</button>
-    <div id="out"></div>
+    <div class="control-wrap">
+      <span class="control-label">Magic</span>
+      <input id="token" type="password" placeholder="••••••••">
+    </div>
+  </div>
+
+  <div class="manual-body">
+    <div class="manual-card">
+      <div class="raw-label-row">
+        <span class="raw-label">Raw Text</span>
+        <span class="raw-hint">Paste dump here</span>
+      </div>
+
+      <textarea id="raw"></textarea>
+
+      <button id="btn" onclick="dispatch()">Create File</button>
+      <div id="out"></div>
+    </div>
   </div>
 
   <script src="js/nav.js"></script>
+
   <script>
     const OWNER = "Clownworldenjoyer76";
     const REPO  = "bet_tracker";
@@ -191,10 +382,13 @@
       const raw    = document.getElementById("raw").value;
       const out    = document.getElementById("out");
       const btn    = document.getElementById("btn");
+      const status = document.getElementById("status");
 
       if (!league || !market || !source || !token || !raw.trim()) {
         out.className = "failure";
         out.textContent = "Major Failure Bro";
+        status.className = "";
+        status.textContent = "Missing Input";
         return;
       }
 
@@ -231,6 +425,8 @@
       btn.textContent = "Processing...";
       out.className = "";
       out.textContent = `Submitting to ${workflowFile}...`;
+      status.className = "loading";
+      status.textContent = "Submitting";
 
       try {
         const url = `https://api.github.com/repos/${OWNER}/${REPO}/actions/workflows/${workflowFile}/dispatches`;
@@ -256,12 +452,16 @@
         if (res.status === 204) {
           out.className = "success";
           out.textContent = `Successfully Submitted: ${workflowFile}`;
+          status.className = "";
+          status.textContent = "Submitted";
         } else {
           throw new Error();
         }
       } catch (e) {
         out.className = "failure";
         out.textContent = `Major Failure Bro: ${workflowFile}`;
+        status.className = "";
+        status.textContent = "Failed";
       } finally {
         btn.classList.remove("submitting");
         btn.disabled = false;
@@ -269,5 +469,6 @@
       }
     }
   </script>
+
 </body>
 </html>
