@@ -16,15 +16,14 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Pull model files from model-data branch
+      - name: Verify model files on main
         run: |
-          git fetch origin model-data
-          git checkout origin/model-data -- data/model/fighter_attributes.json
-          git checkout origin/model-data -- data/model/fighter_history.json
-          git checkout origin/model-data -- data/model/fighter_historical_stats.parquet
-          git checkout origin/model-data -- data/model/ufc_master_clean.parquet
-          git checkout origin/model-data -- data/model/ufc_model.pkl
-          echo "Model files pulled:"
+          test -f data/model/fighter_attributes.json
+          test -f data/model/fighter_history.json
+          test -f data/model/fighter_historical_stats.parquet
+          test -f data/model/ufc_master_clean.parquet
+          test -f data/model/ufc_model.pkl
+          echo "Model files found on main:"
           ls -lh data/model/
 
       - name: Set up Python
@@ -46,9 +45,6 @@ jobs:
 
       - name: 00 - Normalize fighter names
         run: python docs/win/mma/ufc/scripts/00_intake/00_name_normalization.py
-
-    #  - name: 01 - Build features
-    #    run: python docs/win/mma/ufc/scripts/01_feature_engineering/01_build_features.py
 
       - name: 02 - Compute edges
         run: python docs/win/mma/ufc/scripts/02_edges/02_edges.py
