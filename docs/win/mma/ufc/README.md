@@ -9,7 +9,7 @@ A machine learning pipeline to predict UFC fight outcomes and identify betting e
 ```
 bet_tracker/
 ├── data/
-│   └── model/                          # model-data branch only — never commit to main
+│   └── model/    
 │       ├── fighter_attributes.json
 │       ├── fighter_history.json
 │       ├── fighter_historical_stats.parquet
@@ -52,9 +52,6 @@ bet_tracker/
 └── .github/workflows/
     └── ufc_daily_pipeline.yml
 ```
-
----
-
 ## Local Machine Setup
 
 All builder scripts run from `C:\Users\ntmal\Downloads\bet_tracker_files\UFC_Master\`.
@@ -62,12 +59,6 @@ All builder scripts run from `C:\Users\ntmal\Downloads\bet_tracker_files\UFC_Mas
 ```powershell
 pip install pandas pyarrow requests beautifulsoup4 scikit-learn xgboost pyyaml
 ```
-
----
-
-## Daily Pipeline 
-
----
 
 ## When to Update `data/model/` Files
 
@@ -89,25 +80,11 @@ These 5 files live on the `model-data` branch at `bet_tracker/data/model/`. The 
 - **When:** After running `scrape_historical_stats.py` locally
 - **How often:** Same as `ufc_master_clean.parquet` — after every UFC event
 
-### How to upload updated files to `model-data` branch:
-1. Go to `bet_tracker` repo on GitHub
-2. Switch to `model-data` branch
-3. Navigate to `data/model/`
-4. Click the file to replace → click `...` → **Delete file** → commit to `model-data`
-5. Go back to `data/model/` → **Add file** → **Upload files** → upload new version → commit to `model-data`
+
 
 ---
 
 ## New Fighter Process
-## old instructions ##
-#When `no_map_fighter_name.csv` contains fighters after a pipeline run:
-#
-#1. Run `add_missing_fighters.py` locally — scrapes ufcstats and adds to `fighter_attributes.json`
-#2. If fighter is not found on ufcstats, add them manually to `fighter_name_map.csv` with `alias,canonical` — model will use median fill values for their features
-#3. Upload updated `fighter_attributes.json` to `model-data` branch
-#4. Add the fighter's name to `mappings/mma/ufc/fighter_name_map.csv` on main branch
-
-## NEW  instructions ##
 
 How to run:
 
@@ -117,21 +94,52 @@ From the UFC_Master folder, run:
 
 powershell python scripts\builder_scripts\add_missing_fighters.py
 
-After it finishes, upload the updated fighter_attributes.json to the model-data branch
-For any fighters reported as "Not found on ufcstats", add them manually to mappings/mma/ufc/fighter_name_map.csv on the main branch
+After it finishes, upload the updated fighter_attributes.json to the model-data folder
+For fighters reported as "Not found on ufcstats"
+    1. Add them manually to mappings/mma/ufc/fighter_name_map.csv 
+    2. Add them manually to the local folder at UFC_Master\mappings\mma\ufc\ALERT-----missing_attributes_retry.txt
+    
 ---
 
 ## Model Retraining Process (Local Machine)
 
 Run these scripts in order from `C:\Users\ntmal\Downloads\bet_tracker_files\UFC_Master\scripts\builder_scripts\`:
+1. Add completed matches to UFC_Master\match_results
 
-1. `parse_ufc_files.py` — parses all raw CSV event files into master dataset
+2. Run from:
+
+```cmd
+C:\Users\ntmal\Downloads\bet_tracker_files\UFC_Master
+```
+3. Steps:
+
+```cmd
+python scripts\builder_scripts\parse_ufc_files.py
+python scripts\builder_scripts\apply_corrections.py
+python scripts\builder_scripts\audit_missing_attributes.py
+## pip install requests beautifulsoup4 pandas pyarrow
+python scripts\builder_scripts\scrape_historical_stats.py
+## scrape_historical_stats.py takes ~35-40 min to run
+python scripts\builder_scripts\build_features.py
+python scripts\builder_scripts\train_model_weighted.py
+python scripts\builder_scripts\evaluate_roi.py
+```
+
+
+
+
+
+--
+wHAT THEY DO:
+
+1. `parse_ufc_files.py` — parses Match results CSV files into master dataset
 2. `apply_corrections.py` — fixes mangled fighter names
-3. `scrape_historical_stats.py` — scrapes fight-by-fight history from ufcstats (~35-40 min)
-4. `build_features.py` — builds full feature matrix
-5. `train_model_weighted.py` — retrains XGBoost model with recency weighting
-6. `evaluate_roi.py` — evaluates ROI on test set
-7. Upload updated `ufc_model.pkl`, `ufc_master_clean.parquet`, `fighter_history.json`, `fighter_historical_stats.parquet` to `model-data` branch
+3. `audit_missing_attributes.py` — finds errors
+4. `scrape_historical_stats.py` — scrapes fight-by-fight history from ufcstats (~35-40 min)
+5. `build_features.py` — builds full feature matrix
+6. `train_model_weighted.py` — retrains XGBoost model with recency weighting
+7. `evaluate_roi.py` — evaluates ROI on test set
+8. Upload updated `ufc_model.pkl`, `ufc_master_clean.parquet`, `fighter_history.json`, `fighter_historical_stats.parquet` to `model-data` branch
 
 ---
 
