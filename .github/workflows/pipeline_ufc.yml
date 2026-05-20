@@ -13,6 +13,8 @@ jobs:
     steps:
       - name: Checkout main branch
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Pull model files from model-data branch
         run: |
@@ -32,8 +34,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install --retries 5 playwright pandas pyarrow numpy scikit-learn xgboost pyyaml
-          playwright install chromium
+          pip install --retries 5 pandas pyarrow numpy scikit-learn xgboost pyyaml
 
       - name: Create output directories
         run: |
@@ -42,12 +43,6 @@ jobs:
           mkdir -p docs/win/mma/ufc/01_feature_engineering
           mkdir -p docs/win/mma/ufc/02_edges
           mkdir -p mappings/mma/ufc
-
-    #  - name: 00 - Scrape odds
-    #    run: python docs/win/mma/ufc/scripts/00_intake/00_scrape_odds.py
-
-    #  - name: 00 - Scrape predictions
-    #    run: python docs/win/mma/ufc/scripts/00_intake/00_scrape_predictions.py
 
       - name: 00 - Normalize fighter names
         run: python docs/win/mma/ufc/scripts/00_intake/00_name_normalization.py
@@ -58,15 +53,18 @@ jobs:
       - name: 02 - Compute edges
         run: python docs/win/mma/ufc/scripts/02_edges/02_edges.py
 
-
       - name: Commit and push all output files
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/win/mma/ufc/00_intake/sportsbook/*_ufc_odds.csv
-          git add docs/win/mma/ufc/00_intake/predictions/*_ufc_predictions.csv
-          git add mappings/mma/ufc/no_map_fighter_name.csv
-          git add docs/win/mma/ufc/01_feature_engineering/*_ufc_features.csv
-          git add docs/win/mma/ufc/02_edges/*_ufc_edges.csv
+
+          git add docs/win/mma/ufc/00_intake/sportsbook/*_ufc_odds.csv 2>/dev/null || true
+          git add docs/win/mma/ufc/00_intake/predictions/*_ufc_predictions.csv 2>/dev/null || true
+          git add mappings/mma/ufc/no_map_fighter_name.csv 2>/dev/null || true
+          git add docs/win/mma/ufc/01_feature_engineering/*_ufc_features.csv 2>/dev/null || true
+          git add docs/win/mma/ufc/02_edges/*_ufc_edges.csv 2>/dev/null || true
+
           git diff --cached --quiet || git commit -m "chore: ufc pipeline run $(date -u +'%Y-%m-%d %H:%M UTC')"
+
+          git pull --rebase --autostash origin main
           git push origin main
