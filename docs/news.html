@@ -55,9 +55,13 @@
       padding: 12px 24px;
       border-bottom: 1px solid var(--border-soft);
       flex-wrap: wrap;
+      position: relative;
+      z-index: 20;
     }
 
-    .league-pill {
+    .league-pill,
+    .group-pill,
+    .submenu-pill {
       font-family: 'Barlow Condensed', sans-serif;
       font-size: 13px;
       font-weight: 700;
@@ -69,17 +73,78 @@
       cursor: pointer;
       transition: all 0.15s;
       text-transform: uppercase;
+      line-height: 1.2;
+      white-space: nowrap;
     }
 
-    .league-pill:hover {
+    .league-pill:hover,
+    .group-pill:hover,
+    .submenu-pill:hover {
       border-color: var(--accent-blue);
       color: var(--accent-blue);
     }
 
-    .league-pill.active {
+    .league-pill.active,
+    .group-pill.active,
+    .submenu-pill.active {
       border-color: var(--accent-green);
       color: var(--accent-green);
       background: rgba(0,255,132,0.06);
+    }
+
+    .control-group {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .group-pill::after {
+      content: " ▾";
+      color: var(--text-muted);
+      font-size: 10px;
+      letter-spacing: 0;
+    }
+
+    .group-pill.active::after,
+    .group-pill:hover::after {
+      color: var(--accent-green);
+    }
+
+    .control-group.open .group-pill {
+      border-color: var(--accent-blue);
+      color: var(--accent-blue);
+      background: rgba(0,191,255,0.04);
+    }
+
+    .control-group.open .group-pill.active {
+      border-color: var(--accent-green);
+      color: var(--accent-green);
+      background: rgba(0,255,132,0.06);
+    }
+
+    .submenu {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      min-width: 190px;
+      display: none;
+      flex-direction: column;
+      gap: 6px;
+      padding: 8px;
+      background: var(--background);
+      border: 1px solid var(--border-soft);
+      box-shadow: 0 18px 44px rgba(0,0,0,0.45);
+      z-index: 50;
+    }
+
+    .control-group.open .submenu {
+      display: flex;
+    }
+
+    .submenu-pill {
+      width: 100%;
+      text-align: left;
+      background: var(--bg-card);
     }
 
     .search-box {
@@ -324,6 +389,35 @@
     }
 
     @media (max-width: 760px) {
+      .controls {
+        align-items: stretch;
+      }
+
+      .control-group {
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .league-pill,
+      .group-pill {
+        width: 100%;
+        text-align: left;
+      }
+
+      .submenu {
+        position: static;
+        width: 100%;
+        min-width: 0;
+        margin-top: 6px;
+        box-shadow: none;
+        background: transparent;
+      }
+
+      .submenu-pill {
+        padding-left: 22px;
+      }
+
       .search-box {
         margin-left: 0;
         width: 100%;
@@ -353,27 +447,51 @@
 <div class="page-header">
   <div>
     <div class="page-title">News</div>
-    <div class="page-subtitle">NHL · NBA · WNBA · NCAAM · MLB · MLS · EPL · La Liga · Ligue 1 · Serie A · Bundesliga · UFC · NFL · CFL · College Football</div>
+    <div class="page-subtitle">All · Football · NHL · MLB · Basketball · Soccer · UFC</div>
   </div>
 </div>
 
 <div class="controls" id="league-controls">
-  <div class="league-pill active" data-league="all">All</div>
-  <div class="league-pill" data-league="NHL">NHL</div>
-  <div class="league-pill" data-league="NBA">NBA</div>
-  <div class="league-pill" data-league="WNBA">WNBA</div>
-  <div class="league-pill" data-league="NCAAM">NCAAM</div>
-  <div class="league-pill" data-league="MLB">MLB</div>
-  <div class="league-pill" data-league="MLS">MLS</div>
-  <div class="league-pill" data-league="EPL">EPL</div>
-  <div class="league-pill" data-league="LALIGA">La Liga</div>
-  <div class="league-pill" data-league="LIGUE1">Ligue 1</div>
-  <div class="league-pill" data-league="SERIEA">Serie A</div>
-  <div class="league-pill" data-league="BUNDESLIGA">Bundesliga</div>
-  <div class="league-pill" data-league="UFC">UFC</div>
-  <div class="league-pill" data-league="NFL">NFL</div>
-  <div class="league-pill" data-league="CFL">CFL</div>
-  <div class="league-pill" data-league="CFB">College Football</div>
+  <button type="button" class="league-pill active" data-filter-type="all" data-filter-value="all">All</button>
+
+  <div class="control-group" data-group="football">
+    <button type="button" class="group-pill" data-group-toggle="football">Football</button>
+    <div class="submenu">
+      <button type="button" class="submenu-pill" data-filter-type="group" data-filter-value="football">All Football</button>
+      <button type="button" class="submenu-pill" data-filter-type="league" data-filter-value="NFL">NFL</button>
+      <button type="button" class="submenu-pill" data-filter-type="league" data-filter-value="CFB">College Football</button>
+      <button type="button" class="submenu-pill" data-filter-type="league" data-filter-value="CFL">CFL</button>
+    </div>
+  </div>
+
+  <button type="button" class="league-pill" data-filter-type="league" data-filter-value="NHL">NHL</button>
+  <button type="button" class="league-pill" data-filter-type="league" data-filter-value="MLB">MLB</button>
+
+  <div class="control-group" data-group="basketball">
+    <button type="button" class="group-pill" data-group-toggle="basketball">Basketball</button>
+    <div class="submenu">
+      <button type="button" class="submenu-pill" data-filter-type="group" data-filter-value="basketball">All Basketball</button>
+      <button type="button" class="submenu-pill" data-filter-type="league" data-filter-value="NBA">NBA</button>
+      <button type="button" class="submenu-pill" data-filter-type="league" data-filter-value="NCAAM">College Basketball</button>
+      <button type="button" class="submenu-pill" data-filter-type="league" data-filter-value="WNBA">WNBA</button>
+    </div>
+  </div>
+
+  <div class="control-group" data-group="soccer">
+    <button type="button" class="group-pill" data-group-toggle="soccer">Soccer</button>
+    <div class="submenu">
+      <button type="button" class="submenu-pill" data-filter-type="group" data-filter-value="soccer">All Soccer</button>
+      <button type="button" class="submenu-pill" data-filter-type="league" data-filter-value="MLS">MLS</button>
+      <button type="button" class="submenu-pill" data-filter-type="league" data-filter-value="EPL">EPL</button>
+      <button type="button" class="submenu-pill" data-filter-type="league" data-filter-value="LALIGA">La Liga</button>
+      <button type="button" class="submenu-pill" data-filter-type="league" data-filter-value="LIGUE1">Ligue 1</button>
+      <button type="button" class="submenu-pill" data-filter-type="league" data-filter-value="SERIEA">Serie A</button>
+      <button type="button" class="submenu-pill" data-filter-type="league" data-filter-value="BUNDESLIGA">Bundesliga</button>
+    </div>
+  </div>
+
+  <button type="button" class="league-pill" data-filter-type="league" data-filter-value="UFC">UFC</button>
+
   <input type="text" class="search-box" id="news-search" placeholder="Search headlines...">
 </div>
 
@@ -390,28 +508,36 @@
 <script src="js/nav.js"></script>
 <script>
 var SOURCES = [
-  { key: "NHL",        label: "NHL",                     sport: "hockey",     league: "nhl"                    },
-  { key: "NBA",        label: "NBA",                     sport: "basketball", league: "nba"                    },
-  { key: "WNBA",       label: "WNBA",                    sport: "basketball", league: "wnba"                   },
-  { key: "NCAAM",      label: "NCAAM",                   sport: "basketball", league: "mens-college-basketball" },
-  { key: "MLB",        label: "MLB",                     sport: "baseball",   league: "mlb"                    },
+  { key: "NHL",        label: "NHL",                group: "hockey",     sport: "hockey",     league: "nhl"                    },
+  { key: "MLB",        label: "MLB",                group: "baseball",   sport: "baseball",   league: "mlb"                    },
 
-  { key: "MLS",        label: "MLS",                     sport: "soccer",     league: "usa.1"                  },
-  { key: "EPL",        label: "EPL",                     sport: "soccer",     league: "eng.1"                  },
-  { key: "LALIGA",     label: "La Liga",                 sport: "soccer",     league: "esp.1"                  },
-  { key: "LIGUE1",     label: "Ligue 1",                 sport: "soccer",     league: "fra.1"                  },
-  { key: "SERIEA",     label: "Serie A",                 sport: "soccer",     league: "ita.1"                  },
-  { key: "BUNDESLIGA", label: "Bundesliga",              sport: "soccer",     league: "ger.1"                  },
+  { key: "NBA",        label: "NBA",                group: "basketball", sport: "basketball", league: "nba"                    },
+  { key: "NCAAM",      label: "College Basketball", group: "basketball", sport: "basketball", league: "mens-college-basketball" },
+  { key: "WNBA",       label: "WNBA",               group: "basketball", sport: "basketball", league: "wnba"                   },
 
-  { key: "UFC",        label: "UFC",                     sport: "mma",        league: "ufc"                    },
+  { key: "MLS",        label: "MLS",                group: "soccer",     sport: "soccer",     league: "usa.1"                  },
+  { key: "EPL",        label: "EPL",                group: "soccer",     sport: "soccer",     league: "eng.1"                  },
+  { key: "LALIGA",     label: "La Liga",            group: "soccer",     sport: "soccer",     league: "esp.1"                  },
+  { key: "LIGUE1",     label: "Ligue 1",            group: "soccer",     sport: "soccer",     league: "fra.1"                  },
+  { key: "SERIEA",     label: "Serie A",            group: "soccer",     sport: "soccer",     league: "ita.1"                  },
+  { key: "BUNDESLIGA", label: "Bundesliga",         group: "soccer",     sport: "soccer",     league: "ger.1"                  },
 
-  { key: "NFL",        label: "NFL",                     sport: "football",   league: "nfl"                    },
-  { key: "CFL",        label: "CFL",                     sport: "football",   league: "cfl"                    },
-  { key: "CFB",        label: "College Football",        sport: "football",   league: "college-football"       }
+  { key: "UFC",        label: "UFC",                group: "mma",        sport: "mma",        league: "ufc"                    },
+
+  { key: "NFL",        label: "NFL",                group: "football",   sport: "football",   league: "nfl"                    },
+  { key: "CFB",        label: "College Football",   group: "football",   sport: "football",   league: "college-football"       },
+  { key: "CFL",        label: "CFL",                group: "football",   sport: "football",   league: "cfl"                    }
 ];
 
+var GROUPS = {
+  football: ["NFL", "CFB", "CFL"],
+  basketball: ["NBA", "NCAAM", "WNBA"],
+  soccer: ["MLS", "EPL", "LALIGA", "LIGUE1", "SERIEA", "BUNDESLIGA"]
+};
+
 var allArticles = [];
-var activeLeague = "all";
+var activeFilterType = "all";
+var activeFilterValue = "all";
 var searchQuery = "";
 
 function escapeHtml(value) {
@@ -433,15 +559,73 @@ function setStatus(text, cls, dotCls) {
 }
 
 function sourceLabel(key) {
-  var found = SOURCES.find(function(src) {
-    return src.key === key;
+  var found = SOURCES.find(function(source) {
+    return source.key === key;
   });
 
   return found ? found.label : key;
 }
 
-async function fetchLeagueNews(src) {
-  var url = "https://site.api.espn.com/apis/site/v2/sports/" + src.sport + "/" + src.league + "/news?limit=20";
+function sourceGroup(key) {
+  var found = SOURCES.find(function(source) {
+    return source.key === key;
+  });
+
+  return found ? found.group : "";
+}
+
+function closeAllMenus() {
+  document.querySelectorAll(".control-group").forEach(function(group) {
+    group.classList.remove("open");
+  });
+}
+
+function setActiveControls(type, value) {
+  document.querySelectorAll(".league-pill, .group-pill, .submenu-pill").forEach(function(button) {
+    button.classList.remove("active");
+  });
+
+  if (type === "all") {
+    var allButton = document.querySelector('[data-filter-type="all"][data-filter-value="all"]');
+    if (allButton) allButton.classList.add("active");
+    return;
+  }
+
+  if (type === "group") {
+    var groupButton = document.querySelector('[data-group-toggle="' + value + '"]');
+    var groupSubButton = document.querySelector('.submenu-pill[data-filter-type="group"][data-filter-value="' + value + '"]');
+
+    if (groupButton) groupButton.classList.add("active");
+    if (groupSubButton) groupSubButton.classList.add("active");
+    return;
+  }
+
+  if (type === "league") {
+    var directButton = document.querySelector('.league-pill[data-filter-type="league"][data-filter-value="' + value + '"]');
+    var childButton = document.querySelector('.submenu-pill[data-filter-type="league"][data-filter-value="' + value + '"]');
+    var group = sourceGroup(value);
+
+    if (directButton) directButton.classList.add("active");
+    if (childButton) childButton.classList.add("active");
+
+    if (group) {
+      var parentButton = document.querySelector('[data-group-toggle="' + group + '"]');
+      if (parentButton) parentButton.classList.add("active");
+    }
+  }
+}
+
+function applyFilter(type, value) {
+  activeFilterType = type;
+  activeFilterValue = value;
+
+  closeAllMenus();
+  setActiveControls(type, value);
+  render();
+}
+
+async function fetchLeagueNews(source) {
+  var url = "https://site.api.espn.com/apis/site/v2/sports/" + source.sport + "/" + source.league + "/news?limit=20";
 
   try {
     var response = await fetch(url, { cache: "no-store" });
@@ -459,8 +643,9 @@ async function fetchLeagueNews(src) {
       }
 
       return {
-        league: src.key,
-        label: src.label,
+        league: source.key,
+        label: source.label,
+        group: source.group,
         headline: article.headline || "",
         desc: article.description || "",
         img: article.images && article.images[0] ? article.images[0].url : "",
@@ -470,7 +655,7 @@ async function fetchLeagueNews(src) {
       };
     });
   } catch (error) {
-    console.warn(src.key + " news failed:", error);
+    console.warn(source.key + " news failed:", error);
     return [];
   }
 }
@@ -488,12 +673,20 @@ function fmtDate(date) {
   });
 }
 
-function render() {
+function filterArticles() {
   var articles = allArticles.slice();
 
-  if (activeLeague !== "all") {
+  if (activeFilterType === "league") {
     articles = articles.filter(function(article) {
-      return article.league === activeLeague;
+      return article.league === activeFilterValue;
+    });
+  }
+
+  if (activeFilterType === "group") {
+    var allowed = GROUPS[activeFilterValue] || [];
+
+    articles = articles.filter(function(article) {
+      return allowed.indexOf(article.league) !== -1;
     });
   }
 
@@ -507,6 +700,11 @@ function render() {
     });
   }
 
+  return articles;
+}
+
+function render() {
+  var articles = filterArticles();
   var grid = document.getElementById("news-grid");
   var empty = document.getElementById("news-empty");
 
@@ -550,16 +748,40 @@ function render() {
   });
 }
 
-document.querySelectorAll(".league-pill").forEach(function(pill) {
-  pill.addEventListener("click", function() {
-    document.querySelectorAll(".league-pill").forEach(function(item) {
-      item.classList.remove("active");
-    });
+document.querySelectorAll("[data-group-toggle]").forEach(function(button) {
+  button.addEventListener("click", function(event) {
+    event.stopPropagation();
 
-    pill.classList.add("active");
-    activeLeague = pill.dataset.league;
-    render();
+    var groupName = button.dataset.groupToggle;
+    var group = document.querySelector('.control-group[data-group="' + groupName + '"]');
+    var wasOpen = group && group.classList.contains("open");
+
+    closeAllMenus();
+
+    if (group && !wasOpen) {
+      group.classList.add("open");
+    }
   });
+});
+
+document.querySelectorAll("[data-filter-type]").forEach(function(button) {
+  button.addEventListener("click", function(event) {
+    event.stopPropagation();
+
+    applyFilter(button.dataset.filterType, button.dataset.filterValue);
+  });
+});
+
+document.addEventListener("click", function(event) {
+  if (!event.target.closest(".control-group")) {
+    closeAllMenus();
+  }
+});
+
+document.addEventListener("keydown", function(event) {
+  if (event.key === "Escape") {
+    closeAllMenus();
+  }
 });
 
 document.getElementById("news-search").addEventListener("input", function(event) {
