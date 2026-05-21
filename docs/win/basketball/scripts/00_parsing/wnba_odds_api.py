@@ -14,6 +14,7 @@ from zoneinfo import ZoneInfo
 import requests
 
 API_KEY = os.getenv("API_ODDS")
+FORCE_REFRESH = os.getenv("FORCE_WNBA_ODDS_REFRESH", "").strip().lower() in {"1", "true", "yes", "y"}
 
 BASE_URL = "https://api.odds-api.io/v3"
 SPORT_SLUG = "basketball"
@@ -51,6 +52,10 @@ def game_date_yyyy_mm_dd(utc_date_text: str) -> str:
     dt_utc = datetime.fromisoformat(utc_date_text.replace("Z", "+00:00"))
     dt_local = dt_utc.astimezone(GAME_TZ)
     return dt_local.strftime("%Y_%m_%d")
+
+
+def today_yyyy_mm_dd() -> str:
+    return datetime.now(GAME_TZ).strftime("%Y_%m_%d")
 
 
 def get_wnba_events() -> list[dict]:
@@ -99,11 +104,18 @@ def main() -> int:
         return 1
 
     try:
+        today = today_yyyy_mm_dd()
+
         log("Fetching WNBA events from odds-api.io")
+        log(f"Today cutoff date: {today}")
+        log(f"Force refresh enabled: {FORCE_REFRESH}")
+
         events = get_wnba_events()
         log(f"Found {len(events)} WNBA events")
 
         grouped: dict[str, list[dict]] = defaultdict(list)
+        skipped_past = 0
+        skipped_existing = 0
 
         for event in events:
             event_id = event.get("id")
@@ -112,6 +124,18 @@ def main() -> int:
                 continue
 
             game_date = game_date_yyyy_mm_dd(event.get("date", ""))
+
+            if game_date < today:
+                skipped_past += 1
+                log(f"SKIP past event: game_date={game_date}, event_id={event_id}")
+                continue
+
+            out_file = OUT_DIR / f"{game_date}_wnba.json"
+
+            if out_file.exists() and not FORCE_REFRESH:
+                skipped_existing += 1
+                log(f"SKIP existing odds file: game_date={game_date}, event_id={event_id}, file={out_file}")
+                continue
 
             odds_by_bookmaker = {}
 
@@ -144,6 +168,11 @@ def main() -> int:
         for game_date, rows in sorted(grouped.items()):
             out_file = OUT_DIR / f"{game_date}_wnba.json"
 
+            if out_file.exists() and not FORCE_REFRESH:
+                skipped_existing += 1
+                log(f"SKIP existing odds file at write step: game_date={game_date}, file={out_file}")
+                continue
+
             payload = {
                 "source": "odds-api.io",
                 "sport_slug": SPORT_SLUG,
@@ -163,7 +192,10 @@ def main() -> int:
             log(f"Wrote {out_file} ({len(rows)} events)")
             written += 1
 
-        log(f"SUCCESS: Wrote {written} WNBA odds file(s)")
+        log(
+            f"SUCCESS: Wrote {written} WNBA odds file(s) | "
+            f"skipped_past_events={skipped_past} | skipped_existing_events={skipped_existing}"
+        )
         return 0
 
     except Exception:
