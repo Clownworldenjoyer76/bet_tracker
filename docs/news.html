@@ -3,60 +3,346 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>News · Edgelytics</title>
+  <title>News</title>
   <link rel="stylesheet" href="css/matstheme.css">
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }    body { background: var(--background); color: var(--text-main); font-family: 'IBM Plex Mono', monospace; font-size: 13px; min-height: 100vh; }
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-    .page-header { border-bottom: 1px solid var(--border-soft); padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
-    .page-title { font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-green); }
-    .page-subtitle { color: var(--text-muted); font-size: 11px; letter-spacing: 0.06em; margin-top: 2px; }
+    body {
+      background: var(--background);
+      color: var(--text-main);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px;
+      min-height: 100vh;
+    }
 
-    .controls { display: flex; align-items: center; gap: 8px; padding: 12px 24px; border-bottom: 1px solid var(--border-soft); flex-wrap: wrap; }
-    .league-pill { font-family: 'Barlow Condensed', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; padding: 4px 12px; border: 1px solid var(--border-soft); background: transparent; color: var(--text-muted); cursor: pointer; transition: all 0.15s; text-transform: uppercase; }
-    .league-pill:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
-    .league-pill.active { border-color: var(--accent-green); color: var(--accent-green); background: rgba(0,255,132,0.06); }
-    .search-box { margin-left: auto; background: var(--bg-card); border: 1px solid var(--border-soft); color: var(--text-main); font-family: 'IBM Plex Mono', monospace; font-size: 12px; padding: 5px 10px; width: 200px; outline: none; }
-    .search-box:focus { border-color: var(--accent-blue); }
-    .search-box::placeholder { color: var(--text-muted); }
+    .page-header {
+      border-bottom: 1px solid var(--border-soft);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
 
-    .status-bar { padding: 8px 24px; font-size: 11px; color: var(--text-muted); border-bottom: 1px solid var(--border-soft); display: flex; align-items: center; gap: 10px; }
-    .status-bar.loading { color: var(--accent-yellow); }
-    .status-bar.error   { color: var(--accent-red); }
-    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-muted); display: inline-block; flex-shrink: 0; }
-    .status-dot.green  { background: var(--accent-green); box-shadow: 0 0 6px var(--accent-green); }
-    .status-dot.yellow { background: var(--accent-yellow); animation: pulse 1s infinite; }
-    @keyframes pulse { 0%,100%{opacity:1;}50%{opacity:0.3;} }
+    .page-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent-green);
+    }
 
-    .main { padding: 20px 24px; }
-    .news-grid { display: flex; flex-direction: column; gap: 1px; }
+    .page-subtitle {
+      color: var(--text-muted);
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      margin-top: 2px;
+      line-height: 1.5;
+    }
 
-    .news-card { display: flex; gap: 0; border-bottom: 1px solid var(--border-soft); transition: background 0.1s; background: var(--background); }
-    .news-card:hover { background: var(--bg-card); }
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      border-bottom: 1px solid var(--border-soft);
+      flex-wrap: wrap;
+    }
 
-    .news-img-wrap { width: 140px; flex-shrink: 0; overflow: hidden; }
-    .news-img { width: 100%; height: 90px; object-fit: cover; display: block; filter: grayscale(20%); }
-    .news-img-placeholder { width: 140px; height: 90px; background: var(--bg-card); display: flex; align-items: center; justify-content: center; }
-    .news-img-placeholder span { font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: var(--text-muted); }
+    .league-pill {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      padding: 4px 12px;
+      border: 1px solid var(--border-soft);
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s;
+      text-transform: uppercase;
+    }
 
-    .news-body { padding: 12px 16px; display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 0; }
-    .news-league-tag { display: inline-block; font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; padding: 1px 6px; text-transform: uppercase; width: fit-content; }
-    .tag-NHL   { color: var(--accent-blue);   border: 1px solid rgba(0,191,255,0.3);  background: rgba(0,191,255,0.05); }
-    .tag-NBA   { color: var(--accent-yellow); border: 1px solid rgba(250,204,21,0.3); background: rgba(250,204,21,0.05); }
-    .tag-NCAAB { color: var(--accent-yellow); border: 1px solid rgba(255,140,0,0.3);  background: rgba(255,140,0,0.05); }
-    .tag-MLB   { color: var(--accent-green);  border: 1px solid rgba(0,255,132,0.3);  background: rgba(0,255,132,0.05); }
+    .league-pill:hover {
+      border-color: var(--accent-blue);
+      color: var(--accent-blue);
+    }
 
-    .news-headline { font-family: 'Barlow Condensed', sans-serif; font-size: 16px; font-weight: 700; color: var(--text-main); line-height: 1.2; letter-spacing: 0.02em; }
-    .news-desc { font-size: 11px; color: var(--text-muted); line-height: 1.5; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-    .news-meta { font-size: 10px; color: var(--text-muted); letter-spacing: 0.08em; margin-top: auto; }
-    .news-link { display: inline-block; margin-top: 4px; font-size: 10px; letter-spacing: 0.1em; color: var(--accent-green); text-decoration: none; font-weight: 500; }
-    .news-link:hover { text-decoration: underline; }
+    .league-pill.active {
+      border-color: var(--accent-green);
+      color: var(--accent-green);
+      background: rgba(0,255,132,0.06);
+    }
 
-    .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); font-family: 'Barlow Condensed', sans-serif; font-size: 16px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+    .search-box {
+      margin-left: auto;
+      background: var(--bg-card);
+      border: 1px solid var(--border-soft);
+      color: var(--text-main);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      padding: 5px 10px;
+      width: 220px;
+      outline: none;
+    }
+
+    .search-box:focus {
+      border-color: var(--accent-blue);
+    }
+
+    .search-box::placeholder {
+      color: var(--text-muted);
+    }
+
+    .status-bar {
+      padding: 8px 24px;
+      font-size: 11px;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border-soft);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .status-bar.loading {
+      color: var(--accent-yellow);
+    }
+
+    .status-bar.error {
+      color: var(--accent-red);
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      display: inline-block;
+      flex-shrink: 0;
+    }
+
+    .status-dot.green {
+      background: var(--accent-green);
+      box-shadow: 0 0 6px var(--accent-green);
+    }
+
+    .status-dot.yellow {
+      background: var(--accent-yellow);
+      animation: pulse 1s infinite;
+    }
+
+    .status-dot.red {
+      background: var(--accent-red);
+      box-shadow: 0 0 6px var(--accent-red);
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%      { opacity: 0.3; }
+    }
+
+    .main {
+      padding: 20px 24px;
+    }
+
+    .news-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .news-card {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--border-soft);
+      transition: background 0.1s;
+      background: var(--background);
+    }
+
+    .news-card:hover {
+      background: var(--bg-card);
+    }
+
+    .news-img-wrap {
+      width: 140px;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+
+    .news-img {
+      width: 100%;
+      height: 90px;
+      object-fit: cover;
+      display: block;
+      filter: grayscale(20%);
+    }
+
+    .news-img-placeholder {
+      width: 140px;
+      height: 90px;
+      background: var(--bg-card);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .news-img-placeholder span {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      text-align: center;
+      padding: 0 8px;
+      text-transform: uppercase;
+    }
+
+    .news-body {
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .news-league-tag {
+      display: inline-block;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      padding: 1px 6px;
+      text-transform: uppercase;
+      width: fit-content;
+    }
+
+    .tag-NHL {
+      color: var(--accent-blue);
+      border: 1px solid rgba(0,191,255,0.3);
+      background: rgba(0,191,255,0.05);
+    }
+
+    .tag-NBA,
+    .tag-WNBA,
+    .tag-NCAAM {
+      color: var(--accent-yellow);
+      border: 1px solid rgba(250,204,21,0.3);
+      background: rgba(250,204,21,0.05);
+    }
+
+    .tag-MLB {
+      color: var(--accent-green);
+      border: 1px solid rgba(0,255,132,0.3);
+      background: rgba(0,255,132,0.05);
+    }
+
+    .tag-MLS,
+    .tag-EPL,
+    .tag-LALIGA,
+    .tag-LIGUE1,
+    .tag-SERIEA,
+    .tag-BUNDESLIGA {
+      color: var(--accent-blue);
+      border: 1px solid rgba(0,191,255,0.3);
+      background: rgba(0,191,255,0.05);
+    }
+
+    .tag-UFC {
+      color: var(--accent-red);
+      border: 1px solid rgba(255,45,45,0.3);
+      background: rgba(255,45,45,0.05);
+    }
+
+    .tag-NFL,
+    .tag-CFL,
+    .tag-CFB {
+      color: var(--accent-green);
+      border: 1px solid rgba(0,255,132,0.3);
+      background: rgba(0,255,132,0.05);
+    }
+
+    .news-headline {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-main);
+      line-height: 1.2;
+      letter-spacing: 0.02em;
+    }
+
+    .news-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.5;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+
+    .news-meta {
+      font-size: 10px;
+      color: var(--text-muted);
+      letter-spacing: 0.08em;
+      margin-top: auto;
+    }
+
+    .news-link {
+      display: inline-block;
+      margin-top: 4px;
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      color: var(--accent-green);
+      text-decoration: none;
+      font-weight: 500;
+      width: fit-content;
+    }
+
+    .news-link:hover {
+      text-decoration: underline;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    @media (max-width: 760px) {
+      .search-box {
+        margin-left: 0;
+        width: 100%;
+      }
+    }
 
     @media (max-width: 600px) {
-      .news-img-wrap, .news-img-placeholder { display: none; }
+      .news-img-wrap,
+      .news-img-placeholder {
+        display: none;
+      }
+
+      .page-header,
+      .controls,
+      .status-bar,
+      .main {
+        padding-left: 16px;
+        padding-right: 16px;
+      }
     }
   </style>
 </head>
@@ -67,16 +353,27 @@
 <div class="page-header">
   <div>
     <div class="page-title">News</div>
-    <div class="page-subtitle">NHL · NBA · NCAAB · MLB</div>
+    <div class="page-subtitle">NHL · NBA · WNBA · NCAAM · MLB · MLS · EPL · La Liga · Ligue 1 · Serie A · Bundesliga · UFC · NFL · CFL · College Football</div>
   </div>
 </div>
 
-<div class="controls">
+<div class="controls" id="league-controls">
   <div class="league-pill active" data-league="all">All</div>
   <div class="league-pill" data-league="NHL">NHL</div>
   <div class="league-pill" data-league="NBA">NBA</div>
-  <div class="league-pill" data-league="NCAAB">NCAAB</div>
+  <div class="league-pill" data-league="WNBA">WNBA</div>
+  <div class="league-pill" data-league="NCAAM">NCAAM</div>
   <div class="league-pill" data-league="MLB">MLB</div>
+  <div class="league-pill" data-league="MLS">MLS</div>
+  <div class="league-pill" data-league="EPL">EPL</div>
+  <div class="league-pill" data-league="LALIGA">La Liga</div>
+  <div class="league-pill" data-league="LIGUE1">Ligue 1</div>
+  <div class="league-pill" data-league="SERIEA">Serie A</div>
+  <div class="league-pill" data-league="BUNDESLIGA">Bundesliga</div>
+  <div class="league-pill" data-league="UFC">UFC</div>
+  <div class="league-pill" data-league="NFL">NFL</div>
+  <div class="league-pill" data-league="CFL">CFL</div>
+  <div class="league-pill" data-league="CFB">College Football</div>
   <input type="text" class="search-box" id="news-search" placeholder="Search headlines...">
 </div>
 
@@ -93,90 +390,160 @@
 <script src="js/nav.js"></script>
 <script>
 var SOURCES = [
-  { key: "NHL",   sport: "hockey",     league: "nhl"                    },
-  { key: "NBA",   sport: "basketball", league: "nba"                    },
-  { key: "NCAAB", sport: "basketball", league: "mens-college-basketball" },
-  { key: "MLB",   sport: "baseball",   league: "mlb"                    }
+  { key: "NHL",        label: "NHL",                     sport: "hockey",     league: "nhl"                    },
+  { key: "NBA",        label: "NBA",                     sport: "basketball", league: "nba"                    },
+  { key: "WNBA",       label: "WNBA",                    sport: "basketball", league: "wnba"                   },
+  { key: "NCAAM",      label: "NCAAM",                   sport: "basketball", league: "mens-college-basketball" },
+  { key: "MLB",        label: "MLB",                     sport: "baseball",   league: "mlb"                    },
+
+  { key: "MLS",        label: "MLS",                     sport: "soccer",     league: "usa.1"                  },
+  { key: "EPL",        label: "EPL",                     sport: "soccer",     league: "eng.1"                  },
+  { key: "LALIGA",     label: "La Liga",                 sport: "soccer",     league: "esp.1"                  },
+  { key: "LIGUE1",     label: "Ligue 1",                 sport: "soccer",     league: "fra.1"                  },
+  { key: "SERIEA",     label: "Serie A",                 sport: "soccer",     league: "ita.1"                  },
+  { key: "BUNDESLIGA", label: "Bundesliga",              sport: "soccer",     league: "ger.1"                  },
+
+  { key: "UFC",        label: "UFC",                     sport: "mma",        league: "ufc"                    },
+
+  { key: "NFL",        label: "NFL",                     sport: "football",   league: "nfl"                    },
+  { key: "CFL",        label: "CFL",                     sport: "football",   league: "cfl"                    },
+  { key: "CFB",        label: "College Football",        sport: "football",   league: "college-football"       }
 ];
 
-var allArticles   = [];
-var activeLeague  = "all";
-var searchQuery   = "";
+var allArticles = [];
+var activeLeague = "all";
+var searchQuery = "";
+
+function escapeHtml(value) {
+  return String(value || "").replace(/[&<>'"]/g, function(char) {
+    return {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      "'": "&#39;",
+      '"': "&quot;"
+    }[char];
+  });
+}
 
 function setStatus(text, cls, dotCls) {
   document.getElementById("status-text").textContent = text;
-  document.getElementById("news-status").className   = "status-bar " + (cls    || "");
-  document.getElementById("status-dot").className    = "status-dot "  + (dotCls || "");
+  document.getElementById("news-status").className = "status-bar " + (cls || "");
+  document.getElementById("status-dot").className = "status-dot " + (dotCls || "");
+}
+
+function sourceLabel(key) {
+  var found = SOURCES.find(function(src) {
+    return src.key === key;
+  });
+
+  return found ? found.label : key;
 }
 
 async function fetchLeagueNews(src) {
   var url = "https://site.api.espn.com/apis/site/v2/sports/" + src.sport + "/" + src.league + "/news?limit=20";
+
   try {
-    var r    = await fetch(url);
-    if (!r.ok) return [];
-    var data = await r.json();
+    var response = await fetch(url, { cache: "no-store" });
+
+    if (!response.ok) return [];
+
+    var data = await response.json();
     var articles = data.articles || [];
-    return articles.map(function(a) {
+
+    return articles.map(function(article) {
+      var webUrl = "#";
+
+      if (article.links && article.links.web && article.links.web.href) {
+        webUrl = article.links.web.href;
+      }
+
       return {
-        league:    src.key,
-        headline:  a.headline  || "",
-        desc:      a.description || "",
-        img:       (a.images && a.images[0]) ? a.images[0].url : "",
-        source:    a.source    || " ",
-        date:      a.published ? new Date(a.published) : null,
-        url:       (a.links && a.links.web) ? a.links.web.href : "#"
+        league: src.key,
+        label: src.label,
+        headline: article.headline || "",
+        desc: article.description || "",
+        img: article.images && article.images[0] ? article.images[0].url : "",
+        source: article.source || "",
+        date: article.published ? new Date(article.published) : null,
+        url: webUrl
       };
     });
-  } catch(e) {
-    console.warn(src.key + " news failed:", e);
+  } catch (error) {
+    console.warn(src.key + " news failed:", error);
     return [];
   }
 }
 
-function fmtDate(d) {
-  if (!d) return "";
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) +
-    " · " + d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+function fmtDate(date) {
+  if (!date) return "";
+
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  }) + " · " + date.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit"
+  });
 }
 
 function render() {
   var articles = allArticles.slice();
 
   if (activeLeague !== "all") {
-    articles = articles.filter(function(a) { return a.league === activeLeague; });
-  }
-
-  if (searchQuery) {
-    var q = searchQuery.toLowerCase();
-    articles = articles.filter(function(a) {
-      return a.headline.toLowerCase().indexOf(q) !== -1 ||
-             a.desc.toLowerCase().indexOf(q)     !== -1;
+    articles = articles.filter(function(article) {
+      return article.league === activeLeague;
     });
   }
 
-  var grid  = document.getElementById("news-grid");
+  if (searchQuery) {
+    var query = searchQuery.toLowerCase();
+
+    articles = articles.filter(function(article) {
+      return String(article.headline || "").toLowerCase().indexOf(query) !== -1 ||
+             String(article.desc || "").toLowerCase().indexOf(query) !== -1 ||
+             String(article.label || "").toLowerCase().indexOf(query) !== -1;
+    });
+  }
+
+  var grid = document.getElementById("news-grid");
   var empty = document.getElementById("news-empty");
+
   grid.innerHTML = "";
 
-  if (articles.length === 0) { empty.style.display = ""; return; }
+  if (articles.length === 0) {
+    empty.style.display = "";
+    return;
+  }
+
   empty.style.display = "none";
 
-  articles.forEach(function(a) {
+  articles.forEach(function(article) {
     var card = document.createElement("div");
     card.className = "news-card";
 
-    var imgHtml = a.img
-      ? '<div class="news-img-wrap"><img class="news-img" src="' + a.img + '" loading="lazy"></div>'
-      : '<div class="news-img-placeholder"><span>' + a.league + '</span></div>';
+    var safeLeague = escapeHtml(article.league);
+    var safeLabel = escapeHtml(article.label || sourceLabel(article.league));
+    var safeHeadline = escapeHtml(article.headline);
+    var safeDesc = escapeHtml(article.desc);
+    var safeSource = escapeHtml(article.source || "");
+    var safeDate = article.date ? escapeHtml(fmtDate(article.date)) : "";
+    var safeUrl = escapeHtml(article.url || "#");
+    var safeImg = escapeHtml(article.img || "");
+
+    var imgHtml = safeImg
+      ? '<div class="news-img-wrap"><img class="news-img" src="' + safeImg + '" loading="lazy" alt=""></div>'
+      : '<div class="news-img-placeholder"><span>' + safeLabel + '</span></div>';
 
     card.innerHTML =
       imgHtml +
       '<div class="news-body">' +
-        '<span class="news-league-tag tag-' + a.league + '">' + a.league + '</span>' +
-        '<div class="news-headline">' + a.headline + '</div>' +
-        (a.desc ? '<div class="news-desc">' + a.desc + '</div>' : '') +
-        '<div class="news-meta">' + a.source + (a.date ? " · " + fmtDate(a.date) : "") + '</div>' +
-        '<a class="news-link" href="' + a.url + '" target="_blank" rel="noopener">READ →</a>' +
+        '<span class="news-league-tag tag-' + safeLeague + '">' + safeLabel + '</span>' +
+        '<div class="news-headline">' + safeHeadline + '</div>' +
+        (safeDesc ? '<div class="news-desc">' + safeDesc + '</div>' : '') +
+        '<div class="news-meta">' + safeSource + (safeDate ? " · " + safeDate : "") + '</div>' +
+        '<a class="news-link" href="' + safeUrl + '" target="_blank" rel="noopener">READ →</a>' +
       '</div>';
 
     grid.appendChild(card);
@@ -185,15 +552,18 @@ function render() {
 
 document.querySelectorAll(".league-pill").forEach(function(pill) {
   pill.addEventListener("click", function() {
-    document.querySelectorAll(".league-pill").forEach(function(p) { p.classList.remove("active"); });
+    document.querySelectorAll(".league-pill").forEach(function(item) {
+      item.classList.remove("active");
+    });
+
     pill.classList.add("active");
     activeLeague = pill.dataset.league;
     render();
   });
 });
 
-document.getElementById("news-search").addEventListener("input", function(e) {
-  searchQuery = e.target.value.trim();
+document.getElementById("news-search").addEventListener("input", function(event) {
+  searchQuery = event.target.value.trim();
   render();
 });
 
@@ -201,19 +571,35 @@ async function loadAll() {
   setStatus("Fetching news...", "loading", "yellow");
   allArticles = [];
 
-  var results = await Promise.all(SOURCES.map(function(src) { return fetchLeagueNews(src); }));
-  results.forEach(function(articles) { allArticles = allArticles.concat(articles); });
+  try {
+    var results = await Promise.all(SOURCES.map(function(source) {
+      return fetchLeagueNews(source);
+    }));
 
-  // sort newest first
-  allArticles.sort(function(a, b) {
-    if (!a.date && !b.date) return 0;
-    if (!a.date) return 1;
-    if (!b.date) return -1;
-    return b.date - a.date;
-  });
+    results.forEach(function(articles) {
+      allArticles = allArticles.concat(articles);
+    });
 
-  render();
-  setStatus(allArticles.length + " articles loaded", "", "green");
+    allArticles.sort(function(a, b) {
+      if (!a.date && !b.date) return 0;
+      if (!a.date) return 1;
+      if (!b.date) return -1;
+
+      return b.date - a.date;
+    });
+
+    render();
+
+    if (allArticles.length === 0) {
+      setStatus("No articles loaded", "error", "red");
+    } else {
+      setStatus(allArticles.length + " articles loaded", "", "green");
+    }
+  } catch (error) {
+    console.error(error);
+    setStatus("Error loading news", "error", "red");
+    render();
+  }
 }
 
 loadAll();
