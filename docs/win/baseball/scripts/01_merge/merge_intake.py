@@ -27,6 +27,27 @@ def log(msg):
         f.write(f"{datetime.now(timezone.utc).isoformat()} | {msg}\n")
 
 
+def clear_old_outputs():
+    deleted = 0
+
+    for old_file in sorted(OUT_DIR.glob("*_mlb_moneyline.csv")):
+        old_file.unlink()
+        deleted += 1
+        log(f"DELETED OLD OUTPUT: {old_file}")
+
+    for old_file in sorted(OUT_DIR.glob("*_mlb_run_line.csv")):
+        old_file.unlink()
+        deleted += 1
+        log(f"DELETED OLD OUTPUT: {old_file}")
+
+    for old_file in sorted(OUT_DIR.glob("*_mlb_total.csv")):
+        old_file.unlink()
+        deleted += 1
+        log(f"DELETED OLD OUTPUT: {old_file}")
+
+    log(f"OLD MERGE OUTPUTS DELETED: {deleted}")
+
+
 def norm(s):
     return (s or "").strip().lower()
 
@@ -325,6 +346,8 @@ if __name__ == "__main__":
     }
 
     try:
+        clear_old_outputs()
+
         pred_files = sorted(PRED_DIR.glob("*_MLB.csv"))
         log(f"Prediction files found: {len(pred_files)}")
 
