@@ -15,7 +15,6 @@
 #   where league in {nba, ncaam, wnba}, market in {moneyline, spread, total}
 #
 # Outputs:
-#   docs/win/basketball/04_select/daily_slate/{league}_selected.csv
 #   docs/win/basketball/04_select/{league}/daily_picks/{YYYY_MM_DD}_{league}_selected.csv
 #
 # Filters per side (each is a list of [lo, hi] bands; pass = value falls in any band):
@@ -53,13 +52,11 @@ import yaml
 
 INPUT_DIR   = Path("docs/win/basketball/03_edges/ev_kelly")
 SELECT_DIR  = Path("docs/win/basketball/04_select")
-DAILY_DIR   = SELECT_DIR / "daily_slate"
 CONFIG_PATH = Path("docs/win/basketball/config/markets.yaml")
 ERROR_DIR   = Path("docs/win/basketball/errors/04_select")
 LOG_FILE    = ERROR_DIR / "select_bets.txt"
 
 SELECT_DIR.mkdir(parents=True, exist_ok=True)
-DAILY_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 with open(CONFIG_PATH, "r", encoding="utf-8") as f:
@@ -246,13 +243,7 @@ def stake_pct(kelly):
 
 
 def clear_old_select_outputs() -> None:
-    deleted_daily_slate = 0
     deleted_daily_picks = 0
-
-    for stale in DAILY_DIR.glob("*_selected.csv"):
-        stale.unlink(missing_ok=True)
-        deleted_daily_slate += 1
-        _log(f"DELETED OLD DAILY SLATE FILE: {stale}")
 
     for league in LEAGUES:
         daily_pick_dir = SELECT_DIR / league / "daily_picks"
@@ -264,9 +255,8 @@ def clear_old_select_outputs() -> None:
             deleted_daily_picks += 1
             _log(f"DELETED OLD DAILY PICK FILE: {stale}")
 
-    DEBUG_COUNTS["deleted_old_daily_slate_files"] += deleted_daily_slate
     DEBUG_COUNTS["deleted_old_daily_pick_files"] += deleted_daily_picks
-    _log(f"Old basketball select outputs deleted: daily_slate={deleted_daily_slate} daily_picks={deleted_daily_picks}")
+    _log(f"Old basketball daily pick outputs deleted: daily_picks={deleted_daily_picks}")
 
 
 def write_daily_pick_files(league: str, out_df: pd.DataFrame) -> None:
@@ -578,11 +568,11 @@ def main():
                         summary["errors"] += 1
                     per_file.append(pf)
 
-        # Per-league: concat, reconcile ML vs spread, write outputs
+        # Per-league: concat, reconcile ML vs spread, write daily pick outputs
         for league in LEAGUES:
             dfs = league_dfs[league]
             if not dfs:
-                _log(f"NO SELECTED ROWS FOR LEAGUE: {league}; daily_slate file not written")
+                _log(f"NO SELECTED ROWS FOR LEAGUE: {league}; daily pick files not written")
                 continue
 
             out_df = pd.concat(dfs, ignore_index=True)
@@ -597,12 +587,7 @@ def main():
             _log(f"RECONCILE {league}: dropped {dropped} rows due to ML/spread conflict "
                  f"({before} -> {after}, tiebreak={ML_VS_SPREAD_TIEBREAK})")
 
-            # Combined per-league file
-            out_path = DAILY_DIR / f"{league}_selected.csv"
-            out_df.to_csv(out_path, index=False)
-            _log(f"WROTE: {out_path} ({len(out_df)} rows)")
-
-            # Per-date daily pick files
+            # Per-date daily pick files only.
             write_daily_pick_files(league, out_df)
 
     except Exception as e:
