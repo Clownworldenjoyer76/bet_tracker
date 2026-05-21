@@ -30,6 +30,10 @@ MAX_RETRIES = 3
 RETRY_SLEEP_SECONDS = 5
 
 
+class RateLimitError(RuntimeError):
+    pass
+
+
 def log(msg: str) -> None:
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     line = f"[{stamp}] {msg}"
@@ -53,6 +57,26 @@ def api_get(endpoint: str, params: dict) -> object:
             r.raise_for_status()
             return r.json()
 
+        except requests.exceptions.HTTPError as exc:
+            status_code = exc.response.status_code if exc.response is not None else None
+
+            if status_code == 429:
+                raise RateLimitError(f"API rate limit hit: 429 Too Many Requests endpoint={endpoint}") from exc
+
+            if status_code in {500, 502, 503, 504}:
+                last_exc = exc
+                log(
+                    f"WARN: API retryable HTTP error "
+                    f"endpoint={endpoint} status={status_code} "
+                    f"attempt={attempt}/{MAX_RETRIES}: {exc}"
+                )
+
+                if attempt < MAX_RETRIES:
+                    time.sleep(RETRY_SLEEP_SECONDS * attempt)
+                    continue
+
+            raise
+
         except (
             requests.exceptions.ChunkedEncodingError,
             requests.exceptions.ConnectionError,
@@ -67,23 +91,6 @@ def api_get(endpoint: str, params: dict) -> object:
             if attempt < MAX_RETRIES:
                 time.sleep(RETRY_SLEEP_SECONDS * attempt)
                 continue
-
-        except requests.exceptions.HTTPError as exc:
-            status_code = exc.response.status_code if exc.response is not None else None
-
-            if status_code in {429, 500, 502, 503, 504}:
-                last_exc = exc
-                log(
-                    f"WARN: API retryable HTTP error "
-                    f"endpoint={endpoint} status={status_code} "
-                    f"attempt={attempt}/{MAX_RETRIES}: {exc}"
-                )
-
-                if attempt < MAX_RETRIES:
-                    time.sleep(RETRY_SLEEP_SECONDS * attempt)
-                    continue
-
-            raise
 
         except requests.exceptions.RequestException as exc:
             last_exc = exc
@@ -182,17 +189,9 @@ def main() -> int:
             odds_by_bookmaker = {}
 
             for bookmaker in BOOKMAKERS:
-                try:
-                    log(f"Fetching odds: event_id={event_id}, bookmaker={bookmaker}")
-                    odds_by_bookmaker[bookmaker] = get_event_odds(event_id, bookmaker)
-                    time.sleep(0.25)
-                except Exception as exc:
-                    log(f"WARN: Odds fetch failed for event_id={event_id}, bookmaker={bookmaker}: {exc}")
-                    odds_by_bookmaker[bookmaker] = {
-                        "error": str(exc),
-                        "event_id": event_id,
-                        "bookmaker": bookmaker,
-                    }
+                log(f"Fetching odds: event_id={event_id}, bookmaker={bookmaker}")
+                odds_by_bookmaker[bookmaker] = get_event_odds(event_id, bookmaker)
+                time.sleep(0.25)
 
             grouped[game_date].append(
                 {
@@ -234,6 +233,11 @@ def main() -> int:
             f"skipped_past_events={skipped_past}"
         )
         return 0
+
+    except RateLimitError as exc:
+        log(f"ERROR: {exc}")
+        log("ERROR: Stopping without writing partial odds files")
+        return 1
 
     except Exception:
         log("ERROR: Script failed")
