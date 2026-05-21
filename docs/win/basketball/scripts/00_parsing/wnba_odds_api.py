@@ -14,7 +14,6 @@ from zoneinfo import ZoneInfo
 import requests
 
 API_KEY = os.getenv("API_ODDS")
-FORCE_REFRESH = os.getenv("FORCE_WNBA_ODDS_REFRESH", "").strip().lower() in {"1", "true", "yes", "y"}
 
 BASE_URL = "https://api.odds-api.io/v3"
 SPORT_SLUG = "basketball"
@@ -108,14 +107,12 @@ def main() -> int:
 
         log("Fetching WNBA events from odds-api.io")
         log(f"Today cutoff date: {today}")
-        log(f"Force refresh enabled: {FORCE_REFRESH}")
 
         events = get_wnba_events()
         log(f"Found {len(events)} WNBA events")
 
         grouped: dict[str, list[dict]] = defaultdict(list)
         skipped_past = 0
-        skipped_existing = 0
 
         for event in events:
             event_id = event.get("id")
@@ -128,13 +125,6 @@ def main() -> int:
             if game_date < today:
                 skipped_past += 1
                 log(f"SKIP past event: game_date={game_date}, event_id={event_id}")
-                continue
-
-            out_file = OUT_DIR / f"{game_date}_wnba.json"
-
-            if out_file.exists() and not FORCE_REFRESH:
-                skipped_existing += 1
-                log(f"SKIP existing odds file: game_date={game_date}, event_id={event_id}, file={out_file}")
                 continue
 
             odds_by_bookmaker = {}
@@ -168,11 +158,6 @@ def main() -> int:
         for game_date, rows in sorted(grouped.items()):
             out_file = OUT_DIR / f"{game_date}_wnba.json"
 
-            if out_file.exists() and not FORCE_REFRESH:
-                skipped_existing += 1
-                log(f"SKIP existing odds file at write step: game_date={game_date}, file={out_file}")
-                continue
-
             payload = {
                 "source": "odds-api.io",
                 "sport_slug": SPORT_SLUG,
@@ -194,7 +179,7 @@ def main() -> int:
 
         log(
             f"SUCCESS: Wrote {written} WNBA odds file(s) | "
-            f"skipped_past_events={skipped_past} | skipped_existing_events={skipped_existing}"
+            f"skipped_past_events={skipped_past}"
         )
         return 0
 
