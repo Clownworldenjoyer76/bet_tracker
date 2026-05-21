@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Injury Impact Tracker · Edgelytics</title>
+<title>Injury Impact Tracker</title>
 <link rel="stylesheet" href="css/matstheme.css">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -12,7 +12,7 @@
 
   .page-header { border-bottom: 1px solid var(--border-soft); padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
   .page-title { font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-green); }
-  .page-subtitle { color: var(--text-muted); font-size: 11px; letter-spacing: 0.06em; margin-top: 2px; }
+  .page-subtitle { color: var(--text-muted); font-size: 11px; letter-spacing: 0.06em; margin-top: 2px; line-height: 1.5; }
   .picks-badge { font-family: 'Barlow Condensed', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.1em; padding: 4px 12px; border: 1px solid var(--border-soft); color: var(--text-muted); text-transform: uppercase; }
   .picks-badge.loaded { border-color: rgba(0,255,132,0.4); color: var(--accent-green); background: rgba(0,255,132,0.06); }
   .picks-badge.error  { border-color: rgba(255,68,68,0.4); color: var(--accent-red); }
@@ -21,7 +21,7 @@
   .league-pill { font-family: 'Barlow Condensed', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; padding: 4px 12px; border: 1px solid var(--border-soft); background: transparent; color: var(--text-muted); cursor: pointer; transition: all 0.15s; text-transform: uppercase; }
   .league-pill:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
   .league-pill.active { border-color: var(--accent-green); color: var(--accent-green); background: rgba(0,255,132,0.06); }
-  .search-box { margin-left: auto; background: var(--bg-card); border: 1px solid var(--border-soft); color: var(--text-main); font-family: 'IBM Plex Mono', monospace; font-size: 12px; padding: 5px 10px; width: 200px; outline: none; }
+  .search-box { margin-left: auto; background: var(--bg-card); border: 1px solid var(--border-soft); color: var(--text-main); font-family: 'IBM Plex Mono', monospace; font-size: 12px; padding: 5px 10px; width: 220px; outline: none; }
   .search-box:focus { border-color: var(--accent-blue); }
   .search-box::placeholder { color: var(--text-muted); }
 
@@ -51,10 +51,23 @@
   .picks-panel-body { padding: 0 24px 14px; display: none; flex-wrap: wrap; gap: 6px; }
   .picks-panel-body.open { display: flex; }
   .pick-chip { font-family: 'Barlow Condensed', sans-serif; font-size: 12px; font-weight: 700; padding: 3px 10px; letter-spacing: 0.06em; border: 1px solid var(--border-soft); color: var(--text-muted); }
-  .pick-chip.league-NHL   { border-color: rgba(0,191,255,0.3);  color: var(--accent-blue);   background: rgba(0,191,255,0.05); }
-  .pick-chip.league-NBA   { border-color: rgba(250,204,21,0.3); color: var(--accent-yellow); background: rgba(250,204,21,0.05); }
-  .pick-chip.league-NCAAB { border-color: rgba(255,140,0,0.3);  color: var(--orange); background: rgba(255,140,0,0.05); }
-  .pick-chip.league-MLB   { border-color: rgba(0,255,132,0.3);  color: var(--accent-green);  background: rgba(0,255,132,0.05); }
+
+  .pick-chip.league-NHL { border-color: rgba(0,191,255,0.3); color: var(--accent-blue); background: rgba(0,191,255,0.05); }
+  .pick-chip.league-NBA,
+  .pick-chip.league-WNBA,
+  .pick-chip.league-NCAAM,
+  .pick-chip.league-NCAAB { border-color: rgba(250,204,21,0.3); color: var(--accent-yellow); background: rgba(250,204,21,0.05); }
+  .pick-chip.league-MLB { border-color: rgba(0,255,132,0.3); color: var(--accent-green); background: rgba(0,255,132,0.05); }
+  .pick-chip.league-MLS,
+  .pick-chip.league-EPL,
+  .pick-chip.league-LALIGA,
+  .pick-chip.league-LIGUE1,
+  .pick-chip.league-SERIEA,
+  .pick-chip.league-BUNDESLIGA { border-color: rgba(0,191,255,0.3); color: var(--accent-blue); background: rgba(0,191,255,0.05); }
+  .pick-chip.league-UFC { border-color: rgba(255,68,68,0.3); color: var(--accent-red); background: rgba(255,68,68,0.05); }
+  .pick-chip.league-NFL,
+  .pick-chip.league-CFL,
+  .pick-chip.league-CFB { border-color: rgba(0,255,132,0.3); color: var(--accent-green); background: rgba(0,255,132,0.05); }
 
   .main { padding: 20px 24px; }
   .table-wrap { overflow-x: auto; }
@@ -81,15 +94,39 @@
   .no-pick { color: var(--text-muted); font-size: 11px; }
   .status-badge { display: inline-block; font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; padding: 2px 7px; text-transform: uppercase; }
   .s-out      { background: rgba(255,68,68,0.15);   color: var(--accent-red);    border: 1px solid rgba(255,68,68,0.3); }
-  .s-doubtful { background: rgba(255,140,0,0.12);   color: var(--orange); border: 1px solid rgba(255,140,0,0.3); }
+  .s-doubtful { background: rgba(255,140,0,0.12);   color: var(--orange);        border: 1px solid rgba(255,140,0,0.3); }
   .s-gtd      { background: rgba(250,204,21,0.10);  color: var(--accent-yellow); border: 1px solid rgba(250,204,21,0.3); }
   .s-probable { background: rgba(0,191,255,0.10);   color: var(--accent-blue);   border: 1px solid rgba(0,191,255,0.25); }
-  .s-other    { background: rgba(100,100,100,0.10); color: var(--text-muted);  border: 1px solid var(--border-soft); }
+  .s-other    { background: rgba(100,100,100,0.10); color: var(--text-muted);    border: 1px solid var(--border-soft); }
   .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); font-family: 'Barlow Condensed', sans-serif; font-size: 16px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
   .section-header-row td { padding: 10px 10px 6px; background: var(--bg-card); border-top: 2px solid var(--border-soft); border-bottom: 1px solid var(--border-soft); }
   .section-header-cell { font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent-green); }
   .section-header-row:first-child td { border-top: none; }
   .section-count { color: var(--text-muted); font-weight: 400; }
+
+  @media (max-width: 760px) {
+    .search-box { margin-left: 0; width: 100%; }
+    .summary-strip { flex-wrap: wrap; }
+    .summary-item { flex: 1 1 50%; }
+  }
+
+  @media (max-width: 600px) {
+    .page-header,
+    .controls,
+    .status-bar,
+    .main {
+      padding-left: 16px;
+      padding-right: 16px;
+    }
+
+    .summary-item {
+      flex: 1 1 100%;
+      padding-left: 16px;
+      padding-right: 16px;
+      border-right: none;
+      border-bottom: 1px solid var(--border-soft);
+    }
+  }
 </style>
 </head>
 <body>
@@ -99,7 +136,7 @@
 <div class="page-header">
   <div>
     <div class="page-title">Injury Impact Tracker</div>
-    <div class="page-subtitle">INJURY FEED · CROSS-REF TODAY'S PICKS</div>
+    <div class="page-subtitle">INJURY FEED · CROSS-REF TODAY'S PICKS · NHL · NBA · WNBA · COLLEGE BASKETBALL · MLB · SOCCER · UFC · FOOTBALL</div>
   </div>
   <div class="picks-badge" id="picks-badge">Loading picks...</div>
 </div>
@@ -108,8 +145,19 @@
   <div class="league-pill active" data-league="all">All</div>
   <div class="league-pill" data-league="NHL">NHL</div>
   <div class="league-pill" data-league="NBA">NBA</div>
-  <div class="league-pill" data-league="NCAAB">NCAAB</div>
+  <div class="league-pill" data-league="WNBA">WNBA</div>
+  <div class="league-pill" data-league="NCAAM">College Basketball</div>
   <div class="league-pill" data-league="MLB">MLB</div>
+  <div class="league-pill" data-league="MLS">MLS</div>
+  <div class="league-pill" data-league="EPL">EPL</div>
+  <div class="league-pill" data-league="LALIGA">La Liga</div>
+  <div class="league-pill" data-league="LIGUE1">Ligue 1</div>
+  <div class="league-pill" data-league="SERIEA">Serie A</div>
+  <div class="league-pill" data-league="BUNDESLIGA">Bundesliga</div>
+  <div class="league-pill" data-league="UFC">UFC</div>
+  <div class="league-pill" data-league="NFL">NFL</div>
+  <div class="league-pill" data-league="CFB">College Football</div>
+  <div class="league-pill" data-league="CFL">CFL</div>
   <input type="text" class="search-box" id="inj-search" placeholder="Search player or team...">
 </div>
 
@@ -157,10 +205,24 @@
 <script src="js/nav.js"></script>
 <script>
 var LEAGUES = [
-  { key: "NHL",   sport: "hockey",     league: "nhl"                    },
-  { key: "NBA",   sport: "basketball", league: "nba"                    },
-  { key: "NCAAB", sport: "basketball", league: "mens-college-basketball" },
-  { key: "MLB",   sport: "baseball",   league: "mlb"                    }
+  { key: "NHL",        label: "NHL",                sport: "hockey",     league: "nhl"                    },
+  { key: "NBA",        label: "NBA",                sport: "basketball", league: "nba"                    },
+  { key: "WNBA",       label: "WNBA",               sport: "basketball", league: "wnba"                   },
+  { key: "NCAAM",      label: "College Basketball", sport: "basketball", league: "mens-college-basketball" },
+  { key: "MLB",        label: "MLB",                sport: "baseball",   league: "mlb"                    },
+
+  { key: "MLS",        label: "MLS",                sport: "soccer",     league: "usa.1"                  },
+  { key: "EPL",        label: "EPL",                sport: "soccer",     league: "eng.1"                  },
+  { key: "LALIGA",     label: "La Liga",            sport: "soccer",     league: "esp.1"                  },
+  { key: "LIGUE1",     label: "Ligue 1",            sport: "soccer",     league: "fra.1"                  },
+  { key: "SERIEA",     label: "Serie A",            sport: "soccer",     league: "ita.1"                  },
+  { key: "BUNDESLIGA", label: "Bundesliga",         sport: "soccer",     league: "ger.1"                  },
+
+  { key: "UFC",        label: "UFC",                sport: "mma",        league: "ufc"                    },
+
+  { key: "NFL",        label: "NFL",                sport: "football",   league: "nfl"                    },
+  { key: "CFB",        label: "College Football",   sport: "football",   league: "college-football"       },
+  { key: "CFL",        label: "CFL",                sport: "football",   league: "cfl"                    }
 ];
 
 var allInjuries  = [];
@@ -179,14 +241,96 @@ function todayStr() {
   return d.getFullYear() + "_" + padTwo(d.getMonth() + 1) + "_" + padTwo(d.getDate());
 }
 
+function normalizeLeague(value) {
+  var league = String(value || "").trim().toUpperCase();
+
+  if (league === "NCAAB") return "NCAAM";
+  if (league === "COLLEGE-BASKETBALL") return "NCAAM";
+  if (league === "COLLEGE FOOTBALL") return "CFB";
+
+  return league;
+}
+
+function leagueLabel(key) {
+  var normalized = normalizeLeague(key);
+  var found = LEAGUES.find(function(cfg) {
+    return cfg.key === normalized;
+  });
+
+  return found ? found.label : normalized;
+}
+
+function escapeHtml(value) {
+  return String(value || "").replace(/[&<>'"]/g, function(char) {
+    return {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      "'": "&#39;",
+      '"': "&quot;"
+    }[char];
+  });
+}
+
 function parseCSV(text) {
-  var lines = text.trim().split(/\r?\n/);
-  if (lines.length < 2) return [];
-  var headers = lines[0].split(",").map(function(h) { return h.trim().toLowerCase(); });
-  return lines.slice(1).map(function(line) {
-    var vals = line.split(",");
-    var obj  = {};
-    headers.forEach(function(h, i) { obj[h] = (vals[i] || "").trim(); });
+  var clean = String(text || "").replace(/^\uFEFF/, "").trim();
+  if (!clean) return [];
+
+  var rows = [];
+  var row = [];
+  var cell = "";
+  var quoted = false;
+
+  for (var i = 0; i < clean.length; i++) {
+    var ch = clean[i];
+    var next = clean[i + 1];
+
+    if (ch === '"') {
+      if (quoted && next === '"') {
+        cell += '"';
+        i++;
+      } else {
+        quoted = !quoted;
+      }
+      continue;
+    }
+
+    if (ch === "," && !quoted) {
+      row.push(cell.trim());
+      cell = "";
+      continue;
+    }
+
+    if ((ch === "\n" || ch === "\r") && !quoted) {
+      if (ch === "\r" && next === "\n") i++;
+      row.push(cell.trim());
+      rows.push(row);
+      row = [];
+      cell = "";
+      continue;
+    }
+
+    cell += ch;
+  }
+
+  row.push(cell.trim());
+  rows.push(row);
+
+  if (rows.length < 2) return [];
+
+  var headers = rows[0].map(function(h) {
+    return String(h || "").replace(/^\uFEFF/, "").replace(/^"+|"+$/g, "").trim().toLowerCase();
+  });
+
+  return rows.slice(1).filter(function(r) {
+    return r.some(function(v) {
+      return String(v || "").trim() !== "";
+    });
+  }).map(function(vals) {
+    var obj = {};
+    headers.forEach(function(h, i) {
+      obj[h] = String(vals[i] || "").trim();
+    });
     return obj;
   });
 }
@@ -201,12 +345,18 @@ function autoLoadPicks() {
       return r.text();
     })
     .then(function(text) {
-      pickedRows  = parseCSV(text);
+      pickedRows  = parseCSV(text).map(function(row) {
+        row.league = normalizeLeague(row.league);
+        return row;
+      });
+
       pickedTeams = new Set();
+
       pickedRows.forEach(function(r) {
         if (r.home_team) pickedTeams.add(r.home_team.trim());
         if (r.away_team) pickedTeams.add(r.away_team.trim());
       });
+
       badge.textContent = todayStr().replace(/_/g, "-") + " · " + pickedRows.length + " PICKS LOADED";
       badge.className = "picks-badge loaded";
       renderPicksPanel();
@@ -220,64 +370,91 @@ function autoLoadPicks() {
 
 function renderPicksPanel() {
   if (pickedRows.length === 0) return;
+
   var panel = document.getElementById("picks-panel");
   var body  = document.getElementById("picks-panel-body");
   var ct    = document.getElementById("picks-panel-count");
+
   panel.style.display = "";
   ct.textContent = "(" + pickedRows.length + ")";
   body.innerHTML = "";
+
   pickedRows.forEach(function(r) {
     var chip = document.createElement("span");
-    chip.className = "pick-chip league-" + (r.league || "");
+    var normalizedLeague = normalizeLeague(r.league);
+
+    chip.className = "pick-chip league-" + normalizedLeague;
+
     var mkt  = r.market_type ? r.market_type.toUpperCase() : "";
     var side = r.bet_side    ? r.bet_side.toUpperCase()    : "";
     var line = r.line        ? " " + r.line                : "";
     var team = r.bet_side === "home" ? r.home_team : r.away_team;
-    chip.textContent = (r.league ? "[" + r.league + "] " : "") + (team || "") + " · " + mkt + " " + side + line;
+
+    if (String(r.bet_side || "").toLowerCase() === "over" || String(r.bet_side || "").toLowerCase() === "under") {
+      team = (r.away_team || "") + " @ " + (r.home_team || "");
+    }
+
+    chip.textContent = "[" + leagueLabel(normalizedLeague) + "] " + (team || "") + " · " + mkt + " " + side + line;
     body.appendChild(chip);
   });
 }
 
 document.getElementById("picks-panel-toggle").addEventListener("click", function() {
   panelOpen = !panelOpen;
+
   var body  = document.getElementById("picks-panel-body");
   var arrow = document.getElementById("picks-panel-arrow");
-  if (panelOpen) { body.classList.add("open"); arrow.textContent = "▲"; }
-  else           { body.classList.remove("open"); arrow.textContent = "▼"; }
+
+  if (panelOpen) {
+    body.classList.add("open");
+    arrow.textContent = "▲";
+  } else {
+    body.classList.remove("open");
+    arrow.textContent = "▼";
+  }
 });
 
 function picksForTeam(teamName) {
-  var t = teamName.toLowerCase().trim();
+  var t = String(teamName || "").toLowerCase().trim();
+
   return pickedRows.filter(function(r) {
-    var ht   = (r.home_team || "").toLowerCase().trim();
-    var at   = (r.away_team || "").toLowerCase().trim();
-    var side = (r.bet_side  || "").toLowerCase().trim();
+    var ht   = String(r.home_team || "").toLowerCase().trim();
+    var at   = String(r.away_team || "").toLowerCase().trim();
+    var side = String(r.bet_side  || "").toLowerCase().trim();
+
     if (side === "over" || side === "under") return ht === t || at === t;
     if (side === "home") return ht === t;
     if (side === "away") return at === t;
+
     return ht === t || at === t;
   });
 }
 
-function teamInPicks(teamName) { return picksForTeam(teamName).length > 0; }
+function teamInPicks(teamName) {
+  return picksForTeam(teamName).length > 0;
+}
 
 function statusRank(s) {
-  var k = (s || "").toLowerCase();
+  var k = String(s || "").toLowerCase();
+
   if (k === "out")          return 0;
   if (k === "doubtful")     return 1;
   if (k === "day-to-day")   return 2;
   if (k === "questionable") return 3;
   if (k === "probable")     return 4;
+
   return 5;
 }
 
 function statusClass(s) {
-  var k = (s || "").toLowerCase();
+  var k = String(s || "").toLowerCase();
+
   if (k === "out")          return "s-out";
   if (k === "doubtful")     return "s-doubtful";
   if (k === "day-to-day")   return "s-gtd";
   if (k === "questionable") return "s-gtd";
   if (k === "probable")     return "s-probable";
+
   return "s-other";
 }
 
@@ -285,41 +462,77 @@ function render() {
   var rows = allInjuries.slice();
 
   if (activeLeague !== "all") {
-    rows = rows.filter(function(r) { return r.league === activeLeague; });
+    rows = rows.filter(function(r) {
+      return r.league === activeLeague;
+    });
   }
 
   if (searchQuery) {
     var q = searchQuery.toLowerCase();
+
     rows = rows.filter(function(r) {
-      return r.player.toLowerCase().indexOf(q) !== -1 ||
-             r.team.toLowerCase().indexOf(q)   !== -1 ||
-             r.injury.toLowerCase().indexOf(q) !== -1;
+      return String(r.player || "").toLowerCase().indexOf(q) !== -1 ||
+             String(r.team || "").toLowerCase().indexOf(q)   !== -1 ||
+             String(r.injury || "").toLowerCase().indexOf(q) !== -1 ||
+             String(r.leagueLabel || "").toLowerCase().indexOf(q) !== -1;
     });
   }
 
   var displayRows = rows.map(function(r) {
     var picks = picksForTeam(r.team);
-    return { league: r.league, player: r.player, position: r.position, team: r.team, status: r.status, injury: r.injury, hasPick: picks.length > 0, picks: picks };
+
+    return {
+      league: r.league,
+      leagueLabel: r.leagueLabel,
+      player: r.player,
+      position: r.position,
+      team: r.team,
+      status: r.status,
+      injury: r.injury,
+      hasPick: picks.length > 0,
+      picks: picks
+    };
   });
 
   displayRows.sort(function(a, b) {
     var av, bv;
-    if (sortCol === "status")    { av = statusRank(a.status); bv = statusRank(b.status); }
-    else if (sortCol === "pick") { av = a.hasPick ? 0 : 1;   bv = b.hasPick ? 0 : 1; }
-    else { av = (a[sortCol] || "").toLowerCase(); bv = (b[sortCol] || "").toLowerCase(); }
+
+    if (sortCol === "status") {
+      av = statusRank(a.status);
+      bv = statusRank(b.status);
+    } else if (sortCol === "pick") {
+      av = a.hasPick ? 0 : 1;
+      bv = b.hasPick ? 0 : 1;
+    } else if (sortCol === "league") {
+      av = String(a.leagueLabel || "").toLowerCase();
+      bv = String(b.leagueLabel || "").toLowerCase();
+    } else {
+      av = String(a[sortCol] || "").toLowerCase();
+      bv = String(b[sortCol] || "").toLowerCase();
+    }
+
     if (av < bv) return sortDir === "asc" ? -1 : 1;
     if (av > bv) return sortDir === "asc" ?  1 : -1;
+
     return 0;
   });
 
   var counts = { out: 0, dtd: 0, gtd: 0, picked: 0 };
+
   allInjuries.forEach(function(r) {
-    var k = (r.status || "").toLowerCase();
-    if (k === "out")                                   counts.out++;
-    else if (k === "day-to-day")                       counts.dtd++;
-    else if (k === "questionable" || k === "doubtful") counts.gtd++;
+    var k = String(r.status || "").toLowerCase();
+
+    if (k === "out") {
+      counts.out++;
+    } else if (k === "day-to-day") {
+      counts.dtd++;
+    } else if (k === "questionable" || k === "doubtful") {
+      counts.gtd++;
+    }
+
     if (teamInPicks(r.team)) counts.picked++;
   });
+
   document.getElementById("sum-out").textContent      = counts.out;
   document.getElementById("sum-dtd").textContent      = counts.dtd;
   document.getElementById("sum-gtd").textContent      = counts.gtd;
@@ -328,9 +541,14 @@ function render() {
 
   var tbody = document.getElementById("inj-tbody");
   var empty = document.getElementById("inj-empty");
+
   tbody.innerHTML = "";
 
-  if (displayRows.length === 0) { empty.style.display = ""; return; }
+  if (displayRows.length === 0) {
+    empty.style.display = "";
+    return;
+  }
+
   empty.style.display = "none";
 
   var pickRows  = displayRows.filter(function(r) { return r.hasPick; });
@@ -338,69 +556,91 @@ function render() {
 
   function buildRow(r) {
     var tr = document.createElement("tr");
+
     if (r.hasPick) tr.classList.add("has-pick");
 
     var pickCell = '<span class="no-pick">—</span>';
+
     if (r.hasPick && r.picks.length > 0) {
       var lines = r.picks.map(function(p) {
-        var mkt  = (p.market_type || "").toUpperCase();
-        var ln   = p.line ? " " + p.line : "";
-        var side = (p.bet_side || "").toLowerCase();
+        var mkt  = String(p.market_type || "").toUpperCase();
+        var ln   = p.line ? " " + escapeHtml(p.line) : "";
+        var side = String(p.bet_side || "").toLowerCase();
         var pickedTeamName = side === "home" ? p.home_team : (side === "away" ? p.away_team : (p.home_team + " vs " + p.away_team));
         var oppTeamName    = side === "home" ? ("vs " + p.away_team) : (side === "away" ? ("vs " + p.home_team) : "");
         var timeStr = p.game_time ? " · " + p.game_time : "";
-        return '<div class="pick-line">' + mkt + ln + '</div>' +
-               '<div class="pick-meta">' + pickedTeamName + (oppTeamName ? " " + oppTeamName : "") + timeStr + '</div>';
+
+        return '<div class="pick-line">' + escapeHtml(mkt) + ln + '</div>' +
+               '<div class="pick-meta">' + escapeHtml(pickedTeamName) + (oppTeamName ? " " + escapeHtml(oppTeamName) : "") + escapeHtml(timeStr) + '</div>';
       }).join("");
+
       pickCell = '<div class="pick-detail-inner">' + lines + '</div>';
     }
 
     tr.innerHTML =
-      '<td class="td-league">' + r.league   + '</td>' +
-      '<td class="td-player">' + r.player   + '</td>' +
-      '<td class="td-pos">'    + r.position + '</td>' +
-      '<td class="td-team">'   + r.team     + '</td>' +
-      '<td><span class="status-badge ' + statusClass(r.status) + '">' + r.status + '</span></td>' +
-      '<td class="td-injury">' + r.injury   + '</td>' +
+      '<td class="td-league">' + escapeHtml(r.leagueLabel || r.league) + '</td>' +
+      '<td class="td-player">' + escapeHtml(r.player) + '</td>' +
+      '<td class="td-pos">'    + escapeHtml(r.position) + '</td>' +
+      '<td class="td-team">'   + escapeHtml(r.team) + '</td>' +
+      '<td><span class="status-badge ' + statusClass(r.status) + '">' + escapeHtml(r.status) + '</span></td>' +
+      '<td class="td-injury">' + escapeHtml(r.injury) + '</td>' +
       '<td class="pick-detail">' + pickCell + '</td>';
+
     return tr;
   }
 
   function buildSectionHeader(label, count) {
     var tr = document.createElement("tr");
     tr.className = "section-header-row";
-    tr.innerHTML = '<td colspan="7" class="section-header-cell">' + label + ' <span class="section-count">(' + count + ')</span></td>';
+    tr.innerHTML = '<td colspan="7" class="section-header-cell">' + escapeHtml(label) + ' <span class="section-count">(' + count + ')</span></td>';
     return tr;
   }
 
   if (pickRows.length > 0) {
     tbody.appendChild(buildSectionHeader("TODAY’S PICKS — INJURED PLAYERS", pickRows.length));
-    pickRows.forEach(function(r) { tbody.appendChild(buildRow(r)); });
+    pickRows.forEach(function(r) {
+      tbody.appendChild(buildRow(r));
+    });
   }
 
   if (otherRows.length > 0) {
     tbody.appendChild(buildSectionHeader("ALL OTHER INJURIES", otherRows.length));
-    otherRows.forEach(function(r) { tbody.appendChild(buildRow(r)); });
+    otherRows.forEach(function(r) {
+      tbody.appendChild(buildRow(r));
+    });
   }
 }
 
 document.querySelectorAll("th[data-col]").forEach(function(th) {
   th.addEventListener("click", function() {
     var col = th.dataset.col;
-    if (sortCol === col) sortDir = sortDir === "asc" ? "desc" : "asc";
-    else { sortCol = col; sortDir = "asc"; }
-    document.querySelectorAll("th[data-col]").forEach(function(t) { t.classList.remove("sort-asc","sort-desc"); });
+
+    if (sortCol === col) {
+      sortDir = sortDir === "asc" ? "desc" : "asc";
+    } else {
+      sortCol = col;
+      sortDir = "asc";
+    }
+
+    document.querySelectorAll("th[data-col]").forEach(function(t) {
+      t.classList.remove("sort-asc", "sort-desc");
+    });
+
     th.classList.add(sortDir === "asc" ? "sort-asc" : "sort-desc");
     render();
   });
 });
+
 document.querySelector('th[data-col="status"]').classList.add("sort-asc");
 
 document.querySelectorAll(".league-pill").forEach(function(pill) {
   pill.addEventListener("click", function() {
-    document.querySelectorAll(".league-pill").forEach(function(p) { p.classList.remove("active"); });
+    document.querySelectorAll(".league-pill").forEach(function(p) {
+      p.classList.remove("active");
+    });
+
     pill.classList.add("active");
-    activeLeague = pill.dataset.league;
+    activeLeague = normalizeLeague(pill.dataset.league);
     render();
   });
 });
@@ -418,24 +658,39 @@ function setStatus(text, cls, dotCls) {
 
 async function fetchLeagueInjuries(cfg) {
   var url = "https://site.api.espn.com/apis/site/v2/sports/" + cfg.sport + "/" + cfg.league + "/injuries";
+
   try {
-    var r    = await fetch(url);
+    var r = await fetch(url, { cache: "no-store" });
+
     if (!r.ok) return [];
+
     var data = await r.json();
     var rows = [];
     var teamGroups = data.injuries || [];
+
     for (var i = 0; i < teamGroups.length; i++) {
-      var group    = teamGroups[i];
+      var group = teamGroups[i];
       var teamName = group.displayName || "Unknown";
-      var injList  = group.injuries   || [];
+      var injList = group.injuries || [];
+
       for (var j = 0; j < injList.length; j++) {
-        var inj      = injList[j];
-        var athlete  = inj.athlete || {};
-        var position = (athlete.position && athlete.position.abbreviation) ? athlete.position.abbreviation : "-";
-        var injType  = (inj.details && inj.details.type) ? inj.details.type : "-";
-        rows.push({ league: cfg.key, player: athlete.displayName || "Unknown", position: position, team: teamName, status: inj.status || "Unknown", injury: injType });
+        var inj = injList[j];
+        var athlete = inj.athlete || {};
+        var position = athlete.position && athlete.position.abbreviation ? athlete.position.abbreviation : "-";
+        var injType = inj.details && inj.details.type ? inj.details.type : "-";
+
+        rows.push({
+          league: cfg.key,
+          leagueLabel: cfg.label,
+          player: athlete.displayName || "Unknown",
+          position: position,
+          team: teamName,
+          status: inj.status || "Unknown",
+          injury: injType
+        });
       }
     }
+
     return rows;
   } catch(e) {
     console.warn(cfg.key + " failed:", e);
@@ -446,8 +701,15 @@ async function fetchLeagueInjuries(cfg) {
 async function loadAll() {
   setStatus("Fetching injury data...", "loading", "yellow");
   allInjuries = [];
-  var results = await Promise.all(LEAGUES.map(function(cfg) { return fetchLeagueInjuries(cfg); }));
-  results.forEach(function(rows) { allInjuries = allInjuries.concat(rows); });
+
+  var results = await Promise.all(LEAGUES.map(function(cfg) {
+    return fetchLeagueInjuries(cfg);
+  }));
+
+  results.forEach(function(rows) {
+    allInjuries = allInjuries.concat(rows);
+  });
+
   render();
   setStatus(allInjuries.length + " injuries loaded · " + todayStr().replace(/_/g, "-"), "", "green");
 }
