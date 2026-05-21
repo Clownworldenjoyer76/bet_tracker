@@ -245,6 +245,30 @@ def stake_pct(kelly):
     return min(raw, KELLY_CAP)
 
 
+def clear_old_select_outputs() -> None:
+    deleted_daily_slate = 0
+    deleted_daily_picks = 0
+
+    for stale in DAILY_DIR.glob("*_selected.csv"):
+        stale.unlink(missing_ok=True)
+        deleted_daily_slate += 1
+        _log(f"DELETED OLD DAILY SLATE FILE: {stale}")
+
+    for league in LEAGUES:
+        daily_pick_dir = SELECT_DIR / league / "daily_picks"
+        if not daily_pick_dir.exists():
+            continue
+
+        for stale in daily_pick_dir.glob("*_selected.csv"):
+            stale.unlink(missing_ok=True)
+            deleted_daily_picks += 1
+            _log(f"DELETED OLD DAILY PICK FILE: {stale}")
+
+    DEBUG_COUNTS["deleted_old_daily_slate_files"] += deleted_daily_slate
+    DEBUG_COUNTS["deleted_old_daily_pick_files"] += deleted_daily_picks
+    _log(f"Old basketball select outputs deleted: daily_slate={deleted_daily_slate} daily_picks={deleted_daily_picks}")
+
+
 def write_daily_pick_files(league: str, out_df: pd.DataFrame) -> None:
     """
     Writes one selected-picks file per league per game_date to:
@@ -252,10 +276,6 @@ def write_daily_pick_files(league: str, out_df: pd.DataFrame) -> None:
     """
     daily_pick_dir = SELECT_DIR / league / "daily_picks"
     daily_pick_dir.mkdir(parents=True, exist_ok=True)
-
-    # Wipe old daily pick files for that league
-    for stale in daily_pick_dir.glob("*.csv"):
-        stale.unlink(missing_ok=True)
 
     if "game_date" not in out_df.columns:
         _log(f"Cannot write daily picks for {league}: missing game_date column", "ERROR")
@@ -507,6 +527,8 @@ def main():
     with open(LOG_FILE, "w", encoding="utf-8") as f:
         f.write(f"=== basketball select_bets RUN {_now()} ===\n")
 
+    clear_old_select_outputs()
+
     summary = {
         "files_processed": 0, "total_selected": 0,
         "nba_bets": 0, "ncaam_bets": 0, "wnba_bets": 0,
@@ -560,6 +582,7 @@ def main():
         for league in LEAGUES:
             dfs = league_dfs[league]
             if not dfs:
+                _log(f"NO SELECTED ROWS FOR LEAGUE: {league}; daily_slate file not written")
                 continue
 
             out_df = pd.concat(dfs, ignore_index=True)
