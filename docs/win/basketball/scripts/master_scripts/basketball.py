@@ -16,6 +16,7 @@ JOBS = [
     Path("docs/win/basketball/scripts/01_merge/build_juice_files.py"),
     Path("docs/win/basketball/scripts/03_edges/compute_ev_kelly.py"),
     Path("docs/win/basketball/scripts/04_select/basketball_select_bets.py"),
+    Path("docs/win/basketball/scripts/04_select/daily_slate.py"),
     Path("docs/win/basketball/scripts/05_final_scores/01_basketball_results_grade.py"),
     Path("docs/win/basketball/scripts/05_final_scores/02_basketball_results_analyze.py"),
     Path("docs/win/basketball/scripts/05_final_scores/03_basketball_results_reports.py"),
