@@ -140,15 +140,27 @@ function formatLine(line) {
   return n > 0 ? "+" + n : String(n);
 }
 
+function cleanOdds(odds) {
+  if (odds === null || odds === undefined || odds === "") return "";
+  const n = parseFloat(odds);
+  if (isNaN(n)) return String(odds);
+  return n > 0 ? "+" + n : String(n);
+}
+
+function wrapOdds(odds) {
+  const cleaned = cleanOdds(odds);
+  return cleaned ? ` (${cleaned})` : "";
+}
+
 function buildBetText(p, r, cfg) {
   if (cfg.buildBetText) return cfg.buildBetText(p, r);
 
   const market = (p.market_type || "").toLowerCase();
   const side   = (p.bet_side    || "").toLowerCase();
-  const line   = p.line || "";
-  const odds   = p.dk_odds_american || p.take_odds || "";
+  const line   = p.bet_line || p.line || "";
+  const odds   = p.bet_odds_american || p.dk_odds_american || p.take_odds || "";
 
-  let label    = "";
+  let label = "";
   let american = odds;
 
   if (side === "home")  label = r.home_team || "Home";
@@ -157,24 +169,24 @@ function buildBetText(p, r, cfg) {
   if (side === "under") label = "Under";
 
   if (["spread", "puck_line", "run_line"].includes(market)) {
-    if (side === "home") american = r.home_dk_spread_american || r.home_dk_puck_line_american || r.home_dk_run_line_american || odds;
-    if (side === "away") american = r.away_dk_spread_american || r.away_dk_puck_line_american || r.away_dk_run_line_american || odds;
-    return `${label} ${formatLine(line)} (${american})`.trim();
+    if (side === "home") american = p.bet_odds_american || r.home_dk_spread_american || r.home_dk_puck_line_american || r.home_dk_run_line_american || odds;
+    if (side === "away") american = p.bet_odds_american || r.away_dk_spread_american || r.away_dk_puck_line_american || r.away_dk_run_line_american || odds;
+    return `${label} ${formatLine(line)}${wrapOdds(american)}`.trim();
   }
 
   if (market === "total") {
-    if (side === "over")  american = r.dk_total_over_american  || odds;
-    if (side === "under") american = r.dk_total_under_american || odds;
-    return `${label} ${line} (${american})`.trim();
+    if (side === "over")  american = p.bet_odds_american || r.dk_total_over_american  || odds;
+    if (side === "under") american = p.bet_odds_american || r.dk_total_under_american || odds;
+    return `${label} ${formatLine(line)}${wrapOdds(american)}`.trim();
   }
 
   if (market === "moneyline") {
-    if (side === "home") american = r.home_dk_moneyline_american || odds;
-    if (side === "away") american = r.away_dk_moneyline_american || odds;
-    return `${label} (${american})`.trim();
+    if (side === "home") american = p.bet_odds_american || r.home_dk_moneyline_american || odds;
+    if (side === "away") american = p.bet_odds_american || r.away_dk_moneyline_american || odds;
+    return `${label}${wrapOdds(american)}`.trim();
   }
 
-  return `${side} ${line} ${odds}`.trim();
+  return `${side} ${formatLine(line)} ${cleanOdds(odds)}`.trim();
 }
 
 // ─── Edge / EV / Kelly ────────────────────────────────────────────────────────
