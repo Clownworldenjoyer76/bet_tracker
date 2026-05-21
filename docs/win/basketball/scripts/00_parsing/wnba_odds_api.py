@@ -26,6 +26,9 @@ OUT_DIR = Path("docs/win/basketball/odds/wnba")
 ERROR_DIR = Path("docs/win/basketball/errors/00_intake")
 LOG_FILE = ERROR_DIR / "wnba_odds_api.txt"
 
+MAX_RETRIES = 3
+RETRY_SLEEP_SECONDS = 5
+
 
 def log(msg: str) -> None:
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -42,9 +45,58 @@ def ensure_dirs() -> None:
 
 def api_get(endpoint: str, params: dict) -> object:
     url = f"{BASE_URL}/{endpoint.lstrip('/')}"
-    r = requests.get(url, params=params, timeout=30)
-    r.raise_for_status()
-    return r.json()
+    last_exc = None
+
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            r = requests.get(url, params=params, timeout=30)
+            r.raise_for_status()
+            return r.json()
+
+        except (
+            requests.exceptions.ChunkedEncodingError,
+            requests.exceptions.ConnectionError,
+            requests.exceptions.Timeout,
+        ) as exc:
+            last_exc = exc
+            log(
+                f"WARN: API transient read/connection failure "
+                f"endpoint={endpoint} attempt={attempt}/{MAX_RETRIES}: {exc}"
+            )
+
+            if attempt < MAX_RETRIES:
+                time.sleep(RETRY_SLEEP_SECONDS * attempt)
+                continue
+
+        except requests.exceptions.HTTPError as exc:
+            status_code = exc.response.status_code if exc.response is not None else None
+
+            if status_code in {429, 500, 502, 503, 504}:
+                last_exc = exc
+                log(
+                    f"WARN: API retryable HTTP error "
+                    f"endpoint={endpoint} status={status_code} "
+                    f"attempt={attempt}/{MAX_RETRIES}: {exc}"
+                )
+
+                if attempt < MAX_RETRIES:
+                    time.sleep(RETRY_SLEEP_SECONDS * attempt)
+                    continue
+
+            raise
+
+        except requests.exceptions.RequestException as exc:
+            last_exc = exc
+            log(
+                f"WARN: API request failure "
+                f"endpoint={endpoint} attempt={attempt}/{MAX_RETRIES}: {exc}"
+            )
+
+            if attempt < MAX_RETRIES:
+                time.sleep(RETRY_SLEEP_SECONDS * attempt)
+                continue
+
+    raise last_exc
 
 
 def game_date_yyyy_mm_dd(utc_date_text: str) -> str:
