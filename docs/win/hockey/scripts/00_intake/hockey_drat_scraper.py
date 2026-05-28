@@ -276,13 +276,10 @@ def main():
 
             if upcoming:
                 df_up        = pd.DataFrame(upcoming)
-                final_path   = pred_dir / f"hockey_{date}.csv"
                 scraper_path = scraper_dir / f"{date}_nhl_predictions.csv"
-                df_up.to_csv(final_path,   index=False)
                 df_up.to_csv(scraper_path, index=False)
-                files_written.append((str(final_path),   len(df_up)))
                 files_written.append((str(scraper_path), len(df_up)))
-                log(f"WROTE upcoming -> {final_path} ({len(df_up)} rows)")
+                log(f"WROTE upcoming scraper copy -> {scraper_path} ({len(df_up)} rows)")
             else:
                 log("No upcoming games found.")
 
@@ -293,9 +290,6 @@ def main():
 
             browser.close()
 
-        # =========================
-        # SUMMARY
-        # =========================
         log("--- SUMMARY ---")
         log(f"Raw rows scraped: {len(raw)}")
         log(f"Games parsed: {len(games)}")
