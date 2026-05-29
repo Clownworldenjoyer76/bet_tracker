@@ -6,7 +6,7 @@ import traceback
 from pathlib import Path
 from datetime import datetime, timezone
 
-PRED_DIR    = Path("docs/win/baseball/00_intake/predictions")
+PRED_DIR    = Path("docs/win/baseball/00_intake/predictions/pred_with_game_id")
 BOOK_DIR    = Path("docs/win/baseball/00_intake/sportsbook")
 GAMES_DIR   = Path("docs/win/baseball/00_intake/games")
 CONTEXT_DIR = Path("docs/win/baseball/00_intake/mlb_raw")
@@ -48,10 +48,6 @@ def clear_old_outputs():
     log(f"OLD MERGE OUTPUTS DELETED: {deleted}")
 
 
-def norm(s):
-    return (s or "").strip().lower()
-
-
 def load_csv(path):
     rows = []
     if not path.exists():
@@ -64,11 +60,38 @@ def load_csv(path):
     return rows
 
 
-def build_team_index(rows):
+def build_game_id_index(rows, date):
     idx = {}
+    duplicates = 0
+    blanks = 0
+
     for r in rows:
-        key = (norm(r["home_team"]), norm(r["away_team"]))
-        idx[key] = r
+        game_id = (r.get("game_id") or "").strip()
+
+        if not game_id:
+            blanks += 1
+            log(
+                f"{date} | prediction row missing game_id: "
+                f"away={r.get('away_team', '')} "
+                f"home={r.get('home_team', '')} "
+                f"time={r.get('game_time', '')}"
+            )
+            continue
+
+        if game_id in idx:
+            duplicates += 1
+            log(
+                f"{date} | DUPLICATE prediction game_id={game_id}; "
+                f"later row overwrote earlier row"
+            )
+
+        idx[game_id] = r
+
+    log(
+        f"{date} | prediction game_id index built: "
+        f"indexed={len(idx)} blanks={blanks} duplicates={duplicates}"
+    )
+
     return idx
 
 
@@ -205,12 +228,12 @@ def process_date(date, summary):
         summary["skipped"] += 1
         return
 
-    # Load game context lookup tables
     games_idx   = load_games_index(date)
     context_idx = load_context_index(date)
     log(f"{date} | games_idx={len(games_idx)} context_idx={len(context_idx)}")
 
-    pred_idx  = build_team_index(preds)
+    pred_idx = build_game_id_index(preds, date)
+
     matched   = 0
     unmatched = 0
 
@@ -219,18 +242,34 @@ def process_date(date, summary):
     tot_rows = []
 
     for b in books:
-        key = (norm(b["home_team"]), norm(b["away_team"]))
-        p   = pred_idx.get(key)
+        game_id = (b.get("game_id") or "").strip()
+
+        if not game_id:
+            unmatched += 1
+            log(
+                f"{date} | UNMATCHED sportsbook row missing game_id: "
+                f"away={b.get('away_team', '')} "
+                f"home={b.get('home_team', '')} "
+                f"time={b.get('game_time', '')}"
+            )
+            continue
+
+        p = pred_idx.get(game_id)
 
         if not p:
             unmatched += 1
-            log(f"UNMATCHED: {key}")
+            log(
+                f"{date} | UNMATCHED sportsbook game_id not found in predictions: "
+                f"game_id={game_id} "
+                f"away={b.get('away_team', '')} "
+                f"home={b.get('home_team', '')} "
+                f"time={b.get('game_time', '')}"
+            )
             continue
 
         matched += 1
 
-        game_id = b["game_id"]
-        ctx     = get_context(game_id, games_idx, context_idx)
+        ctx      = get_context(game_id, games_idx, context_idx)
         ctx_vals = [ctx.get(col, "") for col in CONTEXT_COLS]
 
         ml_rows.append([
