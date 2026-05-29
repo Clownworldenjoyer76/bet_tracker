@@ -17,10 +17,12 @@ OUTPUT_DIR = INPUT_DIR / "01_merguiced"
 
 ERROR_DIR = Path("docs/win/baseball/errors/01_merge")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
+
+RUN_TS = datetime.now(UTC).isoformat()
 LOG_FILE = ERROR_DIR / "build_juice_files.txt"
 
 with open(LOG_FILE, "w", encoding="utf-8") as f:
-    f.write(f"=== build_juice_files RUN {datetime.now(UTC).isoformat()} ===\n")
+    f.write(f"=== build_juice_files RUN {RUN_TS} ===\n")
 
 
 CONTEXT_COLS = [
@@ -53,6 +55,7 @@ CONTEXT_COLS = [
 ]
 
 MONEYLINE_REQUIRED_COLUMNS = [
+    "last_run",
     "game_id", "sport", "league", "game_date", "game_time", "home_team", "away_team",
     "away_run_line", "home_run_line", "total",
     "away_dk_moneyline_american", "home_dk_moneyline_american",
@@ -62,6 +65,7 @@ MONEYLINE_REQUIRED_COLUMNS = [
 ] + CONTEXT_COLS
 
 RUN_LINE_REQUIRED_COLUMNS = [
+    "last_run",
     "game_id", "sport", "league", "game_date", "game_time", "home_team", "away_team",
     "away_run_line", "home_run_line", "total",
     "away_dk_run_line_american", "home_dk_run_line_american",
@@ -72,6 +76,7 @@ RUN_LINE_REQUIRED_COLUMNS = [
 ] + CONTEXT_COLS
 
 TOTAL_REQUIRED_COLUMNS = [
+    "last_run",
     "game_id", "sport", "league", "game_date", "game_time", "home_team", "away_team",
     "away_run_line", "home_run_line", "total",
     "dk_total_over_american", "dk_total_under_american",
@@ -89,26 +94,29 @@ def log(msg):
 
 def reset_output_dir():
     """
-    Permanently deletes docs/win/baseball/01_merge/01_merguiced.
+    Permanently deletes docs/win/baseball/01_merge/01_merguiced before rebuilding.
 
-    The script recreates the directory empty and fails immediately if anything
-    remains inside it before new files are written.
+    If the directory or any CSV file remains after deletion, the script fails immediately.
     """
     if OUTPUT_DIR.exists():
         shutil.rmtree(OUTPUT_DIR)
         log(f"DELETED OUTPUT DIRECTORY: {OUTPUT_DIR}")
 
+    if OUTPUT_DIR.exists():
+        raise RuntimeError(f"FAILED TO DELETE OUTPUT DIRECTORY: {OUTPUT_DIR}")
+
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    log(f"CREATED OUTPUT DIRECTORY: {OUTPUT_DIR}")
 
-    remaining = list(OUTPUT_DIR.iterdir())
+    remaining_csvs = sorted([p for p in OUTPUT_DIR.glob("*.csv") if p.is_file()])
 
-    if remaining:
-        for path in remaining:
-            log(f"DELETE VERIFY FAILED - PATH STILL EXISTS: {path}")
-        raise RuntimeError("Delete verification failed: docs/win/baseball/01_merge/01_merguiced is not empty")
+    if remaining_csvs:
+        remaining_text = ", ".join(str(p) for p in remaining_csvs)
+        raise RuntimeError(
+            f"FAILED TO START WITH EMPTY 01_MERGUICED DIRECTORY. Remaining CSV files: {remaining_text}"
+        )
 
-    log("DELETE VERIFY PASSED: docs/win/baseball/01_merge/01_merguiced is empty before rebuild")
+    log(f"CREATED EMPTY OUTPUT DIRECTORY: {OUTPUT_DIR}")
+    log("CONFIRMED: docs/win/baseball/01_merge/01_merguiced has zero CSV files before rebuild")
 
 
 def american_to_decimal(odds):
@@ -160,6 +168,11 @@ def coerce_numeric(df, cols):
         df[col] = pd.to_numeric(df[col], errors="coerce")
 
 
+def stamp_last_run(df):
+    df["last_run"] = RUN_TS
+    return df
+
+
 def process_moneyline(file_path, summary):
     try:
         df = pd.read_csv(file_path)
@@ -187,6 +200,7 @@ def process_moneyline(file_path, summary):
                 summary["row_issues"] += 1
 
         ml = df.copy()
+        ml = stamp_last_run(ml)
 
         ml["away_dk_decimal_moneyline"] = ml["away_dk_moneyline_american"].apply(american_to_decimal)
         ml["home_dk_decimal_moneyline"] = ml["home_dk_moneyline_american"].apply(american_to_decimal)
@@ -208,7 +222,7 @@ def process_moneyline(file_path, summary):
         out = OUTPUT_DIR / f"{slate_date}_mlb_moneyline.csv"
         ml.to_csv(out, index=False)
 
-        log(f"WROTE {out} ({len(ml)} rows)")
+        log(f"WROTE {out} ({len(ml)} rows) last_run={RUN_TS}")
         summary["files_written"] += 1
         summary["rows_written"] += len(ml)
 
@@ -240,6 +254,7 @@ def process_total(file_path, summary):
         ])
 
         tot = df.copy()
+        tot = stamp_last_run(tot)
 
         tot["dk_total_over_decimal"] = tot["dk_total_over_american"].apply(american_to_decimal)
         tot["dk_total_under_decimal"] = tot["dk_total_under_american"].apply(american_to_decimal)
@@ -317,7 +332,7 @@ def process_total(file_path, summary):
         out = OUTPUT_DIR / f"{slate_date}_mlb_total.csv"
         tot.to_csv(out, index=False)
 
-        log(f"WROTE {out} ({len(tot)} rows)")
+        log(f"WROTE {out} ({len(tot)} rows) last_run={RUN_TS}")
         summary["files_written"] += 1
         summary["rows_written"] += len(tot)
 
@@ -349,6 +364,7 @@ def process_run_line(file_path, summary):
         ])
 
         rl = df.copy()
+        rl = stamp_last_run(rl)
 
         rl["home_dk_run_line_decimal"] = rl["home_dk_run_line_american"].apply(american_to_decimal)
         rl["away_dk_run_line_decimal"] = rl["away_dk_run_line_american"].apply(american_to_decimal)
@@ -429,7 +445,7 @@ def process_run_line(file_path, summary):
         out = OUTPUT_DIR / f"{slate_date}_mlb_run_line.csv"
         rl.to_csv(out, index=False)
 
-        log(f"WROTE {out} ({len(rl)} rows)")
+        log(f"WROTE {out} ({len(rl)} rows) last_run={RUN_TS}")
         summary["files_written"] += 1
         summary["rows_written"] += len(rl)
 
@@ -469,6 +485,7 @@ def main():
             process_total(f, summary)
 
         log("--- SUMMARY ---")
+        log(f"Last run timestamp: {RUN_TS}")
         log(f"Files written: {summary['files_written']}")
         log(f"Rows written: {summary['rows_written']}")
         log(f"Empty files: {summary['empty']}")
@@ -481,6 +498,7 @@ def main():
 
         print(
             f"build_juice_files complete. "
+            f"last_run={RUN_TS} "
             f"files_written={summary['files_written']} "
             f"rows_written={summary['rows_written']} "
             f"errors={summary['errors']} "
@@ -493,7 +511,6 @@ def main():
     except Exception as e:
         log(f"FATAL ERROR: {e}\n{traceback.format_exc()}")
         log("STATUS: FAILED")
-        print(f"build_juice_files failed: {e}", file=sys.stderr)
         sys.exit(1)
 
 
