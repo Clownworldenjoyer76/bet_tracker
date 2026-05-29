@@ -87,6 +87,20 @@ def log(msg):
         f.write(f"{datetime.now(UTC).isoformat()} | {msg}\n")
 
 
+def clear_output_dir():
+    deleted = 0
+
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+    for old_file in sorted(OUTPUT_DIR.rglob("*")):
+        if old_file.is_file():
+            old_file.unlink()
+            deleted += 1
+            log(f"DELETED OLD OUTPUT: {old_file}")
+
+    log(f"OLD 01_MERGUICED OUTPUT FILES DELETED: {deleted}")
+
+
 def american_to_decimal(odds):
     try:
         if pd.isna(odds):
@@ -220,9 +234,6 @@ def process_total(file_path, summary):
                 continue
 
             if total_line % 1 == 0:
-                # Whole-number total: push is possible when score lands exactly on the line.
-                # p_over  = P(score > total_line) strictly, excludes push.
-                # p_under = P(score < total_line) strictly, excludes push.
                 k = int(total_line)
 
                 p_over  = 1 - poisson.cdf(k, lam)
@@ -388,8 +399,7 @@ def main():
         "errors":        0,
     }
 
-    for f in OUTPUT_DIR.glob("*.csv"):
-        f.unlink()
+    clear_output_dir()
 
     try:
         moneyline_files = sorted(glob.glob(str(INPUT_DIR / "*_mlb_moneyline.csv")))
