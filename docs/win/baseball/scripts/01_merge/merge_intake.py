@@ -2,6 +2,7 @@
 # docs/win/baseball/scripts/01_merge/merge_intake.py
 
 import csv
+import sys
 import traceback
 from pathlib import Path
 from datetime import datetime, timezone
@@ -27,22 +28,44 @@ def log(msg):
         f.write(f"{datetime.now(timezone.utc).isoformat()} | {msg}\n")
 
 
-def clear_old_outputs():
+def reset_root_output_files():
     """
-    Deletes every root-level file in docs/win/baseball/01_merge before rebuilding.
+    Permanently deletes every root-level file in docs/win/baseball/01_merge.
 
-    This does not delete subdirectories such as:
+    This does not delete subdirectories, including:
       docs/win/baseball/01_merge/01_merguiced/
+
+    The script fails immediately if any root-level file remains after deletion.
     """
     deleted = 0
+    failed = []
 
-    for old_path in sorted(OUT_DIR.iterdir()):
-        if old_path.is_file():
-            old_path.unlink()
-            deleted += 1
-            log(f"DELETED OLD ROOT MERGE FILE: {old_path}")
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    log(f"OLD ROOT MERGE FILES DELETED: {deleted}")
+    for path in sorted(OUT_DIR.iterdir()):
+        if path.is_file():
+            try:
+                path.unlink()
+                deleted += 1
+                log(f"DELETED ROOT MERGE FILE: {path}")
+            except Exception as e:
+                failed.append(f"{path} | {type(e).__name__}: {e}")
+
+    remaining_files = [p for p in sorted(OUT_DIR.iterdir()) if p.is_file()]
+
+    log(f"ROOT MERGE FILES DELETED: {deleted}")
+
+    if failed:
+        for item in failed:
+            log(f"DELETE FAILED: {item}")
+        raise RuntimeError("Failed to delete one or more root-level files in docs/win/baseball/01_merge")
+
+    if remaining_files:
+        for path in remaining_files:
+            log(f"DELETE VERIFY FAILED - FILE STILL EXISTS: {path}")
+        raise RuntimeError("Delete verification failed: root-level files still exist in docs/win/baseball/01_merge")
+
+    log("DELETE VERIFY PASSED: no root-level files remain in docs/win/baseball/01_merge")
 
 
 def load_csv(path):
@@ -153,10 +176,6 @@ NULL_CONTEXT = {col: "" for col in CONTEXT_COLS}
 
 
 def load_games_index(date: str) -> dict:
-    """
-    Returns dict: game_id -> gamePk.
-    Reads docs/win/baseball/00_intake/games/{date}_games.csv.
-    """
     path = GAMES_DIR / f"{date}_games.csv"
 
     if not path.exists():
@@ -177,10 +196,6 @@ def load_games_index(date: str) -> dict:
 
 
 def load_context_index(date: str) -> dict:
-    """
-    Returns dict: gamePk -> context row dict.
-    Reads docs/win/baseball/00_intake/mlb_raw/{date}_game_context.csv.
-    """
     path = CONTEXT_DIR / f"{date}_game_context.csv"
 
     if not path.exists():
@@ -200,9 +215,6 @@ def load_context_index(date: str) -> dict:
 
 
 def get_context(game_id: str, games_idx: dict, context_idx: dict) -> dict:
-    """
-    Resolves game_id -> gamePk -> context row.
-    """
     game_pk = games_idx.get(game_id, "")
 
     if not game_pk:
@@ -433,7 +445,7 @@ if __name__ == "__main__":
     }
 
     try:
-        clear_old_outputs()
+        reset_root_output_files()
 
         pred_files = sorted(PRED_DIR.glob("*_MLB.csv"))
         log(f"Prediction files found: {len(pred_files)}")
@@ -452,7 +464,17 @@ if __name__ == "__main__":
         log(f"Total unmatched: {summary['total_unmatched']}")
         log("STATUS: SUCCESS")
 
+        print(
+            f"merge_intake complete. "
+            f"slates_written={summary['slates_written']} "
+            f"files_written={summary['files_written']} "
+            f"matched={summary['total_matched']} "
+            f"unmatched={summary['total_unmatched']} "
+            f"Status: SUCCESS"
+        )
+
     except Exception as e:
         log(f"FATAL ERROR: {e}\n{traceback.format_exc()}")
         log("STATUS: FAILED")
-        raise
+        print(f"merge_intake failed: {e}", file=sys.stderr)
+        sys.exit(1)
