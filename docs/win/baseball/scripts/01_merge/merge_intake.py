@@ -2,7 +2,6 @@
 # docs/win/baseball/scripts/01_merge/merge_intake.py
 
 import csv
-import sys
 import traceback
 from pathlib import Path
 from datetime import datetime, timezone
@@ -17,10 +16,11 @@ LOG_DIR = Path("docs/win/baseball/errors/01_merge")
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
+RUN_TS = datetime.now(timezone.utc).isoformat()
 LOG_FILE = LOG_DIR / "merge_intake.txt"
 
 with open(LOG_FILE, "w", encoding="utf-8") as f:
-    f.write(f"=== merge_intake RUN {datetime.now(timezone.utc).isoformat()} ===\n")
+    f.write(f"=== merge_intake RUN {RUN_TS} ===\n")
 
 
 def log(msg):
@@ -28,44 +28,33 @@ def log(msg):
         f.write(f"{datetime.now(timezone.utc).isoformat()} | {msg}\n")
 
 
-def reset_root_output_files():
+def clear_old_outputs():
     """
-    Permanently deletes every root-level file in docs/win/baseball/01_merge.
+    Permanently deletes every root-level CSV in docs/win/baseball/01_merge before rebuilding.
 
-    This does not delete subdirectories, including:
+    This intentionally does NOT delete files inside subfolders such as:
       docs/win/baseball/01_merge/01_merguiced/
 
-    The script fails immediately if any root-level file remains after deletion.
+    If any root-level CSV remains after deletion, the script fails immediately.
     """
+    old_files = sorted([p for p in OUT_DIR.glob("*.csv") if p.is_file()])
     deleted = 0
-    failed = []
 
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    for old_file in old_files:
+        old_file.unlink()
+        deleted += 1
+        log(f"DELETED OLD ROOT MERGE OUTPUT: {old_file}")
 
-    for path in sorted(OUT_DIR.iterdir()):
-        if path.is_file():
-            try:
-                path.unlink()
-                deleted += 1
-                log(f"DELETED ROOT MERGE FILE: {path}")
-            except Exception as e:
-                failed.append(f"{path} | {type(e).__name__}: {e}")
+    remaining = sorted([p for p in OUT_DIR.glob("*.csv") if p.is_file()])
 
-    remaining_files = [p for p in sorted(OUT_DIR.iterdir()) if p.is_file()]
+    if remaining:
+        remaining_text = ", ".join(str(p) for p in remaining)
+        raise RuntimeError(
+            f"FAILED TO DELETE ALL ROOT MERGE CSV OUTPUTS. Remaining files: {remaining_text}"
+        )
 
-    log(f"ROOT MERGE FILES DELETED: {deleted}")
-
-    if failed:
-        for item in failed:
-            log(f"DELETE FAILED: {item}")
-        raise RuntimeError("Failed to delete one or more root-level files in docs/win/baseball/01_merge")
-
-    if remaining_files:
-        for path in remaining_files:
-            log(f"DELETE VERIFY FAILED - FILE STILL EXISTS: {path}")
-        raise RuntimeError("Delete verification failed: root-level files still exist in docs/win/baseball/01_merge")
-
-    log("DELETE VERIFY PASSED: no root-level files remain in docs/win/baseball/01_merge")
+    log(f"OLD ROOT MERGE CSV OUTPUTS PERMANENTLY DELETED: {deleted}")
+    log("CONFIRMED: docs/win/baseball/01_merge has zero root-level CSV files before rebuild")
 
 
 def load_csv(path):
@@ -143,6 +132,10 @@ def normalize_probs(p1, p2):
     return str(p1 / total), str(p2 / total)
 
 
+# ─────────────────────────────────────────────
+# GAME CONTEXT LOADING
+# ─────────────────────────────────────────────
+
 CONTEXT_COLS = [
     "gamePk",
     "home_team_id", "away_team_id", "venue_id",
@@ -176,6 +169,10 @@ NULL_CONTEXT = {col: "" for col in CONTEXT_COLS}
 
 
 def load_games_index(date: str) -> dict:
+    """
+    Returns dict: game_id -> gamePk.
+    Reads docs/win/baseball/00_intake/games/{date}_games.csv.
+    """
     path = GAMES_DIR / f"{date}_games.csv"
 
     if not path.exists():
@@ -196,6 +193,10 @@ def load_games_index(date: str) -> dict:
 
 
 def load_context_index(date: str) -> dict:
+    """
+    Returns dict: gamePk -> context row dict.
+    Reads docs/win/baseball/00_intake/mlb_raw/{date}_game_context.csv.
+    """
     path = CONTEXT_DIR / f"{date}_game_context.csv"
 
     if not path.exists():
@@ -215,6 +216,9 @@ def load_context_index(date: str) -> dict:
 
 
 def get_context(game_id: str, games_idx: dict, context_idx: dict) -> dict:
+    """
+    Resolves game_id -> gamePk -> context row.
+    """
     game_pk = games_idx.get(game_id, "")
 
     if not game_pk:
@@ -229,6 +233,10 @@ def get_context(game_id: str, games_idx: dict, context_idx: dict) -> dict:
 
     return ctx
 
+
+# ─────────────────────────────────────────────
+# PROCESS ONE DATE
+# ─────────────────────────────────────────────
 
 def process_date(date, summary):
     pred_path = PRED_DIR / f"{date}_MLB.csv"
@@ -293,6 +301,7 @@ def process_date(date, summary):
         ctx_vals = [ctx.get(col, "") for col in CONTEXT_COLS]
 
         ml_rows.append([
+            RUN_TS,
             game_id,
             b.get("sport", ""),
             b.get("league", ""),
@@ -326,6 +335,7 @@ def process_date(date, summary):
             away_rl_prob = ""
 
         rl_rows.append([
+            RUN_TS,
             game_id,
             b.get("sport", ""),
             b.get("league", ""),
@@ -356,6 +366,7 @@ def process_date(date, summary):
         over_prob, under_prob = normalize_probs(over_raw, under_raw)
 
         tot_rows.append([
+            RUN_TS,
             game_id,
             b.get("sport", ""),
             b.get("league", ""),
@@ -396,6 +407,7 @@ def process_date(date, summary):
         summary["files_written"] += 1
 
     base_ml_header = [
+        "last_run",
         "game_id", "sport", "league", "game_date", "game_time",
         "home_team", "away_team",
         "away_run_line", "home_run_line", "total",
@@ -406,6 +418,7 @@ def process_date(date, summary):
     ]
 
     base_rl_header = [
+        "last_run",
         "game_id", "sport", "league", "game_date", "game_time",
         "home_team", "away_team",
         "away_run_line", "home_run_line", "total",
@@ -417,6 +430,7 @@ def process_date(date, summary):
     ]
 
     base_tot_header = [
+        "last_run",
         "game_id", "sport", "league", "game_date", "game_time",
         "home_team", "away_team",
         "away_run_line", "home_run_line", "total",
@@ -434,6 +448,10 @@ def process_date(date, summary):
     summary["slates_written"] += 1
 
 
+# ─────────────────────────────────────────────
+# MAIN
+# ─────────────────────────────────────────────
+
 if __name__ == "__main__":
     summary = {
         "slates_processed": 0,
@@ -445,7 +463,7 @@ if __name__ == "__main__":
     }
 
     try:
-        reset_root_output_files()
+        clear_old_outputs()
 
         pred_files = sorted(PRED_DIR.glob("*_MLB.csv"))
         log(f"Prediction files found: {len(pred_files)}")
@@ -456,6 +474,7 @@ if __name__ == "__main__":
             process_date(date, summary)
 
         log("--- SUMMARY ---")
+        log(f"Last run timestamp: {RUN_TS}")
         log(f"Slates processed: {summary['slates_processed']}")
         log(f"Slates written: {summary['slates_written']}")
         log(f"Slates skipped: {summary['skipped']}")
@@ -466,7 +485,7 @@ if __name__ == "__main__":
 
         print(
             f"merge_intake complete. "
-            f"slates_written={summary['slates_written']} "
+            f"last_run={RUN_TS} "
             f"files_written={summary['files_written']} "
             f"matched={summary['total_matched']} "
             f"unmatched={summary['total_unmatched']} "
@@ -476,5 +495,4 @@ if __name__ == "__main__":
     except Exception as e:
         log(f"FATAL ERROR: {e}\n{traceback.format_exc()}")
         log("STATUS: FAILED")
-        print(f"merge_intake failed: {e}", file=sys.stderr)
-        sys.exit(1)
+        raise
