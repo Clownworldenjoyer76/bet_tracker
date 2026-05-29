@@ -29,20 +29,20 @@ def log(msg):
 
 def clear_old_outputs():
     """
-    Deletes every root-level CSV in docs/win/baseball/01_merge before rebuilding.
+    Deletes every root-level file in docs/win/baseball/01_merge before rebuilding.
 
-    This intentionally does NOT delete files inside subfolders such as:
+    This does not delete subdirectories such as:
       docs/win/baseball/01_merge/01_merguiced/
     """
     deleted = 0
 
-    for old_file in sorted(OUT_DIR.glob("*.csv")):
-        if old_file.is_file():
-            old_file.unlink()
+    for old_path in sorted(OUT_DIR.iterdir()):
+        if old_path.is_file():
+            old_path.unlink()
             deleted += 1
-            log(f"DELETED OLD ROOT MERGE OUTPUT: {old_file}")
+            log(f"DELETED OLD ROOT MERGE FILE: {old_path}")
 
-    log(f"OLD ROOT MERGE CSV OUTPUTS DELETED: {deleted}")
+    log(f"OLD ROOT MERGE FILES DELETED: {deleted}")
 
 
 def load_csv(path):
@@ -119,10 +119,6 @@ def normalize_probs(p1, p2):
 
     return str(p1 / total), str(p2 / total)
 
-
-# ─────────────────────────────────────────────
-# GAME CONTEXT LOADING
-# ─────────────────────────────────────────────
 
 CONTEXT_COLS = [
     "gamePk",
@@ -221,10 +217,6 @@ def get_context(game_id: str, games_idx: dict, context_idx: dict) -> dict:
 
     return ctx
 
-
-# ─────────────────────────────────────────────
-# PROCESS ONE DATE
-# ─────────────────────────────────────────────
 
 def process_date(date, summary):
     pred_path = PRED_DIR / f"{date}_MLB.csv"
@@ -429,10 +421,6 @@ def process_date(date, summary):
 
     summary["slates_written"] += 1
 
-
-# ─────────────────────────────────────────────
-# MAIN
-# ─────────────────────────────────────────────
 
 if __name__ == "__main__":
     summary = {
