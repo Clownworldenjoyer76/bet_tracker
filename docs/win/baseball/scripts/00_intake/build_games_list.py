@@ -6,10 +6,12 @@
 #
 # Matching rules:
 #   1. Same home/away teams.
-#   2. For duplicate same-team matchups where raw count == sportsbook count:
-#      pair by chronological order. This handles doubleheaders.
-#   3. Otherwise, match to the closest unused sportsbook time.
-#   4. Never reuse a sportsbook row / game_id.
+#   2. Never reuse a sportsbook row / game_id.
+#   3. If same matchup has exactly one raw row and exactly one sportsbook row:
+#      match them even if MLB raw time is stale, and log the time difference.
+#   4. If same matchup has multiple raw rows and the same number of sportsbook rows:
+#      pair by chronological order. This handles normal doubleheaders.
+#   5. Otherwise, match to the closest unused sportsbook time within threshold.
 
 import csv
 import re
@@ -246,6 +248,34 @@ def process_date(date_str: str, team_map: dict, id_to_name: dict, summary: dict)
 
         unused_books = [b for b in books if not b["used"]]
 
+        if len(raws) == 1 and len(unused_books) == 1:
+            raw_entry = raws[0]
+            book_entry = unused_books[0]
+            book_entry["used"] = True
+            output_rows.append(make_output_row(raw_entry, book_entry))
+            matched += 1
+
+            diff = minutes_between(raw_entry.get("local_dt"), book_entry.get("book_dt"))
+            diff_text = "" if diff is None else f" diff_minutes={round(diff, 1)}"
+
+            level = "INFO"
+            label = "MATCHED one-to-one"
+
+            if diff is not None and diff > MAX_TIME_DIFF_MINUTES:
+                level = "WARN"
+                label = "MATCHED one-to-one with time mismatch"
+
+            log(
+                f"{date_str} | {label}: {matchup_label} "
+                f"gamePk={raw_entry['row'].get('gamePk', '')} "
+                f"gameNumber={raw_entry['row'].get('gameNumber', '')} "
+                f"game_id={book_entry['row'].get('game_id', '')}"
+                f"{diff_text}",
+                level,
+            )
+
+            continue
+
         if len(raws) > 1 and len(unused_books) > 1 and len(raws) == len(unused_books):
             sorted_raws = sorted(
                 raws,
@@ -321,9 +351,6 @@ def process_date(date_str: str, team_map: dict, id_to_name: dict, summary: dict)
 
                 if selected_diff > MAX_TIME_DIFF_MINUTES:
                     selected = None
-            elif len(raws) == 1 and len(available_books) == 1:
-                selected = available_books[0]
-                selected_diff = None
 
             if selected is None:
                 diffs_text = ", ".join(
