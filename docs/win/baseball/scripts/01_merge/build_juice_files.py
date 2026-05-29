@@ -196,8 +196,12 @@ def process_total(file_path, summary):
         tot["dk_total_over_decimal"]  = tot["dk_total_over_american"].apply(american_to_decimal)
         tot["dk_total_under_decimal"] = tot["dk_total_under_american"].apply(american_to_decimal)
 
-        over  = []
-        under = []
+        fair_over_decimals = []
+        fair_under_decimals = []
+
+        model_over_probs = []
+        model_under_probs = []
+        model_push_probs = []
 
         for i, r in tot.iterrows():
             lam        = r["total_projected_runs"]
@@ -206,32 +210,57 @@ def process_total(file_path, summary):
             if pd.isna(lam) or pd.isna(total_line) or lam <= 0:
                 log(f"ROW ISSUE: {file_path} idx={i} bad total inputs")
                 summary["row_issues"] += 1
-                over.append(None)
-                under.append(None)
+
+                fair_over_decimals.append(None)
+                fair_under_decimals.append(None)
+
+                model_over_probs.append(None)
+                model_under_probs.append(None)
+                model_push_probs.append(None)
                 continue
 
             if total_line % 1 == 0:
                 # Whole-number total: push is possible when score lands exactly on the line.
-                # p_over  = P(score > total_line) strictly, excludes push
-                # p_under = P(score < total_line) strictly, excludes push
-                k       = int(total_line)
+                # p_over  = P(score > total_line) strictly, excludes push.
+                # p_under = P(score < total_line) strictly, excludes push.
+                k = int(total_line)
+
                 p_over  = 1 - poisson.cdf(k, lam)
                 p_under = poisson.cdf(k - 1, lam)
                 p_push  = poisson.pmf(k, lam)
-                log(f"WHOLE NUMBER TOTAL: {file_path} idx={i} total={total_line} lam={lam:.3f} p_push={p_push:.4f} — modelled with push")
-                under.append(1 / p_under if p_under > 0 else None)
-                over.append(1 / p_over   if p_over  > 0 else None)
+
+                log(
+                    f"WHOLE NUMBER TOTAL: {file_path} idx={i} "
+                    f"total={total_line} lam={lam:.3f} p_push={p_push:.4f} — modelled with push"
+                )
+
+                model_over_probs.append(p_over)
+                model_under_probs.append(p_under)
+                model_push_probs.append(p_push)
+
+                fair_over_decimals.append(1 / p_over if p_over > 0 else None)
+                fair_under_decimals.append(1 / p_under if p_under > 0 else None)
                 continue
 
-            k       = math.floor(total_line)
+            k = math.floor(total_line)
+
             p_under = poisson.cdf(k, lam)
             p_over  = 1 - p_under
+            p_push  = 0.0
 
-            under.append(1 / p_under if p_under > 0 else None)
-            over.append(1 / p_over   if p_over  > 0 else None)
+            model_over_probs.append(p_over)
+            model_under_probs.append(p_under)
+            model_push_probs.append(p_push)
 
-        tot["fair_total_over_decimal"]  = over
-        tot["fair_total_under_decimal"] = under
+            fair_over_decimals.append(1 / p_over if p_over > 0 else None)
+            fair_under_decimals.append(1 / p_under if p_under > 0 else None)
+
+        tot["model_total_over_prob"]   = model_over_probs
+        tot["model_total_under_prob"]  = model_under_probs
+        tot["model_total_push_prob"]   = model_push_probs
+
+        tot["fair_total_over_decimal"]  = fair_over_decimals
+        tot["fair_total_under_decimal"] = fair_under_decimals
 
         slate_date, market = parse_slate_date_and_market(file_path)
         if not slate_date or market != "total":
@@ -286,8 +315,10 @@ def process_run_line(file_path, summary):
             if pd.isna(lambda_home) or pd.isna(lambda_away) or lambda_home <= 0 or lambda_away <= 0:
                 log(f"ROW ISSUE: {file_path} idx={i} run line invalid lambdas")
                 summary["row_issues"] += 1
-                home_vals.append(None); away_vals.append(None)
-                home_probs.append(None); away_probs.append(None)
+                home_vals.append(None)
+                away_vals.append(None)
+                home_probs.append(None)
+                away_probs.append(None)
                 continue
 
             home_line = r["home_run_line"]
@@ -296,8 +327,10 @@ def process_run_line(file_path, summary):
             if pd.isna(home_line) or pd.isna(away_line):
                 log(f"ROW ISSUE: {file_path} idx={i} missing run lines")
                 summary["row_issues"] += 1
-                home_vals.append(None); away_vals.append(None)
-                home_probs.append(None); away_probs.append(None)
+                home_vals.append(None)
+                away_vals.append(None)
+                home_probs.append(None)
+                away_probs.append(None)
                 continue
 
             if home_line == -1.5:
@@ -309,15 +342,19 @@ def process_run_line(file_path, summary):
             else:
                 log(f"ROW ISSUE: {file_path} idx={i} unexpected run lines: home={home_line} away={away_line}")
                 summary["row_issues"] += 1
-                home_vals.append(None); away_vals.append(None)
-                home_probs.append(None); away_probs.append(None)
+                home_vals.append(None)
+                away_vals.append(None)
+                home_probs.append(None)
+                away_probs.append(None)
                 continue
 
             p_home = min(max(p_home, 0.01), 0.99)
             p_away = min(max(p_away, 0.01), 0.99)
 
-            home_probs.append(p_home); away_probs.append(p_away)
-            home_vals.append(1 / p_home); away_vals.append(1 / p_away)
+            home_probs.append(p_home)
+            away_probs.append(p_away)
+            home_vals.append(1 / p_home)
+            away_vals.append(1 / p_away)
 
         rl["home_fair_run_line_decimal"] = home_vals
         rl["away_fair_run_line_decimal"] = away_vals
@@ -353,7 +390,7 @@ def main():
 
     for f in OUTPUT_DIR.glob("*.csv"):
         f.unlink()
-        
+
     try:
         moneyline_files = sorted(glob.glob(str(INPUT_DIR / "*_mlb_moneyline.csv")))
         run_line_files  = sorted(glob.glob(str(INPUT_DIR / "*_mlb_run_line.csv")))
