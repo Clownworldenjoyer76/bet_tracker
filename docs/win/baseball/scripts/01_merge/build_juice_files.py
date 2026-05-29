@@ -12,7 +12,7 @@ from datetime import datetime, UTC
 import pandas as pd
 from scipy.stats import poisson, skellam
 
-INPUT_DIR  = Path("docs/win/baseball/01_merge")
+INPUT_DIR = Path("docs/win/baseball/01_merge")
 OUTPUT_DIR = INPUT_DIR / "01_merguiced"
 
 ERROR_DIR = Path("docs/win/baseball/errors/01_merge")
@@ -53,32 +53,32 @@ CONTEXT_COLS = [
 ]
 
 MONEYLINE_REQUIRED_COLUMNS = [
-    "game_id","sport","league","game_date","game_time","home_team","away_team",
-    "away_run_line","home_run_line","total",
-    "away_dk_moneyline_american","home_dk_moneyline_american",
-    "away_dk_moneyline_decimal","home_dk_moneyline_decimal",
-    "home_pitcher","away_pitcher","home_prob","away_prob",
-    "away_projected_runs","home_projected_runs","total_projected_runs",
+    "game_id", "sport", "league", "game_date", "game_time", "home_team", "away_team",
+    "away_run_line", "home_run_line", "total",
+    "away_dk_moneyline_american", "home_dk_moneyline_american",
+    "away_dk_moneyline_decimal", "home_dk_moneyline_decimal",
+    "home_pitcher", "away_pitcher", "home_prob", "away_prob",
+    "away_projected_runs", "home_projected_runs", "total_projected_runs",
 ] + CONTEXT_COLS
 
 RUN_LINE_REQUIRED_COLUMNS = [
-    "game_id","sport","league","game_date","game_time","home_team","away_team",
-    "away_run_line","home_run_line","total",
-    "away_dk_run_line_american","home_dk_run_line_american",
-    "away_dk_run_line_decimal","home_dk_run_line_decimal",
-    "home_pitcher","away_pitcher","home_prob","away_prob",
-    "away_projected_runs","home_projected_runs","total_projected_runs",
-    "home_run_line_prob","away_run_line_prob",
+    "game_id", "sport", "league", "game_date", "game_time", "home_team", "away_team",
+    "away_run_line", "home_run_line", "total",
+    "away_dk_run_line_american", "home_dk_run_line_american",
+    "away_dk_run_line_decimal", "home_dk_run_line_decimal",
+    "home_pitcher", "away_pitcher", "home_prob", "away_prob",
+    "away_projected_runs", "home_projected_runs", "total_projected_runs",
+    "home_run_line_prob", "away_run_line_prob",
 ] + CONTEXT_COLS
 
 TOTAL_REQUIRED_COLUMNS = [
-    "game_id","sport","league","game_date","game_time","home_team","away_team",
-    "away_run_line","home_run_line","total",
-    "dk_total_over_american","dk_total_under_american",
-    "dk_total_over_decimal","dk_total_under_decimal",
-    "home_pitcher","away_pitcher","home_prob","away_prob",
-    "away_projected_runs","home_projected_runs","total_projected_runs",
-    "total_runs_over_prob","total_runs_under_prob",
+    "game_id", "sport", "league", "game_date", "game_time", "home_team", "away_team",
+    "away_run_line", "home_run_line", "total",
+    "dk_total_over_american", "dk_total_under_american",
+    "dk_total_over_decimal", "dk_total_under_decimal",
+    "home_pitcher", "away_pitcher", "home_prob", "away_prob",
+    "away_projected_runs", "home_projected_runs", "total_projected_runs",
+    "total_runs_over_prob", "total_runs_under_prob",
 ] + CONTEXT_COLS
 
 
@@ -100,32 +100,43 @@ def american_to_decimal(odds):
     try:
         if pd.isna(odds):
             return None
+
         odds = float(odds)
+
         if odds == 0:
             return None
+
         if odds > 0:
             return 1 + (odds / 100)
+
         return 1 + (100 / abs(odds))
+
     except Exception:
         return None
 
 
 def parse_slate_date_and_market(file_path: str):
     stem = Path(file_path).stem
+
     if stem.endswith("_mlb_moneyline"):
         return stem.replace("_mlb_moneyline", ""), "moneyline"
+
     if stem.endswith("_mlb_run_line"):
         return stem.replace("_mlb_run_line", ""), "run_line"
+
     if stem.endswith("_mlb_total"):
         return stem.replace("_mlb_total", ""), "total"
+
     return None, None
 
 
 def validate_schema(df, required_columns, file_path):
     missing_cols = [c for c in required_columns if c not in df.columns]
+
     if missing_cols:
         log(f"SCHEMA ERROR: {file_path} missing columns: {missing_cols}")
         return False
+
     return True
 
 
@@ -148,11 +159,11 @@ def process_moneyline(file_path, summary):
             return
 
         coerce_numeric(df, [
-            "home_prob","away_prob",
-            "home_projected_runs","away_projected_runs","total_projected_runs",
-            "away_run_line","home_run_line","total",
-            "away_dk_moneyline_american","home_dk_moneyline_american",
-            "away_dk_moneyline_decimal","home_dk_moneyline_decimal",
+            "home_prob", "away_prob",
+            "home_projected_runs", "away_projected_runs", "total_projected_runs",
+            "away_run_line", "home_run_line", "total",
+            "away_dk_moneyline_american", "home_dk_moneyline_american",
+            "away_dk_moneyline_decimal", "home_dk_moneyline_decimal",
         ])
 
         for i, r in df.iterrows():
@@ -205,12 +216,12 @@ def process_total(file_path, summary):
             return
 
         coerce_numeric(df, [
-            "home_prob","away_prob",
-            "home_projected_runs","away_projected_runs","total_projected_runs",
-            "away_run_line","home_run_line","total",
-            "dk_total_over_american","dk_total_under_american",
-            "dk_total_over_decimal","dk_total_under_decimal",
-            "total_runs_over_prob","total_runs_under_prob",
+            "home_prob", "away_prob",
+            "home_projected_runs", "away_projected_runs", "total_projected_runs",
+            "away_run_line", "home_run_line", "total",
+            "dk_total_over_american", "dk_total_under_american",
+            "dk_total_over_decimal", "dk_total_under_decimal",
+            "total_runs_over_prob", "total_runs_under_prob",
         ])
 
         tot = df.copy()
@@ -314,12 +325,12 @@ def process_run_line(file_path, summary):
             return
 
         coerce_numeric(df, [
-            "home_prob","away_prob",
-            "home_projected_runs","away_projected_runs","total_projected_runs",
-            "away_run_line","home_run_line","total",
-            "away_dk_run_line_american","home_dk_run_line_american",
-            "away_dk_run_line_decimal","home_dk_run_line_decimal",
-            "home_run_line_prob","away_run_line_prob",
+            "home_prob", "away_prob",
+            "home_projected_runs", "away_projected_runs", "total_projected_runs",
+            "away_run_line", "home_run_line", "total",
+            "away_dk_run_line_american", "home_dk_run_line_american",
+            "away_dk_run_line_decimal", "home_dk_run_line_decimal",
+            "home_run_line_prob", "away_run_line_prob",
         ])
 
         rl = df.copy()
