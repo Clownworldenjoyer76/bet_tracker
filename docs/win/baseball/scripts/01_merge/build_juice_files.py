@@ -88,12 +88,27 @@ def log(msg):
 
 
 def reset_output_dir():
+    """
+    Permanently deletes docs/win/baseball/01_merge/01_merguiced.
+
+    The script recreates the directory empty and fails immediately if anything
+    remains inside it before new files are written.
+    """
     if OUTPUT_DIR.exists():
         shutil.rmtree(OUTPUT_DIR)
         log(f"DELETED OUTPUT DIRECTORY: {OUTPUT_DIR}")
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     log(f"CREATED OUTPUT DIRECTORY: {OUTPUT_DIR}")
+
+    remaining = list(OUTPUT_DIR.iterdir())
+
+    if remaining:
+        for path in remaining:
+            log(f"DELETE VERIFY FAILED - PATH STILL EXISTS: {path}")
+        raise RuntimeError("Delete verification failed: docs/win/baseball/01_merge/01_merguiced is not empty")
+
+    log("DELETE VERIFY PASSED: docs/win/baseball/01_merge/01_merguiced is empty before rebuild")
 
 
 def american_to_decimal(odds):
@@ -478,6 +493,7 @@ def main():
     except Exception as e:
         log(f"FATAL ERROR: {e}\n{traceback.format_exc()}")
         log("STATUS: FAILED")
+        print(f"build_juice_files failed: {e}", file=sys.stderr)
         sys.exit(1)
 
 
