@@ -1,3 +1,5 @@
+#docs/win/baseball/scripts/00_parsing/mlb_odds_pull.py
+
 import requests
 import os
 import json
