@@ -1,0 +1,64 @@
+name: Test MLB Odds Parse Tester
+
+on:
+  workflow_dispatch:
+    inputs:
+      input_path:
+        description: "JSON input file or folder for odds_parse_tester.py"
+        required: false
+        default: "docs/win/baseball/odds/tester"
+
+permissions:
+  contents: write
+
+jobs:
+  test-mlb-odds-parse-tester:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run odds parse tester
+        run: |
+          python docs/win/baseball/scripts/00_parsing/odds_parse_tester.py "${{ github.event.inputs.input_path }}"
+
+      - name: Show tester sportsbook output
+        run: |
+          echo "Tester sportsbook output directory:"
+          ls -la docs/win/baseball/00_intake/sportsbook/tester || true
+          echo ""
+          echo "Latest tester sportsbook CSV preview:"
+          latest_file=$(ls -t docs/win/baseball/00_intake/sportsbook/tester/*.csv 2>/dev/null | head -n 1)
+          if [ -n "$latest_file" ]; then
+            echo "$latest_file"
+            head -n 20 "$latest_file"
+          else
+            echo "No tester sportsbook CSV output found."
+            exit 1
+          fi
+
+      - name: Show tester odds parse log
+        run: |
+          echo "Tester odds parse log:"
+          cat docs/win/baseball/errors/00_intake/tester/odds_parse_tester.txt || true
+
+      - name: Commit tester parse output
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add docs/win/baseball/00_intake/sportsbook/tester/
+          git add docs/win/baseball/errors/00_intake/tester/odds_parse_tester.txt
+
+          if git diff --cached --quiet; then
+            echo "No tester parse output changes to commit."
+          else
+            git commit -m "Run MLB odds parse tester"
+            git push
+          fi
