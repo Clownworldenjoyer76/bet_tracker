@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+      API_ODDS: ${{ secrets.API_ODDS }}
 
     steps:
       - name: Checkout repo
@@ -29,11 +29,11 @@ jobs:
 
       - name: Verify API key is present
         run: |
-          if [ -z "$ODDS_API_KEY" ]; then
-            echo "ODDS_API_KEY is empty"
+          if [ -z "$API_ODDS" ]; then
+            echo "API_ODDS is empty"
             exit 1
           fi
-          echo "ODDS_API_KEY is present"
+          echo "API_ODDS is present"
 
       - name: Create output directories
         run: |
@@ -54,6 +54,6 @@ jobs:
             exit 0
           fi
 
-          git commit -m "chore: MLB odds pull test run $(date -u +'%Y-%m-%d %H:%M UTC')"
+          git commit -m "chore: MLB odds pull $(date -u +'%Y-%m-%d %H:%M UTC')"
           git pull --rebase origin main
           git push
