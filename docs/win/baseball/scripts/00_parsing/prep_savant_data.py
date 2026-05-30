@@ -99,19 +99,69 @@ FIELDING_DROP = [
 # PARK FACTORS CONFIG
 # ─────────────────────────────────────────────
 
-PARK_DROP = [
+PARK_RAW_COLUMNS = [
+    "Team",
+    "Venue",
     "Year",
+    "Park Factor",
+    "wOBAcon",
+    "xwOBAcon",
     "BACON",
     "xBACON",
+    "HardHit",
+    "R",
     "OBP",
     "H",
     "1B",
     "2B",
     "3B",
+    "HR",
     "BB",
     "SO",
     "PA",
+    "venue_id",
+    "team_id",
 ]
+
+PARK_CLEAN_COLUMNS = [
+    "team_id",
+    "venue_id",
+    "bat_side",
+    "condition",
+    "Park Factor",
+    "wOBAcon",
+    "xwOBAcon",
+    "HardHit",
+    "R",
+    "HR",
+]
+
+PARK_REQUIRED_FILES = [
+    "park_B_day.csv",
+    "park_B_night.csv",
+    "park_B_open_air.csv",
+    "park_B_roof_closed.csv",
+    "park_L_day.csv",
+    "park_L_night.csv",
+    "park_L_open_air.csv",
+    "park_L_roof_closed.csv",
+    "park_R_day.csv",
+    "park_R_night.csv",
+    "park_R_open_air.csv",
+    "park_R_roof_closed.csv",
+]
+
+PARK_NUMERIC_COLUMNS = [
+    "team_id",
+    "venue_id",
+    "Park Factor",
+    "wOBAcon",
+    "xwOBAcon",
+    "HardHit",
+    "R",
+    "HR",
+]
+
 
 # Derive bat_side and condition from filename
 # e.g. park_L_day.csv → bat_side=L, condition=day
@@ -304,52 +354,83 @@ def clean_park_factors(filepath: Path, summary: dict) -> None:
         return
 
     try:
-        # PA column has comma-formatted numbers in quotes e.g. "9,589"
-        df = pd.read_csv(filepath, thousands=",")
+        df = pd.read_csv(filepath, dtype=str)
     except Exception as e:
         _log(f"  READ ERROR: {e}", "ERROR")
         summary["errors"] += 1
         return
 
+    df.columns = [str(c).strip() for c in df.columns]
+
     rows_raw = len(df)
     _log(f"  Rows raw: {rows_raw} | bat_side={bat_side} | condition={condition}")
 
-    # Check for venue_id and team_id (must be added manually per Issue #5)
-    missing_ids = []
-    if "venue_id" not in df.columns:
-        missing_ids.append("venue_id")
-    if "team_id" not in df.columns:
-        missing_ids.append("team_id")
-    if missing_ids:
-        _log(f"  MISSING columns {missing_ids} — these must be added manually (Issue #5) before cleaning", "WARN")
-        _log(f"  Skipping {label} until IDs are present", "WARN")
-        summary["skipped"] += 1
+    missing_columns = [c for c in PARK_RAW_COLUMNS if c not in df.columns]
+    if missing_columns:
+        _log(f"  MISSING columns {missing_columns} — skipping {label}", "ERROR")
+        summary["errors"] += 1
         return
 
-    # Add bat_side and condition columns
-    df["bat_side"]  = bat_side
+    duplicate_columns = df.columns[df.columns.duplicated()].tolist()
+    if duplicate_columns:
+        _log(f"  DUPLICATE columns {duplicate_columns} — skipping {label}", "ERROR")
+        summary["errors"] += 1
+        return
+
+    df = df[PARK_RAW_COLUMNS].copy()
+
+    for col in PARK_RAW_COLUMNS:
+        df[col] = df[col].fillna("").astype(str).str.strip()
+
+    blank_id_rows = df[(df["team_id"] == "") | (df["venue_id"] == "")]
+    if len(blank_id_rows) > 0:
+        _log(f"  Blank team_id/venue_id rows: {len(blank_id_rows)} — skipping {label}", "ERROR")
+        summary["errors"] += 1
+        return
+
+    duplicate_pairs = df[["team_id", "venue_id"]].duplicated().sum()
+    if duplicate_pairs > 0:
+        _log(f"  {duplicate_pairs} duplicate team_id/venue_id pairs found", "WARN")
+
+    df["bat_side"] = bat_side
     df["condition"] = condition
 
-    # Drop columns
-    cols_to_drop = [c for c in PARK_DROP if c in df.columns]
-    # Also drop Team and Venue after IDs are confirmed present
-    for c in ["Team", "Venue"]:
-        if c in df.columns and c not in cols_to_drop:
-            cols_to_drop.append(c)
-    df.drop(columns=cols_to_drop, inplace=True)
-    _log(f"  Dropped columns: {cols_to_drop}")
+    clean_df = df[PARK_CLEAN_COLUMNS].copy()
 
-    # Reorder for clarity
-    lead_cols = ["team_id", "venue_id", "bat_side", "condition"]
-    remaining = [c for c in df.columns if c not in lead_cols]
-    df = df[lead_cols + remaining]
+    for col in PARK_NUMERIC_COLUMNS:
+        clean_df[col] = (
+            clean_df[col]
+            .fillna("")
+            .astype(str)
+            .str.replace(",", "", regex=False)
+            .str.strip()
+        )
+        clean_df[col] = pd.to_numeric(clean_df[col], errors="coerce")
 
-    # Write clean file
+    numeric_nulls = {
+        col: int(clean_df[col].isna().sum())
+        for col in PARK_NUMERIC_COLUMNS
+        if int(clean_df[col].isna().sum()) > 0
+    }
+    if numeric_nulls:
+        _log(f"  Numeric conversion failures {numeric_nulls} — skipping {label}", "ERROR")
+        summary["errors"] += 1
+        return
+
+    clean_df["team_id"] = clean_df["team_id"].astype("int64")
+    clean_df["venue_id"] = clean_df["venue_id"].astype("int64")
+    clean_df["Park Factor"] = clean_df["Park Factor"].astype("int64")
+    clean_df["wOBAcon"] = clean_df["wOBAcon"].astype("int64")
+    clean_df["xwOBAcon"] = clean_df["xwOBAcon"].astype("int64")
+    clean_df["HardHit"] = clean_df["HardHit"].astype("int64")
+    clean_df["R"] = clean_df["R"].astype("int64")
+    clean_df["HR"] = clean_df["HR"].astype("int64")
+
     out_path = filepath.parent / (filepath.stem + "_clean.csv")
-    df.to_csv(out_path, index=False)
-    _log(f"  WROTE: {out_path.name} ({len(df)} rows)")
+    clean_df.to_csv(out_path, index=False)
+    _log(f"  WROTE: {out_path.name} ({len(clean_df)} rows)")
     summary["files_written"] += 1
-    summary["rows_written"] += len(df)
+    summary["rows_written"] += len(clean_df)
 
 
 # ─────────────────────────────────────────────
@@ -419,10 +500,24 @@ def main():
 
     # ── Park Factors ──────────────────────────
     _log("=== PARK FACTORS ===")
-    park_files = sorted(PARK_DIR.glob("park_*.csv"))
-    park_files = [f for f in park_files if "_clean" not in f.stem]
-    _log(f"Files found: {len(park_files)}")
+    park_files = [PARK_DIR / filename for filename in PARK_REQUIRED_FILES]
+    existing_park_files = []
+    missing_park_files = []
+
     for fp in park_files:
+        if fp.exists():
+            existing_park_files.append(fp)
+        else:
+            missing_park_files.append(fp.name)
+
+    _log(f"Required files: {len(park_files)}")
+    _log(f"Files found: {len(existing_park_files)}")
+
+    if missing_park_files:
+        _log(f"Missing required park-factor files: {missing_park_files}", "WARN")
+        summary["skipped"] += len(missing_park_files)
+
+    for fp in existing_park_files:
         try:
             clean_park_factors(fp, summary)
         except Exception as e:
@@ -454,3 +549,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
