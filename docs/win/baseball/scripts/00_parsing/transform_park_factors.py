@@ -1,0 +1,469 @@
+#!/usr/bin/env python3
+
+import argparse
+import csv
+import sys
+from pathlib import Path
+
+
+FINAL_COLUMNS = [
+    "Team",
+    "Venue",
+    "Year",
+    "Park Factor",
+    "wOBAcon",
+    "xwOBAcon",
+    "BACON",
+    "xBACON",
+    "HardHit",
+    "R",
+    "OBP",
+    "H",
+    "1B",
+    "2B",
+    "3B",
+    "HR",
+    "BB",
+    "SO",
+    "PA",
+    "venue_id",
+    "team_id",
+]
+
+RAW_REQUIRED_COLUMNS = [
+    "Team",
+    "Venue",
+    "Year",
+    "Park Factor",
+    "wOBAcon",
+    "xwOBAcon",
+    "BACON",
+    "xBACON",
+    "HardHit",
+    "R",
+    "OBP",
+    "H",
+    "1B",
+    "2B",
+    "3B",
+    "HR",
+    "BB",
+    "SO",
+    "PA",
+]
+
+NUMERIC_FACTOR_COLUMNS = [
+    "Park Factor",
+    "wOBAcon",
+    "xwOBAcon",
+    "BACON",
+    "xBACON",
+    "HardHit",
+    "R",
+    "OBP",
+    "H",
+    "1B",
+    "2B",
+    "3B",
+    "HR",
+    "BB",
+    "SO",
+]
+
+TEAM_NAME_ALIASES = {
+    "A's": "Athletics",
+    "Athletics": "Athletics",
+    "D-backs": "D-backs",
+    "Diamondbacks": "D-backs",
+    "Bluejays": "Blue Jays",
+    "WhiteSox": "White Sox",
+    "RedSox": "Red Sox",
+}
+
+VENUE_ALIASES = {
+    "Dodger Stadium": "UNIQLO Field at Dodger Stadium",
+    "UNIQLO Field at Dodger Stadium": "UNIQLO Field at Dodger Stadium",
+    "loanDepot Park": "loanDepot park",
+    "loanDepot park": "loanDepot park",
+    "Rate Field": "Rate Field",
+    "Guaranteed Rate Field": "Rate Field",
+}
+
+
+def clean(value):
+    if value is None:
+        return ""
+    return str(value).strip().strip("\ufeff")
+
+
+def normalize_key(value):
+    return clean(value).lower().replace(".", "").replace("-", " ").replace("_", " ").strip()
+
+
+def normalize_team(team):
+    team = clean(team)
+    return TEAM_NAME_ALIASES.get(team, team)
+
+
+def normalize_venue(venue):
+    venue = clean(venue)
+    return VENUE_ALIASES.get(venue, venue)
+
+
+def detect_delimiter(path):
+    text = path.read_text(encoding="utf-8-sig", errors="replace")
+    sample = text[:4096]
+
+    if "\t" in sample:
+        return "\t"
+
+    try:
+        dialect = csv.Sniffer().sniff(sample, delimiters=",\t;|")
+        return dialect.delimiter
+    except csv.Error:
+        return ","
+
+
+def read_csv_dicts(path, delimiter=None):
+    if delimiter is None:
+        delimiter = detect_delimiter(path)
+
+    with path.open("r", encoding="utf-8-sig", newline="") as f:
+        reader = csv.DictReader(f, delimiter=delimiter)
+        rows = []
+
+        if not reader.fieldnames:
+            raise ValueError(f"No header found in file: {path}")
+
+        reader.fieldnames = [clean(x) for x in reader.fieldnames]
+
+        for row in reader:
+            cleaned = {}
+            for key, value in row.items():
+                cleaned[clean(key)] = clean(value)
+            if any(cleaned.values()):
+                rows.append(cleaned)
+
+    return rows
+
+
+def require_columns(rows, required_columns, file_label):
+    if not rows:
+        raise ValueError(f"{file_label} has no data rows.")
+
+    actual = set(rows[0].keys())
+    missing = [col for col in required_columns if col not in actual]
+
+    if missing:
+        raise ValueError(
+            f"{file_label} is missing required columns: {', '.join(missing)}"
+        )
+
+
+def load_team_map(team_map_path):
+    rows = read_csv_dicts(team_map_path, delimiter=",")
+    require_columns(
+        rows,
+        ["team_id", "team_name", "name", "venue_id", "venue_name"],
+        "Team map",
+    )
+
+    by_team = {}
+
+    for row in rows:
+        team_id = clean(row.get("team_id"))
+        venue_id = clean(row.get("venue_id"))
+        venue_name = clean(row.get("venue_name"))
+
+        possible_names = [
+            row.get("team_name"),
+            row.get("name"),
+            row.get("club_name"),
+            row.get("short_name"),
+            row.get("franchise_name"),
+        ]
+
+        for name in possible_names:
+            name = normalize_team(clean(name))
+            if not name:
+                continue
+
+            key = normalize_key(name)
+
+            if key in by_team:
+                existing = by_team[key]
+                if existing["team_id"] != team_id:
+                    raise ValueError(
+                        f"Duplicate team map key with conflicting team_id: {name}"
+                    )
+
+            by_team[key] = {
+                "team": name,
+                "team_id": team_id,
+                "venue_id": venue_id,
+                "venue_name": venue_name,
+            }
+
+    return by_team
+
+
+def load_venue_map(venue_map_path):
+    rows = read_csv_dicts(venue_map_path, delimiter=",")
+    require_columns(rows, ["venue_id", "venue_name"], "Venue map")
+
+    by_venue = {}
+
+    for row in rows:
+        venue_id = clean(row.get("venue_id"))
+        venue_name = normalize_venue(clean(row.get("venue_name")))
+
+        if not venue_id or not venue_name:
+            continue
+
+        key = normalize_key(venue_name)
+
+        if key in by_venue:
+            existing = by_venue[key]
+            if existing["venue_id"] != venue_id:
+                continue
+
+        by_venue[key] = {
+            "venue_id": venue_id,
+            "venue_name": venue_name,
+        }
+
+    return by_venue
+
+
+def validate_raw_row(row, row_number):
+    errors = []
+
+    for col in RAW_REQUIRED_COLUMNS:
+        if clean(row.get(col)) == "":
+            errors.append(f"row {row_number}: missing value in {col}")
+
+    for col in NUMERIC_FACTOR_COLUMNS:
+        value = clean(row.get(col))
+        if value == "":
+            continue
+        if not value.lstrip("-").isdigit():
+            errors.append(f"row {row_number}: non-integer value in {col}: {value}")
+
+    pa = clean(row.get("PA"))
+    if pa:
+        pa_as_int = pa.replace(",", "")
+        if not pa_as_int.isdigit():
+            errors.append(f"row {row_number}: invalid PA value: {pa}")
+
+    return errors
+
+
+def transform(raw_path, team_map_path, venue_map_path, output_path, audit_path):
+    raw_rows = read_csv_dicts(raw_path)
+    require_columns(raw_rows, RAW_REQUIRED_COLUMNS, "Raw park-factor file")
+
+    team_map = load_team_map(team_map_path)
+    venue_map = load_venue_map(venue_map_path)
+
+    output_rows = []
+    audit_lines = []
+
+    seen_keys = set()
+    errors = []
+    warnings = []
+
+    for index, raw in enumerate(raw_rows, start=2):
+        row_errors = validate_raw_row(raw, index)
+        errors.extend(row_errors)
+
+        team = normalize_team(raw.get("Team"))
+        venue = normalize_venue(raw.get("Venue"))
+        year = clean(raw.get("Year"))
+
+        row_key = (normalize_key(team), normalize_key(venue), year)
+
+        if row_key in seen_keys:
+            errors.append(f"row {index}: duplicate Team/Venue/Year: {team} | {venue} | {year}")
+            continue
+
+        seen_keys.add(row_key)
+
+        team_match = team_map.get(normalize_key(team))
+        venue_match = venue_map.get(normalize_key(venue))
+
+        if not team_match:
+            errors.append(f"row {index}: no team_id match for Team: {team}")
+            continue
+
+        if not venue_match:
+            errors.append(f"row {index}: no venue_id match for Venue: {venue}")
+            continue
+
+        team_map_venue_id = clean(team_match.get("venue_id"))
+        venue_map_venue_id = clean(venue_match.get("venue_id"))
+
+        if team_map_venue_id != venue_map_venue_id:
+            errors.append(
+                f"row {index}: team map venue_id does not match venue map venue_id for "
+                f"{team} | {venue}. team map={team_map_venue_id}, venue map={venue_map_venue_id}"
+            )
+            continue
+
+        out = {}
+
+        for col in RAW_REQUIRED_COLUMNS:
+            out[col] = clean(raw.get(col))
+
+        out["Team"] = team
+        out["Venue"] = venue
+        out["venue_id"] = venue_map_venue_id
+        out["team_id"] = clean(team_match.get("team_id"))
+
+        output_rows.append(out)
+
+    raw_team_keys = {normalize_key(normalize_team(row.get("Team"))) for row in raw_rows}
+    active_mlb_team_keys = {
+        key
+        for key, value in team_map.items()
+        if clean(value.get("team_id"))
+    }
+
+    missing_teams = sorted(
+        value["team"]
+        for key, value in team_map.items()
+        if key not in raw_team_keys and value["team"] not in {"American League", "National League"}
+    )
+
+    if len(output_rows) != 30:
+        warnings.append(f"output row count is {len(output_rows)}, expected 30 for full MLB park-factor file")
+
+    if missing_teams:
+        warnings.append("teams in map but missing from raw input: " + ", ".join(sorted(set(missing_teams))))
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with output_path.open("w", encoding="utf-8", newline="") as f:
+        writer = csv.DictWriter(
+            f,
+            fieldnames=FINAL_COLUMNS,
+            quoting=csv.QUOTE_ALL,
+            lineterminator="\n",
+        )
+        writer.writeheader()
+        for row in output_rows:
+            writer.writerow({col: row.get(col, "") for col in FINAL_COLUMNS})
+
+    audit_lines.append("PARK FACTOR TRANSFORM AUDIT")
+    audit_lines.append("")
+    audit_lines.append(f"raw input: {raw_path}")
+    audit_lines.append(f"team map: {team_map_path}")
+    audit_lines.append(f"venue map: {venue_map_path}")
+    audit_lines.append(f"output: {output_path}")
+    audit_lines.append("")
+    audit_lines.append(f"raw rows: {len(raw_rows)}")
+    audit_lines.append(f"output rows: {len(output_rows)}")
+    audit_lines.append(f"errors: {len(errors)}")
+    audit_lines.append(f"warnings: {len(warnings)}")
+    audit_lines.append("")
+
+    if errors:
+        audit_lines.append("ERRORS")
+        for error in errors:
+            audit_lines.append(f"- {error}")
+        audit_lines.append("")
+
+    if warnings:
+        audit_lines.append("WARNINGS")
+        for warning in warnings:
+            audit_lines.append(f"- {warning}")
+        audit_lines.append("")
+
+    audit_lines.append("OUTPUT ROWS")
+    for row in output_rows:
+        audit_lines.append(
+            f"- {row['Team']} | {row['Venue']} | {row['Year']} | venue_id={row['venue_id']} | team_id={row['team_id']}"
+        )
+
+    audit_path.parent.mkdir(parents=True, exist_ok=True)
+    audit_path.write_text("\n".join(audit_lines) + "\n", encoding="utf-8")
+
+    if errors:
+        print(f"FAILED: {len(errors)} error(s). Audit written to: {audit_path}", file=sys.stderr)
+        return 1
+
+    print(f"OK: wrote {len(output_rows)} rows to {output_path}")
+    print(f"Audit written to: {audit_path}")
+
+    if warnings:
+        print(f"WARNING: {len(warnings)} warning(s). Review audit before using output.")
+
+    return 0
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Transform raw MLB park-factor export into final quoted CSV with venue_id and team_id."
+    )
+
+    parser.add_argument(
+        "--raw",
+        required=True,
+        help="Path to raw downloaded/pasted park-factor file. TSV or CSV accepted.",
+    )
+
+    parser.add_argument(
+        "--team-map",
+        default="docs/win/baseball/maps/mlb_team_ids.csv",
+        help="Path to mlb_team_ids.csv.",
+    )
+
+    parser.add_argument(
+        "--venue-map",
+        default="docs/win/baseball/maps/mlb_venue_ids.csv",
+        help="Path to mlb_venue_ids.csv.",
+    )
+
+    parser.add_argument(
+        "--out",
+        required=True,
+        help="Output CSV path.",
+    )
+
+    parser.add_argument(
+        "--audit",
+        default=None,
+        help="Audit text output path. Defaults to output path with .audit.txt suffix.",
+    )
+
+    args = parser.parse_args()
+
+    raw_path = Path(args.raw)
+    team_map_path = Path(args.team_map)
+    venue_map_path = Path(args.venue_map)
+    output_path = Path(args.out)
+
+    if args.audit:
+        audit_path = Path(args.audit)
+    else:
+        audit_path = output_path.with_suffix(output_path.suffix + ".audit.txt")
+
+    for label, path in [
+        ("raw", raw_path),
+        ("team map", team_map_path),
+        ("venue map", venue_map_path),
+    ]:
+        if not path.exists():
+            print(f"FAILED: {label} file does not exist: {path}", file=sys.stderr)
+            return 1
+
+    return transform(
+        raw_path=raw_path,
+        team_map_path=team_map_path,
+        venue_map_path=venue_map_path,
+        output_path=output_path,
+        audit_path=audit_path,
+    )
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
