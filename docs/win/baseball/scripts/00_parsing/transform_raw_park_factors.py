@@ -2,6 +2,7 @@
 
 import argparse
 import csv
+import re
 import sys
 from pathlib import Path
 
@@ -76,6 +77,7 @@ TEAM_NAME_ALIASES = {
     "D-backs": "D-backs",
     "Diamondbacks": "D-backs",
     "Bluejays": "Blue Jays",
+    "BlueJays": "Blue Jays",
     "WhiteSox": "White Sox",
     "RedSox": "Red Sox",
 }
@@ -97,7 +99,15 @@ def clean(value):
 
 
 def normalize_key(value):
-    return clean(value).lower().replace(".", "").replace("-", " ").replace("_", " ").strip()
+    return (
+        clean(value)
+        .lower()
+        .replace(".", "")
+        .replace("-", " ")
+        .replace("_", " ")
+        .replace("’", "'")
+        .strip()
+    )
 
 
 def normalize_team(team):
@@ -110,24 +120,93 @@ def normalize_venue(venue):
     return VENUE_ALIASES.get(venue, venue)
 
 
-def detect_delimiter(path):
-    text = path.read_text(encoding="utf-8-sig", errors="replace")
-    sample = text[:4096]
+def split_line(line):
+    line = clean(line)
 
-    if "\t" in sample:
-        return "\t"
+    if "\t" in line:
+        return [clean(part) for part in line.split("\t")]
 
-    try:
-        dialect = csv.Sniffer().sniff(sample, delimiters=",\t;|")
-        return dialect.delimiter
-    except csv.Error:
-        return ","
+    if "," in line and '"' in line:
+        return [clean(part) for part in next(csv.reader([line]))]
+
+    return re.split(r"\s{2,}|\t", line)
 
 
-def read_csv_dicts(path, delimiter=None):
-    if delimiter is None:
-        delimiter = detect_delimiter(path)
+def looks_like_header(parts):
+    normalized = [clean(part) for part in parts]
+    return (
+        "Team" in normalized
+        and "Venue" in normalized
+        and "Year" in normalized
+        and "Park Factor" in normalized
+        and "PA" in normalized
+    )
 
+
+def extract_table_rows_from_raw_dump(raw_path):
+    text = raw_path.read_text(encoding="utf-8-sig", errors="replace")
+    lines = [line.rstrip("\r\n") for line in text.splitlines()]
+
+    header_index = None
+    header_parts = None
+
+    for index, line in enumerate(lines):
+        parts = split_line(line)
+        if looks_like_header(parts):
+            header_index = index
+            header_parts = parts
+            break
+
+    if header_index is None or header_parts is None:
+        raise ValueError("Could not find park-factor table header row in raw input.")
+
+    if header_parts and header_parts[0] in {"Rk.", "Rk", "Rank"}:
+        header_parts = header_parts[1:]
+
+    missing = [col for col in RAW_REQUIRED_COLUMNS if col not in header_parts]
+    if missing:
+        raise ValueError(
+            "Raw park-factor table header is missing required columns: "
+            + ", ".join(missing)
+        )
+
+    rows = []
+
+    for raw_line_number, line in enumerate(lines[header_index + 1 :], start=header_index + 2):
+        if not clean(line):
+            continue
+
+        parts = split_line(line)
+
+        if not parts:
+            continue
+
+        if parts[0].isdigit() and len(parts) == len(header_parts) + 1:
+            parts = parts[1:]
+
+        if len(parts) < len(header_parts):
+            continue
+
+        if len(parts) > len(header_parts):
+            raise ValueError(
+                f"row {raw_line_number}: too many columns. "
+                f"Expected {len(header_parts)}, got {len(parts)}. Line: {line}"
+            )
+
+        row = {header_parts[i]: clean(parts[i]) for i in range(len(header_parts))}
+
+        if not clean(row.get("Team")) or not clean(row.get("Venue")):
+            continue
+
+        rows.append(row)
+
+    if not rows:
+        raise ValueError("No data rows found after park-factor table header.")
+
+    return rows
+
+
+def read_csv_dicts(path, delimiter=","):
     with path.open("r", encoding="utf-8-sig", newline="") as f:
         reader = csv.DictReader(f, delimiter=delimiter)
         rows = []
@@ -259,7 +338,7 @@ def validate_raw_row(row, row_number):
 
 
 def transform(raw_path, team_map_path, venue_map_path, output_path, audit_path):
-    raw_rows = read_csv_dicts(raw_path)
+    raw_rows = extract_table_rows_from_raw_dump(raw_path)
     require_columns(raw_rows, RAW_REQUIRED_COLUMNS, "Raw park-factor file")
 
     team_map = load_team_map(team_map_path)
@@ -322,16 +401,12 @@ def transform(raw_path, team_map_path, venue_map_path, output_path, audit_path):
         output_rows.append(out)
 
     raw_team_keys = {normalize_key(normalize_team(row.get("Team"))) for row in raw_rows}
-    active_mlb_team_keys = {
-        key
-        for key, value in team_map.items()
-        if clean(value.get("team_id"))
-    }
 
     missing_teams = sorted(
         value["team"]
         for key, value in team_map.items()
-        if key not in raw_team_keys and value["team"] not in {"American League", "National League"}
+        if key not in raw_team_keys
+        and value["team"] not in {"American League", "National League"}
     )
 
     if len(output_rows) != 30:
@@ -360,7 +435,7 @@ def transform(raw_path, team_map_path, venue_map_path, output_path, audit_path):
     audit_lines.append(f"venue map: {venue_map_path}")
     audit_lines.append(f"output: {output_path}")
     audit_lines.append("")
-    audit_lines.append(f"raw rows: {len(raw_rows)}")
+    audit_lines.append(f"raw rows extracted: {len(raw_rows)}")
     audit_lines.append(f"output rows: {len(output_rows)}")
     audit_lines.append(f"errors: {len(errors)}")
     audit_lines.append(f"warnings: {len(warnings)}")
@@ -408,7 +483,7 @@ def main():
     parser.add_argument(
         "--raw",
         required=True,
-        help="Path to raw downloaded/pasted park-factor file. TSV or CSV accepted.",
+        help="Path to raw pasted park-factor file.",
     )
 
     parser.add_argument(
