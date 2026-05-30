@@ -1,4 +1,3 @@
-# docs/win/baseball/scripts/00_parsing/transform_raw_park_factors.py
 #!/usr/bin/env python3
 
 import argparse
@@ -74,6 +73,7 @@ NUMERIC_FACTOR_COLUMNS = [
 
 TEAM_NAME_ALIASES = {
     "A's": "Athletics",
+    "A’s": "Athletics",
     "Athletics": "Athletics",
     "D-backs": "D-backs",
     "Diamondbacks": "D-backs",
@@ -130,7 +130,7 @@ def split_line(line):
     if "," in line and '"' in line:
         return [clean(part) for part in next(csv.reader([line]))]
 
-    return re.split(r"\s{2,}|\t", line)
+    return [clean(part) for part in re.split(r"\s{2,}", line) if clean(part)]
 
 
 def looks_like_header(parts):
@@ -240,11 +240,34 @@ def require_columns(rows, required_columns, file_label):
         )
 
 
+def add_team_key(by_team, key_source, row, team_id, venue_id, venue_name):
+    name = normalize_team(clean(key_source))
+    if not name:
+        return
+
+    key = normalize_key(name)
+
+    if key in by_team:
+        existing = by_team[key]
+        if existing["team_id"] != team_id:
+            raise ValueError(
+                f"Duplicate team map key with conflicting team_id: {name}"
+            )
+
+    by_team[key] = {
+        "team": name,
+        "team_id": team_id,
+        "venue_id": venue_id,
+        "venue_name": venue_name,
+        "canonical_team_name": clean(row.get("team_name")),
+    }
+
+
 def load_team_map(team_map_path):
     rows = read_csv_dicts(team_map_path, delimiter=",")
     require_columns(
         rows,
-        ["team_id", "team_name", "name", "venue_id", "venue_name"],
+        ["team_id", "team_name", "name", "club_name", "short_name", "venue_id", "venue_name"],
         "Team map",
     )
 
@@ -255,36 +278,36 @@ def load_team_map(team_map_path):
         venue_id = clean(row.get("venue_id"))
         venue_name = clean(row.get("venue_name"))
 
+        if not team_id:
+            continue
+
         possible_names = [
             row.get("team_name"),
             row.get("name"),
             row.get("club_name"),
             row.get("short_name"),
-            row.get("franchise_name"),
         ]
 
         for name in possible_names:
-            name = normalize_team(clean(name))
-            if not name:
-                continue
-
-            key = normalize_key(name)
-
-            if key in by_team:
-                existing = by_team[key]
-                if existing["team_id"] != team_id:
-                    raise ValueError(
-                        f"Duplicate team map key with conflicting team_id: {name}"
-                    )
-
-            by_team[key] = {
-                "team": name,
-                "team_id": team_id,
-                "venue_id": venue_id,
-                "venue_name": venue_name,
-            }
+            add_team_key(by_team, name, row, team_id, venue_id, venue_name)
 
     return by_team
+
+
+def load_canonical_teams(team_map_path):
+    rows = read_csv_dicts(team_map_path, delimiter=",")
+    require_columns(rows, ["team_id", "team_name"], "Team map")
+
+    teams = {}
+
+    for row in rows:
+        team_id = clean(row.get("team_id"))
+        team_name = normalize_team(clean(row.get("team_name")))
+
+        if team_id and team_name:
+            teams[team_id] = team_name
+
+    return teams
 
 
 def load_venue_map(venue_map_path):
@@ -343,6 +366,7 @@ def transform(raw_path, team_map_path, venue_map_path, output_path, audit_path):
     require_columns(raw_rows, RAW_REQUIRED_COLUMNS, "Raw park-factor file")
 
     team_map = load_team_map(team_map_path)
+    canonical_teams = load_canonical_teams(team_map_path)
     venue_map = load_venue_map(venue_map_path)
 
     output_rows = []
@@ -351,6 +375,8 @@ def transform(raw_path, team_map_path, venue_map_path, output_path, audit_path):
     seen_keys = set()
     errors = []
     warnings = []
+
+    matched_team_ids = set()
 
     for index, raw in enumerate(raw_rows, start=2):
         row_errors = validate_raw_row(raw, index)
@@ -399,22 +425,20 @@ def transform(raw_path, team_map_path, venue_map_path, output_path, audit_path):
         out["venue_id"] = venue_map_venue_id
         out["team_id"] = clean(team_match.get("team_id"))
 
+        matched_team_ids.add(out["team_id"])
         output_rows.append(out)
 
-    raw_team_keys = {normalize_key(normalize_team(row.get("Team"))) for row in raw_rows}
-
     missing_teams = sorted(
-        value["team"]
-        for key, value in team_map.items()
-        if key not in raw_team_keys
-        and value["team"] not in {"American League", "National League"}
+        team_name
+        for team_id, team_name in canonical_teams.items()
+        if team_id not in matched_team_ids
     )
 
     if len(output_rows) != 30:
         warnings.append(f"output row count is {len(output_rows)}, expected 30 for full MLB park-factor file")
 
     if missing_teams:
-        warnings.append("teams in map but missing from raw input: " + ", ".join(sorted(set(missing_teams))))
+        warnings.append("teams in team map but missing from raw input: " + ", ".join(missing_teams))
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -543,3 +567,4 @@ def main():
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
