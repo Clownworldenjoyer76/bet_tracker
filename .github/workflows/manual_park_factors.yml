@@ -40,13 +40,25 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Write raw input
+      - name: Validate dispatch inputs
         shell: bash
         run: |
+          case "${{ inputs.target_path }}" in
+            docs/win/baseball/data/park_factors/park_*.csv)
+              ;;
+            *)
+              echo "FAILED: invalid target_path: ${{ inputs.target_path }}"
+              exit 1
+              ;;
+          esac
+
+      - name: Write raw input
+        shell: bash
+        env:
+          RAW_TEXT: ${{ inputs.raw_text }}
+        run: |
           mkdir -p docs/win/baseball/tmp
-          cat > docs/win/baseball/tmp/manual_park_factor_raw.txt <<'EOF'
-          ${{ inputs.raw_text }}
-          EOF
+          printf '%s\n' "$RAW_TEXT" > docs/win/baseball/tmp/manual_park_factor_raw.txt
 
       - name: Transform park factors
         shell: bash
@@ -78,3 +90,4 @@ jobs:
             git commit -m "Update MLB park factors: ${{ inputs.variable_1 }} ${{ inputs.variable_2 }}"
             git push
           fi
+
