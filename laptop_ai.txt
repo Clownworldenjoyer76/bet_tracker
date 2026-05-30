@@ -1,0 +1,35 @@
+Yes. The earlier structured version would usually be **faster** because it does **not send the entire CSV text** to the model.
+
+Your current script is slow because it dumps the whole file into Qwen and asks it to understand everything at once.
+
+Faster approach:
+
+Read CSV with Python → keep only important columns/top rows → send a smaller summary prompt to Ollama.
+
+Also switch to a smaller model:
+
+```powershell
+ollama pull qwen3:4b
+```
+
+Then change:
+
+```python
+MODEL = "qwen3:14b"
+```
+
+to:
+
+```python
+MODEL = "qwen3:4b"
+```
+
+Best speed setup for now:
+
+```text
+qwen3:4b = fastest, decent summaries
+qwen3:8b = better, still faster than 14b
+qwen3:14b = better quality, slower
+```
+
+For your file-summary workflow, I’d use **qwen3:4b** first. Then, once the script is working exactly how you want, test **qwen3:8b** or **14b** for quality.
