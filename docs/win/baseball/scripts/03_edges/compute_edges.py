@@ -17,6 +17,93 @@ CONFIG_PATH = Path("docs/win/baseball/config/edge_adjustments.yaml")
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
+AUDIT_DIR = Path("docs/win/baseball/audit")
+AUDIT_DIR.mkdir(parents=True, exist_ok=True)
+LEAKAGE_AUDIT_FILE = AUDIT_DIR / "leakage_audit.csv"
+FORBIDDEN_READ_TOKENS = ["05_" + "final_scores", "final" + "_scores", "graded", "results", "reports"]  # LEAKAGE_GUARD_ALLOWED_REFERENCE
+SCRIPT_NAME = "compute_edges.py"
+STAGE_NAME = "03_edges"
+
+
+def record_file_read(path: Path, path_allowed: bool, reason: str) -> None:
+    path = Path(path)
+    new_file = not LEAKAGE_AUDIT_FILE.exists()
+    with open(LEAKAGE_AUDIT_FILE, "a", encoding="utf-8", newline="") as f:
+        if new_file:
+            f.write("script,file_read,path_allowed,reason,stage,timestamp\n")
+        safe_path = str(path).replace('"', "''")
+        f.write(
+            f'{SCRIPT_NAME},"{safe_path}",{1 if path_allowed else 0},'
+            f'"{reason}",{STAGE_NAME},{datetime.now(UTC).isoformat()}\n'
+        )
+
+
+def assert_read_path_allowed(path: Path) -> None:
+    path = Path(path)
+    lower_path = str(path).replace("\\", "/").lower()
+    matched = [token for token in FORBIDDEN_READ_TOKENS if token in lower_path]
+    if matched:
+        reason = "forbidden_pre_selection_read:" + ";".join(matched)
+        record_file_read(path, False, reason)
+        raise RuntimeError(f"Blocked forbidden pre-selection read path: {path} ({reason})")
+    record_file_read(path, True, "allowed")
+
+
+def read_csv_guarded(path: Path) -> pd.DataFrame:
+    assert_read_path_allowed(path)
+    return pd.read_csv(path)
+
+
+def open_text_guarded(path: Path, mode="r", encoding="utf-8"):
+    assert_read_path_allowed(path)
+    return open(path, mode, encoding=encoding)
+
+
+
+MONEYLINE_REQUIRED_COLUMNS = [
+    "game_id",
+    "sport",
+    "league",
+    "game_date",
+    "game_time",
+    "home_team",
+    "away_team",
+    "home_normalized_prob_moneyline",
+    "away_normalized_prob_moneyline",
+    "home_dk_decimal_moneyline",
+    "away_dk_decimal_moneyline",
+]
+
+RUN_LINE_REQUIRED_COLUMNS = [
+    "game_id",
+    "sport",
+    "league",
+    "game_date",
+    "game_time",
+    "home_team",
+    "away_team",
+    "home_normalized_prob_run_line",
+    "away_normalized_prob_run_line",
+    "home_dk_run_line_decimal",
+    "away_dk_run_line_decimal",
+]
+
+TOTAL_REQUIRED_COLUMNS = [
+    "game_id",
+    "sport",
+    "league",
+    "game_date",
+    "game_time",
+    "home_team",
+    "away_team",
+    "fair_total_over_decimal",
+    "fair_total_under_decimal",
+    "over_normalized_prob_total",
+    "under_normalized_prob_total",
+    "dk_total_over_decimal",
+    "dk_total_under_decimal",
+]
+
 
 
 # =========================
@@ -45,6 +132,7 @@ def _write_summary(summary: dict, per_file: list) -> None:
         f"  total_files      : {summary['total_files']}",
         f"  skipped          : {summary['skipped']}",
         f"  null_edges       : {summary['null_edges']}",
+        f"  schema_errors    : {summary['schema_errors']}",
         f"  errors           : {summary['errors']}",
         "",
         f"  {'file':<48} {'market':<12} {'rows':>5} {'null_edges':>10} {'status':>10}",
@@ -54,10 +142,58 @@ def _write_summary(summary: dict, per_file: list) -> None:
             f"  {pf['name']:<48} {pf['market']:<12} {pf['rows']:>5} "
             f"{pf['null_edges']:>10} {pf['status']:>10}"
         )
-    status = "SUCCESS" if summary["errors"] == 0 else "COMPLETED WITH ERRORS"
+    status = "SUCCESS" if summary["errors"] == 0 and summary["schema_errors"] == 0 else "COMPLETED WITH ERRORS"
     lines += ["", f"STATUS: {status}", "=" * 60]
     with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n")
+
+
+# =========================
+# SCHEMA GUARDS
+# =========================
+
+def duplicate_columns(columns) -> list:
+    seen = set()
+    duplicates = []
+
+    for col in columns:
+        if col in seen and col not in duplicates:
+            duplicates.append(col)
+        seen.add(col)
+
+    return duplicates
+
+
+def validate_no_duplicate_columns(df: pd.DataFrame, label: str) -> None:
+    dupes = duplicate_columns(list(df.columns))
+
+    if dupes:
+        raise ValueError(f"{label} has duplicate columns: {dupes}")
+
+
+def validate_required_columns(df: pd.DataFrame, required_columns: list, label: str) -> None:
+    missing = [col for col in required_columns if col not in df.columns]
+
+    if missing:
+        raise ValueError(f"{label} missing required columns: {missing}")
+
+
+def validate_input_schema(df: pd.DataFrame, market: str, file_name: str) -> None:
+    validate_no_duplicate_columns(df, f"{file_name} input")
+
+    if market == "moneyline":
+        validate_required_columns(df, MONEYLINE_REQUIRED_COLUMNS, f"{file_name} moneyline input")
+    elif market == "run_line":
+        validate_required_columns(df, RUN_LINE_REQUIRED_COLUMNS, f"{file_name} run_line input")
+    elif market == "total":
+        validate_required_columns(df, TOTAL_REQUIRED_COLUMNS, f"{file_name} total input")
+    else:
+        raise ValueError(f"{file_name} unknown market for schema validation: {market}")
+
+
+def write_csv_checked(df: pd.DataFrame, output_path: Path) -> None:
+    validate_no_duplicate_columns(df, f"{output_path} output")
+    df.to_csv(output_path, index=False)
 
 
 # =========================
@@ -374,7 +510,7 @@ def main():
 
     # Load config
     try:
-        with open(CONFIG_PATH, "r") as f:
+        with open_text_guarded(CONFIG_PATH, "r") as f:
             cfg = yaml.safe_load(f)["mlb"]
         _log(f"Config loaded: {CONFIG_PATH}")
     except Exception as e:
@@ -389,6 +525,7 @@ def main():
         "total_files":     0,
         "skipped":         0,
         "null_edges":      0,
+        "schema_errors":   0,
         "errors":          0,
     }
     per_file = []
@@ -430,12 +567,21 @@ def main():
         _log(f"--- FILE: {input_file.name}  market={market}")
 
         try:
-            df = pd.read_csv(input_file)
+            df = read_csv_guarded(input_file)
 
             if df.empty:
                 _log(f"{input_file.name} empty — skipping")
                 pf["status"] = "empty"
                 summary["skipped"] += 1
+                per_file.append(pf)
+                continue
+
+            try:
+                validate_input_schema(df, market, input_file.name)
+            except Exception as schema_error:
+                _log(f"{input_file.name} SCHEMA FAILED: {schema_error}", "ERROR")
+                pf["status"] = "schema_error"
+                summary["schema_errors"] += 1
                 per_file.append(pf)
                 continue
 
@@ -475,7 +621,7 @@ def main():
                 _log(f"{input_file.name} | {null_edges} null edges", "WARN")
 
             output_path = OUTPUT_DIR / input_file.name
-            df.to_csv(output_path, index=False)
+            write_csv_checked(df, output_path)
 
             summary["files_processed"] += 1
             _log(f"WROTE: {output_path} ({len(df)} rows, {null_edges} null edges)")
@@ -488,6 +634,14 @@ def main():
         per_file.append(pf)
 
     _write_summary(summary, per_file)
+
+    if summary["errors"] > 0 or summary["schema_errors"] > 0:
+        print(
+            f"compute_edges completed with errors. "
+            f"errors={summary['errors']} schema_errors={summary['schema_errors']}"
+        )
+        raise SystemExit(1)
+
     print("compute_edges complete.")
 
 
