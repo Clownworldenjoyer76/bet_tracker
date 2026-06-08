@@ -16,8 +16,8 @@ import requests
 API_KEY = os.getenv("API_ODDS")
 
 BASE_URL = "https://api.odds-api.io/v3"
-SPORT_SLUG = "nba"
-LEAGUE_SLUG = "nba-regular-season"
+SPORT_SLUG = "basketball"
+LEAGUE_SLUG = "usa-nba"
 BOOKMAKERS = ["FanDuel"]
 
 GAME_TZ = ZoneInfo("America/New_York")
