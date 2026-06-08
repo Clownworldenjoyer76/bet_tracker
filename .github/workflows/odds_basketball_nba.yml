@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+      API_ODDS: ${{ secrets.API_ODDS }}
       TZ: America/New_York
 
     steps:
@@ -28,9 +28,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests
 
-      - name: Create NBA odds output folder
+      - name: Create NBA odds output folders
         run: |
           mkdir -p docs/win/basketball/odds/nba
+          mkdir -p docs/win/basketball/errors/00_intake
 
       - name: Run NBA odds pull
         run: |
@@ -47,6 +48,7 @@ jobs:
           git config user.email "github-actions@github.com"
 
           git add docs/win/basketball/odds/nba/
+          git add docs/win/basketball/errors/00_intake/nba_odds_api.txt
 
           git diff --cached --quiet && echo "No NBA odds output changes to commit." || git commit -m "Update NBA odds outputs"
           git push
