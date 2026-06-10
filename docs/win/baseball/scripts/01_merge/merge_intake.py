@@ -21,6 +21,7 @@
 
 import csv
 import traceback
+import re
 from pathlib import Path
 from datetime import datetime, timezone
 
@@ -57,9 +58,30 @@ with open(LOG_FILE, "w", encoding="utf-8") as f:
 # LOGGING / FAILURE
 # ─────────────────────────────────────────────
 
+def _safe_log_text(msg):
+    text = str(msg)
+    text = text.replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
+
+    # Redact common secret-bearing key/value patterns.
+    text = re.sub(
+        r'(?i)\b(password|passwd|pwd|token|secret|api[_-]?key|authorization)\b\s*[:=]\s*([^\s,;]+)',
+        r'\1=[REDACTED]',
+        text,
+    )
+    # Redact bearer tokens.
+    text = re.sub(r'(?i)\bbearer\s+[A-Za-z0-9\-\._~\+/]+=*', 'Bearer [REDACTED]', text)
+
+    # Prevent large raw payloads from being persisted.
+    max_len = 500
+    if len(text) > max_len:
+        text = text[:max_len] + "...[truncated]"
+    return text
+
+
 def log(msg):
+    safe_msg = _safe_log_text(msg)
     with open(LOG_FILE, "a", encoding="utf-8") as f:
-        f.write(f"{datetime.now(timezone.utc).isoformat()} | {msg}\n")
+        f.write(f"{datetime.now(timezone.utc).isoformat()} | {safe_msg}\n")
 
 
 def fail(msg):
