@@ -190,13 +190,26 @@ def calculate_total_probabilities(total_line, total_projected_goals):
     ):
         return None, None
 
-    if float(total_line).is_integer():
-        return None, None
+    total_line = float(total_line)
 
-    cutoff = math.floor(total_line)
+    if total_line.is_integer():
+        push_total = int(total_line)
 
-    under_prob = poisson.cdf(cutoff, total_projected_goals)
-    over_prob = 1 - under_prob
+        under_prob = poisson.cdf(push_total - 1, total_projected_goals)
+        over_prob = 1 - poisson.cdf(push_total, total_projected_goals)
+
+        no_push_prob = under_prob + over_prob
+
+        if pd.isna(no_push_prob) or no_push_prob <= 0:
+            return None, None
+
+        under_prob = under_prob / no_push_prob
+        over_prob = over_prob / no_push_prob
+    else:
+        cutoff = math.floor(total_line)
+
+        under_prob = poisson.cdf(cutoff, total_projected_goals)
+        over_prob = 1 - under_prob
 
     if pd.isna(over_prob) or pd.isna(under_prob):
         return None, None
