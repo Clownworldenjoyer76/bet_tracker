@@ -13,7 +13,6 @@ SPORTBOOK_DIR = Path("docs/win/hockey/nhl/00_intake/sportsbook")
 GAMES_DIR = Path("docs/win/hockey/nhl/00_intake/games")
 LOG_PATH = Path("docs/win/hockey/nhl/errors/00_intake/build_games.txt")
 
-INPUT_PREFIX = "NHL_"
 INPUT_SUFFIX = ".csv"
 OUTPUT_SUFFIX = "_nhl_games.csv"
 
@@ -59,13 +58,27 @@ def fail(lines: list[str], message: str) -> None:
     raise SystemExit(1)
 
 
+def is_valid_input_file(path: Path) -> bool:
+    name = path.name
+
+    if not name.endswith(INPUT_SUFFIX):
+        return False
+
+    return name.startswith("NHL_") or name.startswith("nhl")
+
+
 def extract_date_from_input_name(path: Path) -> str:
     name = path.name
 
-    if not name.startswith(INPUT_PREFIX) or not name.endswith(INPUT_SUFFIX):
+    if not name.endswith(INPUT_SUFFIX):
         raise ValueError(f"Invalid sportsbook filename format: {name}")
 
-    date_value = name[len(INPUT_PREFIX) : -len(INPUT_SUFFIX)]
+    if name.startswith("NHL_"):
+        date_value = name[len("NHL_") : -len(INPUT_SUFFIX)]
+    elif name.startswith("nhl"):
+        date_value = name[len("nhl") : -len(INPUT_SUFFIX)].lstrip("_-")
+    else:
+        raise ValueError(f"Invalid sportsbook filename format: {name}")
 
     if not date_value:
         raise ValueError(f"Missing date in sportsbook filename: {name}")
@@ -162,7 +175,10 @@ def main() -> None:
     if not SPORTBOOK_DIR.exists():
         fail(log_lines, f"Sportsbook directory does not exist: {SPORTBOOK_DIR}")
 
-    sportsbook_files = sorted(SPORTBOOK_DIR.glob(f"{INPUT_PREFIX}*{INPUT_SUFFIX}"))
+    sportsbook_files = sorted(
+        path for path in SPORTBOOK_DIR.iterdir()
+        if path.is_file() and is_valid_input_file(path)
+    )
 
     if not sportsbook_files:
         fail(log_lines, f"No sportsbook files found in {SPORTBOOK_DIR}")
