@@ -29,14 +29,60 @@ function normDate(v) {
 
 // ─── CSV ─────────────────────────────────────────────────────────────────────
 
+function cleanCSVCell(v) {
+  let s = (v ?? "").trim();
+
+  if (s.length >= 2 && s.startsWith('"') && s.endsWith('"')) {
+    s = s.slice(1, -1);
+  }
+
+  return s.replaceAll('""', '"').trim();
+}
+
+function parseCSVLine(line) {
+  const out = [];
+  let cur = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+
+    if (ch === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        cur += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (ch === "," && !inQuotes) {
+      out.push(cur);
+      cur = "";
+      continue;
+    }
+
+    cur += ch;
+  }
+
+  out.push(cur);
+  return out;
+}
+
 function parseCSV(text) {
-  const lines = text.trim().split(/\r?\n/);
+  const raw = (text || "").replace(/^\uFEFF/, "").trim();
+  if (!raw) return [];
+
+  const lines = raw.split(/\r?\n/).filter(line => line.trim() !== "");
   if (lines.length < 2) return [];
-  const headers = lines[0].split(",").map(h => h.trim());
+
+  const headers = parseCSVLine(lines[0]).map(cleanCSVCell);
+
   return lines.slice(1).map(line => {
-    const vals = line.split(",");
+    const vals = parseCSVLine(line).map(cleanCSVCell);
     const obj = {};
-    headers.forEach((h, i) => { obj[h] = (vals[i] ?? "").trim(); });
+    headers.forEach((h, i) => { obj[h] = vals[i] ?? ""; });
     return obj;
   });
 }
@@ -45,10 +91,22 @@ async function fetchCSV(path) {
   try {
     const r = await fetch(path);
     if (!r.ok) return { ok: false, rows: [] };
-    return { ok: true, rows: parseCSV(await r.text()) };
+    return { ok: true, rows: parseCSV(await r.text()), source: path };
   } catch {
     return { ok: false, rows: [] };
   }
+}
+
+function resolvePaths(value, dateFormatted) {
+  if (!value) return [];
+
+  const resolved = typeof value === "function"
+    ? value(dateFormatted)
+    : value;
+
+  if (Array.isArray(resolved)) return resolved.filter(Boolean);
+  if (resolved) return [resolved];
+  return [];
 }
 
 // Try paths in order. First one that loads wins; the rest are skipped.
@@ -56,11 +114,14 @@ async function fetchCSV(path) {
 // without ever loading the same data twice.
 // If every path fails, log the full list so the next silent breakage is visible.
 async function fetchMultiCSV(paths) {
-  for (const p of paths) {
+  const list = Array.isArray(paths) ? paths.filter(Boolean) : [];
+
+  for (const p of list) {
     const res = await fetchCSV(p);
     if (res.ok) return { ok: true, rows: res.rows, source: p };
   }
-  console.warn("[picks] No data file loaded. Tried:", paths);
+
+  if (list.length) console.warn("[picks] No data file loaded. Tried:", list);
   return { ok: false, rows: [] };
 }
 
@@ -169,20 +230,20 @@ function buildBetText(p, r, cfg) {
   if (side === "under") label = "Under";
 
   if (["spread", "puck_line", "run_line"].includes(market)) {
-    if (side === "home") american = p.bet_odds_american || r.home_dk_spread_american || r.home_dk_puck_line_american || r.home_dk_run_line_american || odds;
-    if (side === "away") american = p.bet_odds_american || r.away_dk_spread_american || r.away_dk_puck_line_american || r.away_dk_run_line_american || odds;
+    if (side === "home") american = p.bet_odds_american || p.dk_odds_american || p.take_odds || r.home_dk_spread_american || r.home_dk_puck_line_american || r.home_dk_run_line_american || odds;
+    if (side === "away") american = p.bet_odds_american || p.dk_odds_american || p.take_odds || r.away_dk_spread_american || r.away_dk_puck_line_american || r.away_dk_run_line_american || odds;
     return `${label} ${formatLine(line)}${wrapOdds(american)}`.trim();
   }
 
   if (market === "total") {
-    if (side === "over")  american = p.bet_odds_american || r.dk_total_over_american  || odds;
-    if (side === "under") american = p.bet_odds_american || r.dk_total_under_american || odds;
+    if (side === "over")  american = p.bet_odds_american || p.dk_odds_american || p.take_odds || r.dk_total_over_american  || odds;
+    if (side === "under") american = p.bet_odds_american || p.dk_odds_american || p.take_odds || r.dk_total_under_american || odds;
     return `${label} ${formatLine(line)}${wrapOdds(american)}`.trim();
   }
 
   if (market === "moneyline") {
-    if (side === "home") american = p.bet_odds_american || r.home_dk_moneyline_american || odds;
-    if (side === "away") american = p.bet_odds_american || r.away_dk_moneyline_american || odds;
+    if (side === "home") american = p.bet_odds_american || p.dk_odds_american || p.take_odds || r.home_dk_moneyline_american || odds;
+    if (side === "away") american = p.bet_odds_american || p.dk_odds_american || p.take_odds || r.away_dk_moneyline_american || odds;
     return `${label}${wrapOdds(american)}`.trim();
   }
 
@@ -194,36 +255,65 @@ function buildBetText(p, r, cfg) {
 // Centralized accessors so column-name drift doesn't silently zero these out
 // in one place but not another. Order matters: prefer the per-pick fields the
 // select files actually write today, then fall back to legacy names.
-function getEv(p)    { return parseFloat(p.bet_ev    || p.ev    || p.selected_ev || 0); }
-function getKelly(p) { return parseFloat(p.bet_kelly || p.kelly || 0); }
+function getEv(p)    { return parseFloat(p.ev    || p.bet_ev    || p.selected_ev || 0); }
+function getKelly(p) { return parseFloat(p.kelly || p.bet_kelly || 0); }
 
 function extractEdge(p) {
   // Select files write a per-pick edge for the chosen side; that's the
   // single source of truth. Fall back to ev only if it isn't present.
+  if (p.edge !== undefined && p.edge !== "") {
+    return parseFloat(p.edge);
+  }
   if (p.bet_edge_vs_market !== undefined && p.bet_edge_vs_market !== "") {
     return parseFloat(p.bet_edge_vs_market);
   }
   return parseFloat(p.ev || p.selected_ev || 0);
 }
 
-function edgeDots(edge) {
+function statDecimals(cfg, fallback) {
+  const n = parseInt(cfg && cfg.statDecimals, 10);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function formatPercentValue(n, decimals, signed) {
+  const v = parseFloat(n);
+  if (isNaN(v)) return "—";
+  const prefix = signed && v >= 0 ? "+" : "";
+  return `${prefix}${(v * 100).toFixed(decimals)}%`;
+}
+
+function edgeDots(edge, cfg) {
   const filled = edge >= 0.15 ? 5 : edge >= 0.10 ? 4 : edge >= 0.07 ? 3 : edge >= 0.04 ? 2 : edge >= 0.001 ? 1 : 0;
   const cls    = ["e0","e1","e2","e3","e4","e5"][filled];
   const dots   = "●".repeat(filled) + "○".repeat(5 - filled);
-  return `<span class="edge-dots ${cls}" title="Edge ${(edge*100).toFixed(1)}%">${dots}</span>`;
+  const dec    = statDecimals(cfg, 1);
+  return `<span class="edge-dots ${cls}" title="Edge ${(edge*100).toFixed(dec)}%">${dots}</span>`;
 }
 
 // ─── Time Sort ────────────────────────────────────────────────────────────────
 
 function parseTime(t) {
   if (!t) return 9999;
-  const m = t.match(/(\d+):(\d+)\s*(AM|PM)/i);
-  if (!m) return 9999;
-  let h = parseInt(m[1], 10);
-  const min = parseInt(m[2], 10);
-  if (m[3].toUpperCase() === "PM" && h !== 12) h += 12;
-  if (m[3].toUpperCase() === "AM" && h === 12) h = 0;
-  return h * 60 + min;
+
+  const s = String(t).trim();
+
+  const ampm = s.match(/(\d+):(\d+)\s*(AM|PM)/i);
+  if (ampm) {
+    let h = parseInt(ampm[1], 10);
+    const min = parseInt(ampm[2], 10);
+    if (ampm[3].toUpperCase() === "PM" && h !== 12) h += 12;
+    if (ampm[3].toUpperCase() === "AM" && h === 12) h = 0;
+    return h * 60 + min;
+  }
+
+  const military = s.match(/^(\d{1,2}):(\d{2})/);
+  if (military) {
+    const h = parseInt(military[1], 10);
+    const min = parseInt(military[2], 10);
+    if (!isNaN(h) && !isNaN(min)) return h * 60 + min;
+  }
+
+  return 9999;
 }
 
 // ─── Modal ────────────────────────────────────────────────────────────────────
@@ -242,13 +332,14 @@ function buildModalHtml(r, picks, cfg) {
       const ev      = getEv(p);
       const kelly   = getKelly(p);
       const edge    = extractEdge(p);
+      const dec     = statDecimals(cfg, 2);
       return `
         <div class="modal-pick-row">
           <div class="modal-bet">${betText}</div>
           <div class="modal-pick-stats">
-            <span class="modal-ev ${ev >= 0 ? "pos" : "neg"}">${ev >= 0 ? "+" : ""}${(ev * 100).toFixed(2)}% EV</span>
-            <span class="modal-kelly">Kelly ${(kelly * 100).toFixed(2)}%</span>
-            ${edgeDots(edge)}
+            <span class="modal-ev ${ev >= 0 ? "pos" : "neg"}">${formatPercentValue(ev, dec, true)} EV</span>
+            <span class="modal-kelly">Kelly ${formatPercentValue(kelly, dec, false)}</span>
+            ${edgeDots(edge, cfg)}
           </div>
         </div>`;
     }).join("");
@@ -290,13 +381,14 @@ function buildModalHtml(r, picks, cfg) {
     const ev      = getEv(p);
     const kelly   = getKelly(p);
     const edge    = extractEdge(p);
+    const dec     = statDecimals(cfg, 2);
     return `
       <div class="modal-pick-row">
         <div class="modal-bet">${betText}</div>
         <div class="modal-pick-stats">
-          <span class="modal-ev ${ev >= 0 ? "pos" : "neg"}">${ev >= 0 ? "+" : ""}${(ev * 100).toFixed(2)}% EV</span>
-          <span class="modal-kelly">Kelly ${(kelly * 100).toFixed(2)}%</span>
-          ${edgeDots(edge)}
+          <span class="modal-ev ${ev >= 0 ? "pos" : "neg"}">${formatPercentValue(ev, dec, true)} EV</span>
+          <span class="modal-kelly">Kelly ${formatPercentValue(kelly, dec, false)}</span>
+          ${edgeDots(edge, cfg)}
         </div>
       </div>`;
   }).join("");
@@ -334,6 +426,7 @@ function buildCard(p, r, cfg) {
   const edge       = extractEdge(p);
   const ev         = getEv(p);
   const isBaseball = !!cfg.isBaseball;
+  const dec        = statDecimals(cfg, 1);
 
   const pitcherLine = isBaseball && (r.away_pitcher || r.home_pitcher)
     ? `<div class="card-pitchers">${r.away_pitcher || "?"} vs ${r.home_pitcher || "?"}</div>`
@@ -360,8 +453,8 @@ function buildCard(p, r, cfg) {
     ${pitcherLine}
     <div class="card-bet">${betText}</div>
     <div class="card-footer">
-      <span class="card-ev ${ev >= 0 ? "pos" : "neg"}">${ev >= 0 ? "+" : ""}${(ev * 100).toFixed(1)}%</span>
-      ${edgeDots(edge)}
+      <span class="card-ev ${ev >= 0 ? "pos" : "neg"}">${formatPercentValue(ev, dec, true)}</span>
+      ${edgeDots(edge, cfg)}
     </div>`;
 
   return card;
@@ -450,7 +543,7 @@ function buildUFCCard(row) {
     </div>
     <div class="card-bet">${fighter} ${ml}</div>
     <div class="card-footer">
-      <span class="card-ev ${ev >= 0 ? "pos" : "neg"}">${ev >= 0 ? "+" : ""}${(ev * 100).toFixed(1)}%</span>
+      <span class="card-ev ${ev >= 0 ? "pos" : "neg"}">${formatPercentValue(ev, 1, true)}</span>
       ${edgeDots(edge)}
     </div>`;
 
@@ -489,9 +582,9 @@ function buildUFCModalHtml(row) {
         <div class="modal-pick-row">
           <div class="modal-bet">${fighter} to Win</div>
           <div class="modal-pick-stats">
-            <span class="modal-ev ${ev >= 0 ? "pos" : "neg"}">${ev >= 0 ? "+" : ""}${(ev * 100).toFixed(2)}% EV</span>
-            <span class="modal-kelly">Kelly ${(kelly * 100).toFixed(2)}%</span>
-            <span class="modal-kelly">Edge ${(edge * 100).toFixed(2)}%</span>
+            <span class="modal-ev ${ev >= 0 ? "pos" : "neg"}">${formatPercentValue(ev, 2, true)} EV</span>
+            <span class="modal-kelly">Kelly ${formatPercentValue(kelly, 2, false)}</span>
+            <span class="modal-kelly">Edge ${formatPercentValue(edge, 2, false)}</span>
             ${edgeDots(edge)}
           </div>
         </div>
@@ -563,10 +656,15 @@ async function loadLeague(league, dateFormatted) {
   if (cfg.isUFC) return loadUFC();
 
   const emptyRes = Promise.resolve({ ok: false, rows: [] });
+
+  const selectPaths = resolvePaths(cfg.selectFiles, dateFormatted);
+  const predPaths   = resolvePaths(cfg.predFile, dateFormatted);
+  const bookPaths   = resolvePaths(cfg.bookFile, dateFormatted);
+
   const [selectRes, predRes, bookRes] = await Promise.all([
-    fetchMultiCSV(cfg.selectFiles(dateFormatted)),
-    cfg.predFile ? fetchCSV(cfg.predFile(dateFormatted)) : emptyRes,
-    cfg.bookFile ? fetchCSV(cfg.bookFile(dateFormatted)) : emptyRes,
+    fetchMultiCSV(selectPaths),
+    predPaths.length ? fetchMultiCSV(predPaths) : emptyRes,
+    bookPaths.length ? fetchMultiCSV(bookPaths) : emptyRes,
   ]);
 
   if (!selectRes.ok) return { league, cfg, error: "File not found", picks: 0 };
