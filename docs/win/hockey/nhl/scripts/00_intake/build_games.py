@@ -1,3 +1,5 @@
+# docs/win/hockey/nhl/scripts/00_intake/build_games.py
+
 from __future__ import annotations
 
 import csv
