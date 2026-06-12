@@ -69,9 +69,61 @@ window.REPO_CONFIG = {
     enabled: true,
     isHockey:     true,
     leagueColumn: "league",
-    selectFiles:  (date) => [`win/hockey/04_select/${date}_NHL.csv`],
-    predFile:     (date) => `win/hockey/00_intake/predictions/hockey_${date}.csv`,
-    bookFile:     (date) => `win/hockey/00_intake/sportsbook/hockey_${date}.csv`,
+    joinKey:      "game_id",
+    statDecimals: 4,
+    selectFiles:  (date) => [`win/hockey/nhl/04_select/${date}_NHL.csv`],
+    predFile:     (date) => `win/hockey/nhl/00_intake/predictions/hockey_${date}.csv`,
+    bookFile:     (date) => [
+      `win/hockey/nhl/00_intake/sportsbook/NHL_${date}.csv`,
+      `win/hockey/nhl/00_intake/sportsbook/nhl_${date}.csv`,
+    ],
+
+    buildBetText: (p, r) => {
+      const market = (p.market_type || "").toLowerCase();
+      const side   = (p.bet_side || "").toLowerCase();
+
+      const cleanOdds = (odds) => {
+        if (odds === null || odds === undefined || odds === "") return "";
+        const n = parseFloat(odds);
+        if (isNaN(n)) return String(odds).trim();
+        return n > 0 ? "+" + n : String(n);
+      };
+
+      const fmtPuckLine = (line) => {
+        const n = parseFloat(line);
+        if (isNaN(n)) return line || "";
+        return n > 0 ? "+" + n : String(n);
+      };
+
+      const fmtTotalLine = (line) => {
+        const n = parseFloat(line);
+        if (isNaN(n)) return line || "";
+        return String(n);
+      };
+
+      const odds = cleanOdds(p.dk_odds_american || p.bet_odds_american || p.take_odds || "");
+      const oddsText = odds ? ` (${odds})` : "";
+
+      let label = "";
+      if (side === "home")  label = r.home_team || "Home";
+      if (side === "away")  label = r.away_team || "Away";
+      if (side === "over")  label = "Over";
+      if (side === "under") label = "Under";
+
+      if (market === "puck_line") {
+        return `${label} ${fmtPuckLine(p.line || "")}${oddsText}`.trim();
+      }
+
+      if (market === "total") {
+        return `${label} ${fmtTotalLine(p.line || r.total || "")}${oddsText}`.trim();
+      }
+
+      if (market === "moneyline") {
+        return `${label}${oddsText}`.trim();
+      }
+
+      return `${label || side} ${p.line || ""}${oddsText}`.trim();
+    },
   },
 
   // ─── NBA ──────────────────────────────────────────────────────────────────
@@ -91,7 +143,7 @@ window.REPO_CONFIG = {
   },
 
   // ─── WNBA ─────────────────────────────────────────────────────────────────
- 
+
   WNBA: {
     sport:        "basketball",
     league:       "WNBA",
@@ -223,8 +275,8 @@ window.REPO_CONFIG = {
        selectFiles   — fn(date) => string[]   date format: YYYY_MM_DD
                        Multiple paths = fallback list. The FIRST one that loads wins;
                        subsequent paths are ignored.
-       predFile      — (optional) fn(date) => string
-       bookFile      — (optional) fn(date) => string
+       predFile      — (optional) fn(date) => string OR string[]
+       bookFile      — (optional) fn(date) => string OR string[]
        enabled       — (optional) set to `false` to hide this league from the page
                        without deleting its config block. Useful at season end.
   3. Nothing else needs to change.
