@@ -263,7 +263,15 @@ def load_source_rows(
     required_columns: list[str],
 ) -> list[dict[str, str]]:
     all_rows = []
-    files = sorted(directory.glob(pattern))
+
+    if source_name == "sportsbook":
+        files = sorted(
+            p
+            for p in directory.glob("*.csv")
+            if p.name.lower().startswith("nhl_")
+        )
+    else:
+        files = sorted(directory.glob(pattern))
 
     log(f"{source_name} files found: {len(files)}")
 
