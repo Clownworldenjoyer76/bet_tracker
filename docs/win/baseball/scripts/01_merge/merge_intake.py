@@ -22,6 +22,7 @@
 import csv
 import traceback
 import re
+import hashlib
 from pathlib import Path
 from datetime import datetime, timezone
 
@@ -80,8 +81,12 @@ def _safe_log_text(msg):
 
 def log(msg):
     safe_msg = _safe_log_text(msg)
+    msg_hash = hashlib.sha256(safe_msg.encode("utf-8")).hexdigest()
     with open(LOG_FILE, "a", encoding="utf-8") as f:
-        f.write(f"{datetime.now(timezone.utc).isoformat()} | {safe_msg}\n")
+        f.write(
+            f"{datetime.now(timezone.utc).isoformat()} | "
+            f"event_hash={msg_hash} | event_len={len(safe_msg)}\n"
+        )
 
 
 def fail(msg):
