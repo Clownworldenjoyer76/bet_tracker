@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# docs/win/baseball/scripts/00_intake/transform_baseball.py
+# docs/win/baseball/mlb/scripts/00_intake/transform_baseball.py
 
 import csv
 import json
@@ -7,7 +7,7 @@ import traceback
 from datetime import datetime
 from pathlib import Path
 
-ERROR_DIR = Path("docs/win/baseball/errors/00_intake")
+ERROR_DIR = Path("docs/win/baseball/mlb/errors/00_intake")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE = ERROR_DIR / "transform_baseball.txt"
 
@@ -24,8 +24,8 @@ def log(msg: str) -> None:
 # PATHS
 # -------------------------
 
-RAW_DIR = Path("docs/win/baseball/00_intake/drat_raw")
-PRED_DIR = Path("docs/win/baseball/00_intake/predictions")
+RAW_DIR = Path("docs/win/baseball/mlb/00_intake/drat_raw")
+PRED_DIR = Path("docs/win/baseball/mlb/00_intake/predictions")
 
 PRED_DIR.mkdir(parents=True, exist_ok=True)
 
