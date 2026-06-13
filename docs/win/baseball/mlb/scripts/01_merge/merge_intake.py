@@ -26,12 +26,12 @@ import hashlib
 from pathlib import Path
 from datetime import datetime, timezone
 
-PRED_DIR = Path("docs/win/baseball/00_intake/predictions/pred_with_game_id")
-BOOK_DIR = Path("docs/win/baseball/00_intake/sportsbook")
-GAMES_DIR = Path("docs/win/baseball/00_intake/games")
-CONTEXT_DIR = Path("docs/win/baseball/00_intake/mlb_raw")
-OUT_DIR = Path("docs/win/baseball/01_merge")
-LOG_DIR = Path("docs/win/baseball/errors/01_merge")
+PRED_DIR = Path("docs/win/baseball/mlb/00_intake/predictions/pred_with_game_id")
+BOOK_DIR = Path("docs/win/baseball/mlb/00_intake/sportsbook")
+GAMES_DIR = Path("docs/win/baseball/mlb/00_intake/games")
+CONTEXT_DIR = Path("docs/win/baseball/mlb/00_intake/mlb_raw")
+OUT_DIR = Path("docs/win/baseball/mlb/01_merge")
+LOG_DIR = Path("docs/win/baseball/mlb/errors/01_merge")
 AUDIT_DIR = OUT_DIR / "audit"
 REJECTION_DIR = OUT_DIR / "rejections"
 
@@ -44,7 +44,7 @@ REJECTION_DIR.mkdir(parents=True, exist_ok=True)
 
 RUN_TS = datetime.now(timezone.utc).isoformat()
 LOG_FILE = LOG_DIR / "merge_intake.txt"
-LEAKAGE_AUDIT_DIR = Path("docs/win/baseball/audit")
+LEAKAGE_AUDIT_DIR = Path("docs/win/baseball/mlb/audit")
 LEAKAGE_AUDIT_DIR.mkdir(parents=True, exist_ok=True)
 LEAKAGE_AUDIT_FILE = LEAKAGE_AUDIT_DIR / "leakage_audit.csv"
 FORBIDDEN_READ_TOKENS = ["05_" + "final_scores", "final" + "_scores", "graded", "results", "reports"]  # LEAKAGE_GUARD_ALLOWED_REFERENCE
@@ -216,12 +216,12 @@ def write_dict_csv(path, fieldnames, rows):
 
 def clear_old_outputs():
     """
-    Permanently deletes every root-level CSV in docs/win/baseball/01_merge before rebuilding.
+    Permanently deletes every root-level CSV in docs/win/baseball/mlb/01_merge before rebuilding.
 
     This intentionally does NOT delete files inside subfolders such as:
-      docs/win/baseball/01_merge/01_merguiced/
-      docs/win/baseball/01_merge/audit/
-      docs/win/baseball/01_merge/rejections/
+      docs/win/baseball/mlb/01_merge/01_merguiced/
+      docs/win/baseball/mlb/01_merge/audit/
+      docs/win/baseball/mlb/01_merge/rejections/
     """
     old_files = sorted([p for p in OUT_DIR.glob("*.csv") if p.is_file()])
     deleted = 0
@@ -240,7 +240,7 @@ def clear_old_outputs():
         )
 
     log(f"OLD ROOT MERGE CSV OUTPUTS PERMANENTLY DELETED: {deleted}")
-    log("CONFIRMED: docs/win/baseball/01_merge has zero root-level CSV files before rebuild")
+    log("CONFIRMED: docs/win/baseball/mlb/01_merge has zero root-level CSV files before rebuild")
 
 
 def clear_old_audit_and_rejection_outputs():
