@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# docs/win/baseball/scripts/03_edges/compute_edges.py
+# docs/win/baseball/mlb/scripts/03_edges/compute_edges.py
 
 import traceback
 from datetime import datetime, UTC
@@ -9,15 +9,15 @@ import numpy as np
 import pandas as pd
 import yaml
 
-INPUT_DIR   = Path("docs/win/baseball/02_juice")
-OUTPUT_DIR  = Path("docs/win/baseball/03_edges")
-ERROR_DIR   = Path("docs/win/baseball/errors/03_edges")
+INPUT_DIR   = Path("docs/win/baseball/mlb/02_juice")
+OUTPUT_DIR  = Path("docs/win/baseball/mlb/03_edges")
+ERROR_DIR   = Path("docs/win/baseball/mlb/errors/03_edges")
 LOG_FILE    = ERROR_DIR / "compute_edges.txt"
 CONFIG_PATH = Path("docs/win/baseball/config/edge_adjustments.yaml")
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
-AUDIT_DIR = Path("docs/win/baseball/audit")
+AUDIT_DIR = Path("docs/win/baseball/mlb/audit")
 AUDIT_DIR.mkdir(parents=True, exist_ok=True)
 LEAKAGE_AUDIT_FILE = AUDIT_DIR / "leakage_audit.csv"
 FORBIDDEN_READ_TOKENS = ["05_" + "final_scores", "final" + "_scores", "graded", "results", "reports"]  # LEAKAGE_GUARD_ALLOWED_REFERENCE
