@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# docs/win/baseball/scripts/03_edges/compute_ev_kelly.py
+# docs/win/baseball/mlb/scripts/03_edges/compute_ev_kelly.py
 
 import traceback
 from datetime import datetime, UTC
@@ -8,16 +8,16 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-INPUT_DIR = Path("docs/win/baseball/03_edges")
-OUTPUT_DIR = Path("docs/win/baseball/03_edges/ev_kelly")
+INPUT_DIR = Path("docs/win/baseball/mlb/03_edges")
+OUTPUT_DIR = Path("docs/win/baseball/mlb/03_edges/ev_kelly")
 AUDIT_DIR = OUTPUT_DIR / "audit"
-ERROR_DIR = Path("docs/win/baseball/errors/03_edges")
+ERROR_DIR = Path("docs/win/baseball/mlb/errors/03_edges")
 LOG_FILE = ERROR_DIR / "compute_ev_kelly.txt"
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 AUDIT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
-LEAKAGE_AUDIT_DIR = Path("docs/win/baseball/audit")
+LEAKAGE_AUDIT_DIR = Path("docs/win/baseball/mlb/audit")
 LEAKAGE_AUDIT_DIR.mkdir(parents=True, exist_ok=True)
 LEAKAGE_AUDIT_FILE = LEAKAGE_AUDIT_DIR / "leakage_audit.csv"
 FORBIDDEN_READ_TOKENS = ["05_" + "final_scores", "final" + "_scores", "graded", "results", "reports"]  # LEAKAGE_GUARD_ALLOWED_REFERENCE
