@@ -43,6 +43,8 @@ jobs:
 
       - name: Create output directories
         run: |
+          mkdir -p docs/win/baseball/mlb/config/
+
           mkdir -p docs/win/baseball/mlb/00_intake/mlb_raw/
           mkdir -p docs/win/baseball/mlb/data/
 
@@ -119,6 +121,7 @@ jobs:
           name: baseball-alt-pipeline-diagnostics-${{ env.DATE }}
           if-no-files-found: ignore
           path: |
+            docs/win/baseball/mlb/config/**
             docs/win/baseball/mlb/errors/**
             docs/win/baseball/mlb/01_merge/**
             docs/win/baseball/mlb/02_juice/**
