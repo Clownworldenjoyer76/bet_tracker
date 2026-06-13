@@ -20,7 +20,7 @@ LEAGUE = "usa-mlb"
 BOOKMAKER = "DraftKings"
 
 today = datetime.now(timezone.utc).strftime("%Y_%m_%d")
-path = f"docs/win/mlb/baseball/odds/{today}.json"
+path = f"docs/win/baseball/mlb/odds/{today}.json"
 
 
 def get_json(endpoint, params):
