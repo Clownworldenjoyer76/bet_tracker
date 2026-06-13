@@ -38,6 +38,7 @@ jobs:
       - name: Create output directories
         run: |
           mkdir -p docs/win/baseball/odds
+          mkdir -p docs/win/baseball/mlb/odds
 
       - name: Run MLB Odds Pull
         run: python docs/win/baseball/scripts/00_parsing/mlb_odds_pull.py
@@ -48,6 +49,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           git add docs/win/baseball/odds/
+          git add docs/win/baseball/mlb/odds/
 
           if git diff --cached --quiet; then
             echo "No output changes to commit."
