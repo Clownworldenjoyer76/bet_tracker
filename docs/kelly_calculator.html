@@ -461,12 +461,54 @@ document.querySelectorAll('.fraction-btns button').forEach(btn => {
 document.getElementById('bankroll').addEventListener('input', render);
 document.getElementById('date-picker').addEventListener('change', loadAll);
 
+function parseCSVLine(line) {
+  const out = [];
+  let cur = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+
+    if (ch === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        cur += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (ch === ',' && !inQuotes) {
+      out.push(cur.trim());
+      cur = '';
+      continue;
+    }
+
+    cur += ch;
+  }
+
+  out.push(cur.trim());
+  return out;
+}
+
+function cleanCSVCell(v) {
+  let s = String(v ?? '').trim();
+  if (s.length >= 2 && s.startsWith('"') && s.endsWith('"')) s = s.slice(1, -1);
+  return s.replaceAll('""', '"').trim();
+}
+
 function parseCSV(text) {
-  const lines = text.trim().split('\n');
+  const raw = String(text || '').replace(/^\uFEFF/, '').trim();
+  if (!raw) return [];
+
+  const lines = raw.split(/\r?\n/).filter(line => line.trim() !== '');
   if (lines.length < 2) return [];
-  const headers = lines[0].split(',').map(h => h.trim());
+
+  const headers = parseCSVLine(lines[0]).map(cleanCSVCell);
+
   return lines.slice(1).map(line => {
-    const vals = line.split(',').map(v => v.trim());
+    const vals = parseCSVLine(line).map(cleanCSVCell);
     return Object.fromEntries(headers.map((h, i) => [h, vals[i] ?? '']));
   });
 }
@@ -672,7 +714,7 @@ async function loadAll() {
   const files = [
     { sport: 'nba', url: `${BASE}docs/win/basketball/04_select/daily_slate/nba_selected.csv` },
     { sport: 'mlb', url: `${BASE}docs/win/baseball/04_select/${date}_MLB.csv` },
-    { sport: 'nhl', url: `${BASE}docs/win/hockey/04_select/${date}_NHL.csv` },
+    { sport: 'nhl', url: `${BASE}docs/win/hockey/nhl/04_select/${date}_NHL.csv` },
   ];
 
   await Promise.all([
