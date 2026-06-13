@@ -1,4 +1,5 @@
-#docs/win/baseball/scripts/00_parsing/mlb_odds_pull.py
+#!/usr/bin/env python3
+# docs/win/baseball/scripts/00_parsing/mlb_odds_pull.py
 
 import requests
 import os
@@ -20,7 +21,11 @@ LEAGUE = "usa-mlb"
 BOOKMAKER = "DraftKings"
 
 today = datetime.now(timezone.utc).strftime("%Y_%m_%d")
-path = f"docs/win/baseball/odds/{today}.json"
+
+OUTPUT_PATHS = [
+    Path(f"docs/win/baseball/odds/{today}.json"),
+    Path(f"docs/win/baseball/mlb/odds/{today}.json"),
+]
 
 
 def get_json(endpoint, params):
@@ -266,11 +271,13 @@ else:
         if converted:
             data.append(converted)
 
-Path(path).parent.mkdir(parents=True, exist_ok=True)
+for output_path in OUTPUT_PATHS:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
 
-with open(path, "w", encoding="utf-8") as f:
-    json.dump(data, f, indent=2)
+    with open(output_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
 
-print(f"Saved {path}")
+    print(f"Saved {output_path}")
+
 print(f"Events found: {len(events)}")
 print(f"Events with converted DraftKings odds: {len(data)}")
