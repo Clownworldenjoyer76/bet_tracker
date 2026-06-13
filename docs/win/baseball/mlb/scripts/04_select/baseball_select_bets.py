@@ -12,11 +12,13 @@ OUTPUT_DIR = Path("docs/win/baseball/mlb/04_select")
 CONFIG_PATH = Path("docs/win/baseball/mlb/config/markets.yaml")
 
 AUDIT_DIR = OUTPUT_DIR / "audit"
+HISTORY_DIR = OUTPUT_DIR / "history"
 ERROR_DIR = Path("docs/win/baseball/mlb/errors/04_select")
 LOG_FILE = ERROR_DIR / "select_bets.txt"
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 AUDIT_DIR.mkdir(parents=True, exist_ok=True)
+HISTORY_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 LEAGUE_CODE = "MLB"
@@ -73,6 +75,10 @@ def _write_summary(summary: dict, per_slate: list) -> None:
         f"  low_confidence                    : {summary['low_confidence']}",
         f"  rejection_audit_rows              : {summary['rejection_audit_rows']}",
         f"  selected_audit_rows               : {summary['selected_audit_rows']}",
+        f"  history_files_written             : {summary['history_files_written']}",
+        f"  history_existing_rows             : {summary['history_existing_rows']}",
+        f"  history_rows_added                : {summary['history_rows_added']}",
+        f"  history_rows_written              : {summary['history_rows_written']}",
         f"  errors                            : {summary['errors']}",
         "",
         "--- Filter Breakdown ---",
@@ -679,6 +685,133 @@ def selected_audit_row(row):
 
 
 # =========================
+# HISTORY RETENTION
+# =========================
+
+def normalize_history_value(value) -> str:
+    if value is None:
+        return ""
+
+    try:
+        if pd.isna(value):
+            return ""
+    except Exception:
+        pass
+
+    try:
+        numeric = float(value)
+        if pd.notna(numeric):
+            return f"{numeric:.12g}"
+    except Exception:
+        pass
+
+    return str(value).strip()
+
+
+def build_history_key(row) -> str:
+    return "|".join([
+        normalize_history_value(row.get("game_id")),
+        normalize_history_value(row.get("market_type")),
+        normalize_history_value(row.get("bet_side")),
+        normalize_history_value(row.get("line")),
+    ])
+
+
+def add_history_columns(df: pd.DataFrame) -> pd.DataFrame:
+    history_df = df.copy()
+    selected_at = _now()
+
+    history_keys = history_df.apply(build_history_key, axis=1)
+
+    if "history_key" in history_df.columns:
+        history_df = history_df.drop(columns=["history_key"])
+
+    if "selected_at" in history_df.columns:
+        history_df = history_df.drop(columns=["selected_at"])
+
+    history_df.insert(0, "history_key", history_keys)
+    history_df.insert(0, "selected_at", selected_at)
+
+    return history_df
+
+
+def validate_history_output(df: pd.DataFrame, label: str) -> None:
+    validate_no_duplicate_columns(df, label)
+
+    if "history_key" not in df.columns:
+        raise ValueError(f"{label} missing history_key column")
+
+    keys = df["history_key"].astype(str).str.strip()
+
+    blank_keys = keys[(keys == "") | (keys.str.lower() == "nan")]
+    if not blank_keys.empty:
+        raise ValueError(f"{label} has blank history_key rows: {blank_keys.index.tolist()[:20]}")
+
+    duplicate_keys = keys[keys.duplicated(keep=False)]
+    if not duplicate_keys.empty:
+        counts = duplicate_keys.value_counts().to_dict()
+        raise ValueError(f"{label} has duplicate history_key rows: {counts}")
+
+
+def merge_history_columns(existing: pd.DataFrame, new_rows: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, list]:
+    output_columns = list(existing.columns)
+
+    for col in new_rows.columns:
+        if col not in output_columns:
+            output_columns.append(col)
+
+    for col in output_columns:
+        if col not in existing.columns:
+            existing[col] = pd.NA
+        if col not in new_rows.columns:
+            new_rows[col] = pd.NA
+
+    return existing[output_columns], new_rows[output_columns], output_columns
+
+
+def update_selected_history(current_df: pd.DataFrame, slate: str) -> dict:
+    HISTORY_DIR.mkdir(parents=True, exist_ok=True)
+
+    history_path = HISTORY_DIR / f"{slate}_MLB_selected_history.csv"
+    new_history_rows = add_history_columns(current_df)
+
+    validate_history_output(new_history_rows, f"{slate} new selected history rows")
+
+    existing_count = 0
+    added_count = len(new_history_rows)
+
+    if history_path.exists():
+        existing_history = pd.read_csv(history_path)
+        validate_history_output(existing_history, f"{slate} existing selected history")
+
+        existing_count = len(existing_history)
+        existing_keys = set(existing_history["history_key"].astype(str).str.strip())
+
+        new_history_rows = new_history_rows[
+            ~new_history_rows["history_key"].astype(str).str.strip().isin(existing_keys)
+        ].copy()
+        added_count = len(new_history_rows)
+
+        existing_history, new_history_rows, output_columns = merge_history_columns(
+            existing_history,
+            new_history_rows,
+        )
+        final_history = pd.concat([existing_history, new_history_rows], ignore_index=True)
+    else:
+        final_history = new_history_rows
+
+    validate_history_output(final_history, f"{slate} selected history output")
+    final_history.to_csv(history_path, index=False)
+
+    return {
+        "path": history_path,
+        "existing_rows": existing_count,
+        "added_rows": added_count,
+        "written_rows": len(final_history),
+    }
+
+
+# =========================
 # CONTEXT FILTERS
 # =========================
 
@@ -982,6 +1115,10 @@ def main():
         "low_confidence": 0,
         "rejection_audit_rows": 0,
         "selected_audit_rows": 0,
+        "history_files_written": 0,
+        "history_existing_rows": 0,
+        "history_rows_added": 0,
+        "history_rows_written": 0,
         "errors": 0,
         "counters": {},
     }
@@ -997,6 +1134,7 @@ def main():
 
     _log(f"INPUT_DIR : {INPUT_DIR}")
     _log(f"OUTPUT_DIR: {OUTPUT_DIR}")
+    _log(f"HISTORY_DIR: {HISTORY_DIR}")
     _log(
         f"Rain filter: will_it_rain={FILTERS.get('rain_exclude_on_will_it_rain', True)} "
         f"symbol_code={FILTERS.get('rain_exclude_on_symbol_code', False)} "
@@ -1283,9 +1421,21 @@ def main():
                     summary["run_line_bets"] += ps["rl"]
                     summary["total_mkt_bets"] += ps["tot"]
 
+                    history_result = update_selected_history(out_df, slate)
+                    summary["history_files_written"] += 1
+                    summary["history_existing_rows"] += history_result["existing_rows"]
+                    summary["history_rows_added"] += history_result["added_rows"]
+                    summary["history_rows_written"] += history_result["written_rows"]
+
                     _log(
                         f"WROTE: {out.name} "
                         f"({len(final)} bets | ml={ps['ml']} rl={ps['rl']} tot={ps['tot']})"
+                    )
+                    _log(
+                        f"WROTE HISTORY: {history_result['path']} "
+                        f"(existing={history_result['existing_rows']} "
+                        f"added={history_result['added_rows']} "
+                        f"written={history_result['written_rows']})"
                     )
                 else:
                     _log(f"{slate} no bets passed filters", "WARN")
@@ -1352,6 +1502,8 @@ def main():
         f"rain_excluded_symbol_code={summary['rain_excluded_symbol_code']} "
         f"rejection_audit_rows={summary['rejection_audit_rows']} "
         f"selected_audit_rows={summary['selected_audit_rows']} "
+        f"history_rows_added={summary['history_rows_added']} "
+        f"history_rows_written={summary['history_rows_written']} "
         f"row_count_warnings={summary['row_count_warnings']}"
     )
 
