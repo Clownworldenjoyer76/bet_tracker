@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-# docs/win/baseball/scripts/00_intake/build_game_weather.py
+# docs/win/baseball/mlb/scripts/00_intake/build_game_weather.py
 #
 # Reads:
-#   docs/win/baseball/data/weather/metno_raw/{date}_metno_raw.csv
+#   docs/win/baseball/mlb/data/weather/metno_raw/{date}_metno_raw.csv
 #   docs/win/baseball/maps/mlb_venue_ids.csv
 #
 # Writes:
-#   docs/win/baseball/data/weather/{date}_weather.csv
+#   docs/win/baseball/mlb/data/weather/{date}_weather.csv
 #
 # Output columns:
 #   gamePk,venue_id,weather_applicable,weather_time,temp_f,wind_mph,wind_dir,
@@ -24,8 +24,8 @@ import pandas as pd
 # PATHS
 # ─────────────────────────────────────────────
 
-BASE_DIR = Path("docs/win/baseball")
-MAPS_DIR = BASE_DIR / "maps"
+BASE_DIR = Path("docs/win/baseball/mlb")
+MAPS_DIR = Path("docs/win/baseball/maps")
 WEATHER_DIR = BASE_DIR / "data/weather"
 RAW_IN_DIR = WEATHER_DIR / "metno_raw"
 ERROR_DIR = BASE_DIR / "errors/00_intake"
