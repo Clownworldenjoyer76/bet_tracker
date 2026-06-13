@@ -129,19 +129,16 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
+          git status --short
+
           git add docs/win/baseball/odds/updates/
           git add docs/win/baseball/odds/latest/
+          git add docs/win/baseball/mlb/
 
-          git add docs/win/baseball/mlb/00_intake/sportsbook/
-          git add docs/win/baseball/mlb/00_intake/drat_raw/
-          git add docs/win/baseball/mlb/00_intake/predictions/
-          git add docs/win/baseball/mlb/00_intake/predictions/pred_with_game_id/
-          git add docs/win/baseball/mlb/00_intake/games/
-          git add docs/win/baseball/mlb/00_intake/mlb_raw/
-          git add docs/win/baseball/mlb/errors/00_intake/
-          git add docs/win/baseball/mlb/mappings/no_map/
-          git add docs/win/baseball/mlb/data/weather/
+          git status --short
 
           git diff --cached --quiet || git commit -m "chore: baseball alt intake run $(date -u +'%Y-%m-%d %H:%M UTC')"
-          git pull --rebase origin main
+
+          git status --short
+
           git push
