@@ -8,7 +8,7 @@ from pathlib import Path
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-ERROR_DIR = Path("docs/win/baseball/mlb/errors/00_intake")
+ERROR_DIR = Path("docs/win/baseball/errors/00_intake")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE = ERROR_DIR / "odds_parse.txt"
 
@@ -26,7 +26,7 @@ def log(msg: str) -> None:
 if len(sys.argv) > 1:
     INPUT_PATH = Path(sys.argv[1])
 else:
-    INPUT_PATH = Path("docs/win/baseball/mlb/odds")
+    INPUT_PATH = Path("docs/win/baseball/odds")
 
 if not INPUT_PATH.exists():
     log(f"FATAL ERROR: Input path does not exist: {INPUT_PATH}")
