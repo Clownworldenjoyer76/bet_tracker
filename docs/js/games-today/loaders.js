@@ -248,46 +248,57 @@ export async function loadMLB(date) {
 }
 
 export async function loadNHL(date) {
-  const [bookRes, predRes] = await Promise.all([
-    fetchCSV(`win/hockey/00_intake/sportsbook/hockey_${date}.csv`),
-    fetchCSV(`win/hockey/00_intake/predictions/hockey_${date}.csv`),
+  const [gamesRes, bookRes, predRes] = await Promise.all([
+    fetchCSV(`win/hockey/nhl/00_intake/games/${date}_nhl_games.csv`),
+    fetchFirstCSV([
+      `win/hockey/nhl/00_intake/sportsbook/NHL_${date}.csv`,
+      `win/hockey/nhl/00_intake/sportsbook/nhl_${date}.csv`,
+    ]),
+    fetchCSV(`win/hockey/nhl/00_intake/predictions/hockey_${date}.csv`),
   ]);
 
-  const predictionByGame = mapNHLByGame(predRes.rows);
+  const predictionByGameId = mapByGameId(predRes.rows);
+  const bookByGameId = mapByGameId(bookRes.rows);
+  const baseRows = gamesRes.rows.length ? gamesRes.rows : bookRes.rows;
 
-  const games = bookRes.rows.map(book => {
-    const pred = predictionByGame[nhlGameKey(book)] || {};
+  const games = baseRows.map(base => {
+    const pred = predictionByGameId[base.game_id] || {};
+    const book = bookByGameId[base.game_id] || {};
     const displayLeague = displayLeagueConfig("NHL", "NHL");
+
+    const gameTime = base.game_time || book.game_time || pred.game_time;
+    const awayTeam = base.away_team || book.away_team || pred.away_team;
+    const homeTeam = base.home_team || book.home_team || pred.home_team;
 
     return {
       league: "NHL",
       sport: "hockey",
       displayLeague,
-      sortTime: parseSortTime(book.game_time),
-      title: `${book.away_team} @ ${book.home_team}`,
+      sortTime: parseSortTime(gameTime),
+      title: `${awayTeam} @ ${homeTeam}`,
       card: {
-        date: formatDate(book.game_date),
-        time: formatTime(book.game_time),
-        away: book.away_team,
-        home: book.home_team,
+        date: formatDate(base.game_date || book.game_date || pred.game_date),
+        time: formatTime(gameTime),
+        away: awayTeam,
+        home: homeTeam,
         moneyline: [
-          book.away_dk_moneyline_american && `${book.away_team} ${formatOdds(book.away_dk_moneyline_american)}`,
-          book.home_dk_moneyline_american && `${book.home_team} ${formatOdds(book.home_dk_moneyline_american)}`,
+          book.away_dk_moneyline_american && `${awayTeam} ${formatOdds(book.away_dk_moneyline_american)}`,
+          book.home_dk_moneyline_american && `${homeTeam} ${formatOdds(book.home_dk_moneyline_american)}`,
         ].filter(Boolean),
         spread: [
-          book.away_puck_line && `${book.away_team} ${plusLine(book.away_puck_line)} (${formatOdds(book.away_dk_puck_line_american)})`,
-          book.home_puck_line && `${book.home_team} ${plusLine(book.home_puck_line)} (${formatOdds(book.home_dk_puck_line_american)})`,
+          book.away_puck_line && `${awayTeam} ${plusLine(book.away_puck_line)} (${formatOdds(book.away_dk_puck_line_american)})`,
+          book.home_puck_line && `${homeTeam} ${plusLine(book.home_puck_line)} (${formatOdds(book.home_dk_puck_line_american)})`,
         ].filter(Boolean),
         total: book.total ? `Total ${book.total} O ${formatOdds(book.dk_total_over_american)} / U ${formatOdds(book.dk_total_under_american)}` : "",
         projection: pred.total_projected_goals
-          ? `${book.away_team} ${formatOneDecimal(pred.away_projected_goals)} · ${book.home_team} ${formatOneDecimal(pred.home_projected_goals)} · Total ${formatOneDecimal(pred.total_projected_goals)}`
+          ? `${awayTeam} ${formatOneDecimal(pred.away_projected_goals)} · ${homeTeam} ${formatOneDecimal(pred.home_projected_goals)} · Total ${formatOneDecimal(pred.total_projected_goals)}`
           : "",
       },
       modal: cleanModalRows([
-        ["Date", formatDate(book.game_date)],
-        ["Time", formatTime(book.game_time)],
-        ["Away Win Probability", formatProb(pred.away_prob)],
-        ["Home Win Probability", formatProb(pred.home_prob)],
+        ["Date", formatDate(base.game_date || book.game_date || pred.game_date)],
+        ["Time", formatTime(gameTime)],
+        ["Away Win Probability", formatProb(pred.away_prob_moneyline || pred.away_prob)],
+        ["Home Win Probability", formatProb(pred.home_prob_moneyline || pred.home_prob)],
         ["Away Projected Goals", formatOneDecimal(pred.away_projected_goals)],
         ["Home Projected Goals", formatOneDecimal(pred.home_projected_goals)],
         ["Projected Total Goals", formatOneDecimal(pred.total_projected_goals)],
