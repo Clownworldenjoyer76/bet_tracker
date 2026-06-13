@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+# docs/win/baseball/mlb/scripts/00_intake/scrape_mlb_raw.py
+
 from __future__ import annotations
 
 import csv
@@ -16,7 +19,7 @@ SCHEDULE_URL = (
 LIVE_URL = "https://statsapi.mlb.com/api/v1.1/game/{game_pk}/feed/live"
 LINEUP_URL = "https://statsapi.mlb.com/api/v1/game/{game_pk}/lineups"
 
-OUTPUT_DIR = Path("docs/win/baseball/00_intake/mlb_raw")
+OUTPUT_DIR = Path("docs/win/baseball/mlb/00_intake/mlb_raw")
 
 CSV_HEADERS = [
     "gamePk",
@@ -66,10 +69,12 @@ def fetch_json(url: str) -> dict:
 
 def safe_get(mapping: dict, *keys, default=""):
     current = mapping
+
     for key in keys:
         if not isinstance(current, dict) or key not in current or current[key] is None:
             return default
         current = current[key]
+
     return current
 
 
@@ -102,14 +107,26 @@ def build_row(game: dict, live: dict) -> dict:
     # Fall back to boxscore battingOrder if lineups endpoint is empty
     if not home_lineup:
         home_lineup = safe_get(
-            live, "liveData", "boxscore", "teams", "home", "battingOrder", default=[]
+            live,
+            "liveData",
+            "boxscore",
+            "teams",
+            "home",
+            "battingOrder",
+            default=[],
         )
         if not isinstance(home_lineup, list):
             home_lineup = []
 
     if not away_lineup:
         away_lineup = safe_get(
-            live, "liveData", "boxscore", "teams", "away", "battingOrder", default=[]
+            live,
+            "liveData",
+            "boxscore",
+            "teams",
+            "away",
+            "battingOrder",
+            default=[],
         )
         if not isinstance(away_lineup, list):
             away_lineup = []
@@ -152,6 +169,7 @@ def load_existing_rows(out_path: Path) -> dict:
     """Return existing rows as a dict keyed by gamePk string."""
     if not out_path.exists():
         return {}
+
     with out_path.open("r", newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         return {row["gamePk"]: row for row in reader}
@@ -160,9 +178,11 @@ def load_existing_rows(out_path: Path) -> dict:
 def merge_row(existing: dict, new: dict) -> dict:
     """Update existing row with non-empty values from new row."""
     merged = dict(existing)
+
     for key, value in new.items():
         if value != "":
             merged[key] = value
+
     return merged
 
 
@@ -179,12 +199,15 @@ def main() -> int:
     games = dates[0].get("games", []) if dates else []
 
     rows_written = 0
+
     for game in games:
         detailed_state = safe_get(game, "status", "detailedState")
+
         if detailed_state not in {"Pre-Game", "Scheduled"}:
             continue
 
         game_pk = str(safe_get(game, "gamePk"))
+
         if not game_pk:
             continue
 
@@ -206,6 +229,7 @@ def main() -> int:
 
     print(out_path.as_posix())
     print(f"rows_written={rows_written}")
+
     return 0
 
 
