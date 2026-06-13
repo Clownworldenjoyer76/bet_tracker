@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-# docs/win/baseball/scripts/05_final_scores/normalize_mlb_results.py
+# docs/win/baseball/mlb/scripts/05_final_scores/normalize_mlb_results.py
 
 from pathlib import Path
 from datetime import datetime, UTC
 import pandas as pd
 
-FINAL_SCORES_DIR = Path("docs/win/baseball/05_final_scores/results/final_scores")
-GAMES_DIR = Path("docs/win/baseball/00_intake/games")
+FINAL_SCORES_DIR = Path("docs/win/baseball/mlb/05_final_scores/results/final_scores")
+GAMES_DIR = Path("docs/win/baseball/mlb/00_intake/games")
 PATTERN = "*_final_scores_MLB.csv"
 
-ERROR_DIR = Path("docs/win/baseball/05_final_scores/errors")
+ERROR_DIR = Path("docs/win/baseball/mlb/05_final_scores/errors")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 LOG_FILE = ERROR_DIR / "normalize_results_log.txt"

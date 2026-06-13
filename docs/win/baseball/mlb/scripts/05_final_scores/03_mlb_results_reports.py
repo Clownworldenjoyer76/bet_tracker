@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# docs/win/baseball/scripts/05_final_scores/03_mlb_results_reports.py
+# docs/win/baseball/mlb/scripts/05_final_scores/03_mlb_results_reports.py
 
 import shutil
 import pandas as pd
@@ -9,14 +9,14 @@ from pathlib import Path
 ######################## PATH CONFIG ##########################
 ###############################################################
 
-INPUT_FILE = Path("docs/win/baseball/05_final_scores/intermediate/work_mlb.csv")
+INPUT_FILE = Path("docs/win/baseball/mlb/05_final_scores/intermediate/work_mlb.csv")
 
-SUMMARY_DIR  = Path("docs/win/baseball/05_final_scores")
-REPORTS_DIR  = Path("docs/win/baseball/05_final_scores/reports")
-OVERVIEW_DIR = Path("docs/win/baseball/05_final_scores/reports/overview")
-ML_DIR       = Path("docs/win/baseball/05_final_scores/reports/moneyline")
-RL_DIR       = Path("docs/win/baseball/05_final_scores/reports/run_line")
-TOT_DIR      = Path("docs/win/baseball/05_final_scores/reports/totals")
+SUMMARY_DIR  = Path("docs/win/baseball/mlb/05_final_scores")
+REPORTS_DIR  = Path("docs/win/baseball/mlb/05_final_scores/reports")
+OVERVIEW_DIR = Path("docs/win/baseball/mlb/05_final_scores/reports/overview")
+ML_DIR       = Path("docs/win/baseball/mlb/05_final_scores/reports/moneyline")
+RL_DIR       = Path("docs/win/baseball/mlb/05_final_scores/reports/run_line")
+TOT_DIR      = Path("docs/win/baseball/mlb/05_final_scores/reports/totals")
 
 for d in [SUMMARY_DIR, OVERVIEW_DIR, ML_DIR, RL_DIR, TOT_DIR]:
     d.mkdir(parents=True, exist_ok=True)

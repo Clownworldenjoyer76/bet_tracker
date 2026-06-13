@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# docs/win/baseball/scripts/05_final_scores/build_mlb_final_scores.py
+# docs/win/baseball/mlb/scripts/05_final_scores/build_mlb_final_scores.py
 
 import csv
 import json
@@ -7,17 +7,17 @@ import traceback
 from datetime import datetime, UTC
 from pathlib import Path
 
-ERROR_DIR = Path("docs/win/baseball/errors/05_final_scores")
+ERROR_DIR = Path("docs/win/baseball/mlb/errors/05_final_scores")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE = ERROR_DIR / "build_mlb_final_scores.txt"
 
-RAW_DIR = Path("docs/win/baseball/00_intake/drat_raw")
-GAMES_DIR = Path("docs/win/baseball/00_intake/games")
-PRED_DIR = Path("docs/win/baseball/00_intake/predictions/pred_with_game_id")
-SPORTSBOOK_DIR = Path("docs/win/baseball/00_intake/sportsbook")
-SELECT_DIR = Path("docs/win/baseball/04_select")
-FINAL_DIR = Path("docs/win/baseball/05_final_scores/results/final_scores")
-AUDIT_DIR = Path("docs/win/baseball/05_final_scores/results/audit")
+RAW_DIR = Path("docs/win/baseball/mlb/00_intake/drat_raw")
+GAMES_DIR = Path("docs/win/baseball/mlb/00_intake/games")
+PRED_DIR = Path("docs/win/baseball/mlb/00_intake/predictions/pred_with_game_id")
+SPORTSBOOK_DIR = Path("docs/win/baseball/mlb/00_intake/sportsbook")
+SELECT_DIR = Path("docs/win/baseball/mlb/04_select")
+FINAL_DIR = Path("docs/win/baseball/mlb/05_final_scores/results/final_scores")
+AUDIT_DIR = Path("docs/win/baseball/mlb/05_final_scores/results/audit")
 
 FINAL_DIR.mkdir(parents=True, exist_ok=True)
 AUDIT_DIR.mkdir(parents=True, exist_ok=True)

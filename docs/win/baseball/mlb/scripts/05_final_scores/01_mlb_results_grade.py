@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# docs/win/baseball/scripts/05_final_scores/01_mlb_results_grade.py
+# docs/win/baseball/mlb/scripts/05_final_scores/01_mlb_results_grade.py
 
 from datetime import datetime, UTC
 from pathlib import Path
@@ -8,13 +8,13 @@ import sys
 
 import pandas as pd
 
-SELECT_DIR = Path("docs/win/baseball/04_select")
-SCORE_DIR = Path("docs/win/baseball/05_final_scores/results/final_scores")
+SELECT_DIR = Path("docs/win/baseball/mlb/04_select")
+SCORE_DIR = Path("docs/win/baseball/mlb/05_final_scores/results/final_scores")
 OUTPUT_DIR = Path("docs/win/baseball/05_final_scores/results/graded")
 DAILY_DIR = OUTPUT_DIR / "daily"
-UNMATCHED_DIR = Path("docs/win/baseball/05_final_scores/results/unmatched")
-AUDIT_DIR = Path("docs/win/baseball/05_final_scores/results/audit")
-ERROR_DIR = Path("docs/win/baseball/errors/05_final_scores")
+UNMATCHED_DIR = Path("docs/win/baseball/mlb/05_final_scores/results/unmatched")
+AUDIT_DIR = Path("docs/win/baseball/mlb/05_final_scores/results/audit")
+ERROR_DIR = Path("docs/win/baseball/mlb/errors/05_final_scores")
 
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)

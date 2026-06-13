@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-# docs/win/baseball/scripts/05_final_scores/normalize_final_score_mlb_names.py
+# docs/win/baseball/mlb/scripts/05_final_scores/normalize_final_score_mlb_names.py
 #
 # Normalizes MLB final-score team names.
 #
 # Master mapping file:
-#   mappings/baseball/team_map_mlb.csv
+#   mappings/baseball/mlb/team_map_mlb.csv
 #
 # Expected map columns:
 #   league,team_id,alias,canonical_team
@@ -23,7 +23,7 @@ import sys
 import traceback
 import pandas as pd
 
-BASE = Path("docs/win/baseball/05_final_scores/results/final_scores")
+BASE = Path("docs/win/baseball/mlb/05_final_scores/results/final_scores")
 
 INPUT_DIR = BASE
 PATTERN = "*_final_scores_MLB.csv"
@@ -32,7 +32,7 @@ MAP_FILE = Path("mappings/baseball/team_map_mlb.csv")
 MAP_FILTER_COL = "league"
 MAP_FILTER_VAL = "mlb"
 
-ERROR_DIR = Path("docs/win/baseball/05_final_scores/errors")
+ERROR_DIR = Path("docs/win/baseball/mlb/05_final_scores/errors")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 LOG_FILE = ERROR_DIR / "team_normalization_log.txt"

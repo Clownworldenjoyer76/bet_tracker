@@ -1,11 +1,11 @@
-# docs/win/baseball/scripts/05_final_scores/02_mlb_results_analyze.py
+# docs/win/baseball/scripts/mlb/05_final_scores/02_mlb_results_analyze.py
 #!/usr/bin/env python3
 
 import pandas as pd
 from pathlib import Path
 
-MLB_INPUT  = Path("docs/win/baseball/05_final_scores/results/graded/MLB_final.csv")
-OUTPUT_DIR = Path("docs/win/baseball/05_final_scores/intermediate")
+MLB_INPUT  = Path("docs/win/baseball/mlb/05_final_scores/results/graded/MLB_final.csv")
+OUTPUT_DIR = Path("docs/win/baseball/mlb/05_final_scores/intermediate")
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
