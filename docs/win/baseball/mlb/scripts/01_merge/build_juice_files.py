@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-# docs/win/baseball/scripts/01_merge/build_juice_files.py
-
+# docs/win/baseball/mlb/scripts/01_merge/build_juice_files.py
 import glob
 import math
 import sys
@@ -11,11 +10,11 @@ from datetime import datetime, UTC
 import pandas as pd
 from scipy.stats import poisson, skellam
 
-INPUT_DIR = Path("docs/win/baseball/01_merge")
+INPUT_DIR = Path("docs/win/baseball/mlb/01_merge")
 OUTPUT_DIR = INPUT_DIR / "01_merguiced"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-ERROR_DIR = Path("docs/win/baseball/errors/01_merge")
+ERROR_DIR = Path("docs/win/baseball/mlb/errors/01_merge")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE = ERROR_DIR / "build_juice_files.txt"
 
