@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# docs/win/baseball/scripts/00_intake/name_normalization.py
+# docs/win/baseball/mlb/scripts/00_intake/name_normalization.py
 #
 # Normalizes MLB team names in sportsbook and prediction CSVs.
 #
@@ -12,7 +12,7 @@
 # Behavior:
 #   - Rewrites home_team / away_team to canonical_team.
 #   - Requires team_id in the map.
-#   - Writes unmapped teams to mappings/baseball/no_map/no_map_mlb.csv.
+#   - Writes unmapped teams to docs/win/baseball/mlb/mappings/no_map/no_map_mlb.csv.
 #   - Hard fails if the map is missing, malformed, ambiguous, or if any teams are unmapped.
 
 import csv
@@ -25,16 +25,16 @@ from datetime import datetime, timezone
 # PATHS
 # =========================
 
-SPORTSBOOK_DIR = Path("docs/win/baseball/00_intake/sportsbook")
-PREDICTIONS_DIR = Path("docs/win/baseball/00_intake/predictions")
+SPORTSBOOK_DIR = Path("docs/win/baseball/mlb/00_intake/sportsbook")
+PREDICTIONS_DIR = Path("docs/win/baseball/mlb/00_intake/predictions")
 
 MAP_FILE = Path("mappings/baseball/team_map_mlb.csv")
 
-NO_MAP_DIR = Path("mappings/baseball/no_map")
+NO_MAP_DIR = Path("docs/win/baseball/mlb/mappings/no_map")
 NO_MAP_DIR.mkdir(parents=True, exist_ok=True)
 NO_MAP_FILE = NO_MAP_DIR / "no_map_mlb.csv"
 
-ERROR_DIR = Path("docs/win/baseball/errors/00_intake")
+ERROR_DIR = Path("docs/win/baseball/mlb/errors/00_intake")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE = ERROR_DIR / "name_normalization.txt"
 
