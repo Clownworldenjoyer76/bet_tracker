@@ -59,8 +59,8 @@ jobs:
 
       - name: Create output directories
         run: |
-          mkdir -p docs/win/baseball/odds/updates/
-          mkdir -p docs/win/baseball/odds/latest/
+          mkdir -p docs/win/baseball/mlb/odds/updates/
+          mkdir -p docs/win/baseball/mlb/odds/latest/
 
           mkdir -p docs/win/baseball/mlb/config/
 
@@ -97,7 +97,7 @@ jobs:
           mkdir -p docs/win/baseball/mlb/errors/04_select/
 
       - name: MLB Updated Odds Pull
-        run: python docs/win/baseball/scripts/00_parsing/odds_mlb_update.py
+        run: python docs/win/baseball/mlb/scripts/00_parsing/odds_mlb_update.py
 
       - name: Baseball Alt Odds Parse
         run: python docs/win/baseball/mlb/scripts/00_intake/odds_parse.py docs/win/baseball/odds/latest/${DATE}.json
@@ -207,8 +207,8 @@ jobs:
           name: baseball-alt-full-update-diagnostics-${{ env.DATE }}
           if-no-files-found: ignore
           path: |
-            docs/win/baseball/odds/updates/**
-            docs/win/baseball/odds/latest/**
+            docs/win/baseball/mlb/odds/updates/**
+            docs/win/baseball/mlb/odds/latest/**
             docs/win/baseball/mlb/config/**
             docs/win/baseball/mlb/errors/**
             docs/win/baseball/mlb/00_intake/predictions/pred_with_game_id/rejections/**
@@ -231,8 +231,8 @@ jobs:
 
           git status --short
 
-          git add docs/win/baseball/odds/updates/
-          git add docs/win/baseball/odds/latest/
+          git add docs/win/baseball/mlb/odds/updates/
+          git add docs/win/baseball/mlb/odds/latest/
           git add docs/win/baseball/mlb/
 
           git status --short
