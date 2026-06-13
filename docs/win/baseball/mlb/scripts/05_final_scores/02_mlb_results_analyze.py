@@ -1,5 +1,5 @@
-# docs/win/baseball/scripts/mlb/05_final_scores/02_mlb_results_analyze.py
 #!/usr/bin/env python3
+# docs/win/baseball/mlb/scripts/05_final_scores/02_mlb_results_analyze.py
 
 import pandas as pd
 from pathlib import Path
@@ -43,6 +43,10 @@ def build_side_group(row):
     return ""
 
 
+def build_odds_value(row):
+    return to_float(row.get("dk_odds_american"))
+
+
 def build_moneyline_odds_value(row):
     if str(row.get("market_type", "")).strip().lower() != "moneyline":
         return pd.NA
@@ -51,10 +55,12 @@ def build_moneyline_odds_value(row):
 
 def build_run_line_value(row):
     side_group = str(row.get("side_group", "")).strip().upper()
+
     if side_group == "HOME":
         return to_float(row.get("home_run_line"))
     if side_group == "AWAY":
         return to_float(row.get("away_run_line"))
+
     return pd.NA
 
 
@@ -63,10 +69,11 @@ def build_total_value(row):
 
 
 def build_day_night(row):
-    """Return 'Day', 'Night', or '' based on game_time (12hr or 24hr format)."""
     raw = str(row.get("game_time", "")).strip()
+
     if not raw:
         return ""
+
     try:
         for fmt in ("%I:%M %p", "%H:%M", "%I:%M%p", "%H:%M:%S"):
             try:
@@ -77,6 +84,7 @@ def build_day_night(row):
                 continue
     except Exception:
         pass
+
     return ""
 
 
@@ -86,6 +94,7 @@ def build_day_night(row):
 
 def ev_bucket(value):
     value = to_float(value)
+
     if pd.isna(value):
         return "UNBUCKETED"
     if value < 0:
@@ -104,11 +113,13 @@ def ev_bucket(value):
         return "0.05_to_0.0749"
     if value < 0.10:
         return "0.075_to_0.0999"
+
     return "0.10_plus"
 
 
 def odds_bucket(value):
     value = to_float(value)
+
     if pd.isna(value):
         return "UNBUCKETED"
     if value <= -200:
@@ -129,14 +140,18 @@ def odds_bucket(value):
         return "plus_126_to_plus_150"
     if value <= 200:
         return "plus_151_to_plus_200"
+
     return "plus_201_or_higher"
 
 
 def run_line_bucket(value):
     value = to_float(value)
+
     if pd.isna(value):
         return "UNBUCKETED"
+
     abs_val = abs(float(value))
+
     if abs_val < 1:  return "0.0_to_0.9"
     if abs_val < 2:  return "1.0_to_1.9"
     if abs_val < 3:  return "2.0_to_2.9"
@@ -149,19 +164,23 @@ def run_line_bucket(value):
     if abs_val < 10: return "9.0_to_9.9"
     if abs_val < 12: return "10.0_to_11.9"
     if abs_val < 15: return "12.0_to_14.9"
+
     return "15.0_plus"
 
 
 def total_bucket(value):
     value = to_float(value)
+
     if pd.isna(value):
         return "UNBUCKETED"
+
     start = int(float(value) // 5) * 5
     return f"{start}_to_{start + 4.9:.1f}"
 
 
 def kelly_bucket(value):
     value = to_float(value)
+
     if pd.isna(value):
         return "UNBUCKETED"
     if value <= 0:
@@ -180,42 +199,52 @@ def kelly_bucket(value):
         return "0.10_to_0.1499"
     if value < 0.20:
         return "0.15_to_0.1999"
+
     return "0.20_plus"
 
 
 def model_prob_bucket(value):
     value = to_float(value)
+
     if pd.isna(value):
         return "UNBUCKETED"
+
     pct = float(value) * 100 if float(value) <= 1.0 else float(value)
-    if pct < 50:   return "<50"
-    if pct < 55:   return "50_to_54.9"
-    if pct < 60:   return "55_to_59.9"
-    if pct < 65:   return "60_to_64.9"
-    if pct < 70:   return "65_to_69.9"
-    if pct < 75:   return "70_to_74.9"
-    if pct < 80:   return "75_to_79.9"
+
+    if pct < 50: return "<50"
+    if pct < 55: return "50_to_54.9"
+    if pct < 60: return "55_to_59.9"
+    if pct < 65: return "60_to_64.9"
+    if pct < 70: return "65_to_69.9"
+    if pct < 75: return "70_to_74.9"
+    if pct < 80: return "75_to_79.9"
+
     return "80_plus"
 
 
 def total_range_bucket(value):
     value = to_float(value)
+
     if pd.isna(value):
         return "UNBUCKETED"
+
     import math
     floor = math.floor(float(value) * 2) / 2
     hi = floor + 0.5
+
     return f"{floor:.1f}_to_{hi:.1f}"
 
 
 def run_line_side_bucket(value):
     value = to_float(value)
+
     if pd.isna(value):
         return "UNBUCKETED"
     if value > 0:
         return "+1.5"
     if value < 0:
         return "-1.5"
+
     return "0"
 
 
@@ -226,14 +255,13 @@ def run_line_side_bucket(value):
 def prepare(df):
     work = df.copy()
 
-    # Standardize core text fields
     work["market_type"] = work["market_type"].astype(str).str.strip().str.lower()
     work["bet_side"]    = work["bet_side"].astype(str).str.strip().str.lower()
     work["bet_result"]  = work["bet_result"].astype(str).str.strip().str.title()
 
-    # Derived fields
     work["side_group"]           = work.apply(build_side_group, axis=1)
     work["ev_value"]             = work["ev"].apply(to_float)
+    work["odds_value"]           = work.apply(build_odds_value, axis=1)
     work["moneyline_odds_value"] = work.apply(build_moneyline_odds_value, axis=1)
     work["run_line_value"]       = work.apply(build_run_line_value, axis=1)
     work["total_value"]          = work.apply(build_total_value, axis=1)
@@ -241,15 +269,16 @@ def prepare(df):
     work["model_prob_value"]     = work["model_prob"].apply(to_float)
     work["day_night"]            = work.apply(build_day_night, axis=1)
 
-    # low_confidence: normalize to boolean-style string for consistency
     work["low_confidence"] = (
-        work["low_confidence"].astype(str).str.strip().str.lower()
+        work["low_confidence"]
+        .astype(str)
+        .str.strip()
+        .str.lower()
         .map(lambda x: "True" if x in {"true", "1", "yes"} else ("False" if x in {"false", "0", "no"} else ""))
     )
 
-    # Bucket columns
     work["ev_bucket"]            = work["ev_value"].apply(ev_bucket)
-    work["odds_bucket"]          = work["moneyline_odds_value"].apply(odds_bucket)
+    work["odds_bucket"]          = work["odds_value"].apply(odds_bucket)
     work["run_line_bucket"]      = work["run_line_value"].apply(run_line_bucket)
     work["total_bucket"]         = work["total_value"].apply(total_bucket)
     work["kelly_bucket"]         = work["kelly_value"].apply(kelly_bucket)
@@ -272,8 +301,10 @@ def run():
 
     mlb = pd.read_csv(MLB_INPUT, dtype=str)
     mlb = prepare(mlb)
+
     out = OUTPUT_DIR / "work_mlb.csv"
     mlb.to_csv(out, index=False)
+
     print(f"MLB analyze complete. Rows={len(mlb)} | Out={out}")
 
 
