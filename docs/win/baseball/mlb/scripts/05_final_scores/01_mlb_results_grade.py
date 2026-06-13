@@ -10,7 +10,7 @@ import pandas as pd
 
 SELECT_DIR = Path("docs/win/baseball/mlb/04_select")
 SCORE_DIR = Path("docs/win/baseball/mlb/05_final_scores/results/final_scores")
-OUTPUT_DIR = Path("docs/win/baseball/05_final_scores/results/graded")
+OUTPUT_DIR = Path("docs/win/baseball/mlb/05_final_scores/results/graded")
 DAILY_DIR = OUTPUT_DIR / "daily"
 UNMATCHED_DIR = Path("docs/win/baseball/mlb/05_final_scores/results/unmatched")
 AUDIT_DIR = Path("docs/win/baseball/mlb/05_final_scores/results/audit")
