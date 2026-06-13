@@ -3,6 +3,9 @@
 
   Use enabled:false to deactivate a league without deleting its path.
   Example: Soccer is currently disabled.
+
+  NHL graded history is date-based. docs/js/bet-history/app.js must support
+  datePattern sources for this file to load NHL history.
 */
 
 var SOURCES = [
@@ -27,7 +30,10 @@ var SOURCES = [
     enabled: true
   },
   {
-    url: BASE + 'docs/win/final_scores/results/nhl/graded/NHL_final.csv',
+    datePattern: function(date) {
+      return BASE + 'docs/win/hockey/nhl/05_final_scores/graded/' + date + '_results_NHL.csv';
+    },
+    startDate: '2025_10_01',
     label: 'NHL',
     enabled: true
   },
