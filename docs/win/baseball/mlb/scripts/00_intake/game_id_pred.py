@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
-# docs/win/baseball/scripts/00_intake/game_id_pred.py
+# docs/win/baseball/mlb/scripts/00_intake/game_id_pred.py
 #
 # Injects game_id into prediction files using:
-#   docs/win/baseball/00_intake/games/{date}_games.csv
+#   docs/win/baseball/mlb/00_intake/games/{date}_games.csv
 #
 # Input:
-#   docs/win/baseball/00_intake/predictions/{date}_MLB.csv
-#   docs/win/baseball/00_intake/games/{date}_games.csv
-#   docs/win/baseball/00_intake/sportsbook/{date}_MLB.csv
+#   docs/win/baseball/mlb/00_intake/predictions/{date}_MLB.csv
+#   docs/win/baseball/mlb/00_intake/games/{date}_games.csv
+#   docs/win/baseball/mlb/00_intake/sportsbook/{date}_MLB.csv
 #
 # Output:
-#   docs/win/baseball/00_intake/predictions/pred_with_game_id/{date}_MLB.csv
+#   docs/win/baseball/mlb/00_intake/predictions/pred_with_game_id/{date}_MLB.csv
 #
 # Rejections:
-#   docs/win/baseball/00_intake/predictions/pred_with_game_id/rejections/{date}_unmatched_predictions.csv
+#   docs/win/baseball/mlb/00_intake/predictions/pred_with_game_id/rejections/{date}_unmatched_predictions.csv
 #
 # Matching rules:
 #   1. A prediction row must have a matching sportsbook row to be eligible for game_id assignment.
@@ -45,16 +45,16 @@ import os
 import re
 import sys
 import traceback
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 
 
-PRED_DIR = Path("docs/win/baseball/00_intake/predictions")
-GAMES_DIR = Path("docs/win/baseball/00_intake/games")
-BOOK_DIR = Path("docs/win/baseball/00_intake/sportsbook")
+PRED_DIR = Path("docs/win/baseball/mlb/00_intake/predictions")
+GAMES_DIR = Path("docs/win/baseball/mlb/00_intake/games")
+BOOK_DIR = Path("docs/win/baseball/mlb/00_intake/sportsbook")
 OUT_DIR = PRED_DIR / "pred_with_game_id"
 REJECTION_DIR = OUT_DIR / "rejections"
-ERROR_DIR = Path("docs/win/baseball/errors/00_intake")
+ERROR_DIR = Path("docs/win/baseball/mlb/errors/00_intake")
 
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 REJECTION_DIR.mkdir(parents=True, exist_ok=True)
