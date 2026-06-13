@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# docs/win/baseball/scripts/00_intake/build_games_list.py
+# docs/win/baseball/mlb/scripts/00_intake/build_games_list.py
 #
 # Runs after scrape_mlb_raw.py and odds_parse.py.
 # Joins mlb_raw to sportsbook to produce an authoritative {date}_games.csv.
@@ -20,11 +20,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-MLB_RAW_DIR  = Path("docs/win/baseball/00_intake/mlb_raw")
-BOOK_DIR     = Path("docs/win/baseball/00_intake/sportsbook")
+MLB_RAW_DIR  = Path("docs/win/baseball/mlb/00_intake/mlb_raw")
+BOOK_DIR     = Path("docs/win/baseball/mlb/00_intake/sportsbook")
 MAPS_DIR     = Path("docs/win/baseball/maps")
-OUT_DIR      = Path("docs/win/baseball/00_intake/games")
-ERROR_DIR    = Path("docs/win/baseball/errors/00_intake")
+OUT_DIR      = Path("docs/win/baseball/mlb/00_intake/games")
+ERROR_DIR    = Path("docs/win/baseball/mlb/errors/00_intake")
 
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
