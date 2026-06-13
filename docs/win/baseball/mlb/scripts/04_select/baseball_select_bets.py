@@ -9,7 +9,7 @@ import yaml
 
 INPUT_DIR = Path("docs/win/baseball/mlb/03_edges/ev_kelly")
 OUTPUT_DIR = Path("docs/win/baseball/mlb/04_select")
-CONFIG_PATH = Path("docs/win/baseball/config/markets.yaml")
+CONFIG_PATH = Path("docs/win/baseball/mlb/config/markets.yaml")
 
 AUDIT_DIR = OUTPUT_DIR / "audit"
 ERROR_DIR = Path("docs/win/baseball/mlb/errors/04_select")
