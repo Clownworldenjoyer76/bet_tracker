@@ -1,0 +1,52 @@
+name: Update MLB Odds
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  odds_mlb_update:
+    runs-on: ubuntu-latest
+
+    env:
+      API_ODDS: ${{ secrets.API_ODDS }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+
+      - name: Create MLB odds update output folders
+        run: |
+          mkdir -p docs/win/baseball/odds/updates
+          mkdir -p docs/win/baseball/odds/latest
+
+      - name: Run MLB updated odds pull
+        run: |
+          python docs/win/baseball/scripts/00_parsing/odds_mlb_update.py
+
+      - name: Commit MLB updated odds outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add docs/win/baseball/odds/updates/
+          git add docs/win/baseball/odds/latest/
+
+          if git diff --cached --quiet; then
+            echo "No MLB updated odds changes to commit."
+          else
+            git commit -m "Update MLB odds snapshot"
+            git push
+          fi
