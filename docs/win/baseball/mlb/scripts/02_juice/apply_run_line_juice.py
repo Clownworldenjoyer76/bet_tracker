@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# docs/win/baseball/scripts/02_juice/apply_run_line_juice.py
+# docs/win/baseball/mlb/scripts/02_juice/apply_run_line_juice.py
 
 import glob
 import math
@@ -10,13 +10,13 @@ from pathlib import Path
 
 import pandas as pd
 
-INPUT_DIR = Path("docs/win/baseball/01_merge/01_merguiced")
+INPUT_DIR = Path("docs/win/baseball/mlb/01_merge/01_merguiced")
 SOURCE_MERGE_DIR = INPUT_DIR.parent
-OUTPUT_DIR = Path("docs/win/baseball/02_juice")
+OUTPUT_DIR = Path("docs/win/baseball/mlb/02_juice")
 AUDIT_DIR = OUTPUT_DIR / "audit"
 JUICE_FILE = Path("config/baseball/mlb/mlb_run_line_juice.csv")
 
-ERROR_DIR = Path("docs/win/baseball/errors/02_juice")
+ERROR_DIR = Path("docs/win/baseball/mlb/errors/02_juice")
 LOG_FILE = ERROR_DIR / "apply_run_line_juice.txt"
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
