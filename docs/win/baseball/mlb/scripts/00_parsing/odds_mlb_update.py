@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# docs/win/baseball/scripts/00_parsing/odds_mlb_update.py
+# docs/win/baseball/mlb/scripts/00_parsing/odds_mlb_update.py
 
 import json
 import os
@@ -25,7 +25,7 @@ now_utc = datetime.now(timezone.utc)
 today = now_utc.strftime("%Y_%m_%d")
 stamp = now_utc.strftime("%Y_%m_%d_%H%M")
 
-ODDS_DIR = Path("docs/win/baseball/odds")
+ODDS_DIR = Path("docs/win/baseball/mlb/odds")
 ORIGINAL_PATH = ODDS_DIR / f"{today}.json"
 UPDATES_DIR = ODDS_DIR / "updates"
 LATEST_DIR = ODDS_DIR / "latest"
