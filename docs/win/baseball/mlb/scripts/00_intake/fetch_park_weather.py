@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-# docs/win/baseball/scripts/00_intake/fetch_park_weather.py
+# docs/win/baseball/mlb/scripts/00_intake/fetch_park_weather.py
 #
-# Reads docs/win/baseball/00_intake/games/{date}_games.csv
+# Reads docs/win/baseball/mlb/00_intake/games/{date}_games.csv
 # Reads docs/win/baseball/maps/mlb_venue_ids.csv
 # Calls MET Norway Locationforecast /complete for each outdoor game location
 # Writes raw selected MET Norway API fields to:
-# docs/win/baseball/data/weather/metno_raw/{date}_metno_raw.csv
+# docs/win/baseball/mlb/data/weather/metno_raw/{date}_metno_raw.csv
 #
 # Only processes games files dated today or in the future.
 
@@ -23,9 +23,9 @@ import requests
 # PATHS
 # ─────────────────────────────────────────────
 
-BASE_DIR = Path("docs/win/baseball")
+BASE_DIR = Path("docs/win/baseball/mlb")
 GAMES_DIR = BASE_DIR / "00_intake/games"
-MAPS_DIR = BASE_DIR / "maps"
+MAPS_DIR = Path("docs/win/baseball/maps")
 WEATHER_DIR = BASE_DIR / "data/weather"
 RAW_OUT_DIR = WEATHER_DIR / "metno_raw"
 ERROR_DIR = BASE_DIR / "errors/00_intake"
@@ -437,8 +437,8 @@ def process_date(date_str: str, venue_map: dict, summary: dict) -> None:
                 status = getattr(e.response, "status_code", "")
                 _log(f"{game_pk} | MET Norway HTTP error status={status}", "ERROR")
                 summary["errors"] += 1
-            except Exception as e:
-                _log(f"{game_pk} | MET Norway fetch/parse failed: {type(e).__name__}", "ERROR")
+            except Exception:
+                _log(f"{game_pk} | MET Norway fetch/parse failed", "ERROR")
                 summary["errors"] += 1
 
         rows.append(
