@@ -15,7 +15,7 @@ from zoneinfo import ZoneInfo
 if len(sys.argv) > 1:
     INPUT_PATH = Path(sys.argv[1])
 else:
-    INPUT_PATH = Path("docs/win/baseball/odds/latest")
+    INPUT_PATH = Path("docs/win/baseball/mlb/odds/latest")
 
 if not INPUT_PATH.exists():
     raise FileNotFoundError(f"Input path does not exist: {INPUT_PATH}")
