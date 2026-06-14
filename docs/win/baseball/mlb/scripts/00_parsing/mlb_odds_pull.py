@@ -22,9 +22,12 @@ PRIMARY_BOOKMAKER = "DraftKings"
 FALLBACK_BOOKMAKER = "FanDuel"
 BOOKMAKERS = [PRIMARY_BOOKMAKER, FALLBACK_BOOKMAKER]
 
-TARGET_UTC_DATE = datetime.now(timezone.utc).date()
+EVENT_STATUS = "pending"
+
+NOW_UTC = datetime.now(timezone.utc)
+TARGET_UTC_DATE = NOW_UTC.date()
 today = TARGET_UTC_DATE.strftime("%Y_%m_%d")
-path = f"docs/win/baseball/mlb/odds/{today}.json"
+path = Path(f"docs/win/baseball/mlb/odds/{today}.json")
 
 
 def get_json(endpoint, params):
@@ -42,19 +45,41 @@ def get_json(endpoint, params):
     return response.json()
 
 
-def parse_event_utc_date(value):
+def parse_event_utc_datetime(value):
     if not value:
         return None
 
     try:
-        return datetime.fromisoformat(str(value).replace("Z", "+00:00")).astimezone(timezone.utc).date()
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00")).astimezone(timezone.utc)
     except Exception:
         return None
 
 
+def parse_event_utc_date(value):
+    dt = parse_event_utc_datetime(value)
+
+    if dt is None:
+        return None
+
+    return dt.date()
+
+
+def event_commence_value(event):
+    return event.get("date") or event.get("commence_time")
+
+
 def is_target_utc_date(event):
-    event_date = parse_event_utc_date(event.get("date") or event.get("commence_time"))
+    event_date = parse_event_utc_date(event_commence_value(event))
     return event_date == TARGET_UTC_DATE
+
+
+def has_started(event):
+    dt = parse_event_utc_datetime(event_commence_value(event))
+
+    if dt is None:
+        return False
+
+    return dt <= NOW_UTC
 
 
 def fetch_events_for_bookmaker(bookmaker):
@@ -69,7 +94,7 @@ def fetch_events_for_bookmaker(bookmaker):
                 "apiKey": API_KEY,
                 "sport": SPORT,
                 "league": LEAGUE,
-                "status": "pending,live",
+                "status": EVENT_STATUS,
                 "bookmaker": bookmaker,
                 "limit": limit,
                 "skip": skip,
@@ -94,16 +119,22 @@ def fetch_events_for_bookmaker(bookmaker):
 def fetch_events():
     by_id = {}
     counts = {}
-    skipped_future = {}
+    skipped_non_target = {}
+    skipped_started = {}
 
     for bookmaker in BOOKMAKERS:
         events = fetch_events_for_bookmaker(bookmaker)
         counts[bookmaker] = len(events)
-        skipped_future[bookmaker] = 0
+        skipped_non_target[bookmaker] = 0
+        skipped_started[bookmaker] = 0
 
         for event in events:
             if not is_target_utc_date(event):
-                skipped_future[bookmaker] += 1
+                skipped_non_target[bookmaker] += 1
+                continue
+
+            if has_started(event):
+                skipped_started[bookmaker] += 1
                 continue
 
             event_id = event.get("id")
@@ -118,7 +149,7 @@ def fetch_events():
             if bookmaker == PRIMARY_BOOKMAKER:
                 by_id[event_id] = event
 
-    return list(by_id.values()), counts, skipped_future
+    return list(by_id.values()), counts, skipped_non_target, skipped_started
 
 
 def chunks(items, size):
@@ -157,6 +188,9 @@ def fetch_odds(event_ids):
 
         for event in bookmaker_odds:
             if not is_target_utc_date(event):
+                continue
+
+            if has_started(event):
                 continue
 
             event_id = event.get("id")
@@ -215,8 +249,10 @@ def get_bookmaker_markets(event, bookmaker):
 
 def price_normal_score(*prices):
     valid = [p for p in prices if p is not None]
+
     if not valid:
         return 999999.0
+
     return sum(abs(p - 2.0) for p in valid)
 
 
@@ -301,13 +337,13 @@ def select_main_spread_outcomes(outcomes):
         if len(rows) < 2:
             continue
 
-        prices = [to_float(r.get("price")) for r in rows]
+        prices = [to_float(row.get("price")) for row in rows]
         candidates.append(
             (
                 abs(abs_point - 1.5),
                 price_normal_score(*prices),
                 abs_point,
-                rows,
+                rows[:2],
             )
         )
 
@@ -335,14 +371,23 @@ def select_main_total_outcomes(outcomes):
     candidates = []
 
     for point, rows in by_point.items():
-        over_rows = [r for r in rows if str(r.get("name", "")).strip().lower() == "over"]
-        under_rows = [r for r in rows if str(r.get("name", "")).strip().lower() == "under"]
+        over_rows = [
+            row
+            for row in rows
+            if str(row.get("name", "")).strip().lower() == "over"
+        ]
+        under_rows = [
+            row
+            for row in rows
+            if str(row.get("name", "")).strip().lower() == "under"
+        ]
 
         if not over_rows or not under_rows:
             continue
 
         over = over_rows[0]
         under = under_rows[0]
+
         over_price = to_float(over.get("price"))
         under_price = to_float(under.get("price"))
 
@@ -519,6 +564,7 @@ def converted_markets_for_bookmaker(event, bookmaker):
 
     for market in bookmaker_markets:
         converted_market = convert_market(event, market)
+
         if converted_market:
             converted_markets.append(converted_market)
 
@@ -571,10 +617,105 @@ def convert_event(event_by_bookmaker, event_fallback):
     }, selected_bookmaker
 
 
-events, event_counts, skipped_future_counts = fetch_events()
+def read_json_list(input_path):
+    if not input_path.exists():
+        return []
+
+    try:
+        with open(input_path, "r", encoding="utf-8") as f:
+            loaded = json.load(f)
+    except json.JSONDecodeError:
+        print(f"Invalid JSON in existing file: {input_path}")
+        raise SystemExit(1)
+
+    if not isinstance(loaded, list):
+        print(f"Expected JSON list in existing file: {input_path}")
+        raise SystemExit(1)
+
+    return loaded
+
+
+def event_id(event):
+    value = event.get("id")
+
+    if value is None:
+        return None
+
+    value = str(value).strip()
+
+    if not value:
+        return None
+
+    return value
+
+
+def filter_target_date_events(events):
+    filtered = []
+
+    for event in events:
+        if isinstance(event, dict) and is_target_utc_date(event):
+            filtered.append(event)
+
+    return filtered
+
+
+def sort_events(events):
+    return sorted(
+        events,
+        key=lambda event: (
+            event.get("commence_time", ""),
+            event.get("home_team", ""),
+            event.get("away_team", ""),
+            event.get("id", ""),
+        ),
+    )
+
+
+def merge_with_existing(existing_events, pulled_events):
+    existing_by_id = {}
+    order = []
+
+    for event in filter_target_date_events(existing_events):
+        eid = event_id(event)
+
+        if eid is None:
+            continue
+
+        if eid not in existing_by_id:
+            order.append(eid)
+
+        existing_by_id[eid] = event
+
+    added = 0
+    updated = 0
+    preserved_started = 0
+
+    for event in pulled_events:
+        eid = event_id(event)
+
+        if eid is None:
+            continue
+
+        if eid in existing_by_id and has_started(existing_by_id[eid]):
+            preserved_started += 1
+            continue
+
+        if eid in existing_by_id:
+            updated += 1
+        else:
+            order.append(eid)
+            added += 1
+
+        existing_by_id[eid] = event
+
+    merged = [existing_by_id[eid] for eid in order]
+    return sort_events(merged), updated, added, preserved_started
+
+
+events, event_counts, skipped_non_target_counts, skipped_started_counts = fetch_events()
 
 if not events:
-    print("No MLB events found with DraftKings or FanDuel odds.")
+    print("No pending MLB events found with DraftKings or FanDuel odds.")
     data = []
     source_counts = {
         PRIMARY_BOOKMAKER: 0,
@@ -596,38 +737,44 @@ else:
         FALLBACK_BOOKMAKER: 0,
     }
 
-    for event_id in event_ids:
+    for event_id_value in event_ids:
         converted, source_bookmaker = convert_event(
-            raw_odds_by_id.get(event_id, {}),
-            events_by_id[event_id],
+            raw_odds_by_id.get(event_id_value, {}),
+            events_by_id[event_id_value],
         )
 
         if converted:
             data.append(converted)
             source_counts[source_bookmaker] = source_counts.get(source_bookmaker, 0) + 1
 
-data = sorted(
+data = sort_events(data)
+
+existing_data = read_json_list(path)
+output_data, updated_existing, added_new, preserved_started_existing = merge_with_existing(
+    existing_data,
     data,
-    key=lambda event: (
-        event.get("commence_time", ""),
-        event.get("home_team", ""),
-        event.get("away_team", ""),
-        event.get("id", ""),
-    ),
 )
 
-Path(path).parent.mkdir(parents=True, exist_ok=True)
+path.parent.mkdir(parents=True, exist_ok=True)
 
 with open(path, "w", encoding="utf-8") as f:
-    json.dump(data, f, indent=2)
+    json.dump(output_data, f, indent=2)
 
 print(f"Saved {path}")
 print(f"Target UTC date: {TARGET_UTC_DATE.isoformat()}")
+print(f"API event status: {EVENT_STATUS}")
 print(f"{PRIMARY_BOOKMAKER} events found: {event_counts.get(PRIMARY_BOOKMAKER, 0)}")
 print(f"{FALLBACK_BOOKMAKER} events found: {event_counts.get(FALLBACK_BOOKMAKER, 0)}")
-print(f"{PRIMARY_BOOKMAKER} future/non-target events skipped: {skipped_future_counts.get(PRIMARY_BOOKMAKER, 0)}")
-print(f"{FALLBACK_BOOKMAKER} future/non-target events skipped: {skipped_future_counts.get(FALLBACK_BOOKMAKER, 0)}")
-print(f"Unique target-date events found: {len(events)}")
-print(f"Events with converted odds: {len(data)}")
+print(f"{PRIMARY_BOOKMAKER} future/non-target events skipped: {skipped_non_target_counts.get(PRIMARY_BOOKMAKER, 0)}")
+print(f"{FALLBACK_BOOKMAKER} future/non-target events skipped: {skipped_non_target_counts.get(FALLBACK_BOOKMAKER, 0)}")
+print(f"{PRIMARY_BOOKMAKER} started events skipped: {skipped_started_counts.get(PRIMARY_BOOKMAKER, 0)}")
+print(f"{FALLBACK_BOOKMAKER} started events skipped: {skipped_started_counts.get(FALLBACK_BOOKMAKER, 0)}")
+print(f"Unique pending target-date events found: {len(events)}")
+print(f"Events with converted odds this pull: {len(data)}")
 print(f"Events using {PRIMARY_BOOKMAKER}: {source_counts.get(PRIMARY_BOOKMAKER, 0)}")
 print(f"Events using {FALLBACK_BOOKMAKER}: {source_counts.get(FALLBACK_BOOKMAKER, 0)}")
+print(f"Existing output seed count: {len(existing_data)}")
+print(f"Updated existing not-started events: {updated_existing}")
+print(f"Added new pending events: {added_new}")
+print(f"Preserved existing started events from overwrite: {preserved_started_existing}")
+print(f"Final output event count: {len(output_data)}")

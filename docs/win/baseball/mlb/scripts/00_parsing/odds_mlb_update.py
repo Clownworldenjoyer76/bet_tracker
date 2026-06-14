@@ -24,6 +24,8 @@ PRIMARY_BOOKMAKER = "DraftKings"
 FALLBACK_BOOKMAKER = "FanDuel"
 BOOKMAKERS = [PRIMARY_BOOKMAKER, FALLBACK_BOOKMAKER]
 
+EVENT_STATUS = "pending"
+
 now_utc = datetime.now(timezone.utc)
 TARGET_UTC_DATE = now_utc.date()
 
@@ -54,7 +56,7 @@ def get_json(endpoint, params):
     return response.json()
 
 
-def parse_event_utc_date(value):
+def parse_event_utc_datetime(value):
     if not value:
         return None
 
@@ -62,15 +64,36 @@ def parse_event_utc_date(value):
         return (
             datetime.fromisoformat(str(value).replace("Z", "+00:00"))
             .astimezone(timezone.utc)
-            .date()
         )
     except Exception:
         return None
 
 
+def parse_event_utc_date(value):
+    dt = parse_event_utc_datetime(value)
+
+    if dt is None:
+        return None
+
+    return dt.date()
+
+
+def event_commence_value(event):
+    return event.get("date") or event.get("commence_time")
+
+
 def is_target_utc_date(event):
-    event_date = parse_event_utc_date(event.get("date") or event.get("commence_time"))
+    event_date = parse_event_utc_date(event_commence_value(event))
     return event_date == TARGET_UTC_DATE
+
+
+def has_started(event):
+    dt = parse_event_utc_datetime(event_commence_value(event))
+
+    if dt is None:
+        return False
+
+    return dt <= now_utc
 
 
 def fetch_events_for_bookmaker(bookmaker):
@@ -85,7 +108,7 @@ def fetch_events_for_bookmaker(bookmaker):
                 "apiKey": API_KEY,
                 "sport": SPORT,
                 "league": LEAGUE,
-                "status": "pending,live",
+                "status": EVENT_STATUS,
                 "bookmaker": bookmaker,
                 "limit": limit,
                 "skip": skip,
@@ -111,15 +134,21 @@ def fetch_events():
     by_id = {}
     counts = {}
     skipped_non_target = {}
+    skipped_started = {}
 
     for bookmaker in BOOKMAKERS:
         events = fetch_events_for_bookmaker(bookmaker)
         counts[bookmaker] = len(events)
         skipped_non_target[bookmaker] = 0
+        skipped_started[bookmaker] = 0
 
         for event in events:
             if not is_target_utc_date(event):
                 skipped_non_target[bookmaker] += 1
+                continue
+
+            if has_started(event):
+                skipped_started[bookmaker] += 1
                 continue
 
             event_id = event.get("id")
@@ -134,7 +163,7 @@ def fetch_events():
             if bookmaker == PRIMARY_BOOKMAKER:
                 by_id[event_id] = event
 
-    return list(by_id.values()), counts, skipped_non_target
+    return list(by_id.values()), counts, skipped_non_target, skipped_started
 
 
 def chunks(items, size):
@@ -173,6 +202,9 @@ def fetch_odds(event_ids):
 
         for event in bookmaker_odds:
             if not is_target_utc_date(event):
+                continue
+
+            if has_started(event):
                 continue
 
             event_id = event.get("id")
@@ -728,15 +760,27 @@ def merge_latest(existing_events, pulled_events):
 
     updated_count = 0
     added_count = 0
+    skipped_started_updates = 0
+    skipped_started_adds = 0
 
     for eid in pulled_order:
+        pulled_event = pulled_by_id[eid]
+
+        if eid in existing_by_id and has_started(existing_by_id[eid]):
+            skipped_started_updates += 1
+            continue
+
+        if eid not in existing_by_id and has_started(pulled_event):
+            skipped_started_adds += 1
+            continue
+
         if eid in existing_by_id:
             updated_count += 1
         else:
             existing_order.append(eid)
             added_count += 1
 
-        existing_by_id[eid] = pulled_by_id[eid]
+        existing_by_id[eid] = pulled_event
 
     preserved_count = 0
 
@@ -752,13 +796,20 @@ def merge_latest(existing_events, pulled_events):
     merged.extend(existing_without_id)
     merged.extend(pulled_without_id)
 
-    return sort_events(merged), updated_count, added_count, preserved_count
+    return (
+        sort_events(merged),
+        updated_count,
+        added_count,
+        preserved_count,
+        skipped_started_updates,
+        skipped_started_adds,
+    )
 
 
-events, event_counts, skipped_non_target_counts = fetch_events()
+events, event_counts, skipped_non_target_counts, skipped_started_counts = fetch_events()
 
 if not events:
-    print("No MLB events found with DraftKings or FanDuel odds.")
+    print("No pending MLB events found with DraftKings or FanDuel odds.")
     pulled_data = []
     source_counts = {
         PRIMARY_BOOKMAKER: 0,
@@ -794,7 +845,14 @@ pulled_data = sort_events(pulled_data)
 
 seed_path, raw_seed_data, existing_latest_data, dropped_seed_non_target = choose_latest_seed()
 
-latest_data, updated_count, added_count, preserved_count = merge_latest(
+(
+    latest_data,
+    updated_count,
+    added_count,
+    preserved_count,
+    skipped_started_updates,
+    skipped_started_adds,
+) = merge_latest(
     existing_latest_data,
     pulled_data,
 )
@@ -805,6 +863,7 @@ write_json(LATEST_PATH, latest_data)
 print(f"Saved update pull: {UPDATE_PATH}")
 print(f"Saved cumulative latest: {LATEST_PATH}")
 print(f"Target UTC date: {TARGET_UTC_DATE.isoformat()}")
+print(f"API event status: {EVENT_STATUS}")
 
 if seed_path:
     print(f"Latest seed source: {seed_path}")
@@ -815,14 +874,18 @@ print(f"{PRIMARY_BOOKMAKER} events found: {event_counts.get(PRIMARY_BOOKMAKER, 0
 print(f"{FALLBACK_BOOKMAKER} events found: {event_counts.get(FALLBACK_BOOKMAKER, 0)}")
 print(f"{PRIMARY_BOOKMAKER} future/non-target events skipped: {skipped_non_target_counts.get(PRIMARY_BOOKMAKER, 0)}")
 print(f"{FALLBACK_BOOKMAKER} future/non-target events skipped: {skipped_non_target_counts.get(FALLBACK_BOOKMAKER, 0)}")
-print(f"Unique target-date events found: {len(events)}")
+print(f"{PRIMARY_BOOKMAKER} started events skipped: {skipped_started_counts.get(PRIMARY_BOOKMAKER, 0)}")
+print(f"{FALLBACK_BOOKMAKER} started events skipped: {skipped_started_counts.get(FALLBACK_BOOKMAKER, 0)}")
+print(f"Unique pending target-date events found: {len(events)}")
 print(f"Events with converted odds this pull: {len(pulled_data)}")
 print(f"Events using {PRIMARY_BOOKMAKER}: {source_counts.get(PRIMARY_BOOKMAKER, 0)}")
 print(f"Events using {FALLBACK_BOOKMAKER}: {source_counts.get(FALLBACK_BOOKMAKER, 0)}")
 print(f"Raw latest seed count: {len(raw_seed_data)}")
 print(f"Seed events dropped for non-target date/invalid rows: {dropped_seed_non_target}")
 print(f"Existing target-date latest seed count: {len(existing_latest_data)}")
-print(f"Updated existing events in latest: {updated_count}")
-print(f"Added new events to latest: {added_count}")
+print(f"Updated existing not-started events in latest: {updated_count}")
+print(f"Added new pending events to latest: {added_count}")
 print(f"Preserved target-date events missing from this pull: {preserved_count}")
+print(f"Skipped updates to already-started existing events: {skipped_started_updates}")
+print(f"Skipped adding already-started pulled events: {skipped_started_adds}")
 print(f"Final latest event count: {len(latest_data)}")
