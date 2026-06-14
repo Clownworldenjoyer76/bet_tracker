@@ -19,10 +19,15 @@ BASE_URL = "https://api.odds-api.io/v3"
 
 SPORT = "baseball"
 LEAGUE = "usa-mlb"
-BOOKMAKER = "DraftKings"
+
+PRIMARY_BOOKMAKER = "DraftKings"
+FALLBACK_BOOKMAKER = "FanDuel"
+BOOKMAKERS = [PRIMARY_BOOKMAKER, FALLBACK_BOOKMAKER]
 
 now_utc = datetime.now(timezone.utc)
-today = now_utc.strftime("%Y_%m_%d")
+TARGET_UTC_DATE = now_utc.date()
+
+today = TARGET_UTC_DATE.strftime("%Y_%m_%d")
 stamp = now_utc.strftime("%Y_%m_%d_%H%M")
 
 ODDS_DIR = Path("docs/win/baseball/mlb/odds")
@@ -49,7 +54,26 @@ def get_json(endpoint, params):
     return response.json()
 
 
-def fetch_events():
+def parse_event_utc_date(value):
+    if not value:
+        return None
+
+    try:
+        return (
+            datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+            .astimezone(timezone.utc)
+            .date()
+        )
+    except Exception:
+        return None
+
+
+def is_target_utc_date(event):
+    event_date = parse_event_utc_date(event.get("date") or event.get("commence_time"))
+    return event_date == TARGET_UTC_DATE
+
+
+def fetch_events_for_bookmaker(bookmaker):
     events = []
     skip = 0
     limit = 100
@@ -62,14 +86,14 @@ def fetch_events():
                 "sport": SPORT,
                 "league": LEAGUE,
                 "status": "pending,live",
-                "bookmaker": BOOKMAKER,
+                "bookmaker": bookmaker,
                 "limit": limit,
                 "skip": skip,
             },
         )
 
         if not isinstance(batch, list):
-            print("Unexpected /events response:")
+            print(f"Unexpected /events response for {bookmaker}:")
             print(json.dumps(batch, indent=2))
             raise SystemExit(1)
 
@@ -83,12 +107,42 @@ def fetch_events():
     return events
 
 
+def fetch_events():
+    by_id = {}
+    counts = {}
+    skipped_non_target = {}
+
+    for bookmaker in BOOKMAKERS:
+        events = fetch_events_for_bookmaker(bookmaker)
+        counts[bookmaker] = len(events)
+        skipped_non_target[bookmaker] = 0
+
+        for event in events:
+            if not is_target_utc_date(event):
+                skipped_non_target[bookmaker] += 1
+                continue
+
+            event_id = event.get("id")
+            if event_id is None:
+                continue
+
+            event_id = str(event_id)
+
+            if event_id not in by_id:
+                by_id[event_id] = event
+
+            if bookmaker == PRIMARY_BOOKMAKER:
+                by_id[event_id] = event
+
+    return list(by_id.values()), counts, skipped_non_target
+
+
 def chunks(items, size):
     for i in range(0, len(items), size):
         yield items[i:i + size]
 
 
-def fetch_odds(event_ids):
+def fetch_odds_for_bookmaker(event_ids, bookmaker):
     odds = []
 
     for batch_ids in chunks(event_ids, 10):
@@ -97,18 +151,42 @@ def fetch_odds(event_ids):
             {
                 "apiKey": API_KEY,
                 "eventIds": ",".join(str(event_id) for event_id in batch_ids),
-                "bookmakers": BOOKMAKER,
+                "bookmakers": bookmaker,
             },
         )
 
         if not isinstance(batch, list):
-            print("Unexpected /odds/multi response:")
+            print(f"Unexpected /odds/multi response for {bookmaker}:")
             print(json.dumps(batch, indent=2))
             raise SystemExit(1)
 
         odds.extend(batch)
 
     return odds
+
+
+def fetch_odds(event_ids):
+    by_id = {}
+
+    for bookmaker in BOOKMAKERS:
+        bookmaker_odds = fetch_odds_for_bookmaker(event_ids, bookmaker)
+
+        for event in bookmaker_odds:
+            if not is_target_utc_date(event):
+                continue
+
+            event_id = event.get("id")
+            if event_id is None:
+                continue
+
+            event_id = str(event_id)
+
+            if event_id not in by_id:
+                by_id[event_id] = {}
+
+            by_id[event_id][bookmaker] = event
+
+    return by_id
 
 
 def to_float(value):
@@ -136,83 +214,322 @@ def market_key(name):
     return None
 
 
+def get_bookmaker_markets(event, bookmaker):
+    bookmakers = event.get("bookmakers") or {}
+
+    if isinstance(bookmakers, dict):
+        return bookmakers.get(bookmaker, []) or []
+
+    if isinstance(bookmakers, list):
+        for item in bookmakers:
+            title = str(item.get("title") or item.get("key") or "").strip().lower()
+            if title == bookmaker.lower():
+                return item.get("markets") or []
+
+    return []
+
+
+def price_normal_score(*prices):
+    valid = [p for p in prices if p is not None]
+
+    if not valid:
+        return 999999.0
+
+    return sum(abs(p - 2.0) for p in valid)
+
+
+def select_main_spread_row(odds_rows):
+    candidates = []
+
+    for row in odds_rows:
+        point = to_float(row.get("hdp"))
+        home_price = to_float(row.get("home"))
+        away_price = to_float(row.get("away"))
+
+        if point is None:
+            continue
+
+        if home_price is None and away_price is None:
+            continue
+
+        candidates.append(
+            (
+                abs(abs(point) - 1.5),
+                price_normal_score(home_price, away_price),
+                abs(point),
+                row,
+            )
+        )
+
+    if not candidates:
+        return None
+
+    return min(candidates, key=lambda x: (x[0], x[1], x[2]))[3]
+
+
+def select_main_total_row(odds_rows):
+    candidates = []
+
+    for row in odds_rows:
+        point = to_float(row.get("hdp"))
+        over_price = to_float(row.get("over"))
+        under_price = to_float(row.get("under"))
+
+        if point is None:
+            continue
+
+        if over_price is None or under_price is None:
+            continue
+
+        candidates.append(
+            (
+                price_normal_score(over_price, under_price),
+                abs(point - 8.5),
+                point,
+                row,
+            )
+        )
+
+    if not candidates:
+        return None
+
+    return min(candidates, key=lambda x: (x[0], x[1], x[2]))[3]
+
+
+def select_main_spread_outcomes(outcomes):
+    by_abs_point = {}
+
+    for outcome in outcomes:
+        point = to_float(outcome.get("point"))
+        price = to_float(outcome.get("price"))
+
+        if point is None or price is None:
+            continue
+
+        key = abs(point)
+
+        if key not in by_abs_point:
+            by_abs_point[key] = []
+
+        by_abs_point[key].append(outcome)
+
+    candidates = []
+
+    for abs_point, rows in by_abs_point.items():
+        if len(rows) < 2:
+            continue
+
+        prices = [to_float(row.get("price")) for row in rows]
+        candidates.append(
+            (
+                abs(abs_point - 1.5),
+                price_normal_score(*prices),
+                abs_point,
+                rows[:2],
+            )
+        )
+
+    if not candidates:
+        return []
+
+    return min(candidates, key=lambda x: (x[0], x[1], x[2]))[3]
+
+
+def select_main_total_outcomes(outcomes):
+    by_point = {}
+
+    for outcome in outcomes:
+        point = to_float(outcome.get("point"))
+        price = to_float(outcome.get("price"))
+
+        if point is None or price is None:
+            continue
+
+        if point not in by_point:
+            by_point[point] = []
+
+        by_point[point].append(outcome)
+
+    candidates = []
+
+    for point, rows in by_point.items():
+        over_rows = [
+            row
+            for row in rows
+            if str(row.get("name", "")).strip().lower() == "over"
+        ]
+        under_rows = [
+            row
+            for row in rows
+            if str(row.get("name", "")).strip().lower() == "under"
+        ]
+
+        if not over_rows or not under_rows:
+            continue
+
+        over = over_rows[0]
+        under = under_rows[0]
+
+        over_price = to_float(over.get("price"))
+        under_price = to_float(under.get("price"))
+
+        candidates.append(
+            (
+                price_normal_score(over_price, under_price),
+                abs(point - 8.5),
+                point,
+                [over, under],
+            )
+        )
+
+    if not candidates:
+        return []
+
+    return min(candidates, key=lambda x: (x[0], x[1], x[2]))[3]
+
+
 def convert_market(event, market):
-    key = market_key(market.get("name"))
+    key = market_key(market.get("name") or market.get("key"))
 
     if key not in {"h2h", "spreads", "totals"}:
         return None
 
     converted = {
         "key": key,
-        "last_update": market.get("updatedAt"),
+        "last_update": market.get("updatedAt") or market.get("last_update"),
         "outcomes": [],
     }
 
     odds_rows = market.get("odds") or []
 
-    for row in odds_rows:
+    if odds_rows:
         if key == "h2h":
-            home_price = to_float(row.get("home"))
-            away_price = to_float(row.get("away"))
+            for row in odds_rows:
+                home_price = to_float(row.get("home"))
+                away_price = to_float(row.get("away"))
 
-            if home_price is not None:
+                if home_price is not None:
+                    converted["outcomes"].append(
+                        {
+                            "name": event.get("home"),
+                            "price": home_price,
+                        }
+                    )
+
+                if away_price is not None:
+                    converted["outcomes"].append(
+                        {
+                            "name": event.get("away"),
+                            "price": away_price,
+                        }
+                    )
+
+                break
+
+        elif key == "spreads":
+            row = select_main_spread_row(odds_rows)
+
+            if row:
+                point = to_float(row.get("hdp"))
+                home_price = to_float(row.get("home"))
+                away_price = to_float(row.get("away"))
+
+                if home_price is not None:
+                    converted["outcomes"].append(
+                        {
+                            "name": event.get("home"),
+                            "price": home_price,
+                            "point": point,
+                        }
+                    )
+
+                if away_price is not None:
+                    converted["outcomes"].append(
+                        {
+                            "name": event.get("away"),
+                            "price": away_price,
+                            "point": -point if point is not None else None,
+                        }
+                    )
+
+        elif key == "totals":
+            row = select_main_total_row(odds_rows)
+
+            if row:
+                point = to_float(row.get("hdp"))
+                over_price = to_float(row.get("over"))
+                under_price = to_float(row.get("under"))
+
+                if over_price is not None:
+                    converted["outcomes"].append(
+                        {
+                            "name": "Over",
+                            "price": over_price,
+                            "point": point,
+                        }
+                    )
+
+                if under_price is not None:
+                    converted["outcomes"].append(
+                        {
+                            "name": "Under",
+                            "price": under_price,
+                            "point": point,
+                        }
+                    )
+
+    else:
+        outcomes = market.get("outcomes") or []
+
+        if key == "h2h":
+            for outcome in outcomes:
+                name = outcome.get("name")
+                price = to_float(outcome.get("price"))
+
+                if price is None:
+                    continue
+
                 converted["outcomes"].append(
                     {
-                        "name": event.get("home"),
-                        "price": home_price,
-                    }
-                )
-
-            if away_price is not None:
-                converted["outcomes"].append(
-                    {
-                        "name": event.get("away"),
-                        "price": away_price,
+                        "name": name,
+                        "price": price,
                     }
                 )
 
         elif key == "spreads":
-            point = to_float(row.get("hdp"))
-            home_price = to_float(row.get("home"))
-            away_price = to_float(row.get("away"))
+            selected = select_main_spread_outcomes(outcomes)
 
-            if home_price is not None:
+            for outcome in selected:
+                name = outcome.get("name")
+                price = to_float(outcome.get("price"))
+                point = to_float(outcome.get("point"))
+
+                if price is None:
+                    continue
+
                 converted["outcomes"].append(
                     {
-                        "name": event.get("home"),
-                        "price": home_price,
+                        "name": name,
+                        "price": price,
                         "point": point,
-                    }
-                )
-
-            if away_price is not None:
-                converted["outcomes"].append(
-                    {
-                        "name": event.get("away"),
-                        "price": away_price,
-                        "point": -point if point is not None else None,
                     }
                 )
 
         elif key == "totals":
-            point = to_float(row.get("hdp"))
-            over_price = to_float(row.get("over"))
-            under_price = to_float(row.get("under"))
+            selected = select_main_total_outcomes(outcomes)
 
-            if over_price is not None:
+            for outcome in selected:
+                name = outcome.get("name")
+                price = to_float(outcome.get("price"))
+                point = to_float(outcome.get("point"))
+
+                if price is None:
+                    continue
+
                 converted["outcomes"].append(
                     {
-                        "name": "Over",
-                        "price": over_price,
-                        "point": point,
-                    }
-                )
-
-            if under_price is not None:
-                converted["outcomes"].append(
-                    {
-                        "name": "Under",
-                        "price": under_price,
+                        "name": name,
+                        "price": price,
                         "point": point,
                     }
                 )
@@ -223,19 +540,40 @@ def convert_market(event, market):
     return converted
 
 
-def convert_event(event):
-    bookmakers = event.get("bookmakers") or {}
-    bookmaker_markets = bookmakers.get(BOOKMAKER, [])
-
+def converted_markets_for_bookmaker(event, bookmaker):
+    bookmaker_markets = get_bookmaker_markets(event, bookmaker)
     converted_markets = []
 
     for market in bookmaker_markets:
         converted_market = convert_market(event, market)
+
         if converted_market:
             converted_markets.append(converted_market)
 
-    if not converted_markets:
-        return None
+    return converted_markets
+
+
+def convert_event(event_by_bookmaker, event_fallback):
+    selected_bookmaker = None
+    selected_event = None
+    converted_markets = []
+
+    for bookmaker in BOOKMAKERS:
+        candidate_event = event_by_bookmaker.get(bookmaker)
+
+        if not candidate_event:
+            continue
+
+        candidate_markets = converted_markets_for_bookmaker(candidate_event, bookmaker)
+
+        if candidate_markets:
+            selected_bookmaker = bookmaker
+            selected_event = candidate_event
+            converted_markets = candidate_markets
+            break
+
+    if not selected_event or not converted_markets:
+        return None, None
 
     last_update_values = [
         market.get("last_update")
@@ -245,20 +583,20 @@ def convert_event(event):
 
     bookmaker = {
         "key": "draftkings",
-        "title": BOOKMAKER,
+        "title": PRIMARY_BOOKMAKER,
         "last_update": max(last_update_values) if last_update_values else None,
         "markets": converted_markets,
     }
 
     return {
-        "id": str(event.get("id")),
+        "id": str(selected_event.get("id") or event_fallback.get("id")),
         "sport_key": "baseball_mlb",
         "sport_title": "MLB",
-        "commence_time": event.get("date"),
-        "home_team": event.get("home"),
-        "away_team": event.get("away"),
+        "commence_time": selected_event.get("date") or event_fallback.get("date"),
+        "home_team": selected_event.get("home") or event_fallback.get("home"),
+        "away_team": selected_event.get("away") or event_fallback.get("away"),
         "bookmakers": [bookmaker],
-    }
+    }, selected_bookmaker
 
 
 def read_json_list(path):
@@ -304,14 +642,47 @@ def event_id(event):
     return value
 
 
+def filter_target_date_events(events):
+    filtered = []
+    dropped = 0
+
+    for event in events:
+        if not isinstance(event, dict):
+            dropped += 1
+            continue
+
+        if is_target_utc_date(event):
+            filtered.append(event)
+        else:
+            dropped += 1
+
+    return filtered, dropped
+
+
+def sort_events(events):
+    return sorted(
+        events,
+        key=lambda event: (
+            event.get("commence_time", ""),
+            event.get("home_team", ""),
+            event.get("away_team", ""),
+            event.get("id", ""),
+        ),
+    )
+
+
 def choose_latest_seed():
     if LATEST_PATH.exists():
-        return LATEST_PATH, read_json_list(LATEST_PATH)
+        raw = read_json_list(LATEST_PATH)
+        filtered, dropped = filter_target_date_events(raw)
+        return LATEST_PATH, raw, filtered, dropped
 
     if ORIGINAL_PATH.exists():
-        return ORIGINAL_PATH, read_json_list(ORIGINAL_PATH)
+        raw = read_json_list(ORIGINAL_PATH)
+        filtered, dropped = filter_target_date_events(raw)
+        return ORIGINAL_PATH, raw, filtered, dropped
 
-    return None, []
+    return None, [], [], 0
 
 
 def merge_latest(existing_events, pulled_events):
@@ -381,26 +752,48 @@ def merge_latest(existing_events, pulled_events):
     merged.extend(existing_without_id)
     merged.extend(pulled_without_id)
 
-    return merged, updated_count, added_count, preserved_count
+    return sort_events(merged), updated_count, added_count, preserved_count
 
 
-events = fetch_events()
+events, event_counts, skipped_non_target_counts = fetch_events()
 
 if not events:
-    print("No MLB events found with DraftKings odds.")
+    print("No MLB events found with DraftKings or FanDuel odds.")
     pulled_data = []
+    source_counts = {
+        PRIMARY_BOOKMAKER: 0,
+        FALLBACK_BOOKMAKER: 0,
+    }
 else:
-    event_ids = [event["id"] for event in events if event.get("id") is not None]
-    raw_odds = fetch_odds(event_ids)
+    events_by_id = {
+        str(event["id"]): event
+        for event in events
+        if event.get("id") is not None
+    }
+
+    event_ids = sorted(events_by_id.keys())
+    raw_odds_by_id = fetch_odds(event_ids)
 
     pulled_data = []
+    source_counts = {
+        PRIMARY_BOOKMAKER: 0,
+        FALLBACK_BOOKMAKER: 0,
+    }
 
-    for event in raw_odds:
-        converted = convert_event(event)
+    for event_id_value in event_ids:
+        converted, source_bookmaker = convert_event(
+            raw_odds_by_id.get(event_id_value, {}),
+            events_by_id[event_id_value],
+        )
+
         if converted:
             pulled_data.append(converted)
+            source_counts[source_bookmaker] = source_counts.get(source_bookmaker, 0) + 1
 
-seed_path, existing_latest_data = choose_latest_seed()
+pulled_data = sort_events(pulled_data)
+
+seed_path, raw_seed_data, existing_latest_data, dropped_seed_non_target = choose_latest_seed()
+
 latest_data, updated_count, added_count, preserved_count = merge_latest(
     existing_latest_data,
     pulled_data,
@@ -411,16 +804,25 @@ write_json(LATEST_PATH, latest_data)
 
 print(f"Saved update pull: {UPDATE_PATH}")
 print(f"Saved cumulative latest: {LATEST_PATH}")
+print(f"Target UTC date: {TARGET_UTC_DATE.isoformat()}")
 
 if seed_path:
     print(f"Latest seed source: {seed_path}")
 else:
     print("Latest seed source: none")
 
-print(f"Events found: {len(events)}")
-print(f"Events with converted DraftKings odds this pull: {len(pulled_data)}")
-print(f"Existing latest seed count: {len(existing_latest_data)}")
+print(f"{PRIMARY_BOOKMAKER} events found: {event_counts.get(PRIMARY_BOOKMAKER, 0)}")
+print(f"{FALLBACK_BOOKMAKER} events found: {event_counts.get(FALLBACK_BOOKMAKER, 0)}")
+print(f"{PRIMARY_BOOKMAKER} future/non-target events skipped: {skipped_non_target_counts.get(PRIMARY_BOOKMAKER, 0)}")
+print(f"{FALLBACK_BOOKMAKER} future/non-target events skipped: {skipped_non_target_counts.get(FALLBACK_BOOKMAKER, 0)}")
+print(f"Unique target-date events found: {len(events)}")
+print(f"Events with converted odds this pull: {len(pulled_data)}")
+print(f"Events using {PRIMARY_BOOKMAKER}: {source_counts.get(PRIMARY_BOOKMAKER, 0)}")
+print(f"Events using {FALLBACK_BOOKMAKER}: {source_counts.get(FALLBACK_BOOKMAKER, 0)}")
+print(f"Raw latest seed count: {len(raw_seed_data)}")
+print(f"Seed events dropped for non-target date/invalid rows: {dropped_seed_non_target}")
+print(f"Existing target-date latest seed count: {len(existing_latest_data)}")
 print(f"Updated existing events in latest: {updated_count}")
 print(f"Added new events to latest: {added_count}")
-print(f"Preserved events missing from this pull: {preserved_count}")
+print(f"Preserved target-date events missing from this pull: {preserved_count}")
 print(f"Final latest event count: {len(latest_data)}")
