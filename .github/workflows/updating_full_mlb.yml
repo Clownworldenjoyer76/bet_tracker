@@ -114,6 +114,9 @@ jobs:
       - name: Baseball Alt Name Normalization Post
         run: python docs/win/baseball/mlb/scripts/00_intake/name_normalization.py
 
+      - name: Baseball Alt Scrape MLB Raw
+        run: python docs/win/baseball/mlb/scripts/00_intake/scrape_mlb_raw.py "$TARGET_DATE"
+
       - name: Baseball Alt Build Games List
         run: python docs/win/baseball/mlb/scripts/00_intake/build_games_list.py
 
@@ -127,9 +130,6 @@ jobs:
 
       - name: Baseball Alt Inject Game IDs Into Predictions
         run: python docs/win/baseball/mlb/scripts/00_intake/game_id_pred.py
-
-      - name: Baseball Alt Scrape MLB Raw
-        run: python docs/win/baseball/mlb/scripts/00_intake/scrape_mlb_raw.py "$TARGET_DATE"
 
       - name: Baseball Alt Enrich Game Context
         run: python docs/win/baseball/mlb/scripts/00_intake/enrich_game_context.py
