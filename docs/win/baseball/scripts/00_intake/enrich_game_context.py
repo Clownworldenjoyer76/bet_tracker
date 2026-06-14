@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# docs/win/baseball/scripts/00_intake/enrich_game_context.py
+# docs/win/baseball/mlb/scripts/00_intake/enrich_game_context.py
 #
 # Runs hourly after scrape_mlb_raw.py.
 # Joins Statcast, park factors (lineup-weighted by bat side), and weather
@@ -17,7 +17,7 @@ import pandas as pd
 # PATHS
 # ─────────────────────────────────────────────
 
-BASE_DIR    = Path("docs/win/baseball")
+BASE_DIR    = Path("docs/win/baseball/mlb/")
 MLBraw_DIR  = BASE_DIR / "00_intake/mlb_raw"
 MAPS_DIR    = BASE_DIR / "maps"
 DATA_DIR    = BASE_DIR / "data"
