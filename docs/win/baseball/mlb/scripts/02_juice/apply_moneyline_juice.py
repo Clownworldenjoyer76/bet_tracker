@@ -13,7 +13,7 @@ INPUT_DIR = Path("docs/win/baseball/mlb/01_merge/01_merguiced")
 SOURCE_MERGE_DIR = INPUT_DIR.parent
 OUTPUT_DIR = Path("docs/win/baseball/mlb/02_juice")
 AUDIT_DIR = OUTPUT_DIR / "audit"
-JUICE_FILE = Path("config/baseball/mlb/mlb_ml_juice.csv")
+JUICE_FILE = Path("docs/win/baseball/mlb/config/juice/mlb_ml_juice.csv")
 
 ERROR_DIR = Path("docs/win/baseball/mlb/errors/02_juice")
 LOG_FILE = ERROR_DIR / "apply_moneyline_juice.txt"
