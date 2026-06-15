@@ -1,10 +1,11 @@
-#docs/win/baseball/mlb/scripts/00_parsing/mlb_odds_pull.py
+# docs/win/baseball/mlb/scripts/00_parsing/mlb_odds_pull.py
 
 import requests
 import os
 import json
 from pathlib import Path
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 
 API_KEY = os.getenv("API_ODDS")
@@ -24,9 +25,13 @@ BOOKMAKERS = [PRIMARY_BOOKMAKER, FALLBACK_BOOKMAKER]
 
 EVENT_STATUS = "pending"
 
+ET = ZoneInfo("America/New_York")
+
 NOW_UTC = datetime.now(timezone.utc)
-TARGET_UTC_DATE = NOW_UTC.date()
-today = TARGET_UTC_DATE.strftime("%Y_%m_%d")
+NOW_ET = NOW_UTC.astimezone(ET)
+
+TARGET_ET_DATE = NOW_ET.date()
+today = TARGET_ET_DATE.strftime("%Y_%m_%d")
 path = Path(f"docs/win/baseball/mlb/odds/{today}.json")
 
 
@@ -50,27 +55,32 @@ def parse_event_utc_datetime(value):
         return None
 
     try:
-        return datetime.fromisoformat(str(value).replace("Z", "+00:00")).astimezone(timezone.utc)
+        dt = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+
+        return dt.astimezone(timezone.utc)
     except Exception:
         return None
 
 
-def parse_event_utc_date(value):
+def parse_event_et_date(value):
     dt = parse_event_utc_datetime(value)
 
     if dt is None:
         return None
 
-    return dt.date()
+    return dt.astimezone(ET).date()
 
 
 def event_commence_value(event):
     return event.get("date") or event.get("commence_time")
 
 
-def is_target_utc_date(event):
-    event_date = parse_event_utc_date(event_commence_value(event))
-    return event_date == TARGET_UTC_DATE
+def is_target_et_date(event):
+    event_date = parse_event_et_date(event_commence_value(event))
+    return event_date == TARGET_ET_DATE
 
 
 def has_started(event):
@@ -129,7 +139,7 @@ def fetch_events():
         skipped_started[bookmaker] = 0
 
         for event in events:
-            if not is_target_utc_date(event):
+            if not is_target_et_date(event):
                 skipped_non_target[bookmaker] += 1
                 continue
 
@@ -187,7 +197,7 @@ def fetch_odds(event_ids):
         bookmaker_odds = fetch_odds_for_bookmaker(event_ids, bookmaker)
 
         for event in bookmaker_odds:
-            if not is_target_utc_date(event):
+            if not is_target_et_date(event):
                 continue
 
             if has_started(event):
@@ -653,7 +663,7 @@ def filter_target_date_events(events):
     filtered = []
 
     for event in events:
-        if isinstance(event, dict) and is_target_utc_date(event):
+        if isinstance(event, dict) and is_target_et_date(event):
             filtered.append(event)
 
     return filtered
@@ -761,12 +771,15 @@ with open(path, "w", encoding="utf-8") as f:
     json.dump(output_data, f, indent=2)
 
 print(f"Saved {path}")
-print(f"Target UTC date: {TARGET_UTC_DATE.isoformat()}")
+print(f"Target ET date: {TARGET_ET_DATE.isoformat()}")
+print(f"Target date string: {today}")
+print(f"Current UTC time: {NOW_UTC.isoformat()}")
+print(f"Current ET time: {NOW_ET.isoformat()}")
 print(f"API event status: {EVENT_STATUS}")
 print(f"{PRIMARY_BOOKMAKER} events found: {event_counts.get(PRIMARY_BOOKMAKER, 0)}")
 print(f"{FALLBACK_BOOKMAKER} events found: {event_counts.get(FALLBACK_BOOKMAKER, 0)}")
-print(f"{PRIMARY_BOOKMAKER} future/non-target events skipped: {skipped_non_target_counts.get(PRIMARY_BOOKMAKER, 0)}")
-print(f"{FALLBACK_BOOKMAKER} future/non-target events skipped: {skipped_non_target_counts.get(FALLBACK_BOOKMAKER, 0)}")
+print(f"{PRIMARY_BOOKMAKER} non-target ET date events skipped: {skipped_non_target_counts.get(PRIMARY_BOOKMAKER, 0)}")
+print(f"{FALLBACK_BOOKMAKER} non-target ET date events skipped: {skipped_non_target_counts.get(FALLBACK_BOOKMAKER, 0)}")
 print(f"{PRIMARY_BOOKMAKER} started events skipped: {skipped_started_counts.get(PRIMARY_BOOKMAKER, 0)}")
 print(f"{FALLBACK_BOOKMAKER} started events skipped: {skipped_started_counts.get(FALLBACK_BOOKMAKER, 0)}")
 print(f"Unique pending target-date events found: {len(events)}")
