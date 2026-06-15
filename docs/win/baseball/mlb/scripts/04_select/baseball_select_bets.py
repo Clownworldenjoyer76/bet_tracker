@@ -72,6 +72,7 @@ def _write_summary(summary: dict, per_slate: list) -> None:
         f"  rain_excluded_will_it_rain        : {summary['rain_excluded_will_it_rain']}",
         f"  rain_excluded_symbol_code         : {summary['rain_excluded_symbol_code']}",
         f"  sp_sample_excluded                : {summary['sp_sample_excluded']}",
+        f"  context_excluded                  : {summary['context_excluded']}",
         f"  low_confidence                    : {summary['low_confidence']}",
         f"  rejection_audit_rows              : {summary['rejection_audit_rows']}",
         f"  selected_audit_rows               : {summary['selected_audit_rows']}",
@@ -127,7 +128,14 @@ REQUIRED_BASE_COLUMNS = [
     "away_team",
 ]
 
-REQUIRED_MONEYLINE_COLUMNS = REQUIRED_BASE_COLUMNS + [
+CONTEXT_FILTER_COLUMNS = [
+    "home_batters_found",
+    "away_batters_found",
+    "home_sp_found",
+    "away_sp_found",
+]
+
+REQUIRED_MONEYLINE_COLUMNS = REQUIRED_BASE_COLUMNS + CONTEXT_FILTER_COLUMNS + [
     "home_dk_moneyline_american",
     "away_dk_moneyline_american",
     "home_dk_decimal_moneyline",
@@ -152,7 +160,7 @@ REQUIRED_MONEYLINE_COLUMNS = REQUIRED_BASE_COLUMNS + [
     "away_ml_kelly",
 ]
 
-REQUIRED_RUN_LINE_COLUMNS = REQUIRED_BASE_COLUMNS + [
+REQUIRED_RUN_LINE_COLUMNS = REQUIRED_BASE_COLUMNS + CONTEXT_FILTER_COLUMNS + [
     "home_run_line",
     "away_run_line",
     "home_dk_run_line_american",
@@ -179,7 +187,7 @@ REQUIRED_RUN_LINE_COLUMNS = REQUIRED_BASE_COLUMNS + [
     "away_rl_kelly",
 ]
 
-REQUIRED_TOTAL_COLUMNS = REQUIRED_BASE_COLUMNS + [
+REQUIRED_TOTAL_COLUMNS = REQUIRED_BASE_COLUMNS + CONTEXT_FILTER_COLUMNS + [
     "total",
     "dk_total_over_american",
     "dk_total_under_american",
@@ -371,6 +379,20 @@ def row_count_check(slate: str, market_frames: dict, summary: dict) -> None:
 
 
 def validate_config() -> None:
+    min_home_batters_found = CONFIG.get("min_home_batters_found", 0)
+    min_away_batters_found = CONFIG.get("min_away_batters_found", 0)
+    sp_found_required = CONFIG.get("sp_found", 0)
+
+    for key, value, lo, hi in [
+        ("min_home_batters_found", min_home_batters_found, 0, 9),
+        ("min_away_batters_found", min_away_batters_found, 0, 9),
+        ("sp_found", sp_found_required, 0, 2),
+    ]:
+        if not isinstance(value, int):
+            raise ValueError(f"{key} must be an integer from {lo} to {hi}")
+        if value < lo or value > hi:
+            raise ValueError(f"{key} must be between {lo} and {hi}; got {value}")
+
     run_line_preference = CONFIG.get("run_line", {}).get("pick_preference", "best_ev")
     if run_line_preference not in {"best_ev", "best_prob"}:
         raise ValueError(
@@ -878,6 +900,54 @@ def is_low_confidence(row) -> int:
     return 0
 
 
+def context_filter_result(row) -> tuple[bool, str]:
+    if row is None:
+        return False, "missing_context_row"
+
+    min_home_batters_found = CONFIG.get("min_home_batters_found", 0)
+    min_away_batters_found = CONFIG.get("min_away_batters_found", 0)
+    sp_found_required = CONFIG.get("sp_found", 0)
+
+    home_batters_found = iv(row.get("home_batters_found"))
+    away_batters_found = iv(row.get("away_batters_found"))
+    home_sp_found = iv(row.get("home_sp_found"))
+    away_sp_found = iv(row.get("away_sp_found"))
+
+    home_batters_found_value = home_batters_found if home_batters_found is not None else 0
+    away_batters_found_value = away_batters_found if away_batters_found is not None else 0
+    home_sp_found_value = 1 if home_sp_found == 1 else 0
+    away_sp_found_value = 1 if away_sp_found == 1 else 0
+    sp_found_total = home_sp_found_value + away_sp_found_value
+
+    if home_batters_found_value < min_home_batters_found:
+        return (
+            False,
+            f"home_batters_found={home_batters_found_value}<min_home_batters_found={min_home_batters_found}",
+        )
+
+    if away_batters_found_value < min_away_batters_found:
+        return (
+            False,
+            f"away_batters_found={away_batters_found_value}<min_away_batters_found={min_away_batters_found}",
+        )
+
+    if sp_found_total < sp_found_required:
+        return (
+            False,
+            f"sp_found_total={sp_found_total}<sp_found={sp_found_required};"
+            f"home_sp_found={home_sp_found_value};away_sp_found={away_sp_found_value}",
+        )
+
+    return True, ""
+
+
+def context_output_values(row) -> dict:
+    if row is None:
+        return {col: None for col in CONTEXT_FILTER_COLUMNS}
+
+    return {col: row.get(col) for col in CONTEXT_FILTER_COLUMNS}
+
+
 # =========================
 # MARKET PROCESSORS
 # =========================
@@ -1112,6 +1182,7 @@ def main():
         "rain_excluded_will_it_rain": 0,
         "rain_excluded_symbol_code": 0,
         "sp_sample_excluded": 0,
+        "context_excluded": 0,
         "low_confidence": 0,
         "rejection_audit_rows": 0,
         "selected_audit_rows": 0,
@@ -1140,7 +1211,10 @@ def main():
         f"symbol_code={FILTERS.get('rain_exclude_on_symbol_code', False)} "
         f"symbol_terms={FILTERS.get('rain_symbol_terms')} | "
         f"SP sample exclude totals: {FILTERS.get('sp_sample_exclude_totals')} | "
-        f"Lineup low sample warn: {FILTERS.get('lineup_low_sample_warn')}"
+        f"Lineup low sample warn: {FILTERS.get('lineup_low_sample_warn')} | "
+        f"Min home batters found: {FILTERS.get('min_home_batters_found')} | "
+        f"Min away batters found: {FILTERS.get('min_away_batters_found')} | "
+        f"SP found required: {FILTERS.get('sp_found')}"
     )
     _log("Selection requires kelly > 0 and matching EV/Kelly probability source per selected row.")
     _log("Selection rejects rows where adjusted EV is positive but raw EV is zero/negative.")
@@ -1278,6 +1352,12 @@ def main():
                     away = base_row["away_team"]
                     home = base_row["home_team"]
 
+                    rl_row = get_market_row(rl_df, game_id)
+                    ml_row = get_market_row(ml_df, game_id)
+                    tt_row = get_market_row(tt_df, game_id)
+
+                    context_row = rl_row if rl_row is not None else (tt_row if tt_row is not None else ml_row)
+
                     base = {
                         "game_id": game_id,
                         "sport": sport,
@@ -1286,14 +1366,39 @@ def main():
                         "league": LEAGUE_CODE,
                         "away_team": away,
                         "home_team": home,
+                        **context_output_values(context_row),
                     }
 
-                    rl_row = get_market_row(rl_df, game_id)
-                    ml_row = get_market_row(ml_df, game_id)
-                    tt_row = get_market_row(tt_df, game_id)
-
-                    context_row = rl_row if rl_row is not None else (tt_row if tt_row is not None else ml_row)
                     low_conf = is_low_confidence(context_row)
+
+                    context_ok, context_fail_detail = context_filter_result(context_row)
+
+                    if not context_ok:
+                        summary["context_excluded"] += 1
+                        _log(
+                            f"  {game_id} context excluded ({context_fail_detail})",
+                            "WARN",
+                        )
+                        rejection_rows.append({
+                            "date": game_date,
+                            "game_id": game_id,
+                            "market": "all",
+                            "side": "all",
+                            "fail_reason": "context_excluded",
+                            "fail_detail": context_fail_detail,
+                            "prob_used_for_selection": None,
+                            "prob_used_for_ev": None,
+                            "prob_used_for_kelly": None,
+                            "ev": None,
+                            "kelly": None,
+                            "odds": None,
+                            "line": None,
+                            "raw_ev": None,
+                            "adjusted_ev": None,
+                            "ev_probability_source": None,
+                            "kelly_probability_source": None,
+                        })
+                        continue
 
                     rain_reason = rain_exclusion_reason(context_row)
 
@@ -1500,6 +1605,7 @@ def main():
         f"selected_adjusted_only_positive={summary['selected_adjusted_only_positive']} "
         f"rain_excluded_will_it_rain={summary['rain_excluded_will_it_rain']} "
         f"rain_excluded_symbol_code={summary['rain_excluded_symbol_code']} "
+        f"context_excluded={summary['context_excluded']} "
         f"rejection_audit_rows={summary['rejection_audit_rows']} "
         f"selected_audit_rows={summary['selected_audit_rows']} "
         f"history_rows_added={summary['history_rows_added']} "
