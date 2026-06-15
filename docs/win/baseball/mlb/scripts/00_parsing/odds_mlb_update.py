@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 import requests
 
@@ -26,11 +27,15 @@ BOOKMAKERS = [PRIMARY_BOOKMAKER, FALLBACK_BOOKMAKER]
 
 EVENT_STATUS = "pending"
 
-now_utc = datetime.now(timezone.utc)
-TARGET_UTC_DATE = now_utc.date()
+ET = ZoneInfo("America/New_York")
 
-today = TARGET_UTC_DATE.strftime("%Y_%m_%d")
-stamp = now_utc.strftime("%Y_%m_%d_%H%M")
+now_utc = datetime.now(timezone.utc)
+now_et = now_utc.astimezone(ET)
+
+TARGET_ET_DATE = now_et.date()
+
+today = TARGET_ET_DATE.strftime("%Y_%m_%d")
+stamp = now_et.strftime("%Y_%m_%d_%H%M")
 
 ODDS_DIR = Path("docs/win/baseball/mlb/odds")
 ORIGINAL_PATH = ODDS_DIR / f"{today}.json"
@@ -61,30 +66,32 @@ def parse_event_utc_datetime(value):
         return None
 
     try:
-        return (
-            datetime.fromisoformat(str(value).replace("Z", "+00:00"))
-            .astimezone(timezone.utc)
-        )
+        dt = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+
+        return dt.astimezone(timezone.utc)
     except Exception:
         return None
 
 
-def parse_event_utc_date(value):
+def parse_event_et_date(value):
     dt = parse_event_utc_datetime(value)
 
     if dt is None:
         return None
 
-    return dt.date()
+    return dt.astimezone(ET).date()
 
 
 def event_commence_value(event):
     return event.get("date") or event.get("commence_time")
 
 
-def is_target_utc_date(event):
-    event_date = parse_event_utc_date(event_commence_value(event))
-    return event_date == TARGET_UTC_DATE
+def is_target_et_date(event):
+    event_date = parse_event_et_date(event_commence_value(event))
+    return event_date == TARGET_ET_DATE
 
 
 def has_started(event):
@@ -143,7 +150,7 @@ def fetch_events():
         skipped_started[bookmaker] = 0
 
         for event in events:
-            if not is_target_utc_date(event):
+            if not is_target_et_date(event):
                 skipped_non_target[bookmaker] += 1
                 continue
 
@@ -201,7 +208,7 @@ def fetch_odds(event_ids):
         bookmaker_odds = fetch_odds_for_bookmaker(event_ids, bookmaker)
 
         for event in bookmaker_odds:
-            if not is_target_utc_date(event):
+            if not is_target_et_date(event):
                 continue
 
             if has_started(event):
@@ -683,7 +690,7 @@ def filter_target_date_events(events):
             dropped += 1
             continue
 
-        if is_target_utc_date(event):
+        if is_target_et_date(event):
             filtered.append(event)
         else:
             dropped += 1
@@ -862,7 +869,10 @@ write_json(LATEST_PATH, latest_data)
 
 print(f"Saved update pull: {UPDATE_PATH}")
 print(f"Saved cumulative latest: {LATEST_PATH}")
-print(f"Target UTC date: {TARGET_UTC_DATE.isoformat()}")
+print(f"Target ET date: {TARGET_ET_DATE.isoformat()}")
+print(f"Target date string: {today}")
+print(f"Current UTC time: {now_utc.isoformat()}")
+print(f"Current ET time: {now_et.isoformat()}")
 print(f"API event status: {EVENT_STATUS}")
 
 if seed_path:
@@ -872,8 +882,8 @@ else:
 
 print(f"{PRIMARY_BOOKMAKER} events found: {event_counts.get(PRIMARY_BOOKMAKER, 0)}")
 print(f"{FALLBACK_BOOKMAKER} events found: {event_counts.get(FALLBACK_BOOKMAKER, 0)}")
-print(f"{PRIMARY_BOOKMAKER} future/non-target events skipped: {skipped_non_target_counts.get(PRIMARY_BOOKMAKER, 0)}")
-print(f"{FALLBACK_BOOKMAKER} future/non-target events skipped: {skipped_non_target_counts.get(FALLBACK_BOOKMAKER, 0)}")
+print(f"{PRIMARY_BOOKMAKER} non-target ET date events skipped: {skipped_non_target_counts.get(PRIMARY_BOOKMAKER, 0)}")
+print(f"{FALLBACK_BOOKMAKER} non-target ET date events skipped: {skipped_non_target_counts.get(FALLBACK_BOOKMAKER, 0)}")
 print(f"{PRIMARY_BOOKMAKER} started events skipped: {skipped_started_counts.get(PRIMARY_BOOKMAKER, 0)}")
 print(f"{FALLBACK_BOOKMAKER} started events skipped: {skipped_started_counts.get(FALLBACK_BOOKMAKER, 0)}")
 print(f"Unique pending target-date events found: {len(events)}")
@@ -881,7 +891,7 @@ print(f"Events with converted odds this pull: {len(pulled_data)}")
 print(f"Events using {PRIMARY_BOOKMAKER}: {source_counts.get(PRIMARY_BOOKMAKER, 0)}")
 print(f"Events using {FALLBACK_BOOKMAKER}: {source_counts.get(FALLBACK_BOOKMAKER, 0)}")
 print(f"Raw latest seed count: {len(raw_seed_data)}")
-print(f"Seed events dropped for non-target date/invalid rows: {dropped_seed_non_target}")
+print(f"Seed events dropped for non-target ET date/invalid rows: {dropped_seed_non_target}")
 print(f"Existing target-date latest seed count: {len(existing_latest_data)}")
 print(f"Updated existing not-started events in latest: {updated_count}")
 print(f"Added new pending events to latest: {added_count}")
