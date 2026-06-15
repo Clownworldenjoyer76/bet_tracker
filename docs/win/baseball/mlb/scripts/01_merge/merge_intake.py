@@ -11,7 +11,7 @@
 #   - Unmatched sportsbook rows are nonfatal and omitted from merged outputs.
 #
 # Mapping behavior:
-#   - Uses mappings/baseball/team_map_mlb.csv as the single MLB team map.
+#   - Uses docs/win/baseball/mlb/maps/team_map_mlb.csv as the single MLB team map.
 #   - Expected map columns:
 #       league,team_id,alias,canonical_team
 #   - Derives all of these from that one map:
@@ -35,7 +35,7 @@ LOG_DIR = Path("docs/win/baseball/mlb/errors/01_merge")
 AUDIT_DIR = OUT_DIR / "audit"
 REJECTION_DIR = OUT_DIR / "rejections"
 
-TEAM_MAP_FILE = Path("mappings/baseball/team_map_mlb.csv")
+TEAM_MAP_FILE = Path("docs/win/baseball/mlb/maps/team_map_mlb.csv")
 
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 LOG_DIR.mkdir(parents=True, exist_ok=True)
