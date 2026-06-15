@@ -14,12 +14,12 @@ SPORTSBOOK_DIR  = Path("docs/win/basketball/00_intake/sportsbook")
 PREDICTIONS_DIR = Path("docs/win/basketball/00_intake/predictions")
 
 MAP_FILES = {
-    "NBA":   Path("mappings/basketball/team_map_nba.csv"),
-    "NCAAM": Path("mappings/basketball/team_map_ncaam.csv"),
-    "WNBA":  Path("mappings/basketball/team_map_wnba.csv"),
+    "NBA":   Path("docs/win/basketball/maps/team_map_nba.csv"),
+    "NCAAM": Path("docs/win/basketball/maps/team_map_ncaam.csv"),
+    "WNBA":  Path("docs/win/basketball/maps/team_map_wnba.csv"),
 }
 
-NO_MAP_DIR  = Path("mappings/basketball/no_map")
+NO_MAP_DIR  = Path("docs/win/basketball/maps/no_map")
 NO_MAP_DIR.mkdir(parents=True, exist_ok=True)
 NO_MAP_FILE = NO_MAP_DIR / "no_map_basketball.csv"
 
