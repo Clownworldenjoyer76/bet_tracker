@@ -48,6 +48,8 @@ CONTEXT_COLS = [
     "temp_f", "wind_mph", "wind_dir",
     "precip_in", "humidity", "will_it_rain", "wind_blowing_out",
     "air_pressure_at_sea_level", "dew_point_f", "symbol_code",
+    "home_batters_found", "away_batters_found",
+    "home_sp_found", "away_sp_found",
     "sp_data_available", "lineup_data_available",
 ]
 

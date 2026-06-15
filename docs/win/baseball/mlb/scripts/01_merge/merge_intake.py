@@ -453,6 +453,8 @@ CONTEXT_COLS = [
     "home_sp_barrel_pct", "away_sp_barrel_pct",
     "home_sp_whiff_pct", "away_sp_whiff_pct",
     "home_sp_sample_flag", "away_sp_sample_flag",
+    "home_batters_found", "away_batters_found",
+    "home_sp_found", "away_sp_found",
     "home_lineup_xwoba", "home_lineup_barrel_pct", "home_lineup_hard_hit_pct",
     "home_lineup_k_pct", "home_lineup_bb_pct", "home_lineup_exit_velo",
     "home_lineup_frv", "home_lineup_brv", "home_catcher_framing",
