@@ -28,7 +28,7 @@ BASE = Path("docs/win/baseball/05_final_scores/results/final_scores")
 INPUT_DIR = BASE
 PATTERN = "*_final_scores_MLB.csv"
 
-MAP_FILE = Path("mappings/baseball/team_map_mlb.csv")
+MAP_FILE = Path("docs/win/baseball/maps/team_map_mlb.csv")
 MAP_FILTER_COL = "league"
 MAP_FILTER_VAL = "mlb"
 
