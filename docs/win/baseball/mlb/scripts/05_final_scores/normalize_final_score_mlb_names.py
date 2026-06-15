@@ -4,7 +4,7 @@
 # Normalizes MLB final-score team names.
 #
 # Master mapping file:
-#   mappings/baseball/mlb/team_map_mlb.csv
+#   docs/win/baseball/mlb/maps/team_map_mlb.csv
 #
 # Expected map columns:
 #   league,team_id,alias,canonical_team
@@ -28,7 +28,7 @@ BASE = Path("docs/win/baseball/mlb/05_final_scores/results/final_scores")
 INPUT_DIR = BASE
 PATTERN = "*_final_scores_MLB.csv"
 
-MAP_FILE = Path("mappings/baseball/team_map_mlb.csv")
+MAP_FILE = Path("docs/win/baseball/mlb/maps/team_map_mlb.csv")
 MAP_FILTER_COL = "league"
 MAP_FILTER_VAL = "mlb"
 
