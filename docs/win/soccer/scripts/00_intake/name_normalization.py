@@ -10,9 +10,9 @@ from datetime import datetime, timezone
 INTAKE_DIR = Path("docs/win/soccer/00_intake")
 FINAL_SCORES_DIR = Path("docs/win/soccer/05_final_scores/results/final_scores")
 
-MAP_FILE = Path("mappings/soccer/team_map_soccer.csv")
+MAP_FILE = Path("docs/win/soccer/mappings/team_map_soccer.csv")
 
-NO_MAP_DIR = Path("mappings/soccer/no_map")
+NO_MAP_DIR = Path("docs/win/soccer/mappings/no_map/")
 NO_MAP_DIR.mkdir(parents=True, exist_ok=True)
 NO_MAP_FILE = NO_MAP_DIR / "no_map_soccer.csv"
 
