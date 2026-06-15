@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
-# docs/win/baseball/mlb/scripts/00_intake/enrich_game_context.py
+# docs/win/baseball/scripts/00_intake/enrich_game_context.py
 #
-# Runs hourly after scrape_mlb_raw.py.
 # Joins Statcast, park factors (lineup-weighted by bat side), and weather
 # (from cache) to produce {date}_game_context.csv.
 #
-# Weather is NOT fetched here. Run fetch_weather.py once per day first.
 
 import traceback
 from datetime import datetime, UTC
@@ -17,7 +15,7 @@ import pandas as pd
 # PATHS
 # ─────────────────────────────────────────────
 
-BASE_DIR    = Path("docs/win/baseball/mlb/")
+BASE_DIR    = Path("docs/win/baseball/")
 MLBraw_DIR  = BASE_DIR / "00_intake/mlb_raw"
 MAPS_DIR    = BASE_DIR / "maps"
 DATA_DIR    = BASE_DIR / "data"
