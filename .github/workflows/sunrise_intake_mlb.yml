@@ -2,6 +2,11 @@ name: Sunrise Intake MLB
 
 on:
   workflow_dispatch:
+    inputs:
+      date:
+        description: "Date to run/scrape (YYYY-MM-DD). Defaults to today."
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -14,19 +19,28 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Set date
-        run: echo "DATE=$(TZ='America/New_York' date +%Y_%m_%d)" >> $GITHUB_ENV
+      - name: Resolve target date
+        id: date
+        run: |
+          if [ -n "${{ github.event.inputs.date }}" ]; then
+            echo "TARGET_DATE=${{ github.event.inputs.date }}" >> "$GITHUB_ENV"
+            echo "DATE=$(echo '${{ github.event.inputs.date }}' | tr '-' '_')" >> "$GITHUB_ENV"
+          else
+            echo "TARGET_DATE=$(TZ='America/New_York' date +'%Y-%m-%d')" >> "$GITHUB_ENV"
+            echo "DATE=$(TZ='America/New_York' date +'%Y_%m_%d')" >> "$GITHUB_ENV"
+          fi
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install playwright pytz
+          python -m pip install -r requirements.txt
+          python -m pip install pandas requests
+          python -m pip install playwright pytz
 
       - name: Cache Playwright browsers
         uses: actions/cache@v4
@@ -54,9 +68,9 @@ jobs:
           mkdir -p docs/win/baseball/errors/00_intake/
           mkdir -p docs/win/baseball/mlb/errors/00_intake/
           mkdir -p mappings/baseball/no_map/
+          mkdir -p docs/win/baseball/data/
           mkdir -p docs/win/baseball/data/weather/
           mkdir -p docs/win/baseball/data/weather/metno_raw/
-
 
       - name: Baseball Odds Parse
         run: python docs/win/baseball/scripts/00_intake/odds_parse.py docs/win/baseball/odds/${DATE}.json
@@ -76,6 +90,9 @@ jobs:
       - name: Baseball Name Normalization Post
         run: python docs/win/baseball/scripts/00_intake/name_normalization.py
 
+      - name: Baseball Scrape MLB Raw
+        run: python docs/win/baseball/scripts/00_intake/scrape_mlb_raw.py "$TARGET_DATE"
+
       - name: Baseball Build Games List
         run: python docs/win/baseball/scripts/00_intake/build_games_list.py
 
@@ -87,6 +104,9 @@ jobs:
       - name: Baseball Build Game Weather
         run: python docs/win/baseball/scripts/00_intake/build_game_weather.py
 
+      - name: Baseball Enrich Game Context
+        run: python docs/win/baseball/scripts/00_intake/enrich_game_context.py
+
       - name: Baseball Inject Game IDs Into Predictions
         run: python docs/win/baseball/scripts/00_intake/game_id_pred.py
 
@@ -94,7 +114,15 @@ jobs:
         if: failure()
         run: |
           echo "=== docs/win/baseball/errors/00_intake ==="
-          find docs/win/baseball/errors/00_intake -type f -maxdepth 1 -print || true
+          find docs/win/baseball/errors/00_intake -maxdepth 1 -type f -print || true
+
+          echo ""
+          echo "=== build_games_list log ==="
+          if [ -f docs/win/baseball/errors/00_intake/build_games_list.txt ]; then
+            cat docs/win/baseball/errors/00_intake/build_games_list.txt
+          else
+            echo "build_games_list.txt not found"
+          fi
 
           echo ""
           echo "=== game_id_pred log ==="
@@ -103,6 +131,18 @@ jobs:
           else
             echo "game_id_pred.txt not found"
           fi
+
+          echo ""
+          echo "=== enrich_game_context log ==="
+          if [ -f docs/win/baseball/errors/00_intake/enrich_game_context.txt ]; then
+            cat docs/win/baseball/errors/00_intake/enrich_game_context.txt
+          else
+            echo "enrich_game_context.txt not found"
+          fi
+
+          echo ""
+          echo "=== target-date input/output files ==="
+          find docs/win/baseball/00_intake -type f -name "${DATE}*" -print || true
 
           echo ""
           echo "=== prediction rejection CSVs ==="
@@ -116,10 +156,14 @@ jobs:
           if-no-files-found: ignore
           path: |
             docs/win/baseball/errors/00_intake/**
+            docs/win/baseball/00_intake/sportsbook/**
+            docs/win/baseball/00_intake/drat_raw/**
+            docs/win/baseball/00_intake/mlb_raw/**
             docs/win/baseball/00_intake/predictions/pred_with_game_id/rejections/**
             docs/win/baseball/00_intake/predictions/pred_with_game_id/**
             docs/win/baseball/00_intake/games/**
             docs/win/baseball/00_intake/predictions/**
+            docs/win/baseball/data/**
             docs/win/baseball/mlb/00_intake/drat_raw/**
             docs/win/baseball/mlb/errors/00_intake/**
 
@@ -137,6 +181,7 @@ jobs:
           git add docs/win/baseball/00_intake/mlb_raw/
           git add docs/win/baseball/errors/00_intake/
           git add mappings/baseball/no_map/
+          git add docs/win/baseball/data/
           git add docs/win/baseball/data/weather/
           git add docs/win/baseball/mlb/00_intake/drat_raw/
           git add docs/win/baseball/mlb/errors/00_intake/
