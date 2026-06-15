@@ -2,7 +2,7 @@
 00_name_normalization.py
 
 Normalizes fighter names in odds and predictions intake CSV files
-using the fighter name map at mappings/mma/ufc/fighter_name_map.csv.
+using the fighter name map at docs/win/mma/ufc/mappings/fighter_name_map.csv.
 
 Reads:
     docs/win/mma/ufc/00_intake/sportsbook/*_ufc_odds.csv
@@ -10,7 +10,7 @@ Reads:
     docs/win/mma/ufc/manual_files/*_ufc.csv
 
 Normalizes fighter_1 and fighter_2 in place.
-Outputs unmapped names to mappings/mma/ufc/no_map_fighter_name.csv.
+Outputs unmapped names to docs/win/mma/ufc/mappings/no_map_fighter_name.csv.
 """
 
 from __future__ import annotations
@@ -18,8 +18,8 @@ from __future__ import annotations
 import csv
 from pathlib import Path
 
-NAME_MAP_PATH = Path("mappings/mma/ufc/fighter_name_map.csv")
-NO_MAP_PATH = Path("mappings/mma/ufc/no_map_fighter_name.csv")
+NAME_MAP_PATH = Path("docs/win/mma/ufc/mappings/fighter_name_map.csv")
+NO_MAP_PATH = Path("docs/win/mma/ufc/mappings/no_map_fighter_name.csv")
 
 INTAKE_FILES = [
     (Path("docs/win/mma/ufc/00_intake/sportsbook"), "*_ufc_odds.csv"),
