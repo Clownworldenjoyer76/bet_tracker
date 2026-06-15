@@ -208,12 +208,16 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add docs/win/basketball/errors/00_intake/
-          git add docs/win/basketball/00_intake/
-          git add docs/win/basketball/daily_games/
-          git add docs/win/basketball/05_final_scores/results/
-          git add mappings/basketball/no_map/
+          git add -A docs/win/basketball
+          git add -A mappings/basketball
+
+          echo "--- git status before commit ---"
+          git status --short
 
           git diff --cached --quiet || git commit -m "chore: basketball intake run $(date -u +'%Y-%m-%d %H:%M UTC')"
-          git pull --rebase origin main
+
+          echo "--- git status before pull ---"
+          git status --short
+
+          git pull --rebase --autostash origin main
           git push
