@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # docs/win/soccer/scripts/02_juice/apply_juice.py
 
-import math
 import traceback
 from dataclasses import dataclass
 from pathlib import Path
@@ -17,13 +16,12 @@ import pandas as pd
 
 THIS_FILE = Path(__file__).resolve()
 SOCCER_ROOT = THIS_FILE.parents[2]          # .../docs/win/soccer
-PROJECT_ROOT = THIS_FILE.parents[5]         # .../bet_tracker0408
 
 INPUT_DIR = SOCCER_ROOT / "01_merge"
 OUTPUT_DIR = SOCCER_ROOT / "02_juice"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-CONFIG_ROOT = PROJECT_ROOT / "config" / "soccer"
+CONFIG_ROOT = SOCCER_ROOT / "config" / "juice"
 
 ERROR_DIR = SOCCER_ROOT / "errors" / "02_juice"
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
