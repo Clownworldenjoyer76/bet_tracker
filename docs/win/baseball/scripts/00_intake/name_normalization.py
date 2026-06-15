@@ -4,7 +4,7 @@
 # Normalizes MLB team names in sportsbook and prediction CSVs.
 #
 # Master mapping file:
-#   mappings/baseball/team_map_mlb.csv
+#   docs/win/baseball/maps/team_map_mlb.csv
 #
 # Expected map columns:
 #   league,team_id,alias,canonical_team
@@ -12,7 +12,7 @@
 # Behavior:
 #   - Rewrites home_team / away_team to canonical_team.
 #   - Requires team_id in the map.
-#   - Writes unmapped teams to mappings/baseball/no_map/no_map_mlb.csv.
+#   - Writes unmapped teams to docs/win/baseball/maps/no_map/no_map_mlb.csv.
 #   - Hard fails if the map is missing, malformed, ambiguous, or if any teams are unmapped.
 
 import csv
@@ -28,9 +28,9 @@ from datetime import datetime, timezone
 SPORTSBOOK_DIR = Path("docs/win/baseball/00_intake/sportsbook")
 PREDICTIONS_DIR = Path("docs/win/baseball/00_intake/predictions")
 
-MAP_FILE = Path("mappings/baseball/team_map_mlb.csv")
+MAP_FILE = Path("docs/win/baseball/maps/team_map_mlb.csv")
 
-NO_MAP_DIR = Path("mappings/baseball/no_map")
+NO_MAP_DIR = Path("docs/win/baseball/maps/no_map")
 NO_MAP_DIR.mkdir(parents=True, exist_ok=True)
 NO_MAP_FILE = NO_MAP_DIR / "no_map_mlb.csv"
 
