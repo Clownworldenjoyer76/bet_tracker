@@ -28,9 +28,9 @@ from datetime import datetime, timezone
 SPORTSBOOK_DIR = Path("docs/win/baseball/mlb/00_intake/sportsbook")
 PREDICTIONS_DIR = Path("docs/win/baseball/mlb/00_intake/predictions")
 
-MAP_FILE = Path("mappings/baseball/team_map_mlb.csv")
+MAP_FILE = Path("docs/win/baseball/mlb/maps/team_map_mlb.csv")
 
-NO_MAP_DIR = Path("docs/win/baseball/mlb/mappings/no_map")
+NO_MAP_DIR = Path("docs/win/baseball/mlb/maps/no_map")
 NO_MAP_DIR.mkdir(parents=True, exist_ok=True)
 NO_MAP_FILE = NO_MAP_DIR / "no_map_mlb.csv"
 
