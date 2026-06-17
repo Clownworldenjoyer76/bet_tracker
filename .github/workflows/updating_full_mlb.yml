@@ -100,14 +100,14 @@ jobs:
       - name: Baseball Alt Name Normalization Pre
         run: python docs/win/baseball/mlb/scripts/00_intake/name_normalization.py
 
-      - name: Baseball Alt Transform
-        run: python docs/win/baseball/mlb/scripts/00_intake/transform_baseball.py
+    #  - name: Baseball Alt Transform
+    #    run: python docs/win/baseball/mlb/scripts/00_intake/transform_baseball.py
 
       - name: Baseball Alt Name Normalization Post
         run: python docs/win/baseball/mlb/scripts/00_intake/name_normalization.py
 
-      - name: Baseball Alt Scrape MLB Raw
-        run: python docs/win/baseball/mlb/scripts/00_intake/scrape_mlb_raw.py "$TARGET_DATE"
+     # - name: Baseball Alt Scrape MLB Raw
+     #   run: python docs/win/baseball/mlb/scripts/00_intake/scrape_mlb_raw.py "$TARGET_DATE"
 
       - name: Baseball Alt Verify MLB Raw
         run: |
@@ -115,8 +115,8 @@ jobs:
           find docs/win/baseball/mlb/00_intake/mlb_raw -maxdepth 1 -type f -name "${DATE}*" -print || true
           test -f docs/win/baseball/mlb/00_intake/mlb_raw/${DATE}_mlb_raw.csv
 
-      - name: Baseball Alt Build Games List
-        run: python docs/win/baseball/mlb/scripts/00_intake/build_games_list.py
+     # - name: Baseball Alt Build Games List
+     #   run: python docs/win/baseball/mlb/scripts/00_intake/build_games_list.py
 
       - name: Baseball Alt Verify Games File
         run: |
@@ -132,8 +132,8 @@ jobs:
       - name: Baseball Alt Build Game Weather
         run: python docs/win/baseball/mlb/scripts/00_intake/build_game_weather.py
 
-      - name: Baseball Alt Inject Game IDs Into Predictions
-        run: python docs/win/baseball/mlb/scripts/00_intake/game_id_pred.py
+     # - name: Baseball Alt Inject Game IDs Into Predictions
+     #   run: python docs/win/baseball/mlb/scripts/00_intake/game_id_pred.py
 
       - name: Baseball Alt Verify Predictions With Game ID
         run: |
