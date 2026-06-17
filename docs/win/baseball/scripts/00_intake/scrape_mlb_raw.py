@@ -16,7 +16,10 @@ SCHEDULE_URL = (
 LIVE_URL = "https://statsapi.mlb.com/api/v1.1/game/{game_pk}/feed/live"
 LINEUP_URL = "https://statsapi.mlb.com/api/v1/game/{game_pk}/lineups"
 
-OUTPUT_DIR = Path("docs/win/baseball/00_intake/mlb_raw")
+OUTPUT_DIRS = [
+    Path("docs/win/baseball/00_intake/mlb_raw"),
+    Path("docs/win/baseball/mlb/00_intake/mlb_raw"),
+]
 
 CSV_HEADERS = [
     "gamePk",
@@ -166,19 +169,34 @@ def merge_row(existing: dict, new: dict) -> dict:
     return merged
 
 
+def write_output_file(out_path: Path, new_rows: dict) -> None:
+    existing_rows = load_existing_rows(out_path)
+
+    for game_pk, new_row in new_rows.items():
+        if game_pk in existing_rows:
+            existing_rows[game_pk] = merge_row(existing_rows[game_pk], new_row)
+        else:
+            existing_rows[game_pk] = new_row
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with out_path.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=CSV_HEADERS)
+        writer.writeheader()
+        writer.writerows(existing_rows.values())
+
+
 def main() -> int:
     target_date = sys.argv[1] if len(sys.argv) > 1 else datetime.now().strftime("%Y-%m-%d")
-
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    out_path = OUTPUT_DIR / f"{target_date.replace('-', '_')}_mlb_raw.csv"
-
-    existing_rows = load_existing_rows(out_path)
+    out_name = f"{target_date.replace('-', '_')}_mlb_raw.csv"
 
     schedule = fetch_json(SCHEDULE_URL.format(date=target_date))
     dates = schedule.get("dates", [])
     games = dates[0].get("games", []) if dates else []
 
+    new_rows = {}
     rows_written = 0
+
     for game in games:
         detailed_state = safe_get(game, "status", "detailedState")
         if detailed_state not in {"Pre-Game", "Scheduled"}:
@@ -192,19 +210,14 @@ def main() -> int:
         new_row = build_row(game, live)
         new_row["gamePk"] = game_pk
 
-        if game_pk in existing_rows:
-            existing_rows[game_pk] = merge_row(existing_rows[game_pk], new_row)
-        else:
-            existing_rows[game_pk] = new_row
-
+        new_rows[game_pk] = new_row
         rows_written += 1
 
-    with out_path.open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=CSV_HEADERS)
-        writer.writeheader()
-        writer.writerows(existing_rows.values())
+    for output_dir in OUTPUT_DIRS:
+        out_path = output_dir / out_name
+        write_output_file(out_path, new_rows)
+        print(out_path.as_posix())
 
-    print(out_path.as_posix())
     print(f"rows_written={rows_written}")
     return 0
 
