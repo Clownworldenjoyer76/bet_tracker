@@ -11,9 +11,13 @@ from datetime import datetime
 import pytz
 from playwright.sync_api import sync_playwright
 
+#URLS = {
+#    "mlb": "https://www.dratings.com/predictor/mlb-baseball-predictions/",
+#}
 URLS = {
-    "mlb": "https://www.dratings.com/predictor/mlb-baseball-predictions/",
+    "mlb": "https://www.dratings.com/predictor/mlb-baseball-predictions/upcoming/2#scroll-upcoming",
 }
+
 
 UTC = pytz.utc
 ET = pytz.timezone("America/New_York")
