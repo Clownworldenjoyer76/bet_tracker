@@ -7,18 +7,19 @@ import random
 import traceback
 from pathlib import Path
 from datetime import datetime
+
 import pytz
 from playwright.sync_api import sync_playwright
 
-#URLS = {
-#    "mlb": "https://www.dratings.com/predictor/mlb-baseball-predictions/",
-#}
+# URLS = {
+#     "mlb": "https://www.dratings.com/predictor/mlb-baseball-predictions/",
+# }
 URLS = {
     "mlb": "https://www.dratings.com/predictor/mlb-baseball-predictions/upcoming/2#scroll-upcoming",
 }
 
 UTC = pytz.utc
-ET  = pytz.timezone("America/New_York")
+ET = pytz.timezone("America/New_York")
 
 ERROR_DIR = Path("docs/win/baseball/errors/00_intake")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
@@ -27,6 +28,7 @@ LOG_FILE = ERROR_DIR / "baseball_drat_scraper.txt"
 with open(LOG_FILE, "w", encoding="utf-8") as f:
     f.write(f"=== baseball_drat_scraper RUN {datetime.now(ET).isoformat()} ===\n")
 
+
 def log(msg: str) -> None:
     with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write(f"{datetime.now(ET).isoformat()} | {msg}\n")
@@ -34,9 +36,9 @@ def log(msg: str) -> None:
 
 def convert_utc_to_et(date_time_str: str) -> str:
     try:
-        dt     = datetime.strptime(date_time_str.strip(), "%m/%d/%Y %I:%M %p")
+        dt = datetime.strptime(date_time_str.strip(), "%m/%d/%Y %I:%M %p")
         dt_utc = UTC.localize(dt)
-        dt_et  = dt_utc.astimezone(ET)
+        dt_et = dt_utc.astimezone(ET)
         return dt_et.strftime("%m/%d/%Y %I:%M %p")
     except Exception:
         return date_time_str
@@ -45,8 +47,10 @@ def convert_utc_to_et(date_time_str: str) -> str:
 def scrape_page(page, url):
     page.goto(url)
     page.wait_for_selector("table")
+
     all_rows = []
     tables = page.query_selector_all("table")
+
     for table in tables:
         rows = table.query_selector_all("tbody tr")
         for r in rows:
@@ -57,20 +61,36 @@ def scrape_page(page, url):
                 except Exception:
                     pass
                 all_rows.append(cells)
+
     return all_rows
+
+
+def write_raw_file(raw_dir: Path, date: str, sport: str, raw) -> Path:
+    raw_dir.mkdir(parents=True, exist_ok=True)
+
+    raw_path = raw_dir / f"{date}_{sport}_raw.json"
+
+    with open(raw_path, "w", encoding="utf-8") as f:
+        json.dump(raw, f, indent=2)
+
+    return raw_path
 
 
 def main():
     files_written = []
 
     try:
-        date    = datetime.now(ET).strftime("%Y_%m_%d")
-        raw_dir = Path("docs/win/baseball/00_intake/drat_raw")
-        raw_dir.mkdir(parents=True, exist_ok=True)
+        date = datetime.now(ET).strftime("%Y_%m_%d")
+
+        raw_dirs = [
+            Path("docs/win/baseball/00_intake/drat_raw"),
+            Path("docs/win/baseball/mlb/00_intake/drat_raw"),
+        ]
 
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
-            page    = browser.new_page()
+            page = browser.new_page()
+
             page.set_extra_http_headers({
                 "User-Agent": (
                     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -81,15 +101,14 @@ def main():
 
             for sport, url in URLS.items():
                 log(f"Scraping {sport.upper()}")
+
                 try:
-                    raw      = scrape_page(page, url)
-                    raw_path = raw_dir / f"{date}_{sport}_raw.json"
+                    raw = scrape_page(page, url)
 
-                    with open(raw_path, "w") as f:
-                        json.dump(raw, f, indent=2)
-
-                    files_written.append((str(raw_path), len(raw)))
-                    log(f"WROTE {raw_path} ({len(raw)} rows)")
+                    for raw_dir in raw_dirs:
+                        raw_path = write_raw_file(raw_dir, date, sport, raw)
+                        files_written.append((str(raw_path), len(raw)))
+                        log(f"WROTE {raw_path} ({len(raw)} rows)")
 
                 except Exception as e:
                     log(f"ERROR scraping {sport}: {e}\n{traceback.format_exc()}")
@@ -100,8 +119,10 @@ def main():
 
         log("--- SUMMARY ---")
         log(f"Files written: {len(files_written)}")
+
         for path, count in files_written:
             log(f"  FILE: {path} ({count} rows)")
+
         log("STATUS: SUCCESS")
 
     except Exception as e:
