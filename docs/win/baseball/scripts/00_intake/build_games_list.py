@@ -20,13 +20,20 @@ from datetime import datetime, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-MLB_RAW_DIR  = Path("docs/win/baseball/00_intake/mlb_raw")
-BOOK_DIR     = Path("docs/win/baseball/00_intake/sportsbook")
-MAPS_DIR     = Path("docs/win/baseball/maps")
-OUT_DIR      = Path("docs/win/baseball/00_intake/games")
-ERROR_DIR    = Path("docs/win/baseball/errors/00_intake")
+MLB_RAW_DIR = Path("docs/win/baseball/00_intake/mlb_raw")
+BOOK_DIR = Path("docs/win/baseball/00_intake/sportsbook")
+MAPS_DIR = Path("docs/win/baseball/maps")
 
-OUT_DIR.mkdir(parents=True, exist_ok=True)
+OUT_DIRS = [
+    Path("docs/win/baseball/00_intake/games"),
+    Path("docs/win/baseball/mlb/00_intake/games"),
+]
+
+ERROR_DIR = Path("docs/win/baseball/errors/00_intake")
+
+for out_dir in OUT_DIRS:
+    out_dir.mkdir(parents=True, exist_ok=True)
+
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 LOG_FILE = ERROR_DIR / "build_games_list.txt"
@@ -156,15 +163,24 @@ def make_output_row(raw_entry: dict, book_entry: dict) -> dict:
     }
 
 
+def write_games_file(out_path: Path, output_rows: list) -> None:
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(out_path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=OUTPUT_HEADER)
+        writer.writeheader()
+        writer.writerows(output_rows)
+
+
 # ─────────────────────────────────────────────
 # PROCESS ONE DATE
 # ─────────────────────────────────────────────
 
 def process_date(date_str: str, team_map: dict, id_to_name: dict, summary: dict) -> None:
-    raw_path  = MLB_RAW_DIR / f"{date_str}_mlb_raw.csv"
-    book_path = BOOK_DIR    / f"{date_str}_MLB.csv"
+    raw_path = MLB_RAW_DIR / f"{date_str}_mlb_raw.csv"
+    book_path = BOOK_DIR / f"{date_str}_MLB.csv"
 
-    raw_rows  = load_csv(raw_path)
+    raw_rows = load_csv(raw_path)
     book_rows = load_csv(book_path)
 
     if not raw_rows:
@@ -430,14 +446,11 @@ def process_date(date_str: str, team_map: dict, id_to_name: dict, summary: dict)
             ),
         )
 
-        out_path = OUT_DIR / f"{date_str}_games.csv"
-        with open(out_path, "w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=OUTPUT_HEADER)
-            writer.writeheader()
-            writer.writerows(output_rows)
-
-        log(f"{date_str} | WROTE: {out_path.name} ({len(output_rows)} games)")
-        summary["files_written"] += 1
+        for out_dir in OUT_DIRS:
+            out_path = out_dir / f"{date_str}_games.csv"
+            write_games_file(out_path, output_rows)
+            log(f"{date_str} | WROTE: {out_path} ({len(output_rows)} games)")
+            summary["files_written"] += 1
     else:
         log(f"{date_str} | no matched games — file not written", "WARN")
 
@@ -451,11 +464,11 @@ def main():
         f.write(f"=== build_games_list RUN {_now()} ===\n")
 
     summary = {
-        "files_written":   0,
-        "total_matched":   0,
+        "files_written": 0,
+        "total_matched": 0,
         "total_unmatched": 0,
-        "skipped":         0,
-        "errors":          0,
+        "skipped": 0,
+        "errors": 0,
     }
 
     try:
