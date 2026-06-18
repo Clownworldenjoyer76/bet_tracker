@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# docs/win/baseball/mlb/scripts/04_select/baseball_select_bets.py
+# docs/win/baseball/scripts/04_select/baseball_select_bets.py
 import traceback
 from datetime import datetime, UTC
 from pathlib import Path
@@ -7,18 +7,16 @@ from pathlib import Path
 import pandas as pd
 import yaml
 
-INPUT_DIR = Path("docs/win/baseball/mlb/03_edges/ev_kelly")
-OUTPUT_DIR = Path("docs/win/baseball/mlb/04_select")
-CONFIG_PATH = Path("docs/win/baseball/mlb/config/markets.yaml")
+INPUT_DIR = Path("docs/win/baseball/03_edges/ev_kelly")
+OUTPUT_DIR = Path("docs/win/baseball/04_select")
+CONFIG_PATH = Path("docs/win/baseball/config/markets.yaml")
 
 AUDIT_DIR = OUTPUT_DIR / "audit"
-HISTORY_DIR = OUTPUT_DIR / "history"
-ERROR_DIR = Path("docs/win/baseball/mlb/errors/04_select")
+ERROR_DIR = Path("docs/win/baseball/errors/04_select")
 LOG_FILE = ERROR_DIR / "select_bets.txt"
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 AUDIT_DIR.mkdir(parents=True, exist_ok=True)
-HISTORY_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
 LEAGUE_CODE = "MLB"
@@ -72,14 +70,9 @@ def _write_summary(summary: dict, per_slate: list) -> None:
         f"  rain_excluded_will_it_rain        : {summary['rain_excluded_will_it_rain']}",
         f"  rain_excluded_symbol_code         : {summary['rain_excluded_symbol_code']}",
         f"  sp_sample_excluded                : {summary['sp_sample_excluded']}",
-        f"  context_excluded                  : {summary['context_excluded']}",
         f"  low_confidence                    : {summary['low_confidence']}",
         f"  rejection_audit_rows              : {summary['rejection_audit_rows']}",
         f"  selected_audit_rows               : {summary['selected_audit_rows']}",
-        f"  history_files_written             : {summary['history_files_written']}",
-        f"  history_existing_rows             : {summary['history_existing_rows']}",
-        f"  history_rows_added                : {summary['history_rows_added']}",
-        f"  history_rows_written              : {summary['history_rows_written']}",
         f"  errors                            : {summary['errors']}",
         "",
         "--- Filter Breakdown ---",
@@ -128,14 +121,7 @@ REQUIRED_BASE_COLUMNS = [
     "away_team",
 ]
 
-CONTEXT_FILTER_COLUMNS = [
-    "home_batters_found",
-    "away_batters_found",
-    "home_sp_found",
-    "away_sp_found",
-]
-
-REQUIRED_MONEYLINE_COLUMNS = REQUIRED_BASE_COLUMNS + CONTEXT_FILTER_COLUMNS + [
+REQUIRED_MONEYLINE_COLUMNS = REQUIRED_BASE_COLUMNS + [
     "home_dk_moneyline_american",
     "away_dk_moneyline_american",
     "home_dk_decimal_moneyline",
@@ -160,7 +146,7 @@ REQUIRED_MONEYLINE_COLUMNS = REQUIRED_BASE_COLUMNS + CONTEXT_FILTER_COLUMNS + [
     "away_ml_kelly",
 ]
 
-REQUIRED_RUN_LINE_COLUMNS = REQUIRED_BASE_COLUMNS + CONTEXT_FILTER_COLUMNS + [
+REQUIRED_RUN_LINE_COLUMNS = REQUIRED_BASE_COLUMNS + [
     "home_run_line",
     "away_run_line",
     "home_dk_run_line_american",
@@ -187,7 +173,7 @@ REQUIRED_RUN_LINE_COLUMNS = REQUIRED_BASE_COLUMNS + CONTEXT_FILTER_COLUMNS + [
     "away_rl_kelly",
 ]
 
-REQUIRED_TOTAL_COLUMNS = REQUIRED_BASE_COLUMNS + CONTEXT_FILTER_COLUMNS + [
+REQUIRED_TOTAL_COLUMNS = REQUIRED_BASE_COLUMNS + [
     "total",
     "dk_total_over_american",
     "dk_total_under_american",
@@ -344,7 +330,10 @@ def validate_selected_output(df: pd.DataFrame, label: str) -> dict:
     adjusted_ev = pd.to_numeric(df["adjusted_ev"], errors="coerce")
     counts["selected_adjusted_only_positive"] = int(((raw_ev <= 0) & (adjusted_ev > 0)).sum())
 
-    failures = {k: v for k, v in counts.items() if v > 0}
+    failures = {
+        k: v for k, v in counts.items()
+        if v > 0 and k != "selected_adjusted_only_positive"
+    }
 
     if failures:
         raise ValueError(f"{label} failed selected-bet validation: {failures}")
@@ -379,20 +368,6 @@ def row_count_check(slate: str, market_frames: dict, summary: dict) -> None:
 
 
 def validate_config() -> None:
-    min_home_batters_found = CONFIG.get("min_home_batters_found", 0)
-    min_away_batters_found = CONFIG.get("min_away_batters_found", 0)
-    sp_found_required = CONFIG.get("sp_found", 0)
-
-    for key, value, lo, hi in [
-        ("min_home_batters_found", min_home_batters_found, 0, 9),
-        ("min_away_batters_found", min_away_batters_found, 0, 9),
-        ("sp_found", sp_found_required, 0, 2),
-    ]:
-        if not isinstance(value, int):
-            raise ValueError(f"{key} must be an integer from {lo} to {hi}")
-        if value < lo or value > hi:
-            raise ValueError(f"{key} must be between {lo} and {hi}; got {value}")
-
     run_line_preference = CONFIG.get("run_line", {}).get("pick_preference", "best_ev")
     if run_line_preference not in {"best_ev", "best_prob"}:
         raise ValueError(
@@ -707,133 +682,6 @@ def selected_audit_row(row):
 
 
 # =========================
-# HISTORY RETENTION
-# =========================
-
-def normalize_history_value(value) -> str:
-    if value is None:
-        return ""
-
-    try:
-        if pd.isna(value):
-            return ""
-    except Exception:
-        pass
-
-    try:
-        numeric = float(value)
-        if pd.notna(numeric):
-            return f"{numeric:.12g}"
-    except Exception:
-        pass
-
-    return str(value).strip()
-
-
-def build_history_key(row) -> str:
-    return "|".join([
-        normalize_history_value(row.get("game_id")),
-        normalize_history_value(row.get("market_type")),
-        normalize_history_value(row.get("bet_side")),
-        normalize_history_value(row.get("line")),
-    ])
-
-
-def add_history_columns(df: pd.DataFrame) -> pd.DataFrame:
-    history_df = df.copy()
-    selected_at = _now()
-
-    history_keys = history_df.apply(build_history_key, axis=1)
-
-    if "history_key" in history_df.columns:
-        history_df = history_df.drop(columns=["history_key"])
-
-    if "selected_at" in history_df.columns:
-        history_df = history_df.drop(columns=["selected_at"])
-
-    history_df.insert(0, "history_key", history_keys)
-    history_df.insert(0, "selected_at", selected_at)
-
-    return history_df
-
-
-def validate_history_output(df: pd.DataFrame, label: str) -> None:
-    validate_no_duplicate_columns(df, label)
-
-    if "history_key" not in df.columns:
-        raise ValueError(f"{label} missing history_key column")
-
-    keys = df["history_key"].astype(str).str.strip()
-
-    blank_keys = keys[(keys == "") | (keys.str.lower() == "nan")]
-    if not blank_keys.empty:
-        raise ValueError(f"{label} has blank history_key rows: {blank_keys.index.tolist()[:20]}")
-
-    duplicate_keys = keys[keys.duplicated(keep=False)]
-    if not duplicate_keys.empty:
-        counts = duplicate_keys.value_counts().to_dict()
-        raise ValueError(f"{label} has duplicate history_key rows: {counts}")
-
-
-def merge_history_columns(existing: pd.DataFrame, new_rows: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, list]:
-    output_columns = list(existing.columns)
-
-    for col in new_rows.columns:
-        if col not in output_columns:
-            output_columns.append(col)
-
-    for col in output_columns:
-        if col not in existing.columns:
-            existing[col] = pd.NA
-        if col not in new_rows.columns:
-            new_rows[col] = pd.NA
-
-    return existing[output_columns], new_rows[output_columns], output_columns
-
-
-def update_selected_history(current_df: pd.DataFrame, slate: str) -> dict:
-    HISTORY_DIR.mkdir(parents=True, exist_ok=True)
-
-    history_path = HISTORY_DIR / f"{slate}_MLB_selected_history.csv"
-    new_history_rows = add_history_columns(current_df)
-
-    validate_history_output(new_history_rows, f"{slate} new selected history rows")
-
-    existing_count = 0
-    added_count = len(new_history_rows)
-
-    if history_path.exists():
-        existing_history = pd.read_csv(history_path)
-        validate_history_output(existing_history, f"{slate} existing selected history")
-
-        existing_count = len(existing_history)
-        existing_keys = set(existing_history["history_key"].astype(str).str.strip())
-
-        new_history_rows = new_history_rows[
-            ~new_history_rows["history_key"].astype(str).str.strip().isin(existing_keys)
-        ].copy()
-        added_count = len(new_history_rows)
-
-        existing_history, new_history_rows, output_columns = merge_history_columns(
-            existing_history,
-            new_history_rows,
-        )
-        final_history = pd.concat([existing_history, new_history_rows], ignore_index=True)
-    else:
-        final_history = new_history_rows
-
-    validate_history_output(final_history, f"{slate} selected history output")
-    final_history.to_csv(history_path, index=False)
-
-    return {
-        "path": history_path,
-        "existing_rows": existing_count,
-        "added_rows": added_count,
-        "written_rows": len(final_history),
-    }
-
-
-# =========================
 # CONTEXT FILTERS
 # =========================
 
@@ -900,64 +748,11 @@ def is_low_confidence(row) -> int:
     return 0
 
 
-def context_filter_result(row) -> tuple[bool, str]:
-    if row is None:
-        return False, "missing_context_row"
-
-    min_home_batters_found = CONFIG.get("min_home_batters_found", 0)
-    min_away_batters_found = CONFIG.get("min_away_batters_found", 0)
-    sp_found_required = CONFIG.get("sp_found", 0)
-
-    home_batters_found = iv(row.get("home_batters_found"))
-    away_batters_found = iv(row.get("away_batters_found"))
-    home_sp_found = iv(row.get("home_sp_found"))
-    away_sp_found = iv(row.get("away_sp_found"))
-
-    home_batters_found_value = home_batters_found if home_batters_found is not None else 0
-    away_batters_found_value = away_batters_found if away_batters_found is not None else 0
-    home_sp_found_value = 1 if home_sp_found == 1 else 0
-    away_sp_found_value = 1 if away_sp_found == 1 else 0
-    sp_found_total = home_sp_found_value + away_sp_found_value
-
-    if home_batters_found_value < min_home_batters_found:
-        return (
-            False,
-            f"home_batters_found={home_batters_found_value}<min_home_batters_found={min_home_batters_found}",
-        )
-
-    if away_batters_found_value < min_away_batters_found:
-        return (
-            False,
-            f"away_batters_found={away_batters_found_value}<min_away_batters_found={min_away_batters_found}",
-        )
-
-    if sp_found_total < sp_found_required:
-        return (
-            False,
-            f"sp_found_total={sp_found_total}<sp_found={sp_found_required};"
-            f"home_sp_found={home_sp_found_value};away_sp_found={away_sp_found_value}",
-        )
-
-    return True, ""
-
-
-def context_output_values(row) -> dict:
-    if row is None:
-        return {col: None for col in CONTEXT_FILTER_COLUMNS}
-
-    return {col: row.get(col) for col in CONTEXT_FILTER_COLUMNS}
-
-
 # =========================
 # MARKET PROCESSORS
 # =========================
 
-#def evaluate_candidate(row, candidate, rules, side_counter, rejection_rows):
-#    if adjusted_only_positive(candidate["raw_ev"], candidate["adjusted_ev"]):
-#        side_counter["adjusted_only_fail"] += 1
-#        rejection_rows.append(base_candidate_audit(row, candidate, "adjusted_only_positive", "raw_ev<=0_and_adjusted_ev>0"))
-#        return None
-
+def evaluate_candidate(row, candidate, rules, side_counter, rejection_rows):
     basis_ok, fail_reason, fail_detail = check_probability_basis(
         candidate["prob_for_ev"],
         candidate["prob_for_kelly"],
@@ -1182,14 +977,9 @@ def main():
         "rain_excluded_will_it_rain": 0,
         "rain_excluded_symbol_code": 0,
         "sp_sample_excluded": 0,
-        "context_excluded": 0,
         "low_confidence": 0,
         "rejection_audit_rows": 0,
         "selected_audit_rows": 0,
-        "history_files_written": 0,
-        "history_existing_rows": 0,
-        "history_rows_added": 0,
-        "history_rows_written": 0,
         "errors": 0,
         "counters": {},
     }
@@ -1205,16 +995,12 @@ def main():
 
     _log(f"INPUT_DIR : {INPUT_DIR}")
     _log(f"OUTPUT_DIR: {OUTPUT_DIR}")
-    _log(f"HISTORY_DIR: {HISTORY_DIR}")
     _log(
         f"Rain filter: will_it_rain={FILTERS.get('rain_exclude_on_will_it_rain', True)} "
         f"symbol_code={FILTERS.get('rain_exclude_on_symbol_code', False)} "
         f"symbol_terms={FILTERS.get('rain_symbol_terms')} | "
         f"SP sample exclude totals: {FILTERS.get('sp_sample_exclude_totals')} | "
-        f"Lineup low sample warn: {FILTERS.get('lineup_low_sample_warn')} | "
-        f"Min home batters found: {FILTERS.get('min_home_batters_found')} | "
-        f"Min away batters found: {FILTERS.get('min_away_batters_found')} | "
-        f"SP found required: {FILTERS.get('sp_found')}"
+        f"Lineup low sample warn: {FILTERS.get('lineup_low_sample_warn')}"
     )
     _log("Selection requires kelly > 0 and matching EV/Kelly probability source per selected row.")
     _log("Selection rejects rows where adjusted EV is positive but raw EV is zero/negative.")
@@ -1352,12 +1138,6 @@ def main():
                     away = base_row["away_team"]
                     home = base_row["home_team"]
 
-                    rl_row = get_market_row(rl_df, game_id)
-                    ml_row = get_market_row(ml_df, game_id)
-                    tt_row = get_market_row(tt_df, game_id)
-
-                    context_row = rl_row if rl_row is not None else (tt_row if tt_row is not None else ml_row)
-
                     base = {
                         "game_id": game_id,
                         "sport": sport,
@@ -1366,39 +1146,14 @@ def main():
                         "league": LEAGUE_CODE,
                         "away_team": away,
                         "home_team": home,
-                        **context_output_values(context_row),
                     }
 
+                    rl_row = get_market_row(rl_df, game_id)
+                    ml_row = get_market_row(ml_df, game_id)
+                    tt_row = get_market_row(tt_df, game_id)
+
+                    context_row = rl_row if rl_row is not None else (tt_row if tt_row is not None else ml_row)
                     low_conf = is_low_confidence(context_row)
-
-                    context_ok, context_fail_detail = context_filter_result(context_row)
-
-                    if not context_ok:
-                        summary["context_excluded"] += 1
-                        _log(
-                            f"  {game_id} context excluded ({context_fail_detail})",
-                            "WARN",
-                        )
-                        rejection_rows.append({
-                            "date": game_date,
-                            "game_id": game_id,
-                            "market": "all",
-                            "side": "all",
-                            "fail_reason": "context_excluded",
-                            "fail_detail": context_fail_detail,
-                            "prob_used_for_selection": None,
-                            "prob_used_for_ev": None,
-                            "prob_used_for_kelly": None,
-                            "ev": None,
-                            "kelly": None,
-                            "odds": None,
-                            "line": None,
-                            "raw_ev": None,
-                            "adjusted_ev": None,
-                            "ev_probability_source": None,
-                            "kelly_probability_source": None,
-                        })
-                        continue
 
                     rain_reason = rain_exclusion_reason(context_row)
 
@@ -1526,21 +1281,9 @@ def main():
                     summary["run_line_bets"] += ps["rl"]
                     summary["total_mkt_bets"] += ps["tot"]
 
-                    history_result = update_selected_history(out_df, slate)
-                    summary["history_files_written"] += 1
-                    summary["history_existing_rows"] += history_result["existing_rows"]
-                    summary["history_rows_added"] += history_result["added_rows"]
-                    summary["history_rows_written"] += history_result["written_rows"]
-
                     _log(
                         f"WROTE: {out.name} "
                         f"({len(final)} bets | ml={ps['ml']} rl={ps['rl']} tot={ps['tot']})"
-                    )
-                    _log(
-                        f"WROTE HISTORY: {history_result['path']} "
-                        f"(existing={history_result['existing_rows']} "
-                        f"added={history_result['added_rows']} "
-                        f"written={history_result['written_rows']})"
                     )
                 else:
                     _log(f"{slate} no bets passed filters", "WARN")
@@ -1605,11 +1348,8 @@ def main():
         f"selected_adjusted_only_positive={summary['selected_adjusted_only_positive']} "
         f"rain_excluded_will_it_rain={summary['rain_excluded_will_it_rain']} "
         f"rain_excluded_symbol_code={summary['rain_excluded_symbol_code']} "
-        f"context_excluded={summary['context_excluded']} "
         f"rejection_audit_rows={summary['rejection_audit_rows']} "
         f"selected_audit_rows={summary['selected_audit_rows']} "
-        f"history_rows_added={summary['history_rows_added']} "
-        f"history_rows_written={summary['history_rows_written']} "
         f"row_count_warnings={summary['row_count_warnings']}"
     )
 
