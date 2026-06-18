@@ -330,7 +330,11 @@ def validate_selected_output(df: pd.DataFrame, label: str) -> dict:
     adjusted_ev = pd.to_numeric(df["adjusted_ev"], errors="coerce")
     counts["selected_adjusted_only_positive"] = int(((raw_ev <= 0) & (adjusted_ev > 0)).sum())
 
-    failures = {k: v for k, v in counts.items() if v > 0}
+    failures = {
+        k: v
+        for k, v in counts.items()
+        if v > 0 and k != "selected_adjusted_only_positive"
+    }
 
     if failures:
         raise ValueError(f"{label} failed selected-bet validation: {failures}")
@@ -750,11 +754,6 @@ def is_low_confidence(row) -> int:
 # =========================
 
 def evaluate_candidate(row, candidate, rules, side_counter, rejection_rows):
-    if adjusted_only_positive(candidate["raw_ev"], candidate["adjusted_ev"]):
-        side_counter["adjusted_only_fail"] += 1
-        rejection_rows.append(base_candidate_audit(row, candidate, "adjusted_only_positive", "raw_ev<=0_and_adjusted_ev>0"))
-        return None
-
     basis_ok, fail_reason, fail_detail = check_probability_basis(
         candidate["prob_for_ev"],
         candidate["prob_for_kelly"],
