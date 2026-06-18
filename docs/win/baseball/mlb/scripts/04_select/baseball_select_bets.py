@@ -952,11 +952,11 @@ def context_output_values(row) -> dict:
 # MARKET PROCESSORS
 # =========================
 
-def evaluate_candidate(row, candidate, rules, side_counter, rejection_rows):
-    if adjusted_only_positive(candidate["raw_ev"], candidate["adjusted_ev"]):
-        side_counter["adjusted_only_fail"] += 1
-        rejection_rows.append(base_candidate_audit(row, candidate, "adjusted_only_positive", "raw_ev<=0_and_adjusted_ev>0"))
-        return None
+#def evaluate_candidate(row, candidate, rules, side_counter, rejection_rows):
+#    if adjusted_only_positive(candidate["raw_ev"], candidate["adjusted_ev"]):
+#        side_counter["adjusted_only_fail"] += 1
+#        rejection_rows.append(base_candidate_audit(row, candidate, "adjusted_only_positive", "raw_ev<=0_and_adjusted_ev>0"))
+#        return None
 
     basis_ok, fail_reason, fail_detail = check_probability_basis(
         candidate["prob_for_ev"],
