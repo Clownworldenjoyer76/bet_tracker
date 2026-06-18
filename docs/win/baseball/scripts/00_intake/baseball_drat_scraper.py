@@ -11,7 +11,7 @@ from datetime import datetime
 import pytz
 from playwright.sync_api import sync_playwright
 
- URLS = {
+URLS = {
     "mlb": "https://www.dratings.com/predictor/mlb-baseball-predictions/",
 }
 #URLS = {
