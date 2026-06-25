@@ -7,12 +7,12 @@ from pathlib import Path
 import pandas as pd
 import yaml
 
-INPUT_DIR = Path("docs/win/baseball/03_edges/ev_kelly")
-OUTPUT_DIR = Path("docs/win/baseball/04_select")
-CONFIG_PATH = Path("docs/win/baseball/config/markets.yaml")
+INPUT_DIR = Path("docs/win/baseball/mlb/03_edges/ev_kelly")
+OUTPUT_DIR = Path("docs/win/baseball/mlb/04_select")
+CONFIG_PATH = Path("docs/win/baseball/mlb/config/markets.yaml")
 
 AUDIT_DIR = OUTPUT_DIR / "audit"
-ERROR_DIR = Path("docs/win/baseball/errors/04_select")
+ERROR_DIR = Path("docs/win/baseball/mlb/errors/04_select")
 LOG_FILE = ERROR_DIR / "select_bets.txt"
 
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
