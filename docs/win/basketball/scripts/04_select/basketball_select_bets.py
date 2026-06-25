@@ -5,11 +5,6 @@
 # filters from markets.yaml. Picks bet(s) per game according to the configured
 # selection_mode and pick_preference. Adds fractional-Kelly stake sizing.
 #
-# After per-market selection, a global reconciliation step ensures that for any
-# given game, you cannot end up with BOTH a moneyline and a spread bet. Total
-# bets are unaffected (a game can still have ML+total, spread+total, or just
-# total). Tiebreak is configurable; default is best EV.
-#
 # Input layout (matches stage-3 output):
 #   docs/win/basketball/03_edges/ev_kelly/{league}/{market}/*.csv
 #   where league in {nba, ncaam, wnba}, market in {moneyline, spread, total}
@@ -37,8 +32,8 @@
 #   stake_sizing.kelly_fraction      (multiplier on raw Kelly)
 #   stake_sizing.kelly_cap           (max stake as fraction of bankroll)
 #   ml_vs_spread_tiebreak            (ev | kelly | edge_vs_market; default ev)
-#                                    Used to decide which market wins when both
-#                                    moneyline and spread qualify on the same game.
+#                                    Reconciliation function remains available,
+#                                    but ML/spread reconciliation is skipped in main.
 
 import re
 import sys
@@ -285,16 +280,10 @@ def write_daily_pick_files(league: str, out_df: pd.DataFrame) -> None:
 
 def reconcile_ml_vs_spread(df: pd.DataFrame) -> tuple[pd.DataFrame, int]:
     """
+    Available but not used in main. Kept for reference only.
+
     For each game, if both moneyline AND spread bets are present, keep only
-    one market and drop the other entirely. Selection is by the configured
-    ML_VS_SPREAD_TIEBREAK metric, taking the BEST row in each market and
-    comparing those bests. The losing market's rows for that game are all
-    dropped (this matters when selection_mode is 'all_qualifying' and there
-    are multiple rows per market per game).
-
-    Total bets are unaffected — they pass through regardless.
-
-    Returns (filtered_df, n_dropped).
+    one market and drop the other entirely.
     """
     if df.empty:
         return df, 0
@@ -309,16 +298,13 @@ def reconcile_ml_vs_spread(df: pd.DataFrame) -> tuple[pd.DataFrame, int]:
         _log(f"Cannot reconcile: tiebreak column {metric_col!r} missing", "WARN")
         return df, 0
 
-    # Numeric coercion for the tiebreak column (defensive)
     df = df.copy()
     df["_tiebreak_metric"] = pd.to_numeric(df[metric_col], errors="coerce")
 
-    # Build a per-game best-metric table for ML and for spread.
     ml_mask     = df["market_type"] == "moneyline"
     spread_mask = df["market_type"] == "spread"
 
     if not ml_mask.any() or not spread_mask.any():
-        # No conflict possible — at least one market is empty.
         df = df.drop(columns=["_tiebreak_metric"])
         return df, 0
 
@@ -335,8 +321,6 @@ def reconcile_ml_vs_spread(df: pd.DataFrame) -> tuple[pd.DataFrame, int]:
         ml_val = ml_best.loc[gid]
         sp_val = spread_best.loc[gid]
 
-        # NaN handling: if both NaN, drop spread (arbitrary stable choice).
-        # If one NaN, the non-NaN side wins.
         if pd.isna(ml_val) and pd.isna(sp_val):
             losing_market = "spread"
         elif pd.isna(ml_val):
@@ -344,10 +328,8 @@ def reconcile_ml_vs_spread(df: pd.DataFrame) -> tuple[pd.DataFrame, int]:
         elif pd.isna(sp_val):
             losing_market = "spread"
         else:
-            # Higher tiebreak metric wins. Tie → spread loses (stable, arbitrary).
             losing_market = "spread" if ml_val >= sp_val else "moneyline"
 
-        # All rows in the losing market for this game get dropped.
         loss_mask = (df["game_id"] == gid) & (df["market_type"] == losing_market)
         drop_indices.extend(df.index[loss_mask].tolist())
         DEBUG_COUNTS[f"ml_vs_spread_dropped_{losing_market}"] += int(loss_mask.sum())
@@ -568,7 +550,7 @@ def main():
                         summary["errors"] += 1
                     per_file.append(pf)
 
-        # Per-league: concat, reconcile ML vs spread, write daily pick outputs
+        # Per-league: concat selected rows and write daily pick outputs.
         for league in LEAGUES:
             dfs = league_dfs[league]
             if not dfs:
@@ -577,15 +559,9 @@ def main():
 
             out_df = pd.concat(dfs, ignore_index=True)
 
-            # Reconcile ML vs spread per game (drops one market when both qualify)
-            before = len(out_df)
-            out_df, dropped = reconcile_ml_vs_spread(out_df)
-            after = len(out_df)
-            summary["ml_vs_spread_dropped"]  += dropped
-            summary[f"{league}_bets"]        -= (before - after)
-            summary["total_selected"]        -= (before - after)
-            _log(f"RECONCILE {league}: dropped {dropped} rows due to ML/spread conflict "
-                 f"({before} -> {after}, tiebreak={ML_VS_SPREAD_TIEBREAK})")
+            # Keep moneyline and spread selections for all leagues.
+            dropped = 0
+            _log(f"RECONCILE {league}: skipped ML/spread reconciliation; dropped 0 rows")
 
             # Per-date daily pick files only.
             write_daily_pick_files(league, out_df)
