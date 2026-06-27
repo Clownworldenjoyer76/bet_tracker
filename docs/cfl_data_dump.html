@@ -134,8 +134,7 @@ body {
 }
 
 input[type="password"],
-input[type="number"],
-input[type="date"] {
+input[type="number"] {
   width: 100%;
   box-sizing: border-box;
 }
@@ -275,16 +274,6 @@ input[type="date"] {
     </div>
 
     <div class="control-wrap">
-      <span class="control-label">Through Game</span>
-      <input id="through_game" type="number" min="1" placeholder="optional">
-    </div>
-
-    <div class="control-wrap">
-      <span class="control-label">Report Date</span>
-      <input id="report_date" type="date">
-    </div>
-
-    <div class="control-wrap">
       <span class="control-label">Magic</span>
       <input id="token" type="password" placeholder="••••••••">
     </div>
@@ -299,7 +288,7 @@ input[type="date"] {
 
       <textarea id="raw"></textarea>
 
-      <button id="btn" onclick="dispatch()">Submit CFL Dump</button>
+      <button id="btn" onclick="dispatch()">Create TXT File</button>
       <div id="out"></div>
     </div>
   </div>
@@ -311,7 +300,6 @@ input[type="date"] {
     const REPO = "bet_tracker";
     const REF = "main";
 
-    const WORKFLOW_FILE = "manual_cfl_dump.yml";
     const RAW_DIR = "docs/win/football/cfl/data_dump/raw";
 
     function pad2(value) {
@@ -372,42 +360,16 @@ input[type="date"] {
 
       if (!res.ok) {
         const body = await res.text();
-        throw new Error(`Create file failed: ${res.status} ${body}`);
+        throw new Error(`Create TXT file failed: ${res.status} ${body}`);
       }
 
       return await res.json();
-    }
-
-    async function githubDispatchWorkflow(token, inputs) {
-      const url =
-        `https://api.github.com/repos/${OWNER}/${REPO}` +
-        `/actions/workflows/${WORKFLOW_FILE}/dispatches`;
-
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Accept": "application/vnd.github+json",
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          ref: REF,
-          inputs
-        })
-      });
-
-      if (res.status !== 204) {
-        const body = await res.text();
-        throw new Error(`Workflow dispatch failed: ${res.status} ${body}`);
-      }
     }
 
     async function dispatch() {
       const reportType = document.getElementById("report_type").value.trim();
       const season = document.getElementById("season").value.trim();
       const week = document.getElementById("week").value.trim();
-      const throughGame = document.getElementById("through_game").value.trim();
-      const reportDate = document.getElementById("report_date").value.trim();
       const token = document.getElementById("token").value.trim();
       const raw = document.getElementById("raw").value;
 
@@ -436,7 +398,7 @@ input[type="date"] {
       btn.disabled = true;
       btn.textContent = "Processing...";
       out.className = "";
-      out.textContent = "Saving raw dump...";
+      out.textContent = "Creating TXT file...";
       status.className = "loading";
       status.textContent = "Submitting";
 
@@ -448,21 +410,9 @@ input[type="date"] {
           "data submitted"
         );
 
-        out.textContent = "Raw dump saved. Starting parser...";
-
-        await githubDispatchWorkflow(token, {
-          report_type: reportType,
-          season,
-          week,
-          through_game: throughGame,
-          report_date: reportDate,
-          raw_path: rawPath,
-          dump_id: dumpId
-        });
-
         out.className = "success";
         out.textContent =
-          `Successfully submitted\n${dumpId}`;
+          `TXT file created\n${rawPath}`;
         status.className = "";
         status.textContent = "Submitted";
       } catch (e) {
@@ -473,7 +423,7 @@ input[type="date"] {
       } finally {
         btn.classList.remove("submitting");
         btn.disabled = false;
-        btn.textContent = "Submit CFL Dump";
+        btn.textContent = "Create TXT File";
       }
     }
   </script>
