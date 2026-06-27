@@ -1,4 +1,4 @@
-name: CFL Team Rushing Proof
+name: CFL Game Analysis Proof
 
 on:
   workflow_dispatch:
@@ -7,22 +7,22 @@ permissions:
   contents: write
 
 jobs:
-  team-rushing-proof:
+  game-analysis-proof:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Run CFL team rushing proof parser
-        run: python docs/win/football/cfl/scripts/00_parser/cfl_team_rushing_proof.py
+      - name: Run CFL game analysis proof parser
+        run: python docs/win/football/cfl/scripts/00_parser/cfl_game_analysis_proof.py
 
-      - name: Commit proof output
+      - name: Commit proof outputs
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
 
-          git add docs/win/football/cfl/data_dump/proof/team_rushing_proof.csv
+          git add docs/win/football/cfl/data_dump/proof/game_analysis/
 
           if git diff --cached --quiet; then
             echo "No proof output changes to commit"
