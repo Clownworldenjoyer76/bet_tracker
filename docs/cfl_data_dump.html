@@ -134,7 +134,8 @@ body {
 }
 
 input[type="password"],
-input[type="number"] {
+input[type="number"],
+input[type="file"] {
   width: 100%;
   box-sizing: border-box;
 }
@@ -274,6 +275,11 @@ input[type="number"] {
     </div>
 
     <div class="control-wrap">
+      <span class="control-label">PDF File</span>
+      <input id="pdf_file" type="file" accept="application/pdf">
+    </div>
+
+    <div class="control-wrap">
       <span class="control-label">Magic</span>
       <input id="token" type="password" placeholder="••••••••">
     </div>
@@ -288,7 +294,7 @@ input[type="number"] {
 
       <textarea id="raw"></textarea>
 
-      <button id="btn" onclick="dispatch()">Create TXT File</button>
+      <button id="btn" onclick="dispatch()">Create TXT + PDF Files</button>
       <div id="out"></div>
     </div>
   </div>
@@ -300,7 +306,8 @@ input[type="number"] {
     const REPO = "bet_tracker";
     const REF = "main";
 
-    const RAW_DIR = "docs/win/football/cfl/data_dump/raw";
+    const RAW_TXT_DIR = "docs/win/football/cfl/data_dump/raw_txt";
+    const RAW_PDF_DIR = "docs/win/football/cfl/data_dump/raw_pdf";
 
     function pad2(value) {
       return String(value).padStart(2, "0");
@@ -329,6 +336,10 @@ input[type="number"] {
 
     function utf8ToBase64(str) {
       const bytes = new TextEncoder().encode(str);
+      return bytesToBase64(bytes);
+    }
+
+    function bytesToBase64(bytes) {
       let binary = "";
       const chunkSize = 0x8000;
 
@@ -340,7 +351,12 @@ input[type="number"] {
       return btoa(binary);
     }
 
-    async function githubCreateFile(token, path, content, message) {
+    async function fileToBase64(file) {
+      const buffer = await file.arrayBuffer();
+      return bytesToBase64(new Uint8Array(buffer));
+    }
+
+    async function githubCreateBase64File(token, path, base64Content, message) {
       const url =
         `https://api.github.com/repos/${OWNER}/${REPO}/contents/${path}`;
 
@@ -353,14 +369,14 @@ input[type="number"] {
         },
         body: JSON.stringify({
           message,
-          content: utf8ToBase64(content),
+          content: base64Content,
           branch: REF
         })
       });
 
       if (!res.ok) {
         const body = await res.text();
-        throw new Error(`Create TXT file failed: ${res.status} ${body}`);
+        throw new Error(`Create file failed: ${res.status} ${body}`);
       }
 
       return await res.json();
@@ -372,12 +388,13 @@ input[type="number"] {
       const week = document.getElementById("week").value.trim();
       const token = document.getElementById("token").value.trim();
       const raw = document.getElementById("raw").value;
+      const pdfFile = document.getElementById("pdf_file").files[0];
 
       const out = document.getElementById("out");
       const btn = document.getElementById("btn");
       const status = document.getElementById("status");
 
-      if (!reportType || !season || !week || !token || !raw.trim()) {
+      if (!reportType || !season || !week || !token || !raw.trim() || !pdfFile) {
         out.className = "failure";
         out.textContent = "Missing required input";
         status.className = "";
@@ -392,7 +409,8 @@ input[type="number"] {
       const dumpId =
         `${season}_week_${weekPadded}_${reportSlug}_${stamp}`;
 
-      const rawPath = `${RAW_DIR}/${dumpId}.txt`;
+      const txtPath = `${RAW_TXT_DIR}/${dumpId}.txt`;
+      const pdfPath = `${RAW_PDF_DIR}/${dumpId}.pdf`;
 
       btn.classList.add("submitting");
       btn.disabled = true;
@@ -403,16 +421,27 @@ input[type="number"] {
       status.textContent = "Submitting";
 
       try {
-        await githubCreateFile(
+        await githubCreateBase64File(
           token,
-          rawPath,
-          raw,
+          txtPath,
+          utf8ToBase64(raw),
+          "data submitted"
+        );
+
+        out.textContent = "TXT file created. Creating PDF file...";
+
+        const pdfBase64 = await fileToBase64(pdfFile);
+
+        await githubCreateBase64File(
+          token,
+          pdfPath,
+          pdfBase64,
           "data submitted"
         );
 
         out.className = "success";
         out.textContent =
-          `TXT file created\n${rawPath}`;
+          `Files created\n${txtPath}\n${pdfPath}`;
         status.className = "";
         status.textContent = "Submitted";
       } catch (e) {
@@ -423,7 +452,7 @@ input[type="number"] {
       } finally {
         btn.classList.remove("submitting");
         btn.disabled = false;
-        btn.textContent = "Create TXT File";
+        btn.textContent = "Create TXT + PDF Files";
       }
     }
   </script>
