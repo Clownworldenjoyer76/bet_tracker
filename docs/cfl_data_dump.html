@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CFL Data Dump</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link
+  href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=Barlow+Condensed:wght@400;600;700;800&display=swap"
+  rel="stylesheet"
+>
+<link rel="stylesheet" href="css/matstheme.css">
+
+<style>
+.topbar {
+  margin: 0;
+}
+
+body {
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  background: var(--background);
+  padding: 0;
+}
+
+:root {
+  --manual-green:      #00ff84;
+  --manual-green-dim:  rgba(0, 255, 132, 0.08);
+  --manual-yellow:     #facc15;
+  --manual-red:        #ff2d2d;
+  --manual-blue:       #00bfff;
+  --manual-border:     rgba(255,255,255,0.06);
+  --manual-card:       #0c1118;
+  --manual-card-hover: #111822;
+  --manual-radius:     3px;
+}
+
+.manual-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--manual-border);
+}
+
+.manual-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: 6px;
+  text-transform: uppercase;
+  color: var(--manual-green);
+  line-height: 1;
+  margin: 0;
+}
+
+.manual-title-slash {
+  color: rgba(0,255,132,0.25);
+  margin: 0 4px;
+}
+
+#status {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-left: auto;
+}
+
+#status.loading {
+  color: var(--manual-green);
+  animation: pulse-text 1.2s ease infinite;
+}
+
+@keyframes pulse-text {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.manual-controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 24px;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--manual-border);
+  flex-wrap: wrap;
+}
+
+.control-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 160px;
+  flex: 1;
+}
+
+.control-label {
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.manual-controls select,
+.manual-controls input,
+.manual-body textarea {
+  background: var(--manual-card);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-main);
+  padding: 7px 12px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  border-radius: var(--manual-radius);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+
+.manual-controls select {
+  appearance: none;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2300ff84'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 16px;
+  padding-right: 34px;
+}
+
+.manual-controls select:focus,
+.manual-controls input:focus,
+.manual-body textarea:focus {
+  border-color: var(--manual-green);
+  box-shadow: 0 0 0 3px var(--manual-green-dim);
+}
+
+input[type="password"],
+input[type="number"],
+input[type="date"] {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.manual-body {
+  padding: 24px;
+}
+
+.manual-card {
+  background: var(--manual-card);
+  border: 1px solid var(--manual-border);
+  border-left: 3px solid transparent;
+  border-radius: var(--manual-radius);
+  padding: 18px;
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+
+.manual-card:hover {
+  border-left-color: var(--manual-green);
+  background: var(--manual-card-hover);
+}
+
+.raw-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.raw-label {
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.raw-hint {
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: var(--manual-blue);
+  text-transform: uppercase;
+}
+
+.manual-body textarea {
+  width: 100%;
+  min-height: 360px;
+  resize: vertical;
+  box-sizing: border-box;
+  line-height: 1.5;
+  background: #080c11;
+}
+
+@keyframes pulse-yellow {
+  0% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0.7); }
+  70% { box-shadow: 0 0 0 10px rgba(250, 204, 21, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(250, 204, 21, 0); }
+}
+
+.manual-card button {
+  margin-top: 16px;
+  width: 100%;
+  background: transparent;
+  color: var(--manual-green);
+  border: 1px solid rgba(0,255,132,0.3);
+  padding: 12px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  cursor: pointer;
+  border-radius: var(--manual-radius);
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.manual-card button:hover {
+  background: var(--manual-green-dim);
+  border-color: var(--manual-green);
+}
+
+.manual-card button.submitting {
+  background: var(--manual-card) !important;
+  color: var(--manual-yellow) !important;
+  border-color: rgba(250,204,21,0.45) !important;
+  animation: pulse-yellow 1.5s infinite;
+  cursor: wait;
+}
+
+#out {
+  margin-top: 16px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-align: center;
+  text-transform: uppercase;
+  white-space: pre-wrap;
+}
+
+.success { color: var(--manual-green); }
+.failure { color: var(--manual-red); }
+
+@media (max-width: 640px) {
+  .manual-controls { gap: 14px; }
+  .control-wrap { min-width: 100%; }
+  .manual-body { padding: 16px; }
+}
+</style>
+</head>
+
+<body>
+  <div id="nav-placeholder"></div>
+
+  <div class="manual-header">
+    <h1 class="manual-title">CFL<span class="manual-title-slash">/</span>DATA</h1>
+    <div id="status" class="status"></div>
+  </div>
+
+  <div class="manual-controls">
+    <div class="control-wrap">
+      <span class="control-label">Report Type</span>
+      <select id="report_type">
+        <option value="">-- select --</option>
+        <option value="GAME ANALYSIS REPORT">GAME ANALYSIS REPORT</option>
+        <option value="CFL STATISTICS REPORT">CFL STATISTICS REPORT</option>
+      </select>
+    </div>
+
+    <div class="control-wrap">
+      <span class="control-label">Season</span>
+      <input id="season" type="number" min="1900" max="2100" placeholder="2026">
+    </div>
+
+    <div class="control-wrap">
+      <span class="control-label">Week</span>
+      <input id="week" type="number" min="1" max="30" placeholder="3">
+    </div>
+
+    <div class="control-wrap">
+      <span class="control-label">Through Game</span>
+      <input id="through_game" type="number" min="1" placeholder="optional">
+    </div>
+
+    <div class="control-wrap">
+      <span class="control-label">Report Date</span>
+      <input id="report_date" type="date">
+    </div>
+
+    <div class="control-wrap">
+      <span class="control-label">Magic</span>
+      <input id="token" type="password" placeholder="••••••••">
+    </div>
+  </div>
+
+  <div class="manual-body">
+    <div class="manual-card">
+      <div class="raw-label-row">
+        <span class="raw-label">Raw CFL Report Text</span>
+        <span class="raw-hint">Paste dump here</span>
+      </div>
+
+      <textarea id="raw"></textarea>
+
+      <button id="btn" onclick="dispatch()">Submit CFL Dump</button>
+      <div id="out"></div>
+    </div>
+  </div>
+
+  <script src="js/nav.js"></script>
+
+  <script>
+    const OWNER = "Clownworldenjoyer76";
+    const REPO = "bet_tracker";
+    const REF = "main";
+
+    const WORKFLOW_FILE = "manual_cfl_dump.yml";
+    const RAW_DIR = "docs/win/football/cfl/data_dump/raw";
+
+    function pad2(value) {
+      return String(value).padStart(2, "0");
+    }
+
+    function utcStamp() {
+      const d = new Date();
+      return (
+        d.getUTCFullYear().toString() +
+        pad2(d.getUTCMonth() + 1) +
+        pad2(d.getUTCDate()) +
+        "_" +
+        pad2(d.getUTCHours()) +
+        pad2(d.getUTCMinutes()) +
+        pad2(d.getUTCSeconds())
+      );
+    }
+
+    function normalizeSlug(value) {
+      return (value || "")
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "");
+    }
+
+    function utf8ToBase64(str) {
+      const bytes = new TextEncoder().encode(str);
+      let binary = "";
+      const chunkSize = 0x8000;
+
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        const chunk = bytes.subarray(i, i + chunkSize);
+        binary += String.fromCharCode.apply(null, chunk);
+      }
+
+      return btoa(binary);
+    }
+
+    async function githubCreateFile(token, path, content, message) {
+      const url =
+        `https://api.github.com/repos/${OWNER}/${REPO}/contents/${path}`;
+
+      const res = await fetch(url, {
+        method: "PUT",
+        headers: {
+          "Accept": "application/vnd.github+json",
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          message,
+          content: utf8ToBase64(content),
+          branch: REF
+        })
+      });
+
+      if (!res.ok) {
+        const body = await res.text();
+        throw new Error(`Create file failed: ${res.status} ${body}`);
+      }
+
+      return await res.json();
+    }
+
+    async function githubDispatchWorkflow(token, inputs) {
+      const url =
+        `https://api.github.com/repos/${OWNER}/${REPO}` +
+        `/actions/workflows/${WORKFLOW_FILE}/dispatches`;
+
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Accept": "application/vnd.github+json",
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          ref: REF,
+          inputs
+        })
+      });
+
+      if (res.status !== 204) {
+        const body = await res.text();
+        throw new Error(`Workflow dispatch failed: ${res.status} ${body}`);
+      }
+    }
+
+    async function dispatch() {
+      const reportType = document.getElementById("report_type").value.trim();
+      const season = document.getElementById("season").value.trim();
+      const week = document.getElementById("week").value.trim();
+      const throughGame = document.getElementById("through_game").value.trim();
+      const reportDate = document.getElementById("report_date").value.trim();
+      const token = document.getElementById("token").value.trim();
+      const raw = document.getElementById("raw").value;
+
+      const out = document.getElementById("out");
+      const btn = document.getElementById("btn");
+      const status = document.getElementById("status");
+
+      if (!reportType || !season || !week || !token || !raw.trim()) {
+        out.className = "failure";
+        out.textContent = "Missing required input";
+        status.className = "";
+        status.textContent = "Missing Input";
+        return;
+      }
+
+      const weekPadded = pad2(week);
+      const reportSlug = normalizeSlug(reportType);
+      const stamp = utcStamp();
+
+      const dumpId =
+        `${season}_week_${weekPadded}_${reportSlug}_${stamp}`;
+
+      const rawPath = `${RAW_DIR}/${dumpId}.txt`;
+
+      btn.classList.add("submitting");
+      btn.disabled = true;
+      btn.textContent = "Processing...";
+      out.className = "";
+      out.textContent = "Saving raw dump...";
+      status.className = "loading";
+      status.textContent = "Submitting";
+
+      try {
+        await githubCreateFile(
+          token,
+          rawPath,
+          raw,
+          "data submitted"
+        );
+
+        out.textContent = "Raw dump saved. Starting parser...";
+
+        await githubDispatchWorkflow(token, {
+          report_type: reportType,
+          season,
+          week,
+          through_game: throughGame,
+          report_date: reportDate,
+          raw_path: rawPath,
+          dump_id: dumpId
+        });
+
+        out.className = "success";
+        out.textContent =
+          `Successfully submitted\n${dumpId}`;
+        status.className = "";
+        status.textContent = "Submitted";
+      } catch (e) {
+        out.className = "failure";
+        out.textContent = `Failed\n${e.message}`;
+        status.className = "";
+        status.textContent = "Failed";
+      } finally {
+        btn.classList.remove("submitting");
+        btn.disabled = false;
+        btn.textContent = "Submit CFL Dump";
+      }
+    }
+  </script>
+</body>
+</html>
