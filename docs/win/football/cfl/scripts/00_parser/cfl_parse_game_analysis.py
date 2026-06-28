@@ -244,7 +244,7 @@ def strip_team_tokens(text: str) -> str:
     return re.sub(r"\b(BC|CGY|EDM|HAM|MTL|OTT|SSK|TOR|WPG|CFL)\b", " ", text)
 
 
-def parse_numeric_values(text: str) -> list[str]:
+def parse_numeric_values(text: str, parentheses_negative: bool = False) -> list[str]:
     text = strip_team_tokens(text)
 
     tokens = re.findall(
@@ -261,8 +261,14 @@ def parse_numeric_values(text: str) -> list[str]:
             values.append("")
         elif token.startswith("T") and token[1:].isdigit():
             values.append(token[1:])
+        elif token.startswith("(") and token.endswith(")"):
+            inner = token.strip("()").replace(",", "").replace("%", "")
+            if parentheses_negative and inner not in {"", "0", "0.0"}:
+                values.append(f"-{inner.lstrip('+-')}")
+            else:
+                values.append(inner)
         else:
-            values.append(token.strip("()").replace(",", "").replace("%", ""))
+            values.append(token.replace(",", "").replace("%", ""))
 
     return values
 
@@ -325,11 +331,26 @@ def clean_block(block: str, mode: str) -> str:
         out = re.sub(r"\s+%\s+100%.*$", "", out)
         out = re.sub(r"\s+Atts\s+\d+.*$", "", out)
 
+    elif mode == "kickoffs":
+        stops = ["'OT Rec'", "* Regular Kickoffs", "1. Post K/O possessions"]
+
     elif mode == "penalties":
         stops = ["PER GAME", "IN 2022", "IN 2021"]
 
+    elif mode == "punts":
+        stops = ["* NET YARDS", "** FIELD POSITION"]
+
     elif mode == "red_zone":
         stops = ["CFL RED ZONE FREQUENCY", "RED ZONE LEGEND:"]
+
+    elif mode == "second_down":
+        stops = ["2ND DOWN CONVERSION HISTORY", "OPPONENT 2ND DN CONV"]
+
+    elif mode == "third_short":
+        stops = ["3RD & SHORT RESULTS LEGEND:", "PCT", "CANADIAN FOOTBALL LEAGUE"]
+
+    elif mode == "turnover":
+        stops = ["Notes:", "2023 T/Os by Quarter:"]
 
     else:
         stops = ["Notes:"]
@@ -363,6 +384,17 @@ def zero_row(count: int) -> list[str]:
     return ["0"] * count
 
 
+def normalize_converts(values: list[str], team: str, expected_count: int) -> tuple[list[str], str]:
+    if team != "CFL" and values[:3] == ["0", "0", "0"] and len(values) >= 9 and values[3] != "0":
+        values = values[:3] + ["0"] + values[3:8]
+        return values[:expected_count], "OK"
+
+    if len(values) >= expected_count:
+        return values[:expected_count], "OK_AGGREGATE" if team == "CFL" else "OK"
+
+    return (values + [""] * expected_count)[:expected_count], f"NEEDS_REVIEW_{len(values)}_OF_{expected_count}"
+
+
 def normalize_for_spec(
     values: list[str],
     team: str,
@@ -373,23 +405,23 @@ def normalize_for_spec(
     expected_count = len(spec.value_columns)
     mode = spec.mode
 
-    if team != "CFL" and values and values[0] == "0" and all_zero_or_blank(values):
+    if team != "CFL" and gp_map.get(team) == "0" and all_zero_or_blank(values[:expected_count]):
+        return zero_row(expected_count), "OK_ZERO_GP"
+
+    if team != "CFL" and values and values[0] == "0" and all_zero_or_blank(values[:expected_count]):
         status = "OK_ZERO_GP" if gp_map.get(team) == "0" else "OK"
         return zero_row(expected_count), status
-
-    if team != "CFL" and gp_map.get(team) == "0" and all_zero_or_blank(values):
-        return zero_row(expected_count), "OK_ZERO_GP"
 
     if mode == "team_scoring" and team != "CFL" and values and values[0] == "0":
         return zero_row(expected_count), "OK_ZERO_GP"
 
     if mode == "team_scoring" and team == "CFL" and len(values) == 11:
-        values = values[:5] + [""] + values[5:]
+        values = values[:5] + ["0"] + values[5:]
         return values[:expected_count], "OK_AGGREGATE"
 
-    if mode == "turnover" and team == "CFL" and len(values) >= 14 and values[0] in {"2022", "2021", "2020", "2019", "2018", "2017", "2016"}:
-        values = ["0", ""] + values[1:13] + [values[13]]
-        return values[:expected_count], "OK_AGGREGATE"
+    if mode == "turnover" and team == "CFL" and values and re.fullmatch(r"\d{4}", values[0]):
+        values = ["", ""] + values[1:13]
+        return (values + [""] * expected_count)[:expected_count], "OK_AGGREGATE"
 
     if mode == "big_play" and team == "CFL" and len(values) == expected_count - 1:
         values = [values[0], ""] + values[1:]
@@ -398,37 +430,19 @@ def normalize_for_spec(
     if mode == "coaches" and values and values[0] == "0":
         return zero_row(expected_count), "OK"
 
-    if mode == "second_down" and team == "CFL" and len(values) == expected_count:
-        values = [
-            values[0],
-            values[1],
-            values[2],
-            "",
-            values[4],
-            values[5],
-            values[6],
-            values[7],
-            values[8],
-            values[9],
-            values[10],
-            values[11],
-            values[12],
-            values[13],
-            values[14],
-            "",
-        ]
+    if mode == "second_down" and team == "CFL" and len(values) == expected_count - 2:
+        values = values[:3] + [""] + values[3:] + [""]
         return values[:expected_count], "OK_AGGREGATE"
 
-    if mode == "converts" and team != "CFL" and len(values) == expected_count - 1:
-        values = values[:3] + ["0"] + values[3:]
-        return values[:expected_count], "OK"
+    if mode == "converts":
+        return normalize_converts(values, team, expected_count)
 
     if mode == "kickoffs" and team == "CFL" and len(values) == expected_count - 2:
         values = values[:15] + [""] + values[15:] + [""]
         return values[:expected_count], "OK_AGGREGATE"
 
-    if mode == "punts" and team == "CFL" and len(values) >= expected_count - 1:
-        values = values[:14] + [""] + values[14:19]
+    if mode == "punts" and team == "CFL" and len(values) == expected_count - 1:
+        values = values[:14] + [""] + values[14:]
         return values[:expected_count], "OK_AGGREGATE"
 
     if mode == "field_goals" and len(values) == expected_count - 1:
@@ -546,7 +560,49 @@ def base_row(context: DumpContext, team: str, status: str) -> dict[str, str]:
     }
 
 
+def append_status(status: str, issue: str) -> str:
+    if status in {"OK", "OK_ZERO_GP", "OK_AGGREGATE"}:
+        return issue
+
+    if issue in status:
+        return status
+
+    return f"{status}|{issue}"
+
+
+def validate_table_rows(filename: str, rows: list[dict[str, str]]) -> None:
+    for row in rows:
+        team = row.get("team", "")
+        status = row.get("row_parse_status", "")
+
+        if filename == "second_down_conversions.csv" and team == "CFL":
+            if row.get("rank", "") or row.get("yards_to_go_rank", ""):
+                row["row_parse_status"] = append_status(status, "NEEDS_REVIEW_CFL_RANK_SHIFT")
+
+        elif filename == "special_teams_kickoffs.csv" and team == "CFL":
+            if row.get("regular_kickoff_rank", "") or row.get("post_kickoff_rank", ""):
+                row["row_parse_status"] = append_status(status, "NEEDS_REVIEW_CFL_RANK_SHIFT")
+
+        elif filename == "turnover_analysis.csv" and team == "CFL":
+            if row.get("turnover_ratio", "") or row.get("rank", ""):
+                row["row_parse_status"] = append_status(status, "NEEDS_REVIEW_CFL_HISTORY_SHIFT")
+
+        elif filename == "team_scoring_breakdown.csv" and team == "CFL":
+            if row.get("point_diff", "") == "":
+                row["row_parse_status"] = append_status(status, "NEEDS_REVIEW_CFL_POINT_DIFF_BLANK")
+
+        elif filename == "special_teams_converts.csv" and team != "CFL":
+            if (
+                row.get("convert_1_attempts") == "0"
+                and row.get("convert_1_made") == "0"
+                and row.get("convert_1_pct") == "0"
+                and row.get("convert_1_missed") not in {"0", ""}
+            ):
+                row["row_parse_status"] = append_status(status, "NEEDS_REVIEW_CONVERT_SHIFT")
+
+
 def audit_entry(context: DumpContext, filename: str, rows: list[dict[str, str]]) -> dict[str, str]:
+    validate_table_rows(filename, rows)
     statuses = [row.get("row_parse_status", "") for row in rows]
 
     return {
@@ -560,8 +616,8 @@ def audit_entry(context: DumpContext, filename: str, rows: list[dict[str, str]])
         "ok_rows": str(sum(status == "OK" for status in statuses)),
         "zero_gp_rows": str(sum(status == "OK_ZERO_GP" for status in statuses)),
         "aggregate_rows": str(sum(status == "OK_AGGREGATE" for status in statuses)),
-        "needs_review_rows": str(sum(status.startswith("NEEDS_REVIEW") for status in statuses)),
-        "missing_rows": str(sum(status == "MISSING_ROW" for status in statuses)),
+        "needs_review_rows": str(sum("NEEDS_REVIEW" in status for status in statuses)),
+        "missing_rows": str(sum(status == "MISSING_ROW" or status.startswith("MISSING_SECTION") for status in statuses)),
         "status": (
             "OK"
             if all(status in {"OK", "OK_ZERO_GP", "OK_AGGREGATE"} for status in statuses)
@@ -599,7 +655,7 @@ def parse_generic_table(
             if spec.mode in {"team_scoring", "kickoffs"}:
                 cleaned = team_segment_from_block(cleaned, team)
 
-            raw_values = parse_numeric_values(cleaned)
+            raw_values = parse_numeric_values(cleaned, parentheses_negative=(spec.mode == "punts"))
             values, status = normalize_for_spec(raw_values, team, spec, games_played, gp_map)
 
         row = base_row(context, team, status)
@@ -1187,6 +1243,7 @@ def make_specs() -> list[TableSpec]:
                 "opponent_third_short_made",
                 "opponent_third_short_fail",
             ],
+            "third_short",
         ),
         TableSpec(
             "penalties_team_report.csv",
