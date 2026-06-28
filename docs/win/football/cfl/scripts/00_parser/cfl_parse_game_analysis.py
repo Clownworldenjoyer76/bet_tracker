@@ -86,6 +86,7 @@ def upsert_csv(path: Path, fieldnames: list[str], new_rows: list[dict[str, str]]
             week = 0
 
         team = row.get("team", "")
+
         return (
             season,
             week,
@@ -388,6 +389,10 @@ def normalize_for_spec(
         values = values[:5] + [""] + values[5:]
         return values[:expected_count], "OK_AGGREGATE"
 
+    if mode == "big_play" and team == "CFL" and len(values) == expected_count - 1:
+        values = [values[0], ""] + values[1:]
+        return values[:expected_count], "OK_AGGREGATE"
+
     if mode == "coaches" and values and values[0] == "0":
         return zero_row(expected_count), "OK"
 
@@ -644,6 +649,7 @@ def parse_time_of_possession_table(
 
     filename = "time_of_possession_field_position.csv"
     fieldnames = BASE_COLUMNS + value_columns + SOURCE_COLUMNS
+
     return filename, fieldnames, rows, audit_entry(context, filename, rows)
 
 
@@ -663,11 +669,11 @@ def parse_first_down_tables(
     made_columns = [
         "first_down_call_rush",
         "first_down_call_pass_plus",
-        "first_down_call_total",
+        "team_first_downs_total",
         "team_first_downs_rush",
         "team_first_downs_pass",
         "team_first_downs_penalty",
-        "team_first_downs_total",
+        "opponent_first_downs_total",
         "opponent_first_downs_rush",
         "opponent_first_downs_pass",
         "opponent_first_downs_penalty",
@@ -703,12 +709,6 @@ def parse_first_down_tables(
                 status = "OK_ZERO_GP"
 
             elif team == "CFL" and len(values) >= 14:
-                call_total = (
-                    str(int(float(values[4])) + int(float(values[5])))
-                    if values[4] and values[5]
-                    else ""
-                )
-
                 offence_values = [
                     values[0],
                     values[1],
@@ -721,11 +721,11 @@ def parse_first_down_tables(
                 made_values = [
                     values[4],
                     values[5],
-                    call_total,
+                    values[6],
                     values[7],
                     values[8],
                     values[9],
-                    values[6],
+                    values[10],
                     values[11],
                     values[12],
                     values[13],
@@ -961,8 +961,18 @@ def make_specs() -> list[TableSpec]:
             ],
             "team_scoring",
         ),
-        TableSpec("team_touchdowns_points_by_quarter.csv", "TEAM SCORING TEAM TOUCHDOWNS", "OPPONENT SCORING OPPONENT TOUCHDOWNS", touchdown_columns),
-        TableSpec("opponent_touchdowns_points_by_quarter.csv", "OPPONENT SCORING OPPONENT TOUCHDOWNS", "3. TURNOVER ANALYSIS", touchdown_columns),
+        TableSpec(
+            "team_touchdowns_points_by_quarter.csv",
+            "TEAM SCORING TEAM TOUCHDOWNS",
+            "OPPONENT SCORING OPPONENT TOUCHDOWNS",
+            touchdown_columns,
+        ),
+        TableSpec(
+            "opponent_touchdowns_points_by_quarter.csv",
+            "OPPONENT SCORING OPPONENT TOUCHDOWNS",
+            "3. TURNOVER ANALYSIS",
+            touchdown_columns,
+        ),
         TableSpec(
             "turnover_analysis.csv",
             "3. TURNOVER ANALYSIS",
