@@ -85,13 +85,11 @@ def upsert_csv(path: Path, fieldnames: list[str], new_rows: list[dict[str, str]]
         except ValueError:
             week = 0
 
-        team = row.get("team", "")
-
         return (
             season,
             week,
             row.get("dump_id", ""),
-            TEAM_SORT.get(team, 999),
+            TEAM_SORT.get(row.get("team", ""), 999),
             row.get("file_name", ""),
         )
 
@@ -389,12 +387,49 @@ def normalize_for_spec(
         values = values[:5] + [""] + values[5:]
         return values[:expected_count], "OK_AGGREGATE"
 
+    if mode == "turnover" and team == "CFL" and len(values) >= 14 and values[0] in {"2022", "2021", "2020", "2019", "2018", "2017", "2016"}:
+        values = ["0", ""] + values[1:13] + [values[13]]
+        return values[:expected_count], "OK_AGGREGATE"
+
     if mode == "big_play" and team == "CFL" and len(values) == expected_count - 1:
         values = [values[0], ""] + values[1:]
         return values[:expected_count], "OK_AGGREGATE"
 
     if mode == "coaches" and values and values[0] == "0":
         return zero_row(expected_count), "OK"
+
+    if mode == "second_down" and team == "CFL" and len(values) == expected_count:
+        values = [
+            values[0],
+            values[1],
+            values[2],
+            "",
+            values[4],
+            values[5],
+            values[6],
+            values[7],
+            values[8],
+            values[9],
+            values[10],
+            values[11],
+            values[12],
+            values[13],
+            values[14],
+            "",
+        ]
+        return values[:expected_count], "OK_AGGREGATE"
+
+    if mode == "converts" and team != "CFL" and len(values) == expected_count - 1:
+        values = values[:3] + ["0"] + values[3:]
+        return values[:expected_count], "OK"
+
+    if mode == "kickoffs" and team == "CFL" and len(values) == expected_count - 2:
+        values = values[:15] + [""] + values[15:] + [""]
+        return values[:expected_count], "OK_AGGREGATE"
+
+    if mode == "punts" and team == "CFL" and len(values) >= expected_count - 1:
+        values = values[:14] + [""] + values[14:19]
+        return values[:expected_count], "OK_AGGREGATE"
 
     if mode == "field_goals" and len(values) == expected_count - 1:
         if len(values) > 7 and values[5] == "0" and values[6] == "0":
@@ -561,7 +596,7 @@ def parse_generic_table(
         else:
             cleaned = clean_block(block, spec.mode)
 
-            if spec.mode == "team_scoring":
+            if spec.mode in {"team_scoring", "kickoffs"}:
                 cleaned = team_segment_from_block(cleaned, team)
 
             raw_values = parse_numeric_values(cleaned)
@@ -578,18 +613,42 @@ def parse_generic_table(
     return spec.filename, fieldnames, rows, audit_entry(context, spec.filename, rows)
 
 
-def parse_top_block(block: str, expected_count: int) -> tuple[str, list[str], str]:
+def parse_top_block(
+    block: str,
+    expected_count: int,
+    team: str,
+    gp_map: dict[str, str],
+) -> tuple[str, list[str], str]:
+    if team != "CFL" and gp_map.get(team) == "0":
+        return "", zero_row(expected_count), "OK_ZERO_GP"
+
     match = re.search(r"\b\d{1,2}:\d{2}\b", block)
     top_value = match.group(0) if match else ""
 
     cleaned = block.replace(top_value, " ", 1) if top_value else block
     values = parse_numeric_values(cleaned)
 
+    if team == "CFL" and len(values) >= 8:
+        values = [
+            values[0],
+            values[1],
+            values[2],
+            "",
+            values[3],
+            values[4],
+            "",
+            values[5],
+            values[6],
+            values[7],
+        ]
+        return top_value, values[:expected_count], "OK_AGGREGATE"
+
     if len(values) >= expected_count:
         return top_value, values[:expected_count], "OK"
 
     if all_zero_or_blank(values):
-        return top_value, zero_row(expected_count), "OK_ZERO_GP"
+        status = "OK_ZERO_GP" if gp_map.get(team) == "0" else "OK"
+        return top_value, zero_row(expected_count), status
 
     return top_value, (values + [""] * expected_count)[:expected_count], (
         f"NEEDS_REVIEW_{len(values)}_OF_{expected_count}"
@@ -599,6 +658,7 @@ def parse_top_block(block: str, expected_count: int) -> tuple[str, list[str], st
 def parse_time_of_possession_table(
     text: str,
     context: DumpContext,
+    gp_map: dict[str, str],
 ) -> tuple[str, list[str], list[dict[str, str]], dict[str, str]]:
     value_columns = [
         "time_of_possession",
@@ -637,7 +697,12 @@ def parse_time_of_possession_table(
             values = [""] * len(numeric_columns)
             status = missing_status or "MISSING_ROW"
         else:
-            top_value, values, status = parse_top_block(block, len(numeric_columns))
+            top_value, values, status = parse_top_block(
+                block,
+                len(numeric_columns),
+                team,
+                gp_map,
+            )
 
         row = base_row(context, team, status)
         row["time_of_possession"] = top_value
@@ -961,18 +1026,8 @@ def make_specs() -> list[TableSpec]:
             ],
             "team_scoring",
         ),
-        TableSpec(
-            "team_touchdowns_points_by_quarter.csv",
-            "TEAM SCORING TEAM TOUCHDOWNS",
-            "OPPONENT SCORING OPPONENT TOUCHDOWNS",
-            touchdown_columns,
-        ),
-        TableSpec(
-            "opponent_touchdowns_points_by_quarter.csv",
-            "OPPONENT SCORING OPPONENT TOUCHDOWNS",
-            "3. TURNOVER ANALYSIS",
-            touchdown_columns,
-        ),
+        TableSpec("team_touchdowns_points_by_quarter.csv", "TEAM SCORING TEAM TOUCHDOWNS", "OPPONENT SCORING OPPONENT TOUCHDOWNS", touchdown_columns),
+        TableSpec("opponent_touchdowns_points_by_quarter.csv", "OPPONENT SCORING OPPONENT TOUCHDOWNS", "3. TURNOVER ANALYSIS", touchdown_columns),
         TableSpec(
             "turnover_analysis.csv",
             "3. TURNOVER ANALYSIS",
@@ -993,6 +1048,7 @@ def make_specs() -> list[TableSpec]:
                 "takeaways_total",
                 "takeaway_points",
             ],
+            "turnover",
         ),
         TableSpec("team_possessions.csv", "4a. POSSESSION ANALYSIS", "4b. OPPONENT POSSESSION ANALYSIS", possession_columns),
         TableSpec("opponent_possessions.csv", "4b. OPPONENT POSSESSION ANALYSIS", "4c. TIME OF POSSESSION", possession_columns),
@@ -1117,6 +1173,7 @@ def make_specs() -> list[TableSpec]:
                 "yards_to_go_avg",
                 "yards_to_go_rank",
             ],
+            "second_down",
         ),
         TableSpec(
             "third_short_results.csv",
@@ -1192,6 +1249,7 @@ def make_specs() -> list[TableSpec]:
                 "convert_2_rush",
                 "convert_2_pass",
             ],
+            "converts",
         ),
         TableSpec(
             "special_teams_kick_returns.csv",
@@ -1252,6 +1310,7 @@ def make_specs() -> list[TableSpec]:
                 "field_position_yards",
                 "field_position_avg",
             ],
+            "punts",
         ),
         TableSpec(
             "special_teams_kickoffs.csv",
@@ -1279,6 +1338,7 @@ def make_specs() -> list[TableSpec]:
                 "post_kickoff_avg_start_yard_line",
                 "post_kickoff_rank",
             ],
+            "kickoffs",
         ),
     ]
 
@@ -1310,7 +1370,7 @@ def parse_dump(context: DumpContext) -> tuple[
         rows_by_file.setdefault(filename, []).extend(rows)
         audit_rows.append(audit)
 
-    filename, fieldnames, rows, audit = parse_time_of_possession_table(text, context)
+    filename, fieldnames, rows, audit = parse_time_of_possession_table(text, context, gp_map)
     fieldnames_by_file[filename] = fieldnames
     rows_by_file.setdefault(filename, []).extend(rows)
     audit_rows.append(audit)
