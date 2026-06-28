@@ -1,0 +1,32 @@
+name: CFL Parse Game Analysis
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  parse-game-analysis:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Run CFL game analysis parser
+        run: python docs/win/football/cfl/scripts/00_parser/cfl_parse_game_analysis.py
+
+      - name: Commit parsed game analysis outputs
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+          git add docs/win/football/cfl/01_parsed/game_analysis/
+
+          if git diff --cached --quiet; then
+            echo "No parsed output changes to commit"
+          else
+            git commit -m "data submitted"
+            git push
+          fi
