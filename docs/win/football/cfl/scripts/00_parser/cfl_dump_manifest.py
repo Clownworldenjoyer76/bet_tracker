@@ -52,19 +52,42 @@ def parse_dump_id(dump_id: str) -> dict[str, str]:
     }
 
 
-def count_pdf_pages(pdf_path: Path) -> str:
-    if not pdf_path.exists():
+def count_pdf_pages_with_pypdf(pdf_path: Path) -> str:
+    try:
+        try:
+            from pypdf import PdfReader
+        except ImportError:
+            from PyPDF2 import PdfReader
+
+        reader = PdfReader(str(pdf_path))
+        return str(len(reader.pages))
+    except Exception:
         return ""
 
+
+def count_pdf_pages_with_regex(pdf_path: Path) -> str:
     try:
         data = pdf_path.read_bytes()
 
-        # Standard-library page count approximation.
-        # Counts real page objects, excluding the /Pages tree object.
+        # Fallback only.
+        # This works for PDFs with visible uncompressed page objects.
+        # It can fail on compressed/object-stream PDFs.
         matches = re.findall(rb"/Type\s*/Page(?!s)\b", data)
         return str(len(matches))
     except Exception:
         return ""
+
+
+def count_pdf_pages(pdf_path: Path) -> str:
+    if not pdf_path.exists():
+        return ""
+
+    pypdf_pages = count_pdf_pages_with_pypdf(pdf_path)
+
+    if pypdf_pages:
+        return pypdf_pages
+
+    return count_pdf_pages_with_regex(pdf_path)
 
 
 def file_size(path: Path) -> str:
@@ -75,6 +98,13 @@ def file_size(path: Path) -> str:
         return str(path.stat().st_size)
     except Exception:
         return ""
+
+
+def positive_int(value: str) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
 
 
 def collect_dump_ids() -> set[str]:
@@ -91,12 +121,32 @@ def collect_dump_ids() -> set[str]:
     return dump_ids
 
 
-def status_for(txt_exists: bool, pdf_exists: bool, pdf_pages: str, id_parse_status: str) -> str:
+def status_for(
+    txt_exists: bool,
+    pdf_exists: bool,
+    txt_size_bytes: str,
+    pdf_size_bytes: str,
+    pdf_pages: str,
+    id_parse_status: str,
+) -> str:
     if id_parse_status != "OK":
         return "BAD_DUMP_ID"
 
-    if txt_exists and pdf_exists and pdf_pages:
+    txt_size = positive_int(txt_size_bytes)
+    pdf_size = positive_int(pdf_size_bytes)
+    pages = positive_int(pdf_pages)
+
+    if txt_exists and pdf_exists and txt_size > 0 and pdf_size > 0 and pages > 0:
         return "READY"
+
+    if txt_exists and pdf_exists and pdf_size <= 0:
+        return "BAD_PDF"
+
+    if txt_exists and pdf_exists and pages <= 0:
+        return "BAD_PDF"
+
+    if txt_exists and pdf_exists and txt_size <= 0:
+        return "BAD_TXT"
 
     if txt_exists and not pdf_exists:
         return "MISSING_PDF"
@@ -122,6 +172,8 @@ def main() -> None:
         pdf_exists = pdf_path.exists()
 
         parsed = parse_dump_id(dump_id)
+        txt_size_bytes = file_size(txt_path)
+        pdf_size_bytes = file_size(pdf_path)
         pdf_pages = count_pdf_pages(pdf_path)
 
         rows.append({
@@ -134,11 +186,18 @@ def main() -> None:
             "pdf_path": str(pdf_path),
             "txt_exists": str(txt_exists).upper(),
             "pdf_exists": str(pdf_exists).upper(),
-            "txt_size_bytes": file_size(txt_path),
-            "pdf_size_bytes": file_size(pdf_path),
+            "txt_size_bytes": txt_size_bytes,
+            "pdf_size_bytes": pdf_size_bytes,
             "pdf_pages": pdf_pages,
             "id_parse_status": parsed["id_parse_status"],
-            "status": status_for(txt_exists, pdf_exists, pdf_pages, parsed["id_parse_status"]),
+            "status": status_for(
+                txt_exists=txt_exists,
+                pdf_exists=pdf_exists,
+                txt_size_bytes=txt_size_bytes,
+                pdf_size_bytes=pdf_size_bytes,
+                pdf_pages=pdf_pages,
+                id_parse_status=parsed["id_parse_status"],
+            ),
         })
 
     fieldnames = [
@@ -163,8 +222,19 @@ def main() -> None:
         writer.writeheader()
         writer.writerows(rows)
 
+    ready_count = sum(row["status"] == "READY" for row in rows)
+    bad_pdf_count = sum(row["status"] == "BAD_PDF" for row in rows)
+    bad_txt_count = sum(row["status"] == "BAD_TXT" for row in rows)
+    bad_id_count = sum(row["status"] == "BAD_DUMP_ID" for row in rows)
+    missing_count = sum(row["status"].startswith("MISSING") for row in rows)
+
     print(f"manifest_written={OUT_PATH}")
     print(f"rows={len(rows)}")
+    print(f"ready={ready_count}")
+    print(f"bad_pdf={bad_pdf_count}")
+    print(f"bad_txt={bad_txt_count}")
+    print(f"bad_dump_id={bad_id_count}")
+    print(f"missing={missing_count}")
 
 
 if __name__ == "__main__":
