@@ -352,19 +352,37 @@ def clean_block(block: str, mode: str) -> str:
         out = re.sub(r"\s+Atts\s+\d+.*$", "", out)
 
     elif mode == "kickoffs":
-        stops = ["'OT Rec'", "* Regular Kickoffs", "1. Post K/O possessions", "Notes 1."]
+        stops = [
+            "'OT Rec'",
+            "* Regular Kickoffs",
+            "1. Post K/O possessions",
+            "Notes 1.",
+            "SPECIAL TEAMS COVER PENALTIES",
+            "SPECIAL TEAMS RETURN PENALTIES",
+        ]
 
     elif mode == "penalties":
-        stops = ["PER GAME", "IN 2022", "IN 2021"]
+        stops = [
+            "PER GAME",
+            "IN 2022",
+            "IN 2021",
+            "SPECIAL TEAMS",
+            "FIELD GOALS",
+        ]
 
     elif mode == "punts":
-        stops = ["* NET YARDS", "** FIELD POSITION"]
+        stops = ["* NET YARDS", "** FIELD POSITION", "KICKOFF COVER TEAM"]
 
     elif mode == "red_zone":
         stops = ["CFL RED ZONE FREQUENCY", "RED ZONE LEGEND:"]
 
     elif mode == "second_down":
-        stops = ["2ND DOWN CONVERSION HISTORY", "OPPONENT 2ND DN CONV", "OPPONENT 2ND DOWN CONV"]
+        stops = [
+            "2ND DOWN CONVERSION HISTORY",
+            "2ND DOWN CONVERSION - HISTORY",
+            "OPPONENT 2ND DN CONV",
+            "OPPONENT 2ND DOWN CONV",
+        ]
 
     elif mode == "third_short":
         stops = ["3RD & SHORT RESULTS LEGEND:", "PCT", "Legend:", "CANADIAN FOOTBALL LEAGUE"]
@@ -450,9 +468,16 @@ def normalize_for_spec(
     if mode == "coaches" and values and values[0] == "0":
         return zero_row(expected_count), "OK"
 
-    if mode == "second_down" and team == "CFL" and len(values) == expected_count - 2:
-        values = values[:3] + [""] + values[3:] + [""]
-        return values[:expected_count], "OK_AGGREGATE"
+    if mode == "second_down" and team == "CFL":
+        if len(values) >= expected_count:
+            values = values[:expected_count]
+            values[3] = ""
+            values[15] = ""
+            return values, "OK_AGGREGATE"
+
+        if len(values) == expected_count - 2:
+            values = values[:3] + [""] + values[3:] + [""]
+            return values[:expected_count], "OK_AGGREGATE"
 
     if mode == "converts":
         return normalize_converts(values, team, expected_count)
@@ -600,8 +625,10 @@ def validate_table_rows(filename: str, rows: list[dict[str, str]]) -> None:
         status = row.get("row_parse_status", "")
 
         if filename == "second_down_conversions.csv" and team == "CFL":
-            if row.get("rank", "") or row.get("yards_to_go_rank", ""):
-                row["row_parse_status"] = append_status(status, "NEEDS_REVIEW_CFL_RANK_SHIFT")
+            row["rank"] = ""
+            row["yards_to_go_rank"] = ""
+            if status in {"OK", "OK_AGGREGATE"}:
+                row["row_parse_status"] = "OK_AGGREGATE"
 
         elif filename == "special_teams_kickoffs.csv" and team == "CFL":
             if row.get("regular_kickoff_rank", "") or row.get("post_kickoff_rank", ""):
@@ -761,7 +788,7 @@ def parse_time_of_possession_table(
         section_lines = extract_section_lines(
             text,
             "4c. TIME OF POSSESSION & FIELD POSITION",
-            ["5. BIG PLAY ANALYSIS", "5. 2ND DOWN CONVERSIONS"],
+            ["5. BIG PLAY ANALYSIS", "5. 2ND DOWN CONVERSIONS", "2ND DOWN CONVERSIONS"],
         )
         blocks = collect_team_blocks(section_lines)
         missing_status = ""
@@ -796,6 +823,53 @@ def parse_time_of_possession_table(
     fieldnames = BASE_COLUMNS + value_columns + SOURCE_COLUMNS
 
     return filename, fieldnames, rows, audit_entry(context, filename, rows)
+
+
+def split_first_down_values(values: list[str], team: str) -> tuple[list[str], list[str], str]:
+    offence_values = [""] * 6
+    made_values = [""] * 10
+
+    if team == "CFL":
+        if len(values) >= 14:
+            offence_values = [
+                values[0],
+                values[1],
+                "",
+                values[2],
+                values[3],
+                "",
+            ]
+            made_values = (values[4:14] + [""] * 10)[:10]
+            return offence_values, made_values, "OK_AGGREGATE"
+
+        if len(values) >= 4:
+            offence_values = [
+                values[0],
+                values[1],
+                "",
+                values[2],
+                values[3],
+                "",
+            ]
+            if len(values) > 4:
+                made_values = (values[4:14] + [""] * 10)[:10]
+            return offence_values, made_values, "OK_AGGREGATE"
+
+        return offence_values, made_values, f"NEEDS_REVIEW_{len(values)}_OF_4"
+
+    if len(values) >= 16:
+        return values[:6], values[6:16], "OK"
+
+    if len(values) >= 6:
+        offence_values = values[:6]
+        if len(values) > 6:
+            made_values = (values[6:16] + [""] * 10)[:10]
+        return offence_values, made_values, "OK"
+
+    if all_zero_or_blank(values):
+        return zero_row(6), zero_row(10), "OK"
+
+    return (values + [""] * 6)[:6], made_values, f"NEEDS_REVIEW_{len(values)}_OF_6"
 
 
 def parse_first_down_tables(
@@ -843,70 +917,28 @@ def parse_first_down_tables(
         block = blocks.get(team, "")
 
         if not block:
-            values = [""] * 16
+            offence_values = [""] * 6
+            made_values = [""] * 10
             status = missing_status or "MISSING_ROW"
 
         else:
             values = parse_numeric_values(clean_block(block, "default"))
 
             if team != "CFL" and values and values[0] == "0":
-                values = zero_row(16)
+                offence_values = zero_row(6)
+                made_values = zero_row(10)
                 status = "OK_ZERO_GP"
 
-            elif team == "CFL" and len(values) >= 14:
-                offence_values = [
-                    values[0],
-                    values[1],
-                    "",
-                    values[2],
-                    values[3],
-                    "",
-                ]
-
-                made_values = [
-                    values[4],
-                    values[5],
-                    values[6],
-                    values[7],
-                    values[8],
-                    values[9],
-                    values[10],
-                    values[11],
-                    values[12],
-                    values[13],
-                ]
-
-                status = "OK_AGGREGATE"
-
-                offence_row = base_row(context, team, status)
-                made_row = base_row(context, team, status)
-
-                for column, value in zip(offence_columns, offence_values):
-                    offence_row[column] = value
-
-                for column, value in zip(made_columns, made_values):
-                    made_row[column] = value
-
-                offence_rows.append(offence_row)
-                made_rows.append(made_row)
-                continue
-
-            elif len(values) >= 16:
-                values = values[:16]
-                status = "OK"
-
             else:
-                original_count = len(values)
-                values = (values + [""] * 16)[:16]
-                status = f"NEEDS_REVIEW_{original_count}_OF_16"
+                offence_values, made_values, status = split_first_down_values(values, team)
 
         offence_row = base_row(context, team, status)
         made_row = base_row(context, team, status)
 
-        for column, value in zip(offence_columns, values[:6]):
+        for column, value in zip(offence_columns, offence_values):
             offence_row[column] = value
 
-        for column, value in zip(made_columns, values[6:16]):
+        for column, value in zip(made_columns, made_values):
             made_row[column] = value
 
         offence_rows.append(offence_row)
@@ -1131,7 +1163,12 @@ def make_specs() -> list[TableSpec]:
             "turnover",
         ),
         TableSpec("team_possessions.csv", "4a. POSSESSION ANALYSIS", "4b. OPPONENT POSSESSION ANALYSIS", possession_columns),
-        TableSpec("opponent_possessions.csv", "4b. OPPONENT POSSESSION ANALYSIS", "4c. TIME OF POSSESSION", possession_columns),
+        TableSpec(
+            "opponent_possessions.csv",
+            ["4b. OPPONENT POSSESSION ANALYSIS", "OPPONENT POSSESSION ANALYSIS"],
+            ["4c. TIME OF POSSESSION", "TIME OF POSSESSION & FIELD POSITION"],
+            possession_columns,
+        ),
         TableSpec(
             "big_play_analysis.csv",
             ["5. BIG PLAY ANALYSIS", "7. BIG PLAY ANALYSIS"],
@@ -1204,7 +1241,7 @@ def make_specs() -> list[TableSpec]:
         TableSpec(
             "rushing_analysis.csv",
             ["9 RUSHING ANALYSIS", "9. RUSHING ANALYSIS", "11. RUSHING ANALYSIS"],
-            ["10a. PASSING ANALYSIS", "12a. PASSING ANALYSIS"],
+            ["10a. PASSING ANALYSIS", "12a. PASSING ANALYSIS", "PASSING ANALYSIS"],
             [
                 "team_rush_atts",
                 "team_rush_yards",
@@ -1228,13 +1265,13 @@ def make_specs() -> list[TableSpec]:
             ],
         ),
         TableSpec("passing_base.csv", "TEAM PASSING DATA", "ATTEMPTS 0-9 YDS DEPTH DOWNFIELD", passing_base_columns, "passing_base"),
-        TableSpec("passing_depth.csv", "ATTEMPTS 0-9 YDS DEPTH DOWNFIELD", ["10b. PASSING ANALYSIS - BY OPPONENTS", "12b. PASSING ANALYSIS - BY OPPONENTS"], passing_depth_columns),
+        TableSpec("passing_depth.csv", "ATTEMPTS 0-9 YDS DEPTH DOWNFIELD", ["OPPONENT PASSING DATA", "10b. PASSING ANALYSIS - BY OPPONENTS", "12b. PASSING ANALYSIS - BY OPPONENTS"], passing_depth_columns),
         TableSpec("opponent_passing_base.csv", "OPPONENT PASSING DATA", "OPPT ATTS 0-9 YDS DEPTH DOWNFIELD", opponent_passing_base_columns, "opponent_passing_base"),
-        TableSpec("opponent_passing_depth.csv", "OPPT ATTS 0-9 YDS DEPTH DOWNFIELD", ["11. 2ND DOWN CONVERSIONS", "5. 2ND DOWN CONVERSIONS"], passing_depth_columns),
+        TableSpec("opponent_passing_depth.csv", "OPPT ATTS 0-9 YDS DEPTH DOWNFIELD", ["2ND DOWN CONVERSIONS", "2ND DN CONVERSIONS", "11. 2ND DOWN CONVERSIONS", "5. 2ND DOWN CONVERSIONS"], passing_depth_columns),
         TableSpec(
             "second_down_conversions.csv",
-            ["11. 2ND DOWN CONVERSIONS", "5. 2ND DOWN CONVERSIONS"],
-            ["12. 3RD & SHORT RESULTS", "6. 3RD & SHORT RESULTS"],
+            ["11. 2ND DOWN CONVERSIONS", "5. 2ND DOWN CONVERSIONS", "2ND DOWN CONVERSIONS", "2ND DN CONVERSIONS"],
+            ["12. 3RD & SHORT RESULTS", "6. 3RD & SHORT RESULTS", "3RD & SHORT RESULTS"],
             [
                 "all_att",
                 "all_made",
@@ -1257,8 +1294,8 @@ def make_specs() -> list[TableSpec]:
         ),
         TableSpec(
             "third_short_results.csv",
-            ["12. 3RD & SHORT RESULTS", "6. 3RD & SHORT RESULTS"],
-            ["13a. PENALTIES", "7. BIG PLAY ANALYSIS"],
+            ["12. 3RD & SHORT RESULTS", "6. 3RD & SHORT RESULTS", "3RD & SHORT RESULTS"],
+            ["13a. PENALTIES", "PENALTIES - CFL LEAGUE-WIDE", "7. BIG PLAY ANALYSIS"],
             [
                 "third_short_att",
                 "third_short_made",
@@ -1271,8 +1308,8 @@ def make_specs() -> list[TableSpec]:
         ),
         TableSpec(
             "penalties_team_report.csv",
-            "13b. PENALTIES - TEAM REPORTS",
-            "14. SPECIAL TEAMS",
+            ["13b. PENALTIES - TEAM REPORTS", "PENALTIES - TEAM REPORTS", "2023 PENALTIES BY TEAM"],
+            ["14. SPECIAL TEAMS", "14 SPECIAL TEAMS", "A) FIELD GOALS", "TEAM FIELD GOALS"],
             [
                 "gp",
                 "penalties_all",
@@ -1292,7 +1329,7 @@ def make_specs() -> list[TableSpec]:
         ),
         TableSpec(
             "special_teams_field_goals.csv",
-            "A) FIELD GOALS",
+            ["A) FIELD GOALS", "TEAM FIELD GOALS", "FIELD GOALS MADE"],
             "FIELD GOAL MISS RESULTS",
             [
                 "fg_attempts",
@@ -1317,8 +1354,8 @@ def make_specs() -> list[TableSpec]:
         ),
         TableSpec(
             "special_teams_converts.csv",
-            "C) CONVERTS",
-            "D) SPECIAL TEAMS - FAKE KICK PLAYS",
+            ["C) CONVERTS", "CONVERTS (C-1 KICK)", "CONVERTS"],
+            ["D) SPECIAL TEAMS - FAKE KICK PLAYS", "FAKE KICK PLAYS"],
             [
                 "convert_1_attempts",
                 "convert_1_made",
@@ -1334,7 +1371,7 @@ def make_specs() -> list[TableSpec]:
         ),
         TableSpec(
             "special_teams_kick_returns.csv",
-            ["E) KICK RETURN TEAMS", "I) KICK RETURN TEAMS"],
+            ["E) KICK RETURN TEAMS", "I) KICK RETURN TEAMS", "KICK RETURN TEAMS"],
             "OPPONENT PUNT RETURNS",
             [
                 "punt_return_no",
@@ -1367,8 +1404,8 @@ def make_specs() -> list[TableSpec]:
         ),
         TableSpec(
             "special_teams_punts.csv",
-            ["G) PUNT COVER", "F) PUNT COVER"],
-            ["H) KICKOFF COVER", "G) KICKOFF COVER"],
+            ["G) PUNT COVER", "F) PUNT COVER", "PUNT COVER - BASE"],
+            ["H) KICKOFF COVER", "G) KICKOFF COVER", "KICKOFF COVER TEAM"],
             [
                 "punt_no",
                 "punt_yards",
@@ -1395,8 +1432,13 @@ def make_specs() -> list[TableSpec]:
         ),
         TableSpec(
             "special_teams_kickoffs.csv",
-            ["H) KICKOFF COVER", "G) KICKOFF COVER"],
-            ["I) SPECIAL TEAMS COVER PENALTIES", "H) SPECIAL TEAMS COVER PENALTIES", "J) SPECIAL TEAMS RETURN PENALTIES"],
+            ["H) KICKOFF COVER", "G) KICKOFF COVER", "KICKOFF COVER TEAM"],
+            [
+                "I) SPECIAL TEAMS COVER PENALTIES",
+                "H) SPECIAL TEAMS COVER PENALTIES",
+                "J) SPECIAL TEAMS RETURN PENALTIES",
+                "KICK RETURN TEAMS",
+            ],
             [
                 "kickoff_no",
                 "kickoff_yards",
