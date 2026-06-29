@@ -5,6 +5,7 @@ import csv
 import re
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Union
 
 
 MANIFEST_PATH = Path("docs/win/football/cfl/data_dump/manifest/cfl_raw_dump_manifest.csv")
@@ -28,6 +29,8 @@ SOURCE_COLUMNS = [
     "row_parse_status",
 ]
 
+MarkerInput = Union[str, list[str]]
+
 
 @dataclass(frozen=True)
 class DumpContext:
@@ -44,8 +47,8 @@ class DumpContext:
 @dataclass(frozen=True)
 class TableSpec:
     filename: str
-    start_marker: str
-    end_marker: str
+    start_marker: MarkerInput
+    end_marker: MarkerInput
     value_columns: list[str]
     mode: str = "default"
 
@@ -169,27 +172,44 @@ def parse_games_played(text: str) -> str:
     return match.group(1) if match else ""
 
 
-def extract_section_lines(text: str, start_marker: str, end_marker: str) -> list[str]:
+def marker_list(markers: MarkerInput) -> list[str]:
+    if isinstance(markers, str):
+        return [markers]
+
+    return markers
+
+
+def normalize_marker_text(text: str) -> str:
+    return re.sub(r"[^A-Z0-9]+", " ", text.upper()).strip()
+
+
+def line_has_marker(line: str, marker: str) -> bool:
+    return normalize_marker_text(marker) in normalize_marker_text(line)
+
+
+def find_marker_idx(lines: list[str], markers: MarkerInput, start_at: int = 0) -> int | None:
+    marker_options = marker_list(markers)
+
+    for idx in range(start_at, len(lines)):
+        for marker in marker_options:
+            if line_has_marker(lines[idx], marker):
+                return idx
+
+    return None
+
+
+def extract_section_lines(text: str, start_marker: MarkerInput, end_marker: MarkerInput) -> list[str]:
     lines = text.splitlines()
 
-    start_idx = None
-    end_idx = None
-
-    for idx, line in enumerate(lines):
-        if start_marker in line:
-            start_idx = idx
-            break
+    start_idx = find_marker_idx(lines, start_marker, 0)
 
     if start_idx is None:
-        raise ValueError(f"Missing section start: {start_marker}")
+        raise ValueError(f"Missing section start: {marker_list(start_marker)}")
 
-    for idx in range(start_idx + 1, len(lines)):
-        if end_marker in lines[idx]:
-            end_idx = idx
-            break
+    end_idx = find_marker_idx(lines, end_marker, start_idx + 1)
 
     if end_idx is None:
-        raise ValueError(f"Missing section end after {start_marker}: {end_marker}")
+        raise ValueError(f"Missing section end after {marker_list(start_marker)}: {marker_list(end_marker)}")
 
     return lines[start_idx:end_idx]
 
@@ -332,7 +352,7 @@ def clean_block(block: str, mode: str) -> str:
         out = re.sub(r"\s+Atts\s+\d+.*$", "", out)
 
     elif mode == "kickoffs":
-        stops = ["'OT Rec'", "* Regular Kickoffs", "1. Post K/O possessions"]
+        stops = ["'OT Rec'", "* Regular Kickoffs", "1. Post K/O possessions", "Notes 1."]
 
     elif mode == "penalties":
         stops = ["PER GAME", "IN 2022", "IN 2021"]
@@ -344,10 +364,10 @@ def clean_block(block: str, mode: str) -> str:
         stops = ["CFL RED ZONE FREQUENCY", "RED ZONE LEGEND:"]
 
     elif mode == "second_down":
-        stops = ["2ND DOWN CONVERSION HISTORY", "OPPONENT 2ND DN CONV"]
+        stops = ["2ND DOWN CONVERSION HISTORY", "OPPONENT 2ND DN CONV", "OPPONENT 2ND DOWN CONV"]
 
     elif mode == "third_short":
-        stops = ["3RD & SHORT RESULTS LEGEND:", "PCT", "CANADIAN FOOTBALL LEAGUE"]
+        stops = ["3RD & SHORT RESULTS LEGEND:", "PCT", "Legend:", "CANADIAN FOOTBALL LEAGUE"]
 
     elif mode == "turnover":
         stops = ["Notes:", "2023 T/Os by Quarter:"]
@@ -523,15 +543,19 @@ def normalize_for_spec(
             values = [games_played] + values[1:]
             return (values + [""] * expected_count)[:expected_count], "OK_AGGREGATE"
 
-    if mode == "kick_returns" and team == "CFL" and len(values) == 23:
-        values = values[:7] + [""] + values[7:13] + [""] + values[13:]
-        return values, "OK_AGGREGATE"
+    if mode == "kick_returns" and team != "CFL" and len(values) == expected_count - 1:
+        values = values[:6] + [""] + values[6:]
+        return values[:expected_count], "OK"
+
+    if mode == "kick_returns" and team == "CFL" and len(values) == expected_count - 2:
+        values = values[:6] + [""] + values[6:13] + [""] + values[13:]
+        return values[:expected_count], "OK_AGGREGATE"
 
     if team == "CFL" and len(values) < expected_count:
         return (values + [""] * expected_count)[:expected_count], "OK_AGGREGATE"
 
     if len(values) >= expected_count:
-        return values[:expected_count], "OK"
+        return values[:expected_count], "OK_AGGREGATE" if team == "CFL" else "OK"
 
     if all_zero_or_blank(values):
         if team == "CFL":
@@ -737,7 +761,7 @@ def parse_time_of_possession_table(
         section_lines = extract_section_lines(
             text,
             "4c. TIME OF POSSESSION & FIELD POSITION",
-            "5. BIG PLAY ANALYSIS",
+            ["5. BIG PLAY ANALYSIS", "5. 2ND DOWN CONVERSIONS"],
         )
         blocks = collect_team_blocks(section_lines)
         missing_status = ""
@@ -806,8 +830,8 @@ def parse_first_down_tables(
     try:
         section_lines = extract_section_lines(
             text,
-            "8c. NET OFFENCE - ON 1ST DOWN",
-            "9 RUSHING ANALYSIS",
+            ["8c. NET OFFENCE - ON 1ST DOWN", "10c. NET OFFENCE - ON 1ST DOWN"],
+            ["9 RUSHING ANALYSIS", "9. RUSHING ANALYSIS", "11. RUSHING ANALYSIS"],
         )
         blocks = collect_team_blocks(section_lines)
         missing_status = ""
@@ -1110,8 +1134,8 @@ def make_specs() -> list[TableSpec]:
         TableSpec("opponent_possessions.csv", "4b. OPPONENT POSSESSION ANALYSIS", "4c. TIME OF POSSESSION", possession_columns),
         TableSpec(
             "big_play_analysis.csv",
-            "5. BIG PLAY ANALYSIS",
-            "6. RED ZONE RESULTS",
+            ["5. BIG PLAY ANALYSIS", "7. BIG PLAY ANALYSIS"],
+            ["6. RED ZONE RESULTS", "8. RED ZONE RESULTS"],
             [
                 "team_big_plays_total",
                 "team_big_play_rank",
@@ -1132,8 +1156,8 @@ def make_specs() -> list[TableSpec]:
         ),
         TableSpec(
             "red_zone_results.csv",
-            "6. RED ZONE RESULTS",
-            "7. CFL COACHES' CHALLENGES",
+            ["6. RED ZONE RESULTS", "8. RED ZONE RESULTS"],
+            ["7. CFL COACHES' CHALLENGES", "9. CFL COACHES' CHALLENGES"],
             [
                 "team_red_zone_att",
                 "team_red_zone_td",
@@ -1157,8 +1181,8 @@ def make_specs() -> list[TableSpec]:
         ),
         TableSpec(
             "coaches_challenges.csv",
-            "7. CFL COACHES' CHALLENGES",
-            "8a. TEAM NET OFFENCE",
+            ["7. CFL COACHES' CHALLENGES", "9. CFL COACHES' CHALLENGES"],
+            ["8a. TEAM NET OFFENCE", "10a. TEAM NET OFFENCE"],
             [
                 "challenges",
                 "challenges_won",
@@ -1175,12 +1199,12 @@ def make_specs() -> list[TableSpec]:
             ],
             "coaches",
         ),
-        TableSpec("team_net_offence.csv", "8a. TEAM NET OFFENCE", "8b. OPPONENT NET OFFENCE", net_columns, "net_offence"),
-        TableSpec("opponent_net_offence.csv", "8b. OPPONENT NET OFFENCE", "8c. NET OFFENCE - ON 1ST DOWN", opponent_net_columns, "net_offence"),
+        TableSpec("team_net_offence.csv", ["8a. TEAM NET OFFENCE", "10a. TEAM NET OFFENCE"], ["8b. OPPONENT NET OFFENCE", "10b. OPPONENT NET OFFENCE"], net_columns, "net_offence"),
+        TableSpec("opponent_net_offence.csv", ["8b. OPPONENT NET OFFENCE", "10b. OPPONENT NET OFFENCE"], ["8c. NET OFFENCE - ON 1ST DOWN", "10c. NET OFFENCE - ON 1ST DOWN"], opponent_net_columns, "net_offence"),
         TableSpec(
             "rushing_analysis.csv",
-            "9 RUSHING ANALYSIS",
-            "10a. PASSING ANALYSIS",
+            ["9 RUSHING ANALYSIS", "9. RUSHING ANALYSIS", "11. RUSHING ANALYSIS"],
+            ["10a. PASSING ANALYSIS", "12a. PASSING ANALYSIS"],
             [
                 "team_rush_atts",
                 "team_rush_yards",
@@ -1204,13 +1228,13 @@ def make_specs() -> list[TableSpec]:
             ],
         ),
         TableSpec("passing_base.csv", "TEAM PASSING DATA", "ATTEMPTS 0-9 YDS DEPTH DOWNFIELD", passing_base_columns, "passing_base"),
-        TableSpec("passing_depth.csv", "ATTEMPTS 0-9 YDS DEPTH DOWNFIELD", "10b. PASSING ANALYSIS - BY OPPONENTS", passing_depth_columns),
+        TableSpec("passing_depth.csv", "ATTEMPTS 0-9 YDS DEPTH DOWNFIELD", ["10b. PASSING ANALYSIS - BY OPPONENTS", "12b. PASSING ANALYSIS - BY OPPONENTS"], passing_depth_columns),
         TableSpec("opponent_passing_base.csv", "OPPONENT PASSING DATA", "OPPT ATTS 0-9 YDS DEPTH DOWNFIELD", opponent_passing_base_columns, "opponent_passing_base"),
-        TableSpec("opponent_passing_depth.csv", "OPPT ATTS 0-9 YDS DEPTH DOWNFIELD", "11. 2ND DOWN CONVERSIONS", passing_depth_columns),
+        TableSpec("opponent_passing_depth.csv", "OPPT ATTS 0-9 YDS DEPTH DOWNFIELD", ["11. 2ND DOWN CONVERSIONS", "5. 2ND DOWN CONVERSIONS"], passing_depth_columns),
         TableSpec(
             "second_down_conversions.csv",
-            "11. 2ND DOWN CONVERSIONS",
-            "12. 3RD & SHORT RESULTS",
+            ["11. 2ND DOWN CONVERSIONS", "5. 2ND DOWN CONVERSIONS"],
+            ["12. 3RD & SHORT RESULTS", "6. 3RD & SHORT RESULTS"],
             [
                 "all_att",
                 "all_made",
@@ -1233,8 +1257,8 @@ def make_specs() -> list[TableSpec]:
         ),
         TableSpec(
             "third_short_results.csv",
-            "12. 3RD & SHORT RESULTS",
-            "13a. PENALTIES",
+            ["12. 3RD & SHORT RESULTS", "6. 3RD & SHORT RESULTS"],
+            ["13a. PENALTIES", "7. BIG PLAY ANALYSIS"],
             [
                 "third_short_att",
                 "third_short_made",
@@ -1310,7 +1334,7 @@ def make_specs() -> list[TableSpec]:
         ),
         TableSpec(
             "special_teams_kick_returns.csv",
-            "E) KICK RETURN TEAMS",
+            ["E) KICK RETURN TEAMS", "I) KICK RETURN TEAMS"],
             "OPPONENT PUNT RETURNS",
             [
                 "punt_return_no",
@@ -1343,8 +1367,8 @@ def make_specs() -> list[TableSpec]:
         ),
         TableSpec(
             "special_teams_punts.csv",
-            "G) PUNT COVER",
-            "H) KICKOFF COVER",
+            ["G) PUNT COVER", "F) PUNT COVER"],
+            ["H) KICKOFF COVER", "G) KICKOFF COVER"],
             [
                 "punt_no",
                 "punt_yards",
@@ -1371,8 +1395,8 @@ def make_specs() -> list[TableSpec]:
         ),
         TableSpec(
             "special_teams_kickoffs.csv",
-            "H) KICKOFF COVER",
-            "I) SPECIAL TEAMS COVER PENALTIES",
+            ["H) KICKOFF COVER", "G) KICKOFF COVER"],
+            ["I) SPECIAL TEAMS COVER PENALTIES", "H) SPECIAL TEAMS COVER PENALTIES", "J) SPECIAL TEAMS RETURN PENALTIES"],
             [
                 "kickoff_no",
                 "kickoff_yards",
