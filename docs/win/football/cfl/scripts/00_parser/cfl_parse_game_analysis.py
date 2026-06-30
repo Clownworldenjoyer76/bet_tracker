@@ -29,6 +29,47 @@ SOURCE_COLUMNS = [
     "row_parse_status",
 ]
 
+YEAR_POLLUTION_VALUES = {
+    "2026",
+    "2025",
+    "2024",
+    "2023",
+    "2022",
+    "2021",
+    "2019",
+    "2018",
+    "2017",
+    "2016",
+    "2015",
+}
+
+YEAR_POLLUTION_GUARD_FILES = {
+    "first_down_offence.csv",
+    "first_downs_made.csv",
+    "passing_base.csv",
+    "passing_depth.csv",
+    "opponent_passing_base.csv",
+    "opponent_passing_depth.csv",
+    "rushing_analysis.csv",
+    "second_down_conversions.csv",
+    "third_short_results.csv",
+    "penalties_team_report.csv",
+    "special_teams_field_goals.csv",
+    "special_teams_converts.csv",
+    "special_teams_punts.csv",
+    "special_teams_kickoffs.csv",
+}
+
+SECTION_VALIDATION_MODES = {
+    "field_goals",
+    "converts",
+    "kickoffs",
+    "penalties",
+    "punts",
+    "second_down",
+    "third_short",
+}
+
 MarkerInput = Union[str, list[str]]
 
 
@@ -184,7 +225,13 @@ def normalize_marker_text(text: str) -> str:
 
 
 def line_has_marker(line: str, marker: str) -> bool:
-    return normalize_marker_text(marker) in normalize_marker_text(line)
+    marker_norm = normalize_marker_text(marker)
+    line_norm = normalize_marker_text(line)
+
+    if not marker_norm:
+        return False
+
+    return line_norm.startswith(marker_norm)
 
 
 def find_marker_idx(lines: list[str], markers: MarkerInput, start_at: int = 0) -> int | None:
@@ -212,6 +259,65 @@ def extract_section_lines(text: str, start_marker: MarkerInput, end_marker: Mark
         raise ValueError(f"Missing section end after {marker_list(start_marker)}: {marker_list(end_marker)}")
 
     return lines[start_idx:end_idx]
+
+
+def count_team_row_lines(lines: list[str]) -> int:
+    teams_seen: set[str] = set()
+
+    for raw_line in lines:
+        line = raw_line.strip()
+        match = TEAM_RE.match(line)
+
+        if match:
+            teams_seen.add(match.group(1))
+
+    return len(teams_seen)
+
+
+def section_passes_mode_validation(lines: list[str], mode: str) -> bool:
+    if mode not in SECTION_VALIDATION_MODES:
+        return True
+
+    if count_team_row_lines(lines) >= 5:
+        return True
+
+    return False
+
+
+def extract_section_lines_checked(
+    text: str,
+    start_marker: MarkerInput,
+    end_marker: MarkerInput,
+    mode: str,
+) -> list[str]:
+    lines = text.splitlines()
+    start_at = 0
+    rejected = 0
+
+    while True:
+        start_idx = find_marker_idx(lines, start_marker, start_at)
+
+        if start_idx is None:
+            if rejected:
+                raise ValueError(
+                    f"Missing valid section start: {marker_list(start_marker)} "
+                    f"(rejected_candidates={rejected})"
+                )
+
+            raise ValueError(f"Missing section start: {marker_list(start_marker)}")
+
+        end_idx = find_marker_idx(lines, end_marker, start_idx + 1)
+
+        if end_idx is None:
+            raise ValueError(f"Missing section end after {marker_list(start_marker)}: {marker_list(end_marker)}")
+
+        section_lines = lines[start_idx:end_idx]
+
+        if section_passes_mode_validation(section_lines, mode):
+            return section_lines
+
+        rejected += 1
+        start_at = start_idx + 1
 
 
 def collect_team_blocks(lines: list[str]) -> dict[str, str]:
@@ -619,6 +725,19 @@ def append_status(status: str, issue: str) -> str:
     return f"{status}|{issue}"
 
 
+def row_value_columns(row: dict[str, str]) -> list[str]:
+    excluded = set(BASE_COLUMNS + SOURCE_COLUMNS)
+    return [column for column in row if column not in excluded]
+
+
+def has_year_pollution(row: dict[str, str]) -> bool:
+    for column in row_value_columns(row):
+        if row.get(column, "") in YEAR_POLLUTION_VALUES:
+            return True
+
+    return False
+
+
 def validate_table_rows(filename: str, rows: list[dict[str, str]]) -> None:
     for row in rows:
         team = row.get("team", "")
@@ -650,6 +769,12 @@ def validate_table_rows(filename: str, rows: list[dict[str, str]]) -> None:
                 and row.get("convert_1_missed") not in {"0", ""}
             ):
                 row["row_parse_status"] = append_status(status, "NEEDS_REVIEW_CONVERT_SHIFT")
+
+        if filename in YEAR_POLLUTION_GUARD_FILES and has_year_pollution(row):
+            row["row_parse_status"] = append_status(
+                row.get("row_parse_status", ""),
+                "NEEDS_REVIEW_YEAR_POLLUTION",
+            )
 
 
 def audit_entry(context: DumpContext, filename: str, rows: list[dict[str, str]]) -> dict[str, str]:
@@ -687,7 +812,7 @@ def parse_generic_table(
     rows: list[dict[str, str]] = []
 
     try:
-        section_lines = extract_section_lines(text, spec.start_marker, spec.end_marker)
+        section_lines = extract_section_lines_checked(text, spec.start_marker, spec.end_marker, spec.mode)
         blocks = collect_team_blocks(section_lines)
         missing_status = ""
     except Exception as exc:
@@ -788,7 +913,7 @@ def parse_time_of_possession_table(
         section_lines = extract_section_lines(
             text,
             "4c. TIME OF POSSESSION & FIELD POSITION",
-            ["5. BIG PLAY ANALYSIS", "5. 2ND DOWN CONVERSIONS", "2ND DOWN CONVERSIONS"],
+            ["5. BIG PLAY ANALYSIS", "5. 2ND DOWN CONVERSIONS"],
         )
         blocks = collect_team_blocks(section_lines)
         missing_status = ""
@@ -1241,7 +1366,7 @@ def make_specs() -> list[TableSpec]:
         TableSpec(
             "rushing_analysis.csv",
             ["9 RUSHING ANALYSIS", "9. RUSHING ANALYSIS", "11. RUSHING ANALYSIS"],
-            ["10a. PASSING ANALYSIS", "12a. PASSING ANALYSIS", "PASSING ANALYSIS"],
+            ["10a. PASSING ANALYSIS", "12a. PASSING ANALYSIS"],
             [
                 "team_rush_atts",
                 "team_rush_yards",
@@ -1267,11 +1392,11 @@ def make_specs() -> list[TableSpec]:
         TableSpec("passing_base.csv", "TEAM PASSING DATA", "ATTEMPTS 0-9 YDS DEPTH DOWNFIELD", passing_base_columns, "passing_base"),
         TableSpec("passing_depth.csv", "ATTEMPTS 0-9 YDS DEPTH DOWNFIELD", ["OPPONENT PASSING DATA", "10b. PASSING ANALYSIS - BY OPPONENTS", "12b. PASSING ANALYSIS - BY OPPONENTS"], passing_depth_columns),
         TableSpec("opponent_passing_base.csv", "OPPONENT PASSING DATA", "OPPT ATTS 0-9 YDS DEPTH DOWNFIELD", opponent_passing_base_columns, "opponent_passing_base"),
-        TableSpec("opponent_passing_depth.csv", "OPPT ATTS 0-9 YDS DEPTH DOWNFIELD", ["2ND DOWN CONVERSIONS", "2ND DN CONVERSIONS", "11. 2ND DOWN CONVERSIONS", "5. 2ND DOWN CONVERSIONS"], passing_depth_columns),
+        TableSpec("opponent_passing_depth.csv", "OPPT ATTS 0-9 YDS DEPTH DOWNFIELD", ["11. 2ND DOWN CONVERSIONS", "5. 2ND DOWN CONVERSIONS"], passing_depth_columns),
         TableSpec(
             "second_down_conversions.csv",
-            ["11. 2ND DOWN CONVERSIONS", "5. 2ND DOWN CONVERSIONS", "2ND DOWN CONVERSIONS", "2ND DN CONVERSIONS"],
-            ["12. 3RD & SHORT RESULTS", "6. 3RD & SHORT RESULTS", "3RD & SHORT RESULTS"],
+            ["11. 2ND DOWN CONVERSIONS", "5. 2ND DOWN CONVERSIONS"],
+            ["12. 3RD & SHORT RESULTS", "6. 3RD & SHORT RESULTS"],
             [
                 "all_att",
                 "all_made",
@@ -1294,8 +1419,8 @@ def make_specs() -> list[TableSpec]:
         ),
         TableSpec(
             "third_short_results.csv",
-            ["12. 3RD & SHORT RESULTS", "6. 3RD & SHORT RESULTS", "3RD & SHORT RESULTS"],
-            ["13a. PENALTIES", "PENALTIES - CFL LEAGUE-WIDE", "7. BIG PLAY ANALYSIS"],
+            ["12. 3RD & SHORT RESULTS", "6. 3RD & SHORT RESULTS"],
+            ["13a. PENALTIES", "7. BIG PLAY ANALYSIS"],
             [
                 "third_short_att",
                 "third_short_made",
@@ -1354,7 +1479,7 @@ def make_specs() -> list[TableSpec]:
         ),
         TableSpec(
             "special_teams_converts.csv",
-            ["C) CONVERTS", "CONVERTS (C-1 KICK)", "CONVERTS"],
+            ["C) CONVERTS", "CONVERTS (C-1 KICK)"],
             ["D) SPECIAL TEAMS - FAKE KICK PLAYS", "FAKE KICK PLAYS"],
             [
                 "convert_1_attempts",
@@ -1371,7 +1496,7 @@ def make_specs() -> list[TableSpec]:
         ),
         TableSpec(
             "special_teams_kick_returns.csv",
-            ["E) KICK RETURN TEAMS", "I) KICK RETURN TEAMS", "KICK RETURN TEAMS"],
+            ["E) KICK RETURN TEAMS", "I) KICK RETURN TEAMS"],
             "OPPONENT PUNT RETURNS",
             [
                 "punt_return_no",
