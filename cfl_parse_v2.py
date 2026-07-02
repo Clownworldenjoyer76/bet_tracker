@@ -379,7 +379,7 @@ REGISTRY = [
     R("team_scoring_breakdown.csv", ["scoring","breakdown","pf","pa"], None, "generic", "team_scoring", COLS["team_scoring_breakdown"]),
     R("team_touchdowns_points_by_quarter.csv", ["rush","pass","fgm","kor"], r"TEAM SCORING", "generic", "default", COLS["touchdown"]),
     R("opponent_touchdowns_points_by_quarter.csv", ["rush","pass","fgm","kor"], r"OPP.*SCORING|OPPONENT SCORING", "generic", "default", COLS["touchdown"]),
-    R("turnover_analysis.csv", ["giveaways","takeaways"], None, "generic", "turnover", COLS["turnover"]),
+    R("turnover_analysis.csv", ["ratio","fum","int","dns"], None, "generic", "turnover", COLS["turnover"]),
     R("team_possessions.csv", ["poss","punt","drv"], r"TEAM POSSESS", "generic", "default", COLS["possession"]),
     R("opponent_possessions.csv", ["poss","punt","drv"], r"OPP.*POSSESS|OPPONENT POSSESS", "generic", "default", COLS["possession"]),
     R("time_of_possession_field_position.csv", ["top","poss","fp","ydl"], None, "top", "default", COLS["top"]),
@@ -396,7 +396,7 @@ REGISTRY = [
     R("passing_depth.csv", ["att","com","effic"], None, "generic", "default", COLS["passing_depth"]),
     R("second_down_conversions.csv", ["att","md","yards","avg"], r"2ND DN CONVERSIONS - ALL|2ND DN CONVERSIONS", "generic", "second_down", COLS["second_down"]),
     R("opponent_second_down_conversions.csv", ["att","md","yards","avg"], r"OPPONENT 2ND DN", "generic", "second_down", COLS["second_down"]),
-    R("third_short_results.csv", ["att","md","fail"], None, "generic", "third_short", COLS["third_short"]),
+    R("third_short_results.csv", ["att","md","fail"], None, "third_short", "third_short", COLS["third_short"]),
     R("special_teams_field_goals.csv", ["fga","md","lg"], None, "generic", "field_goals", COLS["field_goals"]),
     R("special_teams_fg_miss.csv", ["ms","missed","out"], None, "generic", "default", COLS["fg_miss"]),
     R("special_teams_converts.csv", ["miss","rsh","pass","def"], None, "converts", "default", COLS["converts"]),
@@ -596,23 +596,67 @@ def handle_first_down(region_lines, e, ctx, gp_map):
             ("first_downs_made.csv", made_cols, made_rows)]
 
 
+def _slash_groups(block):
+    return list(re.finditer(r"(\d+)\s*/\s*(\d+)", block))
+
+
+def _nums_until_year(text):
+    nums = parse_numeric_values(text)
+    cut = next((i for i, v in enumerate(nums) if re.fullmatch(r"20\d\d", v)), len(nums))
+    return nums[:cut]
+
+
 def handle_converts(region_lines, e, ctx, gp_map):
+    # Row = C-1 "att / md" ... [optional YEAR history] ... C-2 "att / md" ...
+    # Anchor on the two slash groups; skip interleaved year-history columns.
     blocks = collect_team_blocks(region_lines)
     cols = e["cols"]
     rows = []
     for team in TEAM_ORDER:
         block = blocks.get(team, "")
-        if not block:
-            row = base_row(ctx, team, "MISSING_ROW")
-            for c in cols:
-                row[c] = ""
-            rows.append(row)
-            continue
-        values = parse_numeric_values(team_segment_from_block(block, team))
-        if not values:
-            vals, status = [""] * len(cols), "MISSING_ROW"
+        g = _slash_groups(block)
+        if not block or len(g) < 2:
+            vals = [""] * 9
+            status = "MISSING_ROW" if not block else f"NEEDS_REVIEW_{len(g)}_GROUPS"
         else:
-            vals, status = normalize_converts(values, team, len(cols))
+            c1a, c1m = g[0].group(1), g[0].group(2)
+            c2a, c2m = g[1].group(1), g[1].group(2)
+            mid = _nums_until_year(block[g[0].end():g[1].start()])
+            tail = parse_numeric_values(block[g[1].end():])
+            c1pct = mid[0] if len(mid) > 0 else ""
+            c1miss = mid[1] if len(mid) > 1 else ""
+            c2pct = tail[0] if len(tail) > 0 else ""
+            c2rush = tail[1] if len(tail) > 1 else ""
+            c2pass = tail[2] if len(tail) > 2 else ""
+            vals = [c1a, c1m, c1pct, c1miss, c2a, c2m, c2pct, c2rush, c2pass]
+            status = "OK_AGGREGATE" if team == "CFL" else "OK"
+        row = base_row(ctx, team, status)
+        for c, v in zip(cols, vals):
+            row[c] = v
+        rows.append(row)
+    return [(e["file"], cols, rows)]
+
+
+def handle_third_short(region_lines, e, ctx, gp_map):
+    # Row = team "att / md" fail ... opponent "att / md" fail ...
+    # Anchor on the two slash groups; the fail count is the first int after each.
+    blocks = collect_team_blocks(region_lines)
+    cols = e["cols"]
+    rows = []
+    for team in TEAM_ORDER:
+        block = blocks.get(team, "")
+        g = _slash_groups(block)
+        if not block or len(g) < 2:
+            vals = [""] * 6
+            status = "MISSING_ROW" if not block else f"NEEDS_REVIEW_{len(g)}_GROUPS"
+        else:
+            ta, tm = g[0].group(1), g[0].group(2)
+            oa, om = g[1].group(1), g[1].group(2)
+            tfail = _nums_until_year(block[g[0].end():g[1].start()])
+            ofail = _nums_until_year(block[g[1].end():])
+            vals = [ta, tm, (tfail[0] if tfail else ""),
+                    oa, om, (ofail[0] if ofail else "")]
+            status = "OK_AGGREGATE" if team == "CFL" else "OK"
         row = base_row(ctx, team, status)
         for c, v in zip(cols, vals):
             row[c] = v
@@ -668,7 +712,8 @@ def handle_penalties(lines, ctx):
 
 
 HANDLERS = {"generic": handle_generic, "top": handle_top,
-            "first_down": handle_first_down, "converts": handle_converts}
+            "first_down": handle_first_down, "converts": handle_converts,
+            "third_short": handle_third_short}
 
 
 # =========================================================================
