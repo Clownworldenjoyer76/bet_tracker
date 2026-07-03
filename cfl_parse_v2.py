@@ -680,26 +680,79 @@ PEN_LOOKAHEAD = {"punt_cover_penalties": "kickoff_cover_penalties",
 PEN_TEAM_ORDER = ["CFL", "BC", "CGY", "EDM", "HAM", "MTL", "OTT", "SSK", "TOR", "WPG"]
 
 
+PEN_ROW_HDR_RE = re.compile(r"\bGP\b.*\bALL\b.*\bAcc\b.*\bDecl\b.*\bYDS\b", re.I)
+
+
+def handle_penalties_rowform(lines, ctx):
+    # Weeks 1-10 layout: "PENALTIES - TEAM REPORTS" - one row per team,
+    # columns already in COLS["penalties"] order: GP ALL Avg Acc Decl YDS
+    # Off Def SpTm Punt K/Os PtR KOR.
+    cols = COLS["penalties"]
+    hdr_idx = next((i for i, s in enumerate(lines) if PEN_ROW_HDR_RE.search(s)), None)
+    rows = []
+    if hdr_idx is None:
+        for team in TEAM_ORDER:
+            row = base_row(ctx, team, "MISSING_SECTION")
+            for c in cols:
+                row[c] = ""
+            rows.append(row)
+        return rows
+    window = lines[hdr_idx + 1: hdr_idx + 40]
+    stop_at = next((i for i, s in enumerate(window)
+                    if re.search(r"^PER GAME|CANADIAN FOOTBALL LEAGUE", s)), len(window))
+    window = window[:stop_at]
+    blocks = collect_team_blocks(window)
+    for team in TEAM_ORDER:
+        block = blocks.get(team, "")
+        if not block:
+            row = base_row(ctx, team, "MISSING_ROW")
+            for c in cols:
+                row[c] = ""
+            rows.append(row)
+            continue
+        values = parse_numeric_values(team_segment_from_block(block, team))
+        if team == "CFL" and values and values[0] == "2023":
+            values = values[1:]  # CFL row has no GP column, starts with the year label
+            vals = [""] + values[:len(cols) - 1]
+            vals = (vals + [""] * len(cols))[:len(cols)]
+            status = "OK_AGGREGATE"
+        elif all_zero_or_blank(values):
+            vals, status = zero_row(len(cols)), "OK_ZERO_GP"
+        elif len(values) >= len(cols):
+            vals, status = values[:len(cols)], ("OK_AGGREGATE" if team == "CFL" else "OK")
+        else:
+            vals = (values + [""] * len(cols))[:len(cols)]
+            status = f"NEEDS_REVIEW_{len(values)}_OF_{len(cols)}"
+        row = base_row(ctx, team, status)
+        for c, v in zip(cols, vals):
+            row[c] = v
+        rows.append(row)
+    return rows
+
+
 def handle_penalties(lines, ctx):
     cols = COLS["penalties"]
     hdr_idx = next((i for i, s in enumerate(lines)
                     if re.search(r"PENALTIES BY TEAM.*\bBC\b.*\bWPG\b", s)), None)
+    if hdr_idx is None:
+        # Older report layout (weeks 1-10) has no transposed table at all -
+        # use the team-row summary instead so these weeks aren't blank.
+        return [("penalties_team_report.csv", cols, handle_penalties_rowform(lines, ctx))]
     data = {t: {} for t in TEAM_ORDER}
-    status = "OK" if hdr_idx is not None else "MISSING_SECTION"
-    if hdr_idx is not None:
-        window = lines[hdr_idx: hdr_idx + 40]
-        for i, line in enumerate(window):
-            for pat, col in PEN_LABEL_MAP:
-                if re.search(pat, line):
-                    vals = parse_numeric_values(line)
-                    for t, v in zip(PEN_TEAM_ORDER, vals):
-                        data[t][col] = v
-                    # the row immediately after a Cover/Return line is its Kickoffs row
-                    if col in PEN_LOOKAHEAD and i + 1 < len(window):
-                        kvals = parse_numeric_values(window[i + 1])
-                        for t, v in zip(PEN_TEAM_ORDER, kvals[:10]):
-                            data[t][PEN_LOOKAHEAD[col]] = v
-                    break
+    status = "OK"
+    window = lines[hdr_idx: hdr_idx + 40]
+    for i, line in enumerate(window):
+        for pat, col in PEN_LABEL_MAP:
+            if re.search(pat, line):
+                vals = parse_numeric_values(line)
+                for t, v in zip(PEN_TEAM_ORDER, vals):
+                    data[t][col] = v
+                # the row immediately after a Cover/Return line is its Kickoffs row
+                if col in PEN_LOOKAHEAD and i + 1 < len(window):
+                    kvals = parse_numeric_values(window[i + 1])
+                    for t, v in zip(PEN_TEAM_ORDER, kvals[:10]):
+                        data[t][PEN_LOOKAHEAD[col]] = v
+                break
     rows = []
     for team in TEAM_ORDER:
         row = base_row(ctx, team, status if data[team] else "MISSING_ROW")
