@@ -638,8 +638,9 @@ def handle_converts(region_lines, e, ctx, gp_map):
 
 
 def handle_third_short(region_lines, e, ctx, gp_map):
-    # Row = team "att / md" fail ... opponent "att / md" fail ...
-    # Anchor on the two slash groups; the fail count is the first int after each.
+    # Row = team "att / md" ... opponent "att / md" ...
+    # Fail is always att-md; computing it avoids layout differences (some
+    # weeks show a fail count after the slash group, others a percentage).
     blocks = collect_team_blocks(region_lines)
     cols = e["cols"]
     rows = []
@@ -650,12 +651,9 @@ def handle_third_short(region_lines, e, ctx, gp_map):
             vals = [""] * 6
             status = "MISSING_ROW" if not block else f"NEEDS_REVIEW_{len(g)}_GROUPS"
         else:
-            ta, tm = g[0].group(1), g[0].group(2)
-            oa, om = g[1].group(1), g[1].group(2)
-            tfail = _nums_until_year(block[g[0].end():g[1].start()])
-            ofail = _nums_until_year(block[g[1].end():])
-            vals = [ta, tm, (tfail[0] if tfail else ""),
-                    oa, om, (ofail[0] if ofail else "")]
+            ta, tm = int(g[0].group(1)), int(g[0].group(2))
+            oa, om = int(g[1].group(1)), int(g[1].group(2))
+            vals = [ta, tm, ta - tm, oa, om, oa - om]
             status = "OK_AGGREGATE" if team == "CFL" else "OK"
         row = base_row(ctx, team, status)
         for c, v in zip(cols, vals):
