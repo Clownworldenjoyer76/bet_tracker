@@ -482,6 +482,9 @@ def normalize_for_spec(values, team, mode, expected_count, gp, gp_map):
     if mode == "kickoffs" and team == "CFL" and len(values) == expected_count - 2:
         values = values[:15] + [""] + values[15:] + [""]
         return values[:expected_count], "OK_AGGREGATE"
+    if mode == "kickoffs" and team != "CFL" and len(values) == expected_count - 1:
+        # post_kickoff_rank is genuinely absent from the source text some weeks
+        return (values + [""])[:expected_count], "OK_MISSING_RANK"
     if mode == "punts" and team == "CFL" and len(values) == expected_count - 1:
         values = values[:14] + [""] + values[14:]
         return values[:expected_count], "OK_AGGREGATE"
@@ -680,7 +683,7 @@ PEN_LOOKAHEAD = {"punt_cover_penalties": "kickoff_cover_penalties",
 PEN_TEAM_ORDER = ["CFL", "BC", "CGY", "EDM", "HAM", "MTL", "OTT", "SSK", "TOR", "WPG"]
 
 
-PEN_ROW_HDR_RE = re.compile(r"\bGP\b.*\bALL\b.*\bAcc\b.*\bDecl\b.*\bYDS\b", re.I)
+PEN_ROW_HDR_RE = re.compile(r"\bGP\b.*\bALL\b.*\bAcc\b.*\bDecl\b.*\b(?:YDS|Yards)\b", re.I)
 
 
 def handle_penalties_rowform(lines, ctx):
