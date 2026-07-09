@@ -15,6 +15,8 @@ ERROR_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE = ERROR_DIR / "normalize_results_log.txt"
 NO_MATCH_FILE = ERROR_DIR / "normalize_results_no_match.csv"
 
+TIME_MATCH_TOLERANCE_MINUTES = 90
+
 
 def reset_outputs():
     LOG_FILE.write_text("", encoding="utf-8")
@@ -31,13 +33,16 @@ def parse_time_to_minutes(time_str):
     """Parse a time string to total minutes since midnight. Returns None if unparseable."""
     if pd.isna(time_str) or str(time_str).strip() == "":
         return None
+
     time_str = str(time_str).strip()
+
     for fmt in ("%I:%M %p", "%H:%M", "%I:%M%p", "%H:%M:%S"):
         try:
             t = datetime.strptime(time_str, fmt)
             return t.hour * 60 + t.minute
         except ValueError:
             continue
+
     return None
 
 
@@ -45,8 +50,10 @@ def load_games_file(game_date_str):
     """Load the daily games file for a given date (YYYY-MM-DD)."""
     date_formatted = game_date_str.replace("-", "_")
     games_file = GAMES_DIR / f"{date_formatted}_games.csv"
+
     if not games_file.exists():
         return None
+
     try:
         df = pd.read_csv(games_file, dtype=str)
         df = df.apply(lambda col: col.map(lambda x: x.strip() if isinstance(x, str) else x))
@@ -66,41 +73,51 @@ def find_game_id(row, games_df):
     """
     Given a final score row and the games DataFrame for that date,
     return the matched game_id or None.
+
+    Matching requires:
+      1. same home/away teams
+      2. parseable final-score row game_time
+      3. parseable games-file game_time
+      4. closest game_time within TIME_MATCH_TOLERANCE_MINUTES
+
+    This intentionally does NOT assign game_id on team match alone.
     """
-    home = str(row["home_team"]).strip().lower()
-    away = str(row["away_team"]).strip().lower()
+    home = str(row.get("home_team", "")).strip().lower()
+    away = str(row.get("away_team", "")).strip().lower()
 
     candidates = games_df[
-        (games_df["home_team"].str.strip().str.lower() == home) &
-        (games_df["away_team"].str.strip().str.lower() == away)
+        (games_df["home_team"].astype(str).str.strip().str.lower() == home) &
+        (games_df["away_team"].astype(str).str.strip().str.lower() == away)
     ].copy()
 
     if candidates.empty:
         return None
 
-    # Single game (non-doubleheader)
-    if len(candidates) == 1:
-        return candidates.iloc[0]["game_id"]
-
-    # Doubleheader — all rows should have doubleheader == 'Y'
-    # Match on closest game_time
     fs_time = parse_time_to_minutes(row.get("game_time"))
 
     if fs_time is None:
-        # Can't resolve by time — return None and flag it
         return None
 
     best_id = None
-    best_diff = float("inf")
+    best_diff = None
 
     for _, cand_row in candidates.iterrows():
         cand_time = parse_time_to_minutes(cand_row.get("game_time"))
+
         if cand_time is None:
             continue
+
         diff = abs(fs_time - cand_time)
-        if diff < best_diff:
+
+        if best_diff is None or diff < best_diff:
             best_diff = diff
-            best_id = cand_row["game_id"]
+            best_id = cand_row.get("game_id")
+
+    if best_id is None or best_diff is None:
+        return None
+
+    if best_diff > TIME_MATCH_TOLERANCE_MINUTES:
+        return None
 
     return best_id
 
@@ -132,7 +149,7 @@ def normalize_file(file_path: Path):
     for idx in df[rows_needing_id].index:
         row = df.loc[idx]
         raw_date = str(row.get("game_date", "")).strip()
-        norm_date = normalize_date_key(raw_date)  # YYYY-MM-DD
+        norm_date = normalize_date_key(raw_date)
 
         if norm_date not in games_cache:
             games_cache[norm_date] = load_games_file(norm_date)
@@ -161,7 +178,7 @@ def normalize_file(file_path: Path):
                 "home_team": row.get("home_team"),
                 "away_team": row.get("away_team"),
                 "game_time": row.get("game_time"),
-                "reason": "no matching game_id found",
+                "reason": "no time-matched game_id found",
             })
             continue
 
@@ -179,6 +196,7 @@ def main():
     all_no_match = []
 
     files = sorted(FINAL_SCORES_DIR.glob(PATTERN))
+
     if not files:
         log(f"NO FILES FOUND | {FINAL_SCORES_DIR}")
         print("No final score files found.")
@@ -191,12 +209,22 @@ def main():
         no_match_df = pd.DataFrame(all_no_match).drop_duplicates()
         no_match_df = no_match_df.sort_values(
             ["file_name", "game_date", "home_team"],
-            kind="mergesort"
+            kind="mergesort",
         )
         no_match_df.to_csv(NO_MATCH_FILE, index=False)
         log(f"NO MATCH CSV WRITTEN | {NO_MATCH_FILE} | rows={len(no_match_df)}")
     else:
-        pd.DataFrame(columns=["file_name", "row_index", "game_date", "home_team", "away_team", "game_time", "reason"]).to_csv(NO_MATCH_FILE, index=False)
+        pd.DataFrame(
+            columns=[
+                "file_name",
+                "row_index",
+                "game_date",
+                "home_team",
+                "away_team",
+                "game_time",
+                "reason",
+            ]
+        ).to_csv(NO_MATCH_FILE, index=False)
         log(f"NO MATCH CSV WRITTEN EMPTY | {NO_MATCH_FILE}")
 
     print("MLB final score normalization complete.")
