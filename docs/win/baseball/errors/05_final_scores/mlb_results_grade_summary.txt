@@ -1,100 +1,103 @@
-[2026-07-29T07:45:49.225835+00:00] START 01_mlb_results_grade.py
-[2026-07-29T07:45:50.415919+00:00] FINAL SCORE BLANK GAME_ID ROWS DROPPED | rows=70 | audit=docs/win/baseball/05_final_scores/results/unmatched/blank_final_score_game_ids_MLB.csv
-[2026-07-29T07:45:50.417068+00:00] SCORE BLANK GAME_ID ROWS DROPPED: 70
-[2026-07-29T07:45:50.420999+00:00] BET cols: ['game_id', 'sport', 'game_date', 'game_time', 'league', 'away_team', 'home_team', 'market_type', 'bet_side', 'market', 'side', 'line', 'take_bet', 'dk_odds_american', 'dk_odds_decimal', 'model_prob', 'prob_used_for_selection', 'prob_for_ev', 'prob_for_kelly', 'ev_probability_source', 'kelly_probability_source', 'raw_ev', 'adjusted_ev', 'ev', 'kelly', 'selection_reason', 'low_confidence', 'source_file', 'selected_row_id']
-[2026-07-29T07:45:50.421048+00:00] SCORE cols: ['sport', 'league', 'game_id', 'game_date', 'game_time', 'home_team', 'away_team', 'final_away_score', 'final_home_score', 'final_total', 'away_run_line', 'home_run_line', 'total', 'source_file', 'gamePk', 'gameNumber', 'game_status', 'final_scores_generated_at']
-[2026-07-29T07:45:50.421077+00:00] SELECTED ROWS: 151
-[2026-07-29T07:45:50.421102+00:00] SELECTED BLANK GAME_ID ROWS: 0
-[2026-07-29T07:45:50.421126+00:00] SCORE ROWS AFTER BLANK GAME_ID DROP: 1405
-[2026-07-29T07:45:50.421244+00:00] BET game_id sample: ['4de2590a17bdf6f8b4a906f4c63162c0', '7dc467f8d7fca948c9e9ca103825d968', 'a6a0dde319f89b70eb1cf1e004b81fe6']
-[2026-07-29T07:45:50.421348+00:00] SCORE game_id sample: ['5c8789e78ef558dfaf6b887deacec21c', 'a6a0dde319f89b70eb1cf1e004b81fe6', 'cfdeb0596b2f626db8901c8a4dc5ea7c']
-[2026-07-29T07:45:50.442705+00:00] MERGED cols: ['game_id', 'sport_bet', 'game_date_bet', 'game_time_bet', 'league_bet', 'away_team_bet', 'home_team_bet', 'market_type', 'bet_side', 'market', 'side', 'line', 'take_bet', 'dk_odds_american', 'dk_odds_decimal', 'model_prob', 'prob_used_for_selection', 'prob_for_ev', 'prob_for_kelly', 'ev_probability_source', 'kelly_probability_source', 'raw_ev', 'adjusted_ev', 'ev', 'kelly', 'selection_reason', 'low_confidence', 'source_file_bet', 'selected_row_id', 'sport_score', 'league_score', 'game_date_score', 'game_time_score', 'home_team_score', 'away_team_score', 'final_away_score', 'final_home_score', 'final_total', 'away_run_line', 'home_run_line', 'total', 'source_file_score', 'gamePk', 'gameNumber', 'game_status', 'final_scores_generated_at']
-[2026-07-29T07:45:50.442743+00:00] MERGED ON game_id | rows=142
-[2026-07-29T07:45:50.442771+00:00] UNMATCHED SELECTED ROWS: 9
-[2026-07-29T07:45:50.442796+00:00] UNMATCHED SELECTED BETS WRITTEN | rows=9 | out=docs/win/baseball/05_final_scores/results/unmatched/MLB_unmatched_selected_bets.csv
-[2026-07-29T07:45:50.444425+00:00] POST-RESOLVE cols: ['game_id', 'market_type', 'bet_side', 'market', 'side', 'line', 'take_bet', 'dk_odds_american', 'dk_odds_decimal', 'model_prob', 'prob_used_for_selection', 'prob_for_ev', 'prob_for_kelly', 'ev_probability_source', 'kelly_probability_source', 'raw_ev', 'adjusted_ev', 'ev', 'kelly', 'selection_reason', 'low_confidence', 'selected_row_id', 'final_away_score', 'final_home_score', 'final_total', 'away_run_line', 'home_run_line', 'total', 'gamePk', 'gameNumber', 'game_status', 'final_scores_generated_at', 'away_team', 'league', 'game_date', 'game_time', 'home_team', 'sport', 'source_file']
-[2026-07-29T07:45:50.444608+00:00] final_away_score sample: ['10', '7', '2']
-[2026-07-29T07:45:50.444765+00:00] final_home_score sample: ['4', '11', '8']
-[2026-07-29T07:45:50.444895+00:00] market_type sample: ['run_line', 'run_line', 'run_line']
-[2026-07-29T07:45:50.444928+00:00] take_bet present after resolve: True
-[2026-07-29T07:45:50.463971+00:00] MLB MASTER BUILT | ROWS=142 | OUT=docs/win/baseball/05_final_scores/results/graded/MLB_final.csv
-[2026-07-29T07:45:50.464005+00:00] SELECTED VS GRADED | selected=151 graded=142 unmatched=9
-[2026-07-29T07:45:50.464430+00:00] SELECTED COUNT EXCEEDS GRADED COUNT | selected=151 graded=142 unmatched=9 reasons={'missing_final_score': 7, 'unknown_game_status': 2}
-[2026-07-29T07:45:50.597860+00:00] MLB DAILY | DATE=2026_03_26 | ROWS=4 | RESULTS={'Win': 2, 'Loss': 1, 'Push': 1}
-[2026-07-29T07:45:50.599958+00:00] MLB DAILY | DATE=2026_03_28 | ROWS=1 | RESULTS={'Win': 1}
-[2026-07-29T07:45:50.601988+00:00] MLB DAILY | DATE=2026_03_29 | ROWS=2 | RESULTS={'Win': 1, 'Loss': 1}
-[2026-07-29T07:45:50.603988+00:00] MLB DAILY | DATE=2026_03_31 | ROWS=2 | RESULTS={'Loss': 2}
-[2026-07-29T07:45:50.605978+00:00] MLB DAILY | DATE=2026_04_01 | ROWS=2 | RESULTS={'Loss': 1, 'Win': 1}
-[2026-07-29T07:45:50.607960+00:00] MLB DAILY | DATE=2026_04_03 | ROWS=3 | RESULTS={'Win': 3}
-[2026-07-29T07:45:50.610079+00:00] MLB DAILY | DATE=2026_04_05 | ROWS=2 | RESULTS={'Win': 2}
-[2026-07-29T07:45:50.612072+00:00] MLB DAILY | DATE=2026_04_07 | ROWS=2 | RESULTS={'Win': 2}
-[2026-07-29T07:45:50.614097+00:00] MLB DAILY | DATE=2026_04_08 | ROWS=2 | RESULTS={'Win': 2}
-[2026-07-29T07:45:50.616070+00:00] MLB DAILY | DATE=2026_04_10 | ROWS=1 | RESULTS={'Win': 1}
-[2026-07-29T07:45:50.618125+00:00] MLB DAILY | DATE=2026_04_12 | ROWS=3 | RESULTS={'Win': 2, 'Loss': 1}
-[2026-07-29T07:45:50.620177+00:00] MLB DAILY | DATE=2026_04_14 | ROWS=3 | RESULTS={'Win': 3}
-[2026-07-29T07:45:50.622161+00:00] MLB DAILY | DATE=2026_04_15 | ROWS=1 | RESULTS={'Loss': 1}
-[2026-07-29T07:45:50.624114+00:00] MLB DAILY | DATE=2026_04_16 | ROWS=1 | RESULTS={'Win': 1}
-[2026-07-29T07:45:50.626096+00:00] MLB DAILY | DATE=2026_04_17 | ROWS=1 | RESULTS={'Loss': 1}
-[2026-07-29T07:45:50.628046+00:00] MLB DAILY | DATE=2026_04_18 | ROWS=1 | RESULTS={'Win': 1}
-[2026-07-29T07:45:50.630085+00:00] MLB DAILY | DATE=2026_04_19 | ROWS=2 | RESULTS={'Win': 2}
-[2026-07-29T07:45:50.632048+00:00] MLB DAILY | DATE=2026_04_21 | ROWS=2 | RESULTS={'Loss': 1, 'Win': 1}
-[2026-07-29T07:45:50.634026+00:00] MLB DAILY | DATE=2026_04_22 | ROWS=2 | RESULTS={'Loss': 1, 'Win': 1}
-[2026-07-29T07:45:50.636046+00:00] MLB DAILY | DATE=2026_04_24 | ROWS=6 | RESULTS={'Win': 4, 'Loss': 2}
-[2026-07-29T07:45:50.637993+00:00] MLB DAILY | DATE=2026_04_26 | ROWS=1 | RESULTS={'Win': 1}
-[2026-07-29T07:45:50.639998+00:00] MLB DAILY | DATE=2026_04_28 | ROWS=1 | RESULTS={'Win': 1}
-[2026-07-29T07:45:50.641962+00:00] MLB DAILY | DATE=2026_04_29 | ROWS=4 | RESULTS={'Win': 4}
-[2026-07-29T07:45:50.643919+00:00] MLB DAILY | DATE=2026_04_30 | ROWS=1 | RESULTS={'Win': 1}
-[2026-07-29T07:45:50.645920+00:00] MLB DAILY | DATE=2026_05_01 | ROWS=1 | RESULTS={'Win': 1}
-[2026-07-29T07:45:50.647974+00:00] MLB DAILY | DATE=2026_05_02 | ROWS=2 | RESULTS={'Win': 2}
-[2026-07-29T07:45:50.649921+00:00] MLB DAILY | DATE=2026_05_03 | ROWS=1 | RESULTS={'Win': 1}
-[2026-07-29T07:45:50.651853+00:00] MLB DAILY | DATE=2026_05_04 | ROWS=1 | RESULTS={'Win': 1}
-[2026-07-29T07:45:50.653798+00:00] MLB DAILY | DATE=2026_05_05 | ROWS=1 | RESULTS={'Win': 1}
-[2026-07-29T07:45:50.655832+00:00] MLB DAILY | DATE=2026_05_06 | ROWS=3 | RESULTS={'Win': 3}
-[2026-07-29T07:45:50.657801+00:00] MLB DAILY | DATE=2026_05_08 | ROWS=1 | RESULTS={'Loss': 1}
-[2026-07-29T07:45:50.659714+00:00] MLB DAILY | DATE=2026_05_11 | ROWS=1 | RESULTS={'Loss': 1}
-[2026-07-29T07:45:50.661697+00:00] MLB DAILY | DATE=2026_05_13 | ROWS=2 | RESULTS={'Win': 2}
-[2026-07-29T07:45:50.663643+00:00] MLB DAILY | DATE=2026_05_15 | ROWS=3 | RESULTS={'Win': 3}
-[2026-07-29T07:45:50.665671+00:00] MLB DAILY | DATE=2026_05_17 | ROWS=2 | RESULTS={'Loss': 1, 'Win': 1}
-[2026-07-29T07:45:50.667599+00:00] MLB DAILY | DATE=2026_05_19 | ROWS=2 | RESULTS={'Win': 2}
-[2026-07-29T07:45:50.669553+00:00] MLB DAILY | DATE=2026_05_20 | ROWS=2 | RESULTS={'Win': 2}
-[2026-07-29T07:45:50.671514+00:00] MLB DAILY | DATE=2026_05_22 | ROWS=1 | RESULTS={'Loss': 1}
-[2026-07-29T07:45:50.673484+00:00] MLB DAILY | DATE=2026_05_23 | ROWS=2 | RESULTS={'Win': 2}
-[2026-07-29T07:45:50.675525+00:00] MLB DAILY | DATE=2026_05_24 | ROWS=2 | RESULTS={'Win': 2}
-[2026-07-29T07:45:50.677508+00:00] MLB DAILY | DATE=2026_05_25 | ROWS=1 | RESULTS={'Win': 1}
-[2026-07-29T07:45:50.679505+00:00] MLB DAILY | DATE=2026_05_26 | ROWS=2 | RESULTS={'Win': 2}
-[2026-07-29T07:45:50.681496+00:00] MLB DAILY | DATE=2026_05_27 | ROWS=1 | RESULTS={'Win': 1}
-[2026-07-29T07:45:50.683486+00:00] MLB DAILY | DATE=2026_06_01 | ROWS=2 | RESULTS={'Win': 1, 'Loss': 1}
-[2026-07-29T07:45:50.685478+00:00] MLB DAILY | DATE=2026_06_02 | ROWS=2 | RESULTS={'Win': 1, 'Push': 1}
-[2026-07-29T07:45:50.687450+00:00] MLB DAILY | DATE=2026_06_03 | ROWS=1 | RESULTS={'Win': 1}
-[2026-07-29T07:45:50.689438+00:00] MLB DAILY | DATE=2026_06_05 | ROWS=1 | RESULTS={'Win': 1}
-[2026-07-29T07:45:50.691462+00:00] MLB DAILY | DATE=2026_06_06 | ROWS=3 | RESULTS={'Win': 3}
-[2026-07-29T07:45:50.693470+00:00] MLB DAILY | DATE=2026_06_07 | ROWS=1 | RESULTS={'Win': 1}
-[2026-07-29T07:45:50.695454+00:00] MLB DAILY | DATE=2026_06_08 | ROWS=3 | RESULTS={'Win': 1, 'Loss': 1, 'Push': 1}
-[2026-07-29T07:45:50.697420+00:00] MLB DAILY | DATE=2026_06_16 | ROWS=1 | RESULTS={'Win': 1}
-[2026-07-29T07:45:50.699382+00:00] MLB DAILY | DATE=2026_06_19 | ROWS=3 | RESULTS={'Win': 3}
-[2026-07-29T07:45:50.701454+00:00] MLB DAILY | DATE=2026_06_20 | ROWS=2 | RESULTS={'Win': 2}
-[2026-07-29T07:45:50.703429+00:00] MLB DAILY | DATE=2026_06_21 | ROWS=1 | RESULTS={'Loss': 1}
-[2026-07-29T07:45:50.705361+00:00] MLB DAILY | DATE=2026_06_22 | ROWS=1 | RESULTS={'Loss': 1}
-[2026-07-29T07:45:50.707390+00:00] MLB DAILY | DATE=2026_06_23 | ROWS=4 | RESULTS={'Win': 3, 'Loss': 1}
-[2026-07-29T07:45:50.709363+00:00] MLB DAILY | DATE=2026_06_24 | ROWS=1 | RESULTS={'Win': 1}
-[2026-07-29T07:45:50.711353+00:00] MLB DAILY | DATE=2026_06_26 | ROWS=2 | RESULTS={'Loss': 1, 'Win': 1}
-[2026-07-29T07:45:50.713318+00:00] MLB DAILY | DATE=2026_06_27 | ROWS=1 | RESULTS={'Win': 1}
-[2026-07-29T07:45:50.715305+00:00] MLB DAILY | DATE=2026_06_28 | ROWS=4 | RESULTS={'Loss': 2, 'Win': 2}
-[2026-07-29T07:45:50.717266+00:00] MLB DAILY | DATE=2026_06_29 | ROWS=1 | RESULTS={'Push': 1}
-[2026-07-29T07:45:50.719419+00:00] MLB DAILY | DATE=2026_07_01 | ROWS=1 | RESULTS={'Win': 1}
-[2026-07-29T07:45:50.721413+00:00] MLB DAILY | DATE=2026_07_04 | ROWS=3 | RESULTS={'Win': 2, 'Loss': 1}
-[2026-07-29T07:45:50.723423+00:00] MLB DAILY | DATE=2026_07_05 | ROWS=3 | RESULTS={'Win': 2, 'Loss': 1}
-[2026-07-29T07:45:50.725429+00:00] MLB DAILY | DATE=2026_07_07 | ROWS=4 | RESULTS={'Loss': 2, 'Win': 1, 'Push': 1}
-[2026-07-29T07:45:50.727404+00:00] MLB DAILY | DATE=2026_07_08 | ROWS=1 | RESULTS={'Win': 1}
-[2026-07-29T07:45:50.729360+00:00] MLB DAILY | DATE=2026_07_09 | ROWS=1 | RESULTS={'Win': 1}
-[2026-07-29T07:45:50.731299+00:00] MLB DAILY | DATE=2026_07_10 | ROWS=1 | RESULTS={'Loss': 1}
-[2026-07-29T07:45:50.733257+00:00] MLB DAILY | DATE=2026_07_11 | ROWS=1 | RESULTS={'Win': 1}
-[2026-07-29T07:45:50.735225+00:00] MLB DAILY | DATE=2026_07_17 | ROWS=2 | RESULTS={'Push': 1, 'Loss': 1}
-[2026-07-29T07:45:50.737193+00:00] MLB DAILY | DATE=2026_07_19 | ROWS=1 | RESULTS={'Loss': 1}
-[2026-07-29T07:45:50.739140+00:00] MLB DAILY | DATE=2026_07_20 | ROWS=1 | RESULTS={'Win': 1}
-[2026-07-29T07:45:50.741087+00:00] MLB DAILY | DATE=2026_07_21 | ROWS=2 | RESULTS={'Loss': 1, 'Win': 1}
-[2026-07-29T07:45:50.743034+00:00] MLB DAILY | DATE=2026_07_22 | ROWS=2 | RESULTS={'Win': 1, 'Loss': 1}
-[2026-07-29T07:45:50.744983+00:00] MLB DAILY | DATE=2026_07_23 | ROWS=1 | RESULTS={'Win': 1}
-[2026-07-29T07:45:50.746917+00:00] MLB DAILY | DATE=2026_07_24 | ROWS=1 | RESULTS={'Loss': 1}
-[2026-07-29T07:45:50.748862+00:00] MLB DAILY | DATE=2026_07_25 | ROWS=2 | RESULTS={'Loss': 2}
-[2026-07-29T07:45:50.749989+00:00] END 01_mlb_results_grade.py
+[2026-07-30T07:45:45.952555+00:00] START 01_mlb_results_grade.py
+[2026-07-30T07:45:47.136770+00:00] FINAL SCORE BLANK GAME_ID ROWS DROPPED | rows=76 | audit=docs/win/baseball/05_final_scores/results/unmatched/blank_final_score_game_ids_MLB.csv
+[2026-07-30T07:45:47.137898+00:00] SCORE BLANK GAME_ID ROWS DROPPED: 76
+[2026-07-30T07:45:47.141479+00:00] BET cols: ['game_id', 'sport', 'game_date', 'game_time', 'league', 'away_team', 'home_team', 'market_type', 'bet_side', 'market', 'side', 'line', 'take_bet', 'dk_odds_american', 'dk_odds_decimal', 'model_prob', 'prob_used_for_selection', 'prob_for_ev', 'prob_for_kelly', 'ev_probability_source', 'kelly_probability_source', 'raw_ev', 'adjusted_ev', 'ev', 'kelly', 'selection_reason', 'low_confidence', 'source_file', 'selected_row_id']
+[2026-07-30T07:45:47.141536+00:00] SCORE cols: ['sport', 'league', 'game_id', 'game_date', 'game_time', 'home_team', 'away_team', 'final_away_score', 'final_home_score', 'final_total', 'away_run_line', 'home_run_line', 'total', 'source_file', 'gamePk', 'gameNumber', 'game_status', 'final_scores_generated_at']
+[2026-07-30T07:45:47.141566+00:00] SELECTED ROWS: 153
+[2026-07-30T07:45:47.141590+00:00] SELECTED BLANK GAME_ID ROWS: 0
+[2026-07-30T07:45:47.141615+00:00] SCORE ROWS AFTER BLANK GAME_ID DROP: 1428
+[2026-07-30T07:45:47.141730+00:00] BET game_id sample: ['4de2590a17bdf6f8b4a906f4c63162c0', '7dc467f8d7fca948c9e9ca103825d968', 'a6a0dde319f89b70eb1cf1e004b81fe6']
+[2026-07-30T07:45:47.141835+00:00] SCORE game_id sample: ['5c8789e78ef558dfaf6b887deacec21c', 'a6a0dde319f89b70eb1cf1e004b81fe6', 'cfdeb0596b2f626db8901c8a4dc5ea7c']
+[2026-07-30T07:45:47.162553+00:00] MERGED cols: ['game_id', 'sport_bet', 'game_date_bet', 'game_time_bet', 'league_bet', 'away_team_bet', 'home_team_bet', 'market_type', 'bet_side', 'market', 'side', 'line', 'take_bet', 'dk_odds_american', 'dk_odds_decimal', 'model_prob', 'prob_used_for_selection', 'prob_for_ev', 'prob_for_kelly', 'ev_probability_source', 'kelly_probability_source', 'raw_ev', 'adjusted_ev', 'ev', 'kelly', 'selection_reason', 'low_confidence', 'source_file_bet', 'selected_row_id', 'sport_score', 'league_score', 'game_date_score', 'game_time_score', 'home_team_score', 'away_team_score', 'final_away_score', 'final_home_score', 'final_total', 'away_run_line', 'home_run_line', 'total', 'source_file_score', 'gamePk', 'gameNumber', 'game_status', 'final_scores_generated_at']
+[2026-07-30T07:45:47.162592+00:00] MERGED ON game_id | rows=144
+[2026-07-30T07:45:47.162620+00:00] UNMATCHED SELECTED ROWS: 9
+[2026-07-30T07:45:47.162644+00:00] UNMATCHED SELECTED BETS WRITTEN | rows=9 | out=docs/win/baseball/05_final_scores/results/unmatched/MLB_unmatched_selected_bets.csv
+[2026-07-30T07:45:47.164244+00:00] POST-RESOLVE cols: ['game_id', 'market_type', 'bet_side', 'market', 'side', 'line', 'take_bet', 'dk_odds_american', 'dk_odds_decimal', 'model_prob', 'prob_used_for_selection', 'prob_for_ev', 'prob_for_kelly', 'ev_probability_source', 'kelly_probability_source', 'raw_ev', 'adjusted_ev', 'ev', 'kelly', 'selection_reason', 'low_confidence', 'selected_row_id', 'final_away_score', 'final_home_score', 'final_total', 'away_run_line', 'home_run_line', 'total', 'gamePk', 'gameNumber', 'game_status', 'final_scores_generated_at', 'away_team', 'game_date', 'league', 'sport', 'home_team', 'game_time', 'source_file']
+[2026-07-30T07:45:47.164447+00:00] final_away_score sample: ['10', '7', '2']
+[2026-07-30T07:45:47.164576+00:00] final_home_score sample: ['4', '11', '8']
+[2026-07-30T07:45:47.164701+00:00] market_type sample: ['run_line', 'run_line', 'run_line']
+[2026-07-30T07:45:47.164734+00:00] take_bet present after resolve: True
+[2026-07-30T07:45:47.183507+00:00] MLB MASTER BUILT | ROWS=144 | OUT=docs/win/baseball/05_final_scores/results/graded/MLB_final.csv
+[2026-07-30T07:45:47.183539+00:00] SELECTED VS GRADED | selected=153 graded=144 unmatched=9
+[2026-07-30T07:45:47.183924+00:00] SELECTED COUNT EXCEEDS GRADED COUNT | selected=153 graded=144 unmatched=9 reasons={'missing_final_score': 8, 'unknown_game_status': 1}
+[2026-07-30T07:45:47.316010+00:00] MLB DAILY | DATE=2026_03_26 | ROWS=4 | RESULTS={'Win': 2, 'Loss': 1, 'Push': 1}
+[2026-07-30T07:45:47.318056+00:00] MLB DAILY | DATE=2026_03_28 | ROWS=1 | RESULTS={'Win': 1}
+[2026-07-30T07:45:47.320015+00:00] MLB DAILY | DATE=2026_03_29 | ROWS=2 | RESULTS={'Win': 1, 'Loss': 1}
+[2026-07-30T07:45:47.321959+00:00] MLB DAILY | DATE=2026_03_31 | ROWS=1 | RESULTS={'Loss': 1}
+[2026-07-30T07:45:47.323875+00:00] MLB DAILY | DATE=2026_04_01 | ROWS=2 | RESULTS={'Loss': 1, 'Win': 1}
+[2026-07-30T07:45:47.325797+00:00] MLB DAILY | DATE=2026_04_03 | ROWS=2 | RESULTS={'Win': 2}
+[2026-07-30T07:45:47.328137+00:00] MLB DAILY | DATE=2026_04_05 | ROWS=2 | RESULTS={'Win': 2}
+[2026-07-30T07:45:47.330069+00:00] MLB DAILY | DATE=2026_04_07 | ROWS=2 | RESULTS={'Win': 2}
+[2026-07-30T07:45:47.332002+00:00] MLB DAILY | DATE=2026_04_08 | ROWS=2 | RESULTS={'Win': 2}
+[2026-07-30T07:45:47.333899+00:00] MLB DAILY | DATE=2026_04_10 | ROWS=1 | RESULTS={'Win': 1}
+[2026-07-30T07:45:47.335794+00:00] MLB DAILY | DATE=2026_04_12 | ROWS=2 | RESULTS={'Win': 2}
+[2026-07-30T07:45:47.337731+00:00] MLB DAILY | DATE=2026_04_14 | ROWS=3 | RESULTS={'Win': 3}
+[2026-07-30T07:45:47.339620+00:00] MLB DAILY | DATE=2026_04_15 | ROWS=1 | RESULTS={'Loss': 1}
+[2026-07-30T07:45:47.341539+00:00] MLB DAILY | DATE=2026_04_16 | ROWS=1 | RESULTS={'Win': 1}
+[2026-07-30T07:45:47.343456+00:00] MLB DAILY | DATE=2026_04_17 | ROWS=1 | RESULTS={'Loss': 1}
+[2026-07-30T07:45:47.345351+00:00] MLB DAILY | DATE=2026_04_18 | ROWS=1 | RESULTS={'Win': 1}
+[2026-07-30T07:45:47.347329+00:00] MLB DAILY | DATE=2026_04_19 | ROWS=2 | RESULTS={'Win': 2}
+[2026-07-30T07:45:47.349280+00:00] MLB DAILY | DATE=2026_04_20 | ROWS=1 | RESULTS={'Loss': 1}
+[2026-07-30T07:45:47.351240+00:00] MLB DAILY | DATE=2026_04_22 | ROWS=2 | RESULTS={'Loss': 1, 'Win': 1}
+[2026-07-30T07:45:47.353219+00:00] MLB DAILY | DATE=2026_04_24 | ROWS=4 | RESULTS={'Win': 3, 'Loss': 1}
+[2026-07-30T07:45:47.355140+00:00] MLB DAILY | DATE=2026_04_26 | ROWS=1 | RESULTS={'Win': 1}
+[2026-07-30T07:45:47.357109+00:00] MLB DAILY | DATE=2026_04_28 | ROWS=1 | RESULTS={'Win': 1}
+[2026-07-30T07:45:47.359041+00:00] MLB DAILY | DATE=2026_04_29 | ROWS=3 | RESULTS={'Win': 3}
+[2026-07-30T07:45:47.360962+00:00] MLB DAILY | DATE=2026_04_30 | ROWS=1 | RESULTS={'Win': 1}
+[2026-07-30T07:45:47.362910+00:00] MLB DAILY | DATE=2026_05_01 | ROWS=1 | RESULTS={'Win': 1}
+[2026-07-30T07:45:47.364860+00:00] MLB DAILY | DATE=2026_05_02 | ROWS=3 | RESULTS={'Win': 3}
+[2026-07-30T07:45:47.366791+00:00] MLB DAILY | DATE=2026_05_03 | ROWS=2 | RESULTS={'Win': 2}
+[2026-07-30T07:45:47.368713+00:00] MLB DAILY | DATE=2026_05_04 | ROWS=2 | RESULTS={'Win': 2}
+[2026-07-30T07:45:47.370626+00:00] MLB DAILY | DATE=2026_05_05 | ROWS=1 | RESULTS={'Win': 1}
+[2026-07-30T07:45:47.372609+00:00] MLB DAILY | DATE=2026_05_06 | ROWS=2 | RESULTS={'Win': 2}
+[2026-07-30T07:45:47.374500+00:00] MLB DAILY | DATE=2026_05_08 | ROWS=1 | RESULTS={'Loss': 1}
+[2026-07-30T07:45:47.376385+00:00] MLB DAILY | DATE=2026_05_11 | ROWS=1 | RESULTS={'Loss': 1}
+[2026-07-30T07:45:47.378334+00:00] MLB DAILY | DATE=2026_05_13 | ROWS=1 | RESULTS={'Win': 1}
+[2026-07-30T07:45:47.380291+00:00] MLB DAILY | DATE=2026_05_15 | ROWS=3 | RESULTS={'Win': 3}
+[2026-07-30T07:45:47.382316+00:00] MLB DAILY | DATE=2026_05_17 | ROWS=2 | RESULTS={'Loss': 1, 'Win': 1}
+[2026-07-30T07:45:47.384269+00:00] MLB DAILY | DATE=2026_05_19 | ROWS=2 | RESULTS={'Win': 2}
+[2026-07-30T07:45:47.386254+00:00] MLB DAILY | DATE=2026_05_20 | ROWS=2 | RESULTS={'Win': 2}
+[2026-07-30T07:45:47.388189+00:00] MLB DAILY | DATE=2026_05_22 | ROWS=1 | RESULTS={'Loss': 1}
+[2026-07-30T07:45:47.390104+00:00] MLB DAILY | DATE=2026_05_23 | ROWS=1 | RESULTS={'Win': 1}
+[2026-07-30T07:45:47.392121+00:00] MLB DAILY | DATE=2026_05_25 | ROWS=1 | RESULTS={'Win': 1}
+[2026-07-30T07:45:47.394053+00:00] MLB DAILY | DATE=2026_05_26 | ROWS=2 | RESULTS={'Win': 2}
+[2026-07-30T07:45:47.395987+00:00] MLB DAILY | DATE=2026_05_27 | ROWS=1 | RESULTS={'Win': 1}
+[2026-07-30T07:45:47.397926+00:00] MLB DAILY | DATE=2026_06_01 | ROWS=2 | RESULTS={'Win': 1, 'Loss': 1}
+[2026-07-30T07:45:47.399847+00:00] MLB DAILY | DATE=2026_06_02 | ROWS=2 | RESULTS={'Win': 1, 'Push': 1}
+[2026-07-30T07:45:47.401775+00:00] MLB DAILY | DATE=2026_06_03 | ROWS=1 | RESULTS={'Win': 1}
+[2026-07-30T07:45:47.403687+00:00] MLB DAILY | DATE=2026_06_05 | ROWS=1 | RESULTS={'Win': 1}
+[2026-07-30T07:45:47.405623+00:00] MLB DAILY | DATE=2026_06_06 | ROWS=3 | RESULTS={'Win': 2, 'Loss': 1}
+[2026-07-30T07:45:47.407592+00:00] MLB DAILY | DATE=2026_06_07 | ROWS=3 | RESULTS={'Win': 2, 'Loss': 1}
+[2026-07-30T07:45:47.409511+00:00] MLB DAILY | DATE=2026_06_08 | ROWS=2 | RESULTS={'Loss': 1, 'Push': 1}
+[2026-07-30T07:45:47.411437+00:00] MLB DAILY | DATE=2026_06_11 | ROWS=2 | RESULTS={'Win': 2}
+[2026-07-30T07:45:47.413346+00:00] MLB DAILY | DATE=2026_06_12 | ROWS=1 | RESULTS={'Win': 1}
+[2026-07-30T07:45:47.415258+00:00] MLB DAILY | DATE=2026_06_16 | ROWS=1 | RESULTS={'Win': 1}
+[2026-07-30T07:45:47.417222+00:00] MLB DAILY | DATE=2026_06_19 | ROWS=3 | RESULTS={'Win': 3}
+[2026-07-30T07:45:47.419143+00:00] MLB DAILY | DATE=2026_06_20 | ROWS=2 | RESULTS={'Win': 2}
+[2026-07-30T07:45:47.421087+00:00] MLB DAILY | DATE=2026_06_21 | ROWS=2 | RESULTS={'Loss': 1, 'Win': 1}
+[2026-07-30T07:45:47.423019+00:00] MLB DAILY | DATE=2026_06_22 | ROWS=1 | RESULTS={'Loss': 1}
+[2026-07-30T07:45:47.424985+00:00] MLB DAILY | DATE=2026_06_23 | ROWS=3 | RESULTS={'Win': 2, 'Loss': 1}
+[2026-07-30T07:45:47.426911+00:00] MLB DAILY | DATE=2026_06_24 | ROWS=1 | RESULTS={'Win': 1}
+[2026-07-30T07:45:47.428845+00:00] MLB DAILY | DATE=2026_06_26 | ROWS=2 | RESULTS={'Loss': 1, 'Win': 1}
+[2026-07-30T07:45:47.430766+00:00] MLB DAILY | DATE=2026_06_27 | ROWS=1 | RESULTS={'Win': 1}
+[2026-07-30T07:45:47.432723+00:00] MLB DAILY | DATE=2026_06_28 | ROWS=5 | RESULTS={'Win': 3, 'Loss': 2}
+[2026-07-30T07:45:47.434735+00:00] MLB DAILY | DATE=2026_06_29 | ROWS=1 | RESULTS={'Push': 1}
+[2026-07-30T07:45:47.436656+00:00] MLB DAILY | DATE=2026_07_01 | ROWS=1 | RESULTS={'Win': 1}
+[2026-07-30T07:45:47.438608+00:00] MLB DAILY | DATE=2026_07_04 | ROWS=3 | RESULTS={'Win': 2, 'Loss': 1}
+[2026-07-30T07:45:47.440534+00:00] MLB DAILY | DATE=2026_07_05 | ROWS=3 | RESULTS={'Win': 2, 'Loss': 1}
+[2026-07-30T07:45:47.442460+00:00] MLB DAILY | DATE=2026_07_07 | ROWS=4 | RESULTS={'Loss': 2, 'Win': 1, 'Push': 1}
+[2026-07-30T07:45:47.444385+00:00] MLB DAILY | DATE=2026_07_08 | ROWS=1 | RESULTS={'Win': 1}
+[2026-07-30T07:45:47.446291+00:00] MLB DAILY | DATE=2026_07_09 | ROWS=1 | RESULTS={'Win': 1}
+[2026-07-30T07:45:47.448221+00:00] MLB DAILY | DATE=2026_07_10 | ROWS=1 | RESULTS={'Loss': 1}
+[2026-07-30T07:45:47.450141+00:00] MLB DAILY | DATE=2026_07_11 | ROWS=1 | RESULTS={'Win': 1}
+[2026-07-30T07:45:47.452093+00:00] MLB DAILY | DATE=2026_07_17 | ROWS=2 | RESULTS={'Push': 1, 'Loss': 1}
+[2026-07-30T07:45:47.454012+00:00] MLB DAILY | DATE=2026_07_18 | ROWS=1 | RESULTS={'Win': 1}
+[2026-07-30T07:45:47.456067+00:00] MLB DAILY | DATE=2026_07_19 | ROWS=2 | RESULTS={'Loss': 2}
+[2026-07-30T07:45:47.458050+00:00] MLB DAILY | DATE=2026_07_20 | ROWS=3 | RESULTS={'Win': 2, 'Loss': 1}
+[2026-07-30T07:45:47.459975+00:00] MLB DAILY | DATE=2026_07_21 | ROWS=2 | RESULTS={'Loss': 1, 'Win': 1}
+[2026-07-30T07:45:47.461895+00:00] MLB DAILY | DATE=2026_07_22 | ROWS=2 | RESULTS={'Win': 1, 'Loss': 1}
+[2026-07-30T07:45:47.463830+00:00] MLB DAILY | DATE=2026_07_23 | ROWS=1 | RESULTS={'Win': 1}
+[2026-07-30T07:45:47.465791+00:00] MLB DAILY | DATE=2026_07_24 | ROWS=1 | RESULTS={'Loss': 1}
+[2026-07-30T07:45:47.467806+00:00] MLB DAILY | DATE=2026_07_25 | ROWS=2 | RESULTS={'Loss': 2}
+[2026-07-30T07:45:47.469679+00:00] MLB DAILY | DATE=2026_07_28 | ROWS=2 | RESULTS={'Win': 2}
+[2026-07-30T07:45:47.470696+00:00] END 01_mlb_results_grade.py
