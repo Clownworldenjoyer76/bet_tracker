@@ -64,12 +64,14 @@ def _write_summary(summary: dict, per_slate: list) -> None:
         f"  selected_nonpositive_kelly        : {summary['selected_nonpositive_kelly']}",
         f"  selected_blank_probability_source : {summary['selected_blank_probability_source']}",
         f"  selected_probability_source_mismatch: {summary['selected_probability_source_mismatch']}",
-        f"  selected_adjusted_only_positive   : {summary['selected_adjusted_only_positive']}",
         f"  schema_errors                     : {summary['schema_errors']}",
         f"  rain_excluded                     : {summary['rain_excluded']}",
         f"  rain_excluded_will_it_rain        : {summary['rain_excluded_will_it_rain']}",
         f"  rain_excluded_symbol_code         : {summary['rain_excluded_symbol_code']}",
         f"  sp_sample_excluded                : {summary['sp_sample_excluded']}",
+        f"  context_data_excluded             : {summary['context_data_excluded']}",
+        f"  context_data_batter_excluded      : {summary['context_data_batter_excluded']}",
+        f"  context_data_sp_excluded          : {summary['context_data_sp_excluded']}",
         f"  low_confidence                    : {summary['low_confidence']}",
         f"  rejection_audit_rows              : {summary['rejection_audit_rows']}",
         f"  selected_audit_rows               : {summary['selected_audit_rows']}",
@@ -85,7 +87,7 @@ def _write_summary(summary: dict, per_slate: list) -> None:
                 f"ev_fail={c['ev_fail']:>4} kelly_fail={c['kelly_fail']:>4} "
                 f"odds_fail={c['odds_fail']:>4} line_fail={c['line_fail']:>4} "
                 f"prob_fail={c['prob_fail']:>4} source_fail={c['source_fail']:>4} "
-                f"adjusted_only_fail={c['adjusted_only_fail']:>4} missing={c['missing']:>4} "
+                f"missing={c['missing']:>4} "
                 f"excluded={c['excluded']:>4}"
             )
 
@@ -121,7 +123,14 @@ REQUIRED_BASE_COLUMNS = [
     "away_team",
 ]
 
-REQUIRED_MONEYLINE_COLUMNS = REQUIRED_BASE_COLUMNS + [
+REQUIRED_CONTEXT_COLUMNS = [
+    "home_batters_found",
+    "away_batters_found",
+    "home_sp_found",
+    "away_sp_found",
+]
+
+REQUIRED_MONEYLINE_COLUMNS = REQUIRED_BASE_COLUMNS + REQUIRED_CONTEXT_COLUMNS + [
     "home_dk_moneyline_american",
     "away_dk_moneyline_american",
     "home_dk_decimal_moneyline",
@@ -146,7 +155,7 @@ REQUIRED_MONEYLINE_COLUMNS = REQUIRED_BASE_COLUMNS + [
     "away_ml_kelly",
 ]
 
-REQUIRED_RUN_LINE_COLUMNS = REQUIRED_BASE_COLUMNS + [
+REQUIRED_RUN_LINE_COLUMNS = REQUIRED_BASE_COLUMNS + REQUIRED_CONTEXT_COLUMNS + [
     "home_run_line",
     "away_run_line",
     "home_dk_run_line_american",
@@ -173,7 +182,7 @@ REQUIRED_RUN_LINE_COLUMNS = REQUIRED_BASE_COLUMNS + [
     "away_rl_kelly",
 ]
 
-REQUIRED_TOTAL_COLUMNS = REQUIRED_BASE_COLUMNS + [
+REQUIRED_TOTAL_COLUMNS = REQUIRED_BASE_COLUMNS + REQUIRED_CONTEXT_COLUMNS + [
     "total",
     "dk_total_over_american",
     "dk_total_under_american",
@@ -305,7 +314,6 @@ def validate_selected_output(df: pd.DataFrame, label: str) -> dict:
         "selected_nonpositive_kelly": 0,
         "selected_blank_probability_source": 0,
         "selected_probability_source_mismatch": 0,
-        "selected_adjusted_only_positive": 0,
     }
 
     if df.empty:
@@ -326,13 +334,9 @@ def validate_selected_output(df: pd.DataFrame, label: str) -> dict:
     prob_mismatch = int(((prob_ev - prob_kelly).abs() > PROB_TOLERANCE).sum())
     counts["selected_probability_source_mismatch"] += prob_mismatch
 
-    raw_ev = pd.to_numeric(df["raw_ev"], errors="coerce")
-    adjusted_ev = pd.to_numeric(df["adjusted_ev"], errors="coerce")
-    counts["selected_adjusted_only_positive"] = int(((raw_ev <= 0) & (adjusted_ev > 0)).sum())
-
     failures = {
         k: v for k, v in counts.items()
-        if v > 0 and k != "selected_adjusted_only_positive"
+        if v > 0
     }
 
     if failures:
@@ -368,6 +372,19 @@ def row_count_check(slate: str, market_frames: dict, summary: dict) -> None:
 
 
 def validate_config() -> None:
+    context_cfg = CONFIG.get("context_data_filters", {})
+
+    if context_cfg.get("enabled", False):
+        for key in ["home_batters_found_min", "away_batters_found_min"]:
+            value = context_cfg.get(key)
+            if not isinstance(value, int) or not 0 <= value <= 9:
+                raise ValueError(f"context_data_filters.{key} must be an integer from 0 to 9")
+
+        for key in ["home_sp_found_required", "away_sp_found_required"]:
+            value = context_cfg.get(key)
+            if value not in {0, 1}:
+                raise ValueError(f"context_data_filters.{key} must be 0 or 1")
+
     run_line_preference = CONFIG.get("run_line", {}).get("pick_preference", "best_ev")
     if run_line_preference not in {"best_ev", "best_prob"}:
         raise ValueError(
@@ -561,7 +578,6 @@ def init_counter():
         "line_fail": 0,
         "prob_fail": 0,
         "source_fail": 0,
-        "adjusted_only_fail": 0,
         "excluded": 0,
         "missing": 0,
     }
@@ -632,16 +648,6 @@ def build_base_games(market_frames: dict) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def adjusted_only_positive(raw_ev, adjusted_ev) -> bool:
-    raw = fv(raw_ev)
-    adj = fv(adjusted_ev)
-
-    if raw is None or adj is None:
-        return False
-
-    return raw <= 0 and adj > 0
-
-
 def base_candidate_audit(row, candidate, fail_reason="", fail_detail=""):
     return {
         "date": row.get("game_date"),
@@ -684,6 +690,67 @@ def selected_audit_row(row):
 # =========================
 # CONTEXT FILTERS
 # =========================
+
+def context_data_exclusion_reason(row):
+    context_cfg = FILTERS.get("context_data_filters", {})
+
+    if not context_cfg.get("enabled", False):
+        return None
+
+    if row is None:
+        return {
+            "detail": "missing_context_row",
+            "batter_failure": True,
+            "sp_failure": True,
+        }
+
+    home_batters = iv(row.get("home_batters_found"))
+    away_batters = iv(row.get("away_batters_found"))
+    home_sp = iv(row.get("home_sp_found"))
+    away_sp = iv(row.get("away_sp_found"))
+
+    home_batters_min = context_cfg.get("home_batters_found_min", 9)
+    away_batters_min = context_cfg.get("away_batters_found_min", 9)
+    home_sp_required = context_cfg.get("home_sp_found_required", 1)
+    away_sp_required = context_cfg.get("away_sp_found_required", 1)
+
+    failures = []
+    batter_failure = False
+    sp_failure = False
+
+    if home_batters is None or home_batters < home_batters_min:
+        failures.append(
+            f"home_batters_found={home_batters};required_min={home_batters_min}"
+        )
+        batter_failure = True
+
+    if away_batters is None or away_batters < away_batters_min:
+        failures.append(
+            f"away_batters_found={away_batters};required_min={away_batters_min}"
+        )
+        batter_failure = True
+
+    if home_sp is None or home_sp != home_sp_required:
+        failures.append(
+            f"home_sp_found={home_sp};required={home_sp_required}"
+        )
+        sp_failure = True
+
+    if away_sp is None or away_sp != away_sp_required:
+        failures.append(
+            f"away_sp_found={away_sp};required={away_sp_required}"
+        )
+        sp_failure = True
+
+    if not failures:
+        return None
+
+    return {
+        "detail": "|".join(failures),
+        "batter_failure": batter_failure,
+        "sp_failure": sp_failure,
+    }
+
 
 def rain_exclusion_reason(row):
     if row is None:
@@ -971,12 +1038,14 @@ def main():
         "selected_nonpositive_kelly": 0,
         "selected_blank_probability_source": 0,
         "selected_probability_source_mismatch": 0,
-        "selected_adjusted_only_positive": 0,
         "schema_errors": 0,
         "rain_excluded": 0,
         "rain_excluded_will_it_rain": 0,
         "rain_excluded_symbol_code": 0,
         "sp_sample_excluded": 0,
+        "context_data_excluded": 0,
+        "context_data_batter_excluded": 0,
+        "context_data_sp_excluded": 0,
         "low_confidence": 0,
         "rejection_audit_rows": 0,
         "selected_audit_rows": 0,
@@ -1000,10 +1069,10 @@ def main():
         f"symbol_code={FILTERS.get('rain_exclude_on_symbol_code', False)} "
         f"symbol_terms={FILTERS.get('rain_symbol_terms')} | "
         f"SP sample exclude totals: {FILTERS.get('sp_sample_exclude_totals')} | "
-        f"Lineup low sample warn: {FILTERS.get('lineup_low_sample_warn')}"
+        f"Lineup low sample warn: {FILTERS.get('lineup_low_sample_warn')} | "
+        f"Context data filters: {FILTERS.get('context_data_filters')}"
     )
     _log("Selection requires kelly > 0 and matching EV/Kelly probability source per selected row.")
-    _log("Selection rejects rows where adjusted EV is positive but raw EV is zero/negative.")
     _log("Selection matches market rows by game_id only. Team/date fallback matching is disabled.")
 
     try:
@@ -1153,6 +1222,52 @@ def main():
                     tt_row = get_market_row(tt_df, game_id)
 
                     context_row = rl_row if rl_row is not None else (tt_row if tt_row is not None else ml_row)
+
+                    base.update({
+                        "home_batters_found": iv(context_row.get("home_batters_found")) if context_row is not None else None,
+                        "away_batters_found": iv(context_row.get("away_batters_found")) if context_row is not None else None,
+                        "home_sp_found": iv(context_row.get("home_sp_found")) if context_row is not None else None,
+                        "away_sp_found": iv(context_row.get("away_sp_found")) if context_row is not None else None,
+                    })
+
+                    context_failure = context_data_exclusion_reason(context_row)
+
+                    if context_failure:
+                        summary["context_data_excluded"] += 1
+
+                        if context_failure["batter_failure"]:
+                            summary["context_data_batter_excluded"] += 1
+
+                        if context_failure["sp_failure"]:
+                            summary["context_data_sp_excluded"] += 1
+
+                        _log(
+                            f"  {game_id} context data excluded "
+                            f"({context_failure['detail']})",
+                            "WARN",
+                        )
+
+                        rejection_rows.append({
+                            "date": game_date,
+                            "game_id": game_id,
+                            "market": "all",
+                            "side": "all",
+                            "fail_reason": "context_data_excluded",
+                            "fail_detail": context_failure["detail"],
+                            "prob_used_for_selection": None,
+                            "prob_used_for_ev": None,
+                            "prob_used_for_kelly": None,
+                            "ev": None,
+                            "kelly": None,
+                            "odds": None,
+                            "line": None,
+                            "raw_ev": None,
+                            "adjusted_ev": None,
+                            "ev_probability_source": None,
+                            "kelly_probability_source": None,
+                        })
+                        continue
+
                     low_conf = is_low_confidence(context_row)
 
                     rain_reason = rain_exclusion_reason(context_row)
@@ -1345,9 +1460,9 @@ def main():
         f"total_mkt_bets={summary['total_mkt_bets']} "
         f"selected_nonpositive_kelly={summary['selected_nonpositive_kelly']} "
         f"selected_probability_source_mismatch={summary['selected_probability_source_mismatch']} "
-        f"selected_adjusted_only_positive={summary['selected_adjusted_only_positive']} "
         f"rain_excluded_will_it_rain={summary['rain_excluded_will_it_rain']} "
         f"rain_excluded_symbol_code={summary['rain_excluded_symbol_code']} "
+        f"context_data_excluded={summary['context_data_excluded']} "
         f"rejection_audit_rows={summary['rejection_audit_rows']} "
         f"selected_audit_rows={summary['selected_audit_rows']} "
         f"row_count_warnings={summary['row_count_warnings']}"
