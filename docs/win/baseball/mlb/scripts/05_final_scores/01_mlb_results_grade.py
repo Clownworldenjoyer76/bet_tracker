@@ -494,7 +494,7 @@ def load_final_scores():
         all_scores["game_status"] = "unknown"
     all_scores["game_status"] = all_scores["game_status"].apply(normalize_game_status)
     all_scores, blank_score_count = audit_and_drop_blank_score_game_ids(all_scores)
-    score_compare_cols = ["game_id", "game_date", "game_time", "home_team", "away_team", "final_home_score", "final_away_score", "final_total", "gamePk", "gameNumber", "game_status"]
+    score_compare_cols = ["game_id", "game_date", "home_team", "away_team", "final_home_score", "final_away_score", "final_total", "gamePk", "gameNumber", "game_status"]
     all_scores, score_dup_rows, score_ok = validate_and_collapse_duplicates(all_scores, SCORE_DUP_KEY, "final_score_game_id", compare_cols=score_compare_cols)
     duplicate_audit_rows.extend(score_dup_rows)
     if not score_ok:
@@ -738,3 +738,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

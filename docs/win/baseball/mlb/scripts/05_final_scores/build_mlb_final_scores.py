@@ -402,7 +402,6 @@ def final_row_signature(record):
         record.get("gamePk", ""),
         record.get("gameNumber", ""),
         record.get("game_date", ""),
-        record.get("game_time", ""),
         record.get("home_team", ""),
         record.get("away_team", ""),
         record.get("final_away_score", ""),
@@ -447,6 +446,7 @@ def add_final_record(
     seen_by_game_id,
     seen_by_fallback_key,
     key_audit_rows,
+    use_game_time_for_fallback,
 ):
     game_id = str(record.get("game_id", "")).strip()
     game_date = record.get("game_date", "")
@@ -505,7 +505,13 @@ def add_final_record(
             f"game_id={game_id} date={game_date} away={away_team} home={home_team}"
         )
 
-    fallback_key = (game_date, home_team, away_team, game_time)
+    if use_game_time_for_fallback:
+        fallback_key = (game_date, home_team, away_team, game_time)
+        fallback_notes = "game_id missing; fallback date/team/time key used for doubleheader identification"
+    else:
+        fallback_key = (game_date, home_team, away_team)
+        fallback_notes = "game_id missing; fallback date/team key used to avoid exact duplicate raw writes"
+
     existing_fallback = seen_by_fallback_key.get(fallback_key)
 
     if existing_fallback is None:
@@ -521,7 +527,7 @@ def add_final_record(
             home_team=home_team,
             duplicate_count=1,
             status="blank_game_id_written_for_downstream_audit",
-            notes="game_id missing; fallback date/team/time key used only to avoid exact duplicate raw writes",
+            notes=fallback_notes,
         ))
         return "accepted_blank_game_id"
 
@@ -807,6 +813,9 @@ def process_file(
                 seen_by_game_id=seen_by_game_id,
                 seen_by_fallback_key=seen_by_fallback_key,
                 key_audit_rows=key_audit_rows,
+                use_game_time_for_fallback=(
+                    len(games_candidates) > 1 or len(pred_candidates) > 1
+                ),
             )
 
             if action in {"duplicate_collapsed", "blank_game_id_duplicate_collapsed"}:
@@ -993,3 +1002,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
