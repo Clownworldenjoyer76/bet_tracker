@@ -140,30 +140,35 @@ jobs:
         run: python docs/win/baseball/mlb/scripts/05_final_scores/normalize_mlb_results.py
 
       - name: MLB Grade Results
+        id: grade_results
         if: steps.selected_bets.outputs.found == 'true'
+        continue-on-error: true
         run: python docs/win/baseball/mlb/scripts/05_final_scores/01_mlb_results_grade.py
 
       - name: MLB Analyze Results
-        if: steps.selected_bets.outputs.found == 'true'
+        if: steps.selected_bets.outputs.found == 'true' && steps.grade_results.outcome == 'success'
         run: python docs/win/baseball/mlb/scripts/05_final_scores/02_mlb_results_analyze.py
 
       - name: MLB Build Results Reports
-        if: steps.selected_bets.outputs.found == 'true'
+        if: steps.selected_bets.outputs.found == 'true' && steps.grade_results.outcome == 'success'
         run: python docs/win/baseball/mlb/scripts/05_final_scores/03_mlb_results_reports.py
 
       - name: MLB Grade Morning Results
+        id: grade_morning_results
         if: steps.selected_bets.outputs.found == 'true' && steps.morning_selected_bets.outputs.found == 'true'
+        continue-on-error: true
         run: python docs/win/baseball/mlb/scripts/05_final_scores/01_mlb_results_grade_AM.py
 
       - name: MLB Analyze Morning Results
-        if: steps.selected_bets.outputs.found == 'true' && steps.morning_selected_bets.outputs.found == 'true'
+        if: steps.selected_bets.outputs.found == 'true' && steps.morning_selected_bets.outputs.found == 'true' && steps.grade_morning_results.outcome == 'success'
         run: python docs/win/baseball/mlb/scripts/05_final_scores/02_mlb_results_analyze_AM.py
 
       - name: MLB Build Morning Results Reports
-        if: steps.selected_bets.outputs.found == 'true' && steps.morning_selected_bets.outputs.found == 'true'
+        if: steps.selected_bets.outputs.found == 'true' && steps.morning_selected_bets.outputs.found == 'true' && steps.grade_morning_results.outcome == 'success'
         run: python docs/win/baseball/mlb/scripts/05_final_scores/03_mlb_results_reports_AM.py
 
       - name: Commit MLB outputs
+        if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
