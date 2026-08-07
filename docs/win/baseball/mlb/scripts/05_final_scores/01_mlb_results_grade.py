@@ -16,11 +16,8 @@ UNMATCHED_DIR = Path("docs/win/baseball/mlb/05_final_scores/results/unmatched")
 AUDIT_DIR = Path("docs/win/baseball/mlb/05_final_scores/results/audit")
 ERROR_DIR = Path("docs/win/baseball/mlb/errors/05_final_scores")
 
-ERROR_DIR.mkdir(parents=True, exist_ok=True)
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-DAILY_DIR.mkdir(parents=True, exist_ok=True)
-UNMATCHED_DIR.mkdir(parents=True, exist_ok=True)
-AUDIT_DIR.mkdir(parents=True, exist_ok=True)
+for directory in [ERROR_DIR, OUTPUT_DIR, DAILY_DIR, UNMATCHED_DIR, AUDIT_DIR]:
+    directory.mkdir(parents=True, exist_ok=True)
 
 GRADE_ERROR_LOG = ERROR_DIR / "mlb_results_grade_errors.txt"
 GRADE_SUMMARY_LOG = ERROR_DIR / "mlb_results_grade_summary.txt"
@@ -37,75 +34,55 @@ RESULT_COUNTS_FILE = AUDIT_DIR / "grading_result_counts.csv"
 SPOT_CHECK_FILE = AUDIT_DIR / "grading_spot_check.csv"
 
 OUTPUT_COLS = [
-    "game_id",
-    "sport",
-    "league",
-    "game_date",
-    "game_time",
-    "home_team",
-    "away_team",
-    "market_type",
-    "bet_side",
-    "line",
-    "take_bet",
-    "dk_odds_american",
-    "model_prob",
-    "ev",
-    "kelly",
-    "low_confidence",
-    "gamePk",
-    "gameNumber",
-    "game_status",
-    "final_scores_generated_at",
-    "final_home_score",
-    "final_away_score",
-    "final_total",
-    "home_run_line",
-    "away_run_line",
-    "total",
-    "bet_result",
+    "game_id", "sport", "league", "game_date", "game_time",
+    "home_team", "away_team", "market_type", "bet_side", "line",
+    "take_bet", "dk_odds_american", "model_prob", "ev", "kelly",
+    "low_confidence", "gamePk", "gameNumber", "game_status",
+    "final_scores_generated_at", "final_home_score", "final_away_score",
+    "final_total", "home_run_line", "away_run_line", "total", "bet_result",
 ]
 
 UNMATCHED_COLS = [
-    "unmatched_reason",
-    "game_id",
-    "sport",
-    "league",
-    "game_date",
-    "game_time",
-    "home_team",
-    "away_team",
-    "market_type",
-    "bet_side",
-    "line",
-    "take_bet",
-    "dk_odds_american",
-    "model_prob",
-    "ev",
-    "kelly",
-    "low_confidence",
-    "source_file",
+    "unmatched_reason", "game_id", "sport", "league", "game_date",
+    "game_time", "home_team", "away_team", "market_type", "bet_side",
+    "line", "take_bet", "dk_odds_american", "model_prob", "ev",
+    "kelly", "low_confidence", "source_file",
+]
+
+RECONCILIATION_COLS = [
+    "game_date", "selected_rows", "graded_rows", "unmatched_rows",
+    "missing_final_score_rows", "missing_game_id_rows", "future_game_rows",
+    "postponed_rows", "canceled_rows", "game_not_final_rows",
+    "unknown_game_status_rows", "other_unmatched_rows", "status",
+]
+
+DUPLICATE_AUDIT_COLS = [
+    "duplicate_scope", "game_date", "game_id", "market_type", "bet_side",
+    "line", "duplicate_count", "identical_duplicate", "action_taken",
+    "failure_reason", "source_files",
 ]
 
 REQUIRED_SELECTED_COLUMNS = [
-    "game_id",
-    "game_date",
-    "market_type",
-    "bet_side",
-    "line",
-    "dk_odds_american",
+    "game_id", "game_date", "market_type", "bet_side",
+    "line", "dk_odds_american",
 ]
 
 REQUIRED_SCORE_COLUMNS = [
-    "game_id",
-    "game_date",
-    "final_home_score",
-    "final_away_score",
+    "game_id", "game_date", "final_home_score", "final_away_score",
 ]
 
 SELECTED_DUP_KEY = ["game_id", "market_type", "bet_side", "line"]
 SCORE_DUP_KEY = ["game_id"]
 VALID_RESULTS = {"Win", "Loss", "Push"}
+KNOWN_UNMATCHED_REASONS = {
+    "missing_final_score",
+    "missing_game_id",
+    "future_game",
+    "postponed",
+    "canceled",
+    "game_not_final",
+    "unknown_game_status",
+}
 
 
 def now_utc():
@@ -117,55 +94,58 @@ def reset_logs():
     GRADE_SUMMARY_LOG.write_text("", encoding="utf-8")
 
 
-def log_error(msg):
-    with open(GRADE_ERROR_LOG, "a", encoding="utf-8") as f:
-        f.write(f"[{now_utc()}] {msg}\n")
+def log_error(message):
+    with GRADE_ERROR_LOG.open("a", encoding="utf-8") as handle:
+        handle.write(f"[{now_utc()}] {message}\n")
 
 
-def log_summary(msg):
-    with open(GRADE_SUMMARY_LOG, "a", encoding="utf-8") as f:
-        f.write(f"[{now_utc()}] {msg}\n")
+def log_summary(message):
+    with GRADE_SUMMARY_LOG.open("a", encoding="utf-8") as handle:
+        handle.write(f"[{now_utc()}] {message}\n")
 
 
 def duplicate_columns(columns):
     seen = set()
     duplicates = []
-    for col in columns:
-        if col in seen and col not in duplicates:
-            duplicates.append(col)
-        seen.add(col)
+    for column in columns:
+        if column in seen and column not in duplicates:
+            duplicates.append(column)
+        seen.add(column)
     return duplicates
 
 
 def read_header_columns(path):
-    with open(path, "r", encoding="utf-8-sig", newline="") as f:
-        reader = csv.reader(f)
-        return next(reader, [])
+    with Path(path).open("r", encoding="utf-8-sig", newline="") as handle:
+        return next(csv.reader(handle), [])
 
 
 def validate_no_duplicate_header(path, label):
-    header = read_header_columns(path)
-    duplicates = duplicate_columns(header)
+    duplicates = duplicate_columns(read_header_columns(path))
     if duplicates:
         raise ValueError(f"{label} has duplicate header columns: {duplicates}")
 
 
-def validate_no_duplicate_columns(df, label):
-    duplicates = duplicate_columns(list(df.columns))
+def validate_no_duplicate_columns(frame, label):
+    duplicates = duplicate_columns(list(frame.columns))
     if duplicates:
         raise ValueError(f"{label} has duplicate columns: {duplicates}")
 
 
-def validate_required_columns(df, required_columns, label):
-    missing = [col for col in required_columns if col not in df.columns]
+def validate_required_columns(frame, columns, label):
+    missing = [column for column in columns if column not in frame.columns]
     if missing:
         raise ValueError(f"{label} missing required columns: {missing}")
 
 
-def write_csv_checked(df, path, label):
-    validate_no_duplicate_columns(df, label)
+def write_csv_checked(frame, path, label):
+    validate_no_duplicate_columns(frame, label)
+    path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(path, index=False)
+    frame.to_csv(path, index=False)
+
+
+def make_empty_csv(path, columns, label):
+    write_csv_checked(pd.DataFrame(columns=columns), path, label)
 
 
 def safe_read(path, required_columns=None, label=None):
@@ -175,35 +155,53 @@ def safe_read(path, required_columns=None, label=None):
         if not path.exists():
             log_error(f"MISSING FILE | {path}")
             return pd.DataFrame()
+
         validate_no_duplicate_header(path, read_label)
-        df = pd.read_csv(path, dtype=str)
-        if df is None or df.empty:
+        frame = pd.read_csv(path, dtype=str)
+
+        if frame is None or frame.empty:
             log_error(f"EMPTY FILE | {path}")
             return pd.DataFrame()
-        validate_no_duplicate_columns(df, read_label)
+
+        validate_no_duplicate_columns(frame, read_label)
+
         if required_columns:
-            validate_required_columns(df, required_columns, read_label)
-        df = df.apply(lambda col: col.map(lambda x: x.strip() if isinstance(x, str) else x))
-        return df
-    except Exception as e:
-        log_error(f"READ/SCHEMA ERROR | {path} | {e}")
+            validate_required_columns(frame, required_columns, read_label)
+
+        return frame.apply(
+            lambda column: column.map(
+                lambda value: value.strip() if isinstance(value, str) else value
+            )
+        )
+    except Exception as error:
+        log_error(f"READ/SCHEMA ERROR | {path} | {error}")
         return pd.DataFrame()
 
 
-def normalize_date(val):
-    return str(val).strip().replace("-", "_")
+def normalize_date(value):
+    raw = "" if pd.isna(value) else str(value).strip()
+    if raw.lower() in {"", "nan", "none", "nat"}:
+        return ""
+    return raw.replace("-", "_")
 
 
 def clean_game_id(series):
-    return series.fillna("").astype(str).str.strip().str.split(".").str[0]
+    return (
+        series.fillna("")
+        .astype(str)
+        .str.strip()
+        .str.replace(r"\.0$", "", regex=True)
+    )
 
 
 def blank_mask(series):
-    return series.fillna("").astype(str).str.strip() == ""
+    values = series.fillna("").astype(str).str.strip().str.lower()
+    return values.isin({"", "nan", "none", "nat"})
 
 
 def normalize_game_status(value):
-    raw = str(value or "").strip().lower()
+    raw = "" if pd.isna(value) else str(value).strip().lower()
+
     if raw in {"final", "game over", "completed", "complete"}:
         return "final"
     if raw in {"postponed", "ppd"}:
@@ -218,58 +216,86 @@ def normalize_game_status(value):
         return "in_progress"
     if raw in {"scheduled", "pre-game", "pregame", "preview"}:
         return "scheduled"
-    if raw in {"", "nan", "none"}:
+    if raw in {"", "nan", "none", "nat"}:
         return "unknown"
+
     return raw.replace(" ", "_")
 
 
-def make_empty_csv(path, columns, label):
-    write_csv_checked(pd.DataFrame(columns=columns), path, label)
+def enforce_columns(frame, columns):
+    output = frame.copy()
+    for column in columns:
+        if column not in output.columns:
+            output[column] = ""
+    return output[columns].copy()
 
 
-def enforce_output_cols(df):
-    for col in OUTPUT_COLS:
-        if col not in df.columns:
-            df[col] = ""
-    return df[OUTPUT_COLS].copy()
+def enforce_output_cols(frame):
+    return enforce_columns(frame, OUTPUT_COLS)
 
 
-def enforce_unmatched_cols(df):
-    for col in UNMATCHED_COLS:
-        if col not in df.columns:
-            df[col] = ""
-    return df[UNMATCHED_COLS].copy()
+def enforce_unmatched_cols(frame):
+    return enforce_columns(frame, UNMATCHED_COLS)
 
 
-def normalize_unmatched_selected_rows(unmatched):
-    if unmatched.empty:
-        return unmatched
-    out = unmatched.copy()
-    selected_preferred = ["sport", "league", "game_date", "game_time", "home_team", "away_team", "source_file", "take_bet"]
+def normalize_unmatched_selected_rows(frame):
+    if frame.empty:
+        return frame.copy()
+
+    output = frame.copy()
+    selected_preferred = [
+        "sport", "league", "game_date", "game_time",
+        "home_team", "away_team", "source_file", "take_bet",
+    ]
+
     for base in selected_preferred:
-        bet_col = f"{base}_bet"
-        score_col = f"{base}_score"
-        if bet_col in out.columns:
-            out[base] = out[bet_col]
-        elif base not in out.columns and score_col in out.columns:
-            out[base] = out[score_col]
-    if "game_date" in out.columns:
-        out["game_date"] = out["game_date"].apply(normalize_date)
-    return out
+        bet_column = f"{base}_bet"
+        score_column = f"{base}_score"
+
+        if bet_column in output.columns:
+            bet_values = output[bet_column]
+            if base in output.columns:
+                use_bet = ~blank_mask(bet_values)
+                output.loc[use_bet, base] = bet_values.loc[use_bet]
+            else:
+                output[base] = bet_values
+        elif base not in output.columns and score_column in output.columns:
+            output[base] = output[score_column]
+
+    if "game_date" in output.columns:
+        output["game_date"] = output["game_date"].apply(normalize_date)
+
+    return output
 
 
-def write_unmatched(unmatched):
-    if unmatched.empty:
-        make_empty_csv(UNMATCHED_SELECTED_FILE, UNMATCHED_COLS, "empty unmatched selected bets output")
+def write_unmatched(frame):
+    if frame.empty:
+        make_empty_csv(
+            UNMATCHED_SELECTED_FILE,
+            UNMATCHED_COLS,
+            "empty unmatched selected bets output",
+        )
         return None
-    unmatched = normalize_unmatched_selected_rows(unmatched.copy())
-    unmatched = enforce_unmatched_cols(unmatched)
-    write_csv_checked(unmatched, UNMATCHED_SELECTED_FILE, "unmatched selected bets output")
+
+    output = normalize_unmatched_selected_rows(frame)
+    output = enforce_unmatched_cols(output)
+    write_csv_checked(
+        output,
+        UNMATCHED_SELECTED_FILE,
+        "unmatched selected bets output",
+    )
     return UNMATCHED_SELECTED_FILE
 
 
-def duplicate_audit_row(scope, group, action_taken, failure_reason, source_files):
-    first = group.iloc[0] if not group.empty else {}
+def duplicate_audit_row(
+    scope,
+    group,
+    identical,
+    action_taken,
+    failure_reason,
+    source_files,
+):
+    first = group.iloc[0]
     return {
         "duplicate_scope": scope,
         "game_date": first.get("game_date", ""),
@@ -278,63 +304,139 @@ def duplicate_audit_row(scope, group, action_taken, failure_reason, source_files
         "bet_side": first.get("bet_side", ""),
         "line": first.get("line", ""),
         "duplicate_count": len(group),
-        "identical_duplicate": str(group.drop(columns=["selected_row_id"], errors="ignore").drop_duplicates().shape[0] == 1),
+        "identical_duplicate": str(bool(identical)),
         "action_taken": action_taken,
         "failure_reason": failure_reason,
         "source_files": source_files,
     }
 
 
-def validate_and_collapse_duplicates(df, key_cols, scope, compare_cols=None):
-    if df.empty:
-        return df, [], True
-    missing_key_cols = [col for col in key_cols if col not in df.columns]
-    if missing_key_cols:
-        log_error(f"DUPLICATE VALIDATION SKIPPED | scope={scope} missing_key_cols={missing_key_cols}")
-        return df, [], False
+def validate_and_collapse_duplicates(frame, key_columns, scope, compare_columns=None):
+    if frame.empty:
+        return frame.copy(), [], True
+
+    missing_keys = [
+        column for column in key_columns if column not in frame.columns
+    ]
+    if missing_keys:
+        log_error(
+            f"DUPLICATE VALIDATION FAILED | "
+            f"scope={scope} missing_key_cols={missing_keys}"
+        )
+        return frame.copy(), [], False
+
+    duplicate_rows = frame[
+        frame.duplicated(subset=key_columns, keep=False)
+    ].copy()
+
+    if duplicate_rows.empty:
+        return frame.copy(), [], True
+
+    clean_parts = [
+        frame[~frame.duplicated(subset=key_columns, keep=False)].copy()
+    ]
     audit_rows = []
-    cleaned_parts = []
-    ok = True
-    duplicate_mask = df.duplicated(subset=key_cols, keep=False)
-    duplicates = df[duplicate_mask].copy()
-    non_duplicates = df[~duplicate_mask].copy()
-    if not non_duplicates.empty:
-        cleaned_parts.append(non_duplicates)
-    if duplicates.empty:
-        return df.copy(), audit_rows, ok
-    for _key, group in duplicates.groupby(key_cols, dropna=False):
-        source_files = ",".join(sorted(set(group.get("source_file", pd.Series(dtype=str)).fillna("").astype(str))))
-        available_compare_cols = [col for col in (compare_cols or list(group.columns)) if col in group.columns]
-        comparable = group[available_compare_cols].fillna("").astype(str).copy()
+    success = True
+
+    for _, group in duplicate_rows.groupby(key_columns, dropna=False):
+        source_series = group.get(
+            "source_file",
+            pd.Series("", index=group.index, dtype=str),
+        )
+        source_files = ",".join(
+            sorted(
+                {
+                    value
+                    for value in source_series.fillna("").astype(str)
+                    if value
+                }
+            )
+        )
+
+        available_compare_columns = [
+            column
+            for column in (compare_columns or list(group.columns))
+            if column in group.columns
+        ]
+
+        comparable = (
+            group[available_compare_columns]
+            .fillna("")
+            .astype(str)
+        )
         identical = comparable.drop_duplicates().shape[0] == 1
+
         if identical:
-            cleaned_parts.append(group.head(1).copy())
-            audit_rows.append(duplicate_audit_row(scope, group, "collapsed_identical_duplicate", "", source_files))
+            clean_parts.append(group.head(1).copy())
+            audit_rows.append(
+                duplicate_audit_row(
+                    scope,
+                    group,
+                    True,
+                    "collapsed_identical_duplicate",
+                    "",
+                    source_files,
+                )
+            )
         else:
-            ok = False
-            audit_rows.append(duplicate_audit_row(scope, group, "hard_fail", "conflicting_duplicate_rows", source_files))
-    cleaned = pd.concat(cleaned_parts, ignore_index=True) if cleaned_parts else pd.DataFrame(columns=df.columns)
-    return cleaned, audit_rows, ok
+            success = False
+            audit_rows.append(
+                duplicate_audit_row(
+                    scope,
+                    group,
+                    False,
+                    "hard_fail",
+                    "conflicting_duplicate_rows",
+                    source_files,
+                )
+            )
+
+    cleaned = pd.concat(clean_parts, ignore_index=True)
+    return cleaned, audit_rows, success
 
 
 def write_duplicate_audit(rows):
-    columns = [
-        "duplicate_scope", "game_date", "game_id", "market_type", "bet_side", "line",
-        "duplicate_count", "identical_duplicate", "action_taken", "failure_reason", "source_files",
-    ]
-    audit_df = pd.DataFrame(rows, columns=columns)
-    write_csv_checked(audit_df, DUPLICATE_AUDIT_FILE, "grading duplicate audit")
+    output = pd.DataFrame(rows, columns=DUPLICATE_AUDIT_COLS)
+    write_csv_checked(
+        output,
+        DUPLICATE_AUDIT_FILE,
+        "grading duplicate audit",
+    )
 
 
-def audit_and_drop_blank_score_game_ids(all_scores):
-    blank = blank_mask(all_scores["game_id"])
-    blank_scores = all_scores[blank].copy()
-    clean_scores = all_scores[~blank].copy()
-    if not blank_scores.empty:
-        write_csv_checked(blank_scores.sort_values(["game_date"], na_position="last"), BLANK_SCORE_GAME_ID_FILE, "blank final-score game_id audit")
-        log_summary(f"FINAL SCORE BLANK GAME_ID ROWS DROPPED | rows={len(blank_scores)} | audit={BLANK_SCORE_GAME_ID_FILE}")
+def audit_and_drop_blank_score_game_ids(scores):
+    blank = blank_mask(scores["game_id"])
+    blank_scores = scores[blank].copy()
+    clean_scores = scores[~blank].copy()
+
+    if blank_scores.empty:
+        make_empty_csv(
+            BLANK_SCORE_GAME_ID_FILE,
+            list(scores.columns),
+            "empty blank final-score game_id audit",
+        )
     else:
-        make_empty_csv(BLANK_SCORE_GAME_ID_FILE, list(all_scores.columns), "empty blank final-score game_id audit")
+        sort_columns = [
+            column
+            for column in ["game_date", "away_team", "home_team"]
+            if column in blank_scores.columns
+        ]
+        if sort_columns:
+            blank_scores = blank_scores.sort_values(
+                sort_columns,
+                na_position="last",
+            )
+
+        write_csv_checked(
+            blank_scores,
+            BLANK_SCORE_GAME_ID_FILE,
+            "blank final-score game_id audit",
+        )
+        log_summary(
+            f"FINAL SCORE BLANK GAME_ID ROWS DROPPED | "
+            f"rows={len(blank_scores)} | audit={BLANK_SCORE_GAME_ID_FILE}"
+        )
+
     return clean_scores, len(blank_scores)
 
 
@@ -342,32 +444,49 @@ def determine_outcome(row):
     try:
         market = str(row.get("market_type", "")).strip().lower()
         side = str(row.get("bet_side", "")).strip().lower()
-        away = float(row["final_away_score"])
-        home = float(row["final_home_score"])
+        away_score = float(row["final_away_score"])
+        home_score = float(row["final_home_score"])
+
         if market == "moneyline":
-            if away == home:
+            if away_score == home_score:
                 return "Push"
             if side == "home":
-                return "Win" if home > away else "Loss"
+                return "Win" if home_score > away_score else "Loss"
             if side == "away":
-                return "Win" if away > home else "Loss"
+                return "Win" if away_score > home_score else "Loss"
+
         if market == "run_line":
-            line = float(row.get("line", 0))
-            diff = (home + line) - away if side == "home" else (away + line) - home
-            if abs(diff) < 1e-9:
+            line = float(row.get("line", ""))
+            if side == "home":
+                difference = home_score + line - away_score
+            elif side == "away":
+                difference = away_score + line - home_score
+            else:
+                return ""
+
+            if abs(difference) < 1e-9:
                 return "Push"
-            return "Win" if diff > 0 else "Loss"
+            return "Win" if difference > 0 else "Loss"
+
         if market == "total":
-            line = float(row.get("line", 0))
-            total = away + home
-            if abs(total - line) < 1e-9:
+            line = float(row.get("line", ""))
+            final_total = away_score + home_score
+
+            if abs(final_total - line) < 1e-9:
                 return "Push"
             if side == "over":
-                return "Win" if total > line else "Loss"
+                return "Win" if final_total > line else "Loss"
             if side == "under":
-                return "Win" if total < line else "Loss"
-    except Exception as e:
-        log_error(f"DETERMINE OUTCOME ERROR | game_id={row.get('game_id', '')} market_type={row.get('market_type', '')} bet_side={row.get('bet_side', '')} | {e}")
+                return "Win" if final_total < line else "Loss"
+
+    except Exception as error:
+        log_error(
+            f"DETERMINE OUTCOME ERROR | "
+            f"game_id={row.get('game_id', '')} "
+            f"market_type={row.get('market_type', '')} "
+            f"bet_side={row.get('bet_side', '')} | {error}"
+        )
+
     return ""
 
 
@@ -375,367 +494,874 @@ def build_calculation(row):
     try:
         market = str(row.get("market_type", "")).strip().lower()
         side = str(row.get("bet_side", "")).strip().lower()
-        away = float(row.get("final_away_score", ""))
-        home = float(row.get("final_home_score", ""))
-        result = str(row.get("bet_result", "")).strip()
-        line_raw = row.get("line", "")
+        away_score = float(row.get("final_away_score", ""))
+        home_score = float(row.get("final_home_score", ""))
+        result = str(row.get("bet_result", "")).strip().lower()
+
         if market == "moneyline":
-            if side == "away":
-                return f"moneyline away: away_score={away:g}, home_score={home:g} => {result.lower()}"
-            if side == "home":
-                return f"moneyline home: home_score={home:g}, away_score={away:g} => {result.lower()}"
+            return (
+                f"moneyline {side}: away_score={away_score:g}, "
+                f"home_score={home_score:g} => {result}"
+            )
+
         if market == "run_line":
-            line = float(line_raw)
-            if side == "home":
-                adjusted = home + line
-                return f"run_line home {line:g}: home_score={home:g}, away_score={away:g}, adjusted_home_score={adjusted:g} => {result.lower()}"
-            if side == "away":
-                adjusted = away + line
-                return f"run_line away {line:g}: away_score={away:g}, home_score={home:g}, adjusted_away_score={adjusted:g} => {result.lower()}"
+            line = float(row.get("line", ""))
+            selected_score = home_score if side == "home" else away_score
+            opposing_score = away_score if side == "home" else home_score
+            adjusted_score = selected_score + line
+            return (
+                f"run_line {side} {line:g}: "
+                f"selected_score={selected_score:g}, "
+                f"opposing_score={opposing_score:g}, "
+                f"adjusted_score={adjusted_score:g} => {result}"
+            )
+
         if market == "total":
-            line = float(line_raw)
-            total = away + home
-            return f"total {side} {line:g}: final_total={total:g} vs line={line:g} => {result.lower()}"
-    except Exception as e:
-        return f"calculation_error: {e}"
+            line = float(row.get("line", ""))
+            final_total = away_score + home_score
+            return (
+                f"total {side} {line:g}: "
+                f"final_total={final_total:g} vs line={line:g} => {result}"
+            )
+
+    except Exception as error:
+        return f"calculation_error: {error}"
+
     return ""
 
 
-def resolve_merge_columns(merged):
+def resolve_merge_columns(frame):
+    output = frame.copy()
+
     score_fields = {
-        "game_date", "game_time", "home_team", "away_team", "sport", "league",
-        "final_home_score", "final_away_score", "final_total", "home_run_line", "away_run_line", "total",
-        "gamePk", "gameNumber", "game_status", "final_scores_generated_at",
+        "game_date", "game_time", "home_team", "away_team",
+        "sport", "league", "final_home_score", "final_away_score",
+        "final_total", "home_run_line", "away_run_line", "total",
+        "gamePk", "gameNumber", "game_status",
+        "final_scores_generated_at",
     }
-    selected_fields = {"sport", "league", "game_date", "game_time", "home_team", "away_team", "source_file"}
+    selected_fields = {
+        "sport", "league", "game_date", "game_time",
+        "home_team", "away_team", "source_file",
+    }
+
     for base in score_fields:
-        score_col = f"{base}_score"
-        bet_col = f"{base}_bet"
-        if score_col in merged.columns:
-            merged[base] = merged[score_col]
-        elif base not in merged.columns and bet_col in merged.columns:
-            merged[base] = merged[bet_col]
+        score_column = f"{base}_score"
+        bet_column = f"{base}_bet"
+
+        if score_column in output.columns:
+            output[base] = output[score_column]
+        elif base not in output.columns and bet_column in output.columns:
+            output[base] = output[bet_column]
+
     for base in selected_fields:
-        bet_col = f"{base}_bet"
-        score_col = f"{base}_score"
-        if base not in merged.columns and bet_col in merged.columns:
-            merged[base] = merged[bet_col]
-        elif base not in merged.columns and score_col in merged.columns:
-            merged[base] = merged[score_col]
-    to_drop = []
-    for col in merged.columns:
-        if col == "take_bet":
+        bet_column = f"{base}_bet"
+        score_column = f"{base}_score"
+
+        if base not in output.columns and bet_column in output.columns:
+            output[base] = output[bet_column]
+        elif base not in output.columns and score_column in output.columns:
+            output[base] = output[score_column]
+
+    columns_to_drop = []
+    for column in output.columns:
+        if column == "take_bet":
             continue
-        if col.endswith("_bet") or col.endswith("_score"):
-            base = col[:-4] if col.endswith("_bet") else col[:-6]
-            if base in selected_fields or base in score_fields:
-                to_drop.append(col)
-    merged = merged.drop(columns=to_drop, errors="ignore")
-    validate_no_duplicate_columns(merged, "post-resolve graded rows")
-    return merged
+        if column.endswith("_bet"):
+            base = column[:-4]
+        elif column.endswith("_score"):
+            base = column[:-6]
+        else:
+            continue
+
+        if base in selected_fields or base in score_fields:
+            columns_to_drop.append(column)
+
+    output = output.drop(columns=columns_to_drop, errors="ignore")
+    validate_no_duplicate_columns(output, "post-resolve graded rows")
+    return output
 
 
 def load_selected_bets():
-    select_files = sorted(SELECT_DIR.glob("*MLB*.csv"))
-    if not select_files:
+    files = sorted(SELECT_DIR.glob("*MLB*.csv"))
+    if not files:
         log_error(f"NO SELECT FILES FOUND IN {SELECT_DIR}")
         return pd.DataFrame(), []
+
     parts = []
-    duplicate_audit_rows = []
-    for path in select_files:
-        df = safe_read(path, REQUIRED_SELECTED_COLUMNS, f"selected file {path.name}")
-        if df.empty:
+    audit_rows = []
+
+    for path in files:
+        frame = safe_read(
+            path,
+            REQUIRED_SELECTED_COLUMNS,
+            f"selected file {path.name}",
+        )
+        if frame.empty:
             continue
-        df["source_file"] = path.name
-        df["game_date"] = df["game_date"].apply(normalize_date)
-        df["game_id"] = clean_game_id(df.get("game_id", pd.Series(dtype=str)))
-        df, daily_dup_rows, daily_ok = validate_and_collapse_duplicates(df, SELECTED_DUP_KEY, "daily_selected_bet_key", compare_cols=[c for c in df.columns if c != "selected_row_id"])
-        duplicate_audit_rows.extend(daily_dup_rows)
-        if not daily_ok:
-            return pd.DataFrame(), duplicate_audit_rows
-        parts.append(df)
+
+        frame["source_file"] = path.name
+        frame["game_date"] = frame["game_date"].apply(normalize_date)
+        frame["game_id"] = clean_game_id(frame["game_id"])
+
+        compare_columns = [
+            column
+            for column in frame.columns
+            if column != "selected_row_id"
+        ]
+
+        frame, duplicate_rows, success = validate_and_collapse_duplicates(
+            frame,
+            SELECTED_DUP_KEY,
+            "daily_selected_bet_key",
+            compare_columns,
+        )
+        audit_rows.extend(duplicate_rows)
+
+        if not success:
+            return pd.DataFrame(), audit_rows
+
+        parts.append(frame)
+
     if not parts:
         log_error("ALL SELECT FILES EMPTY, UNREADABLE, OR SCHEMA-INVALID")
-        return pd.DataFrame(), duplicate_audit_rows
-    all_bets = pd.concat(parts, ignore_index=True)
-    validate_no_duplicate_columns(all_bets, "combined selected bets")
-    all_bets["game_id"] = clean_game_id(all_bets.get("game_id", pd.Series(dtype=str)))
-    all_bets["selected_row_id"] = range(len(all_bets))
-    compare_cols = ["game_id", "game_date", "market_type", "bet_side", "line", "take_bet", "dk_odds_american", "model_prob", "ev", "kelly", "prob_for_ev", "prob_for_kelly"]
-    all_bets, combined_dup_rows, combined_ok = validate_and_collapse_duplicates(all_bets, SELECTED_DUP_KEY, "combined_selected_bet_key", compare_cols=compare_cols)
-    duplicate_audit_rows.extend(combined_dup_rows)
-    if not combined_ok:
-        return pd.DataFrame(), duplicate_audit_rows
-    all_bets["selected_row_id"] = range(len(all_bets))
-    return all_bets, duplicate_audit_rows
+        return pd.DataFrame(), audit_rows
+
+    bets = pd.concat(parts, ignore_index=True)
+    validate_no_duplicate_columns(bets, "combined selected bets")
+
+    bets["game_id"] = clean_game_id(bets["game_id"])
+    bets["selected_row_id"] = range(len(bets))
+
+    compare_columns = [
+        "game_id", "game_date", "market_type", "bet_side", "line",
+        "take_bet", "dk_odds_american", "model_prob", "ev", "kelly",
+        "prob_for_ev", "prob_for_kelly",
+    ]
+
+    bets, duplicate_rows, success = validate_and_collapse_duplicates(
+        bets,
+        SELECTED_DUP_KEY,
+        "combined_selected_bet_key",
+        compare_columns,
+    )
+    audit_rows.extend(duplicate_rows)
+
+    if not success:
+        return pd.DataFrame(), audit_rows
+
+    bets["selected_row_id"] = range(len(bets))
+    return bets, audit_rows
 
 
 def load_final_scores():
-    score_files = sorted(SCORE_DIR.glob("*_final_scores_MLB.csv"))
-    if not score_files:
+    files = sorted(SCORE_DIR.glob("*_final_scores_MLB.csv"))
+    if not files:
         log_error(f"NO SCORE FILES FOUND IN {SCORE_DIR}")
         return pd.DataFrame(), []
+
     parts = []
-    duplicate_audit_rows = []
-    for path in score_files:
-        df = safe_read(path, REQUIRED_SCORE_COLUMNS, f"score file {path.name}")
-        if df.empty:
+    audit_rows = []
+
+    for path in files:
+        frame = safe_read(
+            path,
+            REQUIRED_SCORE_COLUMNS,
+            f"score file {path.name}",
+        )
+        if frame.empty:
             continue
-        df["source_file"] = path.name
-        df["game_date"] = df["game_date"].apply(normalize_date)
-        parts.append(df)
+
+        frame["source_file"] = path.name
+        frame["game_date"] = frame["game_date"].apply(normalize_date)
+        parts.append(frame)
+
     if not parts:
         log_error("ALL SCORE FILES EMPTY, UNREADABLE, OR SCHEMA-INVALID")
-        return pd.DataFrame(), duplicate_audit_rows
-    all_scores = pd.concat(parts, ignore_index=True)
-    validate_no_duplicate_columns(all_scores, "combined final scores")
-    all_scores["game_id"] = clean_game_id(all_scores.get("game_id", pd.Series(dtype=str)))
-    if "game_status" not in all_scores.columns:
-        all_scores["game_status"] = "unknown"
-    all_scores["game_status"] = all_scores["game_status"].apply(normalize_game_status)
-    all_scores, blank_score_count = audit_and_drop_blank_score_game_ids(all_scores)
-    score_compare_cols = ["game_id", "game_date", "home_team", "away_team", "final_home_score", "final_away_score", "final_total", "gamePk", "gameNumber", "game_status"]
-    all_scores, score_dup_rows, score_ok = validate_and_collapse_duplicates(all_scores, SCORE_DUP_KEY, "final_score_game_id", compare_cols=score_compare_cols)
-    duplicate_audit_rows.extend(score_dup_rows)
-    if not score_ok:
-        log_error(f"FINAL SCORE CONFLICTING DUPLICATES | audit={DUPLICATE_AUDIT_FILE}")
-        return pd.DataFrame(), duplicate_audit_rows
-    log_summary(f"SCORE BLANK GAME_ID ROWS DROPPED: {blank_score_count}")
-    return all_scores, duplicate_audit_rows
+        return pd.DataFrame(), audit_rows
+
+    scores = pd.concat(parts, ignore_index=True)
+    validate_no_duplicate_columns(scores, "combined final scores")
+
+    scores["game_id"] = clean_game_id(scores["game_id"])
+
+    if "game_status" not in scores.columns:
+        scores["game_status"] = "unknown"
+
+    scores["game_status"] = scores["game_status"].apply(
+        normalize_game_status
+    )
+
+    scores, blank_count = audit_and_drop_blank_score_game_ids(scores)
+
+    compare_columns = [
+        "game_id", "game_date", "home_team", "away_team",
+        "final_home_score", "final_away_score", "final_total",
+        "gamePk", "gameNumber", "game_status",
+    ]
+
+    scores, duplicate_rows, success = validate_and_collapse_duplicates(
+        scores,
+        SCORE_DUP_KEY,
+        "final_score_game_id",
+        compare_columns,
+    )
+    audit_rows.extend(duplicate_rows)
+
+    if not success:
+        log_error(
+            f"FINAL SCORE CONFLICTING DUPLICATES | "
+            f"audit={DUPLICATE_AUDIT_FILE}"
+        )
+        return pd.DataFrame(), audit_rows
+
+    log_summary(f"SCORE BLANK GAME_ID ROWS DROPPED: {blank_count}")
+    return scores, audit_rows
 
 
-def build_non_final_reports(merged_both):
-    columns = ["game_date", "game_id", "gamePk", "gameNumber", "away_team", "home_team", "market_type", "bet_side", "line", "game_status", "unmatched_reason"]
-    pc_cols = ["game_date", "game_id", "gamePk", "gameNumber", "away_team", "home_team", "game_status", "selected_rows_affected"]
-    if merged_both.empty or "game_status" not in merged_both.columns:
-        make_empty_csv(NOT_FINAL_SELECTED_FILE, columns, "empty not-final selected bets output")
-        make_empty_csv(POSTPONED_CANCELED_FILE, pc_cols, "empty postponed/canceled games output")
-        return pd.DataFrame(columns=columns)
-    non_final = merged_both[merged_both["game_status"].apply(normalize_game_status) != "final"].copy()
+def reason_for_status(status):
+    normalized = normalize_game_status(status)
+
+    if normalized == "postponed":
+        return "postponed"
+    if normalized == "canceled":
+        return "canceled"
+    if normalized == "unknown":
+        return "unknown_game_status"
+
+    return "game_not_final"
+
+
+def build_non_final_reports(matched_rows):
+    output_columns = [
+        "game_date", "game_id", "gamePk", "gameNumber",
+        "away_team", "home_team", "market_type", "bet_side",
+        "line", "game_status", "unmatched_reason",
+    ]
+    game_columns = [
+        "game_date", "game_id", "gamePk", "gameNumber",
+        "away_team", "home_team", "game_status",
+        "selected_rows_affected",
+    ]
+
+    if matched_rows.empty or "game_status" not in matched_rows.columns:
+        make_empty_csv(
+            NOT_FINAL_SELECTED_FILE,
+            output_columns,
+            "empty not-final selected bets output",
+        )
+        make_empty_csv(
+            POSTPONED_CANCELED_FILE,
+            game_columns,
+            "empty postponed/canceled games output",
+        )
+        return pd.DataFrame()
+
+    non_final = matched_rows[
+        matched_rows["game_status"].apply(normalize_game_status) != "final"
+    ].copy()
+
     if non_final.empty:
-        make_empty_csv(NOT_FINAL_SELECTED_FILE, columns, "empty not-final selected bets output")
-        make_empty_csv(POSTPONED_CANCELED_FILE, pc_cols, "empty postponed/canceled games output")
-        return pd.DataFrame(columns=columns)
-    non_final = resolve_merge_columns(non_final.drop(columns=["_merge"], errors="ignore"))
-    def reason_for_status(status):
-        status = normalize_game_status(status)
-        if status == "postponed":
-            return "postponed"
-        if status == "canceled":
-            return "canceled"
-        if status == "unknown":
-            return "unknown_game_status"
-        return "game_not_final"
-    non_final["unmatched_reason"] = non_final["game_status"].apply(reason_for_status)
-    not_final_out = non_final.copy()
-    for col in columns:
-        if col not in not_final_out.columns:
-            not_final_out[col] = ""
-    write_csv_checked(not_final_out[columns], NOT_FINAL_SELECTED_FILE, "not-final selected bets output")
-    pc = non_final[non_final["game_status"].isin(["postponed", "canceled"])].copy()
-    if pc.empty:
-        make_empty_csv(POSTPONED_CANCELED_FILE, pc_cols, "empty postponed/canceled games output")
+        make_empty_csv(
+            NOT_FINAL_SELECTED_FILE,
+            output_columns,
+            "empty not-final selected bets output",
+        )
+        make_empty_csv(
+            POSTPONED_CANCELED_FILE,
+            game_columns,
+            "empty postponed/canceled games output",
+        )
+        return pd.DataFrame()
+
+    non_final = non_final.drop(columns=["_merge"], errors="ignore")
+
+    selected_values = {}
+    for base in [
+        "sport", "league", "game_date", "game_time",
+        "home_team", "away_team", "source_file", "take_bet",
+    ]:
+        bet_column = f"{base}_bet"
+        if bet_column in non_final.columns:
+            selected_values[base] = non_final[bet_column].copy()
+
+    non_final = resolve_merge_columns(non_final)
+
+    for base, values in selected_values.items():
+        non_final[base] = values
+
+    non_final["game_date"] = non_final["game_date"].apply(normalize_date)
+    non_final["game_status"] = non_final["game_status"].apply(
+        normalize_game_status
+    )
+    non_final["unmatched_reason"] = non_final["game_status"].apply(
+        reason_for_status
+    )
+
+    report = enforce_columns(non_final, output_columns)
+    write_csv_checked(
+        report,
+        NOT_FINAL_SELECTED_FILE,
+        "not-final selected bets output",
+    )
+
+    postponed_canceled = non_final[
+        non_final["game_status"].isin(["postponed", "canceled"])
+    ].copy()
+
+    if postponed_canceled.empty:
+        make_empty_csv(
+            POSTPONED_CANCELED_FILE,
+            game_columns,
+            "empty postponed/canceled games output",
+        )
     else:
-        grouped = pc.groupby(["game_date", "game_id", "gamePk", "gameNumber", "away_team", "home_team", "game_status"], dropna=False).size().reset_index(name="selected_rows_affected")
-        write_csv_checked(grouped[pc_cols], POSTPONED_CANCELED_FILE, "postponed/canceled games output")
+        group_columns = [
+            "game_date", "game_id", "gamePk", "gameNumber",
+            "away_team", "home_team", "game_status",
+        ]
+        grouped = (
+            postponed_canceled.groupby(group_columns, dropna=False)
+            .size()
+            .reset_index(name="selected_rows_affected")
+        )
+        write_csv_checked(
+            grouped[game_columns],
+            POSTPONED_CANCELED_FILE,
+            "postponed/canceled games output",
+        )
+
     return non_final
 
 
-def write_reconciliation(all_bets, final, unmatched, non_final):
-    all_dates = sorted(set(list(all_bets.get("game_date", pd.Series(dtype=str)).dropna().astype(str)) + list(final.get("game_date", pd.Series(dtype=str)).dropna().astype(str)) + list(unmatched.get("game_date", pd.Series(dtype=str)).dropna().astype(str)) + list(non_final.get("game_date", pd.Series(dtype=str)).dropna().astype(str))))
+def build_unmatched(all_bets, blank_id_rows, missing_score_rows, non_final_rows):
+    reason_parts = []
+
+    for frame in [blank_id_rows, missing_score_rows, non_final_rows]:
+        if (
+            not frame.empty
+            and "selected_row_id" in frame.columns
+            and "unmatched_reason" in frame.columns
+        ):
+            reason_parts.append(
+                frame[["selected_row_id", "unmatched_reason"]].copy()
+            )
+
+    if not reason_parts:
+        return pd.DataFrame()
+
+    reasons = pd.concat(reason_parts, ignore_index=True)
+
+    duplicate_ids = reasons[
+        reasons.duplicated(subset=["selected_row_id"], keep=False)
+    ]
+
+    if not duplicate_ids.empty:
+        values = duplicate_ids["selected_row_id"].astype(str).tolist()
+        raise ValueError(
+            f"duplicate unmatched selected_row_id values: {values}"
+        )
+
+    return pd.merge(
+        all_bets,
+        reasons,
+        on="selected_row_id",
+        how="inner",
+        validate="one_to_one",
+    )
+
+
+def write_reconciliation(all_bets, final, unmatched):
+    dates = set()
+
+    for frame in [all_bets, final, unmatched]:
+        if not frame.empty and "game_date" in frame.columns:
+            dates.update(
+                value
+                for value in frame["game_date"]
+                .fillna("")
+                .astype(str)
+                .map(normalize_date)
+                if value
+            )
+
     rows = []
-    for date in all_dates:
-        selected_rows = int((all_bets["game_date"].astype(str) == date).sum()) if not all_bets.empty else 0
-        graded_rows = int((final["game_date"].astype(str) == date).sum()) if not final.empty else 0
-        if not unmatched.empty and "game_date" in unmatched.columns:
-            unmatched_date = unmatched[unmatched["game_date"].astype(str) == date].copy()
-        else:
+
+    for game_date in sorted(dates):
+        selected_date = all_bets[
+            all_bets["game_date"].astype(str) == game_date
+        ]
+        graded_date = final[
+            final["game_date"].astype(str) == game_date
+        ]
+
+        if unmatched.empty or "game_date" not in unmatched.columns:
             unmatched_date = pd.DataFrame()
-        def reason_count(reason):
-            if unmatched_date.empty or "unmatched_reason" not in unmatched_date.columns:
-                return 0
-            return int((unmatched_date["unmatched_reason"].astype(str) == reason).sum())
-        unmatched_rows = len(unmatched_date)
-        allowed_unmatched = reason_count("missing_final_score") + reason_count("future_game") + reason_count("postponed") + reason_count("canceled") + reason_count("game_not_final") + reason_count("unknown_game_status")
-        status = "ok" if unmatched_rows == 0 or unmatched_rows == allowed_unmatched else "review"
+        else:
+            unmatched_date = unmatched[
+                unmatched["game_date"].astype(str) == game_date
+            ]
+
+        if unmatched_date.empty:
+            reasons = pd.Series(dtype=str)
+        else:
+            reasons = (
+                unmatched_date["unmatched_reason"]
+                .fillna("")
+                .astype(str)
+                .str.strip()
+            )
+
+        def count_reason(reason):
+            return int((reasons == reason).sum())
+
+        selected_count = len(selected_date)
+        graded_count = len(graded_date)
+        unmatched_count = len(unmatched_date)
+        other_count = int((~reasons.isin(KNOWN_UNMATCHED_REASONS)).sum())
+        accounted_count = graded_count + unmatched_count
+
         rows.append({
-            "game_date": date,
-            "selected_rows": selected_rows,
-            "graded_rows": graded_rows,
-            "unmatched_rows": unmatched_rows,
-            "missing_final_score_rows": reason_count("missing_final_score"),
-            "missing_game_id_rows": reason_count("missing_game_id"),
-            "future_game_rows": reason_count("future_game"),
-            "postponed_rows": reason_count("postponed"),
-            "canceled_rows": reason_count("canceled"),
-            "game_not_final_rows": reason_count("game_not_final"),
-            "unknown_game_status_rows": reason_count("unknown_game_status"),
-            "other_unmatched_rows": reason_count("other"),
-            "status": status,
+            "game_date": game_date,
+            "selected_rows": selected_count,
+            "graded_rows": graded_count,
+            "unmatched_rows": unmatched_count,
+            "missing_final_score_rows": count_reason("missing_final_score"),
+            "missing_game_id_rows": count_reason("missing_game_id"),
+            "future_game_rows": count_reason("future_game"),
+            "postponed_rows": count_reason("postponed"),
+            "canceled_rows": count_reason("canceled"),
+            "game_not_final_rows": count_reason("game_not_final"),
+            "unknown_game_status_rows": count_reason("unknown_game_status"),
+            "other_unmatched_rows": other_count,
+            "status": (
+                "ok"
+                if selected_count == accounted_count and other_count == 0
+                else "review"
+            ),
         })
-    recon = pd.DataFrame(rows)
-    write_csv_checked(recon, RECONCILIATION_AUDIT_FILE, "selected vs graded reconciliation audit")
-    return recon
+
+    reconciliation = pd.DataFrame(rows, columns=RECONCILIATION_COLS)
+    write_csv_checked(
+        reconciliation,
+        RECONCILIATION_AUDIT_FILE,
+        "selected vs graded reconciliation audit",
+    )
+    return reconciliation
 
 
 def write_result_counts(final):
-    columns = ["market_type", "wins", "losses", "pushes", "blank_results", "total_rows"]
+    columns = [
+        "market_type", "wins", "losses",
+        "pushes", "blank_results", "total_rows",
+    ]
+
     if final.empty:
-        make_empty_csv(RESULT_COUNTS_FILE, columns, "empty grading result counts")
+        make_empty_csv(
+            RESULT_COUNTS_FILE,
+            columns,
+            "empty grading result counts",
+        )
         return pd.DataFrame(columns=columns)
+
     rows = []
+
     for market, group in final.groupby("market_type", dropna=False):
         results = group["bet_result"].fillna("").astype(str).str.strip()
-        rows.append({"market_type": market, "wins": int((results == "Win").sum()), "losses": int((results == "Loss").sum()), "pushes": int((results == "Push").sum()), "blank_results": int((results == "").sum()), "total_rows": len(group)})
-    out = pd.DataFrame(rows, columns=columns)
-    write_csv_checked(out, RESULT_COUNTS_FILE, "grading result counts")
-    return out
+        rows.append({
+            "market_type": market,
+            "wins": int((results == "Win").sum()),
+            "losses": int((results == "Loss").sum()),
+            "pushes": int((results == "Push").sum()),
+            "blank_results": int((results == "").sum()),
+            "total_rows": len(group),
+        })
+
+    output = pd.DataFrame(rows, columns=columns)
+    write_csv_checked(
+        output,
+        RESULT_COUNTS_FILE,
+        "grading result counts",
+    )
+    return output
 
 
 def write_spot_check(final):
-    columns = ["game_date", "game_id", "market_type", "bet_side", "line", "final_away_score", "final_home_score", "final_total", "result", "calculation"]
+    columns = [
+        "game_date", "game_id", "market_type", "bet_side", "line",
+        "final_away_score", "final_home_score", "final_total",
+        "result", "calculation",
+    ]
+
     if final.empty:
-        make_empty_csv(SPOT_CHECK_FILE, columns, "empty grading spot check")
+        make_empty_csv(
+            SPOT_CHECK_FILE,
+            columns,
+            "empty grading spot check",
+        )
         return
-    out = final.copy()
-    out["result"] = out["bet_result"]
-    out["calculation"] = out.apply(build_calculation, axis=1)
-    for col in columns:
-        if col not in out.columns:
-            out[col] = ""
-    write_csv_checked(out[columns], SPOT_CHECK_FILE, "grading spot check")
+
+    output = final.copy()
+    output["result"] = output["bet_result"]
+    output["calculation"] = output.apply(build_calculation, axis=1)
+    output = enforce_columns(output, columns)
+
+    write_csv_checked(
+        output,
+        SPOT_CHECK_FILE,
+        "grading spot check",
+    )
 
 
 def validate_graded_output(final):
-    required_nonblank = ["game_id", "market_type", "bet_side", "dk_odds_american", "bet_result"]
     audit_rows = []
+
+    def add_validation(validation, column, bad_rows, status, notes):
+        audit_rows.append({
+            "validation": validation,
+            "column": column,
+            "bad_rows": bad_rows,
+            "status": status,
+            "notes": notes,
+        })
+
     if "take_bet" not in final.columns:
-        audit_rows.append({"validation": "required_column_exists", "column": "take_bet", "bad_rows": "", "status": "fail", "notes": "take_bet column missing after suffix cleanup"})
+        add_validation(
+            "required_column_exists",
+            "take_bet",
+            "",
+            "fail",
+            "take_bet column missing after suffix cleanup",
+        )
     else:
-        audit_rows.append({"validation": "required_column_exists", "column": "take_bet", "bad_rows": 0, "status": "ok", "notes": "take_bet column preserved"})
-    for col in required_nonblank:
-        if col not in final.columns:
-            audit_rows.append({"validation": "required_nonblank", "column": col, "bad_rows": "", "status": "fail", "notes": "column missing"})
+        add_validation(
+            "required_column_exists",
+            "take_bet",
+            0,
+            "ok",
+            "take_bet column preserved",
+        )
+
+    required_nonblank = [
+        "game_id", "market_type", "bet_side",
+        "dk_odds_american", "bet_result",
+    ]
+
+    for column in required_nonblank:
+        if column not in final.columns:
+            add_validation(
+                "required_nonblank",
+                column,
+                "",
+                "fail",
+                "column missing",
+            )
             continue
-        bad = final[blank_mask(final[col])].copy()
-        audit_rows.append({"validation": "required_nonblank", "column": col, "bad_rows": len(bad), "status": "fail" if len(bad) else "ok", "notes": "blank values are not allowed"})
-    invalid_results = final[~final["bet_result"].fillna("").astype(str).str.strip().isin(VALID_RESULTS)].copy() if "bet_result" in final.columns else final.copy()
-    audit_rows.append({"validation": "valid_bet_result", "column": "bet_result", "bad_rows": len(invalid_results), "status": "fail" if len(invalid_results) else "ok", "notes": "allowed values are Win, Loss, Push"})
+
+        bad_rows = int(blank_mask(final[column]).sum())
+        add_validation(
+            "required_nonblank",
+            column,
+            bad_rows,
+            "fail" if bad_rows else "ok",
+            "blank values are not allowed",
+        )
+
+    if "bet_result" not in final.columns:
+        invalid_count = len(final)
+    else:
+        invalid_count = int(
+            ~final["bet_result"]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+            .isin(VALID_RESULTS)
+        ).sum()
+
+    add_validation(
+        "valid_bet_result",
+        "bet_result",
+        invalid_count,
+        "fail" if invalid_count else "ok",
+        "allowed values are Win, Loss, Push",
+    )
+
+    score_columns = [
+        "final_home_score", "final_away_score", "final_total",
+    ]
+
+    for column in score_columns:
+        if column not in final.columns:
+            add_validation(
+                "numeric_score",
+                column,
+                "",
+                "fail",
+                "column missing",
+            )
+            continue
+
+        numeric = pd.to_numeric(final[column], errors="coerce")
+        bad_rows = int(numeric.isna().sum())
+        add_validation(
+            "numeric_score",
+            column,
+            bad_rows,
+            "fail" if bad_rows else "ok",
+            "score values must be numeric",
+        )
+
+    if all(column in final.columns for column in score_columns):
+        home = pd.to_numeric(final["final_home_score"], errors="coerce")
+        away = pd.to_numeric(final["final_away_score"], errors="coerce")
+        total = pd.to_numeric(final["final_total"], errors="coerce")
+        mismatch = (
+            home.notna()
+            & away.notna()
+            & total.notna()
+            & ((home + away - total).abs() > 1e-9)
+        )
+        mismatch_count = int(mismatch.sum())
+    else:
+        mismatch_count = len(final)
+
+    add_validation(
+        "final_total_matches_scores",
+        "final_total",
+        mismatch_count,
+        "fail" if mismatch_count else "ok",
+        "final_total must equal final_home_score plus final_away_score",
+    )
+
     audit = pd.DataFrame(audit_rows)
-    write_csv_checked(audit, VALIDATION_AUDIT_FILE, "graded output validation audit")
-    failures = audit[audit["status"] == "fail"].copy()
-    if not failures.empty:
-        log_error(f"GRADED OUTPUT VALIDATION FAILED | audit={VALIDATION_AUDIT_FILE}")
-        for _, row in failures.iterrows():
-            log_error(f"VALIDATION FAILURE | validation={row.get('validation')} column={row.get('column')} bad_rows={row.get('bad_rows')} notes={row.get('notes')}")
-        return False
-    return True
+    write_csv_checked(
+        audit,
+        VALIDATION_AUDIT_FILE,
+        "graded output validation audit",
+    )
+
+    failures = audit[audit["status"] == "fail"]
+
+    if failures.empty:
+        return True
+
+    log_error(
+        f"GRADED OUTPUT VALIDATION FAILED | "
+        f"audit={VALIDATION_AUDIT_FILE}"
+    )
+
+    for _, row in failures.iterrows():
+        log_error(
+            f"VALIDATION FAILURE | "
+            f"validation={row.get('validation')} "
+            f"column={row.get('column')} "
+            f"bad_rows={row.get('bad_rows')} "
+            f"notes={row.get('notes')}"
+        )
+
+    return False
 
 
 def grade_league():
     duplicate_audit_rows = []
-    all_bets, selected_duplicate_rows = load_selected_bets()
-    duplicate_audit_rows.extend(selected_duplicate_rows)
+
+    all_bets, selected_duplicates = load_selected_bets()
+    duplicate_audit_rows.extend(selected_duplicates)
+
     if all_bets.empty:
         write_duplicate_audit(duplicate_audit_rows)
         return False
-    all_scores, score_duplicate_rows = load_final_scores()
-    duplicate_audit_rows.extend(score_duplicate_rows)
-    if all_scores.empty:
-        write_duplicate_audit(duplicate_audit_rows)
-        return False
+
+    all_scores, score_duplicates = load_final_scores()
+    duplicate_audit_rows.extend(score_duplicates)
     write_duplicate_audit(duplicate_audit_rows)
-    selected_blank_id = all_bets[blank_mask(all_bets["game_id"])].copy()
-    selected_valid = all_bets[~blank_mask(all_bets["game_id"])].copy()
-    if not selected_blank_id.empty:
-        selected_blank_id["unmatched_reason"] = "missing_game_id"
+
+    if all_scores.empty:
+        return False
+
+    blank_selected_ids = all_bets[blank_mask(all_bets["game_id"])].copy()
+    valid_selected = all_bets[~blank_mask(all_bets["game_id"])].copy()
+
+    if not blank_selected_ids.empty:
+        blank_selected_ids["unmatched_reason"] = "missing_game_id"
+
     log_summary(f"BET cols: {list(all_bets.columns)}")
     log_summary(f"SCORE cols: {list(all_scores.columns)}")
     log_summary(f"SELECTED ROWS: {len(all_bets)}")
-    log_summary(f"SELECTED BLANK GAME_ID ROWS: {len(selected_blank_id)}")
-    log_summary(f"SCORE ROWS AFTER BLANK GAME_ID DROP: {len(all_scores)}")
-    log_summary(f"BET game_id sample: {all_bets['game_id'].head(3).tolist()}")
-    log_summary(f"SCORE game_id sample: {all_scores['game_id'].head(3).tolist()}")
-    merged_all = pd.merge(selected_valid, all_scores, on="game_id", how="left", suffixes=("_bet", "_score"), indicator=True)
-    matched_all = merged_all[merged_all["_merge"] == "both"].copy()
-    non_final = build_non_final_reports(matched_all)
-    matched_final = matched_all[matched_all["game_status"].apply(normalize_game_status) == "final"].copy() if "game_status" in matched_all.columns else matched_all.copy()
-    missing_scores = merged_all[merged_all["_merge"] == "left_only"].copy()
+    log_summary(
+        f"SELECTED BLANK GAME_ID ROWS: {len(blank_selected_ids)}"
+    )
+    log_summary(
+        f"SCORE ROWS AFTER BLANK GAME_ID DROP: {len(all_scores)}"
+    )
+
+    merged_all = pd.merge(
+        valid_selected,
+        all_scores,
+        on="game_id",
+        how="left",
+        suffixes=("_bet", "_score"),
+        indicator=True,
+        validate="many_to_one",
+    )
+
+    matched_rows = merged_all[merged_all["_merge"] == "both"].copy()
+    missing_scores = merged_all[
+        merged_all["_merge"] == "left_only"
+    ].copy()
+
     if not missing_scores.empty:
         missing_scores["unmatched_reason"] = "missing_final_score"
-    unmatched_parts = []
-    if not selected_blank_id.empty:
-        unmatched_parts.append(selected_blank_id)
-    if not missing_scores.empty:
-        unmatched_parts.append(missing_scores)
-    if not non_final.empty:
-        unmatched_parts.append(non_final)
-    unmatched = pd.concat(unmatched_parts, ignore_index=True) if unmatched_parts else pd.DataFrame()
-    unmatched_path = write_unmatched(unmatched)
-    merged = matched_final.drop(columns=["_merge"], errors="ignore").copy()
-    if merged.empty:
-        log_error("MERGE EMPTY")
-        if unmatched_path:
-            log_summary(f"UNMATCHED SELECTED BETS WRITTEN | {unmatched_path}")
+
+    non_final = build_non_final_reports(matched_rows)
+
+    if "game_status" in matched_rows.columns:
+        matched_final = matched_rows[
+            matched_rows["game_status"].apply(normalize_game_status)
+            == "final"
+        ].copy()
+    else:
+        matched_final = pd.DataFrame()
+
+    try:
+        unmatched = build_unmatched(
+            all_bets,
+            blank_selected_ids,
+            missing_scores,
+            non_final,
+        )
+    except Exception as error:
+        log_error(f"UNMATCHED BUILD FAILED | {error}")
         return False
-    log_summary(f"MERGED cols: {list(merged.columns)}")
+
+    unmatched_path = write_unmatched(unmatched)
+
+    merged = matched_final.drop(
+        columns=["_merge"],
+        errors="ignore",
+    ).copy()
+
     log_summary(f"MERGED ON game_id | rows={len(merged)}")
     log_summary(f"UNMATCHED SELECTED ROWS: {len(unmatched)}")
+
     if unmatched_path:
-        log_summary(f"UNMATCHED SELECTED BETS WRITTEN | rows={len(unmatched)} | out={unmatched_path}")
+        log_summary(
+            f"UNMATCHED SELECTED BETS WRITTEN | "
+            f"rows={len(unmatched)} | out={unmatched_path}"
+        )
+
+    if merged.empty:
+        log_error("MERGE EMPTY")
+        write_reconciliation(all_bets, pd.DataFrame(), unmatched)
+        return False
+
     merged = resolve_merge_columns(merged)
-    log_summary(f"POST-RESOLVE cols: {list(merged.columns)}")
-    log_summary(f"final_away_score sample: {merged['final_away_score'].head(3).tolist() if 'final_away_score' in merged.columns else 'MISSING'}")
-    log_summary(f"final_home_score sample: {merged['final_home_score'].head(3).tolist() if 'final_home_score' in merged.columns else 'MISSING'}")
-    log_summary(f"market_type sample: {merged['market_type'].head(3).tolist() if 'market_type' in merged.columns else 'MISSING'}")
-    log_summary(f"take_bet present after resolve: {'take_bet' in merged.columns}")
+    merged["game_date"] = merged["game_date"].apply(normalize_date)
+    merged["game_status"] = merged["game_status"].apply(
+        normalize_game_status
+    )
     merged["bet_result"] = merged.apply(determine_outcome, axis=1)
+
     final = enforce_output_cols(merged)
+
     if not validate_graded_output(final):
         return False
+
     result_counts = write_result_counts(final)
     write_spot_check(final)
+
     master_path = OUTPUT_DIR / "MLB_final.csv"
     write_csv_checked(final, master_path, "MLB graded master output")
+
     selected_count = len(all_bets)
     graded_count = len(final)
     unmatched_count = len(unmatched)
-    log_summary(f"MLB MASTER BUILT | ROWS={graded_count} | OUT={master_path}")
-    log_summary(f"SELECTED VS GRADED | selected={selected_count} graded={graded_count} unmatched={unmatched_count}")
-    if selected_count > graded_count:
-        reason_counts = unmatched["unmatched_reason"].value_counts().to_dict() if not unmatched.empty and "unmatched_reason" in unmatched.columns else {}
-        log_summary(f"SELECTED COUNT EXCEEDS GRADED COUNT | selected={selected_count} graded={graded_count} unmatched={unmatched_count} reasons={reason_counts}")
-    reconciliation = write_reconciliation(all_bets, final, unmatched, non_final)
-    review_rows = reconciliation[reconciliation["status"] == "review"].copy()
+
+    log_summary(
+        f"MLB MASTER BUILT | ROWS={graded_count} | OUT={master_path}"
+    )
+    log_summary(
+        f"SELECTED VS GRADED | selected={selected_count} "
+        f"graded={graded_count} unmatched={unmatched_count}"
+    )
+
+    reconciliation = write_reconciliation(
+        all_bets,
+        final,
+        unmatched,
+    )
+
+    review_rows = reconciliation[
+        reconciliation["status"] == "review"
+    ]
+
     if not review_rows.empty:
-        log_error(f"SELECTED VS GRADED RECONCILIATION HAS REVIEW ROWS | audit={RECONCILIATION_AUDIT_FILE}")
+        log_error(
+            f"SELECTED VS GRADED RECONCILIATION HAS REVIEW ROWS | "
+            f"audit={RECONCILIATION_AUDIT_FILE}"
+        )
         return False
-    if not result_counts.empty:
-        blank_results = int(pd.to_numeric(result_counts["blank_results"], errors="coerce").fillna(0).sum())
-        if blank_results > 0:
-            log_error(f"BLANK BET RESULTS FOUND | rows={blank_results} | audit={RESULT_COUNTS_FILE}")
-            return False
-    for date_val, group in final.groupby("game_date"):
-        date_str = normalize_date(date_val)
-        daily_df = enforce_output_cols(group.copy())
-        daily_path = DAILY_DIR / f"{date_str}_MLB_final.csv"
-        write_csv_checked(daily_df, daily_path, f"MLB graded daily output {date_str}")
-        daily_counts = group["bet_result"].value_counts().to_dict()
-        log_summary(f"MLB DAILY | DATE={date_str} | ROWS={len(daily_df)} | RESULTS={daily_counts}")
+
+    if selected_count != graded_count + unmatched_count:
+        log_error(
+            f"GLOBAL RECONCILIATION FAILED | "
+            f"selected={selected_count} graded={graded_count} "
+            f"unmatched={unmatched_count}"
+        )
+        return False
+
+    blank_results = int(
+        pd.to_numeric(
+            result_counts["blank_results"],
+            errors="coerce",
+        ).fillna(0).sum()
+    )
+
+    if blank_results:
+        log_error(
+            f"BLANK BET RESULTS FOUND | rows={blank_results} | "
+            f"audit={RESULT_COUNTS_FILE}"
+        )
+        return False
+
+    for game_date, group in final.groupby("game_date"):
+        date_string = normalize_date(game_date)
+        daily_output = enforce_output_cols(group.copy())
+        daily_path = DAILY_DIR / f"{date_string}_MLB_final.csv"
+
+        write_csv_checked(
+            daily_output,
+            daily_path,
+            f"MLB graded daily output {date_string}",
+        )
+
+        counts = group["bet_result"].value_counts().to_dict()
+        log_summary(
+            f"MLB DAILY | DATE={date_string} | "
+            f"ROWS={len(daily_output)} | RESULTS={counts}"
+        )
+
     return True
 
 
 def main():
     reset_logs()
     log_summary("START 01_mlb_results_grade.py")
-    success = grade_league()
+
+    try:
+        success = grade_league()
+    except Exception as error:
+        log_error(f"UNHANDLED ERROR | {type(error).__name__}: {error}")
+        success = False
+
     log_summary("END 01_mlb_results_grade.py")
+
     if not success:
         print("MLB grading completed with errors. Check logs.")
         sys.exit(1)
+
     print("MLB grading complete.")
 
 
 if __name__ == "__main__":
     main()
-
