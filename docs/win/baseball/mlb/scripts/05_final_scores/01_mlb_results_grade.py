@@ -1071,12 +1071,14 @@ def validate_graded_output(final):
         invalid_count = len(final)
     else:
         invalid_count = int(
-            ~final["bet_result"]
-            .fillna("")
-            .astype(str)
-            .str.strip()
-            .isin(VALID_RESULTS)
-        ).sum()
+            (
+                ~final["bet_result"]
+                .fillna("")
+                .astype(str)
+                .str.strip()
+                .isin(VALID_RESULTS)
+            ).sum()
+        )
 
     add_validation(
         "valid_bet_result",
