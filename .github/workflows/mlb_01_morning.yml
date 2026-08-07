@@ -141,7 +141,31 @@ jobs:
 
       - name: MLB Grade Results
         if: steps.selected_bets.outputs.found == 'true'
-        run: python docs/win/baseball/mlb/scripts/05_final_scores/01_mlb_results_grade.py
+        shell: bash
+        run: |
+          set +e
+          python docs/win/baseball/mlb/scripts/05_final_scores/01_mlb_results_grade.py
+          status=$?
+
+          if [ "$status" -ne 0 ]; then
+            echo "::group::MLB grading errors"
+            if [ -f docs/win/baseball/mlb/errors/05_final_scores/mlb_results_grade_errors.txt ]; then
+              cat docs/win/baseball/mlb/errors/05_final_scores/mlb_results_grade_errors.txt
+            else
+              echo "The MLB grading error log was not created."
+            fi
+            echo "::endgroup::"
+
+            echo "::group::MLB grading summary"
+            if [ -f docs/win/baseball/mlb/errors/05_final_scores/mlb_results_grade_summary.txt ]; then
+              cat docs/win/baseball/mlb/errors/05_final_scores/mlb_results_grade_summary.txt
+            else
+              echo "The MLB grading summary log was not created."
+            fi
+            echo "::endgroup::"
+          fi
+
+          exit "$status"
 
       - name: MLB Analyze Results
         if: steps.selected_bets.outputs.found == 'true'
@@ -164,6 +188,7 @@ jobs:
         run: python docs/win/baseball/mlb/scripts/05_final_scores/03_mlb_results_reports_AM.py
 
       - name: Commit MLB outputs
+        if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
