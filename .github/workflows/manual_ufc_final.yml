@@ -36,7 +36,7 @@ jobs:
         run: python -m pip install --upgrade pip
 
       - name: Run UFC Final Scores Parser
-        if: ${{ github.event.inputs.league == 'final_scores' && github.event.inputs.market == 'UFC' && github.event.inputs.source == 'UFC Results' }}
+        if: ${{ github.event.inputs.league == 'mma' && github.event.inputs.market == 'UFC' && github.event.inputs.source == 'UFC Results' }}
         run: |
           mkdir -p docs/win/mma/ufc/manual_files
           printf "%s" "${{ github.event.inputs.raw_text }}" > dump.txt
