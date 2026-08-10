@@ -56,7 +56,7 @@ const SOCCER_BASE = {
 window.REPO_CONFIG = {
 
   leagues: [
-    "NHL", "NBA", "WNBA", "NCAAM", "MLB",
+    "NHL", "NBA", "WNBA", "NCAAM", "MLB", "MLB_LINEUPS",
     "EPL", "MLS", "LIGUE1", "LALIGA", "SERIEA", "BUNDESLIGA",
     "UFC",
   ],
@@ -230,9 +230,37 @@ window.REPO_CONFIG = {
     isBaseball:   true,
     leagueColumn: "league",
     joinKey:      "game_id",
-    selectFiles:  (date) => [`win/baseball/04_select/${date}_MLB.csv`],
-    predFile:     (date) => `win/baseball/00_intake/predictions//pred_with_game_id/${date}_MLB.csv`,
-    bookFile:     (date) => `win/baseball/00_intake/sportsbook/${date}_MLB.csv`,
+    selectFiles:  (date) => [`win/baseball/mlb/04_select/morning/${date}_MLB.csv`],
+    predFile:     (date) => [
+      `win/baseball/mlb/00_intake/predictions/pred_with_game_id/${date}_MLB.csv`,
+      `win/baseball/mlb/00_intake/predictions/${date}_MLB.csv`,
+    ],
+    bookFile:     (date) => [
+      `win/baseball/mlb/00_intake/sportsbook/${date}_MLB.csv`,
+    ],
+  },
+
+  // ─── MLB (With Lineups) ───────────────────────────────────────────────────
+  // Second MLB feed, different selection criteria. Uses filterFn instead of
+  // leagueColumn because filterRows matches the CSV `league` value against the
+  // CONFIG KEY ("MLB_LINEUPS"), which would never equal "MLB". This file is
+  // MLB-only, so accepting every row is safe.
+  MLB_LINEUPS: {
+    sport:        "baseball",
+    league:       "MLB",
+    displayName:  "MLB · With Lineups",
+    enabled:      true,
+    isBaseball:   true,
+    filterFn:     () => true,
+    joinKey:      "game_id",
+    selectFiles:  (date) => [`win/baseball/mlb/04_select/${date}_MLB.csv`],
+    predFile:     (date) => [
+      `win/baseball/mlb/00_intake/predictions/pred_with_game_id/${date}_MLB.csv`,
+      `win/baseball/mlb/00_intake/predictions/${date}_MLB.csv`,
+    ],
+    bookFile:     (date) => [
+      `win/baseball/mlb/00_intake/sportsbook/${date}_MLB.csv`,
+    ],
   },
 
   // ─── Soccer (6 leagues, one shared file) ──────────────────────────────────
