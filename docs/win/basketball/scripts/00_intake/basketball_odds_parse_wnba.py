@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 # docs/win/basketball/scripts/00_intake/basketball_odds_parse_wnba.py
 
 import csv
@@ -54,10 +55,10 @@ OUTPUT_HEADERS = [
     "dk_total_under_decimal",
 ]
 
-
 # =========================
 # LOGGING
 # =========================
+
 
 def log(message: str) -> None:
     stamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -72,6 +73,7 @@ def log(message: str) -> None:
 # =========================
 # HELPERS
 # =========================
+
 
 def parse_utc_datetime(value: str) -> datetime | None:
     if not value:
@@ -161,6 +163,18 @@ def flip_spread(value) -> str:
         return ""
 
 
+def safe_float(value) -> float | None:
+    try:
+        f = float(value)
+    except (TypeError, ValueError):
+        return None
+
+    if not math.isfinite(f):
+        return None
+
+    return f
+
+
 def get_market(markets: list[dict], market_name: str) -> dict | None:
     target = market_name.strip().lower()
 
@@ -182,6 +196,49 @@ def first_odds(market: dict | None) -> dict:
             return odds[0]
 
     return {}
+
+
+def select_main_total(market: dict | None) -> dict:
+    if not market:
+        return {}
+
+    odds = market.get("odds")
+    if not isinstance(odds, list) or not odds:
+        return {}
+
+    candidates = []
+
+    for row in odds:
+        if not isinstance(row, dict):
+            continue
+
+        total = safe_float(row.get("hdp"))
+        over = safe_float(row.get("over"))
+        under = safe_float(row.get("under"))
+
+        if total is None or over is None or under is None:
+            continue
+
+        if over <= 1 or under <= 1:
+            continue
+
+        balance_score = abs(over - under)
+        market_price_score = abs(over - 1.91) + abs(under - 1.91)
+
+        candidates.append(
+            (
+                balance_score,
+                market_price_score,
+                row,
+            )
+        )
+
+    if not candidates:
+        return {}
+
+    candidates.sort(key=lambda item: (item[0], item[1]))
+
+    return candidates[0][2]
 
 
 def latest_updated_at(markets: list[dict]) -> str:
@@ -221,7 +278,7 @@ def parse_event_row(wrapper: dict) -> dict | None:
 
     ml_odds = first_odds(ml_market)
     spread_odds = first_odds(spread_market)
-    totals_odds = first_odds(totals_market)
+    totals_odds = select_main_total(totals_market)
 
     home_spread_value = spread_odds.get("hdp")
     total_value = totals_odds.get("hdp")
@@ -279,7 +336,10 @@ def parse_file(input_file: Path) -> int:
             if row:
                 rows.append(row)
             else:
-                log(f"WARN: Skipped event in {input_file}; no usable FanDuel markets")
+                log(
+                    f"WARN: Skipped event in {input_file}; "
+                    "no usable FanDuel markets"
+                )
         except Exception:
             log(f"WARN: Failed parsing event in {input_file}")
             log(traceback.format_exc())
@@ -288,7 +348,11 @@ def parse_file(input_file: Path) -> int:
         log(f"WARN: No rows parsed from {input_file}")
         return 0
 
-    output_date = payload.get("game_date") or rows[0].get("game_date") or input_file.stem.replace("_wnba", "")
+    output_date = (
+        payload.get("game_date")
+        or rows[0].get("game_date")
+        or input_file.stem.replace("_wnba", "")
+    )
     output_file = OUTPUT_DIR / f"{output_date}_WNBA_odds.csv"
 
     with output_file.open("w", newline="", encoding="utf-8") as f:
@@ -305,7 +369,10 @@ def main() -> int:
     ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
     LOG_FILE.write_text(
-        f"=== basketball_odds_parse_wnba.py RUN {datetime.now().isoformat(timespec='seconds')} ===\n",
+        (
+            "=== basketball_odds_parse_wnba.py RUN "
+            f"{datetime.now().isoformat(timespec='seconds')} ===\n"
+        ),
         encoding="utf-8",
     )
 
@@ -326,7 +393,10 @@ def main() -> int:
                 parsed_files += 1
                 total_rows += row_count
 
-        log(f"SUCCESS: Parsed {parsed_files} file(s), wrote {total_rows} row(s)")
+        log(
+            f"SUCCESS: Parsed {parsed_files} file(s), "
+            f"wrote {total_rows} row(s)"
+        )
         return 0
 
     except Exception:
