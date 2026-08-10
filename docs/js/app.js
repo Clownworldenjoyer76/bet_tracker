@@ -753,7 +753,10 @@ function buildFilters(leagues) {
   };
 
   container.appendChild(makeP("All", "all"));
-  leagues.forEach(l => container.appendChild(makeP(l, l)));
+  leagues.forEach(l => {
+    const cfg = REPO_CONFIG[l];
+    container.appendChild(makeP((cfg && cfg.displayName) || l, l));
+  });
 
   container.addEventListener("click", e => {
     const pill = e.target.closest(".filter-pill");
