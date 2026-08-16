@@ -1,418 +1,262 @@
-# docs/win/basketball/scripts/00_intake/basketball_drat_scraper.py
+#!/usr/bin/env python3
+"""Season-aware launcher for the D-Ratings basketball scraper.
 
-import json
-import time
-import random
-import traceback
-import re
-from pathlib import Path
+Operational season dates are loaded from:
+    docs/win/basketball/config/season_dates.yaml
+
+Set BASKETBALL_FORCE_ALL_LEAGUES=1 (or true/yes/on) to run every
+league explicitly.
+
+Expected season_dates.yaml format:
+
+nba:
+  start_month: 10
+  start_day: 15
+  end_month: 7
+  end_day: 1
+
+ncaam:
+  start_month: 10
+  start_day: 31
+  end_month: 7
+  end_day: 1
+
+wnba:
+  start_month: 5
+  start_day: 1
+  end_month: 10
+  end_day: 31
+
+Both normal calendar-year windows and cross-year windows are supported.
+"""
+from __future__ import annotations
+
+import importlib.util
+import os
 from datetime import datetime
-import pytz
-from playwright.sync_api import sync_playwright
+from pathlib import Path
+from zoneinfo import ZoneInfo
 
-URLS = {
-    "nba":  "https://www.dratings.com/predictor/nba-basketball-predictions/",
-    "ncaa": "https://www.dratings.com/predictor/ncaa-basketball-predictions/",
-    "wnba": "https://www.dratings.com/predictor/wnba-basketball-predictions/",
-}
-
-UTC = pytz.utc
-ET  = pytz.timezone("America/New_York")
-
-ERROR_DIR = Path("docs/win/basketball/errors/00_intake")
-ERROR_DIR.mkdir(parents=True, exist_ok=True)
-LOG_FILE = ERROR_DIR / "basketball_drat_scraper.txt"
-
-with open(LOG_FILE, "w", encoding="utf-8") as f:
-    f.write(f"=== basketball_drat_scraper RUN {datetime.now(ET).isoformat()} ===\n")
+import yaml
 
 
-def log(msg: str) -> None:
-    line = f"{datetime.now(ET).isoformat()} | {msg}"
-    print(line, flush=True)
+NY = ZoneInfo("America/New_York")
 
-    with open(LOG_FILE, "a", encoding="utf-8") as f:
-        f.write(line + "\n")
+CORE_PATH = Path(__file__).with_name("basketball_drat_scraper_core.py")
+
+BASE = Path("docs/win/basketball")
+SEASON_CONFIG = BASE / "config/season_dates.yaml"
+
+SUPPORTED_LEAGUES = ("nba", "ncaam", "wnba")
 
 
-def convert_utc_to_et(date_time_str: str) -> str:
+def truthy(value: str | None) -> bool:
+    return str(value or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def normalize_league(key: str) -> str:
+    key = str(key).strip().lower()
+    return "ncaam" if key == "ncaa" else key
+
+
+def validate_month_day(
+    league: str,
+    label: str,
+    month: int,
+    day: int,
+) -> None:
+    """Validate a month/day pair using a leap year."""
     try:
-        dt     = datetime.strptime(date_time_str.strip(), "%m/%d/%Y %I:%M %p")
-        dt_utc = UTC.localize(dt)
-        dt_et  = dt_utc.astimezone(ET)
-        return dt_et.strftime("%m/%d/%Y %I:%M %p")
-    except Exception:
-        return date_time_str
+        datetime(2000, month, day)
+    except ValueError as exc:
+        raise ValueError(
+            f"Invalid {league}.{label}: month={month}, day={day}"
+        ) from exc
 
 
-def normalize_cell(value) -> str:
-    value = "" if value is None else str(value)
-    value = value.replace("\r\n", "\n")
-    value = value.replace("\r", "\n")
-    value = value.replace("\u2028", "\n")
-    value = value.replace("\u2029", "\n")
-    value = value.replace("\xa0", " ")
-    return value.strip()
-
-
-def split_pair(value):
-    value = normalize_cell(value)
-
-    if not value:
-        return "", ""
-
-    if "\n" in value:
-        parts = [p.strip() for p in re.split(r"[\n]+", value) if p.strip()]
-    elif "|" in value:
-        parts = [p.strip() for p in value.split("|") if p.strip()]
-    else:
-        parts = [value.strip()]
-
-    if len(parts) >= 2:
-        return parts[0], parts[1]
-
-    if len(parts) == 1:
-        return parts[0], ""
-
-    return "", ""
-
-
-def split_pair_expected(value, label: str, sport: str, row) -> tuple:
-    a, b = split_pair(value)
-
-    if a and not b:
-        log(
-            f"MALFORMED PAIR | sport={sport} | field={label} | "
-            f"value={json.dumps(normalize_cell(value))} | "
-            f"row={json.dumps(row)}"
+def load_season_config() -> dict[str, dict[str, int]]:
+    """Load and validate operational season dates."""
+    if not SEASON_CONFIG.exists():
+        raise FileNotFoundError(
+            f"Season config not found: {SEASON_CONFIG}"
         )
 
-    return a, b
+    with open(SEASON_CONFIG, "r", encoding="utf-8") as f:
+        raw = yaml.safe_load(f) or {}
 
+    if not isinstance(raw, dict):
+        raise ValueError(
+            f"{SEASON_CONFIG} must contain a top-level mapping"
+        )
 
-def strip_record(team: str) -> str:
-    return re.sub(
-        r"\s*\(\d+[-–]\d+[-–]?\d*\)\s*$",
-        "",
-        (team or "").strip()
-    ).strip()
+    required_fields = (
+        "start_month",
+        "start_day",
+        "end_month",
+        "end_day",
+    )
 
+    config: dict[str, dict[str, int]] = {}
 
-def strip_wnba_record(team: str) -> str:
-    return strip_record(team)
+    for league in SUPPORTED_LEAGUES:
+        row = raw.get(league)
 
-
-def is_game_row(row):
-    if len(row) < 5:
-        return False
-
-    teams = normalize_cell(row[1])
-    return "\n" in teams
-
-
-def is_score(s):
-    try:
-        v = float(str(s).strip())
-        return v >= 0 and v == int(v) and v < 250
-    except (ValueError, TypeError):
-        return False
-
-
-def is_summary_row(row):
-    if not row:
-        return False
-
-    first = normalize_cell(row[0]).lower()
-    return first in {"sportsbooks", "dratings"}
-
-
-def parse_nba_ncaa(row, sport):
-    if is_summary_row(row):
-        return None
-
-    if not is_game_row(row):
-        return None
-
-    try:
-        date_time = convert_utc_to_et(normalize_cell(row[0]).replace("\n", " "))
-
-        team1, team2 = split_pair_expected(row[1], "teams", sport, row)
-        wp1, wp2     = split_pair_expected(row[2], "win_pct", sport, row)
-        ml1, ml2     = split_pair_expected(row[3], "moneyline", sport, row)
-        sp1, sp2     = split_pair_expected(row[4], "spread", sport, row)
-
-        if not team1 or not team2:
-            log(
-                f"{sport.upper()} REJECTED EMPTY TEAM | "
-                f"row_len={len(row)} | row={json.dumps(row)}"
+        if not isinstance(row, dict):
+            raise ValueError(
+                f"Missing season configuration for league={league}"
             )
-            return None
 
-        proj1 = proj2 = total = over_line = under_line = ""
-        score1 = score2 = game_status = ""
+        values: dict[str, int] = {}
 
-        # IMPORTANT:
-        # NBA/NCAAM future rows can have numeric projected scores like:
-        #   row[5] = "107.0\n104.5"
-        # Those are NOT final scores.
-        # So 10-cell rows must be handled as future prediction rows BEFORE any score logic.
-        if len(row) >= 10:
-            proj1, proj2 = split_pair_expected(row[5], "projected_scores", sport, row)
-            total = normalize_cell(row[6]) if len(row) > 6 else ""
-            over_line, under_line = split_pair_expected(row[7], "over_under", sport, row)
-
-        # Some older/in-between rows may have total/O-U/status/score.
-        elif len(row) >= 9 and not is_score(normalize_cell(row[5])):
-            total = normalize_cell(row[5]) if len(row) > 5 else ""
-            over_line, under_line = split_pair_expected(row[6], "over_under", sport, row)
-            game_status = " ".join(
-                [p for p in re.split(r"[\n]+", normalize_cell(row[7])) if p.strip()]
-            ) if len(row) > 7 else ""
-            score1, score2 = split_pair_expected(row[8], "score", sport, row)
-
-        # Completed rows:
-        #   row[5] = final score away/home
-        elif len(row) >= 7:
-            score1, score2 = split_pair_expected(row[5], "score", sport, row)
-
-            if not score2 and len(row) > 6 and is_score(row[6]):
-                score2 = normalize_cell(row[6])
-
-        return {
-            "sport":           sport,
-            "date_time":       date_time,
-            "team1":           team1,
-            "team2":           team2,
-            "team1_win_pct":   wp1,
-            "team2_win_pct":   wp2,
-            "team1_moneyline": ml1,
-            "team2_moneyline": ml2,
-            "team1_spread":    sp1,
-            "team2_spread":    sp2,
-            "proj_score_1":    proj1,
-            "proj_score_2":    proj2,
-            "total":           total,
-            "over_line":       over_line,
-            "under_line":      under_line,
-            "score1":          score1,
-            "score2":          score2,
-            "game_status":     game_status,
-        }
-
-    except Exception as e:
-        log(
-            f"NBA/NCAA PARSE ERROR | sport={sport} | "
-            f"row_len={len(row)} | error={e} | "
-            f"row={json.dumps(row)}\n{traceback.format_exc()}"
-        )
-        return None
-
-
-def parse_wnba(row):
-    if is_summary_row(row):
-        return None
-
-    if len(row) not in (8, 10):
-        log(
-            f"WNBA REJECTED ROW LENGTH | "
-            f"len={len(row)} | row={json.dumps(row)}"
-        )
-        return None
-
-    try:
-        date_time = convert_utc_to_et(normalize_cell(row[0]).replace("\n", " "))
-
-        team1, team2 = split_pair_expected(row[1], "teams", "wnba", row)
-
-        team1 = strip_wnba_record(team1)
-        team2 = strip_wnba_record(team2)
-
-        if not team1 or not team2:
-            log(
-                f"WNBA REJECTED EMPTY TEAM | "
-                f"row={json.dumps(row)}"
-            )
-            return None
-
-        if team1.lower() == "sportsbooks" or team1.lower() == "dratings":
-            log(
-                f"WNBA REJECTED HEADER ROW | "
-                f"row={json.dumps(row)}"
-            )
-            return None
-
-        wp1, wp2 = split_pair_expected(row[2], "win_pct", "wnba", row)
-        ml1, ml2 = split_pair_expected(row[3], "moneyline", "wnba", row) if len(row) > 3 else ("", "")
-        sp1, sp2 = split_pair_expected(row[4], "spread", "wnba", row) if len(row) > 4 else ("", "")
-
-        proj1 = proj2 = total = over_line = under_line = ""
-        score1 = score2 = game_status = ""
-
-        if len(row) == 10:
-            proj1, proj2 = split_pair_expected(row[5], "projected_scores", "wnba", row)
-            total = normalize_cell(row[6]) if len(row) > 6 else ""
-            over_line, under_line = split_pair_expected(row[7], "over_under", "wnba", row) if len(row) > 7 else ("", "")
-
-        elif len(row) == 8:
-            score1, score2 = split_pair_expected(row[5], "score", "wnba", row)
-
-        return {
-            "sport":           "wnba",
-            "date_time":       date_time,
-            "team1":           team1,
-            "team2":           team2,
-            "team1_win_pct":   wp1,
-            "team2_win_pct":   wp2,
-            "team1_moneyline": ml1,
-            "team2_moneyline": ml2,
-            "team1_spread":    sp1,
-            "team2_spread":    sp2,
-            "proj_score_1":    proj1,
-            "proj_score_2":    proj2,
-            "total":           total,
-            "over_line":       over_line,
-            "under_line":      under_line,
-            "score1":          score1,
-            "score2":          score2,
-            "game_status":     game_status,
-        }
-
-    except Exception as e:
-        log(
-            f"WNBA PARSE ERROR | "
-            f"row_len={len(row)} | error={e} | "
-            f"row={json.dumps(row)}\n{traceback.format_exc()}"
-        )
-        return None
-
-
-def parse_row(row, sport):
-    if sport == "wnba":
-        return parse_wnba(row)
-
-    return parse_nba_ncaa(row, sport)
-
-
-def scrape_page(page, url):
-    page.goto(url, wait_until="domcontentloaded", timeout=60000)
-
-    page.wait_for_selector("table", timeout=60000)
-
-    rows = page.query_selector_all("table tbody tr")
-
-    parsed_rows = []
-
-    for idx, r in enumerate(rows):
-        cells = [normalize_cell(c.inner_text()) for c in r.query_selector_all("td")]
-
-        log(
-            f"RAW TABLE ROW | idx={idx} | "
-            f"cell_count={len(cells)} | "
-            f"cells={json.dumps(cells)}"
-        )
-
-        parsed_rows.append(cells)
-
-    return parsed_rows
-
-
-def main():
-    files_written = []
-
-    try:
-        date = datetime.now(ET).strftime("%Y_%m_%d")
-
-        base_out_dir = Path("docs/win/basketball/00_intake/drat_raw")
-
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
-
-            page = browser.new_page()
-
-            page.set_extra_http_headers({
-                "User-Agent": (
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) "
-                    "Chrome/122.0.0.0 Safari/537.36"
+        for field in required_fields:
+            if field not in row:
+                raise ValueError(
+                    f"Missing {league}.{field} in {SEASON_CONFIG}"
                 )
-            })
 
-            for sport, url in URLS.items():
-                log(f"Scraping {sport.upper()}")
+            try:
+                values[field] = int(row[field])
+            except (TypeError, ValueError) as exc:
+                raise ValueError(
+                    f"Invalid {league}.{field}: {row[field]!r}"
+                ) from exc
 
-                try:
-                    raw = scrape_page(page, url)
+        validate_month_day(
+            league,
+            "start",
+            values["start_month"],
+            values["start_day"],
+        )
 
-                    log(f"RAW ROWS: {len(raw)}")
+        validate_month_day(
+            league,
+            "end",
+            values["end_month"],
+            values["end_day"],
+        )
 
-                    games = []
+        config[league] = values
 
-                    for idx, row in enumerate(raw):
-                        try:
-                            parsed = parse_row(row, sport)
+    return config
 
-                            if parsed:
-                                games.append(parsed)
 
-                                log(
-                                    f"PARSED GAME | sport={sport} | "
-                                    f"idx={idx} | "
-                                    f"{parsed.get('team1')} vs {parsed.get('team2')}"
-                                )
+def in_season(
+    key: str,
+    now: datetime,
+    season_config: dict[str, dict[str, int]],
+) -> bool:
+    """Return True when the current date is inside the league's season."""
+    league = normalize_league(key)
 
-                            else:
-                                log(
-                                    f"REJECTED ROW | sport={sport} | "
-                                    f"idx={idx} | "
-                                    f"row_len={len(row)} | "
-                                    f"row={json.dumps(row)}"
-                                )
+    if league not in season_config:
+        raise KeyError(
+            f"No season configuration found for league={league}"
+        )
 
-                        except Exception as e:
-                            log(
-                                f"ROW ERROR | sport={sport} | "
-                                f"idx={idx} | "
-                                f"row_len={len(row)} | "
-                                f"error={e} | "
-                                f"row={json.dumps(row)}\n"
-                                f"{traceback.format_exc()}"
-                            )
+    cfg = season_config[league]
 
-                    label = "ncaam" if sport == "ncaa" else sport
+    current_mmdd = (now.month, now.day)
+    start_mmdd = (
+        cfg["start_month"],
+        cfg["start_day"],
+    )
+    end_mmdd = (
+        cfg["end_month"],
+        cfg["end_day"],
+    )
 
-                    out_dir = base_out_dir / label
-                    out_dir.mkdir(parents=True, exist_ok=True)
+    # Normal season window contained within one calendar year.
+    # Example: May 1 through October 31.
+    if start_mmdd <= end_mmdd:
+        return start_mmdd <= current_mmdd <= end_mmdd
 
-                    path = out_dir / f"{date}_{label}_raw.json"
+    # Cross-year season window.
+    # Example: October 15 through July 1.
+    return current_mmdd >= start_mmdd or current_mmdd <= end_mmdd
 
-                    with open(path, "w", encoding="utf-8") as f:
-                        json.dump(games, f, indent=2)
 
-                    files_written.append((str(path), len(games)))
+def load_core():
+    spec = importlib.util.spec_from_file_location(
+        "basketball_drat_scraper_core",
+        CORE_PATH,
+    )
 
-                    log(f"WROTE {path} ({len(games)} games)")
+    if spec is None or spec.loader is None:
+        raise RuntimeError(
+            f"Unable to load scraper core: {CORE_PATH}"
+        )
 
-                except Exception as e:
-                    log(f"ERROR scraping {sport}: {e}\n{traceback.format_exc()}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
 
-                time.sleep(random.uniform(2, 4))
+    return module
 
-            browser.close()
 
-        log("--- SUMMARY ---")
-        log(f"Files written: {len(files_written)}")
+def main() -> None:
+    core = load_core()
+    now = datetime.now(NY)
 
-        for path, count in files_written:
-            log(f"FILE: {path} ({count} games)")
+    force_all = truthy(
+        os.getenv("BASKETBALL_FORCE_ALL_LEAGUES")
+    )
 
-        log("STATUS: SUCCESS")
+    try:
+        season_config = load_season_config()
+    except Exception as exc:
+        core.log(
+            f"SEASON CONFIG FAILED: {exc}"
+        )
+        core.log("STATUS: FAILED")
+        raise SystemExit(1) from exc
 
-    except Exception as e:
-        log(f"FATAL ERROR: {e}\n{traceback.format_exc()}")
-        log("STATUS: FAILED")
-        raise
+    original = dict(core.URLS)
 
-    print("Basketball drat scraper complete.")
+    if force_all:
+        active = original
+    else:
+        active = {
+            key: value
+            for key, value in original.items()
+            if in_season(
+                key,
+                now,
+                season_config,
+            )
+        }
+
+    skipped = sorted(
+        set(original) - set(active)
+    )
+
+    core.URLS = active
+
+    core.log(
+        "SEASON GATE | "
+        f"date={now.strftime('%Y_%m_%d')} | "
+        f"config={SEASON_CONFIG} | "
+        f"active={','.join(active) or 'none'} | "
+        f"skipped={','.join(skipped) or 'none'} | "
+        f"force_all={int(force_all)}"
+    )
+
+    if not active:
+        core.log(
+            "STATUS: SUCCESS (no leagues in season)"
+        )
+        return
+
+    core.main()
+
+    text = core.LOG_FILE.read_text(
+        encoding="utf-8",
+        errors="replace",
+    )
+
+    if (
+        "STATUS: FAILED" in text
+        or "ERROR scraping" in text
+    ):
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":
