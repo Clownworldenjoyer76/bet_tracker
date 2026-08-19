@@ -33,7 +33,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
-          fetch-depth: 0
+          fetch-depth: 1
 
       # Snapshot all existing basketball error logs before anything in the
       # pipeline can write, append, truncate, or overwrite them.
@@ -76,8 +76,6 @@ jobs:
               -print0 2>/dev/null | sort -z
           )
 
-          # Marker is created after the baseline snapshot and before any
-          # basketball processing steps.
           touch "$RUN_MARKER"
 
           echo "Basketball error-log baseline created."
@@ -102,6 +100,7 @@ jobs:
         run: |
           mkdir -p docs/win/basketball/config
           mkdir -p docs/win/basketball/errors/{00_intake,01_merge,03_edges,04_select,05_final_scores}
+
           for league in nba ncaam wnba; do
             mkdir -p "docs/win/basketball/00_intake/drat_raw/$league"
             mkdir -p "docs/win/basketball/00_intake/predictions/$league"
@@ -127,6 +126,7 @@ jobs:
             mkdir -p "docs/win/basketball/05_final_scores/reports/$league/total"
             mkdir -p "docs/win/basketball/05_final_scores/reports/$league/overview"
           done
+
           mkdir -p docs/win/basketball/04_select/daily_slate
           mkdir -p docs/win/basketball/maps/no_map
           mkdir -p docs
@@ -270,7 +270,6 @@ jobs:
             "$TMP_MATCHES" \
             "$TMP_FILTERED_MATCHES"' EXIT
 
-          # daily_status.txt is rebuilt from scratch every run.
           : > "$STATUS_FILE"
 
           TXT_FILES_CHECKED_THIS_RUN=0
@@ -283,22 +282,6 @@ jobs:
 
           JOB_STATUS="${JOB_STATUS:-unknown}"
 
-          # ------------------------------------------------------------
-          # OPERATIONAL SEASON STATUS
-          # ------------------------------------------------------------
-          #
-          # Season dates come from:
-          # docs/win/basketball/config/season_dates.yaml
-          #
-          # The config provides:
-          #   start_month
-          #   start_day
-          #   end_month
-          #   end_day
-          #
-          # Normal windows such as May 1 through Oct 31 are supported.
-          # Cross-year windows such as Oct 15 through Jul 1 are supported.
-          #
           NY_MONTH="$(TZ='America/New_York' date +%m)"
           NY_DAY="$(TZ='America/New_York' date +%d)"
 
@@ -399,14 +382,12 @@ jobs:
             local START_MMDD=$((START_MONTH * 100 + START_DAY))
             local END_MMDD=$((END_MONTH * 100 + END_DAY))
 
-            # Season contained within one calendar year.
             if [ "$START_MMDD" -le "$END_MMDD" ]; then
               [ "$CURRENT_MMDD" -ge "$START_MMDD" ] && \
               [ "$CURRENT_MMDD" -le "$END_MMDD" ]
               return
             fi
 
-            # Season crosses New Year.
             [ "$CURRENT_MMDD" -ge "$START_MMDD" ] || \
             [ "$CURRENT_MMDD" -le "$END_MMDD" ]
           }
@@ -457,11 +438,6 @@ jobs:
                 "(^|[^[:alnum:]])${LEAGUE}([^[:alnum:]]|$)"
           }
 
-          # Returns success only when:
-          #   - the line/path identifies at least one supported league, and
-          #   - every identified league is operationally offseason.
-          #
-          # Generic errors with no league identity are never suppressed.
           should_suppress_offseason_issue() {
             local TEXT="$1"
             local LEAGUE=""
@@ -488,8 +464,6 @@ jobs:
             return 1
           }
 
-          # Match actual warning/error/failure indicators while avoiding
-          # normal lines such as "Errors: 0" and "STATUS: SUCCESS".
           ISSUE_RE='(^[[:space:]]*|[|][[:space:]]*)(WARN(ING)?|ERROR|CRITICAL|FATAL|EXCEPTION|TRACEBACK|FAILED|FAILURE)([[:space:]:|]|$)|STATUS[[:space:]]*:[[:space:]]*(WARNING|WARN|ERROR|FAILED|FAILURE|CRITICAL|FATAL|UNHEALTHY)|WARNINGS?[[:space:]]*[:=][[:space:]]*[1-9][0-9]*|ERRORS?[[:space:]]*[:=][[:space:]]*[1-9][0-9]*|(WARNING|ERROR|FAILED)[[:space:]]*=[[:space:]]*TRUE|^[[:space:]]*[A-Za-z_][A-Za-z0-9_.]*(Error|Exception)[[:space:]]*:'
 
           declare -A BASE_SIZE
@@ -536,12 +510,10 @@ jobs:
               SCAN_MODE=""
               LINE_OFFSET=0
 
-              # File existed before this workflow run.
               if [[ ${BASE_SIZE["$file"]+_} ]]; then
                 OLD_SIZE="${BASE_SIZE["$file"]}"
                 OLD_HASH="${BASE_HASH["$file"]}"
 
-                # File grew.
                 if [ "$CURRENT_SIZE" -gt "$OLD_SIZE" ]; then
                   PREFIX_HASH="$(
                     head -c "$OLD_SIZE" "$file" 2>/dev/null \
@@ -549,64 +521,47 @@ jobs:
                       | awk '{print $1}'
                   )"
 
-                  # Original file remains an exact prefix:
-                  # this is treated as an append.
                   if [ "$PREFIX_HASH" = "$OLD_HASH" ]; then
                     SCAN_MODE="APPENDED"
 
-                    # Scan only bytes added during this run.
                     tail -c "+$((OLD_SIZE + 1))" "$file" \
                       > "$TMP_CURRENT_CONTENT" 2>/dev/null
 
-                    # Preserve original file line numbers in the report.
                     LINE_OFFSET="$(
                       head -c "$OLD_SIZE" "$file" 2>/dev/null \
                         | wc -l \
                         | tr -d ' '
                     )"
-
-                  # File is larger but does not contain the exact old file
-                  # as its prefix. Treat it as rewritten.
                   else
                     SCAN_MODE="REWRITTEN"
                     cat "$file" > "$TMP_CURRENT_CONTENT"
                     LINE_OFFSET=0
                   fi
 
-                # File became smaller: it was truncated/replaced.
                 elif [ "$CURRENT_SIZE" -lt "$OLD_SIZE" ]; then
                   SCAN_MODE="REWRITTEN"
                   cat "$file" > "$TMP_CURRENT_CONTENT"
                   LINE_OFFSET=0
 
-                # File stayed exactly the same size.
                 else
                   CURRENT_HASH="$(
                     sha256sum "$file" 2>/dev/null \
                       | awk '{print $1}'
                   )"
 
-                  # Same size but different contents means rewrite.
                   if [ "$CURRENT_HASH" != "$OLD_HASH" ]; then
                     SCAN_MODE="REWRITTEN"
                     cat "$file" > "$TMP_CURRENT_CONTENT"
                     LINE_OFFSET=0
 
-                  # Same size and same contents, but the file was touched
-                  # after the run-start marker. Scan it because this run
-                  # interacted with/reproduced it.
                   elif [ -f "$RUN_MARKER" ] && [ "$file" -nt "$RUN_MARKER" ]; then
                     SCAN_MODE="TOUCHED_SAME_CONTENT"
                     cat "$file" > "$TMP_CURRENT_CONTENT"
                     LINE_OFFSET=0
-
-                  # Completely unchanged stale file. Ignore it.
                   else
                     continue
                   fi
                 fi
-
-              # File did not exist when the workflow started.
               else
                 SCAN_MODE="NEW"
                 cat "$file" > "$TMP_CURRENT_CONTENT"
@@ -615,7 +570,6 @@ jobs:
 
               TXT_FILES_CHECKED_THIS_RUN=$((TXT_FILES_CHECKED_THIS_RUN + 1))
 
-              # Nothing was actually added/generated.
               if [ ! -s "$TMP_CURRENT_CONTENT" ]; then
                 continue
               fi
@@ -623,8 +577,6 @@ jobs:
               grep -Ein "$ISSUE_RE" "$TMP_CURRENT_CONTENT" \
                 > "$TMP_MATCHES" 2>/dev/null || true
 
-              # Remove issue lines that belong only to leagues that are
-              # operationally offseason.
               if [ -s "$TMP_MATCHES" ]; then
                 while IFS=: read -r RELATIVE_LINE MESSAGE; do
                   [ -n "$RELATIVE_LINE" ] || continue
@@ -680,11 +632,6 @@ jobs:
             )
           fi
 
-          # Check current unresolved no-map teams.
-          #
-          # This CSV represents the current unresolved mapping state.
-          # Rows belonging to operationally offseason leagues are suppressed
-          # until those leagues return to season.
           if [ ! -f "$NO_MAP_FILE" ]; then
             SYSTEM_ISSUES=$((SYSTEM_ISSUES + 1))
 
@@ -746,8 +693,6 @@ jobs:
             fi
           fi
 
-          # If an earlier workflow step failed, include that in this run's
-          # daily status.
           if [ "$JOB_STATUS" != "success" ]; then
             SYSTEM_ISSUES=$((SYSTEM_ISSUES + 1))
 
@@ -827,7 +772,6 @@ jobs:
           echo "=== Basketball Daily Status ==="
           cat "$STATUS_FILE"
 
-          # Reporting must not itself fail the workflow.
           exit 0
 
       - name: Show logs
@@ -913,8 +857,11 @@ jobs:
           fi
 
           git commit -m "chore: basketball daily status failed run $(date -u +'%Y-%m-%d %H:%M UTC')"
-          git pull --rebase --autostash origin main
-          git push
+
+          git fetch origin main --depth=2
+          git rebase origin/main
+
+          git push origin HEAD:main
 
       - name: Commit outputs
         if: success()
@@ -934,5 +881,8 @@ jobs:
           fi
 
           git commit -m "chore: basketball full pipeline $(date -u +'%Y-%m-%d %H:%M UTC')"
-          git pull --rebase --autostash origin main
-          git push
+
+          git fetch origin main --depth=2
+          git rebase origin/main
+
+          git push origin HEAD:main
