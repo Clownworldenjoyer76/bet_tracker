@@ -831,12 +831,13 @@ jobs:
           name: basketball-pipeline-logs
           path: docs/win/basketball/errors/
 
-      # If the pipeline failed, preserve daily_status.txt in the repository
-      # without committing partial pipeline outputs.
+      # If the pipeline failed, preserve daily_status.txt and the WNBA bias
+      # drift warning in the repository without committing partial outputs.
       - name: Commit daily status after failed run
         if: failure()
         run: |
           STATUS_FILE="docs/win/basketball/errors/daily_status.txt"
+          WNBA_DRIFT_FILE="docs/win/basketball/errors/wnba_bias_drift.txt"
 
           if [ ! -f "$STATUS_FILE" ]; then
             echo "daily_status.txt was not created."
@@ -848,11 +849,15 @@ jobs:
 
           git add -- "$STATUS_FILE"
 
+          if [ -f "$WNBA_DRIFT_FILE" ]; then
+            git add -- "$WNBA_DRIFT_FILE"
+          fi
+
           echo "--- daily status before failed-run commit ---"
           git status --short
 
           if git diff --cached --quiet; then
-            echo "No daily status change to commit."
+            echo "No daily status or WNBA bias drift change to commit."
             exit 0
           fi
 
