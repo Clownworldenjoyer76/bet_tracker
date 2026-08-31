@@ -1,5 +1,9 @@
+#!/usr/bin/env python3
+# docs/win/hockey/nhl/scripts/00_intake/transform_hockey.py
+
 import re
 import traceback
+import unicodedata
 from pathlib import Path
 from datetime import datetime
 
@@ -10,7 +14,6 @@ BASE_DIR = Path("docs/win/hockey/nhl")
 
 INPUT_DIR = BASE_DIR / "00_intake" / "predictions" / "scraper"
 OUTPUT_DIR = BASE_DIR / "00_intake" / "predictions"
-SPORTSBOOK_DIR = BASE_DIR / "00_intake" / "sportsbook"
 
 MAP_PATH = BASE_DIR / "config" / "mapping" / "team_map_nhl.csv"
 NO_MAP_PATH = BASE_DIR / "config" / "mapping" / "no_map_nhl_pred.csv"
@@ -48,126 +51,142 @@ def strip_record(name: str) -> str:
     return re.sub(r"\s*\(\d+[-–]\d+[-–]?\d*\)\s*$", "", str(name)).strip()
 
 
-def hardcoded_normalize_team(name: str) -> str:
-    name = str(name).strip().lower()
-
-    replacements = {
-        "st. louis": "st louis",
-        "ny rangers": "new york rangers",
-        "ny islanders": "new york islanders",
-        "nj devils": "new jersey devils",
-        "la kings": "los angeles kings",
-    }
-
-    for old_value, new_value in replacements.items():
-        name = name.replace(old_value, new_value)
-
-    return name
+def normalize_alias_key(value: str) -> str:
+    text = strip_record(value)
+    text = unicodedata.normalize("NFKD", text)
+    text = "".join(
+        char for char in text
+        if not unicodedata.combining(char)
+    )
+    text = text.lower().replace("&", " and ")
+    text = re.sub(r"[^a-z0-9]+", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
 
 
-def detect_mapping_columns(df: pd.DataFrame) -> tuple[str, str]:
-    columns = list(df.columns)
-    lower_map = {col.lower().strip(): col for col in columns}
-
-    source_candidates = [
-        "source_team",
-        "raw_team",
-        "raw_name",
-        "from",
-        "alias",
-        "team",
-        "input",
-        "input_team",
-        "odds_team",
-        "prediction_team",
-        "dratings_team",
-    ]
-
-    target_candidates = [
-        "normalized_team",
-        "canonical_team",
-        "standard_team",
-        "mapped_team",
-        "to",
-        "team_normalized",
-        "nhl_team",
-        "output",
-        "output_team",
-    ]
-
-    source_col = None
-    target_col = None
-
-    for candidate in source_candidates:
-        if candidate in lower_map:
-            source_col = lower_map[candidate]
-            break
-
-    for candidate in target_candidates:
-        if candidate in lower_map:
-            target_col = lower_map[candidate]
-            break
-
-    if source_col is None or target_col is None:
-        if len(columns) >= 2:
-            source_col = columns[0]
-            target_col = columns[1]
-        else:
-            raise ValueError(
-                f"Could not detect mapping columns in {MAP_PATH}. Columns found: {columns}"
-            )
-
-    return source_col, target_col
-
-
-def load_team_map() -> dict:
+def load_team_map(source: str) -> dict[str, dict[str, str]]:
     if not MAP_PATH.exists():
         raise FileNotFoundError(f"Missing team mapping file: {MAP_PATH}")
 
-    df = pd.read_csv(MAP_PATH)
+    df = pd.read_csv(MAP_PATH, dtype=str).fillna("")
 
-    if df.empty:
-        raise ValueError(f"Team mapping file is empty: {MAP_PATH}")
+    required_columns = {
+        "league",
+        "source",
+        "alias",
+        "canonical_team",
+        "nhl_team_id",
+        "nhl_abbrev",
+    }
+    missing = sorted(required_columns - set(df.columns))
 
-    source_col, target_col = detect_mapping_columns(df)
+    if missing:
+        raise ValueError(
+            f"{MAP_PATH} missing required columns: {missing}"
+        )
 
-    mapping = {}
+    allowed_sources = {source, "shared", "official_nhl"}
+    mapping: dict[str, dict[str, str]] = {}
+    identity_by_id: dict[str, tuple[str, str]] = {}
 
-    for _, row in df.iterrows():
-        raw_value = str(row.get(source_col, "")).strip()
-        mapped_value = str(row.get(target_col, "")).strip()
+    for row_number, row in df.iterrows():
+        league = str(row["league"]).strip().lower()
+        row_source = str(row["source"]).strip().lower()
 
-        if raw_value and mapped_value and raw_value.lower() != "nan" and mapped_value.lower() != "nan":
-            raw_key = hardcoded_normalize_team(strip_record(raw_value))
-            mapped_clean = hardcoded_normalize_team(strip_record(mapped_value))
-            mapping[raw_key] = mapped_clean
+        if league != "nhl" or row_source not in allowed_sources:
+            continue
+
+        alias = str(row["alias"]).strip()
+        canonical = str(row["canonical_team"]).strip()
+        team_id = str(row["nhl_team_id"]).strip()
+        abbrev = str(row["nhl_abbrev"]).strip().upper()
+
+        if not alias or not canonical:
+            continue
+
+        if canonical != "TBD":
+            if not team_id or not team_id.isdigit():
+                raise ValueError(
+                    f"{MAP_PATH} row {row_number + 2} has invalid "
+                    f"nhl_team_id={team_id!r}"
+                )
+
+            if not re.fullmatch(r"[A-Z]{3}", abbrev):
+                raise ValueError(
+                    f"{MAP_PATH} row {row_number + 2} has invalid "
+                    f"nhl_abbrev={abbrev!r}"
+                )
+
+            prior_identity = identity_by_id.get(team_id)
+            identity_value = (canonical, abbrev)
+
+            if prior_identity is not None and prior_identity != identity_value:
+                raise ValueError(
+                    f"{MAP_PATH} has conflicting identity for "
+                    f"nhl_team_id={team_id}: "
+                    f"{prior_identity} != {identity_value}"
+                )
+
+            identity_by_id[team_id] = identity_value
+
+        identity = {
+            "canonical_team": canonical,
+            "nhl_team_id": team_id,
+            "nhl_abbrev": abbrev,
+        }
+
+        key = normalize_alias_key(alias)
+        prior = mapping.get(key)
+
+        if prior is not None and prior != identity:
+            raise ValueError(
+                f"{MAP_PATH} has conflicting {source} mapping for "
+                f"alias={alias!r}: {prior} != {identity}"
+            )
+
+        mapping[key] = identity
+
+    if not mapping:
+        raise ValueError(
+            f"No NHL mappings loaded for source={source} from {MAP_PATH}"
+        )
+
+    stable_ids = {
+        identity["nhl_team_id"]
+        for identity in mapping.values()
+        if identity["nhl_team_id"]
+    }
 
     log(f"Loaded team map: {MAP_PATH}")
-    log(f"Team map source column: {source_col}")
-    log(f"Team map target column: {target_col}")
-    log(f"Team map rows loaded: {len(mapping)}")
+    log(f"Team map source: {source}")
+    log(f"Team aliases loaded: {len(mapping)}")
+    log(f"Stable NHL team IDs loaded: {len(stable_ids)}")
 
     return mapping
 
 
-def normalize_team(name: str, team_map: dict, no_map_records: list, source_file: str) -> str:
+def normalize_team(
+    name: str,
+    team_map: dict[str, dict[str, str]],
+    no_map_records: list,
+    source_file: str,
+) -> str:
     stripped = strip_record(name)
-    base_norm = hardcoded_normalize_team(stripped)
+    key = normalize_alias_key(stripped)
+    identity = team_map.get(key)
 
-    if base_norm in team_map:
-        return team_map[base_norm]
+    if identity is not None:
+        return identity["canonical_team"]
 
     no_map_records.append(
         {
             "source_file": source_file,
             "raw_team": name,
             "stripped_team": stripped,
-            "normalized_attempt": base_norm,
+            "normalized_attempt": key,
         }
     )
 
-    return base_norm
-
+    return stripped
 
 def parse_date(date_str: str) -> str:
     try:
@@ -197,64 +216,6 @@ def parse_float(value):
         return float(str(value).strip())
     except Exception:
         return ""
-
-
-def load_sportsbook_for_date(date_val: str, team_map: dict, no_map_records: list) -> pd.DataFrame:
-    sportsbook_path = SPORTSBOOK_DIR / f"NHL_{date_val}.csv"
-
-    if not sportsbook_path.exists():
-        log(f"WARNING: sportsbook missing for game_id match: {sportsbook_path}")
-        return pd.DataFrame()
-
-    sportsbook = pd.read_csv(sportsbook_path)
-
-    required_columns = ["game_id", "game_date", "home_team", "away_team"]
-    missing_columns = [col for col in required_columns if col not in sportsbook.columns]
-
-    if missing_columns:
-        log(
-            f"WARNING: sportsbook file missing required columns for game_id match: "
-            f"{sportsbook_path} | missing={missing_columns}"
-        )
-        return pd.DataFrame()
-
-    sportsbook["home_team_norm"] = sportsbook["home_team"].apply(
-        lambda value: normalize_team(value, team_map, no_map_records, str(sportsbook_path))
-    )
-    sportsbook["away_team_norm"] = sportsbook["away_team"].apply(
-        lambda value: normalize_team(value, team_map, no_map_records, str(sportsbook_path))
-    )
-    sportsbook["game_date_norm"] = sportsbook["game_date"].astype(str).str.strip()
-
-    log(f"Loaded sportsbook file for game_id match: {sportsbook_path} ({len(sportsbook)} rows)")
-
-    return sportsbook
-
-
-def get_game_id(
-    sportsbook: pd.DataFrame,
-    date_val: str,
-    home_team: str,
-    away_team: str,
-) -> str:
-    if sportsbook.empty:
-        return ""
-
-    matches = sportsbook[
-        (sportsbook["game_date_norm"] == date_val)
-        & (sportsbook["home_team_norm"] == home_team)
-        & (sportsbook["away_team_norm"] == away_team)
-    ]
-
-    if matches.empty:
-        log(f"NO GAME_ID MATCH: {away_team} @ {home_team} on {date_val}")
-        return ""
-
-    if len(matches) > 1:
-        log(f"WARNING: MULTIPLE GAME_ID MATCHES: {away_team} @ {home_team} on {date_val}")
-        return ""
-
-    return str(matches.iloc[0]["game_id"]).strip()
 
 
 def write_no_map_file(no_map_records: list) -> None:
@@ -328,7 +289,6 @@ def transform_prediction_file(
         return
 
     for date_val, group in upcoming.groupby("game_date"):
-        sportsbook = load_sportsbook_for_date(date_val, team_map, no_map_records)
         output_rows = []
 
         for _, row in group.iterrows():
@@ -339,22 +299,19 @@ def transform_prediction_file(
             home_projected_goals = parse_float(row["proj_score_2"])
 
             if away_projected_goals != "" and home_projected_goals != "":
-                total_projected_goals = round(away_projected_goals + home_projected_goals, 2)
+                total_projected_goals = round(
+                    away_projected_goals + home_projected_goals,
+                    2,
+                )
             else:
                 total_projected_goals = ""
-
-            game_id = get_game_id(
-                sportsbook=sportsbook,
-                date_val=date_val,
-                home_team=home_team,
-                away_team=away_team,
-            )
 
             output_rows.append(
                 {
                     "sport": "hockey",
                     "league": "nhl",
-                    "game_id": game_id,
+                    # Official NHL game_id is assigned only by reconcile_game_ids.py.
+                    "game_id": "",
                     "game_date": date_val,
                     "game_time": row["game_time"],
                     "home_team": home_team,
@@ -374,7 +331,10 @@ def transform_prediction_file(
         output.to_csv(output_path, index=False)
 
         files_written.append((str(output_path), len(output)))
-        log(f"WROTE prediction output: {output_path} ({len(output)} rows)")
+        log(
+            f"WROTE unreconciled prediction output: {output_path} "
+            f"({len(output)} rows); game_id left blank for reconcile_game_ids.py"
+        )
 
 
 def main():
@@ -383,11 +343,11 @@ def main():
     try:
         log(f"Input directory: {INPUT_DIR}")
         log(f"Output directory: {OUTPUT_DIR}")
-        log(f"Sportsbook directory: {SPORTSBOOK_DIR}")
         log(f"Mapping file: {MAP_PATH}")
         log(f"No-map file: {NO_MAP_PATH}")
+        log("Official NHL game_id assignment is deferred to reconcile_game_ids.py")
 
-        team_map = load_team_map()
+        team_map = load_team_map("dratings")
         no_map_records = []
 
         input_files = sorted(INPUT_DIR.glob("*_nhl_predictions.csv"))

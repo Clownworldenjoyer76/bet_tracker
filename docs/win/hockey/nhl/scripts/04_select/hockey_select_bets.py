@@ -10,12 +10,13 @@ import pandas as pd
 import yaml
 
 
-INPUT_DIR = Path("docs/win/hockey/nhl/03_edges/ev_kelly")
+INPUT_DIR = Path("docs/win/hockey/nhl/03_edges/secondary_signals")
 OUTPUT_DIR = Path("docs/win/hockey/nhl/04_select")
 CONFIG_PATH = Path("docs/win/hockey/nhl/config/markets.yaml")
 
 ERROR_DIR = Path("docs/win/hockey/nhl/errors/04_select")
 LOG_FILE = ERROR_DIR / "hockey_select_bets.txt"
+REJECTION_FILE = ERROR_DIR / "selection_rejections.csv"
 
 LEAGUE_CODE = "NHL"
 
@@ -24,6 +25,26 @@ BLOCKED_PATH_PARTS = {
     "graded",
     "results",
     "reports",
+}
+
+REJECTION_COLUMNS = [
+    "game_date",
+    "market_type",
+    "bet_side",
+    "failing_condition",
+    "rejection_count",
+]
+
+REJECTION_ORDER = {
+    "missing_data": 0,
+    "probability": 1,
+    "odds": 2,
+    "line": 3,
+    "edge": 4,
+    "ev": 5,
+    "kelly": 6,
+    "secondary_model": 7,
+    "pick_preference": 8,
 }
 
 OUTPUT_COLUMNS = [
@@ -44,6 +65,73 @@ OUTPUT_COLUMNS = [
     "edge",
     "ev",
     "kelly",
+    "selected_provider_id",
+    "selected_provider_name",
+    "odds_source",
+    "pulled_at",
+    "drat_home_win_prob",
+    "drat_exp_margin",
+    "drat_exp_total",
+    "sdv_home_win_prob",
+    "sdv_exp_margin",
+    "sdv_exp_total",
+    "prob_disagreement",
+    "margin_disagreement",
+    "total_disagreement",
+    "prob_disagreement_threshold_p75_prior",
+    "margin_disagreement_threshold_p75_prior",
+    "total_disagreement_threshold_p75_prior",
+    "high_prob_disagreement_flag",
+    "high_margin_disagreement_flag",
+    "high_total_disagreement_flag",
+    "ensemble_train_rows",
+    "weighted_prob_drat_weight",
+    "weighted_margin_drat_weight",
+    "weighted_total_drat_weight",
+    "weighted_home_win_prob",
+    "weighted_exp_margin",
+    "weighted_exp_total",
+    "meta_home_win_prob",
+    "meta_exp_margin",
+    "meta_exp_total",
+    "secondary_history_max_game_date",
+    "secondary_model_status",
+    "secondary_signal_version",
+    "secondary_challenger_support",
+    "secondary_derived_model",
+    "secondary_derived_support",
+    "secondary_decision",
+]
+
+SECONDARY_SIGNAL_COLUMNS = [
+    "drat_home_win_prob",
+    "drat_exp_margin",
+    "drat_exp_total",
+    "sdv_home_win_prob",
+    "sdv_exp_margin",
+    "sdv_exp_total",
+    "prob_disagreement",
+    "margin_disagreement",
+    "total_disagreement",
+    "prob_disagreement_threshold_p75_prior",
+    "margin_disagreement_threshold_p75_prior",
+    "total_disagreement_threshold_p75_prior",
+    "high_prob_disagreement_flag",
+    "high_margin_disagreement_flag",
+    "high_total_disagreement_flag",
+    "ensemble_train_rows",
+    "weighted_prob_drat_weight",
+    "weighted_margin_drat_weight",
+    "weighted_total_drat_weight",
+    "weighted_home_win_prob",
+    "weighted_exp_margin",
+    "weighted_exp_total",
+    "meta_home_win_prob",
+    "meta_exp_margin",
+    "meta_exp_total",
+    "secondary_history_max_game_date",
+    "secondary_model_status",
+    "secondary_signal_version",
 ]
 
 
@@ -71,11 +159,6 @@ def assert_read_path(path: Path):
     if blocked:
         fail(f"Blocked read path contains forbidden folder(s): {path} | blocked={blocked}")
 
-    allowed_roots = [
-        INPUT_DIR.as_posix(),
-        CONFIG_PATH.as_posix(),
-    ]
-
     p = path.as_posix()
     if not (p.startswith(INPUT_DIR.as_posix() + "/") or p == CONFIG_PATH.as_posix()):
         fail(f"Blocked read path outside allowed Stage 04 inputs/config: {path}")
@@ -98,6 +181,7 @@ def assert_write_path(path: Path):
 def ensure_dirs():
     assert_write_path(OUTPUT_DIR / "dummy.csv")
     assert_write_path(LOG_FILE)
+    assert_write_path(REJECTION_FILE)
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -148,7 +232,24 @@ def in_range(val, ranges):
     return any(float(lo) <= val <= float(hi) for lo, hi in ranges)
 
 
-def check_side_rules(
+def add_rejection(
+    rejections: dict,
+    *,
+    game_date: str,
+    market_type: str,
+    bet_side: str,
+    failing_condition: str,
+):
+    key = (
+        game_date,
+        market_type,
+        bet_side,
+        failing_condition,
+    )
+    rejections[key] = rejections.get(key, 0) + 1
+
+
+def side_rule_failures(
     *,
     rules: dict,
     odds,
@@ -160,27 +261,68 @@ def check_side_rules(
     check_line: bool,
 ):
     if not rules.get("enabled", False):
-        return False
+        return None
+
+    values = [
+        odds,
+        prob,
+        edge,
+        ev,
+        kelly,
+    ]
+
+    if check_line:
+        values.append(line)
+
+    if any(value is None for value in values):
+        return ["missing_data"]
+
+    failures = []
 
     if not in_range(odds, rules.get("odds_bands", [])):
-        return False
+        failures.append("odds")
 
     if check_line and not in_range(line, rules.get("line_bands", [])):
-        return False
+        failures.append("line")
 
     if not in_range(prob, rules.get("prob_bands", [])):
-        return False
+        failures.append("probability")
 
     if not in_range(edge, rules.get("edge_bands", None)):
-        return False
+        failures.append("edge")
 
     if not in_range(ev, rules.get("ev_bands", [])):
-        return False
+        failures.append("ev")
 
     if not in_range(kelly, rules.get("kelly_bands", [])):
-        return False
+        failures.append("kelly")
 
-    return True
+    return failures
+
+
+def check_side_rules(
+    *,
+    rules: dict,
+    odds,
+    line,
+    prob,
+    edge,
+    ev,
+    kelly,
+    check_line: bool,
+):
+    failures = side_rule_failures(
+        rules=rules,
+        odds=odds,
+        line=line,
+        prob=prob,
+        edge=edge,
+        ev=ev,
+        kelly=kelly,
+        check_line=check_line,
+    )
+
+    return failures == []
 
 
 def require_columns(df: pd.DataFrame, cols: list[str], market_type: str, path: Path):
@@ -226,7 +368,201 @@ def get_base_meta(row):
     }
 
 
-def apply_pick_preference(candidates: list[dict], pick_preference: str, slate_key: str, game_id, market_type: str):
+
+def support_label(
+    *,
+    market_type: str,
+    bet_side: str,
+    prediction,
+    line,
+) -> str:
+    value = fv(prediction)
+    if value is None:
+        return "unavailable"
+
+    if market_type == "moneyline":
+        if abs(value - 0.5) < 1e-12:
+            return "neutral"
+        supports_home = value > 0.5
+        supports = supports_home if bet_side == "home" else not supports_home
+        return "supports" if supports else "opposes"
+
+    if market_type == "puck_line":
+        line_value = fv(line)
+        if line_value is None:
+            return "unavailable"
+        cover_margin = (
+            value + line_value
+            if bet_side == "home"
+            else -value + line_value
+        )
+        if abs(cover_margin) < 1e-12:
+            return "neutral"
+        return "supports" if cover_margin > 0 else "opposes"
+
+    if market_type == "total":
+        line_value = fv(line)
+        if line_value is None:
+            return "unavailable"
+        if abs(value - line_value) < 1e-12:
+            return "neutral"
+        supports_over = value > line_value
+        supports = supports_over if bet_side == "over" else not supports_over
+        return "supports" if supports else "opposes"
+
+    fail(f"Unknown market_type for secondary support: {market_type}")
+
+
+def secondary_market_fields(
+    market_type: str,
+    derived_model: str,
+) -> tuple[str, str, str]:
+    if market_type == "moneyline":
+        derived_field = (
+            "weighted_home_win_prob"
+            if derived_model == "weighted"
+            else "meta_home_win_prob"
+        )
+        return "high_prob_disagreement_flag", "sdv_home_win_prob", derived_field
+
+    if market_type == "puck_line":
+        derived_field = (
+            "weighted_exp_margin"
+            if derived_model == "weighted"
+            else "meta_exp_margin"
+        )
+        return "high_margin_disagreement_flag", "sdv_exp_margin", derived_field
+
+    if market_type == "total":
+        derived_field = (
+            "weighted_exp_total"
+            if derived_model == "weighted"
+            else "meta_exp_total"
+        )
+        return "high_total_disagreement_flag", "sdv_exp_total", derived_field
+
+    fail(f"Unknown market_type for secondary model: {market_type}")
+
+
+def apply_secondary_model_gate(
+    candidates: list[dict],
+    row,
+    config: dict,
+    *,
+    market_type: str,
+    rejections: dict,
+) -> list[dict]:
+    if not candidates:
+        return []
+
+    secondary = config.get("secondary_model", {})
+    enabled = bool(secondary.get("enabled", False))
+
+    if not enabled:
+        for candidate in candidates:
+            for col in SECONDARY_SIGNAL_COLUMNS:
+                candidate[col] = row.get(col)
+            candidate["secondary_challenger_support"] = "unavailable"
+            candidate["secondary_derived_model"] = ""
+            candidate["secondary_derived_support"] = "unavailable"
+            candidate["secondary_decision"] = "disabled_primary_only"
+        return candidates
+
+    selection_mode = secondary.get("selection_mode")
+    if selection_mode != "high_disagreement_requires_secondary_support":
+        fail(
+            "Unsupported secondary_model.selection_mode: "
+            f"{selection_mode!r}"
+        )
+
+    derived_by_market = secondary.get("derived_signal_by_market", {})
+    derived_model = str(derived_by_market.get(market_type, "")).strip().lower()
+
+    if derived_model not in {"weighted", "meta"}:
+        fail(
+            f"secondary_model derived signal is invalid for {market_type}: "
+            f"{derived_model!r}"
+        )
+
+    high_field, challenger_field, derived_field = secondary_market_fields(
+        market_type,
+        derived_model,
+    )
+
+    kept: list[dict] = []
+
+    for candidate in candidates:
+        for col in SECONDARY_SIGNAL_COLUMNS:
+            candidate[col] = row.get(col)
+
+        candidate["secondary_derived_model"] = derived_model
+        status = sv(row.get("secondary_model_status"))
+
+        line = candidate.get("line")
+        side = candidate["bet_side"]
+        challenger_support = support_label(
+            market_type=market_type,
+            bet_side=side,
+            prediction=row.get(challenger_field),
+            line=line,
+        )
+        derived_support = support_label(
+            market_type=market_type,
+            bet_side=side,
+            prediction=row.get(derived_field),
+            line=line,
+        )
+
+        candidate["secondary_challenger_support"] = challenger_support
+        candidate["secondary_derived_support"] = derived_support
+
+        if status != "ready":
+            if secondary.get("unavailable_behavior") != "use_primary":
+                fail(
+                    "Unsupported secondary_model.unavailable_behavior: "
+                    f"{secondary.get('unavailable_behavior')!r}"
+                )
+            candidate["secondary_decision"] = f"fallback_primary:{status or 'unavailable'}"
+            kept.append(candidate)
+            continue
+
+        high_value = fv(row.get(high_field))
+        high_disagreement = high_value is not None and high_value >= 0.5
+
+        if not high_disagreement:
+            candidate["secondary_decision"] = "normal_disagreement_primary"
+            kept.append(candidate)
+            continue
+
+        support_exists = (
+            challenger_support == "supports"
+            or derived_support == "supports"
+        )
+
+        if support_exists:
+            candidate["secondary_decision"] = "high_disagreement_supported"
+            kept.append(candidate)
+            continue
+
+        candidate["secondary_decision"] = "high_disagreement_no_secondary_support"
+        add_rejection(
+            rejections,
+            game_date=candidate["game_date"],
+            market_type=market_type,
+            bet_side=side,
+            failing_condition="secondary_model",
+        )
+
+    return kept
+
+def apply_pick_preference(
+    candidates: list[dict],
+    pick_preference: str,
+    slate_key: str,
+    game_id,
+    market_type: str,
+    rejections: dict,
+):
     if not candidates:
         return []
 
@@ -251,10 +587,24 @@ def apply_pick_preference(candidates: list[dict], pick_preference: str, slate_ke
             f"slate={slate_key} | game_id={game_id}"
         )
 
+    winner_ids = {id(winner) for winner in winners}
+
+    for candidate in candidates:
+        if id(candidate) in winner_ids:
+            continue
+
+        add_rejection(
+            rejections,
+            game_date=candidate["game_date"],
+            market_type=market_type,
+            bet_side=candidate["bet_side"],
+            failing_condition="pick_preference",
+        )
+
     return winners
 
 
-def process_moneyline(row, config, slate_key):
+def process_moneyline(row, config, slate_key, rejections):
     market_config = config.get("moneyline", {})
     if not market_config.get("enabled", False):
         return []
@@ -273,11 +623,11 @@ def process_moneyline(row, config, slate_key):
         odds = fv(row.get(f"{side}_dk_moneyline_american"))
         dec = fv(row.get(f"{side}_dk_moneyline_decimal"))
         prob = fv(row.get(f"{side}_model_prob_moneyline"))
-        edge = fv(row.get(f"{side}_edge_decimal_moneyline"))
+        edge = fv(row.get(f"{side}_edge_pct_moneyline"))
         ev = fv(row.get(f"{side}_ev_moneyline"))
         kelly = fv(row.get(f"{side}_kelly_moneyline"))
 
-        if not check_side_rules(
+        failures = side_rule_failures(
             rules=side_rules,
             odds=odds,
             line=None,
@@ -286,7 +636,20 @@ def process_moneyline(row, config, slate_key):
             ev=ev,
             kelly=kelly,
             check_line=False,
-        ):
+        )
+
+        if failures is None:
+            continue
+
+        if failures:
+            for condition in failures:
+                add_rejection(
+                    rejections,
+                    game_date=meta["game_date"],
+                    market_type="moneyline",
+                    bet_side=side,
+                    failing_condition=condition,
+                )
             continue
 
         candidates.append({
@@ -301,7 +664,27 @@ def process_moneyline(row, config, slate_key):
             "edge": edge,
             "ev": ev,
             "kelly": kelly,
+            "selected_provider_id": sv(
+                row.get("moneyline_provider_id")
+            ),
+            "selected_provider_name": sv(
+                row.get("moneyline_provider_name")
+            ),
+            "odds_source": sv(
+                row.get("odds_source")
+            ),
+            "pulled_at": sv(
+                row.get("pulled_at")
+            ),
         })
+
+    candidates = apply_secondary_model_gate(
+        candidates,
+        row,
+        config,
+        market_type="moneyline",
+        rejections=rejections,
+    )
 
     return apply_pick_preference(
         candidates,
@@ -309,10 +692,11 @@ def process_moneyline(row, config, slate_key):
         slate_key,
         row.get("game_id"),
         "moneyline",
+        rejections,
     )
 
 
-def process_puck_line(row, config, slate_key):
+def process_puck_line(row, config, slate_key, rejections):
     market_config = config.get("puck_line", {})
     if not market_config.get("enabled", False):
         return []
@@ -332,11 +716,11 @@ def process_puck_line(row, config, slate_key):
         dec = fv(row.get(f"{side}_dk_puck_line_decimal"))
         line = fv(row.get(f"{side}_puck_line"))
         prob = fv(row.get(f"{side}_model_prob_puck_line"))
-        edge = fv(row.get(f"{side}_edge_decimal_puck_line"))
+        edge = fv(row.get(f"{side}_edge_pct_puck_line"))
         ev = fv(row.get(f"{side}_ev_puck_line"))
         kelly = fv(row.get(f"{side}_kelly_puck_line"))
 
-        if not check_side_rules(
+        failures = side_rule_failures(
             rules=side_rules,
             odds=odds,
             line=line,
@@ -345,7 +729,20 @@ def process_puck_line(row, config, slate_key):
             ev=ev,
             kelly=kelly,
             check_line=True,
-        ):
+        )
+
+        if failures is None:
+            continue
+
+        if failures:
+            for condition in failures:
+                add_rejection(
+                    rejections,
+                    game_date=meta["game_date"],
+                    market_type="puck_line",
+                    bet_side=side,
+                    failing_condition=condition,
+                )
             continue
 
         candidates.append({
@@ -360,7 +757,27 @@ def process_puck_line(row, config, slate_key):
             "edge": edge,
             "ev": ev,
             "kelly": kelly,
+            "selected_provider_id": sv(
+                row.get("puck_line_provider_id")
+            ),
+            "selected_provider_name": sv(
+                row.get("puck_line_provider_name")
+            ),
+            "odds_source": sv(
+                row.get("odds_source")
+            ),
+            "pulled_at": sv(
+                row.get("pulled_at")
+            ),
         })
+
+    candidates = apply_secondary_model_gate(
+        candidates,
+        row,
+        config,
+        market_type="puck_line",
+        rejections=rejections,
+    )
 
     return apply_pick_preference(
         candidates,
@@ -368,10 +785,11 @@ def process_puck_line(row, config, slate_key):
         slate_key,
         row.get("game_id"),
         "puck_line",
+        rejections,
     )
 
 
-def process_total(row, config, slate_key):
+def process_total(row, config, slate_key, rejections):
     market_config = config.get("total", {})
     if not market_config.get("enabled", False):
         return []
@@ -391,11 +809,11 @@ def process_total(row, config, slate_key):
         dec = fv(row.get(f"dk_total_{side}_decimal"))
         line = fv(row.get("total"))
         prob = fv(row.get(f"{side}_model_prob_total"))
-        edge = fv(row.get(f"{side}_edge_decimal_total"))
+        edge = fv(row.get(f"{side}_edge_pct_total"))
         ev = fv(row.get(f"{side}_ev_total"))
         kelly = fv(row.get(f"{side}_kelly_total"))
 
-        if not check_side_rules(
+        failures = side_rule_failures(
             rules=side_rules,
             odds=odds,
             line=line,
@@ -404,7 +822,20 @@ def process_total(row, config, slate_key):
             ev=ev,
             kelly=kelly,
             check_line=True,
-        ):
+        )
+
+        if failures is None:
+            continue
+
+        if failures:
+            for condition in failures:
+                add_rejection(
+                    rejections,
+                    game_date=meta["game_date"],
+                    market_type="total",
+                    bet_side=side,
+                    failing_condition=condition,
+                )
             continue
 
         candidates.append({
@@ -419,7 +850,27 @@ def process_total(row, config, slate_key):
             "edge": edge,
             "ev": ev,
             "kelly": kelly,
+            "selected_provider_id": sv(
+                row.get("total_provider_id")
+            ),
+            "selected_provider_name": sv(
+                row.get("total_provider_name")
+            ),
+            "odds_source": sv(
+                row.get("odds_source")
+            ),
+            "pulled_at": sv(
+                row.get("pulled_at")
+            ),
         })
+
+    candidates = apply_secondary_model_gate(
+        candidates,
+        row,
+        config,
+        market_type="total",
+        rejections=rejections,
+    )
 
     return apply_pick_preference(
         candidates,
@@ -427,6 +878,62 @@ def process_total(row, config, slate_key):
         slate_key,
         row.get("game_id"),
         "total",
+        rejections,
+    )
+
+
+def reset_rejection_file():
+    assert_write_path(REJECTION_FILE)
+    pd.DataFrame(columns=REJECTION_COLUMNS).to_csv(
+        REJECTION_FILE,
+        index=False,
+    )
+
+
+def write_rejections(rejections: dict):
+    rows = []
+
+    for (
+        game_date,
+        market_type,
+        bet_side,
+        failing_condition,
+    ), rejection_count in rejections.items():
+        rows.append({
+            "game_date": game_date,
+            "market_type": market_type,
+            "bet_side": bet_side,
+            "failing_condition": failing_condition,
+            "rejection_count": rejection_count,
+        })
+
+    rows.sort(
+        key=lambda row: (
+            row["game_date"],
+            row["market_type"],
+            row["bet_side"],
+            REJECTION_ORDER.get(
+                row["failing_condition"],
+                999,
+            ),
+            row["failing_condition"],
+        )
+    )
+
+    assert_write_path(REJECTION_FILE)
+
+    pd.DataFrame(
+        rows,
+        columns=REJECTION_COLUMNS,
+    ).to_csv(
+        REJECTION_FILE,
+        index=False,
+    )
+
+    _log(
+        f"WROTE: {REJECTION_FILE} | "
+        f"rows={len(rows)} | "
+        f"rejections={sum(rejections.values())}"
     )
 
 
@@ -469,6 +976,7 @@ def validate_market_columns(df, market_type, path):
         "game_id",
         "away_team",
         "home_team",
+        *SECONDARY_SIGNAL_COLUMNS,
     ]
 
     if market_type == "moneyline":
@@ -477,10 +985,14 @@ def validate_market_columns(df, market_type, path):
             "home_dk_moneyline_american",
             "away_dk_moneyline_decimal",
             "home_dk_moneyline_decimal",
+            "odds_source",
+            "moneyline_provider_id",
+            "moneyline_provider_name",
+            "pulled_at",
             "away_model_prob_moneyline",
             "home_model_prob_moneyline",
-            "away_edge_decimal_moneyline",
-            "home_edge_decimal_moneyline",
+            "away_edge_pct_moneyline",
+            "home_edge_pct_moneyline",
             "away_ev_moneyline",
             "home_ev_moneyline",
             "away_kelly_moneyline",
@@ -494,10 +1006,14 @@ def validate_market_columns(df, market_type, path):
             "home_dk_puck_line_american",
             "away_dk_puck_line_decimal",
             "home_dk_puck_line_decimal",
+            "odds_source",
+            "puck_line_provider_id",
+            "puck_line_provider_name",
+            "pulled_at",
             "away_model_prob_puck_line",
             "home_model_prob_puck_line",
-            "away_edge_decimal_puck_line",
-            "home_edge_decimal_puck_line",
+            "away_edge_pct_puck_line",
+            "home_edge_pct_puck_line",
             "away_ev_puck_line",
             "home_ev_puck_line",
             "away_kelly_puck_line",
@@ -510,10 +1026,14 @@ def validate_market_columns(df, market_type, path):
             "dk_total_under_american",
             "dk_total_over_decimal",
             "dk_total_under_decimal",
+            "odds_source",
+            "total_provider_id",
+            "total_provider_name",
+            "pulled_at",
             "over_model_prob_total",
             "under_model_prob_total",
-            "over_edge_decimal_total",
-            "under_edge_decimal_total",
+            "over_edge_pct_total",
+            "under_edge_pct_total",
             "over_ev_total",
             "under_ev_total",
             "over_kelly_total",
@@ -540,7 +1060,7 @@ def row_for_game(df, game_id, market_type):
     return match.iloc[0]
 
 
-def process_slate(slate_key, paths, config):
+def process_slate(slate_key, paths, config, rejections):
     _log(f"--- SLATE: {slate_key}")
 
     ml_path = paths.get("moneyline")
@@ -582,13 +1102,34 @@ def process_slate(slate_key, paths, config):
         td_row = row_for_game(td_df, game_id, "total")
 
         if ml_row is not None:
-            final_rows.extend(process_moneyline(ml_row, config, slate_key))
+            final_rows.extend(
+                process_moneyline(
+                    ml_row,
+                    config,
+                    slate_key,
+                    rejections,
+                )
+            )
 
         if pl_row is not None:
-            final_rows.extend(process_puck_line(pl_row, config, slate_key))
+            final_rows.extend(
+                process_puck_line(
+                    pl_row,
+                    config,
+                    slate_key,
+                    rejections,
+                )
+            )
 
         if td_row is not None:
-            final_rows.extend(process_total(td_row, config, slate_key))
+            final_rows.extend(
+                process_total(
+                    td_row,
+                    config,
+                    slate_key,
+                    rejections,
+                )
+            )
 
     out_path = OUTPUT_DIR / f"{slate_key}_NHL.csv"
     assert_write_path(out_path)
@@ -662,17 +1203,28 @@ def main():
         _log(f"OUTPUT_DIR: {OUTPUT_DIR}")
         _log(f"CONFIG_PATH: {CONFIG_PATH}")
         _log(f"LOG_FILE: {LOG_FILE}")
+        _log(f"REJECTION_FILE: {REJECTION_FILE}")
 
         wipe_outputs()
+        reset_rejection_file()
 
         slates = find_slates()
         _log(f"Slates found: {len(slates)}")
 
         summary_rows = []
+        rejections = {}
 
         for slate_key in sorted(slates):
-            summary_rows.append(process_slate(slate_key, slates[slate_key], config))
+            summary_rows.append(
+                process_slate(
+                    slate_key,
+                    slates[slate_key],
+                    config,
+                    rejections,
+                )
+            )
 
+        write_rejections(rejections)
         write_summary(summary_rows)
 
         print("hockey_select_bets complete.")
