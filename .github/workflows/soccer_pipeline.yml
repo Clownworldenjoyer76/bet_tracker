@@ -47,9 +47,9 @@ jobs:
           mkdir -p docs/win/soccer/00_intake/predictions/normalized
           mkdir -p docs/win/soccer/00_intake/sportsbook
           mkdir -p docs/win/soccer/00_intake/sportsbook/normalized
+          mkdir -p docs/win/soccer/00_intake/games
           mkdir -p docs/win/soccer/mappings/no_map
 
-          mkdir -p docs/win/soccer/01_merge/01_merguiced
           mkdir -p docs/win/soccer/errors/01_merge
 
           mkdir -p docs/win/soccer/02_juice
@@ -59,6 +59,7 @@ jobs:
           mkdir -p docs/win/soccer/errors/03_edges
 
           mkdir -p docs/win/soccer/04_select
+          mkdir -p docs/win/soccer/04_select/locked
           mkdir -p docs/win/soccer/errors/04_select
 
           mkdir -p docs/win/soccer/05_final_scores/intermediate
@@ -66,7 +67,10 @@ jobs:
           mkdir -p docs/win/soccer/05_final_scores/results/final_scores_dirty
           mkdir -p docs/win/soccer/05_final_scores/results/final_scores
           mkdir -p docs/win/soccer/05_final_scores/results/graded
+          mkdir -p docs/win/soccer/05_final_scores/results/graded_locked
           mkdir -p docs/win/soccer/05_final_scores/deeper_summaries/soccer
+          mkdir -p docs/win/soccer/05_final_scores/model_evaluation
+          mkdir -p docs/win/soccer/05_final_scores/locked_evaluation
 
           touch docs/win/soccer/05_final_scores/soccer_market_tally.csv
 
@@ -180,7 +184,6 @@ jobs:
           probe "public_scoreboard_page" \
             "https://www.espn.com/soccer/scoreboard/_/league/usa.1/date/${DATE_COMPACT}"
 
-          # Inspect the successful CDN payload without assuming ESPN's nesting.
           python - "${CDN_SCOREBOARD}" "${LOG}" "${DIAG_DIR}/selected_event.env" <<'PY'
           import json
           import sys
@@ -255,7 +258,6 @@ jobs:
 
           walk(payload)
 
-          # De-duplicate event objects that can appear in multiple CDN branches.
           unique = {}
           for path, event in event_candidates:
               event_id = str(event.get("id") or "").strip()
@@ -381,6 +383,9 @@ jobs:
       - name: Normalize soccer names
         run: python docs/win/soccer/scripts/00_intake/name_normalization.py
 
+      - name: Build soccer games master
+        run: python docs/win/soccer/scripts/00_intake/build_games_master.py
+
       - name: Normalize sportsbook and predictions
         run: python docs/win/soccer/scripts/00_intake/soccer_cleaner.py
 
@@ -389,9 +394,6 @@ jobs:
       # -------------------------
       - name: Soccer merge intake
         run: python docs/win/soccer/scripts/01_merge/merge_intake.py
-
-      - name: Soccer build juice files
-        run: python docs/win/soccer/scripts/01_merge/build_juice_files.py
 
       - name: Soccer juice
         run: python docs/win/soccer/scripts/02_juice/apply_juice.py
@@ -402,7 +404,7 @@ jobs:
       - name: Soccer select
         run: python docs/win/soccer/scripts/04_select/soccer_select_bets.py
 
-      # Selection files are the game_id source for this step, so run it after select.
+      # Master games files are the game_id source for this step.
       - name: Add game IDs to soccer final scores
         run: python docs/win/soccer/scripts/00_intake/soccer_add_game_id.py
 
@@ -418,6 +420,15 @@ jobs:
       - name: Run soccer results reports
         run: python docs/win/soccer/scripts/05_final_scores/03_soccer_results_reports.py
 
+      # -------------------------
+      # ALL-MATCH MODEL EVALUATION
+      # -------------------------
+      - name: Run soccer model grade
+        run: python docs/win/soccer/scripts/05_final_scores/04_soccer_model_grade.py
+
+      - name: Run soccer model reports
+        run: python docs/win/soccer/scripts/05_final_scores/05_soccer_model_reports.py
+
       - name: Show key soccer outputs and logs
         run: |
           echo "=== Raw sportsbook CSVs ==="
@@ -426,6 +437,18 @@ jobs:
 
           echo "=== Normalized sportsbook CSVs ==="
           find docs/win/soccer/00_intake/sportsbook/normalized \
+            -maxdepth 1 -type f -name "*.csv" -print | sort || true
+
+          echo "=== Locked soccer picks ==="
+          find docs/win/soccer/04_select/locked \
+            -maxdepth 1 -type f -name "*_soccer_bets.csv" -print | sort || true
+
+          echo "=== Locked forward evaluation outputs ==="
+          find docs/win/soccer/05_final_scores/locked_evaluation \
+            -maxdepth 1 -type f -name "*.csv" -print | sort || true
+
+          echo "=== Model evaluation outputs ==="
+          find docs/win/soccer/05_final_scores/model_evaluation \
             -maxdepth 1 -type f -name "*.csv" -print | sort || true
 
           echo "=== ESPN diagnostic ==="
@@ -442,6 +465,12 @@ jobs:
           cat docs/win/soccer/05_final_scores/errors/soccer_results_analyze_errors.txt || true
           cat docs/win/soccer/05_final_scores/errors/soccer_results_reports_summary.txt || true
           cat docs/win/soccer/05_final_scores/errors/soccer_results_reports_errors.txt || true
+
+          echo "=== Model evaluation logs ==="
+          cat docs/win/soccer/05_final_scores/errors/soccer_model_grade_summary.txt || true
+          cat docs/win/soccer/05_final_scores/errors/soccer_model_grade_errors.txt || true
+          cat docs/win/soccer/05_final_scores/errors/soccer_model_reports_summary.txt || true
+          cat docs/win/soccer/05_final_scores/errors/soccer_model_reports_errors.txt || true
 
       # -------------------------
       # ONE FINAL REPO WRITE
