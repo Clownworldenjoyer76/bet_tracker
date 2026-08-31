@@ -1,6 +1,6 @@
 # MLB Run Model Comparison
 
-- Generated: `2026-08-31T13:34:13.231946+00:00`
+- Generated: `2026-08-31T16:48:36.116041+00:00`
 - Untouched chronological test period: `2026-08-05` through `2026-08-30`
 - Test games: `170`
 - Model fitting/tuning performed by this evaluation script: `NO`
