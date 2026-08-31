@@ -1,31 +1,60 @@
 BASKETBALL DAILY STATUS
 =======================
-generated_at_utc: 2026-08-31T22:33:02Z
+generated_at_utc: 2026-08-31T23:45:56Z
 game_date_new_york: 2026_08_31
-github_run_id: 33446666397
+github_run_id: 33451915949
 github_run_attempt: 1
-workflow_status: failure
+workflow_status: success
 
 SEASON STATUS
 -------------
 nba: offseason
 ncaam: offseason
-wnba: offseason
+wnba: in_season
 
 SUMMARY
 -------
-txt_files_checked_this_run: 1
-txt_files_with_issues: 0
-txt_issue_lines: 0
-txt_issue_lines_suppressed_offseason: 3
+txt_files_checked_this_run: 26
+txt_files_with_issues: 5
+txt_issue_lines: 16
+txt_issue_lines_suppressed_offseason: 24
 no_map_teams: 0
 no_map_teams_suppressed_offseason: 0
-system_issues: 2
+system_issues: 0
 overall: ISSUES FOUND
 
 CURRENT-RUN TXT ISSUES
 ----------------------
-None
+[docs/win/basketball/errors/00_intake/calculate_rolling_bias.txt]
+run_change: REWRITTEN
+14:2026-08-31T23:45:51+00:00 | INFO  | WNBA | READY_WITH_WARNINGS | margin=-0.875 total=5.198 warnings=2
+
+[docs/win/basketball/errors/03_edges/compute_ev_kelly.txt]
+run_change: REWRITTEN
+11:2026-08-31T23:45:52.218274+00:00 | WARN  | INPUT FOLDER MISSING: /tmp/basketball_ev_0e4ky0tj/input/wnba/moneyline
+12:2026-08-31T23:45:52.218298+00:00 | WARN  | INPUT FOLDER MISSING: /tmp/basketball_ev_0e4ky0tj/input/wnba/spread
+13:2026-08-31T23:45:52.218322+00:00 | WARN  | INPUT FOLDER MISSING: /tmp/basketball_ev_0e4ky0tj/input/wnba/total
+
+[docs/win/basketball/errors/04_select/select_bets.txt]
+run_change: REWRITTEN
+17:2026-08-31T23:45:52.575986+00:00 | WARN  | INPUT FOLDER MISSING: /tmp/basketball_select_ij4g97_o/input/wnba/moneyline
+18:2026-08-31T23:45:52.576010+00:00 | WARN  | INPUT FOLDER MISSING: /tmp/basketball_select_ij4g97_o/input/wnba/spread
+19:2026-08-31T23:45:52.576033+00:00 | WARN  | INPUT FOLDER MISSING: /tmp/basketball_select_ij4g97_o/input/wnba/total
+
+[docs/win/basketball/errors/pipeline_health.txt]
+run_change: REWRITTEN
+9:WNBA drift 25: games=25 margin=0.8864 total=2.0112 warning=True
+10:WNBA drift 50: games=50 margin=0.9094 total=3.0388 warning=True
+12:WARN: WNBA 25-game residual drift exceeds 2.0: margin=0.886, total=2.011
+13:WARN: WNBA 50-game residual drift exceeds 2.0: margin=0.909, total=3.039
+
+[docs/win/basketball/errors/wnba_bias_drift.txt]
+run_change: REWRITTEN
+6:window_25: games=25 margin_mean_residual=0.8864 total_mean_residual=2.0112 warning=True
+7:window_50: games=50 margin_mean_residual=0.9094 total_mean_residual=3.0388 warning=True
+9:WARN: WNBA 25-game residual drift exceeds 2.0: margin=0.886, total=2.011
+10:WARN: WNBA 50-game residual drift exceeds 2.0: margin=0.909, total=3.039
+11:STATUS: WARNING
 
 NO-MAP TEAMS
 ------------
@@ -33,9 +62,5 @@ None
 
 SYSTEM ISSUES
 -------------
-[docs/win/basketball/config/season_dates.yaml]
-ERROR: season date config is invalid.
-
-[GITHUB WORKFLOW]
-ERROR: workflow status before daily-status generation is failure.
+None
 
