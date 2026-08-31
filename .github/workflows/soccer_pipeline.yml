@@ -34,11 +34,10 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
+      - name: Install Soccer dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt
-          python -m pip install pandas
+          python -m pip install -r docs/win/soccer/requirements.txt
 
       - name: Create soccer directories
         run: |
@@ -202,14 +201,19 @@ jobs:
               with log_path.open("a", encoding="utf-8") as log:
                   log.write("[cdn_structure]\n")
                   log.write(f"parse_error={type(exc).__name__}: {exc}\n\n")
-              env_path.write_text("EVENT_ID=\nCOMPETITION_ID=\n", encoding="utf-8")
+              env_path.write_text(
+                  "EVENT_ID=\nCOMPETITION_ID=\n",
+                  encoding="utf-8",
+              )
               raise SystemExit(0)
 
           def walk(value, path="$"):
               if isinstance(value, dict):
                   events = value.get("events")
                   if isinstance(events, list):
-                      event_list_paths.append((f"{path}.events", len(events)))
+                      event_list_paths.append(
+                          (f"{path}.events", len(events))
+                      )
 
                   competitions = value.get("competitions")
                   if (
@@ -221,6 +225,7 @@ jobs:
 
                   for key, child in value.items():
                       walk(child, f"{path}.{key}")
+
               elif isinstance(value, list):
                   for index, child in enumerate(value):
                       walk(child, f"{path}[{index}]")
@@ -228,6 +233,7 @@ jobs:
           def teams(event):
               home = ""
               away = ""
+
               competitions = event.get("competitions")
               if not isinstance(competitions, list) or not competitions:
                   return home, away
@@ -239,9 +245,11 @@ jobs:
               for competitor in competition.get("competitors") or []:
                   if not isinstance(competitor, dict):
                       continue
+
                   team = competitor.get("team")
                   if not isinstance(team, dict):
                       team = {}
+
                   name = (
                       team.get("displayName")
                       or team.get("shortDisplayName")
@@ -249,18 +257,25 @@ jobs:
                       or competitor.get("displayName")
                       or ""
                   )
-                  side = str(competitor.get("homeAway") or "").lower()
+
+                  side = str(
+                      competitor.get("homeAway") or ""
+                  ).lower()
+
                   if side == "home":
                       home = str(name)
                   elif side == "away":
                       away = str(name)
+
               return home, away
 
           walk(payload)
 
           unique = {}
+
           for path, event in event_candidates:
               event_id = str(event.get("id") or "").strip()
+
               if event_id and event_id not in unique:
                   unique[event_id] = (path, event)
 
@@ -269,41 +284,93 @@ jobs:
 
           with log_path.open("a", encoding="utf-8") as log:
               log.write("[cdn_structure]\n")
+
               if isinstance(payload, dict):
-                  log.write("top_level_keys=" + ",".join(map(str, payload.keys())) + "\n")
+                  log.write(
+                      "top_level_keys="
+                      + ",".join(map(str, payload.keys()))
+                      + "\n"
+                  )
               else:
-                  log.write(f"top_level_type={type(payload).__name__}\n")
+                  log.write(
+                      f"top_level_type={type(payload).__name__}\n"
+                  )
 
-              log.write(f"event_list_paths_found={len(event_list_paths)}\n")
+              log.write(
+                  f"event_list_paths_found={len(event_list_paths)}\n"
+              )
+
               for path, count in event_list_paths[:25]:
-                  log.write(f"event_list_path={path} count={count}\n")
+                  log.write(
+                      f"event_list_path={path} count={count}\n"
+                  )
 
-              log.write(f"event_candidates_found={len(unique)}\n")
-              for idx, (event_id, (path, event)) in enumerate(list(unique.items())[:15], start=1):
+              log.write(
+                  f"event_candidates_found={len(unique)}\n"
+              )
+
+              for idx, (
+                  event_id,
+                  (path, event),
+              ) in enumerate(
+                  list(unique.items())[:15],
+                  start=1,
+              ):
                   competitions = event.get("competitions") or []
                   competition_id = ""
-                  if competitions and isinstance(competitions[0], dict):
-                      competition_id = str(competitions[0].get("id") or "")
+
+                  if (
+                      competitions
+                      and isinstance(competitions[0], dict)
+                  ):
+                      competition_id = str(
+                          competitions[0].get("id") or ""
+                      )
+
                   home, away = teams(event)
+
                   log.write(
-                      f"event_{idx}=id:{event_id} competition:{competition_id} "
-                      f"date:{event.get('date', '')} home:{home} away:{away} path:{path}\n"
+                      f"event_{idx}=id:{event_id} "
+                      f"competition:{competition_id} "
+                      f"date:{event.get('date', '')} "
+                      f"home:{home} away:{away} "
+                      f"path:{path}\n"
                   )
 
               if unique:
-                  selected_id, (_, selected_event) = next(iter(unique.items()))
-                  competitions = selected_event.get("competitions") or []
-                  if competitions and isinstance(competitions[0], dict):
-                      selected_competition_id = str(competitions[0].get("id") or "")
-                  log.write(f"selected_event_id={selected_id}\n")
-                  log.write(f"selected_competition_id={selected_competition_id}\n")
+                  selected_id, (
+                      _,
+                      selected_event,
+                  ) = next(iter(unique.items()))
+
+                  competitions = (
+                      selected_event.get("competitions") or []
+                  )
+
+                  if (
+                      competitions
+                      and isinstance(competitions[0], dict)
+                  ):
+                      selected_competition_id = str(
+                          competitions[0].get("id") or ""
+                      )
+
+                  log.write(
+                      f"selected_event_id={selected_id}\n"
+                  )
+                  log.write(
+                      "selected_competition_id="
+                      f"{selected_competition_id}\n"
+                  )
               else:
                   log.write("selected_event_id=\n")
                   log.write("selected_competition_id=\n")
+
               log.write("\n")
 
           env_path.write_text(
-              f"EVENT_ID={selected_id}\nCOMPETITION_ID={selected_competition_id}\n",
+              f"EVENT_ID={selected_id}\n"
+              f"COMPETITION_ID={selected_competition_id}\n",
               encoding="utf-8",
           )
           PY
@@ -350,6 +417,7 @@ jobs:
           fi
 
           cat "${LOG}"
+
           {
             echo '### ESPN endpoint diagnostic'
             echo '```text'
@@ -364,9 +432,11 @@ jobs:
         shell: bash
         run: |
           args=(--verbose)
+
           if [[ -n "${RUN_DATE}" ]]; then
             args+=(--date "${RUN_DATE}")
           fi
+
           python docs/win/soccer/scripts/00_intake/soccer_odds.py "${args[@]}"
 
       - name: Upload ESPN diagnostic bundle
