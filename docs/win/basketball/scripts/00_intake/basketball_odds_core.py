@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# docs/win/basketball/scripts/00_intake/basketball_odds.py
+# docs/win/basketball/scripts/00_intake/basketball_odds_core.py
 
 import csv
 import json
@@ -13,6 +13,10 @@ from zoneinfo import ZoneInfo
 
 NY_TZ = ZoneInfo("America/New_York")
 UTC_TZ = ZoneInfo("UTC")
+
+SNAPSHOT_ROOT = Path(
+    "docs/win/basketball/00_intake/sportsbook_snapshots"
+)
 
 LEAGUES = {
     "nba": {
@@ -44,6 +48,9 @@ FIELDNAMES = [
     "game_date",
     "game_id",
     "odds_last_update",
+    "sportsbook_provider",
+    "scraped_at_utc",
+    "provider_updated_at_utc",
     "game_time",
     "home_team",
     "away_team",
@@ -64,14 +71,35 @@ FIELDNAMES = [
     "dk_total_under_decimal",
 ]
 
-ODDS_FIELDS = FIELDNAMES[8:]
+ODDS_FIELDS = [
+    "home_spread",
+    "away_spread",
+    "total",
+    "home_dk_moneyline_american",
+    "away_dk_moneyline_american",
+    "home_dk_spread_american",
+    "away_dk_spread_american",
+    "dk_total_over_american",
+    "dk_total_under_american",
+    "home_dk_moneyline_decimal",
+    "away_dk_moneyline_decimal",
+    "home_dk_spread_decimal",
+    "away_dk_spread_decimal",
+    "dk_total_over_decimal",
+    "dk_total_under_decimal",
+]
+
+DRAFTKINGS_PROVIDER_NAME = "DraftKings"
+DRAFTKINGS_PROVIDER_IDS = {"41"}
 
 ERROR_DIR = Path("docs/win/basketball/errors/00_intake")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE = ERROR_DIR / "basketball_odds.txt"
 
-for cfg in LEAGUES.values():
+for league, cfg in LEAGUES.items():
     cfg["output_dir"].mkdir(parents=True, exist_ok=True)
+    cfg["snapshot_dir"] = SNAPSHOT_ROOT / league
+    cfg["snapshot_dir"].mkdir(parents=True, exist_ok=True)
 
 with open(LOG_FILE, "w", encoding="utf-8") as f:
     f.write(f"=== basketball_odds RUN {datetime.now().isoformat()} ===\n")
@@ -173,12 +201,6 @@ def parse_espn_datetime(value: str) -> datetime:
     )
 
 
-def current_run_timestamp() -> str:
-    return datetime.now(UTC_TZ).strftime(
-        "%Y-%m-%dT%H:%M:%SZ"
-    )
-
-
 def parse_update_timestamp(value) -> datetime:
     if is_blank(value):
         return datetime.min.replace(tzinfo=UTC_TZ)
@@ -195,6 +217,103 @@ def parse_update_timestamp(value) -> datetime:
 
     except ValueError:
         return datetime.min.replace(tzinfo=UTC_TZ)
+
+
+def normalize_utc_timestamp(value) -> str:
+    if is_blank(value):
+        return ""
+
+    try:
+        parsed = datetime.fromisoformat(
+            str(value).replace("Z", "+00:00")
+        )
+    except (TypeError, ValueError):
+        return ""
+
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=UTC_TZ)
+
+    return parsed.astimezone(UTC_TZ).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    )
+
+
+def provider_name_from_odds(
+    odds: dict | None,
+) -> str:
+    if not isinstance(odds, dict):
+        return ""
+
+    provider = odds.get("provider") or {}
+
+    if not isinstance(provider, dict):
+        return ""
+
+    return clean_text(
+        provider.get("name")
+    )
+
+
+def is_draftkings_odds(
+    odds: dict | None,
+) -> bool:
+    if not isinstance(odds, dict):
+        return False
+
+    provider = odds.get("provider") or {}
+
+    if not isinstance(provider, dict):
+        return False
+
+    provider_name = clean_text(
+        provider.get("name")
+    ).casefold()
+
+    provider_id = clean_text(
+        provider.get("id")
+    )
+
+    return (
+        provider_name == "draftkings"
+        or provider_id in DRAFTKINGS_PROVIDER_IDS
+    )
+
+
+def provider_updated_at_utc(
+    odds: dict | None,
+) -> str:
+    """
+    Return an ESPN-supplied odds update timestamp when one is present.
+
+    ESPN payloads are not guaranteed to expose a provider update time, so
+    only explicit update/modified timestamp fields are considered. The field
+    remains blank when ESPN does not provide one.
+    """
+    if not isinstance(odds, dict):
+        return ""
+
+    candidates = [
+        odds.get("lastUpdated"),
+        odds.get("lastUpdatedDate"),
+        odds.get("updatedAt"),
+        odds.get("updateDate"),
+        odds.get("lastModified"),
+        nested_get(odds, "current", "lastUpdated"),
+        nested_get(odds, "current", "lastUpdatedDate"),
+        nested_get(odds, "current", "updatedAt"),
+        nested_get(odds, "current", "updateDate"),
+        nested_get(odds, "current", "lastModified"),
+    ]
+
+    for value in candidates:
+        normalized = normalize_utc_timestamp(
+            value
+        )
+
+        if normalized:
+            return normalized
+
+    return ""
 
 
 def scoreboard_url(
@@ -253,6 +372,12 @@ def fetch_current_odds(
     event_id: str,
     competition_id: str,
 ) -> dict | None:
+    """
+    Return DraftKings odds only.
+
+    A non-DraftKings provider must never be written into *_dk_* columns.
+    If DraftKings is not present in ESPN's provider list, return None.
+    """
     payload = get_json(
         core_odds_url(
             espn_slug,
@@ -266,18 +391,32 @@ def fetch_current_odds(
     if not isinstance(items, list) or not items:
         return None
 
-    for item in items:
-        provider = item.get("provider") or {}
+    available_providers = []
 
-        if (
-            clean_text(
-                provider.get("name")
-            ).lower()
-            == "draftkings"
-        ):
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+
+        provider_name = provider_name_from_odds(
+            item
+        )
+
+        if provider_name:
+            available_providers.append(
+                provider_name
+            )
+
+        if is_draftkings_odds(item):
             return item
 
-    return items[0]
+    log(
+        f"NO DRAFTKINGS PROVIDER: "
+        f"event_id={event_id} "
+        f"available_providers="
+        f"{available_providers or ['unknown']}"
+    )
+
+    return None
 
 
 def get_competition(
@@ -441,6 +580,30 @@ def build_row(
             odds,
             "away",
         )
+    )
+
+    if odds is not None and not is_draftkings_odds(
+        odds
+    ):
+        raise ValueError(
+            "Non-DraftKings odds reached build_row; "
+            "refusing to write them into *_dk_* columns"
+        )
+
+    sportsbook_provider = (
+        provider_name_from_odds(
+            odds
+        )
+        if odds is not None
+        else ""
+    )
+
+    provider_update = (
+        provider_updated_at_utc(
+            odds
+        )
+        if odds is not None
+        else ""
     )
 
     odds = odds or {}
@@ -623,6 +786,9 @@ def build_row(
         "game_date": game_date,
         "game_id": event_id,
         "odds_last_update": "",
+        "sportsbook_provider": "",
+        "scraped_at_utc": "",
+        "provider_updated_at_utc": "",
         "game_time": game_time,
         "home_team": home_team,
         "away_team": away_team,
@@ -686,8 +852,25 @@ def build_row(
     }
 
     if has_odds_values(row):
-        row["odds_last_update"] = (
+        row["sportsbook_provider"] = (
+            sportsbook_provider
+            or DRAFTKINGS_PROVIDER_NAME
+        )
+
+        row["scraped_at_utc"] = (
             run_timestamp
+        )
+
+        row["provider_updated_at_utc"] = (
+            provider_update
+        )
+
+        # Legacy compatibility: downstream code already uses odds_last_update
+        # to choose the newest row. Prefer ESPN's provider timestamp when
+        # available; otherwise use the actual scrape time.
+        row["odds_last_update"] = (
+            provider_update
+            or run_timestamp
         )
 
     return row
@@ -911,6 +1094,54 @@ def write_file(
     return len(rows)
 
 
+def write_snapshot_file(
+    snapshot_dir: Path,
+    league_label: str,
+    snapshot_id: str,
+    rows: list[dict],
+) -> tuple[Path | None, int]:
+    """
+    Write one immutable odds snapshot for this league/run.
+
+    Existing snapshot files are never opened for update, merge, consolidation,
+    deletion, or overwrite. Exclusive-create mode makes a filename collision
+    fatal instead of silently replacing historical observations.
+    """
+    if not rows:
+        return None, 0
+
+    snapshot_dir.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    path = (
+        snapshot_dir
+        / f"{snapshot_id}_{league_label}_odds_snapshot.csv"
+    )
+
+    with open(
+        path,
+        "x",
+        newline="",
+        encoding="utf-8",
+    ) as csvfile:
+        writer = csv.DictWriter(
+            csvfile,
+            fieldnames=FIELDNAMES,
+            extrasaction="ignore",
+        )
+
+        writer.writeheader()
+
+        writer.writerows(
+            normalize_row(row)
+            for row in rows
+        )
+
+    return path, len(rows)
+
+
 def scoreboard_dates(
     start_dt: datetime,
     end_dt: datetime,
@@ -940,17 +1171,27 @@ def main():
         days=7
     )
 
-    run_timestamp = (
-        current_run_timestamp()
+    run_utc_dt = datetime.now(
+        UTC_TZ
+    )
+
+    run_timestamp = run_utc_dt.strftime(
+        "%Y-%m-%dT%H:%M:%S.%fZ"
+    )
+
+    snapshot_id = run_utc_dt.strftime(
+        "%Y%m%dT%H%M%S%fZ"
     )
 
     files_written = []
+    snapshots_written = []
+    total_snapshot_rows = 0
     total_events_found = 0
     total_new_games = 0
     total_updated_games = 0
     total_completed_skipped = 0
     total_outside_window_skipped = 0
-    total_no_odds = 0
+    total_no_dk_odds = 0
     total_errors = 0
 
     try:
@@ -966,6 +1207,12 @@ def main():
             output_dir = (
                 cfg["output_dir"]
             )
+
+            snapshot_dir = (
+                cfg["snapshot_dir"]
+            )
+
+            snapshot_rows = []
 
             (
                 file_rows,
@@ -1131,10 +1378,10 @@ def main():
                         )
 
                     if odds is None:
-                        total_no_odds += 1
+                        total_no_dk_odds += 1
 
                         log(
-                            f"NO ODDS: "
+                            f"NO DRAFTKINGS ODDS: "
                             f"{league_label} "
                             f"{event_id} "
                             f"{event_name}"
@@ -1166,6 +1413,15 @@ def main():
                     if new_row is None:
                         total_errors += 1
                         continue
+
+                    if has_odds_values(
+                        new_row
+                    ):
+                        snapshot_rows.append(
+                            normalize_row(
+                                new_row
+                            )
+                        )
 
                     existing = (
                         existing_index.get(
@@ -1236,6 +1492,33 @@ def main():
 
                     total_new_games += 1
 
+            snapshot_path, snapshot_count = (
+                write_snapshot_file(
+                    snapshot_dir,
+                    league_label,
+                    snapshot_id,
+                    snapshot_rows,
+                )
+            )
+
+            if snapshot_path is not None:
+                snapshots_written.append(
+                    (
+                        str(snapshot_path),
+                        snapshot_count,
+                    )
+                )
+
+                total_snapshot_rows += (
+                    snapshot_count
+                )
+
+                log(
+                    f"WROTE IMMUTABLE SNAPSHOT "
+                    f"{snapshot_path} "
+                    f"({snapshot_count} observations)"
+                )
+
             for path in sorted(
                 changed_paths
             ):
@@ -1291,12 +1574,20 @@ def main():
             f"{total_outside_window_skipped}"
         )
         log(
-            f"Games without odds: "
-            f"{total_no_odds}"
+            f"Games without DraftKings odds: "
+            f"{total_no_dk_odds}"
         )
         log(
-            f"Files written: "
+            f"Latest-state files written: "
             f"{len(files_written)}"
+        )
+        log(
+            f"Immutable snapshot files written: "
+            f"{len(snapshots_written)}"
+        )
+        log(
+            f"Immutable snapshot observations: "
+            f"{total_snapshot_rows}"
         )
         log(
             f"Errors: "
@@ -1305,8 +1596,14 @@ def main():
 
         for path, count in files_written:
             log(
-                f"FILE: {path} "
+                f"LATEST FILE: {path} "
                 f"({count} games)"
+            )
+
+        for path, count in snapshots_written:
+            log(
+                f"SNAPSHOT FILE: {path} "
+                f"({count} observations)"
             )
 
         log("STATUS: SUCCESS")
@@ -1333,8 +1630,18 @@ def main():
         )
 
         print(
-            f"Files written: "
+            f"Latest-state files written: "
             f"{len(files_written)}"
+        )
+
+        print(
+            f"Immutable snapshot files written: "
+            f"{len(snapshots_written)}"
+        )
+
+        print(
+            f"Immutable snapshot observations: "
+            f"{total_snapshot_rows}"
         )
 
         if total_errors:

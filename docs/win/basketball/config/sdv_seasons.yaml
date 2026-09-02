@@ -1,0 +1,47 @@
+# SportsDataVerse season-ID translation.
+#
+# Internal NBA/NCAAM season files use the season START year:
+#   2025_NBA.csv   -> 2025-26 season -> SDV 2026
+#   2025_NCAAM.csv -> 2025-26 season -> SDV 2026
+#
+# Internal WNBA season files use the calendar year:
+#   2026_WNBA.csv -> 2026 season -> SDV 2026
+#
+# Mapping policy is explicit_only:
+# - Never pass an internal season directly to SportsDataVerse.
+# - Every supported internal season must have an explicit mapping below.
+# - Missing mappings are fatal so a new season cannot silently query the wrong SDV year.
+
+schema_version: 1
+mapping_policy: explicit_only
+
+leagues:
+  nba:
+    status: active
+    internal_season_definition: start_year
+    sdv_season_definition: end_year
+    mappings:
+      2023: 2024
+      2024: 2025
+      2025: 2026
+      2026: 2027
+
+  ncaam:
+    status: active
+    internal_season_definition: start_year
+    sdv_season_definition: end_year
+    mappings:
+      2023: 2024
+      2024: 2025
+      2025: 2026
+      2026: 2027
+
+  wnba:
+    status: active
+    internal_season_definition: calendar_year
+    sdv_season_definition: calendar_year
+    mappings:
+      2023: 2023
+      2024: 2024
+      2025: 2025
+      2026: 2026
