@@ -136,16 +136,10 @@ BUCKETS = [
         None,
     ),
     (
-        "model_prob_bucket",
-        "model_prob_sort",
-        "model_prob",
-        None,
-    ),
-    (
         "win_prob_bucket",
         "win_prob_sort",
         "win_prob",
-        None,
+        {"match_odds"},
     ),
 ]
 
@@ -428,7 +422,6 @@ def safe_read_intermediate(
                 "ev_bucket": str,
                 "kelly_bucket": str,
                 "odds_bucket": str,
-                "model_prob_bucket": str,
                 "win_prob_bucket": str,
             },
         )

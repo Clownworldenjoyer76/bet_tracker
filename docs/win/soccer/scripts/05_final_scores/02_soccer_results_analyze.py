@@ -9,8 +9,6 @@
 #   kelly_bucket
 #   odds_bucket        American odds buckets, converted from decimal odds
 #   month_bucket
-#   selected_model_prob
-#   model_prob_bucket
 #   selected_win_prob
 #   win_prob_bucket
 #
@@ -53,7 +51,7 @@ WORK_FILE    = INTERMEDIATE_DIR / "work_soccer.csv"
 REQUIRED_COLUMNS = [
     "game_id", "sport", "league", "match_date", "match_time",
     "home_team", "away_team",
-    "market", "side", "odds", "ev", "kelly", "model_prob",
+    "market", "side", "odds", "ev", "kelly",
     "game_date", "league_lower", "market_type", "take_bet",
     "odds_american", "edge_pct",
     "home_score", "away_score", "bet_result",
@@ -154,10 +152,6 @@ def ev_bucket(v):
 
 def kelly_bucket(v):
     return step_bucket(v, 0.05, 2)
-
-
-def model_prob_bucket(v):
-    return step_bucket(v, 0.10, 1)
 
 
 def win_prob_bucket(v):
@@ -275,15 +269,8 @@ def load_match_odds_edges(game_date: str, league_lower: str) -> pd.DataFrame:
 
 def attach_win_prob(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
+    df["selected_win_prob"] = pd.NA
 
-    # For BTTS/totals, model_prob is the selected side's engine probability,
-    # so use it directly as the selected side's win probability.
-    df["selected_win_prob"] = pd.to_numeric(
-        df["selected_model_prob"],
-        errors="coerce",
-    )
-
-    # For 1X2, preserve the existing explicit engine-probability join.
     is_match_odds = df["market_type"].astype(str).str.lower().eq("match_odds")
 
     if not is_match_odds.any():
@@ -355,7 +342,6 @@ def prepare() -> None:
 
     df["selected_ev"] = pd.to_numeric(df["ev"], errors="coerce")
     df["selected_kelly"] = pd.to_numeric(df["kelly"], errors="coerce")
-    df["selected_model_prob"] = pd.to_numeric(df["model_prob"], errors="coerce")
     df["selected_odds_decimal"] = pd.to_numeric(df["odds"], errors="coerce")
 
     df["home_score"] = pd.to_numeric(df["home_score"], errors="coerce")
@@ -372,7 +358,6 @@ def prepare() -> None:
 
     ev_b = df["selected_ev"].apply(ev_bucket)
     kel_b = df["selected_kelly"].apply(kelly_bucket)
-    mp_b = df["selected_model_prob"].apply(model_prob_bucket)
     odd_b = df["selected_odds_american"].apply(odds_bucket_from_american)
     mon_b = df["match_date"].apply(month_bucket)
 
@@ -381,9 +366,6 @@ def prepare() -> None:
 
     df["kelly_bucket"] = kel_b.apply(lambda t: t[0])
     df["kelly_sort"] = kel_b.apply(lambda t: t[1])
-
-    df["model_prob_bucket"] = mp_b.apply(lambda t: t[0])
-    df["model_prob_sort"] = mp_b.apply(lambda t: t[1])
 
     df["odds_bucket"] = odd_b.apply(lambda t: t[0])
     df["odds_sort"] = odd_b.apply(lambda t: t[1])
@@ -406,12 +388,11 @@ def prepare() -> None:
     log_summary(f"bet_result counts: {df['bet_result'].value_counts(dropna=False).to_dict()}")
     log_summary(f"ev_bucket nunique: {df['ev_bucket'].nunique()}")
     log_summary(f"kelly_bucket nunique: {df['kelly_bucket'].nunique()}")
-    log_summary(f"model_prob_bucket counts: {df['model_prob_bucket'].value_counts(dropna=False).to_dict()}")
     log_summary(f"odds_bucket counts: {df['odds_bucket'].value_counts(dropna=False).to_dict()}")
     log_summary(f"month_bucket counts: {df['month_bucket'].value_counts(dropna=False).to_dict()}")
     log_summary(
-        f"win_prob_bucket counts (all markets): "
-        f"{df['win_prob_bucket'].value_counts(dropna=False).to_dict()}"
+        f"win_prob_bucket counts (match_odds only): "
+        f"{df.loc[df['market_type'] == 'match_odds', 'win_prob_bucket'].value_counts(dropna=False).to_dict()}"
     )
 
 

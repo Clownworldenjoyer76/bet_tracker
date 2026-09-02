@@ -39,20 +39,6 @@ signal_relationships:
 
 markets:
   soccer:
-  
-#     selection_mode
-#        * all_qualifying
-#        * pick_one (convention; any value other than all_qualifying currently behaves this way)
-#    * pick_preference.metric
-#       * ev
-#       * kelly
-#       * model_prob
-#       * edge
-#       * odds
-#       * american_odds
-#    * pick_preference.direction
-#       * max
-#       * min
 
 ########################################################################################################################
 ## bundesliga
@@ -62,8 +48,8 @@ markets:
 
       match_odds:
         enabled: true
-        selection_mode: pick_one
-        pick_preference: { metric: model_prob, direction: max }
+        selection_mode: all_qualifying
+        pick_preference: { metric: ev, direction: max }
 
         home:
           enabled: true
@@ -101,8 +87,8 @@ markets:
 
       btts:
         enabled: true
-        selection_mode: pick_one
-        pick_preference: { metric: model_prob, direction: max }
+        selection_mode: all_qualifying
+        pick_preference: { metric: ev, direction: max }
 
         "yes":
           enabled: true
@@ -116,7 +102,7 @@ markets:
           exclude_days_of_week: []
 
         "no":
-          enabled: true
+          enabled: false
           odds_bands: [[1.0, 1000.0]]
           american_odds_bands: [[-100000, -101], [100, 100000]]
           ev_bands: [[0.0, 10.0]]
@@ -129,8 +115,8 @@ markets:
 
       total25:
         enabled: true
-        selection_mode: pick_one
-        pick_preference: { metric: model_prob, direction: max }
+        selection_mode: all_qualifying
+        pick_preference: { metric: ev, direction: max }
 
         over:
           enabled: true
@@ -157,8 +143,8 @@ markets:
 
       total35:
         enabled: true
-        selection_mode: pick_one
-        pick_preference: { metric: model_prob, direction: max }
+        selection_mode: all_qualifying
+        pick_preference: { metric: ev, direction: max }
 
         over:
           enabled: true
@@ -190,8 +176,8 @@ markets:
 
       match_odds:
         enabled: true
-        selection_mode: pick_one
-        pick_preference: { metric: model_prob, direction: max }
+        selection_mode: all_qualifying
+        pick_preference: { metric: ev, direction: max }
 
         home:
           enabled: true
@@ -229,11 +215,11 @@ markets:
 
       btts:
         enabled: true
-        selection_mode: pick_one
-        pick_preference: { metric: model_prob, direction: max }
+        selection_mode: all_qualifying
+        pick_preference: { metric: ev, direction: max }
 
         "yes":
-          enabled: true
+          enabled: false
           odds_bands: [[1.0, 1000.0]]
           american_odds_bands: [[-100000, 250]]
           ev_bands: [[0.0, 10.0]]
@@ -257,8 +243,8 @@ markets:
 
       total25:
         enabled: true
-        selection_mode: pick_one
-        pick_preference: { metric: model_prob, direction: max }
+        selection_mode: all_qualifying
+        pick_preference: { metric: ev, direction: max }
 
         over:
           enabled: true
@@ -285,8 +271,8 @@ markets:
 
       total35:
         enabled: true
-        selection_mode: pick_one
-        pick_preference: { metric: model_prob, direction: max }
+        selection_mode: all_qualifying
+        pick_preference: { metric: ev, direction: max }
 
         over:
           enabled: true
@@ -318,8 +304,8 @@ markets:
 
       match_odds:
         enabled: true
-        selection_mode: pick_one
-        pick_preference: { metric: model_prob, direction: max }
+        selection_mode: all_qualifying
+        pick_preference: { metric: ev, direction: max }
 
         home:
           enabled: true
@@ -357,8 +343,8 @@ markets:
 
       btts:
         enabled: true
-        selection_mode: pick_one
-        pick_preference: { metric: model_prob, direction: max }
+        selection_mode: all_qualifying
+        pick_preference: { metric: ev, direction: max }
 
         "yes":
           enabled: true
@@ -385,8 +371,8 @@ markets:
 
       total25:
         enabled: true
-        selection_mode: pick_one
-        pick_preference: { metric: model_prob, direction: max }
+        selection_mode: all_qualifying
+        pick_preference: { metric: ev, direction: max }
 
         over:
           enabled: true
@@ -413,11 +399,11 @@ markets:
 
       total35:
         enabled: true
-        selection_mode: pick_one
-        pick_preference: { metric: model_prob, direction: max }
+        selection_mode: all_qualifying
+        pick_preference: { metric: ev, direction: max }
 
         over:
-          enabled: true
+          enabled: false
           odds_bands: [[1.0, 1000.0]]
           american_odds_bands: [[-100000, -101], [100, 100000]]
           ev_bands: [[0.0, 10.0]]
@@ -446,8 +432,8 @@ markets:
 
       match_odds:
         enabled: true
-        selection_mode: pick_one
-        pick_preference: { metric: model_prob, direction: max }
+        selection_mode: all_qualifying
+        pick_preference: { metric: ev, direction: max }
 
         home:
           enabled: true
@@ -485,8 +471,8 @@ markets:
 
       btts:
         enabled: true
-        selection_mode: pick_one
-        pick_preference: { metric: model_prob, direction: max }
+        selection_mode: all_qualifying
+        pick_preference: { metric: ev, direction: max }
 
         "yes":
           enabled: true
@@ -513,8 +499,8 @@ markets:
 
       total25:
         enabled: true
-        selection_mode: pick_one
-        pick_preference: { metric: model_prob, direction: max }
+        selection_mode: all_qualifying
+        pick_preference: { metric: ev, direction: max }
 
         over:
           enabled: true
@@ -541,8 +527,8 @@ markets:
 
       total35:
         enabled: true
-        selection_mode: pick_one
-        pick_preference: { metric: model_prob, direction: max }
+        selection_mode: all_qualifying
+        pick_preference: { metric: ev, direction: max }
 
         over:
           enabled: true
@@ -575,7 +561,13 @@ markets:
       match_odds:
         enabled: true
         selection_mode: pick_one
-        pick_preference: { metric: model_prob, direction: max }
+        pick_preference: { metric: ev, direction: max }
+        ml_filter:
+          enabled: true
+          predictability_column: ml_1x2_predictability
+          min_predictability: 0.5
+          skip_prob_column: ml_1x2_skip_prob
+          reject_skip_at_or_above: 0.5
 
         home:
           enabled: true
@@ -613,8 +605,14 @@ markets:
 
       btts:
         enabled: true
-        selection_mode: pick_one
-        pick_preference: { metric: model_prob, direction: max }
+        selection_mode: all_qualifying
+        pick_preference: { metric: ev, direction: max }
+        ml_filter:
+          enabled: true
+          predictability_column: ml_btts_predictability
+          min_predictability: 0.5
+          skip_prob_column: ml_btts_skip_prob
+          reject_skip_at_or_above: 0.5
 
         "yes":
           enabled: true
@@ -641,8 +639,14 @@ markets:
 
       total25:
         enabled: true
-        selection_mode: pick_one
-        pick_preference: { metric: model_prob, direction: max }
+        selection_mode: all_qualifying
+        pick_preference: { metric: ev, direction: max }
+        ml_filter:
+          enabled: true
+          predictability_column: ml_over25_predictability
+          min_predictability: 0.5
+          skip_prob_column: ml_over25_skip_prob
+          reject_skip_at_or_above: 0.5
 
         over:
           enabled: true
@@ -669,8 +673,14 @@ markets:
 
       total35:
         enabled: true
-        selection_mode: pick_one
-        pick_preference: { metric: model_prob, direction: max }
+        selection_mode: all_qualifying
+        pick_preference: { metric: ev, direction: max }
+        ml_filter:
+          enabled: true
+          predictability_column: ml_over35_predictability
+          min_predictability: 0.5
+          skip_prob_column: ml_over35_skip_prob
+          reject_skip_at_or_above: 0.5
 
         over:
           enabled: true
@@ -702,8 +712,8 @@ markets:
 
       match_odds:
         enabled: true
-        selection_mode: pick_one
-        pick_preference: { metric: model_prob, direction: max }
+        selection_mode: all_qualifying
+        pick_preference: { metric: ev, direction: max }
 
         home:
           enabled: true
@@ -741,8 +751,8 @@ markets:
 
       btts:
         enabled: true
-        selection_mode: pick_one
-        pick_preference: { metric: model_prob, direction: max }
+        selection_mode: all_qualifying
+        pick_preference: { metric: ev, direction: max }
 
         "yes":
           enabled: true
@@ -769,8 +779,8 @@ markets:
 
       total25:
         enabled: true
-        selection_mode: pick_one
-        pick_preference: { metric: model_prob, direction: max }
+        selection_mode: all_qualifying
+        pick_preference: { metric: ev, direction: max }
 
         over:
           enabled: true
@@ -797,8 +807,8 @@ markets:
 
       total35:
         enabled: true
-        selection_mode: pick_one
-        pick_preference: { metric: model_prob, direction: max }
+        selection_mode: all_qualifying
+        pick_preference: { metric: ev, direction: max }
 
         over:
           enabled: true
