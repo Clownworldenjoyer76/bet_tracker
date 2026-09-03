@@ -590,12 +590,20 @@ def parse_filename(name: str):
     return m.group(1), m.group(2), market_type
 
 
-def build_match_odds_sides(row, game_date, cfg):
+def build_match_odds_sides(row, game_date, cfg, league):
     sides = []
     for side in ("home", "draw", "away"):
         scfg = cfg.get(side)
         if not scfg or not scfg.get("enabled", True):
             continue
+        side_ml_cfg = scfg.get("ml_filter")
+        side_ml_enabled = isinstance(side_ml_cfg, dict) and side_ml_cfg.get("enabled", False)
+        side_ml_pass, side_ml_meta = passes_ml_filter(
+            row, league, f"match_odds.{side}", scfg
+        )
+        if not side_ml_pass:
+            continue
+        side_ml_extra = side_ml_meta if side_ml_enabled else {}
         validate_match_odds_provenance(row, side)
         odds = fv(row.get(f"dk_{side}_decimal"))
         ev = fv(row.get(f"{side}_ev"))
@@ -629,6 +637,7 @@ def build_match_odds_sides(row, game_date, cfg):
                     edge_prob=fv(row.get(f"{side}_edge_prob")),
                     edge_prob_source=str(row.get(f"{side}_edge_prob_source")).strip(),
                     edge_fair_odds=fv(row.get(f"{side}_edge_fair_decimal")),
+                    **side_ml_extra,
                 )
             )
         else:
@@ -756,7 +765,7 @@ def process_file(file: Path):
             continue
 
         if market_type == "match_odds":
-            sides = build_match_odds_sides(row, game_date, cfg)
+            sides = build_match_odds_sides(row, game_date, cfg, league_key)
         elif market_type == "btts":
             sides = build_btts_sides(row, game_date, cfg)
         elif market_type == "total25":
@@ -804,10 +813,10 @@ def process_file(file: Path):
                 "edge": sel["edge"],
                 "model_prob_source": sel.get("model_prob_source"),
                 "model_prob_underlying_source": sel.get("model_prob_underlying_source"),
-                "ml_predictability": ml_meta["ml_predictability"],
-                "ml_predictability_source": ml_meta["ml_predictability_source"],
-                "ml_skip_prob": ml_meta["ml_skip_prob"],
-                "ml_skip_prob_source": ml_meta["ml_skip_prob_source"],
+                "ml_predictability": sel.get("ml_predictability", ml_meta["ml_predictability"]),
+                "ml_predictability_source": sel.get("ml_predictability_source", ml_meta["ml_predictability_source"]),
+                "ml_skip_prob": sel.get("ml_skip_prob", ml_meta["ml_skip_prob"]),
+                "ml_skip_prob_source": sel.get("ml_skip_prob_source", ml_meta["ml_skip_prob_source"]),
                 "selection_period": selection_period(game_date),
             }
             if market_type == "match_odds":
