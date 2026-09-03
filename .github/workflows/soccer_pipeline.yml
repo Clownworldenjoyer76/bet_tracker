@@ -23,6 +23,7 @@ jobs:
       TZ: America/New_York
       RUN_DATE: ${{ inputs.date }}
       EPL_MODEL_ROOT: docs/win/soccer/ml/epl
+      BUNDESLIGA_MODEL_ROOT: docs/win/soccer/ml/bundesliga
 
     steps:
       - name: Checkout repo
@@ -414,8 +415,8 @@ jobs:
             joblib==1.5.3 \
             scikit-learn==1.9.0 \
             lightgbm==4.6.0 \
-            xgboost==3.4.1
-
+            xgboost==3.4.1 \
+            catboost==1.2.10
       - name: EPL ML inference
         shell: bash
         run: |
@@ -426,6 +427,15 @@ jobs:
             --date "${RUN_DATE}" \
             2>&1 | tee docs/win/soccer/errors/01_merge/epl_ml_infer.txt
 
+      - name: Bundesliga ML inference
+        shell: bash
+        run: |
+          set -o pipefail
+          python docs/win/soccer/scripts/01_merge/bundesliga_ml_infer.py \
+            --soccer-root docs/win/soccer \
+            --bundesliga-root "${BUNDESLIGA_MODEL_ROOT}" \
+            --date "${RUN_DATE}" \
+            2>&1 | tee docs/win/soccer/errors/01_merge/bundesliga_ml_infer.txt
       # Restore the pipeline's existing Python version/dependencies after EPL inference.
       - name: Restore Python 3.11
         uses: actions/setup-python@v5
@@ -497,6 +507,8 @@ jobs:
 
           echo "=== EPL ML inference log ==="
           cat docs/win/soccer/errors/01_merge/epl_ml_infer.txt || true
+          echo "=== Bundesliga ML inference log ==="
+          cat docs/win/soccer/errors/01_merge/bundesliga_ml_infer.txt || true
 
           echo "=== Final score logs ==="
           cat docs/win/soccer/05_final_scores/errors/soccer_results_grade_summary.txt || true
