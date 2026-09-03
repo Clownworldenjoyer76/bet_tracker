@@ -85,7 +85,7 @@ jobs:
         run: echo "DATE=$(TZ='America/New_York' date +%Y_%m_%d)" >> "$GITHUB_ENV"
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
@@ -93,6 +93,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r docs/win/basketball/requirements.txt
+          python -m pip install PyYAML
           playwright install-deps chromium
           playwright install chromium
 
@@ -840,7 +841,7 @@ jobs:
 
       - name: Upload basketball logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: basketball-pipeline-logs
           path: docs/win/basketball/errors/
