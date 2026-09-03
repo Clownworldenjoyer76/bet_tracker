@@ -1,31 +1,73 @@
 BASKETBALL DAILY STATUS
 =======================
-generated_at_utc: 2026-09-03T14:26:10Z
+generated_at_utc: 2026-09-03T15:31:43Z
 game_date_new_york: 2026_09_03
-github_run_id: 33766721314
+github_run_id: 33772762970
 github_run_attempt: 1
-workflow_status: failure
+workflow_status: success
 
 SEASON STATUS
 -------------
 nba: offseason
 ncaam: offseason
-wnba: offseason
+wnba: in_season
 
 SUMMARY
 -------
-txt_files_checked_this_run: 1
-txt_files_with_issues: 0
-txt_issue_lines: 0
-txt_issue_lines_suppressed_offseason: 7
+txt_files_checked_this_run: 29
+txt_files_with_issues: 6
+txt_issue_lines: 26
+txt_issue_lines_suppressed_offseason: 24
 no_map_teams: 0
 no_map_teams_suppressed_offseason: 0
-system_issues: 2
+system_issues: 0
 overall: ISSUES FOUND
 
 CURRENT-RUN TXT ISSUES
 ----------------------
-None
+[docs/win/basketball/errors/00_intake/calculate_rolling_bias.txt]
+run_change: REWRITTEN
+15:2026-09-03T15:31:36+00:00 | INFO  | WNBA | READY_WITH_WARNINGS | margin=-5.413 total=-3.978 warnings=15
+
+[docs/win/basketball/errors/00_intake/clean_basketball_inputs_wnba.txt]
+run_change: REWRITTEN
+228:2026-09-03T15:31:36.934425 | WARN | Historical raw prediction has no existing cleaned copy; not applying current bias retroactively: docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_08_21_WNBA_predictions.csv
+229:2026-09-03T15:31:36.934465 | WARN | Historical raw prediction has no existing cleaned copy; not applying current bias retroactively: docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_08_22_WNBA_predictions.csv
+230:2026-09-03T15:31:36.934504 | WARN | Historical raw prediction has no existing cleaned copy; not applying current bias retroactively: docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_08_23_WNBA_predictions.csv
+231:2026-09-03T15:31:36.934540 | WARN | Historical raw prediction has no existing cleaned copy; not applying current bias retroactively: docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_08_24_WNBA_predictions.csv
+232:2026-09-03T15:31:36.934576 | WARN | Historical raw prediction has no existing cleaned copy; not applying current bias retroactively: docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_08_25_WNBA_predictions.csv
+233:2026-09-03T15:31:36.934611 | WARN | Historical raw prediction has no existing cleaned copy; not applying current bias retroactively: docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_08_26_WNBA_predictions.csv
+
+[docs/win/basketball/errors/03_edges/compute_ev_kelly.txt]
+run_change: REWRITTEN
+11:2026-09-03T15:31:38.114129+00:00 | WARN  | INPUT FOLDER MISSING: /tmp/basketball_ev_g1902aak/input/wnba/moneyline
+12:2026-09-03T15:31:38.114160+00:00 | WARN  | INPUT FOLDER MISSING: /tmp/basketball_ev_g1902aak/input/wnba/spread
+13:2026-09-03T15:31:38.114190+00:00 | WARN  | INPUT FOLDER MISSING: /tmp/basketball_ev_g1902aak/input/wnba/total
+
+[docs/win/basketball/errors/04_select/select_bets.txt]
+run_change: REWRITTEN
+17:2026-09-03T15:31:38.562500+00:00 | WARN  | INPUT FOLDER MISSING: /tmp/basketball_select_ll01n31b/input/wnba/moneyline
+18:2026-09-03T15:31:38.562531+00:00 | WARN  | INPUT FOLDER MISSING: /tmp/basketball_select_ll01n31b/input/wnba/spread
+19:2026-09-03T15:31:38.562561+00:00 | WARN  | INPUT FOLDER MISSING: /tmp/basketball_select_ll01n31b/input/wnba/total
+
+[docs/win/basketball/errors/pipeline_health.txt]
+run_change: REWRITTEN
+17:WNBA drift 25: games=25 margin=0.6776 total=7.5376 warning=True
+18:WNBA drift 50: games=50 margin=-1.8492 total=3.1428 warning=True
+19:WNBA drift 100: games=100 margin=-0.4136 total=-3.0596 warning=True
+20:WARN: WNBA 25-game residual drift exceeds 2.0: margin=0.678, total=7.538
+21:WARN: WNBA 50-game residual drift exceeds 2.0: margin=-1.849, total=3.143
+22:WARN: WNBA 100-game residual drift exceeds 2.0: margin=-0.414, total=-3.060
+
+[docs/win/basketball/errors/wnba_bias_drift.txt]
+run_change: REWRITTEN
+6:window_25: games=25 margin_mean_residual=0.6776 total_mean_residual=7.5376 warning=True
+7:window_50: games=50 margin_mean_residual=-1.8492 total_mean_residual=3.1428 warning=True
+8:window_100: games=100 margin_mean_residual=-0.4136 total_mean_residual=-3.0596 warning=True
+9:WARN: WNBA 25-game residual drift exceeds 2.0: margin=0.678, total=7.538
+10:WARN: WNBA 50-game residual drift exceeds 2.0: margin=-1.849, total=3.143
+11:WARN: WNBA 100-game residual drift exceeds 2.0: margin=-0.414, total=-3.060
+12:STATUS: WARNING
 
 NO-MAP TEAMS
 ------------
@@ -33,9 +75,5 @@ None
 
 SYSTEM ISSUES
 -------------
-[docs/win/basketball/config/season_dates.yaml]
-ERROR: season date config is invalid.
-
-[GITHUB WORKFLOW]
-ERROR: workflow status before daily-status generation is failure.
+None
 
