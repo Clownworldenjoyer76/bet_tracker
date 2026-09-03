@@ -1,95 +1,95 @@
-=== clean_basketball_inputs RUN 2026-09-03T16:29:03.861841 ===
-2026-09-03T16:29:03.862307 | INFO | Starting basketball input cleanup
-2026-09-03T16:29:03.862342 | INFO | Model config: docs/win/basketball/config/model_config.yaml
-2026-09-03T16:29:03.862366 | INFO | Dynamic bias state: docs/win/basketball/config/rolling_bias_state.yaml
-2026-09-03T16:29:03.862386 | INFO | Odds cleanup active: blanks only the affected market; does not drop entire games
-2026-09-03T16:29:03.862406 | INFO | Missing market odds are treated as unavailable market, not bad game
-2026-09-03T16:29:03.862431 | INFO | Hold-based odds filtering removed
-2026-09-03T16:29:03.862459 | INFO | Spread outlier fix active: sportsbook home_spread is converted to model-margin convention using -home_spread
-2026-09-03T16:29:03.862481 | INFO | Outlier cleanup active: blanks only affected sportsbook market fields; prediction rows are retained
-2026-09-03T16:29:03.862501 | INFO | Historical cleaned predictions are preserved; current dynamic bias is only applied to current/future raw predictions
-2026-09-03T16:29:03.862538 | INFO | League logs: {'NBA': PosixPath('docs/win/basketball/errors/00_intake/clean_basketball_inputs_nba.txt'), 'NCAAM': PosixPath('docs/win/basketball/errors/00_intake/clean_basketball_inputs_ncaam.txt'), 'WNBA': PosixPath('docs/win/basketball/errors/00_intake/clean_basketball_inputs_wnba.txt')}
-2026-09-03T16:29:03.870428 | INFO | Production prediction source: ensemble
-2026-09-03T16:29:03.901578 | LOADED | predictions_files=100 sportsbook_files=100
-2026-09-03T16:29:03.946553 | 
-2026-09-03T16:29:03.946573 | ============================================================
-2026-09-03T16:29:03.946591 | SUMMARY
-2026-09-03T16:29:03.946610 | ============================================================
-2026-09-03T16:29:03.946629 | 
-2026-09-03T16:29:03.946648 | --- NBA ---
-2026-09-03T16:29:03.946667 | prediction_files_loaded              : 0
-2026-09-03T16:29:03.946686 | sportsbook_files_loaded              : 0
-2026-09-03T16:29:03.946705 | bad_ml_market_rows_blanked           : 0
-2026-09-03T16:29:03.946723 | bad_total_market_rows_blanked        : 0
-2026-09-03T16:29:03.946742 | bad_spread_market_rows_blanked       : 0
-2026-09-03T16:29:03.946760 | bad_odds_market_rows_blanked_total   : 0
-2026-09-03T16:29:03.946778 | bad_total_line_rows_blanked          : 0
-2026-09-03T16:29:03.946796 | bad_spread_line_rows_blanked         : 0
-2026-09-03T16:29:03.946815 | bad_line_rows_blanked_total          : 0
-2026-09-03T16:29:03.946833 | spread_outlier_events_found          : 0
-2026-09-03T16:29:03.946851 | total_outlier_events_found           : 0
-2026-09-03T16:29:03.946869 | sportsbook_outlier_market_rows_blanked: 0
-2026-09-03T16:29:03.946903 | historical_cleaned_files_preserved   : 0
-2026-09-03T16:29:03.946929 | historical_raw_missing_cleaned_skipped: 0
-2026-09-03T16:29:03.946951 | prediction_rows_removed              : 0
-2026-09-03T16:29:03.946974 | sportsbook_rows_removed              : 0
-2026-09-03T16:29:03.946999 | bias_files_with_adjusted_rows        : 0
-2026-09-03T16:29:03.947018 | bias_rows_adjusted                   : 0
-2026-09-03T16:29:03.947037 | prediction_files_written             : 0
-2026-09-03T16:29:03.947056 | prediction_rows_written              : 0
-2026-09-03T16:29:03.947074 | sportsbook_files_written             : 0
-2026-09-03T16:29:03.947092 | sportsbook_rows_written              : 0
-2026-09-03T16:29:03.947112 | league_detail_log                    : docs/win/basketball/errors/00_intake/clean_basketball_inputs_nba.txt
-2026-09-03T16:29:03.947132 | 
-2026-09-03T16:29:03.947151 | --- NCAAM ---
-2026-09-03T16:29:03.947169 | prediction_files_loaded              : 0
-2026-09-03T16:29:03.947188 | sportsbook_files_loaded              : 0
-2026-09-03T16:29:03.947206 | bad_ml_market_rows_blanked           : 0
-2026-09-03T16:29:03.947225 | bad_total_market_rows_blanked        : 0
-2026-09-03T16:29:03.947243 | bad_spread_market_rows_blanked       : 0
-2026-09-03T16:29:03.947261 | bad_odds_market_rows_blanked_total   : 0
-2026-09-03T16:29:03.947280 | bad_total_line_rows_blanked          : 0
-2026-09-03T16:29:03.947304 | bad_spread_line_rows_blanked         : 0
-2026-09-03T16:29:03.947322 | bad_line_rows_blanked_total          : 0
-2026-09-03T16:29:03.947339 | spread_outlier_events_found          : 0
-2026-09-03T16:29:03.947356 | total_outlier_events_found           : 0
-2026-09-03T16:29:03.947373 | sportsbook_outlier_market_rows_blanked: 0
-2026-09-03T16:29:03.947391 | historical_cleaned_files_preserved   : 0
-2026-09-03T16:29:03.947409 | historical_raw_missing_cleaned_skipped: 0
-2026-09-03T16:29:03.947426 | prediction_rows_removed              : 0
-2026-09-03T16:29:03.947443 | sportsbook_rows_removed              : 0
-2026-09-03T16:29:03.947460 | bias_files_with_adjusted_rows        : 0
-2026-09-03T16:29:03.947478 | bias_rows_adjusted                   : 0
-2026-09-03T16:29:03.947495 | prediction_files_written             : 0
-2026-09-03T16:29:03.947512 | prediction_rows_written              : 0
-2026-09-03T16:29:03.947529 | sportsbook_files_written             : 0
-2026-09-03T16:29:03.947547 | sportsbook_rows_written              : 0
-2026-09-03T16:29:03.947564 | league_detail_log                    : docs/win/basketball/errors/00_intake/clean_basketball_inputs_ncaam.txt
-2026-09-03T16:29:03.947583 | 
-2026-09-03T16:29:03.947600 | --- WNBA ---
-2026-09-03T16:29:03.947617 | prediction_files_loaded              : 94
-2026-09-03T16:29:03.947635 | sportsbook_files_loaded              : 100
-2026-09-03T16:29:03.947652 | bad_ml_market_rows_blanked           : 26
-2026-09-03T16:29:03.947669 | bad_total_market_rows_blanked        : 25
-2026-09-03T16:29:03.947686 | bad_spread_market_rows_blanked       : 25
-2026-09-03T16:29:03.947703 | bad_odds_market_rows_blanked_total   : 76
-2026-09-03T16:29:03.947720 | bad_total_line_rows_blanked          : 0
-2026-09-03T16:29:03.947738 | bad_spread_line_rows_blanked         : 0
-2026-09-03T16:29:03.947755 | bad_line_rows_blanked_total          : 0
-2026-09-03T16:29:03.947772 | spread_outlier_events_found          : 0
-2026-09-03T16:29:03.947789 | total_outlier_events_found           : 13
-2026-09-03T16:29:03.947806 | sportsbook_outlier_market_rows_blanked: 13
-2026-09-03T16:29:03.947823 | historical_cleaned_files_preserved   : 94
-2026-09-03T16:29:03.947841 | historical_raw_missing_cleaned_skipped: 6
-2026-09-03T16:29:03.947858 | prediction_rows_removed              : 0
-2026-09-03T16:29:03.947875 | sportsbook_rows_removed              : 0
-2026-09-03T16:29:03.947904 | bias_files_with_adjusted_rows        : 0
-2026-09-03T16:29:03.947921 | bias_rows_adjusted                   : 0
-2026-09-03T16:29:03.947939 | prediction_files_written             : 94
-2026-09-03T16:29:03.947956 | prediction_rows_written              : 274
-2026-09-03T16:29:03.947974 | sportsbook_files_written             : 100
-2026-09-03T16:29:03.947991 | sportsbook_rows_written              : 289
-2026-09-03T16:29:03.948008 | league_detail_log                    : docs/win/basketball/errors/00_intake/clean_basketball_inputs_wnba.txt
-2026-09-03T16:29:03.948026 | 
-2026-09-03T16:29:03.948043 | STATUS: SUCCESS
-2026-09-03T16:29:03.948060 | ============================================================
+=== clean_basketball_inputs RUN 2026-09-03T18:28:56.210571 ===
+2026-09-03T18:28:56.211028 | INFO | Starting basketball input cleanup
+2026-09-03T18:28:56.211069 | INFO | Model config: docs/win/basketball/config/model_config.yaml
+2026-09-03T18:28:56.211094 | INFO | Dynamic bias state: docs/win/basketball/config/rolling_bias_state.yaml
+2026-09-03T18:28:56.211114 | INFO | Odds cleanup active: blanks only the affected market; does not drop entire games
+2026-09-03T18:28:56.211134 | INFO | Missing market odds are treated as unavailable market, not bad game
+2026-09-03T18:28:56.211153 | INFO | Hold-based odds filtering removed
+2026-09-03T18:28:56.211172 | INFO | Spread outlier fix active: sportsbook home_spread is converted to model-margin convention using -home_spread
+2026-09-03T18:28:56.211194 | INFO | Outlier cleanup active: blanks only affected sportsbook market fields; prediction rows are retained
+2026-09-03T18:28:56.211214 | INFO | Historical cleaned predictions are preserved; current dynamic bias is only applied to current/future raw predictions
+2026-09-03T18:28:56.211250 | INFO | League logs: {'NBA': PosixPath('docs/win/basketball/errors/00_intake/clean_basketball_inputs_nba.txt'), 'NCAAM': PosixPath('docs/win/basketball/errors/00_intake/clean_basketball_inputs_ncaam.txt'), 'WNBA': PosixPath('docs/win/basketball/errors/00_intake/clean_basketball_inputs_wnba.txt')}
+2026-09-03T18:28:56.219162 | INFO | Production prediction source: ensemble
+2026-09-03T18:28:56.250556 | LOADED | predictions_files=100 sportsbook_files=100
+2026-09-03T18:28:56.292423 | 
+2026-09-03T18:28:56.292442 | ============================================================
+2026-09-03T18:28:56.292461 | SUMMARY
+2026-09-03T18:28:56.292480 | ============================================================
+2026-09-03T18:28:56.292500 | 
+2026-09-03T18:28:56.292519 | --- NBA ---
+2026-09-03T18:28:56.292538 | prediction_files_loaded              : 0
+2026-09-03T18:28:56.292557 | sportsbook_files_loaded              : 0
+2026-09-03T18:28:56.292576 | bad_ml_market_rows_blanked           : 0
+2026-09-03T18:28:56.292595 | bad_total_market_rows_blanked        : 0
+2026-09-03T18:28:56.292613 | bad_spread_market_rows_blanked       : 0
+2026-09-03T18:28:56.292632 | bad_odds_market_rows_blanked_total   : 0
+2026-09-03T18:28:56.292650 | bad_total_line_rows_blanked          : 0
+2026-09-03T18:28:56.292669 | bad_spread_line_rows_blanked         : 0
+2026-09-03T18:28:56.292687 | bad_line_rows_blanked_total          : 0
+2026-09-03T18:28:56.292706 | spread_outlier_events_found          : 0
+2026-09-03T18:28:56.292724 | total_outlier_events_found           : 0
+2026-09-03T18:28:56.292743 | sportsbook_outlier_market_rows_blanked: 0
+2026-09-03T18:28:56.292762 | historical_cleaned_files_preserved   : 0
+2026-09-03T18:28:56.292780 | historical_raw_missing_cleaned_skipped: 0
+2026-09-03T18:28:56.292799 | prediction_rows_removed              : 0
+2026-09-03T18:28:56.292817 | sportsbook_rows_removed              : 0
+2026-09-03T18:28:56.292836 | bias_files_with_adjusted_rows        : 0
+2026-09-03T18:28:56.292855 | bias_rows_adjusted                   : 0
+2026-09-03T18:28:56.292882 | prediction_files_written             : 0
+2026-09-03T18:28:56.292902 | prediction_rows_written              : 0
+2026-09-03T18:28:56.292921 | sportsbook_files_written             : 0
+2026-09-03T18:28:56.292940 | sportsbook_rows_written              : 0
+2026-09-03T18:28:56.292959 | league_detail_log                    : docs/win/basketball/errors/00_intake/clean_basketball_inputs_nba.txt
+2026-09-03T18:28:56.292979 | 
+2026-09-03T18:28:56.292998 | --- NCAAM ---
+2026-09-03T18:28:56.293017 | prediction_files_loaded              : 0
+2026-09-03T18:28:56.293036 | sportsbook_files_loaded              : 0
+2026-09-03T18:28:56.293055 | bad_ml_market_rows_blanked           : 0
+2026-09-03T18:28:56.293073 | bad_total_market_rows_blanked        : 0
+2026-09-03T18:28:56.293092 | bad_spread_market_rows_blanked       : 0
+2026-09-03T18:28:56.293115 | bad_odds_market_rows_blanked_total   : 0
+2026-09-03T18:28:56.293133 | bad_total_line_rows_blanked          : 0
+2026-09-03T18:28:56.293157 | bad_spread_line_rows_blanked         : 0
+2026-09-03T18:28:56.293174 | bad_line_rows_blanked_total          : 0
+2026-09-03T18:28:56.293192 | spread_outlier_events_found          : 0
+2026-09-03T18:28:56.293209 | total_outlier_events_found           : 0
+2026-09-03T18:28:56.293227 | sportsbook_outlier_market_rows_blanked: 0
+2026-09-03T18:28:56.293245 | historical_cleaned_files_preserved   : 0
+2026-09-03T18:28:56.293262 | historical_raw_missing_cleaned_skipped: 0
+2026-09-03T18:28:56.293279 | prediction_rows_removed              : 0
+2026-09-03T18:28:56.293297 | sportsbook_rows_removed              : 0
+2026-09-03T18:28:56.293315 | bias_files_with_adjusted_rows        : 0
+2026-09-03T18:28:56.293332 | bias_rows_adjusted                   : 0
+2026-09-03T18:28:56.293350 | prediction_files_written             : 0
+2026-09-03T18:28:56.293367 | prediction_rows_written              : 0
+2026-09-03T18:28:56.293385 | sportsbook_files_written             : 0
+2026-09-03T18:28:56.293403 | sportsbook_rows_written              : 0
+2026-09-03T18:28:56.293421 | league_detail_log                    : docs/win/basketball/errors/00_intake/clean_basketball_inputs_ncaam.txt
+2026-09-03T18:28:56.293439 | 
+2026-09-03T18:28:56.293457 | --- WNBA ---
+2026-09-03T18:28:56.293475 | prediction_files_loaded              : 94
+2026-09-03T18:28:56.293493 | sportsbook_files_loaded              : 100
+2026-09-03T18:28:56.293510 | bad_ml_market_rows_blanked           : 26
+2026-09-03T18:28:56.293528 | bad_total_market_rows_blanked        : 25
+2026-09-03T18:28:56.293545 | bad_spread_market_rows_blanked       : 25
+2026-09-03T18:28:56.293563 | bad_odds_market_rows_blanked_total   : 76
+2026-09-03T18:28:56.293580 | bad_total_line_rows_blanked          : 0
+2026-09-03T18:28:56.293597 | bad_spread_line_rows_blanked         : 0
+2026-09-03T18:28:56.293615 | bad_line_rows_blanked_total          : 0
+2026-09-03T18:28:56.293632 | spread_outlier_events_found          : 0
+2026-09-03T18:28:56.293650 | total_outlier_events_found           : 13
+2026-09-03T18:28:56.293667 | sportsbook_outlier_market_rows_blanked: 13
+2026-09-03T18:28:56.293685 | historical_cleaned_files_preserved   : 94
+2026-09-03T18:28:56.293703 | historical_raw_missing_cleaned_skipped: 6
+2026-09-03T18:28:56.293720 | prediction_rows_removed              : 0
+2026-09-03T18:28:56.293737 | sportsbook_rows_removed              : 0
+2026-09-03T18:28:56.293755 | bias_files_with_adjusted_rows        : 0
+2026-09-03T18:28:56.293773 | bias_rows_adjusted                   : 0
+2026-09-03T18:28:56.293790 | prediction_files_written             : 94
+2026-09-03T18:28:56.293808 | prediction_rows_written              : 274
+2026-09-03T18:28:56.293826 | sportsbook_files_written             : 100
+2026-09-03T18:28:56.293843 | sportsbook_rows_written              : 289
+2026-09-03T18:28:56.293861 | league_detail_log                    : docs/win/basketball/errors/00_intake/clean_basketball_inputs_wnba.txt
+2026-09-03T18:28:56.293889 | 
+2026-09-03T18:28:56.293907 | STATUS: SUCCESS
+2026-09-03T18:28:56.293925 | ============================================================
