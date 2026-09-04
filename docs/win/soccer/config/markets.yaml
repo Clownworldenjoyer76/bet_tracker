@@ -521,9 +521,9 @@ markets:
 
       match_odds:
         enabled: true
-        selection_mode: all_qualifying
-        pick_preference: { metric: ev, direction: max }
-
+        selection_mode: best
+        pick_preference: { metric: model_prob, direction: max }
+        
         home:
           enabled: true
           ml_filter:
@@ -534,7 +534,7 @@ markets:
             reject_skip_at_or_above: 0.5
           odds_bands: [[1.0, 1000.0]]
           american_odds_bands: [[-100000, 100000]]
-          ev_bands: [[0.30, 0.99]]
+          ev_bands: [[0.0, 10.0]]
           kelly_bands: [[0.0, 10.0]]
           model_prob_bands: [[0.3, 1.0]]
           edge_bands: [[0.0, 10.0]]
@@ -551,7 +551,7 @@ markets:
             reject_skip_at_or_above: 0.5
           odds_bands: [[1.0, 1000.0]]
           american_odds_bands: [[-100000, 100000]]
-          ev_bands: [[0.30, 0.99]]
+          ev_bands: [[0.0, 10.0]]
           kelly_bands: [[0.0, 10.0]]
           model_prob_bands: [[0.3, 1.0]]
           edge_bands: [[0.0, 10.0]]
@@ -568,7 +568,7 @@ markets:
             reject_skip_at_or_above: 0.5
           odds_bands: [[1.0, 1000.0]]
           american_odds_bands: [[-100000, 100000]]
-          ev_bands: [[0.30, 0.99]]
+          ev_bands: [[0.0, 10.0]]
           kelly_bands: [[0.0, 10.0]]
           model_prob_bands: [[0.3, 1.0]]
           edge_bands: [[0.0, 10.0]]
@@ -578,8 +578,8 @@ markets:
 
       btts:
         enabled: true
-        selection_mode: all_qualifying
-        pick_preference: { metric: ev, direction: max }
+        selection_mode: best
+        pick_preference: { metric: model_prob, direction: max }
         ml_filter:
           enabled: true
           predictability_column: ml_btts_predictability
@@ -590,9 +590,9 @@ markets:
         "yes":
           enabled: true
           odds_bands: [[1.0, 1000.0]]
-          american_odds_bands: [[-100000, -101], [100, 100000]]
+          american_odds_bands: [[-100000, 100000]]
           ev_bands: [[0.0, 10.0]]
-          kelly_bands: [[0.05, 10.0]]
+          kelly_bands: [[0.0, 10.0]]
           model_prob_bands: [[0.0, 1.0]]
           edge_bands: []
           months: []
@@ -601,7 +601,7 @@ markets:
         "no":
           enabled: true
           odds_bands: [[1.0, 1000.0]]
-          american_odds_bands: [[-100000, -100]]
+          american_odds_bands: [[-100000, 100000]]
           ev_bands: [[0.0, 10.0]]
           kelly_bands: [[0.0, 10.0]]
           model_prob_bands: [[0.0, 1.0]]
@@ -612,8 +612,8 @@ markets:
 
       total25:
         enabled: true
-        selection_mode: all_qualifying
-        pick_preference: { metric: ev, direction: max }
+        selection_mode: best
+        pick_preference: { metric: model_prob, direction: max }
         ml_filter:
           enabled: true
           predictability_column: ml_over25_predictability
@@ -624,9 +624,9 @@ markets:
         over:
           enabled: true
           odds_bands: [[1.0, 1000.0]]
-          american_odds_bands: [[-100000, -150]]
+          american_odds_bands: [[-100000, 100000]]
           ev_bands: [[0.0, 10.0]]
-          kelly_bands: [[0.05, 10.0]]
+          kelly_bands: [[0.0, 10.0]]
           model_prob_bands: [[0.0, 1.0]]
           edge_bands: []
           months: []
@@ -635,9 +635,9 @@ markets:
         under:
           enabled: true
           odds_bands: [[1.0, 1000.0]]
-          american_odds_bands: [[-100000, -150]]
+          american_odds_bands: [[-100000, 100000]]
           ev_bands: [[0.0, 10.0]]
-          kelly_bands: [[0.05, 10.0]]
+          kelly_bands: [[0.0, 10.0]]
           model_prob_bands: [[0.0, 1.0]]
           edge_bands: []
           months: []
@@ -646,8 +646,8 @@ markets:
 
       total35:
         enabled: true
-        selection_mode: all_qualifying
-        pick_preference: { metric: ev, direction: max }
+        selection_mode: best
+        pick_preference: { metric: model_prob, direction: max }
         ml_filter:
           enabled: true
           predictability_column: ml_over35_predictability
@@ -659,8 +659,8 @@ markets:
           enabled: true
           odds_bands: [[1.0, 1000.0]]
           american_odds_bands: [[-100000, 100000]]
-          ev_bands: [[0.05, 10.0]]
-          kelly_bands: [[0.10, 10.0]]
+          ev_bands: [[0.0, 10.0]]
+          kelly_bands: [[0.0, 10.0]]
           model_prob_bands: [[0.0, 1.0]]
           edge_bands: []
           months: []
@@ -669,8 +669,8 @@ markets:
         under:
           enabled: true
           odds_bands: [[1.0, 1000.0]]
-          american_odds_bands: [[-250, 100000]]
-          ev_bands: [[0.05, 10.0]]
+          american_odds_bands: [[-100000, 100000]]
+          ev_bands: [[0.0, 10.0]]
           kelly_bands: [[0.10, 10.0]]
           model_prob_bands: [[0.0, 1.0]]
           edge_bands: []
