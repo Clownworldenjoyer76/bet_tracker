@@ -4,968 +4,3008 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Injury Impact Tracker · Edgelytics</title>
+
 <link rel="stylesheet" href="assets/css/matstheme.css">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--background); color: var(--text-main); font-family: 'IBM Plex Mono', monospace; font-size: 13px; min-height: 100vh; }
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
-  .page-header { border-bottom: 1px solid var(--border-soft); padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
-  .page-title { font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-green); }
-  .page-subtitle { color: var(--text-muted); font-size: 11px; letter-spacing: 0.06em; margin-top: 2px; line-height: 1.5; }
-  .picks-badge { font-family: 'Barlow Condensed', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.1em; padding: 4px 12px; border: 1px solid var(--border-soft); color: var(--text-muted); text-transform: uppercase; }
-  .picks-badge.loaded { border-color: rgba(0,255,132,0.4); color: var(--accent-green); background: rgba(0,255,132,0.06); }
-  .picks-badge.error  { border-color: rgba(255,68,68,0.4); color: var(--accent-red); }
+body {
+  background: var(--background);
+  color: var(--text-main);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  min-height: 100vh;
+}
 
-  .controls { display: flex; align-items: center; gap: 8px; padding: 12px 24px; border-bottom: 1px solid var(--border-soft); flex-wrap: wrap; position: relative; z-index: 20; }
+/* ── Header ──────────────────────────────────────────────────────────────── */
 
-  .league-pill,
-  .group-pill,
-  .submenu-pill {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    padding: 4px 12px;
-    border: 1px solid var(--border-soft);
-    background: transparent;
-    color: var(--text-muted);
-    cursor: pointer;
-    transition: all 0.15s;
-    text-transform: uppercase;
-    line-height: 1.2;
-    white-space: nowrap;
-  }
+.page-header {
+  border-bottom: 1px solid var(--border-soft);
+  padding: 16px 24px;
+}
 
-  .league-pill:hover,
-  .group-pill:hover,
-  .submenu-pill:hover {
-    border-color: var(--accent-blue);
-    color: var(--accent-blue);
-  }
+.page-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-green);
+}
 
-  .league-pill.active,
-  .group-pill.active,
-  .submenu-pill.active {
-    border-color: var(--accent-green);
-    color: var(--accent-green);
-    background: rgba(0,255,132,0.06);
+.page-subtitle {
+  color: var(--text-muted);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  margin-top: 2px;
+  line-height: 1.5;
+}
+
+/* ── League controls ────────────────────────────────────────────────────── */
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--border-soft);
+  flex-wrap: wrap;
+  position: relative;
+  z-index: 20;
+}
+
+.league-pill,
+.group-pill,
+.submenu-pill {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 4px 12px;
+  border: 1px solid var(--border-soft);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  text-transform: uppercase;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.league-pill:hover,
+.group-pill:hover,
+.submenu-pill:hover {
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+}
+
+.league-pill.active,
+.group-pill.active,
+.submenu-pill.active {
+  border-color: var(--accent-green);
+  color: var(--accent-green);
+  background: rgba(0,255,132,0.06);
+}
+
+.control-group {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.group-pill::after {
+  content: " ▾";
+  color: var(--text-muted);
+  font-size: 10px;
+  letter-spacing: 0;
+}
+
+.group-pill.active::after,
+.group-pill:hover::after {
+  color: var(--accent-green);
+}
+
+.control-group.open .group-pill {
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
+  background: rgba(0,191,255,0.04);
+}
+
+.control-group.open .group-pill.active {
+  border-color: var(--accent-green);
+  color: var(--accent-green);
+  background: rgba(0,255,132,0.06);
+}
+
+.submenu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 190px;
+  display: none;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  background: var(--background);
+  border: 1px solid var(--border-soft);
+  box-shadow: 0 18px 44px rgba(0,0,0,0.45);
+  z-index: 50;
+}
+
+.control-group.open .submenu {
+  display: flex;
+}
+
+.submenu-pill {
+  width: 100%;
+  text-align: left;
+  background: var(--bg-card);
+}
+
+.search-box,
+.status-select {
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  color: var(--text-main);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  padding: 6px 10px;
+  outline: none;
+  color-scheme: dark;
+}
+
+.search-box {
+  margin-left: auto;
+  width: 250px;
+}
+
+.search-box:focus,
+.status-select:focus {
+  border-color: var(--accent-blue);
+}
+
+.search-box::placeholder {
+  color: var(--text-muted);
+}
+
+/* ── Status ─────────────────────────────────────────────────────────────── */
+
+.status-bar {
+  padding: 7px 24px;
+  font-size: 11px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-soft);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.status-bar.loading {
+  color: var(--accent-yellow);
+}
+
+.status-bar.error {
+  color: var(--accent-red);
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.status-dot.green {
+  background: var(--accent-green);
+  box-shadow: 0 0 6px var(--accent-green);
+}
+
+.status-dot.yellow {
+  background: var(--accent-yellow);
+  animation: pulse 1s infinite;
+}
+
+.status-dot.red {
+  background: var(--accent-red);
+}
+
+@keyframes pulse {
+  0%,100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* ── Shared section headings ────────────────────────────────────────────── */
+
+.section-kicker {
+  font-size: 9px;
+  color: var(--accent-green);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.section-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-main);
+}
+
+.section-copy {
+  color: var(--text-muted);
+  font-size: 10px;
+  margin-top: 3px;
+  line-height: 1.5;
+}
+
+/* ── Picks impact section ───────────────────────────────────────────────── */
+
+.impact-wrap {
+  padding: 20px 24px 24px;
+  border-bottom: 1px solid var(--border-soft);
+  background:
+    linear-gradient(
+      180deg,
+      rgba(0,255,132,0.018),
+      transparent 65%
+    );
+}
+
+.summary-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 1px solid var(--border-soft);
+  margin-top: 14px;
+}
+
+.summary-item {
+  padding: 13px 16px;
+  border-right: 1px solid var(--border-soft);
+  min-width: 0;
+}
+
+.summary-item:last-child {
+  border-right: none;
+}
+
+.summary-val {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 27px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.summary-lbl {
+  display: block;
+  margin-top: 5px;
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.val-green { color: var(--accent-green); }
+.val-blue { color: var(--accent-blue); }
+.val-red { color: var(--accent-red); }
+.val-yellow { color: var(--accent-yellow); }
+
+.impact-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.impact-card {
+  border: 1px solid var(--border-soft);
+  background: var(--bg-card);
+  padding: 13px 14px;
+}
+
+.impact-card-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.impact-matchup {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--text-main);
+  letter-spacing: 0.04em;
+}
+
+.impact-league {
+  font-size: 9px;
+  color: var(--accent-green);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-align: right;
+}
+
+.impact-picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 9px 0;
+}
+
+.pick-chip {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--accent-green);
+  border: 1px solid rgba(0,255,132,0.22);
+  background: rgba(0,255,132,0.04);
+  padding: 2px 7px;
+}
+
+.impact-team {
+  margin-top: 9px;
+}
+
+.impact-team-name {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--text-main);
+  margin-bottom: 4px;
+}
+
+.impact-injury-row {
+  display: grid;
+  grid-template-columns:
+    92px
+    minmax(120px, 1fr)
+    42px
+    minmax(90px, 0.8fr);
+  gap: 8px;
+  align-items: center;
+  padding: 5px 0;
+  border-top: 1px solid rgba(255,255,255,0.035);
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.impact-player {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.impact-empty {
+  margin-top: 14px;
+  padding: 18px;
+  border: 1px dashed var(--border-soft);
+  color: var(--text-muted);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ── Status badges ──────────────────────────────────────────────────────── */
+
+.status-badge {
+  display: inline-block;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  padding: 2px 6px;
+  text-transform: uppercase;
+  width: fit-content;
+}
+
+.s-out {
+  background: rgba(255,68,68,0.15);
+  color: var(--accent-red);
+  border: 1px solid rgba(255,68,68,0.3);
+}
+
+.s-doubtful {
+  background: rgba(255,140,0,0.12);
+  color: var(--orange);
+  border: 1px solid rgba(255,140,0,0.3);
+}
+
+.s-questionable,
+.s-day-to-day {
+  background: rgba(250,204,21,0.10);
+  color: var(--accent-yellow);
+  border: 1px solid rgba(250,204,21,0.3);
+}
+
+.s-probable {
+  background: rgba(0,191,255,0.10);
+  color: var(--accent-blue);
+  border: 1px solid rgba(0,191,255,0.25);
+}
+
+.s-other {
+  background: rgba(100,100,100,0.10);
+  color: var(--text-muted);
+  border: 1px solid var(--border-soft);
+}
+
+/* ── Full injury browser ────────────────────────────────────────────────── */
+
+.browser-wrap {
+  padding: 20px 24px 36px;
+}
+
+.browser-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 13px 0 10px;
+  flex-wrap: wrap;
+}
+
+.toolbar-label {
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.result-count {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  border-top: 1px solid var(--border-soft);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+thead tr {
+  border-bottom: 1px solid var(--border-soft);
+}
+
+th {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 7px 10px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+tbody tr {
+  border-bottom: 1px solid var(--border-soft);
+  transition: background 0.1s;
+}
+
+tbody tr:hover {
+  background: var(--bg-card);
+}
+
+td {
+  padding: 7px 10px;
+}
+
+.td-league {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.td-team {
+  color: var(--text-muted);
+  min-width: 150px;
+}
+
+.td-player {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-main);
+  min-width: 150px;
+}
+
+.td-pos {
+  color: var(--text-muted);
+  width: 60px;
+  white-space: nowrap;
+}
+
+.td-injury {
+  color: var(--text-muted);
+  min-width: 140px;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 34px 20px;
+  color: var(--text-muted);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.load-more {
+  display: none;
+  margin: 14px auto 0;
+  padding: 7px 18px;
+  border: 1px solid rgba(0,255,132,0.3);
+  background: transparent;
+  color: var(--accent-green);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.load-more:hover {
+  background: rgba(0,255,132,0.06);
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+
+@media (max-width: 820px) {
+  .controls {
+    align-items: stretch;
   }
 
   .control-group {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
   }
 
-  .group-pill::after {
-    content: " ▾";
-    color: var(--text-muted);
-    font-size: 10px;
-    letter-spacing: 0;
-  }
-
-  .group-pill.active::after,
-  .group-pill:hover::after {
-    color: var(--accent-green);
-  }
-
-  .control-group.open .group-pill {
-    border-color: var(--accent-blue);
-    color: var(--accent-blue);
-    background: rgba(0,191,255,0.04);
-  }
-
-  .control-group.open .group-pill.active {
-    border-color: var(--accent-green);
-    color: var(--accent-green);
-    background: rgba(0,255,132,0.06);
+  .league-pill,
+  .group-pill {
+    width: 100%;
+    text-align: left;
   }
 
   .submenu {
-    position: absolute;
-    top: calc(100% + 6px);
-    left: 0;
-    min-width: 190px;
-    display: none;
-    flex-direction: column;
-    gap: 6px;
-    padding: 8px;
-    background: var(--background);
-    border: 1px solid var(--border-soft);
-    box-shadow: 0 18px 44px rgba(0,0,0,0.45);
-    z-index: 50;
-  }
-
-  .control-group.open .submenu {
-    display: flex;
+    position: static;
+    width: 100%;
+    min-width: 0;
+    margin-top: 6px;
+    box-shadow: none;
+    background: transparent;
   }
 
   .submenu-pill {
+    padding-left: 22px;
+  }
+
+  .search-box {
+    margin-left: 0;
     width: 100%;
-    text-align: left;
-    background: var(--bg-card);
   }
 
-  .search-box { margin-left: auto; background: var(--bg-card); border: 1px solid var(--border-soft); color: var(--text-main); font-family: 'IBM Plex Mono', monospace; font-size: 12px; padding: 5px 10px; width: 220px; outline: none; }
-  .search-box:focus { border-color: var(--accent-blue); }
-  .search-box::placeholder { color: var(--text-muted); }
-
-  .summary-strip { display: flex; border-bottom: 1px solid var(--border-soft); }
-  .summary-item { flex: 1; padding: 14px 24px; border-right: 1px solid var(--border-soft); display: flex; flex-direction: column; gap: 4px; }
-  .summary-item:last-child { border-right: none; }
-  .summary-val { font-family: 'Barlow Condensed', sans-serif; font-size: 28px; font-weight: 900; line-height: 1; }
-  .summary-lbl { font-size: 10px; letter-spacing: 0.12em; color: var(--text-muted); text-transform: uppercase; }
-  .val-red    { color: var(--accent-red); }
-  .val-orange { color: var(--orange); }
-  .val-yellow { color: var(--accent-yellow); }
-  .val-green  { color: var(--accent-green); }
-  .val-blue   { color: var(--accent-blue); }
-
-  .status-bar { padding: 8px 24px; font-size: 11px; color: var(--text-muted); border-bottom: 1px solid var(--border-soft); display: flex; align-items: center; gap: 10px; }
-  .status-bar.loading { color: var(--accent-yellow); }
-  .status-bar.error   { color: var(--accent-red); }
-  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-muted); display: inline-block; flex-shrink: 0; }
-  .status-dot.green  { background: var(--accent-green); box-shadow: 0 0 6px var(--accent-green); }
-  .status-dot.yellow { background: var(--accent-yellow); animation: pulse 1s infinite; }
-  .status-dot.red    { background: var(--accent-red); }
-  @keyframes pulse { 0%,100%{opacity:1;}50%{opacity:0.3;} }
-
-  .picks-panel { border-bottom: 1px solid var(--border-soft); background: var(--bg-card); }
-  .picks-panel-header { padding: 10px 24px; font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.12em; color: var(--text-muted); text-transform: uppercase; cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none; }
-  .picks-panel-header:hover { color: var(--text-main); }
-  .picks-panel-body { padding: 0 24px 14px; display: none; flex-wrap: wrap; gap: 6px; }
-  .picks-panel-body.open { display: flex; }
-  .pick-chip { font-family: 'Barlow Condensed', sans-serif; font-size: 12px; font-weight: 700; padding: 3px 10px; letter-spacing: 0.06em; border: 1px solid var(--border-soft); color: var(--text-muted); }
-
-  .pick-chip.league-NHL { border-color: rgba(0,191,255,0.3); color: var(--accent-blue); background: rgba(0,191,255,0.05); }
-  .pick-chip.league-NBA,
-  .pick-chip.league-WNBA,
-  .pick-chip.league-NCAAM,
-  .pick-chip.league-NCAAB { border-color: rgba(250,204,21,0.3); color: var(--accent-yellow); background: rgba(250,204,21,0.05); }
-  .pick-chip.league-MLB { border-color: rgba(0,255,132,0.3); color: var(--accent-green); background: rgba(0,255,132,0.05); }
-  .pick-chip.league-MLS,
-  .pick-chip.league-EPL,
-  .pick-chip.league-LALIGA,
-  .pick-chip.league-LIGUE1,
-  .pick-chip.league-SERIEA,
-  .pick-chip.league-BUNDESLIGA { border-color: rgba(0,191,255,0.3); color: var(--accent-blue); background: rgba(0,191,255,0.05); }
-  .pick-chip.league-UFC { border-color: rgba(255,68,68,0.3); color: var(--accent-red); background: rgba(255,68,68,0.05); }
-  .pick-chip.league-NFL,
-  .pick-chip.league-CFL,
-  .pick-chip.league-CFB { border-color: rgba(0,255,132,0.3); color: var(--accent-green); background: rgba(0,255,132,0.05); }
-
-  .main { padding: 20px 24px; }
-  .table-wrap { overflow-x: auto; }
-  table { width: 100%; border-collapse: collapse; font-size: 12px; }
-  thead tr { border-bottom: 1px solid var(--border-soft); }
-  th { font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); padding: 6px 10px; text-align: left; white-space: nowrap; cursor: pointer; user-select: none; }
-  th:hover { color: var(--text-main); }
-  th.sort-asc::after  { content: " ^"; color: var(--accent-green); }
-  th.sort-desc::after { content: " v"; color: var(--accent-green); }
-  tbody tr { border-bottom: 1px solid var(--border-soft); transition: background 0.1s; }
-  tbody tr:hover { background: var(--bg-card); }
-  tbody tr.has-pick { background: rgba(0,255,132,0.03); }
-  tbody tr.has-pick:hover { background: rgba(0,255,132,0.07); }
-  td { padding: 7px 10px; white-space: nowrap; }
-  .td-league { font-family: 'Barlow Condensed', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: var(--text-muted); }
-  .td-player { font-family: 'Barlow Condensed', sans-serif; font-size: 14px; font-weight: 700; color: var(--text-main); }
-  .td-team   { color: var(--text-muted); }
-  .td-pos    { color: var(--text-muted); font-size: 11px; }
-  .td-injury { color: var(--text-muted); font-size: 11px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
-  .pick-detail { font-size: 11px; }
-  .pick-detail-inner { display: flex; flex-direction: column; gap: 2px; }
-  .pick-line { font-family: 'Barlow Condensed', sans-serif; font-size: 12px; font-weight: 700; color: var(--accent-green); letter-spacing: 0.06em; }
-  .pick-meta { color: var(--text-muted); font-size: 10px; }
-  .no-pick { color: var(--text-muted); font-size: 11px; }
-  .status-badge { display: inline-block; font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; padding: 2px 7px; text-transform: uppercase; }
-  .s-out      { background: rgba(255,68,68,0.15);   color: var(--accent-red);    border: 1px solid rgba(255,68,68,0.3); }
-  .s-doubtful { background: rgba(255,140,0,0.12);   color: var(--orange);        border: 1px solid rgba(255,140,0,0.3); }
-  .s-gtd      { background: rgba(250,204,21,0.10);  color: var(--accent-yellow); border: 1px solid rgba(250,204,21,0.3); }
-  .s-probable { background: rgba(0,191,255,0.10);   color: var(--accent-blue);   border: 1px solid rgba(0,191,255,0.25); }
-  .s-other    { background: rgba(100,100,100,0.10); color: var(--text-muted);    border: 1px solid var(--border-soft); }
-  .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); font-family: 'Barlow Condensed', sans-serif; font-size: 16px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
-  .section-header-row td { padding: 10px 10px 6px; background: var(--bg-card); border-top: 2px solid var(--border-soft); border-bottom: 1px solid var(--border-soft); }
-  .section-header-cell { font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent-green); }
-  .section-header-row:first-child td { border-top: none; }
-  .section-count { color: var(--text-muted); font-weight: 400; }
-
-  @media (max-width: 760px) {
-    .controls {
-      align-items: stretch;
-    }
-
-    .control-group {
-      width: 100%;
-      flex-direction: column;
-      align-items: stretch;
-    }
-
-    .league-pill,
-    .group-pill {
-      width: 100%;
-      text-align: left;
-    }
-
-    .submenu {
-      position: static;
-      width: 100%;
-      min-width: 0;
-      margin-top: 6px;
-      box-shadow: none;
-      background: transparent;
-    }
-
-    .submenu-pill {
-      padding-left: 22px;
-    }
-
-    .search-box {
-      margin-left: 0;
-      width: 100%;
-    }
-
-    .summary-strip { flex-wrap: wrap; }
-    .summary-item { flex: 1 1 50%; }
+  .summary-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  @media (max-width: 600px) {
-    .page-header,
-    .controls,
-    .status-bar,
-    .main {
-      padding-left: 16px;
-      padding-right: 16px;
-    }
-
-    .summary-item {
-      flex: 1 1 100%;
-      padding-left: 16px;
-      padding-right: 16px;
-      border-right: none;
-      border-bottom: 1px solid var(--border-soft);
-    }
+  .summary-item:nth-child(2) {
+    border-right: none;
   }
+
+  .summary-item:nth-child(-n+2) {
+    border-bottom: 1px solid var(--border-soft);
+  }
+
+  .impact-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .impact-injury-row {
+    grid-template-columns: 90px 1fr 40px;
+  }
+
+  .impact-injury-type {
+    grid-column: 2 / -1;
+  }
+
+  .result-count {
+    width: 100%;
+    margin-left: 0;
+  }
+}
+
+@media (max-width: 600px) {
+  .page-header,
+  .controls,
+  .status-bar,
+  .impact-wrap,
+  .browser-wrap {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .summary-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-item {
+    border-right: none;
+    border-bottom: 1px solid var(--border-soft);
+  }
+
+  .summary-item:last-child {
+    border-bottom: none;
+  }
+}
 </style>
 </head>
+
 <body>
 
 <div id="nav-placeholder"></div>
 
 <div class="page-header">
-  <div>
-    <div class="page-title">Injury Impact Tracker</div>
-    <div class="page-subtitle">INJURY FEED · CROSS-REF TODAY'S PICKS · ALL · FOOTBALL · NHL · MLB · BASKETBALL · SOCCER · UFC</div>
+  <div class="page-title">Injury Impact Tracker</div>
+  <div class="page-subtitle">
+    TODAY'S PICKS FIRST · IMPACT INJURIES · FULL LEAGUE BROWSER
   </div>
-  <div class="picks-badge" id="picks-badge">Loading picks...</div>
 </div>
 
 <div class="controls" id="league-controls">
-  <button type="button" class="league-pill active" data-filter-type="all" data-filter-value="all">All</button>
+
+  <button
+    type="button"
+    class="league-pill active"
+    data-filter-type="all"
+    data-filter-value="all"
+  >All</button>
 
   <div class="control-group" data-group="football">
-    <button type="button" class="group-pill" data-group-toggle="football">Football</button>
+    <button
+      type="button"
+      class="group-pill"
+      data-group-toggle="football"
+    >Football</button>
+
     <div class="submenu">
-      <button type="button" class="submenu-pill" data-filter-type="group" data-filter-value="football">All Football</button>
-      <button type="button" class="submenu-pill" data-filter-type="league" data-filter-value="NFL">NFL</button>
-      <button type="button" class="submenu-pill" data-filter-type="league" data-filter-value="CFB">College Football</button>
-      <button type="button" class="submenu-pill" data-filter-type="league" data-filter-value="CFL">CFL</button>
+      <button
+        type="button"
+        class="submenu-pill"
+        data-filter-type="group"
+        data-filter-value="football"
+      >All Football</button>
+
+      <button
+        type="button"
+        class="submenu-pill"
+        data-filter-type="league"
+        data-filter-value="NFL"
+      >NFL</button>
+
+      <button
+        type="button"
+        class="submenu-pill"
+        data-filter-type="league"
+        data-filter-value="CFB"
+      >College Football</button>
+
+      <button
+        type="button"
+        class="submenu-pill"
+        data-filter-type="league"
+        data-filter-value="CFL"
+      >CFL</button>
     </div>
   </div>
 
-  <button type="button" class="league-pill" data-filter-type="league" data-filter-value="NHL">NHL</button>
-  <button type="button" class="league-pill" data-filter-type="league" data-filter-value="MLB">MLB</button>
+  <button
+    type="button"
+    class="league-pill"
+    data-filter-type="league"
+    data-filter-value="NHL"
+  >NHL</button>
+
+  <button
+    type="button"
+    class="league-pill"
+    data-filter-type="league"
+    data-filter-value="MLB"
+  >MLB</button>
 
   <div class="control-group" data-group="basketball">
-    <button type="button" class="group-pill" data-group-toggle="basketball">Basketball</button>
+    <button
+      type="button"
+      class="group-pill"
+      data-group-toggle="basketball"
+    >Basketball</button>
+
     <div class="submenu">
-      <button type="button" class="submenu-pill" data-filter-type="group" data-filter-value="basketball">All Basketball</button>
-      <button type="button" class="submenu-pill" data-filter-type="league" data-filter-value="NBA">NBA</button>
-      <button type="button" class="submenu-pill" data-filter-type="league" data-filter-value="NCAAM">College Basketball</button>
-      <button type="button" class="submenu-pill" data-filter-type="league" data-filter-value="WNBA">WNBA</button>
+      <button
+        type="button"
+        class="submenu-pill"
+        data-filter-type="group"
+        data-filter-value="basketball"
+      >All Basketball</button>
+
+      <button
+        type="button"
+        class="submenu-pill"
+        data-filter-type="league"
+        data-filter-value="NBA"
+      >NBA</button>
+
+      <button
+        type="button"
+        class="submenu-pill"
+        data-filter-type="league"
+        data-filter-value="NCAAM"
+      >College Basketball</button>
+
+      <button
+        type="button"
+        class="submenu-pill"
+        data-filter-type="league"
+        data-filter-value="WNBA"
+      >WNBA</button>
     </div>
   </div>
 
   <div class="control-group" data-group="soccer">
-    <button type="button" class="group-pill" data-group-toggle="soccer">Soccer</button>
+    <button
+      type="button"
+      class="group-pill"
+      data-group-toggle="soccer"
+    >Soccer</button>
+
     <div class="submenu">
-      <button type="button" class="submenu-pill" data-filter-type="group" data-filter-value="soccer">All Soccer</button>
-      <button type="button" class="submenu-pill" data-filter-type="league" data-filter-value="MLS">MLS</button>
-      <button type="button" class="submenu-pill" data-filter-type="league" data-filter-value="EPL">EPL</button>
-      <button type="button" class="submenu-pill" data-filter-type="league" data-filter-value="LALIGA">La Liga</button>
-      <button type="button" class="submenu-pill" data-filter-type="league" data-filter-value="LIGUE1">Ligue 1</button>
-      <button type="button" class="submenu-pill" data-filter-type="league" data-filter-value="SERIEA">Serie A</button>
-      <button type="button" class="submenu-pill" data-filter-type="league" data-filter-value="BUNDESLIGA">Bundesliga</button>
+      <button
+        type="button"
+        class="submenu-pill"
+        data-filter-type="group"
+        data-filter-value="soccer"
+      >All Soccer</button>
+
+      <button
+        type="button"
+        class="submenu-pill"
+        data-filter-type="league"
+        data-filter-value="MLS"
+      >MLS</button>
+
+      <button
+        type="button"
+        class="submenu-pill"
+        data-filter-type="league"
+        data-filter-value="EPL"
+      >EPL</button>
+
+      <button
+        type="button"
+        class="submenu-pill"
+        data-filter-type="league"
+        data-filter-value="LALIGA"
+      >La Liga</button>
+
+      <button
+        type="button"
+        class="submenu-pill"
+        data-filter-type="league"
+        data-filter-value="LIGUE1"
+      >Ligue 1</button>
+
+      <button
+        type="button"
+        class="submenu-pill"
+        data-filter-type="league"
+        data-filter-value="SERIEA"
+      >Serie A</button>
+
+      <button
+        type="button"
+        class="submenu-pill"
+        data-filter-type="league"
+        data-filter-value="BUNDESLIGA"
+      >Bundesliga</button>
     </div>
   </div>
 
-  <button type="button" class="league-pill" data-filter-type="league" data-filter-value="UFC">UFC</button>
+  <button
+    type="button"
+    class="league-pill"
+    data-filter-type="league"
+    data-filter-value="UFC"
+  >UFC</button>
 
-  <input type="text" class="search-box" id="inj-search" placeholder="Search player or team...">
+  <input
+    type="text"
+    class="search-box"
+    id="inj-search"
+    placeholder="Search player or team..."
+  >
 </div>
 
-<div class="summary-strip">
-  <div class="summary-item"><span class="summary-val val-red"    id="sum-out">—</span><span class="summary-lbl">Out</span></div>
-  <div class="summary-item"><span class="summary-val val-orange" id="sum-dtd">—</span><span class="summary-lbl">Day-To-Day</span></div>
-  <div class="summary-item"><span class="summary-val val-yellow" id="sum-gtd">—</span><span class="summary-lbl">Questionable</span></div>
-  <div class="summary-item"><span class="summary-val val-green"  id="sum-picked">—</span><span class="summary-lbl">On Picked Teams</span></div>
-  <div class="summary-item"><span class="summary-val val-blue"   id="sum-picks-ct">—</span><span class="summary-lbl">Today's Picks</span></div>
-</div>
-
-<div class="status-bar" id="inj-status">
+<div class="status-bar loading" id="inj-status">
   <span class="status-dot yellow" id="status-dot"></span>
-  <span id="status-text">Loading...</span>
+  <span id="status-text">
+    Loading injury feeds and today's picks...
+  </span>
 </div>
 
-<div class="picks-panel" id="picks-panel" style="display:none">
-  <div class="picks-panel-header" id="picks-panel-toggle">
-    <span>TODAY'S PICKS <span id="picks-panel-count"></span></span>
-    <span id="picks-panel-arrow">▼</span>
+<section class="impact-wrap">
+
+  <div class="section-kicker">Priority</div>
+
+  <div class="section-title">
+    Injuries Affecting Today's Picks
   </div>
-  <div class="picks-panel-body" id="picks-panel-body"></div>
-</div>
 
-<div class="main">
+  <div class="section-copy">
+    Only injuries from teams participating in games on today's Picks page
+    are promoted here.
+  </div>
+
+  <div class="summary-strip">
+
+    <div class="summary-item">
+      <span class="summary-val val-green" id="sum-picks">—</span>
+      <span class="summary-lbl">Today's Picks</span>
+    </div>
+
+    <div class="summary-item">
+      <span class="summary-val val-blue" id="sum-teams">—</span>
+      <span class="summary-lbl">Picked Teams With Injuries</span>
+    </div>
+
+    <div class="summary-item">
+      <span class="summary-val val-red" id="sum-out">—</span>
+      <span class="summary-lbl">Out</span>
+    </div>
+
+    <div class="summary-item">
+      <span
+        class="summary-val val-yellow"
+        id="sum-questionable"
+      >—</span>
+      <span class="summary-lbl">
+        Questionable / Doubtful
+      </span>
+    </div>
+
+  </div>
+
+  <div class="impact-grid" id="impact-grid"></div>
+
+  <div
+    class="impact-empty"
+    id="impact-empty"
+    style="display:none"
+  ></div>
+
+</section>
+
+<section class="browser-wrap">
+
+  <div class="section-kicker">Reference</div>
+
+  <div class="section-title">
+    All League Injuries
+  </div>
+
+  <div class="section-copy">
+    The full feed remains available without dumping every injury record
+    onto the page at once.
+  </div>
+
+  <div class="browser-toolbar">
+
+    <span class="toolbar-label">Status</span>
+
+    <select class="status-select" id="status-filter">
+      <option value="impact">
+        Out + Doubtful + Questionable
+      </option>
+      <option value="out">
+        Out Only
+      </option>
+      <option value="questionable">
+        Questionable + Doubtful
+      </option>
+      <option value="dtd">
+        Day-To-Day
+      </option>
+      <option value="all">
+        All Statuses
+      </option>
+    </select>
+
+    <span class="result-count" id="result-count">—</span>
+
+  </div>
+
   <div class="table-wrap">
-    <table id="inj-table">
+
+    <table>
       <thead>
         <tr>
-          <th data-col="league">League</th>
-          <th data-col="player">Player</th>
-          <th data-col="position">Pos</th>
-          <th data-col="team">Team</th>
-          <th data-col="status">Status</th>
-          <th data-col="injury">Injury</th>
-          <th data-col="pick">Pick</th>
+          <th>League</th>
+          <th>Team</th>
+          <th>Player</th>
+          <th>Pos</th>
+          <th>Status</th>
+          <th>Injury</th>
         </tr>
       </thead>
+
       <tbody id="inj-tbody"></tbody>
     </table>
-    <div class="empty-state" id="inj-empty" style="display:none">No injuries found</div>
+
+    <div
+      class="empty-state"
+      id="inj-empty"
+      style="display:none"
+    >
+      No injuries match these filters
+    </div>
+
   </div>
-</div>
 
+  <button
+    type="button"
+    class="load-more"
+    id="load-more"
+  >
+    Load 50 More
+  </button>
+
+</section>
+
+<script src="assets/js/shared/config.js"></script>
 <script src="assets/js/shared/nav.js"></script>
+
 <script>
-var LEAGUES = [
-  { key: "NHL",        label: "NHL",                group: "hockey",     sport: "hockey",     league: "nhl"                    },
-  { key: "MLB",        label: "MLB",                group: "baseball",   sport: "baseball",   league: "mlb"                    },
+(function() {
+  "use strict";
 
-  { key: "NBA",        label: "NBA",                group: "basketball", sport: "basketball", league: "nba"                    },
-  { key: "NCAAM",      label: "College Basketball", group: "basketball", sport: "basketball", league: "mens-college-basketball" },
-  { key: "WNBA",       label: "WNBA",               group: "basketball", sport: "basketball", league: "wnba"                   },
+  var RAW_DOCS =
+    "https://raw.githubusercontent.com/" +
+    "Clownworldenjoyer76/bet_tracker/main/docs/";
 
-  { key: "MLS",        label: "MLS",                group: "soccer",     sport: "soccer",     league: "usa.1"                  },
-  { key: "EPL",        label: "EPL",                group: "soccer",     sport: "soccer",     league: "eng.1"                  },
-  { key: "LALIGA",     label: "La Liga",            group: "soccer",     sport: "soccer",     league: "esp.1"                  },
-  { key: "LIGUE1",     label: "Ligue 1",            group: "soccer",     sport: "soccer",     league: "fra.1"                  },
-  { key: "SERIEA",     label: "Serie A",            group: "soccer",     sport: "soccer",     league: "ita.1"                  },
-  { key: "BUNDESLIGA", label: "Bundesliga",         group: "soccer",     sport: "soccer",     league: "ger.1"                  },
+  var PAGE_SIZE = 50;
 
-  { key: "UFC",        label: "UFC",                group: "mma",        sport: "mma",        league: "ufc"                    },
+  /*
+    These are intentionally always available on this page.
+    They are not tied to the offseason toggles used by
+    Games Today / Live Scores / Final Scores.
+  */
+  var LEAGUES = [
+    {
+      key: "NHL",
+      label: "NHL",
+      group: "hockey",
+      sport: "hockey",
+      league: "nhl"
+    },
+    {
+      key: "MLB",
+      label: "MLB",
+      group: "baseball",
+      sport: "baseball",
+      league: "mlb"
+    },
 
-  { key: "NFL",        label: "NFL",                group: "football",   sport: "football",   league: "nfl"                    },
-  { key: "CFB",        label: "College Football",   group: "football",   sport: "football",   league: "college-football"       },
-  { key: "CFL",        label: "CFL",                group: "football",   sport: "football",   league: "cfl"                    }
-];
+    {
+      key: "NBA",
+      label: "NBA",
+      group: "basketball",
+      sport: "basketball",
+      league: "nba"
+    },
+    {
+      key: "NCAAM",
+      label: "College Basketball",
+      group: "basketball",
+      sport: "basketball",
+      league: "mens-college-basketball"
+    },
+    {
+      key: "WNBA",
+      label: "WNBA",
+      group: "basketball",
+      sport: "basketball",
+      league: "wnba"
+    },
 
-var GROUPS = {
-  football: ["NFL", "CFB", "CFL"],
-  basketball: ["NBA", "NCAAM", "WNBA"],
-  soccer: ["MLS", "EPL", "LALIGA", "LIGUE1", "SERIEA", "BUNDESLIGA"]
-};
+    {
+      key: "MLS",
+      label: "MLS",
+      group: "soccer",
+      sport: "soccer",
+      league: "usa.1"
+    },
+    {
+      key: "EPL",
+      label: "EPL",
+      group: "soccer",
+      sport: "soccer",
+      league: "eng.1"
+    },
+    {
+      key: "LALIGA",
+      label: "La Liga",
+      group: "soccer",
+      sport: "soccer",
+      league: "esp.1"
+    },
+    {
+      key: "LIGUE1",
+      label: "Ligue 1",
+      group: "soccer",
+      sport: "soccer",
+      league: "fra.1"
+    },
+    {
+      key: "SERIEA",
+      label: "Serie A",
+      group: "soccer",
+      sport: "soccer",
+      league: "ita.1"
+    },
+    {
+      key: "BUNDESLIGA",
+      label: "Bundesliga",
+      group: "soccer",
+      sport: "soccer",
+      league: "ger.1"
+    },
 
-var allInjuries = [];
-var pickedRows = [];
-var pickedTeams = new Set();
-var activeFilterType = "all";
-var activeFilterValue = "all";
-var searchQuery = "";
-var sortCol = "status";
-var sortDir = "asc";
-var panelOpen = false;
+    {
+      key: "UFC",
+      label: "UFC",
+      group: "mma",
+      sport: "mma",
+      league: "ufc"
+    },
 
-function padTwo(n) { return n < 10 ? "0" + n : "" + n; }
+    {
+      key: "NFL",
+      label: "NFL",
+      group: "football",
+      sport: "football",
+      league: "nfl"
+    },
+    {
+      key: "CFB",
+      label: "College Football",
+      group: "football",
+      sport: "football",
+      league: "college-football"
+    },
+    {
+      key: "CFL",
+      label: "CFL",
+      group: "football",
+      sport: "football",
+      league: "cfl"
+    }
+  ];
 
-function todayStr() {
-  var d = new Date();
-  return d.getFullYear() + "_" + padTwo(d.getMonth() + 1) + "_" + padTwo(d.getDate());
-}
+  var GROUPS = {
+    football: [
+      "NFL",
+      "CFB",
+      "CFL"
+    ],
 
-function normalizeLeague(value) {
-  var league = String(value || "").trim().toUpperCase();
+    basketball: [
+      "NBA",
+      "NCAAM",
+      "WNBA"
+    ],
 
-  if (league === "NCAAB") return "NCAAM";
-  if (league === "COLLEGE-BASKETBALL") return "NCAAM";
-  if (league === "COLLEGE BASKETBALL") return "NCAAM";
-  if (league === "COLLEGE FOOTBALL") return "CFB";
+    soccer: [
+      "MLS",
+      "EPL",
+      "LALIGA",
+      "LIGUE1",
+      "SERIEA",
+      "BUNDESLIGA"
+    ]
+  };
 
-  return league;
-}
+  var leagueByKey = {};
 
-function leagueLabel(key) {
-  var normalized = normalizeLeague(key);
-  var found = LEAGUES.find(function(cfg) {
-    return cfg.key === normalized;
+  LEAGUES.forEach(function(cfg) {
+    leagueByKey[cfg.key] = cfg;
   });
 
-  return found ? found.label : normalized;
-}
+  var allInjuries = [];
+  var todayPicks = [];
 
-function leagueGroup(key) {
-  var normalized = normalizeLeague(key);
-  var found = LEAGUES.find(function(cfg) {
-    return cfg.key === normalized;
-  });
+  var activeFilterType = "all";
+  var activeFilterValue = "all";
 
-  return found ? found.group : "";
-}
+  var searchQuery = "";
+  var statusMode = "impact";
+  var visibleLimit = PAGE_SIZE;
 
-function escapeHtml(value) {
-  return String(value || "").replace(/[&<>'"]/g, function(char) {
-    return {
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      "'": "&#39;",
-      '"': "&quot;"
-    }[char];
-  });
-}
+  function $(id) {
+    return document.getElementById(id);
+  }
 
-function parseCSV(text) {
-  var clean = String(text || "").replace(/^\uFEFF/, "").trim();
-  if (!clean) return [];
-
-  var rows = [];
-  var row = [];
-  var cell = "";
-  var quoted = false;
-
-  for (var i = 0; i < clean.length; i++) {
-    var ch = clean[i];
-    var next = clean[i + 1];
-
-    if (ch === '"') {
-      if (quoted && next === '"') {
-        cell += '"';
-        i++;
-      } else {
-        quoted = !quoted;
+  function escapeHtml(value) {
+    return String(
+      value === null || value === undefined
+        ? ""
+        : value
+    ).replace(
+      /[&<>'"]/g,
+      function(char) {
+        return {
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          "'": "&#39;",
+          '"': "&quot;"
+        }[char];
       }
-      continue;
-    }
-
-    if (ch === "," && !quoted) {
-      row.push(cell.trim());
-      cell = "";
-      continue;
-    }
-
-    if ((ch === "\n" || ch === "\r") && !quoted) {
-      if (ch === "\r" && next === "\n") i++;
-      row.push(cell.trim());
-      rows.push(row);
-      row = [];
-      cell = "";
-      continue;
-    }
-
-    cell += ch;
+    );
   }
 
-  row.push(cell.trim());
-  rows.push(row);
-
-  if (rows.length < 2) return [];
-
-  var headers = rows[0].map(function(h) {
-    return String(h || "").replace(/^\uFEFF/, "").replace(/^"+|"+$/g, "").trim().toLowerCase();
-  });
-
-  return rows.slice(1).filter(function(r) {
-    return r.some(function(v) {
-      return String(v || "").trim() !== "";
-    });
-  }).map(function(vals) {
-    var obj = {};
-    headers.forEach(function(h, i) {
-      obj[h] = String(vals[i] || "").trim();
-    });
-    return obj;
-  });
-}
-
-function closeAllMenus() {
-  document.querySelectorAll(".control-group").forEach(function(group) {
-    group.classList.remove("open");
-  });
-}
-
-function setActiveControls(type, value) {
-  document.querySelectorAll(".league-pill, .group-pill, .submenu-pill").forEach(function(button) {
-    button.classList.remove("active");
-  });
-
-  if (type === "all") {
-    var allButton = document.querySelector('[data-filter-type="all"][data-filter-value="all"]');
-    if (allButton) allButton.classList.add("active");
-    return;
+  function padTwo(n) {
+    return n < 10
+      ? "0" + n
+      : String(n);
   }
 
-  if (type === "group") {
-    var groupButton = document.querySelector('[data-group-toggle="' + value + '"]');
-    var groupSubButton = document.querySelector('.submenu-pill[data-filter-type="group"][data-filter-value="' + value + '"]');
+  function todayUnderscore() {
+    var d = new Date();
 
-    if (groupButton) groupButton.classList.add("active");
-    if (groupSubButton) groupSubButton.classList.add("active");
-    return;
+    return (
+      d.getFullYear() +
+      "_" +
+      padTwo(d.getMonth() + 1) +
+      "_" +
+      padTwo(d.getDate())
+    );
   }
 
-  if (type === "league") {
-    var directButton = document.querySelector('.league-pill[data-filter-type="league"][data-filter-value="' + value + '"]');
-    var childButton = document.querySelector('.submenu-pill[data-filter-type="league"][data-filter-value="' + value + '"]');
-    var group = leagueGroup(value);
+  function todayDash() {
+    return todayUnderscore().replace(/_/g, "-");
+  }
 
-    if (directButton) directButton.classList.add("active");
-    if (childButton) childButton.classList.add("active");
+  function normalizeDate(value) {
+    return String(value || "")
+      .trim()
+      .replace(/-/g, "_");
+  }
 
-    if (group) {
-      var parentButton = document.querySelector('[data-group-toggle="' + group + '"]');
-      if (parentButton) parentButton.classList.add("active");
+  function normalizeLeague(value) {
+    var league = String(value || "")
+      .trim()
+      .toUpperCase();
+
+    if (league === "NCAAB") {
+      return "NCAAM";
     }
+
+    if (league === "COLLEGE-BASKETBALL") {
+      return "NCAAM";
+    }
+
+    if (league === "COLLEGE BASKETBALL") {
+      return "NCAAM";
+    }
+
+    if (league === "COLLEGE FOOTBALL") {
+      return "CFB";
+    }
+
+    return league;
   }
-}
 
-function applyFilter(type, value) {
-  activeFilterType = type;
-  activeFilterValue = value;
+  /*
+    Match ESPN team names against pipeline team names.
 
-  closeAllMenus();
-  setActiveControls(type, value);
-  render();
-}
+    Parenthetical disambiguators are removed so forms such as:
+    Miami (FL) Hurricanes
+    can match a pipeline form without "(FL)".
+  */
+  function normalizeTeam(value) {
+    return String(value || "")
+      .toLowerCase()
+      .replace(/\([^)]*\)/g, " ")
+      .replace(/&/g, "and")
+      .replace(/[^a-z0-9]+/g, "");
+  }
 
-function autoLoadPicks() {
-  var path = "https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/docs/win/final_scores/daily_picks/" + todayStr() + "_daily_picks.csv";
-  var badge = document.getElementById("picks-badge");
+  function sameTeam(a, b) {
+    var left = normalizeTeam(a);
+    var right = normalizeTeam(b);
 
-  fetch(path)
-    .then(function(r) {
-      if (!r.ok) throw new Error(r.status);
-      return r.text();
-    })
-    .then(function(text) {
-      pickedRows = parseCSV(text).map(function(row) {
-        row.league = normalizeLeague(row.league);
-        return row;
+    if (!left || !right) {
+      return false;
+    }
+
+    if (left === right) {
+      return true;
+    }
+
+    var minLen = Math.min(
+      left.length,
+      right.length
+    );
+
+    return (
+      minLen >= 8 &&
+      (
+        left.indexOf(right) !== -1 ||
+        right.indexOf(left) !== -1
+      )
+    );
+  }
+
+  function sourceLabel(key) {
+    return leagueByKey[key]
+      ? leagueByKey[key].label
+      : key;
+  }
+
+  function sourceGroup(key) {
+    return leagueByKey[key]
+      ? leagueByKey[key].group
+      : "";
+  }
+
+  function setStatus(text, cls, dotCls) {
+    $("status-text").textContent = text || "";
+
+    $("inj-status").className =
+      "status-bar " + (cls || "");
+
+    $("status-dot").className =
+      "status-dot " + (dotCls || "");
+  }
+
+  /* ── CSV parser ───────────────────────────────────────────────────────── */
+
+  function cleanCSVCell(value) {
+    var s = String(
+      value === null || value === undefined
+        ? ""
+        : value
+    ).trim();
+
+    if (
+      s.length >= 2 &&
+      s.charAt(0) === '"' &&
+      s.charAt(s.length - 1) === '"'
+    ) {
+      s = s.slice(1, -1);
+    }
+
+    return s
+      .replace(/""/g, '"')
+      .trim();
+  }
+
+  function parseCSVLine(line) {
+    var out = [];
+    var cur = "";
+    var inQuotes = false;
+
+    for (
+      var i = 0;
+      i < line.length;
+      i++
+    ) {
+      var ch = line.charAt(i);
+
+      if (ch === '"') {
+        if (
+          inQuotes &&
+          line.charAt(i + 1) === '"'
+        ) {
+          cur += '"';
+          i++;
+        } else {
+          inQuotes = !inQuotes;
+        }
+
+        continue;
+      }
+
+      if (
+        ch === "," &&
+        !inQuotes
+      ) {
+        out.push(cur);
+        cur = "";
+        continue;
+      }
+
+      cur += ch;
+    }
+
+    out.push(cur);
+
+    return out;
+  }
+
+  function parseCSV(text) {
+    var raw = String(text || "")
+      .replace(/^\uFEFF/, "")
+      .trim();
+
+    if (!raw) {
+      return [];
+    }
+
+    var lines = raw
+      .split(/\r?\n/)
+      .filter(function(line) {
+        return line.trim() !== "";
       });
 
-      pickedTeams = new Set();
-
-      pickedRows.forEach(function(r) {
-        if (r.home_team) pickedTeams.add(r.home_team.trim());
-        if (r.away_team) pickedTeams.add(r.away_team.trim());
-      });
-
-      badge.textContent = todayStr().replace(/_/g, "-") + " · " + pickedRows.length + " PICKS LOADED";
-      badge.className = "picks-badge loaded";
-      renderPicksPanel();
-      render();
-    })
-    .catch(function() {
-      badge.textContent = "NO PICKS FILE FOR TODAY";
-      badge.className = "picks-badge error";
-    });
-}
-
-function renderPicksPanel() {
-  if (pickedRows.length === 0) return;
-
-  var panel = document.getElementById("picks-panel");
-  var body = document.getElementById("picks-panel-body");
-  var ct = document.getElementById("picks-panel-count");
-
-  panel.style.display = "";
-  ct.textContent = "(" + pickedRows.length + ")";
-  body.innerHTML = "";
-
-  pickedRows.forEach(function(r) {
-    var chip = document.createElement("span");
-    var normalizedLeague = normalizeLeague(r.league);
-
-    chip.className = "pick-chip league-" + normalizedLeague;
-
-    var mkt = r.market_type ? r.market_type.toUpperCase() : "";
-    var side = r.bet_side ? r.bet_side.toUpperCase() : "";
-    var line = r.line ? " " + r.line : "";
-    var team = r.bet_side === "home" ? r.home_team : r.away_team;
-
-    if (String(r.bet_side || "").toLowerCase() === "over" || String(r.bet_side || "").toLowerCase() === "under") {
-      team = (r.away_team || "") + " @ " + (r.home_team || "");
+    if (lines.length < 2) {
+      return [];
     }
 
-    chip.textContent = "[" + leagueLabel(normalizedLeague) + "] " + (team || "") + " · " + mkt + " " + side + line;
-    body.appendChild(chip);
-  });
-}
+    var headers = parseCSVLine(
+      lines[0]
+    ).map(cleanCSVCell);
 
-document.getElementById("picks-panel-toggle").addEventListener("click", function() {
-  panelOpen = !panelOpen;
+    return lines
+      .slice(1)
+      .map(function(line) {
+        var vals = parseCSVLine(
+          line
+        ).map(cleanCSVCell);
 
-  var body = document.getElementById("picks-panel-body");
-  var arrow = document.getElementById("picks-panel-arrow");
+        var obj = {};
 
-  if (panelOpen) {
-    body.classList.add("open");
-    arrow.textContent = "▲";
-  } else {
-    body.classList.remove("open");
-    arrow.textContent = "▼";
-  }
-});
+        headers.forEach(
+          function(header, i) {
+            obj[header] =
+              vals[i] === undefined
+                ? ""
+                : vals[i];
+          }
+        );
 
-function picksForTeam(teamName) {
-  var t = String(teamName || "").toLowerCase().trim();
-
-  return pickedRows.filter(function(r) {
-    var ht = String(r.home_team || "").toLowerCase().trim();
-    var at = String(r.away_team || "").toLowerCase().trim();
-    var side = String(r.bet_side || "").toLowerCase().trim();
-
-    if (side === "over" || side === "under") return ht === t || at === t;
-    if (side === "home") return ht === t;
-    if (side === "away") return at === t;
-
-    return ht === t || at === t;
-  });
-}
-
-function teamInPicks(teamName) {
-  return picksForTeam(teamName).length > 0;
-}
-
-function statusRank(s) {
-  var k = String(s || "").toLowerCase();
-
-  if (k === "out") return 0;
-  if (k === "doubtful") return 1;
-  if (k === "day-to-day") return 2;
-  if (k === "questionable") return 3;
-  if (k === "probable") return 4;
-
-  return 5;
-}
-
-function statusClass(s) {
-  var k = String(s || "").toLowerCase();
-
-  if (k === "out") return "s-out";
-  if (k === "doubtful") return "s-doubtful";
-  if (k === "day-to-day") return "s-gtd";
-  if (k === "questionable") return "s-gtd";
-  if (k === "probable") return "s-probable";
-
-  return "s-other";
-}
-
-function filteredInjuries() {
-  var rows = allInjuries.slice();
-
-  if (activeFilterType === "league") {
-    rows = rows.filter(function(r) {
-      return r.league === activeFilterValue;
-    });
+        return obj;
+      });
   }
 
-  if (activeFilterType === "group") {
-    var allowed = GROUPS[activeFilterValue] || [];
+  async function fetchCSV(path) {
+    if (!path) {
+      return {
+        ok: false,
+        rows: []
+      };
+    }
 
-    rows = rows.filter(function(r) {
-      return allowed.indexOf(r.league) !== -1;
-    });
+    var url =
+      path.indexOf("win/") === 0
+        ? RAW_DOCS + path
+        : path;
+
+    try {
+      var response = await fetch(
+        url,
+        {
+          cache: "no-store"
+        }
+      );
+
+      if (!response.ok) {
+        return {
+          ok: false,
+          rows: []
+        };
+      }
+
+      return {
+        ok: true,
+        rows: parseCSV(
+          await response.text()
+        ),
+        source: path
+      };
+    } catch (error) {
+      return {
+        ok: false,
+        rows: []
+      };
+    }
   }
 
-  if (searchQuery) {
-    var q = searchQuery.toLowerCase();
+  async function fetchFirstCSV(paths) {
+    var list = Array.isArray(paths)
+      ? paths.filter(Boolean)
+      : [];
 
-    rows = rows.filter(function(r) {
-      return String(r.player || "").toLowerCase().indexOf(q) !== -1 ||
-             String(r.team || "").toLowerCase().indexOf(q) !== -1 ||
-             String(r.injury || "").toLowerCase().indexOf(q) !== -1 ||
-             String(r.leagueLabel || "").toLowerCase().indexOf(q) !== -1;
-    });
-  }
+    for (
+      var i = 0;
+      i < list.length;
+      i++
+    ) {
+      var result = await fetchCSV(
+        list[i]
+      );
 
-  return rows;
-}
-
-function render() {
-  var rows = filteredInjuries();
-
-  var displayRows = rows.map(function(r) {
-    var picks = picksForTeam(r.team);
+      if (result.ok) {
+        return result;
+      }
+    }
 
     return {
-      league: r.league,
-      leagueLabel: r.leagueLabel,
-      player: r.player,
-      position: r.position,
-      team: r.team,
-      status: r.status,
-      injury: r.injury,
-      hasPick: picks.length > 0,
-      picks: picks
+      ok: false,
+      rows: []
     };
-  });
+  }
 
-  displayRows.sort(function(a, b) {
-    var av, bv;
-
-    if (sortCol === "status") {
-      av = statusRank(a.status);
-      bv = statusRank(b.status);
-    } else if (sortCol === "pick") {
-      av = a.hasPick ? 0 : 1;
-      bv = b.hasPick ? 0 : 1;
-    } else if (sortCol === "league") {
-      av = String(a.leagueLabel || "").toLowerCase();
-      bv = String(b.leagueLabel || "").toLowerCase();
-    } else {
-      av = String(a[sortCol] || "").toLowerCase();
-      bv = String(b[sortCol] || "").toLowerCase();
+  function resolveSelectPaths(cfg, date) {
+    if (
+      !cfg ||
+      !cfg.selectFiles
+    ) {
+      return [];
     }
 
-    if (av < bv) return sortDir === "asc" ? -1 : 1;
-    if (av > bv) return sortDir === "asc" ? 1 : -1;
+    try {
+      var value =
+        typeof cfg.selectFiles === "function"
+          ? cfg.selectFiles(date)
+          : cfg.selectFiles;
 
-    return 0;
-  });
+      if (Array.isArray(value)) {
+        return value.filter(Boolean);
+      }
 
-  var counts = { out: 0, dtd: 0, gtd: 0, picked: 0 };
+      return value
+        ? [value]
+        : [];
+    } catch (error) {
+      return [];
+    }
+  }
 
-  rows.forEach(function(r) {
-    var k = String(r.status || "").toLowerCase();
-
-    if (k === "out") {
-      counts.out++;
-    } else if (k === "day-to-day") {
-      counts.dtd++;
-    } else if (k === "questionable" || k === "doubtful") {
-      counts.gtd++;
+  function rowMatchesLeague(
+    row,
+    cfg,
+    leagueKey
+  ) {
+    if (!cfg) {
+      return false;
     }
 
-    if (teamInPicks(r.team)) counts.picked++;
-  });
-
-  document.getElementById("sum-out").textContent = counts.out;
-  document.getElementById("sum-dtd").textContent = counts.dtd;
-  document.getElementById("sum-gtd").textContent = counts.gtd;
-  document.getElementById("sum-picked").textContent = counts.picked;
-  document.getElementById("sum-picks-ct").textContent = pickedRows.length || "—";
-
-  var tbody = document.getElementById("inj-tbody");
-  var empty = document.getElementById("inj-empty");
-
-  tbody.innerHTML = "";
-
-  if (displayRows.length === 0) {
-    empty.style.display = "";
-    return;
-  }
-
-  empty.style.display = "none";
-
-  var pickRows = displayRows.filter(function(r) { return r.hasPick; });
-  var otherRows = displayRows.filter(function(r) { return !r.hasPick; });
-
-  function buildRow(r) {
-    var tr = document.createElement("tr");
-
-    if (r.hasPick) tr.classList.add("has-pick");
-
-    var pickCell = '<span class="no-pick">—</span>';
-
-    if (r.hasPick && r.picks.length > 0) {
-      var lines = r.picks.map(function(p) {
-        var mkt = String(p.market_type || "").toUpperCase();
-        var ln = p.line ? " " + escapeHtml(p.line) : "";
-        var side = String(p.bet_side || "").toLowerCase();
-        var pickedTeamName = side === "home" ? p.home_team : (side === "away" ? p.away_team : (p.home_team + " vs " + p.away_team));
-        var oppTeamName = side === "home" ? ("vs " + p.away_team) : (side === "away" ? ("vs " + p.home_team) : "");
-        var timeStr = p.game_time ? " · " + p.game_time : "";
-
-        return '<div class="pick-line">' + escapeHtml(mkt) + ln + '</div>' +
-               '<div class="pick-meta">' + escapeHtml(pickedTeamName) + (oppTeamName ? " " + escapeHtml(oppTeamName) : "") + escapeHtml(timeStr) + '</div>';
-      }).join("");
-
-      pickCell = '<div class="pick-detail-inner">' + lines + '</div>';
+    if (cfg.leagueColumn) {
+      return (
+        normalizeLeague(
+          row[cfg.leagueColumn]
+        ) === leagueKey
+      );
     }
 
-    tr.innerHTML =
-      '<td class="td-league">' + escapeHtml(r.leagueLabel || r.league) + '</td>' +
-      '<td class="td-player">' + escapeHtml(r.player) + '</td>' +
-      '<td class="td-pos">' + escapeHtml(r.position) + '</td>' +
-      '<td class="td-team">' + escapeHtml(r.team) + '</td>' +
-      '<td><span class="status-badge ' + statusClass(r.status) + '">' + escapeHtml(r.status) + '</span></td>' +
-      '<td class="td-injury">' + escapeHtml(r.injury) + '</td>' +
-      '<td class="pick-detail">' + pickCell + '</td>';
-
-    return tr;
-  }
-
-  function buildSectionHeader(label, count) {
-    var tr = document.createElement("tr");
-    tr.className = "section-header-row";
-    tr.innerHTML = '<td colspan="7" class="section-header-cell">' + escapeHtml(label) + ' <span class="section-count">(' + count + ')</span></td>';
-    return tr;
-  }
-
-  if (pickRows.length > 0) {
-    tbody.appendChild(buildSectionHeader("TODAY’S PICKS — INJURED PLAYERS", pickRows.length));
-    pickRows.forEach(function(r) {
-      tbody.appendChild(buildRow(r));
-    });
-  }
-
-  if (otherRows.length > 0) {
-    tbody.appendChild(buildSectionHeader("ALL OTHER INJURIES", otherRows.length));
-    otherRows.forEach(function(r) {
-      tbody.appendChild(buildRow(r));
-    });
-  }
-}
-
-document.querySelectorAll("th[data-col]").forEach(function(th) {
-  th.addEventListener("click", function() {
-    var col = th.dataset.col;
-
-    if (sortCol === col) {
-      sortDir = sortDir === "asc" ? "desc" : "asc";
-    } else {
-      sortCol = col;
-      sortDir = "asc";
+    if (cfg.marketColumn) {
+      return (
+        normalizeLeague(
+          row[cfg.marketColumn]
+        ) === leagueKey
+      );
     }
 
-    document.querySelectorAll("th[data-col]").forEach(function(t) {
-      t.classList.remove("sort-asc", "sort-desc");
-    });
+    var rowLeague =
+      normalizeLeague(
+        row.league
+      );
 
-    th.classList.add(sortDir === "asc" ? "sort-asc" : "sort-desc");
-    render();
-  });
-});
+    return (
+      !rowLeague ||
+      rowLeague === leagueKey
+    );
+  }
 
-document.querySelector('th[data-col="status"]').classList.add("sort-asc");
+  /* ── Today's picks ────────────────────────────────────────────────────── */
 
-document.querySelectorAll("[data-group-toggle]").forEach(function(button) {
-  button.addEventListener("click", function(event) {
-    event.stopPropagation();
+  function genericPickText(row) {
+    var market = String(
+      row.market_type ||
+      row.market ||
+      "Pick"
+    )
+      .replace(/_/g, " ")
+      .toUpperCase();
 
-    var groupName = button.dataset.groupToggle;
-    var group = document.querySelector('.control-group[data-group="' + groupName + '"]');
-    var wasOpen = group && group.classList.contains("open");
+    var side = String(
+      row.bet_side ||
+      row.side ||
+      ""
+    ).toLowerCase();
 
-    closeAllMenus();
+    var label = side;
 
-    if (group && !wasOpen) {
-      group.classList.add("open");
+    if (side === "home") {
+      label = row.home_team || "Home";
     }
-  });
-});
 
-document.querySelectorAll("[data-filter-type]").forEach(function(button) {
-  button.addEventListener("click", function(event) {
-    event.stopPropagation();
+    if (side === "away") {
+      label = row.away_team || "Away";
+    }
 
-    applyFilter(button.dataset.filterType, button.dataset.filterValue);
-  });
-});
+    if (side === "over") {
+      label = "Over";
+    }
 
-document.addEventListener("click", function(event) {
-  if (!event.target.closest(".control-group")) {
-    closeAllMenus();
+    if (side === "under") {
+      label = "Under";
+    }
+
+    if (side === "draw") {
+      label = "Draw";
+    }
+
+    var line =
+      row.bet_line ||
+      row.line ||
+      "";
+
+    var odds =
+      row.bet_odds_american ||
+      row.dk_odds_american ||
+      row.take_odds ||
+      row.odds ||
+      "";
+
+    var lineText =
+      line !== ""
+        ? " " + line
+        : "";
+
+    var oddsText =
+      odds !== ""
+        ? " (" + odds + ")"
+        : "";
+
+    return (
+      market +
+      " · " +
+      label +
+      lineText +
+      oddsText
+    ).trim();
   }
-});
 
-document.addEventListener("keydown", function(event) {
-  if (event.key === "Escape") {
-    closeAllMenus();
+  function pickText(row, cfg) {
+    if (
+      cfg &&
+      typeof cfg.buildBetText === "function"
+    ) {
+      try {
+        var built =
+          cfg.buildBetText(
+            row,
+            row
+          );
+
+        if (built) {
+          return built;
+        }
+      } catch (error) {}
+    }
+
+    return genericPickText(row);
   }
-});
 
-document.getElementById("inj-search").addEventListener("input", function(e) {
-  searchQuery = e.target.value.trim();
-  render();
-});
+  async function loadTodayPicks() {
+    var repoConfig =
+      window.REPO_CONFIG || {};
 
-function setStatus(text, cls, dotCls) {
-  document.getElementById("status-text").textContent = text;
-  document.getElementById("inj-status").className = "status-bar " + (cls || "");
-  document.getElementById("status-dot").className = "status-dot " + (dotCls || "");
-}
+    var date =
+      todayUnderscore();
 
-async function fetchLeagueInjuries(cfg) {
-  var url = "https://site.api.espn.com/apis/site/v2/sports/" + cfg.sport + "/" + cfg.league + "/injuries";
+    var keys =
+      Object.keys(leagueByKey);
 
-  try {
-    var r = await fetch(url, { cache: "no-store" });
+    var results =
+      await Promise.all(
+        keys.map(
+          async function(key) {
+            var cfg =
+              repoConfig[key];
 
-    if (!r.ok) return [];
+            if (
+              !cfg ||
+              !cfg.selectFiles
+            ) {
+              return [];
+            }
 
-    var data = await r.json();
-    var rows = [];
-    var teamGroups = data.injuries || [];
+            var paths =
+              resolveSelectPaths(
+                cfg,
+                date
+              );
 
-    for (var i = 0; i < teamGroups.length; i++) {
-      var group = teamGroups[i];
-      var teamName = group.displayName || "Unknown";
-      var injList = group.injuries || [];
+            if (!paths.length) {
+              return [];
+            }
 
-      for (var j = 0; j < injList.length; j++) {
-        var inj = injList[j];
-        var athlete = inj.athlete || {};
-        var position = athlete.position && athlete.position.abbreviation ? athlete.position.abbreviation : "-";
-        var injType = inj.details && inj.details.type ? inj.details.type : "-";
+            var result =
+              await fetchFirstCSV(
+                paths
+              );
 
-        rows.push({
-          league: cfg.key,
-          leagueLabel: cfg.label,
-          group: cfg.group,
-          player: athlete.displayName || "Unknown",
-          position: position,
-          team: teamName,
-          status: inj.status || "Unknown",
-          injury: injType
-        });
+            if (!result.ok) {
+              return [];
+            }
+
+            var normalize =
+              typeof cfg.normalizeRow === "function"
+                ? function(row) {
+                    return cfg.normalizeRow(row);
+                  }
+                : function(row) {
+                    return row;
+                  };
+
+            var rows = [];
+
+            result.rows.forEach(
+              function(rawRow) {
+                var normalized;
+
+                try {
+                  normalized =
+                    normalize(rawRow);
+                } catch (error) {
+                  normalized =
+                    rawRow;
+                }
+
+                var expanded =
+                  [normalized];
+
+                if (
+                  typeof cfg.expandRows === "function"
+                ) {
+                  try {
+                    expanded =
+                      cfg.expandRows(
+                        normalized
+                      ) || [];
+                  } catch (error) {
+                    expanded = [];
+                  }
+                }
+
+                expanded.forEach(
+                  function(row) {
+                    if (
+                      !rowMatchesLeague(
+                        row,
+                        cfg,
+                        key
+                      )
+                    ) {
+                      return;
+                    }
+
+                    var rowDate =
+                      normalizeDate(
+                        row.game_date ||
+                        row.match_date
+                      );
+
+                    if (
+                      rowDate &&
+                      rowDate !== date
+                    ) {
+                      return;
+                    }
+
+                    rows.push({
+                      league: key,
+
+                      leagueLabel:
+                        cfg.displayName ||
+                        sourceLabel(key),
+
+                      home_team:
+                        row.home_team || "",
+
+                      away_team:
+                        row.away_team || "",
+
+                      game_time:
+                        row.game_time ||
+                        row.match_time ||
+                        row.edt_time ||
+                        "",
+
+                      market_type:
+                        row.market_type ||
+                        row.market ||
+                        "",
+
+                      bet_side:
+                        row.bet_side ||
+                        row.side ||
+                        "",
+
+                      line:
+                        row.bet_line ||
+                        row.line ||
+                        "",
+
+                      text:
+                        pickText(
+                          row,
+                          cfg
+                        )
+                    });
+                  }
+                );
+              }
+            );
+
+            return rows;
+          }
+        )
+      );
+
+    todayPicks = [];
+
+    results.forEach(
+      function(rows) {
+        todayPicks =
+          todayPicks.concat(rows);
+      }
+    );
+  }
+
+  /* ── ESPN injuries ────────────────────────────────────────────────────── */
+
+  async function fetchLeagueInjuries(cfg) {
+    var url =
+      "https://site.api.espn.com/" +
+      "apis/site/v2/sports/" +
+      cfg.sport +
+      "/" +
+      cfg.league +
+      "/injuries";
+
+    try {
+      var response =
+        await fetch(
+          url,
+          {
+            cache: "no-store"
+          }
+        );
+
+      if (!response.ok) {
+        return [];
+      }
+
+      var data =
+        await response.json();
+
+      var teamGroups =
+        data.injuries || [];
+
+      var rows = [];
+
+      teamGroups.forEach(
+        function(group) {
+          var teamObject =
+            group.team || {};
+
+          var teamName =
+            group.displayName ||
+            teamObject.displayName ||
+            teamObject.name ||
+            "Unknown";
+
+          var injuries =
+            group.injuries || [];
+
+          injuries.forEach(
+            function(injury) {
+              var athlete =
+                injury.athlete || {};
+
+              var position =
+                athlete.position &&
+                athlete.position.abbreviation
+                  ? athlete.position.abbreviation
+                  : "-";
+
+              var injuryType =
+                injury.details &&
+                injury.details.type
+                  ? injury.details.type
+                  : "-";
+
+              rows.push({
+                league: cfg.key,
+                leagueLabel: cfg.label,
+                group: cfg.group,
+
+                player:
+                  athlete.displayName ||
+                  "Unknown",
+
+                position:
+                  position,
+
+                team:
+                  teamName,
+
+                status:
+                  injury.status ||
+                  "Unknown",
+
+                injury:
+                  injuryType
+              });
+            }
+          );
+        }
+      );
+
+      return rows;
+    } catch (error) {
+      console.warn(
+        cfg.key +
+        " injuries failed:",
+        error
+      );
+
+      return [];
+    }
+  }
+
+  async function loadAllInjuries() {
+    var results =
+      await Promise.all(
+        LEAGUES.map(
+          fetchLeagueInjuries
+        )
+      );
+
+    allInjuries = [];
+
+    results.forEach(
+      function(rows) {
+        allInjuries =
+          allInjuries.concat(rows);
+      }
+    );
+  }
+
+  /* ── Injury status helpers ────────────────────────────────────────────── */
+
+  function statusKey(value) {
+    return String(value || "")
+      .trim()
+      .toLowerCase();
+  }
+
+  function isOut(row) {
+    return (
+      statusKey(row.status) === "out"
+    );
+  }
+
+  function isQuestionable(row) {
+    var key =
+      statusKey(row.status);
+
+    return (
+      key === "questionable" ||
+      key === "doubtful"
+    );
+  }
+
+  function isDayToDay(row) {
+    return (
+      statusKey(row.status) ===
+      "day-to-day"
+    );
+  }
+
+  function isPrimaryImpact(row) {
+    return (
+      isOut(row) ||
+      isQuestionable(row) ||
+      isDayToDay(row)
+    );
+  }
+
+  function matchesStatusFilter(row) {
+    if (statusMode === "all") {
+      return true;
+    }
+
+    if (statusMode === "out") {
+      return isOut(row);
+    }
+
+    if (statusMode === "questionable") {
+      return isQuestionable(row);
+    }
+
+    if (statusMode === "dtd") {
+      return isDayToDay(row);
+    }
+
+    /*
+      Default general browser:
+      OUT + DOUBTFUL + QUESTIONABLE.
+    */
+    return (
+      isOut(row) ||
+      isQuestionable(row)
+    );
+  }
+
+  function statusRank(value) {
+    var key =
+      statusKey(value);
+
+    if (key === "out") {
+      return 0;
+    }
+
+    if (key === "doubtful") {
+      return 1;
+    }
+
+    if (key === "questionable") {
+      return 2;
+    }
+
+    if (key === "day-to-day") {
+      return 3;
+    }
+
+    if (key === "probable") {
+      return 4;
+    }
+
+    return 5;
+  }
+
+  function statusClass(value) {
+    var key =
+      statusKey(value);
+
+    if (key === "out") {
+      return "s-out";
+    }
+
+    if (key === "doubtful") {
+      return "s-doubtful";
+    }
+
+    if (key === "questionable") {
+      return "s-questionable";
+    }
+
+    if (key === "day-to-day") {
+      return "s-day-to-day";
+    }
+
+    if (key === "probable") {
+      return "s-probable";
+    }
+
+    return "s-other";
+  }
+
+  /* ── League filter controls ───────────────────────────────────────────── */
+
+  function closeAllMenus() {
+    document
+      .querySelectorAll(
+        ".control-group"
+      )
+      .forEach(
+        function(group) {
+          group.classList.remove(
+            "open"
+          );
+        }
+      );
+  }
+
+  function setActiveControls(
+    type,
+    value
+  ) {
+    document
+      .querySelectorAll(
+        ".league-pill, " +
+        ".group-pill, " +
+        ".submenu-pill"
+      )
+      .forEach(
+        function(button) {
+          button.classList.remove(
+            "active"
+          );
+        }
+      );
+
+    if (type === "all") {
+      var allButton =
+        document.querySelector(
+          '[data-filter-type="all"]' +
+          '[data-filter-value="all"]'
+        );
+
+      if (allButton) {
+        allButton.classList.add(
+          "active"
+        );
+      }
+
+      return;
+    }
+
+    if (type === "group") {
+      var groupButton =
+        document.querySelector(
+          '[data-group-toggle="' +
+          value +
+          '"]'
+        );
+
+      var groupSubButton =
+        document.querySelector(
+          '.submenu-pill' +
+          '[data-filter-type="group"]' +
+          '[data-filter-value="' +
+          value +
+          '"]'
+        );
+
+      if (groupButton) {
+        groupButton.classList.add(
+          "active"
+        );
+      }
+
+      if (groupSubButton) {
+        groupSubButton.classList.add(
+          "active"
+        );
+      }
+
+      return;
+    }
+
+    if (type === "league") {
+      var directButton =
+        document.querySelector(
+          '.league-pill' +
+          '[data-filter-type="league"]' +
+          '[data-filter-value="' +
+          value +
+          '"]'
+        );
+
+      var childButton =
+        document.querySelector(
+          '.submenu-pill' +
+          '[data-filter-type="league"]' +
+          '[data-filter-value="' +
+          value +
+          '"]'
+        );
+
+      var group =
+        sourceGroup(value);
+
+      if (directButton) {
+        directButton.classList.add(
+          "active"
+        );
+      }
+
+      if (childButton) {
+        childButton.classList.add(
+          "active"
+        );
+      }
+
+      if (group) {
+        var parentButton =
+          document.querySelector(
+            '[data-group-toggle="' +
+            group +
+            '"]'
+          );
+
+        if (parentButton) {
+          parentButton.classList.add(
+            "active"
+          );
+        }
       }
     }
+  }
+
+  function applyLeagueFilter(
+    type,
+    value
+  ) {
+    activeFilterType = type;
+    activeFilterValue = value;
+
+    visibleLimit = PAGE_SIZE;
+
+    closeAllMenus();
+
+    setActiveControls(
+      type,
+      value
+    );
+
+    renderBrowser();
+  }
+
+  /* ── General injury browser ───────────────────────────────────────────── */
+
+  function filteredBrowserRows() {
+    var rows =
+      allInjuries.slice();
+
+    if (
+      activeFilterType ===
+      "league"
+    ) {
+      rows =
+        rows.filter(
+          function(row) {
+            return (
+              row.league ===
+              activeFilterValue
+            );
+          }
+        );
+    }
+
+    if (
+      activeFilterType ===
+      "group"
+    ) {
+      var allowed =
+        GROUPS[
+          activeFilterValue
+        ] || [];
+
+      rows =
+        rows.filter(
+          function(row) {
+            return (
+              allowed.indexOf(
+                row.league
+              ) !== -1
+            );
+          }
+        );
+    }
+
+    rows =
+      rows.filter(
+        matchesStatusFilter
+      );
+
+    if (searchQuery) {
+      var query =
+        searchQuery.toLowerCase();
+
+      rows =
+        rows.filter(
+          function(row) {
+            return (
+              String(
+                row.player || ""
+              )
+                .toLowerCase()
+                .indexOf(query) !== -1 ||
+
+              String(
+                row.team || ""
+              )
+                .toLowerCase()
+                .indexOf(query) !== -1 ||
+
+              String(
+                row.injury || ""
+              )
+                .toLowerCase()
+                .indexOf(query) !== -1 ||
+
+              String(
+                row.leagueLabel || ""
+              )
+                .toLowerCase()
+                .indexOf(query) !== -1
+            );
+          }
+        );
+    }
+
+    rows.sort(
+      function(a, b) {
+        var statusDiff =
+          statusRank(a.status) -
+          statusRank(b.status);
+
+        if (statusDiff !== 0) {
+          return statusDiff;
+        }
+
+        var leagueDiff =
+          String(
+            a.leagueLabel || ""
+          ).localeCompare(
+            String(
+              b.leagueLabel || ""
+            )
+          );
+
+        if (leagueDiff !== 0) {
+          return leagueDiff;
+        }
+
+        var teamDiff =
+          String(
+            a.team || ""
+          ).localeCompare(
+            String(
+              b.team || ""
+            )
+          );
+
+        if (teamDiff !== 0) {
+          return teamDiff;
+        }
+
+        return String(
+          a.player || ""
+        ).localeCompare(
+          String(
+            b.player || ""
+          )
+        );
+      }
+    );
 
     return rows;
-  } catch(e) {
-    console.warn(cfg.key + " failed:", e);
-    return [];
   }
-}
 
-async function loadAll() {
-  setStatus("Fetching injury data...", "loading", "yellow");
-  allInjuries = [];
+  function renderBrowser() {
+    var rows =
+      filteredBrowserRows();
 
-  var results = await Promise.all(LEAGUES.map(function(cfg) {
-    return fetchLeagueInjuries(cfg);
-  }));
+    var shown =
+      rows.slice(
+        0,
+        visibleLimit
+      );
 
-  results.forEach(function(rows) {
-    allInjuries = allInjuries.concat(rows);
-  });
+    var tbody =
+      $("inj-tbody");
 
-  render();
-  setStatus(allInjuries.length + " injuries loaded · " + todayStr().replace(/_/g, "-"), "", "green");
-}
+    var empty =
+      $("inj-empty");
 
-autoLoadPicks();
-loadAll();
+    var loadMore =
+      $("load-more");
+
+    tbody.innerHTML = "";
+
+    shown.forEach(
+      function(row) {
+        var tr =
+          document.createElement(
+            "tr"
+          );
+
+        tr.innerHTML =
+          '<td class="td-league">' +
+            escapeHtml(
+              row.leagueLabel
+            ) +
+          '</td>' +
+
+          '<td class="td-team">' +
+            escapeHtml(
+              row.team
+            ) +
+          '</td>' +
+
+          '<td class="td-player">' +
+            escapeHtml(
+              row.player
+            ) +
+          '</td>' +
+
+          '<td class="td-pos">' +
+            escapeHtml(
+              row.position
+            ) +
+          '</td>' +
+
+          '<td>' +
+            '<span class="status-badge ' +
+              statusClass(
+                row.status
+              ) +
+            '">' +
+              escapeHtml(
+                row.status
+              ) +
+            '</span>' +
+          '</td>' +
+
+          '<td class="td-injury">' +
+            escapeHtml(
+              row.injury
+            ) +
+          '</td>';
+
+        tbody.appendChild(tr);
+      }
+    );
+
+    empty.style.display =
+      rows.length
+        ? "none"
+        : "";
+
+    $("result-count").textContent =
+      "Showing " +
+      Math.min(
+        shown.length,
+        rows.length
+      ) +
+      " of " +
+      rows.length +
+      " matching injuries";
+
+    loadMore.style.display =
+      rows.length > visibleLimit
+        ? "block"
+        : "none";
+  }
+
+  /* ── Picks impact matching ────────────────────────────────────────────── */
+
+  function gameKey(pick) {
+    return [
+      pick.league,
+      normalizeTeam(
+        pick.away_team
+      ),
+      normalizeTeam(
+        pick.home_team
+      )
+    ].join("|");
+  }
+
+  function buildImpactGroups() {
+    var groups = {};
+
+    todayPicks.forEach(
+      function(pick) {
+        if (
+          !pick.home_team &&
+          !pick.away_team
+        ) {
+          return;
+        }
+
+        var key =
+          gameKey(pick);
+
+        if (!groups[key]) {
+          groups[key] = {
+            league:
+              pick.league,
+
+            leagueLabel:
+              pick.leagueLabel ||
+              sourceLabel(
+                pick.league
+              ),
+
+            home_team:
+              pick.home_team,
+
+            away_team:
+              pick.away_team,
+
+            game_time:
+              pick.game_time,
+
+            picks: [],
+
+            homeInjuries: [],
+            awayInjuries: []
+          };
+        }
+
+        groups[key].picks.push(
+          pick
+        );
+      }
+    );
+
+    Object.keys(groups).forEach(
+      function(key) {
+        var group =
+          groups[key];
+
+        group.homeInjuries =
+          allInjuries.filter(
+            function(row) {
+              return (
+                row.league ===
+                  group.league &&
+
+                sameTeam(
+                  row.team,
+                  group.home_team
+                ) &&
+
+                isPrimaryImpact(
+                  row
+                )
+              );
+            }
+          );
+
+        group.awayInjuries =
+          allInjuries.filter(
+            function(row) {
+              return (
+                row.league ===
+                  group.league &&
+
+                sameTeam(
+                  row.team,
+                  group.away_team
+                ) &&
+
+                isPrimaryImpact(
+                  row
+                )
+              );
+            }
+          );
+      }
+    );
+
+    return Object
+      .keys(groups)
+      .map(
+        function(key) {
+          return groups[key];
+        }
+      )
+      .filter(
+        function(group) {
+          return (
+            group.homeInjuries.length ||
+            group.awayInjuries.length
+          );
+        }
+      );
+  }
+
+  function renderImpactInjuryRows(
+    rows
+  ) {
+    return rows
+      .slice()
+      .sort(
+        function(a, b) {
+          return (
+            statusRank(a.status) -
+            statusRank(b.status)
+          );
+        }
+      )
+      .map(
+        function(row) {
+          return (
+            '<div class="impact-injury-row">' +
+
+              '<span class="status-badge ' +
+                statusClass(
+                  row.status
+                ) +
+              '">' +
+                escapeHtml(
+                  row.status
+                ) +
+              '</span>' +
+
+              '<span class="impact-player">' +
+                escapeHtml(
+                  row.player
+                ) +
+              '</span>' +
+
+              '<span>' +
+                escapeHtml(
+                  row.position
+                ) +
+              '</span>' +
+
+              '<span class="impact-injury-type">' +
+                escapeHtml(
+                  row.injury
+                ) +
+              '</span>' +
+
+            '</div>'
+          );
+        }
+      )
+      .join("");
+  }
+
+  function renderImpact() {
+    var groups =
+      buildImpactGroups();
+
+    var grid =
+      $("impact-grid");
+
+    var empty =
+      $("impact-empty");
+
+    grid.innerHTML = "";
+
+    var affectedTeams = {};
+    var pickedImpactRows = [];
+
+    groups.forEach(
+      function(group) {
+
+        if (
+          group.awayInjuries.length
+        ) {
+          affectedTeams[
+            group.league +
+            "|" +
+            normalizeTeam(
+              group.away_team
+            )
+          ] = true;
+
+          pickedImpactRows =
+            pickedImpactRows.concat(
+              group.awayInjuries
+            );
+        }
+
+        if (
+          group.homeInjuries.length
+        ) {
+          affectedTeams[
+            group.league +
+            "|" +
+            normalizeTeam(
+              group.home_team
+            )
+          ] = true;
+
+          pickedImpactRows =
+            pickedImpactRows.concat(
+              group.homeInjuries
+            );
+        }
+      }
+    );
+
+    /*
+      Deduplicate the same injury if multiple picks exist
+      on the same game.
+    */
+    var uniqueImpact = {};
+
+    pickedImpactRows.forEach(
+      function(row) {
+        var key = [
+          row.league,
+          normalizeTeam(
+            row.team
+          ),
+          String(
+            row.player || ""
+          ).toLowerCase(),
+          statusKey(
+            row.status
+          ),
+          String(
+            row.injury || ""
+          ).toLowerCase()
+        ].join("|");
+
+        uniqueImpact[key] = row;
+      }
+    );
+
+    var uniqueRows =
+      Object
+        .keys(uniqueImpact)
+        .map(
+          function(key) {
+            return uniqueImpact[key];
+          }
+        );
+
+    $("sum-picks").textContent =
+      todayPicks.length;
+
+    $("sum-teams").textContent =
+      Object.keys(
+        affectedTeams
+      ).length;
+
+    $("sum-out").textContent =
+      uniqueRows.filter(
+        isOut
+      ).length;
+
+    $("sum-questionable").textContent =
+      uniqueRows.filter(
+        isQuestionable
+      ).length;
+
+    if (!todayPicks.length) {
+      empty.textContent =
+        "No current picks were loaded for " +
+        todayDash() +
+        ".";
+
+      empty.style.display = "";
+
+      return;
+    }
+
+    if (!groups.length) {
+      empty.textContent =
+        "No reported impact injuries were matched " +
+        "to teams in today's picked games.";
+
+      empty.style.display = "";
+
+      return;
+    }
+
+    empty.style.display = "none";
+
+    groups.forEach(
+      function(group) {
+        var card =
+          document.createElement(
+            "article"
+          );
+
+        card.className =
+          "impact-card";
+
+        var pickHTML =
+          group.picks
+            .map(
+              function(pick) {
+                return (
+                  '<span class="pick-chip">' +
+                    escapeHtml(
+                      pick.text ||
+                      "Pick"
+                    ) +
+                  '</span>'
+                );
+              }
+            )
+            .join("");
+
+        var teamHTML = "";
+
+        if (
+          group.awayInjuries.length
+        ) {
+          teamHTML +=
+            '<div class="impact-team">' +
+
+              '<div class="impact-team-name">' +
+                escapeHtml(
+                  group.away_team
+                ) +
+              '</div>' +
+
+              renderImpactInjuryRows(
+                group.awayInjuries
+              ) +
+
+            '</div>';
+        }
+
+        if (
+          group.homeInjuries.length
+        ) {
+          teamHTML +=
+            '<div class="impact-team">' +
+
+              '<div class="impact-team-name">' +
+                escapeHtml(
+                  group.home_team
+                ) +
+              '</div>' +
+
+              renderImpactInjuryRows(
+                group.homeInjuries
+              ) +
+
+            '</div>';
+        }
+
+        card.innerHTML =
+          '<div class="impact-card-top">' +
+
+            '<div class="impact-matchup">' +
+              escapeHtml(
+                group.away_team ||
+                "Away"
+              ) +
+              ' @ ' +
+              escapeHtml(
+                group.home_team ||
+                "Home"
+              ) +
+            '</div>' +
+
+            '<div class="impact-league">' +
+              escapeHtml(
+                group.leagueLabel
+              ) +
+              (
+                group.game_time
+                  ? " · " +
+                    escapeHtml(
+                      group.game_time
+                    )
+                  : ""
+              ) +
+            '</div>' +
+
+          '</div>' +
+
+          '<div class="impact-picks">' +
+            pickHTML +
+          '</div>' +
+
+          teamHTML;
+
+        grid.appendChild(card);
+      }
+    );
+  }
+
+  /* ── Event binding ────────────────────────────────────────────────────── */
+
+  function bindControls() {
+
+    document
+      .querySelectorAll(
+        "[data-group-toggle]"
+      )
+      .forEach(
+        function(button) {
+          button.addEventListener(
+            "click",
+            function(event) {
+              event.stopPropagation();
+
+              var groupName =
+                button.dataset.groupToggle;
+
+              var group =
+                document.querySelector(
+                  '.control-group' +
+                  '[data-group="' +
+                  groupName +
+                  '"]'
+                );
+
+              var wasOpen =
+                group &&
+                group.classList.contains(
+                  "open"
+                );
+
+              closeAllMenus();
+
+              if (
+                group &&
+                !wasOpen
+              ) {
+                group.classList.add(
+                  "open"
+                );
+              }
+            }
+          );
+        }
+      );
+
+    document
+      .querySelectorAll(
+        "[data-filter-type]"
+      )
+      .forEach(
+        function(button) {
+          button.addEventListener(
+            "click",
+            function(event) {
+              event.stopPropagation();
+
+              applyLeagueFilter(
+                button.dataset.filterType,
+                button.dataset.filterValue
+              );
+            }
+          );
+        }
+      );
+
+    document.addEventListener(
+      "click",
+      function(event) {
+        if (
+          !event.target.closest(
+            ".control-group"
+          )
+        ) {
+          closeAllMenus();
+        }
+      }
+    );
+
+    document.addEventListener(
+      "keydown",
+      function(event) {
+        if (
+          event.key ===
+          "Escape"
+        ) {
+          closeAllMenus();
+        }
+      }
+    );
+
+    $("inj-search")
+      .addEventListener(
+        "input",
+        function(event) {
+          searchQuery =
+            event.target.value.trim();
+
+          visibleLimit =
+            PAGE_SIZE;
+
+          renderBrowser();
+        }
+      );
+
+    $("status-filter")
+      .addEventListener(
+        "change",
+        function(event) {
+          statusMode =
+            event.target.value;
+
+          visibleLimit =
+            PAGE_SIZE;
+
+          renderBrowser();
+        }
+      );
+
+    $("load-more")
+      .addEventListener(
+        "click",
+        function() {
+          visibleLimit +=
+            PAGE_SIZE;
+
+          renderBrowser();
+        }
+      );
+  }
+
+  /* ── Init ─────────────────────────────────────────────────────────────── */
+
+  async function init() {
+    bindControls();
+
+    setStatus(
+      "Loading injury feeds and today's picks...",
+      "loading",
+      "yellow"
+    );
+
+    await Promise.all([
+      loadTodayPicks(),
+      loadAllInjuries()
+    ]);
+
+    renderImpact();
+    renderBrowser();
+
+    setStatus(
+      allInjuries.length +
+      " injuries loaded · " +
+      todayPicks.length +
+      " current picks cross-referenced · " +
+      todayDash(),
+      "",
+      "green"
+    );
+  }
+
+  if (
+    document.readyState ===
+    "loading"
+  ) {
+    document.addEventListener(
+      "DOMContentLoaded",
+      init
+    );
+  } else {
+    init();
+  }
+
+})();
 </script>
+
 </body>
 </html>
