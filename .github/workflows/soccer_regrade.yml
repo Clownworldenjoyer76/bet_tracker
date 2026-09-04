@@ -2,9 +2,6 @@ name: _Soccer Regrade and Reports
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - "docs/win/soccer/config/markets.yaml"
 
 permissions:
   contents: write
@@ -22,14 +19,18 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
-          fetch-depth: 0
+          fetch-depth: 1
+          sparse-checkout: |
+            docs/win/soccer
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
+          cache: pip
+          cache-dependency-path: docs/win/soccer/requirements.txt
 
       - name: Install dependencies
         run: |
@@ -47,7 +48,6 @@ jobs:
           mkdir -p docs/win/soccer/05_final_scores/results/graded_locked
           mkdir -p docs/win/soccer/05_final_scores/deeper_summaries/soccer
           mkdir -p docs/win/soccer/05_final_scores/model_evaluation
-          mkdir -p docs/win/soccer/05_final_scores/locked_evaluation
           touch docs/win/soccer/05_final_scores/soccer_market_tally.csv
 
       # Rebuild selections from existing Stage-3 edge files using current markets.yaml.
@@ -83,16 +83,18 @@ jobs:
         if: always()
         run: |
           echo "=== Rebuilt soccer selections ==="
-          find docs/win/soccer/04_select             -maxdepth 1 -type f -name "*_soccer_bets.csv" -print | sort || true
-
-          echo "=== Locked soccer picks ==="
-          find docs/win/soccer/04_select/locked             -maxdepth 1 -type f -name "*_soccer_bets.csv" -print | sort || true
-
-          echo "=== Locked forward evaluation outputs ==="
-          find docs/win/soccer/05_final_scores/locked_evaluation             -maxdepth 1 -type f -name "*.csv" -print | sort || true
+          find docs/win/soccer/04_select \
+            -maxdepth 1 \
+            -type f \
+            -name "*_soccer_bets.csv" \
+            -print | sort || true
 
           echo "=== Model evaluation outputs ==="
-          find docs/win/soccer/05_final_scores/model_evaluation             -maxdepth 1 -type f -name "*.csv" -print | sort || true
+          find docs/win/soccer/05_final_scores/model_evaluation \
+            -maxdepth 1 \
+            -type f \
+            -name "*.csv" \
+            -print | sort || true
 
           echo "=== Selection log ==="
           cat docs/win/soccer/errors/04_select/select_bets.txt || true
