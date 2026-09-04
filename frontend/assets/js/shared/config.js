@@ -5,9 +5,9 @@
 window.PAGE_LEAGUES = {
   gamesToday: {
     MLB:        true,
-    NHL:        true,
+    NHL:        false,
     CFB:        true,
-    NBA:        true,
+    NBA:        false,
     WNBA:       true,
     NCAAM:      false,
     EPL:        true,
@@ -21,9 +21,9 @@ window.PAGE_LEAGUES = {
 
   liveScores: {
     MLB:        true,
-    NHL:        true,
+    NHL:        false,
     CFB:        true,
-    NBA:        true,
+    NBA:        false,
     WNBA:       true,
     NCAAM:      false,
     EPL:        true,
