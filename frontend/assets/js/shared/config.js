@@ -1,13 +1,13 @@
 // ─── Page-specific league visibility ──────────────────────────────────────────
-// These switches control ONLY the Games Today and Live Scores pages.
+// These switches control ONLY the Games Today, Live Scores, and Final Scores pages.
 // Set a league to false during its offseason to hide it completely and prevent
 // that page from loading/fetching it. Other pages continue to use REPO_CONFIG.
 window.PAGE_LEAGUES = {
   gamesToday: {
     MLB:        true,
-    NHL:        false,
+    NHL:        true,
     CFB:        true,
-    NBA:        false,
+    NBA:        true,
     WNBA:       true,
     NCAAM:      false,
     EPL:        true,
@@ -21,9 +21,9 @@ window.PAGE_LEAGUES = {
 
   liveScores: {
     MLB:        true,
-    NHL:        false,
+    NHL:        true,
     CFB:        true,
-    NBA:        false,
+    NBA:        true,
     WNBA:       true,
     NCAAM:      false,
     EPL:        true,
@@ -34,6 +34,22 @@ window.PAGE_LEAGUES = {
     BUNDESLIGA: true,
     UFC:        false,
   },
+  finalScores: {
+    MLB:        true,
+    NHL:        true,
+    CFB:        true,
+    NBA:        true,
+    WNBA:       true,
+    NCAAM:      false,
+    EPL:        true,
+    MLS:        true,
+    LIGUE1:     true,
+    LALIGA:     true,
+    SERIEA:     true,
+    BUNDESLIGA: true,
+    UFC:        false,
+  },
+
 };
 
 window.isPageLeagueEnabled = function(pageKey, leagueKey, fallbackValue = true) {

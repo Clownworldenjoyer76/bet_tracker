@@ -4,10 +4,9 @@
   var CORE_API_ROOT = 'https://sports.core.api.espn.com/v2';
 
   /*
-    League activation controls:
-    - enabled: true = show and load the league
-    - enabled: false = hide the league completely
-    - placeholder: true = show the league but do not fetch normal team scores
+    League definitions live here because ESPN uses page-specific sport/league slugs.
+    Visibility is controlled centrally by window.PAGE_LEAGUES.finalScores in
+    assets/js/shared/config.js.
   */
   var LEAGUES = [
     {
@@ -24,6 +23,14 @@
       enabled: true,
       sport: 'hockey',
       league: 'nhl',
+      type: 'scoreboard'
+    },
+    {
+      key: 'CFB',
+      label: 'CFB',
+      enabled: true,
+      sport: 'football',
+      league: 'college-football',
       type: 'scoreboard'
     },
     {
@@ -143,10 +150,20 @@
     return '';
   }
 
+  function pageLeagueEnabled(cfg) {
+    if (typeof window.isPageLeagueEnabled === 'function') {
+      return window.isPageLeagueEnabled(
+        'finalScores',
+        cfg.key,
+        cfg.enabled !== false
+      );
+    }
+
+    return cfg.enabled !== false;
+  }
+
   function getEnabledLeagues() {
-    return LEAGUES.filter(function(league) {
-      return league.enabled !== false;
-    });
+    return LEAGUES.filter(pageLeagueEnabled);
   }
 
   function getScoreLeagues() {
@@ -166,7 +183,13 @@
   }
 
   function todayStr() {
-    return new Date().toISOString().slice(0, 10);
+    var now = new Date();
+
+    return [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0')
+    ].join('-');
   }
 
   function toESPNDate(dateValue) {
@@ -338,14 +361,21 @@
     var competition = null;
 
     if (Array.isArray(ev.competitions) && ev.competitions.length) {
-      competition = isRefItem(ev.competitions[0]) ? await fetchRef(ev.competitions[0]) : ev.competitions[0];
+      competition = isRefItem(ev.competitions[0])
+        ? await fetchRef(ev.competitions[0])
+        : ev.competitions[0];
     } else if (ev.competition) {
-      competition = isRefItem(ev.competition) ? await fetchRef(ev.competition) : ev.competition;
+      competition = isRefItem(ev.competition)
+        ? await fetchRef(ev.competition)
+        : ev.competition;
     }
 
     if (!competition) return null;
 
-    var competitorsRaw = Array.isArray(competition.competitors) ? competition.competitors : [];
+    var competitorsRaw = Array.isArray(competition.competitors)
+      ? competition.competitors
+      : [];
+
     var competitors = await fetchRefs(competitorsRaw, 20);
 
     for (var i = 0; i < competitors.length; i++) {
@@ -394,11 +424,15 @@
     var status = null;
 
     if (ev.status) {
-      status = isRefItem(ev.status) ? await fetchRef(ev.status).catch(function() { return null; }) : ev.status;
+      status = isRefItem(ev.status)
+        ? await fetchRef(ev.status).catch(function() { return null; })
+        : ev.status;
     }
 
     if (!status && competition && competition.status) {
-      status = isRefItem(competition.status) ? await fetchRef(competition.status).catch(function() { return null; }) : competition.status;
+      status = isRefItem(competition.status)
+        ? await fetchRef(competition.status).catch(function() { return null; })
+        : competition.status;
     }
 
     return status || {};
@@ -453,8 +487,14 @@
   }
 
   function getWinnerFlags(ev) {
-    var awayScore = ev.away && ev.away.score !== null ? parseFloat(ev.away.score) : NaN;
-    var homeScore = ev.home && ev.home.score !== null ? parseFloat(ev.home.score) : NaN;
+    var awayScore = ev.away && ev.away.score !== null
+      ? parseFloat(ev.away.score)
+      : NaN;
+
+    var homeScore = ev.home && ev.home.score !== null
+      ? parseFloat(ev.home.score)
+      : NaN;
+
     var awayWins = ev.away && ev.away.winner === true;
     var homeWins = ev.home && ev.home.winner === true;
 
@@ -474,7 +514,6 @@
     if (!host) return;
 
     var enabled = getEnabledLeagues();
-
     var html = '<div class="league-pill active" data-league="all">All</div>';
 
     html += enabled.map(function(cfg) {
@@ -482,7 +521,8 @@
 
       if (cfg.placeholder) cls += ' placeholder';
 
-      return '<div class="' + cls + '" data-league="' + esc(cfg.key) + '">' + esc(cfg.label) + '</div>';
+      return '<div class="' + cls + '" data-league="' +
+        esc(cfg.key) + '">' + esc(cfg.label) + '</div>';
     }).join('');
 
     html += '<input type="date" class="date-input" id="score-date">';
@@ -490,6 +530,7 @@
     host.innerHTML = html;
 
     var dateInput = $('score-date');
+
     if (dateInput) {
       dateInput.value = todayStr();
       dateInput.addEventListener('change', loadFinalScores);
@@ -515,7 +556,9 @@
       ph.className = 'placeholder-state';
       ph.innerHTML =
         '<div class="placeholder-title">' + esc(cfg.label) + ' Coming Next</div>' +
-        '<div class="placeholder-copy">' + esc(cfg.label) + ' does not use the same team final-score model, so it is parked as a placeholder.</div>';
+        '<div class="placeholder-copy">' + esc(cfg.label) +
+        ' does not use the same team final-score model, so it is parked as a placeholder.</div>';
+
       block.appendChild(ph);
       return block;
     }
@@ -569,15 +612,21 @@
 
   function buildTeamRow(team, score, winner) {
     var logo = team.logo
-      ? '<img class="team-logo" src="' + esc(team.logo) + '" loading="lazy" alt="' + esc(team.abbr || team.name || 'team') + ' logo">'
+      ? '<img class="team-logo" src="' + esc(team.logo) +
+        '" loading="lazy" alt="' +
+        esc(team.abbr || team.name || 'team') + ' logo">'
       : '';
 
     return '<div class="game-row">' +
       '<span class="team-side">' +
         logo +
-        '<span class="team-abbr' + (winner ? ' winner' : '') + '">' + esc(team.abbr || team.name || '—') + '</span>' +
+        '<span class="team-abbr' + (winner ? ' winner' : '') + '">' +
+          esc(team.abbr || team.name || '—') +
+        '</span>' +
       '</span>' +
-      '<span class="team-score' + (winner ? ' winner' : '') + '">' + esc(score) + '</span>' +
+      '<span class="team-score' + (winner ? ' winner' : '') + '">' +
+        esc(score) +
+      '</span>' +
     '</div>';
   }
 
@@ -596,7 +645,9 @@
       main.innerHTML =
         '<div class="placeholder-state">' +
           '<div class="placeholder-title">No Leagues Enabled</div>' +
-          '<div class="placeholder-copy">Enable at least one league in docs/js/final-scores/render.js to show final scores.</div>' +
+          '<div class="placeholder-copy">' +
+            'Enable at least one league in assets/js/shared/config.js under PAGE_LEAGUES.finalScores.' +
+          '</div>' +
         '</div>';
       return;
     }
@@ -618,7 +669,10 @@
 
   function applyFilter() {
     document.querySelectorAll('.league-block').forEach(function(block) {
-      block.style.display = activeLeague === 'all' || block.dataset.league === activeLeague ? '' : 'none';
+      block.style.display =
+        activeLeague === 'all' || block.dataset.league === activeLeague
+          ? ''
+          : 'none';
     });
   }
 
@@ -677,7 +731,13 @@
     }).length;
 
     if (failed) {
-      setStatus(total + ' completed games · ' + failed + ' league(s) failed · ' + date, '', 'red');
+      setStatus(
+        total + ' completed games · ' +
+        failed + ' league(s) failed · ' +
+        date,
+        '',
+        'red'
+      );
     } else {
       setStatus(total + ' completed games · ' + date, '', 'green');
     }
@@ -698,7 +758,9 @@
 
     if (!overlay || !inner) return;
 
-    inner.innerHTML = '<div style="padding:20px;color:var(--text-muted);font-size:11px;">Loading...</div>';
+    inner.innerHTML =
+      '<div style="padding:20px;color:var(--text-muted);font-size:11px;">Loading...</div>';
+
     overlay.classList.add('open');
 
     try {
@@ -733,24 +795,50 @@
     var leadersHTML = buildLeadersHTML(data);
 
     return '<div class="modal-top">' +
-        '<span class="modal-league-tag tag-' + esc(ev.leagueKey) + '">' + esc(ev.leagueLabel || ev.leagueKey) + '</span>' +
+        '<span class="modal-league-tag tag-' + esc(ev.leagueKey) + '">' +
+          esc(ev.leagueLabel || ev.leagueKey) +
+        '</span>' +
         '<span class="modal-final-tag">FINAL</span>' +
       '</div>' +
-      '<div class="modal-matchup">' + esc(away.name || away.abbr || 'Away') + ' @ ' + esc(home.name || home.abbr || 'Home') + '</div>' +
+      '<div class="modal-matchup">' +
+        esc(away.name || away.abbr || 'Away') +
+        ' @ ' +
+        esc(home.name || home.abbr || 'Home') +
+      '</div>' +
       '<div class="modal-scoreboard">' +
         '<div class="modal-score-row">' +
-          '<span class="modal-team' + (winnerFlags.awayWins ? ' winner' : '') + '">' + esc(away.abbr || away.name || '—') + '</span>' +
-          '<span class="modal-pts' + (winnerFlags.awayWins ? ' winner' : '') + '">' + esc(awayScore) + '</span>' +
+          '<span class="modal-team' + (winnerFlags.awayWins ? ' winner' : '') + '">' +
+            esc(away.abbr || away.name || '—') +
+          '</span>' +
+          '<span class="modal-pts' + (winnerFlags.awayWins ? ' winner' : '') + '">' +
+            esc(awayScore) +
+          '</span>' +
         '</div>' +
         '<div class="modal-score-row">' +
-          '<span class="modal-team' + (winnerFlags.homeWins ? ' winner' : '') + '">' + esc(home.abbr || home.name || '—') + '</span>' +
-          '<span class="modal-pts' + (winnerFlags.homeWins ? ' winner' : '') + '">' + esc(homeScore) + '</span>' +
+          '<span class="modal-team' + (winnerFlags.homeWins ? ' winner' : '') + '">' +
+            esc(home.abbr || home.name || '—') +
+          '</span>' +
+          '<span class="modal-pts' + (winnerFlags.homeWins ? ' winner' : '') + '">' +
+            esc(homeScore) +
+          '</span>' +
         '</div>' +
       '</div>' +
-      (oddsHTML ? '<div class="modal-section"><div class="modal-subtitle">Betting Lines</div>' + oddsHTML + '</div>' : '') +
-      (linesHTML ? '<div class="modal-section"><div class="modal-subtitle">Scoring by Period</div>' + linesHTML + '</div>' : '') +
-      (statsHTML ? '<div class="modal-section"><div class="modal-subtitle">Team Stats</div>' + statsHTML + '</div>' : '') +
-      (leadersHTML ? '<div class="modal-section"><div class="modal-subtitle">Leaders</div>' + leadersHTML + '</div>' : '');
+      (oddsHTML
+        ? '<div class="modal-section"><div class="modal-subtitle">Betting Lines</div>' +
+          oddsHTML + '</div>'
+        : '') +
+      (linesHTML
+        ? '<div class="modal-section"><div class="modal-subtitle">Scoring by Period</div>' +
+          linesHTML + '</div>'
+        : '') +
+      (statsHTML
+        ? '<div class="modal-section"><div class="modal-subtitle">Team Stats</div>' +
+          statsHTML + '</div>'
+        : '') +
+      (leadersHTML
+        ? '<div class="modal-section"><div class="modal-subtitle">Leaders</div>' +
+          leadersHTML + '</div>'
+        : '');
   }
 
   function buildOddsHTML(data) {
@@ -758,14 +846,17 @@
       return '';
     }
 
-    var odds = data.header.competitions[0].odds && data.header.competitions[0].odds[0];
+    var odds = data.header.competitions[0].odds &&
+      data.header.competitions[0].odds[0];
 
-    if (!odds) {
-      return '';
-    }
+    if (!odds) return '';
 
-    return '<div class="modal-row">Spread: ' + esc(odds.details || '—') + '</div>' +
-      '<div class="modal-row">Total: ' + esc(odds.overUnder || '—') + '</div>';
+    return '<div class="modal-row">Spread: ' +
+      esc(odds.details || '—') +
+      '</div>' +
+      '<div class="modal-row">Total: ' +
+      esc(odds.overUnder || '—') +
+      '</div>';
   }
 
   function buildLinesHTML(ev, data) {
@@ -785,17 +876,34 @@
 
     if (!awayLines.length) return '';
 
-    var periodLabel = ev.sport === 'baseball' ? 'Inn' : ev.sport === 'hockey' ? 'P' : ev.sport === 'soccer' ? 'H' : 'Q';
+    var periodLabel =
+      ev.sport === 'baseball' ? 'Inn' :
+      ev.sport === 'hockey' ? 'P' :
+      ev.sport === 'soccer' ? 'H' :
+      'Q';
 
     return awayLines.map(function(line, i) {
       var period = line.period || i + 1;
       var awayVal = line.displayValue || line.value || '0';
       var homeLine = homeLines[i];
-      var homeVal = homeLine ? homeLine.displayValue || homeLine.value || '0' : '0';
-      var awayAbbr = away.team ? away.team.abbreviation || ev.away.abbr || 'AWAY' : ev.away.abbr || 'AWAY';
-      var homeAbbr = home.team ? home.team.abbreviation || ev.home.abbr || 'HOME' : ev.home.abbr || 'HOME';
+      var homeVal = homeLine
+        ? homeLine.displayValue || homeLine.value || '0'
+        : '0';
 
-      return '<div class="modal-row">' + esc(periodLabel + period) + ': ' + esc(awayAbbr) + ' ' + esc(awayVal) + ' · ' + esc(homeAbbr) + ' ' + esc(homeVal) + '</div>';
+      var awayAbbr = away.team
+        ? away.team.abbreviation || ev.away.abbr || 'AWAY'
+        : ev.away.abbr || 'AWAY';
+
+      var homeAbbr = home.team
+        ? home.team.abbreviation || ev.home.abbr || 'HOME'
+        : ev.home.abbr || 'HOME';
+
+      return '<div class="modal-row">' +
+        esc(periodLabel + period) + ': ' +
+        esc(awayAbbr) + ' ' + esc(awayVal) +
+        ' · ' +
+        esc(homeAbbr) + ' ' + esc(homeVal) +
+        '</div>';
     }).join('');
   }
 
@@ -804,9 +912,36 @@
       return '';
     }
 
-    var NHL_STATS = ['shots on goal', 'hits', 'power play goals', 'power play opportunities', 'giveaways', 'takeaways'];
-    var MLB_STATS = ['runs', 'hits', 'errors', 'strikeouts', 'home runs', 'runs batted in', 'batting average', 'left on base'];
-    var SOCCER_STATS = ['possession', 'shots on target', 'shots', 'fouls', 'yellow cards', 'red cards', 'corner kicks', 'offsides'];
+    var NHL_STATS = [
+      'shots on goal',
+      'hits',
+      'power play goals',
+      'power play opportunities',
+      'giveaways',
+      'takeaways'
+    ];
+
+    var MLB_STATS = [
+      'runs',
+      'hits',
+      'errors',
+      'strikeouts',
+      'home runs',
+      'runs batted in',
+      'batting average',
+      'left on base'
+    ];
+
+    var SOCCER_STATS = [
+      'possession',
+      'shots on target',
+      'shots',
+      'fouls',
+      'yellow cards',
+      'red cards',
+      'corner kicks',
+      'offsides'
+    ];
 
     return data.boxscore.teams.map(function(teamBox) {
       var allStats = teamBox.statistics || [];
@@ -834,7 +969,12 @@
 
       var rows = flat.filter(function(stat) {
         var val = stat.displayValue || stat.value || '';
-        var label = String(stat.label || stat.displayName || stat.name || '').toLowerCase();
+        var label = String(
+          stat.label ||
+          stat.displayName ||
+          stat.name ||
+          ''
+        ).toLowerCase();
 
         if (!val && val !== 0) return false;
         if (whitelist) return whitelist.indexOf(label) !== -1;
@@ -849,9 +989,16 @@
 
       if (!rows.length) return '';
 
-      var teamName = teamBox.team ? teamBox.team.displayName || teamBox.team.abbreviation || '' : '';
+      var teamName = teamBox.team
+        ? teamBox.team.displayName || teamBox.team.abbreviation || ''
+        : '';
 
-      return '<div class="modal-row"><strong style="color:var(--text-main)">' + esc(teamName) + '</strong><br>' + rows.join(' · ') + '</div>';
+      return '<div class="modal-row">' +
+        '<strong style="color:var(--text-main)">' +
+          esc(teamName) +
+        '</strong><br>' +
+        rows.join(' · ') +
+      '</div>';
     }).filter(Boolean).join('');
   }
 
@@ -864,10 +1011,16 @@
       var top = leaderGroup.leaders && leaderGroup.leaders[0];
       var name = leaderGroup.displayName || leaderGroup.name || '';
       var val = top ? top.displayValue || top.value || '' : '';
-      var athlete = top && top.athlete ? top.athlete.displayName || '' : '';
+      var athlete = top && top.athlete
+        ? top.athlete.displayName || ''
+        : '';
 
       return name && val
-        ? '<div class="modal-row">' + esc(name) + ': ' + esc(athlete ? athlete + ' — ' : '') + esc(val) + '</div>'
+        ? '<div class="modal-row">' +
+          esc(name) + ': ' +
+          esc(athlete ? athlete + ' — ' : '') +
+          esc(val) +
+          '</div>'
         : '';
     }).filter(Boolean).join('');
   }
@@ -902,7 +1055,9 @@
 
     if (overlay) {
       overlay.addEventListener('click', function(e) {
-        if (e.target === overlay) overlay.classList.remove('open');
+        if (e.target === overlay) {
+          overlay.classList.remove('open');
+        }
       });
     }
 
