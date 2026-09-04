@@ -1,3 +1,51 @@
+// ─── Page-specific league visibility ──────────────────────────────────────────
+// These switches control ONLY the Games Today and Live Scores pages.
+// Set a league to false during its offseason to hide it completely and prevent
+// that page from loading/fetching it. Other pages continue to use REPO_CONFIG.
+window.PAGE_LEAGUES = {
+  gamesToday: {
+    MLB:        true,
+    NHL:        true,
+    CFB:        true,
+    NBA:        true,
+    WNBA:       true,
+    NCAAM:      false,
+    EPL:        true,
+    MLS:        true,
+    LIGUE1:     true,
+    LALIGA:     true,
+    SERIEA:     true,
+    BUNDESLIGA: true,
+    UFC:        true,
+  },
+
+  liveScores: {
+    MLB:        true,
+    NHL:        true,
+    CFB:        true,
+    NBA:        true,
+    WNBA:       true,
+    NCAAM:      false,
+    EPL:        true,
+    MLS:        true,
+    LIGUE1:     true,
+    LALIGA:     true,
+    SERIEA:     true,
+    BUNDESLIGA: true,
+    UFC:        false,
+  },
+};
+
+window.isPageLeagueEnabled = function(pageKey, leagueKey, fallbackValue = true) {
+  const pageConfig = window.PAGE_LEAGUES?.[pageKey];
+
+  if (!pageConfig || !Object.prototype.hasOwnProperty.call(pageConfig, leagueKey)) {
+    return fallbackValue;
+  }
+
+  return pageConfig[leagueKey] !== false;
+};
+
 // ─── Soccer shared base ───────────────────────────────────────────────────────
 // One CSV at win/soccer/04_select/{date}_soccer_bets.csv contains all 6 leagues.
 // Each league entry below extends this base and only sets its own league/displayName.

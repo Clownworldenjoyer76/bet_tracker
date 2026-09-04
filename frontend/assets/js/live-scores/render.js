@@ -5,10 +5,15 @@
   var REFRESH_MS = 30000;
 
   /*
-    League activation controls:
-    - enabled: true = show and load the league
-    - enabled: false = hide the league completely
+    League metadata lives here.
+    Page-specific on/off switches live in assets/js/shared/config.js under:
+      window.PAGE_LEAGUES.liveScores
+
+    - true  = show and load the league
+    - false = hide the league completely and skip its network requests
     - placeholder: true = show the league but do not fetch normal team scores
+
+    The enabled values below are only fallbacks if shared config is unavailable.
   */
   var LEAGUES = [
     {
@@ -25,6 +30,14 @@
       enabled: true,
       sport: 'hockey',
       league: 'nhl',
+      type: 'scoreboard'
+    },
+    {
+      key: 'CFB',
+      label: 'CFB',
+      enabled: true,
+      sport: 'football',
+      league: 'college-football',
       type: 'scoreboard'
     },
     {
@@ -145,9 +158,25 @@
     return '';
   }
 
+  function isLeagueEnabled(league) {
+    var fallback = league.enabled !== false;
+
+    if (typeof window.isPageLeagueEnabled === 'function') {
+      return window.isPageLeagueEnabled('liveScores', league.key, fallback);
+    }
+
+    var pageConfig = window.PAGE_LEAGUES && window.PAGE_LEAGUES.liveScores;
+
+    if (pageConfig && Object.prototype.hasOwnProperty.call(pageConfig, league.key)) {
+      return pageConfig[league.key] !== false;
+    }
+
+    return fallback;
+  }
+
   function getEnabledLeagues() {
     return LEAGUES.filter(function(league) {
-      return league.enabled !== false;
+      return isLeagueEnabled(league);
     });
   }
 
@@ -583,7 +612,7 @@
       main.innerHTML =
         '<div class="placeholder-state">' +
           '<div class="placeholder-title">No Leagues Enabled</div>' +
-          '<div class="placeholder-copy">Enable at least one league in docs/js/live-scores/render.js to show live scores.</div>' +
+          '<div class="placeholder-copy">Enable at least one league in assets/js/shared/config.js under PAGE_LEAGUES.liveScores.</div>' +
         '</div>';
       return;
     }

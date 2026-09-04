@@ -632,7 +632,23 @@ export async function loadUFC(date) {
 export async function loadAllLeagues(dateStr) {
   const date = dateToUnderscore(dateStr);
   const config = window.REPO_CONFIG || {};
-  const enabled = league => config[league] && config[league].enabled !== false;
+  const enabled = league => {
+    if (!config[league]) return false;
+
+    const fallback = config[league].enabled !== false;
+
+    if (typeof window.isPageLeagueEnabled === "function") {
+      return window.isPageLeagueEnabled("gamesToday", league, fallback);
+    }
+
+    const pageConfig = window.PAGE_LEAGUES?.gamesToday;
+
+    if (pageConfig && Object.prototype.hasOwnProperty.call(pageConfig, league)) {
+      return pageConfig[league] !== false;
+    }
+
+    return fallback;
+  };
 
   const tasks = [];
 
