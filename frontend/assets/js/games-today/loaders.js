@@ -320,6 +320,114 @@ export async function loadNHL(date) {
   };
 }
 
+export async function loadCFB(date) {
+  const gameDate = String(date || "").replaceAll("_", "-");
+  const season = gameDate.slice(0, 4);
+  const displayLeague = displayLeagueConfig("CFB", "CFB");
+
+  const scheduleRes = await fetchCSV(
+    `win/football/cfb/00_intake/schedule/${season}_schedule.csv`
+  );
+
+  const scheduleRows = scheduleRes.rows.filter(
+    row => String(row.game_date || "") === gameDate
+  );
+
+  if (!scheduleRows.length) {
+    return {
+      league: "CFB",
+      displayName: displayLeague,
+      games: [],
+    };
+  }
+
+  const weeks = [
+    ...new Set(
+      scheduleRows
+        .map(row => String(row.week || "").trim())
+        .filter(Boolean)
+    ),
+  ];
+
+  const weeklyResults = await Promise.all(
+    weeks.map(week =>
+      fetchCSV(
+        `win/football/cfb/00_intake/schedule/weekly/week_${week}_CFB_weekly_schedule.csv`
+      )
+    )
+  );
+
+  const weeklyRows = weeklyResults.flatMap(result => result.rows);
+  const weeklyByGameId = mapByGameId(weeklyRows);
+
+  const games = scheduleRows.map(base => {
+    const book = weeklyByGameId[String(base.game_id)] || {};
+    const gameTime = book.game_time || base.game_time;
+    const awayTeam = book.away_team || base.away_team;
+    const homeTeam = book.home_team || base.home_team;
+
+    return {
+      league: "CFB",
+      sport: "football",
+      displayLeague,
+      sortTime: parseSortTime(gameTime),
+      title: `${awayTeam} @ ${homeTeam}`,
+      card: {
+        date: formatDate(book.game_date || base.game_date),
+        time: formatTime(gameTime),
+        away: awayTeam,
+        home: homeTeam,
+        moneyline: [
+          book.away_moneyline_american &&
+            `${awayTeam} ${formatOdds(book.away_moneyline_american)}`,
+          book.home_moneyline_american &&
+            `${homeTeam} ${formatOdds(book.home_moneyline_american)}`,
+        ].filter(Boolean),
+        spread: [
+          book.away_spread &&
+            `${awayTeam} ${plusLine(book.away_spread)} (${formatOdds(book.away_spread_american)})`,
+          book.home_spread &&
+            `${homeTeam} ${plusLine(book.home_spread)} (${formatOdds(book.home_spread_american)})`,
+        ].filter(Boolean),
+        total: book.total
+          ? `Total ${book.total} O ${formatOdds(book.over_american)} / U ${formatOdds(book.under_american)}`
+          : "",
+        projection: "",
+      },
+      modal: cleanModalRows([
+        ["Date", formatDate(book.game_date || base.game_date)],
+        ["Time", formatTime(gameTime)],
+        ["Week", book.week || base.week],
+        ["Venue", book.stadium || base.stadium],
+        ["Roof", book.roof || base.roof],
+        ["Surface", book.surface || base.surface],
+        ["Bookmaker", book.bookmaker],
+        ["Away Moneyline", formatOdds(book.away_moneyline_american)],
+        ["Home Moneyline", formatOdds(book.home_moneyline_american)],
+        [
+          "Away Spread",
+          book.away_spread &&
+            `${plusLine(book.away_spread)} (${formatOdds(book.away_spread_american)})`,
+        ],
+        [
+          "Home Spread",
+          book.home_spread &&
+            `${plusLine(book.home_spread)} (${formatOdds(book.home_spread_american)})`,
+        ],
+        ["Total", book.total],
+        ["Total Over", formatOdds(book.over_american)],
+        ["Total Under", formatOdds(book.under_american)],
+      ]),
+    };
+  });
+
+  return {
+    league: "CFB",
+    displayName: displayLeague,
+    games,
+  };
+}
+
 export async function loadBasketball(league, date) {
   const lower = league.toLowerCase();
   const upper = league.toUpperCase();
@@ -530,6 +638,7 @@ export async function loadAllLeagues(dateStr) {
 
   if (enabled("MLB")) tasks.push(loadMLB(date));
   if (enabled("NHL")) tasks.push(loadNHL(date));
+  if (enabled("CFB")) tasks.push(loadCFB(date));
 
   BASKETBALL_ORDER.forEach(league => {
     if (enabled(league)) tasks.push(loadBasketball(league, date));
