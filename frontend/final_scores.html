@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Final Scores</title>
+  <link rel="stylesheet" href="assets/css/matstheme.css">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--background);
+      color: var(--text-main);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px;
+      min-height: 100vh;
+    }
+
+    .page-header {
+      border-bottom: 1px solid var(--border-soft);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .page-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent-green);
+    }
+
+    .page-subtitle {
+      color: var(--text-muted);
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      margin-top: 2px;
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      border-bottom: 1px solid var(--border-soft);
+      flex-wrap: wrap;
+    }
+
+    .league-pill {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      padding: 4px 12px;
+      border: 1px solid var(--border-soft);
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s;
+      text-transform: uppercase;
+    }
+
+    .league-pill:hover {
+      border-color: var(--accent-blue);
+      color: var(--accent-blue);
+    }
+
+    .league-pill.active {
+      border-color: var(--accent-green);
+      color: var(--accent-green);
+      background: rgba(0,255,132,0.06);
+    }
+
+    .league-pill.placeholder {
+      border-style: dashed;
+      opacity: 0.75;
+    }
+
+    .date-input {
+      margin-left: auto;
+      background: var(--bg-card);
+      border: 1px solid var(--border-soft);
+      color: var(--text-main);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px;
+      padding: 5px 10px;
+      outline: none;
+      color-scheme: dark;
+    }
+
+    .date-input:focus {
+      border-color: var(--accent-blue);
+    }
+
+    .status-bar {
+      padding: 8px 24px;
+      font-size: 11px;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border-soft);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .status-bar.loading {
+      color: var(--accent-yellow);
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      display: inline-block;
+      flex-shrink: 0;
+    }
+
+    .status-dot.green {
+      background: var(--accent-green);
+      box-shadow: 0 0 6px var(--accent-green);
+    }
+
+    .status-dot.yellow {
+      background: var(--accent-yellow);
+      animation: pulse 1s infinite;
+    }
+
+    .status-dot.red {
+      background: var(--accent-red);
+    }
+
+    @keyframes pulse {
+      0%,100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.3;
+      }
+    }
+
+    .main {
+      padding: 20px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+
+    .league-header {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      padding: 0 0 8px;
+      border-bottom: 1px solid var(--border-soft);
+      margin-bottom: 10px;
+      color: var(--text-muted);
+    }
+
+    .lh-NBA,
+    .lh-WNBA,
+    .lh-NCAAM {
+      color: var(--accent-yellow);
+    }
+
+    .lh-NHL {
+      color: var(--accent-blue);
+    }
+
+    .lh-MLB {
+      color: var(--accent-green);
+    }
+
+    .lh-EPL,
+    .lh-MLS,
+    .lh-LALIGA,
+    .lh-LIGUE1,
+    .lh-SERIEA,
+    .lh-BUNDESLIGA {
+      color: var(--accent-blue);
+    }
+
+    .games-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 8px;
+    }
+
+    .game-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-soft);
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .game-card:hover {
+      border-color: var(--accent-green);
+      background: var(--bg-card);
+    }
+
+    .game-status {
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      min-height: 14px;
+    }
+
+    .game-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .team-side {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    .team-logo {
+      width: 18px;
+      height: 18px;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
+
+    .team-abbr {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 145px;
+    }
+
+    .team-abbr.winner {
+      color: var(--accent-green);
+    }
+
+    .team-score {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 18px;
+      font-weight: 900;
+      color: var(--text-main);
+      min-width: 28px;
+      text-align: right;
+    }
+
+    .team-score.winner {
+      color: var(--accent-green);
+    }
+
+    .no-games {
+      font-size: 11px;
+      color: var(--text-muted);
+      letter-spacing: 0.08em;
+      padding: 8px 0;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .placeholder-state {
+      max-width: 760px;
+      margin: 40px auto;
+      padding: 28px;
+      border: 1px dashed var(--border-soft);
+      background: rgba(255,255,255,0.02);
+      text-align: center;
+    }
+
+    .placeholder-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: 0.1em;
+      color: var(--accent-yellow);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .placeholder-copy {
+      color: var(--text-muted);
+      font-size: 12px;
+      line-height: 1.7;
+    }
+
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal-overlay.open {
+      display: flex;
+    }
+
+    .modal-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border-soft);
+      width: 100%;
+      max-width: 620px;
+      max-height: 85vh;
+      overflow-y: auto;
+      position: relative;
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 12px;
+      right: 14px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-muted);
+      cursor: pointer;
+      letter-spacing: 0.1em;
+      background: none;
+      border: none;
+      z-index: 2;
+    }
+
+    .modal-close:hover {
+      color: var(--text-main);
+    }
+
+    .modal-inner {
+      padding: 20px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .modal-top {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .modal-league-tag {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      padding: 2px 8px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      border: 1px solid var(--border-soft);
+      background: rgba(255,255,255,0.03);
+    }
+
+    .tag-NBA,
+    .tag-WNBA,
+    .tag-NCAAM {
+      color: var(--accent-yellow);
+      border-color: rgba(250,204,21,0.3);
+      background: rgba(250,204,21,0.05);
+    }
+
+    .tag-NHL {
+      color: var(--accent-blue);
+      border-color: rgba(0,191,255,0.3);
+      background: rgba(0,191,255,0.05);
+    }
+
+    .tag-MLB {
+      color: var(--accent-green);
+      border-color: rgba(0,255,132,0.3);
+      background: rgba(0,255,132,0.05);
+    }
+
+    .tag-EPL,
+    .tag-MLS,
+    .tag-LALIGA,
+    .tag-LIGUE1,
+    .tag-SERIEA,
+    .tag-BUNDESLIGA {
+      color: var(--accent-blue);
+      border-color: rgba(0,191,255,0.3);
+      background: rgba(0,191,255,0.05);
+    }
+
+    .modal-final-tag {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+    }
+
+    .modal-matchup {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 20px;
+      font-weight: 900;
+      color: var(--text-main);
+      letter-spacing: 0.04em;
+    }
+
+    .modal-scoreboard {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      border-top: 1px solid var(--border-soft);
+      border-bottom: 1px solid var(--border-soft);
+      padding: 12px 0;
+    }
+
+    .modal-score-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .modal-team {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-muted);
+      letter-spacing: 0.06em;
+    }
+
+    .modal-team.winner {
+      color: var(--accent-green);
+    }
+
+    .modal-pts {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 22px;
+      font-weight: 900;
+      color: var(--text-main);
+    }
+
+    .modal-pts.winner {
+      color: var(--accent-green);
+    }
+
+    .modal-section {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .modal-subtitle {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border-soft);
+      padding-bottom: 4px;
+    }
+
+    .modal-row {
+      font-size: 11px;
+      color: var(--text-muted);
+      padding: 3px 0;
+      border-bottom: 1px solid var(--border-soft);
+      line-height: 1.5;
+    }
+
+    .modal-row:last-child {
+      border-bottom: none;
+    }
+
+    .modal-error {
+      color: var(--accent-red);
+      font-size: 12px;
+      padding: 20px 0;
+      text-align: center;
+    }
+
+    .error-details {
+      margin-top: 10px;
+      color: var(--accent-red);
+      font-size: 10px;
+      word-break: break-all;
+      line-height: 1.5;
+      text-transform: none;
+      letter-spacing: 0;
+      font-family: 'IBM Plex Mono', monospace;
+      font-weight: 400;
+    }
+
+    @media (max-width: 720px) {
+      .page-header,
+      .controls,
+      .status-bar,
+      .main {
+        padding-left: 14px;
+        padding-right: 14px;
+      }
+
+      .date-input {
+        width: 100%;
+        margin-left: 0;
+      }
+
+      .games-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div id="nav-placeholder"></div>
+
+<div class="page-header">
+  <div>
+    <div class="page-title">Final Scores</div>
+    <div class="page-subtitle">ALL LEAGUES</div>
+  </div>
+</div>
+
+<div class="controls" id="league-controls">
+  <input type="date" class="date-input" id="score-date">
+</div>
+
+<div class="status-bar" id="scores-status">
+  <span class="status-dot yellow" id="status-dot"></span>
+  <span id="status-text">Loading...</span>
+</div>
+
+<div class="main" id="scores-main"></div>
+<div class="empty-state" id="scores-empty" style="display:none">No completed games</div>
+
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal-box">
+    <button class="modal-close" id="modal-close">CLOSE ✕</button>
+    <div class="modal-inner" id="modal-inner"></div>
+  </div>
+</div>
+
+<script src="assets/js/shared/nav.js"></script>
+<script src="assets/js/final-scores/render.js"></script>
+</body>
+</html>

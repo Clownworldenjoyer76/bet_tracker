@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Transactions · Edgelytics</title>
+  <link rel="stylesheet" href="assets/css/matstheme.css">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }    body { background: var(--background); color: var(--text-main); font-family: 'IBM Plex Mono', monospace; font-size: 13px; min-height: 100vh; }
+
+    .page-header { border-bottom: 1px solid var(--border-soft); padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+    .page-title { font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-green); }
+    .page-subtitle { color: var(--text-muted); font-size: 11px; letter-spacing: 0.06em; margin-top: 2px; }
+
+    .controls { display: flex; align-items: center; gap: 8px; padding: 12px 24px; border-bottom: 1px solid var(--border-soft); flex-wrap: wrap; }
+    .league-pill { font-family: 'Barlow Condensed', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; padding: 4px 12px; border: 1px solid var(--border-soft); background: transparent; color: var(--text-muted); cursor: pointer; transition: all 0.15s; text-transform: uppercase; }
+    .league-pill:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
+    .league-pill.active { border-color: var(--accent-green); color: var(--accent-green); background: rgba(0,255,132,0.06); }
+    .search-box { margin-left: auto; background: var(--bg-card); border: 1px solid var(--border-soft); color: var(--text-main); font-family: 'IBM Plex Mono', monospace; font-size: 12px; padding: 5px 10px; width: 200px; outline: none; }
+    .search-box:focus { border-color: var(--accent-blue); }
+    .search-box::placeholder { color: var(--text-muted); }
+
+    .status-bar { padding: 8px 24px; font-size: 11px; color: var(--text-muted); border-bottom: 1px solid var(--border-soft); display: flex; align-items: center; gap: 10px; }
+    .status-bar.loading { color: var(--accent-yellow); }
+    .status-bar.error   { color: var(--accent-red); }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-muted); display: inline-block; flex-shrink: 0; }
+    .status-dot.green  { background: var(--accent-green); box-shadow: 0 0 6px var(--accent-green); }
+    .status-dot.yellow { background: var(--accent-yellow); animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1;}50%{opacity:0.3;} }
+
+    .main { padding: 20px 24px; }
+
+    .txn-feed { display: flex; flex-direction: column; gap: 1px; }
+
+    .txn-row { display: flex; align-items: baseline; gap: 16px; padding: 10px 12px; border-bottom: 1px solid var(--border-soft); background: var(--background); transition: background 0.1s; }
+    .txn-row:hover { background: var(--bg-card); }
+
+    .txn-date { font-size: 10px; color: var(--text-muted); letter-spacing: 0.08em; white-space: nowrap; min-width: 80px; flex-shrink: 0; }
+
+    .txn-team { font-family: 'Barlow Condensed', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; white-space: nowrap; flex-shrink: 0; min-width: 48px; }
+    .team-NHL   { color: var(--accent-blue); }
+    .team-NBA   { color: var(--accent-yellow); }
+    .team-MLB   { color: var(--accent-green); }
+    .team-NFL   { color: var(--accent-yellow); }
+
+    .txn-desc { font-size: 12px; color: var(--text-muted); line-height: 1.4; }
+
+    .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); font-family: 'Barlow Condensed', sans-serif; font-size: 16px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+  </style>
+</head>
+<body>
+
+<div id="nav-placeholder"></div>
+
+<div class="page-header">
+  <div>
+    <div class="page-title">Transactions</div>
+    <div class="page-subtitle">ESPN · ROSTER MOVES &amp; SIGNINGS</div>
+  </div>
+</div>
+
+<div class="controls">
+  <div class="league-pill active" data-league="nba" data-sport="basketball">NBA</div>
+  <div class="league-pill" data-league="nhl" data-sport="hockey">NHL</div>
+  <div class="league-pill" data-league="mlb" data-sport="baseball">MLB</div>
+  <div class="league-pill" data-league="nfl" data-sport="football">NFL</div>
+  <input type="text" class="search-box" id="txn-search" placeholder="Search team or move...">
+</div>
+
+<div class="status-bar" id="txn-status">
+  <span class="status-dot yellow" id="status-dot"></span>
+  <span id="status-text">Loading...</span>
+</div>
+
+<div class="main">
+  <div class="txn-feed" id="txn-feed"></div>
+  <div class="empty-state" id="txn-empty" style="display:none">No transactions found</div>
+</div>
+
+<script src="assets/js/shared/nav.js"></script>
+<script>
+var allTxns      = [];
+var activeLeague = "nba";
+var activeSport  = "basketball";
+var searchQuery  = "";
+
+function setStatus(text, cls, dotCls) {
+  document.getElementById("status-text").textContent = text;
+  document.getElementById("txn-status").className    = "status-bar " + (cls    || "");
+  document.getElementById("status-dot").className    = "status-dot "  + (dotCls || "");
+}
+
+function fmtDate(str) {
+  if (!str) return "";
+  var d = new Date(str);
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function render() {
+  var rows  = allTxns.slice();
+  var feed  = document.getElementById("txn-feed");
+  var empty = document.getElementById("txn-empty");
+  feed.innerHTML = "";
+
+  if (searchQuery) {
+    var q = searchQuery.toLowerCase();
+    rows = rows.filter(function(t) {
+      return (t.team  || "").toLowerCase().indexOf(q) !== -1 ||
+             (t.desc  || "").toLowerCase().indexOf(q) !== -1;
+    });
+  }
+
+  if (rows.length === 0) { empty.style.display = ""; return; }
+  empty.style.display = "none";
+
+  rows.forEach(function(t) {
+    var row = document.createElement("div");
+    row.className = "txn-row";
+    row.innerHTML =
+      '<div class="txn-date">' + fmtDate(t.date) + '</div>' +
+      '<div class="txn-team team-' + activeLeague.toUpperCase() + '">' + (t.team || "—") + '</div>' +
+      '<div class="txn-desc">' + (t.desc || "—") + '</div>';
+    feed.appendChild(row);
+  });
+}
+
+async function loadTransactions(league, sport) {
+  setStatus("Loading...", "loading", "yellow");
+  allTxns = [];
+  render();
+
+  try {
+    var url = "https://site.api.espn.com/apis/site/v2/sports/" + sport + "/" + league + "/transactions";
+    var r   = await fetch(url);
+    if (!r.ok) throw new Error(r.status);
+    var data = await r.json();
+    var txns = data.transactions || [];
+
+    if (txns.length === 0) {
+      setStatus("No transactions found", "", "");
+      document.getElementById("txn-empty").style.display = "";
+      return;
+    }
+
+    allTxns = txns.map(function(t) {
+      return {
+        date: t.date,
+        team: t.team ? (t.team.abbreviation || t.team.displayName || "") : "",
+        desc: t.description || ""
+      };
+    });
+
+    render();
+    setStatus(allTxns.length + " transactions loaded", "", "green");
+  } catch(e) {
+    setStatus("Failed to load", "error", "");
+    document.getElementById("txn-empty").style.display = "";
+    document.getElementById("txn-empty").textContent = "Failed to load transactions";
+  }
+}
+
+document.querySelectorAll(".league-pill").forEach(function(pill) {
+  pill.addEventListener("click", function() {
+    document.querySelectorAll(".league-pill").forEach(function(p) { p.classList.remove("active"); });
+    pill.classList.add("active");
+    activeLeague = pill.dataset.league;
+    activeSport  = pill.dataset.sport;
+    searchQuery  = "";
+    document.getElementById("txn-search").value = "";
+    loadTransactions(activeLeague, activeSport);
+  });
+});
+
+document.getElementById("txn-search").addEventListener("input", function(e) {
+  searchQuery = e.target.value.trim();
+  render();
+});
+
+loadTransactions(activeLeague, activeSport);
+</script>
+</body>
+</html>
