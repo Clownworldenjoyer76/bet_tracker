@@ -25,6 +25,7 @@ jobs:
       EPL_MODEL_ROOT: docs/win/soccer/ml/epl
       BUNDESLIGA_MODEL_ROOT: docs/win/soccer/ml/bundesliga
       LALIGA_MODEL_ROOT: docs/win/soccer/ml/laliga
+      SERIEA_MODEL_ROOT: docs/win/soccer/ml/seriea
 
     steps:
       - name: Checkout repo
@@ -446,6 +447,15 @@ jobs:
             --laliga-root "${LALIGA_MODEL_ROOT}" \
             --date "${RUN_DATE}" \
             2>&1 | tee docs/win/soccer/errors/01_merge/laliga_ml_infer.txt
+      - name: Serie A ML inference
+        shell: bash
+        run: |
+          set -o pipefail
+          python docs/win/soccer/scripts/01_merge/seriea_ml_infer.py \
+            --soccer-root docs/win/soccer \
+            --seriea-root "${SERIEA_MODEL_ROOT}" \
+            --date "${RUN_DATE}" \
+            2>&1 | tee docs/win/soccer/errors/01_merge/seriea_ml_infer.txt
       # Restore the pipeline's existing Python version/dependencies after EPL inference.
       - name: Restore Python 3.11
         uses: actions/setup-python@v5
@@ -521,6 +531,8 @@ jobs:
           cat docs/win/soccer/errors/01_merge/bundesliga_ml_infer.txt || true
           echo "=== La Liga ML inference log ==="
           cat docs/win/soccer/errors/01_merge/laliga_ml_infer.txt || true
+          echo "=== Serie A ML inference log ==="
+          cat docs/win/soccer/errors/01_merge/seriea_ml_infer.txt || true
 
           echo "=== Final score logs ==="
           cat docs/win/soccer/05_final_scores/errors/soccer_results_grade_summary.txt || true

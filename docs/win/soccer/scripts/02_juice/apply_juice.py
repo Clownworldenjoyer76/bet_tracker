@@ -66,7 +66,7 @@ FAIR_DECIMAL_REL_TOLERANCE = 1e-9
 FAIR_DECIMAL_ABS_TOLERANCE = 1e-12
 HOME_AWAY_SYMMETRY_TOLERANCE = 1e-9
 
-ML_PRICING_LEAGUES = {"epl", "bundesliga", "laliga"}
+ML_PRICING_LEAGUES = {"epl", "bundesliga", "laliga", "seriea"}
 
 ML_MARKET_COLUMNS = {
     "match_odds": (
