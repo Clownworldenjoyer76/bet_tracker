@@ -1,17 +1,10 @@
 (() => {
   "use strict";
 
-  const PAGE = (location.pathname.split("/").pop() || "")
-    .replace(/\.html$/i, "")
-    .toLowerCase();
-
-  const TARGET_PAGES = new Set([
-    "teams",
-    "players",
-    "standings"
-  ]);
-
-  if (!TARGET_PAGES.has(PAGE)) return;
+  let host = null;
+  let classObserver = null;
+  let hostObserver = null;
+  let transforming = false;
 
   const GROUPS = [
     {
@@ -45,17 +38,6 @@
       ]
     }
   ];
-
-  const DIRECT = [
-    { key: "nhl", label: "NHL", after: "football" },
-    { key: "mlb", label: "MLB", after: "nhl" },
-    { key: "ufc", label: "UFC", after: "soccer" }
-  ];
-
-  let host = null;
-  let classObserver = null;
-  let hostObserver = null;
-  let transforming = false;
 
   function injectStyles() {
     if (document.getElementById("shared-league-nav-style")) return;
@@ -177,7 +159,7 @@
       }
 
       #league-controls .shared-league-unavailable {
-        opacity: 0.4;
+        opacity: 0.38;
         cursor: not-allowed;
         border-style: dashed;
       }
@@ -189,7 +171,7 @@
       }
 
       #league-controls .shared-group-unavailable {
-        opacity: 0.65;
+        opacity: 0.62;
       }
 
       @media (max-width: 820px) {
@@ -251,25 +233,33 @@
     return map;
   }
 
-  function makeUnavailableLeague(item, asSubmenu) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.disabled = true;
-    button.className =
-      (asSubmenu ? "league-pill submenu-pill" : "league-pill") +
-      " shared-league-unavailable";
-    button.dataset.sharedLeagueKey = item.key;
-    button.textContent = item.label;
-    button.title = item.label + " stats coverage is not enabled on this page.";
-    return button;
-  }
-
   function prepareExistingPill(pill, item, asSubmenu) {
     pill.textContent = item.label;
     pill.classList.remove("placeholder");
     pill.classList.toggle("submenu-pill", !!asSubmenu);
     pill.classList.add("shared-league-option");
     return pill;
+  }
+
+  function makeUnavailableLeague(item, asSubmenu) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.disabled = true;
+    button.className =
+      "league-pill shared-league-unavailable" +
+      (asSubmenu ? " submenu-pill" : "");
+    button.dataset.sharedLeagueKey = item.key;
+    button.textContent = item.label;
+    button.title = item.label + " is not currently supported on this page.";
+    return button;
+  }
+
+  function closeAllMenus() {
+    if (!host) return;
+
+    host.querySelectorAll(".control-group.open").forEach((group) => {
+      group.classList.remove("open");
+    });
   }
 
   function makeGroup(group, existing) {
@@ -335,14 +325,6 @@
     return makeUnavailableLeague(item, false);
   }
 
-  function closeAllMenus() {
-    if (!host) return;
-
-    host.querySelectorAll(".control-group.open").forEach((group) => {
-      group.classList.remove("open");
-    });
-  }
-
   function updateActiveGroups() {
     if (!host) return;
 
@@ -358,7 +340,7 @@
     });
   }
 
-  function preserveAuxiliaryNodes(existingPills) {
+  function preserveAuxiliaryNodes() {
     const aux = [];
 
     Array.from(host.children).forEach((node) => {
@@ -385,6 +367,41 @@
     return aux;
   }
 
+  function observeActiveState() {
+    if (classObserver) classObserver.disconnect();
+
+    classObserver = new MutationObserver(() => {
+      updateActiveGroups();
+    });
+
+    host.querySelectorAll(".league-pill[data-league-key]").forEach((pill) => {
+      classObserver.observe(pill, {
+        attributes: true,
+        attributeFilter: ["class"]
+      });
+    });
+  }
+
+  function observeHost() {
+    if (hostObserver) hostObserver.disconnect();
+
+    hostObserver = new MutationObserver(() => {
+      if (transforming) return;
+
+      const flatPills = Array.from(
+        host.querySelectorAll(":scope > .league-pill[data-league-key]")
+      );
+
+      if (flatPills.length) {
+        queueMicrotask(buildSharedNav);
+      }
+    });
+
+    hostObserver.observe(host, {
+      childList: true
+    });
+  }
+
   function buildSharedNav() {
     if (!host || transforming) return;
 
@@ -397,31 +414,31 @@
     if (hostObserver) hostObserver.disconnect();
     if (classObserver) classObserver.disconnect();
 
-    const auxiliary = preserveAuxiliaryNodes(existing);
-
+    const auxiliary = preserveAuxiliaryNodes();
     const main = document.createElement("div");
     main.className = "shared-league-nav-main";
 
+    if (existing.has("all")) {
+      main.appendChild(
+        prepareExistingPill(
+          existing.get("all"),
+          { key: "all", label: "All" },
+          false
+        )
+      );
+    }
+
     main.appendChild(makeGroup(GROUPS[0], existing));
     main.appendChild(
-      makeDirect(
-        { key: "nhl", label: "NHL" },
-        existing
-      )
+      makeDirect({ key: "nhl", label: "NHL" }, existing)
     );
     main.appendChild(
-      makeDirect(
-        { key: "mlb", label: "MLB" },
-        existing
-      )
+      makeDirect({ key: "mlb", label: "MLB" }, existing)
     );
     main.appendChild(makeGroup(GROUPS[1], existing));
     main.appendChild(makeGroup(GROUPS[2], existing));
     main.appendChild(
-      makeDirect(
-        { key: "ufc", label: "UFC" },
-        existing
-      )
+      makeDirect({ key: "ufc", label: "UFC" }, existing)
     );
 
     const aux = document.createElement("div");
@@ -446,38 +463,6 @@
     observeHost();
 
     transforming = false;
-  }
-
-  function observeActiveState() {
-    classObserver = new MutationObserver(() => {
-      updateActiveGroups();
-    });
-
-    host.querySelectorAll(".league-pill[data-league-key]").forEach((pill) => {
-      classObserver.observe(pill, {
-        attributes: true,
-        attributeFilter: ["class"]
-      });
-    });
-  }
-
-  function observeHost() {
-    hostObserver = new MutationObserver(() => {
-      if (transforming) return;
-
-      const flatPills = Array.from(
-        host.querySelectorAll(":scope > .league-pill[data-league-key]")
-      );
-
-      if (flatPills.length) {
-        host.dataset.sharedLeagueNavReady = "false";
-        queueMicrotask(buildSharedNav);
-      }
-    });
-
-    hostObserver.observe(host, {
-      childList: true
-    });
   }
 
   function init() {

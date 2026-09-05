@@ -48,6 +48,18 @@ body {
   margin: 0;
 }
 
+/* LEAGUE FILTER */
+.league-filter-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--picks-border);
+  flex-wrap: wrap;
+  position: relative;
+  z-index: 20;
+}
+
 /* CONTROLS */
 .picks-controls {
   display: flex;
@@ -377,6 +389,14 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   color: var(--text-muted);
   text-transform: uppercase;
 }
+
+@media (max-width: 820px) {
+  .league-filter-controls {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -385,6 +405,14 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 <div class="picks-header">
   <h1 class="picks-title">KELLY CALCULATOR</h1>
+</div>
+
+<div class="league-filter-controls" id="league-controls">
+  <button type="button" class="league-pill active" data-league-key="all">All</button>
+  <button type="button" class="league-pill" data-league-key="nhl">NHL</button>
+  <button type="button" class="league-pill" data-league-key="mlb">MLB</button>
+  <button type="button" class="league-pill" data-league-key="nba">NBA</button>
+  <button type="button" class="league-pill" data-league-key="ufc">UFC</button>
 </div>
 
 <div class="picks-controls">
@@ -433,10 +461,12 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 </div>
 
 <script src="assets/js/shared/nav.js"></script>
+<script src="assets/js/shared/league_nav.js"></script>
 <script>
 const BASE = 'https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/';
 const BASE_DOCS = BASE + 'docs/';
 let fraction = 1.0;
+let selectedLeague = 'all';
 const allPicks = { nba: [], mlb: [], nhl: [], ufc: [] };
 
 function toDateStr(v) { return v.replaceAll('-', '_'); }
@@ -460,6 +490,24 @@ document.querySelectorAll('.fraction-btns button').forEach(btn => {
 
 document.getElementById('bankroll').addEventListener('input', render);
 document.getElementById('date-picker').addEventListener('change', loadAll);
+
+document.getElementById('league-controls').addEventListener('click', event => {
+  const pill = event.target.closest('.league-pill[data-league-key]');
+  if (!pill || pill.disabled) return;
+
+  selectedLeague = (pill.dataset.leagueKey || 'all').toLowerCase();
+
+  document
+    .querySelectorAll('#league-controls .league-pill[data-league-key]')
+    .forEach(button => {
+      button.classList.toggle(
+        'active',
+        (button.dataset.leagueKey || '').toLowerCase() === selectedLeague
+      );
+    });
+
+  render();
+});
 
 function parseCSVLine(line) {
   const out = [];
@@ -651,12 +699,16 @@ async function loadUFCPicks() {
 function render() {
   const bankroll = parseFloat(document.getElementById('bankroll').value) || 0;
   const container = document.getElementById('picks-container');
-  const sports = [
+  const allSports = [
     { key: 'nba', label: 'NBA' },
     { key: 'mlb', label: 'MLB' },
     { key: 'nhl', label: 'NHL' },
     { key: 'ufc', label: 'UFC' },
   ];
+
+  const sports = selectedLeague === 'all'
+    ? allSports
+    : allSports.filter(s => s.key === selectedLeague);
 
   let totalPicks = 0, totalBet = 0, html = '';
   const allPicksList = sports.flatMap(s => allPicks[s.key]);
