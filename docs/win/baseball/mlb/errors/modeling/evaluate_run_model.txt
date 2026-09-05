@@ -1,3 +1,14 @@
-=== evaluate_run_model RUN 2026-09-05T07:42:25.039104+00:00 ===
-2026-09-05T07:42:27.881265+00:00 | INFO  | PROMOTION candidate_rejected comparison={'home': {'baseline_system': 'dratings', 'metric': 'mean_poisson_deviance', 'baseline_value': 2.139487701957967, 'candidate_value': 2.1190561178466973, 'candidate_lte_baseline': True, 'difference_candidate_minus_baseline': -0.02043158411126944}, 'away': {'baseline_system': 'dratings', 'metric': 'mean_poisson_deviance', 'baseline_value': 2.5286339757086087, 'candidate_value': 2.575115299661813, 'candidate_lte_baseline': False, 'difference_candidate_minus_baseline': 0.04648132395320426}}
-2026-09-05T07:42:27.938097+00:00 | INFO  | SUCCESS promotion_status=candidate_rejected test_rows=167 test_start=2026-08-09 test_end=2026-09-04 value_rows=2004 reports=7
+=== evaluate_run_model RUN 2026-09-05T14:19:39.747087+00:00 ===
+2026-09-05T14:19:39.967707+00:00 | ERROR | Invalid numeric values in away_run_line; bad_rows=1; sample=[{'game_id': '401816809', 'game_date': '2026_09_04', 'away_run_line': nan}]
+2026-09-05T14:19:39.968439+00:00 | ERROR | Traceback (most recent call last):
+  File "/home/runner/work/bet_tracker/bet_tracker/docs/win/baseball/mlb/scripts/modeling/evaluate_run_model.py", line 2776, in main
+    sportsbook = load_sportsbook_test_period(
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/bet_tracker/bet_tracker/docs/win/baseball/mlb/scripts/modeling/evaluate_run_model.py", line 1017, in load_sportsbook_test_period
+    sportsbook[col] = numeric_series(
+                      ^^^^^^^^^^^^^^^
+  File "/home/runner/work/bet_tracker/bet_tracker/docs/win/baseball/mlb/scripts/modeling/evaluate_run_model.py", line 312, in numeric_series
+    fail(
+  File "/home/runner/work/bet_tracker/bet_tracker/docs/win/baseball/mlb/scripts/modeling/evaluate_run_model.py", line 133, in fail
+    raise RuntimeError(message)
+RuntimeError: Invalid numeric values in away_run_line; bad_rows=1; sample=[{'game_id': '401816809', 'game_date': '2026_09_04', 'away_run_line': nan}]
