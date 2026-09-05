@@ -245,7 +245,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 .sport-section-title.nba { color: var(--picks-yellow); }
-.sport-section-title.mlb { color: var(--picks-blue); }
+.sport-section-title.mlb,
+.sport-section-title.mlb_lineups { color: var(--picks-blue); }
 .sport-section-title.nhl { color: var(--picks-green); }
 .sport-section-title.ufc { color: #ff7043; }
 
@@ -411,6 +412,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   <button type="button" class="league-pill active" data-league-key="all">All</button>
   <button type="button" class="league-pill" data-league-key="nhl">NHL</button>
   <button type="button" class="league-pill" data-league-key="mlb">MLB</button>
+  <button type="button" class="league-pill" data-league-key="mlb_lineups">MLB · With Lineups</button>
   <button type="button" class="league-pill" data-league-key="nba">NBA</button>
   <button type="button" class="league-pill" data-league-key="ufc">UFC</button>
 </div>
@@ -460,6 +462,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   <div class="loading-state">Loading picks...</div>
 </div>
 
+<script src="assets/js/shared/config.js"></script>
 <script src="assets/js/shared/nav.js"></script>
 <script src="assets/js/shared/league_nav.js"></script>
 <script>
@@ -467,7 +470,7 @@ const BASE = 'https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/
 const BASE_DOCS = BASE + 'docs/';
 let fraction = 1.0;
 let selectedLeague = 'all';
-const allPicks = { nba: [], mlb: [], nhl: [], ufc: [] };
+const allPicks = { nba: [], mlb: [], mlb_lineups: [], nhl: [], ufc: [] };
 
 function toDateStr(v) { return v.replaceAll('-', '_'); }
 
@@ -559,6 +562,40 @@ function parseCSV(text) {
     const vals = parseCSVLine(line).map(cleanCSVCell);
     return Object.fromEntries(headers.map((h, i) => [h, vals[i] ?? '']));
   });
+}
+
+function resolveSelectFiles(configKey, dateStr) {
+  const cfg = window.REPO_CONFIG && window.REPO_CONFIG[configKey];
+  if (!cfg || !cfg.selectFiles) return [];
+
+  const resolved = typeof cfg.selectFiles === 'function'
+    ? cfg.selectFiles(dateStr)
+    : cfg.selectFiles;
+
+  if (Array.isArray(resolved)) return resolved.filter(Boolean);
+  return resolved ? [resolved] : [];
+}
+
+function resolveSelectUrl(path) {
+  if (!path) return '';
+  if (/^https?:\/\//i.test(path)) return path;
+  return path.startsWith('win/')
+    ? BASE_DOCS + path
+    : BASE + path.replace(/^\/+/, '');
+}
+
+async function loadConfigSelectedRows(configKey, dateStr) {
+  const paths = resolveSelectFiles(configKey, dateStr);
+
+  for (const path of paths) {
+    try {
+      const r = await fetch(resolveSelectUrl(path), { cache: 'no-store' });
+      if (!r.ok) continue;
+      return parseCSV(await r.text());
+    } catch {}
+  }
+
+  return [];
 }
 
 function formatOdds(val) {
@@ -702,6 +739,7 @@ function render() {
   const allSports = [
     { key: 'nba', label: 'NBA' },
     { key: 'mlb', label: 'MLB' },
+    { key: 'mlb_lineups', label: 'MLB · WITH LINEUPS' },
     { key: 'nhl', label: 'NHL' },
     { key: 'ufc', label: 'UFC' },
   ];
@@ -763,19 +801,23 @@ function render() {
 
 async function loadAll() {
   const date = toDateStr(initDatePicker());
-  const files = [
-    { sport: 'nba', url: `${BASE}docs/win/basketball/04_select/daily_slate/nba_selected.csv` },
-    { sport: 'mlb', url: `${BASE}docs/win/baseball/04_select/${date}_MLB.csv` },
-    { sport: 'nhl', url: `${BASE}docs/win/hockey/nhl/04_select/${date}_NHL.csv` },
+
+  const configuredFeeds = [
+    { sport: 'nba',         configKey: 'NBA' },
+    { sport: 'mlb',         configKey: 'MLB' },
+    { sport: 'mlb_lineups', configKey: 'MLB_LINEUPS' },
+    { sport: 'nhl',         configKey: 'NHL' },
   ];
 
   await Promise.all([
-    ...files.map(async ({ sport, url }) => {
+    ...configuredFeeds.map(async ({ sport, configKey }) => {
       try {
-        const r = await fetch(url);
-        if (!r.ok) throw new Error(r.status);
-        const rows = parseCSV(await r.text());
-        allPicks[sport] = processPicks(rows, sport, date);
+        const rows = await loadConfigSelectedRows(configKey, date);
+        allPicks[sport] = processPicks(
+          rows,
+          sport === 'mlb_lineups' ? 'mlb' : sport,
+          date
+        );
       } catch {
         allPicks[sport] = [];
       }

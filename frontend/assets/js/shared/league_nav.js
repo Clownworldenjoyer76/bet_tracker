@@ -435,6 +435,16 @@
     main.appendChild(
       makeDirect({ key: "mlb", label: "MLB" }, existing)
     );
+
+    if (existing.has("mlb_lineups")) {
+      main.appendChild(
+        makeDirect(
+          { key: "mlb_lineups", label: "MLB · With Lineups" },
+          existing
+        )
+      );
+    }
+
     main.appendChild(makeGroup(GROUPS[1], existing));
     main.appendChild(makeGroup(GROUPS[2], existing));
     main.appendChild(
