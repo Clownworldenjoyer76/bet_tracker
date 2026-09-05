@@ -325,6 +325,67 @@
     return makeUnavailableLeague(item, false);
   }
 
+  function makeMlbGroup(existing) {
+    const wrap = document.createElement("div");
+    wrap.className = "control-group";
+    wrap.dataset.group = "mlb";
+
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "group-pill";
+    toggle.dataset.groupToggle = "mlb";
+    toggle.textContent = "MLB";
+
+    const submenu = document.createElement("div");
+    submenu.className = "submenu";
+
+    const mlb = existing.get("mlb");
+    const lineups = existing.get("mlb_lineups");
+
+    submenu.appendChild(
+      mlb
+        ? prepareExistingPill(
+            mlb,
+            { key: "mlb", label: "MLB" },
+            true
+          )
+        : makeUnavailableLeague(
+            { key: "mlb", label: "MLB" },
+            true
+          )
+    );
+
+    submenu.appendChild(
+      lineups
+        ? prepareExistingPill(
+            lineups,
+            { key: "mlb_lineups", label: "MLB · With Lineups" },
+            true
+          )
+        : makeUnavailableLeague(
+            { key: "mlb_lineups", label: "MLB · With Lineups" },
+            true
+          )
+    );
+
+    wrap.appendChild(toggle);
+    wrap.appendChild(submenu);
+
+    toggle.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      const wasOpen = wrap.classList.contains("open");
+      closeAllMenus();
+
+      if (!wasOpen) {
+        wrap.classList.add("open");
+      }
+    });
+
+    return wrap;
+  }
+
   function updateActiveGroups() {
     if (!host) return;
 
@@ -432,16 +493,11 @@
     main.appendChild(
       makeDirect({ key: "nhl", label: "NHL" }, existing)
     );
-    main.appendChild(
-      makeDirect({ key: "mlb", label: "MLB" }, existing)
-    );
-
     if (existing.has("mlb_lineups")) {
+      main.appendChild(makeMlbGroup(existing));
+    } else {
       main.appendChild(
-        makeDirect(
-          { key: "mlb_lineups", label: "MLB · With Lineups" },
-          existing
-        )
+        makeDirect({ key: "mlb", label: "MLB" }, existing)
       );
     }
 
