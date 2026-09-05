@@ -148,6 +148,7 @@ jobs:
           mkdir -p docs/win/hockey/nhl/config/mapping
           mkdir -p docs/win/hockey/nhl/sdv
           mkdir -p docs/win/hockey/nhl/test_output/game_id_reconciliation
+          mkdir -p frontend/data/pipeline_health
 
       - name: Syntax check NHL intake and game ID scripts
         run: |
@@ -424,3 +425,22 @@ jobs:
             git pull --rebase origin main
             git push
           fi
+
+      - name: NHL Pipeline Health
+        if: always()
+        env:
+          NHL_PIPELINE_JOB_STATUS: ${{ job.status }}
+          NHL_PIPELINE_RUN_DATE: ${{ env.DATE }}
+        run: python docs/win/hockey/nhl/scripts/pipeline_health.py
+
+      - name: Commit NHL pipeline health
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/win/hockey/nhl/pipeline_health.json
+          git add docs/win/hockey/nhl/errors/pipeline_health.txt
+          git add frontend/data/pipeline_health/nhl.json
+          git diff --cached --quiet || git commit -m "chore: update NHL pipeline health"
+          git pull --rebase origin main
+          git push

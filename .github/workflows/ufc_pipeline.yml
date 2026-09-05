@@ -48,6 +48,8 @@ jobs:
           mkdir -p docs/win/mma/ufc/04_final/graded
           mkdir -p docs/win/mma/ufc/04_final/reports
           mkdir -p docs/win/mma/ufc/mappings
+          mkdir -p docs/win/mma/ufc/errors
+          mkdir -p frontend/data/pipeline_health
 
       - name: 00 - Normalize fighter names
         run: |
@@ -107,6 +109,12 @@ jobs:
           echo "=== UFC report outputs ==="
           find docs/win/mma/ufc/04_final/reports -type f | sort || true
 
+      - name: UFC Pipeline Health
+        if: always()
+        env:
+          UFC_PIPELINE_JOB_STATUS: ${{ job.status }}
+        run: python docs/win/mma/ufc/scripts/pipeline_health.py
+
       - name: Commit and push all output files
         run: |
           git config user.name "github-actions[bot]"
@@ -127,3 +135,15 @@ jobs:
             git pull --rebase --autostash origin main
             git push origin main
           fi
+
+      - name: Commit UFC pipeline health
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/win/mma/ufc/pipeline_health.json
+          git add docs/win/mma/ufc/errors/pipeline_health.txt
+          git add frontend/data/pipeline_health/ufc.json
+          git diff --cached --quiet || git commit -m "chore: update UFC pipeline health"
+          git pull --rebase --autostash origin main
+          git push origin main

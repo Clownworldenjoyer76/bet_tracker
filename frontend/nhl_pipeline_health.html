@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NHL Pipeline Health</title>
+  <link rel="stylesheet" href="assets/css/matstheme.css">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *,*::before,*::after{box-sizing:border-box}body{margin:0;background:var(--background);color:var(--text-main);font-family:'IBM Plex Mono',monospace;font-size:13px;min-height:100vh}
+    .head{padding:18px 24px;border-bottom:1px solid var(--border-soft);display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+    h1{margin:0;font-family:'Barlow Condensed',sans-serif;text-transform:uppercase;letter-spacing:.08em;font-size:26px;color:var(--accent-green)}
+    .meta{color:var(--text-muted);font-size:11px;margin-top:4px}.main{padding:22px 24px 40px}.badge{padding:5px 10px;border:1px solid var(--border-soft);font-family:'Barlow Condensed',sans-serif;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
+    .healthy{color:var(--accent-green)}.warning{color:var(--accent-yellow)}.failed{color:var(--accent-red)}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin:0 0 22px}.card,.panel{border:1px solid var(--border-soft);background:var(--bg-card)}.card{padding:12px 14px}.k{font-family:'Barlow Condensed',sans-serif;color:var(--text-muted);font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}.v{font-family:'Barlow Condensed',sans-serif;font-size:25px;font-weight:900;margin-top:4px}
+    .title{font-family:'Barlow Condensed',sans-serif;color:var(--text-muted);font-size:14px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;border-bottom:1px solid var(--border-soft);padding-bottom:6px;margin:22px 0 10px}
+    .panel{padding:12px 14px}ul{margin:0;padding-left:20px}li{margin:6px 0;line-height:1.45}.table{overflow:auto;border:1px solid var(--border-soft)}table{width:100%;border-collapse:collapse;background:var(--bg-card);font-size:11px}th,td{padding:9px 11px;text-align:left;border-bottom:1px solid var(--border-soft);white-space:nowrap}th{font-family:'Barlow Condensed',sans-serif;color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em}tr:last-child td{border-bottom:none}.muted{color:var(--text-muted)}
+  </style>
+</head>
+<body>
+<div id="nav-placeholder"></div>
+<div class="head"><div><h1>NHL Pipeline Health</h1><div id="meta" class="meta">Loading...</div></div><div id="status" class="badge">Loading</div></div>
+<main class="main"><div id="content"></div></main>
+<script src="assets/js/shared/nav.js"></script>
+<script>
+const SOURCE='data/pipeline_health/nhl.json';
+const esc=v=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const pretty=v=>String(v||'').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+fetch(SOURCE+'?v='+Date.now(),{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(d=>{
+  const s=String(d.status||'unknown').toLowerCase(); const badge=document.getElementById('status'); badge.textContent=s.toUpperCase(); badge.classList.add(s);
+  document.getElementById('meta').textContent=`Report date: ${d.report_date||'—'} · Generated: ${d.generated_at_utc||'—'} · Workflow: ${d.workflow?.status||'—'}`;
+  const counts=Object.entries(d.counts||{}).map(([k,v])=>`<div class="card"><div class="k">${esc(pretty(k))}</div><div class="v">${esc(v)}</div></div>`).join('');
+  const fat=(d.fatal_errors||[]), warn=(d.warnings||[]);
+  const stages=(d.stage_status||[]).map(x=>`<tr><td>${esc(x.name||'')}</td><td class="${String(x.status||'').includes('FAILED')?'failed':''}">${esc(x.status||'')}</td><td>${esc(x.path||'')}</td></tr>`).join('');
+  document.getElementById('content').innerHTML=`<div class="grid">${counts}</div>
+    <div class="title">Fatal Errors</div><div class="panel">${fat.length?'<ul>'+fat.map(x=>'<li class="failed">'+esc(x)+'</li>').join('')+'</ul>':'<span class="muted">None</span>'}</div>
+    <div class="title">Warnings</div><div class="panel">${warn.length?'<ul>'+warn.map(x=>'<li class="warning">'+esc(x)+'</li>').join('')+'</ul>':'<span class="muted">None</span>'}</div>
+    <div class="title">Pipeline Stages</div><div class="table"><table><thead><tr><th>Stage</th><th>Status</th><th>Path</th></tr></thead><tbody>${stages}</tbody></table></div>`;
+}).catch(e=>{document.getElementById('meta').textContent='Failed to load '+SOURCE;document.getElementById('status').textContent='ERROR';document.getElementById('status').classList.add('failed');document.getElementById('content').innerHTML='<div class="panel failed">'+esc(e.message)+'</div>';});
+</script>
+</body>
+</html>
