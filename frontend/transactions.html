@@ -214,37 +214,99 @@
       50%     { opacity: 0.3; }
     }
 
+    .filter-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 24px;
+      border-bottom: 1px solid var(--border-soft);
+      flex-wrap: wrap;
+    }
+
+    .toolbar-label {
+      font-size: 9px;
+      color: var(--text-muted);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .toolbar-select {
+      background: var(--bg-card);
+      border: 1px solid var(--border-soft);
+      color: var(--text-main);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      padding: 6px 9px;
+      outline: none;
+      color-scheme: dark;
+    }
+
+    .toolbar-select:focus {
+      border-color: var(--accent-blue);
+    }
+
+    .result-count {
+      margin-left: auto;
+      font-size: 10px;
+      color: var(--text-muted);
+      letter-spacing: 0.06em;
+    }
+
     .main {
-      padding: 20px 24px;
+      padding: 18px 24px 36px;
     }
 
     .txn-feed {
       display: flex;
       flex-direction: column;
-      gap: 1px;
+      gap: 0;
+    }
+
+    .txn-date-group {
+      margin-top: 18px;
+    }
+
+    .txn-date-group:first-child {
+      margin-top: 0;
+    }
+
+    .txn-date-heading {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 0 7px;
+      border-bottom: 1px solid var(--border-soft);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-main);
+    }
+
+    .txn-date-count {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 9px;
+      font-weight: 400;
+      color: var(--text-muted);
+      letter-spacing: 0.08em;
     }
 
     .txn-row {
-      display: flex;
-      align-items: baseline;
-      gap: 16px;
-      padding: 10px 12px;
+      display: grid;
+      grid-template-columns: 74px 58px 116px minmax(0, 1fr);
+      align-items: center;
+      gap: 12px;
+      padding: 10px 10px;
       border-bottom: 1px solid var(--border-soft);
+      border-left: 2px solid transparent;
       background: var(--background);
-      transition: background 0.1s;
+      transition: background 0.1s, border-color 0.1s;
     }
 
     .txn-row:hover {
       background: var(--bg-card);
-    }
-
-    .txn-date {
-      font-size: 10px;
-      color: var(--text-muted);
-      letter-spacing: 0.08em;
-      white-space: nowrap;
-      min-width: 80px;
-      flex-shrink: 0;
+      border-left-color: var(--accent-green);
     }
 
     .txn-league {
@@ -253,8 +315,6 @@
       font-weight: 700;
       letter-spacing: 0.08em;
       white-space: nowrap;
-      min-width: 70px;
-      flex-shrink: 0;
       color: var(--text-muted);
       text-transform: uppercase;
     }
@@ -291,19 +351,68 @@
 
     .txn-team {
       font-family: 'Barlow Condensed', sans-serif;
-      font-size: 13px;
-      font-weight: 700;
+      font-size: 14px;
+      font-weight: 800;
       letter-spacing: 0.08em;
       white-space: nowrap;
-      flex-shrink: 0;
-      min-width: 48px;
       color: var(--text-main);
     }
 
-    .txn-desc {
-      font-size: 12px;
+    .txn-type {
+      display: inline-block;
+      width: fit-content;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      padding: 2px 6px;
+      border: 1px solid var(--border-soft);
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .type-signed {
+      color: var(--accent-green);
+      border-color: rgba(0,255,132,0.3);
+      background: rgba(0,255,132,0.06);
+    }
+
+    .type-trade,
+    .type-claimed {
+      color: var(--accent-blue);
+      border-color: rgba(0,191,255,0.3);
+      background: rgba(0,191,255,0.06);
+    }
+
+    .type-il,
+    .type-released {
+      color: var(--accent-red);
+      border-color: rgba(255,68,68,0.3);
+      background: rgba(255,68,68,0.06);
+    }
+
+    .type-reinstated,
+    .type-recalled {
+      color: var(--accent-green);
+      border-color: rgba(0,255,132,0.25);
+      background: rgba(0,255,132,0.04);
+    }
+
+    .type-optioned,
+    .type-waived {
+      color: var(--accent-yellow);
+      border-color: rgba(250,204,21,0.28);
+      background: rgba(250,204,21,0.05);
+    }
+
+    .type-other {
       color: var(--text-muted);
-      line-height: 1.4;
+    }
+
+    .txn-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.5;
       min-width: 0;
     }
 
@@ -316,6 +425,25 @@
       font-weight: 700;
       letter-spacing: 0.12em;
       text-transform: uppercase;
+    }
+
+    .load-more {
+      display: none;
+      margin: 16px auto 0;
+      padding: 7px 18px;
+      border: 1px solid rgba(0,255,132,0.3);
+      background: transparent;
+      color: var(--accent-green);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+
+    .load-more:hover {
+      background: rgba(0,255,132,0.06);
     }
 
     @media (max-width: 760px) {
@@ -363,22 +491,23 @@
         padding-right: 16px;
       }
 
+      .filter-toolbar {
+        padding-left: 16px;
+        padding-right: 16px;
+      }
+
+      .result-count {
+        width: 100%;
+        margin-left: 0;
+      }
+
       .txn-row {
-        display: grid;
-        grid-template-columns: auto auto 1fr;
-        gap: 5px 10px;
+        grid-template-columns: 64px 52px 1fr;
+        gap: 6px 10px;
       }
 
-      .txn-date {
-        min-width: 0;
-      }
-
-      .txn-league {
-        min-width: 0;
-      }
-
-      .txn-team {
-        min-width: 0;
+      .txn-type {
+        justify-self: start;
       }
 
       .txn-desc {
@@ -447,9 +576,38 @@
   <span id="status-text">Loading...</span>
 </div>
 
+<div class="filter-toolbar">
+  <span class="toolbar-label">Type</span>
+  <select class="toolbar-select" id="type-filter">
+    <option value="all">All</option>
+    <option value="signed">Signed</option>
+    <option value="trade">Trade</option>
+    <option value="il">Injured List</option>
+    <option value="reinstated">Activated / Reinstated</option>
+    <option value="recalled">Recalled</option>
+    <option value="optioned">Optioned / Assigned</option>
+    <option value="claimed">Claimed</option>
+    <option value="waived">Waived</option>
+    <option value="released">Released / DFA</option>
+    <option value="other">Other</option>
+  </select>
+
+  <span class="toolbar-label">Period</span>
+  <select class="toolbar-select" id="period-filter">
+    <option value="today">Today</option>
+    <option value="3">Last 3 Days</option>
+    <option value="7" selected>Last 7 Days</option>
+    <option value="30">Last 30 Days</option>
+    <option value="all">All Loaded</option>
+  </select>
+
+  <span class="result-count" id="result-count">—</span>
+</div>
+
 <div class="main">
   <div class="txn-feed" id="txn-feed"></div>
   <div class="empty-state" id="txn-empty" style="display:none">No transactions found</div>
+  <button type="button" class="load-more" id="load-more">Load 50 More</button>
 </div>
 
 <script src="assets/js/shared/nav.js"></script>
@@ -482,10 +640,15 @@ var GROUPS = {
   soccer: ["MLS", "EPL", "LALIGA", "LIGUE1", "SERIEA", "BUNDESLIGA"]
 };
 
+var PAGE_SIZE = 50;
+
 var allTxns = [];
 var activeFilterType = "all";
 var activeFilterValue = "all";
 var searchQuery = "";
+var typeFilter = "all";
+var periodFilter = "7";
+var visibleLimit = PAGE_SIZE;
 
 function escapeHtml(value) {
   return String(value || "").replace(/[&<>'"]/g, function(char) {
@@ -505,17 +668,103 @@ function setStatus(text, cls, dotCls) {
   document.getElementById("status-dot").className = "status-dot " + (dotCls || "");
 }
 
-function fmtDate(str) {
-  if (!str) return "";
+function parseTxnDate(str) {
+  if (!str) return null;
 
   var d = new Date(str);
-  if (isNaN(d.getTime())) return "";
+  if (isNaN(d.getTime())) return null;
+
+  return d;
+}
+
+function fmtDateHeading(str) {
+  var d = parseTxnDate(str);
+  if (!d) return "Unknown Date";
 
   return d.toLocaleDateString("en-US", {
-    month: "short",
+    month: "long",
     day: "numeric",
     year: "numeric"
   });
+}
+
+function dateGroupKey(str) {
+  var d = parseTxnDate(str);
+  if (!d) return "unknown";
+
+  return [
+    d.getFullYear(),
+    String(d.getMonth() + 1).padStart(2, "0"),
+    String(d.getDate()).padStart(2, "0")
+  ].join("-");
+}
+
+function transactionAgeDays(str) {
+  var d = parseTxnDate(str);
+  if (!d) return Number.POSITIVE_INFINITY;
+
+  var now = new Date();
+
+  var txnDay = new Date(
+    d.getFullYear(),
+    d.getMonth(),
+    d.getDate()
+  );
+
+  var today = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate()
+  );
+
+  return Math.floor(
+    (today.getTime() - txnDay.getTime()) /
+    86400000
+  );
+}
+
+function classifyTransaction(desc) {
+  var text = String(desc || "").toLowerCase();
+
+  if (/\btraded\b|\btrade\b/.test(text)) {
+    return { key: "trade", label: "Trade" };
+  }
+
+  if (/\bsigned\b|\bsigns\b|\bsigning\b/.test(text)) {
+    return { key: "signed", label: "Signed" };
+  }
+
+  if (
+    /\binjured list\b|\bdisabled list\b|\bplaced\b.*\bil\b|\b15-day il\b|\b10-day il\b|\b60-day il\b/.test(text)
+  ) {
+    return { key: "il", label: "Injured List" };
+  }
+
+  if (/\bdesignated\b.*\bassignment\b|\bdfa\b|\breleased\b/.test(text)) {
+    return { key: "released", label: "Released / DFA" };
+  }
+
+  if (/\breinstated\b|\bactivated\b/.test(text)) {
+    return { key: "reinstated", label: "Reinstated" };
+  }
+
+  if (/\brecalled\b/.test(text)) {
+    return { key: "recalled", label: "Recalled" };
+  }
+
+  if (/\boptioned\b|\bassigned\b|\bassignment\b/.test(text)) {
+    return { key: "optioned", label: "Optioned" };
+  }
+
+  if (/\bclaimed\b/.test(text)) {
+    return { key: "claimed", label: "Claimed" };
+  }
+
+  if (/\bwaived\b|\bwaivers\b/.test(text)) {
+    return { key: "waived", label: "Waived" };
+  }
+
+  return { key: "other", label: "Other" };
 }
 
 function sourceLabel(key) {
@@ -578,10 +827,35 @@ function setActiveControls(type, value) {
 function applyFilter(type, value) {
   activeFilterType = type;
   activeFilterValue = value;
+  visibleLimit = PAGE_SIZE;
 
   closeAllMenus();
   setActiveControls(type, value);
   render();
+}
+
+function matchesPeriod(row) {
+  if (periodFilter === "all") {
+    return true;
+  }
+
+  var ageDays = transactionAgeDays(row.date);
+
+  if (!Number.isFinite(ageDays) || ageDays < 0) {
+    return false;
+  }
+
+  if (periodFilter === "today") {
+    return ageDays === 0;
+  }
+
+  var days = parseInt(periodFilter, 10);
+
+  if (!Number.isFinite(days)) {
+    return true;
+  }
+
+  return ageDays <= (days - 1);
 }
 
 function filteredTransactions() {
@@ -601,13 +875,23 @@ function filteredTransactions() {
     });
   }
 
+  if (typeFilter !== "all") {
+    rows = rows.filter(function(row) {
+      return row.typeKey === typeFilter;
+    });
+  }
+
+  rows = rows.filter(matchesPeriod);
+
   if (searchQuery) {
     var q = searchQuery.toLowerCase();
 
     rows = rows.filter(function(row) {
       return String(row.team || "").toLowerCase().indexOf(q) !== -1 ||
+             String(row.teamName || "").toLowerCase().indexOf(q) !== -1 ||
              String(row.desc || "").toLowerCase().indexOf(q) !== -1 ||
-             String(row.label || "").toLowerCase().indexOf(q) !== -1;
+             String(row.label || "").toLowerCase().indexOf(q) !== -1 ||
+             String(row.typeLabel || "").toLowerCase().indexOf(q) !== -1;
     });
   }
 
@@ -622,30 +906,101 @@ function filteredTransactions() {
 
 function render() {
   var rows = filteredTransactions();
+  var shown = rows.slice(0, visibleLimit);
+
   var feed = document.getElementById("txn-feed");
   var empty = document.getElementById("txn-empty");
+  var loadMore = document.getElementById("load-more");
+  var resultCount = document.getElementById("result-count");
 
   feed.innerHTML = "";
 
+  resultCount.textContent =
+    "Showing " +
+    Math.min(shown.length, rows.length) +
+    " of " +
+    rows.length +
+    " matching transactions";
+
   if (rows.length === 0) {
     empty.style.display = "";
+    loadMore.style.display = "none";
     return;
   }
 
   empty.style.display = "none";
 
-  rows.forEach(function(t) {
+  var currentGroupKey = "";
+  var currentGroup = null;
+  var currentRows = null;
+  var groupCounts = {};
+
+  shown.forEach(function(t) {
+    var groupKey = dateGroupKey(t.date);
+
+    if (!groupCounts[groupKey]) {
+      groupCounts[groupKey] = 0;
+    }
+
+    groupCounts[groupKey]++;
+  });
+
+  shown.forEach(function(t) {
+    var groupKey = dateGroupKey(t.date);
+
+    if (groupKey !== currentGroupKey) {
+      currentGroupKey = groupKey;
+
+      currentGroup = document.createElement("section");
+      currentGroup.className = "txn-date-group";
+
+      var heading = document.createElement("div");
+      heading.className = "txn-date-heading";
+      heading.innerHTML =
+        '<span>' + escapeHtml(fmtDateHeading(t.date)) + '</span>' +
+        '<span class="txn-date-count">' +
+          groupCounts[groupKey] +
+          ' shown' +
+        '</span>';
+
+      currentRows = document.createElement("div");
+
+      currentGroup.appendChild(heading);
+      currentGroup.appendChild(currentRows);
+      feed.appendChild(currentGroup);
+    }
+
     var row = document.createElement("div");
     row.className = "txn-row";
 
-    row.innerHTML =
-      '<div class="txn-date">' + escapeHtml(fmtDate(t.date)) + '</div>' +
-      '<div class="txn-league league-' + escapeHtml(t.league) + '">' + escapeHtml(t.label || sourceLabel(t.league)) + '</div>' +
-      '<div class="txn-team">' + escapeHtml(t.team || "—") + '</div>' +
-      '<div class="txn-desc">' + escapeHtml(t.desc || "—") + '</div>';
+    var teamTitle = t.teamName || t.team || "";
 
-    feed.appendChild(row);
+    row.innerHTML =
+      '<div class="txn-league league-' + escapeHtml(t.league) + '">' +
+        escapeHtml(t.label || sourceLabel(t.league)) +
+      '</div>' +
+
+      '<div class="txn-team" title="' + escapeHtml(teamTitle) + '">' +
+        escapeHtml(t.team || "—") +
+      '</div>' +
+
+      '<div>' +
+        '<span class="txn-type type-' + escapeHtml(t.typeKey) + '">' +
+          escapeHtml(t.typeLabel) +
+        '</span>' +
+      '</div>' +
+
+      '<div class="txn-desc">' +
+        escapeHtml(t.desc || "—") +
+      '</div>';
+
+    currentRows.appendChild(row);
   });
+
+  loadMore.style.display =
+    rows.length > visibleLimit
+      ? "block"
+      : "none";
 }
 
 async function fetchLeagueTransactions(source) {
@@ -663,13 +1018,18 @@ async function fetchLeagueTransactions(source) {
     var txns = data.transactions || [];
 
     return txns.map(function(t) {
+      var classification = classifyTransaction(t.description || "");
+
       return {
         league: source.key,
         label: source.label,
         group: source.group,
         date: t.date || "",
         team: t.team ? (t.team.abbreviation || t.team.displayName || "") : "",
-        desc: t.description || ""
+        teamName: t.team ? (t.team.displayName || t.team.name || t.team.abbreviation || "") : "",
+        desc: t.description || "",
+        typeKey: classification.key,
+        typeLabel: classification.label
       };
     });
   } catch (error) {
@@ -696,7 +1056,18 @@ async function loadAll() {
     if (allTxns.length === 0) {
       setStatus("No transactions loaded", "", "");
     } else {
-      setStatus(allTxns.length + " transactions loaded", "", "green");
+      var updatedTime = new Date().toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit"
+      });
+
+      setStatus(
+        allTxns.length +
+        " TRANSACTIONS LOADED · UPDATED " +
+        updatedTime,
+        "",
+        "green"
+      );
     }
   } catch (error) {
     console.error(error);
@@ -743,6 +1114,24 @@ document.addEventListener("keydown", function(event) {
 
 document.getElementById("txn-search").addEventListener("input", function(event) {
   searchQuery = event.target.value.trim();
+  visibleLimit = PAGE_SIZE;
+  render();
+});
+
+document.getElementById("type-filter").addEventListener("change", function(event) {
+  typeFilter = event.target.value;
+  visibleLimit = PAGE_SIZE;
+  render();
+});
+
+document.getElementById("period-filter").addEventListener("change", function(event) {
+  periodFilter = event.target.value;
+  visibleLimit = PAGE_SIZE;
+  render();
+});
+
+document.getElementById("load-more").addEventListener("click", function() {
+  visibleLimit += PAGE_SIZE;
   render();
 });
 
