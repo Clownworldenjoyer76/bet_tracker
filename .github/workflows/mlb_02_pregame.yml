@@ -100,6 +100,13 @@ jobs:
       - name: MLB Select Bets
         run: python docs/win/baseball/mlb/scripts/04_select/baseball_select_bets.py
 
+      - name: MLB Pipeline Health
+        if: always()
+        env:
+          MLB_PIPELINE_WORKFLOW: pregame
+          MLB_PIPELINE_JOB_STATUS: ${{ job.status }}
+        run: python docs/win/baseball/mlb/scripts/pipeline_health.py
+
       - name: Commit MLB outputs
         run: |
           git config user.name "github-actions[bot]"
@@ -107,4 +114,14 @@ jobs:
           git add docs/win/baseball/mlb/
           git restore --staged docs/win/baseball/mlb/audit/leakage_audit.csv 2>/dev/null || true
           git diff --cached --quiet || git commit -m "chore: update MLB pregame pipeline outputs"
+          git push
+
+      - name: Commit MLB pipeline health frontend
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/win/baseball/mlb/pipeline_health.json
+          git add frontend/data/pipeline_health/mlb.json
+          git diff --cached --quiet || git commit -m "chore: update MLB pipeline health"
           git push
