@@ -358,6 +358,13 @@
       color: var(--text-main);
     }
 
+    .txn-types {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
     .txn-type {
       display: inline-block;
       width: fit-content;
@@ -725,46 +732,43 @@ function transactionAgeDays(str) {
 
 function classifyTransaction(desc) {
   var text = String(desc || "").toLowerCase();
+  var matches = [];
 
-  if (/\btraded\b|\btrade\b/.test(text)) {
-    return { key: "trade", label: "Trade" };
+  function add(key, label, pattern) {
+    if (pattern.test(text)) {
+      matches.push({
+        key: key,
+        label: label
+      });
+    }
   }
 
-  if (/\bsigned\b|\bsigns\b|\bsigning\b/.test(text)) {
-    return { key: "signed", label: "Signed" };
+  add("trade", "Trade", /\btraded\b|\btrade\b/);
+  add("signed", "Signed", /\bsigned\b|\bsigns\b|\bsigning\b/);
+  add(
+    "il",
+    "Injured List",
+    /\binjured list\b|\bdisabled list\b|\bplaced\b[^.]*\bil\b|\b15-day il\b|\b10-day il\b|\b60-day il\b/
+  );
+  add(
+    "released",
+    "Released / DFA",
+    /\bdesignated\b[^.]*\bassignment\b|\bdfa\b|\breleased\b/
+  );
+  add("reinstated", "Reinstated", /\breinstated\b|\bactivated\b/);
+  add("recalled", "Recalled", /\brecalled\b/);
+  add("optioned", "Optioned", /\boptioned\b|\bassigned\b|\bassignment\b/);
+  add("claimed", "Claimed", /\bclaimed\b/);
+  add("waived", "Waived", /\bwaived\b|\bwaivers\b/);
+
+  if (!matches.length) {
+    matches.push({
+      key: "other",
+      label: "Other"
+    });
   }
 
-  if (
-    /\binjured list\b|\bdisabled list\b|\bplaced\b.*\bil\b|\b15-day il\b|\b10-day il\b|\b60-day il\b/.test(text)
-  ) {
-    return { key: "il", label: "Injured List" };
-  }
-
-  if (/\bdesignated\b.*\bassignment\b|\bdfa\b|\breleased\b/.test(text)) {
-    return { key: "released", label: "Released / DFA" };
-  }
-
-  if (/\breinstated\b|\bactivated\b/.test(text)) {
-    return { key: "reinstated", label: "Reinstated" };
-  }
-
-  if (/\brecalled\b/.test(text)) {
-    return { key: "recalled", label: "Recalled" };
-  }
-
-  if (/\boptioned\b|\bassigned\b|\bassignment\b/.test(text)) {
-    return { key: "optioned", label: "Optioned" };
-  }
-
-  if (/\bclaimed\b/.test(text)) {
-    return { key: "claimed", label: "Claimed" };
-  }
-
-  if (/\bwaived\b|\bwaivers\b/.test(text)) {
-    return { key: "waived", label: "Waived" };
-  }
-
-  return { key: "other", label: "Other" };
+  return matches;
 }
 
 function sourceLabel(key) {
@@ -877,7 +881,9 @@ function filteredTransactions() {
 
   if (typeFilter !== "all") {
     rows = rows.filter(function(row) {
-      return row.typeKey === typeFilter;
+      return (row.types || []).some(function(type) {
+        return type.key === typeFilter;
+      });
     });
   }
 
@@ -891,7 +897,9 @@ function filteredTransactions() {
              String(row.teamName || "").toLowerCase().indexOf(q) !== -1 ||
              String(row.desc || "").toLowerCase().indexOf(q) !== -1 ||
              String(row.label || "").toLowerCase().indexOf(q) !== -1 ||
-             String(row.typeLabel || "").toLowerCase().indexOf(q) !== -1;
+             (row.types || []).some(function(type) {
+               return String(type.label || "").toLowerCase().indexOf(q) !== -1;
+             });
     });
   }
 
@@ -984,10 +992,14 @@ function render() {
         escapeHtml(t.team || "—") +
       '</div>' +
 
-      '<div>' +
-        '<span class="txn-type type-' + escapeHtml(t.typeKey) + '">' +
-          escapeHtml(t.typeLabel) +
-        '</span>' +
+      '<div class="txn-types">' +
+        (t.types || []).map(function(type) {
+          return (
+            '<span class="txn-type type-' + escapeHtml(type.key) + '">' +
+              escapeHtml(type.label) +
+            '</span>'
+          );
+        }).join("") +
       '</div>' +
 
       '<div class="txn-desc">' +
@@ -1018,7 +1030,7 @@ async function fetchLeagueTransactions(source) {
     var txns = data.transactions || [];
 
     return txns.map(function(t) {
-      var classification = classifyTransaction(t.description || "");
+      var classifications = classifyTransaction(t.description || "");
 
       return {
         league: source.key,
@@ -1028,8 +1040,7 @@ async function fetchLeagueTransactions(source) {
         team: t.team ? (t.team.abbreviation || t.team.displayName || "") : "",
         teamName: t.team ? (t.team.displayName || t.team.name || t.team.abbreviation || "") : "",
         desc: t.description || "",
-        typeKey: classification.key,
-        typeLabel: classification.label
+        types: classifications
       };
     });
   } catch (error) {

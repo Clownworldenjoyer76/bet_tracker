@@ -2,6 +2,20 @@
   const el = document.getElementById("nav-placeholder");
   if (!el) return;
 
+  // Shared league selector used by Stats pages.
+  // The component watches #league-controls, so it can load before the
+  // page-specific renderer creates its league pills.
+  const currentPage = (
+    location.pathname.split('/').pop() || ''
+  ).replace('.html', '').toLowerCase();
+
+  if (['teams', 'players', 'standings'].includes(currentPage)) {
+    const sharedLeagueNav = document.createElement('script');
+    sharedLeagueNav.src = 'assets/js/shared/league_nav.js';
+    sharedLeagueNav.defer = true;
+    document.head.appendChild(sharedLeagueNav);
+  }
+
   fetch("nav.html")
     .then(r => {
       if (!r.ok) throw new Error("nav.html not found");
