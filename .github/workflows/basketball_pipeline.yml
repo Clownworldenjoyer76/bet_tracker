@@ -134,6 +134,7 @@ jobs:
           mkdir -p docs/win/basketball/04_select/daily_slate
           mkdir -p docs/win/basketball/maps/no_map
           mkdir -p docs
+          mkdir -p frontend/data/pipeline_health
 
       # 00 INTAKE
       - name: Run basketball odds
@@ -206,6 +207,19 @@ jobs:
       - name: Write WNBA bias drift warning
         if: always()
         run: python docs/win/basketball/scripts/write_wnba_bias_drift_warning.py
+
+      - name: Publish basketball pipeline health data
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p frontend/data/pipeline_health
+          if [ -f docs/win/basketball/pipeline_health.json ]; then
+            cp docs/win/basketball/pipeline_health.json frontend/data/pipeline_health/basketball.json
+            echo "Published frontend/data/pipeline_health/basketball.json"
+          else
+            echo "No docs/win/basketball/pipeline_health.json available to publish."
+          fi
 
       - name: Analyze basketball results
         run: python docs/win/basketball/scripts/05_final_scores/02_basketball_results_analyze.py
@@ -846,12 +860,14 @@ jobs:
           name: basketball-pipeline-logs
           path: docs/win/basketball/errors/
 
-      # If the pipeline failed, preserve daily_status.txt in the repository
-      # without committing partial pipeline outputs.
+      # If the pipeline failed, preserve daily_status.txt and pipeline health
+      # in the repository without committing partial pipeline outputs.
       - name: Commit daily status after failed run
         if: failure()
         run: |
           STATUS_FILE="docs/win/basketball/errors/daily_status.txt"
+          HEALTH_FILE="docs/win/basketball/pipeline_health.json"
+          FRONTEND_HEALTH_FILE="frontend/data/pipeline_health/basketball.json"
 
           if [ ! -f "$STATUS_FILE" ]; then
             echo "daily_status.txt was not created."
@@ -862,21 +878,24 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           git add -- "$STATUS_FILE"
+          [ -f "$HEALTH_FILE" ] && git add -- "$HEALTH_FILE"
+          [ -f "$FRONTEND_HEALTH_FILE" ] && git add -- "$FRONTEND_HEALTH_FILE"
 
-          echo "--- daily status before failed-run commit ---"
+          echo "--- daily status / pipeline health before failed-run commit ---"
           git status --short
 
           if git diff --cached --quiet; then
-            echo "No daily status change to commit."
+            echo "No daily status or pipeline health change to commit."
             exit 0
           fi
 
-          git commit -m "chore: basketball daily status failed run $(date -u +'%Y-%m-%d %H:%M UTC')"
+          git commit -m "chore: basketball status failed run $(date -u +'%Y-%m-%d %H:%M UTC')"
 
           # The failed pipeline may have modified tracked files or created new
-          # output files before the failure occurred. Only daily_status.txt
-          # belongs in the failed-run commit. Reset every other tracked change
-          # and remove untracked basketball outputs before rebasing.
+          # output files before the failure occurred. Only daily status and
+          # pipeline-health outputs belong in the failed-run commit. Reset every
+          # other tracked change and remove untracked basketball outputs before
+          # rebasing.
           git reset --hard HEAD
           git clean -fd -- docs/win/basketball
 
@@ -896,6 +915,7 @@ jobs:
 
           git add -A docs/win/basketball
           git add -A frontend/basketball_dashboard.html
+          git add -A frontend/data/pipeline_health/basketball.json
 
           echo "--- git status before commit ---"
           git status --short

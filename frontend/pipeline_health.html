@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pipeline Health</title>
+  <link rel="stylesheet" href="assets/css/matstheme.css">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--background);
+      color: var(--text-main);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px;
+      min-height: 100vh;
+    }
+    .page-header {
+      border-bottom: 1px solid var(--border-soft);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .page-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 24px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent-green);
+    }
+    .page-subtitle {
+      color: var(--text-muted);
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      margin-top: 2px;
+      line-height: 1.5;
+    }
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      border-bottom: 1px solid var(--border-soft);
+      flex-wrap: wrap;
+      margin-bottom: 0;
+    }
+    .sport-pill {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      padding: 4px 12px;
+      border: 1px solid var(--border-soft);
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s;
+      text-transform: uppercase;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+    .sport-pill:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
+    .sport-pill.active {
+      border-color: var(--accent-green);
+      color: var(--accent-green);
+      background: rgba(0,255,132,0.06);
+    }
+    .sport-pill.unavailable:not(.active) { opacity: 0.46; }
+    .status-bar {
+      padding: 7px 24px;
+      font-size: 11px;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border-soft);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 31px;
+    }
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      display: inline-block;
+      flex-shrink: 0;
+    }
+    .status-dot.green { background: var(--accent-green); box-shadow: 0 0 6px var(--accent-green); }
+    .status-dot.yellow { background: var(--accent-yellow); box-shadow: 0 0 6px rgba(250,204,21,.45); }
+    .status-dot.red { background: var(--accent-red); box-shadow: 0 0 6px var(--accent-red); }
+    .main { padding: 22px 24px 40px; width: 100%; }
+    .sport-panel { margin-bottom: 34px; }
+    .sport-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      border-bottom: 1px solid var(--border-soft);
+      padding-bottom: 10px;
+      margin-bottom: 14px;
+    }
+    .sport-name {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .sport-meta { color: var(--text-muted); font-size: 10px; margin-top: 2px; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 9px;
+      border: 1px solid var(--border-soft);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .09em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .badge.healthy { color: var(--accent-green); border-color: rgba(0,255,132,.35); background: rgba(0,255,132,.05); }
+    .badge.warning { color: var(--accent-yellow); border-color: rgba(250,204,21,.35); background: rgba(250,204,21,.05); }
+    .badge.failed { color: var(--accent-red); border-color: rgba(255,45,45,.35); background: rgba(255,45,45,.05); }
+    .badge.offseason { color: var(--text-muted); border-color: var(--border-soft); background: var(--bg-card); }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(150px, 1fr));
+      gap: 10px;
+      margin-bottom: 22px;
+    }
+    .summary-card, .league-card, .data-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-soft);
+    }
+    .summary-card { padding: 13px 14px; }
+    .summary-label {
+      font-family: 'Barlow Condensed', sans-serif;
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .09em;
+      text-transform: uppercase;
+    }
+    .summary-value { font-family: 'Barlow Condensed', sans-serif; font-size: 26px; font-weight: 900; margin-top: 3px; }
+    .section-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--text-muted);
+      letter-spacing: .09em;
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border-soft);
+      padding-bottom: 6px;
+      margin: 22px 0 10px;
+    }
+    .league-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+      gap: 10px;
+    }
+    .league-card { min-width: 0; }
+    .league-head {
+      padding: 11px 13px;
+      border-bottom: 1px solid var(--border-soft);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+    .league-name {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 17px;
+      font-weight: 900;
+      letter-spacing: .05em;
+    }
+    .league-body { padding: 12px 13px; }
+    .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+    .metric { border: 1px solid var(--border-soft); padding: 8px; min-width: 0; }
+    .metric-value { font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 800; }
+    .metric-label { color: var(--text-muted); font-size: 9px; line-height: 1.3; text-transform: uppercase; margin-top: 2px; }
+    .league-note { color: var(--text-muted); font-size: 10px; line-height: 1.5; margin-top: 10px; }
+    .warning-box {
+      border: 1px solid rgba(250,204,21,.30);
+      background: rgba(250,204,21,.035);
+      padding: 12px 14px;
+    }
+    .warning-list { list-style: none; display: grid; gap: 7px; }
+    .warning-list li { color: var(--text-main); font-size: 11px; line-height: 1.5; padding-left: 15px; position: relative; }
+    .warning-list li::before { content: '!'; color: var(--accent-yellow); position: absolute; left: 0; font-weight: 800; }
+    .fatal-box { border-color: rgba(255,45,45,.35); background: rgba(255,45,45,.04); }
+    .fatal-box .warning-list li::before { color: var(--accent-red); }
+    .table-wrap { overflow-x: auto; border: 1px solid var(--border-soft); }
+    table { width: 100%; border-collapse: collapse; background: var(--bg-card); font-size: 11px; }
+    th, td { padding: 9px 11px; text-align: left; border-bottom: 1px solid var(--border-soft); white-space: nowrap; }
+    th {
+      font-family: 'Barlow Condensed', sans-serif;
+      color: var(--text-muted);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      background: rgba(255,255,255,.01);
+    }
+    tr:last-child td { border-bottom: none; }
+    .stage-ok { color: var(--accent-green); }
+    .stage-warn { color: var(--accent-yellow); }
+    .stage-bad { color: var(--accent-red); }
+    .data-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
+    .data-card { padding: 12px 14px; }
+    .data-card-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      margin-bottom: 7px;
+    }
+    .data-row { display: flex; justify-content: space-between; gap: 15px; padding: 7px 0; border-bottom: 1px solid var(--border-soft); }
+    .data-row:last-child { border-bottom: none; }
+    .data-key { color: var(--text-muted); font-size: 10px; }
+    .data-value { font-size: 10px; text-align: right; overflow-wrap: anywhere; }
+    .ok { color: var(--accent-green); }
+    .warn-text { color: var(--accent-yellow); }
+    .bad-text { color: var(--accent-red); }
+    .empty-state {
+      text-align: center;
+      padding: 54px 20px;
+      color: var(--text-muted);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: .10em;
+      text-transform: uppercase;
+      border: 1px dashed var(--border-soft);
+    }
+    @media (max-width: 900px) {
+      .summary-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .data-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 600px) {
+      .page-header, .controls, .status-bar, .main { padding-left: 16px; padding-right: 16px; }
+      .summary-grid { grid-template-columns: 1fr 1fr; }
+      .metrics { grid-template-columns: repeat(2, 1fr); }
+      .sport-pill { flex: 1 1 auto; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+<div id="nav-placeholder"></div>
+
+<div class="page-header">
+  <div>
+    <div class="page-title">Pipeline Health</div>
+    <div class="page-subtitle">All · Basketball · MLB · NHL · CFB · Soccer · UFC</div>
+  </div>
+</div>
+
+<div class="controls" id="sport-controls">
+  <button type="button" class="sport-pill active" data-sport="all">All</button>
+  <button type="button" class="sport-pill" data-sport="basketball">Basketball</button>
+  <button type="button" class="sport-pill" data-sport="mlb">MLB</button>
+  <button type="button" class="sport-pill" data-sport="nhl">NHL</button>
+  <button type="button" class="sport-pill" data-sport="cfb">CFB</button>
+  <button type="button" class="sport-pill" data-sport="soccer">Soccer</button>
+  <button type="button" class="sport-pill" data-sport="ufc">UFC</button>
+</div>
+
+<div class="status-bar" id="status-bar">
+  <span class="status-dot yellow" id="load-dot"></span>
+  <span id="load-text">Loading pipeline health data...</span>
+</div>
+
+<div class="main">
+  <div id="health-content"></div>
+</div>
+
+<script src="assets/js/shared/nav.js"></script>
+<script>
+const SPORT_SOURCES = [
+  { key: 'basketball', label: 'Basketball', path: 'data/pipeline_health/basketball.json' },
+  { key: 'mlb',        label: 'MLB',        path: 'data/pipeline_health/mlb.json' },
+  { key: 'nhl',        label: 'NHL',        path: 'data/pipeline_health/nhl.json' },
+  { key: 'cfb',        label: 'CFB',        path: 'data/pipeline_health/cfb.json' },
+  { key: 'soccer',     label: 'Soccer',     path: 'data/pipeline_health/soccer.json' },
+  { key: 'ufc',        label: 'UFC',        path: 'data/pipeline_health/ufc.json' }
+];
+
+const HEALTH = {};
+let activeSport = 'all';
+
+function esc(v) {
+  return String(v == null ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
+
+function arr(v) { return Array.isArray(v) ? v : []; }
+function obj(v) { return v && typeof v === 'object' && !Array.isArray(v) ? v : {}; }
+
+function prettyName(value) {
+  return String(value || '')
+    .replace(/\.txt$/i, '')
+    .replace(/\.json$/i, '')
+    .replace(/^\d+_/, '')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function stageName(path) {
+  const parts = String(path || '').split('/');
+  return prettyName(parts[parts.length - 1] || path || 'Stage');
+}
+
+function parseStageClass(text) {
+  const s = String(text || '').toUpperCase();
+  if (/FAILED|FAILURE|ERROR|CRITICAL|FATAL|UNHEALTHY/.test(s)) return 'stage-bad';
+  if (/WARNING|WARN/.test(s)) return 'stage-warn';
+  if (/SUCCESS|HEALTHY|CLEAN/.test(s)) return 'stage-ok';
+  return '';
+}
+
+function formatGenerated(value) {
+  if (!value) return 'unknown';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value);
+  return d.toLocaleString('en-US', {
+    year: 'numeric', month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit', timeZoneName: 'short'
+  });
+}
+
+function seasonText(cfg) {
+  cfg = obj(cfg);
+  if (!cfg.start_month || !cfg.start_day || !cfg.end_month || !cfg.end_day) return '';
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${months[cfg.start_month - 1]} ${cfg.start_day} – ${months[cfg.end_month - 1]} ${cfg.end_day}`;
+}
+
+function collectLeagueIssues(league) {
+  const issues = [];
+  const coverage = obj(league.coverage);
+  const identity = obj(league.identity);
+  Object.entries(coverage).forEach(([k, v]) => {
+    if (Array.isArray(v) && v.length) issues.push(`${prettyName(k)}: ${v.length}`);
+    else if (typeof v === 'number' && v > 0) issues.push(`${prettyName(k)}: ${v}`);
+  });
+  Object.entries(identity).forEach(([k, v]) => {
+    if (Array.isArray(v) && v.length) issues.push(`${prettyName(k)}: ${v.length}`);
+    else if (typeof v === 'number' && v > 0) issues.push(`${prettyName(k)}: ${v}`);
+  });
+  arr(league.issues).forEach(v => issues.push(String(v)));
+  arr(league.critical_failures).forEach(v => issues.push(String(v)));
+  return issues;
+}
+
+function collectWarnings(data) {
+  const out = [];
+  const seen = new Set();
+  const add = v => {
+    const s = String(v || '').trim();
+    if (!s || seen.has(s)) return;
+    seen.add(s); out.push(s);
+  };
+  arr(data.warnings).forEach(add);
+  arr(obj(data.wnba_bias_drift).warnings).forEach(add);
+  arr(obj(data.sdv_health).warnings).forEach(add);
+  Object.entries(obj(data.leagues)).forEach(([lg, row]) => {
+    collectLeagueIssues(obj(row)).forEach(v => add(`${lg.toUpperCase()}: ${v}`));
+  });
+  Object.entries(obj(obj(data.sdv_health).current)).forEach(([lg, row]) => {
+    arr(obj(row).issues).forEach(v => add(`${lg.toUpperCase()}: ${v}`));
+    arr(obj(row).critical_failures).forEach(v => add(`${lg.toUpperCase()}: ${v}`));
+  });
+  return out;
+}
+
+function sportStatus(data) {
+  if (arr(data.fatal_errors).length) return 'failed';
+  const raw = String(data.status || '').toLowerCase();
+  if (/fail|error|critical|fatal|unhealthy/.test(raw)) return 'failed';
+  if (/warn/.test(raw)) return 'warning';
+  return 'healthy';
+}
+
+function leagueStatus(key, league, data) {
+  if (league.in_season === false) return 'offseason';
+  const warnings = collectWarnings(data);
+  const hasNamedWarning = warnings.some(w => w.toLowerCase().includes(key.toLowerCase()));
+  if (collectLeagueIssues(league).length || hasNamedWarning) return 'warning';
+  return 'healthy';
+}
+
+function summaryFor(data) {
+  const leagues = Object.values(obj(data.leagues));
+  const stages = arr(data.stage_status);
+  const stageSuccess = stages.filter(s => /SUCCESS/i.test(String(obj(s).status || ''))).length;
+  return {
+    fatal: arr(data.fatal_errors).length,
+    active: leagues.filter(l => obj(l).in_season === true).length,
+    stages: `${stageSuccess}/${stages.length}`,
+    warnings: collectWarnings(data).length
+  };
+}
+
+function renderLeagueCard(key, league, data) {
+  league = obj(league);
+  const c = obj(league.counts);
+  const status = leagueStatus(key, league, data);
+  const label = status === 'offseason' ? 'Offseason' : status === 'warning' ? 'Warning' : status === 'failed' ? 'Failed' : 'Healthy';
+  const issues = collectLeagueIssues(league);
+  const season = seasonText(league.season_config);
+  let note = season ? `Season: ${season}. ` : '';
+  if (issues.length) note += issues.join(' · ');
+  else if (league.in_season === true && Number(c.scheduled_games || 0) === 0) note += 'In season; no games scheduled today.';
+  else note += 'No coverage or identity issues reported.';
+  return `
+    <section class="league-card">
+      <div class="league-head">
+        <div class="league-name">${esc(key.toUpperCase())}</div>
+        <span class="badge ${status}">${esc(label)}</span>
+      </div>
+      <div class="league-body">
+        <div class="metrics">
+          <div class="metric"><div class="metric-value">${esc(c.scheduled_games ?? 0)}</div><div class="metric-label">Scheduled</div></div>
+          <div class="metric"><div class="metric-value">${esc(c.prediction_games ?? 0)}</div><div class="metric-label">Predictions</div></div>
+          <div class="metric"><div class="metric-value">${esc(c.sportsbook_games ?? 0)}</div><div class="metric-label">Sportsbook</div></div>
+          <div class="metric"><div class="metric-value">${esc(c.merged_games ?? 0)}</div><div class="metric-label">Merged</div></div>
+          <div class="metric"><div class="metric-value">${esc(c.selected_bets ?? 0)}</div><div class="metric-label">Selected Bets</div></div>
+          <div class="metric"><div class="metric-value">${esc(c.locked_bets ?? 0)}</div><div class="metric-label">Locked Bets</div></div>
+        </div>
+        <div class="league-note">${esc(note)}</div>
+      </div>
+    </section>`;
+}
+
+function renderWarnings(data) {
+  const fatals = arr(data.fatal_errors);
+  const warnings = collectWarnings(data);
+  let html = '';
+  if (fatals.length) {
+    html += `<div class="section-title">Fatal Errors</div><div class="warning-box fatal-box"><ul class="warning-list">${fatals.map(v => `<li>${esc(v)}</li>`).join('')}</ul></div>`;
+  }
+  html += `<div class="section-title">Warnings Requiring Attention</div>`;
+  if (!warnings.length) {
+    html += `<div class="warning-box"><ul class="warning-list"><li style="color:var(--text-muted)">No warnings reported.</li></ul></div>`;
+  } else {
+    html += `<div class="warning-box"><ul class="warning-list">${warnings.map(v => `<li>${esc(v)}</li>`).join('')}</ul></div>`;
+  }
+  return html;
+}
+
+function renderStages(data) {
+  const stages = arr(data.stage_status);
+  if (!stages.length) return '';
+  return `
+    <div class="section-title">Pipeline Stages</div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Stage</th><th>Status</th><th>Log</th></tr></thead>
+      <tbody>${stages.map(s => {
+        s = obj(s);
+        const cls = parseStageClass(s.status);
+        return `<tr><td>${esc(stageName(s.path))}</td><td class="${cls}">${esc(s.status || 'Unknown')}</td><td>${esc(s.path || '')}</td></tr>`;
+      }).join('')}</tbody>
+    </table></div>`;
+}
+
+function renderModelHealth(data) {
+  const sdv = obj(data.sdv_health);
+  if (!Object.keys(sdv).length) return '';
+  const cfg = obj(sdv.configs);
+  const modelCfg = obj(cfg.model_config);
+  const sdvModel = obj(cfg.sdv_model);
+  const manifests = obj(sdv.historical_manifests);
+  const artifacts = obj(sdv.model_artifacts);
+  const weights = obj(sdv.ensemble_weights);
+  const artifactRows = Object.entries(artifacts).map(([k,v]) => {
+    v = obj(v); return `<div class="data-row"><span class="data-key">${esc(k.toUpperCase())}</span><span class="data-value ${v.valid === false ? 'bad-text' : 'ok'}">${v.valid === false ? 'Invalid' : 'Valid'}</span></div>`;
+  }).join('');
+  const validWeights = Object.values(weights).filter(v => obj(v).valid === true).length;
+  return `
+    <div class="section-title">Model &amp; Data Health</div>
+    <div class="data-grid">
+      <div class="data-card">
+        <div class="data-card-title">Production Configuration</div>
+        <div class="data-row"><span class="data-key">Prediction source</span><span class="data-value">${esc(sdv.configured_production_source || modelCfg.configured_source || '—')}</span></div>
+        <div class="data-row"><span class="data-key">SDV model version</span><span class="data-value">${esc(sdvModel.model_version || '—')}</span></div>
+        <div class="data-row"><span class="data-key">Feature version</span><span class="data-value">${esc(sdvModel.feature_version || '—')}</span></div>
+        <div class="data-row"><span class="data-key">Historical manifests</span><span class="data-value ${manifests.valid_count === manifests.required_count ? 'ok' : 'warn-text'}">${esc(manifests.valid_count ?? '—')} / ${esc(manifests.required_count ?? '—')} valid</span></div>
+      </div>
+      <div class="data-card">
+        <div class="data-card-title">League Models</div>
+        ${artifactRows || '<div class="data-row"><span class="data-key">Artifacts</span><span class="data-value">No artifact summary</span></div>'}
+        <div class="data-row"><span class="data-key">Ensemble weights</span><span class="data-value ${validWeights === Object.keys(weights).length ? 'ok' : 'warn-text'}">${validWeights} / ${Object.keys(weights).length} valid</span></div>
+      </div>
+    </div>`;
+}
+
+function renderSport(source, data) {
+  const summary = summaryFor(data);
+  const status = sportStatus(data);
+  const statusLabel = status === 'failed' ? 'Failed' : status === 'warning' ? 'Warning' : 'Healthy';
+  const leagues = obj(data.leagues);
+  return `
+    <section class="sport-panel" data-rendered-sport="${esc(source.key)}">
+      <div class="sport-head">
+        <div>
+          <div class="sport-name">${esc(source.label)}</div>
+          <div class="sport-meta">Game date: ${esc(data.game_date_new_york || '—')} · Generated: ${esc(formatGenerated(data.generated_at_utc))}</div>
+        </div>
+        <span class="badge ${status}">${esc(statusLabel)}</span>
+      </div>
+      <div class="summary-grid">
+        <div class="summary-card"><div class="summary-label">Fatal Errors</div><div class="summary-value ${summary.fatal ? 'bad-text' : ''}">${summary.fatal}</div></div>
+        <div class="summary-card"><div class="summary-label">Active Leagues</div><div class="summary-value">${summary.active}</div></div>
+        <div class="summary-card"><div class="summary-label">Stages Successful</div><div class="summary-value">${esc(summary.stages)}</div></div>
+        <div class="summary-card"><div class="summary-label">Warnings</div><div class="summary-value ${summary.warnings ? 'warn-text' : ''}">${summary.warnings}</div></div>
+      </div>
+      ${Object.keys(leagues).length ? `<div class="section-title">League Status</div><div class="league-grid">${Object.entries(leagues).map(([k,v]) => renderLeagueCard(k,v,data)).join('')}</div>` : ''}
+      ${renderWarnings(data)}
+      ${renderStages(data)}
+      ${renderModelHealth(data)}
+    </section>`;
+}
+
+function render() {
+  const host = document.getElementById('health-content');
+  const selected = activeSport === 'all'
+    ? SPORT_SOURCES.filter(s => HEALTH[s.key])
+    : SPORT_SOURCES.filter(s => s.key === activeSport && HEALTH[s.key]);
+
+  if (!selected.length) {
+    const src = SPORT_SOURCES.find(s => s.key === activeSport);
+    host.innerHTML = `<div class="empty-state">${src ? esc(src.label) + ' pipeline health is not available yet' : 'No pipeline health data available'}</div>`;
+    return;
+  }
+  host.innerHTML = selected.map(s => renderSport(s, HEALTH[s.key])).join('');
+}
+
+function updateControls() {
+  document.querySelectorAll('.sport-pill').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.sport === activeSport);
+    if (btn.dataset.sport !== 'all') btn.classList.toggle('unavailable', !HEALTH[btn.dataset.sport]);
+  });
+}
+
+async function loadAll() {
+  const results = await Promise.all(SPORT_SOURCES.map(async source => {
+    try {
+      const response = await fetch(source.path, { cache: 'no-store' });
+      if (!response.ok) return { source, ok: false };
+      HEALTH[source.key] = await response.json();
+      return { source, ok: true };
+    } catch (e) {
+      return { source, ok: false };
+    }
+  }));
+
+  const loaded = results.filter(r => r.ok).length;
+  const dot = document.getElementById('load-dot');
+  const text = document.getElementById('load-text');
+  dot.className = 'status-dot ' + (loaded ? 'green' : 'red');
+  text.textContent = loaded
+    ? `${loaded} sport pipeline ${loaded === 1 ? 'file' : 'files'} loaded · selectors become active as each sport is added`
+    : 'No pipeline health files could be loaded';
+  updateControls();
+  render();
+}
+
+document.getElementById('sport-controls').addEventListener('click', e => {
+  const btn = e.target.closest('.sport-pill');
+  if (!btn) return;
+  activeSport = btn.dataset.sport;
+  updateControls();
+  render();
+});
+
+loadAll();
+</script>
+</body>
+</html>
