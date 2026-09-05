@@ -1150,6 +1150,16 @@ td {
   var allInjuries = [];
   var todayPicks = [];
 
+  /*
+    These track the picked-team verification pass.
+
+    League-wide ESPN injury feeds are still loaded first.
+    Afterward we resolve the exact teams from today's picked games
+    and query their team-specific ESPN injury endpoints.
+  */
+  var pickedTeamsResolved = 0;
+  var pickedTeamInjuriesAdded = 0;
+
   var activeFilterType = "all";
   var activeFilterValue = "all";
 
@@ -1240,10 +1250,26 @@ td {
     can match a pipeline form without "(FL)".
   */
   function normalizeTeam(value) {
-    return String(value || "")
+    var text = String(value || "");
+
+    /*
+      Unicode normalization is critical here.
+
+      Examples:
+      San José State -> San Jose State
+      Köln           -> Koln
+    */
+    if (typeof text.normalize === "function") {
+      text = text
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+    }
+
+    return text
       .toLowerCase()
       .replace(/\([^)]*\)/g, " ")
       .replace(/&/g, "and")
+      .replace(/['’`]/g, "")
       .replace(/[^a-z0-9]+/g, "");
   }
 
@@ -1264,13 +1290,25 @@ td {
       right.length
     );
 
-    return (
-      minLen >= 8 &&
+    /*
+      Allows:
+      Eastern Michigan
+      Eastern Michigan Eagles
+
+      San Jose State
+      San Jose State Spartans
+    */
+    if (
+      minLen >= 7 &&
       (
         left.indexOf(right) !== -1 ||
         right.indexOf(left) !== -1
       )
-    );
+    ) {
+      return true;
+    }
+
+    return false;
   }
 
   function sourceLabel(key) {
@@ -1910,6 +1948,535 @@ td {
         allInjuries =
           allInjuries.concat(rows);
       }
+    );
+  }
+
+  /* ── Picked-team injury verification ─────────────────────────────────── */
+
+  async function fetchJson(url) {
+    try {
+      var response = await fetch(
+        url,
+        {
+          cache: "no-store"
+        }
+      );
+
+      if (!response.ok) {
+        return null;
+      }
+
+      return await response.json();
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function espnDateCompact() {
+    return todayUnderscore()
+      .replace(/_/g, "");
+  }
+
+  function scoreboardUrl(cfg) {
+    return (
+      "https://site.api.espn.com/" +
+      "apis/site/v2/sports/" +
+      cfg.sport +
+      "/" +
+      cfg.league +
+      "/scoreboard?dates=" +
+      espnDateCompact()
+    );
+  }
+
+  function teamInjuryUrl(cfg, teamId) {
+    return (
+      "https://site.api.espn.com/" +
+      "apis/site/v2/sports/" +
+      cfg.sport +
+      "/" +
+      cfg.league +
+      "/teams/" +
+      encodeURIComponent(teamId) +
+      "/injuries"
+    );
+  }
+
+  function competitorNames(competitor) {
+    var team =
+      competitor && competitor.team
+        ? competitor.team
+        : {};
+
+    return [
+      team.displayName,
+      team.shortDisplayName,
+      team.name,
+      team.location,
+      team.nickname,
+      team.abbreviation
+    ].filter(Boolean);
+  }
+
+  function competitorMatchesTeam(
+    competitor,
+    pipelineTeamName
+  ) {
+    var names =
+      competitorNames(competitor);
+
+    return names.some(
+      function(name) {
+        return sameTeam(
+          name,
+          pipelineTeamName
+        );
+      }
+    );
+  }
+
+  function uniquePickedTeamsForLeague(
+    leagueKey
+  ) {
+    var found = {};
+
+    todayPicks
+      .filter(
+        function(pick) {
+          return (
+            pick.league ===
+            leagueKey
+          );
+        }
+      )
+      .forEach(
+        function(pick) {
+          [
+            pick.away_team,
+            pick.home_team
+          ].forEach(
+            function(teamName) {
+              if (!teamName) {
+                return;
+              }
+
+              var key =
+                normalizeTeam(
+                  teamName
+                );
+
+              if (!key) {
+                return;
+              }
+
+              found[key] =
+                teamName;
+            }
+          );
+        }
+      );
+
+    return Object.keys(
+      found
+    ).map(
+      function(key) {
+        return found[key];
+      }
+    );
+  }
+
+  async function resolvePickedTeamTargets() {
+    var targets = [];
+    var targetKeys = {};
+
+    var leaguesWithPicks = [];
+
+    todayPicks.forEach(
+      function(pick) {
+        if (
+          leaguesWithPicks.indexOf(
+            pick.league
+          ) === -1
+        ) {
+          leaguesWithPicks.push(
+            pick.league
+          );
+        }
+      }
+    );
+
+    for (
+      var i = 0;
+      i < leaguesWithPicks.length;
+      i++
+    ) {
+      var leagueKey =
+        leaguesWithPicks[i];
+
+      var cfg =
+        leagueByKey[
+          leagueKey
+        ];
+
+      /*
+        Team injury reports only make sense
+        for team sports.
+      */
+      if (
+        !cfg ||
+        cfg.sport === "mma"
+      ) {
+        continue;
+      }
+
+      var scoreboard =
+        await fetchJson(
+          scoreboardUrl(cfg)
+        );
+
+      if (
+        !scoreboard ||
+        !Array.isArray(
+          scoreboard.events
+        )
+      ) {
+        continue;
+      }
+
+      var competitors = [];
+
+      scoreboard.events.forEach(
+        function(event) {
+          var competition =
+            event.competitions &&
+            event.competitions[0]
+              ? event.competitions[0]
+              : null;
+
+          if (
+            !competition ||
+            !Array.isArray(
+              competition.competitors
+            )
+          ) {
+            return;
+          }
+
+          competition.competitors.forEach(
+            function(competitor) {
+              competitors.push(
+                competitor
+              );
+            }
+          );
+        }
+      );
+
+      var pickedTeams =
+        uniquePickedTeamsForLeague(
+          leagueKey
+        );
+
+      pickedTeams.forEach(
+        function(pipelineTeamName) {
+          var competitor =
+            competitors.find(
+              function(item) {
+                return competitorMatchesTeam(
+                  item,
+                  pipelineTeamName
+                );
+              }
+            );
+
+          if (
+            !competitor ||
+            !competitor.team ||
+            !competitor.team.id
+          ) {
+            console.warn(
+              "[injuries] Could not resolve picked team:",
+              leagueKey,
+              pipelineTeamName
+            );
+
+            return;
+          }
+
+          var targetKey =
+            leagueKey +
+            "|" +
+            competitor.team.id;
+
+          if (
+            targetKeys[
+              targetKey
+            ]
+          ) {
+            return;
+          }
+
+          targetKeys[
+            targetKey
+          ] = true;
+
+          targets.push({
+            leagueKey:
+              leagueKey,
+
+            cfg:
+              cfg,
+
+            teamId:
+              String(
+                competitor.team.id
+              ),
+
+            pipelineTeamName:
+              pipelineTeamName,
+
+            espnTeamName:
+              competitor.team.displayName ||
+              competitor.team.shortDisplayName ||
+              competitor.team.name ||
+              pipelineTeamName
+          });
+        }
+      );
+    }
+
+    return targets;
+  }
+
+  function normalizeTeamInjuryEntry(
+    injury,
+    target
+  ) {
+    var athlete =
+      injury &&
+      injury.athlete
+        ? injury.athlete
+        : {};
+
+    var position =
+      athlete.position &&
+      athlete.position.abbreviation
+        ? athlete.position.abbreviation
+        : "-";
+
+    var injuryType =
+      injury &&
+      injury.details &&
+      injury.details.type
+        ? injury.details.type
+        : "-";
+
+    return {
+      league:
+        target.leagueKey,
+
+      leagueLabel:
+        target.cfg.label,
+
+      group:
+        target.cfg.group,
+
+      player:
+        athlete.displayName ||
+        athlete.fullName ||
+        athlete.name ||
+        "Unknown",
+
+      position:
+        position,
+
+      /*
+        Use the pipeline team name here deliberately.
+
+        That means the fallback record is guaranteed to
+        match the exact team name used by today's Picks page.
+      */
+      team:
+        target.pipelineTeamName,
+
+      status:
+        injury.status ||
+        injury.type ||
+        "Unknown",
+
+      injury:
+        injuryType,
+
+      verifiedPickedTeam:
+        true
+    };
+  }
+
+  async function fetchPickedTeamInjuries(
+    target
+  ) {
+    var data =
+      await fetchJson(
+        teamInjuryUrl(
+          target.cfg,
+          target.teamId
+        )
+      );
+
+    if (!data) {
+      return [];
+    }
+
+    var raw = [];
+
+    /*
+      ESPN has returned both shapes historically:
+
+      injuries: [ injury, injury, ... ]
+
+      and
+
+      injuries: [
+        {
+          injuries: [ injury, injury, ... ]
+        }
+      ]
+
+      Handle both.
+    */
+    if (
+      Array.isArray(
+        data.injuries
+      )
+    ) {
+      data.injuries.forEach(
+        function(item) {
+          if (
+            item &&
+            Array.isArray(
+              item.injuries
+            )
+          ) {
+            raw =
+              raw.concat(
+                item.injuries
+              );
+          } else if (item) {
+            raw.push(item);
+          }
+        }
+      );
+    }
+
+    if (
+      !raw.length &&
+      Array.isArray(
+        data.items
+      )
+    ) {
+      raw =
+        data.items.filter(
+          Boolean
+        );
+    }
+
+    return raw.map(
+      function(injury) {
+        return normalizeTeamInjuryEntry(
+          injury,
+          target
+        );
+      }
+    );
+  }
+
+  function injuryDedupKey(row) {
+    return [
+      row.league,
+      normalizeTeam(
+        row.team
+      ),
+      String(
+        row.player || ""
+      )
+        .trim()
+        .toLowerCase(),
+      String(
+        row.status || ""
+      )
+        .trim()
+        .toLowerCase(),
+      String(
+        row.injury || ""
+      )
+        .trim()
+        .toLowerCase()
+    ].join("|");
+  }
+
+  async function augmentPickedTeamInjuries() {
+    pickedTeamsResolved = 0;
+    pickedTeamInjuriesAdded = 0;
+
+    var targets =
+      await resolvePickedTeamTargets();
+
+    pickedTeamsResolved =
+      targets.length;
+
+    if (!targets.length) {
+      return;
+    }
+
+    var results =
+      await Promise.all(
+        targets.map(
+          fetchPickedTeamInjuries
+        )
+      );
+
+    var existing = {};
+
+    allInjuries.forEach(
+      function(row) {
+        existing[
+          injuryDedupKey(row)
+        ] = true;
+      }
+    );
+
+    results.forEach(
+      function(rows) {
+        rows.forEach(
+          function(row) {
+            var key =
+              injuryDedupKey(
+                row
+              );
+
+            if (
+              existing[key]
+            ) {
+              return;
+            }
+
+            existing[key] = true;
+
+            allInjuries.push(
+              row
+            );
+
+            pickedTeamInjuriesAdded++;
+          }
+        );
+      }
+    );
+
+    console.info(
+      "[injuries] Picked teams resolved:",
+      pickedTeamsResolved,
+      "team-specific injuries added:",
+      pickedTeamInjuriesAdded
     );
   }
 
@@ -2978,6 +3545,16 @@ td {
       loadAllInjuries()
     ]);
 
+    /*
+      The league-wide feed can omit injuries that exist
+      on an individual team's ESPN report.
+
+      Resolve every team in today's picked games against
+      today's ESPN scoreboard, then query those teams
+      individually before calculating the priority section.
+    */
+    await augmentPickedTeamInjuries();
+
     renderImpact();
     renderBrowser();
 
@@ -2986,6 +3563,10 @@ td {
       " injuries loaded · " +
       todayPicks.length +
       " current picks cross-referenced · " +
+      pickedTeamsResolved +
+      " picked teams verified · " +
+      pickedTeamInjuriesAdded +
+      " fallback injuries added · " +
       todayDash(),
       "",
       "green"
