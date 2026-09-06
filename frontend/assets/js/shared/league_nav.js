@@ -234,7 +234,9 @@
   }
 
   function explicitAvailability(key) {
-    const map = window.KELLY_LEAGUE_AVAILABILITY;
+    const map =
+      window.PAGE_LEAGUE_AVAILABILITY ||
+      window.KELLY_LEAGUE_AVAILABILITY;
 
     if (map && Object.prototype.hasOwnProperty.call(map, key)) {
       return map[key] === true;

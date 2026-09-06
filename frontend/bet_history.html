@@ -605,15 +605,25 @@
   </div>
 </div>
 
-<div class="controls">
-  <div class="league-pill active" data-league="all">All</div>
-  <div class="league-pill" data-league="MLB">MLB</div>
-  <div class="league-pill" data-league="NBA">NBA</div>
-  <div class="league-pill" data-league="NCAAM">NCAAM</div>
-  <div class="league-pill" data-league="WNBA">WNBA</div>
-  <div class="league-pill" data-league="NHL">NHL</div>
-  <div class="league-pill" data-league="SOCCER">Soccer</div>
+<div class="controls" id="league-controls">
+  <button type="button" class="league-pill active" data-league-key="all" data-league="all">All</button>
 
+  <button type="button" class="league-pill" data-league-key="nhl" data-league="NHL">NHL</button>
+  <button type="button" class="league-pill" data-league-key="mlb" data-league="MLB">MLB</button>
+
+  <button type="button" class="league-pill" data-league-key="nba" data-league="NBA">NBA</button>
+  <button type="button" class="league-pill" data-league-key="ncaam" data-league="NCAAM">College Basketball</button>
+  <button type="button" class="league-pill" data-league-key="wnba" data-league="WNBA">WNBA</button>
+
+  <button type="button" class="league-pill" data-league-key="mls" data-league="SOCCER" data-league-sub="MLS">MLS</button>
+  <button type="button" class="league-pill" data-league-key="epl" data-league="SOCCER" data-league-sub="EPL">EPL</button>
+  <button type="button" class="league-pill" data-league-key="laliga" data-league="SOCCER" data-league-sub="LALIGA">La Liga</button>
+  <button type="button" class="league-pill" data-league-key="ligue1" data-league="SOCCER" data-league-sub="LIGUE1">Ligue 1</button>
+  <button type="button" class="league-pill" data-league-key="seriea" data-league="SOCCER" data-league-sub="SERIEA">Serie A</button>
+  <button type="button" class="league-pill" data-league-key="bundesliga" data-league="SOCCER" data-league-sub="BUNDESLIGA">Bundesliga</button>
+</div>
+
+<div class="controls">
   <div class="market-pill active" data-market="all">All Markets</div>
   <div class="market-pill" data-market="moneyline">Moneyline</div>
   <div class="market-pill" data-market="spread">Spread / Line</div>
@@ -635,12 +645,66 @@
 <div class="main" id="history-main"></div>
 
 <script src="assets/js/shared/nav.js"></script>
+<script>
+window.PAGE_LEAGUE_AVAILABILITY = {
+  nfl: false,
+  cfb: false,
+  cfl: false,
+
+  nhl: true,
+  mlb: true,
+
+  nba: true,
+  ncaam: true,
+  wnba: true,
+
+  mls: true,
+  epl: true,
+  laliga: true,
+  ligue1: true,
+  seriea: true,
+  bundesliga: true,
+
+  ufc: false
+};
+</script>
+<script src="assets/js/shared/league_nav.js"></script>
 
 <script src="assets/js/bet-history/config.js"></script>
 <script src="assets/js/bet-history/sources.js"></script>
 <script src="assets/js/bet-history/csv.js"></script>
 <script src="assets/js/bet-history/normalize.js"></script>
 <script src="assets/js/bet-history/render.js"></script>
+<script>
+var activeLeagueSub = 'all';
+
+document.getElementById('league-controls').addEventListener('click', function(event) {
+  var pill = event.target.closest('.league-pill[data-league]');
+  if (!pill || pill.disabled) return;
+
+  activeLeagueSub = pill.dataset.leagueSub || 'all';
+}, true);
+</script>
 <script src="assets/js/bet-history/app.js"></script>
+<script>
+filteredRows = function() {
+  return allRows.filter(function(r) {
+    if (activeLeague !== 'all' && r.league !== activeLeague) return false;
+
+    if (
+      activeLeague === 'SOCCER' &&
+      activeLeagueSub !== 'all' &&
+      r.league_sub !== activeLeagueSub
+    ) {
+      return false;
+    }
+
+    if (activeMarket !== 'all' && r.market !== activeMarket) return false;
+    if (activeResult !== 'all' && r.result !== activeResult) return false;
+
+    return true;
+  });
+};
+</script>
 </body>
 </html>
