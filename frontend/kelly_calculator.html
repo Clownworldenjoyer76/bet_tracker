@@ -244,10 +244,23 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   color: var(--text-muted);
 }
 
-.sport-section-title.nba { color: var(--picks-yellow); }
+.sport-section-title.nba,
+.sport-section-title.wnba { color: var(--picks-yellow); }
+
 .sport-section-title.mlb,
 .sport-section-title.mlb_lineups { color: var(--picks-blue); }
+
 .sport-section-title.nhl { color: var(--picks-green); }
+
+.sport-section-title.cfb { color: #9b8cff; }
+
+.sport-section-title.epl,
+.sport-section-title.mls,
+.sport-section-title.ligue1,
+.sport-section-title.laliga,
+.sport-section-title.seriea,
+.sport-section-title.bundesliga { color: #52c7b8; }
+
 .sport-section-title.ufc { color: #ff7043; }
 
 .pick-count {
@@ -410,10 +423,24 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 <div class="league-filter-controls" id="league-controls">
   <button type="button" class="league-pill active" data-league-key="all">All</button>
+
+  <button type="button" class="league-pill" data-league-key="cfb">College Football</button>
+
   <button type="button" class="league-pill" data-league-key="nhl">NHL</button>
+
   <button type="button" class="league-pill" data-league-key="mlb">MLB</button>
   <button type="button" class="league-pill" data-league-key="mlb_lineups">MLB · With Lineups</button>
+
   <button type="button" class="league-pill" data-league-key="nba">NBA</button>
+  <button type="button" class="league-pill" data-league-key="wnba">WNBA</button>
+
+  <button type="button" class="league-pill" data-league-key="mls">MLS</button>
+  <button type="button" class="league-pill" data-league-key="epl">EPL</button>
+  <button type="button" class="league-pill" data-league-key="laliga">La Liga</button>
+  <button type="button" class="league-pill" data-league-key="ligue1">Ligue 1</button>
+  <button type="button" class="league-pill" data-league-key="seriea">Serie A</button>
+  <button type="button" class="league-pill" data-league-key="bundesliga">Bundesliga</button>
+
   <button type="button" class="league-pill" data-league-key="ufc">UFC</button>
 </div>
 
@@ -470,7 +497,21 @@ const BASE = 'https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/
 const BASE_DOCS = BASE + 'docs/';
 let fraction = 1.0;
 let selectedLeague = 'all';
-const allPicks = { nba: [], mlb: [], mlb_lineups: [], nhl: [], ufc: [] };
+const allPicks = {
+  cfb: [],
+  nhl: [],
+  mlb: [],
+  mlb_lineups: [],
+  nba: [],
+  wnba: [],
+  mls: [],
+  epl: [],
+  laliga: [],
+  ligue1: [],
+  seriea: [],
+  bundesliga: [],
+  ufc: [],
+};
 
 function toDateStr(v) { return v.replaceAll('-', '_'); }
 
@@ -596,6 +637,195 @@ async function loadConfigSelectedRows(configKey, dateStr) {
   }
 
   return [];
+}
+
+function normalizeDateValue(value) {
+  return String(value || '').trim().replaceAll('-', '_');
+}
+
+function rowMatchesConfig(row, configKey, cfg) {
+  if (cfg.filterFn) {
+    try {
+      return cfg.filterFn(row, null, String(configKey).toUpperCase()) !== false;
+    } catch {
+      return true;
+    }
+  }
+
+  if (cfg.leagueColumn) {
+    return String(row[cfg.leagueColumn] || '').trim().toUpperCase() ===
+      String(configKey).toUpperCase();
+  }
+
+  return true;
+}
+
+function prepareConfigRows(rows, configKey, dateStr) {
+  const cfg = window.REPO_CONFIG && window.REPO_CONFIG[configKey];
+  if (!cfg) return [];
+
+  const normalize = cfg.normalizeRow
+    ? row => cfg.normalizeRow(row)
+    : row => row;
+
+  const expanded = rows.flatMap(row => {
+    const normalized = normalize(row);
+
+    if (cfg.expandRows) {
+      return cfg.expandRows(normalized);
+    }
+
+    return [normalized];
+  });
+
+  return expanded.filter(row => {
+    if (!rowMatchesConfig(row, configKey, cfg)) return false;
+    return normalizeDateValue(row.game_date) === dateStr;
+  });
+}
+
+function americanToDecimal(odds) {
+  const n = parseFloat(odds);
+  if (isNaN(n) || n === 0) return null;
+  return n > 0
+    ? 1 + (n / 100)
+    : 1 + (100 / Math.abs(n));
+}
+
+function calcKellyFromProbability(probability, americanOdds) {
+  const p = parseFloat(probability);
+  const decimal = americanToDecimal(americanOdds);
+
+  if (isNaN(p) || !decimal || decimal <= 1) return null;
+
+  const b = decimal - 1;
+  const q = 1 - p;
+  const k = ((b * p) - q) / b;
+
+  return Math.max(0, Math.min(1, k));
+}
+
+function calcEvFromProbability(probability, americanOdds) {
+  const p = parseFloat(probability);
+  const decimal = americanToDecimal(americanOdds);
+
+  if (isNaN(p) || !decimal) return null;
+  return (p * decimal) - 1;
+}
+
+function firstNumeric(...values) {
+  for (const value of values) {
+    const n = parseFloat(value);
+    if (!isNaN(n)) return n;
+  }
+  return null;
+}
+
+function getGenericOdds(row, sportKey) {
+  if (sportKey === 'nba') {
+    const nbaOdds = getNBAOdds(row);
+    if (nbaOdds !== null && nbaOdds !== undefined && nbaOdds !== '') {
+      return nbaOdds;
+    }
+  }
+
+  return (
+    row.bet_odds_american ||
+    row.dk_odds_american ||
+    row.american_odds ||
+    row.take_odds ||
+    ''
+  );
+}
+
+function getGenericKelly(row, sportKey, odds) {
+  const direct = firstNumeric(
+    row.kelly,
+    row.bet_kelly,
+    row.bet_final_stake_pct,
+    row.bet_stake_pct
+  );
+
+  if (direct !== null) return direct;
+
+  if (sportKey === 'nba') {
+    const nbaKelly = parseFloat(getNBAKelly(row));
+    if (!isNaN(nbaKelly)) return nbaKelly;
+  }
+
+  const modelProb = firstNumeric(
+    row.model_prob,
+    row.bet_model_prob,
+    row.bet_adjusted_model_prob
+  );
+
+  if (modelProb !== null) {
+    return calcKellyFromProbability(modelProb, odds);
+  }
+
+  return null;
+}
+
+function getGenericEv(row, sportKey, odds) {
+  const direct = firstNumeric(
+    row.ev,
+    row.bet_ev,
+    row.selected_ev
+  );
+
+  if (direct !== null) return direct;
+
+  if (sportKey === 'nba') {
+    const nbaEv = parseFloat(getNBAEV(row));
+    if (!isNaN(nbaEv)) return nbaEv;
+  }
+
+  const modelProb = firstNumeric(
+    row.model_prob,
+    row.bet_model_prob,
+    row.bet_adjusted_model_prob
+  );
+
+  if (modelProb !== null) {
+    return calcEvFromProbability(modelProb, odds);
+  }
+
+  return null;
+}
+
+function buildConfigSideLabel(row, cfg) {
+  if (cfg && typeof cfg.buildBetText === 'function') {
+    try {
+      return cfg.buildBetText(row, row);
+    } catch {}
+  }
+
+  return buildSideLabel(row);
+}
+
+function processConfigPicks(rows, configKey, sportKey, dateStr) {
+  const cfg = window.REPO_CONFIG && window.REPO_CONFIG[configKey];
+  if (!cfg) return [];
+
+  const prepared = prepareConfigRows(rows, configKey, dateStr);
+
+  return prepared.map(row => {
+    const odds = getGenericOdds(row, sportKey);
+    const kelly = getGenericKelly(row, sportKey, odds);
+    const ev = getGenericEv(row, sportKey, odds);
+
+    if (kelly === null || isNaN(kelly) || kelly <= 0) return null;
+
+    return {
+      matchup: `${row.away_team || '—'} @ ${row.home_team || '—'}`,
+      time: row.game_time || row.match_time || '',
+      market_type: String(row.market_type || row.market || '').toLowerCase(),
+      side: buildConfigSideLabel(row, cfg),
+      odds: formatOdds(odds),
+      ev,
+      kelly,
+    };
+  }).filter(Boolean);
 }
 
 function formatOdds(val) {
@@ -737,10 +967,18 @@ function render() {
   const bankroll = parseFloat(document.getElementById('bankroll').value) || 0;
   const container = document.getElementById('picks-container');
   const allSports = [
-    { key: 'nba', label: 'NBA' },
+    { key: 'cfb', label: 'COLLEGE FOOTBALL' },
+    { key: 'nhl', label: 'NHL' },
     { key: 'mlb', label: 'MLB' },
     { key: 'mlb_lineups', label: 'MLB · WITH LINEUPS' },
-    { key: 'nhl', label: 'NHL' },
+    { key: 'nba', label: 'NBA' },
+    { key: 'wnba', label: 'WNBA' },
+    { key: 'mls', label: 'MLS' },
+    { key: 'epl', label: 'EPL' },
+    { key: 'laliga', label: 'LA LIGA' },
+    { key: 'ligue1', label: 'LIGUE 1' },
+    { key: 'seriea', label: 'SERIE A' },
+    { key: 'bundesliga', label: 'BUNDESLIGA' },
     { key: 'ufc', label: 'UFC' },
   ];
 
@@ -803,18 +1041,34 @@ async function loadAll() {
   const date = toDateStr(initDatePicker());
 
   const configuredFeeds = [
-    { sport: 'nba',         configKey: 'NBA' },
+    { sport: 'cfb',         configKey: 'CFB' },
+    { sport: 'nhl',         configKey: 'NHL' },
     { sport: 'mlb',         configKey: 'MLB' },
     { sport: 'mlb_lineups', configKey: 'MLB_LINEUPS' },
-    { sport: 'nhl',         configKey: 'NHL' },
+    { sport: 'nba',         configKey: 'NBA' },
+    { sport: 'wnba',        configKey: 'WNBA' },
+    { sport: 'mls',         configKey: 'MLS' },
+    { sport: 'epl',         configKey: 'EPL' },
+    { sport: 'laliga',      configKey: 'LALIGA' },
+    { sport: 'ligue1',      configKey: 'LIGUE1' },
+    { sport: 'seriea',      configKey: 'SERIEA' },
+    { sport: 'bundesliga',  configKey: 'BUNDESLIGA' },
   ];
 
   await Promise.all([
     ...configuredFeeds.map(async ({ sport, configKey }) => {
       try {
+        const cfg = window.REPO_CONFIG && window.REPO_CONFIG[configKey];
+
+        if (!cfg || cfg.enabled === false) {
+          allPicks[sport] = [];
+          return;
+        }
+
         const rows = await loadConfigSelectedRows(configKey, date);
-        allPicks[sport] = processPicks(
+        allPicks[sport] = processConfigPicks(
           rows,
+          configKey,
           sport === 'mlb_lineups' ? 'mlb' : sport,
           date
         );
