@@ -233,9 +233,32 @@
     return map;
   }
 
+  function explicitAvailability(key) {
+    const map = window.KELLY_LEAGUE_AVAILABILITY;
+
+    if (map && Object.prototype.hasOwnProperty.call(map, key)) {
+      return map[key] === true;
+    }
+
+    return null;
+  }
+
+  function isLeagueSupported(item, existing) {
+    const explicit = explicitAvailability(item.key);
+
+    if (explicit !== null) {
+      return explicit;
+    }
+
+    return existing.has(item.key);
+  }
+
   function prepareExistingPill(pill, item, asSubmenu) {
+    pill.type = "button";
+    pill.disabled = false;
     pill.textContent = item.label;
-    pill.classList.remove("placeholder");
+    pill.dataset.leagueKey = item.key;
+    pill.classList.remove("placeholder", "shared-league-unavailable");
     pill.classList.toggle("submenu-pill", !!asSubmenu);
     pill.classList.add("shared-league-option");
     return pill;
@@ -252,6 +275,30 @@
     button.textContent = item.label;
     button.title = item.label + " is not currently supported on this page.";
     return button;
+  }
+
+  function makeEnabledLeague(item, asSubmenu) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.disabled = false;
+    button.className =
+      "league-pill shared-league-option" +
+      (asSubmenu ? " submenu-pill" : "");
+    button.dataset.leagueKey = item.key;
+    button.textContent = item.label;
+    return button;
+  }
+
+  function makeLeague(item, existing, asSubmenu) {
+    if (!isLeagueSupported(item, existing)) {
+      return makeUnavailableLeague(item, asSubmenu);
+    }
+
+    const pill = existing.get(item.key);
+
+    return pill
+      ? prepareExistingPill(pill, item, asSubmenu)
+      : makeEnabledLeague(item, asSubmenu);
   }
 
   function closeAllMenus() {
@@ -279,18 +326,13 @@
     let supported = 0;
 
     group.leagues.forEach((item) => {
-      const pill = existing.get(item.key);
-
-      if (pill) {
+      if (isLeagueSupported(item, existing)) {
         supported += 1;
-        submenu.appendChild(
-          prepareExistingPill(pill, item, true)
-        );
-      } else {
-        submenu.appendChild(
-          makeUnavailableLeague(item, true)
-        );
       }
+
+      submenu.appendChild(
+        makeLeague(item, existing, true)
+      );
     });
 
     if (!supported) {
@@ -316,13 +358,7 @@
   }
 
   function makeDirect(item, existing) {
-    const pill = existing.get(item.key);
-
-    if (pill) {
-      return prepareExistingPill(pill, item, false);
-    }
-
-    return makeUnavailableLeague(item, false);
+    return makeLeague(item, existing, false);
   }
 
   function makeMlbGroup(existing) {
@@ -339,33 +375,20 @@
     const submenu = document.createElement("div");
     submenu.className = "submenu";
 
-    const mlb = existing.get("mlb");
-    const lineups = existing.get("mlb_lineups");
-
     submenu.appendChild(
-      mlb
-        ? prepareExistingPill(
-            mlb,
-            { key: "mlb", label: "MLB" },
-            true
-          )
-        : makeUnavailableLeague(
-            { key: "mlb", label: "MLB" },
-            true
-          )
+      makeLeague(
+        { key: "mlb", label: "MLB" },
+        existing,
+        true
+      )
     );
 
     submenu.appendChild(
-      lineups
-        ? prepareExistingPill(
-            lineups,
-            { key: "mlb_lineups", label: "MLB · With Lineups" },
-            true
-          )
-        : makeUnavailableLeague(
-            { key: "mlb_lineups", label: "MLB · With Lineups" },
-            true
-          )
+      makeLeague(
+        { key: "mlb_lineups", label: "MLB · With Lineups" },
+        existing,
+        true
+      )
     );
 
     wrap.appendChild(toggle);
@@ -493,7 +516,10 @@
     main.appendChild(
       makeDirect({ key: "nhl", label: "NHL" }, existing)
     );
-    if (existing.has("mlb_lineups")) {
+    if (
+      existing.has("mlb_lineups") ||
+      explicitAvailability("mlb_lineups") !== null
+    ) {
       main.appendChild(makeMlbGroup(existing));
     } else {
       main.appendChild(
