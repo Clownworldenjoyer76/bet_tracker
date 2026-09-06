@@ -78,9 +78,20 @@ function resolveSourceUrls(src) {
         if (!res.ok) throw new Error(src.label + ' index ' + res.status);
         return res.json();
       })
-      .then(function(dates) {
-        if (!Array.isArray(dates)) return [];
-        return dates.map(function(date) {
+      .then(function(items) {
+        if (!Array.isArray(items)) return [];
+
+        if (typeof src.indexItemToUrl === 'function') {
+          return items.map(function(item) {
+            return src.indexItemToUrl(item);
+          }).filter(function(url) {
+            return !!url;
+          });
+        }
+
+        if (typeof src.datePattern !== 'function') return [];
+
+        return items.map(function(date) {
           return src.datePattern(normalizeFileDate(date));
         });
       })
@@ -125,6 +136,42 @@ function loadSource(src) {
   });
 }
 
+function prepareSourceRow(row, sourceLabel) {
+  if (sourceLabel === 'MLB_LINEUPS') {
+    var lineupRow = Object.assign({}, row);
+    lineupRow.league = 'MLB_LINEUPS';
+    return lineupRow;
+  }
+
+  if (sourceLabel === 'UFC') {
+    var bet = String(row.bet || '').toLowerCase().trim();
+    var fighterIndex = bet === 'fighter_1' ? 1 : bet === 'fighter_2' ? 2 : 0;
+
+    if (!fighterIndex) return row;
+
+    var ufcRow = Object.assign({}, row);
+    var fighter = fighterIndex === 1 ? row.fighter_1 : row.fighter_2;
+
+    ufcRow.sport = 'mma';
+    ufcRow.league = 'UFC';
+    ufcRow.game_date = row.match_date;
+    ufcRow.matchup = [row.fighter_1, row.fighter_2].filter(Boolean).join(' vs ');
+    ufcRow.market_type = 'moneyline';
+    ufcRow.bet_side = fighter;
+    ufcRow.take_bet = fighter;
+    ufcRow.dk_odds_american = fighterIndex === 1 ? row.moneyline_f1 : row.moneyline_f2;
+    ufcRow.model_prob = fighterIndex === 1 ? row.model_prob_f1 : row.model_prob_f2;
+    ufcRow.ev = fighterIndex === 1 ? row.ev_f1 : row.ev_f2;
+    ufcRow.kelly = fighterIndex === 1 ? row.kelly_f1 : row.kelly_f2;
+    ufcRow.edge = fighterIndex === 1 ? row.edge_f1 : row.edge_f2;
+    ufcRow.bet_result = fighterIndex === 1 ? row.result_fighter_1 : row.result_fighter_2;
+
+    return ufcRow;
+  }
+
+  return row;
+}
+
 function loadAll() {
   var activeSources = SOURCES.filter(function(src) {
     return src.enabled !== false;
@@ -151,7 +198,8 @@ function loadAll() {
 
     results.forEach(function(result) {
       result.rows.forEach(function(row) {
-        allRows.push(normalizeRow(row, result.label));
+        var preparedRow = prepareSourceRow(row, result.label);
+        allRows.push(normalizeRow(preparedRow, result.label));
       });
     });
 
