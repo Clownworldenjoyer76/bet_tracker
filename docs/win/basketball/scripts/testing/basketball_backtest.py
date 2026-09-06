@@ -25,9 +25,9 @@ import yaml
 from scipy.stats import norm
 
 from staking_runtime import (
-    KELLY_FRACTION, KELLY_CAP, STAKING_CONFIG_PATH,
+    KELLY_FRACTION, STAKING_CONFIG_PATH,
     add_uncertainty_adjusted_ev, attach_candidate_uncertainty,
-    requested_stake, apply_exposure_limits,
+    requested_stake,
 )
 
 LEAGUES = ["nba", "ncaam", "wnba"]
@@ -3029,8 +3029,6 @@ def pick_one(
 
 def stake_pct(
     kelly: float | None,
-    fraction: float,
-    cap: float,
     uncertainty_multiplier: float | None = 1.0,
 ) -> float | None:
     if kelly is None or kelly <= 0:
@@ -3394,8 +3392,6 @@ def select_bets_for_market(
     market,
     filter_cfg,
     settings,
-    kelly_fraction,
-    kelly_cap,
 ):
     cfg = market_config(
         filter_cfg,
@@ -3486,10 +3482,10 @@ def select_bets_for_market(
                 "bet_uncertainty_points": sel["uncertainty_points"],
                 "bet_signal_points": sel["signal_points"],
                 "bet_requested_stake_pct": stake_pct(
-                    sel["raw_kelly"], kelly_fraction, kelly_cap, sel["uncertainty_multiplier"]
+                    sel["raw_kelly"], sel["uncertainty_multiplier"]
                 ),
                 "bet_stake_pct": stake_pct(
-                    sel["raw_kelly"], kelly_fraction, kelly_cap, sel["uncertainty_multiplier"]
+                    sel["raw_kelly"], sel["uncertainty_multiplier"]
                 ),
                 "market_type": market,
                 "league_lower": league,
@@ -4542,14 +4538,6 @@ def run_production_parity_test(
                     market,
                     production_filter_cfg,
                     settings,
-                    float(
-                        prod_select
-                        .KELLY_FRACTION
-                    ),
-                    float(
-                        prod_select
-                        .KELLY_CAP
-                    ),
                 )
             )
 
@@ -4693,8 +4681,6 @@ def process_historical_file(
     working_dir,
     selections_dir,
     graded_dir,
-    kelly_fraction,
-    kelly_cap,
     parity_rows,
     logger,
 ):
@@ -4895,8 +4881,6 @@ def process_historical_file(
                 market,
                 filter_cfg,
                 settings,
-                kelly_fraction,
-                kelly_cap,
             )
         )
 
@@ -4974,45 +4958,6 @@ def process_historical_file(
         graded,
         len(raw),
     )
-
-
-def apply_final_exposure_to_graded(candidate_graded: pd.DataFrame, final_selected: pd.DataFrame) -> pd.DataFrame:
-    if candidate_graded.empty or final_selected.empty:
-        return candidate_graded.iloc[0:0].copy()
-    keys = ['source_file', 'game_id', 'market_type', 'bet_side']
-    exposure_cols = [
-        'bet_fractional_kelly_pct', 'bet_individual_capped_stake_pct',
-        'bet_requested_stake_pct', 'bet_final_stake_pct', 'bet_stake_pct',
-        'exposure_rank', 'exposure_limited', 'exposure_limit_reason',
-        'game_exposure_after_pct', 'league_day_exposure_after_pct', 'total_day_exposure_after_pct',
-        'maximum_exposure_per_game', 'maximum_exposure_per_league_per_day',
-        'maximum_total_daily_exposure', 'maximum_individual_bet_kelly_fraction',
-        'uncertainty_adjustment_method', 'uncertainty_adjustment_version',
-    ]
-    keep = [c for c in exposure_cols if c in final_selected.columns]
-    base = candidate_graded.drop(columns=[c for c in keep if c in candidate_graded.columns], errors='ignore')
-    final_fields = final_selected[[*keys, *keep]].drop_duplicates(subset=keys, keep='last')
-    merged = base.merge(final_fields, on=keys, how='inner', validate='one_to_one')
-    merged = merged.drop(columns=[c for c in ('profit_unit', 'profit_kelly') if c in merged.columns])
-    profits = merged.apply(compute_profits, axis=1, result_type='expand')
-    profits.columns = ['profit_unit', 'profit_kelly']
-    return pd.concat([merged, profits], axis=1)
-
-
-def rewrite_final_backtest_files(input_files, final_selected, final_graded, selections_dir, graded_dir):
-    for path in input_files:
-        source_file = path.stem
-        league = source_file.rsplit('_', 1)[-1].lower()
-        selected = final_selected[
-            (final_selected['source_file'].astype(str) == source_file)
-            & (final_selected['league_lower'].astype(str).str.lower() == league)
-        ].copy() if not final_selected.empty else final_selected.copy()
-        graded = final_graded[
-            (final_graded['source_file'].astype(str) == source_file)
-            & (final_graded['league_lower'].astype(str).str.lower() == league)
-        ].copy() if not final_graded.empty else final_graded.copy()
-        atomic_write_csv(selected, selections_dir / league / f'{source_file}_selected.csv')
-        atomic_write_csv(graded, graded_dir / league / f'{source_file}_graded.csv')
 
 
 def parse_args():
@@ -5240,16 +5185,6 @@ def main():
         model_cfg
     )
 
-    staking_cfg = read_yaml(DEFAULT_STAKING_CONFIG)
-    kelly_fraction = require_number(
-        (staking_cfg.get("kelly") or {}).get("fractional_multiplier"),
-        "staking.kelly.fractional_multiplier",
-    )
-    kelly_cap = require_number(
-        (staking_cfg.get("exposure_limits") or {}).get("maximum_individual_bet_kelly_fraction"),
-        "staking.exposure_limits.maximum_individual_bet_kelly_fraction",
-    )
-
     config_warnings = (
         collect_config_warnings(
             filter_cfg
@@ -5326,8 +5261,6 @@ def main():
                 working_dir,
                 selections_dir,
                 graded_dir,
-                kelly_fraction,
-                kelly_cap,
                 args.parity_rows,
                 logger,
             )
@@ -5364,11 +5297,8 @@ def main():
             pd.DataFrame()
         )
 
-    candidate_selected_count = len(combined_selected)
-    combined_selected = apply_exposure_limits(combined_selected) if not combined_selected.empty else combined_selected
-    combined_graded = apply_final_exposure_to_graded(combined_graded, combined_selected)
-    rewrite_final_backtest_files(input_files, combined_selected, combined_graded, selections_dir, graded_dir)
-
+    # Keep every selection produced by the configured selection rules.
+    # Stake suggestions are informational and never remove a selected row.
     atomic_write_csv(
         combined_selected,
         selections_dir
@@ -5380,7 +5310,7 @@ def main():
         graded_dir
         / "all_graded.csv",
     )
-    logger.log(f"staking exposure replay | candidates={candidate_selected_count} final={len(combined_selected)}")
+    logger.log(f"selection rows retained without exposure filtering: {len(combined_selected)}")
 
     reports = build_reports(
         combined_graded,
