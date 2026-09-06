@@ -33,6 +33,12 @@ from staking_runtime import (
 LEAGUES = ["nba", "ncaam", "wnba"]
 MARKETS = ["moneyline", "spread", "total"]
 
+TIEBREAK_COL_MAP = {
+    "ev": "bet_ev",
+    "kelly": "bet_kelly",
+    "edge_vs_market": "bet_edge_vs_market",
+}
+
 BASKETBALL_ROOT = Path("docs/win/basketball")
 DEFAULT_BACKTEST_DIR = BASKETBALL_ROOT / "backtest"
 DEFAULT_MODEL_CONFIG = BASKETBALL_ROOT / "config" / "model_config.yaml"
@@ -1095,6 +1101,16 @@ def apply_production_selection_policy(
         production_cfg.get("markets"),
         "markets.yaml markets",
     )
+
+    out["ml_vs_spread_tiebreak"] = str(
+        production_cfg.get(
+            "ml_vs_spread_tiebreak",
+            "ev",
+        )
+    ).strip().lower()
+
+    if out["ml_vs_spread_tiebreak"] not in TIEBREAK_COL_MAP:
+        out["ml_vs_spread_tiebreak"] = "ev"
 
     for league in LEAGUES:
         out["markets"].setdefault(
@@ -3066,6 +3082,155 @@ def market_config(
     )
 
 
+
+def reconcile_ml_vs_spread(
+    df: pd.DataFrame,
+    filter_cfg: dict,
+) -> tuple[pd.DataFrame, int]:
+    if df.empty:
+        return df, 0
+
+    if (
+        "game_id" not in df.columns
+        or "market_type" not in df.columns
+    ):
+        return df, 0
+
+    tiebreak = str(
+        filter_cfg.get(
+            "ml_vs_spread_tiebreak",
+            "ev",
+        )
+    ).strip().lower()
+
+    if tiebreak not in TIEBREAK_COL_MAP:
+        tiebreak = "ev"
+
+    metric_col = TIEBREAK_COL_MAP[tiebreak]
+
+    if metric_col not in df.columns:
+        return df, 0
+
+    out = df.copy()
+    out["_tiebreak_metric"] = pd.to_numeric(
+        out[metric_col],
+        errors="coerce",
+    )
+
+    ml_mask = (
+        out["market_type"]
+        .astype(str)
+        .str.lower()
+        == "moneyline"
+    )
+    spread_mask = (
+        out["market_type"]
+        .astype(str)
+        .str.lower()
+        == "spread"
+    )
+
+    if (
+        not ml_mask.any()
+        or not spread_mask.any()
+    ):
+        return out.drop(
+            columns=["_tiebreak_metric"],
+        ), 0
+
+    ml_best = (
+        out.loc[ml_mask]
+        .groupby("game_id")[
+            "_tiebreak_metric"
+        ]
+        .max()
+    )
+
+    spread_best = (
+        out.loc[spread_mask]
+        .groupby("game_id")[
+            "_tiebreak_metric"
+        ]
+        .max()
+    )
+
+    conflict_games = (
+        ml_best.index.intersection(
+            spread_best.index
+        )
+    )
+
+    if len(conflict_games) == 0:
+        return out.drop(
+            columns=["_tiebreak_metric"],
+        ), 0
+
+    drop_indices = []
+
+    for game_id in conflict_games:
+        ml_value = ml_best.loc[game_id]
+        spread_value = spread_best.loc[
+            game_id
+        ]
+
+        if (
+            pd.isna(ml_value)
+            and pd.isna(spread_value)
+        ):
+            losing_market = "spread"
+        elif pd.isna(ml_value):
+            losing_market = "moneyline"
+        elif pd.isna(spread_value):
+            losing_market = "spread"
+        else:
+            losing_market = (
+                "spread"
+                if ml_value >= spread_value
+                else "moneyline"
+            )
+
+        loss_mask = (
+            out["game_id"].eq(game_id)
+            & (
+                out["market_type"]
+                .astype(str)
+                .str.lower()
+                == losing_market
+            )
+        )
+
+        drop_indices.extend(
+            out.index[
+                loss_mask
+            ].tolist()
+        )
+
+        DEBUG_COUNTS[
+            (
+                "ml_vs_spread_dropped_"
+                f"{losing_market}"
+            )
+        ] += int(
+            loss_mask.sum()
+        )
+
+    dropped = len(drop_indices)
+
+    if dropped:
+        out = out.drop(
+            index=drop_indices
+        )
+
+    out = out.drop(
+        columns=["_tiebreak_metric"],
+    )
+
+    return (
+        out.reset_index(drop=True),
+        dropped,
+    )
+
+
 def build_moneyline_sides(
     row,
     league,
@@ -4414,6 +4579,9 @@ def run_production_parity_test(
                 exist_ok=True,
             )
 
+        back_selected_parts = []
+        prod_selected_parts = []
+
         for market in MARKETS:
             if market == "moneyline":
                 (
@@ -4608,6 +4776,15 @@ def run_production_parity_test(
                         "bet_side": sel[
                             "side"
                         ],
+                        "bet_ev": sel.get(
+                            "ev"
+                        ),
+                        "bet_kelly": sel.get(
+                            "kelly"
+                        ),
+                        "bet_edge_vs_market": sel.get(
+                            "edge_vs_market"
+                        ),
                     })
 
             prod_selected = pd.DataFrame(
@@ -4661,6 +4838,61 @@ def run_production_parity_test(
                     f"backtest={sorted(back_keys)} | "
                     f"production={sorted(prod_keys)}"
                 )
+
+            if not back_selected.empty:
+                back_selected_parts.append(
+                    back_selected
+                )
+
+            if not prod_selected.empty:
+                prod_selected_parts.append(
+                    prod_selected
+                )
+
+        back_combined = (
+            pd.concat(
+                back_selected_parts,
+                ignore_index=True,
+            )
+            if back_selected_parts
+            else pd.DataFrame()
+        )
+
+        prod_combined = (
+            pd.concat(
+                prod_selected_parts,
+                ignore_index=True,
+            )
+            if prod_selected_parts
+            else pd.DataFrame()
+        )
+
+        back_reconciled, _ = (
+            reconcile_ml_vs_spread(
+                back_combined,
+                production_filter_cfg,
+            )
+        )
+
+        prod_reconciled, _ = (
+            reconcile_ml_vs_spread(
+                prod_combined,
+                production_filter_cfg,
+            )
+        )
+
+        if keys(back_reconciled) != keys(
+            prod_reconciled
+        ):
+            raise AssertionError(
+                "PARITY FAILED "
+                f"{league}.ml_vs_spread."
+                "reconciliation | "
+                "backtest="
+                f"{sorted(keys(back_reconciled))} | "
+                "production="
+                f"{sorted(keys(prod_reconciled))}"
+            )
 
     logger.log(
         "PARITY PASS | "
@@ -4901,6 +5133,18 @@ def process_historical_file(
         selections = pd.concat(
             selected_parts,
             ignore_index=True,
+        )
+        selections, ml_vs_spread_dropped = (
+            reconcile_ml_vs_spread(
+                selections,
+                filter_cfg,
+            )
+        )
+        logger.log(
+            f"[{league.upper()}] "
+            f"{source_file}: "
+            "ml_vs_spread_dropped="
+            f"{ml_vs_spread_dropped}"
         )
     else:
         selections = pd.DataFrame()

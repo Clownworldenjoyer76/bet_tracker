@@ -618,8 +618,12 @@ def main():
             if candidate_frames
             else pd.DataFrame()
         )
+        if not all_candidates.empty:
+            all_candidates, n_dropped = reconcile_ml_vs_spread(all_candidates)
+            summary["ml_vs_spread_dropped"] = n_dropped
+
         final_picks = all_candidates.copy()
-        summary["total_candidates"] = len(all_candidates)
+        summary["total_candidates"] = len(all_candidates) + summary["ml_vs_spread_dropped"]
         summary["total_selected"] = len(final_picks)
 
         for league in LEAGUES:
