@@ -845,7 +845,8 @@ def league_section_html(league: str, display: str) -> str:
     )
     market_panels = "\n".join(
         f'<div class="tab-panel panel-{spec["key"]}" data-key="{spec["key"]}"'
-        f'{" style=\"display:none\"" if i else ""}></div>'
+        + (' style="display:none"' if i else '')
+        + '></div>'
         for i, spec in enumerate(MARKETS)
     )
 
@@ -1005,3 +1006,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
