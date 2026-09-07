@@ -1,0 +1,210 @@
+name: Repository Folder Sync
+
+run-name: "Repo sync: ${{ inputs.mapping }}${{ inputs.dry_run && ' (dry run)' || '' }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      mapping:
+        description: "Mapping name from .github/repo-sync.json, or all"
+        required: true
+        default: "soccer"
+        type: string
+      dry_run:
+        description: "Preview changes without committing or pushing"
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "repo-sync-${{ inputs.mapping }}"
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.select.outputs.matrix }}
+
+    steps:
+      - name: Checkout sync configuration
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: source-config
+          sparse-checkout: |
+            .github/repo-sync.json
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Validate sync configuration
+        working-directory: source-config
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          jq -e '
+            (.mappings | type == "array" and length > 0) and
+            ([.mappings[].name] | length == (unique | length)) and
+            all(.mappings[];
+              (.name | type == "string" and length > 0) and
+              (.target_repo | type == "string" and test("^[^/]+/[^/]+$")) and
+              (.target_branch | type == "string" and length > 0) and
+              (.source_path |
+                type == "string" and
+                length > 0 and
+                . != "." and
+                (startswith("/") | not) and
+                ([split("/")[] | select(. == "..")] | length == 0)
+              ) and
+              (.target_path |
+                type == "string" and
+                length > 0 and
+                . != "." and
+                (startswith("/") | not) and
+                ([split("/")[] | select(. == "..")] | length == 0)
+              )
+            )
+          ' .github/repo-sync.json > /dev/null
+
+      - name: Select mapping
+        id: select
+        working-directory: source-config
+        shell: bash
+        env:
+          REQUESTED_MAPPING: ${{ inputs.mapping }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$REQUESTED_MAPPING" == "all" ]]; then
+            selected="$(jq -c '.mappings' .github/repo-sync.json)"
+          else
+            selected="$(jq -c --arg name "$REQUESTED_MAPPING" '[.mappings[] | select(.name == $name)]' .github/repo-sync.json)"
+          fi
+
+          count="$(jq 'length' <<< "$selected")"
+          if [[ "$count" -eq 0 ]]; then
+            echo "Unknown mapping: $REQUESTED_MAPPING" >&2
+            exit 1
+          fi
+
+          echo "matrix={\"include\":$selected}" >> "$GITHUB_OUTPUT"
+
+  sync:
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
+
+    steps:
+      - name: Verify cross-repo token
+        shell: bash
+        env:
+          SYNC_TOKEN: ${{ secrets.REPO_SYNC_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$SYNC_TOKEN" ]]; then
+            echo "Repository secret REPO_SYNC_TOKEN is not configured." >&2
+            exit 1
+          fi
+
+      - name: Checkout source folder
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ github.repository }}
+          ref: ${{ github.event.repository.default_branch }}
+          path: source
+          sparse-checkout: |
+            ${{ matrix.source_path }}
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Checkout target folder
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ matrix.target_repo }}
+          ref: ${{ matrix.target_branch }}
+          token: ${{ secrets.REPO_SYNC_TOKEN }}
+          path: target
+          fetch-depth: 0
+          sparse-checkout: |
+            ${{ matrix.target_path }}
+          sparse-checkout-cone-mode: false
+
+      - name: Mirror source into target
+        id: mirror
+        shell: bash
+        env:
+          SOURCE_PATH: ${{ matrix.source_path }}
+          TARGET_PATH: ${{ matrix.target_path }}
+        run: |
+          set -euo pipefail
+
+          src="$GITHUB_WORKSPACE/source/$SOURCE_PATH"
+          dst="$GITHUB_WORKSPACE/target/$TARGET_PATH"
+
+          if [[ ! -d "$src" ]]; then
+            echo "Source directory does not exist: $SOURCE_PATH" >&2
+            exit 1
+          fi
+
+          mkdir -p "$dst"
+          rsync -a --delete --checksum "$src/" "$dst/"
+
+          cd "$GITHUB_WORKSPACE/target"
+          git add -A -- "$TARGET_PATH"
+
+          if git diff --cached --quiet -- "$TARGET_PATH"; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No changes for $TARGET_PATH."
+            exit 0
+          fi
+
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          echo "Changes detected:"
+          git status --short -- "$TARGET_PATH"
+          git diff --cached --stat -- "$TARGET_PATH"
+
+      - name: Commit and push mirrored folder
+        if: steps.mirror.outputs.changed == 'true' && inputs.dry_run == false
+        shell: bash
+        env:
+          MAPPING_NAME: ${{ matrix.name }}
+          SOURCE_REPO: ${{ github.repository }}
+          SOURCE_PATH: ${{ matrix.source_path }}
+          TARGET_BRANCH: ${{ matrix.target_branch }}
+        run: |
+          set -euo pipefail
+
+          cd "$GITHUB_WORKSPACE/target"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "sync: $MAPPING_NAME from $SOURCE_REPO/$SOURCE_PATH"
+          git push origin "HEAD:$TARGET_BRANCH"
+
+      - name: Write sync summary
+        if: always()
+        shell: bash
+        env:
+          CHANGED: ${{ steps.mirror.outputs.changed }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          MAPPING_NAME: ${{ matrix.name }}
+          SOURCE_REPO: ${{ github.repository }}
+          SOURCE_PATH: ${{ matrix.source_path }}
+          TARGET_REPO: ${{ matrix.target_repo }}
+          TARGET_PATH: ${{ matrix.target_path }}
+          TARGET_BRANCH: ${{ matrix.target_branch }}
+        run: |
+          {
+            echo "### Repository folder sync"
+            echo
+            echo "- Mapping: \`$MAPPING_NAME\`"
+            echo "- Source: \`$SOURCE_REPO/$SOURCE_PATH\`"
+            echo "- Target: \`$TARGET_REPO/$TARGET_PATH\` on \`$TARGET_BRANCH\`"
+            echo "- Dry run: \`$DRY_RUN\`"
+            echo "- Changes detected: \`${CHANGED:-unknown}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
