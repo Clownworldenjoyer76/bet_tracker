@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       mapping:
-        description: "Mapping name from .github/repo-sync.json, or all"
+        description: "Mapping name from .github/workflows/__repo-sync.json, or all"
         required: true
         default: "soccer"
         type: string
@@ -36,7 +36,7 @@ jobs:
           ref: ${{ github.event.repository.default_branch }}
           path: source-config
           sparse-checkout: |
-            .github/repo-sync.json
+            .github/workflows/__repo-sync.json
           sparse-checkout-cone-mode: false
           persist-credentials: false
 
@@ -68,7 +68,7 @@ jobs:
                 ([split("/")[] | select(. == "..")] | length == 0)
               )
             )
-          ' .github/repo-sync.json > /dev/null
+          ' .github/workflows/__repo-sync.json > /dev/null
 
       - name: Select mapping
         id: select
@@ -80,9 +80,9 @@ jobs:
           set -euo pipefail
 
           if [[ "$REQUESTED_MAPPING" == "all" ]]; then
-            selected="$(jq -c '.mappings' .github/repo-sync.json)"
+            selected="$(jq -c '.mappings' .github/workflows/__repo-sync.json)"
           else
-            selected="$(jq -c --arg name "$REQUESTED_MAPPING" '[.mappings[] | select(.name == $name)]' .github/repo-sync.json)"
+            selected="$(jq -c --arg name "$REQUESTED_MAPPING" '[.mappings[] | select(.name == $name)]' .github/workflows/__repo-sync.json)"
           fi
 
           count="$(jq 'length' <<< "$selected")"
