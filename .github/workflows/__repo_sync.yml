@@ -1,15 +1,32 @@
 name: Repository Folder Sync
 
-run-name: "Repo sync: ${{ inputs.mapping }}${{ inputs.dry_run && ' (dry run)' || '' }}"
+run-name: "Repo sync: ${{ inputs.direction }} | ${{ inputs.repo }}${{ inputs.dry_run && ' (dry run)' || '' }}"
 
 on:
   workflow_dispatch:
     inputs:
-      mapping:
-        description: "Mapping name from .github/workflows/__repo-sync.json, or all"
+      repo:
+        description: "Which repo/folder should be synced?"
         required: true
         default: "soccer"
-        type: string
+        type: choice
+        options:
+          - soccer
+          - baseball
+          - basketball
+          - cfb
+          - nhl
+          - all
+
+      direction:
+        description: "Which direction should the sync run?"
+        required: true
+        default: "bet-tracker-to-repos"
+        type: choice
+        options:
+          - bet-tracker-to-repos
+          - repos-to-bet-tracker
+
       dry_run:
         description: "Preview changes without committing or pushing"
         required: true
@@ -17,15 +34,16 @@ on:
         type: boolean
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
-  group: "repo-sync-${{ inputs.mapping }}"
+  group: "repo-sync-${{ inputs.direction }}-${{ inputs.repo }}"
   cancel-in-progress: false
 
 jobs:
   prepare:
     runs-on: ubuntu-latest
+
     outputs:
       matrix: ${{ steps.select.outputs.matrix }}
 
@@ -51,8 +69,17 @@ jobs:
             ([.mappings[].name] | length == (unique | length)) and
             all(.mappings[];
               (.name | type == "string" and length > 0) and
-              (.target_repo | type == "string" and test("^[^/]+/[^/]+$")) and
-              (.target_branch | type == "string" and length > 0) and
+
+              (.source_repo |
+                type == "string" and
+                test("^[^/]+/[^/]+$")
+              ) and
+
+              (.source_branch |
+                type == "string" and
+                length > 0
+              ) and
+
               (.source_path |
                 type == "string" and
                 length > 0 and
@@ -60,6 +87,17 @@ jobs:
                 (startswith("/") | not) and
                 ([split("/")[] | select(. == "..")] | length == 0)
               ) and
+
+              (.target_repo |
+                type == "string" and
+                test("^[^/]+/[^/]+$")
+              ) and
+
+              (.target_branch |
+                type == "string" and
+                length > 0
+              ) and
+
               (.target_path |
                 type == "string" and
                 length > 0 and
@@ -75,27 +113,95 @@ jobs:
         working-directory: source-config
         shell: bash
         env:
-          REQUESTED_MAPPING: ${{ inputs.mapping }}
+          REQUESTED_REPO: ${{ inputs.repo }}
+          DIRECTION: ${{ inputs.direction }}
+          CURRENT_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
 
-          if [[ "$REQUESTED_MAPPING" == "all" ]]; then
-            selected="$(jq -c '.mappings' .github/workflows/__repo-sync.json)"
+          CONFIG=".github/workflows/__repo-sync.json"
+
+          if [[ "$DIRECTION" == "bet-tracker-to-repos" ]]; then
+
+            if [[ "$REQUESTED_REPO" == "all" ]]; then
+
+              selected="$(
+                jq -c \
+                  --arg current "$CURRENT_REPO" \
+                  '[
+                    .mappings[]
+                    | select(.source_repo == $current)
+                    | select(.name | startswith("bet-tracker-to-"))
+                  ]' \
+                  "$CONFIG"
+              )"
+
+            else
+
+              mapping_name="bet-tracker-to-$REQUESTED_REPO"
+
+              selected="$(
+                jq -c \
+                  --arg name "$mapping_name" \
+                  '[.mappings[] | select(.name == $name)]' \
+                  "$CONFIG"
+              )"
+
+            fi
+
+          elif [[ "$DIRECTION" == "repos-to-bet-tracker" ]]; then
+
+            if [[ "$REQUESTED_REPO" == "all" ]]; then
+
+              selected="$(
+                jq -c \
+                  --arg current "$CURRENT_REPO" \
+                  '[
+                    .mappings[]
+                    | select(.target_repo == $current)
+                    | select(.name | endswith("-to-bet-tracker"))
+                  ]' \
+                  "$CONFIG"
+              )"
+
+            else
+
+              mapping_name="$REQUESTED_REPO-to-bet-tracker"
+
+              selected="$(
+                jq -c \
+                  --arg name "$mapping_name" \
+                  '[.mappings[] | select(.name == $name)]' \
+                  "$CONFIG"
+              )"
+
+            fi
+
           else
-            selected="$(jq -c --arg name "$REQUESTED_MAPPING" '[.mappings[] | select(.name == $name)]' .github/workflows/__repo-sync.json)"
+
+            echo "Unknown direction: $DIRECTION" >&2
+            exit 1
+
           fi
 
           count="$(jq 'length' <<< "$selected")"
+
           if [[ "$count" -eq 0 ]]; then
-            echo "Unknown mapping: $REQUESTED_MAPPING" >&2
+            echo "No mappings found." >&2
+            echo "Repo: $REQUESTED_REPO" >&2
+            echo "Direction: $DIRECTION" >&2
             exit 1
           fi
+
+          echo "Selected mappings:"
+          jq -r '.[].name' <<< "$selected"
 
           echo "matrix={\"include\":$selected}" >> "$GITHUB_OUTPUT"
 
   sync:
     needs: prepare
     runs-on: ubuntu-latest
+
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
@@ -105,18 +211,25 @@ jobs:
         shell: bash
         env:
           SYNC_TOKEN: ${{ secrets.REPO_SYNC_TOKEN }}
+          SOURCE_REPO: ${{ matrix.source_repo }}
+          TARGET_REPO: ${{ matrix.target_repo }}
+          CURRENT_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          if [[ -z "$SYNC_TOKEN" ]]; then
-            echo "Repository secret REPO_SYNC_TOKEN is not configured." >&2
-            exit 1
+
+          if [[ "$SOURCE_REPO" != "$CURRENT_REPO" || "$TARGET_REPO" != "$CURRENT_REPO" ]]; then
+            if [[ -z "$SYNC_TOKEN" ]]; then
+              echo "Repository secret REPO_SYNC_TOKEN is not configured." >&2
+              exit 1
+            fi
           fi
 
       - name: Checkout source folder
         uses: actions/checkout@v7
         with:
-          repository: ${{ github.repository }}
-          ref: ${{ github.event.repository.default_branch }}
+          repository: ${{ matrix.source_repo }}
+          ref: ${{ matrix.source_branch }}
+          token: ${{ matrix.source_repo == github.repository && github.token || secrets.REPO_SYNC_TOKEN }}
           path: source
           sparse-checkout: |
             ${{ matrix.source_path }}
@@ -128,7 +241,7 @@ jobs:
         with:
           repository: ${{ matrix.target_repo }}
           ref: ${{ matrix.target_branch }}
-          token: ${{ secrets.REPO_SYNC_TOKEN }}
+          token: ${{ matrix.target_repo == github.repository && github.token || secrets.REPO_SYNC_TOKEN }}
           path: target
           fetch-depth: 0
           sparse-checkout: |
@@ -148,25 +261,38 @@ jobs:
           dst="$GITHUB_WORKSPACE/target/$TARGET_PATH"
 
           if [[ ! -d "$src" ]]; then
-            echo "Source directory does not exist: $SOURCE_PATH" >&2
+            echo "Source directory does not exist:"
+            echo "$SOURCE_PATH"
             exit 1
           fi
 
           mkdir -p "$dst"
-          rsync -a --delete --checksum "$src/" "$dst/"
+
+          rsync \
+            -a \
+            --delete \
+            --checksum \
+            "$src/" \
+            "$dst/"
 
           cd "$GITHUB_WORKSPACE/target"
+
           git add -A -- "$TARGET_PATH"
 
           if git diff --cached --quiet -- "$TARGET_PATH"; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "No changes for $TARGET_PATH."
+            echo "No changes detected."
             exit 0
           fi
 
           echo "changed=true" >> "$GITHUB_OUTPUT"
+
+          echo
           echo "Changes detected:"
           git status --short -- "$TARGET_PATH"
+
+          echo
+          echo "Change summary:"
           git diff --cached --stat -- "$TARGET_PATH"
 
       - name: Commit and push mirrored folder
@@ -174,17 +300,26 @@ jobs:
         shell: bash
         env:
           MAPPING_NAME: ${{ matrix.name }}
-          SOURCE_REPO: ${{ github.repository }}
+          SOURCE_REPO: ${{ matrix.source_repo }}
           SOURCE_PATH: ${{ matrix.source_path }}
+          SOURCE_BRANCH: ${{ matrix.source_branch }}
+          TARGET_REPO: ${{ matrix.target_repo }}
+          TARGET_PATH: ${{ matrix.target_path }}
           TARGET_BRANCH: ${{ matrix.target_branch }}
         run: |
           set -euo pipefail
 
           cd "$GITHUB_WORKSPACE/target"
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "sync: $MAPPING_NAME from $SOURCE_REPO/$SOURCE_PATH"
-          git push origin "HEAD:$TARGET_BRANCH"
+
+          git commit \
+            -m "sync: $MAPPING_NAME"
+
+          git push \
+            origin \
+            "HEAD:$TARGET_BRANCH"
 
       - name: Write sync summary
         if: always()
@@ -192,19 +327,24 @@ jobs:
         env:
           CHANGED: ${{ steps.mirror.outputs.changed }}
           DRY_RUN: ${{ inputs.dry_run }}
+          DIRECTION: ${{ inputs.direction }}
           MAPPING_NAME: ${{ matrix.name }}
-          SOURCE_REPO: ${{ github.repository }}
+          SOURCE_REPO: ${{ matrix.source_repo }}
+          SOURCE_BRANCH: ${{ matrix.source_branch }}
           SOURCE_PATH: ${{ matrix.source_path }}
           TARGET_REPO: ${{ matrix.target_repo }}
-          TARGET_PATH: ${{ matrix.target_path }}
           TARGET_BRANCH: ${{ matrix.target_branch }}
+          TARGET_PATH: ${{ matrix.target_path }}
         run: |
           {
             echo "### Repository folder sync"
             echo
             echo "- Mapping: \`$MAPPING_NAME\`"
+            echo "- Direction: \`$DIRECTION\`"
             echo "- Source: \`$SOURCE_REPO/$SOURCE_PATH\`"
-            echo "- Target: \`$TARGET_REPO/$TARGET_PATH\` on \`$TARGET_BRANCH\`"
+            echo "- Source branch: \`$SOURCE_BRANCH\`"
+            echo "- Target: \`$TARGET_REPO/$TARGET_PATH\`"
+            echo "- Target branch: \`$TARGET_BRANCH\`"
             echo "- Dry run: \`$DRY_RUN\`"
             echo "- Changes detected: \`${CHANGED:-unknown}\`"
           } >> "$GITHUB_STEP_SUMMARY"
