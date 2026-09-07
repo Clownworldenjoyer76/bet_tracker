@@ -407,11 +407,13 @@ def build_dashboard() -> str:
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Baseball Dashboard</title>
+<link rel="stylesheet" href="assets/css/matstheme.css">
 <style>{CSS}
 .feed-section[data-feed="{first_feed}"]{{display:block}}
 </style>
 </head>
 <body>
+<div id="nav-placeholder"></div>
 <header>
   <h1>Baseball Dashboard</h1>
   <span class="ts">Built {html.escape(built_at)} UTC</span>
@@ -422,6 +424,7 @@ def build_dashboard() -> str:
 </div>
 <main>{sections}</main>
 <footer>Click column headers to sort. Built from MLB report CSVs under <code>{html.escape(str(BASE))}</code>.</footer>
+<script src="assets/js/shared/nav.js"></script>
 <script>
 {JS}
 const ALL_DATA={payload_json};

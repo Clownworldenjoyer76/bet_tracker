@@ -573,10 +573,12 @@ def build_dashboard() -> str:
 <html lang="en"><head>
 <meta charset="utf-8">
 <title>Basketball Dashboard</title>
+<link rel="stylesheet" href="assets/css/matstheme.css">
 <style>{CSS}
 .league-section[data-league="{LEAGUES[0]}"] {{ display: block; }}
 </style></head>
 <body>
+<div id="nav-placeholder"></div>
 <header>
   <h1>Basketball Dashboard</h1>
   <span class="ts">Built {html.escape(ts)} UTC</span>
@@ -590,6 +592,7 @@ def build_dashboard() -> str:
 </main>
 <footer>Click column headers to sort. Built from CSVs in <code>{html.escape(str(BASE))}</code>.</footer>
 
+<script src="assets/js/shared/nav.js"></script>
 <script>
 {JS}
 

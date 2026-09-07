@@ -923,12 +923,14 @@ def build_dashboard() -> str:
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Soccer Dashboard</title>
+<link rel="stylesheet" href="assets/css/matstheme.css">
 <style>
 {CSS}
 .league-section[data-league="{first_league}"] {{ display: block; }}
 </style>
 </head>
 <body>
+<div id="nav-placeholder"></div>
 <header>
   <h1>Soccer Dashboard</h1>
   <span class="ts">Built {html.escape(ts)} UTC</span>
@@ -948,6 +950,7 @@ def build_dashboard() -> str:
   <code>{html.escape(str(BASE))}</code>.
 </footer>
 
+<script src="assets/js/shared/nav.js"></script>
 <script>
 {JS}
 
