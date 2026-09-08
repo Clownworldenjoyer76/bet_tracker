@@ -17,6 +17,7 @@
   --good: #3fb950;
   --bad: #f85149;
   --border: #30363d;
+  --table-border: #46515e;
 }
 * { box-sizing: border-box; }
 html, body {
@@ -160,10 +161,11 @@ table {
   font-size: 13px;
 }
 th, td {
-  padding: 6px 8px;
-  text-align: left;
-  border-bottom: 1px solid var(--border);
+  padding: 7px 9px;
+  text-align: center;
+  border: 1px solid var(--table-border);
   white-space: nowrap;
+  vertical-align: middle;
 }
 th {
   color: var(--muted);
@@ -177,23 +179,41 @@ th {
   background: var(--panel-2);
 }
 td.num {
-  text-align: right;
+  text-align: center;
   font-variant-numeric: tabular-nums;
 }
 .scroll {
   max-height: 60vh;
   overflow: auto;
-  border: 1px solid var(--border);
+  border: 1px solid var(--table-border);
   border-radius: 6px;
 }
 .muted { color: var(--muted); }
-footer {
-  color: var(--muted);
-  font-size: 11px;
-  padding: 16px 24px;
+td.win-pct-strong {
+  background: rgba(63,185,80,.24);
+  color: #7ee787;
+  font-weight: 700;
+}
+td.win-pct-green {
+  background: rgba(63,185,80,.16);
+  color: #56d364;
+  font-weight: 600;
+}
+td.win-pct-light {
+  background: rgba(63,185,80,.09);
+  color: #8ddb8c;
+  font-weight: 600;
+}
+td.win-pct-neutral {
+  background: rgba(139,148,158,.09);
+  color: #c9d1d9;
+}
+td.win-pct-red {
+  background: rgba(248,81,73,.14);
+  color: #ff7b72;
+  font-weight: 600;
 }
 
-.league-section[data-league="bundesliga"] { display: block; }
 
 .league-bar{display:none!important}
 </style>
@@ -202,7 +222,7 @@ footer {
 <div id="nav-placeholder"></div>
 <header>
   <h1>Bundesliga Dashboard</h1>
-  <span class="ts">Built 2026-09-08T13:40:49+00:00 UTC</span>
+  <span class="ts">Built 2026-09-08T18:55:59+00:00 UTC</span>
 </header>
 
 <div class="league-bar">
@@ -213,7 +233,7 @@ footer {
 <main>
 
 <section class="league-section" data-league="bundesliga">
-  <h2>Bundesliga — Headline</h2>
+  <h2>Bundesliga Analytics</h2>
   <div class="kpis"></div>
 
   <h2>By Market</h2>
@@ -255,11 +275,6 @@ footer {
 
 </main>
 
-<footer>
-  Click column headers to sort. Built from CSVs in
-  <code>docs/win/soccer/05_final_scores</code>.
-</footer>
-
 <script src="assets/js/shared/nav.js"></script>
 <script>
 
@@ -278,6 +293,15 @@ function fmtInt(v) {
 function signedClass(v) {
   if (v == null || isNaN(v)) return '';
   return Number(v) > 0 ? 'good' : (Number(v) < 0 ? 'bad' : '');
+}
+function winPctClass(v) {
+  if (v == null || isNaN(v)) return '';
+  const pct = Number(v);
+  if (pct >= 0.80) return 'win-pct-strong';
+  if (pct >= 0.70) return 'win-pct-green';
+  if (pct >= 0.60) return 'win-pct-light';
+  if (pct >= 0.50) return 'win-pct-neutral';
+  return 'win-pct-red';
 }
 
 function showTab(host, key) {
@@ -351,6 +375,10 @@ function renderTable(data, columns, container) {
         } else if (col.fmt === 'pct') {
           td.classList.add('num');
           td.textContent = fmtPct(v);
+          if (col.key === 'Win_Pct') {
+            const winClass = winPctClass(v);
+            if (winClass) td.classList.add(winClass);
+          }
         } else if (col.fmt === 'num') {
           td.classList.add('num');
           td.textContent = fmtNum(v, col.decimals == null ? 3 : col.decimals);
@@ -436,16 +464,17 @@ function selectLeague(league) {
 
 function buildModelArea(section, data) {
   const host = section.querySelector('.model-area');
+  const leagueColumn = [{ key: 'league', label: 'League' }];
 
   renderTable(
     data.model_metrics || [],
-    MODEL_COLUMNS,
+    data.is_all ? [...leagueColumn, ...MODEL_COLUMNS] : MODEL_COLUMNS,
     host.querySelector('.model-core')
   );
 
   renderTable(
     data.xg_metrics || [],
-    XG_COLUMNS,
+    data.is_all ? [...leagueColumn, ...XG_COLUMNS] : XG_COLUMNS,
     host.querySelector('.model-xg')
   );
 
@@ -478,7 +507,11 @@ function buildModelArea(section, data) {
         (modelSel.value === 'ALL' || String(row.model) === modelSel.value) &&
         (outcomeSel.value === 'ALL' || String(row.outcome) === outcomeSel.value)
       );
-      renderTable(filtered, CAL_COLUMNS, tableHost);
+      renderTable(
+        filtered,
+        data.is_all ? [...leagueColumn, ...CAL_COLUMNS] : CAL_COLUMNS,
+        tableHost
+      );
     };
 
     modelSel.onchange = refreshCalibration;
@@ -493,21 +526,26 @@ function buildModelArea(section, data) {
 
 function buildMarketArea(section, data) {
   const host = section.querySelector('.market-area');
+  let firstAvailable = null;
 
   Object.entries(data.markets || {}).forEach(([key, market]) => {
     const panel = host.querySelector('.panel-' + key);
+    const tab = host.querySelector(':scope > .tabs .tab[data-key="' + key + '"]');
     if (!panel) return;
 
     const dimensions = Object.keys(market.by || {});
     if (!dimensions.length) {
-      panel.innerHTML = '<div class="muted">No report rows available for this market.</div>';
+      panel.style.display = 'none';
+      if (tab) tab.style.display = 'none';
       return;
     }
+
+    if (firstAvailable == null) firstAvailable = key;
 
     panel.innerHTML =
       '<div class="controls">' +
         '<label>Dimension: <select class="dim-select">' +
-          dimensions.map(dim => '<option value="' + dim + '">' + dim + '</option>').join('') +
+          dimensions.map(dim => '<option value="' + dim + '">' + dim.replaceAll('_', ' ') + '</option>').join('') +
         '</select></label>' +
         '<label>View: <select class="view-select">' +
           '<option value="overall">Overall</option>' +
@@ -541,6 +579,13 @@ function buildMarketArea(section, data) {
   host.querySelectorAll(':scope > .tabs .tab').forEach(tab => {
     tab.onclick = () => showTab(host, tab.dataset.key);
   });
+
+  if (firstAvailable != null) {
+    showTab(host, firstAvailable);
+  } else {
+    host.querySelector(':scope > .tab-body').innerHTML =
+      '<div class="muted">No market drilldown reports available.</div>';
+  }
 }
 
 function buildLeagueSection(league, data) {
@@ -551,7 +596,7 @@ function buildLeagueSection(league, data) {
 
   const h = data.headline || {};
   const kpi = (label, value, fmt) => {
-    let display = '—';
+    let display = 'N/A';
     if (value != null && !(typeof value === 'number' && isNaN(value))) {
       if (fmt === 'pct') display = fmtPct(value);
       else if (fmt === 'int') display = fmtInt(value);
