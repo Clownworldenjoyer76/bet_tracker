@@ -129,6 +129,30 @@ td.num{
   text-align:center;
   font-variant-numeric:tabular-nums;
 }
+td.win-pct-strong{
+  background:rgba(63,185,80,.24);
+  color:#7ee787;
+  font-weight:700;
+}
+td.win-pct-green{
+  background:rgba(63,185,80,.16);
+  color:#56d364;
+  font-weight:600;
+}
+td.win-pct-light{
+  background:rgba(63,185,80,.09);
+  color:#8ddb8c;
+  font-weight:600;
+}
+td.win-pct-neutral{
+  background:rgba(139,148,158,.09);
+  color:#c9d1d9;
+}
+td.win-pct-red{
+  background:rgba(248,81,73,.14);
+  color:#ff7b72;
+  font-weight:600;
+}
 </style>
 </head>
 <body>
@@ -136,7 +160,7 @@ td.num{
 
 <header>
   <h1>UFC Analytics</h1>
-  <span class="ts">Built 2026-09-08T16:24:42+00:00 UTC</span>
+  <span class="ts">Built 2026-09-08T16:53:11+00:00 UTC</span>
 </header>
 
 <main>
@@ -178,6 +202,15 @@ function fmtInt(v){
 function signedClass(v){
   if(v==null||isNaN(Number(v)))return "";
   return Number(v)>0?"good":(Number(v)<0?"bad":"");
+}
+function winPctClass(v){
+  if(v==null||isNaN(Number(v)))return "";
+  const pct=Number(v);
+  if(pct>=0.80)return "win-pct-strong";
+  if(pct>=0.70)return "win-pct-green";
+  if(pct>=0.60)return "win-pct-light";
+  if(pct>=0.50)return "win-pct-neutral";
+  return "win-pct-red";
 }
 function showTab(host,key){
   host.querySelectorAll(":scope > .tabs .tab").forEach(
@@ -260,6 +293,10 @@ function renderTable(data,columns,container){
         }else if(c.fmt==="pct"){
           td.classList.add("num");
           td.textContent=fmtPct(v);
+          if(c.key==="win_pct"){
+            const cls=winPctClass(v);
+            if(cls)td.classList.add(cls);
+          }
         }else if(c.fmt==="num"){
           td.classList.add("num");
           td.textContent=fmtNum(v,c.decimals==null?3:c.decimals);
