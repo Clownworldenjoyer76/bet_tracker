@@ -1,6 +1,6 @@
 # MLB Run Model Comparison
 
-- Generated: `2026-09-08T07:42:37.999401+00:00`
+- Generated: `2026-09-08T12:16:16.040419+00:00`
 - Untouched chronological test period: `2026-08-12` through `2026-09-07`
 - Test games: `154`
 - Model fitting/tuning performed by this evaluation script: `NO`
@@ -39,7 +39,7 @@ Calibration YES/NO uses weighted expected calibration error (ECE) <= `0.05`. Tot
 | --- | --- | --- | --- | --- | --- |
 | moneyline | 0.099608 | NO | 0.857143 | NO | 8 |
 | run_line | 0.138417 | NO | 0.586837 | NO | 8 |
-| total | 0.102053 | NO | -0.028571 | NO | 6 |
+| total | 0.101507 | NO | -0.485714 | NO | 6 |
 
 - Are predicted moneyline probabilities calibrated? **NO**.
 - Are predicted run-line probabilities calibrated? **NO**.
@@ -52,20 +52,20 @@ Calibration YES/NO uses weighted expected calibration error (ECE) <= `0.05`. Tot
 | --- | --- | --- | --- | --- |
 | dratings | moneyline | home | 154 | 0.673669 |
 | dratings | run_line | home | 153 | 0.685102 |
-| dratings | total | over_resolved | 150 | 0.719380 |
+| dratings | total | over_resolved | 150 | 0.720374 |
 | new_model | moneyline | home | 154 | 0.687833 |
 | new_model | run_line | home | 153 | 0.697277 |
-| new_model | total | over_resolved | 150 | 0.723253 |
+| new_model | total | over_resolved | 150 | 0.724203 |
 
 ## EV, realized return, and Kelly
 
 - New-model priced candidates evaluated: `922`; positive-EV candidates: `407`.
-- New-model all-candidate mean predicted EV vs realized return: `-0.043732` vs `-0.047050`.
-- New-model positive-EV mean predicted EV vs realized return: `0.174405` vs `-0.015455`.
-- Does higher predicted EV correspond to higher realized return? EV/return Spearman = `0.011743`. A positive value indicates higher EV tended to correspond to higher realized return in this test sample.
+- New-model all-candidate mean predicted EV vs realized return: `-0.043752` vs `-0.046605`.
+- New-model positive-EV mean predicted EV vs realized return: `0.173811` vs `-0.015184`.
+- Does higher predicted EV correspond to higher realized return? EV/return Spearman = `0.012374`. A positive value indicates higher EV tended to correspond to higher realized return in this test sample.
 - Is positive EV overstated versus realized return? **YES** (defined here as mean realized return below mean predicted EV among positive-EV candidates).
-- DRatings-run baseline all-candidate mean predicted EV vs realized return: `-0.049228` vs `-0.047050`; EV/return Spearman `-0.109451`.
-- Does Kelly increase monotonically with actual model edge? Edge/Kelly-raw Spearman = `0.993919`; mean raw Kelly across ordered edge bins is non-decreasing: **YES** across `10` populated edge bins.
+- DRatings-run baseline all-candidate mean predicted EV vs realized return: `-0.049247` vs `-0.046605`; EV/return Spearman `-0.109859`.
+- Does Kelly increase monotonically with actual model edge? Edge/Kelly-raw Spearman = `0.993996`; mean raw Kelly across ordered edge bins is non-decreasing: **YES** across `10` populated edge bins.
 
 ## Run-line side preference
 
