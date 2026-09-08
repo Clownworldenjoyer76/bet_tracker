@@ -37,12 +37,10 @@ FEEDS = {
     "mlb": {
         "label": "MLB",
         "root": BASE / "morning",
-        "description": "Morning feed",
     },
     "mlb_lineups": {
-        "label": "MLB · WITH LINEUPS",
+        "label": "MLB WITH LINEUPS",
         "root": BASE,
-        "description": "Pregame / lineups feed",
     },
 }
 
@@ -192,7 +190,6 @@ def collect_feed_data(feed_key: str) -> dict:
     data = {
         "feed": feed_key,
         "label": cfg["label"],
-        "description": cfg["description"],
         "headline": first_row_dict(
             safe_read(overview / "mlb_summary_overall.csv", required=True)
         ),
@@ -241,6 +238,7 @@ CSS = r"""
   --good:#3fb950;
   --bad:#f85149;
   --border:#30363d;
+  --table-border:#46515e;
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
@@ -253,7 +251,6 @@ header .ts{font-size:12px;color:var(--muted)}
 .feed-btn.active{background:var(--accent);border-color:var(--accent);color:#0e1117;font-weight:600}
 main{padding:18px 24px;max-width:1500px;margin:0 auto}
 .feed-section{display:none}.feed-section.active{display:block}
-.feed-note{font-size:12px;color:var(--muted);margin-top:4px}
 h2{font-size:16px;margin:24px 0 8px;border-bottom:1px solid var(--border);padding-bottom:4px}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:12px 0 4px}
 .kpi{background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:12px}
@@ -262,8 +259,21 @@ h2{font-size:16px;margin:24px 0 8px;border-bottom:1px solid var(--border);paddin
 .tabs{display:flex;gap:4px;margin:16px 0 0;flex-wrap:wrap}.tab{background:var(--panel);border:1px solid var(--border);padding:6px 12px;border-radius:6px 6px 0 0;cursor:pointer;color:var(--muted);font-size:13px}.tab.active{background:var(--panel2);color:var(--text);border-bottom-color:var(--panel2)}
 .tab-body{background:var(--panel2);border:1px solid var(--border);border-top:none;padding:14px;border-radius:0 6px 6px 6px}
 .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}.controls label{font-size:12px;color:var(--muted)}.controls select{background:var(--panel);color:var(--text);border:1px solid var(--border);padding:4px 8px;border-radius:4px;font-size:13px}
-.scroll{max-height:60vh;overflow:auto;border:1px solid var(--border);border-radius:6px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:6px 8px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}th{position:sticky;top:0;background:var(--panel2);color:var(--muted);text-transform:uppercase;font-size:11px;letter-spacing:.05em;cursor:pointer;user-select:none}th .arrow{opacity:.4;margin-left:4px}th.sorted .arrow{opacity:1;color:var(--accent)}td.num{text-align:right;font-variant-numeric:tabular-nums}.pos{color:var(--good)}.neg{color:var(--bad)}.muted{color:var(--muted)}
-footer{padding:16px 24px;color:var(--muted);font-size:11px}
+.scroll{max-height:60vh;overflow:auto;border:1px solid var(--table-border);border-radius:6px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:7px 9px;text-align:center;border:1px solid var(--table-border);white-space:nowrap;vertical-align:middle}
+th{position:sticky;top:0;background:var(--panel2);color:var(--muted);text-transform:uppercase;font-size:11px;letter-spacing:.05em;cursor:pointer;user-select:none}
+th .arrow{opacity:.4;margin-left:4px}
+th.sorted .arrow{opacity:1;color:var(--accent)}
+td.num{text-align:center;font-variant-numeric:tabular-nums}
+.pos{color:var(--good)}
+.neg{color:var(--bad)}
+.muted{color:var(--muted)}
+td.win-pct-strong{background:rgba(63,185,80,.24);color:#7ee787;font-weight:700}
+td.win-pct-green{background:rgba(63,185,80,.16);color:#56d364;font-weight:600}
+td.win-pct-light{background:rgba(63,185,80,.09);color:#8ddb8c;font-weight:600}
+td.win-pct-neutral{background:rgba(139,148,158,.09);color:#c9d1d9}
+td.win-pct-red{background:rgba(248,81,73,.14);color:#ff7b72;font-weight:600}
 """
 
 JS = r"""
@@ -271,6 +281,15 @@ function fmtPct(v){if(v==null||isNaN(v))return '';return (Number(v)*100).toFixed
 function fmtNum(v,d){if(v==null||isNaN(v))return '';return Number(v).toFixed(d);}
 function fmtInt(v){if(v==null||isNaN(v))return '';return Number(v).toLocaleString();}
 function signedClass(v){if(v==null||isNaN(v))return '';return Number(v)>0?'pos':(Number(v)<0?'neg':'');}
+function winPctClass(v){
+  if(v==null||isNaN(v))return '';
+  const pct=Number(v);
+  if(pct>=0.80)return 'win-pct-strong';
+  if(pct>=0.70)return 'win-pct-green';
+  if(pct>=0.60)return 'win-pct-light';
+  if(pct>=0.50)return 'win-pct-neutral';
+  return 'win-pct-red';
+}
 function showTab(host,key){host.querySelectorAll(':scope > .tabs .tab').forEach(el=>el.classList.toggle('active',el.dataset.key===key));host.querySelectorAll(':scope > .tab-body > .tab-panel').forEach(el=>el.style.display=(el.dataset.key===key?'':'none'));}
 
 function renderTable(data,columns,container){
@@ -284,7 +303,7 @@ function renderTable(data,columns,container){
     const rows=data.slice();
     if(sortCol){rows.sort((a,b)=>{const av=a[sortCol],bv=b[sortCol];if(av==null)return 1;if(bv==null)return -1;if(!isNaN(Number(av))&&!isNaN(Number(bv)))return sortDir==='asc'?Number(av)-Number(bv):Number(bv)-Number(av);return sortDir==='asc'?String(av).localeCompare(String(bv)):String(bv).localeCompare(String(av));});}
     tbody.innerHTML='';
-    rows.forEach(row=>{const tr=document.createElement('tr');columns.forEach(c=>{const td=document.createElement('td');const v=row[c.key];let cls='';if(c.fmt==='int'){td.classList.add('num');td.textContent=fmtInt(v);}else if(c.fmt==='pct'){td.classList.add('num');td.textContent=fmtPct(v);cls=c.color?signedClass(v):'';}else if(c.fmt==='num'){td.classList.add('num');td.textContent=fmtNum(v,c.decimals==null?2:c.decimals);cls=c.color?signedClass(v):'';}else{td.textContent=(v==null?'':String(v));}if(cls)td.classList.add(cls);tr.appendChild(td);});tbody.appendChild(tr);});
+    rows.forEach(row=>{const tr=document.createElement('tr');columns.forEach(c=>{const td=document.createElement('td');const v=row[c.key];let cls='';if(c.fmt==='int'){td.classList.add('num');td.textContent=fmtInt(v);}else if(c.fmt==='pct'){td.classList.add('num');td.textContent=fmtPct(v);if(c.key==='Win_Pct'){const winCls=winPctClass(v);if(winCls)td.classList.add(winCls);}cls=c.color?signedClass(v):'';}else if(c.fmt==='num'){td.classList.add('num');td.textContent=fmtNum(v,c.decimals==null?2:c.decimals);cls=c.color?signedClass(v):'';}else{td.textContent=(v==null?'':String(v));}if(cls)td.classList.add(cls);tr.appendChild(td);});tbody.appendChild(tr);});
   }
   draw();table.appendChild(thead);table.appendChild(tbody);wrap.appendChild(table);container.innerHTML='';container.appendChild(wrap);
 }
@@ -313,7 +332,7 @@ function selectFeed(feed){document.querySelectorAll('.feed-btn').forEach(b=>b.cl
 function buildFeedSection(feed,data){
   const section=document.querySelector('.feed-section[data-feed="'+feed+'"]');if(!section)return;
   const h=data.headline||{};
-  const kpi=(label,value,fmt)=>{let disp='—',cls='';if(value!==null&&value!==undefined&&value!==''){if(fmt==='pct'){disp=fmtPct(value);cls=signedClass(value);}else if(fmt==='int'){disp=fmtInt(value);}else if(fmt==='signed'){disp=(Number(value)>=0?'+':'')+fmtNum(value,2);cls=signedClass(value);}else if(fmt==='num'){disp=fmtNum(value,2);}else{disp=String(value);}}return '<div class="kpi"><div class="label">'+label+'</div><div class="value '+cls+'">'+disp+'</div></div>';};
+  const kpi=(label,value,fmt)=>{let disp='N/A',cls='';if(value!==null&&value!==undefined&&value!==''){if(fmt==='pct'){disp=fmtPct(value);cls=signedClass(value);}else if(fmt==='int'){disp=fmtInt(value);}else if(fmt==='signed'){disp=(Number(value)>=0?'+':'')+fmtNum(value,2);cls=signedClass(value);}else if(fmt==='num'){disp=fmtNum(value,2);}else{disp=String(value);}}return '<div class="kpi"><div class="label">'+label+'</div><div class="value '+cls+'">'+disp+'</div></div>';};
   section.querySelector('.kpis').innerHTML=[
     kpi('Bets',h.Total,'int'),kpi('Wins',h.Win,'int'),kpi('Losses',h.Loss,'int'),kpi('Pushes',h.Push,'int'),kpi('Win %',h.Win_Pct,'pct'),kpi('Units',h.units,'signed'),kpi('ROI excl. pushes',h.ROI_Excluding_Pushes,'pct'),kpi('ROI incl. pushes',h.ROI_Including_Pushes,'pct'),kpi('Avg EV',h.avg_ev,'pct'),kpi('Avg odds',h.avg_odds,'num')
   ].join('');
@@ -333,8 +352,8 @@ function buildFeedSection(feed,data){
   const marketArea=section.querySelector('.market-area');marketArea.querySelectorAll(':scope > .tabs .tab').forEach(t=>t.onclick=()=>showTab(marketArea,t.dataset.key));
 
   const ov=data.overview||{};
-  renderTable(ov.by_market||[],[{key:'market_type',label:'Market'},...OVERVIEW_COLUMNS],section.querySelector('.overview-market'));
-  renderTable(ov.by_side_group||[],[{key:'side_group',label:'Side'},...OVERVIEW_COLUMNS],section.querySelector('.overview-side'));
+  renderTable(ov.by_market||[],[{key:'variable',label:'Market'},...OVERVIEW_COLUMNS],section.querySelector('.overview-market'));
+  renderTable(ov.by_side_group||[],[{key:'variable',label:'Side'},...OVERVIEW_COLUMNS],section.querySelector('.overview-side'));
   renderTable(ov.by_date||[],[{key:'variable',label:'Date'},...OVERVIEW_COLUMNS,{key:'cumulative_units',label:'Cumulative units',fmt:'num',decimals:2,color:true}],section.querySelector('.overview-date'));
   renderTable(ov.by_day_night||[],[{key:'variable',label:'Day / Night'},...OVERVIEW_COLUMNS],section.querySelector('.overview-day-night'));
   renderTable(ov.by_low_confidence||[],[{key:'variable',label:'Low confidence'},...OVERVIEW_COLUMNS],section.querySelector('.overview-confidence'));
@@ -347,8 +366,7 @@ def feed_section_html(feed_key: str) -> str:
     cfg = FEEDS[feed_key]
     return f"""
 <section class="feed-section" data-feed="{html.escape(feed_key)}">
-  <h2>{html.escape(cfg['label'])} — Headline</h2>
-  <div class="feed-note">{html.escape(cfg['description'])}</div>
+  <h2>{html.escape(cfg['label'])} Analytics</h2>
   <div class="kpis"></div>
 
   <h2>By Market</h2>
@@ -409,9 +427,7 @@ def build_dashboard() -> str:
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Baseball Dashboard</title>
 <link rel="stylesheet" href="assets/css/matstheme.css">
-<style>{CSS}
-.feed-section[data-feed="{first_feed}"]{{display:block}}
-</style>
+<style>{CSS}</style>
 </head>
 <body>
 <div id="nav-placeholder"></div>
@@ -424,7 +440,6 @@ def build_dashboard() -> str:
   {buttons}
 </div>
 <main>{sections}</main>
-<footer>Click column headers to sort. Built from MLB report CSVs under <code>{html.escape(str(BASE))}</code>.</footer>
 <script src="assets/js/shared/nav.js"></script>
 <script>
 {JS}
