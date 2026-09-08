@@ -13,8 +13,9 @@
 #   docs/win/soccer/05_final_scores/model_evaluation/SOCCER_model_calibration.csv
 #   docs/win/soccer/05_final_scores/model_evaluation/SOCCER_xg_metrics.csv
 #
-# Output:
+# Outputs:
 #   frontend/soccer_dashboard.html
+#   frontend/{bundesliga,epl,laliga,ligue1,mls,seriea}_dashboard.html
 #
 # Log:
 #   docs/win/soccer/05_final_scores/errors/06_soccer_results_dashboard.txt
@@ -318,6 +319,111 @@ def collect_league_data(
     return data
 
 
+
+
+def filter_all_league_rows(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty or "league" not in df.columns:
+        return pd.DataFrame()
+    scope_mask = (
+        df["scope"].astype(str).str.strip().str.lower().eq("league")
+        if "scope" in df.columns
+        else pd.Series(True, index=df.index)
+    )
+    return df.loc[scope_mask].copy()
+
+
+def combine_result_rows(rows: list[dict], group_keys: list[str]) -> list[dict]:
+    grouped: dict[tuple, dict] = {}
+
+    for row in rows:
+        key = tuple(row.get(group_key) for group_key in group_keys)
+        if key not in grouped:
+            grouped[key] = {
+                group_key: row.get(group_key)
+                for group_key in group_keys
+            }
+            grouped[key].update(
+                {
+                    "Win": 0,
+                    "Loss": 0,
+                    "Push": 0,
+                    "Total": 0,
+                    "Sample_Count": 0,
+                    "Win_Pct": None,
+                }
+            )
+
+        target = grouped[key]
+        for col in ["Win", "Loss", "Push"]:
+            try:
+                target[col] += int(float(row.get(col) or 0))
+            except (TypeError, ValueError):
+                pass
+
+    combined = []
+    for target in grouped.values():
+        wins = target["Win"]
+        losses = target["Loss"]
+        pushes = target["Push"]
+        total = wins + losses + pushes
+        target["Total"] = total
+        target["Sample_Count"] = total
+        target["Win_Pct"] = wins / (wins + losses) if (wins + losses) else None
+        combined.append(target)
+
+    return combined
+
+
+def collect_all_data(
+    league_payloads: dict[str, dict],
+    model_metrics: pd.DataFrame,
+    calibration: pd.DataFrame,
+    xg_metrics: pd.DataFrame,
+) -> dict:
+    tally = safe_read(BASE / "all_soccer_market_tally.csv", required=True)
+    headline, by_market = aggregate_tally(tally)
+
+    data = {
+        "league": "all",
+        "display": "All",
+        "is_all": True,
+        "headline": headline,
+        "tally": df_to_records(tally),
+        "by_market": by_market,
+        "model_metrics": df_to_records(filter_all_league_rows(model_metrics)),
+        "calibration": df_to_records(filter_all_league_rows(calibration)),
+        "xg_metrics": df_to_records(filter_all_league_rows(xg_metrics)),
+        "markets": {},
+    }
+
+    for spec in MARKETS:
+        market_data = {
+            "display": spec["display"],
+            "by": {},
+            "by_side": {},
+        }
+
+        for dim in spec["dimensions"]:
+            overall_rows = []
+            side_rows = []
+
+            for payload in league_payloads.values():
+                source_market = (payload.get("markets") or {}).get(spec["key"], {})
+                overall_rows.extend((source_market.get("by") or {}).get(dim, []))
+                side_rows.extend((source_market.get("by_side") or {}).get(dim, []))
+
+            combined_overall = combine_result_rows(overall_rows, ["bucket"])
+            combined_side = combine_result_rows(side_rows, ["bucket", "side"])
+
+            if combined_overall or combined_side:
+                market_data["by"][dim] = combined_overall
+                market_data["by_side"][dim] = combined_side
+
+        data["markets"][spec["key"]] = market_data
+
+    return data
+
+
 CSS = r"""
 :root {
   --bg: #0e1117;
@@ -329,6 +435,7 @@ CSS = r"""
   --good: #3fb950;
   --bad: #f85149;
   --border: #30363d;
+  --table-border: #46515e;
 }
 * { box-sizing: border-box; }
 html, body {
@@ -472,10 +579,11 @@ table {
   font-size: 13px;
 }
 th, td {
-  padding: 6px 8px;
-  text-align: left;
-  border-bottom: 1px solid var(--border);
+  padding: 7px 9px;
+  text-align: center;
+  border: 1px solid var(--table-border);
   white-space: nowrap;
+  vertical-align: middle;
 }
 th {
   color: var(--muted);
@@ -489,22 +597,42 @@ th {
   background: var(--panel-2);
 }
 td.num {
-  text-align: right;
+  text-align: center;
   font-variant-numeric: tabular-nums;
 }
 .scroll {
   max-height: 60vh;
   overflow: auto;
-  border: 1px solid var(--border);
+  border: 1px solid var(--table-border);
   border-radius: 6px;
 }
 .muted { color: var(--muted); }
-footer {
-  color: var(--muted);
-  font-size: 11px;
-  padding: 16px 24px;
+td.win-pct-strong {
+  background: rgba(63,185,80,.24);
+  color: #7ee787;
+  font-weight: 700;
+}
+td.win-pct-green {
+  background: rgba(63,185,80,.16);
+  color: #56d364;
+  font-weight: 600;
+}
+td.win-pct-light {
+  background: rgba(63,185,80,.09);
+  color: #8ddb8c;
+  font-weight: 600;
+}
+td.win-pct-neutral {
+  background: rgba(139,148,158,.09);
+  color: #c9d1d9;
+}
+td.win-pct-red {
+  background: rgba(248,81,73,.14);
+  color: #ff7b72;
+  font-weight: 600;
 }
 """
+
 
 JS = r"""
 function fmtPct(v) {
@@ -522,6 +650,15 @@ function fmtInt(v) {
 function signedClass(v) {
   if (v == null || isNaN(v)) return '';
   return Number(v) > 0 ? 'good' : (Number(v) < 0 ? 'bad' : '');
+}
+function winPctClass(v) {
+  if (v == null || isNaN(v)) return '';
+  const pct = Number(v);
+  if (pct >= 0.80) return 'win-pct-strong';
+  if (pct >= 0.70) return 'win-pct-green';
+  if (pct >= 0.60) return 'win-pct-light';
+  if (pct >= 0.50) return 'win-pct-neutral';
+  return 'win-pct-red';
 }
 
 function showTab(host, key) {
@@ -595,6 +732,10 @@ function renderTable(data, columns, container) {
         } else if (col.fmt === 'pct') {
           td.classList.add('num');
           td.textContent = fmtPct(v);
+          if (col.key === 'Win_Pct') {
+            const winClass = winPctClass(v);
+            if (winClass) td.classList.add(winClass);
+          }
         } else if (col.fmt === 'num') {
           td.classList.add('num');
           td.textContent = fmtNum(v, col.decimals == null ? 3 : col.decimals);
@@ -680,16 +821,17 @@ function selectLeague(league) {
 
 function buildModelArea(section, data) {
   const host = section.querySelector('.model-area');
+  const leagueColumn = [{ key: 'league', label: 'League' }];
 
   renderTable(
     data.model_metrics || [],
-    MODEL_COLUMNS,
+    data.is_all ? [...leagueColumn, ...MODEL_COLUMNS] : MODEL_COLUMNS,
     host.querySelector('.model-core')
   );
 
   renderTable(
     data.xg_metrics || [],
-    XG_COLUMNS,
+    data.is_all ? [...leagueColumn, ...XG_COLUMNS] : XG_COLUMNS,
     host.querySelector('.model-xg')
   );
 
@@ -722,7 +864,11 @@ function buildModelArea(section, data) {
         (modelSel.value === 'ALL' || String(row.model) === modelSel.value) &&
         (outcomeSel.value === 'ALL' || String(row.outcome) === outcomeSel.value)
       );
-      renderTable(filtered, CAL_COLUMNS, tableHost);
+      renderTable(
+        filtered,
+        data.is_all ? [...leagueColumn, ...CAL_COLUMNS] : CAL_COLUMNS,
+        tableHost
+      );
     };
 
     modelSel.onchange = refreshCalibration;
@@ -737,21 +883,26 @@ function buildModelArea(section, data) {
 
 function buildMarketArea(section, data) {
   const host = section.querySelector('.market-area');
+  let firstAvailable = null;
 
   Object.entries(data.markets || {}).forEach(([key, market]) => {
     const panel = host.querySelector('.panel-' + key);
+    const tab = host.querySelector(':scope > .tabs .tab[data-key="' + key + '"]');
     if (!panel) return;
 
     const dimensions = Object.keys(market.by || {});
     if (!dimensions.length) {
-      panel.innerHTML = '<div class="muted">No report rows available for this market.</div>';
+      panel.style.display = 'none';
+      if (tab) tab.style.display = 'none';
       return;
     }
+
+    if (firstAvailable == null) firstAvailable = key;
 
     panel.innerHTML =
       '<div class="controls">' +
         '<label>Dimension: <select class="dim-select">' +
-          dimensions.map(dim => '<option value="' + dim + '">' + dim + '</option>').join('') +
+          dimensions.map(dim => '<option value="' + dim + '">' + dim.replaceAll('_', ' ') + '</option>').join('') +
         '</select></label>' +
         '<label>View: <select class="view-select">' +
           '<option value="overall">Overall</option>' +
@@ -785,6 +936,13 @@ function buildMarketArea(section, data) {
   host.querySelectorAll(':scope > .tabs .tab').forEach(tab => {
     tab.onclick = () => showTab(host, tab.dataset.key);
   });
+
+  if (firstAvailable != null) {
+    showTab(host, firstAvailable);
+  } else {
+    host.querySelector(':scope > .tab-body').innerHTML =
+      '<div class="muted">No market drilldown reports available.</div>';
+  }
 }
 
 function buildLeagueSection(league, data) {
@@ -795,7 +953,7 @@ function buildLeagueSection(league, data) {
 
   const h = data.headline || {};
   const kpi = (label, value, fmt) => {
-    let display = '—';
+    let display = 'N/A';
     if (value != null && !(typeof value === 'number' && isNaN(value))) {
       if (fmt === 'pct') display = fmtPct(value);
       else if (fmt === 'int') display = fmtInt(value);
@@ -859,8 +1017,8 @@ def league_section_html(league: str, display: str) -> str:
     )
 
     return f"""
-<section class="league-section" data-league="{league}">
-  <h2>{html.escape(display)} — Headline</h2>
+<section class="league-section" data-league="{html.escape(league)}">
+  <h2>{html.escape(display)} Analytics</h2>
   <div class="kpis"></div>
 
   <h2>By Market</h2>
@@ -896,11 +1054,16 @@ def league_section_html(league: str, display: str) -> str:
 """
 
 
-def build_dashboard() -> str:
+def build_dashboard(
+    league_defs: list[tuple[str, str]] | None = None,
+    *,
+    include_all: bool = False,
+) -> str:
     ts = datetime.now(UTC).isoformat(timespec="seconds")
     metrics, calibration, xg = load_model_tables()
+    league_defs = list(LEAGUES if league_defs is None else league_defs)
 
-    payloads = {
+    league_payloads = {
         league: collect_league_data(
             league,
             display,
@@ -908,23 +1071,38 @@ def build_dashboard() -> str:
             calibration,
             xg,
         )
-        for league, display in LEAGUES
+        for league, display in league_defs
     }
+
+    payloads = dict(league_payloads)
+    nav_leagues = list(league_defs)
+
+    if include_all:
+        payloads = {
+            "all": collect_all_data(
+                league_payloads,
+                metrics,
+                calibration,
+                xg,
+            ),
+            **league_payloads,
+        }
+        nav_leagues = [("all", "All"), *league_defs]
 
     payload_json = json.dumps(payloads, ensure_ascii=False, default=str)
 
     league_buttons = "\n".join(
         f'<button class="league-btn{" active" if i == 0 else ""}" '
-        f'data-league="{league}" onclick="selectLeague(\'{league}\')">{html.escape(display)}</button>'
-        for i, (league, display) in enumerate(LEAGUES)
+        f'data-league="{html.escape(league)}" onclick="selectLeague(\'{html.escape(league)}\')">{html.escape(display)}</button>'
+        for i, (league, display) in enumerate(nav_leagues)
     )
 
     sections = "\n".join(
         league_section_html(league, display)
-        for league, display in LEAGUES
+        for league, display in nav_leagues
     )
 
-    first_league = LEAGUES[0][0]
+    first_league = nav_leagues[0][0]
 
     return f"""<!doctype html>
 <html lang="en">
@@ -935,7 +1113,6 @@ def build_dashboard() -> str:
 <link rel="stylesheet" href="assets/css/matstheme.css">
 <style>
 {CSS}
-.league-section[data-league="{first_league}"] {{ display: block; }}
 </style>
 </head>
 <body>
@@ -954,11 +1131,6 @@ def build_dashboard() -> str:
 {sections}
 </main>
 
-<footer>
-  Click column headers to sort. Built from CSVs in
-  <code>{html.escape(str(BASE))}</code>.
-</footer>
-
 <script src="assets/js/shared/nav.js"></script>
 <script>
 {JS}
@@ -970,7 +1142,7 @@ document.addEventListener('DOMContentLoaded', () => {{
     buildLeagueSection(league, ALL_DATA[league]);
   }});
 
-  let initial = '{first_league}';
+  let initial = '{html.escape(first_league)}';
   try {{
     const stored = localStorage.getItem('soccer_dash_league');
     if (stored && ALL_DATA[stored]) initial = stored;
@@ -988,26 +1160,21 @@ def run() -> None:
     # ANALYTICS_MULTI_OUTPUT
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
 
-    original_leagues = LEAGUES[:]
     outputs: list[tuple[Path, str]] = []
 
-    try:
-        master_page = build_dashboard()
-        outputs.append((OUTPUT_FILE, master_page))
+    master_page = build_dashboard(LEAGUES, include_all=True)
+    outputs.append((OUTPUT_FILE, master_page))
 
-        for league, display in original_leagues:
-            LEAGUES[:] = [(league, display)]
-            page = build_dashboard()
-            title = f"{display} Dashboard"
-            page = (
-                page
-                .replace("<title>Soccer Dashboard</title>", f"<title>{title}</title>", 1)
-                .replace("<h1>Soccer Dashboard</h1>", f"<h1>{title}</h1>", 1)
-                .replace("</style>", "\n.league-bar{display:none!important}\n</style>", 1)
-            )
-            outputs.append((LEAGUE_OUTPUTS[league], page))
-    finally:
-        LEAGUES[:] = original_leagues
+    for league, display in LEAGUES:
+        page = build_dashboard([(league, display)])
+        title = f"{display} Dashboard"
+        page = (
+            page
+            .replace("<title>Soccer Dashboard</title>", f"<title>{title}</title>", 1)
+            .replace("<h1>Soccer Dashboard</h1>", f"<h1>{title}</h1>", 1)
+            .replace("</style>", "\n.league-bar{display:none!important}\n</style>", 1)
+        )
+        outputs.append((LEAGUE_OUTPUTS[league], page))
 
     for output_path, page in outputs:
         output_path.write_text(page, encoding="utf-8")
