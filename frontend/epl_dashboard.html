@@ -1,63 +1,620 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>EPL Analytics</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EPL Dashboard</title>
 <link rel="stylesheet" href="assets/css/matstheme.css">
 <style>
+
+:root {
+  --bg: #0e1117;
+  --panel: #161b22;
+  --panel-2: #1c232c;
+  --text: #e6edf3;
+  --muted: #8b949e;
+  --accent: #58a6ff;
+  --good: #3fb950;
+  --bad: #f85149;
+  --border: #30363d;
+}
+* { box-sizing: border-box; }
 html, body {
-  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
-body {
-  overflow: hidden;
-}
-.league-shell {
-  height: 100vh;
+header {
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--border);
   display: flex;
-  flex-direction: column;
+  justify-content: space-between;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 12px;
 }
-.league-shell-head {
-  flex: 0 0 auto;
-  border-bottom: 1px solid var(--border-soft);
+header h1 { margin: 0; font-size: 20px; }
+header .ts { color: var(--muted); font-size: 12px; }
+.league-bar {
+  padding: 10px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
-.league-frame {
+.league-bar .lbl {
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  margin-right: 6px;
+}
+.league-btn, .tab {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  cursor: pointer;
+}
+.league-btn {
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+.league-btn.active {
+  background: var(--accent);
+  color: #0e1117;
+  border-color: var(--accent);
+  font-weight: 600;
+}
+main {
+  padding: 18px 24px;
+  max-width: 1500px;
+  margin: 0 auto;
+}
+.league-section { display: none; }
+.league-section.active { display: block; }
+h2 {
+  font-size: 16px;
+  margin: 24px 0 8px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 4px;
+}
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin: 12px 0 4px;
+}
+.kpi {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+}
+.kpi .label {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.kpi .value {
+  font-size: 22px;
+  margin-top: 4px;
+  font-weight: 600;
+}
+.good { color: var(--good); }
+.bad { color: var(--bad); }
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin: 16px 0 0;
+  flex-wrap: wrap;
+}
+.tab {
+  padding: 6px 12px;
+  border-radius: 6px 6px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+.tab.active {
+  background: var(--panel-2);
+  color: var(--text);
+  border-bottom-color: var(--panel-2);
+}
+.tab-body {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-top: none;
+  padding: 14px;
+  border-radius: 0 6px 6px 6px;
+}
+.controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.controls label {
+  color: var(--muted);
+  font-size: 12px;
+}
+.controls select {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+table {
   width: 100%;
-  flex: 1 1 auto;
-  border: 0;
-  background: var(--background);
+  border-collapse: collapse;
+  font-size: 13px;
 }
+th, td {
+  padding: 6px 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+th {
+  color: var(--muted);
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: .05em;
+  cursor: pointer;
+  user-select: none;
+  position: sticky;
+  top: 0;
+  background: var(--panel-2);
+}
+td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.scroll {
+  max-height: 60vh;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.muted { color: var(--muted); }
+footer {
+  color: var(--muted);
+  font-size: 11px;
+  padding: 16px 24px;
+}
+
+.league-section[data-league="epl"] { display: block; }
+
+.league-bar{display:none!important}
 </style>
 </head>
 <body>
-<div class="league-shell">
-  <div class="league-shell-head" id="nav-placeholder"></div>
-  <iframe
-    id="league-frame"
-    class="league-frame"
-    src="soccer_dashboard.html"
-    title="EPL Analytics">
-  </iframe>
+<div id="nav-placeholder"></div>
+<header>
+  <h1>EPL Dashboard</h1>
+  <span class="ts">Built 2026-09-08T13:40:49+00:00 UTC</span>
+</header>
+
+<div class="league-bar">
+  <span class="lbl">League:</span>
+  <button class="league-btn active" data-league="epl" onclick="selectLeague('epl')">EPL</button>
 </div>
+
+<main>
+
+<section class="league-section" data-league="epl">
+  <h2>EPL — Headline</h2>
+  <div class="kpis"></div>
+
+  <h2>By Market</h2>
+  <div class="by-market"></div>
+
+  <h2>By Market + Side</h2>
+  <div class="side-tally"></div>
+
+  <h2>Model Quality</h2>
+  <div class="model-area">
+    <div class="tabs">
+      <button class="tab active" data-key="core">Core Metrics</button>
+      <button class="tab" data-key="xg">xG Metrics</button>
+      <button class="tab" data-key="calibration">Calibration</button>
+    </div>
+    <div class="tab-body">
+      <div class="tab-panel model-core" data-key="core"></div>
+      <div class="tab-panel model-xg" data-key="xg" style="display:none"></div>
+      <div class="tab-panel model-calibration" data-key="calibration" style="display:none"></div>
+    </div>
+  </div>
+
+  <h2>Per Market Drilldown</h2>
+  <div class="market-area">
+    <div class="tabs">
+      <button class="tab active" data-key="match_odds">Match Odds</button>
+<button class="tab" data-key="btts">BTTS</button>
+<button class="tab" data-key="total25">Total 2.5</button>
+<button class="tab" data-key="total35">Total 3.5</button>
+    </div>
+    <div class="tab-body">
+      <div class="tab-panel panel-match_odds" data-key="match_odds"></div>
+<div class="tab-panel panel-btts" data-key="btts" style="display:none"></div>
+<div class="tab-panel panel-total25" data-key="total25" style="display:none"></div>
+<div class="tab-panel panel-total35" data-key="total35" style="display:none"></div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Click column headers to sort. Built from CSVs in
+  <code>docs/win/soccer/05_final_scores</code>.
+</footer>
+
 <script src="assets/js/shared/nav.js"></script>
 <script>
-document.getElementById('league-frame').addEventListener('load', function () {
-  try {
-    const w = this.contentWindow;
-    const d = this.contentDocument;
 
-      const nav = d.getElementById('nav-placeholder');
-      if (nav) nav.style.display = 'none';
+function fmtPct(v) {
+  if (v == null || isNaN(v)) return '';
+  return (Number(v) * 100).toFixed(2) + '%';
+}
+function fmtNum(v, d) {
+  if (v == null || isNaN(v)) return '';
+  return Number(v).toFixed(d);
+}
+function fmtInt(v) {
+  if (v == null || isNaN(v)) return '';
+  return Number(v).toLocaleString();
+}
+function signedClass(v) {
+  if (v == null || isNaN(v)) return '';
+  return Number(v) > 0 ? 'good' : (Number(v) < 0 ? 'bad' : '');
+}
 
-      const bar = d.querySelector('.league-bar');
-      if (bar) bar.style.display = 'none';
+function showTab(host, key) {
+  host.querySelectorAll(':scope > .tabs .tab').forEach(el => {
+    el.classList.toggle('active', el.dataset.key === key);
+  });
+  host.querySelectorAll(':scope > .tab-body > .tab-panel').forEach(el => {
+    el.style.display = el.dataset.key === key ? '' : 'none';
+  });
+}
 
-      if (typeof w.selectLeague === 'function') {
-        w.selectLeague('epl');
-      }
-  } catch (err) {
-    console.error('League dashboard initialization failed:', err);
+function renderTable(data, columns, container) {
+  if (!data || data.length === 0) {
+    container.innerHTML = '<div class="muted">No rows available.</div>';
+    return;
   }
+
+  const wrap = document.createElement('div');
+  wrap.className = 'scroll';
+  const table = document.createElement('table');
+  const thead = document.createElement('thead');
+  const headRow = document.createElement('tr');
+  const tbody = document.createElement('tbody');
+
+  let sortCol = null;
+  let sortDir = 'desc';
+
+  columns.forEach(col => {
+    const th = document.createElement('th');
+    th.textContent = col.label;
+    th.onclick = () => {
+      if (sortCol === col.key) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+      else {
+        sortCol = col.key;
+        sortDir = 'desc';
+      }
+      drawRows();
+    };
+    headRow.appendChild(th);
+  });
+
+  thead.appendChild(headRow);
+
+  function drawRows() {
+    const rows = data.slice();
+    if (sortCol) {
+      rows.sort((a, b) => {
+        const av = a[sortCol];
+        const bv = b[sortCol];
+        if (av == null) return 1;
+        if (bv == null) return -1;
+        if (!isNaN(Number(av)) && !isNaN(Number(bv))) {
+          return sortDir === 'asc' ? Number(av) - Number(bv) : Number(bv) - Number(av);
+        }
+        return sortDir === 'asc'
+          ? String(av).localeCompare(String(bv))
+          : String(bv).localeCompare(String(av));
+      });
+    }
+
+    tbody.innerHTML = '';
+    rows.forEach(row => {
+      const tr = document.createElement('tr');
+      columns.forEach(col => {
+        const td = document.createElement('td');
+        const v = row[col.key];
+
+        if (col.fmt === 'int') {
+          td.classList.add('num');
+          td.textContent = fmtInt(v);
+        } else if (col.fmt === 'pct') {
+          td.classList.add('num');
+          td.textContent = fmtPct(v);
+        } else if (col.fmt === 'num') {
+          td.classList.add('num');
+          td.textContent = fmtNum(v, col.decimals == null ? 3 : col.decimals);
+          if (col.signed) {
+            const cls = signedClass(v);
+            if (cls) td.classList.add(cls);
+          }
+        } else {
+          td.textContent = v == null ? '' : String(v);
+        }
+
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+  }
+
+  drawRows();
+  table.appendChild(thead);
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+  container.innerHTML = '';
+  container.appendChild(wrap);
+}
+
+const RESULT_COLUMNS = [
+  { key: 'bucket', label: 'Bucket' },
+  { key: 'Win', label: 'W', fmt: 'int' },
+  { key: 'Loss', label: 'L', fmt: 'int' },
+  { key: 'Push', label: 'P', fmt: 'int' },
+  { key: 'Total', label: 'Total', fmt: 'int' },
+  { key: 'Sample_Count', label: 'Sample', fmt: 'int' },
+  { key: 'Win_Pct', label: 'Win %', fmt: 'pct' },
+];
+
+const RESULT_SIDE_COLUMNS = [
+  { key: 'side', label: 'Side' },
+  ...RESULT_COLUMNS,
+];
+
+const MODEL_COLUMNS = [
+  { key: 'model', label: 'Model' },
+  { key: 'sample_count', label: 'Sample', fmt: 'int' },
+  { key: 'brier_score', label: 'Brier', fmt: 'num', decimals: 4 },
+  { key: 'log_loss', label: 'Log Loss', fmt: 'num', decimals: 4 },
+  { key: 'rps', label: 'RPS', fmt: 'num', decimals: 4 },
+];
+
+const XG_COLUMNS = [
+  { key: 'sample_count', label: 'Sample', fmt: 'int' },
+  { key: 'home_xg_mae', label: 'Home xG MAE', fmt: 'num', decimals: 3 },
+  { key: 'home_xg_rmse', label: 'Home xG RMSE', fmt: 'num', decimals: 3 },
+  { key: 'home_xg_bias', label: 'Home xG Bias', fmt: 'num', decimals: 3, signed: true },
+  { key: 'away_xg_mae', label: 'Away xG MAE', fmt: 'num', decimals: 3 },
+  { key: 'away_xg_rmse', label: 'Away xG RMSE', fmt: 'num', decimals: 3 },
+  { key: 'away_xg_bias', label: 'Away xG Bias', fmt: 'num', decimals: 3, signed: true },
+  { key: 'total_xg_mae', label: 'Total xG MAE', fmt: 'num', decimals: 3 },
+  { key: 'total_xg_rmse', label: 'Total xG RMSE', fmt: 'num', decimals: 3 },
+  { key: 'total_xg_bias', label: 'Total xG Bias', fmt: 'num', decimals: 3, signed: true },
+];
+
+const CAL_COLUMNS = [
+  { key: 'model', label: 'Model' },
+  { key: 'outcome', label: 'Outcome' },
+  { key: 'bucket', label: 'Bucket' },
+  { key: 'sample_count', label: 'Sample', fmt: 'int' },
+  { key: 'mean_predicted_probability', label: 'Mean Pred', fmt: 'pct' },
+  { key: 'observed_rate', label: 'Observed', fmt: 'pct' },
+  { key: 'calibration_gap', label: 'Gap', fmt: 'num', decimals: 4, signed: true },
+];
+
+function selectLeague(league) {
+  document.querySelectorAll('.league-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.league === league);
+  });
+  document.querySelectorAll('.league-section').forEach(section => {
+    section.classList.toggle('active', section.dataset.league === league);
+  });
+  try {
+    localStorage.setItem('soccer_dash_league', league);
+  } catch (e) {}
+}
+
+function buildModelArea(section, data) {
+  const host = section.querySelector('.model-area');
+
+  renderTable(
+    data.model_metrics || [],
+    MODEL_COLUMNS,
+    host.querySelector('.model-core')
+  );
+
+  renderTable(
+    data.xg_metrics || [],
+    XG_COLUMNS,
+    host.querySelector('.model-xg')
+  );
+
+  const calibrationRows = data.calibration || [];
+  const calibrationHost = host.querySelector('.model-calibration');
+
+  if (!calibrationRows.length) {
+    calibrationHost.innerHTML = '<div class="muted">No calibration rows available.</div>';
+  } else {
+    const models = [...new Set(calibrationRows.map(r => r.model).filter(Boolean))].sort();
+    const outcomes = [...new Set(calibrationRows.map(r => r.outcome).filter(Boolean))].sort();
+
+    calibrationHost.innerHTML =
+      '<div class="controls">' +
+        '<label>Model: <select class="cal-model"><option value="ALL">All</option>' +
+          models.map(v => '<option value="' + v + '">' + v + '</option>').join('') +
+        '</select></label>' +
+        '<label>Outcome: <select class="cal-outcome"><option value="ALL">All</option>' +
+          outcomes.map(v => '<option value="' + v + '">' + v + '</option>').join('') +
+        '</select></label>' +
+      '</div>' +
+      '<div class="cal-table"></div>';
+
+    const modelSel = calibrationHost.querySelector('.cal-model');
+    const outcomeSel = calibrationHost.querySelector('.cal-outcome');
+    const tableHost = calibrationHost.querySelector('.cal-table');
+
+    const refreshCalibration = () => {
+      const filtered = calibrationRows.filter(row =>
+        (modelSel.value === 'ALL' || String(row.model) === modelSel.value) &&
+        (outcomeSel.value === 'ALL' || String(row.outcome) === outcomeSel.value)
+      );
+      renderTable(filtered, CAL_COLUMNS, tableHost);
+    };
+
+    modelSel.onchange = refreshCalibration;
+    outcomeSel.onchange = refreshCalibration;
+    refreshCalibration();
+  }
+
+  host.querySelectorAll(':scope > .tabs .tab').forEach(tab => {
+    tab.onclick = () => showTab(host, tab.dataset.key);
+  });
+}
+
+function buildMarketArea(section, data) {
+  const host = section.querySelector('.market-area');
+
+  Object.entries(data.markets || {}).forEach(([key, market]) => {
+    const panel = host.querySelector('.panel-' + key);
+    if (!panel) return;
+
+    const dimensions = Object.keys(market.by || {});
+    if (!dimensions.length) {
+      panel.innerHTML = '<div class="muted">No report rows available for this market.</div>';
+      return;
+    }
+
+    panel.innerHTML =
+      '<div class="controls">' +
+        '<label>Dimension: <select class="dim-select">' +
+          dimensions.map(dim => '<option value="' + dim + '">' + dim + '</option>').join('') +
+        '</select></label>' +
+        '<label>View: <select class="view-select">' +
+          '<option value="overall">Overall</option>' +
+          '<option value="side">Split by side</option>' +
+        '</select></label>' +
+      '</div>' +
+      '<div class="market-table"></div>';
+
+    const dimSel = panel.querySelector('.dim-select');
+    const viewSel = panel.querySelector('.view-select');
+    const tableHost = panel.querySelector('.market-table');
+
+    const refresh = () => {
+      const dim = dimSel.value;
+      const sideView = viewSel.value === 'side';
+      const rows = sideView
+        ? ((market.by_side || {})[dim] || [])
+        : ((market.by || {})[dim] || []);
+      renderTable(
+        rows,
+        sideView ? RESULT_SIDE_COLUMNS : RESULT_COLUMNS,
+        tableHost
+      );
+    };
+
+    dimSel.onchange = refresh;
+    viewSel.onchange = refresh;
+    refresh();
+  });
+
+  host.querySelectorAll(':scope > .tabs .tab').forEach(tab => {
+    tab.onclick = () => showTab(host, tab.dataset.key);
+  });
+}
+
+function buildLeagueSection(league, data) {
+  const section = document.querySelector(
+    '.league-section[data-league="' + league + '"]'
+  );
+  if (!section) return;
+
+  const h = data.headline || {};
+  const kpi = (label, value, fmt) => {
+    let display = '—';
+    if (value != null && !(typeof value === 'number' && isNaN(value))) {
+      if (fmt === 'pct') display = fmtPct(value);
+      else if (fmt === 'int') display = fmtInt(value);
+      else display = String(value);
+    }
+    return '<div class="kpi"><div class="label">' + label +
+      '</div><div class="value">' + display + '</div></div>';
+  };
+
+  section.querySelector('.kpis').innerHTML = [
+    kpi('Bets', h.total, 'int'),
+    kpi('Wins', h.wins, 'int'),
+    kpi('Losses', h.losses, 'int'),
+    kpi('Pushes', h.pushes, 'int'),
+    kpi('Win %', h.win_pct, 'pct'),
+  ].join('');
+
+  renderTable(
+    data.by_market || [],
+    [
+      { key: 'market_display', label: 'Market' },
+      { key: 'Win', label: 'W', fmt: 'int' },
+      { key: 'Loss', label: 'L', fmt: 'int' },
+      { key: 'Push', label: 'P', fmt: 'int' },
+      { key: 'Total', label: 'Total', fmt: 'int' },
+      { key: 'Win_Pct', label: 'Win %', fmt: 'pct' },
+    ],
+    section.querySelector('.by-market')
+  );
+
+  renderTable(
+    data.tally || [],
+    [
+      { key: 'market', label: 'Market' },
+      { key: 'market_type', label: 'Side' },
+      { key: 'Win', label: 'W', fmt: 'int' },
+      { key: 'Loss', label: 'L', fmt: 'int' },
+      { key: 'Push', label: 'P', fmt: 'int' },
+      { key: 'Total', label: 'Total', fmt: 'int' },
+      { key: 'Win_Pct', label: 'Win %', fmt: 'pct' },
+    ],
+    section.querySelector('.side-tally')
+  );
+
+  buildModelArea(section, data);
+  buildMarketArea(section, data);
+}
+
+
+const ALL_DATA = {"epl": {"league": "epl", "display": "EPL", "headline": {"wins": 29, "losses": 16, "pushes": 0, "total": 45, "win_pct": 0.6444444444444445}, "tally": [{"market": "btts", "market_type": "no", "Win": 5, "Loss": 4, "Push": 0, "Total": 9, "Sample_Count": 9, "Win_Pct": 0.5556}, {"market": "btts", "market_type": "yes", "Win": 7, "Loss": 5, "Push": 0, "Total": 12, "Sample_Count": 12, "Win_Pct": 0.5833}, {"market": "match_odds", "market_type": "away", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"market": "match_odds", "market_type": "home", "Win": 4, "Loss": 2, "Push": 0, "Total": 6, "Sample_Count": 6, "Win_Pct": 0.6667}, {"market": "total25", "market_type": "over", "Win": 6, "Loss": 3, "Push": 0, "Total": 9, "Sample_Count": 9, "Win_Pct": 0.6667}, {"market": "total35", "market_type": "over", "Win": 3, "Loss": 2, "Push": 0, "Total": 5, "Sample_Count": 5, "Win_Pct": 0.6}, {"market": "total35", "market_type": "under", "Win": 3, "Loss": 0, "Push": 0, "Total": 3, "Sample_Count": 3, "Win_Pct": 1.0}], "by_market": [{"market": "btts", "market_display": "BTTS", "Win": 12, "Loss": 9, "Push": 0, "Total": 21, "Sample_Count": 21, "Win_Pct": 0.5714285714285714}, {"market": "match_odds", "market_display": "Match Odds", "Win": 5, "Loss": 2, "Push": 0, "Total": 7, "Sample_Count": 7, "Win_Pct": 0.7142857142857143}, {"market": "total25", "market_display": "Total 2.5", "Win": 6, "Loss": 3, "Push": 0, "Total": 9, "Sample_Count": 9, "Win_Pct": 0.6666666666666666}, {"market": "total35", "market_display": "Total 3.5", "Win": 6, "Loss": 2, "Push": 0, "Total": 8, "Sample_Count": 8, "Win_Pct": 0.75}], "model_metrics": [{"scope": "league", "league": "epl", "model": "raw", "sample_count": 71, "brier_score": 0.6136870845070423, "log_loss": 1.030416884950219, "rps": 0.2022187535211267}, {"scope": "league", "league": "epl", "model": "engine", "sample_count": 87, "brier_score": 0.6131056356243563, "log_loss": 1.025075271096476, "rps": 0.1966456994062694}], "calibration": [{"scope": "league", "league": "epl", "model": "raw", "outcome": "home", "bucket": "0.0_to_0.1", "bucket_low": 0.0, "bucket_high": 0.1, "sample_count": 2, "mean_predicted_probability": 0.074, "observed_rate": 0.5, "calibration_gap": 0.426}, {"scope": "league", "league": "epl", "model": "raw", "outcome": "home", "bucket": "0.1_to_0.2", "bucket_low": 0.1, "bucket_high": 0.2, "sample_count": 3, "mean_predicted_probability": 0.1663333333333333, "observed_rate": 0.0, "calibration_gap": -0.1663333333333333}, {"scope": "league", "league": "epl", "model": "raw", "outcome": "home", "bucket": "0.2_to_0.3", "bucket_low": 0.2, "bucket_high": 0.3, "sample_count": 10, "mean_predicted_probability": 0.2560999999999999, "observed_rate": 0.1, "calibration_gap": -0.1560999999999999}, {"scope": "league", "league": "epl", "model": "raw", "outcome": "home", "bucket": "0.3_to_0.4", "bucket_low": 0.3, "bucket_high": 0.4, "sample_count": 18, "mean_predicted_probability": 0.3588333333333333, "observed_rate": 0.4444444444444444, "calibration_gap": 0.085611111111111}, {"scope": "league", "league": "epl", "model": "raw", "outcome": "home", "bucket": "0.4_to_0.5", "bucket_low": 0.4, "bucket_high": 0.5, "sample_count": 13, "mean_predicted_probability": 0.4449999999999999, "observed_rate": 0.3846153846153846, "calibration_gap": -0.0603846153846153}, {"scope": "league", "league": "epl", "model": "raw", "outcome": "home", "bucket": "0.5_to_0.6", "bucket_low": 0.5, "bucket_high": 0.6, "sample_count": 10, "mean_predicted_probability": 0.5437, "observed_rate": 0.5, "calibration_gap": -0.0436999999999999}, {"scope": "league", "league": "epl", "model": "raw", "outcome": "home", "bucket": "0.6_to_0.7", "bucket_low": 0.6, "bucket_high": 0.7, "sample_count": 12, "mean_predicted_probability": 0.6553333333333333, "observed_rate": 0.75, "calibration_gap": 0.0946666666666666}, {"scope": "league", "league": "epl", "model": "raw", "outcome": "home", "bucket": "0.7_to_0.8", "bucket_low": 0.7, "bucket_high": 0.8, "sample_count": 3, "mean_predicted_probability": 0.742, "observed_rate": 0.6666666666666666, "calibration_gap": -0.0753333333333333}, {"scope": "league", "league": "epl", "model": "raw", "outcome": "home", "bucket": "0.8_to_0.9", "bucket_low": 0.8, "bucket_high": 0.9, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}, {"scope": "league", "league": "epl", "model": "raw", "outcome": "home", "bucket": "0.9_to_1.0", "bucket_low": 0.9, "bucket_high": 1.0, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}, {"scope": "league", "league": "epl", "model": "raw", "outcome": "draw", "bucket": "0.0_to_0.1", "bucket_low": 0.0, "bucket_high": 0.1, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}, {"scope": "league", "league": "epl", "model": "raw", "outcome": "draw", "bucket": "0.1_to_0.2", "bucket_low": 0.1, "bucket_high": 0.2, "sample_count": 12, "mean_predicted_probability": 0.1743333333333333, "observed_rate": 0.1666666666666666, "calibration_gap": -0.0076666666666666}, {"scope": "league", "league": "epl", "model": "raw", "outcome": "draw", "bucket": "0.2_to_0.3", "bucket_low": 0.2, "bucket_high": 0.3, "sample_count": 59, "mean_predicted_probability": 0.2544237288135593, "observed_rate": 0.3220338983050847, "calibration_gap": 0.0676101694915254}, {"scope": "league", "league": "epl", "model": "raw", "outcome": "draw", "bucket": "0.3_to_0.4", "bucket_low": 0.3, "bucket_high": 0.4, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}, {"scope": "league", "league": "epl", "model": "raw", "outcome": "draw", "bucket": "0.4_to_0.5", "bucket_low": 0.4, "bucket_high": 0.5, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}, {"scope": "league", "league": "epl", "model": "raw", "outcome": "draw", "bucket": "0.5_to_0.6", "bucket_low": 0.5, "bucket_high": 0.6, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}, {"scope": "league", "league": "epl", "model": "raw", "outcome": "draw", "bucket": "0.6_to_0.7", "bucket_low": 0.6, "bucket_high": 0.7, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}, {"scope": "league", "league": "epl", "model": "raw", "outcome": "draw", "bucket": "0.7_to_0.8", "bucket_low": 0.7, "bucket_high": 0.8, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}, {"scope": "league", "league": "epl", "model": "raw", "outcome": "draw", "bucket": "0.8_to_0.9", "bucket_low": 0.8, "bucket_high": 0.9, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}, {"scope": "league", "league": "epl", "model": "raw", "outcome": "draw", "bucket": "0.9_to_1.0", "bucket_low": 0.9, "bucket_high": 1.0, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}, {"scope": "league", "league": "epl", "model": "raw", "outcome": "away", "bucket": "0.0_to_0.1", "bucket_low": 0.0, "bucket_high": 0.1, "sample_count": 1, "mean_predicted_probability": 0.077, "observed_rate": 0.0, "calibration_gap": -0.077}, {"scope": "league", "league": "epl", "model": "raw", "outcome": "away", "bucket": "0.1_to_0.2", "bucket_low": 0.1, "bucket_high": 0.2, "sample_count": 17, "mean_predicted_probability": 0.1487058823529412, "observed_rate": 0.1764705882352941, "calibration_gap": 0.0277647058823529}, {"scope": "league", "league": "epl", "model": "raw", "outcome": "away", "bucket": "0.2_to_0.3", "bucket_low": 0.2, "bucket_high": 0.3, "sample_count": 13, "mean_predicted_probability": 0.2514615384615384, "observed_rate": 0.1538461538461538, "calibration_gap": -0.0976153846153846}, {"scope": "league", "league": "epl", "model": "raw", "outcome": "away", "bucket": "0.3_to_0.4", "bucket_low": 0.3, "bucket_high": 0.4, "sample_count": 24, "mean_predicted_probability": 0.3462083333333334, "observed_rate": 0.2083333333333333, "calibration_gap": -0.137875}, {"scope": "league", "league": "epl", "model": "raw", "outcome": "away", "bucket": "0.4_to_0.5", "bucket_low": 0.4, "bucket_high": 0.5, "sample_count": 6, "mean_predicted_probability": 0.4486666666666666, "observed_rate": 0.8333333333333334, "calibration_gap": 0.3846666666666667}, {"scope": "league", "league": "epl", "model": "raw", "outcome": "away", "bucket": "0.5_to_0.6", "bucket_low": 0.5, "bucket_high": 0.6, "sample_count": 6, "mean_predicted_probability": 0.5366666666666666, "observed_rate": 0.1666666666666666, "calibration_gap": -0.37}, {"scope": "league", "league": "epl", "model": "raw", "outcome": "away", "bucket": "0.6_to_0.7", "bucket_low": 0.6, "bucket_high": 0.7, "sample_count": 2, "mean_predicted_probability": 0.6315, "observed_rate": 1.0, "calibration_gap": 0.3685}, {"scope": "league", "league": "epl", "model": "raw", "outcome": "away", "bucket": "0.7_to_0.8", "bucket_low": 0.7, "bucket_high": 0.8, "sample_count": 2, "mean_predicted_probability": 0.7805, "observed_rate": 0.5, "calibration_gap": -0.2804999999999999}, {"scope": "league", "league": "epl", "model": "raw", "outcome": "away", "bucket": "0.8_to_0.9", "bucket_low": 0.8, "bucket_high": 0.9, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}, {"scope": "league", "league": "epl", "model": "raw", "outcome": "away", "bucket": "0.9_to_1.0", "bucket_low": 0.9, "bucket_high": 1.0, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}, {"scope": "league", "league": "epl", "model": "engine", "outcome": "home", "bucket": "0.0_to_0.1", "bucket_low": 0.0, "bucket_high": 0.1, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}, {"scope": "league", "league": "epl", "model": "engine", "outcome": "home", "bucket": "0.1_to_0.2", "bucket_low": 0.1, "bucket_high": 0.2, "sample_count": 1, "mean_predicted_probability": 0.194684363948579, "observed_rate": 0.0, "calibration_gap": -0.194684363948579}, {"scope": "league", "league": "epl", "model": "engine", "outcome": "home", "bucket": "0.2_to_0.3", "bucket_low": 0.2, "bucket_high": 0.3, "sample_count": 12, "mean_predicted_probability": 0.2612616514957273, "observed_rate": 0.25, "calibration_gap": -0.0112616514957273}, {"scope": "league", "league": "epl", "model": "engine", "outcome": "home", "bucket": "0.3_to_0.4", "bucket_low": 0.3, "bucket_high": 0.4, "sample_count": 25, "mean_predicted_probability": 0.3479441838671851, "observed_rate": 0.4, "calibration_gap": 0.0520558161328149}, {"scope": "league", "league": "epl", "model": "engine", "outcome": "home", "bucket": "0.4_to_0.5", "bucket_low": 0.4, "bucket_high": 0.5, "sample_count": 22, "mean_predicted_probability": 0.4453785169348342, "observed_rate": 0.3636363636363636, "calibration_gap": -0.0817421532984706}, {"scope": "league", "league": "epl", "model": "engine", "outcome": "home", "bucket": "0.5_to_0.6", "bucket_low": 0.5, "bucket_high": 0.6, "sample_count": 14, "mean_predicted_probability": 0.5567376378556849, "observed_rate": 0.5, "calibration_gap": -0.0567376378556848}, {"scope": "league", "league": "epl", "model": "engine", "outcome": "home", "bucket": "0.6_to_0.7", "bucket_low": 0.6, "bucket_high": 0.7, "sample_count": 9, "mean_predicted_probability": 0.6413943048664801, "observed_rate": 0.6666666666666666, "calibration_gap": 0.0252723618001865}, {"scope": "league", "league": "epl", "model": "engine", "outcome": "home", "bucket": "0.7_to_0.8", "bucket_low": 0.7, "bucket_high": 0.8, "sample_count": 4, "mean_predicted_probability": 0.7390349400191947, "observed_rate": 1.0, "calibration_gap": 0.2609650599808053}, {"scope": "league", "league": "epl", "model": "engine", "outcome": "home", "bucket": "0.8_to_0.9", "bucket_low": 0.8, "bucket_high": 0.9, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}, {"scope": "league", "league": "epl", "model": "engine", "outcome": "home", "bucket": "0.9_to_1.0", "bucket_low": 0.9, "bucket_high": 1.0, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}, {"scope": "league", "league": "epl", "model": "engine", "outcome": "draw", "bucket": "0.0_to_0.1", "bucket_low": 0.0, "bucket_high": 0.1, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}, {"scope": "league", "league": "epl", "model": "engine", "outcome": "draw", "bucket": "0.1_to_0.2", "bucket_low": 0.1, "bucket_high": 0.2, "sample_count": 17, "mean_predicted_probability": 0.1689684444302499, "observed_rate": 0.1176470588235294, "calibration_gap": -0.0513213856067205}, {"scope": "league", "league": "epl", "model": "engine", "outcome": "draw", "bucket": "0.2_to_0.3", "bucket_low": 0.2, "bucket_high": 0.3, "sample_count": 57, "mean_predicted_probability": 0.2458949983102519, "observed_rate": 0.3684210526315789, "calibration_gap": 0.122526054321327}, {"scope": "league", "league": "epl", "model": "engine", "outcome": "draw", "bucket": "0.3_to_0.4", "bucket_low": 0.3, "bucket_high": 0.4, "sample_count": 12, "mean_predicted_probability": 0.3279019146744574, "observed_rate": 0.4166666666666667, "calibration_gap": 0.0887647519922092}, {"scope": "league", "league": "epl", "model": "engine", "outcome": "draw", "bucket": "0.4_to_0.5", "bucket_low": 0.4, "bucket_high": 0.5, "sample_count": 1, "mean_predicted_probability": 0.4063145779115116, "observed_rate": 0.0, "calibration_gap": -0.4063145779115116}, {"scope": "league", "league": "epl", "model": "engine", "outcome": "draw", "bucket": "0.5_to_0.6", "bucket_low": 0.5, "bucket_high": 0.6, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}, {"scope": "league", "league": "epl", "model": "engine", "outcome": "draw", "bucket": "0.6_to_0.7", "bucket_low": 0.6, "bucket_high": 0.7, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}, {"scope": "league", "league": "epl", "model": "engine", "outcome": "draw", "bucket": "0.7_to_0.8", "bucket_low": 0.7, "bucket_high": 0.8, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}, {"scope": "league", "league": "epl", "model": "engine", "outcome": "draw", "bucket": "0.8_to_0.9", "bucket_low": 0.8, "bucket_high": 0.9, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}, {"scope": "league", "league": "epl", "model": "engine", "outcome": "draw", "bucket": "0.9_to_1.0", "bucket_low": 0.9, "bucket_high": 1.0, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}, {"scope": "league", "league": "epl", "model": "engine", "outcome": "away", "bucket": "0.0_to_0.1", "bucket_low": 0.0, "bucket_high": 0.1, "sample_count": 1, "mean_predicted_probability": 0.0949272815426194, "observed_rate": 0.0, "calibration_gap": -0.0949272815426194}, {"scope": "league", "league": "epl", "model": "engine", "outcome": "away", "bucket": "0.1_to_0.2", "bucket_low": 0.1, "bucket_high": 0.2, "sample_count": 15, "mean_predicted_probability": 0.1536224438036431, "observed_rate": 0.1333333333333333, "calibration_gap": -0.0202891104703097}, {"scope": "league", "league": "epl", "model": "engine", "outcome": "away", "bucket": "0.2_to_0.3", "bucket_low": 0.2, "bucket_high": 0.3, "sample_count": 28, "mean_predicted_probability": 0.2467271499835714, "observed_rate": 0.1785714285714285, "calibration_gap": -0.0681557214121428}, {"scope": "league", "league": "epl", "model": "engine", "outcome": "away", "bucket": "0.3_to_0.4", "bucket_low": 0.3, "bucket_high": 0.4, "sample_count": 26, "mean_predicted_probability": 0.3598588442112802, "observed_rate": 0.2307692307692307, "calibration_gap": -0.1290896134420494}, {"scope": "league", "league": "epl", "model": "engine", "outcome": "away", "bucket": "0.4_to_0.5", "bucket_low": 0.4, "bucket_high": 0.5, "sample_count": 6, "mean_predicted_probability": 0.4503983010677383, "observed_rate": 0.3333333333333333, "calibration_gap": -0.117064967734405}, {"scope": "league", "league": "epl", "model": "engine", "outcome": "away", "bucket": "0.5_to_0.6", "bucket_low": 0.5, "bucket_high": 0.6, "sample_count": 9, "mean_predicted_probability": 0.5343691919308288, "observed_rate": 0.4444444444444444, "calibration_gap": -0.0899247474863843}, {"scope": "league", "league": "epl", "model": "engine", "outcome": "away", "bucket": "0.6_to_0.7", "bucket_low": 0.6, "bucket_high": 0.7, "sample_count": 2, "mean_predicted_probability": 0.6224728902919958, "observed_rate": 1.0, "calibration_gap": 0.3775271097080042}, {"scope": "league", "league": "epl", "model": "engine", "outcome": "away", "bucket": "0.7_to_0.8", "bucket_low": 0.7, "bucket_high": 0.8, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}, {"scope": "league", "league": "epl", "model": "engine", "outcome": "away", "bucket": "0.8_to_0.9", "bucket_low": 0.8, "bucket_high": 0.9, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}, {"scope": "league", "league": "epl", "model": "engine", "outcome": "away", "bucket": "0.9_to_1.0", "bucket_low": 0.9, "bucket_high": 1.0, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}], "xg_metrics": [{"scope": "league", "league": "epl", "sample_count": 87, "home_xg_mae": 0.9478160919540228, "home_xg_rmse": 1.1514818039498438, "home_xg_bias": -0.1266666666666667, "away_xg_mae": 0.8420689655172413, "away_xg_rmse": 1.105936956487185, "away_xg_bias": -0.0234482758620689, "total_xg_mae": 1.2940229885057466, "total_xg_rmse": 1.6367974056450714, "total_xg_bias": -0.1501149425287356}], "markets": {"match_odds": {"display": "Match Odds", "by": {"ev": [{"bucket": "0.00_to_0.05", "Win": 2, "Loss": 0, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 1.0}, {"bucket": "0.05_to_0.10", "Win": 2, "Loss": 1, "Push": 0, "Total": 3, "Sample_Count": 3, "Win_Pct": 0.6667}, {"bucket": "0.10_to_0.15", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.20_to_0.25", "Win": 0, "Loss": 1, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 0.0}], "kelly": [{"bucket": "0.00_to_0.05", "Win": 2, "Loss": 0, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 1.0}, {"bucket": "0.05_to_0.10", "Win": 1, "Loss": 1, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.5}, {"bucket": "0.10_to_0.15", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.20_to_0.25", "Win": 1, "Loss": 1, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.5}], "month": [{"bucket": 4, "Win": 2, "Loss": 1, "Push": 0, "Total": 3, "Sample_Count": 3, "Win_Pct": 0.6667}, {"bucket": 5, "Win": 2, "Loss": 1, "Push": 0, "Total": 3, "Sample_Count": 3, "Win_Pct": 0.6667}, {"bucket": 8, "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}], "odds": [{"bucket": "-249_to_-200", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "-149_to_-100", "Win": 4, "Loss": 2, "Push": 0, "Total": 6, "Sample_Count": 6, "Win_Pct": 0.6667}], "model_prob": [{"bucket": "0.5_to_0.6", "Win": 3, "Loss": 1, "Push": 0, "Total": 4, "Sample_Count": 4, "Win_Pct": 0.75}, {"bucket": "0.6_to_0.7", "Win": 1, "Loss": 1, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.5}, {"bucket": "0.7_to_0.8", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}], "win_prob": [{"bucket": "0.5_to_0.6", "Win": 3, "Loss": 1, "Push": 0, "Total": 4, "Sample_Count": 4, "Win_Pct": 0.75}, {"bucket": "0.6_to_0.7", "Win": 1, "Loss": 1, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.5}, {"bucket": "0.7_to_0.8", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}]}, "by_side": {"ev": [{"bucket": "0.00_to_0.05", "side": "away", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.00_to_0.05", "side": "home", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.05_to_0.10", "side": "home", "Win": 2, "Loss": 1, "Push": 0, "Total": 3, "Sample_Count": 3, "Win_Pct": 0.6667}, {"bucket": "0.10_to_0.15", "side": "home", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.20_to_0.25", "side": "home", "Win": 0, "Loss": 1, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 0.0}], "kelly": [{"bucket": "0.00_to_0.05", "side": "away", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.00_to_0.05", "side": "home", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.05_to_0.10", "side": "home", "Win": 1, "Loss": 1, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.5}, {"bucket": "0.10_to_0.15", "side": "home", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.20_to_0.25", "side": "home", "Win": 1, "Loss": 1, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.5}], "month": [{"bucket": 4, "side": "home", "Win": 2, "Loss": 1, "Push": 0, "Total": 3, "Sample_Count": 3, "Win_Pct": 0.6667}, {"bucket": 5, "side": "away", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": 5, "side": "home", "Win": 1, "Loss": 1, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.5}, {"bucket": 8, "side": "home", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}], "odds": [{"bucket": "-249_to_-200", "side": "home", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "-149_to_-100", "side": "away", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "-149_to_-100", "side": "home", "Win": 3, "Loss": 2, "Push": 0, "Total": 5, "Sample_Count": 5, "Win_Pct": 0.6}], "model_prob": [{"bucket": "0.5_to_0.6", "side": "away", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.5_to_0.6", "side": "home", "Win": 2, "Loss": 1, "Push": 0, "Total": 3, "Sample_Count": 3, "Win_Pct": 0.6667}, {"bucket": "0.6_to_0.7", "side": "home", "Win": 1, "Loss": 1, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.5}, {"bucket": "0.7_to_0.8", "side": "home", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}], "win_prob": [{"bucket": "0.5_to_0.6", "side": "away", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.5_to_0.6", "side": "home", "Win": 2, "Loss": 1, "Push": 0, "Total": 3, "Sample_Count": 3, "Win_Pct": 0.6667}, {"bucket": "0.6_to_0.7", "side": "home", "Win": 1, "Loss": 1, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.5}, {"bucket": "0.7_to_0.8", "side": "home", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}]}}, "btts": {"display": "BTTS", "by": {"ev": [{"bucket": "0.00_to_0.05", "Win": 6, "Loss": 1, "Push": 0, "Total": 7, "Sample_Count": 7, "Win_Pct": 0.8571}, {"bucket": "0.05_to_0.10", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.10_to_0.15", "Win": 0, "Loss": 2, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.0}, {"bucket": "0.15_to_0.20", "Win": 3, "Loss": 2, "Push": 0, "Total": 5, "Sample_Count": 5, "Win_Pct": 0.6}, {"bucket": "0.20_to_0.25", "Win": 0, "Loss": 1, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 0.0}, {"bucket": "0.80_to_0.85", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "1.20_to_1.25", "Win": 0, "Loss": 1, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 0.0}, {"bucket": "1.65_to_1.70", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "5.50_to_5.55", "Win": 0, "Loss": 1, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 0.0}, {"bucket": "7.20_to_7.25", "Win": 0, "Loss": 1, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 0.0}], "kelly": [{"bucket": "0.00_to_0.05", "Win": 6, "Loss": 0, "Push": 0, "Total": 6, "Sample_Count": 6, "Win_Pct": 1.0}, {"bucket": "0.05_to_0.10", "Win": 2, "Loss": 5, "Push": 0, "Total": 7, "Sample_Count": 7, "Win_Pct": 0.2857}, {"bucket": "0.10_to_0.15", "Win": 2, "Loss": 1, "Push": 0, "Total": 3, "Sample_Count": 3, "Win_Pct": 0.6667}, {"bucket": "0.35_to_0.40", "Win": 2, "Loss": 0, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 1.0}, {"bucket": "0.45_to_0.50", "Win": 0, "Loss": 1, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 0.0}, {"bucket": "0.55_to_0.60", "Win": 0, "Loss": 2, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.0}], "month": [{"bucket": 4, "Win": 4, "Loss": 2, "Push": 0, "Total": 6, "Sample_Count": 6, "Win_Pct": 0.6667}, {"bucket": 5, "Win": 6, "Loss": 3, "Push": 0, "Total": 9, "Sample_Count": 9, "Win_Pct": 0.6667}, {"bucket": 8, "Win": 2, "Loss": 2, "Push": 0, "Total": 4, "Sample_Count": 4, "Win_Pct": 0.5}, {"bucket": 9, "Win": 0, "Loss": 2, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.0}], "odds": [{"bucket": "-199_to_-150", "Win": 5, "Loss": 1, "Push": 0, "Total": 6, "Sample_Count": 6, "Win_Pct": 0.8333}, {"bucket": "+100_to_+149", "Win": 1, "Loss": 1, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.5}, {"bucket": "+150_to_+199", "Win": 4, "Loss": 4, "Push": 0, "Total": 8, "Sample_Count": 8, "Win_Pct": 0.5}, {"bucket": "+200_to_+249", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "+250_to_+299", "Win": 0, "Loss": 1, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 0.0}, {"bucket": "+300_or_higher", "Win": 1, "Loss": 2, "Push": 0, "Total": 3, "Sample_Count": 3, "Win_Pct": 0.3333}], "model_prob": [{"bucket": "0.3_to_0.4", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.4_to_0.5", "Win": 5, "Loss": 5, "Push": 0, "Total": 10, "Sample_Count": 10, "Win_Pct": 0.5}, {"bucket": "0.5_to_0.6", "Win": 1, "Loss": 2, "Push": 0, "Total": 3, "Sample_Count": 3, "Win_Pct": 0.3333}, {"bucket": "0.6_to_0.7", "Win": 5, "Loss": 2, "Push": 0, "Total": 7, "Sample_Count": 7, "Win_Pct": 0.7143}]}, "by_side": {"ev": [{"bucket": "0.00_to_0.05", "side": "no", "Win": 2, "Loss": 0, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 1.0}, {"bucket": "0.00_to_0.05", "side": "yes", "Win": 4, "Loss": 1, "Push": 0, "Total": 5, "Sample_Count": 5, "Win_Pct": 0.8}, {"bucket": "0.05_to_0.10", "side": "yes", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.10_to_0.15", "side": "no", "Win": 0, "Loss": 2, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.0}, {"bucket": "0.15_to_0.20", "side": "no", "Win": 3, "Loss": 2, "Push": 0, "Total": 5, "Sample_Count": 5, "Win_Pct": 0.6}, {"bucket": "0.20_to_0.25", "side": "yes", "Win": 0, "Loss": 1, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 0.0}, {"bucket": "0.80_to_0.85", "side": "yes", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "1.20_to_1.25", "side": "yes", "Win": 0, "Loss": 1, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 0.0}, {"bucket": "1.65_to_1.70", "side": "yes", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "5.50_to_5.55", "side": "yes", "Win": 0, "Loss": 1, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 0.0}, {"bucket": "7.20_to_7.25", "side": "yes", "Win": 0, "Loss": 1, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 0.0}], "kelly": [{"bucket": "0.00_to_0.05", "side": "no", "Win": 2, "Loss": 0, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 1.0}, {"bucket": "0.00_to_0.05", "side": "yes", "Win": 4, "Loss": 0, "Push": 0, "Total": 4, "Sample_Count": 4, "Win_Pct": 1.0}, {"bucket": "0.05_to_0.10", "side": "no", "Win": 2, "Loss": 4, "Push": 0, "Total": 6, "Sample_Count": 6, "Win_Pct": 0.3333}, {"bucket": "0.05_to_0.10", "side": "yes", "Win": 0, "Loss": 1, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 0.0}, {"bucket": "0.10_to_0.15", "side": "no", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.10_to_0.15", "side": "yes", "Win": 1, "Loss": 1, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.5}, {"bucket": "0.35_to_0.40", "side": "yes", "Win": 2, "Loss": 0, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 1.0}, {"bucket": "0.45_to_0.50", "side": "yes", "Win": 0, "Loss": 1, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 0.0}, {"bucket": "0.55_to_0.60", "side": "yes", "Win": 0, "Loss": 2, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.0}], "month": [{"bucket": 4, "side": "no", "Win": 3, "Loss": 1, "Push": 0, "Total": 4, "Sample_Count": 4, "Win_Pct": 0.75}, {"bucket": 4, "side": "yes", "Win": 1, "Loss": 1, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.5}, {"bucket": 5, "side": "no", "Win": 2, "Loss": 3, "Push": 0, "Total": 5, "Sample_Count": 5, "Win_Pct": 0.4}, {"bucket": 5, "side": "yes", "Win": 4, "Loss": 0, "Push": 0, "Total": 4, "Sample_Count": 4, "Win_Pct": 1.0}, {"bucket": 8, "side": "yes", "Win": 2, "Loss": 2, "Push": 0, "Total": 4, "Sample_Count": 4, "Win_Pct": 0.5}, {"bucket": 9, "side": "yes", "Win": 0, "Loss": 2, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.0}], "odds": [{"bucket": "-199_to_-150", "side": "yes", "Win": 5, "Loss": 1, "Push": 0, "Total": 6, "Sample_Count": 6, "Win_Pct": 0.8333}, {"bucket": "+100_to_+149", "side": "no", "Win": 1, "Loss": 1, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.5}, {"bucket": "+150_to_+199", "side": "no", "Win": 4, "Loss": 3, "Push": 0, "Total": 7, "Sample_Count": 7, "Win_Pct": 0.5714}, {"bucket": "+150_to_+199", "side": "yes", "Win": 0, "Loss": 1, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 0.0}, {"bucket": "+200_to_+249", "side": "yes", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "+250_to_+299", "side": "yes", "Win": 0, "Loss": 1, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 0.0}, {"bucket": "+300_or_higher", "side": "yes", "Win": 1, "Loss": 2, "Push": 0, "Total": 3, "Sample_Count": 3, "Win_Pct": 0.3333}], "model_prob": [{"bucket": "0.3_to_0.4", "side": "no", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.4_to_0.5", "side": "no", "Win": 4, "Loss": 4, "Push": 0, "Total": 8, "Sample_Count": 8, "Win_Pct": 0.5}, {"bucket": "0.4_to_0.5", "side": "yes", "Win": 1, "Loss": 1, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.5}, {"bucket": "0.5_to_0.6", "side": "yes", "Win": 1, "Loss": 2, "Push": 0, "Total": 3, "Sample_Count": 3, "Win_Pct": 0.3333}, {"bucket": "0.6_to_0.7", "side": "yes", "Win": 5, "Loss": 2, "Push": 0, "Total": 7, "Sample_Count": 7, "Win_Pct": 0.7143}]}}, "total25": {"display": "Total 2.5", "by": {"ev": [{"bucket": "0.25_to_0.30", "Win": 3, "Loss": 2, "Push": 0, "Total": 5, "Sample_Count": 5, "Win_Pct": 0.6}, {"bucket": "0.30_to_0.35", "Win": 1, "Loss": 1, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.5}, {"bucket": "0.35_to_0.40", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.40_to_0.45", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}], "kelly": [{"bucket": "0.25_to_0.30", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.30_to_0.35", "Win": 1, "Loss": 3, "Push": 0, "Total": 4, "Sample_Count": 4, "Win_Pct": 0.25}, {"bucket": "0.35_to_0.40", "Win": 3, "Loss": 0, "Push": 0, "Total": 3, "Sample_Count": 3, "Win_Pct": 1.0}, {"bucket": "0.45_to_0.50", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}], "month": [{"bucket": 4, "Win": 3, "Loss": 1, "Push": 0, "Total": 4, "Sample_Count": 4, "Win_Pct": 0.75}, {"bucket": 5, "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": 8, "Win": 1, "Loss": 1, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.5}, {"bucket": 9, "Win": 1, "Loss": 1, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.5}], "odds": [{"bucket": "-149_to_-100", "Win": 6, "Loss": 2, "Push": 0, "Total": 8, "Sample_Count": 8, "Win_Pct": 0.75}, {"bucket": "+100_to_+149", "Win": 0, "Loss": 1, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 0.0}], "model_prob": [{"bucket": "0.6_to_0.7", "Win": 1, "Loss": 2, "Push": 0, "Total": 3, "Sample_Count": 3, "Win_Pct": 0.3333}, {"bucket": "0.7_to_0.8", "Win": 5, "Loss": 1, "Push": 0, "Total": 6, "Sample_Count": 6, "Win_Pct": 0.8333}]}, "by_side": {"ev": [{"bucket": "0.25_to_0.30", "side": "over", "Win": 3, "Loss": 2, "Push": 0, "Total": 5, "Sample_Count": 5, "Win_Pct": 0.6}, {"bucket": "0.30_to_0.35", "side": "over", "Win": 1, "Loss": 1, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.5}, {"bucket": "0.35_to_0.40", "side": "over", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.40_to_0.45", "side": "over", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}], "kelly": [{"bucket": "0.25_to_0.30", "side": "over", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.30_to_0.35", "side": "over", "Win": 1, "Loss": 3, "Push": 0, "Total": 4, "Sample_Count": 4, "Win_Pct": 0.25}, {"bucket": "0.35_to_0.40", "side": "over", "Win": 3, "Loss": 0, "Push": 0, "Total": 3, "Sample_Count": 3, "Win_Pct": 1.0}, {"bucket": "0.45_to_0.50", "side": "over", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}], "month": [{"bucket": 4, "side": "over", "Win": 3, "Loss": 1, "Push": 0, "Total": 4, "Sample_Count": 4, "Win_Pct": 0.75}, {"bucket": 5, "side": "over", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": 8, "side": "over", "Win": 1, "Loss": 1, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.5}, {"bucket": 9, "side": "over", "Win": 1, "Loss": 1, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.5}], "odds": [{"bucket": "-149_to_-100", "side": "over", "Win": 6, "Loss": 2, "Push": 0, "Total": 8, "Sample_Count": 8, "Win_Pct": 0.75}, {"bucket": "+100_to_+149", "side": "over", "Win": 0, "Loss": 1, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 0.0}], "model_prob": [{"bucket": "0.6_to_0.7", "side": "over", "Win": 1, "Loss": 2, "Push": 0, "Total": 3, "Sample_Count": 3, "Win_Pct": 0.3333}, {"bucket": "0.7_to_0.8", "side": "over", "Win": 5, "Loss": 1, "Push": 0, "Total": 6, "Sample_Count": 6, "Win_Pct": 0.8333}]}}, "total35": {"display": "Total 3.5", "by": {"ev": [{"bucket": "0.00_to_0.05", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.15_to_0.20", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.20_to_0.25", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.30_to_0.35", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.50_to_0.55", "Win": 1, "Loss": 1, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.5}, {"bucket": "0.60_to_0.65", "Win": 1, "Loss": 1, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.5}], "kelly": [{"bucket": "0.00_to_0.05", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.15_to_0.20", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.20_to_0.25", "Win": 2, "Loss": 1, "Push": 0, "Total": 3, "Sample_Count": 3, "Win_Pct": 0.6667}, {"bucket": "0.25_to_0.30", "Win": 1, "Loss": 1, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.5}, {"bucket": "0.30_to_0.35", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}], "month": [{"bucket": 4, "Win": 2, "Loss": 2, "Push": 0, "Total": 4, "Sample_Count": 4, "Win_Pct": 0.5}, {"bucket": 5, "Win": 3, "Loss": 0, "Push": 0, "Total": 3, "Sample_Count": 3, "Win_Pct": 1.0}, {"bucket": 8, "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}], "odds": [{"bucket": "-149_to_-100", "Win": 2, "Loss": 0, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 1.0}, {"bucket": "+100_to_+149", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "+200_to_+249", "Win": 3, "Loss": 2, "Push": 0, "Total": 5, "Sample_Count": 5, "Win_Pct": 0.6}], "model_prob": [{"bucket": "0.4_to_0.5", "Win": 2, "Loss": 1, "Push": 0, "Total": 3, "Sample_Count": 3, "Win_Pct": 0.6667}, {"bucket": "0.5_to_0.6", "Win": 2, "Loss": 1, "Push": 0, "Total": 3, "Sample_Count": 3, "Win_Pct": 0.6667}, {"bucket": "0.6_to_0.7", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.7_to_0.8", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}]}, "by_side": {"ev": [{"bucket": "0.00_to_0.05", "side": "under", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.15_to_0.20", "side": "under", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.20_to_0.25", "side": "under", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.30_to_0.35", "side": "over", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.50_to_0.55", "side": "over", "Win": 1, "Loss": 1, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.5}, {"bucket": "0.60_to_0.65", "side": "over", "Win": 1, "Loss": 1, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.5}], "kelly": [{"bucket": "0.00_to_0.05", "side": "under", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.15_to_0.20", "side": "over", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.20_to_0.25", "side": "over", "Win": 1, "Loss": 1, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.5}, {"bucket": "0.20_to_0.25", "side": "under", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.25_to_0.30", "side": "over", "Win": 1, "Loss": 1, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.5}, {"bucket": "0.30_to_0.35", "side": "under", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}], "month": [{"bucket": 4, "side": "over", "Win": 1, "Loss": 2, "Push": 0, "Total": 3, "Sample_Count": 3, "Win_Pct": 0.3333}, {"bucket": 4, "side": "under", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": 5, "side": "over", "Win": 2, "Loss": 0, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 1.0}, {"bucket": 5, "side": "under", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": 8, "side": "under", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}], "odds": [{"bucket": "-149_to_-100", "side": "under", "Win": 2, "Loss": 0, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 1.0}, {"bucket": "+100_to_+149", "side": "under", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "+200_to_+249", "side": "over", "Win": 3, "Loss": 2, "Push": 0, "Total": 5, "Sample_Count": 5, "Win_Pct": 0.6}], "model_prob": [{"bucket": "0.4_to_0.5", "side": "over", "Win": 2, "Loss": 1, "Push": 0, "Total": 3, "Sample_Count": 3, "Win_Pct": 0.6667}, {"bucket": "0.5_to_0.6", "side": "over", "Win": 1, "Loss": 1, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.5}, {"bucket": "0.5_to_0.6", "side": "under", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.6_to_0.7", "side": "under", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.7_to_0.8", "side": "under", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}]}}}}};
+
+document.addEventListener('DOMContentLoaded', () => {
+  Object.keys(ALL_DATA).forEach(league => {
+    buildLeagueSection(league, ALL_DATA[league]);
+  });
+
+  let initial = 'epl';
+  try {
+    const stored = localStorage.getItem('soccer_dash_league');
+    if (stored && ALL_DATA[stored]) initial = stored;
+  } catch (e) {}
+
+  selectLeague(initial);
 });
 </script>
 </body>
