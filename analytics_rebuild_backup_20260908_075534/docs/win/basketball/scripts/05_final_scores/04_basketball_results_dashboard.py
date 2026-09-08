@@ -31,16 +31,6 @@ MARKETS = ["moneyline", "spread", "total"]
 BASE        = Path("docs/win/basketball/05_final_scores")
 REPORT_DIR  = BASE / "reports"
 OUTPUT_FILE = Path("frontend/basketball_dashboard.html")
-LEAGUE_OUTPUTS = {
-    "nba": Path("frontend/nba_dashboard.html"),
-    "ncaam": Path("frontend/ncaam_dashboard.html"),
-    "wnba": Path("frontend/wnba_dashboard.html"),
-}
-LEAGUE_TITLES = {
-    "nba": "NBA Dashboard",
-    "ncaam": "NCAA Men's Basketball Dashboard",
-    "wnba": "WNBA Dashboard",
-}
 ERROR_DIR   = Path("docs/win/basketball/errors/05_final_scores")
 LOG_FILE    = ERROR_DIR / "04_basketball_results_dashboard.txt"
 
@@ -623,36 +613,13 @@ document.addEventListener('DOMContentLoaded', () => {{
 
 
 def run() -> None:
-    # ANALYTICS_MULTI_OUTPUT
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
-
-    original_leagues = LEAGUES[:]
-    outputs: list[tuple[Path, str]] = []
-
-    try:
-        master_page = build_dashboard()
-        outputs.append((OUTPUT_FILE, master_page))
-
-        for league in original_leagues:
-            LEAGUES[:] = [league]
-            page = build_dashboard()
-            title = LEAGUE_TITLES[league]
-            page = (
-                page
-                .replace("<title>Basketball Dashboard</title>", f"<title>{title}</title>", 1)
-                .replace("<h1>Basketball Dashboard</h1>", f"<h1>{title}</h1>", 1)
-                .replace("</style></head>", "\n.league-bar{display:none!important}\n</style></head>", 1)
-            )
-            outputs.append((LEAGUE_OUTPUTS[league], page))
-    finally:
-        LEAGUES[:] = original_leagues
-
-    for output_path, page in outputs:
-        output_path.write_text(page, encoding="utf-8")
-        rows = page.count("\n") + 1
-        bytes_written = len(page.encode("utf-8"))
-        log_output(output_path, rows, bytes_written)
-        log("INFO", f"dashboard -> {output_path}")
+    page = build_dashboard()
+    OUTPUT_FILE.write_text(page, encoding="utf-8")
+    rows = page.count("\n") + 1
+    bytes_written = len(page.encode("utf-8"))
+    log_output(OUTPUT_FILE, rows, bytes_written)
+    log("INFO", f"dashboard -> {OUTPUT_FILE}")
 
 
 def main() -> None:

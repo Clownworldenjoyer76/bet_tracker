@@ -15,7 +15,6 @@ import pandas as pd
 BASE=Path("docs/win/mma/ufc/04_final")
 REPORTS=BASE/"reports"
 OUTPUT=Path("frontend/ufc_dashboard.html")
-MASTER_OUTPUT=Path("frontend/mma_dashboard.html")
 REPORT_FILES=[
  ("ev","EV",REPORTS/"ufc_moneyline_by_ev.csv"),
  ("odds","Odds",REPORTS/"ufc_by_odds.csv"),
@@ -91,18 +90,9 @@ def build_html(payload):
         .replace("__DATA__",data))
 
 def main():
-    # ANALYTICS_MULTI_OUTPUT
     OUTPUT.parent.mkdir(parents=True,exist_ok=True)
-    league_page=build_html(build_payload())
-    master_page=(
-        league_page
-        .replace("<title>UFC Dashboard</title>","<title>MMA Dashboard</title>",1)
-        .replace("<h1>UFC Dashboard</h1>","<h1>MMA Dashboard</h1>",1)
-    )
-    OUTPUT.write_text(league_page,encoding="utf-8")
-    MASTER_OUTPUT.write_text(master_page,encoding="utf-8")
+    OUTPUT.write_text(build_html(build_payload()),encoding="utf-8")
     print(f"UFC dashboard generated: {OUTPUT}")
-    print(f"MMA master dashboard generated: {MASTER_OUTPUT}")
 
 if __name__=="__main__":
     main()

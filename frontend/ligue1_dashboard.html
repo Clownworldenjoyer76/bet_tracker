@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MLB Analytics</title>
+<title>Ligue 1 Analytics</title>
 <link rel="stylesheet" href="assets/css/matstheme.css">
 <style>
 html, body {
@@ -35,8 +35,8 @@ body {
   <iframe
     id="league-frame"
     class="league-frame"
-    src="baseball_dashboard.html"
-    title="MLB Analytics">
+    src="soccer_dashboard.html"
+    title="Ligue 1 Analytics">
   </iframe>
 </div>
 <script src="assets/js/shared/nav.js"></script>
@@ -52,6 +52,9 @@ document.getElementById('league-frame').addEventListener('load', function () {
       const bar = d.querySelector('.league-bar');
       if (bar) bar.style.display = 'none';
 
+      if (typeof w.selectLeague === 'function') {
+        w.selectLeague('ligue1');
+      }
   } catch (err) {
     console.error('League dashboard initialization failed:', err);
   }

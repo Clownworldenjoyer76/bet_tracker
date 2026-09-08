@@ -34,14 +34,6 @@ BASE = Path("docs/win/soccer/05_final_scores")
 REPORT_DIR = BASE / "reports"
 MODEL_DIR = BASE / "model_evaluation"
 OUTPUT_FILE = Path("frontend/soccer_dashboard.html")
-LEAGUE_OUTPUTS = {
-    "bundesliga": Path("frontend/bundesliga_dashboard.html"),
-    "epl": Path("frontend/epl_dashboard.html"),
-    "laliga": Path("frontend/laliga_dashboard.html"),
-    "ligue1": Path("frontend/ligue1_dashboard.html"),
-    "mls": Path("frontend/mls_dashboard.html"),
-    "seriea": Path("frontend/seriea_dashboard.html"),
-}
 ERROR_DIR = BASE / "errors"
 LOG_FILE = ERROR_DIR / "06_soccer_results_dashboard.txt"
 
@@ -985,36 +977,14 @@ document.addEventListener('DOMContentLoaded', () => {{
 
 
 def run() -> None:
-    # ANALYTICS_MULTI_OUTPUT
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
+    page = build_dashboard()
+    OUTPUT_FILE.write_text(page, encoding="utf-8")
 
-    original_leagues = LEAGUES[:]
-    outputs: list[tuple[Path, str]] = []
-
-    try:
-        master_page = build_dashboard()
-        outputs.append((OUTPUT_FILE, master_page))
-
-        for league, display in original_leagues:
-            LEAGUES[:] = [(league, display)]
-            page = build_dashboard()
-            title = f"{display} Dashboard"
-            page = (
-                page
-                .replace("<title>Soccer Dashboard</title>", f"<title>{title}</title>", 1)
-                .replace("<h1>Soccer Dashboard</h1>", f"<h1>{title}</h1>", 1)
-                .replace("</style>", "\n.league-bar{display:none!important}\n</style>", 1)
-            )
-            outputs.append((LEAGUE_OUTPUTS[league], page))
-    finally:
-        LEAGUES[:] = original_leagues
-
-    for output_path, page in outputs:
-        output_path.write_text(page, encoding="utf-8")
-        rows = page.count("\n") + 1
-        bytes_written = len(page.encode("utf-8"))
-        log_output(output_path, rows, bytes_written)
-        log("INFO", f"dashboard -> {output_path}")
+    rows = page.count("\n") + 1
+    bytes_written = len(page.encode("utf-8"))
+    log_output(OUTPUT_FILE, rows, bytes_written)
+    log("INFO", f"dashboard -> {OUTPUT_FILE}")
 
 
 def main() -> None:

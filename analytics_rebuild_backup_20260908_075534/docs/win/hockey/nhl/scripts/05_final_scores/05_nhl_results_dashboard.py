@@ -17,7 +17,6 @@ REPORT_ROOT=BASE/"reports"
 CALIBRATION_ROOT=REPORT_ROOT/"calibration"
 CLV_ROOT=BASE/"clv"
 OUTPUT=Path("frontend/nhl_dashboard.html")
-MASTER_OUTPUT=Path("frontend/hockey_dashboard.html")
 
 MARKETS=[
  {"key":"moneyline","display":"Moneyline","folder":"moneyline","prefix":"nhl_moneyline","dimensions":["ev","kelly","odds","win_prob"]},
@@ -131,18 +130,9 @@ def build_html(payload):
       .replace("__MARKET_TABS__",tabs).replace("__MARKET_PANELS__",panels).replace("__DATA__",data))
 
 def main():
-    # ANALYTICS_MULTI_OUTPUT
     OUTPUT.parent.mkdir(parents=True,exist_ok=True)
-    league_page=build_html(build_payload())
-    master_page=(
-        league_page
-        .replace("<title>NHL Dashboard</title>","<title>Hockey Dashboard</title>",1)
-        .replace("<h1>NHL Dashboard</h1>","<h1>Hockey Dashboard</h1>",1)
-    )
-    OUTPUT.write_text(league_page,encoding="utf-8")
-    MASTER_OUTPUT.write_text(master_page,encoding="utf-8")
+    OUTPUT.write_text(build_html(build_payload()),encoding="utf-8")
     print(f"NHL dashboard generated: {OUTPUT}")
-    print(f"Hockey master dashboard generated: {MASTER_OUTPUT}")
 
 if __name__=="__main__":
     main()

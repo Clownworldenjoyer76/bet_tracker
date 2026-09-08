@@ -29,7 +29,6 @@ import pandas as pd
 
 BASE = Path("docs/win/baseball/mlb/05_final_scores")
 OUTPUT_FILE = Path("frontend/baseball_dashboard.html")
-LEAGUE_OUTPUT_FILE = Path("frontend/mlb_dashboard.html")
 ERROR_DIR = Path("docs/win/baseball/mlb/errors/05_final_scores")
 LOG_FILE = ERROR_DIR / "04_mlb_results_dashboard.txt"
 
@@ -441,25 +440,13 @@ document.addEventListener('DOMContentLoaded',()=>{{
 
 
 def run() -> None:
-    # ANALYTICS_MULTI_OUTPUT
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
-
-    master_page = build_dashboard()
-    league_page = (
-        master_page
-        .replace("<title>Baseball Dashboard</title>", "<title>MLB Dashboard</title>", 1)
-        .replace("<h1>Baseball Dashboard</h1>", "<h1>MLB Dashboard</h1>", 1)
-    )
-
-    for output_path, page in (
-        (OUTPUT_FILE, master_page),
-        (LEAGUE_OUTPUT_FILE, league_page),
-    ):
-        output_path.write_text(page, encoding="utf-8")
-        rows = page.count("\n") + 1
-        bytes_written = len(page.encode("utf-8"))
-        log_output(output_path, rows, bytes_written)
-        log("INFO", f"dashboard -> {output_path}")
+    page = build_dashboard()
+    OUTPUT_FILE.write_text(page, encoding="utf-8")
+    rows = page.count("\n") + 1
+    bytes_written = len(page.encode("utf-8"))
+    log_output(OUTPUT_FILE, rows, bytes_written)
+    log("INFO", f"dashboard -> {OUTPUT_FILE}")
 
 
 def main() -> None:
