@@ -48,9 +48,9 @@ LEAGUE_OUTPUTS = {
     "wnba": Path("frontend/wnba_dashboard.html"),
 }
 LEAGUE_TITLES = {
-    "nba": "NBA Dashboard",
-    "ncaam": "NCAA Men's Basketball Dashboard",
-    "wnba": "WNBA Dashboard",
+    "nba": "NBA Analytics",
+    "ncaam": "NCAAM Analytics",
+    "wnba": "WNBA Analytics",
 }
 ERROR_DIR   = Path("docs/win/basketball/errors/05_final_scores")
 LOG_FILE    = ERROR_DIR / "04_basketball_results_dashboard.txt"
@@ -610,6 +610,19 @@ function selectLeague(lg) {
   document.querySelectorAll('.league-section').forEach(s => {
     s.classList.toggle('active', s.dataset.league === lg);
   });
+
+  const selectedButton = document.querySelector(
+    '.league-btn[data-league="' + lg + '"]'
+  );
+  const display = selectedButton
+    ? selectedButton.dataset.display
+    : (lg === 'all' ? 'All' : String(lg).toUpperCase());
+
+  const dashboardTitle = document.getElementById('dashboard-title');
+  if (dashboardTitle) {
+    dashboardTitle.textContent = display + ' Analytics';
+  }
+
   try {
     localStorage.setItem('basketball_dash_league', lg);
   } catch (e) {}
@@ -849,9 +862,18 @@ def first_row_dict(df: pd.DataFrame) -> dict:
 
 def side_group_records(df: pd.DataFrame) -> list[dict]:
     records = df_to_records(df)
+
     for row in records:
-        if row.get("bucket") in (None, "") and row.get("side_group") not in (None, ""):
-            row["bucket"] = row.get("side_group")
+        current = row.get("bucket")
+        if current not in (None, ""):
+            continue
+
+        for candidate in ("side_group", "side", "SIDE", "variable"):
+            value = row.get(candidate)
+            if value not in (None, ""):
+                row["bucket"] = value
+                break
+
     return records
 
 
@@ -1113,7 +1135,6 @@ def build_dashboard(
     *,
     include_all: bool = False,
 ) -> str:
-    ts = datetime.now(UTC).isoformat(timespec="seconds")
     league_defs = list(LEAGUES if league_defs is None else league_defs)
     season_defs = discover_seasons()
 
@@ -1151,6 +1172,7 @@ def build_dashboard(
     league_buttons = "\n".join(
         f'<button class="league-btn{" active" if i == 0 else ""}" '
         f'data-league="{html.escape(league)}" '
+        f'data-display="{html.escape(display)}" '
         f'onclick="selectLeague(\'{html.escape(league)}\')">'
         f'{html.escape(display)}</button>'
         for i, (league, display) in enumerate(nav_leagues)
@@ -1183,7 +1205,7 @@ def build_dashboard(
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Basketball Dashboard</title>
+<title>Basketball Analytics</title>
 <link rel="stylesheet" href="assets/css/matstheme.css">
 <style>{CSS}</style>
 </head>
@@ -1191,8 +1213,7 @@ def build_dashboard(
 <div id="nav-placeholder"></div>
 
 <header>
-  <h1>Basketball Dashboard</h1>
-  <span class="ts">Built {html.escape(ts)} UTC</span>
+  <h1 id="dashboard-title">Basketball Analytics</h1>
 </header>
 
 <div class="selector-bar season-bar"{season_bar_style}>
@@ -1259,13 +1280,13 @@ def run() -> None:
         page = (
             page
             .replace(
-                "<title>Basketball Dashboard</title>",
+                "<title>Basketball Analytics</title>",
                 f"<title>{title}</title>",
                 1,
             )
             .replace(
-                "<h1>Basketball Dashboard</h1>",
-                f"<h1>{title}</h1>",
+                '<h1 id="dashboard-title">Basketball Analytics</h1>',
+                f'<h1 id="dashboard-title">{title}</h1>',
                 1,
             )
             .replace(
