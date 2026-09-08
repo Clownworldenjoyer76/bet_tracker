@@ -3,169 +3,847 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard</title>
-  <link rel="stylesheet" href="assets/css/matstheme.css">
-  <link rel="stylesheet" href="assets/css/landing.css">
-</head>
-<body>
 
+  <title>SportsModelHub</title>
+
+  <link rel="stylesheet" href="assets/css/matstheme.css">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      background: var(--background);
+      color: var(--text-main);
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 13px;
+    }
+
+    .hero {
+      width: 100%;
+      background: #080d12;
+      border-bottom: 1px solid var(--border-soft);
+      overflow: hidden;
+    }
+
+    .hero img {
+      display: block;
+      width: 100%;
+      height: auto;
+      max-width: 1698px;
+      margin: 0 auto;
+      object-fit: contain;
+      object-position: center;
+    }
+
+    .main {
+      width: min(1500px, calc(100% - 48px));
+      margin: 0 auto;
+      padding: 22px 0 44px;
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+    }
+
+    .summary-strip {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      border: 1px solid var(--border-soft);
+      background: var(--bg-card);
+    }
+
+    .summary-item {
+      min-width: 0;
+      padding: 14px 18px;
+      border-right: 1px solid var(--border-soft);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .summary-item:last-child {
+      border-right: none;
+    }
+
+    .summary-val {
+      font-family: "Barlow Condensed", sans-serif;
+      font-size: 30px;
+      font-weight: 900;
+      line-height: 1;
+      letter-spacing: 0.02em;
+    }
+
+    .summary-lbl {
+      color: var(--text-muted);
+      font-size: 9px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .val-green {
+      color: var(--accent-green);
+    }
+
+    .val-red {
+      color: var(--accent-red);
+    }
+
+    .val-yellow {
+      color: var(--accent-yellow);
+    }
+
+    .val-blue {
+      color: var(--accent-blue);
+    }
+
+    .section {
+      background: var(--bg-card);
+      border: 1px solid var(--border-soft);
+      padding: 16px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      border-bottom: 1px solid var(--border-soft);
+      padding-bottom: 7px;
+      margin-bottom: 14px;
+    }
+
+    .section-title {
+      font-family: "Barlow Condensed", sans-serif;
+      font-size: 15px;
+      font-weight: 900;
+      letter-spacing: 0.14em;
+      color: var(--accent-green);
+      text-transform: uppercase;
+    }
+
+    .section-note {
+      color: var(--text-muted);
+      font-size: 9px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .status-line {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 18px;
+      margin-bottom: 12px;
+      color: var(--text-muted);
+      font-size: 10px;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      flex: 0 0 auto;
+      background: var(--accent-yellow);
+      box-shadow: 0 0 6px rgba(250, 204, 21, 0.45);
+    }
+
+    .status-dot.green {
+      background: var(--accent-green);
+      box-shadow: 0 0 6px rgba(0, 255, 132, 0.45);
+    }
+
+    .status-dot.red {
+      background: var(--accent-red);
+      box-shadow: 0 0 6px rgba(255, 45, 45, 0.45);
+    }
+
+    .history-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 10px;
+    }
+
+    .day-card {
+      border: 1px solid var(--border-soft);
+      background: rgba(255, 255, 255, 0.018);
+      padding: 12px;
+      transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+    }
+
+    .day-card:hover {
+      border-color: rgba(0, 255, 132, 0.18);
+      background: rgba(255, 255, 255, 0.028);
+      transform: translateY(-1px);
+    }
+
+    .date-label {
+      color: var(--text-muted);
+      font-family: "Barlow Condensed", sans-serif;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 3px;
+    }
+
+    .date-value {
+      color: var(--accent-blue);
+      font-family: "Barlow Condensed", sans-serif;
+      font-size: 20px;
+      font-weight: 900;
+      letter-spacing: 0.04em;
+      line-height: 1.1;
+      margin-bottom: 10px;
+    }
+
+    .day-stats {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      border-top: 1px solid var(--border-soft);
+      border-left: 1px solid var(--border-soft);
+    }
+
+    .day-stat {
+      min-width: 0;
+      padding: 8px 9px;
+      border-right: 1px solid var(--border-soft);
+      border-bottom: 1px solid var(--border-soft);
+    }
+
+    .day-stat-label {
+      color: var(--text-muted);
+      font-family: "Barlow Condensed", sans-serif;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.11em;
+      text-transform: uppercase;
+      margin-bottom: 3px;
+    }
+
+    .day-stat-value {
+      color: var(--text-main);
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 12px;
+      font-weight: 600;
+      overflow-wrap: anywhere;
+    }
+
+    .empty-state {
+      grid-column: 1 / -1;
+      padding: 34px 16px;
+      border: 1px dashed var(--border-soft);
+      color: var(--text-muted);
+      text-align: center;
+      font-family: "Barlow Condensed", sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    @media (max-width: 900px) {
+      .summary-strip {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .summary-item {
+        border-bottom: 1px solid var(--border-soft);
+      }
+
+      .summary-item:nth-child(2n) {
+        border-right: none;
+      }
+
+      .summary-item:last-child {
+        border-bottom: none;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .main {
+        width: min(100% - 24px, 1500px);
+        padding-top: 14px;
+      }
+
+      .summary-strip {
+        grid-template-columns: 1fr;
+      }
+
+      .summary-item,
+      .summary-item:nth-child(2n) {
+        border-right: none;
+        border-bottom: 1px solid var(--border-soft);
+      }
+
+      .summary-item:last-child {
+        border-bottom: none;
+      }
+
+      .section {
+        padding: 12px;
+      }
+
+      .history-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
   <div id="nav-placeholder"></div>
 
-  <div class="container">
-    <h1 class="site-title">Dashboard</h1>
+  <section class="hero" aria-label="SportsModelHub">
+    <img
+      src="assets/images/smh_logo.png"
+      alt="SportsModelHub sports analytics"
+      width="1698"
+      height="926"
+      loading="eager"
+      fetchpriority="high"
+    >
+  </section>
 
-    <div class="sport-grid">
-
-      <div class="sport-box">
-        <div class="sport-box-header">
-          <span class="sport-label">NHL</span>
-          <span class="sport-status" id="nhl-status">Loading...</span>
-        </div>
-        <div class="tally-content" id="nhl-tally">
-          <div class="loading-text">Fetching data...</div>
-        </div>
+  <main class="main">
+    <section class="summary-strip" aria-label="Overall completed bet performance">
+      <div class="summary-item">
+        <div class="summary-val" id="summary-completed">N/A</div>
+        <div class="summary-lbl">Completed Bets</div>
       </div>
 
-      <div class="sport-box">
-        <div class="sport-box-header">
-          <span class="sport-label">NBA</span>
-          <span class="sport-status" id="nba-status">Loading...</span>
-        </div>
-        <div class="tally-content" id="nba-tally">
-          <div class="loading-text">Fetching data...</div>
-        </div>
+      <div class="summary-item">
+        <div class="summary-val" id="summary-record">N/A</div>
+        <div class="summary-lbl">W-L-P Record</div>
       </div>
 
-      <div class="sport-box">
-        <div class="sport-box-header">
-          <span class="sport-label">NCAAB</span>
-          <span class="sport-status" id="ncaab-status">Loading...</span>
-        </div>
-        <div class="tally-content" id="ncaab-tally">
-          <div class="loading-text">Fetching data...</div>
-        </div>
+      <div class="summary-item">
+        <div class="summary-val" id="summary-win-rate">N/A</div>
+        <div class="summary-lbl">Win Rate</div>
       </div>
 
-      <div class="sport-box">
-        <div class="sport-box-header">
-          <span class="sport-label">MLB</span>
-          <span class="sport-status" id="mlb-status">Loading...</span>
-        </div>
-        <div class="tally-content" id="mlb-tally">
-          <div class="loading-text">Fetching data...</div>
-        </div>
+      <div class="summary-item">
+        <div class="summary-val val-blue" id="summary-model-prob">N/A</div>
+        <div class="summary-lbl">Avg Model Prob</div>
       </div>
 
-    </div>
-  </div>
+      <div class="summary-item">
+        <div class="summary-val" id="summary-profit">N/A</div>
+        <div class="summary-lbl">Profit / Loss</div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-header">
+        <div class="section-title">Completed Bet History</div>
+        <div class="section-note">Last 30 completed dates, all sports, all markets</div>
+      </div>
+
+      <div class="status-line">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-text">Loading completed bet history...</span>
+      </div>
+
+      <div class="history-grid" id="history-grid">
+        <div class="empty-state">Loading completed bet history...</div>
+      </div>
+    </section>
+  </main>
 
   <script src="assets/js/shared/nav.js"></script>
+
+  <script src="assets/js/bet-history/config.js"></script>
+  <script src="assets/js/bet-history/sources.js"></script>
+  <script src="assets/js/bet-history/csv.js"></script>
+  <script src="assets/js/bet-history/normalize.js"></script>
+
   <script>
-    function parseCSV(text) {
-      const lines = text.trim().split('\n');
-      if (lines.length < 2) return [];
-      const heads = lines[0].split(',').map(h => h.trim());
-      return lines.slice(1).map(line => {
-        const vals = line.split(',').map(v => v.trim());
-        return Object.fromEntries(heads.map((h, i) => [h, vals[i] ?? '']));
+    function padTwo(n) {
+      return n < 10 ? "0" + n : String(n);
+    }
+
+    function todayFileDate() {
+      var d = new Date();
+      return d.getFullYear() + "_" + padTwo(d.getMonth() + 1) + "_" + padTwo(d.getDate());
+    }
+
+    function normalizeFileDate(value) {
+      return String(value || "").trim().replaceAll("-", "_");
+    }
+
+    function dateFromFileDate(value) {
+      var parts = normalizeFileDate(value).split("_").map(function(v) {
+        return parseInt(v, 10);
+      });
+
+      if (parts.length !== 3 || parts.some(function(v) { return isNaN(v); })) {
+        return null;
+      }
+
+      return new Date(parts[0], parts[1] - 1, parts[2]);
+    }
+
+    function fileDateFromDate(d) {
+      return d.getFullYear() + "_" + padTwo(d.getMonth() + 1) + "_" + padTwo(d.getDate());
+    }
+
+    function buildDateList(startDate, endDate) {
+      var start = dateFromFileDate(startDate);
+      var end = dateFromFileDate(endDate || todayFileDate());
+      var dates = [];
+
+      if (!start || !end || start > end) return dates;
+
+      var current = new Date(start.getTime());
+
+      while (current <= end) {
+        dates.push(fileDateFromDate(current));
+        current.setDate(current.getDate() + 1);
+      }
+
+      return dates;
+    }
+
+    function fetchSourceUrl(url, label, warnOnFail) {
+      return fetch(url)
+        .then(function(response) {
+          if (!response.ok) {
+            throw new Error(label + " " + response.status);
+          }
+          return response.text();
+        })
+        .then(function(text) {
+          return parseCSV(text);
+        })
+        .catch(function(error) {
+          if (warnOnFail) {
+            console.warn("Failed to load " + label + ":", error);
+          }
+          return [];
+        });
+    }
+
+    function resolveSourceUrls(source) {
+      if (Array.isArray(source.urls)) {
+        return Promise.resolve(source.urls);
+      }
+
+      if (source.url) {
+        return Promise.resolve([source.url]);
+      }
+
+      if (source.indexUrl) {
+        return fetch(source.indexUrl)
+          .then(function(response) {
+            if (!response.ok) {
+              throw new Error(source.label + " index " + response.status);
+            }
+            return response.json();
+          })
+          .then(function(items) {
+            if (!Array.isArray(items)) return [];
+
+            if (typeof source.indexItemToUrl === "function") {
+              return items
+                .map(function(item) {
+                  return source.indexItemToUrl(item);
+                })
+                .filter(function(url) {
+                  return !!url;
+                });
+            }
+
+            return [];
+          })
+          .catch(function(error) {
+            console.warn("Failed to load " + source.label + " index:", error);
+            return [];
+          });
+      }
+
+      if (typeof source.datePattern === "function") {
+        return Promise.resolve(
+          buildDateList(source.startDate, source.endDate).map(function(date) {
+            return source.datePattern(date);
+          })
+        );
+      }
+
+      return Promise.resolve([]);
+    }
+
+    function loadSource(source) {
+      return resolveSourceUrls(source).then(function(urls) {
+        if (!urls.length) {
+          return {
+            label: source.label,
+            rows: []
+          };
+        }
+
+        var warnOnFail = !source.datePattern;
+
+        return Promise.all(
+          urls.map(function(url) {
+            return fetchSourceUrl(url, source.label, warnOnFail);
+          })
+        ).then(function(groups) {
+          return {
+            label: source.label,
+            rows: groups.reduce(function(all, rows) {
+              return all.concat(rows);
+            }, [])
+          };
+        });
       });
     }
 
-    const NHL_MAP  = { moneyline: 'Moneyline', puck_line: 'Puck Line', total: 'Over/Under' };
-    const STD_MAP  = { moneyline: 'Moneyline', spread: 'Spread', total: 'Over/Under' };
-    const MLB_MAP  = { moneyline: 'Moneyline', run_line: 'Run Line', total: 'Over/Under' };
+    function prepareSourceRow(row, sourceLabel) {
+      if (sourceLabel === "MLB_LINEUPS") {
+        var lineupRow = Object.assign({}, row);
+        lineupRow.league = "MLB_LINEUPS";
+        return lineupRow;
+      }
 
-    function norm(m, map)  { return map[(m||'').toLowerCase()] || m || '—'; }
-    function pct(v)        { const n=parseFloat(v); return isNaN(n)?'—':(n*100).toFixed(1)+'%'; }
-    function wrCls(v)      { const n=parseFloat(v)||0; return n>=0.60?'win':n>=0.50?'neutral':'loss'; }
-    function fmtU(v)       { const n=parseFloat(v); return isNaN(n)?'—':(n>=0?'+':'')+n.toFixed(2); }
-    function roiStr(v)     { const n=parseFloat(v); return isNaN(n)?'—':(n*100).toFixed(1)+'%'; }
-    function roiCls(v)     { const n=parseFloat(v); return isNaN(n)?'':(n>=0?'val-win':'val-loss'); }
+      if (sourceLabel === "UFC") {
+        var bet = String(row.bet || "").toLowerCase().trim();
+        var fighterIndex = bet === "fighter_1" ? 1 : bet === "fighter_2" ? 2 : 0;
 
-    function renderTally(tid, sid, data, map) {
-      const wrap = document.getElementById(tid);
-      const stat = document.getElementById(sid);
+        if (!fighterIndex) return row;
 
-      if (!data || !data.length) {
-        wrap.innerHTML = '<div class="no-data">No data available</div>';
-        stat.textContent = 'NO DATA';
-        stat.className = 'sport-status status-error';
+        var ufcRow = Object.assign({}, row);
+        var fighter = fighterIndex === 1 ? row.fighter_1 : row.fighter_2;
+
+        ufcRow.sport = "mma";
+        ufcRow.league = "UFC";
+        ufcRow.game_date = row.match_date;
+        ufcRow.matchup = [row.fighter_1, row.fighter_2].filter(Boolean).join(" vs ");
+        ufcRow.market_type = "moneyline";
+        ufcRow.bet_side = fighter;
+        ufcRow.take_bet = fighter;
+        ufcRow.dk_odds_american = fighterIndex === 1 ? row.moneyline_f1 : row.moneyline_f2;
+        ufcRow.model_prob = fighterIndex === 1 ? row.model_prob_f1 : row.model_prob_f2;
+        ufcRow.ev = fighterIndex === 1 ? row.ev_f1 : row.ev_f2;
+        ufcRow.kelly = fighterIndex === 1 ? row.kelly_f1 : row.kelly_f2;
+        ufcRow.edge = fighterIndex === 1 ? row.edge_f1 : row.edge_f2;
+        ufcRow.bet_result = fighterIndex === 1 ? row.result_fighter_1 : row.result_fighter_2;
+
+        return ufcRow;
+      }
+
+      return row;
+    }
+
+    function setStatus(text, state) {
+      document.getElementById("status-text").textContent = text;
+      document.getElementById("status-dot").className =
+        "status-dot" + (state ? " " + state : "");
+    }
+
+    function setValueClass(element, className) {
+      element.classList.remove("val-green", "val-red", "val-yellow", "val-blue");
+      if (className) {
+        element.classList.add(className);
+      }
+    }
+
+    function winRateClass(rate) {
+      if (rate >= 0.55) return "val-green";
+      if (rate < 0.45) return "val-red";
+      return "val-yellow";
+    }
+
+    function formatProfit(value) {
+      var n = parseFloat(value);
+      if (isNaN(n)) return "N/A";
+      return (n > 0 ? "+" : "") + n.toFixed(2) + "u";
+    }
+
+    function cleanDate(value) {
+      return String(value || "").trim().replaceAll("_", "-");
+    }
+
+    function formatDateLong(value) {
+      var clean = cleanDate(value);
+      var parts = clean.split("-");
+
+      if (parts.length !== 3) return clean || "Unknown Date";
+
+      var year = parseInt(parts[0], 10);
+      var month = parseInt(parts[1], 10);
+      var day = parseInt(parts[2], 10);
+
+      if (
+        isNaN(year) ||
+        isNaN(month) ||
+        isNaN(day) ||
+        month < 1 ||
+        month > 12
+      ) {
+        return clean || "Unknown Date";
+      }
+
+      var monthNames = [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December"
+      ];
+
+      return monthNames[month - 1] + " " + day + ", " + year;
+    }
+
+    function renderSummary(graded) {
+      var wins = graded.filter(function(row) {
+        return row.result === "win";
+      }).length;
+
+      var losses = graded.filter(function(row) {
+        return row.result === "loss";
+      }).length;
+
+      var pushes = graded.filter(function(row) {
+        return row.result === "push";
+      }).length;
+
+      var decisions = wins + losses;
+      var winRate = decisions ? wins / decisions : null;
+
+      var probabilityRows = graded.filter(function(row) {
+        return row.model_prob !== null;
+      });
+
+      var avgProbability = probabilityRows.length
+        ? probabilityRows.reduce(function(sum, row) {
+            return sum + row.model_prob;
+          }, 0) / probabilityRows.length
+        : null;
+
+      var profitRows = graded.filter(function(row) {
+        return row.profit_unit !== null;
+      });
+
+      var totalProfit = profitRows.reduce(function(sum, row) {
+        return sum + row.profit_unit;
+      }, 0);
+
+      var completedEl = document.getElementById("summary-completed");
+      var recordEl = document.getElementById("summary-record");
+      var winRateEl = document.getElementById("summary-win-rate");
+      var modelProbEl = document.getElementById("summary-model-prob");
+      var profitEl = document.getElementById("summary-profit");
+
+      completedEl.textContent = graded.length.toLocaleString();
+      recordEl.textContent = wins + "-" + losses + "-" + pushes;
+      winRateEl.textContent = winRate === null ? "N/A" : (winRate * 100).toFixed(1) + "%";
+      modelProbEl.textContent = avgProbability === null
+        ? "N/A"
+        : (avgProbability * 100).toFixed(1) + "%";
+      profitEl.textContent = profitRows.length ? formatProfit(totalProfit) : "N/A";
+
+      setValueClass(
+        recordEl,
+        winRate === null ? "" : winRateClass(winRate)
+      );
+
+      setValueClass(
+        winRateEl,
+        winRate === null ? "" : winRateClass(winRate)
+      );
+
+      setValueClass(modelProbEl, "val-blue");
+
+      setValueClass(
+        profitEl,
+        profitRows.length
+          ? (totalProfit >= 0 ? "val-green" : "val-red")
+          : ""
+      );
+    }
+
+    function buildDateGroups(graded) {
+      var groups = {};
+
+      graded.forEach(function(row) {
+        var key = cleanDate(row.game_date);
+
+        if (!key) return;
+
+        if (!groups[key]) {
+          groups[key] = [];
+        }
+
+        groups[key].push(row);
+      });
+
+      return Object.keys(groups)
+        .sort(function(a, b) {
+          return b.localeCompare(a);
+        })
+        .slice(0, 30)
+        .map(function(date) {
+          return {
+            date: date,
+            rows: groups[date]
+          };
+        });
+    }
+
+    function renderHistory(graded) {
+      var grid = document.getElementById("history-grid");
+      var groups = buildDateGroups(graded);
+
+      if (!groups.length) {
+        grid.innerHTML =
+          '<div class="empty-state">No completed bet history available</div>';
         return;
       }
 
-      stat.textContent = 'LIVE';
-      stat.className = 'sport-status status-live';
+      grid.innerHTML = groups.map(function(group) {
+        var rows = group.rows;
 
-      const maxB = Math.max(...data.map(r => parseInt(r.bets) || 0));
+        var wins = rows.filter(function(row) {
+          return row.result === "win";
+        }).length;
 
-      const bars = data.map(r => {
-        const lbl = norm(r.market_type, map);
-        const wr  = parseFloat(r.win_rate) || 0;
-        const w   = Math.max(((parseInt(r.bets)||0) / maxB) * 100, 4);
-        const cls = wr >= 0.60 ? 'bar-win' : wr >= 0.50 ? 'bar-neutral' : 'bar-loss';
-        return `<div class="tally-bar-row">
-          <div class="tally-bar-label">${lbl.toUpperCase()}</div>
-          <div class="tally-bar-track">
-            <div class="tally-bar-fill ${cls}" style="width:${w}%">${r.wins||0}W / ${r.losses||0}L</div>
-          </div>
-          <div class="tally-bar-pct"><span class="wr-badge wr-${wrCls(r.win_rate)}">${pct(r.win_rate)}</span></div>
-        </div>`;
-      }).join('');
+        var losses = rows.filter(function(row) {
+          return row.result === "loss";
+        }).length;
 
-      const rows = data.map(r => {
-        const lbl  = norm(r.market_type, map);
-        const u    = parseFloat(r.units);
-        const uCls = isNaN(u) ? '' : (u >= 0 ? 'val-win' : 'val-loss');
-        return `<tr>
-          <td>${lbl}</td>
-          <td class="val-win">${r.wins||'—'}</td>
-          <td class="val-loss">${r.losses||'—'}</td>
-          <td>${r.bets||'—'}</td>
-          <td><span class="wr-badge wr-${wrCls(r.win_rate)}">${pct(r.win_rate)}</span></td>
-          <td class="${uCls}">${fmtU(r.units)}</td>
-          <td class="${roiCls(r.roi)}">${roiStr(r.roi)}</td>
-        </tr>`;
-      }).join('');
+        var pushes = rows.filter(function(row) {
+          return row.result === "push";
+        }).length;
 
-      wrap.innerHTML = `
-        <div class="tally-section-title">WIN RATE BY MARKET</div>
-        <div class="tally-bars">${bars}</div>
-        <table class="tally-table">
-          <thead>
-            <tr>
-              <th>MARKET</th><th>WINS</th><th>LOSSES</th>
-              <th>BETS</th><th>WIN RATE</th><th>UNITS</th><th>ROI</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>`;
+        var decisions = wins + losses;
+        var rate = decisions ? wins / decisions : null;
+
+        var profitRows = rows.filter(function(row) {
+          return row.profit_unit !== null;
+        });
+
+        var profit = profitRows.reduce(function(sum, row) {
+          return sum + row.profit_unit;
+        }, 0);
+
+        var rateText = rate === null
+          ? "N/A"
+          : (rate * 100).toFixed(1) + "%";
+
+        var rateClass = rate === null
+          ? ""
+          : winRateClass(rate);
+
+        var profitText = profitRows.length
+          ? formatProfit(profit)
+          : "N/A";
+
+        var profitClass = profitRows.length
+          ? (profit >= 0 ? "val-green" : "val-red")
+          : "";
+
+        var recordClass = rate === null
+          ? ""
+          : winRateClass(rate);
+
+        return (
+          '<article class="day-card">' +
+            '<div class="date-label">Date</div>' +
+            '<div class="date-value">' + formatDateLong(group.date) + '</div>' +
+            '<div class="day-stats">' +
+              '<div class="day-stat">' +
+                '<div class="day-stat-label">Bets For That Day</div>' +
+                '<div class="day-stat-value">' + rows.length.toLocaleString() + '</div>' +
+              '</div>' +
+              '<div class="day-stat">' +
+                '<div class="day-stat-label">W-L-P Record</div>' +
+                '<div class="day-stat-value ' + recordClass + '">' +
+                  wins + '-' + losses + '-' + pushes +
+                '</div>' +
+              '</div>' +
+              '<div class="day-stat">' +
+                '<div class="day-stat-label">Win Rate</div>' +
+                '<div class="day-stat-value ' + rateClass + '">' +
+                  rateText +
+                '</div>' +
+              '</div>' +
+              '<div class="day-stat">' +
+                '<div class="day-stat-label">Profit / Loss</div>' +
+                '<div class="day-stat-value ' + profitClass + '">' +
+                  profitText +
+                '</div>' +
+              '</div>' +
+            '</div>' +
+          '</article>'
+        );
+      }).join("");
     }
 
-    const BASES = {
-      nhl:   'https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/docs/win/final_scores/deeper_summaries/nhl/',
-      nba:   'https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/docs/win/final_scores/deeper_summaries/nba/',
-      ncaab: 'https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/docs/win/final_scores/deeper_summaries/ncaab/',
-      mlb:   'https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/docs/win/final_scores/deeper_summaries/mlb/'
-    };
+    function loadHomepage() {
+      var activeSources = SOURCES.filter(function(source) {
+        return source.enabled !== false;
+      });
 
-    async function loadSport(sport, file, tid, sid, map) {
-      try {
-        const r = await fetch(BASES[sport] + file);
-        if (!r.ok) throw new Error(r.status);
-        renderTally(tid, sid, parseCSV(await r.text()), map);
-      } catch {
-        document.getElementById(tid).innerHTML = '<div class="no-data">Failed to load</div>';
-        const s = document.getElementById(sid);
-        s.textContent = 'ERROR';
-        s.className = 'sport-status status-error';
+      if (!activeSources.length) {
+        renderSummary([]);
+        renderHistory([]);
+        setStatus("No completed-bet sources are enabled.", "red");
+        return;
       }
+
+      setStatus("Loading completed bets from all enabled sports and markets...", "");
+
+      Promise.all(
+        activeSources.map(function(source) {
+          return loadSource(source);
+        })
+      )
+        .then(function(results) {
+          var allRows = [];
+
+          results.forEach(function(result) {
+            result.rows.forEach(function(row) {
+              var prepared = prepareSourceRow(row, result.label);
+              allRows.push(normalizeRow(prepared, result.label));
+            });
+          });
+
+          var graded = allRows.filter(function(row) {
+            return row.result === "win" ||
+              row.result === "loss" ||
+              row.result === "push";
+          });
+
+          renderSummary(graded);
+          renderHistory(graded);
+
+          setStatus(
+            graded.length.toLocaleString() +
+            " completed bets loaded across all enabled sports and markets.",
+            "green"
+          );
+        })
+        .catch(function(error) {
+          console.error("Homepage load failed:", error);
+          renderSummary([]);
+          renderHistory([]);
+          setStatus("Completed bet history failed to load.", "red");
+        });
     }
 
-    loadSport('nhl',   'nhl_summary_by_market.csv',   'nhl-tally',   'nhl-status',   NHL_MAP);
-    loadSport('nba',   'nba_summary_by_market.csv',   'nba-tally',   'nba-status',   STD_MAP);
-    loadSport('ncaab', 'ncaab_summary_by_market.csv', 'ncaab-tally', 'ncaab-status', STD_MAP);
-    loadSport('mlb',   'mlb_summary_by_market.csv',   'mlb-tally',   'mlb-status',   MLB_MAP);
+    loadHomepage();
   </script>
-
 </body>
 </html>
