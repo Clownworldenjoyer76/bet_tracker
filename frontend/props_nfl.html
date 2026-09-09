@@ -4,30 +4,19 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>NFL Props</title>
+  <link rel="stylesheet" href="assets/css/matstheme.css">
   <style>
-    :root {
-      --bg: #0b1020;
-      --panel: #121a2e;
-      --panel-2: #18233d;
-      --border: #2c3a5d;
-      --text: #eef3ff;
-      --muted: #9ba9c7;
-      --accent: #5aa9ff;
-      --green: #61d095;
-      --red: #ff7b7b;
-    }
-
     * { box-sizing: border-box; }
 
     body {
       margin: 0;
-      background: var(--bg);
-      color: var(--text);
-      font-family: Arial, Helvetica, sans-serif;
+      background: var(--background);
+      color: var(--text-main);
+      font-family: "Courier New", Courier, monospace;
     }
 
     .wrap {
-      width: min(1500px, calc(100% - 28px));
+      width: min(1200px, calc(100% - 40px));
       margin: 0 auto;
       padding: 24px 0 50px;
     }
@@ -35,19 +24,21 @@
     h1, h2 { margin: 0; }
 
     h1 {
+      color: var(--accent-green);
       font-size: 30px;
       margin-bottom: 22px;
     }
 
     h2 {
+      color: var(--text-main);
       font-size: 18px;
       margin-bottom: 12px;
     }
 
     .section {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-soft);
+      border-radius: 4px;
       padding: 16px;
       margin-bottom: 16px;
     }
@@ -59,22 +50,26 @@
     }
 
     button {
-      border: 1px solid var(--border);
-      background: var(--panel-2);
-      color: var(--text);
+      border: 1px solid var(--border-soft);
+      background: transparent;
+      color: var(--text-muted);
       padding: 10px 14px;
-      border-radius: 8px;
+      border-radius: 4px;
       cursor: pointer;
+      font-family: inherit;
       font-size: 14px;
       font-weight: 700;
     }
 
-    button:hover { border-color: var(--accent); }
+    button:hover {
+      border-color: var(--accent-green);
+      color: var(--accent-green);
+    }
 
     button.active {
-      background: var(--accent);
-      border-color: var(--accent);
-      color: #06101f;
+      background: rgba(0, 255, 132, 0.06);
+      border-color: var(--accent-green);
+      color: var(--accent-green);
     }
 
     .game-button {
@@ -84,18 +79,24 @@
 
     .game-button .teams {
       display: block;
+      color: var(--text-main);
       font-weight: 700;
+    }
+
+    .game-button.active .teams,
+    .game-button:hover .teams {
+      color: var(--accent-green);
     }
 
     .game-button .meta {
       display: block;
-      color: var(--muted);
+      color: var(--text-muted);
       font-size: 12px;
       margin-top: 4px;
     }
 
     #status {
-      color: var(--muted);
+      color: var(--accent-green);
       min-height: 20px;
       margin: 10px 0 0;
     }
@@ -109,64 +110,71 @@
     }
 
     #resultCount {
-      color: var(--muted);
+      color: var(--text-muted);
       font-size: 13px;
     }
 
     .table-wrap {
       overflow-x: auto;
-      border: 1px solid var(--border);
-      border-radius: 10px;
+      border: 1px solid var(--border-soft);
+      border-radius: 4px;
     }
 
     table {
       width: 100%;
       border-collapse: collapse;
       min-width: 980px;
+      background: var(--bg-card);
     }
 
     th, td {
       padding: 10px 12px;
-      border-bottom: 1px solid var(--border);
+      border-bottom: 1px solid var(--border-soft);
       text-align: left;
       white-space: nowrap;
     }
 
     th {
-      background: #10182b;
-      color: var(--muted);
+      background: var(--background);
+      color: var(--text-muted);
       font-size: 12px;
       text-transform: uppercase;
       letter-spacing: .04em;
     }
 
-    td { font-size: 14px; }
+    td {
+      color: var(--text-main);
+      font-size: 14px;
+    }
 
     tr:last-child td { border-bottom: 0; }
 
     .pick-over {
-      color: var(--green);
+      color: var(--accent-green);
       font-weight: 800;
       text-transform: uppercase;
     }
 
     .pick-under {
-      color: var(--red);
+      color: var(--accent-red);
       font-weight: 800;
       text-transform: uppercase;
     }
 
-    .prob { font-weight: 800; }
+    .prob {
+      color: var(--accent-blue);
+      font-weight: 800;
+    }
 
     .empty {
       padding: 24px;
-      color: var(--muted);
+      color: var(--text-muted);
       text-align: center;
     }
 
     @media (max-width: 720px) {
       .wrap {
-        width: min(100% - 16px, 1500px);
+        width: min(100% - 16px, 1200px);
         padding-top: 12px;
       }
 
@@ -179,6 +187,7 @@
   </style>
 </head>
 <body>
+  <div id="nav-placeholder"></div>
   <main class="wrap">
     <h1>NFL Props</h1>
 
@@ -211,6 +220,8 @@
       <div id="results"></div>
     </section>
   </main>
+
+  <script src="assets/js/shared/nav.js"></script>
 
   <script>
     const RAW_ROOT =
