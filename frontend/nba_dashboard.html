@@ -225,35 +225,30 @@ td.num { font-variant-numeric:tabular-nums; }
 .neg { color:var(--bad); }
 .muted { color:var(--muted); }
 
-td.win-pct-strong,
-.kpi .value.win-pct-strong {
+td.win-pct-strong {
   background:rgba(63,185,80,.24);
   color:#7ee787;
   font-weight:700;
 }
 
-td.win-pct-green,
-.kpi .value.win-pct-green {
+td.win-pct-green {
   background:rgba(63,185,80,.16);
   color:#56d364;
   font-weight:600;
 }
 
-td.win-pct-light,
-.kpi .value.win-pct-light {
+td.win-pct-light {
   background:rgba(63,185,80,.09);
   color:#8ddb8c;
   font-weight:600;
 }
 
-td.win-pct-neutral,
-.kpi .value.win-pct-neutral {
+td.win-pct-neutral {
   background:rgba(139,148,158,.09);
   color:#c9d1d9;
 }
 
-td.win-pct-red,
-.kpi .value.win-pct-red {
+td.win-pct-red {
   background:rgba(248,81,73,.14);
   color:#ff7b72;
   font-weight:600;
@@ -280,6 +275,7 @@ td.win-pct-red,
 <main>
 
 <section class="league-section" data-league="nba">
+  <h2>NBA Analytics</h2>
   <div class="kpis"></div>
 
   <h2>By Market</h2>
@@ -628,14 +624,6 @@ function buildQualityArea(section, data) {
   refresh();
 }
 
-function setPageTitle(league) {
-  const title = document.getElementById('page-title');
-  if (!title) return;
-
-  const label = LEAGUE_LABELS[league] || 'Basketball';
-  title.textContent = label + ' Analytics';
-}
-
 function selectLeague(league) {
   ACTIVE_LEAGUE = league;
 
@@ -646,8 +634,6 @@ function selectLeague(league) {
   document.querySelectorAll('.league-section').forEach(section => {
     section.classList.toggle('active', section.dataset.league === league);
   });
-
-  setPageTitle(league);
 
   try {
     localStorage.setItem('basketball_dash_league', league);
@@ -691,10 +677,7 @@ function buildLeagueSection(league, data) {
     let cssClass = '';
 
     if (value !== null && value !== undefined && value !== '') {
-      if (format === 'winpct') {
-        display = fmtPct(value);
-        cssClass = winPctClass(value);
-      } else if (format === 'pct') {
+      if (format === 'pct') {
         display = fmtPct(value);
         cssClass = signedClass(value) === 'pos' ? 'good' : (
           signedClass(value) === 'neg' ? 'bad' : ''
@@ -718,7 +701,7 @@ function buildLeagueSection(league, data) {
     kpi('Wins', grand.wins, 'int'),
     kpi('Losses', grand.losses, 'int'),
     kpi('Pushes', grand.pushes, 'int'),
-    kpi('Win %', grand.win_pct, 'winpct'),
+    kpi('Win %', grand.win_pct, 'pct'),
     kpi('Units (flat)', grand.units_flat, 'signed'),
     kpi('ROI flat', grand.roi_flat, 'pct'),
     kpi('Units (Kelly)', grand.units_kelly, 'signed'),
@@ -766,6 +749,10 @@ function buildLeagueSection(league, data) {
       return;
     }
 
+    const sideViewLabel = market === 'total'
+      ? 'Split by side (Over / Under)'
+      : 'Split by side (Home / Away)';
+
     panel.innerHTML =
       '<div class="controls">' +
         '<label>Dimension: <select class="dim-select">' +
@@ -776,7 +763,7 @@ function buildLeagueSection(league, data) {
         '</select></label>' +
         '<label>View: <select class="view-select">' +
           '<option value="overall">Overall</option>' +
-          '<option value="side">Split by side</option>' +
+          '<option value="side">' + sideViewLabel + '</option>' +
         '</select></label>' +
       '</div>' +
       '<div class="market-table"></div>';
