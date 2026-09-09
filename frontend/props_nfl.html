@@ -705,9 +705,25 @@
       const container = document.getElementById("propButtons");
       container.innerHTML = "";
 
+      const gameFilteredRows = state.props.filter(row => {
+        if (row.pick === "no_bet") return false;
+        if (!state.selectedGame) return true;
+        return String(row.game_id) === state.selectedGame;
+      });
+
+      const allButton = document.createElement("button");
+      allButton.textContent = `All Prop Types (${gameFilteredRows.length})`;
+      allButton.classList.toggle("active", state.selectedProp === null);
+      allButton.onclick = () => {
+        state.selectedProp = null;
+        renderPropButtons();
+        renderResults();
+      };
+      container.appendChild(allButton);
+
       PROP_TYPES.forEach(config => {
-        const count = state.props.filter(
-          row => row.prop_type === config.key && row.pick !== "no_bet"
+        const count = gameFilteredRows.filter(
+          row => row.prop_type === config.key
         ).length;
 
         const button = document.createElement("button");
@@ -719,9 +735,7 @@
 
         button.onclick = () => {
           state.selectedProp = config.key;
-          state.selectedGame = null;
           renderPropButtons();
-          renderGameButtons();
           renderResults();
         };
 
@@ -778,22 +792,29 @@
 
       let rows = state.props.filter(row => row.pick !== "no_bet");
 
+      if (state.selectedGame) {
+        rows = rows.filter(
+          row => String(row.game_id) === state.selectedGame
+        );
+      }
+
+      let selectedPropConfig = null;
       if (state.selectedProp) {
-        const config = PROP_TYPES.find(
+        selectedPropConfig = PROP_TYPES.find(
           p => p.key === state.selectedProp
         );
 
         rows = rows.filter(
           row => row.prop_type === state.selectedProp
         );
+      }
 
-        title.textContent = config ? config.label : "Picks";
+      if (state.selectedGame && selectedPropConfig) {
+        title.textContent = `${gameLabel(state.selectedGame)} · ${selectedPropConfig.label}`;
       } else if (state.selectedGame) {
-        rows = rows.filter(
-          row => String(row.game_id) === state.selectedGame
-        );
-
         title.textContent = gameLabel(state.selectedGame);
+      } else if (selectedPropConfig) {
+        title.textContent = selectedPropConfig.label;
       } else {
         title.textContent = "Picks";
       }
