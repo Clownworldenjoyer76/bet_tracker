@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NFL Props</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0c1118;
+      --panel: #141c26;
+      --panel-2: #1b2633;
+      --border: #2b3949;
+      --text: #f2f5f8;
+      --muted: #9eacbb;
+      --accent: #67b7ff;
+      --accent-strong: #2d8fe3;
+      --over: #51d88a;
+      --under: #ff8a80;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    .page {
+      width: min(1500px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 28px 0 48px;
+    }
+
+    h1,
+    h2 {
+      margin-top: 0;
+    }
+
+    h1 {
+      margin-bottom: 24px;
+      font-size: 30px;
+    }
+
+    h2 {
+      margin-bottom: 12px;
+      font-size: 18px;
+    }
+
+    .section {
+      margin-bottom: 22px;
+      padding: 18px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--panel);
+    }
+
+    .block-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .block-button {
+      min-width: 94px;
+      padding: 12px 16px;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      background: var(--panel-2);
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .block-button:hover,
+    .block-button:focus-visible {
+      border-color: var(--accent);
+      outline: none;
+    }
+
+    .block-button.active {
+      border-color: var(--accent);
+      background: var(--accent-strong);
+    }
+
+    .block-button:disabled {
+      cursor: default;
+      opacity: 0.45;
+    }
+
+    .game-button {
+      min-width: 250px;
+      text-align: left;
+    }
+
+    .game-date {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 400;
+    }
+
+    .status {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .results-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 12px;
+    }
+
+    .results-title {
+      margin: 0;
+      font-size: 20px;
+    }
+
+    .result-count {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      white-space: nowrap;
+      background: var(--panel);
+    }
+
+    th,
+    td {
+      padding: 11px 12px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      font-size: 13px;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      background: var(--panel-2);
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .pick-over {
+      color: var(--over);
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .pick-under {
+      color: var(--under);
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .probability {
+      font-variant-numeric: tabular-nums;
+      font-weight: 700;
+    }
+
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <h1>NFL Player Props</h1>
+
+    <section class="section">
+      <h2>Season</h2>
+      <div id="season-buttons" class="block-grid"></div>
+    </section>
+
+    <section class="section">
+      <h2>Week</h2>
+      <div id="week-buttons" class="block-grid">
+        <span class="status">Select a season.</span>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Prop Types</h2>
+      <div id="prop-buttons" class="block-grid"></div>
+    </section>
+
+    <section class="section">
+      <h2>Game Props</h2>
+      <div id="game-buttons" class="block-grid">
+        <span class="status">Select a week.</span>
+      </div>
+    </section>
+
+    <section id="results-section" class="section hidden">
+      <div class="results-header">
+        <h2 id="results-title" class="results-title"></h2>
+        <span id="result-count" class="result-count"></span>
+      </div>
+      <div id="results"></div>
+    </section>
+  </main>
+
+  <script>
+    "use strict";
+
+    const AVAILABLE_SEASONS = [2026];
+    const MAX_WEEK = 22;
+    const REPO_ROOT = "..";
+
+    const PROP_TYPES = [
+      {
+        id: "passing",
+        label: "Passing Yards",
+        path: "passing",
+        suffix: "passing",
+        actual: "actual_prop_total_passing_yards",
+        engine: "prop_engine_passing_yards",
+        low: "prop_engine_passing_yards_low",
+        high: "prop_engine_passing_yards_high"
+      },
+      {
+        id: "rushing",
+        label: "Rushing Yards",
+        path: "rushing",
+        suffix: "rushing",
+        actual: "actual_prop_total_rushing_yards",
+        engine: "prop_engine_rushing_yards",
+        low: "prop_engine_rushing_yards_low",
+        high: "prop_engine_rushing_yards_high"
+      },
+      {
+        id: "receiving",
+        label: "Receiving Yards",
+        path: "receiving",
+        suffix: "receiving",
+        actual: "actual_prop_total_receiving_yards",
+        engine: "prop_engine_receiving_yards",
+        low: "prop_engine_receiving_yards_low",
+        high: "prop_engine_receiving_yards_high"
+      },
+      {
+        id: "kicking",
+        label: "Kicking Points",
+        path: "kicking",
+        suffix: "kicking",
+        actual: "actual_prop_total_kicking_points",
+        engine: "prop_engine_kicking_points",
+        low: "prop_engine_kicking_points_low",
+        high: "prop_engine_kicking_points_high"
+      },
+      {
+        id: "defense",
+        label: "Tackles",
+        path: "defense",
+        suffix: "defense",
+        actual: "actual_prop_total_tackles",
+        engine: "prop_engine_tackles",
+        low: "prop_engine_tackles_low",
+        high: "prop_engine_tackles_high"
+      },
+      {
+        id: "pass-rush",
+        label: "Passing/Rushing Yards",
+        path: "combo/pass_rush_yds",
+        suffix: "pass_rush_yds",
+        actual: "actual_prop_total_passing_plus_rushing_yards",
+        engine: "prop_engine_pr",
+        low: "prop_engine_pr_low",
+        high: "prop_engine_pr_high"
+      },
+      {
+        id: "rush-receiving",
+        label: "Rushing/Receiving Yards",
+        path: "combo/rec_rush_yds",
+        suffix: "rec_rush_yds",
+        actual: "actual_prop_total_rushing_plus_receiving_yards",
+        engine: "prop_engine_rr",
+        low: "prop_engine_rr_low",
+        high: "prop_engine_rr_high"
+      }
+    ];
+
+    const state = {
+      season: null,
+      week: null,
+      mode: null,
+      modeValue: null,
+      schedule: [],
+      propRows: new Map(),
+      fetchCache: new Map()
+    };
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function parseCsv(text) {
+      const rows = [];
+      let row = [];
+      let field = "";
+      let quoted = false;
+
+      for (let i = 0; i < text.length; i += 1) {
+        const char = text[i];
+
+        if (quoted) {
+          if (char === '"') {
+            if (text[i + 1] === '"') {
+              field += '"';
+              i += 1;
+            } else {
+              quoted = false;
+            }
+          } else {
+            field += char;
+          }
+          continue;
+        }
+
+        if (char === '"') {
+          quoted = true;
+        } else if (char === ",") {
+          row.push(field);
+          field = "";
+        } else if (char === "\n") {
+          row.push(field.replace(/\r$/, ""));
+          rows.push(row);
+          row = [];
+          field = "";
+        } else {
+          field += char;
+        }
+      }
+
+      if (field.length > 0 || row.length > 0) {
+        row.push(field.replace(/\r$/, ""));
+        rows.push(row);
+      }
+
+      if (rows.length === 0) {
+        return [];
+      }
+
+      const headers = rows[0].map((header) => header.trim());
+      return rows
+        .slice(1)
+        .filter((values) => values.some((value) => value !== ""))
+        .map((values) => {
+          const record = {};
+          headers.forEach((header, index) => {
+            record[header] = values[index] ?? "";
+          });
+          return record;
+        });
+    }
+
+    function propFileUrl(season, week, config) {
+      return `${REPO_ROOT}/docs/win/football/nfl/prop_engine/prop_picks_final/${season}/stage_2/week_${week}/${config.path}/week_${week}_${config.suffix}.csv`;
+    }
+
+    function scheduleFileUrl(week) {
+      return `${REPO_ROOT}/docs/win/football/nfl/00_intake/schedule/weekly/week_${week}_NFL_weekly_schedule.csv`;
+    }
+
+    async function fetchText(url) {
+      if (state.fetchCache.has(url)) {
+        return state.fetchCache.get(url);
+      }
+
+      const request = fetch(url, { cache: "no-store" }).then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`${response.status} ${response.statusText}`);
+        }
+        return response.text();
+      });
+
+      state.fetchCache.set(url, request);
+      return request;
+    }
+
+    async function csvExists(url) {
+      try {
+        await fetchText(url);
+        return true;
+      } catch (_) {
+        state.fetchCache.delete(url);
+        return false;
+      }
+    }
+
+    function probabilityValue(row) {
+      const value = Number.parseFloat(row.pick_prob);
+      return Number.isFinite(value) ? value : -1;
+    }
+
+    function activePickRows(rows) {
+      return rows
+        .filter((row) => {
+          const pick = String(row.pick ?? "").trim().toLowerCase();
+          return pick === "over" || pick === "under";
+        })
+        .sort((a, b) => probabilityValue(b) - probabilityValue(a));
+    }
+
+    function setActiveButton(containerId, selector) {
+      document.querySelectorAll(`#${containerId} .block-button`).forEach((button) => {
+        button.classList.toggle("active", selector(button));
+      });
+    }
+
+    function renderSeasonButtons() {
+      const container = document.getElementById("season-buttons");
+      container.innerHTML = "";
+
+      AVAILABLE_SEASONS.forEach((season) => {
+        const button = document.createElement("button");
+        button.className = "block-button";
+        button.type = "button";
+        button.textContent = String(season);
+        button.dataset.season = String(season);
+        button.addEventListener("click", () => selectSeason(season));
+        container.appendChild(button);
+      });
+    }
+
+    async function selectSeason(season) {
+      state.season = season;
+      state.week = null;
+      state.mode = null;
+      state.modeValue = null;
+      state.propRows.clear();
+      state.schedule = [];
+
+      setActiveButton("season-buttons", (button) => Number(button.dataset.season) === season);
+      document.getElementById("results-section").classList.add("hidden");
+      document.getElementById("game-buttons").innerHTML = '<span class="status">Select a week.</span>';
+
+      await renderWeekButtons(season);
+    }
+
+    async function renderWeekButtons(season) {
+      const container = document.getElementById("week-buttons");
+      container.innerHTML = '<span class="status">Loading available weeks...</span>';
+
+      const sentinel = PROP_TYPES.find((item) => item.id === "passing");
+      const checks = [];
+
+      for (let week = 1; week <= MAX_WEEK; week += 1) {
+        checks.push(
+          csvExists(propFileUrl(season, week, sentinel)).then((exists) => ({ week, exists }))
+        );
+      }
+
+      const available = (await Promise.all(checks))
+        .filter((item) => item.exists)
+        .map((item) => item.week);
+
+      container.innerHTML = "";
+
+      if (available.length === 0) {
+        container.innerHTML = '<span class="status">No Stage 2 weeks found.</span>';
+        return;
+      }
+
+      available.forEach((week) => {
+        const button = document.createElement("button");
+        button.className = "block-button";
+        button.type = "button";
+        button.textContent = `Week ${week}`;
+        button.dataset.week = String(week);
+        button.addEventListener("click", () => selectWeek(week));
+        container.appendChild(button);
+      });
+    }
+
+    async function selectWeek(week) {
+      state.week = week;
+      state.mode = null;
+      state.modeValue = null;
+      state.propRows.clear();
+
+      setActiveButton("week-buttons", (button) => Number(button.dataset.week) === week);
+      setActiveButton("prop-buttons", () => false);
+      document.getElementById("results-section").classList.add("hidden");
+
+      await Promise.all([
+        loadAllPropRows(),
+        loadSchedule()
+      ]);
+
+      renderGameButtons();
+    }
+
+    async function loadAllPropRows() {
+      if (state.season === null || state.week === null) {
+        return;
+      }
+
+      const requests = PROP_TYPES.map(async (config) => {
+        try {
+          const text = await fetchText(propFileUrl(state.season, state.week, config));
+          state.propRows.set(config.id, parseCsv(text));
+        } catch (_) {
+          state.propRows.set(config.id, []);
+        }
+      });
+
+      await Promise.all(requests);
+    }
+
+    async function loadSchedule() {
+      if (state.week === null) {
+        state.schedule = [];
+        return;
+      }
+
+      try {
+        const text = await fetchText(scheduleFileUrl(state.week));
+        state.schedule = parseCsv(text).filter((row) => {
+          if (state.season === null) {
+            return true;
+          }
+          return String(row.season ?? "") === String(state.season);
+        });
+      } catch (_) {
+        state.schedule = [];
+      }
+    }
+
+    function renderPropButtons() {
+      const container = document.getElementById("prop-buttons");
+      container.innerHTML = "";
+
+      PROP_TYPES.forEach((config) => {
+        const button = document.createElement("button");
+        button.className = "block-button";
+        button.type = "button";
+        button.textContent = config.label;
+        button.dataset.propId = config.id;
+        button.addEventListener("click", () => showPropType(config.id));
+        container.appendChild(button);
+      });
+    }
+
+    function renderGameButtons() {
+      const container = document.getElementById("game-buttons");
+      container.innerHTML = "";
+
+      if (state.schedule.length === 0) {
+        container.innerHTML = '<span class="status">No schedule games found for this week.</span>';
+        return;
+      }
+
+      const games = [...state.schedule].sort((a, b) => {
+        const aTime = `${a.game_date ?? ""} ${a.game_time ?? ""}`;
+        const bTime = `${b.game_date ?? ""} ${b.game_time ?? ""}`;
+        return aTime.localeCompare(bTime);
+      });
+
+      games.forEach((game) => {
+        const button = document.createElement("button");
+        button.className = "block-button game-button";
+        button.type = "button";
+        button.dataset.gameId = String(game.game_id ?? "");
+        button.innerHTML = `${escapeHtml(game.away_team)} @ ${escapeHtml(game.home_team)}<span class="game-date">${escapeHtml(game.game_date)} ${escapeHtml(game.game_time)}</span>`;
+        button.addEventListener("click", () => showGame(String(game.game_id ?? "")));
+        container.appendChild(button);
+      });
+    }
+
+    function getPropConfig(propId) {
+      return PROP_TYPES.find((config) => config.id === propId);
+    }
+
+    function showPropType(propId) {
+      if (state.week === null) {
+        return;
+      }
+
+      const config = getPropConfig(propId);
+      if (!config) {
+        return;
+      }
+
+      state.mode = "prop";
+      state.modeValue = propId;
+      setActiveButton("prop-buttons", (button) => button.dataset.propId === propId);
+      setActiveButton("game-buttons", () => false);
+
+      const rows = activePickRows(state.propRows.get(propId) ?? []);
+      renderResults(`${config.label} — Week ${state.week}`, rows, config, false);
+    }
+
+    function showGame(gameId) {
+      if (state.week === null) {
+        return;
+      }
+
+      state.mode = "game";
+      state.modeValue = gameId;
+      setActiveButton("prop-buttons", () => false);
+      setActiveButton("game-buttons", (button) => button.dataset.gameId === gameId);
+
+      const game = state.schedule.find((row) => String(row.game_id ?? "") === gameId);
+      const title = game
+        ? `${game.away_team} @ ${game.home_team} — Week ${state.week}`
+        : `Game ${gameId} — Week ${state.week}`;
+
+      const combined = [];
+
+      PROP_TYPES.forEach((config) => {
+        const rows = state.propRows.get(config.id) ?? [];
+        rows.forEach((row) => {
+          const pick = String(row.pick ?? "").trim().toLowerCase();
+          if (String(row.game_id ?? "") === gameId && (pick === "over" || pick === "under")) {
+            combined.push({ row, config });
+          }
+        });
+      });
+
+      combined.sort((a, b) => probabilityValue(b.row) - probabilityValue(a.row));
+      renderGameResults(title, combined);
+    }
+
+    function renderResults(title, rows, config, includePropType) {
+      const section = document.getElementById("results-section");
+      const results = document.getElementById("results");
+      document.getElementById("results-title").textContent = title;
+      document.getElementById("result-count").textContent = `${rows.length} picks`;
+      section.classList.remove("hidden");
+
+      if (rows.length === 0) {
+        results.innerHTML = '<div class="status">No qualifying picks.</div>';
+        return;
+      }
+
+      const propHeader = includePropType ? "<th>Prop Type</th>" : "";
+      const propCell = includePropType ? `<td>${escapeHtml(config.label)}</td>` : "";
+
+      results.innerHTML = `
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Player</th>
+                ${propHeader}
+                <th>Sportsbook Line</th>
+                <th>Pick</th>
+                <th>Pick Probability</th>
+                <th>Over Probability</th>
+                <th>Under Probability</th>
+                <th>Engine Projection</th>
+                <th>Engine Low</th>
+                <th>Engine High</th>
+                <th>Game ID</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.map((row) => `
+                <tr>
+                  <td>${escapeHtml(row.player_name)}</td>
+                  ${propCell}
+                  <td>${escapeHtml(row[config.actual])}</td>
+                  <td class="pick-${escapeHtml(String(row.pick).toLowerCase())}">${escapeHtml(row.pick)}</td>
+                  <td class="probability">${escapeHtml(row.pick_prob)}</td>
+                  <td>${escapeHtml(row.over_prob)}</td>
+                  <td>${escapeHtml(row.under_prob)}</td>
+                  <td>${escapeHtml(row[config.engine])}</td>
+                  <td>${escapeHtml(row[config.low])}</td>
+                  <td>${escapeHtml(row[config.high])}</td>
+                  <td>${escapeHtml(row.game_id)}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function renderGameResults(title, combined) {
+      const section = document.getElementById("results-section");
+      const results = document.getElementById("results");
+      document.getElementById("results-title").textContent = title;
+      document.getElementById("result-count").textContent = `${combined.length} picks`;
+      section.classList.remove("hidden");
+
+      if (combined.length === 0) {
+        results.innerHTML = '<div class="status">No qualifying picks for this game.</div>';
+        return;
+      }
+
+      results.innerHTML = `
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Player</th>
+                <th>Prop Type</th>
+                <th>Sportsbook Line</th>
+                <th>Pick</th>
+                <th>Pick Probability</th>
+                <th>Over Probability</th>
+                <th>Under Probability</th>
+                <th>Engine Projection</th>
+                <th>Engine Low</th>
+                <th>Engine High</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${combined.map(({ row, config }) => `
+                <tr>
+                  <td>${escapeHtml(row.player_name)}</td>
+                  <td>${escapeHtml(config.label)}</td>
+                  <td>${escapeHtml(row[config.actual])}</td>
+                  <td class="pick-${escapeHtml(String(row.pick).toLowerCase())}">${escapeHtml(row.pick)}</td>
+                  <td class="probability">${escapeHtml(row.pick_prob)}</td>
+                  <td>${escapeHtml(row.over_prob)}</td>
+                  <td>${escapeHtml(row.under_prob)}</td>
+                  <td>${escapeHtml(row[config.engine])}</td>
+                  <td>${escapeHtml(row[config.low])}</td>
+                  <td>${escapeHtml(row[config.high])}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    async function initialize() {
+      renderSeasonButtons();
+      renderPropButtons();
+
+      if (AVAILABLE_SEASONS.length === 1) {
+        await selectSeason(AVAILABLE_SEASONS[0]);
+      }
+    }
+
+    initialize();
+  </script>
+</body>
+</html>
