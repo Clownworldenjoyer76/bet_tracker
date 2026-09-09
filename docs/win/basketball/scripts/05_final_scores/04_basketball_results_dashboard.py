@@ -1122,6 +1122,10 @@ function buildLeagueSection(league, data) {
       return;
     }
 
+    const sideViewLabel = market === 'total'
+      ? 'Split by side (Over / Under)'
+      : 'Split by side (Home / Away)';
+
     panel.innerHTML =
       '<div class="controls">' +
         '<label>Dimension: <select class="dim-select">' +
@@ -1132,7 +1136,7 @@ function buildLeagueSection(league, data) {
         '</select></label>' +
         '<label>View: <select class="view-select">' +
           '<option value="overall">Overall</option>' +
-          '<option value="side">Split by side</option>' +
+          '<option value="side">' + sideViewLabel + '</option>' +
         '</select></label>' +
       '</div>' +
       '<div class="market-table"></div>';
