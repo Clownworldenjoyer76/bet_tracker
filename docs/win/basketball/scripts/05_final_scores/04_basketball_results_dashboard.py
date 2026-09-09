@@ -372,36 +372,6 @@ def collect_all_data(payloads: dict[str, dict]) -> dict:
     units_flat = sum(to_number(row.get("units_flat")) for row in grand_rows)
     units_kelly = sum(to_number(row.get("units_kelly")) for row in grand_rows)
 
-    # Reconstruct the Kelly stake denominator from each league grand total:
-    # roi_kelly = units_kelly / stake_total.
-    # This keeps the All view consistent with the report generator without
-    # inventing a bets-based Kelly ROI denominator.
-    kelly_stake_total = 0.0
-    kelly_stake_rows = 0
-
-    for row in grand_rows:
-        league_units_kelly = to_number(row.get("units_kelly"))
-        league_roi_kelly = row.get("roi_kelly")
-
-        try:
-            league_roi_kelly = float(league_roi_kelly)
-        except (TypeError, ValueError):
-            continue
-
-        if pd.isna(league_roi_kelly) or abs(league_roi_kelly) < 1e-12:
-            continue
-
-        implied_stake = league_units_kelly / league_roi_kelly
-        if implied_stake > 0:
-            kelly_stake_total += implied_stake
-            kelly_stake_rows += 1
-
-    roi_kelly = (
-        units_kelly / kelly_stake_total
-        if kelly_stake_rows and kelly_stake_total > 0
-        else None
-    )
-
     grand_total = {
         "league": "ALL",
         "bets": bets,
@@ -412,7 +382,7 @@ def collect_all_data(payloads: dict[str, dict]) -> dict:
         "units_flat": units_flat if grand_rows else None,
         "roi_flat": units_flat / bets if bets else None,
         "units_kelly": units_kelly if grand_rows else None,
-        "roi_kelly": roi_kelly,
+        "roi_kelly": None,
     }
 
     by_market_summary: list[dict] = []
@@ -686,35 +656,30 @@ td.num { font-variant-numeric:tabular-nums; }
 .neg { color:var(--bad); }
 .muted { color:var(--muted); }
 
-td.win-pct-strong,
-.kpi .value.win-pct-strong {
+td.win-pct-strong {
   background:rgba(63,185,80,.24);
   color:#7ee787;
   font-weight:700;
 }
 
-td.win-pct-green,
-.kpi .value.win-pct-green {
+td.win-pct-green {
   background:rgba(63,185,80,.16);
   color:#56d364;
   font-weight:600;
 }
 
-td.win-pct-light,
-.kpi .value.win-pct-light {
+td.win-pct-light {
   background:rgba(63,185,80,.09);
   color:#8ddb8c;
   font-weight:600;
 }
 
-td.win-pct-neutral,
-.kpi .value.win-pct-neutral {
+td.win-pct-neutral {
   background:rgba(139,148,158,.09);
   color:#c9d1d9;
 }
 
-td.win-pct-red,
-.kpi .value.win-pct-red {
+td.win-pct-red {
   background:rgba(248,81,73,.14);
   color:#ff7b72;
   font-weight:600;
@@ -1032,14 +997,6 @@ function buildQualityArea(section, data) {
   refresh();
 }
 
-function setPageTitle(league) {
-  const title = document.getElementById('page-title');
-  if (!title) return;
-
-  const label = LEAGUE_LABELS[league] || 'Basketball';
-  title.textContent = label + ' Analytics';
-}
-
 function selectLeague(league) {
   ACTIVE_LEAGUE = league;
 
@@ -1050,8 +1007,6 @@ function selectLeague(league) {
   document.querySelectorAll('.league-section').forEach(section => {
     section.classList.toggle('active', section.dataset.league === league);
   });
-
-  setPageTitle(league);
 
   try {
     localStorage.setItem('basketball_dash_league', league);
@@ -1095,10 +1050,7 @@ function buildLeagueSection(league, data) {
     let cssClass = '';
 
     if (value !== null && value !== undefined && value !== '') {
-      if (format === 'winpct') {
-        display = fmtPct(value);
-        cssClass = winPctClass(value);
-      } else if (format === 'pct') {
+      if (format === 'pct') {
         display = fmtPct(value);
         cssClass = signedClass(value) === 'pos' ? 'good' : (
           signedClass(value) === 'neg' ? 'bad' : ''
@@ -1122,7 +1074,7 @@ function buildLeagueSection(league, data) {
     kpi('Wins', grand.wins, 'int'),
     kpi('Losses', grand.losses, 'int'),
     kpi('Pushes', grand.pushes, 'int'),
-    kpi('Win %', grand.win_pct, 'winpct'),
+    kpi('Win %', grand.win_pct, 'pct'),
     kpi('Units (flat)', grand.units_flat, 'signed'),
     kpi('ROI flat', grand.roi_flat, 'pct'),
     kpi('Units (Kelly)', grand.units_kelly, 'signed'),
@@ -1272,6 +1224,7 @@ function buildLeagueSection(league, data) {
 def league_section_html(league: str, display: str) -> str:
     return f"""
 <section class="league-section" data-league="{html.escape(league)}">
+  <h2>{html.escape(display)} Analytics</h2>
   <div class="kpis"></div>
 
   <h2>By Market</h2>
@@ -1386,7 +1339,7 @@ def build_page(
 <div id="nav-placeholder"></div>
 
 <header>
-  <h1 id="page-title">{html.escape(LEAGUE_DISPLAY[first_league])} Analytics</h1>
+  <h1 id="page-title">{html.escape(page_title)}</h1>
 </header>
 
 <div class="selector-bar season-bar"{season_bar_style}>
