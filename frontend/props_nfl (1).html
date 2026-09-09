@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NFL Props</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #121a2e;
+      --panel-2: #18233d;
+      --border: #2c3a5d;
+      --text: #eef3ff;
+      --muted: #9ba9c7;
+      --accent: #5aa9ff;
+      --green: #61d095;
+      --red: #ff7b7b;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    .wrap {
+      width: min(1500px, calc(100% - 28px));
+      margin: 0 auto;
+      padding: 24px 0 50px;
+    }
+
+    h1, h2 { margin: 0; }
+
+    h1 {
+      font-size: 30px;
+      margin-bottom: 22px;
+    }
+
+    h2 {
+      font-size: 18px;
+      margin-bottom: 12px;
+    }
+
+    .section {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .button-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 9px;
+    }
+
+    button {
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    button:hover { border-color: var(--accent); }
+
+    button.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #06101f;
+    }
+
+    .game-button {
+      min-width: 245px;
+      text-align: left;
+    }
+
+    .game-button .teams {
+      display: block;
+      font-weight: 700;
+    }
+
+    .game-button .meta {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 4px;
+    }
+
+    #status {
+      color: var(--muted);
+      min-height: 20px;
+      margin: 10px 0 0;
+    }
+
+    .results-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    #resultCount {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 980px;
+    }
+
+    th, td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    th {
+      background: #10182b;
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+
+    td { font-size: 14px; }
+
+    tr:last-child td { border-bottom: 0; }
+
+    .pick-over {
+      color: var(--green);
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .pick-under {
+      color: var(--red);
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .prob { font-weight: 800; }
+
+    .empty {
+      padding: 24px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    @media (max-width: 720px) {
+      .wrap {
+        width: min(100% - 16px, 1500px);
+        padding-top: 12px;
+      }
+
+      .section { padding: 12px; }
+
+      button { padding: 9px 11px; }
+
+      .game-button { min-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <h1>NFL Props</h1>
+
+    <section class="section">
+      <h2>Season</h2>
+      <div id="seasonButtons" class="button-grid"></div>
+    </section>
+
+    <section class="section">
+      <h2>Week</h2>
+      <div id="weekButtons" class="button-grid"></div>
+      <div id="status"></div>
+    </section>
+
+    <section class="section">
+      <h2>Prop Types</h2>
+      <div id="propButtons" class="button-grid"></div>
+    </section>
+
+    <section class="section">
+      <h2>Game Props</h2>
+      <div id="gameButtons" class="button-grid"></div>
+    </section>
+
+    <section class="section">
+      <div class="results-header">
+        <h2 id="resultsTitle">Picks</h2>
+        <div id="resultCount"></div>
+      </div>
+      <div id="results"></div>
+    </section>
+  </main>
+
+  <script>
+    const RAW_ROOT =
+      "https://raw.githubusercontent.com/Clownworldenjoyer76/football_for_mat/main";
+
+    const AVAILABLE_SEASONS = [2026];
+    const AVAILABLE_WEEKS = Array.from({ length: 18 }, (_, i) => i + 1);
+
+    const PROP_TYPES = [
+      {
+        key: "passing",
+        label: "Passing Yards",
+        path: "passing",
+        suffix: "passing",
+        line: "actual_prop_total_passing_yards",
+        projection: "prop_engine_passing_yards",
+        low: "prop_engine_passing_yards_low",
+        high: "prop_engine_passing_yards_high"
+      },
+      {
+        key: "rushing",
+        label: "Rushing Yards",
+        path: "rushing",
+        suffix: "rushing",
+        line: "actual_prop_total_rushing_yards",
+        projection: "prop_engine_rushing_yards",
+        low: "prop_engine_rushing_yards_low",
+        high: "prop_engine_rushing_yards_high"
+      },
+      {
+        key: "receiving",
+        label: "Receiving Yards",
+        path: "receiving",
+        suffix: "receiving",
+        line: "actual_prop_total_receiving_yards",
+        projection: "prop_engine_receiving_yards",
+        low: "prop_engine_receiving_yards_low",
+        high: "prop_engine_receiving_yards_high"
+      },
+      {
+        key: "kicking",
+        label: "Kicking Points",
+        path: "kicking",
+        suffix: "kicking",
+        line: "actual_prop_total_kicking_points",
+        projection: "prop_engine_kicking_points",
+        low: "prop_engine_kicking_points_low",
+        high: "prop_engine_kicking_points_high"
+      },
+      {
+        key: "defense",
+        label: "Tackles",
+        path: "defense",
+        suffix: "defense",
+        line: "actual_prop_total_tackles",
+        projection: "prop_engine_tackles",
+        low: "prop_engine_tackles_low",
+        high: "prop_engine_tackles_high"
+      },
+      {
+        key: "pass_rush",
+        label: "Passing/Rushing Yards",
+        path: "combo/pass_rush_yds",
+        suffix: "pass_rush_yds",
+        line: "actual_prop_total_passing_plus_rushing_yards",
+        projection: "prop_engine_pr",
+        low: "prop_engine_pr_low",
+        high: "prop_engine_pr_high"
+      },
+      {
+        key: "rec_rush",
+        label: "Rushing/Receiving Yards",
+        path: "combo/rec_rush_yds",
+        suffix: "rec_rush_yds",
+        line: "actual_prop_total_rushing_plus_receiving_yards",
+        projection: "prop_engine_rr",
+        low: "prop_engine_rr_low",
+        high: "prop_engine_rr_high"
+      }
+    ];
+
+    const state = {
+      season: 2026,
+      week: 1,
+      schedule: [],
+      props: [],
+      selectedProp: null,
+      selectedGame: null
+    };
+
+    function parseCsv(text) {
+      const rows = [];
+      let row = [];
+      let field = "";
+      let quoted = false;
+
+      for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+
+        if (quoted) {
+          if (ch === '"') {
+            if (text[i + 1] === '"') {
+              field += '"';
+              i++;
+            } else {
+              quoted = false;
+            }
+          } else {
+            field += ch;
+          }
+        } else {
+          if (ch === '"') {
+            quoted = true;
+          } else if (ch === ",") {
+            row.push(field);
+            field = "";
+          } else if (ch === "\n") {
+            row.push(field.replace(/\r$/, ""));
+            rows.push(row);
+            row = [];
+            field = "";
+          } else {
+            field += ch;
+          }
+        }
+      }
+
+      if (field.length || row.length) {
+        row.push(field.replace(/\r$/, ""));
+        rows.push(row);
+      }
+
+      if (!rows.length) return [];
+
+      const headers = rows[0].map(h => h.trim());
+
+      return rows
+        .slice(1)
+        .filter(r => r.some(v => String(v).trim() !== ""))
+        .map(r => {
+          const obj = {};
+          headers.forEach((h, index) => {
+            obj[h] = r[index] ?? "";
+          });
+          return obj;
+        });
+    }
+
+    async function fetchCsv(url) {
+      const response = await fetch(url, { cache: "no-store" });
+
+      if (!response.ok) {
+        throw new Error(`${response.status} ${response.statusText}`);
+      }
+
+      return parseCsv(await response.text());
+    }
+
+    function stage2Url(season, week, config) {
+      return (
+        `${RAW_ROOT}/docs/win/football/nfl/prop_engine/prop_picks_final/` +
+        `${season}/stage_2/week_${week}/${config.path}/` +
+        `week_${week}_${config.suffix}.csv`
+      );
+    }
+
+    function scheduleUrl(week) {
+      return (
+        `${RAW_ROOT}/docs/win/football/nfl/00_intake/schedule/weekly/` +
+        `week_${week}_NFL_weekly_schedule.csv`
+      );
+    }
+
+    function numeric(value) {
+      const n = Number(value);
+      return Number.isFinite(n) ? n : null;
+    }
+
+    function formatProb(value) {
+      const n = numeric(value);
+      return n === null ? "" : n.toFixed(4);
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function gameLabel(gameId) {
+      const game = state.schedule.find(
+        g => String(g.game_id) === String(gameId)
+      );
+
+      if (!game) return String(gameId);
+
+      return `${game.away_team} @ ${game.home_team}`;
+    }
+
+    function renderSeasonButtons() {
+      const container = document.getElementById("seasonButtons");
+      container.innerHTML = "";
+
+      AVAILABLE_SEASONS.forEach(season => {
+        const button = document.createElement("button");
+        button.textContent = season;
+        button.classList.toggle("active", season === state.season);
+
+        button.onclick = async () => {
+          state.season = season;
+          state.selectedProp = null;
+          state.selectedGame = null;
+          renderSeasonButtons();
+          await loadWeek();
+        };
+
+        container.appendChild(button);
+      });
+    }
+
+    function renderWeekButtons() {
+      const container = document.getElementById("weekButtons");
+      container.innerHTML = "";
+
+      AVAILABLE_WEEKS.forEach(week => {
+        const button = document.createElement("button");
+        button.textContent = `Week ${week}`;
+        button.classList.toggle("active", week === state.week);
+
+        button.onclick = async () => {
+          state.week = week;
+          state.selectedProp = null;
+          state.selectedGame = null;
+          renderWeekButtons();
+          await loadWeek();
+        };
+
+        container.appendChild(button);
+      });
+    }
+
+    function renderPropButtons() {
+      const container = document.getElementById("propButtons");
+      container.innerHTML = "";
+
+      PROP_TYPES.forEach(config => {
+        const count = state.props.filter(
+          row => row.prop_type === config.key && row.pick !== "no_bet"
+        ).length;
+
+        const button = document.createElement("button");
+        button.textContent = `${config.label} (${count})`;
+        button.classList.toggle(
+          "active",
+          state.selectedProp === config.key
+        );
+
+        button.onclick = () => {
+          state.selectedProp = config.key;
+          state.selectedGame = null;
+          renderPropButtons();
+          renderGameButtons();
+          renderResults();
+        };
+
+        container.appendChild(button);
+      });
+    }
+
+    function renderGameButtons() {
+      const container = document.getElementById("gameButtons");
+      container.innerHTML = "";
+
+      state.schedule.forEach(game => {
+        const gameId = String(game.game_id);
+        const count = state.props.filter(
+          row =>
+            String(row.game_id) === gameId &&
+            row.pick !== "no_bet"
+        ).length;
+
+        const button = document.createElement("button");
+        button.className = "game-button";
+        button.classList.toggle(
+          "active",
+          state.selectedGame === gameId
+        );
+
+        const teams = document.createElement("span");
+        teams.className = "teams";
+        teams.textContent = `${game.away_team} @ ${game.home_team}`;
+
+        const meta = document.createElement("span");
+        meta.className = "meta";
+        meta.textContent =
+          `${game.game_date || ""} • ${count} picks`;
+
+        button.appendChild(teams);
+        button.appendChild(meta);
+
+        button.onclick = () => {
+          state.selectedGame = gameId;
+          state.selectedProp = null;
+          renderPropButtons();
+          renderGameButtons();
+          renderResults();
+        };
+
+        container.appendChild(button);
+      });
+    }
+
+    function renderResults() {
+      const target = document.getElementById("results");
+      const title = document.getElementById("resultsTitle");
+      const count = document.getElementById("resultCount");
+
+      let rows = state.props.filter(row => row.pick !== "no_bet");
+
+      if (state.selectedProp) {
+        const config = PROP_TYPES.find(
+          p => p.key === state.selectedProp
+        );
+
+        rows = rows.filter(
+          row => row.prop_type === state.selectedProp
+        );
+
+        title.textContent = config ? config.label : "Picks";
+      } else if (state.selectedGame) {
+        rows = rows.filter(
+          row => String(row.game_id) === state.selectedGame
+        );
+
+        title.textContent = gameLabel(state.selectedGame);
+      } else {
+        title.textContent = "Picks";
+      }
+
+      rows.sort(
+        (a, b) =>
+          (numeric(b.pick_prob) ?? -1) -
+          (numeric(a.pick_prob) ?? -1)
+      );
+
+      count.textContent = `${rows.length} picks`;
+
+      if (!rows.length) {
+        target.innerHTML =
+          '<div class="empty">No qualifying picks.</div>';
+        return;
+      }
+
+      const body = rows.map(row => {
+        const config = PROP_TYPES.find(
+          p => p.key === row.prop_type
+        );
+
+        const pickClass =
+          row.pick === "over" ? "pick-over" : "pick-under";
+
+        return `
+          <tr>
+            <td>${escapeHtml(row.player_name)}</td>
+            <td>${escapeHtml(config?.label || row.prop_type)}</td>
+            <td>${escapeHtml(gameLabel(row.game_id))}</td>
+            <td>${escapeHtml(row[config.line])}</td>
+            <td class="${pickClass}">${escapeHtml(row.pick)}</td>
+            <td class="prob">${escapeHtml(formatProb(row.pick_prob))}</td>
+            <td>${escapeHtml(formatProb(row.over_prob))}</td>
+            <td>${escapeHtml(formatProb(row.under_prob))}</td>
+            <td>${escapeHtml(row[config.projection])}</td>
+            <td>${escapeHtml(row[config.low])}</td>
+            <td>${escapeHtml(row[config.high])}</td>
+          </tr>
+        `;
+      }).join("");
+
+      target.innerHTML = `
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Player</th>
+                <th>Prop Type</th>
+                <th>Game</th>
+                <th>Sportsbook Line</th>
+                <th>Pick</th>
+                <th>Pick Prob</th>
+                <th>Over Prob</th>
+                <th>Under Prob</th>
+                <th>Projection</th>
+                <th>Low</th>
+                <th>High</th>
+              </tr>
+            </thead>
+            <tbody>${body}</tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    async function loadWeek() {
+      const status = document.getElementById("status");
+
+      status.textContent =
+        `Loading ${state.season} Week ${state.week}...`;
+
+      state.schedule = [];
+      state.props = [];
+
+      const schedulePromise = fetchCsv(scheduleUrl(state.week))
+        .catch(() => []);
+
+      const propPromises = PROP_TYPES.map(async config => {
+        try {
+          const rows = await fetchCsv(
+            stage2Url(state.season, state.week, config)
+          );
+
+          return rows.map(row => ({
+            ...row,
+            prop_type: config.key
+          }));
+        } catch (_) {
+          return [];
+        }
+      });
+
+      const [schedule, propGroups] = await Promise.all([
+        schedulePromise,
+        Promise.all(propPromises)
+      ]);
+
+      state.schedule = schedule.filter(
+        row =>
+          !row.season ||
+          String(row.season) === String(state.season)
+      );
+
+      state.props = propGroups.flat();
+
+      renderPropButtons();
+      renderGameButtons();
+      renderResults();
+
+      if (!state.schedule.length && !state.props.length) {
+        status.textContent =
+          `No data found for ${state.season} Week ${state.week}.`;
+      } else {
+        status.textContent =
+          `${state.season} Week ${state.week}`;
+      }
+    }
+
+    async function init() {
+      renderSeasonButtons();
+      renderWeekButtons();
+      await loadWeek();
+    }
+
+    init();
+  </script>
+</body>
+</html>
