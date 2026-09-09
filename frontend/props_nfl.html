@@ -4,66 +4,145 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>NFL Props</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/matstheme.css">
   <style>
-    * { box-sizing: border-box; }
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
     body {
-      margin: 0;
+      min-height: 100vh;
       background: var(--background);
       color: var(--text-main);
-      font-family: "Courier New", Courier, monospace;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 13px;
     }
 
-    .wrap {
-      width: min(1200px, calc(100% - 40px));
-      margin: 0 auto;
-      padding: 24px 0 50px;
+    .page-header {
+      border-bottom: 1px solid var(--border-soft);
+      padding: 16px 24px;
     }
 
-    h1, h2 { margin: 0; }
-
-    h1 {
+    .page-title {
+      font-family: "Barlow Condensed", sans-serif;
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
       color: var(--accent-green);
-      font-size: 30px;
-      margin-bottom: 22px;
     }
 
-    h2 {
+    .page-subtitle {
+      margin-top: 2px;
+      color: var(--text-muted);
+      font-size: 11px;
+      letter-spacing: 0.06em;
+    }
+
+    .main {
+      width: min(1500px, calc(100% - 48px));
+      margin: 0 auto;
+      padding: 20px 0 44px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .selector-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .selector-block {
+      width: 120px;
+      flex: 0 0 120px;
+    }
+
+    .selector-label,
+    .section-title {
+      font-family: "Barlow Condensed", sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .selector-label {
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    .selector {
+      width: 100%;
+      height: 34px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-soft);
       color: var(--text-main);
-      font-size: 18px;
-      margin-bottom: 12px;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 12px;
+      padding: 0 10px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .selector:focus,
+    .selector:hover {
+      border-color: var(--accent-green);
+    }
+
+    #status {
+      min-height: 34px;
+      display: flex;
+      align-items: center;
+      padding: 0 4px;
+      color: var(--accent-green);
+      font-size: 11px;
+      letter-spacing: 0.04em;
     }
 
     .section {
       background: var(--bg-card);
       border: 1px solid var(--border-soft);
-      border-radius: 4px;
-      padding: 16px;
-      margin-bottom: 16px;
+      padding: 14px 16px 16px;
+    }
+
+    .section-title {
+      padding-bottom: 6px;
+      margin-bottom: 12px;
+      border-bottom: 1px solid var(--border-soft);
     }
 
     .button-grid {
       display: flex;
       flex-wrap: wrap;
-      gap: 9px;
+      gap: 8px;
     }
 
     button {
       border: 1px solid var(--border-soft);
       background: transparent;
       color: var(--text-muted);
-      padding: 10px 14px;
-      border-radius: 4px;
+      padding: 6px 12px;
       cursor: pointer;
-      font-family: inherit;
-      font-size: 14px;
+      font-family: "Barlow Condensed", sans-serif;
+      font-size: 13px;
       font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
     }
 
     button:hover {
-      border-color: var(--accent-green);
-      color: var(--accent-green);
+      border-color: var(--accent-blue);
+      color: var(--accent-blue);
     }
 
     button.active {
@@ -72,15 +151,37 @@
       color: var(--accent-green);
     }
 
+    #gameButtons {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      align-items: stretch;
+    }
+
     .game-button {
-      min-width: 245px;
+      width: 100%;
+      min-width: 0;
+      height: 68px;
       text-align: left;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: flex-start;
+      overflow: hidden;
     }
 
     .game-button .teams {
       display: block;
+      width: 100%;
       color: var(--text-main);
-      font-weight: 700;
+      font-family: "Barlow Condensed", sans-serif;
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 0.03em;
+      text-transform: none;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .game-button.active .teams,
@@ -90,15 +191,19 @@
 
     .game-button .meta {
       display: block;
+      width: 100%;
       color: var(--text-muted);
-      font-size: 12px;
-      margin-top: 4px;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 10px;
+      font-weight: 400;
+      letter-spacing: 0;
+      text-transform: none;
+      margin-top: 5px;
     }
 
-    #status {
-      color: var(--accent-green);
-      min-height: 20px;
-      margin: 10px 0 0;
+    .results-section {
+      width: 100%;
+      padding-top: 4px;
     }
 
     .results-header {
@@ -106,115 +211,261 @@
       align-items: baseline;
       justify-content: space-between;
       gap: 12px;
-      margin-bottom: 12px;
+      padding-bottom: 7px;
+      margin-bottom: 10px;
+      border-bottom: 1px solid var(--border-soft);
+    }
+
+    .results-title {
+      font-family: "Barlow Condensed", sans-serif;
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--text-main);
     }
 
     #resultCount {
       color: var(--text-muted);
-      font-size: 13px;
+      font-size: 11px;
     }
 
-    .table-wrap {
-      overflow-x: auto;
+    .pick-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+      gap: 10px;
+    }
+
+    .pick-card-nfl {
+      min-width: 0;
       border: 1px solid var(--border-soft);
-      border-radius: 4px;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      min-width: 980px;
       background: var(--bg-card);
+      padding: 12px 14px;
     }
 
-    th, td {
-      padding: 10px 12px;
+    .pick-card-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: start;
+      padding-bottom: 9px;
+      margin-bottom: 9px;
       border-bottom: 1px solid var(--border-soft);
-      text-align: left;
+    }
+
+    .pick-player {
+      min-width: 0;
+      font-family: "Barlow Condensed", sans-serif;
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--text-main);
+      line-height: 1.05;
+    }
+
+    .pick-prop {
+      margin-top: 3px;
+      color: var(--accent-blue);
+      font-family: "Barlow Condensed", sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .pick-game {
+      margin-top: 4px;
+      color: var(--text-muted);
+      font-size: 10px;
+      line-height: 1.35;
+    }
+
+    .pick-choice {
+      font-family: "Barlow Condensed", sans-serif;
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
       white-space: nowrap;
     }
 
-    th {
-      background: var(--background);
+    .pick-metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .pick-metric {
+      min-width: 0;
+      padding-right: 8px;
+      border-right: 1px solid var(--border-soft);
+    }
+
+    .pick-metric:nth-child(4n) {
+      border-right: 0;
+      padding-right: 0;
+    }
+
+    .pick-metric-label {
       color: var(--text-muted);
-      font-size: 12px;
+      font-family: "Barlow Condensed", sans-serif;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
       text-transform: uppercase;
-      letter-spacing: .04em;
     }
 
-    td {
+    .pick-metric-value {
+      margin-top: 3px;
       color: var(--text-main);
-      font-size: 14px;
+      font-size: 11px;
+      line-height: 1.25;
+      overflow-wrap: anywhere;
     }
-
-    tr:last-child td { border-bottom: 0; }
 
     .pick-over {
       color: var(--accent-green);
-      font-weight: 800;
+      font-weight: 700;
       text-transform: uppercase;
     }
 
     .pick-under {
       color: var(--accent-red);
-      font-weight: 800;
+      font-weight: 700;
       text-transform: uppercase;
     }
 
     .prob {
       color: var(--accent-blue);
-      font-weight: 800;
+      font-weight: 700;
     }
 
     .empty {
-      padding: 24px;
+      padding: 28px 0;
       color: var(--text-muted);
       text-align: center;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
     }
 
-    @media (max-width: 720px) {
-      .wrap {
-        width: min(100% - 16px, 1200px);
+
+    @media (max-width: 1180px) {
+      #gameButtons {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 900px) {
+      .main {
+        width: min(100% - 24px, 1500px);
+      }
+
+      #gameButtons {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .pick-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .pick-metrics {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .pick-metric:nth-child(4n) {
+        border-right: 1px solid var(--border-soft);
+        padding-right: 8px;
+      }
+
+      .pick-metric:nth-child(2n) {
+        border-right: 0;
+        padding-right: 0;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .page-header {
+        padding: 14px 12px;
+      }
+
+      .main {
+        width: calc(100% - 16px);
         padding-top: 12px;
       }
 
-      .section { padding: 12px; }
+      .selector-row {
+        gap: 8px;
+      }
 
-      button { padding: 9px 11px; }
+      .selector-block {
+        width: 120px;
+        flex: 0 0 120px;
+      }
 
-      .game-button { min-width: 100%; }
+      #status {
+        width: 100%;
+      }
+
+      #gameButtons {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .pick-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .section {
+        padding: 12px;
+      }
+
+      td {
+        grid-template-columns: 110px minmax(0, 1fr);
+      }
+    }
+
+    @media (max-width: 420px) {
+      #gameButtons {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
 <body>
   <div id="nav-placeholder"></div>
-  <main class="wrap">
-    <h1>NFL Props</h1>
 
-    <section class="section">
-      <h2>Season</h2>
-      <div id="seasonButtons" class="button-grid"></div>
-    </section>
+  <header class="page-header">
+    <div class="page-title">NFL Props</div>
+    <div class="page-subtitle">MODEL PICKS · PLAYER PROJECTIONS · OVER/UNDER PROBABILITIES</div>
+  </header>
 
-    <section class="section">
-      <h2>Week</h2>
-      <div id="weekButtons" class="button-grid"></div>
+  <main class="main">
+    <div class="selector-row">
+      <div class="selector-block">
+        <label class="selector-label" for="seasonSelect">Season</label>
+        <select id="seasonSelect" class="selector"></select>
+      </div>
+
+      <div class="selector-block">
+        <label class="selector-label" for="weekSelect">Week</label>
+        <select id="weekSelect" class="selector"></select>
+      </div>
+
       <div id="status"></div>
-    </section>
+    </div>
 
     <section class="section">
-      <h2>Prop Types</h2>
+      <div class="section-title">Prop Types</div>
       <div id="propButtons" class="button-grid"></div>
     </section>
 
     <section class="section">
-      <h2>Game Props</h2>
-      <div id="gameButtons" class="button-grid"></div>
+      <div class="section-title">Game Props</div>
+      <div id="gameButtons"></div>
     </section>
 
-    <section class="section">
+    <section class="results-section">
       <div class="results-header">
-        <h2 id="resultsTitle">Picks</h2>
+        <div class="results-title" id="resultsTitle">Picks</div>
         <div id="resultCount"></div>
       </div>
       <div id="results"></div>
@@ -424,45 +675,29 @@
       return `${game.away_team} @ ${game.home_team}`;
     }
 
-    function renderSeasonButtons() {
-      const container = document.getElementById("seasonButtons");
-      container.innerHTML = "";
+    function renderSeasonSelect() {
+      const select = document.getElementById("seasonSelect");
+      select.innerHTML = "";
 
       AVAILABLE_SEASONS.forEach(season => {
-        const button = document.createElement("button");
-        button.textContent = season;
-        button.classList.toggle("active", season === state.season);
-
-        button.onclick = async () => {
-          state.season = season;
-          state.selectedProp = null;
-          state.selectedGame = null;
-          renderSeasonButtons();
-          await loadWeek();
-        };
-
-        container.appendChild(button);
+        const option = document.createElement("option");
+        option.value = String(season);
+        option.textContent = String(season);
+        option.selected = season === state.season;
+        select.appendChild(option);
       });
     }
 
-    function renderWeekButtons() {
-      const container = document.getElementById("weekButtons");
-      container.innerHTML = "";
+    function renderWeekSelect() {
+      const select = document.getElementById("weekSelect");
+      select.innerHTML = "";
 
       AVAILABLE_WEEKS.forEach(week => {
-        const button = document.createElement("button");
-        button.textContent = `Week ${week}`;
-        button.classList.toggle("active", week === state.week);
-
-        button.onclick = async () => {
-          state.week = week;
-          state.selectedProp = null;
-          state.selectedGame = null;
-          renderWeekButtons();
-          await loadWeek();
-        };
-
-        container.appendChild(button);
+        const option = document.createElement("option");
+        option.value = String(week);
+        option.textContent = `Week ${week}`;
+        option.selected = week === state.week;
+        select.appendChild(option);
       });
     }
 
@@ -519,8 +754,7 @@
 
         const meta = document.createElement("span");
         meta.className = "meta";
-        meta.textContent =
-          `${game.game_date || ""} • ${count} picks`;
+        meta.textContent = `${game.game_date || ""} • ${count} picks`;
 
         button.appendChild(teams);
         button.appendChild(meta);
@@ -578,7 +812,7 @@
         return;
       }
 
-      const body = rows.map(row => {
+      const cards = rows.map(row => {
         const config = PROP_TYPES.find(
           p => p.key === row.prop_type
         );
@@ -587,44 +821,50 @@
           row.pick === "over" ? "pick-over" : "pick-under";
 
         return `
-          <tr>
-            <td>${escapeHtml(row.player_name)}</td>
-            <td>${escapeHtml(config?.label || row.prop_type)}</td>
-            <td>${escapeHtml(gameLabel(row.game_id))}</td>
-            <td>${escapeHtml(row[config.line])}</td>
-            <td class="${pickClass}">${escapeHtml(row.pick)}</td>
-            <td class="prob">${escapeHtml(formatProb(row.pick_prob))}</td>
-            <td>${escapeHtml(formatProb(row.over_prob))}</td>
-            <td>${escapeHtml(formatProb(row.under_prob))}</td>
-            <td>${escapeHtml(row[config.projection])}</td>
-            <td>${escapeHtml(row[config.low])}</td>
-            <td>${escapeHtml(row[config.high])}</td>
-          </tr>
+          <article class="pick-card-nfl">
+            <div class="pick-card-head">
+              <div>
+                <div class="pick-player">${escapeHtml(row.player_name)}</div>
+                <div class="pick-prop">${escapeHtml(config?.label || row.prop_type)}</div>
+                <div class="pick-game">${escapeHtml(gameLabel(row.game_id))}</div>
+              </div>
+              <div class="pick-choice ${pickClass}">${escapeHtml(row.pick)}</div>
+            </div>
+            <div class="pick-metrics">
+              <div class="pick-metric">
+                <div class="pick-metric-label">Sportsbook Line</div>
+                <div class="pick-metric-value">${escapeHtml(row[config.line])}</div>
+              </div>
+              <div class="pick-metric">
+                <div class="pick-metric-label">Pick Prob</div>
+                <div class="pick-metric-value prob">${escapeHtml(formatProb(row.pick_prob))}</div>
+              </div>
+              <div class="pick-metric">
+                <div class="pick-metric-label">Over Prob</div>
+                <div class="pick-metric-value">${escapeHtml(formatProb(row.over_prob))}</div>
+              </div>
+              <div class="pick-metric">
+                <div class="pick-metric-label">Under Prob</div>
+                <div class="pick-metric-value">${escapeHtml(formatProb(row.under_prob))}</div>
+              </div>
+              <div class="pick-metric">
+                <div class="pick-metric-label">Projection</div>
+                <div class="pick-metric-value">${escapeHtml(row[config.projection])}</div>
+              </div>
+              <div class="pick-metric">
+                <div class="pick-metric-label">Low</div>
+                <div class="pick-metric-value">${escapeHtml(row[config.low])}</div>
+              </div>
+              <div class="pick-metric">
+                <div class="pick-metric-label">High</div>
+                <div class="pick-metric-value">${escapeHtml(row[config.high])}</div>
+              </div>
+            </div>
+          </article>
         `;
       }).join("");
 
-      target.innerHTML = `
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Player</th>
-                <th>Prop Type</th>
-                <th>Game</th>
-                <th>Sportsbook Line</th>
-                <th>Pick</th>
-                <th>Pick Prob</th>
-                <th>Over Prob</th>
-                <th>Under Prob</th>
-                <th>Projection</th>
-                <th>Low</th>
-                <th>High</th>
-              </tr>
-            </thead>
-            <tbody>${body}</tbody>
-          </table>
-        </div>
-      `;
+      target.innerHTML = `<div class="pick-grid">${cards}</div>`;
     }
 
     async function loadWeek() {
@@ -681,8 +921,23 @@
     }
 
     async function init() {
-      renderSeasonButtons();
-      renderWeekButtons();
+      renderSeasonSelect();
+      renderWeekSelect();
+
+      document.getElementById("seasonSelect").addEventListener("change", async event => {
+        state.season = Number(event.target.value);
+        state.selectedProp = null;
+        state.selectedGame = null;
+        await loadWeek();
+      });
+
+      document.getElementById("weekSelect").addEventListener("change", async event => {
+        state.week = Number(event.target.value);
+        state.selectedProp = null;
+        state.selectedGame = null;
+        await loadWeek();
+      });
+
       await loadWeek();
     }
 
