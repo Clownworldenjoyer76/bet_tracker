@@ -611,16 +611,15 @@ function selectLeague(lg) {
     s.classList.toggle('active', s.dataset.league === lg);
   });
 
-  const selectedButton = document.querySelector(
-    '.league-btn[data-league="' + lg + '"]'
+  const selectedSection = document.querySelector(
+    '.league-section[data-league="' + lg + '"]'
   );
-  const display = selectedButton
-    ? selectedButton.dataset.display
-    : (lg === 'all' ? 'All' : String(lg).toUpperCase());
-
-  const dashboardTitle = document.getElementById('dashboard-title');
-  if (dashboardTitle) {
-    dashboardTitle.textContent = display + ' Analytics';
+  const pageTitle = document.getElementById('page-title');
+  if (pageTitle && selectedSection) {
+    const analyticsHeading = selectedSection.querySelector('h2');
+    pageTitle.textContent = analyticsHeading
+      ? analyticsHeading.textContent
+      : 'Basketball Analytics';
   }
 
   try {
@@ -862,14 +861,12 @@ def first_row_dict(df: pd.DataFrame) -> dict:
 
 def side_group_records(df: pd.DataFrame) -> list[dict]:
     records = df_to_records(df)
-
     for row in records:
-        current = row.get("bucket")
-        if current not in (None, ""):
+        if row.get("bucket") not in (None, ""):
             continue
 
-        for candidate in ("side_group", "side", "SIDE", "variable"):
-            value = row.get(candidate)
+        for key in ("side_group", "side", "variable"):
+            value = row.get(key)
             if value not in (None, ""):
                 row["bucket"] = value
                 break
@@ -1172,7 +1169,6 @@ def build_dashboard(
     league_buttons = "\n".join(
         f'<button class="league-btn{" active" if i == 0 else ""}" '
         f'data-league="{html.escape(league)}" '
-        f'data-display="{html.escape(display)}" '
         f'onclick="selectLeague(\'{html.escape(league)}\')">'
         f'{html.escape(display)}</button>'
         for i, (league, display) in enumerate(nav_leagues)
@@ -1205,7 +1201,7 @@ def build_dashboard(
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Basketball Analytics</title>
+<title>Basketball Dashboard</title>
 <link rel="stylesheet" href="assets/css/matstheme.css">
 <style>{CSS}</style>
 </head>
@@ -1213,7 +1209,7 @@ def build_dashboard(
 <div id="nav-placeholder"></div>
 
 <header>
-  <h1 id="dashboard-title">Basketball Analytics</h1>
+  <h1 id="page-title">Basketball Analytics</h1>
 </header>
 
 <div class="selector-bar season-bar"{season_bar_style}>
@@ -1280,13 +1276,13 @@ def run() -> None:
         page = (
             page
             .replace(
-                "<title>Basketball Analytics</title>",
+                "<title>Basketball Dashboard</title>",
                 f"<title>{title}</title>",
                 1,
             )
             .replace(
-                '<h1 id="dashboard-title">Basketball Analytics</h1>',
-                f'<h1 id="dashboard-title">{title}</h1>',
+                '<h1 id="page-title">Basketball Analytics</h1>',
+                f'<h1 id="page-title">{title}</h1>',
                 1,
             )
             .replace(
