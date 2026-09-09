@@ -2,216 +2,262 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>NCAAM Analytics</title>
 <link rel="stylesheet" href="assets/css/matstheme.css">
 <style>
 :root {
-  --bg: #0e1117;
-  --panel: #161b22;
-  --panel-2: #1c232c;
-  --text: #e6edf3;
-  --muted: #8b949e;
-  --accent: #58a6ff;
-  --good: #3fb950;
-  --bad: #f85149;
-  --border: #30363d;
-  --table-border: #46515e;
+  --bg:#0e1117;
+  --panel:#161b22;
+  --panel-2:#1c232c;
+  --text:#e6edf3;
+  --muted:#8b949e;
+  --accent:#58a6ff;
+  --good:#3fb950;
+  --bad:#f85149;
+  --border:#30363d;
+  --table-border:rgba(139,148,158,.22);
 }
-* { box-sizing: border-box; }
+
+* { box-sizing:border-box; }
+
 html, body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  margin: 0;
-  padding: 0;
+  margin:0;
+  padding:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
 }
+
 header {
-  padding: 18px 24px;
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 12px;
+  padding:18px 24px;
+  border-bottom:1px solid var(--border);
 }
-header h1 { margin: 0; font-size: 20px; }
-header .ts { color: var(--muted); font-size: 12px; }
+
+header h1 {
+  margin:0;
+  font-size:22px;
+  font-weight:700;
+}
 
 .selector-bar {
-  padding: 10px 24px;
-  border-bottom: 1px solid var(--border);
-  background: var(--panel);
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  align-items: center;
+  padding:10px 24px;
+  border-bottom:1px solid var(--border);
+  background:var(--panel);
+  display:flex;
+  gap:6px;
+  flex-wrap:wrap;
+  align-items:center;
 }
+
 .league-bar {
-  position: sticky;
-  top: 0;
-  z-index: 10;
+  position:sticky;
+  top:0;
+  z-index:10;
 }
+
 .selector-bar .lbl {
-  color: var(--muted);
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin-right: 6px;
+  color:var(--muted);
+  font-size:12px;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+  margin-right:6px;
 }
-.league-btn, .season-btn {
-  background: var(--panel-2);
-  border: 1px solid var(--border);
-  color: var(--text);
-  padding: 6px 14px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 13px;
+
+.league-btn,
+.season-btn {
+  background:var(--panel-2);
+  border:1px solid var(--border);
+  color:var(--text);
+  padding:6px 14px;
+  border-radius:4px;
+  cursor:pointer;
+  font-size:13px;
 }
-.league-btn.active, .season-btn.active {
-  background: var(--accent);
-  color: #0e1117;
-  border-color: var(--accent);
-  font-weight: 600;
+
+.league-btn.active,
+.season-btn.active {
+  background:var(--accent);
+  color:#0e1117;
+  border-color:var(--accent);
+  font-weight:600;
 }
-main { padding: 18px 24px; max-width: 1500px; margin: 0 auto; }
-.league-section { display: none; }
-.league-section.active { display: block; }
+
+main {
+  padding:18px 24px;
+  max-width:1500px;
+  margin:0 auto;
+}
+
+.league-section { display:none; }
+.league-section.active { display:block; }
 
 h2 {
-  font-size: 16px;
-  margin: 24px 0 8px 0;
-  color: var(--text);
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 4px;
+  font-size:16px;
+  margin:24px 0 8px;
+  color:var(--text);
+  border-bottom:1px solid var(--border);
+  padding-bottom:4px;
 }
-h3 {
-  font-size: 13px;
-  margin: 14px 0 6px 0;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
+
 .kpis {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 10px;
-  margin: 12px 0 4px 0;
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+  gap:10px;
+  margin:12px 0 4px;
 }
+
 .kpi {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 12px;
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:6px;
+  padding:12px;
 }
+
 .kpi .label {
-  color: var(--muted);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  color:var(--muted);
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.05em;
 }
-.kpi .value { font-size: 22px; margin-top: 4px; font-weight: 600; }
-.kpi .value.good { color: var(--good); }
-.kpi .value.bad { color: var(--bad); }
 
-.tabs { display: flex; gap: 4px; margin: 16px 0 0 0; flex-wrap: wrap; }
+.kpi .value {
+  font-size:22px;
+  margin-top:4px;
+  font-weight:600;
+}
+
+.kpi .value.good { color:var(--good); }
+.kpi .value.bad { color:var(--bad); }
+
+.tabs {
+  display:flex;
+  gap:4px;
+  margin:16px 0 0;
+  flex-wrap:wrap;
+}
+
 .tab {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  padding: 6px 12px;
-  border-radius: 6px 6px 0 0;
-  cursor: pointer;
-  color: var(--muted);
-  font-size: 13px;
+  background:var(--panel);
+  border:1px solid var(--border);
+  padding:6px 12px;
+  border-radius:6px 6px 0 0;
+  cursor:pointer;
+  color:var(--muted);
+  font-size:13px;
 }
+
 .tab.active {
-  background: var(--panel-2);
-  color: var(--text);
-  border-bottom-color: var(--panel-2);
+  background:var(--panel-2);
+  color:var(--text);
+  border-bottom-color:var(--panel-2);
 }
+
 .tab-body {
-  background: var(--panel-2);
-  border: 1px solid var(--border);
-  border-top: none;
-  padding: 14px;
-  border-radius: 0 6px 6px 6px;
+  background:var(--panel-2);
+  border:1px solid var(--border);
+  border-top:none;
+  padding:14px;
+  border-radius:0 6px 6px 6px;
 }
+
 .controls {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  align-items: center;
-  margin-bottom: 10px;
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  align-items:center;
+  margin-bottom:10px;
 }
-.controls label { color: var(--muted); font-size: 12px; }
+
+.controls label {
+  color:var(--muted);
+  font-size:12px;
+}
+
 .controls select {
-  background: var(--panel);
-  color: var(--text);
-  border: 1px solid var(--border);
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 13px;
+  background:var(--panel);
+  color:var(--text);
+  border:1px solid var(--border);
+  padding:4px 8px;
+  border-radius:4px;
+  font-size:13px;
 }
 
-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-th, td {
-  padding: 7px 9px;
-  text-align: center;
-  border: 1px solid var(--table-border);
-  white-space: nowrap;
-  vertical-align: middle;
-}
-th {
-  color: var(--muted);
-  text-transform: uppercase;
-  font-size: 11px;
-  letter-spacing: 0.05em;
-  cursor: pointer;
-  user-select: none;
-  position: sticky;
-  top: 0;
-  background: var(--panel-2);
-}
-th .arrow { opacity: 0.4; margin-left: 4px; }
-th.sorted .arrow { opacity: 1; color: var(--accent); }
-td.num { text-align: center; font-variant-numeric: tabular-nums; }
-
-.pos { color: var(--good); }
-.neg { color: var(--bad); }
-.muted { color: var(--muted); }
 .scroll {
-  max-height: 60vh;
-  overflow: auto;
-  border: 1px solid var(--table-border);
-  border-radius: 6px;
+  max-height:60vh;
+  overflow:auto;
+  border:1px solid var(--table-border);
+  border-radius:6px;
 }
 
-td.win-pct-strong {
-  background: rgba(63,185,80,.24);
-  color: #7ee787;
-  font-weight: 700;
-}
-td.win-pct-green {
-  background: rgba(63,185,80,.16);
-  color: #56d364;
-  font-weight: 600;
-}
-td.win-pct-light {
-  background: rgba(63,185,80,.09);
-  color: #8ddb8c;
-  font-weight: 600;
-}
-td.win-pct-neutral {
-  background: rgba(139,148,158,.09);
-  color: #c9d1d9;
-}
-td.win-pct-red {
-  background: rgba(248,81,73,.14);
-  color: #ff7b72;
-  font-weight: 600;
+table {
+  width:100%;
+  border-collapse:collapse;
+  font-size:13px;
 }
 
-.league-bar{display:none!important}
+th,
+td {
+  padding:7px 9px;
+  text-align:center;
+  border:1px solid var(--table-border);
+  white-space:nowrap;
+  vertical-align:middle;
+}
+
+th {
+  color:var(--muted);
+  text-transform:uppercase;
+  font-size:11px;
+  letter-spacing:.05em;
+  cursor:pointer;
+  user-select:none;
+  position:sticky;
+  top:0;
+  background:var(--panel-2);
+}
+
+th .arrow { opacity:.4; margin-left:4px; }
+th.sorted .arrow { opacity:1; color:var(--accent); }
+td.num { font-variant-numeric:tabular-nums; }
+
+.pos { color:var(--good); }
+.neg { color:var(--bad); }
+.muted { color:var(--muted); }
+
+td.win-pct-strong,
+.kpi .value.win-pct-strong {
+  background:rgba(63,185,80,.24);
+  color:#7ee787;
+  font-weight:700;
+}
+
+td.win-pct-green,
+.kpi .value.win-pct-green {
+  background:rgba(63,185,80,.16);
+  color:#56d364;
+  font-weight:600;
+}
+
+td.win-pct-light,
+.kpi .value.win-pct-light {
+  background:rgba(63,185,80,.09);
+  color:#8ddb8c;
+  font-weight:600;
+}
+
+td.win-pct-neutral,
+.kpi .value.win-pct-neutral {
+  background:rgba(139,148,158,.09);
+  color:#c9d1d9;
+}
+
+td.win-pct-red,
+.kpi .value.win-pct-red {
+  background:rgba(248,81,73,.14);
+  color:#ff7b72;
+  font-weight:600;
+}
 </style>
 </head>
 <body>
@@ -226,7 +272,7 @@ td.win-pct-red {
   <button class="season-btn active" data-season="current" onclick="selectSeason('current')">Current</button>
 </div>
 
-<div class="selector-bar league-bar">
+<div class="selector-bar league-bar" style="display:none">
   <span class="lbl">League:</span>
   <button class="league-btn active" data-league="ncaam" onclick="selectLeague('ncaam')">NCAAM</button>
 </div>
@@ -234,7 +280,6 @@ td.win-pct-red {
 <main>
 
 <section class="league-section" data-league="ncaam">
-  <h2>NCAAM Analytics</h2>
   <div class="kpis"></div>
 
   <h2>By Market</h2>
@@ -276,28 +321,42 @@ td.win-pct-red {
 
 <script src="assets/js/shared/nav.js"></script>
 <script>
+const MARKETS = ['moneyline','spread','total'];
 
 let ACTIVE_SEASON = null;
+let ACTIVE_LEAGUE = null;
 
-function fmtPct(v) {
-  if (v == null || isNaN(v)) return '';
-  return (Number(v) * 100).toFixed(2) + '%';
+const LEAGUE_LABELS = {
+  all: 'All',
+  nba: 'NBA',
+  ncaam: 'NCAAM',
+  wnba: 'WNBA'
+};
+
+function fmtPct(value) {
+  if (value == null || isNaN(value)) return '';
+  return (Number(value) * 100).toFixed(2) + '%';
 }
-function fmtNum(v, d) {
-  if (v == null || isNaN(v)) return '';
-  return Number(v).toFixed(d);
+
+function fmtNum(value, decimals) {
+  if (value == null || isNaN(value)) return '';
+  return Number(value).toFixed(decimals);
 }
-function fmtInt(v) {
-  if (v == null || isNaN(v)) return '';
-  return Number(v).toLocaleString();
+
+function fmtInt(value) {
+  if (value == null || isNaN(value)) return '';
+  return Number(value).toLocaleString();
 }
-function classForSigned(v) {
-  if (v == null || isNaN(v)) return '';
-  return Number(v) > 0 ? 'pos' : (Number(v) < 0 ? 'neg' : '');
+
+function signedClass(value) {
+  if (value == null || isNaN(value)) return '';
+  return Number(value) > 0 ? 'pos' : (Number(value) < 0 ? 'neg' : '');
 }
-function winPctClass(v) {
-  if (v == null || isNaN(v)) return '';
-  const pct = Number(v);
+
+function winPctClass(value) {
+  if (value == null || isNaN(value)) return '';
+
+  const pct = Number(value);
   if (pct >= 0.80) return 'win-pct-strong';
   if (pct >= 0.70) return 'win-pct-green';
   if (pct >= 0.60) return 'win-pct-light';
@@ -305,17 +364,22 @@ function winPctClass(v) {
   return 'win-pct-red';
 }
 
+function isWinPctKey(key) {
+  return String(key || '').toLowerCase() === 'win_pct';
+}
+
 function showTab(host, key) {
-  host.querySelectorAll(':scope > .tabs .tab').forEach(el => {
-    el.classList.toggle('active', el.dataset.key === key);
+  host.querySelectorAll(':scope > .tabs .tab').forEach(tab => {
+    tab.classList.toggle('active', tab.dataset.key === key);
   });
-  host.querySelectorAll(':scope > .tab-body > .tab-panel').forEach(el => {
-    el.style.display = (el.dataset.key === key ? '' : 'none');
+
+  host.querySelectorAll(':scope > .tab-body > .tab-panel').forEach(panel => {
+    panel.style.display = panel.dataset.key === key ? '' : 'none';
   });
 }
 
 function renderTable(data, columns, container) {
-  if (!data || data.length === 0) {
+  if (!data || !data.length) {
     container.innerHTML = '<div class="muted">No rows.</div>';
     return;
   }
@@ -323,46 +387,56 @@ function renderTable(data, columns, container) {
   const wrap = document.createElement('div');
   wrap.className = 'scroll';
 
-  const tbl = document.createElement('table');
+  const table = document.createElement('table');
   const thead = document.createElement('thead');
-  const trh = document.createElement('tr');
-  let sortCol = null;
-  let sortDir = 'desc';
-
-  columns.forEach((c) => {
-    const th = document.createElement('th');
-    th.innerHTML = c.label + ' <span class="arrow">&#9662;</span>';
-    th.onclick = () => {
-      if (sortCol === c.key) sortDir = (sortDir === 'asc' ? 'desc' : 'asc');
-      else {
-        sortCol = c.key;
-        sortDir = 'desc';
-      }
-      sortAndRender();
-      thead.querySelectorAll('th').forEach(h => h.classList.remove('sorted'));
-      th.classList.add('sorted');
-    };
-    trh.appendChild(th);
-  });
-
-  thead.appendChild(trh);
+  const headerRow = document.createElement('tr');
   const tbody = document.createElement('tbody');
 
-  function sortAndRender() {
-    const sorted = data.slice();
+  let sortKey = null;
+  let sortDirection = 'desc';
 
-    if (sortCol) {
-      sorted.sort((a, b) => {
-        const av = a[sortCol];
-        const bv = b[sortCol];
+  columns.forEach(column => {
+    const th = document.createElement('th');
+    th.innerHTML = column.label + ' <span class="arrow">&#9662;</span>';
+
+    th.onclick = () => {
+      if (sortKey === column.key) {
+        sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+      } else {
+        sortKey = column.key;
+        sortDirection = 'desc';
+      }
+
+      drawRows();
+      thead.querySelectorAll('th').forEach(item => item.classList.remove('sorted'));
+      th.classList.add('sorted');
+    };
+
+    headerRow.appendChild(th);
+  });
+
+  thead.appendChild(headerRow);
+
+  function drawRows() {
+    const rows = data.slice();
+
+    if (sortKey) {
+      rows.sort((a, b) => {
+        const av = a[sortKey];
+        const bv = b[sortKey];
+
         if (av == null) return 1;
         if (bv == null) return -1;
-        if (!isNaN(Number(av)) && !isNaN(Number(bv))) {
-          return sortDir === 'asc'
-            ? Number(av) - Number(bv)
-            : Number(bv) - Number(av);
+
+        const an = Number(av);
+        const bn = Number(bv);
+        const bothNumeric = !isNaN(an) && !isNaN(bn);
+
+        if (bothNumeric) {
+          return sortDirection === 'asc' ? an - bn : bn - an;
         }
-        return sortDir === 'asc'
+
+        return sortDirection === 'asc'
           ? String(av).localeCompare(String(bv))
           : String(bv).localeCompare(String(av));
       });
@@ -370,38 +444,43 @@ function renderTable(data, columns, container) {
 
     tbody.innerHTML = '';
 
-    sorted.forEach(row => {
+    rows.forEach(row => {
       const tr = document.createElement('tr');
 
-      columns.forEach(c => {
+      columns.forEach(column => {
         const td = document.createElement('td');
-        const v = row[c.key];
-        let cls = '';
+        const value = row[column.key];
+        let colorClass = '';
 
-        if (c.fmt === 'int') {
+        if (column.fmt === 'int') {
           td.classList.add('num');
-          td.textContent = fmtInt(v);
-        } else if (c.fmt === 'pct') {
+          td.textContent = fmtInt(value);
+        } else if (column.fmt === 'pct') {
           td.classList.add('num');
-          td.textContent = fmtPct(v);
-          if (String(c.key).toLowerCase() === 'win_pct') {
-            const winClass = winPctClass(v);
+          td.textContent = fmtPct(value);
+
+          if (isWinPctKey(column.key)) {
+            const winClass = winPctClass(value);
             if (winClass) td.classList.add(winClass);
           }
-          cls = c.color ? classForSigned(v) : '';
-        } else if (c.fmt === 'num') {
+
+          if (column.color) colorClass = signedClass(value);
+        } else if (column.fmt === 'num') {
           td.classList.add('num');
-          td.textContent = fmtNum(v, c.decimals != null ? c.decimals : 2);
-          cls = c.color ? classForSigned(v) : '';
-        } else if (c.fmt === 'roi') {
+          td.textContent = fmtNum(
+            value,
+            column.decimals == null ? 2 : column.decimals
+          );
+          if (column.color) colorClass = signedClass(value);
+        } else if (column.fmt === 'roi') {
           td.classList.add('num');
-          td.textContent = fmtPct(v);
-          cls = classForSigned(v);
+          td.textContent = fmtPct(value);
+          colorClass = signedClass(value);
         } else {
-          td.textContent = (v == null ? '' : String(v));
+          td.textContent = value == null ? '' : String(value);
         }
 
-        if (cls) td.classList.add(cls);
+        if (colorClass) td.classList.add(colorClass);
         tr.appendChild(td);
       });
 
@@ -409,63 +488,94 @@ function renderTable(data, columns, container) {
     });
   }
 
-  sortAndRender();
-  tbl.appendChild(thead);
-  tbl.appendChild(tbody);
-  wrap.appendChild(tbl);
+  drawRows();
+  table.appendChild(thead);
+  table.appendChild(tbody);
+  wrap.appendChild(table);
   container.innerHTML = '';
   container.appendChild(wrap);
 }
 
-const STD_COLUMNS = [
-  { key: 'bucket', label: 'Bucket' },
-  { key: 'bets', label: 'Bets', fmt: 'int' },
-  { key: 'wins', label: 'W', fmt: 'int' },
-  { key: 'losses', label: 'L', fmt: 'int' },
-  { key: 'pushes', label: 'P', fmt: 'int' },
-  { key: 'win_pct', label: 'Win %', fmt: 'pct' },
-  { key: 'units_flat', label: 'Units (flat)', fmt: 'num', decimals: 2, color: true },
-  { key: 'roi_flat', label: 'ROI flat', fmt: 'roi' },
-  { key: 'units_kelly', label: 'Units (Kelly)', fmt: 'num', decimals: 4, color: true },
-  { key: 'roi_kelly', label: 'ROI Kelly', fmt: 'roi' },
-  { key: 'avg_ev', label: 'Avg EV', fmt: 'pct' },
-  { key: 'avg_edge_vs_market_pp', label: 'Avg edge (pp)', fmt: 'num', decimals: 2 },
-  { key: 'avg_kelly_pct', label: 'Avg Kelly', fmt: 'pct' },
-  { key: 'avg_model_prob', label: 'Avg model p', fmt: 'pct' },
-  { key: 'avg_odds_american', label: 'Avg odds', fmt: 'num', decimals: 0 },
+const STANDARD_COLUMNS = [
+  { key:'bucket', label:'Bucket' },
+  { key:'bets', label:'Bets', fmt:'int' },
+  { key:'wins', label:'W', fmt:'int' },
+  { key:'losses', label:'L', fmt:'int' },
+  { key:'pushes', label:'P', fmt:'int' },
+  { key:'win_pct', label:'Win %', fmt:'pct' },
+  { key:'units_flat', label:'Units (flat)', fmt:'num', decimals:2, color:true },
+  { key:'roi_flat', label:'ROI flat', fmt:'roi' },
+  { key:'units_kelly', label:'Units (Kelly)', fmt:'num', decimals:4, color:true },
+  { key:'roi_kelly', label:'ROI Kelly', fmt:'roi' },
+  { key:'avg_ev', label:'Avg EV', fmt:'pct' },
+  { key:'avg_edge_vs_market_pp', label:'Avg edge (pp)', fmt:'num', decimals:2 },
+  { key:'avg_kelly_pct', label:'Avg Kelly', fmt:'pct' },
+  { key:'avg_model_prob', label:'Avg model p', fmt:'pct' },
+  { key:'avg_odds_american', label:'Avg odds', fmt:'num', decimals:0 }
 ];
 
-const STD_COLUMNS_WITH_SIDE = [
-  { key: 'bucket', label: 'Side' },
-  ...STD_COLUMNS.filter(c => c.key !== 'bucket'),
+const SIDE_COLUMNS = [
+  { key:'bucket', label:'Side' },
+  ...STANDARD_COLUMNS.filter(column => column.key !== 'bucket')
 ];
 
 const QUALITY_COLUMNS = [
-  { key: 'scope', label: 'Scope' },
-  { key: 'market_type', label: 'Market' },
-  { key: 'model_source', label: 'Model source' },
-  { key: 'model_version', label: 'Model version' },
-  { key: 'rows', label: 'Rows', fmt: 'int' },
-  { key: 'probability_n', label: 'Prob N', fmt: 'int' },
-  { key: 'brier_score', label: 'Brier', fmt: 'num', decimals: 4 },
-  { key: 'log_loss', label: 'Log loss', fmt: 'num', decimals: 4 },
-  { key: 'calibration_error', label: 'Calibration err', fmt: 'num', decimals: 4 },
-  { key: 'margin_n', label: 'Margin N', fmt: 'int' },
-  { key: 'margin_mae', label: 'Margin MAE', fmt: 'num', decimals: 3 },
-  { key: 'margin_rmse', label: 'Margin RMSE', fmt: 'num', decimals: 3 },
-  { key: 'total_n', label: 'Total N', fmt: 'int' },
-  { key: 'total_mae', label: 'Total MAE', fmt: 'num', decimals: 3 },
-  { key: 'total_rmse', label: 'Total RMSE', fmt: 'num', decimals: 3 },
-  { key: 'clv_n', label: 'CLV N', fmt: 'int' },
-  { key: 'avg_clv', label: 'Avg CLV', fmt: 'num', decimals: 3, color: true },
-  { key: 'clv_units', label: 'CLV units' },
-  { key: 'prob_disagreement_n', label: 'Prob dis N', fmt: 'int' },
-  { key: 'avg_model_vs_market_prob_pp', label: 'Model-market p (pp)', fmt: 'num', decimals: 3, color: true },
-  { key: 'mean_abs_model_vs_market_prob_pp', label: 'Abs p gap (pp)', fmt: 'num', decimals: 3 },
-  { key: 'line_disagreement_n', label: 'Line dis N', fmt: 'int' },
-  { key: 'avg_model_vs_market_line', label: 'Model-market line', fmt: 'num', decimals: 3, color: true },
-  { key: 'mean_abs_model_vs_market_line', label: 'Abs line gap', fmt: 'num', decimals: 3 },
+  { key:'scope', label:'Scope' },
+  { key:'market_type', label:'Market' },
+  { key:'model_source', label:'Model source' },
+  { key:'model_version', label:'Model version' },
+  { key:'rows', label:'Rows', fmt:'int' },
+  { key:'probability_n', label:'Prob N', fmt:'int' },
+  { key:'brier_score', label:'Brier', fmt:'num', decimals:4 },
+  { key:'log_loss', label:'Log loss', fmt:'num', decimals:4 },
+  { key:'calibration_error', label:'Calibration err', fmt:'num', decimals:4 },
+  { key:'margin_n', label:'Margin N', fmt:'int' },
+  { key:'margin_mae', label:'Margin MAE', fmt:'num', decimals:3 },
+  { key:'margin_rmse', label:'Margin RMSE', fmt:'num', decimals:3 },
+  { key:'total_n', label:'Total N', fmt:'int' },
+  { key:'total_mae', label:'Total MAE', fmt:'num', decimals:3 },
+  { key:'total_rmse', label:'Total RMSE', fmt:'num', decimals:3 },
+  { key:'clv_n', label:'CLV N', fmt:'int' },
+  { key:'avg_clv', label:'Avg CLV', fmt:'num', decimals:3, color:true },
+  { key:'clv_units', label:'CLV units' },
+  { key:'prob_disagreement_n', label:'Prob dis N', fmt:'int' },
+  { key:'avg_model_vs_market_prob_pp', label:'Model-market p (pp)', fmt:'num', decimals:3, color:true },
+  { key:'mean_abs_model_vs_market_prob_pp', label:'Abs p gap (pp)', fmt:'num', decimals:3 },
+  { key:'line_disagreement_n', label:'Line dis N', fmt:'int' },
+  { key:'avg_model_vs_market_line', label:'Model-market line', fmt:'num', decimals:3, color:true },
+  { key:'mean_abs_model_vs_market_line', label:'Abs line gap', fmt:'num', decimals:3 }
 ];
+
+function uniqueFilterValues(rows, key) {
+  const seen = new Set();
+  const values = [];
+
+  rows.forEach(row => {
+    const raw = row[key];
+    if (raw == null) return;
+
+    const text = String(raw).trim();
+    if (!text) return;
+    if (text.toUpperCase() === 'ALL') return;
+
+    const normalized = text.toUpperCase();
+    if (seen.has(normalized)) return;
+
+    seen.add(normalized);
+    values.push(text);
+  });
+
+  return values.sort((a, b) => a.localeCompare(b));
+}
+
+function optionHtml(values) {
+  return '<option value="__ALL__">All</option>' +
+    values.map(value =>
+      '<option value="' +
+      String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;') +
+      '">' + value + '</option>'
+    ).join('');
+}
 
 function buildQualityArea(section, data) {
   const area = section.querySelector('.quality-area');
@@ -476,29 +586,10 @@ function buildQualityArea(section, data) {
     return;
   }
 
-  const values = (key) => [...new Set(
-    rows
-      .map(r => r[key])
-      .filter(v =>
-        v !== null &&
-        v !== undefined &&
-        String(v).trim() !== '' &&
-        String(v).trim().toUpperCase() !== 'ALL'
-      )
-  )].sort();
-
-  const markets = values('market_type');
-  const sources = values('model_source');
-  const versions = values('model_version');
-  const scopes = values('scope');
-
-  const optionHtml = (items) =>
-    '<option value="ALL">All</option>' +
-    items.map(v =>
-      '<option value="' +
-      String(v).replace(/"/g, '&quot;') +
-      '">' + v + '</option>'
-    ).join('');
+  const scopes = uniqueFilterValues(rows, 'scope');
+  const markets = uniqueFilterValues(rows, 'market_type');
+  const sources = uniqueFilterValues(rows, 'model_source');
+  const versions = uniqueFilterValues(rows, 'model_version');
 
   area.innerHTML =
     '<div class="controls">' +
@@ -509,56 +600,58 @@ function buildQualityArea(section, data) {
     '</div>' +
     '<div class="quality-table"></div>';
 
-  const scopeSel = area.querySelector('.quality-scope');
-  const marketSel = area.querySelector('.quality-market');
-  const sourceSel = area.querySelector('.quality-source');
-  const versionSel = area.querySelector('.quality-version');
+  const scopeSelect = area.querySelector('.quality-scope');
+  const marketSelect = area.querySelector('.quality-market');
+  const sourceSelect = area.querySelector('.quality-source');
+  const versionSelect = area.querySelector('.quality-version');
   const table = area.querySelector('.quality-table');
 
-  const refresh = () => {
-    const filtered = rows.filter(r =>
-      (scopeSel.value === 'ALL' || String(r.scope) === scopeSel.value) &&
-      (marketSel.value === 'ALL' || String(r.market_type) === marketSel.value) &&
-      (sourceSel.value === 'ALL' || String(r.model_source) === sourceSel.value) &&
-      (versionSel.value === 'ALL' || String(r.model_version) === versionSel.value)
+  function refresh() {
+    const filtered = rows.filter(row =>
+      (scopeSelect.value === '__ALL__' || String(row.scope) === scopeSelect.value) &&
+      (marketSelect.value === '__ALL__' || String(row.market_type) === marketSelect.value) &&
+      (sourceSelect.value === '__ALL__' || String(row.model_source) === sourceSelect.value) &&
+      (versionSelect.value === '__ALL__' || String(row.model_version) === versionSelect.value)
     );
 
     const columns = data.is_all
-      ? [{ key: 'league', label: 'League' }, ...QUALITY_COLUMNS]
+      ? [{ key:'league', label:'League' }, ...QUALITY_COLUMNS]
       : QUALITY_COLUMNS;
 
     renderTable(filtered, columns, table);
-  };
+  }
 
-  [scopeSel, marketSel, sourceSel, versionSel].forEach(el => {
-    el.onchange = refresh;
+  [scopeSelect, marketSelect, sourceSelect, versionSelect].forEach(select => {
+    select.onchange = refresh;
   });
 
   refresh();
 }
 
-function selectLeague(lg) {
-  document.querySelectorAll('.league-btn').forEach(b => {
-    b.classList.toggle('active', b.dataset.league === lg);
-  });
-  document.querySelectorAll('.league-section').forEach(s => {
-    s.classList.toggle('active', s.dataset.league === lg);
+function setPageTitle(league) {
+  const title = document.getElementById('page-title');
+  if (!title) return;
+
+  const label = LEAGUE_LABELS[league] || 'Basketball';
+  title.textContent = label + ' Analytics';
+}
+
+function selectLeague(league) {
+  ACTIVE_LEAGUE = league;
+
+  document.querySelectorAll('.league-btn').forEach(button => {
+    button.classList.toggle('active', button.dataset.league === league);
   });
 
-  const selectedSection = document.querySelector(
-    '.league-section[data-league="' + lg + '"]'
-  );
-  const pageTitle = document.getElementById('page-title');
-  if (pageTitle && selectedSection) {
-    const analyticsHeading = selectedSection.querySelector('h2');
-    pageTitle.textContent = analyticsHeading
-      ? analyticsHeading.textContent
-      : 'Basketball Analytics';
-  }
+  document.querySelectorAll('.league-section').forEach(section => {
+    section.classList.toggle('active', section.dataset.league === league);
+  });
+
+  setPageTitle(league);
 
   try {
-    localStorage.setItem('basketball_dash_league', lg);
-  } catch (e) {}
+    localStorage.setItem('basketball_dash_league', league);
+  } catch (error) {}
 }
 
 function selectSeason(season) {
@@ -566,215 +659,225 @@ function selectSeason(season) {
 
   ACTIVE_SEASON = season;
 
-  document.querySelectorAll('.season-btn').forEach(b => {
-    b.classList.toggle('active', b.dataset.season === season);
+  document.querySelectorAll('.season-btn').forEach(button => {
+    button.classList.toggle('active', button.dataset.season === season);
   });
 
-  const seasonData = ALL_DATA[season].leagues || {};
-  Object.keys(seasonData).forEach(lg => {
-    buildLeagueSection(lg, seasonData[lg]);
+  const seasonLeagues = ALL_DATA[season].leagues || {};
+  Object.keys(seasonLeagues).forEach(league => {
+    buildLeagueSection(league, seasonLeagues[league]);
   });
+
+  if (ACTIVE_LEAGUE && seasonLeagues[ACTIVE_LEAGUE]) {
+    selectLeague(ACTIVE_LEAGUE);
+  }
 
   try {
     localStorage.setItem('basketball_dash_season', season);
-  } catch (e) {}
+  } catch (error) {}
 }
 
-function buildLeagueSection(lg, data) {
+function buildLeagueSection(league, data) {
   const section = document.querySelector(
-    '.league-section[data-league="' + lg + '"]'
+    '.league-section[data-league="' + league + '"]'
   );
+
   if (!section) return;
 
-  const gt = data.grand_total || {};
+  const grand = data.grand_total || {};
 
-  const kpiHtml = (label, value, fmt) => {
-    let disp = 'N/A';
-    let cls = '';
+  function kpi(label, value, format) {
+    let display = 'N/A';
+    let cssClass = '';
 
-    if (
-      value !== null &&
-      value !== undefined &&
-      !(typeof value === 'number' && isNaN(value))
-    ) {
-      if (fmt === 'pct') {
-        disp = (Number(value) * 100).toFixed(2) + '%';
-        cls = Number(value) > 0 ? 'good' : (Number(value) < 0 ? 'bad' : '');
-      } else if (fmt === 'int') {
-        disp = Number(value).toLocaleString();
-      } else if (fmt === 'signed') {
-        disp = (Number(value) >= 0 ? '+' : '') + Number(value).toFixed(2);
-        cls = Number(value) > 0 ? 'good' : (Number(value) < 0 ? 'bad' : '');
+    if (value !== null && value !== undefined && value !== '') {
+      if (format === 'winpct') {
+        display = fmtPct(value);
+        cssClass = winPctClass(value);
+      } else if (format === 'pct') {
+        display = fmtPct(value);
+        cssClass = signedClass(value) === 'pos' ? 'good' : (
+          signedClass(value) === 'neg' ? 'bad' : ''
+        );
+      } else if (format === 'int') {
+        display = fmtInt(value);
+      } else if (format === 'signed') {
+        display = (Number(value) >= 0 ? '+' : '') + fmtNum(value, 2);
+        cssClass = Number(value) > 0 ? 'good' : (Number(value) < 0 ? 'bad' : '');
       } else {
-        disp = String(value);
+        display = String(value);
       }
     }
 
     return '<div class="kpi"><div class="label">' + label +
-      '</div><div class="value ' + cls + '">' + disp + '</div></div>';
-  };
+      '</div><div class="value ' + cssClass + '">' + display + '</div></div>';
+  }
 
   section.querySelector('.kpis').innerHTML = [
-    kpiHtml('Bets', gt.bets, 'int'),
-    kpiHtml('Wins', gt.wins, 'int'),
-    kpiHtml('Losses', gt.losses, 'int'),
-    kpiHtml('Pushes', gt.pushes, 'int'),
-    kpiHtml('Win %', gt.win_pct, 'pct'),
-    kpiHtml('Units (flat)', gt.units_flat, 'signed'),
-    kpiHtml('ROI flat', gt.roi_flat, 'pct'),
-    kpiHtml('Units (Kelly)', gt.units_kelly, 'signed'),
-    kpiHtml('ROI Kelly', gt.roi_kelly, 'pct'),
+    kpi('Bets', grand.bets, 'int'),
+    kpi('Wins', grand.wins, 'int'),
+    kpi('Losses', grand.losses, 'int'),
+    kpi('Pushes', grand.pushes, 'int'),
+    kpi('Win %', grand.win_pct, 'winpct'),
+    kpi('Units (flat)', grand.units_flat, 'signed'),
+    kpi('ROI flat', grand.roi_flat, 'pct'),
+    kpi('Units (Kelly)', grand.units_kelly, 'signed'),
+    kpi('ROI Kelly', grand.roi_kelly, 'pct')
   ].join('');
 
-  let byMarketCols = [
-    { key: 'market_type', label: 'Market' },
-    { key: 'Win', label: 'W', fmt: 'int' },
-    { key: 'Loss', label: 'L', fmt: 'int' },
-    { key: 'Push', label: 'P', fmt: 'int' },
-    { key: 'Total', label: 'Total', fmt: 'int' },
-    { key: 'Win_Pct', label: 'Win %', fmt: 'pct' },
+  let marketSummaryColumns = [
+    { key:'market_type', label:'Market' },
+    { key:'Win', label:'W', fmt:'int' },
+    { key:'Loss', label:'L', fmt:'int' },
+    { key:'Push', label:'P', fmt:'int' },
+    { key:'Total', label:'Total', fmt:'int' },
+    { key:'Win_Pct', label:'Win %', fmt:'pct' }
   ];
 
   if (data.is_all) {
-    byMarketCols = [{ key: 'league', label: 'League' }, ...byMarketCols];
+    marketSummaryColumns = [
+      { key:'league', label:'League' },
+      ...marketSummaryColumns
+    ];
   }
 
   renderTable(
     data.by_market_summary || [],
-    byMarketCols,
+    marketSummaryColumns,
     section.querySelector('.by-market-summary')
   );
 
   buildQualityArea(section, data);
 
-  ['moneyline', 'spread', 'total'].forEach(mt => {
-    const wrap = section.querySelector('.panel-' + mt);
-    const md = (data.markets && data.markets[mt]) || { by: {}, by_side: {} };
+  MARKETS.forEach(market => {
+    const panel = section.querySelector('.panel-' + market);
+    const marketData = (data.markets || {})[market] || { by:{}, by_side:{} };
 
-    const dimensions = Object.keys(md.by || {}).filter(dim =>
-      ((md.by || {})[dim] || []).length ||
-      ((md.by_side || {})[dim] || []).length
+    const dimensions = Array.from(new Set([
+      ...Object.keys(marketData.by || {}),
+      ...Object.keys(marketData.by_side || {})
+    ])).filter(dimension =>
+      ((marketData.by || {})[dimension] || []).length ||
+      ((marketData.by_side || {})[dimension] || []).length
     );
 
     if (!dimensions.length) {
-      wrap.innerHTML = '<div class="muted">No report rows available for this market.</div>';
+      panel.innerHTML = '<div class="muted">No report rows available for this market.</div>';
       return;
     }
 
-    wrap.innerHTML =
+    panel.innerHTML =
       '<div class="controls">' +
-      '<label>Dimension: <select class="dim-select">' +
-      dimensions.map(d =>
-        '<option value="' + d + '">' + d.replaceAll('_', ' ') + '</option>'
-      ).join('') +
-      '</select></label>' +
-      '<label>View: <select class="view-select">' +
-      '<option value="overall">Overall</option>' +
-      '<option value="side">Split by side</option>' +
-      '</select></label>' +
+        '<label>Dimension: <select class="dim-select">' +
+          dimensions.map(dimension =>
+            '<option value="' + dimension + '">' +
+            dimension.replaceAll('_', ' ') + '</option>'
+          ).join('') +
+        '</select></label>' +
+        '<label>View: <select class="view-select">' +
+          '<option value="overall">Overall</option>' +
+          '<option value="side">Split by side</option>' +
+        '</select></label>' +
       '</div>' +
       '<div class="market-table"></div>';
 
-    const dimSel = wrap.querySelector('.dim-select');
-    const viewSel = wrap.querySelector('.view-select');
-    const tbl = wrap.querySelector('.market-table');
+    const dimensionSelect = panel.querySelector('.dim-select');
+    const viewSelect = panel.querySelector('.view-select');
+    const target = panel.querySelector('.market-table');
 
-    function refresh() {
-      const dim = dimSel.value;
-      const sideView = viewSel.value === 'side';
+    function refreshMarket() {
+      const dimension = dimensionSelect.value;
+      const sideView = viewSelect.value === 'side';
       const rows = sideView
-        ? ((md.by_side || {})[dim] || [])
-        : ((md.by || {})[dim] || []);
+        ? ((marketData.by_side || {})[dimension] || [])
+        : ((marketData.by || {})[dimension] || []);
 
-      let cols = sideView ? STD_COLUMNS_WITH_SIDE : STD_COLUMNS;
+      let columns = sideView ? SIDE_COLUMNS : STANDARD_COLUMNS;
 
       if (data.is_all) {
-        cols = [{ key: 'league', label: 'League' }, ...cols];
+        columns = [{ key:'league', label:'League' }, ...columns];
       }
 
-      renderTable(rows, cols, tbl);
+      renderTable(rows, columns, target);
     }
 
-    dimSel.onchange = refresh;
-    viewSel.onchange = refresh;
-    refresh();
+    dimensionSelect.onchange = refreshMarket;
+    viewSelect.onchange = refreshMarket;
+    refreshMarket();
   });
 
   const marketArea = section.querySelector('.market-area');
-  marketArea.querySelectorAll(':scope > .tabs .tab').forEach(t => {
-    t.onclick = () => showTab(marketArea, t.dataset.key);
+  marketArea.querySelectorAll(':scope > .tabs .tab').forEach(tab => {
+    tab.onclick = () => showTab(marketArea, tab.dataset.key);
   });
 
-  let overviewMarketCols = [
-    { key: 'market_type', label: 'Market' },
-    ...STD_COLUMNS.filter(c => c.key !== 'bucket'),
+  let overviewMarketColumns = [
+    { key:'market_type', label:'Market' },
+    ...STANDARD_COLUMNS.filter(column => column.key !== 'bucket')
   ];
 
-  let overviewSideCols = [
-    { key: 'bucket', label: 'Side' },
-    ...STD_COLUMNS.filter(c => c.key !== 'bucket'),
+  let overviewSideColumns = [
+    { key:'bucket', label:'Side' },
+    ...STANDARD_COLUMNS.filter(column => column.key !== 'bucket')
   ];
 
-  let overviewDateCols = [
-    { key: 'bucket', label: 'Date' },
-    ...STD_COLUMNS.filter(c => c.key !== 'bucket'),
+  let overviewDateColumns = [
+    { key:'bucket', label:'Date' },
+    ...STANDARD_COLUMNS.filter(column => column.key !== 'bucket')
   ];
 
   if (data.is_all) {
-    overviewMarketCols = [{ key: 'league', label: 'League' }, ...overviewMarketCols];
-    overviewSideCols = [{ key: 'league', label: 'League' }, ...overviewSideCols];
-    overviewDateCols = [{ key: 'league', label: 'League' }, ...overviewDateCols];
+    overviewMarketColumns = [{ key:'league', label:'League' }, ...overviewMarketColumns];
+    overviewSideColumns = [{ key:'league', label:'League' }, ...overviewSideColumns];
+    overviewDateColumns = [{ key:'league', label:'League' }, ...overviewDateColumns];
   }
 
+  const overview = data.overview || {};
+
   renderTable(
-    (data.overview || {}).by_market || [],
-    overviewMarketCols,
+    overview.by_market || [],
+    overviewMarketColumns,
     section.querySelector('.overview-market')
   );
 
   renderTable(
-    (data.overview || {}).by_side_group || [],
-    overviewSideCols,
+    overview.by_side_group || [],
+    overviewSideColumns,
     section.querySelector('.overview-side')
   );
 
   renderTable(
-    (data.overview || {}).by_date || [],
-    overviewDateCols,
+    overview.by_date || [],
+    overviewDateColumns,
     section.querySelector('.overview-date')
   );
 
   const overviewArea = section.querySelector('.overview-area');
-  overviewArea.querySelectorAll(':scope > .tabs .tab').forEach(t => {
-    t.onclick = () => showTab(overviewArea, t.dataset.key);
+  overviewArea.querySelectorAll(':scope > .tabs .tab').forEach(tab => {
+    tab.onclick = () => showTab(overviewArea, tab.dataset.key);
   });
 }
 
-
-const ALL_DATA = {"current": {"label": "Current", "leagues": {"ncaam": {"league": "NCAAM", "display": "NCAAM", "grand_total": {}, "by_market_summary": [], "quality": [], "overview": {"by_market": [], "by_side_group": [], "by_date": []}, "markets": {"moneyline": {"by": {"ev": [], "kelly": [], "odds": [], "win_prob": [], "edge_vs_market": [], "dow": [], "month": []}, "by_side": {"ev": [], "kelly": [], "odds": [], "win_prob": [], "edge_vs_market": [], "dow": [], "month": []}}, "spread": {"by": {"ev": [], "kelly": [], "odds": [], "win_prob": [], "edge_vs_market": [], "dow": [], "month": [], "side": []}, "by_side": {"ev": [], "kelly": [], "odds": [], "win_prob": [], "edge_vs_market": [], "dow": [], "month": [], "side": []}}, "total": {"by": {"ev": [], "kelly": [], "odds": [], "win_prob": [], "edge_vs_market": [], "dow": [], "month": [], "side": [], "total_range": []}, "by_side": {"ev": [], "kelly": [], "odds": [], "win_prob": [], "edge_vs_market": [], "dow": [], "month": [], "side": [], "total_range": []}}}}}}};
+const ALL_DATA = {"current":{"label":"Current","leagues":{"ncaam":{"league":"NCAAM","display":"NCAAM","grand_total":{},"by_market_summary":[],"quality":[],"overview":{"by_market":[],"by_side_group":[],"by_date":[]},"markets":{"moneyline":{"by":{"ev":[],"kelly":[],"odds":[],"win_prob":[],"edge_vs_market":[],"dow":[],"month":[]},"by_side":{"ev":[],"kelly":[],"odds":[],"win_prob":[],"edge_vs_market":[],"dow":[],"month":[]}},"spread":{"by":{"ev":[],"kelly":[],"odds":[],"win_prob":[],"edge_vs_market":[],"dow":[],"month":[],"side":[]},"by_side":{"ev":[],"kelly":[],"odds":[],"win_prob":[],"edge_vs_market":[],"dow":[],"month":[],"side":[]}},"total":{"by":{"ev":[],"kelly":[],"odds":[],"win_prob":[],"edge_vs_market":[],"dow":[],"month":[],"side":[],"total_range":[]},"by_side":{"ev":[],"kelly":[],"odds":[],"win_prob":[],"edge_vs_market":[],"dow":[],"month":[],"side":[],"total_range":[]}}}}}}};
 
 document.addEventListener('DOMContentLoaded', () => {
   let initialSeason = 'current';
+
   try {
     const storedSeason = localStorage.getItem('basketball_dash_season');
     if (storedSeason && ALL_DATA[storedSeason]) initialSeason = storedSeason;
-  } catch (e) {}
-
-  selectSeason(initialSeason);
+  } catch (error) {}
 
   let initialLeague = 'ncaam';
+
   try {
     const storedLeague = localStorage.getItem('basketball_dash_league');
-    if (
-      storedLeague &&
-      ALL_DATA[initialSeason] &&
-      ALL_DATA[initialSeason].leagues &&
-      ALL_DATA[initialSeason].leagues[storedLeague]
-    ) {
-      initialLeague = storedLeague;
-    }
-  } catch (e) {}
+    const seasonLeagues = (ALL_DATA[initialSeason] || {}).leagues || {};
+    if (storedLeague && seasonLeagues[storedLeague]) initialLeague = storedLeague;
+  } catch (error) {}
 
+  ACTIVE_LEAGUE = initialLeague;
+  selectSeason(initialSeason);
   selectLeague(initialLeague);
 });
 </script>
