@@ -747,6 +747,37 @@
       const container = document.getElementById("gameButtons");
       container.innerHTML = "";
 
+      const allGamesCount = state.props.filter(
+        row => row.pick !== "no_bet"
+      ).length;
+
+      const allGamesButton = document.createElement("button");
+      allGamesButton.className = "game-button";
+      allGamesButton.classList.toggle(
+        "active",
+        state.selectedGame === null
+      );
+
+      const allGamesTeams = document.createElement("span");
+      allGamesTeams.className = "teams";
+      allGamesTeams.textContent = "All Games";
+
+      const allGamesMeta = document.createElement("span");
+      allGamesMeta.className = "meta";
+      allGamesMeta.textContent = `${allGamesCount} picks`;
+
+      allGamesButton.appendChild(allGamesTeams);
+      allGamesButton.appendChild(allGamesMeta);
+
+      allGamesButton.onclick = () => {
+        state.selectedGame = null;
+        renderPropButtons();
+        renderGameButtons();
+        renderResults();
+      };
+
+      container.appendChild(allGamesButton);
+
       state.schedule.forEach(game => {
         const gameId = String(game.game_id);
         const count = state.props.filter(
