@@ -315,10 +315,7 @@ input[type="password"] {
     const OWNER = "Clownworldenjoyer76";
     const REPO  = "bet_tracker";
 
-    const WORKFLOW_FILE_DEFAULT       = "manual_data_input.yml";
-    const WORKFLOW_FILE_UFC           = "manual_ufc_final.yml";
-    const WORKFLOW_FILE_SOCCER_PRED   = "manual_soccer_pred.yml";
-    const WORKFLOW_FILE_SOCCER_SCORES = "manual_soccer_scores.yml";
+    const WORKFLOW_FILE = "_manual_intake.yml";
 
     const REF = "main";
 
@@ -392,33 +389,7 @@ input[type="password"] {
         return;
       }
 
-      const leagueKey = normalizeKey(league);
-      const marketKey = normalizeKey(market);
-      const sourceKey = normalizeKey(source);
-
-      const isUFCFinalScores = (
-        leagueKey === "mma" &&
-        marketKey === "ufc" &&
-        sourceKey === "ufcresults"
-      );
-
-      const isMMAPredictions = (
-        leagueKey === "mma" &&
-        marketKey === "ufc" &&
-        sourceKey === "predictions"
-      );
-
-      let workflowFile = WORKFLOW_FILE_DEFAULT;
-
-      if (isUFCFinalScores) {
-        workflowFile = WORKFLOW_FILE_UFC;
-      } else if (leagueKey === "soccer" && sourceKey === "soccertotals") {
-        workflowFile = WORKFLOW_FILE_SOCCER_SCORES;
-      } else if (leagueKey === "soccer" && sourceKey === "predictions") {
-        workflowFile = WORKFLOW_FILE_SOCCER_PRED;
-      } else if (isMMAPredictions) {
-        workflowFile = WORKFLOW_FILE_DEFAULT;
-      }
+      const workflowFile = WORKFLOW_FILE;
 
       btn.classList.add("submitting");
       btn.disabled = true;
