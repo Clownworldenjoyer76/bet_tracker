@@ -1,8 +1,17 @@
-name: _Manual UFC Data Intake
+name: _Manual Data Intake
 
 on:
   workflow_dispatch:
     inputs:
+      league:
+        required: true
+        type: string
+      market:
+        required: true
+        type: string
+      source:
+        required: true
+        type: string
       raw_text:
         required: true
         type: string
@@ -26,17 +35,12 @@ jobs:
         with:
           python-version: "3.11"
 
-      # =========================
-      # MMA / UFC PREDICTIONS
-      # =========================
       - name: Run MMA UFC Predictions
+        if: ${{ github.event.inputs.league == 'mma' && github.event.inputs.market == 'UFC' && github.event.inputs.source == 'Predictions' }}
         run: |
           printf "%s" "${{ github.event.inputs.raw_text }}" > docs/manual_data.html
           python "docs/win/mma/ufc/scripts/00_parsing/ufc_input.py"
 
-      # =========================
-      # COMMIT
-      # =========================
       - name: Commit Changes
         run: |
           git config user.name "github-actions"
@@ -45,5 +49,5 @@ jobs:
           git add docs/win/mma/ufc/00_intake/sportsbook/
           git add docs/win/mma/ufc/00_intake/predictions/
 
-          git commit -m "manual UFC data intake" || echo "No changes"
+          git commit -m "manual data intake: ${{ github.event.inputs.league }} - ${{ github.event.inputs.market }}" || echo "No changes"
           git push
