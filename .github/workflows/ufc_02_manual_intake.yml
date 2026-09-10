@@ -1,4 +1,4 @@
-name: _Manual Data Intake
+name: _Manual UFC Intake
 
 on:
   workflow_dispatch:
@@ -35,19 +35,26 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Run MMA UFC Predictions
+      - name: Run UFC Predictions Parser
         if: ${{ github.event.inputs.league == 'mma' && github.event.inputs.market == 'UFC' && github.event.inputs.source == 'Predictions' }}
         run: |
           printf "%s" "${{ github.event.inputs.raw_text }}" > docs/manual_data.html
-          python "docs/win/mma/ufc/scripts/00_parsing/ufc_input.py"
+          python docs/win/mma/ufc/scripts/00_parsing/ufc_input.py
+
+      - name: Run UFC Final Scores Parser
+        if: ${{ github.event.inputs.league == 'mma' && github.event.inputs.market == 'UFC' && github.event.inputs.source == 'UFC Results' }}
+        run: |
+          printf "%s" "${{ github.event.inputs.raw_text }}" > dump.txt
+          python docs/win/mma/ufc/scripts/00_parsing/ufc_final_scores.py dump.txt
 
       - name: Commit Changes
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
 
-          git add docs/win/mma/ufc/00_intake/sportsbook/
-          git add docs/win/mma/ufc/00_intake/predictions/
+          git add docs/win/mma/ufc/00_intake/sportsbook/ 2>/dev/null || true
+          git add docs/win/mma/ufc/00_intake/predictions/ 2>/dev/null || true
+          git add docs/win/mma/ufc/manual_files/ 2>/dev/null || true
 
-          git commit -m "manual data intake: ${{ github.event.inputs.league }} - ${{ github.event.inputs.market }}" || echo "No changes"
+          git commit -m "manual UFC intake: ${{ github.event.inputs.source }}" || echo "No changes"
           git push
