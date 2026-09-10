@@ -260,13 +260,8 @@ input[type="password"] {
       <span class="control-label">League</span>
       <select id="league" onchange="updateMarkets()">
         <option value="">-- select --</option>
-        <option value="basketball">Basketball</option>
-        <option value="football">Football</option>
-        <option value="baseball">Baseball</option>
-        <option value="hockey">Hockey</option>
         <option value="soccer">Soccer</option>
         <option value="mma">MMA</option>
-        <option value="final_scores">Final Scores</option>
       </select>
     </div>
 
@@ -281,10 +276,8 @@ input[type="password"] {
       <span class="control-label">Source</span>
       <select id="source">
         <option value="">-- select --</option>
-        <option value="DraftKings">DraftKings</option>
         <option value="Predictions">Predictions</option>
-        <option value="Scores">Scores</option>
-        <option value="Soccer Totals">Soccer Totals</option>
+        <option value="Soccer Totals">Soccer Results</option>
         <option value="UFC Results">UFC Results</option>
       </select>
     </div>
@@ -320,13 +313,8 @@ input[type="password"] {
     const REF = "main";
 
     const MARKET_MAP = {
-      basketball: ["NBA", "NCAA Men", "WNBA"],
-      football: ["NFL", "NCAA", "CFL"],
-      baseball: ["MLB"],
-      hockey: ["NHL"],
-      soccer: ["MLS", "EPL", "Ligue 1", "Serie A", "La Liga", "Bundesliga"],
-      mma: ["UFC"],
-      final_scores: ["NBA", "NCAAB", "NHL", "WNBA", "UFC"]
+      soccer: ["Bundesliga", "MLS", "EPL", "La Liga", "Ligue 1", "Serie A"],
+      mma: ["UFC"]
     };
 
     function normalizeKey(value) {
@@ -364,9 +352,7 @@ input[type="password"] {
       const m = document.getElementById("market").value;
       const sSel = document.getElementById("source");
 
-      if (l === "final_scores" && m === "UFC") {
-        sSel.value = "UFC Results";
-      } else if (l === "mma" && m === "UFC") {
+      if (l === "mma" && m === "UFC") {
         sSel.value = "Predictions";
       }
     }
