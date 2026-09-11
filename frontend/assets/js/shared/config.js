@@ -127,7 +127,7 @@ const FOOTBALL_WEEK_RANGES = {
   CFB: [
     {
       season: 2026,
-      week: 1,
+      week: 2,
       start: "2026_09_09",
       end:   "2026_09_15",
     },
