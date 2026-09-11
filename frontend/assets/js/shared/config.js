@@ -128,8 +128,8 @@ const FOOTBALL_WEEK_RANGES = {
     {
       season: 2026,
       week: 1,
-      start: "2026_08_29",
-      end:   "2026_09_06",
+      start: "2026_09_09",
+      end:   "2026_09_15",
     },
   ],
 
