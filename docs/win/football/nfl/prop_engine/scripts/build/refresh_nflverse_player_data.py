@@ -316,7 +316,6 @@ def load_nflreadpy(
     )
 
 
-
 def nflverse_release_url(
     family: str,
     season: int,
@@ -417,6 +416,7 @@ def load_nflverse_release(
             and temp_path.exists()
         ):
             temp_path.unlink()
+
 
 def load_nfl_data_py(
     family: str,
