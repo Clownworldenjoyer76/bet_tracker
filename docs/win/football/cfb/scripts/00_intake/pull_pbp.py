@@ -8,7 +8,7 @@
 #   sportsdataverse.cfb.CFBPlayProcess
 #
 # Per-game processing:
-#   proc = CFBPlayProcess(gameId=game_id)
+#   proc = CFBPlayProcess(gameId=game_id, join_participants=False)
 #   proc.espn_cfb_pbp()
 #   result = proc.run_processing_pipeline()
 #   plays = result["plays"]
@@ -73,7 +73,7 @@ LOG_FILE = ERROR_DIR / "pull_pbp.txt"
 
 EASTERN = ZoneInfo("America/New_York")
 
-IMPLEMENTATION_VERSION = "sportsdataverse_v3_2026-08-19"
+IMPLEMENTATION_VERSION = "sportsdataverse_v4_2026-09-12"
 
 # Keep concurrency conservative. SportsDataverse itself performs ESPN network
 # work and XGBoost model inference inside each game process.
@@ -141,7 +141,7 @@ def log(message: str) -> None:
 
 # ─────────────────────────────────────────────
 # SETTINGS / CLI
-# ─────────────────────────────────────────────
+# ──────────────────────────────────────────────
 
 def read_settings() -> dict[str, Any]:
     if not SETTINGS_FILE.exists() or yaml is None:
@@ -458,11 +458,16 @@ def process_one_game(
     """
     game_id, season = task
 
+    print(
+        f"game={game_id} status=starting join_participants=false",
+        flush=True,
+    )
+
     try:
         if CFBPlayProcess is None:
             return game_id, None, "sportsdataverse import unavailable"
 
-        proc = CFBPlayProcess(gameId=game_id)
+        proc = CFBPlayProcess(gameId=game_id, join_participants=False)
         proc.espn_cfb_pbp()
         result = proc.run_processing_pipeline()
 
@@ -780,6 +785,7 @@ def main() -> int:
             f"| source=sportsdataverse.CFBPlayProcess "
             f"| sportsdataverse_version={sportsdataverse_version()} "
             f"| workers={args.workers} "
+            f"| join_participants=False "
             f"| refresh={args.refresh} "
             f"| dry_run={args.dry_run}"
         )
