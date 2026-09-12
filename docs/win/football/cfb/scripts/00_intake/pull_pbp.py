@@ -73,11 +73,11 @@ LOG_FILE = ERROR_DIR / "pull_pbp.txt"
 
 EASTERN = ZoneInfo("America/New_York")
 
-IMPLEMENTATION_VERSION = "sportsdataverse_v4_2026-09-12"
+IMPLEMENTATION_VERSION = "sportsdataverse_v5_2026-09-12"
 
 # Keep concurrency conservative. SportsDataverse itself performs ESPN network
 # work and XGBoost model inference inside each game process.
-DEFAULT_WORKERS = 3
+DEFAULT_WORKERS = 1
 
 # These are not a replacement schema. They are only invariants required by the
 # downstream team-stat pipeline and by safe incremental season assembly.
@@ -468,8 +468,26 @@ def process_one_game(
             return game_id, None, "sportsdataverse import unavailable"
 
         proc = CFBPlayProcess(gameId=game_id, join_participants=False)
+
+        print(
+            f"game={game_id} stage=espn_cfb_pbp starting",
+            flush=True,
+        )
         proc.espn_cfb_pbp()
+        print(
+            f"game={game_id} stage=espn_cfb_pbp complete",
+            flush=True,
+        )
+
+        print(
+            f"game={game_id} stage=processing_pipeline starting",
+            flush=True,
+        )
         result = proc.run_processing_pipeline()
+        print(
+            f"game={game_id} stage=processing_pipeline complete",
+            flush=True,
+        )
 
         if not isinstance(result, dict):
             return (
