@@ -9,7 +9,7 @@ window.PAGE_LEAGUES = {
     CFB:        true,
     NBA:        true,
     WNBA:       true,
-    NCAAM:      false,
+    NCAAM:      true,
     EPL:        true,
     MLS:        true,
     LIGUE1:     true,
@@ -25,7 +25,7 @@ window.PAGE_LEAGUES = {
     CFB:        true,
     NBA:        true,
     WNBA:       true,
-    NCAAM:      false,
+    NCAAM:      true,
     EPL:        true,
     MLS:        true,
     LIGUE1:     true,
@@ -40,7 +40,7 @@ window.PAGE_LEAGUES = {
     CFB:        true,
     NBA:        true,
     WNBA:       true,
-    NCAAM:      false,
+    NCAAM:      true,
     EPL:        true,
     MLS:        true,
     LIGUE1:     true,
@@ -127,9 +127,9 @@ const FOOTBALL_WEEK_RANGES = {
   CFB: [
     {
       season: 2026,
-      week: 2,
-      start: "2026_09_09",
-      end:   "2026_09_15",
+      week: 3,
+      start: "2026_09_13",
+      end:   "2026_09_20",
     },
   ],
 
@@ -432,7 +432,7 @@ window.REPO_CONFIG = {
     sport:        "basketball",
     league:       "NCAAM",
     displayName:  "NCAAM",
-    enabled: false,
+    enabled: true,
     leagueColumn: "league",
     joinKey:      "game_id",
     selectFiles:  (date) => [
