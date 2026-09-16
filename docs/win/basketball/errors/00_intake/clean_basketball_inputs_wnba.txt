@@ -1,497 +1,514 @@
-=== clean_basketball_inputs RUN 2026-09-15T23:28:55.357456 ===
+=== clean_basketball_inputs RUN 2026-09-16T09:29:01.899685 ===
 === LEAGUE LOG: WNBA ===
-2026-09-15T23:28:55.358363 | INFO | Starting league cleanup
-2026-09-15T23:28:55.358381 | INFO | Odds cleanup active: blanks only the affected market; does not drop entire games
-2026-09-15T23:28:55.358399 | INFO | Missing market odds are treated as unavailable market, not bad game
-2026-09-15T23:28:55.358416 | INFO | Hold-based odds filtering removed
-2026-09-15T23:28:55.358434 | INFO | Spread outlier fix active: compare model home-away margin to -book_home_spread
-2026-09-15T23:28:55.358452 | INFO | Outlier cleanup active: blanks only affected sportsbook market fields; prediction rows are retained
-2026-09-15T23:28:55.388346 | BIAS CONFIG | margin_method=rolling margin_value=-5.133 total_method=regime_aware total_value=-5.147
-2026-09-15T23:28:55.396417 | LOADED | folder=docs/win/basketball/00_intake/predictions_ensemble/wnba files=101
-2026-09-15T23:28:55.402463 | LOADED | folder=docs/win/basketball/00_intake/sportsbook/wnba files=105
-2026-09-15T23:28:55.402585 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_12_WNBA_odds.csv | WNBA_68095964 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.402616 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_12_WNBA_odds.csv | WNBA_68095964 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.402641 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_12_WNBA_odds.csv | WNBA_68095964 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.402664 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_12_WNBA_odds.csv | WNBA_68095970 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.402687 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_12_WNBA_odds.csv | WNBA_68095970 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.402709 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_12_WNBA_odds.csv | WNBA_68095970 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.402729 | MARKET_BLANKED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_12_WNBA_odds.csv | bad_market_odds_blank_events=6
-2026-09-15T23:28:55.402764 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_15_WNBA_odds.csv | WNBA_68096008 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.402787 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_15_WNBA_odds.csv | WNBA_68096008 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.402809 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_15_WNBA_odds.csv | WNBA_68096008 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.402831 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_15_WNBA_odds.csv | WNBA_68164620 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.402852 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_15_WNBA_odds.csv | WNBA_68164620 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.402874 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_15_WNBA_odds.csv | WNBA_68164620 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.402895 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_15_WNBA_odds.csv | WNBA_68096058 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.402925 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_15_WNBA_odds.csv | WNBA_68096058 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.402947 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_15_WNBA_odds.csv | WNBA_68096058 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.402969 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_15_WNBA_odds.csv | WNBA_68164772 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.403003 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_15_WNBA_odds.csv | WNBA_68164772 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.403026 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_15_WNBA_odds.csv | WNBA_68164772 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.403045 | MARKET_BLANKED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_15_WNBA_odds.csv | bad_market_odds_blank_events=12
-2026-09-15T23:28:55.403085 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_19_WNBA_odds.csv | WNBA_68096566 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.403107 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_19_WNBA_odds.csv | WNBA_68096566 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.403128 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_19_WNBA_odds.csv | WNBA_68096566 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.403146 | MARKET_BLANKED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_19_WNBA_odds.csv | bad_market_odds_blank_events=3
-2026-09-15T23:28:55.403339 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_06_12_WNBA_odds.csv | WNBA_68096588 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.403365 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_06_12_WNBA_odds.csv | WNBA_68096588 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.403387 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_06_12_WNBA_odds.csv | WNBA_68096588 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.403409 | MARKET_BLANKED | docs/win/basketball/00_intake/sportsbook/wnba/2026_06_12_WNBA_odds.csv | bad_market_odds_blank_events=3
-2026-09-15T23:28:55.403441 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_06_14_WNBA_odds.csv | WNBA_68096492 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.403463 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_06_14_WNBA_odds.csv | WNBA_68096492 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.403483 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_06_14_WNBA_odds.csv | WNBA_68096492 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.403505 | MARKET_BLANKED | docs/win/basketball/00_intake/sportsbook/wnba/2026_06_14_WNBA_odds.csv | bad_market_odds_blank_events=3
-2026-09-15T23:28:55.403534 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_06_15_WNBA_odds.csv | WNBA_68096434 | reason=DECIMAL_LESS_THAN_OR_EQUAL_1 a='1.00' b='31.00' blanked_cols=['away_dk_moneyline_american', 'home_dk_moneyline_decimal', 'away_dk_moneyline_decimal']
-2026-09-15T23:28:55.403560 | MARKET_BLANKED | docs/win/basketball/00_intake/sportsbook/wnba/2026_06_15_WNBA_odds.csv | bad_market_odds_blank_events=1
-2026-09-15T23:28:55.403588 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_06_17_WNBA_odds.csv | WNBA_68095962 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.403609 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_06_17_WNBA_odds.csv | WNBA_68095962 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.403630 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_06_17_WNBA_odds.csv | WNBA_68095962 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.403659 | MARKET_BLANKED | docs/win/basketball/00_intake/sportsbook/wnba/2026_06_17_WNBA_odds.csv | bad_market_odds_blank_events=3
-2026-09-15T23:28:55.403907 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_07_30_WNBA_odds.csv | WNBA_68096048 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.403940 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_07_30_WNBA_odds.csv | WNBA_68096048 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.403962 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_07_30_WNBA_odds.csv | WNBA_68096048 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.403983 | MARKET_BLANKED | docs/win/basketball/00_intake/sportsbook/wnba/2026_07_30_WNBA_odds.csv | bad_market_odds_blank_events=3
-2026-09-15T23:28:55.404153 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_22_WNBA_odds.csv | 401857164 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.404176 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_22_WNBA_odds.csv | 401857164 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.404196 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_22_WNBA_odds.csv | 401857164 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.404239 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_22_WNBA_odds.csv | 401857165 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.404264 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_22_WNBA_odds.csv | 401857165 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.404285 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_22_WNBA_odds.csv | 401857165 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.404305 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_22_WNBA_odds.csv | 401857166 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.404326 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_22_WNBA_odds.csv | 401857166 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.404346 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_22_WNBA_odds.csv | 401857166 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.404364 | MARKET_BLANKED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_22_WNBA_odds.csv | bad_market_odds_blank_events=9
-2026-09-15T23:28:55.404386 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_23_WNBA_odds.csv | 401857167 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.404407 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_23_WNBA_odds.csv | 401857167 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.404427 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_23_WNBA_odds.csv | 401857167 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.404447 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_23_WNBA_odds.csv | 401857169 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.404467 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_23_WNBA_odds.csv | 401857169 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.404488 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_23_WNBA_odds.csv | 401857169 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.404508 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_23_WNBA_odds.csv | 401857168 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.404528 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_23_WNBA_odds.csv | 401857168 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.404548 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_23_WNBA_odds.csv | 401857168 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.404568 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_23_WNBA_odds.csv | 401857170 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.404595 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_23_WNBA_odds.csv | 401857170 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.404616 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_23_WNBA_odds.csv | 401857170 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.404634 | MARKET_BLANKED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_23_WNBA_odds.csv | bad_market_odds_blank_events=12
-2026-09-15T23:28:55.404656 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_24_WNBA_odds.csv | 401857171 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.404677 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_24_WNBA_odds.csv | 401857171 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.404698 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_24_WNBA_odds.csv | 401857171 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.404718 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_24_WNBA_odds.csv | 401857172 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.404738 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_24_WNBA_odds.csv | 401857172 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.404759 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_24_WNBA_odds.csv | 401857172 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.404776 | MARKET_BLANKED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_24_WNBA_odds.csv | bad_market_odds_blank_events=6
-2026-09-15T23:28:55.404798 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_25_WNBA_odds.csv | 401857173 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.404819 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_25_WNBA_odds.csv | 401857173 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.404839 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_25_WNBA_odds.csv | 401857173 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.404859 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_25_WNBA_odds.csv | 401857174 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.404879 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_25_WNBA_odds.csv | 401857174 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.404899 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_25_WNBA_odds.csv | 401857174 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.404919 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_25_WNBA_odds.csv | 401857175 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.404939 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_25_WNBA_odds.csv | 401857175 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.404959 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_25_WNBA_odds.csv | 401857175 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.404976 | MARKET_BLANKED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_25_WNBA_odds.csv | bad_market_odds_blank_events=9
-2026-09-15T23:28:55.404998 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_26_WNBA_odds.csv | 401857176 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.405018 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_26_WNBA_odds.csv | 401857176 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.405043 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_26_WNBA_odds.csv | 401857176 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.405064 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_26_WNBA_odds.csv | 401857177 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.405084 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_26_WNBA_odds.csv | 401857177 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.405104 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_26_WNBA_odds.csv | 401857177 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.405122 | MARKET_BLANKED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_26_WNBA_odds.csv | bad_market_odds_blank_events=6
-2026-09-15T23:28:55.405174 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_19_WNBA_odds.csv | 401857198 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.405196 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_19_WNBA_odds.csv | 401857198 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.405238 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_19_WNBA_odds.csv | 401857198 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.405263 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_19_WNBA_odds.csv | 401857199 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.405284 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_19_WNBA_odds.csv | 401857199 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.405305 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_19_WNBA_odds.csv | 401857199 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.405325 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_19_WNBA_odds.csv | 401857200 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.405346 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_19_WNBA_odds.csv | 401857200 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.405366 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_19_WNBA_odds.csv | 401857200 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.405383 | MARKET_BLANKED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_19_WNBA_odds.csv | bad_market_odds_blank_events=9
-2026-09-15T23:28:55.405406 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_20_WNBA_odds.csv | 401857201 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.405427 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_20_WNBA_odds.csv | 401857201 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.405447 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_20_WNBA_odds.csv | 401857201 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.405468 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_20_WNBA_odds.csv | 401857202 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.405488 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_20_WNBA_odds.csv | 401857202 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.405508 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_20_WNBA_odds.csv | 401857202 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.405528 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_20_WNBA_odds.csv | 401857203 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.405548 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_20_WNBA_odds.csv | 401857203 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.405575 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_20_WNBA_odds.csv | 401857203 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.405597 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_20_WNBA_odds.csv | 401857204 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.405617 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_20_WNBA_odds.csv | 401857204 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.405637 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_20_WNBA_odds.csv | 401857204 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.405657 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_20_WNBA_odds.csv | 401857205 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.405677 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_20_WNBA_odds.csv | 401857205 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.405697 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_20_WNBA_odds.csv | 401857205 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.405714 | MARKET_BLANKED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_20_WNBA_odds.csv | bad_market_odds_blank_events=15
-2026-09-15T23:28:55.405737 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_21_WNBA_odds.csv | 401857206 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.405758 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_21_WNBA_odds.csv | 401857206 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.405778 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_21_WNBA_odds.csv | 401857206 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.405799 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_21_WNBA_odds.csv | 401857207 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.405820 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_21_WNBA_odds.csv | 401857207 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.405840 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_21_WNBA_odds.csv | 401857207 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
-2026-09-15T23:28:55.405857 | MARKET_BLANKED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_21_WNBA_odds.csv | bad_market_odds_blank_events=6
-2026-09-15T23:28:55.406590 | BLANK_OUTLIER_TOTAL | WNBA_68096258 | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_10_WNBA_odds.csv | model_total=171.33290303918847 book_total=22.5 diff=148.8329
-2026-09-15T23:28:55.406632 | BLANK_OUTLIER_TOTAL | WNBA_68096374 | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_10_WNBA_odds.csv | model_total=155.98451474982636 book_total=19.5 diff=136.4845
-2026-09-15T23:28:55.406674 | BLANK_OUTLIER_TOTAL | WNBA_68096156 | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_14_WNBA_odds.csv | model_total=166.95237636635412 book_total=34.5 diff=132.4524
-2026-09-15T23:28:55.406701 | BLANK_OUTLIER_TOTAL | WNBA_68096416 | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_14_WNBA_odds.csv | model_total=167.42721770043104 book_total=20.5 diff=146.9272
-2026-09-15T23:28:55.406739 | BLANK_OUTLIER_TOTAL | WNBA_68096088 | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_17_WNBA_odds.csv | model_total=161.7347925706012 book_total=23.5 diff=138.2348
-2026-09-15T23:28:55.406769 | BLANK_OUTLIER_TOTAL | WNBA_68096264 | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_17_WNBA_odds.csv | model_total=161.68463054908125 book_total=14.5 diff=147.1846
-2026-09-15T23:28:55.406796 | BLANK_OUTLIER_TOTAL | WNBA_68096562 | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_17_WNBA_odds.csv | model_total=177.27309286033056 book_total=1.0 diff=176.2731
-2026-09-15T23:28:55.406832 | BLANK_OUTLIER_TOTAL | WNBA_68096372 | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_18_WNBA_odds.csv | model_total=165.58398206641647 book_total=11.5 diff=154.084
-2026-09-15T23:28:55.406860 | BLANK_OUTLIER_TOTAL | WNBA_68096424 | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_18_WNBA_odds.csv | model_total=166.28991428561577 book_total=19.5 diff=146.7899
-2026-09-15T23:28:55.406891 | BLANK_OUTLIER_TOTAL | WNBA_68096388 | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_20_WNBA_odds.csv | model_total=172.0966734967328 book_total=27.5 diff=144.5967
-2026-09-15T23:28:55.406923 | BLANK_OUTLIER_TOTAL | WNBA_68096124 | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_21_WNBA_odds.csv | model_total=168.4842333495794 book_total=15.5 diff=152.9842
-2026-09-15T23:28:55.406952 | BLANK_OUTLIER_TOTAL | WNBA_68096002 | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_22_WNBA_odds.csv | model_total=170.6541081343408 book_total=15.5 diff=155.1541
-2026-09-15T23:28:55.406981 | BLANK_OUTLIER_TOTAL | WNBA_68096430 | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_22_WNBA_odds.csv | model_total=164.91709335581305 book_total=24.5 diff=140.4171
-2026-09-15T23:28:55.407569 | OUTLIER SUMMARY | spread_outliers=0 total_outliers=13
-2026-09-15T23:28:55.407603 | MARKET_OUTLIER_BLANKED | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_10_WNBA_odds.csv | WNBA_68096374 | market=TOTAL reason=TOTAL_OUTLIER_DIFF_136.4845 blanked_cols=['total', 'dk_total_over_american', 'dk_total_under_american', 'dk_total_over_decimal', 'dk_total_under_decimal']
-2026-09-15T23:28:55.407632 | MARKET_OUTLIER_BLANKED | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_10_WNBA_odds.csv | WNBA_68096258 | market=TOTAL reason=TOTAL_OUTLIER_DIFF_148.8329 blanked_cols=['total', 'dk_total_over_american', 'dk_total_under_american', 'dk_total_over_decimal', 'dk_total_under_decimal']
-2026-09-15T23:28:55.407652 | MARKET_BLANKED | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_10_WNBA_odds.csv | outlier_market_blank_events=2
-2026-09-15T23:28:55.407678 | MARKET_OUTLIER_BLANKED | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_14_WNBA_odds.csv | WNBA_68096416 | market=TOTAL reason=TOTAL_OUTLIER_DIFF_146.9272 blanked_cols=['total', 'dk_total_over_american', 'dk_total_under_american', 'dk_total_over_decimal', 'dk_total_under_decimal']
-2026-09-15T23:28:55.407702 | MARKET_OUTLIER_BLANKED | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_14_WNBA_odds.csv | WNBA_68096156 | market=TOTAL reason=TOTAL_OUTLIER_DIFF_132.4524 blanked_cols=['total', 'dk_total_over_american', 'dk_total_under_american', 'dk_total_over_decimal', 'dk_total_under_decimal']
-2026-09-15T23:28:55.407721 | MARKET_BLANKED | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_14_WNBA_odds.csv | outlier_market_blank_events=2
-2026-09-15T23:28:55.407745 | MARKET_OUTLIER_BLANKED | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_17_WNBA_odds.csv | WNBA_68096088 | market=TOTAL reason=TOTAL_OUTLIER_DIFF_138.2348 blanked_cols=['total', 'dk_total_over_american', 'dk_total_under_american', 'dk_total_over_decimal', 'dk_total_under_decimal']
-2026-09-15T23:28:55.407769 | MARKET_OUTLIER_BLANKED | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_17_WNBA_odds.csv | WNBA_68096264 | market=TOTAL reason=TOTAL_OUTLIER_DIFF_147.1846 blanked_cols=['total', 'dk_total_over_american', 'dk_total_under_american', 'dk_total_over_decimal', 'dk_total_under_decimal']
-2026-09-15T23:28:55.407795 | MARKET_OUTLIER_BLANKED | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_17_WNBA_odds.csv | WNBA_68096562 | market=TOTAL reason=TOTAL_OUTLIER_DIFF_176.2731 blanked_cols=['total', 'dk_total_over_american', 'dk_total_under_american', 'dk_total_over_decimal', 'dk_total_under_decimal']
-2026-09-15T23:28:55.407815 | MARKET_BLANKED | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_17_WNBA_odds.csv | outlier_market_blank_events=3
-2026-09-15T23:28:55.407848 | MARKET_OUTLIER_BLANKED | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_18_WNBA_odds.csv | WNBA_68096372 | market=TOTAL reason=TOTAL_OUTLIER_DIFF_154.084 blanked_cols=['total', 'dk_total_over_american', 'dk_total_under_american', 'dk_total_over_decimal', 'dk_total_under_decimal']
-2026-09-15T23:28:55.407872 | MARKET_OUTLIER_BLANKED | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_18_WNBA_odds.csv | WNBA_68096424 | market=TOTAL reason=TOTAL_OUTLIER_DIFF_146.7899 blanked_cols=['total', 'dk_total_over_american', 'dk_total_under_american', 'dk_total_over_decimal', 'dk_total_under_decimal']
-2026-09-15T23:28:55.407890 | MARKET_BLANKED | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_18_WNBA_odds.csv | outlier_market_blank_events=2
-2026-09-15T23:28:55.407914 | MARKET_OUTLIER_BLANKED | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_20_WNBA_odds.csv | WNBA_68096388 | market=TOTAL reason=TOTAL_OUTLIER_DIFF_144.5967 blanked_cols=['total', 'dk_total_over_american', 'dk_total_under_american', 'dk_total_over_decimal', 'dk_total_under_decimal']
-2026-09-15T23:28:55.407933 | MARKET_BLANKED | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_20_WNBA_odds.csv | outlier_market_blank_events=1
-2026-09-15T23:28:55.407955 | MARKET_OUTLIER_BLANKED | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_21_WNBA_odds.csv | WNBA_68096124 | market=TOTAL reason=TOTAL_OUTLIER_DIFF_152.9842 blanked_cols=['total', 'dk_total_over_american', 'dk_total_under_american', 'dk_total_over_decimal', 'dk_total_under_decimal']
-2026-09-15T23:28:55.407974 | MARKET_BLANKED | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_21_WNBA_odds.csv | outlier_market_blank_events=1
-2026-09-15T23:28:55.407996 | MARKET_OUTLIER_BLANKED | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_22_WNBA_odds.csv | WNBA_68096002 | market=TOTAL reason=TOTAL_OUTLIER_DIFF_155.1541 blanked_cols=['total', 'dk_total_over_american', 'dk_total_under_american', 'dk_total_over_decimal', 'dk_total_under_decimal']
-2026-09-15T23:28:55.408018 | MARKET_OUTLIER_BLANKED | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_22_WNBA_odds.csv | WNBA_68096430 | market=TOTAL reason=TOTAL_OUTLIER_DIFF_140.4171 blanked_cols=['total', 'dk_total_over_american', 'dk_total_under_american', 'dk_total_over_decimal', 'dk_total_under_decimal']
-2026-09-15T23:28:55.408037 | MARKET_BLANKED | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_22_WNBA_odds.csv | outlier_market_blank_events=2
-2026-09-15T23:28:55.408353 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_08_WNBA_predictions.csv
-2026-09-15T23:28:55.408466 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_09_WNBA_predictions.csv
-2026-09-15T23:28:55.408567 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_10_WNBA_predictions.csv
-2026-09-15T23:28:55.408665 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_12_WNBA_predictions.csv
-2026-09-15T23:28:55.408766 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_13_WNBA_predictions.csv
-2026-09-15T23:28:55.408861 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_14_WNBA_predictions.csv
-2026-09-15T23:28:55.408960 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_15_WNBA_predictions.csv
-2026-09-15T23:28:55.409063 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_17_WNBA_predictions.csv
-2026-09-15T23:28:55.409161 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_18_WNBA_predictions.csv
-2026-09-15T23:28:55.409275 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_19_WNBA_predictions.csv
-2026-09-15T23:28:55.409373 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_20_WNBA_predictions.csv
-2026-09-15T23:28:55.409470 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_21_WNBA_predictions.csv
-2026-09-15T23:28:55.409561 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_22_WNBA_predictions.csv
-2026-09-15T23:28:55.409655 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_23_WNBA_predictions.csv
-2026-09-15T23:28:55.409776 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_24_WNBA_predictions.csv
-2026-09-15T23:28:55.409865 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_25_WNBA_predictions.csv
-2026-09-15T23:28:55.409964 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_27_WNBA_predictions.csv
-2026-09-15T23:28:55.410052 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_28_WNBA_predictions.csv
-2026-09-15T23:28:55.410147 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_29_WNBA_predictions.csv
-2026-09-15T23:28:55.410279 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_30_WNBA_predictions.csv
-2026-09-15T23:28:55.410368 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_31_WNBA_predictions.csv
-2026-09-15T23:28:55.410456 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_01_WNBA_predictions.csv
-2026-09-15T23:28:55.410552 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_02_WNBA_predictions.csv
-2026-09-15T23:28:55.410633 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_03_WNBA_predictions.csv
-2026-09-15T23:28:55.410716 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_04_WNBA_predictions.csv
-2026-09-15T23:28:55.410808 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_05_WNBA_predictions.csv
-2026-09-15T23:28:55.410909 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_06_WNBA_predictions.csv
-2026-09-15T23:28:55.410997 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_07_WNBA_predictions.csv
-2026-09-15T23:28:55.411086 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_08_WNBA_predictions.csv
-2026-09-15T23:28:55.411174 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_09_WNBA_predictions.csv
-2026-09-15T23:28:55.411286 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_10_WNBA_predictions.csv
-2026-09-15T23:28:55.411381 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_11_WNBA_predictions.csv
-2026-09-15T23:28:55.411478 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_12_WNBA_predictions.csv
-2026-09-15T23:28:55.411576 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_13_WNBA_predictions.csv
-2026-09-15T23:28:55.411663 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_14_WNBA_predictions.csv
-2026-09-15T23:28:55.411743 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_15_WNBA_predictions.csv
-2026-09-15T23:28:55.411822 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_16_WNBA_predictions.csv
-2026-09-15T23:28:55.411928 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_17_WNBA_predictions.csv
-2026-09-15T23:28:55.412006 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_18_WNBA_predictions.csv
-2026-09-15T23:28:55.412094 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_19_WNBA_predictions.csv
-2026-09-15T23:28:55.412187 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_20_WNBA_predictions.csv
-2026-09-15T23:28:55.412323 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_21_WNBA_predictions.csv
-2026-09-15T23:28:55.412420 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_22_WNBA_predictions.csv
-2026-09-15T23:28:55.412506 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_23_WNBA_predictions.csv
-2026-09-15T23:28:55.412603 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_24_WNBA_predictions.csv
-2026-09-15T23:28:55.412700 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_25_WNBA_predictions.csv
-2026-09-15T23:28:55.412794 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_26_WNBA_predictions.csv
-2026-09-15T23:28:55.412882 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_27_WNBA_predictions.csv
-2026-09-15T23:28:55.412983 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_28_WNBA_predictions.csv
-2026-09-15T23:28:55.413066 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_02_WNBA_predictions.csv
-2026-09-15T23:28:55.413153 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_03_WNBA_predictions.csv
-2026-09-15T23:28:55.413267 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_04_WNBA_predictions.csv
-2026-09-15T23:28:55.413354 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_05_WNBA_predictions.csv
-2026-09-15T23:28:55.413443 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_06_WNBA_predictions.csv
-2026-09-15T23:28:55.413527 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_07_WNBA_predictions.csv
-2026-09-15T23:28:55.413616 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_08_WNBA_predictions.csv
-2026-09-15T23:28:55.413716 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_09_WNBA_predictions.csv
-2026-09-15T23:28:55.413806 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_10_WNBA_predictions.csv
-2026-09-15T23:28:55.413897 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_11_WNBA_predictions.csv
-2026-09-15T23:28:55.413989 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_12_WNBA_predictions.csv
-2026-09-15T23:28:55.414068 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_13_WNBA_predictions.csv
-2026-09-15T23:28:55.414197 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_14_WNBA_predictions.csv
-2026-09-15T23:28:55.414338 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_15_WNBA_predictions.csv
-2026-09-15T23:28:55.414422 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_16_WNBA_predictions.csv
-2026-09-15T23:28:55.414520 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_17_WNBA_predictions.csv
-2026-09-15T23:28:55.414610 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_18_WNBA_predictions.csv
-2026-09-15T23:28:55.414707 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_19_WNBA_predictions.csv
-2026-09-15T23:28:55.414802 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_20_WNBA_predictions.csv
-2026-09-15T23:28:55.414903 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_22_WNBA_predictions.csv
-2026-09-15T23:28:55.414997 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_28_WNBA_predictions.csv
-2026-09-15T23:28:55.415085 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_29_WNBA_predictions.csv
-2026-09-15T23:28:55.415175 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_30_WNBA_predictions.csv
-2026-09-15T23:28:55.415289 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_31_WNBA_predictions.csv
-2026-09-15T23:28:55.415373 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_01_WNBA_predictions.csv
-2026-09-15T23:28:55.415470 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_02_WNBA_predictions.csv
-2026-09-15T23:28:55.415557 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_03_WNBA_predictions.csv
-2026-09-15T23:28:55.415638 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_04_WNBA_predictions.csv
-2026-09-15T23:28:55.415731 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_05_WNBA_predictions.csv
-2026-09-15T23:28:55.415818 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_06_WNBA_predictions.csv
-2026-09-15T23:28:55.415905 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_07_WNBA_predictions.csv
-2026-09-15T23:28:55.415993 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_08_WNBA_predictions.csv
-2026-09-15T23:28:55.416097 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_09_WNBA_predictions.csv
-2026-09-15T23:28:55.416177 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_10_WNBA_predictions.csv
-2026-09-15T23:28:55.416299 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_11_WNBA_predictions.csv
-2026-09-15T23:28:55.416398 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_12_WNBA_predictions.csv
-2026-09-15T23:28:55.416493 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_13_WNBA_predictions.csv
-2026-09-15T23:28:55.416572 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_14_WNBA_predictions.csv
-2026-09-15T23:28:55.416659 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_15_WNBA_predictions.csv
-2026-09-15T23:28:55.416748 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_16_WNBA_predictions.csv
-2026-09-15T23:28:55.416830 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_17_WNBA_predictions.csv
-2026-09-15T23:28:55.416926 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_18_WNBA_predictions.csv
-2026-09-15T23:28:55.417011 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_19_WNBA_predictions.csv
-2026-09-15T23:28:55.417098 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_20_WNBA_predictions.csv
-2026-09-15T23:28:55.417165 | WARN | Historical raw prediction has no existing cleaned copy; not applying current bias retroactively: docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_08_21_WNBA_predictions.csv
-2026-09-15T23:28:55.417240 | WARN | Historical raw prediction has no existing cleaned copy; not applying current bias retroactively: docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_08_22_WNBA_predictions.csv
-2026-09-15T23:28:55.417300 | WARN | Historical raw prediction has no existing cleaned copy; not applying current bias retroactively: docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_08_23_WNBA_predictions.csv
-2026-09-15T23:28:55.417348 | WARN | Historical raw prediction has no existing cleaned copy; not applying current bias retroactively: docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_08_24_WNBA_predictions.csv
-2026-09-15T23:28:55.417395 | WARN | Historical raw prediction has no existing cleaned copy; not applying current bias retroactively: docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_08_25_WNBA_predictions.csv
-2026-09-15T23:28:55.417441 | WARN | Historical raw prediction has no existing cleaned copy; not applying current bias retroactively: docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_08_26_WNBA_predictions.csv
-2026-09-15T23:28:55.417570 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_30_WNBA_predictions.csv
-2026-09-15T23:28:55.417853 | BIASED | docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_09_17_WNBA_predictions.csv | league=WNBA margin_method=rolling margin_bias=-5.133 total_method=regime_aware total_bias=-5.147 adjusted=5 skipped_already_flagged=0
-2026-09-15T23:28:55.418101 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_08_WNBA_predictions.csv | rows=3
-2026-09-15T23:28:55.418344 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_09_WNBA_predictions.csv | rows=4
-2026-09-15T23:28:55.418527 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_10_WNBA_predictions.csv | rows=4
-2026-09-15T23:28:55.418705 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_12_WNBA_predictions.csv | rows=3
-2026-09-15T23:28:55.418885 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_13_WNBA_predictions.csv | rows=4
-2026-09-15T23:28:55.419060 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_14_WNBA_predictions.csv | rows=2
-2026-09-15T23:28:55.419270 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_15_WNBA_predictions.csv | rows=4
-2026-09-15T23:28:55.419458 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_17_WNBA_predictions.csv | rows=4
-2026-09-15T23:28:55.419620 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_18_WNBA_predictions.csv | rows=2
-2026-09-15T23:28:55.419756 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_19_WNBA_predictions.csv | rows=1
-2026-09-15T23:28:55.419917 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_20_WNBA_predictions.csv | rows=3
-2026-09-15T23:28:55.420071 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_21_WNBA_predictions.csv | rows=3
-2026-09-15T23:28:55.420281 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_22_WNBA_predictions.csv | rows=3
-2026-09-15T23:28:55.420448 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_23_WNBA_predictions.csv | rows=3
-2026-09-15T23:28:55.420608 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_24_WNBA_predictions.csv | rows=3
-2026-09-15T23:28:55.420768 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_25_WNBA_predictions.csv | rows=2
-2026-09-15T23:28:55.420937 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_27_WNBA_predictions.csv | rows=5
-2026-09-15T23:28:55.421094 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_28_WNBA_predictions.csv | rows=2
-2026-09-15T23:28:55.421285 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_29_WNBA_predictions.csv | rows=4
-2026-09-15T23:28:55.421451 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_30_WNBA_predictions.csv | rows=3
-2026-09-15T23:28:55.421607 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_31_WNBA_predictions.csv | rows=1
-2026-09-15T23:28:55.421766 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_01_WNBA_predictions.csv | rows=2
-2026-09-15T23:28:55.421934 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_02_WNBA_predictions.csv | rows=4
-2026-09-15T23:28:55.422118 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_03_WNBA_predictions.csv | rows=2
-2026-09-15T23:28:55.422323 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_04_WNBA_predictions.csv | rows=2
-2026-09-15T23:28:55.422500 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_05_WNBA_predictions.csv | rows=3
-2026-09-15T23:28:55.422680 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_06_WNBA_predictions.csv | rows=4
-2026-09-15T23:28:55.422857 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_07_WNBA_predictions.csv | rows=2
-2026-09-15T23:28:55.423037 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_08_WNBA_predictions.csv | rows=3
-2026-09-15T23:28:55.423241 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_09_WNBA_predictions.csv | rows=3
-2026-09-15T23:28:55.423418 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_10_WNBA_predictions.csv | rows=2
-2026-09-15T23:28:55.423598 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_11_WNBA_predictions.csv | rows=4
-2026-09-15T23:28:55.423771 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_12_WNBA_predictions.csv | rows=2
-2026-09-15T23:28:55.423954 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_13_WNBA_predictions.csv | rows=4
-2026-09-15T23:28:55.424127 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_14_WNBA_predictions.csv | rows=2
-2026-09-15T23:28:55.424323 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_15_WNBA_predictions.csv | rows=1
-2026-09-15T23:28:55.424497 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_16_WNBA_predictions.csv | rows=1
-2026-09-15T23:28:55.424685 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_17_WNBA_predictions.csv | rows=6
-2026-09-15T23:28:55.424855 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_18_WNBA_predictions.csv | rows=1
-2026-09-15T23:28:55.425032 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_19_WNBA_predictions.csv | rows=3
-2026-09-15T23:28:55.425232 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_20_WNBA_predictions.csv | rows=3
-2026-09-15T23:28:55.425411 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_21_WNBA_predictions.csv | rows=3
-2026-09-15T23:28:55.425590 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_22_WNBA_predictions.csv | rows=4
-2026-09-15T23:28:55.425729 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_23_WNBA_predictions.csv | rows=1
-2026-09-15T23:28:55.425913 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_24_WNBA_predictions.csv | rows=4
-2026-09-15T23:28:55.426093 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_25_WNBA_predictions.csv | rows=3
-2026-09-15T23:28:55.426301 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_26_WNBA_predictions.csv | rows=3
-2026-09-15T23:28:55.426479 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_27_WNBA_predictions.csv | rows=3
-2026-09-15T23:28:55.426661 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_28_WNBA_predictions.csv | rows=4
-2026-09-15T23:28:55.426836 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_02_WNBA_predictions.csv | rows=3
-2026-09-15T23:28:55.427008 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_03_WNBA_predictions.csv | rows=2
-2026-09-15T23:28:55.427180 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_04_WNBA_predictions.csv | rows=2
-2026-09-15T23:28:55.427379 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_05_WNBA_predictions.csv | rows=2
-2026-09-15T23:28:55.427565 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_06_WNBA_predictions.csv | rows=3
-2026-09-15T23:28:55.427736 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_07_WNBA_predictions.csv | rows=2
-2026-09-15T23:28:55.427914 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_08_WNBA_predictions.csv | rows=3
-2026-09-15T23:28:55.428089 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_09_WNBA_predictions.csv | rows=3
-2026-09-15T23:28:55.428301 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_10_WNBA_predictions.csv | rows=3
-2026-09-15T23:28:55.428482 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_11_WNBA_predictions.csv | rows=3
-2026-09-15T23:28:55.428630 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_12_WNBA_predictions.csv | rows=4
-2026-09-15T23:28:55.428822 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_13_WNBA_predictions.csv | rows=2
-2026-09-15T23:28:55.428992 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_14_WNBA_predictions.csv | rows=2
-2026-09-15T23:28:55.429172 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_15_WNBA_predictions.csv | rows=3
-2026-09-15T23:28:55.429364 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_16_WNBA_predictions.csv | rows=2
-2026-09-15T23:28:55.429546 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_17_WNBA_predictions.csv | rows=4
-2026-09-15T23:28:55.429726 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_18_WNBA_predictions.csv | rows=3
-2026-09-15T23:28:55.429904 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_19_WNBA_predictions.csv | rows=3
-2026-09-15T23:28:55.430083 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_20_WNBA_predictions.csv | rows=4
-2026-09-15T23:28:55.430282 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_22_WNBA_predictions.csv | rows=6
-2026-09-15T23:28:55.430469 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_28_WNBA_predictions.csv | rows=5
-2026-09-15T23:28:55.430635 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_29_WNBA_predictions.csv | rows=2
-2026-09-15T23:28:55.430812 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_30_WNBA_predictions.csv | rows=3
-2026-09-15T23:28:55.430988 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_31_WNBA_predictions.csv | rows=3
-2026-09-15T23:28:55.431160 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_01_WNBA_predictions.csv | rows=2
-2026-09-15T23:28:55.431359 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_02_WNBA_predictions.csv | rows=4
-2026-09-15T23:28:55.431508 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_03_WNBA_predictions.csv | rows=3
-2026-09-15T23:28:55.431700 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_04_WNBA_predictions.csv | rows=1
-2026-09-15T23:28:55.431889 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_05_WNBA_predictions.csv | rows=4
-2026-09-15T23:28:55.432064 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_06_WNBA_predictions.csv | rows=3
-2026-09-15T23:28:55.432281 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_07_WNBA_predictions.csv | rows=3
-2026-09-15T23:28:55.432464 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_08_WNBA_predictions.csv | rows=3
-2026-09-15T23:28:55.432644 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_09_WNBA_predictions.csv | rows=4
-2026-09-15T23:28:55.432818 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_10_WNBA_predictions.csv | rows=2
-2026-09-15T23:28:55.433001 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_11_WNBA_predictions.csv | rows=3
-2026-09-15T23:28:55.433179 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_12_WNBA_predictions.csv | rows=3
-2026-09-15T23:28:55.433377 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_13_WNBA_predictions.csv | rows=3
-2026-09-15T23:28:55.433548 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_14_WNBA_predictions.csv | rows=2
-2026-09-15T23:28:55.433723 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_15_WNBA_predictions.csv | rows=3
-2026-09-15T23:28:55.433868 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_16_WNBA_predictions.csv | rows=3
-2026-09-15T23:28:55.434046 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_17_WNBA_predictions.csv | rows=1
-2026-09-15T23:28:55.434258 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_18_WNBA_predictions.csv | rows=4
-2026-09-15T23:28:55.434422 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_19_WNBA_predictions.csv | rows=2
-2026-09-15T23:28:55.434604 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_20_WNBA_predictions.csv | rows=3
-2026-09-15T23:28:55.434825 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_30_WNBA_predictions.csv | rows=4
-2026-09-15T23:28:55.435062 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_09_17_WNBA_predictions.csv | rows=5
-2026-09-15T23:28:55.435278 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_05_08_WNBA_odds.csv | rows=3
-2026-09-15T23:28:55.435476 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_05_09_WNBA_odds.csv | rows=4
-2026-09-15T23:28:55.435637 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_05_10_WNBA_odds.csv | rows=4
-2026-09-15T23:28:55.435814 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_05_12_WNBA_odds.csv | rows=2
-2026-09-15T23:28:55.436004 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_05_13_WNBA_odds.csv | rows=1
-2026-09-15T23:28:55.436197 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_05_14_WNBA_odds.csv | rows=2
-2026-09-15T23:28:55.436416 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_05_15_WNBA_odds.csv | rows=4
-2026-09-15T23:28:55.436604 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_05_17_WNBA_odds.csv | rows=4
-2026-09-15T23:28:55.436788 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_05_18_WNBA_odds.csv | rows=2
-2026-09-15T23:28:55.436964 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_05_19_WNBA_odds.csv | rows=1
-2026-09-15T23:28:55.437158 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_05_20_WNBA_odds.csv | rows=3
-2026-09-15T23:28:55.437381 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_05_21_WNBA_odds.csv | rows=3
-2026-09-15T23:28:55.437536 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_05_22_WNBA_odds.csv | rows=3
-2026-09-15T23:28:55.437786 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_05_23_WNBA_odds.csv | rows=3
-2026-09-15T23:28:55.437975 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_05_24_WNBA_odds.csv | rows=3
-2026-09-15T23:28:55.438156 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_05_25_WNBA_odds.csv | rows=2
-2026-09-15T23:28:55.438371 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_05_27_WNBA_odds.csv | rows=5
-2026-09-15T23:28:55.438554 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_05_28_WNBA_odds.csv | rows=2
-2026-09-15T23:28:55.438746 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_05_29_WNBA_odds.csv | rows=4
-2026-09-15T23:28:55.438928 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_05_30_WNBA_odds.csv | rows=3
-2026-09-15T23:28:55.439102 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_05_31_WNBA_odds.csv | rows=1
-2026-09-15T23:28:55.439299 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_01_WNBA_odds.csv | rows=2
-2026-09-15T23:28:55.439488 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_02_WNBA_odds.csv | rows=4
-2026-09-15T23:28:55.439667 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_03_WNBA_odds.csv | rows=2
-2026-09-15T23:28:55.439847 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_04_WNBA_odds.csv | rows=2
-2026-09-15T23:28:55.440028 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_05_WNBA_odds.csv | rows=3
-2026-09-15T23:28:55.440232 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_06_WNBA_odds.csv | rows=4
-2026-09-15T23:28:55.440415 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_07_WNBA_odds.csv | rows=2
-2026-09-15T23:28:55.440586 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_08_WNBA_odds.csv | rows=3
-2026-09-15T23:28:55.440776 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_09_WNBA_odds.csv | rows=3
-2026-09-15T23:28:55.440953 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_10_WNBA_odds.csv | rows=2
-2026-09-15T23:28:55.441139 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_11_WNBA_odds.csv | rows=4
-2026-09-15T23:28:55.441329 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_12_WNBA_odds.csv | rows=2
-2026-09-15T23:28:55.441516 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_13_WNBA_odds.csv | rows=4
-2026-09-15T23:28:55.441694 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_14_WNBA_odds.csv | rows=2
-2026-09-15T23:28:55.441879 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_15_WNBA_odds.csv | rows=3
-2026-09-15T23:28:55.442053 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_16_WNBA_odds.csv | rows=1
-2026-09-15T23:28:55.442269 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_17_WNBA_odds.csv | rows=6
-2026-09-15T23:28:55.442443 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_18_WNBA_odds.csv | rows=1
-2026-09-15T23:28:55.442625 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_19_WNBA_odds.csv | rows=3
-2026-09-15T23:28:55.442807 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_20_WNBA_odds.csv | rows=3
-2026-09-15T23:28:55.442993 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_21_WNBA_odds.csv | rows=3
-2026-09-15T23:28:55.443188 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_22_WNBA_odds.csv | rows=4
-2026-09-15T23:28:55.443386 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_23_WNBA_odds.csv | rows=1
-2026-09-15T23:28:55.443543 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_24_WNBA_odds.csv | rows=4
-2026-09-15T23:28:55.443729 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_25_WNBA_odds.csv | rows=3
-2026-09-15T23:28:55.443909 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_26_WNBA_odds.csv | rows=3
-2026-09-15T23:28:55.444096 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_27_WNBA_odds.csv | rows=3
-2026-09-15T23:28:55.444302 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_28_WNBA_odds.csv | rows=4
-2026-09-15T23:28:55.444488 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_02_WNBA_odds.csv | rows=3
-2026-09-15T23:28:55.444668 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_03_WNBA_odds.csv | rows=2
-2026-09-15T23:28:55.444847 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_04_WNBA_odds.csv | rows=2
-2026-09-15T23:28:55.445030 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_05_WNBA_odds.csv | rows=2
-2026-09-15T23:28:55.445229 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_06_WNBA_odds.csv | rows=3
-2026-09-15T23:28:55.445410 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_07_WNBA_odds.csv | rows=2
-2026-09-15T23:28:55.445594 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_08_WNBA_odds.csv | rows=3
-2026-09-15T23:28:55.445779 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_09_WNBA_odds.csv | rows=3
-2026-09-15T23:28:55.445963 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_10_WNBA_odds.csv | rows=3
-2026-09-15T23:28:55.446150 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_11_WNBA_odds.csv | rows=3
-2026-09-15T23:28:55.446359 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_12_WNBA_odds.csv | rows=4
-2026-09-15T23:28:55.446509 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_13_WNBA_odds.csv | rows=2
-2026-09-15T23:28:55.446702 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_14_WNBA_odds.csv | rows=2
-2026-09-15T23:28:55.446889 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_15_WNBA_odds.csv | rows=3
-2026-09-15T23:28:55.447072 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_16_WNBA_odds.csv | rows=2
-2026-09-15T23:28:55.447280 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_17_WNBA_odds.csv | rows=4
-2026-09-15T23:28:55.447475 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_18_WNBA_odds.csv | rows=3
-2026-09-15T23:28:55.447663 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_19_WNBA_odds.csv | rows=3
-2026-09-15T23:28:55.447855 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_20_WNBA_odds.csv | rows=4
-2026-09-15T23:28:55.448053 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_22_WNBA_odds.csv | rows=6
-2026-09-15T23:28:55.448263 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_28_WNBA_odds.csv | rows=5
-2026-09-15T23:28:55.448442 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_29_WNBA_odds.csv | rows=2
-2026-09-15T23:28:55.448640 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_30_WNBA_odds.csv | rows=3
-2026-09-15T23:28:55.448828 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_31_WNBA_odds.csv | rows=3
-2026-09-15T23:28:55.448999 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_01_WNBA_odds.csv | rows=2
-2026-09-15T23:28:55.449191 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_02_WNBA_odds.csv | rows=4
-2026-09-15T23:28:55.449394 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_03_WNBA_odds.csv | rows=3
-2026-09-15T23:28:55.449549 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_04_WNBA_odds.csv | rows=1
-2026-09-15T23:28:55.449751 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_05_WNBA_odds.csv | rows=4
-2026-09-15T23:28:55.449936 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_06_WNBA_odds.csv | rows=3
-2026-09-15T23:28:55.450126 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_07_WNBA_odds.csv | rows=3
-2026-09-15T23:28:55.450330 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_08_WNBA_odds.csv | rows=3
-2026-09-15T23:28:55.450525 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_09_WNBA_odds.csv | rows=4
-2026-09-15T23:28:55.450702 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_10_WNBA_odds.csv | rows=2
-2026-09-15T23:28:55.450887 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_11_WNBA_odds.csv | rows=3
-2026-09-15T23:28:55.451077 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_12_WNBA_odds.csv | rows=3
-2026-09-15T23:28:55.451249 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_13_WNBA_odds.csv | rows=3
-2026-09-15T23:28:55.451392 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_14_WNBA_odds.csv | rows=2
-2026-09-15T23:28:55.451533 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_15_WNBA_odds.csv | rows=3
-2026-09-15T23:28:55.451727 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_16_WNBA_odds.csv | rows=3
-2026-09-15T23:28:55.451941 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_17_WNBA_odds.csv | rows=1
-2026-09-15T23:28:55.452115 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_18_WNBA_odds.csv | rows=4
-2026-09-15T23:28:55.452321 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_19_WNBA_odds.csv | rows=2
-2026-09-15T23:28:55.452495 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_20_WNBA_odds.csv | rows=3
-2026-09-15T23:28:55.452674 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_21_WNBA_odds.csv | rows=3
-2026-09-15T23:28:55.452866 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_22_WNBA_odds.csv | rows=3
-2026-09-15T23:28:55.453062 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_23_WNBA_odds.csv | rows=4
-2026-09-15T23:28:55.453250 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_24_WNBA_odds.csv | rows=2
-2026-09-15T23:28:55.453436 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_25_WNBA_odds.csv | rows=3
-2026-09-15T23:28:55.453614 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_26_WNBA_odds.csv | rows=2
-2026-09-15T23:28:55.453810 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_30_WNBA_odds.csv | rows=4
-2026-09-15T23:28:55.454014 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_09_17_WNBA_odds.csv | rows=5
-2026-09-15T23:28:55.454225 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_09_18_WNBA_odds.csv | rows=3
-2026-09-15T23:28:55.454411 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_09_19_WNBA_odds.csv | rows=3
-2026-09-15T23:28:55.454601 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_09_20_WNBA_odds.csv | rows=5
-2026-09-15T23:28:55.454780 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_09_21_WNBA_odds.csv | rows=2
-2026-09-15T23:28:55.455918 | 
-2026-09-15T23:28:55.455934 | ============================================================
-2026-09-15T23:28:55.455950 | SUMMARY
-2026-09-15T23:28:55.455967 | ============================================================
-2026-09-15T23:28:55.455984 | prediction_files_loaded              : 95
-2026-09-15T23:28:55.456001 | sportsbook_files_loaded              : 105
-2026-09-15T23:28:55.456017 | bad_ml_market_rows_blanked           : 36
-2026-09-15T23:28:55.456033 | bad_total_market_rows_blanked        : 35
-2026-09-15T23:28:55.456050 | bad_spread_market_rows_blanked       : 35
-2026-09-15T23:28:55.456066 | bad_odds_market_rows_blanked_total   : 106
-2026-09-15T23:28:55.456083 | bad_total_line_rows_blanked          : 0
-2026-09-15T23:28:55.456099 | bad_spread_line_rows_blanked         : 0
-2026-09-15T23:28:55.456115 | bad_line_rows_blanked_total          : 0
-2026-09-15T23:28:55.456132 | spread_outlier_events_found          : 0
-2026-09-15T23:28:55.456148 | total_outlier_events_found           : 13
-2026-09-15T23:28:55.456165 | sportsbook_outlier_market_rows_blanked: 13
-2026-09-15T23:28:55.456182 | historical_cleaned_files_preserved   : 94
-2026-09-15T23:28:55.456198 | historical_raw_missing_cleaned_skipped: 6
-2026-09-15T23:28:55.456233 | prediction_rows_removed              : 0
-2026-09-15T23:28:55.456253 | sportsbook_rows_removed              : 0
-2026-09-15T23:28:55.456271 | bias_files_with_adjusted_rows        : 1
-2026-09-15T23:28:55.456288 | bias_rows_adjusted                   : 5
-2026-09-15T23:28:55.456305 | bias_rows_skipped_already_flagged    : 274
-2026-09-15T23:28:55.456323 | prediction_files_written             : 95
-2026-09-15T23:28:55.456339 | prediction_rows_written              : 279
-2026-09-15T23:28:55.456356 | sportsbook_files_written             : 105
-2026-09-15T23:28:55.456372 | sportsbook_rows_written              : 307
-2026-09-15T23:28:55.456389 | STATUS: SUCCESS
-2026-09-15T23:28:55.456405 | ============================================================
+2026-09-16T09:29:01.900666 | INFO | Starting league cleanup
+2026-09-16T09:29:01.900684 | INFO | Odds cleanup active: blanks only the affected market; does not drop entire games
+2026-09-16T09:29:01.900701 | INFO | Missing market odds are treated as unavailable market, not bad game
+2026-09-16T09:29:01.900719 | INFO | Hold-based odds filtering removed
+2026-09-16T09:29:01.900736 | INFO | Spread outlier fix active: compare model home-away margin to -book_home_spread
+2026-09-16T09:29:01.900754 | INFO | Outlier cleanup active: blanks only affected sportsbook market fields; prediction rows are retained
+2026-09-16T09:29:01.930302 | BIAS CONFIG | margin_method=rolling margin_value=-5.133 total_method=regime_aware total_value=-5.147
+2026-09-16T09:29:01.938395 | LOADED | folder=docs/win/basketball/00_intake/predictions_ensemble/wnba files=101
+2026-09-16T09:29:01.944441 | LOADED | folder=docs/win/basketball/00_intake/sportsbook/wnba files=106
+2026-09-16T09:29:01.944564 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_12_WNBA_odds.csv | WNBA_68095964 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.944594 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_12_WNBA_odds.csv | WNBA_68095964 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.944620 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_12_WNBA_odds.csv | WNBA_68095964 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.944644 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_12_WNBA_odds.csv | WNBA_68095970 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.944667 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_12_WNBA_odds.csv | WNBA_68095970 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.944689 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_12_WNBA_odds.csv | WNBA_68095970 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.944710 | MARKET_BLANKED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_12_WNBA_odds.csv | bad_market_odds_blank_events=6
+2026-09-16T09:29:01.944747 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_15_WNBA_odds.csv | WNBA_68096008 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.944770 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_15_WNBA_odds.csv | WNBA_68096008 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.944793 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_15_WNBA_odds.csv | WNBA_68096008 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.944815 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_15_WNBA_odds.csv | WNBA_68164620 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.944837 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_15_WNBA_odds.csv | WNBA_68164620 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.944859 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_15_WNBA_odds.csv | WNBA_68164620 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.944881 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_15_WNBA_odds.csv | WNBA_68096058 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.944903 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_15_WNBA_odds.csv | WNBA_68096058 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.944925 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_15_WNBA_odds.csv | WNBA_68096058 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.944947 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_15_WNBA_odds.csv | WNBA_68164772 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.944983 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_15_WNBA_odds.csv | WNBA_68164772 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.945005 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_15_WNBA_odds.csv | WNBA_68164772 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.945023 | MARKET_BLANKED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_15_WNBA_odds.csv | bad_market_odds_blank_events=12
+2026-09-16T09:29:01.945063 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_19_WNBA_odds.csv | WNBA_68096566 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.945085 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_19_WNBA_odds.csv | WNBA_68096566 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.945106 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_19_WNBA_odds.csv | WNBA_68096566 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.945124 | MARKET_BLANKED | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_19_WNBA_odds.csv | bad_market_odds_blank_events=3
+2026-09-16T09:29:01.945289 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_06_12_WNBA_odds.csv | WNBA_68096588 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.945311 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_06_12_WNBA_odds.csv | WNBA_68096588 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.945349 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_06_12_WNBA_odds.csv | WNBA_68096588 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.945380 | MARKET_BLANKED | docs/win/basketball/00_intake/sportsbook/wnba/2026_06_12_WNBA_odds.csv | bad_market_odds_blank_events=3
+2026-09-16T09:29:01.945416 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_06_14_WNBA_odds.csv | WNBA_68096492 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.945438 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_06_14_WNBA_odds.csv | WNBA_68096492 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.945459 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_06_14_WNBA_odds.csv | WNBA_68096492 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.945481 | MARKET_BLANKED | docs/win/basketball/00_intake/sportsbook/wnba/2026_06_14_WNBA_odds.csv | bad_market_odds_blank_events=3
+2026-09-16T09:29:01.945511 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_06_15_WNBA_odds.csv | WNBA_68096434 | reason=DECIMAL_LESS_THAN_OR_EQUAL_1 a='1.00' b='31.00' blanked_cols=['away_dk_moneyline_american', 'home_dk_moneyline_decimal', 'away_dk_moneyline_decimal']
+2026-09-16T09:29:01.945536 | MARKET_BLANKED | docs/win/basketball/00_intake/sportsbook/wnba/2026_06_15_WNBA_odds.csv | bad_market_odds_blank_events=1
+2026-09-16T09:29:01.945562 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_06_17_WNBA_odds.csv | WNBA_68095962 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.945583 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_06_17_WNBA_odds.csv | WNBA_68095962 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.945604 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_06_17_WNBA_odds.csv | WNBA_68095962 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.945632 | MARKET_BLANKED | docs/win/basketball/00_intake/sportsbook/wnba/2026_06_17_WNBA_odds.csv | bad_market_odds_blank_events=3
+2026-09-16T09:29:01.945879 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_07_30_WNBA_odds.csv | WNBA_68096048 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.945908 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_07_30_WNBA_odds.csv | WNBA_68096048 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.945931 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_07_30_WNBA_odds.csv | WNBA_68096048 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.945949 | MARKET_BLANKED | docs/win/basketball/00_intake/sportsbook/wnba/2026_07_30_WNBA_odds.csv | bad_market_odds_blank_events=3
+2026-09-16T09:29:01.946121 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_22_WNBA_odds.csv | 401857164 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.946143 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_22_WNBA_odds.csv | 401857164 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.946164 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_22_WNBA_odds.csv | 401857164 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.946184 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_22_WNBA_odds.csv | 401857165 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.946204 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_22_WNBA_odds.csv | 401857165 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.946224 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_22_WNBA_odds.csv | 401857165 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.946245 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_22_WNBA_odds.csv | 401857166 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.946264 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_22_WNBA_odds.csv | 401857166 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.946284 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_22_WNBA_odds.csv | 401857166 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.946301 | MARKET_BLANKED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_22_WNBA_odds.csv | bad_market_odds_blank_events=9
+2026-09-16T09:29:01.946323 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_23_WNBA_odds.csv | 401857167 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.946389 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_23_WNBA_odds.csv | 401857167 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.946423 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_23_WNBA_odds.csv | 401857167 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.946447 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_23_WNBA_odds.csv | 401857169 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.946468 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_23_WNBA_odds.csv | 401857169 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.946488 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_23_WNBA_odds.csv | 401857169 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.946509 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_23_WNBA_odds.csv | 401857168 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.946529 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_23_WNBA_odds.csv | 401857168 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.946549 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_23_WNBA_odds.csv | 401857168 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.946569 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_23_WNBA_odds.csv | 401857170 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.946595 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_23_WNBA_odds.csv | 401857170 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.946616 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_23_WNBA_odds.csv | 401857170 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.946633 | MARKET_BLANKED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_23_WNBA_odds.csv | bad_market_odds_blank_events=12
+2026-09-16T09:29:01.946657 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_24_WNBA_odds.csv | 401857171 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.946678 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_24_WNBA_odds.csv | 401857171 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.946698 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_24_WNBA_odds.csv | 401857171 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.946719 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_24_WNBA_odds.csv | 401857172 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.946739 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_24_WNBA_odds.csv | 401857172 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.946759 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_24_WNBA_odds.csv | 401857172 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.946776 | MARKET_BLANKED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_24_WNBA_odds.csv | bad_market_odds_blank_events=6
+2026-09-16T09:29:01.946798 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_25_WNBA_odds.csv | 401857173 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.946818 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_25_WNBA_odds.csv | 401857173 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.946838 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_25_WNBA_odds.csv | 401857173 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.946859 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_25_WNBA_odds.csv | 401857174 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.946878 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_25_WNBA_odds.csv | 401857174 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.946898 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_25_WNBA_odds.csv | 401857174 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.946918 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_25_WNBA_odds.csv | 401857175 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.946938 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_25_WNBA_odds.csv | 401857175 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.946957 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_25_WNBA_odds.csv | 401857175 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.946975 | MARKET_BLANKED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_25_WNBA_odds.csv | bad_market_odds_blank_events=9
+2026-09-16T09:29:01.946996 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_26_WNBA_odds.csv | 401857176 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.947016 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_26_WNBA_odds.csv | 401857176 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.947041 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_26_WNBA_odds.csv | 401857176 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.947062 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_26_WNBA_odds.csv | 401857177 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.947081 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_26_WNBA_odds.csv | 401857177 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.947101 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_26_WNBA_odds.csv | 401857177 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.947118 | MARKET_BLANKED | docs/win/basketball/00_intake/sportsbook/wnba/2026_08_26_WNBA_odds.csv | bad_market_odds_blank_events=6
+2026-09-16T09:29:01.947171 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_19_WNBA_odds.csv | 401857198 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.947193 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_19_WNBA_odds.csv | 401857198 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.947214 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_19_WNBA_odds.csv | 401857198 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.947235 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_19_WNBA_odds.csv | 401857199 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.947255 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_19_WNBA_odds.csv | 401857199 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.947275 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_19_WNBA_odds.csv | 401857199 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.947301 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_19_WNBA_odds.csv | 401857200 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.947323 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_19_WNBA_odds.csv | 401857200 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.947364 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_19_WNBA_odds.csv | 401857200 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.947385 | MARKET_BLANKED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_19_WNBA_odds.csv | bad_market_odds_blank_events=9
+2026-09-16T09:29:01.947408 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_20_WNBA_odds.csv | 401857201 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.947430 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_20_WNBA_odds.csv | 401857201 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.947451 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_20_WNBA_odds.csv | 401857201 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.947471 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_20_WNBA_odds.csv | 401857202 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.947492 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_20_WNBA_odds.csv | 401857202 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.947512 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_20_WNBA_odds.csv | 401857202 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.947532 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_20_WNBA_odds.csv | 401857203 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.947552 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_20_WNBA_odds.csv | 401857203 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.947577 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_20_WNBA_odds.csv | 401857203 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.947598 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_20_WNBA_odds.csv | 401857204 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.947618 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_20_WNBA_odds.csv | 401857204 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.947638 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_20_WNBA_odds.csv | 401857204 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.947658 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_20_WNBA_odds.csv | 401857205 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.947677 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_20_WNBA_odds.csv | 401857205 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.947697 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_20_WNBA_odds.csv | 401857205 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.947714 | MARKET_BLANKED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_20_WNBA_odds.csv | bad_market_odds_blank_events=15
+2026-09-16T09:29:01.947737 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_21_WNBA_odds.csv | 401857206 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.947757 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_21_WNBA_odds.csv | 401857206 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.947777 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_21_WNBA_odds.csv | 401857206 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.947797 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_21_WNBA_odds.csv | 401857207 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.947817 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_21_WNBA_odds.csv | 401857207 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.947837 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_21_WNBA_odds.csv | 401857207 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.947855 | MARKET_BLANKED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_21_WNBA_odds.csv | bad_market_odds_blank_events=6
+2026-09-16T09:29:01.947876 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_22_WNBA_odds.csv | 401857208 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.947896 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_22_WNBA_odds.csv | 401857208 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.947916 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_22_WNBA_odds.csv | 401857208 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.947936 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_22_WNBA_odds.csv | 401857209 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.947956 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_22_WNBA_odds.csv | 401857209 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.947976 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_22_WNBA_odds.csv | 401857209 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.947995 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_22_WNBA_odds.csv | 401857210 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.948020 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_22_WNBA_odds.csv | 401857210 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.948040 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_22_WNBA_odds.csv | 401857210 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.948061 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_22_WNBA_odds.csv | 401857211 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.948080 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_22_WNBA_odds.csv | 401857211 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.948100 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_22_WNBA_odds.csv | 401857211 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.948120 | BLANK_BAD_ML_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_22_WNBA_odds.csv | 401857212 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.948139 | BLANK_BAD_TOTAL_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_22_WNBA_odds.csv | 401857212 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.948159 | BLANK_BAD_SPREAD_MALFORMED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_22_WNBA_odds.csv | 401857212 | reason=BOTH_BLANK a='' b='' blanked_cols=[]
+2026-09-16T09:29:01.948176 | MARKET_BLANKED | docs/win/basketball/00_intake/sportsbook/wnba/2026_09_22_WNBA_odds.csv | bad_market_odds_blank_events=15
+2026-09-16T09:29:01.948868 | BLANK_OUTLIER_TOTAL | WNBA_68096258 | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_10_WNBA_odds.csv | model_total=171.33290303918847 book_total=22.5 diff=148.8329
+2026-09-16T09:29:01.948907 | BLANK_OUTLIER_TOTAL | WNBA_68096374 | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_10_WNBA_odds.csv | model_total=155.98451474982636 book_total=19.5 diff=136.4845
+2026-09-16T09:29:01.948946 | BLANK_OUTLIER_TOTAL | WNBA_68096156 | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_14_WNBA_odds.csv | model_total=166.95237636635412 book_total=34.5 diff=132.4524
+2026-09-16T09:29:01.948974 | BLANK_OUTLIER_TOTAL | WNBA_68096416 | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_14_WNBA_odds.csv | model_total=167.42721770043104 book_total=20.5 diff=146.9272
+2026-09-16T09:29:01.949009 | BLANK_OUTLIER_TOTAL | WNBA_68096088 | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_17_WNBA_odds.csv | model_total=161.7347925706012 book_total=23.5 diff=138.2348
+2026-09-16T09:29:01.949038 | BLANK_OUTLIER_TOTAL | WNBA_68096264 | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_17_WNBA_odds.csv | model_total=161.68463054908125 book_total=14.5 diff=147.1846
+2026-09-16T09:29:01.949066 | BLANK_OUTLIER_TOTAL | WNBA_68096562 | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_17_WNBA_odds.csv | model_total=177.27309286033056 book_total=1.0 diff=176.2731
+2026-09-16T09:29:01.949093 | BLANK_OUTLIER_TOTAL | WNBA_68096372 | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_18_WNBA_odds.csv | model_total=165.58398206641647 book_total=11.5 diff=154.084
+2026-09-16T09:29:01.949120 | BLANK_OUTLIER_TOTAL | WNBA_68096424 | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_18_WNBA_odds.csv | model_total=166.28991428561577 book_total=19.5 diff=146.7899
+2026-09-16T09:29:01.949151 | BLANK_OUTLIER_TOTAL | WNBA_68096388 | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_20_WNBA_odds.csv | model_total=172.0966734967328 book_total=27.5 diff=144.5967
+2026-09-16T09:29:01.949181 | BLANK_OUTLIER_TOTAL | WNBA_68096124 | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_21_WNBA_odds.csv | model_total=168.4842333495794 book_total=15.5 diff=152.9842
+2026-09-16T09:29:01.949210 | BLANK_OUTLIER_TOTAL | WNBA_68096002 | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_22_WNBA_odds.csv | model_total=170.6541081343408 book_total=15.5 diff=155.1541
+2026-09-16T09:29:01.949243 | BLANK_OUTLIER_TOTAL | WNBA_68096430 | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_22_WNBA_odds.csv | model_total=164.91709335581305 book_total=24.5 diff=140.4171
+2026-09-16T09:29:01.949815 | OUTLIER SUMMARY | spread_outliers=0 total_outliers=13
+2026-09-16T09:29:01.949848 | MARKET_OUTLIER_BLANKED | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_10_WNBA_odds.csv | WNBA_68096374 | market=TOTAL reason=TOTAL_OUTLIER_DIFF_136.4845 blanked_cols=['total', 'dk_total_over_american', 'dk_total_under_american', 'dk_total_over_decimal', 'dk_total_under_decimal']
+2026-09-16T09:29:01.949876 | MARKET_OUTLIER_BLANKED | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_10_WNBA_odds.csv | WNBA_68096258 | market=TOTAL reason=TOTAL_OUTLIER_DIFF_148.8329 blanked_cols=['total', 'dk_total_over_american', 'dk_total_under_american', 'dk_total_over_decimal', 'dk_total_under_decimal']
+2026-09-16T09:29:01.949896 | MARKET_BLANKED | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_10_WNBA_odds.csv | outlier_market_blank_events=2
+2026-09-16T09:29:01.949920 | MARKET_OUTLIER_BLANKED | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_14_WNBA_odds.csv | WNBA_68096416 | market=TOTAL reason=TOTAL_OUTLIER_DIFF_146.9272 blanked_cols=['total', 'dk_total_over_american', 'dk_total_under_american', 'dk_total_over_decimal', 'dk_total_under_decimal']
+2026-09-16T09:29:01.949944 | MARKET_OUTLIER_BLANKED | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_14_WNBA_odds.csv | WNBA_68096156 | market=TOTAL reason=TOTAL_OUTLIER_DIFF_132.4524 blanked_cols=['total', 'dk_total_over_american', 'dk_total_under_american', 'dk_total_over_decimal', 'dk_total_under_decimal']
+2026-09-16T09:29:01.949963 | MARKET_BLANKED | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_14_WNBA_odds.csv | outlier_market_blank_events=2
+2026-09-16T09:29:01.949986 | MARKET_OUTLIER_BLANKED | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_17_WNBA_odds.csv | WNBA_68096088 | market=TOTAL reason=TOTAL_OUTLIER_DIFF_138.2348 blanked_cols=['total', 'dk_total_over_american', 'dk_total_under_american', 'dk_total_over_decimal', 'dk_total_under_decimal']
+2026-09-16T09:29:01.950008 | MARKET_OUTLIER_BLANKED | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_17_WNBA_odds.csv | WNBA_68096264 | market=TOTAL reason=TOTAL_OUTLIER_DIFF_147.1846 blanked_cols=['total', 'dk_total_over_american', 'dk_total_under_american', 'dk_total_over_decimal', 'dk_total_under_decimal']
+2026-09-16T09:29:01.950030 | MARKET_OUTLIER_BLANKED | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_17_WNBA_odds.csv | WNBA_68096562 | market=TOTAL reason=TOTAL_OUTLIER_DIFF_176.2731 blanked_cols=['total', 'dk_total_over_american', 'dk_total_under_american', 'dk_total_over_decimal', 'dk_total_under_decimal']
+2026-09-16T09:29:01.950049 | MARKET_BLANKED | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_17_WNBA_odds.csv | outlier_market_blank_events=3
+2026-09-16T09:29:01.950071 | MARKET_OUTLIER_BLANKED | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_18_WNBA_odds.csv | WNBA_68096372 | market=TOTAL reason=TOTAL_OUTLIER_DIFF_154.084 blanked_cols=['total', 'dk_total_over_american', 'dk_total_under_american', 'dk_total_over_decimal', 'dk_total_under_decimal']
+2026-09-16T09:29:01.950093 | MARKET_OUTLIER_BLANKED | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_18_WNBA_odds.csv | WNBA_68096424 | market=TOTAL reason=TOTAL_OUTLIER_DIFF_146.7899 blanked_cols=['total', 'dk_total_over_american', 'dk_total_under_american', 'dk_total_over_decimal', 'dk_total_under_decimal']
+2026-09-16T09:29:01.950111 | MARKET_BLANKED | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_18_WNBA_odds.csv | outlier_market_blank_events=2
+2026-09-16T09:29:01.950133 | MARKET_OUTLIER_BLANKED | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_20_WNBA_odds.csv | WNBA_68096388 | market=TOTAL reason=TOTAL_OUTLIER_DIFF_144.5967 blanked_cols=['total', 'dk_total_over_american', 'dk_total_under_american', 'dk_total_over_decimal', 'dk_total_under_decimal']
+2026-09-16T09:29:01.950158 | MARKET_BLANKED | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_20_WNBA_odds.csv | outlier_market_blank_events=1
+2026-09-16T09:29:01.950181 | MARKET_OUTLIER_BLANKED | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_21_WNBA_odds.csv | WNBA_68096124 | market=TOTAL reason=TOTAL_OUTLIER_DIFF_152.9842 blanked_cols=['total', 'dk_total_over_american', 'dk_total_under_american', 'dk_total_over_decimal', 'dk_total_under_decimal']
+2026-09-16T09:29:01.950199 | MARKET_BLANKED | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_21_WNBA_odds.csv | outlier_market_blank_events=1
+2026-09-16T09:29:01.950221 | MARKET_OUTLIER_BLANKED | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_22_WNBA_odds.csv | WNBA_68096002 | market=TOTAL reason=TOTAL_OUTLIER_DIFF_155.1541 blanked_cols=['total', 'dk_total_over_american', 'dk_total_under_american', 'dk_total_over_decimal', 'dk_total_under_decimal']
+2026-09-16T09:29:01.950243 | MARKET_OUTLIER_BLANKED | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_22_WNBA_odds.csv | WNBA_68096430 | market=TOTAL reason=TOTAL_OUTLIER_DIFF_140.4171 blanked_cols=['total', 'dk_total_over_american', 'dk_total_under_american', 'dk_total_over_decimal', 'dk_total_under_decimal']
+2026-09-16T09:29:01.950261 | MARKET_BLANKED | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/wnba/2026_05_22_WNBA_odds.csv | outlier_market_blank_events=2
+2026-09-16T09:29:01.950564 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_08_WNBA_predictions.csv
+2026-09-16T09:29:01.950678 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_09_WNBA_predictions.csv
+2026-09-16T09:29:01.950779 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_10_WNBA_predictions.csv
+2026-09-16T09:29:01.950879 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_12_WNBA_predictions.csv
+2026-09-16T09:29:01.950984 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_13_WNBA_predictions.csv
+2026-09-16T09:29:01.951079 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_14_WNBA_predictions.csv
+2026-09-16T09:29:01.951176 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_15_WNBA_predictions.csv
+2026-09-16T09:29:01.951278 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_17_WNBA_predictions.csv
+2026-09-16T09:29:01.951424 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_18_WNBA_predictions.csv
+2026-09-16T09:29:01.951522 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_19_WNBA_predictions.csv
+2026-09-16T09:29:01.951612 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_20_WNBA_predictions.csv
+2026-09-16T09:29:01.951709 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_21_WNBA_predictions.csv
+2026-09-16T09:29:01.951799 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_22_WNBA_predictions.csv
+2026-09-16T09:29:01.951887 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_23_WNBA_predictions.csv
+2026-09-16T09:29:01.951975 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_24_WNBA_predictions.csv
+2026-09-16T09:29:01.952072 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_25_WNBA_predictions.csv
+2026-09-16T09:29:01.952167 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_27_WNBA_predictions.csv
+2026-09-16T09:29:01.952253 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_28_WNBA_predictions.csv
+2026-09-16T09:29:01.952371 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_29_WNBA_predictions.csv
+2026-09-16T09:29:01.952464 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_30_WNBA_predictions.csv
+2026-09-16T09:29:01.952541 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_31_WNBA_predictions.csv
+2026-09-16T09:29:01.952625 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_01_WNBA_predictions.csv
+2026-09-16T09:29:01.952722 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_02_WNBA_predictions.csv
+2026-09-16T09:29:01.952802 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_03_WNBA_predictions.csv
+2026-09-16T09:29:01.952885 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_04_WNBA_predictions.csv
+2026-09-16T09:29:01.952971 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_05_WNBA_predictions.csv
+2026-09-16T09:29:01.953066 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_06_WNBA_predictions.csv
+2026-09-16T09:29:01.953149 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_07_WNBA_predictions.csv
+2026-09-16T09:29:01.953235 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_08_WNBA_predictions.csv
+2026-09-16T09:29:01.953322 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_09_WNBA_predictions.csv
+2026-09-16T09:29:01.953433 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_10_WNBA_predictions.csv
+2026-09-16T09:29:01.953525 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_11_WNBA_predictions.csv
+2026-09-16T09:29:01.953609 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_12_WNBA_predictions.csv
+2026-09-16T09:29:01.953709 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_13_WNBA_predictions.csv
+2026-09-16T09:29:01.953795 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_14_WNBA_predictions.csv
+2026-09-16T09:29:01.953870 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_15_WNBA_predictions.csv
+2026-09-16T09:29:01.953947 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_16_WNBA_predictions.csv
+2026-09-16T09:29:01.954047 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_17_WNBA_predictions.csv
+2026-09-16T09:29:01.954122 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_18_WNBA_predictions.csv
+2026-09-16T09:29:01.954216 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_19_WNBA_predictions.csv
+2026-09-16T09:29:01.954307 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_20_WNBA_predictions.csv
+2026-09-16T09:29:01.954453 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_21_WNBA_predictions.csv
+2026-09-16T09:29:01.954553 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_22_WNBA_predictions.csv
+2026-09-16T09:29:01.954638 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_23_WNBA_predictions.csv
+2026-09-16T09:29:01.954734 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_24_WNBA_predictions.csv
+2026-09-16T09:29:01.954823 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_25_WNBA_predictions.csv
+2026-09-16T09:29:01.954909 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_26_WNBA_predictions.csv
+2026-09-16T09:29:01.954996 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_27_WNBA_predictions.csv
+2026-09-16T09:29:01.955088 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_28_WNBA_predictions.csv
+2026-09-16T09:29:01.955171 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_02_WNBA_predictions.csv
+2026-09-16T09:29:01.955256 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_03_WNBA_predictions.csv
+2026-09-16T09:29:01.955361 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_04_WNBA_predictions.csv
+2026-09-16T09:29:01.955448 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_05_WNBA_predictions.csv
+2026-09-16T09:29:01.955537 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_06_WNBA_predictions.csv
+2026-09-16T09:29:01.955621 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_07_WNBA_predictions.csv
+2026-09-16T09:29:01.955749 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_08_WNBA_predictions.csv
+2026-09-16T09:29:01.955837 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_09_WNBA_predictions.csv
+2026-09-16T09:29:01.955926 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_10_WNBA_predictions.csv
+2026-09-16T09:29:01.956021 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_11_WNBA_predictions.csv
+2026-09-16T09:29:01.956112 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_12_WNBA_predictions.csv
+2026-09-16T09:29:01.956190 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_13_WNBA_predictions.csv
+2026-09-16T09:29:01.956273 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_14_WNBA_predictions.csv
+2026-09-16T09:29:01.956386 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_15_WNBA_predictions.csv
+2026-09-16T09:29:01.956476 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_16_WNBA_predictions.csv
+2026-09-16T09:29:01.956579 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_17_WNBA_predictions.csv
+2026-09-16T09:29:01.956669 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_18_WNBA_predictions.csv
+2026-09-16T09:29:01.956757 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_19_WNBA_predictions.csv
+2026-09-16T09:29:01.956848 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_20_WNBA_predictions.csv
+2026-09-16T09:29:01.956948 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_22_WNBA_predictions.csv
+2026-09-16T09:29:01.957045 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_28_WNBA_predictions.csv
+2026-09-16T09:29:01.957131 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_29_WNBA_predictions.csv
+2026-09-16T09:29:01.957219 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_30_WNBA_predictions.csv
+2026-09-16T09:29:01.957312 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_31_WNBA_predictions.csv
+2026-09-16T09:29:01.957438 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_01_WNBA_predictions.csv
+2026-09-16T09:29:01.957534 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_02_WNBA_predictions.csv
+2026-09-16T09:29:01.957621 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_03_WNBA_predictions.csv
+2026-09-16T09:29:01.957702 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_04_WNBA_predictions.csv
+2026-09-16T09:29:01.957796 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_05_WNBA_predictions.csv
+2026-09-16T09:29:01.957882 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_06_WNBA_predictions.csv
+2026-09-16T09:29:01.957969 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_07_WNBA_predictions.csv
+2026-09-16T09:29:01.958061 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_08_WNBA_predictions.csv
+2026-09-16T09:29:01.958152 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_09_WNBA_predictions.csv
+2026-09-16T09:29:01.958231 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_10_WNBA_predictions.csv
+2026-09-16T09:29:01.958318 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_11_WNBA_predictions.csv
+2026-09-16T09:29:01.958461 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_12_WNBA_predictions.csv
+2026-09-16T09:29:01.958552 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_13_WNBA_predictions.csv
+2026-09-16T09:29:01.958632 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_14_WNBA_predictions.csv
+2026-09-16T09:29:01.958754 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_15_WNBA_predictions.csv
+2026-09-16T09:29:01.958843 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_16_WNBA_predictions.csv
+2026-09-16T09:29:01.958923 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_17_WNBA_predictions.csv
+2026-09-16T09:29:01.959015 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_18_WNBA_predictions.csv
+2026-09-16T09:29:01.959099 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_19_WNBA_predictions.csv
+2026-09-16T09:29:01.959185 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_20_WNBA_predictions.csv
+2026-09-16T09:29:01.959246 | WARN | Historical raw prediction has no existing cleaned copy; not applying current bias retroactively: docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_08_21_WNBA_predictions.csv
+2026-09-16T09:29:01.959296 | WARN | Historical raw prediction has no existing cleaned copy; not applying current bias retroactively: docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_08_22_WNBA_predictions.csv
+2026-09-16T09:29:01.959367 | WARN | Historical raw prediction has no existing cleaned copy; not applying current bias retroactively: docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_08_23_WNBA_predictions.csv
+2026-09-16T09:29:01.959420 | WARN | Historical raw prediction has no existing cleaned copy; not applying current bias retroactively: docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_08_24_WNBA_predictions.csv
+2026-09-16T09:29:01.959466 | WARN | Historical raw prediction has no existing cleaned copy; not applying current bias retroactively: docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_08_25_WNBA_predictions.csv
+2026-09-16T09:29:01.959512 | WARN | Historical raw prediction has no existing cleaned copy; not applying current bias retroactively: docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_08_26_WNBA_predictions.csv
+2026-09-16T09:29:01.959638 | PRESERVED HISTORICAL CLEANED PREDICTION | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_30_WNBA_predictions.csv
+2026-09-16T09:29:01.959914 | BIASED | docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_09_17_WNBA_predictions.csv | league=WNBA margin_method=rolling margin_bias=-5.133 total_method=regime_aware total_bias=-5.147 adjusted=5 skipped_already_flagged=0
+2026-09-16T09:29:01.960151 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_08_WNBA_predictions.csv | rows=3
+2026-09-16T09:29:01.960398 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_09_WNBA_predictions.csv | rows=4
+2026-09-16T09:29:01.960594 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_10_WNBA_predictions.csv | rows=4
+2026-09-16T09:29:01.960780 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_12_WNBA_predictions.csv | rows=3
+2026-09-16T09:29:01.960968 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_13_WNBA_predictions.csv | rows=4
+2026-09-16T09:29:01.961149 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_14_WNBA_predictions.csv | rows=2
+2026-09-16T09:29:01.961356 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_15_WNBA_predictions.csv | rows=4
+2026-09-16T09:29:01.961549 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_17_WNBA_predictions.csv | rows=4
+2026-09-16T09:29:01.961725 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_18_WNBA_predictions.csv | rows=2
+2026-09-16T09:29:01.961903 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_19_WNBA_predictions.csv | rows=1
+2026-09-16T09:29:01.962079 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_20_WNBA_predictions.csv | rows=3
+2026-09-16T09:29:01.962257 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_21_WNBA_predictions.csv | rows=3
+2026-09-16T09:29:01.962451 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_22_WNBA_predictions.csv | rows=3
+2026-09-16T09:29:01.962641 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_23_WNBA_predictions.csv | rows=3
+2026-09-16T09:29:01.962841 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_24_WNBA_predictions.csv | rows=3
+2026-09-16T09:29:01.963017 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_25_WNBA_predictions.csv | rows=2
+2026-09-16T09:29:01.963203 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_27_WNBA_predictions.csv | rows=5
+2026-09-16T09:29:01.963398 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_28_WNBA_predictions.csv | rows=2
+2026-09-16T09:29:01.963578 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_29_WNBA_predictions.csv | rows=4
+2026-09-16T09:29:01.963747 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_30_WNBA_predictions.csv | rows=3
+2026-09-16T09:29:01.963908 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_05_31_WNBA_predictions.csv | rows=1
+2026-09-16T09:29:01.964071 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_01_WNBA_predictions.csv | rows=2
+2026-09-16T09:29:01.964241 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_02_WNBA_predictions.csv | rows=4
+2026-09-16T09:29:01.964447 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_03_WNBA_predictions.csv | rows=2
+2026-09-16T09:29:01.964622 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_04_WNBA_predictions.csv | rows=2
+2026-09-16T09:29:01.964794 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_05_WNBA_predictions.csv | rows=3
+2026-09-16T09:29:01.964970 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_06_WNBA_predictions.csv | rows=4
+2026-09-16T09:29:01.965140 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_07_WNBA_predictions.csv | rows=2
+2026-09-16T09:29:01.965314 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_08_WNBA_predictions.csv | rows=3
+2026-09-16T09:29:01.965516 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_09_WNBA_predictions.csv | rows=3
+2026-09-16T09:29:01.965687 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_10_WNBA_predictions.csv | rows=2
+2026-09-16T09:29:01.965865 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_11_WNBA_predictions.csv | rows=4
+2026-09-16T09:29:01.966036 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_12_WNBA_predictions.csv | rows=2
+2026-09-16T09:29:01.966214 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_13_WNBA_predictions.csv | rows=4
+2026-09-16T09:29:01.966421 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_14_WNBA_predictions.csv | rows=2
+2026-09-16T09:29:01.966588 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_15_WNBA_predictions.csv | rows=1
+2026-09-16T09:29:01.966755 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_16_WNBA_predictions.csv | rows=1
+2026-09-16T09:29:01.966955 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_17_WNBA_predictions.csv | rows=6
+2026-09-16T09:29:01.967137 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_18_WNBA_predictions.csv | rows=1
+2026-09-16T09:29:01.967315 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_19_WNBA_predictions.csv | rows=3
+2026-09-16T09:29:01.967509 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_20_WNBA_predictions.csv | rows=3
+2026-09-16T09:29:01.967675 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_21_WNBA_predictions.csv | rows=3
+2026-09-16T09:29:01.967844 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_22_WNBA_predictions.csv | rows=4
+2026-09-16T09:29:01.968003 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_23_WNBA_predictions.csv | rows=1
+2026-09-16T09:29:01.968171 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_24_WNBA_predictions.csv | rows=4
+2026-09-16T09:29:01.968362 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_25_WNBA_predictions.csv | rows=3
+2026-09-16T09:29:01.968531 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_26_WNBA_predictions.csv | rows=3
+2026-09-16T09:29:01.968697 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_27_WNBA_predictions.csv | rows=3
+2026-09-16T09:29:01.968864 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_06_28_WNBA_predictions.csv | rows=4
+2026-09-16T09:29:01.969029 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_02_WNBA_predictions.csv | rows=3
+2026-09-16T09:29:01.969190 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_03_WNBA_predictions.csv | rows=2
+2026-09-16T09:29:01.969391 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_04_WNBA_predictions.csv | rows=2
+2026-09-16T09:29:01.969559 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_05_WNBA_predictions.csv | rows=2
+2026-09-16T09:29:01.969733 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_06_WNBA_predictions.csv | rows=3
+2026-09-16T09:29:01.969902 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_07_WNBA_predictions.csv | rows=2
+2026-09-16T09:29:01.970076 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_08_WNBA_predictions.csv | rows=3
+2026-09-16T09:29:01.970250 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_09_WNBA_predictions.csv | rows=3
+2026-09-16T09:29:01.970448 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_10_WNBA_predictions.csv | rows=3
+2026-09-16T09:29:01.970625 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_11_WNBA_predictions.csv | rows=3
+2026-09-16T09:29:01.970803 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_12_WNBA_predictions.csv | rows=4
+2026-09-16T09:29:01.970978 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_13_WNBA_predictions.csv | rows=2
+2026-09-16T09:29:01.971149 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_14_WNBA_predictions.csv | rows=2
+2026-09-16T09:29:01.971323 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_15_WNBA_predictions.csv | rows=3
+2026-09-16T09:29:01.971513 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_16_WNBA_predictions.csv | rows=2
+2026-09-16T09:29:01.971694 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_17_WNBA_predictions.csv | rows=4
+2026-09-16T09:29:01.971868 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_18_WNBA_predictions.csv | rows=3
+2026-09-16T09:29:01.972042 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_19_WNBA_predictions.csv | rows=3
+2026-09-16T09:29:01.972219 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_20_WNBA_predictions.csv | rows=4
+2026-09-16T09:29:01.972419 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_22_WNBA_predictions.csv | rows=6
+2026-09-16T09:29:01.972599 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_28_WNBA_predictions.csv | rows=5
+2026-09-16T09:29:01.972770 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_29_WNBA_predictions.csv | rows=2
+2026-09-16T09:29:01.972942 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_30_WNBA_predictions.csv | rows=3
+2026-09-16T09:29:01.973114 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_07_31_WNBA_predictions.csv | rows=3
+2026-09-16T09:29:01.973284 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_01_WNBA_predictions.csv | rows=2
+2026-09-16T09:29:01.973478 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_02_WNBA_predictions.csv | rows=4
+2026-09-16T09:29:01.973652 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_03_WNBA_predictions.csv | rows=3
+2026-09-16T09:29:01.973819 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_04_WNBA_predictions.csv | rows=1
+2026-09-16T09:29:01.973996 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_05_WNBA_predictions.csv | rows=4
+2026-09-16T09:29:01.974170 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_06_WNBA_predictions.csv | rows=3
+2026-09-16T09:29:01.974392 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_07_WNBA_predictions.csv | rows=3
+2026-09-16T09:29:01.974550 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_08_WNBA_predictions.csv | rows=3
+2026-09-16T09:29:01.974695 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_09_WNBA_predictions.csv | rows=4
+2026-09-16T09:29:01.974889 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_10_WNBA_predictions.csv | rows=2
+2026-09-16T09:29:01.975063 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_11_WNBA_predictions.csv | rows=3
+2026-09-16T09:29:01.975227 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_12_WNBA_predictions.csv | rows=3
+2026-09-16T09:29:01.975427 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_13_WNBA_predictions.csv | rows=3
+2026-09-16T09:29:01.975569 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_14_WNBA_predictions.csv | rows=2
+2026-09-16T09:29:01.975725 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_15_WNBA_predictions.csv | rows=3
+2026-09-16T09:29:01.975903 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_16_WNBA_predictions.csv | rows=3
+2026-09-16T09:29:01.976038 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_17_WNBA_predictions.csv | rows=1
+2026-09-16T09:29:01.976174 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_18_WNBA_predictions.csv | rows=4
+2026-09-16T09:29:01.976304 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_19_WNBA_predictions.csv | rows=2
+2026-09-16T09:29:01.976469 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_20_WNBA_predictions.csv | rows=3
+2026-09-16T09:29:01.976744 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_08_30_WNBA_predictions.csv | rows=4
+2026-09-16T09:29:01.976983 | WROTE | PREDICTIONS | docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_09_17_WNBA_predictions.csv | rows=5
+2026-09-16T09:29:01.977184 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_05_08_WNBA_odds.csv | rows=3
+2026-09-16T09:29:01.977375 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_05_09_WNBA_odds.csv | rows=4
+2026-09-16T09:29:01.977577 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_05_10_WNBA_odds.csv | rows=4
+2026-09-16T09:29:01.977736 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_05_12_WNBA_odds.csv | rows=2
+2026-09-16T09:29:01.977911 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_05_13_WNBA_odds.csv | rows=1
+2026-09-16T09:29:01.978075 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_05_14_WNBA_odds.csv | rows=2
+2026-09-16T09:29:01.978249 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_05_15_WNBA_odds.csv | rows=4
+2026-09-16T09:29:01.978472 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_05_17_WNBA_odds.csv | rows=4
+2026-09-16T09:29:01.978660 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_05_18_WNBA_odds.csv | rows=2
+2026-09-16T09:29:01.978805 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_05_19_WNBA_odds.csv | rows=1
+2026-09-16T09:29:01.979012 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_05_20_WNBA_odds.csv | rows=3
+2026-09-16T09:29:01.979200 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_05_21_WNBA_odds.csv | rows=3
+2026-09-16T09:29:01.979407 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_05_22_WNBA_odds.csv | rows=3
+2026-09-16T09:29:01.979588 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_05_23_WNBA_odds.csv | rows=3
+2026-09-16T09:29:01.979776 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_05_24_WNBA_odds.csv | rows=3
+2026-09-16T09:29:01.979960 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_05_25_WNBA_odds.csv | rows=2
+2026-09-16T09:29:01.980160 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_05_27_WNBA_odds.csv | rows=5
+2026-09-16T09:29:01.980317 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_05_28_WNBA_odds.csv | rows=2
+2026-09-16T09:29:01.980541 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_05_29_WNBA_odds.csv | rows=4
+2026-09-16T09:29:01.980731 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_05_30_WNBA_odds.csv | rows=3
+2026-09-16T09:29:01.980895 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_05_31_WNBA_odds.csv | rows=1
+2026-09-16T09:29:01.981090 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_01_WNBA_odds.csv | rows=2
+2026-09-16T09:29:01.981297 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_02_WNBA_odds.csv | rows=4
+2026-09-16T09:29:01.981496 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_03_WNBA_odds.csv | rows=2
+2026-09-16T09:29:01.981682 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_04_WNBA_odds.csv | rows=2
+2026-09-16T09:29:01.981868 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_05_WNBA_odds.csv | rows=3
+2026-09-16T09:29:01.982062 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_06_WNBA_odds.csv | rows=4
+2026-09-16T09:29:01.982245 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_07_WNBA_odds.csv | rows=2
+2026-09-16T09:29:01.982453 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_08_WNBA_odds.csv | rows=3
+2026-09-16T09:29:01.982647 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_09_WNBA_odds.csv | rows=3
+2026-09-16T09:29:01.982825 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_10_WNBA_odds.csv | rows=2
+2026-09-16T09:29:01.983016 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_11_WNBA_odds.csv | rows=4
+2026-09-16T09:29:01.983192 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_12_WNBA_odds.csv | rows=2
+2026-09-16T09:29:01.983390 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_13_WNBA_odds.csv | rows=4
+2026-09-16T09:29:01.983585 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_14_WNBA_odds.csv | rows=2
+2026-09-16T09:29:01.983761 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_15_WNBA_odds.csv | rows=3
+2026-09-16T09:29:01.983925 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_16_WNBA_odds.csv | rows=1
+2026-09-16T09:29:01.984107 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_17_WNBA_odds.csv | rows=6
+2026-09-16T09:29:01.984266 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_18_WNBA_odds.csv | rows=1
+2026-09-16T09:29:01.984469 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_19_WNBA_odds.csv | rows=3
+2026-09-16T09:29:01.984661 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_20_WNBA_odds.csv | rows=3
+2026-09-16T09:29:01.984853 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_21_WNBA_odds.csv | rows=3
+2026-09-16T09:29:01.985041 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_22_WNBA_odds.csv | rows=4
+2026-09-16T09:29:01.985211 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_23_WNBA_odds.csv | rows=1
+2026-09-16T09:29:01.985423 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_24_WNBA_odds.csv | rows=4
+2026-09-16T09:29:01.985619 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_25_WNBA_odds.csv | rows=3
+2026-09-16T09:29:01.985806 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_26_WNBA_odds.csv | rows=3
+2026-09-16T09:29:01.985995 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_27_WNBA_odds.csv | rows=3
+2026-09-16T09:29:01.986189 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_06_28_WNBA_odds.csv | rows=4
+2026-09-16T09:29:01.986373 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_02_WNBA_odds.csv | rows=3
+2026-09-16T09:29:01.986564 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_03_WNBA_odds.csv | rows=2
+2026-09-16T09:29:01.986713 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_04_WNBA_odds.csv | rows=2
+2026-09-16T09:29:01.986911 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_05_WNBA_odds.csv | rows=2
+2026-09-16T09:29:01.987094 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_06_WNBA_odds.csv | rows=3
+2026-09-16T09:29:01.987277 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_07_WNBA_odds.csv | rows=2
+2026-09-16T09:29:01.987488 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_08_WNBA_odds.csv | rows=3
+2026-09-16T09:29:01.987679 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_09_WNBA_odds.csv | rows=3
+2026-09-16T09:29:01.987856 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_10_WNBA_odds.csv | rows=3
+2026-09-16T09:29:01.988046 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_11_WNBA_odds.csv | rows=3
+2026-09-16T09:29:01.988227 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_12_WNBA_odds.csv | rows=4
+2026-09-16T09:29:01.988419 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_13_WNBA_odds.csv | rows=2
+2026-09-16T09:29:01.988594 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_14_WNBA_odds.csv | rows=2
+2026-09-16T09:29:01.988766 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_15_WNBA_odds.csv | rows=3
+2026-09-16T09:29:01.988954 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_16_WNBA_odds.csv | rows=2
+2026-09-16T09:29:01.989148 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_17_WNBA_odds.csv | rows=4
+2026-09-16T09:29:01.989301 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_18_WNBA_odds.csv | rows=3
+2026-09-16T09:29:01.989505 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_19_WNBA_odds.csv | rows=3
+2026-09-16T09:29:01.989701 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_20_WNBA_odds.csv | rows=4
+2026-09-16T09:29:01.989906 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_22_WNBA_odds.csv | rows=6
+2026-09-16T09:29:01.990104 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_28_WNBA_odds.csv | rows=5
+2026-09-16T09:29:01.990287 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_29_WNBA_odds.csv | rows=2
+2026-09-16T09:29:01.990491 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_30_WNBA_odds.csv | rows=3
+2026-09-16T09:29:01.990683 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_07_31_WNBA_odds.csv | rows=3
+2026-09-16T09:29:01.990872 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_01_WNBA_odds.csv | rows=2
+2026-09-16T09:29:01.991053 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_02_WNBA_odds.csv | rows=4
+2026-09-16T09:29:01.991212 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_03_WNBA_odds.csv | rows=3
+2026-09-16T09:29:01.991435 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_04_WNBA_odds.csv | rows=1
+2026-09-16T09:29:01.991624 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_05_WNBA_odds.csv | rows=4
+2026-09-16T09:29:01.991804 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_06_WNBA_odds.csv | rows=3
+2026-09-16T09:29:01.991996 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_07_WNBA_odds.csv | rows=3
+2026-09-16T09:29:01.992181 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_08_WNBA_odds.csv | rows=3
+2026-09-16T09:29:01.992359 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_09_WNBA_odds.csv | rows=4
+2026-09-16T09:29:01.992545 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_10_WNBA_odds.csv | rows=2
+2026-09-16T09:29:01.992721 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_11_WNBA_odds.csv | rows=3
+2026-09-16T09:29:01.992913 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_12_WNBA_odds.csv | rows=3
+2026-09-16T09:29:01.993098 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_13_WNBA_odds.csv | rows=3
+2026-09-16T09:29:01.993281 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_14_WNBA_odds.csv | rows=2
+2026-09-16T09:29:01.993480 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_15_WNBA_odds.csv | rows=3
+2026-09-16T09:29:01.993671 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_16_WNBA_odds.csv | rows=3
+2026-09-16T09:29:01.993850 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_17_WNBA_odds.csv | rows=1
+2026-09-16T09:29:01.994043 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_18_WNBA_odds.csv | rows=4
+2026-09-16T09:29:01.994217 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_19_WNBA_odds.csv | rows=2
+2026-09-16T09:29:01.994416 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_20_WNBA_odds.csv | rows=3
+2026-09-16T09:29:01.994621 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_21_WNBA_odds.csv | rows=3
+2026-09-16T09:29:01.994794 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_22_WNBA_odds.csv | rows=3
+2026-09-16T09:29:01.994988 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_23_WNBA_odds.csv | rows=4
+2026-09-16T09:29:01.995165 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_24_WNBA_odds.csv | rows=2
+2026-09-16T09:29:01.995319 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_25_WNBA_odds.csv | rows=3
+2026-09-16T09:29:01.995529 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_26_WNBA_odds.csv | rows=2
+2026-09-16T09:29:01.995743 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_08_30_WNBA_odds.csv | rows=4
+2026-09-16T09:29:01.995958 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_09_17_WNBA_odds.csv | rows=5
+2026-09-16T09:29:01.996149 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_09_18_WNBA_odds.csv | rows=3
+2026-09-16T09:29:01.996360 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_09_19_WNBA_odds.csv | rows=3
+2026-09-16T09:29:01.996559 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_09_20_WNBA_odds.csv | rows=5
+2026-09-16T09:29:01.996754 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_09_21_WNBA_odds.csv | rows=2
+2026-09-16T09:29:01.996945 | WROTE | SPORTSBOOK | docs/win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/2026_09_22_WNBA_odds.csv | rows=5
+2026-09-16T09:29:01.998106 | 
+2026-09-16T09:29:01.998122 | ============================================================
+2026-09-16T09:29:01.998138 | SUMMARY
+2026-09-16T09:29:01.998153 | ============================================================
+2026-09-16T09:29:01.998170 | prediction_files_loaded              : 95
+2026-09-16T09:29:01.998186 | sportsbook_files_loaded              : 106
+2026-09-16T09:29:01.998211 | bad_ml_market_rows_blanked           : 41
+2026-09-16T09:29:01.998227 | bad_total_market_rows_blanked        : 40
+2026-09-16T09:29:01.998243 | bad_spread_market_rows_blanked       : 40
+2026-09-16T09:29:01.998260 | bad_odds_market_rows_blanked_total   : 121
+2026-09-16T09:29:01.998285 | bad_total_line_rows_blanked          : 0
+2026-09-16T09:29:01.998301 | bad_spread_line_rows_blanked         : 0
+2026-09-16T09:29:01.998317 | bad_line_rows_blanked_total          : 0
+2026-09-16T09:29:01.998350 | spread_outlier_events_found          : 0
+2026-09-16T09:29:01.998372 | total_outlier_events_found           : 13
+2026-09-16T09:29:01.998389 | sportsbook_outlier_market_rows_blanked: 13
+2026-09-16T09:29:01.998406 | historical_cleaned_files_preserved   : 94
+2026-09-16T09:29:01.998422 | historical_raw_missing_cleaned_skipped: 6
+2026-09-16T09:29:01.998438 | prediction_rows_removed              : 0
+2026-09-16T09:29:01.998454 | sportsbook_rows_removed              : 0
+2026-09-16T09:29:01.998470 | bias_files_with_adjusted_rows        : 1
+2026-09-16T09:29:01.998487 | bias_rows_adjusted                   : 5
+2026-09-16T09:29:01.998503 | bias_rows_skipped_already_flagged    : 274
+2026-09-16T09:29:01.998519 | prediction_files_written             : 95
+2026-09-16T09:29:01.998536 | prediction_rows_written              : 279
+2026-09-16T09:29:01.998552 | sportsbook_files_written             : 106
+2026-09-16T09:29:01.998568 | sportsbook_rows_written              : 312
+2026-09-16T09:29:01.998584 | STATUS: SUCCESS
+2026-09-16T09:29:01.998600 | ============================================================
