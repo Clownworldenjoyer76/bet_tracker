@@ -4,7 +4,43 @@
 # Reads work_{league}.csv from script 02 and produces summary/detail CSVs.
 # All "by X" files share a canonical schema (see SCHEMA below). All sides files
 # follow Option A naming: "_home_away_summary" for ML/spread, "_over_under_summary"
-# for total. Crosses are emitted as a single long-format file per market.
+# for total.
+#
+# Per-market report policy for NBA, NCAAM, and WNBA:
+#
+# Moneyline:
+#   by_ev
+#   by_ev_home_away_summary
+#   by_kelly
+#   by_kelly_home_away_summary
+#   by_odds
+#   by_odds_home_away_summary
+#   by_win_prob
+#   by_win_prob_home_away_summary
+#
+# Spread:
+#   by_ev
+#   by_ev_home_away_summary
+#   by_kelly
+#   by_kelly_home_away_summary
+#   by_odds
+#   by_odds_home_away_summary
+#   by_win_prob
+#   by_win_prob_home_away_summary
+#
+# Total:
+#   by_ev
+#   by_ev_over_under_summary
+#   by_kelly
+#   by_kelly_over_under_summary
+#   by_odds
+#   by_odds_over_under_summary
+#   by_side
+#   by_side_over_under_summary
+#   by_total_range
+#   by_total_range_over_under_summary
+#   by_win_prob
+#   by_win_prob_over_under_summary
 #
 # Inputs:
 #   docs/win/basketball/05_final_scores/work_nba.csv
@@ -37,8 +73,15 @@ REPORT_DIR = BASE / "reports"
 ERROR_DIR = Path("docs/win/basketball/errors/05_final_scores")
 LOG_FILE = ERROR_DIR / "03_basketball_results_reports.txt"
 
-WORK_FILES = {lg: BASE / f"work_{lg}.csv" for lg in LEAGUES}
-QUALITY_FILES = {lg: BASE / f"quality_metrics_{lg}.csv" for lg in LEAGUES}
+WORK_FILES = {
+    league: BASE / f"work_{league}.csv"
+    for league in LEAGUES
+}
+
+QUALITY_FILES = {
+    league: BASE / f"quality_metrics_{league}.csv"
+    for league in LEAGUES
+}
 
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -56,7 +99,9 @@ OUTPUT_ROW_COUNT = 0
 
 with open(LOG_FILE, "w", encoding="utf-8") as log_handle:
     log_handle.write("=== 03_basketball_results_reports ===\n")
-    log_handle.write(f"START_TIMESTAMP_UTC: {RUN_STARTED.isoformat()}\n")
+    log_handle.write(
+        f"START_TIMESTAMP_UTC: {RUN_STARTED.isoformat()}\n"
+    )
 
 
 def _now() -> str:
@@ -65,42 +110,69 @@ def _now() -> str:
 
 def log(level: str, message: str) -> None:
     with open(LOG_FILE, "a", encoding="utf-8") as log_handle:
-        log_handle.write(f"{_now()} | {level} | {message}\n")
+        log_handle.write(
+            f"{_now()} | {level} | {message}\n"
+        )
 
 
 def warn(message: str) -> None:
     global WARNING_COUNT
+
     WARNING_COUNT += 1
     log("WARNING", message)
 
 
 def error(message: str) -> None:
     global ERROR_COUNT
+
     ERROR_COUNT += 1
     log("ERROR", message)
 
 
-def log_input(path: Path, rows: int, exists: bool = True) -> None:
+def log_input(
+    path: Path,
+    rows: int,
+    exists: bool = True,
+) -> None:
     global INPUT_FILE_COUNT, INPUT_ROW_COUNT
+
     INPUT_FILE_COUNT += 1
     INPUT_ROW_COUNT += rows
+
     log(
         "INFO",
-        f"INPUT | file={path} | exists={int(exists)} | rows={rows}",
+        (
+            f"INPUT | file={path} | "
+            f"exists={int(exists)} | rows={rows}"
+        ),
     )
 
 
-def write_csv(df: pd.DataFrame, path: Path) -> None:
+def write_csv(
+    df: pd.DataFrame,
+    path: Path,
+) -> None:
     global OUTPUT_FILE_COUNT, OUTPUT_ROW_COUNT
 
-    path.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(path, index=False)
+    path.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    df.to_csv(
+        path,
+        index=False,
+    )
 
     rows = len(df)
+
     OUTPUT_FILE_COUNT += 1
     OUTPUT_ROW_COUNT += rows
 
-    log("INFO", f"OUTPUT | file={path} | rows={rows}")
+    log(
+        "INFO",
+        f"OUTPUT | file={path} | rows={rows}",
+    )
 
 
 def finish(status: str) -> None:
@@ -108,17 +180,36 @@ def finish(status: str) -> None:
 
     with open(LOG_FILE, "a", encoding="utf-8") as log_handle:
         log_handle.write(
-            f"INPUT_SUMMARY | files={INPUT_FILE_COUNT} | "
-            f"rows={INPUT_ROW_COUNT}\n"
+            (
+                f"INPUT_SUMMARY | "
+                f"files={INPUT_FILE_COUNT} | "
+                f"rows={INPUT_ROW_COUNT}\n"
+            )
         )
+
         log_handle.write(
-            f"OUTPUT_SUMMARY | files={OUTPUT_FILE_COUNT} | "
-            f"rows={OUTPUT_ROW_COUNT}\n"
+            (
+                f"OUTPUT_SUMMARY | "
+                f"files={OUTPUT_FILE_COUNT} | "
+                f"rows={OUTPUT_ROW_COUNT}\n"
+            )
         )
-        log_handle.write(f"WARNING_COUNT: {WARNING_COUNT}\n")
-        log_handle.write(f"ERROR_COUNT: {ERROR_COUNT}\n")
-        log_handle.write(f"END_TIMESTAMP_UTC: {ended.isoformat()}\n")
-        log_handle.write(f"STATUS: {status}\n")
+
+        log_handle.write(
+            f"WARNING_COUNT: {WARNING_COUNT}\n"
+        )
+
+        log_handle.write(
+            f"ERROR_COUNT: {ERROR_COUNT}\n"
+        )
+
+        log_handle.write(
+            f"END_TIMESTAMP_UTC: {ended.isoformat()}\n"
+        )
+
+        log_handle.write(
+            f"STATUS: {status}\n"
+        )
 
 
 # =========================
@@ -172,11 +263,107 @@ CANON_COLS_WITH_SIDE = [
 
 
 # =========================
+# REPORT POLICY
+# =========================
+
+REPORT_BUCKETS = [
+    ("ev", "ev_bucket"),
+    ("kelly", "kelly_bucket"),
+    ("odds", "odds_bucket"),
+    ("win_prob", "model_prob_bucket"),
+]
+
+
+def allowed_market_reports(
+    league: str,
+    market_type: str,
+) -> set[str]:
+    if market_type == "moneyline":
+        return {
+            f"{league}_moneyline_by_ev.csv",
+            f"{league}_moneyline_by_ev_home_away_summary.csv",
+            f"{league}_moneyline_by_kelly.csv",
+            f"{league}_moneyline_by_kelly_home_away_summary.csv",
+            f"{league}_moneyline_by_odds.csv",
+            f"{league}_moneyline_by_odds_home_away_summary.csv",
+            f"{league}_moneyline_by_win_prob.csv",
+            f"{league}_moneyline_by_win_prob_home_away_summary.csv",
+        }
+
+    if market_type == "spread":
+        return {
+            f"{league}_spread_by_ev.csv",
+            f"{league}_spread_by_ev_home_away_summary.csv",
+            f"{league}_spread_by_kelly.csv",
+            f"{league}_spread_by_kelly_home_away_summary.csv",
+            f"{league}_spread_by_odds.csv",
+            f"{league}_spread_by_odds_home_away_summary.csv",
+            f"{league}_spread_by_win_prob.csv",
+            f"{league}_spread_by_win_prob_home_away_summary.csv",
+        }
+
+    if market_type == "total":
+        return {
+            f"{league}_total_by_ev.csv",
+            f"{league}_total_by_ev_over_under_summary.csv",
+            f"{league}_total_by_kelly.csv",
+            f"{league}_total_by_kelly_over_under_summary.csv",
+            f"{league}_total_by_odds.csv",
+            f"{league}_total_by_odds_over_under_summary.csv",
+            f"{league}_total_by_side.csv",
+            f"{league}_total_by_side_over_under_summary.csv",
+            f"{league}_total_by_total_range.csv",
+            f"{league}_total_by_total_range_over_under_summary.csv",
+            f"{league}_total_by_win_prob.csv",
+            f"{league}_total_by_win_prob_over_under_summary.csv",
+        }
+
+    return set()
+
+
+def cleanup_market_reports(
+    league: str,
+) -> None:
+    for market_type in [
+        "moneyline",
+        "spread",
+        "total",
+    ]:
+        market_dir = (
+            REPORT_DIR
+            / league
+            / market_type
+        )
+
+        if not market_dir.exists():
+            continue
+
+        allowed_files = allowed_market_reports(
+            league,
+            market_type,
+        )
+
+        for path in market_dir.glob("*.csv"):
+            if path.name in allowed_files:
+                continue
+
+            path.unlink()
+
+            log(
+                "INFO",
+                f"REMOVED | file={path}",
+            )
+
+
+# =========================
 # HELPERS
 # =========================
 
 def to_num(series):
-    return pd.to_numeric(series, errors="coerce")
+    return pd.to_numeric(
+        series,
+        errors="coerce",
+    )
 
 
 def aggregate_block(
@@ -195,7 +382,10 @@ def aggregate_block(
             if side_group_col
             else CANON_COLS_NO_SIDE
         )
-        return pd.DataFrame(columns=cols)
+
+        return pd.DataFrame(
+            columns=cols
+        )
 
     work = df.copy()
 
@@ -210,7 +400,9 @@ def aggregate_block(
         "bet_odds_american",
     ):
         if col in work.columns:
-            work[col] = to_num(work[col])
+            work[col] = to_num(
+                work[col]
+            )
 
     if "bet_result" in work.columns:
         result = (
@@ -220,16 +412,31 @@ def aggregate_block(
             .str.lower()
         )
     else:
-        result = pd.Series([""] * len(work))
+        result = pd.Series(
+            [""] * len(work)
+        )
 
-    work["_is_win"] = (result == "win").astype(int)
-    work["_is_loss"] = (result == "loss").astype(int)
-    work["_is_push"] = (result == "push").astype(int)
+    work["_is_win"] = (
+        result == "win"
+    ).astype(int)
 
-    group_cols = [bucket_col]
+    work["_is_loss"] = (
+        result == "loss"
+    ).astype(int)
+
+    work["_is_push"] = (
+        result == "push"
+    ).astype(int)
+
+    group_cols = [
+        bucket_col
+    ]
 
     if side_group_col:
-        group_cols = [side_group_col] + group_cols
+        group_cols = [
+            side_group_col,
+            bucket_col,
+        ]
 
     rows = []
 
@@ -241,26 +448,52 @@ def aggregate_block(
         if not isinstance(keys, tuple):
             keys = (keys,)
 
-        wins = int(sub["_is_win"].sum())
-        losses = int(sub["_is_loss"].sum())
-        pushes = int(sub["_is_push"].sum())
-        bets = wins + losses + pushes
+        wins = int(
+            sub["_is_win"].sum()
+        )
+
+        losses = int(
+            sub["_is_loss"].sum()
+        )
+
+        pushes = int(
+            sub["_is_push"].sum()
+        )
+
+        bets = (
+            wins
+            + losses
+            + pushes
+        )
+
         total = bets
 
         units_flat = (
-            float(sub["profit_unit"].sum(skipna=True))
+            float(
+                sub["profit_unit"].sum(
+                    skipna=True
+                )
+            )
             if "profit_unit" in sub.columns
             else 0.0
         )
 
         units_kelly = (
-            float(sub["profit_kelly"].sum(skipna=True))
+            float(
+                sub["profit_kelly"].sum(
+                    skipna=True
+                )
+            )
             if "profit_kelly" in sub.columns
             else 0.0
         )
 
         stake_total = (
-            float(sub["bet_stake_pct"].sum(skipna=True))
+            float(
+                sub["bet_stake_pct"].sum(
+                    skipna=True
+                )
+            )
             if "bet_stake_pct" in sub.columns
             else 0.0
         )
@@ -284,51 +517,82 @@ def aggregate_block(
         )
 
         avg_ev = (
-            float(sub["bet_ev"].mean(skipna=True))
+            float(
+                sub["bet_ev"].mean(
+                    skipna=True
+                )
+            )
             if "bet_ev" in sub.columns
             else np.nan
         )
 
         avg_edgepp = (
-            float(sub["bet_edge_vs_market"].mean(skipna=True))
-            if "bet_edge_vs_market" in sub.columns
+            float(
+                sub[
+                    "bet_edge_vs_market"
+                ].mean(
+                    skipna=True
+                )
+            )
+            if "bet_edge_vs_market"
+            in sub.columns
             else np.nan
         )
 
         avg_kpct = (
-            float(sub["bet_kelly"].mean(skipna=True))
+            float(
+                sub["bet_kelly"].mean(
+                    skipna=True
+                )
+            )
             if "bet_kelly" in sub.columns
             else np.nan
         )
 
         avg_mp = (
-            float(sub["bet_model_prob"].mean(skipna=True))
-            if "bet_model_prob" in sub.columns
+            float(
+                sub[
+                    "bet_model_prob"
+                ].mean(
+                    skipna=True
+                )
+            )
+            if "bet_model_prob"
+            in sub.columns
             else np.nan
         )
 
         avg_odds = (
-            float(sub["bet_odds_american"].mean(skipna=True))
-            if "bet_odds_american" in sub.columns
+            float(
+                sub[
+                    "bet_odds_american"
+                ].mean(
+                    skipna=True
+                )
+            )
+            if "bet_odds_american"
+            in sub.columns
             else np.nan
         )
 
         if market_type is not None:
-            resolved_market_type = market_type
+            resolved_market_type = (
+                market_type
+            )
         else:
             if "market_type" in sub.columns:
-                mt_vals = (
+                market_values = (
                     sub["market_type"]
                     .astype(str)
                     .str.lower()
                     .unique()
                 )
             else:
-                mt_vals = []
+                market_values = []
 
             resolved_market_type = (
-                mt_vals[0]
-                if len(mt_vals) == 1
+                market_values[0]
+                if len(market_values) == 1
                 else "mixed"
             )
 
@@ -336,58 +600,94 @@ def aggregate_block(
             "league": league,
             "market_type": resolved_market_type,
             "bucket_dimension": bucket_dimension,
-            "bucket": keys[-1] if len(keys) == 1 else keys[1],
+            "bucket": (
+                keys[-1]
+                if len(keys) == 1
+                else keys[1]
+            ),
             "bets": bets,
             "wins": wins,
             "losses": losses,
             "pushes": pushes,
             "total": total,
             "win_pct": (
-                round(win_pct, 4)
+                round(
+                    win_pct,
+                    4,
+                )
                 if not pd.isna(win_pct)
                 else np.nan
             ),
-            "units_flat": round(units_flat, 4),
+            "units_flat": round(
+                units_flat,
+                4,
+            ),
             "roi_flat": (
-                round(roi_flat, 4)
+                round(
+                    roi_flat,
+                    4,
+                )
                 if not pd.isna(roi_flat)
                 else np.nan
             ),
-            "units_kelly": round(units_kelly, 6),
+            "units_kelly": round(
+                units_kelly,
+                6,
+            ),
             "roi_kelly": (
-                round(roi_kelly, 4)
+                round(
+                    roi_kelly,
+                    4,
+                )
                 if not pd.isna(roi_kelly)
                 else np.nan
             ),
             "avg_ev": (
-                round(avg_ev, 4)
+                round(
+                    avg_ev,
+                    4,
+                )
                 if not pd.isna(avg_ev)
                 else np.nan
             ),
             "avg_edge_vs_market_pp": (
-                round(avg_edgepp, 4)
+                round(
+                    avg_edgepp,
+                    4,
+                )
                 if not pd.isna(avg_edgepp)
                 else np.nan
             ),
             "avg_kelly_pct": (
-                round(avg_kpct, 4)
+                round(
+                    avg_kpct,
+                    4,
+                )
                 if not pd.isna(avg_kpct)
                 else np.nan
             ),
             "avg_model_prob": (
-                round(avg_mp, 4)
+                round(
+                    avg_mp,
+                    4,
+                )
                 if not pd.isna(avg_mp)
                 else np.nan
             ),
             "avg_odds_american": (
-                round(avg_odds, 1)
+                round(
+                    avg_odds,
+                    1,
+                )
                 if not pd.isna(avg_odds)
                 else np.nan
             ),
         }
 
         if side_group_col:
-            row["side_group"] = keys[0]
+            row["side_group"] = (
+                keys[0]
+            )
 
         rows.append(row)
 
@@ -400,15 +700,28 @@ def aggregate_block(
     out = pd.DataFrame(rows)
 
     if out.empty:
-        return pd.DataFrame(columns=cols)
+        return pd.DataFrame(
+            columns=cols
+        )
 
-    out = out[cols].sort_values(
-        by=[
-            col
-            for col in cols
-            if col in ("side_group", "bucket")
-        ]
-    ).reset_index(drop=True)
+    sort_cols = [
+        col
+        for col in cols
+        if col in (
+            "side_group",
+            "bucket",
+        )
+    ]
+
+    out = (
+        out[cols]
+        .sort_values(
+            by=sort_cols
+        )
+        .reset_index(
+            drop=True
+        )
+    )
 
     return out
 
@@ -417,80 +730,13 @@ def aggregate_block(
 # PER-MARKET REPORTS
 # =========================
 
-COMMON_BUCKETS = [
-    ("ev", "ev_bucket"),
-    ("kelly", "kelly_bucket"),
-    ("odds", "odds_bucket"),
-    ("win_prob", "model_prob_bucket"),
-    ("edge_vs_market", "edge_vs_market_bucket"),
-    ("dow", "dow_bucket"),
-    ("month", "month_bucket"),
-]
+def side_suffix(
+    market_type: str,
+) -> str:
+    if market_type == "total":
+        return "over_under"
 
-WNBA_BUCKETS = [
-    ("ev", "ev_bucket"),
-    ("kelly", "kelly_bucket"),
-    ("odds", "odds_bucket"),
-    ("win_prob", "model_prob_bucket"),
-]
-
-WNBA_ALLOWED_REPORTS = {
-    "moneyline": {
-        "wnba_moneyline_by_ev.csv",
-        "wnba_moneyline_by_ev_home_away_summary.csv",
-        "wnba_moneyline_by_kelly.csv",
-        "wnba_moneyline_by_kelly_home_away_summary.csv",
-        "wnba_moneyline_by_odds.csv",
-        "wnba_moneyline_by_odds_home_away_summary.csv",
-        "wnba_moneyline_by_win_prob.csv",
-        "wnba_moneyline_by_win_prob_home_away_summary.csv",
-    },
-    "spread": {
-        "wnba_spread_by_ev.csv",
-        "wnba_spread_by_ev_home_away_summary.csv",
-        "wnba_spread_by_kelly.csv",
-        "wnba_spread_by_kelly_home_away_summary.csv",
-        "wnba_spread_by_odds.csv",
-        "wnba_spread_by_odds_home_away_summary.csv",
-        "wnba_spread_by_win_prob.csv",
-        "wnba_spread_by_win_prob_home_away_summary.csv",
-    },
-    "total": {
-        "wnba_total_by_ev.csv",
-        "wnba_total_by_ev_over_under_summary.csv",
-        "wnba_total_by_kelly.csv",
-        "wnba_total_by_kelly_over_under_summary.csv",
-        "wnba_total_by_odds.csv",
-        "wnba_total_by_odds_over_under_summary.csv",
-        "wnba_total_by_side.csv",
-        "wnba_total_by_side_over_under_summary.csv",
-        "wnba_total_by_total_range.csv",
-        "wnba_total_by_total_range_over_under_summary.csv",
-        "wnba_total_by_win_prob.csv",
-        "wnba_total_by_win_prob_over_under_summary.csv",
-    },
-}
-
-
-def cleanup_wnba_market_reports() -> None:
-    for market_type, allowed_files in WNBA_ALLOWED_REPORTS.items():
-        market_dir = REPORT_DIR / "wnba" / market_type
-
-        if not market_dir.exists():
-            continue
-
-        for path in market_dir.glob("*.csv"):
-            if path.name not in allowed_files:
-                path.unlink()
-                log("INFO", f"REMOVED | file={path}")
-
-
-def side_suffix(market_type: str) -> str:
-    return (
-        "over_under"
-        if market_type == "total"
-        else "home_away"
-    )
+    return "home_away"
 
 
 def write_market_reports(
@@ -499,7 +745,10 @@ def write_market_reports(
     market_type: str,
     out_dir: Path,
 ) -> None:
-    out_dir.mkdir(parents=True, exist_ok=True)
+    out_dir.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
 
     sub = work_df[
         work_df["market_type"]
@@ -511,8 +760,10 @@ def write_market_reports(
     if sub.empty:
         log(
             "INFO",
-            f"[{league} / {market_type}] "
-            "no rows; skipping per-market reports",
+            (
+                f"[{league} / {market_type}] "
+                "no rows; skipping per-market reports"
+            ),
         )
         return
 
@@ -522,23 +773,24 @@ def write_market_reports(
         else None
     )
 
-    suffix = side_suffix(market_type)
+    suffix = side_suffix(
+        market_type
+    )
 
-    if league == "wnba":
-        bucket_definitions = WNBA_BUCKETS
-    else:
-        bucket_definitions = COMMON_BUCKETS
-
-    for label, bucket_col in bucket_definitions:
+    # EV, Kelly, Odds, and Win Probability
+    # are retained for all leagues and markets.
+    for label, bucket_col in REPORT_BUCKETS:
         if bucket_col not in sub.columns:
             warn(
-                f"[{league} / {market_type}] "
-                f"missing bucket column {bucket_col}; "
-                f"skipping {label}"
+                (
+                    f"[{league} / {market_type}] "
+                    f"missing bucket column "
+                    f"{bucket_col}; skipping {label}"
+                )
             )
             continue
 
-        agg = aggregate_block(
+        aggregate = aggregate_block(
             sub,
             league=league,
             market_type=market_type,
@@ -547,13 +799,16 @@ def write_market_reports(
         )
 
         write_csv(
-            agg,
+            aggregate,
             out_dir
-            / f"{league}_{market_type}_by_{label}.csv",
+            / (
+                f"{league}_{market_type}_"
+                f"by_{label}.csv"
+            ),
         )
 
         if side_col:
-            agg_s = aggregate_block(
+            side_aggregate = aggregate_block(
                 sub,
                 league=league,
                 market_type=market_type,
@@ -563,24 +818,21 @@ def write_market_reports(
             )
 
             write_csv(
-                agg_s,
+                side_aggregate,
                 out_dir
                 / (
-                    f"{league}_{market_type}_by_{label}_"
-                    f"{suffix}_summary.csv"
+                    f"{league}_{market_type}_"
+                    f"by_{label}_{suffix}_summary.csv"
                 ),
             )
 
-    write_side_reports = (
+    # Explicit side reports are retained only
+    # for totals.
+    if (
         market_type == "total"
-        or (
-            market_type == "spread"
-            and league != "wnba"
-        )
-    )
-
-    if write_side_reports and side_col:
-        agg = aggregate_block(
+        and side_col
+    ):
+        aggregate = aggregate_block(
             sub,
             league=league,
             market_type=market_type,
@@ -589,39 +841,51 @@ def write_market_reports(
         )
 
         write_csv(
-            agg,
+            aggregate,
             out_dir
-            / f"{league}_{market_type}_by_side.csv",
+            / (
+                f"{league}_{market_type}_"
+                "by_side.csv"
+            ),
         )
 
-        agg_s = agg.copy()
+        side_aggregate = (
+            aggregate.copy()
+        )
 
-        if not agg_s.empty:
-            agg_s.insert(
+        if not side_aggregate.empty:
+            side_aggregate.insert(
                 2,
                 "side_group",
-                agg_s["bucket"],
+                side_aggregate["bucket"],
             )
-            agg_s = agg_s[CANON_COLS_WITH_SIDE]
+
+            side_aggregate = (
+                side_aggregate[
+                    CANON_COLS_WITH_SIDE
+                ]
+            )
         else:
-            agg_s = pd.DataFrame(
+            side_aggregate = pd.DataFrame(
                 columns=CANON_COLS_WITH_SIDE
             )
 
         write_csv(
-            agg_s,
+            side_aggregate,
             out_dir
             / (
-                f"{league}_{market_type}_by_side_"
-                f"{suffix}_summary.csv"
+                f"{league}_{market_type}_"
+                f"by_side_{suffix}_summary.csv"
             ),
         )
 
+    # Total-range reports are retained only
+    # for totals.
     if (
         market_type == "total"
         and "total_bucket" in sub.columns
     ):
-        agg = aggregate_block(
+        aggregate = aggregate_block(
             sub,
             league=league,
             market_type=market_type,
@@ -630,13 +894,16 @@ def write_market_reports(
         )
 
         write_csv(
-            agg,
+            aggregate,
             out_dir
-            / f"{league}_{market_type}_by_total_range.csv",
+            / (
+                f"{league}_{market_type}_"
+                "by_total_range.csv"
+            ),
         )
 
         if side_col:
-            agg_s = aggregate_block(
+            side_aggregate = aggregate_block(
                 sub,
                 league=league,
                 market_type=market_type,
@@ -646,320 +913,13 @@ def write_market_reports(
             )
 
             write_csv(
-                agg_s,
+                side_aggregate,
                 out_dir
                 / (
-                    f"{league}_{market_type}_by_total_range_"
-                    f"{suffix}_summary.csv"
+                    f"{league}_{market_type}_"
+                    f"by_total_range_{suffix}_summary.csv"
                 ),
             )
-
-
-# =========================
-# CROSSES
-# =========================
-
-CROSS_DIMS = [
-    ("ev", "ev_bucket"),
-    ("kelly", "kelly_bucket"),
-    ("odds", "odds_bucket"),
-    ("win_prob", "model_prob_bucket"),
-    ("edge_vs_market", "edge_vs_market_bucket"),
-    ("dow", "dow_bucket"),
-    ("month", "month_bucket"),
-    ("side", "side_group"),
-]
-
-CROSS_COLS = [
-    "league",
-    "market_type",
-    "dimension_1",
-    "bucket_1",
-    "dimension_2",
-    "bucket_2",
-    "bets",
-    "wins",
-    "losses",
-    "pushes",
-    "total",
-    "win_pct",
-    "units_flat",
-    "roi_flat",
-    "units_kelly",
-    "roi_kelly",
-    "avg_ev",
-    "avg_edge_vs_market_pp",
-    "avg_kelly_pct",
-    "avg_model_prob",
-    "avg_odds_american",
-]
-
-
-def aggregate_cross(
-    df: pd.DataFrame,
-    league: str,
-    market_type: str,
-    dim1_label: str,
-    dim1_col: str,
-    dim2_label: str,
-    dim2_col: str,
-) -> pd.DataFrame:
-    if (
-        df.empty
-        or dim1_col not in df.columns
-        or dim2_col not in df.columns
-    ):
-        return pd.DataFrame(columns=CROSS_COLS)
-
-    work = df.copy()
-
-    for col in (
-        "profit_unit",
-        "profit_kelly",
-        "bet_stake_pct",
-        "bet_ev",
-        "bet_edge_vs_market",
-        "bet_kelly",
-        "bet_model_prob",
-        "bet_odds_american",
-    ):
-        if col in work.columns:
-            work[col] = to_num(work[col])
-
-    if "bet_result" in work.columns:
-        result = (
-            work["bet_result"]
-            .astype(str)
-            .str.strip()
-            .str.lower()
-        )
-    else:
-        result = pd.Series([""] * len(work))
-
-    work["_is_win"] = (result == "win").astype(int)
-    work["_is_loss"] = (result == "loss").astype(int)
-    work["_is_push"] = (result == "push").astype(int)
-
-    rows = []
-
-    for (bucket_1, bucket_2), sub in work.groupby(
-        [dim1_col, dim2_col],
-        dropna=False,
-        observed=True,
-    ):
-        wins = int(sub["_is_win"].sum())
-        losses = int(sub["_is_loss"].sum())
-        pushes = int(sub["_is_push"].sum())
-        bets = wins + losses + pushes
-
-        units_flat = (
-            float(sub["profit_unit"].sum(skipna=True))
-            if "profit_unit" in sub.columns
-            else 0.0
-        )
-
-        units_kelly = (
-            float(sub["profit_kelly"].sum(skipna=True))
-            if "profit_kelly" in sub.columns
-            else 0.0
-        )
-
-        stake_total = (
-            float(sub["bet_stake_pct"].sum(skipna=True))
-            if "bet_stake_pct" in sub.columns
-            else 0.0
-        )
-
-        roi_flat = (
-            units_flat / bets
-            if bets > 0
-            else np.nan
-        )
-
-        roi_kelly = (
-            units_kelly / stake_total
-            if stake_total > 0
-            else np.nan
-        )
-
-        win_pct = (
-            wins / (wins + losses)
-            if (wins + losses) > 0
-            else np.nan
-        )
-
-        rows.append({
-            "league": league,
-            "market_type": market_type,
-            "dimension_1": dim1_label,
-            "bucket_1": bucket_1,
-            "dimension_2": dim2_label,
-            "bucket_2": bucket_2,
-            "bets": bets,
-            "wins": wins,
-            "losses": losses,
-            "pushes": pushes,
-            "total": bets,
-            "win_pct": (
-                round(win_pct, 4)
-                if not pd.isna(win_pct)
-                else np.nan
-            ),
-            "units_flat": round(units_flat, 4),
-            "roi_flat": (
-                round(roi_flat, 4)
-                if not pd.isna(roi_flat)
-                else np.nan
-            ),
-            "units_kelly": round(units_kelly, 6),
-            "roi_kelly": (
-                round(roi_kelly, 4)
-                if not pd.isna(roi_kelly)
-                else np.nan
-            ),
-            "avg_ev": (
-                round(
-                    float(
-                        sub["bet_ev"].mean(skipna=True)
-                    ),
-                    4,
-                )
-                if (
-                    "bet_ev" in sub.columns
-                    and not sub["bet_ev"].dropna().empty
-                )
-                else np.nan
-            ),
-            "avg_edge_vs_market_pp": (
-                round(
-                    float(
-                        sub[
-                            "bet_edge_vs_market"
-                        ].mean(skipna=True)
-                    ),
-                    4,
-                )
-                if (
-                    "bet_edge_vs_market" in sub.columns
-                    and not sub[
-                        "bet_edge_vs_market"
-                    ].dropna().empty
-                )
-                else np.nan
-            ),
-            "avg_kelly_pct": (
-                round(
-                    float(
-                        sub["bet_kelly"].mean(skipna=True)
-                    ),
-                    4,
-                )
-                if (
-                    "bet_kelly" in sub.columns
-                    and not sub["bet_kelly"].dropna().empty
-                )
-                else np.nan
-            ),
-            "avg_model_prob": (
-                round(
-                    float(
-                        sub[
-                            "bet_model_prob"
-                        ].mean(skipna=True)
-                    ),
-                    4,
-                )
-                if (
-                    "bet_model_prob" in sub.columns
-                    and not sub[
-                        "bet_model_prob"
-                    ].dropna().empty
-                )
-                else np.nan
-            ),
-            "avg_odds_american": (
-                round(
-                    float(
-                        sub[
-                            "bet_odds_american"
-                        ].mean(skipna=True)
-                    ),
-                    1,
-                )
-                if (
-                    "bet_odds_american" in sub.columns
-                    and not sub[
-                        "bet_odds_american"
-                    ].dropna().empty
-                )
-                else np.nan
-            ),
-        })
-
-    return pd.DataFrame(
-        rows,
-        columns=CROSS_COLS,
-    )
-
-
-def write_market_crosses(
-    work_df: pd.DataFrame,
-    league: str,
-    market_type: str,
-    out_dir: Path,
-) -> None:
-    out_dir.mkdir(parents=True, exist_ok=True)
-
-    sub = work_df[
-        work_df["market_type"]
-        .astype(str)
-        .str.lower()
-        == market_type
-    ].copy()
-
-    if sub.empty:
-        return
-
-    pieces = []
-    dimension_count = len(CROSS_DIMS)
-
-    for index_1 in range(dimension_count):
-        for index_2 in range(
-            index_1 + 1,
-            dimension_count,
-        ):
-            dim1_label, dim1_col = CROSS_DIMS[index_1]
-            dim2_label, dim2_col = CROSS_DIMS[index_2]
-
-            if (
-                dim1_col not in sub.columns
-                or dim2_col not in sub.columns
-            ):
-                continue
-
-            pieces.append(
-                aggregate_cross(
-                    sub,
-                    league,
-                    market_type,
-                    dim1_label,
-                    dim1_col,
-                    dim2_label,
-                    dim2_col,
-                )
-            )
-
-    if pieces:
-        all_crosses = pd.concat(
-            pieces,
-            ignore_index=True,
-        )
-
-        write_csv(
-            all_crosses,
-            out_dir
-            / f"{league}_{market_type}_crosses.csv",
-        )
 
 
 # =========================
@@ -979,7 +939,10 @@ def write_overview(
     if work_df.empty:
         log(
             "INFO",
-            f"[{league}] no rows; skipping overview",
+            (
+                f"[{league}] "
+                "no rows; skipping overview"
+            ),
         )
         return
 
@@ -990,30 +953,37 @@ def write_overview(
         dropna=False,
         observed=True,
     ):
-        agg = aggregate_block(
+        aggregate = aggregate_block(
             sub,
             league=league,
-            market_type=str(market_type).lower(),
+            market_type=str(
+                market_type
+            ).lower(),
             bucket_dimension="market_type",
             bucket_col="market_type",
         )
 
-        by_market.append(agg)
+        by_market.append(
+            aggregate
+        )
 
     if by_market:
-        out = pd.concat(
+        output = pd.concat(
             by_market,
             ignore_index=True,
         )
 
         write_csv(
-            out,
+            output,
             overview_dir
-            / f"{league}_summary_by_market.csv",
+            / (
+                f"{league}_"
+                "summary_by_market.csv"
+            ),
         )
 
     if "side_group" in work_df.columns:
-        agg = aggregate_block(
+        aggregate = aggregate_block(
             work_df,
             league=league,
             market_type=None,
@@ -1022,13 +992,16 @@ def write_overview(
         )
 
         write_csv(
-            agg,
+            aggregate,
             overview_dir
-            / f"{league}_summary_by_side_group.csv",
+            / (
+                f"{league}_"
+                "summary_by_side_group.csv"
+            ),
         )
 
     if "game_date" in work_df.columns:
-        agg = aggregate_block(
+        aggregate = aggregate_block(
             work_df,
             league=league,
             market_type=None,
@@ -1037,9 +1010,12 @@ def write_overview(
         )
 
         write_csv(
-            agg,
+            aggregate,
             overview_dir
-            / f"{league}_summary_by_date.csv",
+            / (
+                f"{league}_"
+                "summary_by_date.csv"
+            ),
         )
 
     log_cols = [
@@ -1102,7 +1078,8 @@ def write_overview(
 
     write_csv(
         work_df[existing],
-        overview_dir / f"{league}_bet_log.csv",
+        overview_dir
+        / f"{league}_bet_log.csv",
     )
 
     overall = build_summary_overall(
@@ -1113,7 +1090,10 @@ def write_overview(
     write_csv(
         overall,
         overview_dir
-        / f"{league}_summary_overall.csv",
+        / (
+            f"{league}_"
+            "summary_overall.csv"
+        ),
     )
 
 
@@ -1160,12 +1140,27 @@ def build_summary_overall(
                 .str.lower()
             )
         else:
-            result = pd.Series([""] * len(sub))
+            result = pd.Series(
+                [""] * len(sub)
+            )
 
-        wins = int((result == "win").sum())
-        losses = int((result == "loss").sum())
-        pushes = int((result == "push").sum())
-        total = wins + losses + pushes
+        wins = int(
+            (result == "win").sum()
+        )
+
+        losses = int(
+            (result == "loss").sum()
+        )
+
+        pushes = int(
+            (result == "push").sum()
+        )
+
+        total = (
+            wins
+            + losses
+            + pushes
+        )
 
         win_pct = (
             round(
@@ -1194,24 +1189,26 @@ def build_summary_grand_total(
     league: str,
 ) -> pd.DataFrame:
     if work_df.empty:
-        return pd.DataFrame([{
-            "league": league.upper(),
-            "bets": 0,
-            "wins": 0,
-            "losses": 0,
-            "pushes": 0,
-            "total": 0,
-            "win_pct": np.nan,
-            "units_flat": 0.0,
-            "roi_flat": np.nan,
-            "units_kelly": 0.0,
-            "roi_kelly": np.nan,
-            "avg_ev": np.nan,
-            "avg_edge_vs_market_pp": np.nan,
-            "avg_kelly_pct": np.nan,
-            "avg_model_prob": np.nan,
-            "avg_odds_american": np.nan,
-        }])
+        return pd.DataFrame([
+            {
+                "league": league.upper(),
+                "bets": 0,
+                "wins": 0,
+                "losses": 0,
+                "pushes": 0,
+                "total": 0,
+                "win_pct": np.nan,
+                "units_flat": 0.0,
+                "roi_flat": np.nan,
+                "units_kelly": 0.0,
+                "roi_kelly": np.nan,
+                "avg_ev": np.nan,
+                "avg_edge_vs_market_pp": np.nan,
+                "avg_kelly_pct": np.nan,
+                "avg_model_prob": np.nan,
+                "avg_odds_american": np.nan,
+            }
+        ])
 
     result = (
         work_df["bet_result"]
@@ -1220,10 +1217,23 @@ def build_summary_grand_total(
         .str.lower()
     )
 
-    wins = int((result == "win").sum())
-    losses = int((result == "loss").sum())
-    pushes = int((result == "push").sum())
-    bets = wins + losses + pushes
+    wins = int(
+        (result == "win").sum()
+    )
+
+    losses = int(
+        (result == "loss").sum()
+    )
+
+    pushes = int(
+        (result == "push").sum()
+    )
+
+    bets = (
+        wins
+        + losses
+        + pushes
+    )
 
     units_flat = float(
         to_num(
@@ -1231,7 +1241,9 @@ def build_summary_grand_total(
                 "profit_unit",
                 pd.Series(dtype=float),
             )
-        ).sum(skipna=True)
+        ).sum(
+            skipna=True
+        )
     )
 
     units_kelly = float(
@@ -1240,7 +1252,9 @@ def build_summary_grand_total(
                 "profit_kelly",
                 pd.Series(dtype=float),
             )
-        ).sum(skipna=True)
+        ).sum(
+            skipna=True
+        )
     )
 
     stake_total = float(
@@ -1249,7 +1263,9 @@ def build_summary_grand_total(
                 "bet_stake_pct",
                 pd.Series(dtype=float),
             )
-        ).sum(skipna=True)
+        ).sum(
+            skipna=True
+        )
     )
 
     roi_flat = (
@@ -1270,109 +1286,148 @@ def build_summary_grand_total(
         else np.nan
     )
 
-    return pd.DataFrame([{
-        "league": league.upper(),
-        "bets": bets,
-        "wins": wins,
-        "losses": losses,
-        "pushes": pushes,
-        "total": bets,
-        "win_pct": (
-            round(win_pct, 4)
-            if not pd.isna(win_pct)
-            else np.nan
-        ),
-        "units_flat": round(units_flat, 4),
-        "roi_flat": (
-            round(roi_flat, 4)
-            if not pd.isna(roi_flat)
-            else np.nan
-        ),
-        "units_kelly": round(units_kelly, 6),
-        "roi_kelly": (
-            round(roi_kelly, 4)
-            if not pd.isna(roi_kelly)
-            else np.nan
-        ),
-        "avg_ev": (
-            round(
-                float(
-                    to_num(
-                        work_df.get(
-                            "bet_ev",
-                            pd.Series(dtype=float),
-                        )
-                    ).mean(skipna=True)
-                ),
+    avg_ev = (
+        round(
+            float(
+                to_num(
+                    work_df.get(
+                        "bet_ev",
+                        pd.Series(dtype=float),
+                    )
+                ).mean(
+                    skipna=True
+                )
+            ),
+            4,
+        )
+        if "bet_ev" in work_df.columns
+        else np.nan
+    )
+
+    avg_edge_vs_market = (
+        round(
+            float(
+                to_num(
+                    work_df.get(
+                        "bet_edge_vs_market",
+                        pd.Series(dtype=float),
+                    )
+                ).mean(
+                    skipna=True
+                )
+            ),
+            4,
+        )
+        if "bet_edge_vs_market"
+        in work_df.columns
+        else np.nan
+    )
+
+    avg_kelly = (
+        round(
+            float(
+                to_num(
+                    work_df.get(
+                        "bet_kelly",
+                        pd.Series(dtype=float),
+                    )
+                ).mean(
+                    skipna=True
+                )
+            ),
+            4,
+        )
+        if "bet_kelly" in work_df.columns
+        else np.nan
+    )
+
+    avg_model_prob = (
+        round(
+            float(
+                to_num(
+                    work_df.get(
+                        "bet_model_prob",
+                        pd.Series(dtype=float),
+                    )
+                ).mean(
+                    skipna=True
+                )
+            ),
+            4,
+        )
+        if "bet_model_prob"
+        in work_df.columns
+        else np.nan
+    )
+
+    avg_odds = (
+        round(
+            float(
+                to_num(
+                    work_df.get(
+                        "bet_odds_american",
+                        pd.Series(dtype=float),
+                    )
+                ).mean(
+                    skipna=True
+                )
+            ),
+            1,
+        )
+        if "bet_odds_american"
+        in work_df.columns
+        else np.nan
+    )
+
+    return pd.DataFrame([
+        {
+            "league": league.upper(),
+            "bets": bets,
+            "wins": wins,
+            "losses": losses,
+            "pushes": pushes,
+            "total": bets,
+            "win_pct": (
+                round(
+                    win_pct,
+                    4,
+                )
+                if not pd.isna(win_pct)
+                else np.nan
+            ),
+            "units_flat": round(
+                units_flat,
                 4,
-            )
-            if "bet_ev" in work_df.columns
-            else np.nan
-        ),
-        "avg_edge_vs_market_pp": (
-            round(
-                float(
-                    to_num(
-                        work_df.get(
-                            "bet_edge_vs_market",
-                            pd.Series(dtype=float),
-                        )
-                    ).mean(skipna=True)
-                ),
-                4,
-            )
-            if "bet_edge_vs_market"
-            in work_df.columns
-            else np.nan
-        ),
-        "avg_kelly_pct": (
-            round(
-                float(
-                    to_num(
-                        work_df.get(
-                            "bet_kelly",
-                            pd.Series(dtype=float),
-                        )
-                    ).mean(skipna=True)
-                ),
-                4,
-            )
-            if "bet_kelly" in work_df.columns
-            else np.nan
-        ),
-        "avg_model_prob": (
-            round(
-                float(
-                    to_num(
-                        work_df.get(
-                            "bet_model_prob",
-                            pd.Series(dtype=float),
-                        )
-                    ).mean(skipna=True)
-                ),
-                4,
-            )
-            if "bet_model_prob"
-            in work_df.columns
-            else np.nan
-        ),
-        "avg_odds_american": (
-            round(
-                float(
-                    to_num(
-                        work_df.get(
-                            "bet_odds_american",
-                            pd.Series(dtype=float),
-                        )
-                    ).mean(skipna=True)
-                ),
-                1,
-            )
-            if "bet_odds_american"
-            in work_df.columns
-            else np.nan
-        ),
-    }])
+            ),
+            "roi_flat": (
+                round(
+                    roi_flat,
+                    4,
+                )
+                if not pd.isna(roi_flat)
+                else np.nan
+            ),
+            "units_kelly": round(
+                units_kelly,
+                6,
+            ),
+            "roi_kelly": (
+                round(
+                    roi_kelly,
+                    4,
+                )
+                if not pd.isna(roi_kelly)
+                else np.nan
+            ),
+            "avg_ev": avg_ev,
+            "avg_edge_vs_market_pp": (
+                avg_edge_vs_market
+            ),
+            "avg_kelly_pct": avg_kelly,
+            "avg_model_prob": avg_model_prob,
+            "avg_odds_american": avg_odds,
+        }
+    ])
 
 
 # =========================
@@ -1382,8 +1437,15 @@ def build_summary_grand_total(
 def write_quality_reports(
     league: str,
 ) -> None:
-    source = QUALITY_FILES[league]
-    quality_dir = REPORT_DIR / league / "quality"
+    source = QUALITY_FILES[
+        league
+    ]
+
+    quality_dir = (
+        REPORT_DIR
+        / league
+        / "quality"
+    )
 
     quality_dir.mkdir(
         parents=True,
@@ -1396,24 +1458,35 @@ def write_quality_reports(
             0,
             exists=False,
         )
+
         warn(
-            f"[{league}] "
-            f"quality metrics missing: {source}"
+            (
+                f"[{league}] "
+                f"quality metrics missing: {source}"
+            )
         )
+
         return
 
     try:
-        quality = pd.read_csv(source)
+        quality = pd.read_csv(
+            source
+        )
+
     except Exception as exc:
         log_input(
             source,
             0,
             exists=True,
         )
+
         warn(
-            f"[{league}] unable to read "
-            f"quality metrics {source}: {exc}"
+            (
+                f"[{league}] unable to read "
+                f"quality metrics {source}: {exc}"
+            )
         )
+
         return
 
     log_input(
@@ -1425,7 +1498,10 @@ def write_quality_reports(
     write_csv(
         quality,
         quality_dir
-        / f"{league}_model_quality_all.csv",
+        / (
+            f"{league}_"
+            "model_quality_all.csv"
+        ),
     )
 
     scope_files = {
@@ -1438,19 +1514,25 @@ def write_quality_reports(
         "model_version":
             f"{league}_model_quality_by_model_version.csv",
         "market_model_version":
-            f"{league}_model_quality_by_market_model_version.csv",
+            (
+                f"{league}_"
+                "model_quality_by_market_model_version.csv"
+            ),
     }
 
     for scope, filename in scope_files.items():
         if "scope" not in quality.columns:
             warn(
-                f"[{league}] "
-                "quality metrics missing scope column"
+                (
+                    f"[{league}] "
+                    "quality metrics missing scope column"
+                )
             )
             break
 
         subset = quality[
-            quality["scope"].astype(str) == scope
+            quality["scope"].astype(str)
+            == scope
         ].copy()
 
         write_csv(
@@ -1463,11 +1545,19 @@ def write_quality_reports(
 # RUN
 # =========================
 
-def run_one(league: str) -> None:
-    if league == "wnba":
-        cleanup_wnba_market_reports()
+def run_one(
+    league: str,
+) -> None:
+    # Remove obsolete per-market CSVs before processing.
+    # This also handles missing/empty work files so stale
+    # reports cannot remain from an earlier run.
+    cleanup_market_reports(
+        league
+    )
 
-    work_path = WORK_FILES[league]
+    work_path = WORK_FILES[
+        league
+    ]
 
     if not work_path.exists():
         log_input(
@@ -1475,13 +1565,19 @@ def run_one(league: str) -> None:
             0,
             exists=False,
         )
+
         warn(
-            f"[{league}] "
-            f"missing work file: {work_path}"
+            (
+                f"[{league}] "
+                f"missing work file: {work_path}"
+            )
         )
+
         return
 
-    work = pd.read_csv(work_path)
+    work = pd.read_csv(
+        work_path
+    )
 
     log_input(
         work_path,
@@ -1489,12 +1585,18 @@ def run_one(league: str) -> None:
         exists=True,
     )
 
-    write_quality_reports(league)
+    # Publish model-quality outputs even when
+    # the betting work file is empty.
+    write_quality_reports(
+        league
+    )
 
     if work.empty:
         warn(
-            f"[{league}] "
-            "empty work file; skipping betting reports"
+            (
+                f"[{league}] "
+                "empty work file; skipping betting reports"
+            )
         )
         return
 
@@ -1520,7 +1622,10 @@ def run_one(league: str) -> None:
             league,
         ),
         BASE
-        / f"{league}_summary_overall.csv",
+        / (
+            f"{league}_"
+            "summary_overall.csv"
+        ),
     )
 
     write_csv(
@@ -1529,7 +1634,10 @@ def run_one(league: str) -> None:
             league,
         ),
         BASE
-        / f"{league}_summary_grand_total.csv",
+        / (
+            f"{league}_"
+            "summary_grand_total.csv"
+        ),
     )
 
     for market_type in [
@@ -1550,16 +1658,10 @@ def run_one(league: str) -> None:
             out_dir,
         )
 
-        if league != "wnba":
-            write_market_crosses(
-                work,
-                league,
-                market_type,
-                out_dir,
-            )
-
-    if league == "wnba":
-        cleanup_wnba_market_reports()
+    # Enforce the allowlist again after generation.
+    cleanup_market_reports(
+        league
+    )
 
     overview_dir = (
         REPORT_DIR
@@ -1575,8 +1677,10 @@ def run_one(league: str) -> None:
 
     log(
         "INFO",
-        f"[{league}] reports written under "
-        f"{REPORT_DIR / league}",
+        (
+            f"[{league}] reports written under "
+            f"{REPORT_DIR / league}"
+        ),
     )
 
 
@@ -1592,7 +1696,9 @@ def run() -> None:
     )
 
     for league in LEAGUES:
-        run_one(league)
+        run_one(
+            league
+        )
 
     log(
         "INFO",
@@ -1609,8 +1715,10 @@ def main() -> None:
 
     except Exception as exc:
         error(
-            "Unhandled exception: "
-            f"{type(exc).__name__}: {exc}"
+            (
+                "Unhandled exception: "
+                f"{type(exc).__name__}: {exc}"
+            )
         )
 
         trace = traceback.format_exc()
@@ -1620,15 +1728,21 @@ def main() -> None:
             "a",
             encoding="utf-8",
         ) as log_handle:
-            log_handle.write(trace)
+            log_handle.write(
+                trace
+            )
 
             if not trace.endswith("\n"):
-                log_handle.write("\n")
+                log_handle.write(
+                    "\n"
+                )
 
         raise
 
     finally:
-        finish(status)
+        finish(
+            status
+        )
 
 
 if __name__ == "__main__":
