@@ -27,7 +27,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
-          fetch-depth: 0
+          fetch-depth: 1
           ref: ${{ github.ref_name }}
           persist-credentials: true
 
@@ -445,7 +445,10 @@ jobs:
       - name: Run prop organizer stage 2
         run: python docs/win/football/prop_engine/scripts/prop_organizer_stage2.py
 
-      - name: Combine props
+      - name: Rebuild all prop selections
+        run: python docs/win/football/prop_engine/scripts/props_combined.py
+
+      - name: Rebuild and lock current-week prop selections
         run: python docs/win/football/prop_engine/scripts/props_combined.py --season "$NFL_SEASON" --week "$NFL_WEEK"
 
       - name: Grade props
@@ -510,9 +513,20 @@ jobs:
             fi
 
             rebase_onto_remote() {
-              git fetch origin "$GITHUB_REF_NAME"
+              remote_ref="refs/remotes/origin/${GITHUB_REF_NAME}"
 
-              if ! git rebase "origin/$GITHUB_REF_NAME"; then
+              if ! git fetch --no-tags origin \
+                "+refs/heads/${GITHUB_REF_NAME}:${remote_ref}"; then
+                echo "::error::Fetch failed before Prop Engine output rebase."
+                exit 1
+              fi
+
+              if ! git merge-base --is-ancestor "$GITHUB_SHA" "$remote_ref"; then
+                echo "::error::Remote branch history no longer contains workflow starting commit $GITHUB_SHA."
+                exit 1
+              fi
+
+              if ! git rebase "$remote_ref"; then
                 git rebase --abort || true
                 echo "::error::Rebase failed. Prop Engine output commit was not pushed."
                 exit 1
