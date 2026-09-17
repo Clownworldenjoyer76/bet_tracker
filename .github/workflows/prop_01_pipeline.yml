@@ -482,6 +482,7 @@ jobs:
         run: |
           git add -A -- \
             "$PROP_ENGINE_ROOT/data/current" \
+            "$PROP_ENGINE_ROOT/data/identity" \
             "$PROP_ENGINE_ROOT/evaluation" \
             "$PROP_ENGINE_ROOT/logs" \
             "$PROP_ENGINE_ROOT/output" \
@@ -501,6 +502,12 @@ jobs:
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
             git commit -m "Update NFL Prop Engine ${NFL_SEASON} Week ${NFL_WEEK}"
+
+            if ! git diff --quiet; then
+              echo "::error::Tracked unstaged changes remain after the Prop Engine output commit."
+              git diff --name-only
+              exit 1
+            fi
 
             rebase_onto_remote() {
               git fetch origin "$GITHUB_REF_NAME"
