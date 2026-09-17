@@ -52,11 +52,44 @@ import numpy as np
 import pandas as pd
 
 
-SCRIPT_VERSION = "cfb-week1-v7-game-lock-2026-08-30"
+SCRIPT_PATH = Path(__file__).resolve()
+SCRIPTS_DIR = SCRIPT_PATH.parents[1]
+CFB_ROOT = SCRIPT_PATH.parents[2]
+REPORT_ROOT = CFB_ROOT / "errors"
+
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(
+        0,
+        str(SCRIPTS_DIR),
+    )
+
+from pipeline_reporter import PipelineReporter
+
+
+SCRIPT_VERSION = "cfb-week1-v11-denominator-pooled-priors-2026-09-17"
 MIN_PRIOR_TEAM_WEEKS = 10
 ESPN_MARGIN_SYMMETRY_TOLERANCE = 0.25
-DEFAULT_MARGIN_SD = 14.0
-DEFAULT_TOTAL_SD = 14.0
+
+# Probability-error calibration.
+#
+# Derived from 185 completed 2026 games using Git-preserved
+# pregame forecasts from Weeks 1 and 2. These values describe
+# observed zero-centered forecast-error dispersion; no historical
+# point-prediction bias adjustment is applied here.
+DEFAULT_MARGIN_SD = 16.36
+DEFAULT_TOTAL_SD = 15.22
+
+PROBABILITY_CALIBRATION_SAMPLE_GAMES = 185
+PROBABILITY_CALIBRATION_SEASON = 2026
+PROBABILITY_CALIBRATION_WEEKS = (1, 2)
+PROBABILITY_CALIBRATION_SOURCE_COMMITS = (
+    "aef7a4f01052019252a31980e4dd63cd08298e41",
+    "2855fc22c36ae2a75a83835595ea6cb380f4d827",
+)
+PROBABILITY_CALIBRATION_METHOD = (
+    "zero_centered_rmse_from_pregame_forecast_errors"
+)
+
 PROBABILITY_EPS = 1e-6
 
 TEAM_METRICS = [
@@ -73,6 +106,11 @@ TEAM_METRICS = [
     "early_down_epa",
     "third_down_conversion_rate",
 ]
+
+TEAM_METRIC_COUNT_COLUMNS = {
+    metric: f"{metric}_count"
+    for metric in TEAM_METRICS
+}
 
 OUTPUT_BASE_COLUMNS = [
     "season",
@@ -504,16 +542,36 @@ def normalize_game_id(
 def schedule_kickoff_utc(
     row: pd.Series,
 ) -> datetime | None:
+    authoritative_text = clean(
+        row.get(
+            "kickoff_utc"
+        )
+    )
+
+    if authoritative_text:
+        authoritative = pd.to_datetime(
+            authoritative_text,
+            errors="coerce",
+            utc=True,
+        )
+
+        if not pd.isna(
+            authoritative
+        ):
+            return authoritative.to_pydatetime()
+
     game_date = clean(
         row.get(
             "game_date"
         )
     )
+
     game_time = clean(
         row.get(
             "game_time"
         )
     )
+
     game_timezone = clean(
         row.get(
             "game_timezone"
@@ -536,12 +594,14 @@ def schedule_kickoff_utc(
                 game_timezone
             )
         )
+
     except Exception:
         return None
 
     return local_dt.astimezone(
         timezone.utc
     )
+
 
 
 def locked_game_ids(
@@ -1425,6 +1485,13 @@ def shrink_metric(
         0.0
     )
 
+    mean = pd.to_numeric(
+        team_mean,
+        errors="coerce",
+    ).fillna(
+        global_mean
+    )
+
     weight = count / (
         count
         + strength
@@ -1432,13 +1499,14 @@ def shrink_metric(
 
     return (
         weight
-        * team_mean
+        * mean
         + (
             1.0
             - weight
         )
         * global_mean
     )
+
 
 
 def build_prior_table(
@@ -1455,7 +1523,27 @@ def build_prior_table(
         resolver.resolve
     )
 
+    missing_count_columns = [
+        count_column
+        for count_column
+        in TEAM_METRIC_COUNT_COLUMNS.values()
+        if count_column not in work.columns
+    ]
+
+    if missing_count_columns:
+        raise ValueError(
+            "Prior team-stats file is missing "
+            "metric denominator columns: "
+            f"{missing_count_columns}"
+        )
+
     for metric in TEAM_METRICS:
+        count_column = (
+            TEAM_METRIC_COUNT_COLUMNS[
+                metric
+            ]
+        )
+
         work[
             metric
         ] = pd.to_numeric(
@@ -1464,6 +1552,58 @@ def build_prior_table(
             ],
             errors="coerce",
         )
+
+        work[
+            count_column
+        ] = pd.to_numeric(
+            work[
+                count_column
+            ],
+            errors="coerce",
+        )
+
+        invalid_count = (
+            work[
+                count_column
+            ].notna()
+            & (
+                work[
+                    count_column
+                ].lt(0)
+                | work[
+                    count_column
+                ].mod(1).ne(0)
+            )
+        )
+
+        if invalid_count.any():
+            raise ValueError(
+                "Prior team-stats file contains "
+                f"invalid {count_column}"
+            )
+
+        metric_present = (
+            work[
+                metric
+            ].notna()
+        )
+
+        positive_count = (
+            work[
+                count_column
+            ].fillna(
+                0.0
+            ).gt(0)
+        )
+
+        if (
+            metric_present
+            != positive_count
+        ).any():
+            raise ValueError(
+                "Prior team-stats metric/count "
+                f"contract failed for {metric}"
+            )
 
     work = work[
         work[
@@ -1480,15 +1620,108 @@ def build_prior_table(
             "Prior team-stats file has no usable team rows."
         )
 
-    grouped_mean = (
-        work.groupby(
-            "team",
-            as_index=False,
-        )[
-            TEAM_METRICS
+    pooled_metrics = (
+        work[
+            [
+                "team"
+            ]
         ]
-        .mean()
+        .drop_duplicates()
+        .reset_index(
+            drop=True
+        )
     )
+
+    for metric in TEAM_METRICS:
+        count_column = (
+            TEAM_METRIC_COUNT_COLUMNS[
+                metric
+            ]
+        )
+
+        valid = (
+            work[
+                metric
+            ].notna()
+            & work[
+                count_column
+            ].fillna(
+                0.0
+            ).gt(0)
+        )
+
+        if not valid.any():
+            pooled_metrics[
+                metric
+            ] = np.nan
+            continue
+
+        weighted = pd.DataFrame(
+            {
+                "team":
+                    work.loc[
+                        valid,
+                        "team",
+                    ],
+                "_numerator":
+                    (
+                        work.loc[
+                            valid,
+                            metric,
+                        ]
+                        * work.loc[
+                            valid,
+                            count_column,
+                        ]
+                    ),
+                "_denominator":
+                    work.loc[
+                        valid,
+                        count_column,
+                    ],
+            }
+        )
+
+        grouped_metric = (
+            weighted.groupby(
+                "team",
+                as_index=False,
+            )
+            .agg(
+                _numerator=(
+                    "_numerator",
+                    "sum",
+                ),
+                _denominator=(
+                    "_denominator",
+                    "sum",
+                ),
+            )
+        )
+
+        grouped_metric[
+            metric
+        ] = (
+            grouped_metric[
+                "_numerator"
+            ]
+            / grouped_metric[
+                "_denominator"
+            ]
+        )
+
+        pooled_metrics = (
+            pooled_metrics.merge(
+                grouped_metric[
+                    [
+                        "team",
+                        metric,
+                    ]
+                ],
+                on="team",
+                how="left",
+            )
+        )
 
     grouped_count = (
         work.groupby(
@@ -1504,25 +1737,91 @@ def build_prior_table(
         )
     )
 
-    prior = grouped_mean.merge(
-        grouped_count,
-        on="team",
-        how="left",
+    grouped_metric_count = (
+        work.groupby(
+            "team",
+            as_index=False,
+        )[
+            TEAM_METRICS
+        ]
+        .count()
+        .rename(
+            columns={
+                metric:
+                    f"{metric}_observations"
+                for metric in TEAM_METRICS
+            }
+        )
+    )
+
+    prior = (
+        pooled_metrics.merge(
+            grouped_count,
+            on="team",
+            how="left",
+        )
+        .merge(
+            grouped_metric_count,
+            on="team",
+            how="left",
+        )
     )
 
     for metric in TEAM_METRICS:
-        global_mean = float(
-            work[
+        count_column = (
+            TEAM_METRIC_COUNT_COLUMNS[
                 metric
-            ].mean(
-                skipna=True
-            )
+            ]
         )
 
-        if not math.isfinite(
-            global_mean
+        valid = (
+            work[
+                metric
+            ].notna()
+            & work[
+                count_column
+            ].fillna(
+                0.0
+            ).gt(0)
+        )
+
+        denominator = float(
+            work.loc[
+                valid,
+                count_column,
+            ].sum()
+        )
+
+        if (
+            not math.isfinite(
+                denominator
+            )
+            or denominator <= 0
         ):
             global_mean = 0.0
+        else:
+            numerator = float(
+                (
+                    work.loc[
+                        valid,
+                        metric,
+                    ]
+                    * work.loc[
+                        valid,
+                        count_column,
+                    ]
+                ).sum()
+            )
+
+            global_mean = (
+                numerator
+                / denominator
+            )
+
+            if not math.isfinite(
+                global_mean
+            ):
+                global_mean = 0.0
 
         prior[
             metric
@@ -1531,7 +1830,7 @@ def build_prior_table(
                 metric
             ],
             prior[
-                "prior_team_weeks"
+                f"{metric}_observations"
             ],
             global_mean,
         )
@@ -2157,6 +2456,11 @@ def build_injury_lookup(
         "injuries",
     )
 
+    # Header-only injury files are the valid upstream
+    # representation of zero current injuries.
+    if injuries.empty:
+        return {}
+
     injuries[
         "team"
     ] = injuries[
@@ -2183,12 +2487,74 @@ def build_injury_lookup(
         injury_status_multiplier
     )
 
+    status_multiplier_numeric = pd.to_numeric(
+        injuries[
+            "status_multiplier"
+        ],
+        errors="coerce",
+    )
+
+    if status_multiplier_numeric.isna().any():
+        bad_rows = injuries.loc[
+            status_multiplier_numeric.isna(),
+            [
+                "team",
+                "game_status",
+            ],
+        ].head(
+            10
+        ).to_dict(
+            orient="records"
+        )
+
+        raise ValueError(
+            "Injury status multiplier conversion "
+            f"failed: examples={bad_rows}"
+        )
+
+    injuries[
+        "status_multiplier"
+    ] = status_multiplier_numeric.astype(
+        float
+    )
+
     injuries[
         "position_cost"
     ] = injuries[
         "position"
     ].map(
         position_cost
+    )
+
+    position_cost_numeric = pd.to_numeric(
+        injuries[
+            "position_cost"
+        ],
+        errors="coerce",
+    )
+
+    if position_cost_numeric.isna().any():
+        bad_rows = injuries.loc[
+            position_cost_numeric.isna(),
+            [
+                "team",
+                "position",
+            ],
+        ].head(
+            10
+        ).to_dict(
+            orient="records"
+        )
+
+        raise ValueError(
+            "Injury position-cost conversion "
+            f"failed: examples={bad_rows}"
+        )
+
+    injuries[
+        "position_cost"
+    ] = position_cost_numeric.astype(
+        float
     )
 
     injuries[
@@ -2216,7 +2582,7 @@ def build_injury_lookup(
 
 def injury_summary_for_game(
     team: str,
-    game_date: object,
+    game_kickoff_utc: object,
     injury_lookup: dict[
         str,
         pd.DataFrame,
@@ -2244,9 +2610,7 @@ def injury_summary_for_game(
         )
 
     game_ts = pd.to_datetime(
-        clean(
-            game_date
-        ),
+        game_kickoff_utc,
         errors="coerce",
         utc=True,
     )
@@ -2340,6 +2704,7 @@ def injury_summary_for_game(
         questionable_count,
         penalty,
     )
+
 
 
 def weighted_blend(
@@ -3103,6 +3468,10 @@ def build_projection(
             margin_feature_coefficients,
         )
 
+        game_kickoff_utc = schedule_kickoff_utc(
+            sched_row
+        )
+
         (
             home_out,
             home_doubtful,
@@ -3110,9 +3479,7 @@ def build_projection(
             home_injury_penalty,
         ) = injury_summary_for_game(
             home_team,
-            sched_row.get(
-                "game_date"
-            ),
+            game_kickoff_utc,
             injury_lookup,
             args.fresh_injury_days,
         )
@@ -3124,9 +3491,7 @@ def build_projection(
             away_injury_penalty,
         ) = injury_summary_for_game(
             away_team,
-            sched_row.get(
-                "game_date"
-            ),
+            game_kickoff_utc,
             injury_lookup,
             args.fresh_injury_days,
         )
@@ -3943,7 +4308,7 @@ def validate_args(
         )
 
 
-def main() -> None:
+def _main_impl() -> None:
     args = parse_args()
 
     validate_args(
@@ -4347,6 +4712,258 @@ def main() -> None:
     print(
         "status=success"
     )
+
+
+def _pipeline_report_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        add_help=False,
+    )
+
+    parser.add_argument(
+        "--season",
+        type=int,
+        default=None,
+    )
+
+    parser.add_argument(
+        "--prior-season",
+        type=int,
+        default=None,
+    )
+
+    parser.add_argument(
+        "--week",
+        type=int,
+        default=1,
+    )
+
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+    )
+
+    args, _ = parser.parse_known_args()
+
+    return args
+
+
+def main() -> int:
+    # argparse --help is informational and should not create
+    # a FAILED pipeline report via SystemExit(0).
+    if any(
+        arg in {"-h", "--help"}
+        for arg in sys.argv[1:]
+    ):
+        _main_impl()
+        return 0
+
+    with PipelineReporter(
+        script=__file__,
+        stage="01_merge",
+        report_root=REPORT_ROOT,
+        pipeline="cfb",
+        league="CFB",
+        extra_context={
+            "script_version": SCRIPT_VERSION,
+            "projection_scope": "week_1",
+            "prior_aggregation":
+                "metric_denominator_weighted_pooling",
+            "probability_calibration": {
+                "margin_sd": DEFAULT_MARGIN_SD,
+                "total_sd": DEFAULT_TOTAL_SD,
+                "sample_games":
+                    PROBABILITY_CALIBRATION_SAMPLE_GAMES,
+                "season":
+                    PROBABILITY_CALIBRATION_SEASON,
+                "weeks":
+                    list(
+                        PROBABILITY_CALIBRATION_WEEKS
+                    ),
+                "source_commits":
+                    list(
+                        PROBABILITY_CALIBRATION_SOURCE_COMMITS
+                    ),
+                "method":
+                    PROBABILITY_CALIBRATION_METHOD,
+            },
+        },
+    ) as report:
+        report_args = _pipeline_report_args()
+
+        season = report_args.season
+
+        if season is None:
+            season = int(
+                os.getenv(
+                    "CFB_SEASON",
+                    "2026",
+                )
+            )
+
+        week = int(
+            report_args.week
+        )
+
+        prior_season = (
+            int(
+                report_args.prior_season
+            )
+            if report_args.prior_season is not None
+            else season - 1
+        )
+
+        report.season = season
+        report.week = week
+
+        root = repo_cfb_root()
+
+        schedule_path = (
+            root
+            / "00_intake"
+            / "schedule"
+            / "weekly"
+            / f"week_{week}_CFB_weekly_schedule.csv"
+        )
+
+        prior_path = (
+            root
+            / "00_intake"
+            / "team_stats"
+            / f"{prior_season}_team_stats.csv"
+        )
+
+        fpi_path = (
+            root
+            / "data"
+            / "team_power_index"
+            / f"team_power_index_{season}.csv"
+        )
+
+        predictions_dir = (
+            root
+            / "00_intake"
+            / "predictions"
+            / "final"
+        )
+
+        injuries_path = (
+            root
+            / "00_intake"
+            / "injuries"
+            / f"{season}_injuries.csv"
+        )
+
+        team_map_path = (
+            root
+            / "config"
+            / "mapping"
+            / "team_map.csv"
+        )
+
+        stadium_map_path = (
+            root
+            / "config"
+            / "mapping"
+            / "stadium_map.csv"
+        )
+
+        travel_path = (
+            root
+            / "data"
+            / "travel"
+            / f"{season}_week_{week}_travel.csv"
+        )
+
+        weather_path = (
+            root
+            / "data"
+            / "weather"
+            / f"week_{week}_CFB_weekly_weather.csv"
+        )
+
+        coefficients_path = (
+            root
+            / "config"
+            / "travel_weather_coefficients.csv"
+        )
+
+        output_path = (
+            root
+            / "01_merge"
+            / f"week_{week}_CFB_enriched.csv"
+        )
+
+        for input_path in (
+            schedule_path,
+            prior_path,
+            fpi_path,
+            predictions_dir,
+            injuries_path,
+            team_map_path,
+            stadium_map_path,
+            travel_path,
+            weather_path,
+            coefficients_path,
+        ):
+            report.add_input(
+                input_path
+            )
+
+        report.update_details(
+            {
+                "prior_season": prior_season,
+                "dry_run": bool(
+                    report_args.dry_run
+                ),
+            }
+        )
+
+        result = _main_impl()
+
+        if not report_args.dry_run:
+            if not output_path.is_file():
+                raise RuntimeError(
+                    "Week 1 projection completed without "
+                    f"creating expected output: {output_path}"
+                )
+
+            output = pd.read_csv(
+                output_path,
+                dtype=str,
+                encoding="utf-8-sig",
+                low_memory=False,
+            )
+
+            report.add_output(
+                output_path
+            )
+
+            report.set_rows(
+                rows_out=len(
+                    output
+                )
+            )
+
+            report.update_details(
+                {
+                    "games": int(
+                        len(
+                            output
+                        )
+                    ),
+                    "output_file": str(
+                        output_path
+                    ),
+                }
+            )
+
+        return (
+            0
+            if result is None
+            else int(
+                result
+            )
+        )
 
 
 if __name__ == "__main__":

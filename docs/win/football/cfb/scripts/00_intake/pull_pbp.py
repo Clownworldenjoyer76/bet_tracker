@@ -35,7 +35,6 @@ from __future__ import annotations
 import argparse
 import os
 import sys
-import traceback
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import datetime
 from importlib.metadata import PackageNotFoundError, version as package_version
@@ -63,13 +62,19 @@ else:
 # PATHS
 # ─────────────────────────────────────────────
 
-BASE_DIR = Path(__file__).resolve().parents[2]
+SCRIPT_PATH = Path(__file__).resolve()
+SCRIPTS_DIR = SCRIPT_PATH.parents[1]
+BASE_DIR = SCRIPT_PATH.parents[2]
 
-SETTINGS_FILE = BASE_DIR / "config" / "settings.yaml"
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
+
+from pipeline_reporter import PipelineReporter
+
+CURRENT_WEEK_FILE = BASE_DIR / "config" / "current_week.yaml"
 SCHEDULE_DIR = BASE_DIR / "00_intake" / "schedule"
 PBP_DIR = BASE_DIR / "00_intake" / "pbp"
-ERROR_DIR = BASE_DIR / "errors" / "00_intake"
-LOG_FILE = ERROR_DIR / "pull_pbp.txt"
+REPORT_ROOT = BASE_DIR / "errors"
 
 EASTERN = ZoneInfo("America/New_York")
 
@@ -116,62 +121,55 @@ REQUIRED_NATIVE_COLUMNS = [
 
 
 # ─────────────────────────────────────────────
-# LOGGING
-# ─────────────────────────────────────────────
-
-def now_stamp() -> str:
-    return datetime.now(EASTERN).strftime("%Y-%m-%d %H:%M:%S %Z")
-
-
-def ensure_dirs() -> None:
-    PBP_DIR.mkdir(parents=True, exist_ok=True)
-    ERROR_DIR.mkdir(parents=True, exist_ok=True)
-
-
-def reset_log() -> None:
-    ensure_dirs()
-    LOG_FILE.write_text("", encoding="utf-8")
-
-
-def log(message: str) -> None:
-    ensure_dirs()
-    with LOG_FILE.open("a", encoding="utf-8") as f:
-        f.write(f"[{now_stamp()}] {message.rstrip()}\n")
-
-
-# ─────────────────────────────────────────────
 # SETTINGS / CLI
 # ──────────────────────────────────────────────
 
-def read_settings() -> dict[str, Any]:
-    if not SETTINGS_FILE.exists() or yaml is None:
-        return {}
+def read_current_week() -> dict[str, Any]:
+    if yaml is None:
+        raise RuntimeError(
+            "PyYAML is required to read "
+            "docs/win/football/cfb/config/current_week.yaml"
+        )
 
-    with SETTINGS_FILE.open("r", encoding="utf-8") as f:
+    if not CURRENT_WEEK_FILE.exists():
+        raise FileNotFoundError(
+            f"Missing CFB current-week config: {CURRENT_WEEK_FILE}"
+        )
+
+    with CURRENT_WEEK_FILE.open("r", encoding="utf-8") as f:
         data = yaml.safe_load(f) or {}
 
-    return data if isinstance(data, dict) else {}
+    if not isinstance(data, dict):
+        raise ValueError(
+            f"{CURRENT_WEEK_FILE} must contain a YAML mapping"
+        )
+
+    return data
 
 
 def get_season(args: argparse.Namespace) -> int:
-    if args.season is not None:
-        return int(args.season)
+    config = read_current_week()
+    configured_season = config.get("season")
 
-    settings = read_settings()
-    season = settings.get("season")
+    if configured_season in (None, ""):
+        raise ValueError(
+            f"{CURRENT_WEEK_FILE} is missing required season"
+        )
 
-    if season not in (None, ""):
-        return int(season)
+    try:
+        season = int(configured_season)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            f"{CURRENT_WEEK_FILE} has invalid season={configured_season!r}"
+        ) from exc
 
-    env_season = os.getenv("CFB_SEASON")
-    if env_season:
-        return int(env_season)
+    if args.season is not None and int(args.season) != season:
+        raise ValueError(
+            f"--season={args.season} does not match "
+            f"{CURRENT_WEEK_FILE} season={season}"
+        )
 
-    raise ValueError(
-        "Missing season. Provide --season, set season in "
-        "docs/win/football/cfb/config/settings.yaml, or set CFB_SEASON."
-    )
-
+    return season
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -184,7 +182,10 @@ def parse_args() -> argparse.Namespace:
         "--season",
         type=int,
         default=None,
-        help="CFB season to process.",
+        help=(
+            "Optional consistency check. Must match "
+            "config/current_week.yaml."
+        ),
     )
 
     parser.add_argument(
@@ -294,6 +295,22 @@ def load_schedule(season: int) -> dict[str, dict[str, str]]:
             + ", ".join(duplicates[:20])
         )
 
+    invalid_game_dates: list[str] = []
+
+    for _, row in schedule.iterrows():
+        try:
+            parse_game_date(row["game_date"])
+        except ValueError as exc:
+            invalid_game_dates.append(
+                f"game_id={row['game_id']}: {exc}"
+            )
+
+    if invalid_game_dates:
+        raise ValueError(
+            f"{schedule_path} contains invalid game_date values: "
+            + "; ".join(invalid_game_dates[:20])
+        )
+
     return {
         row["game_id"]: {
             column: clean_text(row[column])
@@ -305,21 +322,21 @@ def load_schedule(season: int) -> dict[str, dict[str, str]]:
 
 def parse_game_date(value: Any):
     text = clean_text(value)
+
     if not text:
-        return None
+        raise ValueError("game_date is blank")
 
     # Current local schedule uses YYYY-MM-DD. Accept an ISO timestamp too.
     parsed = pd.to_datetime(text, errors="coerce")
+
     if pd.isna(parsed):
-        return None
+        raise ValueError(f"invalid game_date {text!r}")
 
     return parsed.date()
 
-
 def schedule_game_is_future(row: dict[str, str]) -> bool:
     game_date = parse_game_date(row.get("game_date"))
-    if game_date is None:
-        return False
+
 
     # Automatic PBP processing is limited to games dated before today.
     # Games scheduled today or later are excluded.
@@ -452,9 +469,14 @@ def validate_processed_game(
 
 def process_one_game(
     task: tuple[int, int],
-) -> tuple[int, pd.DataFrame | None, str]:
+) -> tuple[int, pd.DataFrame | None, str, str]:
     """
     Worker entry point. Kept at module scope so it is picklable on Windows.
+
+    disposition:
+      processed = completed game returned valid PBP
+      skipped   = expected nonfatal state
+      failed    = processor, worker, or validation failure
     """
     game_id, season = task
 
@@ -465,7 +487,12 @@ def process_one_game(
 
     try:
         if CFBPlayProcess is None:
-            return game_id, None, "sportsdataverse import unavailable"
+            return (
+                game_id,
+                None,
+                "failed",
+                "sportsdataverse import unavailable",
+            )
 
         proc = CFBPlayProcess(gameId=game_id, join_participants=False)
 
@@ -493,6 +520,7 @@ def process_one_game(
             return (
                 game_id,
                 None,
+                "failed",
                 f"processor returned {type(result).__name__}, expected dict",
             )
 
@@ -502,11 +530,17 @@ def process_one_game(
             return (
                 game_id,
                 None,
+                "failed",
                 f"result['plays'] returned {type(plays).__name__}, expected list",
             )
 
         if not plays:
-            return game_id, None, "no plays returned"
+            return (
+                game_id,
+                None,
+                "skipped",
+                "no plays returned",
+            )
 
         df = pd.DataFrame(plays)
 
@@ -517,14 +551,25 @@ def process_one_game(
         )
 
         if not game_is_completed(df):
-            return game_id, None, "game not completed"
+            return (
+                game_id,
+                None,
+                "skipped",
+                "game not completed",
+            )
 
-        return game_id, df, ""
+        return (
+            game_id,
+            df,
+            "processed",
+            "",
+        )
 
     except Exception as exc:
         return (
             game_id,
             None,
+            "failed",
             f"{type(exc).__name__}: {exc}",
         )
 
@@ -533,36 +578,67 @@ def process_games(
     game_ids: list[int],
     season: int,
     workers: int,
-) -> tuple[list[pd.DataFrame], list[tuple[int, str]]]:
+) -> tuple[
+    list[pd.DataFrame],
+    list[tuple[int, str]],
+    list[tuple[int, str]],
+]:
     if not game_ids:
-        return [], []
+        return [], [], []
 
     frames: list[pd.DataFrame] = []
     skipped: list[tuple[int, str]] = []
+    failures: list[tuple[int, str]] = []
 
     tasks = [(game_id, season) for game_id in game_ids]
 
-    # Direct execution is useful for one-game smoke tests and avoids Windows
-    # process-spawn overhead when concurrency cannot help.
     if workers == 1 or len(tasks) == 1:
         for index, task in enumerate(tasks, start=1):
-            game_id, frame, reason = process_one_game(task)
+            game_id, frame, disposition, reason = process_one_game(task)
 
-            if frame is not None and not frame.empty:
-                frames.append(frame)
-                print(
-                    f"game={game_id} plays={len(frame)} "
-                    f"columns={len(frame.columns)} "
-                    f"completed={index}/{len(tasks)}"
-                )
-            else:
+            if disposition == "processed":
+                if frame is None or frame.empty:
+                    failure_reason = (
+                        "processor reported processed but returned no frame"
+                    )
+                    failures.append((game_id, failure_reason))
+                    print(
+                        f"game={game_id} failed={failure_reason} "
+                        f"completed={index}/{len(tasks)}"
+                    )
+                else:
+                    frames.append(frame)
+                    print(
+                        f"game={game_id} plays={len(frame)} "
+                        f"columns={len(frame.columns)} "
+                        f"completed={index}/{len(tasks)}"
+                    )
+
+            elif disposition == "skipped":
                 skipped.append((game_id, reason))
                 print(
                     f"game={game_id} skipped={reason} "
                     f"completed={index}/{len(tasks)}"
                 )
 
-        return frames, skipped
+            elif disposition == "failed":
+                failures.append((game_id, reason))
+                print(
+                    f"game={game_id} failed={reason} "
+                    f"completed={index}/{len(tasks)}"
+                )
+
+            else:
+                failure_reason = (
+                    f"unexpected disposition={disposition!r}"
+                )
+                failures.append((game_id, failure_reason))
+                print(
+                    f"game={game_id} failed={failure_reason} "
+                    f"completed={index}/{len(tasks)}"
+                )
+
+        return frames, skipped, failures
 
     with ProcessPoolExecutor(max_workers=workers) as executor:
         future_to_game = {
@@ -577,28 +653,59 @@ def process_games(
             completed += 1
 
             try:
-                game_id, frame, reason = future.result()
+                game_id, frame, disposition, reason = future.result()
+
             except Exception as exc:
                 game_id = requested_game_id
                 frame = None
-                reason = f"worker failed: {type(exc).__name__}: {exc}"
-
-            if frame is not None and not frame.empty:
-                frames.append(frame)
-                print(
-                    f"game={game_id} plays={len(frame)} "
-                    f"columns={len(frame.columns)} "
-                    f"completed={completed}/{len(tasks)}"
+                disposition = "failed"
+                reason = (
+                    f"worker failed: {type(exc).__name__}: {exc}"
                 )
-            else:
+
+            if disposition == "processed":
+                if frame is None or frame.empty:
+                    failure_reason = (
+                        "processor reported processed but returned no frame"
+                    )
+                    failures.append((game_id, failure_reason))
+                    print(
+                        f"game={game_id} failed={failure_reason} "
+                        f"completed={completed}/{len(tasks)}"
+                    )
+                else:
+                    frames.append(frame)
+                    print(
+                        f"game={game_id} plays={len(frame)} "
+                        f"columns={len(frame.columns)} "
+                        f"completed={completed}/{len(tasks)}"
+                    )
+
+            elif disposition == "skipped":
                 skipped.append((game_id, reason))
                 print(
                     f"game={game_id} skipped={reason} "
                     f"completed={completed}/{len(tasks)}"
                 )
 
-    return frames, skipped
+            elif disposition == "failed":
+                failures.append((game_id, reason))
+                print(
+                    f"game={game_id} failed={reason} "
+                    f"completed={completed}/{len(tasks)}"
+                )
 
+            else:
+                failure_reason = (
+                    f"unexpected disposition={disposition!r}"
+                )
+                failures.append((game_id, failure_reason))
+                print(
+                    f"game={game_id} failed={failure_reason} "
+                    f"completed={completed}/{len(tasks)}"
+                )
+
+    return frames, skipped, failures
 
 # ─────────────────────────────────────────────
 # EXISTING / SEASON ASSEMBLY
@@ -782,40 +889,79 @@ def write_pbp_atomic(
 # ─────────────────────────────────────────────
 
 def main() -> int:
-    ensure_dirs()
-    reset_log()
     args = parse_args()
 
-    try:
+    with PipelineReporter(
+        script=__file__,
+        stage="00_intake",
+        report_root=REPORT_ROOT,
+        pipeline="cfb",
+        league="CFB",
+        extra_context={
+            "implementation": IMPLEMENTATION_VERSION,
+            "source": "sportsdataverse.CFBPlayProcess",
+        },
+    ) as report:
+        report.add_input(CURRENT_WEEK_FILE)
+
+        report.update_details(
+            {
+                "workers": args.workers,
+                "join_participants": False,
+                "refresh": args.refresh,
+                "dry_run": args.dry_run,
+                "output_modified": False,
+            }
+        )
+
         require_sportsdataverse()
 
         season = get_season(args)
+        current_week_config = read_current_week()
+
+        report.season = season
+
+        configured_week = current_week_config.get("week")
+        if configured_week not in (None, ""):
+            report.week = configured_week
+
+        report.set_detail(
+            "sportsdataverse_version",
+            sportsdataverse_version(),
+        )
 
         if args.workers < 1:
             raise ValueError("--workers must be at least 1")
 
+        schedule_path = SCHEDULE_DIR / f"{season}_schedule.csv"
         output_file = PBP_DIR / f"{season}_pbp.parquet"
 
-        log("=" * 80)
-        log(f"implementation={IMPLEMENTATION_VERSION}")
-        log(
-            f"pull_pbp.py started | season={season} "
-            f"| source=sportsdataverse.CFBPlayProcess "
-            f"| sportsdataverse_version={sportsdataverse_version()} "
-            f"| workers={args.workers} "
-            f"| join_participants=False "
-            f"| refresh={args.refresh} "
-            f"| dry_run={args.dry_run}"
-        )
+        report.add_input(schedule_path)
+
+        if output_file.exists():
+            report.add_input(output_file)
+
+        report.add_output(output_file)
 
         schedule = load_schedule(season)
         existing = read_existing_pbp(output_file)
+
+        validate_season_pbp(
+            existing,
+            season=season,
+        )
+
         existing_game_ids = game_ids_in_frame(existing)
 
         requested_game_ids = {
             int(game_id)
             for game_id in (args.game_id or [])
         }
+
+        report.set_detail(
+            "requested_game_ids",
+            sorted(requested_game_ids),
+        )
 
         if requested_game_ids:
             schedule_ids_as_int = {
@@ -868,38 +1014,112 @@ def main() -> int:
                     len(eligible_ids) - len(process_ids)
                 )
 
-        log(f"schedule_games_total={len(schedule)}")
-        log(f"existing_games={len(existing_game_ids)}")
-        log(f"existing_rows={len(existing)}")
-        log(f"future_games_skipped={future_games_skipped}")
-        log(f"already_stored_skipped={already_stored_skipped}")
-        log(f"games_to_process={len(process_ids)}")
+        report.set_rows(
+            rows_in=len(existing),
+        )
+
+        report.update_details(
+            {
+                "schedule_games_total": len(schedule),
+                "existing_games": len(existing_game_ids),
+                "existing_rows": len(existing),
+                "future_games_skipped": future_games_skipped,
+                "already_stored_skipped": already_stored_skipped,
+                "games_attempted": len(process_ids),
+            }
+        )
 
         if not process_ids:
-            log("status=no_new_games")
-            log(f"output={output_file}")
-            log("=" * 80)
+            report.update_details(
+                {
+                    "run_status": "no_new_games",
+                    "games_processed": 0,
+                    "games_skipped": 0,
+                    "games_failed": 0,
+                    "games_in_output": len(existing_game_ids),
+                    "final_rows": len(existing),
+                    "final_columns": len(existing.columns),
+                    "output_modified": False,
+                }
+            )
+
+            report.set_rows(
+                rows_out=len(existing),
+            )
 
             print("cfb pull_pbp completed")
             print(f"implementation: {IMPLEMENTATION_VERSION}")
             print(f"season: {season}")
             print("source_used: sportsdataverse.CFBPlayProcess")
-            print(f"sportsdataverse_version: {sportsdataverse_version()}")
+            print(
+                f"sportsdataverse_version: "
+                f"{sportsdataverse_version()}"
+            )
             print("games_processed: 0")
             print("games_skipped: 0")
-            print(f"future_games_skipped: {future_games_skipped}")
-            print(f"already_stored_skipped: {already_stored_skipped}")
+            print(
+                f"future_games_skipped: "
+                f"{future_games_skipped}"
+            )
+            print(
+                f"already_stored_skipped: "
+                f"{already_stored_skipped}"
+            )
             print(f"rows: {len(existing)}")
             print(f"columns: {len(existing.columns)}")
             print(f"output: {output_file}")
             print("status: no_new_games")
+
             return 0
 
-        new_frames, skipped = process_games(
+        new_frames, skipped, failures = process_games(
             game_ids=process_ids,
             season=season,
             workers=args.workers,
         )
+
+        skipped_details = [
+            {
+                "game_id": game_id,
+                "reason": reason,
+            }
+            for game_id, reason in sorted(skipped)
+        ]
+
+        if failures:
+            failure_details = [
+                {
+                    "game_id": game_id,
+                    "reason": reason,
+                }
+                for game_id, reason in sorted(failures)
+            ]
+
+            report.update_details(
+                {
+                    "run_status": "failed",
+                    "games_processed_before_failure": len(new_frames),
+                    "games_skipped": len(skipped),
+                    "games_failed": len(failures),
+                    "skipped_games": skipped_details,
+                    "failed_games": failure_details,
+                    "output_modified": False,
+                }
+            )
+
+            report.set_rows(
+                rows_out=len(existing),
+            )
+
+            failure_detail = "; ".join(
+                f"game_id={game_id}: {reason}"
+                for game_id, reason in sorted(failures)
+            )
+
+            raise RuntimeError(
+                f"{len(failures)} game(s) failed PBP processing: "
+                f"{failure_detail}"
+            )
 
         if args.dry_run:
             if new_frames:
@@ -907,52 +1127,78 @@ def main() -> int:
                     existing=pd.DataFrame(),
                     new_frames=new_frames,
                 )
+
                 validate_season_pbp(
                     dry_run_df,
                     season=season,
                 )
 
-                log(f"dry_run_games={len(dry_run_ids)}")
-                log(f"dry_run_rows={len(dry_run_df)}")
-                log(f"dry_run_columns={len(dry_run_df.columns)}")
-                log(f"games_skipped={len(skipped)}")
+                report.update_details(
+                    {
+                        "run_status": "dry_run_success",
+                        "games_processed": len(dry_run_ids),
+                        "games_skipped": len(skipped),
+                        "games_failed": 0,
+                        "skipped_games": skipped_details,
+                        "dry_run_rows": len(dry_run_df),
+                        "dry_run_columns": len(dry_run_df.columns),
+                        "output_modified": False,
+                    }
+                )
 
-                for game_id, reason in sorted(skipped):
-                    log(f"SKIPPED game_id={game_id} reason={reason}")
-
-                log("status=dry_run_success")
-                log("=" * 80)
+                report.set_rows(
+                    rows_out=len(dry_run_df),
+                )
 
                 print("cfb pull_pbp dry run completed")
                 print(f"implementation: {IMPLEMENTATION_VERSION}")
                 print(f"season: {season}")
                 print("source_used: sportsdataverse.CFBPlayProcess")
-                print(f"sportsdataverse_version: {sportsdataverse_version()}")
+                print(
+                    f"sportsdataverse_version: "
+                    f"{sportsdataverse_version()}"
+                )
                 print(f"games_processed: {len(dry_run_ids)}")
                 print(f"games_skipped: {len(skipped)}")
                 print(f"rows: {len(dry_run_df)}")
                 print(f"columns: {len(dry_run_df.columns)}")
                 print("output_modified: no")
                 print("status: dry_run_success")
+
                 return 0
 
-            log(f"games_skipped={len(skipped)}")
-            for game_id, reason in sorted(skipped):
-                log(f"SKIPPED game_id={game_id} reason={reason}")
-            log("status=dry_run_no_completed_games")
-            log("=" * 80)
+            report.update_details(
+                {
+                    "run_status": "dry_run_no_completed_games",
+                    "games_processed": 0,
+                    "games_skipped": len(skipped),
+                    "games_failed": 0,
+                    "skipped_games": skipped_details,
+                    "dry_run_rows": 0,
+                    "dry_run_columns": 0,
+                    "output_modified": False,
+                }
+            )
+
+            report.set_rows(
+                rows_out=0,
+            )
 
             print("cfb pull_pbp dry run completed")
             print(f"implementation: {IMPLEMENTATION_VERSION}")
             print(f"season: {season}")
             print("source_used: sportsdataverse.CFBPlayProcess")
-            print(f"sportsdataverse_version: {sportsdataverse_version()}")
+            print(
+                f"sportsdataverse_version: "
+                f"{sportsdataverse_version()}"
+            )
             print("games_processed: 0")
             print(f"games_skipped: {len(skipped)}")
             print("rows: 0")
             print("columns: 0")
             print("output_modified: no")
             print("status: dry_run_no_completed_games")
+
             return 0
 
         combined, replacement_ids = combine_season_pbp(
@@ -968,23 +1214,45 @@ def main() -> int:
         # Do not create a meaningless zero-column/zero-row Parquet before the
         # first completed game exists.
         if combined.empty and existing.empty:
-            log("status=no_completed_games")
-            for game_id, reason in sorted(skipped):
-                log(f"SKIPPED game_id={game_id} reason={reason}")
-            log("=" * 80)
+            report.update_details(
+                {
+                    "run_status": "no_completed_games",
+                    "games_processed": 0,
+                    "games_skipped": len(skipped),
+                    "games_failed": 0,
+                    "skipped_games": skipped_details,
+                    "games_in_output": 0,
+                    "final_rows": 0,
+                    "final_columns": 0,
+                    "output_modified": False,
+                }
+            )
+
+            report.set_rows(
+                rows_out=0,
+            )
 
             print("cfb pull_pbp completed")
             print(f"implementation: {IMPLEMENTATION_VERSION}")
             print(f"season: {season}")
             print("source_used: sportsdataverse.CFBPlayProcess")
-            print(f"sportsdataverse_version: {sportsdataverse_version()}")
+            print(
+                f"sportsdataverse_version: "
+                f"{sportsdataverse_version()}"
+            )
             print("games_processed: 0")
             print(f"games_skipped: {len(skipped)}")
-            print(f"future_games_skipped: {future_games_skipped}")
+            print(
+                f"future_games_skipped: "
+                f"{future_games_skipped}"
+            )
             print("rows: 0")
             print("columns: 0")
             print("status: no_completed_games")
+
             return 0
+
+        output_modified = False
 
         # Only rewrite when at least one game was successfully processed.
         if new_frames:
@@ -992,46 +1260,53 @@ def main() -> int:
                 combined,
                 output_file=output_file,
             )
+            output_modified = True
 
         final_game_ids = game_ids_in_frame(combined)
 
-        log(f"games_processed={len(replacement_ids)}")
-        log(f"games_skipped={len(skipped)}")
-        log(f"games_in_output={len(final_game_ids)}")
-        log(f"rows={len(combined)}")
-        log(f"columns={len(combined.columns)}")
-        log(f"output={output_file}")
+        report.update_details(
+            {
+                "run_status": "success",
+                "games_processed": len(replacement_ids),
+                "games_skipped": len(skipped),
+                "games_failed": 0,
+                "skipped_games": skipped_details,
+                "games_in_output": len(final_game_ids),
+                "final_rows": len(combined),
+                "final_columns": len(combined.columns),
+                "output_modified": output_modified,
+            }
+        )
 
-        for game_id, reason in sorted(skipped):
-            log(f"SKIPPED game_id={game_id} reason={reason}")
-
-        log("status=success")
-        log("=" * 80)
+        report.set_rows(
+            rows_out=len(combined),
+        )
 
         print("cfb pull_pbp completed")
         print(f"implementation: {IMPLEMENTATION_VERSION}")
         print(f"season: {season}")
         print("source_used: sportsdataverse.CFBPlayProcess")
-        print(f"sportsdataverse_version: {sportsdataverse_version()}")
+        print(
+            f"sportsdataverse_version: "
+            f"{sportsdataverse_version()}"
+        )
         print(f"games_processed: {len(replacement_ids)}")
         print(f"games_skipped: {len(skipped)}")
         print(f"games_in_output: {len(final_game_ids)}")
-        print(f"future_games_skipped: {future_games_skipped}")
-        print(f"already_stored_skipped: {already_stored_skipped}")
+        print(
+            f"future_games_skipped: "
+            f"{future_games_skipped}"
+        )
+        print(
+            f"already_stored_skipped: "
+            f"{already_stored_skipped}"
+        )
         print(f"rows: {len(combined)}")
         print(f"columns: {len(combined.columns)}")
         print(f"output: {output_file}")
         print("status: success")
 
         return 0
-
-    except Exception as exc:
-        log(f"ERROR: {type(exc).__name__}: {exc}")
-        log(traceback.format_exc())
-        print("cfb pull_pbp failed", file=sys.stderr)
-        print(f"{type(exc).__name__}: {exc}", file=sys.stderr)
-        return 1
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

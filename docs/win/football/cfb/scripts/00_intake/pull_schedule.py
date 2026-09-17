@@ -5,19 +5,29 @@ from __future__ import annotations
 
 import csv
 import json
+import os
 import sys
-import traceback
-import urllib.error
 import urllib.request
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
+import yaml
 
-YEAR = 2026
 
-CFB_DIR = Path(__file__).resolve().parents[2]
+SCRIPT_PATH = Path(__file__).resolve()
+SCRIPTS_DIR = SCRIPT_PATH.parents[1]
+CFB_DIR = SCRIPT_PATH.parents[2]
+
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
+
+from pipeline_reporter import PipelineReporter
+
+
+CONFIG_FILE = CFB_DIR / "config" / "current_week.yaml"
 
 TEAM_MAP_FILE = (
     CFB_DIR
@@ -39,26 +49,29 @@ OUTPUT_DIR = (
     / "schedule"
 )
 
-OUTPUT_FILE = (
-    OUTPUT_DIR
-    / f"{YEAR}_schedule.csv"
-)
-
 UPDATES_DIR = (
     OUTPUT_DIR
     / "updates"
 )
 
-ERROR_DIR = (
+REPORT_ROOT = (
     CFB_DIR
     / "errors"
-    / "00_intake"
 )
 
-LOG_FILE = (
-    ERROR_DIR
-    / "pull_schedule.txt"
-)
+TEAM_MAP_REQUIRED_COLUMNS = {
+    "team_id",
+    "canonical_team",
+}
+
+STADIUM_MAP_REQUIRED_COLUMNS = {
+    "team",
+    "stadium",
+    "venue_full_name",
+    "roof_type",
+    "surface",
+    "timezone",
+}
 
 OUTPUT_COLUMNS = [
     "season",
@@ -77,22 +90,6 @@ OUTPUT_COLUMNS = [
     "away_timezone",
     "game_timezone",
 ]
-
-
-OUTPUT_DIR.mkdir(
-    parents=True,
-    exist_ok=True,
-)
-
-UPDATES_DIR.mkdir(
-    parents=True,
-    exist_ok=True,
-)
-
-ERROR_DIR.mkdir(
-    parents=True,
-    exist_ok=True,
-)
 
 
 def clean(value: Any) -> str:
@@ -115,39 +112,99 @@ def lookup_key(value: Any) -> str:
     return clean(value).casefold()
 
 
-def reset_log() -> None:
-    LOG_FILE.write_text(
-        "",
-        encoding="utf-8",
-    )
-
-
-def log(message: str) -> None:
-    with LOG_FILE.open(
-        "a",
-        encoding="utf-8",
-    ) as f:
-        f.write(
-            message.rstrip()
-            + "\n"
+def load_pipeline_config(
+    path: Path,
+) -> tuple[int, int, int]:
+    if not path.is_file():
+        raise RuntimeError(
+            f"Missing required file: {path}"
         )
 
+    with path.open(
+        "r",
+        encoding="utf-8",
+    ) as handle:
+        data = yaml.safe_load(
+            handle
+        )
 
-def fatal(message: str) -> None:
-    log(
-        f"ERROR: {message}"
-    )
+    if not isinstance(
+        data,
+        dict,
+    ):
+        raise RuntimeError(
+            f"Invalid YAML mapping: {path}"
+        )
 
-    raise RuntimeError(
-        message
+    try:
+        season = int(
+            data["season"]
+        )
+    except (
+        KeyError,
+        TypeError,
+        ValueError,
+    ) as exc:
+        raise RuntimeError(
+            f"Invalid or missing season in {path}"
+        ) from exc
+
+    try:
+        season_type = int(
+            data["season_type"]
+        )
+    except (
+        KeyError,
+        TypeError,
+        ValueError,
+    ) as exc:
+        raise RuntimeError(
+            f"Invalid or missing season_type in {path}"
+        ) from exc
+
+    if not 2000 <= season <= 2099:
+        raise RuntimeError(
+            f"Invalid season in {path}: {season}"
+        )
+
+    if season_type <= 0:
+        raise RuntimeError(
+            f"Invalid season_type in {path}: "
+            f"{season_type}"
+        )
+
+    try:
+        week = int(
+            data["week"]
+        )
+    except (
+        KeyError,
+        TypeError,
+        ValueError,
+    ) as exc:
+        raise RuntimeError(
+            f"Invalid or missing week in {path}"
+        ) from exc
+
+    if week <= 0:
+        raise RuntimeError(
+            f"Invalid week in {path}: {week}"
+        )
+
+    return (
+        season,
+        season_type,
+        week,
     )
 
 
 def read_csv(
     path: Path,
+    *,
+    required_columns: set[str] | None = None,
 ) -> list[dict[str, str]]:
-    if not path.exists():
-        fatal(
+    if not path.is_file():
+        raise RuntimeError(
             f"Missing required file: {path}"
         )
 
@@ -155,25 +212,64 @@ def read_csv(
         "r",
         encoding="utf-8-sig",
         newline="",
-    ) as f:
-        reader = csv.DictReader(f)
+    ) as handle:
+        reader = csv.DictReader(
+            handle
+        )
 
         if reader.fieldnames is None:
-            fatal(
+            raise RuntimeError(
                 f"Missing CSV header: {path}"
             )
 
-        return [
-            {
-                clean(k): clean(v)
-                for k, v
-                in row.items()
-            }
-            for row in reader
-        ]
+        fieldnames = {
+            clean(name)
+            for name in reader.fieldnames
+        }
+
+        missing = (
+            set(
+                required_columns
+                or set()
+            )
+            - fieldnames
+        )
+
+        if missing:
+            raise RuntimeError(
+                f"{path}: missing required "
+                f"columns: {sorted(missing)}"
+            )
+
+        rows: list[
+            dict[str, str]
+        ] = []
+
+        for (
+            line_number,
+            row,
+        ) in enumerate(
+            reader,
+            start=2,
+        ):
+            if None in row:
+                raise RuntimeError(
+                    f"{path}: malformed CSV "
+                    f"row at line {line_number}"
+                )
+
+            rows.append(
+                {
+                    clean(key): clean(value)
+                    for key, value
+                    in row.items()
+                }
+            )
+
+        return rows
 
 
-def write_csv(
+def write_csv_atomic(
     path: Path,
     rows: list[dict[str, str]],
 ) -> None:
@@ -182,28 +278,56 @@ def write_csv(
         exist_ok=True,
     )
 
-    with path.open(
-        "w",
-        encoding="utf-8",
-        newline="",
-    ) as f:
-        writer = csv.DictWriter(
-            f,
-            fieldnames=OUTPUT_COLUMNS,
+    temp_path = (
+        path.with_name(
+            f".{path.name}."
+            f"{uuid.uuid4().hex}.tmp"
+        )
+    )
+
+    try:
+        with temp_path.open(
+            "w",
+            encoding="utf-8",
+            newline="",
+        ) as handle:
+            writer = csv.DictWriter(
+                handle,
+                fieldnames=OUTPUT_COLUMNS,
+            )
+
+            writer.writeheader()
+
+            for row in rows:
+                writer.writerow(
+                    {
+                        column: clean(
+                            row.get(column)
+                        )
+                        for column
+                        in OUTPUT_COLUMNS
+                    }
+                )
+
+            handle.flush()
+            os.fsync(
+                handle.fileno()
+            )
+
+        os.replace(
+            temp_path,
+            path,
         )
 
-        writer.writeheader()
-
-        for row in rows:
-            writer.writerow(
-                {
-                    column: clean(
-                        row.get(column)
-                    )
-                    for column
-                    in OUTPUT_COLUMNS
-                }
+    except Exception:
+        try:
+            temp_path.unlink(
+                missing_ok=True
             )
+        except Exception:
+            pass
+
+        raise
 
 
 def build_team_maps(
@@ -222,7 +346,9 @@ def build_team_maps(
 
     for row in rows:
         team_id = clean(
-            row.get("team_id")
+            row.get(
+                "team_id"
+            )
         )
 
         canonical = clean(
@@ -249,7 +375,9 @@ def build_team_maps(
 
         candidates = [
             row.get("team_id"),
-            row.get("canonical_team"),
+            row.get(
+                "canonical_team"
+            ),
             row.get("team_abbr"),
             row.get("alias"),
             row.get("location"),
@@ -274,7 +402,7 @@ def build_team_maps(
                 ] = canonical
 
     if not team_ids:
-        fatal(
+        raise RuntimeError(
             "No team_id values found "
             "in team_map.csv"
         )
@@ -341,14 +469,18 @@ def build_stadium_maps(
 
 def fetch_schedule(
     team_id: str,
-) -> dict[str, Any]:
+    *,
+    season: int,
+    season_type: int,
+    report: PipelineReporter,
+) -> dict[str, Any] | None:
     url = (
         "https://site.api.espn.com/"
         "apis/site/v2/sports/football/"
         "college-football/"
         f"teams/{team_id}/schedule"
-        f"?season={YEAR}"
-        "&seasontype=2"
+        f"?season={season}"
+        f"&seasontype={season_type}"
     )
 
     request = urllib.request.Request(
@@ -367,19 +499,37 @@ def fetch_schedule(
             request,
             timeout=30,
         ) as response:
-            return json.loads(
+            payload = json.loads(
                 response
                 .read()
                 .decode("utf-8")
             )
 
-    except Exception as e:
-        log(
-            f"TEAM_ID={team_id} "
-            f"FETCH_ERROR={repr(e)}"
+        if not isinstance(
+            payload,
+            dict,
+        ):
+            report.warning(
+                "ESPN schedule response "
+                "was not a JSON object",
+                team_id=team_id,
+            )
+
+            return None
+
+        return payload
+
+    except Exception as exc:
+        report.warning(
+            "ESPN schedule fetch failed",
+            team_id=team_id,
+            error_type=(
+                type(exc).__name__
+            ),
+            error=str(exc),
         )
 
-        return {}
+        return None
 
 
 def first_competition(
@@ -456,8 +606,12 @@ def canonical_team(
     candidates = [
         team.get("id"),
         team.get("displayName"),
-        team.get("shortDisplayName"),
-        team.get("abbreviation"),
+        team.get(
+            "shortDisplayName"
+        ),
+        team.get(
+            "abbreviation"
+        ),
         team.get("location"),
         team.get("nickname"),
     ]
@@ -474,7 +628,9 @@ def canonical_team(
 
     return (
         clean(
-            team.get("displayName")
+            team.get(
+                "displayName"
+            )
         )
         or clean(
             team.get(
@@ -482,7 +638,9 @@ def canonical_team(
             )
         )
         or clean(
-            team.get("location")
+            team.get(
+                "location"
+            )
         )
     )
 
@@ -490,6 +648,9 @@ def canonical_team(
 def parse_game_datetime(
     raw_date: str,
     game_timezone: str,
+    *,
+    game_id: str,
+    report: PipelineReporter,
 ) -> tuple[str, str]:
     if not raw_date:
         return "", ""
@@ -513,10 +674,25 @@ def parse_game_datetime(
                     game_timezone
                 )
             )
-        except Exception:
+
+        except Exception as exc:
+            report.warning(
+                "Invalid game timezone; "
+                "UTC fallback used",
+                game_id=game_id,
+                game_timezone=(
+                    game_timezone
+                ),
+                error_type=(
+                    type(exc).__name__
+                ),
+                error=str(exc),
+            )
+
             dt = dt.astimezone(
                 timezone.utc
             )
+
     else:
         dt = dt.astimezone(
             timezone.utc
@@ -543,6 +719,10 @@ def event_to_row(
         str,
         dict[str, str],
     ],
+    *,
+    season: int,
+    season_type: int,
+    report: PipelineReporter,
 ) -> dict[str, str] | None:
     game_id = clean(
         event.get("id")
@@ -581,9 +761,11 @@ def event_to_row(
         not home_team
         or not away_team
     ):
-        log(
-            f"SKIP game_id={game_id} "
-            "missing home/away team"
+        report.warning(
+            "Schedule event skipped "
+            "because home or away "
+            "team was missing",
+            game_id=game_id,
         )
 
         return None
@@ -604,8 +786,10 @@ def event_to_row(
         )
     )
 
-    neutral_value = competition.get(
-        "neutralSite"
+    neutral_value = (
+        competition.get(
+            "neutralSite"
+        )
     )
 
     neutral_site = (
@@ -714,6 +898,8 @@ def event_to_row(
                 event.get("date")
             ),
             game_timezone,
+            game_id=game_id,
+            report=report,
         )
     )
 
@@ -721,13 +907,13 @@ def event_to_row(
         "season"
     )
 
-    season = ""
+    event_season = ""
 
     if isinstance(
         season_obj,
         dict,
     ):
-        season = clean(
+        event_season = clean(
             season_obj.get(
                 "year"
             )
@@ -739,13 +925,13 @@ def event_to_row(
         )
     )
 
-    season_type = ""
+    event_season_type = ""
 
     if isinstance(
         season_type_obj,
         dict,
     ):
-        season_type = (
+        event_season_type = (
             clean(
                 season_type_obj.get(
                     "type"
@@ -776,12 +962,12 @@ def event_to_row(
 
     return {
         "season": (
-            season
-            or str(YEAR)
+            event_season
+            or str(season)
         ),
         "season_type": (
-            season_type
-            or "2"
+            event_season_type
+            or str(season_type)
         ),
         "week": week,
         "game_id": game_id,
@@ -793,24 +979,32 @@ def event_to_row(
         "stadium": stadium,
         "roof": roof,
         "surface": surface,
-        "home_timezone": home_timezone,
-        "away_timezone": away_timezone,
-        "game_timezone": game_timezone,
+        "home_timezone": (
+            home_timezone
+        ),
+        "away_timezone": (
+            away_timezone
+        ),
+        "game_timezone": (
+            game_timezone
+        ),
     }
 
 
-def read_existing_schedule() -> list[
-    dict[str, str]
-]:
-    if not OUTPUT_FILE.exists():
+def read_existing_schedule(
+    output_file: Path,
+) -> list[dict[str, str]]:
+    if not output_file.exists():
         return []
 
-    with OUTPUT_FILE.open(
+    with output_file.open(
         "r",
         encoding="utf-8-sig",
         newline="",
-    ) as f:
-        reader = csv.DictReader(f)
+    ) as handle:
+        reader = csv.DictReader(
+            handle
+        )
 
         if reader.fieldnames is None:
             return []
@@ -853,21 +1047,65 @@ def sort_rows(
 
 
 def main() -> None:
-    reset_log()
+    with PipelineReporter(
+        script=__file__,
+        stage="00_intake",
+        report_root=REPORT_ROOT,
+        pipeline="cfb",
+        league="CFB",
+    ) as report:
+        report.add_input(
+            CONFIG_FILE
+        )
 
-    try:
-        team_rows = read_csv(
+        report.add_input(
             TEAM_MAP_FILE
         )
 
-        stadium_rows = read_csv(
+        report.add_input(
             STADIUM_MAP_FILE
         )
 
-        team_ids, team_lookup = (
-            build_team_maps(
-                team_rows
-            )
+        (
+            season,
+            season_type,
+            week,
+        ) = load_pipeline_config(
+            CONFIG_FILE
+        )
+
+        report.season = season
+        report.week = week
+
+        report.set_detail(
+            "season_type",
+            season_type,
+        )
+
+        output_file = (
+            OUTPUT_DIR
+            / f"{season}_schedule.csv"
+        )
+
+        team_rows = read_csv(
+            TEAM_MAP_FILE,
+            required_columns=(
+                TEAM_MAP_REQUIRED_COLUMNS
+            ),
+        )
+
+        stadium_rows = read_csv(
+            STADIUM_MAP_FILE,
+            required_columns=(
+                STADIUM_MAP_REQUIRED_COLUMNS
+            ),
+        )
+
+        (
+            team_ids,
+            team_lookup,
+        ) = build_team_maps(
+            team_rows
         )
 
         (
@@ -883,12 +1121,25 @@ def main() -> None:
         ] = {}
 
         successful_team_pulls = 0
+        failed_team_pulls = 0
+        invalid_team_payloads = 0
+        empty_team_pulls = 0
         total_events_seen = 0
+        skipped_events = 0
 
         for team_id in team_ids:
             data = fetch_schedule(
-                team_id
+                team_id,
+                season=season,
+                season_type=(
+                    season_type
+                ),
+                report=report,
             )
+
+            if data is None:
+                failed_team_pulls += 1
+                continue
 
             events = data.get(
                 "events"
@@ -898,21 +1149,27 @@ def main() -> None:
                 events,
                 list,
             ):
-                log(
-                    f"TEAM_ID={team_id} "
-                    "events=INVALID"
-                )
-                continue
+                (
+                    invalid_team_payloads
+                ) += 1
 
-            log(
-                f"TEAM_ID={team_id} "
-                f"events={len(events)}"
-            )
+                report.warning(
+                    "ESPN schedule response "
+                    "contained invalid "
+                    "events data",
+                    team_id=team_id,
+                )
+
+                continue
 
             if not events:
+                empty_team_pulls += 1
                 continue
 
-            successful_team_pulls += 1
+            (
+                successful_team_pulls
+            ) += 1
+
             total_events_seen += len(
                 events
             )
@@ -922,6 +1179,7 @@ def main() -> None:
                     event,
                     dict,
                 ):
+                    skipped_events += 1
                     continue
 
                 row = event_to_row(
@@ -929,24 +1187,61 @@ def main() -> None:
                     team_lookup,
                     stadium_by_team,
                     stadium_by_stadium,
+                    season=season,
+                    season_type=(
+                        season_type
+                    ),
+                    report=report,
                 )
 
                 if row is None:
+                    skipped_events += 1
                     continue
 
-                game_id = row[
-                    "game_id"
-                ]
-
                 pulled[
-                    game_id
+                    row["game_id"]
                 ] = row
 
+        report.update_details(
+            {
+                "team_map_rows": (
+                    len(team_rows)
+                ),
+                "stadium_map_rows": (
+                    len(stadium_rows)
+                ),
+                "team_ids": (
+                    len(team_ids)
+                ),
+                "successful_team_pulls": (
+                    successful_team_pulls
+                ),
+                "failed_team_pulls": (
+                    failed_team_pulls
+                ),
+                "invalid_team_payloads": (
+                    invalid_team_payloads
+                ),
+                "empty_team_pulls": (
+                    empty_team_pulls
+                ),
+                "events_seen": (
+                    total_events_seen
+                ),
+                "skipped_events": (
+                    skipped_events
+                ),
+                "unique_games_pulled": (
+                    len(pulled)
+                ),
+            }
+        )
+
         if not pulled:
-            fatal(
+            raise RuntimeError(
                 "ESPN returned zero usable "
-                "2026 CFB schedule rows. "
-                "Existing schedule was NOT overwritten."
+                "schedule rows. Existing "
+                "schedule was NOT overwritten."
             )
 
         pulled_rows = sort_rows(
@@ -964,21 +1259,32 @@ def main() -> None:
         update_file = (
             UPDATES_DIR
             / (
-                f"{YEAR}_schedule_"
+                f"{season}_schedule_"
                 f"{timestamp}.csv"
             )
         )
 
-        write_csv(
+        write_csv_atomic(
             update_file,
             pulled_rows,
         )
 
+        report.add_output(
+            update_file
+        )
+
         existing_rows = (
-            read_existing_schedule()
+            read_existing_schedule(
+                output_file
+            )
         )
 
         merged: dict[
+            str,
+            dict[str, str],
+        ] = {}
+
+        existing_by_id: dict[
             str,
             dict[str, str],
         ] = {}
@@ -991,16 +1297,58 @@ def main() -> None:
             )
 
             if game_id:
+                existing_by_id[
+                    game_id
+                ] = row
+
                 merged[
                     game_id
                 ] = row
 
-        for game_id, row in (
-            pulled.items()
-        ):
+        added_games = 0
+        updated_games = 0
+        unchanged_games = 0
+
+        for (
+            game_id,
+            row,
+        ) in pulled.items():
+            existing_row = (
+                existing_by_id.get(
+                    game_id
+                )
+            )
+
+            if existing_row is None:
+                added_games += 1
+
+            elif all(
+                clean(
+                    existing_row.get(
+                        column
+                    )
+                )
+                == clean(
+                    row.get(
+                        column
+                    )
+                )
+                for column
+                in OUTPUT_COLUMNS
+            ):
+                unchanged_games += 1
+
+            else:
+                updated_games += 1
+
             merged[
                 game_id
             ] = row
+
+        preserved_games = len(
+            set(existing_by_id)
+            - set(pulled)
+        )
 
         output_rows = sort_rows(
             list(
@@ -1009,55 +1357,134 @@ def main() -> None:
         )
 
         if not output_rows:
-            fatal(
-                "No schedule rows available "
-                "to write."
+            raise RuntimeError(
+                "No schedule rows "
+                "available to write."
             )
 
-        write_csv(
-            OUTPUT_FILE,
+        missing_stadium = sum(
+            1
+            for row in output_rows
+            if not clean(
+                row.get("stadium")
+            )
+        )
+
+        missing_surface = sum(
+            1
+            for row in output_rows
+            if not clean(
+                row.get("surface")
+            )
+        )
+
+        missing_roof = sum(
+            1
+            for row in output_rows
+            if not clean(
+                row.get("roof")
+            )
+        )
+
+        missing_home_timezone = sum(
+            1
+            for row in output_rows
+            if not clean(
+                row.get(
+                    "home_timezone"
+                )
+            )
+        )
+
+        missing_away_timezone = sum(
+            1
+            for row in output_rows
+            if not clean(
+                row.get(
+                    "away_timezone"
+                )
+            )
+        )
+
+        missing_game_timezone = sum(
+            1
+            for row in output_rows
+            if not clean(
+                row.get(
+                    "game_timezone"
+                )
+            )
+        )
+
+        write_csv_atomic(
+            output_file,
             output_rows,
         )
 
-        log(
-            f"team_ids={len(team_ids)}"
+        report.add_output(
+            output_file
         )
 
-        log(
-            "successful_team_pulls="
-            f"{successful_team_pulls}"
+        report.set_rows(
+            rows_in=(
+                total_events_seen
+            ),
+            rows_out=(
+                len(output_rows)
+            ),
         )
 
-        log(
-            f"events_seen={total_events_seen}"
-        )
-
-        log(
-            "unique_games_pulled="
-            f"{len(pulled_rows)}"
-        )
-
-        log(
-            "schedule_rows_written="
-            f"{len(output_rows)}"
+        report.update_details(
+            {
+                "existing_schedule_rows": (
+                    len(existing_rows)
+                ),
+                "schedule_rows_written": (
+                    len(output_rows)
+                ),
+                "schedule_games_added": (
+                    added_games
+                ),
+                "schedule_games_updated": (
+                    updated_games
+                ),
+                "schedule_games_unchanged": (
+                    unchanged_games
+                ),
+                "schedule_games_preserved": (
+                    preserved_games
+                ),
+                "missing_stadium": (
+                    missing_stadium
+                ),
+                "missing_surface": (
+                    missing_surface
+                ),
+                "missing_roof": (
+                    missing_roof
+                ),
+                "missing_home_timezone": (
+                    missing_home_timezone
+                ),
+                "missing_away_timezone": (
+                    missing_away_timezone
+                ),
+                "missing_game_timezone": (
+                    missing_game_timezone
+                ),
+            }
         )
 
         print(
             f"Wrote {len(output_rows)} "
             f"schedule rows to "
-            f"{OUTPUT_FILE}"
+            f"{output_file}"
         )
 
         print(
             f"Pulled {len(pulled_rows)} "
             f"unique ESPN games"
         )
-
-    except Exception:
-        log(
-            traceback.format_exc()
-        )
-        raise
 
 
 if __name__ == "__main__":
