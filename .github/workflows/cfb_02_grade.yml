@@ -3,8 +3,7 @@ name: CFB 02 Grading
 on:
   workflow_dispatch:
 
-permissions:
-  contents: write
+permissions: {}
 
 concurrency:
   group: repo-write-lock-${{ github.ref }}
@@ -12,6 +11,8 @@ concurrency:
 
 jobs:
   cfb-rebuild-all-picks:
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -20,6 +21,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          persist-credentials: true
 
       - name: Load CFB season
         shell: bash
