@@ -574,6 +574,97 @@ def process_one_game(
         )
 
 
+
+def _process_games_parallel(
+    *,
+    tasks: list[tuple[int, int]],
+    workers: int,
+    frames: list[pd.DataFrame],
+    skipped: list[tuple[int, str]],
+    failures: list[tuple[int, str]],
+) -> None:
+    with ProcessPoolExecutor(
+        max_workers=workers
+    ) as executor:
+        future_to_game = {
+            executor.submit(
+                process_one_game,
+                task,
+            ): task[0]
+            for task in tasks
+        }
+
+        completed = 0
+
+        for future in as_completed(
+            future_to_game
+        ):
+            requested_game_id = future_to_game[future]
+            completed += 1
+
+            try:
+                (
+                    game_id,
+                    frame,
+                    disposition,
+                    reason,
+                ) = future.result()
+
+            except Exception as exc:
+                game_id = requested_game_id
+                frame = None
+                disposition = "failed"
+                reason = (
+                    "worker failed: "
+                    f"{type(exc).__name__}: {exc}"
+                )
+
+            if disposition == "processed":
+                if frame is None or frame.empty:
+                    failure_reason = (
+                        "processor reported processed "
+                        "but returned no frame"
+                    )
+                    failures.append(
+                        (game_id, failure_reason)
+                    )
+                    print(
+                        f"game={game_id} failed={failure_reason} "
+                        f"completed={completed}/{len(tasks)}"
+                    )
+                else:
+                    frames.append(frame)
+                    print(
+                        f"game={game_id} plays={len(frame)} "
+                        f"columns={len(frame.columns)} "
+                        f"completed={completed}/{len(tasks)}"
+                    )
+
+            elif disposition == "skipped":
+                skipped.append((game_id, reason))
+                print(
+                    f"game={game_id} skipped={reason} "
+                    f"completed={completed}/{len(tasks)}"
+                )
+
+            elif disposition == "failed":
+                failures.append((game_id, reason))
+                print(
+                    f"game={game_id} failed={reason} "
+                    f"completed={completed}/{len(tasks)}"
+                )
+
+            else:
+                failure_reason = (
+                    f"unexpected disposition={disposition!r}"
+                )
+                failures.append((game_id, failure_reason))
+                print(
+                    f"game={game_id} failed={failure_reason} "
+                    f"completed={completed}/{len(tasks)}"
+                )
+
+
 def process_games(
     game_ids: list[int],
     season: int,
@@ -640,70 +731,13 @@ def process_games(
 
         return frames, skipped, failures
 
-    with ProcessPoolExecutor(max_workers=workers) as executor:
-        future_to_game = {
-            executor.submit(process_one_game, task): task[0]
-            for task in tasks
-        }
-
-        completed = 0
-
-        for future in as_completed(future_to_game):
-            requested_game_id = future_to_game[future]
-            completed += 1
-
-            try:
-                game_id, frame, disposition, reason = future.result()
-
-            except Exception as exc:
-                game_id = requested_game_id
-                frame = None
-                disposition = "failed"
-                reason = (
-                    f"worker failed: {type(exc).__name__}: {exc}"
-                )
-
-            if disposition == "processed":
-                if frame is None or frame.empty:
-                    failure_reason = (
-                        "processor reported processed but returned no frame"
-                    )
-                    failures.append((game_id, failure_reason))
-                    print(
-                        f"game={game_id} failed={failure_reason} "
-                        f"completed={completed}/{len(tasks)}"
-                    )
-                else:
-                    frames.append(frame)
-                    print(
-                        f"game={game_id} plays={len(frame)} "
-                        f"columns={len(frame.columns)} "
-                        f"completed={completed}/{len(tasks)}"
-                    )
-
-            elif disposition == "skipped":
-                skipped.append((game_id, reason))
-                print(
-                    f"game={game_id} skipped={reason} "
-                    f"completed={completed}/{len(tasks)}"
-                )
-
-            elif disposition == "failed":
-                failures.append((game_id, reason))
-                print(
-                    f"game={game_id} failed={reason} "
-                    f"completed={completed}/{len(tasks)}"
-                )
-
-            else:
-                failure_reason = (
-                    f"unexpected disposition={disposition!r}"
-                )
-                failures.append((game_id, failure_reason))
-                print(
-                    f"game={game_id} failed={failure_reason} "
-                    f"completed={completed}/{len(tasks)}"
-                )
+    _process_games_parallel(
+        tasks=tasks,
+        workers=workers,
+        frames=frames,
+        skipped=skipped,
+        failures=failures,
+    )
 
     return frames, skipped, failures
 
@@ -888,6 +922,107 @@ def write_pbp_atomic(
 # MAIN
 # ─────────────────────────────────────────────
 
+
+def _select_pbp_process_ids(
+    *,
+    requested_game_ids: set[int],
+    schedule: dict[str, dict[str, str]],
+    existing_game_ids: set[int],
+    refresh: bool,
+) -> tuple[list[int], int, int]:
+    if requested_game_ids:
+        schedule_ids_as_int = {
+            int(game_id)
+            for game_id in schedule
+        }
+
+        missing_ids = sorted(
+            requested_game_ids - schedule_ids_as_int
+        )
+
+        if missing_ids:
+            raise ValueError(
+                "Requested game id(s) not present in local schedule: "
+                + ", ".join(
+                    str(game_id)
+                    for game_id in missing_ids
+                )
+            )
+
+        return sorted(requested_game_ids), 0, 0
+
+    eligible_rows = [
+        row
+        for row in schedule.values()
+        if not schedule_game_is_future(row)
+    ]
+
+    future_games_skipped = len(schedule) - len(eligible_rows)
+
+    eligible_ids = sorted(
+        int(row["game_id"])
+        for row in eligible_rows
+    )
+
+    if refresh:
+        return eligible_ids, future_games_skipped, 0
+
+    process_ids = [
+        game_id
+        for game_id in eligible_ids
+        if game_id not in existing_game_ids
+    ]
+
+    already_stored_skipped = len(eligible_ids) - len(process_ids)
+
+    return process_ids, future_games_skipped, already_stored_skipped
+
+
+def _raise_on_pbp_failures(
+    *,
+    failures: list[tuple[int, str]],
+    report: PipelineReporter,
+    new_frames: list[pd.DataFrame],
+    skipped: list[tuple[int, str]],
+    skipped_details: list[dict[str, object]],
+    existing: pd.DataFrame,
+) -> None:
+    if not failures:
+        return
+
+    failure_details = [
+        {
+            "game_id": game_id,
+            "reason": reason,
+        }
+        for game_id, reason in sorted(failures)
+    ]
+
+    report.update_details(
+        {
+            "run_status": "failed",
+            "games_processed_before_failure": len(new_frames),
+            "games_skipped": len(skipped),
+            "games_failed": len(failures),
+            "skipped_games": skipped_details,
+            "failed_games": failure_details,
+            "output_modified": False,
+        }
+    )
+
+    report.set_rows(rows_out=len(existing))
+
+    failure_detail = "; ".join(
+        f"game_id={game_id}: {reason}"
+        for game_id, reason in sorted(failures)
+    )
+
+    raise RuntimeError(
+        f"{len(failures)} game(s) failed PBP processing: "
+        f"{failure_detail}"
+    )
+
+
 def main() -> int:
     args = parse_args()
 
@@ -963,56 +1098,16 @@ def main() -> int:
             sorted(requested_game_ids),
         )
 
-        if requested_game_ids:
-            schedule_ids_as_int = {
-                int(game_id)
-                for game_id in schedule
-            }
-
-            missing_ids = sorted(
-                requested_game_ids - schedule_ids_as_int
-            )
-
-            if missing_ids:
-                raise ValueError(
-                    "Requested game id(s) not present in local schedule: "
-                    + ", ".join(str(game_id) for game_id in missing_ids)
-                )
-
-            # Explicit requests are always refreshes and may be used for a
-            # completed game even if it is already stored.
-            process_ids = sorted(requested_game_ids)
-            future_games_skipped = 0
-            already_stored_skipped = 0
-
-        else:
-            eligible_rows = [
-                row
-                for row in schedule.values()
-                if not schedule_game_is_future(row)
-            ]
-
-            future_games_skipped = (
-                len(schedule) - len(eligible_rows)
-            )
-
-            eligible_ids = sorted(
-                int(row["game_id"])
-                for row in eligible_rows
-            )
-
-            if args.refresh:
-                process_ids = eligible_ids
-                already_stored_skipped = 0
-            else:
-                process_ids = [
-                    game_id
-                    for game_id in eligible_ids
-                    if game_id not in existing_game_ids
-                ]
-                already_stored_skipped = (
-                    len(eligible_ids) - len(process_ids)
-                )
+        (
+            process_ids,
+            future_games_skipped,
+            already_stored_skipped,
+        ) = _select_pbp_process_ids(
+            requested_game_ids=requested_game_ids,
+            schedule=schedule,
+            existing_game_ids=existing_game_ids,
+            refresh=args.refresh,
+        )
 
         report.set_rows(
             rows_in=len(existing),
@@ -1086,40 +1181,14 @@ def main() -> int:
             for game_id, reason in sorted(skipped)
         ]
 
-        if failures:
-            failure_details = [
-                {
-                    "game_id": game_id,
-                    "reason": reason,
-                }
-                for game_id, reason in sorted(failures)
-            ]
-
-            report.update_details(
-                {
-                    "run_status": "failed",
-                    "games_processed_before_failure": len(new_frames),
-                    "games_skipped": len(skipped),
-                    "games_failed": len(failures),
-                    "skipped_games": skipped_details,
-                    "failed_games": failure_details,
-                    "output_modified": False,
-                }
-            )
-
-            report.set_rows(
-                rows_out=len(existing),
-            )
-
-            failure_detail = "; ".join(
-                f"game_id={game_id}: {reason}"
-                for game_id, reason in sorted(failures)
-            )
-
-            raise RuntimeError(
-                f"{len(failures)} game(s) failed PBP processing: "
-                f"{failure_detail}"
-            )
+        _raise_on_pbp_failures(
+            failures=failures,
+            report=report,
+            new_frames=new_frames,
+            skipped=skipped,
+            skipped_details=skipped_details,
+            existing=existing,
+        )
 
         if args.dry_run:
             if new_frames:

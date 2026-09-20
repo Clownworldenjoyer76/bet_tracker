@@ -12,6 +12,7 @@ import re
 import sys
 import time
 import uuid
+from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import (
@@ -20,7 +21,7 @@ from urllib.parse import (
     urlsplit,
     urlunsplit,
 )
-from urllib.request import Request, urlopen
+from urllib.request import Request
 
 import yaml
 
@@ -32,6 +33,7 @@ CFB_ROOT = SCRIPT_PATH.parents[2]
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
+from http_security import open_https, validate_https_url
 from pipeline_reporter import PipelineReporter
 
 
@@ -72,6 +74,7 @@ ESPN_BASE = (
     "https://sports.core.api.espn.com/v2/"
     "sports/football/leagues/college-football"
 )
+ESPN_CORE_HOST = "sports.core.api.espn.com"
 
 TEAM_ID_PATTERN = re.compile(
     r"/teams/(\d+)(?:[/?]|$)"
@@ -110,10 +113,6 @@ STANDINGS_COLUMNS = [
 ]
 
 
-_GROUP_CACHE: dict[str, dict] = {}
-_COLLECTION_CACHE: dict[str, dict] = {}
-_TEAM_CACHE: dict[str, dict] = {}
-
 TRANSIENT_HTTP_STATUSES = frozenset(
     {
         429,
@@ -133,35 +132,28 @@ RETRY_BACKOFF_SECONDS = (
 )
 
 
-_REQUEST_COUNT = 0
-_REQUEST_ATTEMPT_COUNT = 0
-_REQUEST_RETRY_COUNT = 0
-_RECOVERED_TRANSIENT_REQUESTS = 0
-_EXHAUSTED_TRANSIENT_FAILURES = 0
-
-_REQUEST_FAILURES: list[dict[str, str]] = []
-_RETRY_DETAILS: list[dict[str, str]] = []
-
-
-def reset_runtime_state() -> None:
-    global _REQUEST_COUNT
-    global _REQUEST_ATTEMPT_COUNT
-    global _REQUEST_RETRY_COUNT
-    global _RECOVERED_TRANSIENT_REQUESTS
-    global _EXHAUSTED_TRANSIENT_FAILURES
-
-    _GROUP_CACHE.clear()
-    _COLLECTION_CACHE.clear()
-    _TEAM_CACHE.clear()
-
-    _REQUEST_FAILURES.clear()
-    _RETRY_DETAILS.clear()
-
-    _REQUEST_COUNT = 0
-    _REQUEST_ATTEMPT_COUNT = 0
-    _REQUEST_RETRY_COUNT = 0
-    _RECOVERED_TRANSIENT_REQUESTS = 0
-    _EXHAUSTED_TRANSIENT_FAILURES = 0
+@dataclass
+class RuntimeState:
+    group_cache: dict[str, dict] = field(
+        default_factory=dict
+    )
+    collection_cache: dict[str, dict] = field(
+        default_factory=dict
+    )
+    team_cache: dict[str, dict] = field(
+        default_factory=dict
+    )
+    request_count: int = 0
+    request_attempt_count: int = 0
+    request_retry_count: int = 0
+    recovered_transient_requests: int = 0
+    exhausted_transient_failures: int = 0
+    request_failures: list[dict[str, str]] = field(
+        default_factory=list
+    )
+    retry_details: list[dict[str, str]] = field(
+        default_factory=list
+    )
 
 
 def load_current_week() -> tuple[int, int, int]:
@@ -261,39 +253,189 @@ def normalize_ref_url(
             + url[len("http://sports.core.api.espn.com/"):]
         )
 
+    if url:
+        validate_https_url(
+            url,
+            allowed_hosts={ESPN_CORE_HOST},
+            label="ESPN Core reference",
+        )
+
     return url
+
+
+
+def _require_fetch_json_url(
+    url: str,
+    *,
+    label: str,
+) -> None:
+    if not url:
+        raise ValueError(
+            f"{label} URL is blank"
+        )
+
+
+def _fetch_json_response(
+    request: Request,
+    *,
+    timeout: int,
+) -> tuple[int, str]:
+    with open_https(
+        request,
+        allowed_hosts={ESPN_CORE_HOST},
+        timeout=timeout,
+    ) as response:
+        status = int(
+            response.status
+        )
+
+        body = (
+            response.read()
+            .decode(
+                "utf-8"
+            )
+        )
+
+    return (
+        status,
+        body,
+    )
+
+
+def _read_fetch_http_error_body(
+    exc: HTTPError,
+) -> str:
+    try:
+        return (
+            exc.read()
+            .decode(
+                "utf-8",
+                errors="replace",
+            )
+        )
+    except Exception:
+        return ""
+
+
+def _record_exhausted_transient_failure(
+    state: RuntimeState,
+    is_transient: bool,
+) -> None:
+    if is_transient:
+        state.exhausted_transient_failures += 1
+
+
+def _parse_fetch_json_payload(
+    body: str,
+    *,
+    label: str,
+    url: str,
+    status: int,
+    attempt_number: int,
+    state: RuntimeState,
+) -> object:
+    try:
+        return json.loads(
+            body
+        )
+    except Exception as exc:
+        failure = {
+            "label": label,
+            "url": url,
+            "status": str(
+                status
+            ),
+            "attempt": str(
+                attempt_number
+            ),
+            "transient": "false",
+            "error": (
+                "JSON parse failed: "
+                f"{exc}"
+            ),
+        }
+
+        state.request_failures.append(
+            failure
+        )
+
+        raise RuntimeError(
+            f"{label} returned malformed JSON: "
+            f"url={url}"
+        ) from exc
+
+
+def _require_fetch_json_object(
+    payload: object,
+    *,
+    label: str,
+    url: str,
+    status: int,
+    attempt_number: int,
+    state: RuntimeState,
+) -> dict:
+    if not isinstance(
+        payload,
+        dict,
+    ):
+        failure = {
+            "label": label,
+            "url": url,
+            "status": str(
+                status
+            ),
+            "attempt": str(
+                attempt_number
+            ),
+            "transient": "false",
+            "error": (
+                "response JSON is not an object"
+            ),
+        }
+
+        state.request_failures.append(
+            failure
+        )
+
+        raise RuntimeError(
+            f"{label} returned non-object JSON: "
+            f"url={url}"
+        )
+
+    return payload
 
 
 def fetch_json(
     url: str,
     *,
     label: str,
+    state: RuntimeState,
     timeout: int = 20,
 ) -> dict:
-    global _REQUEST_COUNT
-    global _REQUEST_ATTEMPT_COUNT
-    global _REQUEST_RETRY_COUNT
-    global _RECOVERED_TRANSIENT_REQUESTS
-    global _EXHAUSTED_TRANSIENT_FAILURES
+
+    payload: object
+
+    body: object
+    status: object
 
     url = normalize_ref_url(
         url
     )
 
-    if not url:
-        raise ValueError(
-            f"{label} URL is blank"
-        )
+    _require_fetch_json_url(
+        url,
+        label=label,
+    )
 
     # Count the requested resource once regardless
     # of how many network attempts are required.
-    _REQUEST_COUNT += 1
+    state.request_count += 1
 
     for attempt_number in range(
         1,
         MAX_REQUEST_ATTEMPTS + 1,
     ):
-        _REQUEST_ATTEMPT_COUNT += 1
+        state.request_attempt_count += 1
 
         request = Request(
             url,
@@ -306,34 +448,22 @@ def fetch_json(
         )
 
         try:
-            with urlopen(
+            (
+                status,
+                body,
+            ) = _fetch_json_response(
                 request,
                 timeout=timeout,
-            ) as response:
-                status = int(
-                    response.status
-                )
-
-                body = (
-                    response.read()
-                    .decode(
-                        "utf-8"
-                    )
-                )
+            )
 
         except HTTPError as exc:
             error_body = ""
 
-            try:
-                error_body = (
-                    exc.read()
-                    .decode(
-                        "utf-8",
-                        errors="replace",
-                    )
+            error_body = (
+                _read_fetch_http_error_body(
+                    exc
                 )
-            except Exception:
-                pass
+            )
 
             is_transient = (
                 exc.code
@@ -351,9 +481,9 @@ def fetch_json(
                     ]
                 )
 
-                _REQUEST_RETRY_COUNT += 1
+                state.request_retry_count += 1
 
-                _RETRY_DETAILS.append(
+                state.retry_details.append(
                     {
                         "label": label,
                         "url": url,
@@ -379,8 +509,10 @@ def fetch_json(
 
                 continue
 
-            if is_transient:
-                _EXHAUSTED_TRANSIENT_FAILURES += 1
+            _record_exhausted_transient_failure(
+                state,
+                is_transient,
+            )
 
             failure = {
                 "label": label,
@@ -400,7 +532,7 @@ def fetch_json(
                 ),
             }
 
-            _REQUEST_FAILURES.append(
+            state.request_failures.append(
                 failure
             )
 
@@ -427,9 +559,9 @@ def fetch_json(
                     ]
                 )
 
-                _REQUEST_RETRY_COUNT += 1
+                state.request_retry_count += 1
 
-                _RETRY_DETAILS.append(
+                state.retry_details.append(
                     {
                         "label": label,
                         "url": url,
@@ -452,7 +584,7 @@ def fetch_json(
 
                 continue
 
-            _EXHAUSTED_TRANSIENT_FAILURES += 1
+            state.exhausted_transient_failures += 1
 
             failure = {
                 "label": label,
@@ -467,7 +599,7 @@ def fetch_json(
                 )[:2000],
             }
 
-            _REQUEST_FAILURES.append(
+            state.request_failures.append(
                 failure
             )
 
@@ -491,7 +623,7 @@ def fetch_json(
                 )[:2000],
             }
 
-            _REQUEST_FAILURES.append(
+            state.request_failures.append(
                 failure
             )
 
@@ -520,9 +652,9 @@ def fetch_json(
                     ]
                 )
 
-                _REQUEST_RETRY_COUNT += 1
+                state.request_retry_count += 1
 
-                _RETRY_DETAILS.append(
+                state.retry_details.append(
                     {
                         "label": label,
                         "url": url,
@@ -545,8 +677,10 @@ def fetch_json(
 
                 continue
 
-            if is_transient:
-                _EXHAUSTED_TRANSIENT_FAILURES += 1
+            _record_exhausted_transient_failure(
+                state,
+                is_transient,
+            )
 
             failure = {
                 "label": label,
@@ -563,7 +697,7 @@ def fetch_json(
                 "error": body[:2000],
             }
 
-            _REQUEST_FAILURES.append(
+            state.request_failures.append(
                 failure
             )
 
@@ -575,66 +709,26 @@ def fetch_json(
                 f"url={url}"
             )
 
-        try:
-            payload = json.loads(
-                body
-            )
-        except Exception as exc:
-            failure = {
-                "label": label,
-                "url": url,
-                "status": str(
-                    status
-                ),
-                "attempt": str(
-                    attempt_number
-                ),
-                "transient": "false",
-                "error": (
-                    "JSON parse failed: "
-                    f"{exc}"
-                ),
-            }
+        payload = _parse_fetch_json_payload(
+            body,
+            label=label,
+            url=url,
+            status=status,
+            attempt_number=attempt_number,
+            state=state,
+        )
 
-            _REQUEST_FAILURES.append(
-                failure
-            )
-
-            raise RuntimeError(
-                f"{label} returned malformed JSON: "
-                f"url={url}"
-            ) from exc
-
-        if not isinstance(
+        payload = _require_fetch_json_object(
             payload,
-            dict,
-        ):
-            failure = {
-                "label": label,
-                "url": url,
-                "status": str(
-                    status
-                ),
-                "attempt": str(
-                    attempt_number
-                ),
-                "transient": "false",
-                "error": (
-                    "response JSON is not an object"
-                ),
-            }
-
-            _REQUEST_FAILURES.append(
-                failure
-            )
-
-            raise RuntimeError(
-                f"{label} returned non-object JSON: "
-                f"url={url}"
-            )
+            label=label,
+            url=url,
+            status=status,
+            attempt_number=attempt_number,
+            state=state,
+        )
 
         if attempt_number > 1:
-            _RECOVERED_TRANSIENT_REQUESTS += 1
+            state.recovered_transient_requests += 1
 
         return payload
 
@@ -648,16 +742,18 @@ def fetch_cached(
     url: str,
     *,
     label: str,
+    state: RuntimeState,
 ) -> dict:
     url = normalize_ref_url(url)
 
-    if url not in _COLLECTION_CACHE:
-        _COLLECTION_CACHE[url] = fetch_json(
+    if url not in state.collection_cache:
+        state.collection_cache[url] = fetch_json(
             url,
             label=label,
+            state=state,
         )
 
-    return _COLLECTION_CACHE[url]
+    return state.collection_cache[url]
 
 
 def with_limit(
@@ -729,14 +825,67 @@ def group_identity(
     )
 
 
-def read_team_master() -> dict[
-    str,
-    dict[str, str],
-]:
+
+def _require_team_master_path() -> None:
     if not TEAM_MASTER_PATH.exists():
         raise FileNotFoundError(
             f"Missing team master: {TEAM_MASTER_PATH}"
         )
+
+
+def _require_team_master_rows(
+    teams: dict[str, dict[str, str]],
+) -> None:
+    if not teams:
+        raise ValueError(
+            "team_master.csv contains no teams"
+        )
+
+
+def _validate_team_master_abbreviation(
+    *,
+    team_id: str,
+    team_abbr: str,
+    existing_abbr: str,
+) -> None:
+    if (
+        team_abbr
+        and existing_abbr
+        and team_abbr != existing_abbr
+    ):
+        raise ValueError(
+            "team_master.csv contains "
+            "conflicting abbreviations "
+            f"for team_id={team_id}: "
+            f"{existing_abbr!r} vs {team_abbr!r}"
+        )
+
+
+def _validate_team_master_name(
+    *,
+    team_id: str,
+    canonical_team: str,
+    existing_name: str,
+) -> None:
+    if (
+        canonical_team
+        and existing_name
+        and canonical_team != existing_name
+    ):
+        raise ValueError(
+            "team_master.csv contains "
+            "conflicting canonical_team values "
+            f"for team_id={team_id}: "
+            f"{existing_name!r} vs "
+            f"{canonical_team!r}"
+        )
+
+
+def read_team_master() -> dict[
+    str,
+    dict[str, str],
+]:
+    _require_team_master_path()
 
     with TEAM_MASTER_PATH.open(
         "r",
@@ -822,17 +971,11 @@ def read_team_master() -> dict[
                 )
             ).strip()
 
-            if (
-                team_abbr
-                and existing_abbr
-                and team_abbr != existing_abbr
-            ):
-                raise ValueError(
-                    "team_master.csv contains "
-                    "conflicting abbreviations "
-                    f"for team_id={team_id}: "
-                    f"{existing_abbr!r} vs {team_abbr!r}"
-                )
+            _validate_team_master_abbreviation(
+                team_id=team_id,
+                team_abbr=team_abbr,
+                existing_abbr=existing_abbr,
+            )
 
             if team_abbr and not existing_abbr:
                 existing["team_abbr"] = team_abbr
@@ -844,34 +987,25 @@ def read_team_master() -> dict[
                 )
             ).strip()
 
-            if (
-                canonical_team
-                and existing_name
-                and canonical_team != existing_name
-            ):
-                raise ValueError(
-                    "team_master.csv contains "
-                    "conflicting canonical_team values "
-                    f"for team_id={team_id}: "
-                    f"{existing_name!r} vs "
-                    f"{canonical_team!r}"
-                )
+            _validate_team_master_name(
+                team_id=team_id,
+                canonical_team=canonical_team,
+                existing_name=existing_name,
+            )
 
             if canonical_team and not existing_name:
                 existing[
                     "canonical_team"
                 ] = canonical_team
 
-    if not teams:
-        raise ValueError(
-            "team_master.csv contains no teams"
-        )
+    _require_team_master_rows(teams)
 
     return teams
 
 
 def resolve_group(
     ref_url: str,
+    state: RuntimeState,
 ) -> dict:
     ref_url = normalize_ref_url(ref_url)
 
@@ -883,19 +1017,21 @@ def resolve_group(
     group_id = extract_group_id(ref_url)
     cache_key = group_id or ref_url
 
-    if cache_key not in _GROUP_CACHE:
-        _GROUP_CACHE[
+    if cache_key not in state.group_cache:
+        state.group_cache[
             cache_key
         ] = fetch_json(
             ref_url,
             label=f"group {cache_key}",
+            state=state,
         )
 
-    return _GROUP_CACHE[cache_key]
+    return state.group_cache[cache_key]
 
 
 def resolve_team(
     ref_url: str,
+    state: RuntimeState,
 ) -> dict:
     ref_url = normalize_ref_url(ref_url)
 
@@ -907,21 +1043,23 @@ def resolve_team(
     team_id = extract_team_id(ref_url)
     cache_key = team_id or ref_url
 
-    if cache_key not in _TEAM_CACHE:
-        _TEAM_CACHE[
+    if cache_key not in state.team_cache:
+        state.team_cache[
             cache_key
         ] = fetch_json(
             ref_url,
             label=f"team {cache_key}",
+            state=state,
         )
 
-    return _TEAM_CACHE[cache_key]
+    return state.team_cache[cache_key]
 
 
 def collection_items(
     ref_obj: object,
     *,
     label: str,
+    state: RuntimeState,
 ) -> list[dict]:
     if not isinstance(ref_obj, dict):
         return []
@@ -939,6 +1077,7 @@ def collection_items(
     payload = fetch_cached(
         with_limit(ref_url),
         label=label,
+        state=state,
     )
 
     items = payload.get(
@@ -967,6 +1106,7 @@ def collection_items(
 
 def get_child_groups(
     group: dict,
+    state: RuntimeState,
 ) -> list[
     tuple[str, dict]
 ]:
@@ -982,6 +1122,7 @@ def get_child_groups(
             {},
         ),
         label=f"group {group_id} children",
+        state=state,
     ):
         child_ref = normalize_ref_url(
             item.get(
@@ -997,7 +1138,7 @@ def get_child_groups(
                 f"for group={group_id}"
             )
 
-        child = resolve_group(child_ref)
+        child = resolve_group(child_ref, state)
 
         children.append(
             (
@@ -1011,6 +1152,7 @@ def get_child_groups(
 
 def get_group_team_refs(
     group: dict,
+    state: RuntimeState,
 ) -> list[
     tuple[
         str,
@@ -1036,6 +1178,7 @@ def get_group_team_refs(
             {},
         ),
         label=f"group {group_id} teams",
+        state=state,
     ):
         team_ref = normalize_ref_url(
             item.get(
@@ -1081,6 +1224,7 @@ def resolve_team_abbreviation(
     team_id: str,
     team_ref: str,
     inline_item: dict,
+    state: RuntimeState,
 ) -> str:
     inline_abbr = str(
         inline_item.get(
@@ -1099,7 +1243,7 @@ def resolve_team_abbreviation(
             "no ESPN team reference"
         )
 
-    payload = resolve_team(team_ref)
+    payload = resolve_team(team_ref, state)
 
     abbreviation = str(
         payload.get(
@@ -1155,6 +1299,8 @@ def parent_ref(
 def nearest_conference(
     group: dict,
     ref_url: str = "",
+    *,
+    state: RuntimeState,
 ) -> tuple[
     str,
     dict | None,
@@ -1198,7 +1344,8 @@ def nearest_conference(
             break
 
         current = resolve_group(
-            next_ref
+            next_ref,
+            state,
         )
 
         current_ref = next_ref
@@ -1212,6 +1359,8 @@ def nearest_conference(
 def hierarchy_labels(
     group: dict,
     ref_url: str = "",
+    *,
+    state: RuntimeState,
 ) -> tuple[
     str,
     str,
@@ -1225,6 +1374,7 @@ def hierarchy_labels(
     ) = nearest_conference(
         group,
         ref_url,
+        state=state,
     )
 
     if conference:
@@ -1299,6 +1449,7 @@ def hierarchy_labels(
 
 def standings_payloads(
     group: dict,
+    state: RuntimeState,
 ) -> list[dict]:
     standings = group.get(
         "standings",
@@ -1326,6 +1477,7 @@ def standings_payloads(
     root = fetch_cached(
         standings_ref,
         label=f"group {group_id} standings",
+        state=state,
     )
 
     payloads: list[dict] = []
@@ -1392,6 +1544,7 @@ def standings_payloads(
                 "standings type "
                 f"{group_id}:{index}"
             ),
+            state=state,
         )
 
         payloads.append(payload)
@@ -1451,6 +1604,184 @@ def record_scope(
     )
 
 
+def _append_standings_rows(
+    team_standings: list,
+    *,
+    type_name: str,
+    accepted_team_ids: set[str],
+    team_abbr_lookup: dict[str, str],
+    rows: list[dict[str, object]],
+    conf_name: str,
+    conf_abbr: str,
+    div_name: str,
+    div_abbr: str,
+    season: int,
+    season_type: int,
+) -> None:
+    for team_standing in team_standings:
+        if not isinstance(
+            team_standing,
+            dict,
+        ):
+            raise RuntimeError(
+                "ESPN standings contains "
+                "non-object team entry "
+                f"for type={type_name}"
+            )
+
+        team_obj = (
+            team_standing.get(
+                "team",
+                {},
+            )
+        )
+
+        if not isinstance(
+            team_obj,
+            dict,
+        ):
+            raise RuntimeError(
+                "ESPN standings team "
+                "reference is not an object"
+            )
+
+        team_ref = normalize_ref_url(
+            team_obj.get(
+                "$ref",
+                "",
+            )
+        )
+
+        team_id = (
+            extract_team_id(team_ref)
+            or str(
+                team_obj.get(
+                    "id",
+                    "",
+                )
+            ).strip()
+        )
+
+        if (
+            not team_id
+            or team_id
+            not in accepted_team_ids
+        ):
+            continue
+
+        team_abbr = str(
+            team_abbr_lookup.get(
+                team_id,
+                "",
+            )
+        ).strip()
+
+        if not team_abbr:
+            raise RuntimeError(
+                "Missing resolved abbreviation "
+                "for standings "
+                f"team_id={team_id}"
+            )
+
+        records = team_standing.get(
+            "records",
+            [],
+        )
+
+        if not isinstance(
+            records,
+            list,
+        ):
+            raise RuntimeError(
+                "ESPN standings records "
+                "field is not a list for "
+                f"team_id={team_id}"
+            )
+
+        for record in records:
+            if not isinstance(
+                record,
+                dict,
+            ):
+                raise RuntimeError(
+                    "ESPN standings records "
+                    "contains non-object for "
+                    f"team_id={team_id}"
+                )
+
+            (
+                record_name,
+                record_type,
+                record_abbreviation,
+            ) = record_scope(record)
+
+            stats = record.get(
+                "stats",
+                [],
+            )
+
+            if not isinstance(
+                stats,
+                list,
+            ):
+                raise RuntimeError(
+                    "ESPN standings stats "
+                    "field is not a list for "
+                    f"team_id={team_id}"
+                )
+
+            for stat in stats:
+                if not isinstance(
+                    stat,
+                    dict,
+                ):
+                    raise RuntimeError(
+                        "ESPN standings stats "
+                        "contains non-object "
+                        f"for team_id={team_id}"
+                    )
+
+                stat_name = str(
+                    stat.get(
+                        "name",
+                        "",
+                    )
+                ).strip()
+
+                if not stat_name:
+                    raise RuntimeError(
+                        "ESPN standings stat "
+                        "has blank name for "
+                        f"team_id={team_id}"
+                    )
+
+                rows.append(
+                    {
+                        "team_id": team_id,
+                        "team_abbr": team_abbr,
+                        "conference": conf_name,
+                        "conference_abbr": conf_abbr,
+                        "division": div_name,
+                        "division_abbr": div_abbr,
+                        "standings_type": type_name,
+                        "record_name": record_name,
+                        "record_type": record_type,
+                        "record_abbreviation": (
+                            record_abbreviation
+                        ),
+                        "stat_name": stat_name,
+                        "stat_value": stat.get(
+                            "value",
+                            "",
+                        ),
+                        "season": season,
+                        "season_type": (
+                            season_type
+                        ),
+                    }
+                )
+
+
 def get_standings_rows(
     group: dict,
     ref_url: str,
@@ -1461,6 +1792,7 @@ def get_standings_rows(
     accepted_team_ids: set[str],
     season: int,
     season_type: int,
+    state: RuntimeState,
 ) -> list[dict[str, object]]:
     (
         conf_name,
@@ -1471,6 +1803,7 @@ def get_standings_rows(
     ) = hierarchy_labels(
         group,
         ref_url,
+        state=state,
     )
 
     if not has_conference:
@@ -1481,7 +1814,8 @@ def get_standings_rows(
     ] = []
 
     for standings_payload in standings_payloads(
-        group
+        group,
+        state,
     ):
         type_name = str(
             standings_payload.get("name")
@@ -1516,174 +1850,26 @@ def get_standings_rows(
                 f"a list for type={type_name}"
             )
 
-        for team_standing in team_standings:
-            if not isinstance(
-                team_standing,
-                dict,
-            ):
-                raise RuntimeError(
-                    "ESPN standings contains "
-                    "non-object team entry "
-                    f"for type={type_name}"
-                )
-
-            team_obj = (
-                team_standing.get(
-                    "team",
-                    {},
-                )
-            )
-
-            if not isinstance(
-                team_obj,
-                dict,
-            ):
-                raise RuntimeError(
-                    "ESPN standings team "
-                    "reference is not an object"
-                )
-
-            team_ref = normalize_ref_url(
-                team_obj.get(
-                    "$ref",
-                    "",
-                )
-            )
-
-            team_id = (
-                extract_team_id(team_ref)
-                or str(
-                    team_obj.get(
-                        "id",
-                        "",
-                    )
-                ).strip()
-            )
-
-            if (
-                not team_id
-                or team_id
-                not in accepted_team_ids
-            ):
-                continue
-
-            team_abbr = str(
-                team_abbr_lookup.get(
-                    team_id,
-                    "",
-                )
-            ).strip()
-
-            if not team_abbr:
-                raise RuntimeError(
-                    "Missing resolved abbreviation "
-                    "for standings "
-                    f"team_id={team_id}"
-                )
-
-            records = team_standing.get(
-                "records",
-                [],
-            )
-
-            if not isinstance(
-                records,
-                list,
-            ):
-                raise RuntimeError(
-                    "ESPN standings records "
-                    "field is not a list for "
-                    f"team_id={team_id}"
-                )
-
-            for record in records:
-                if not isinstance(
-                    record,
-                    dict,
-                ):
-                    raise RuntimeError(
-                        "ESPN standings records "
-                        "contains non-object for "
-                        f"team_id={team_id}"
-                    )
-
-                (
-                    record_name,
-                    record_type,
-                    record_abbreviation,
-                ) = record_scope(record)
-
-                stats = record.get(
-                    "stats",
-                    [],
-                )
-
-                if not isinstance(
-                    stats,
-                    list,
-                ):
-                    raise RuntimeError(
-                        "ESPN standings stats "
-                        "field is not a list for "
-                        f"team_id={team_id}"
-                    )
-
-                for stat in stats:
-                    if not isinstance(
-                        stat,
-                        dict,
-                    ):
-                        raise RuntimeError(
-                            "ESPN standings stats "
-                            "contains non-object "
-                            f"for team_id={team_id}"
-                        )
-
-                    stat_name = str(
-                        stat.get(
-                            "name",
-                            "",
-                        )
-                    ).strip()
-
-                    if not stat_name:
-                        raise RuntimeError(
-                            "ESPN standings stat "
-                            "has blank name for "
-                            f"team_id={team_id}"
-                        )
-
-                    rows.append(
-                        {
-                            "team_id": team_id,
-                            "team_abbr": team_abbr,
-                            "conference": conf_name,
-                            "conference_abbr": conf_abbr,
-                            "division": div_name,
-                            "division_abbr": div_abbr,
-                            "standings_type": type_name,
-                            "record_name": record_name,
-                            "record_type": record_type,
-                            "record_abbreviation": (
-                                record_abbreviation
-                            ),
-                            "stat_name": stat_name,
-                            "stat_value": stat.get(
-                                "value",
-                                "",
-                            ),
-                            "season": season,
-                            "season_type": (
-                                season_type
-                            ),
-                        }
-                    )
+        _append_standings_rows(
+            team_standings,
+            type_name=type_name,
+            accepted_team_ids=accepted_team_ids,
+            team_abbr_lookup=team_abbr_lookup,
+            rows=rows,
+            conf_name=conf_name,
+            conf_abbr=conf_abbr,
+            div_name=div_name,
+            div_abbr=div_abbr,
+            season=season,
+            season_type=season_type,
+        )
 
     return rows
 
 
 def discover_groups(
     top_groups: dict,
+    state: RuntimeState,
 ) -> list[
     tuple[str, dict]
 ]:
@@ -1711,7 +1897,8 @@ def discover_groups(
         )
 
         group = resolve_group(
-            ref_url
+            ref_url,
+            state,
         )
 
         identity = group_identity(
@@ -1747,7 +1934,7 @@ def discover_groups(
         for (
             child_ref,
             _child,
-        ) in get_child_groups(group):
+        ) in get_child_groups(group, state):
             visit(
                 child_ref
             )
@@ -1817,6 +2004,125 @@ def membership_signature(
     )
 
 
+def _apply_group_memberships(
+    team_refs: list[tuple],
+    *,
+    accepted_ids: set[str],
+    team_abbr_lookup: dict[str, str],
+    memberships: dict[
+        str,
+        tuple[int, dict[str, object]],
+    ],
+    conf_name: str,
+    conf_abbr: str,
+    div_name: str,
+    div_abbr: str,
+    season: int,
+    season_type: int,
+    membership_priority: int,
+    state: RuntimeState,
+    abbreviations_resolved: int,
+) -> int:
+    for (
+        team_id,
+        team_ref,
+        inline_item,
+    ) in team_refs:
+        if team_id not in accepted_ids:
+            continue
+
+        current_abbr = str(
+            team_abbr_lookup.get(
+                team_id,
+                "",
+            )
+        ).strip()
+
+        if not current_abbr:
+            current_abbr = (
+                resolve_team_abbreviation(
+                    team_id,
+                    team_ref,
+                    inline_item,
+                    state,
+                )
+            )
+
+            team_abbr_lookup[
+                team_id
+            ] = current_abbr
+
+            abbreviations_resolved += 1
+
+        row = {
+            "team_id": team_id,
+            "team_abbr": current_abbr,
+            "conference": conf_name,
+            "conference_abbr": conf_abbr,
+            "division": div_name,
+            "division_abbr": div_abbr,
+            "season": season,
+            "season_type": season_type,
+        }
+
+        existing = memberships.get(
+            team_id
+        )
+
+        if existing is None:
+            memberships[
+                team_id
+            ] = (
+                membership_priority,
+                row,
+            )
+            continue
+
+        (
+            existing_priority,
+            existing_row,
+        ) = existing
+
+        if (
+            existing_priority
+            > membership_priority
+        ):
+            continue
+
+        if (
+            existing_priority
+            == membership_priority
+        ):
+            if (
+                membership_signature(
+                    existing_row
+                )
+                != membership_signature(
+                    row
+                )
+            ):
+                raise RuntimeError(
+                    "Conflicting equal-priority "
+                    "conference memberships for "
+                    f"team_id={team_id}: "
+                    f"{membership_signature(existing_row)} "
+                    "vs "
+                    f"{membership_signature(row)}"
+                )
+
+            continue
+
+        memberships[
+            team_id
+        ] = (
+            membership_priority,
+            row,
+        )
+
+
+    return abbreviations_resolved
+
+
 def build_memberships(
     groups: list[
         tuple[str, dict]
@@ -1827,6 +2133,7 @@ def build_memberships(
     ],
     season: int,
     season_type: int,
+    state: RuntimeState,
 ) -> tuple[
     dict[
         str,
@@ -1872,11 +2179,13 @@ def build_memberships(
         ).strip()
 
         child_groups = get_child_groups(
-            group
+            group,
+            state,
         )
 
         team_refs = get_group_team_refs(
-            group
+            group,
+            state,
         )
 
         (
@@ -1888,6 +2197,7 @@ def build_memberships(
         ) = hierarchy_labels(
             group,
             ref_url,
+            state=state,
         )
 
         use_fallback = (
@@ -1939,100 +2249,25 @@ def build_memberships(
         else:
             membership_priority = 1
 
-        for (
-            team_id,
-            team_ref,
-            inline_item,
-        ) in team_refs:
-            if team_id not in accepted_ids:
-                continue
-
-            current_abbr = str(
-                team_abbr_lookup.get(
-                    team_id,
-                    "",
-                )
-            ).strip()
-
-            if not current_abbr:
-                current_abbr = (
-                    resolve_team_abbreviation(
-                        team_id,
-                        team_ref,
-                        inline_item,
-                    )
-                )
-
-                team_abbr_lookup[
-                    team_id
-                ] = current_abbr
-
-                abbreviations_resolved += 1
-
-            row = {
-                "team_id": team_id,
-                "team_abbr": current_abbr,
-                "conference": conf_name,
-                "conference_abbr": conf_abbr,
-                "division": div_name,
-                "division_abbr": div_abbr,
-                "season": season,
-                "season_type": season_type,
-            }
-
-            existing = memberships.get(
-                team_id
+        abbreviations_resolved = (
+            _apply_group_memberships(
+                team_refs,
+                accepted_ids=accepted_ids,
+                team_abbr_lookup=team_abbr_lookup,
+                memberships=memberships,
+                conf_name=conf_name,
+                conf_abbr=conf_abbr,
+                div_name=div_name,
+                div_abbr=div_abbr,
+                season=season,
+                season_type=season_type,
+                membership_priority=membership_priority,
+                state=state,
+                abbreviations_resolved=(
+                    abbreviations_resolved
+                ),
             )
-
-            if existing is None:
-                memberships[
-                    team_id
-                ] = (
-                    membership_priority,
-                    row,
-                )
-                continue
-
-            (
-                existing_priority,
-                existing_row,
-            ) = existing
-
-            if (
-                existing_priority
-                > membership_priority
-            ):
-                continue
-
-            if (
-                existing_priority
-                == membership_priority
-            ):
-                if (
-                    membership_signature(
-                        existing_row
-                    )
-                    != membership_signature(
-                        row
-                    )
-                ):
-                    raise RuntimeError(
-                        "Conflicting equal-priority "
-                        "conference memberships for "
-                        f"team_id={team_id}: "
-                        f"{membership_signature(existing_row)} "
-                        "vs "
-                        f"{membership_signature(row)}"
-                    )
-
-                continue
-
-            memberships[
-                team_id
-            ] = (
-                membership_priority,
-                row,
-            )
+        )
 
     return (
         memberships,
@@ -2131,6 +2366,7 @@ def build_standings(
     accepted_team_ids: set[str],
     season: int,
     season_type: int,
+    state: RuntimeState,
 ) -> tuple[
     list[dict[str, object]],
     int,
@@ -2172,6 +2408,7 @@ def build_standings(
             accepted_team_ids,
             season,
             season_type,
+            state,
         ):
             key = standings_key(
                 row
@@ -2388,6 +2625,16 @@ def validate_master_rows(
         )
 
 
+
+def _require_standings_rows(
+    rows: list[dict[str, object]],
+) -> None:
+    if not rows:
+        raise ValueError(
+            "League standings output is empty"
+        )
+
+
 def validate_standings_rows(
     rows: list[
         dict[str, object]
@@ -2398,10 +2645,7 @@ def validate_standings_rows(
     season: int,
     season_type: int,
 ) -> None:
-    if not rows:
-        raise ValueError(
-            "League standings output is empty"
-        )
+    _require_standings_rows(rows)
 
     master_by_id = {
         str(
@@ -2612,6 +2856,31 @@ def backup_path(
     )
 
 
+
+def _restore_bundle_output(
+    *,
+    backup: Path,
+    final_path: Path,
+    existed: bool,
+) -> None:
+    if backup.exists():
+        try:
+            os.replace(
+                backup,
+                final_path,
+            )
+        except Exception:
+            pass
+
+    elif not existed:
+        try:
+            final_path.unlink(
+                missing_ok=True
+            )
+        except Exception:
+            pass
+
+
 def publish_bundle(
     master_rows: list[
         dict[str, object]
@@ -2715,39 +2984,17 @@ def publish_bundle(
             except Exception:
                 pass
 
-        if master_backup.exists():
-            try:
-                os.replace(
-                    master_backup,
-                    LEAGUE_MASTER_PATH,
-                )
-            except Exception:
-                pass
+        _restore_bundle_output(
+            backup=master_backup,
+            final_path=LEAGUE_MASTER_PATH,
+            existed=master_existed,
+        )
 
-        elif not master_existed:
-            try:
-                LEAGUE_MASTER_PATH.unlink(
-                    missing_ok=True
-                )
-            except Exception:
-                pass
-
-        if standings_backup.exists():
-            try:
-                os.replace(
-                    standings_backup,
-                    LEAGUE_STANDINGS_PATH,
-                )
-            except Exception:
-                pass
-
-        elif not standings_existed:
-            try:
-                LEAGUE_STANDINGS_PATH.unlink(
-                    missing_ok=True
-                )
-            except Exception:
-                pass
+        _restore_bundle_output(
+            backup=standings_backup,
+            final_path=LEAGUE_STANDINGS_PATH,
+            existed=standings_existed,
+        )
 
         raise
 
@@ -2778,6 +3025,7 @@ def publish_bundle(
 
 def run(
     report: PipelineReporter,
+    state: RuntimeState,
 ) -> int:
     (
         season,
@@ -2831,10 +3079,12 @@ def run(
             season_type,
         ),
         label="top-level CFB groups",
+        state=state,
     )
 
     groups = discover_groups(
-        top_groups
+        top_groups,
+        state,
     )
 
     report.set_detail(
@@ -2851,6 +3101,7 @@ def run(
         team_index,
         season,
         season_type,
+        state,
     )
 
     missing_membership = sorted(
@@ -2963,6 +3214,7 @@ def run(
         set(team_index),
         season,
         season_type,
+        state,
     )
 
     validate_standings_rows(
@@ -3099,7 +3351,7 @@ def run(
 
 
 def main() -> int:
-    reset_runtime_state()
+    state = RuntimeState()
 
     with PipelineReporter(
         script=__file__,
@@ -3136,39 +3388,39 @@ def main() -> int:
         )
 
         try:
-            return run(report)
+            return run(report, state)
 
         finally:
             report.update_details(
                 {
                     "espn_request_count": (
-                        _REQUEST_COUNT
+                        state.request_count
                     ),
                     "espn_request_attempt_count": (
-                        _REQUEST_ATTEMPT_COUNT
+                        state.request_attempt_count
                     ),
                     "espn_request_retry_count": (
-                        _REQUEST_RETRY_COUNT
+                        state.request_retry_count
                     ),
                     "espn_recovered_transient_requests": (
-                        _RECOVERED_TRANSIENT_REQUESTS
+                        state.recovered_transient_requests
                     ),
                     "espn_exhausted_transient_failures": (
-                        _EXHAUSTED_TRANSIENT_FAILURES
+                        state.exhausted_transient_failures
                     ),
                     "espn_retry_details": (
                         list(
-                            _RETRY_DETAILS
+                            state.retry_details
                         )
                     ),
                     "espn_request_failures": (
                         len(
-                            _REQUEST_FAILURES
+                            state.request_failures
                         )
                     ),
                     "espn_request_failure_details": (
                         list(
-                            _REQUEST_FAILURES
+                            state.request_failures
                         )
                     ),
                 }

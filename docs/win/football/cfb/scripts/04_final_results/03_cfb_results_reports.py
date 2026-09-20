@@ -23,6 +23,7 @@ import shutil
 import sys
 import tempfile
 import uuid
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -49,12 +50,27 @@ FINAL_RESULTS_DIR = CFB_ROOT / "04_final_results"
 FINAL_SUMMARY_FILE = FINAL_RESULTS_DIR / "cfb_summary_overall.csv"
 FINAL_REPORTS_DIR = FINAL_RESULTS_DIR / "reports"
 
-SUMMARY_DIR = FINAL_RESULTS_DIR
-REPORTS_DIR = FINAL_REPORTS_DIR
-OVERVIEW_DIR = REPORTS_DIR / "overview"
-ML_DIR = REPORTS_DIR / "moneyline"
-SPREAD_DIR = REPORTS_DIR / "spread"
-TOTAL_DIR = REPORTS_DIR / "totals"
+@dataclass(frozen=True)
+class OutputPaths:
+    summary_dir: Path
+    reports_dir: Path
+    overview_dir: Path
+    ml_dir: Path
+    spread_dir: Path
+    total_dir: Path
+
+
+def output_paths(root: Path) -> OutputPaths:
+    reports_dir = root / "reports"
+
+    return OutputPaths(
+        summary_dir=root,
+        reports_dir=reports_dir,
+        overview_dir=reports_dir / "overview",
+        ml_dir=reports_dir / "moneyline",
+        spread_dir=reports_dir / "spread",
+        total_dir=reports_dir / "totals",
+    )
 
 LEAGUE = "CFB"
 
@@ -106,12 +122,22 @@ def write_csv(df: pd.DataFrame, path: Path) -> None:
     os.replace(temp, path)
 
 
-def clear_report_outputs() -> None:
-    if REPORTS_DIR.exists():
-        shutil.rmtree(REPORTS_DIR)
+def clear_report_outputs(
+    paths: OutputPaths,
+) -> None:
+    if paths.reports_dir.exists():
+        shutil.rmtree(paths.reports_dir)
 
-    for directory in [OVERVIEW_DIR, ML_DIR, SPREAD_DIR, TOTAL_DIR]:
-        directory.mkdir(parents=True, exist_ok=True)
+    for directory in [
+        paths.overview_dir,
+        paths.ml_dir,
+        paths.spread_dir,
+        paths.total_dir,
+    ]:
+        directory.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
 
 
 
@@ -227,20 +253,22 @@ def resolve_target(
     return season, season_type
 
 
-def configure_output_root(root: Path) -> None:
-    global SUMMARY_DIR
-    global REPORTS_DIR
-    global OVERVIEW_DIR
-    global ML_DIR
-    global SPREAD_DIR
-    global TOTAL_DIR
-
-    SUMMARY_DIR = root
-    REPORTS_DIR = root / "reports"
-    OVERVIEW_DIR = REPORTS_DIR / "overview"
-    ML_DIR = REPORTS_DIR / "moneyline"
-    SPREAD_DIR = REPORTS_DIR / "spread"
-    TOTAL_DIR = REPORTS_DIR / "totals"
+def _validate_selected_bet_units(
+    *,
+    result: str,
+    units: str,
+    line: int,
+) -> None:
+    if result in SETTLED_RESULTS:
+        required_float(
+            units,
+            f"work_cfb.csv line {line}: bet_units",
+        )
+    elif units:
+        required_float(
+            units,
+            f"work_cfb.csv line {line}: bet_units",
+        )
 
 
 def validate_input(
@@ -389,16 +417,11 @@ def validate_input(
 
         units = clean(row["bet_units"])
 
-        if result in SETTLED_RESULTS:
-            required_float(
-                units,
-                f"work_cfb.csv line {line}: bet_units",
-            )
-        elif units:
-            required_float(
-                units,
-                f"work_cfb.csv line {line}: bet_units",
-            )
+        _validate_selected_bet_units(
+            result=result,
+            units=units,
+            line=line,
+        )
 
         key = (
             row_season,
@@ -638,7 +661,9 @@ def publish_generated(stage_root: Path) -> bool:
 # Metric definitions / aggregation
 # ---------------------------------------------------------------------------
 
-def write_metric_definitions() -> None:
+def write_metric_definitions(
+    paths: OutputPaths,
+) -> None:
     definitions = pd.DataFrame(
         [
             {
@@ -678,7 +703,7 @@ def write_metric_definitions() -> None:
             },
         ]
     )
-    write_csv(definitions, OVERVIEW_DIR / "cfb_report_metric_definitions.csv")
+    write_csv(definitions, paths.overview_dir / "cfb_report_metric_definitions.csv")
 
 
 def build_metric_row(sub: pd.DataFrame) -> dict[str, Any]:
@@ -874,8 +899,11 @@ def enrich(
 
     return work
 
-def build_probability_validation(df: pd.DataFrame) -> None:
-    metric_columns = [
+def build_probability_validation(
+    df: pd.DataFrame,
+    paths: OutputPaths,
+) -> None:
+    probability_metric_columns = [
         "league",
         "season",
         "market_type",
@@ -995,26 +1023,38 @@ def build_probability_validation(df: pd.DataFrame) -> None:
         )
 
     write_csv(
-        pd.DataFrame(metric_rows, columns=metric_columns),
-        OVERVIEW_DIR / "cfb_probability_metrics.csv",
+        pd.DataFrame(
+            metric_rows,
+            columns=probability_metric_columns,
+        ),
+        paths.overview_dir / "cfb_probability_metrics.csv",
     )
     write_csv(
         pd.DataFrame(calibration_rows, columns=calibration_columns),
-        OVERVIEW_DIR / "cfb_calibration_by_probability.csv",
+        paths.overview_dir / "cfb_calibration_by_probability.csv",
     )
 
-def build_top_summary(df: pd.DataFrame) -> None:
+def build_top_summary(
+    df: pd.DataFrame,
+    paths: OutputPaths,
+) -> None:
     report = aggregate(df, ["league", "season", "market_type"])
-    write_csv(report, SUMMARY_DIR / "cfb_summary_overall.csv")
+    write_csv(report, paths.summary_dir / "cfb_summary_overall.csv")
 
 
-def build_overview(df: pd.DataFrame) -> None:
-    write_metric_definitions()
-    build_probability_validation(df)
+def build_overview(
+    df: pd.DataFrame,
+    paths: OutputPaths,
+) -> None:
+    write_metric_definitions(paths)
+    build_probability_validation(
+        df,
+        paths,
+    )
 
     write_csv(
         aggregate(df, ["league", "season"]),
-        OVERVIEW_DIR / "cfb_summary_overall.csv",
+        paths.overview_dir / "cfb_summary_overall.csv",
     )
 
     write_csv(
@@ -1023,7 +1063,7 @@ def build_overview(df: pd.DataFrame) -> None:
             ["league", "season", "market_type"],
             variable_label="market_type",
         ),
-        OVERVIEW_DIR / "cfb_summary_by_market.csv",
+        paths.overview_dir / "cfb_summary_by_market.csv",
     )
 
     side = df[df["side_group"].isin(["HOME", "AWAY", "OVER", "UNDER"])].copy()
@@ -1033,7 +1073,7 @@ def build_overview(df: pd.DataFrame) -> None:
             ["league", "season", "side_group"],
             variable_label="side_group",
         ),
-        OVERVIEW_DIR / "cfb_summary_by_side_group.csv",
+        paths.overview_dir / "cfb_summary_by_side_group.csv",
     )
 
     by_week = aggregate(
@@ -1050,14 +1090,14 @@ def build_overview(df: pd.DataFrame) -> None:
             kind="stable",
         ).drop(columns=["_season_sort", "_week_sort"])
 
-    write_csv(by_week, OVERVIEW_DIR / "cfb_summary_by_week.csv")
+    write_csv(by_week, paths.overview_dir / "cfb_summary_by_week.csv")
 
     cumulative = by_week.copy()
     if not cumulative.empty:
         cumulative["cumulative_units"] = (
             cumulative.groupby("season", dropna=False)["units"].cumsum().round(4)
         )
-    write_csv(cumulative, OVERVIEW_DIR / "cfb_cumulative_units_by_week.csv")
+    write_csv(cumulative, paths.overview_dir / "cfb_cumulative_units_by_week.csv")
 
     if "day_night" in df.columns:
         timed = df[df["day_night"].astype(str).str.strip().ne("")].copy()
@@ -1067,7 +1107,7 @@ def build_overview(df: pd.DataFrame) -> None:
                 ["league", "season", "day_night"],
                 variable_label="day_night",
             ),
-            OVERVIEW_DIR / "cfb_summary_by_day_night.csv",
+            paths.overview_dir / "cfb_summary_by_day_night.csv",
         )
 
     log_columns = [
@@ -1099,15 +1139,18 @@ def build_overview(df: pd.DataFrame) -> None:
         "final_home_margin",
     ]
     available = [column for column in log_columns if column in df.columns]
-    write_csv(df[available].copy(), OVERVIEW_DIR / "cfb_bet_log.csv")
+    write_csv(df[available].copy(), paths.overview_dir / "cfb_bet_log.csv")
 
 
-def build_moneyline(df: pd.DataFrame) -> None:
+def build_moneyline(
+    df: pd.DataFrame,
+    paths: OutputPaths,
+) -> None:
     ml = df[df["market_type"].eq("moneyline")].copy()
-    write_bucket_report(ml, ML_DIR, "ev_bucket", "cfb_moneyline_by_ev.csv")
-    write_bucket_report(ml, ML_DIR, "odds_bucket", "cfb_moneyline_by_odds.csv")
-    write_bucket_report(ml, ML_DIR, "kelly_bucket", "cfb_moneyline_by_kelly.csv")
-    write_bucket_report(ml, ML_DIR, "win_prob_bucket", "cfb_moneyline_by_win_prob.csv")
+    write_bucket_report(ml, paths.ml_dir, "ev_bucket", "cfb_moneyline_by_ev.csv")
+    write_bucket_report(ml, paths.ml_dir, "odds_bucket", "cfb_moneyline_by_odds.csv")
+    write_bucket_report(ml, paths.ml_dir, "kelly_bucket", "cfb_moneyline_by_kelly.csv")
+    write_bucket_report(ml, paths.ml_dir, "win_prob_bucket", "cfb_moneyline_by_win_prob.csv")
 
     home_away = ml[ml["side_group"].isin(["HOME", "AWAY"])].copy()
     write_csv(
@@ -1116,7 +1159,7 @@ def build_moneyline(df: pd.DataFrame) -> None:
             ["league", "season", "market_type", "side_group"],
             variable_label="side_group",
         ),
-        ML_DIR / "cfb_moneyline_by_home_away.csv",
+        paths.ml_dir / "cfb_moneyline_by_home_away.csv",
     )
 
     for bucket, filename in [
@@ -1127,20 +1170,23 @@ def build_moneyline(df: pd.DataFrame) -> None:
     ]:
         write_bucket_report(
             home_away,
-            ML_DIR,
+            paths.ml_dir,
             bucket,
             filename,
             extra_group_cols=["side_group"],
         )
 
 
-def build_spread(df: pd.DataFrame) -> None:
+def build_spread(
+    df: pd.DataFrame,
+    paths: OutputPaths,
+) -> None:
     spread = df[df["market_type"].eq("spread")].copy()
-    write_bucket_report(spread, SPREAD_DIR, "ev_bucket", "cfb_spread_by_ev.csv")
-    write_bucket_report(spread, SPREAD_DIR, "odds_bucket", "cfb_spread_by_odds.csv")
-    write_bucket_report(spread, SPREAD_DIR, "kelly_bucket", "cfb_spread_by_kelly.csv")
-    write_bucket_report(spread, SPREAD_DIR, "win_prob_bucket", "cfb_spread_by_win_prob.csv")
-    write_bucket_report(spread, SPREAD_DIR, "spread_line_bucket", "cfb_spread_by_line.csv")
+    write_bucket_report(spread, paths.spread_dir, "ev_bucket", "cfb_spread_by_ev.csv")
+    write_bucket_report(spread, paths.spread_dir, "odds_bucket", "cfb_spread_by_odds.csv")
+    write_bucket_report(spread, paths.spread_dir, "kelly_bucket", "cfb_spread_by_kelly.csv")
+    write_bucket_report(spread, paths.spread_dir, "win_prob_bucket", "cfb_spread_by_win_prob.csv")
+    write_bucket_report(spread, paths.spread_dir, "spread_line_bucket", "cfb_spread_by_line.csv")
 
     home_away = spread[spread["side_group"].isin(["HOME", "AWAY"])].copy()
     write_csv(
@@ -1149,7 +1195,7 @@ def build_spread(df: pd.DataFrame) -> None:
             ["league", "season", "market_type", "side_group"],
             variable_label="side_group",
         ),
-        SPREAD_DIR / "cfb_spread_by_home_away.csv",
+        paths.spread_dir / "cfb_spread_by_home_away.csv",
     )
 
     roles = spread[spread["spread_role"].ne("UNBUCKETED")].copy()
@@ -1159,7 +1205,7 @@ def build_spread(df: pd.DataFrame) -> None:
             ["league", "season", "market_type", "spread_role"],
             variable_label="spread_role",
         ),
-        SPREAD_DIR / "cfb_spread_by_favorite_underdog.csv",
+        paths.spread_dir / "cfb_spread_by_favorite_underdog.csv",
     )
 
     for bucket, filename in [
@@ -1171,20 +1217,23 @@ def build_spread(df: pd.DataFrame) -> None:
     ]:
         write_bucket_report(
             home_away,
-            SPREAD_DIR,
+            paths.spread_dir,
             bucket,
             filename,
             extra_group_cols=["side_group"],
         )
 
 
-def build_totals(df: pd.DataFrame) -> None:
+def build_totals(
+    df: pd.DataFrame,
+    paths: OutputPaths,
+) -> None:
     totals = df[df["market_type"].eq("total")].copy()
-    write_bucket_report(totals, TOTAL_DIR, "ev_bucket", "cfb_total_by_ev.csv")
-    write_bucket_report(totals, TOTAL_DIR, "odds_bucket", "cfb_total_by_odds.csv")
-    write_bucket_report(totals, TOTAL_DIR, "kelly_bucket", "cfb_total_by_kelly.csv")
-    write_bucket_report(totals, TOTAL_DIR, "win_prob_bucket", "cfb_total_by_win_prob.csv")
-    write_bucket_report(totals, TOTAL_DIR, "total_bucket", "cfb_total_by_total_range.csv")
+    write_bucket_report(totals, paths.total_dir, "ev_bucket", "cfb_total_by_ev.csv")
+    write_bucket_report(totals, paths.total_dir, "odds_bucket", "cfb_total_by_odds.csv")
+    write_bucket_report(totals, paths.total_dir, "kelly_bucket", "cfb_total_by_kelly.csv")
+    write_bucket_report(totals, paths.total_dir, "win_prob_bucket", "cfb_total_by_win_prob.csv")
+    write_bucket_report(totals, paths.total_dir, "total_bucket", "cfb_total_by_total_range.csv")
 
     over_under = totals[totals["side_group"].isin(["OVER", "UNDER"])].copy()
     write_csv(
@@ -1193,7 +1242,7 @@ def build_totals(df: pd.DataFrame) -> None:
             ["league", "season", "market_type", "side_group"],
             variable_label="side_group",
         ),
-        TOTAL_DIR / "cfb_total_by_over_under.csv",
+        paths.total_dir / "cfb_total_by_over_under.csv",
     )
 
     for bucket, filename in [
@@ -1205,7 +1254,7 @@ def build_totals(df: pd.DataFrame) -> None:
     ]:
         write_bucket_report(
             over_under,
-            TOTAL_DIR,
+            paths.total_dir,
             bucket,
             filename,
             extra_group_cols=["side_group"],
@@ -1314,26 +1363,39 @@ def main() -> int:
             )
         )
 
+        paths = output_paths(
+            stage_root
+        )
+
         try:
-            configure_output_root(
-                stage_root
+            clear_report_outputs(
+                paths
             )
 
-            clear_report_outputs()
-
-            build_top_summary(df)
-            build_overview(df)
-            build_moneyline(df)
-            build_spread(df)
-            build_totals(df)
+            build_top_summary(
+                df,
+                paths,
+            )
+            build_overview(
+                df,
+                paths,
+            )
+            build_moneyline(
+                df,
+                paths,
+            )
+            build_spread(
+                df,
+                paths,
+            )
+            build_totals(
+                df,
+                paths,
+            )
 
             validate_generated(
                 stage_root,
                 df,
-            )
-
-            configure_output_root(
-                FINAL_RESULTS_DIR
             )
 
             output_modified = publish_generated(
@@ -1341,10 +1403,6 @@ def main() -> int:
             )
 
         finally:
-            configure_output_root(
-                FINAL_RESULTS_DIR
-            )
-
             shutil.rmtree(
                 stage_root,
                 ignore_errors=True,

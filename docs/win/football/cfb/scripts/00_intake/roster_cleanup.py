@@ -233,17 +233,7 @@ def load_authoritative_team_ids() -> set[str]:
     return team_ids
 
 
-def load_and_validate_raw_roster(
-    *,
-    season: int,
-    season_type: int,
-    authoritative_team_ids: set[str],
-) -> tuple[
-    list[dict[str, str]],
-    list[str],
-    set[str],
-    set[str],
-]:
+def _stage1_read_raw_roster_input() -> tuple[list[dict[str, str]], list[str]]:
     if not INPUT_PATH.exists():
         raise FileNotFoundError(
             f"Missing raw roster input: {INPUT_PATH}"
@@ -261,7 +251,6 @@ def load_and_validate_raw_roster(
             raise ValueError("raw_roster.csv has no header")
 
         duplicate_headers = duplicate_values(fieldnames)
-
         if duplicate_headers:
             raise ValueError(
                 "raw_roster.csv contains duplicate header columns: "
@@ -269,13 +258,11 @@ def load_and_validate_raw_roster(
             )
 
         input_columns = set(fieldnames)
-
         missing_required = [
             column
             for column in REQUIRED_INPUT_COLUMNS
             if column not in input_columns
         ]
-
         if missing_required:
             raise ValueError(
                 "raw_roster.csv missing required columns: "
@@ -287,12 +274,164 @@ def load_and_validate_raw_roster(
             for column in KEEP_COLUMNS
             if column not in input_columns
         ]
-
         raw_rows = list(reader)
 
     if not raw_rows:
         raise ValueError("raw_roster.csv contains no athlete rows")
 
+    return raw_rows, missing_optional
+
+
+def _stage1_validate_raw_roster_structure(
+    row: dict[str, str],
+    *,
+    row_number: int,
+) -> None:
+    if None in row:
+        raise ValueError(
+            "raw_roster.csv contains a malformed row with extra "
+            f"fields at CSV line {row_number}"
+        )
+    missing_cells = [
+        key
+        for key, value in row.items()
+        if key is not None and value is None
+    ]
+    if missing_cells:
+        raise ValueError(
+            "raw_roster.csv contains a structurally incomplete row "
+            f"at CSV line {row_number}; missing cells for "
+            f"{missing_cells[:20]}"
+        )
+
+
+def _stage1_validate_raw_roster_values(
+    row: dict[str, str],
+    *,
+    row_number: int,
+    season: int,
+    season_type: int,
+    authoritative_team_ids: set[str],
+) -> tuple[str, str]:
+    row_season = str(row.get("season") or "").strip()
+    row_season_type = str(row.get("season_type") or "").strip()
+    athlete_id = str(row.get("id") or "").strip()
+    display_name = str(row.get("displayName") or "").strip()
+    team_id = str(row.get("team_id") or "").strip()
+    if row_season != str(season):
+        raise ValueError(
+            "raw_roster.csv season mismatch at CSV line "
+            f"{row_number}: expected={season}, actual={row_season!r}"
+        )
+    if row_season_type != str(season_type):
+        raise ValueError(
+            "raw_roster.csv season_type mismatch at CSV line "
+            f"{row_number}: expected={season_type}, actual={row_season_type!r}"
+        )
+    if not athlete_id:
+        raise ValueError(
+            "raw_roster.csv has blank athlete id at CSV line "
+            f"{row_number}"
+        )
+    if not display_name:
+        raise ValueError(
+            "raw_roster.csv has blank displayName at CSV line "
+            f"{row_number}"
+        )
+    if not team_id:
+        raise ValueError(
+            "raw_roster.csv has blank team_id at CSV line "
+            f"{row_number}"
+        )
+    if team_id not in authoritative_team_ids:
+        raise ValueError(
+            "raw_roster.csv references a non-authoritative team at "
+            f"CSV line {row_number}: team_id={team_id!r}"
+        )
+    return athlete_id, team_id
+
+
+def _stage1_validate_raw_roster_row(
+    row: dict[str, str],
+    *,
+    row_number: int,
+    season: int,
+    season_type: int,
+    authoritative_team_ids: set[str],
+) -> tuple[dict[str, str], str, str]:
+    _stage1_validate_raw_roster_structure(row, row_number=row_number)
+    athlete_id, team_id = _stage1_validate_raw_roster_values(
+        row,
+        row_number=row_number,
+        season=season,
+        season_type=season_type,
+        authoritative_team_ids=authoritative_team_ids,
+    )
+    cleaned = {
+        column: str(row.get(column) or "")
+        for column in KEEP_COLUMNS
+    }
+    return cleaned, athlete_id, team_id
+
+
+
+def _stage1_record_roster_identity(
+    *,
+    athlete_id: str,
+    team_id: str,
+    seen_keys: set[tuple[str, str]],
+    athlete_team_assignments: dict[str, str],
+) -> None:
+    key = (team_id, athlete_id)
+    if key in seen_keys:
+        raise ValueError(
+            "raw_roster.csv contains duplicate athlete key: "
+            f"{key}"
+        )
+
+    prior_team = athlete_team_assignments.get(athlete_id)
+    if prior_team is not None and prior_team != team_id:
+        raise ValueError(
+            "raw_roster.csv assigns one athlete to multiple teams: "
+            f"athlete_id={athlete_id}, teams={prior_team},{team_id}"
+        )
+
+    seen_keys.add(key)
+    athlete_team_assignments[athlete_id] = team_id
+
+
+def _stage1_validate_roster_team_coverage(
+    authoritative_team_ids: set[str],
+    represented_team_ids: set[str],
+) -> None:
+    missing_teams = sorted(
+        authoritative_team_ids - represented_team_ids,
+        key=int,
+    )
+    foreign_teams = sorted(
+        represented_team_ids - authoritative_team_ids,
+        key=int,
+    )
+    if missing_teams or foreign_teams:
+        raise ValueError(
+            "raw_roster.csv team coverage does not match the "
+            "authoritative team universe. "
+            f"missing={missing_teams[:50]}, foreign={foreign_teams[:50]}"
+        )
+
+
+def load_and_validate_raw_roster(
+    *,
+    season: int,
+    season_type: int,
+    authoritative_team_ids: set[str],
+) -> tuple[
+    list[dict[str, str]],
+    list[str],
+    set[str],
+    set[str],
+]:
+    raw_rows, missing_optional = _stage1_read_raw_roster_input()
     cleaned_rows: list[dict[str, str]] = []
     represented_team_ids: set[str] = set()
     unique_athlete_ids: set[str] = set()
@@ -300,122 +439,34 @@ def load_and_validate_raw_roster(
     athlete_team_assignments: dict[str, str] = {}
 
     for row_number, row in enumerate(raw_rows, start=2):
-        if None in row:
-            raise ValueError(
-                "raw_roster.csv contains a malformed row with extra "
-                f"fields at CSV line {row_number}"
-            )
-
-        missing_cells = [
-            key
-            for key, value in row.items()
-            if key is not None and value is None
-        ]
-
-        if missing_cells:
-            raise ValueError(
-                "raw_roster.csv contains a structurally incomplete row "
-                f"at CSV line {row_number}; missing cells for "
-                f"{missing_cells[:20]}"
-            )
-
-        row_season = str(row.get("season") or "").strip()
-        row_season_type = str(
-            row.get("season_type") or ""
-        ).strip()
-        athlete_id = str(row.get("id") or "").strip()
-        display_name = str(row.get("displayName") or "").strip()
-        team_id = str(row.get("team_id") or "").strip()
-
-        if row_season != str(season):
-            raise ValueError(
-                "raw_roster.csv season mismatch at CSV line "
-                f"{row_number}: expected={season}, actual={row_season!r}"
-            )
-
-        if row_season_type != str(season_type):
-            raise ValueError(
-                "raw_roster.csv season_type mismatch at CSV line "
-                f"{row_number}: expected={season_type}, "
-                f"actual={row_season_type!r}"
-            )
-
-        if not athlete_id:
-            raise ValueError(
-                "raw_roster.csv has blank athlete id at CSV line "
-                f"{row_number}"
-            )
-
-        if not display_name:
-            raise ValueError(
-                "raw_roster.csv has blank displayName at CSV line "
-                f"{row_number}"
-            )
-
-        if not team_id:
-            raise ValueError(
-                "raw_roster.csv has blank team_id at CSV line "
-                f"{row_number}"
-            )
-
-        if team_id not in authoritative_team_ids:
-            raise ValueError(
-                "raw_roster.csv references a non-authoritative team at "
-                f"CSV line {row_number}: team_id={team_id!r}"
-            )
-
-        key = (team_id, athlete_id)
-
-        if key in seen_keys:
-            raise ValueError(
-                "raw_roster.csv contains duplicate athlete key: "
-                f"{key}"
-            )
-
-        prior_team = athlete_team_assignments.get(athlete_id)
-
-        if prior_team is not None and prior_team != team_id:
-            raise ValueError(
-                "raw_roster.csv assigns one athlete to multiple teams: "
-                f"athlete_id={athlete_id}, "
-                f"teams={prior_team},{team_id}"
-            )
-
-        seen_keys.add(key)
-        athlete_team_assignments[athlete_id] = team_id
+        cleaned, athlete_id, team_id = _stage1_validate_raw_roster_row(
+            row,
+            row_number=row_number,
+            season=season,
+            season_type=season_type,
+            authoritative_team_ids=authoritative_team_ids,
+        )
+        _stage1_record_roster_identity(
+            athlete_id=athlete_id,
+            team_id=team_id,
+            seen_keys=seen_keys,
+            athlete_team_assignments=athlete_team_assignments,
+        )
         represented_team_ids.add(team_id)
         unique_athlete_ids.add(athlete_id)
+        cleaned_rows.append(cleaned)
 
-        cleaned_rows.append(
-            {
-                column: str(row.get(column) or "")
-                for column in KEEP_COLUMNS
-            }
-        )
-
-    missing_teams = sorted(
-        authoritative_team_ids - represented_team_ids,
-        key=lambda value: int(value),
+    _stage1_validate_roster_team_coverage(
+        authoritative_team_ids,
+        represented_team_ids,
     )
-    foreign_teams = sorted(
-        represented_team_ids - authoritative_team_ids,
-        key=lambda value: int(value),
-    )
-
-    if missing_teams or foreign_teams:
-        raise ValueError(
-            "raw_roster.csv team coverage does not match the "
-            "authoritative team universe. "
-            f"missing={missing_teams[:50]}, "
-            f"foreign={foreign_teams[:50]}"
-        )
-
     return (
         cleaned_rows,
         missing_optional,
         represented_team_ids,
         unique_athlete_ids,
     )
+
 
 
 def temporary_path(final_path: Path) -> Path:
@@ -444,43 +495,14 @@ def write_staged_csv(
         os.fsync(handle.fileno())
 
 
-def validate_staged_csv(
-    path: Path,
+def _validate_serialized_roster_rows(
+    rows: list[dict[str, str]],
     *,
-    expected_rows: list[dict[str, str]],
     authoritative_team_ids: set[str],
+    represented_team_ids: set[str],
+    seen_keys: set[tuple[str, str]],
+    athlete_team_assignments: dict[str, str],
 ) -> None:
-    with path.open(
-        "r",
-        newline="",
-        encoding="utf-8",
-    ) as handle:
-        reader = csv.DictReader(handle)
-        actual_fieldnames = reader.fieldnames or []
-
-        if actual_fieldnames != KEEP_COLUMNS:
-            raise ValueError(
-                "Serialized roster_master.csv header mismatch"
-            )
-
-        rows = list(reader)
-
-    if len(rows) != len(expected_rows):
-        raise ValueError(
-            "Serialized roster_master.csv row count mismatch: "
-            f"expected={len(expected_rows)}, actual={len(rows)}"
-        )
-
-    if rows != expected_rows:
-        raise ValueError(
-            "Serialized roster_master.csv does not exactly match the "
-            "validated cleaned rows"
-        )
-
-    represented_team_ids: set[str] = set()
-    seen_keys: set[tuple[str, str]] = set()
-    athlete_team_assignments: dict[str, str] = {}
-
     for row_number, row in enumerate(rows, start=2):
         if None in row:
             raise ValueError(
@@ -538,14 +560,60 @@ def validate_staged_csv(
         athlete_team_assignments[athlete_id] = team_id
         represented_team_ids.add(team_id)
 
+
+def validate_staged_csv(
+    path: Path,
+    *,
+    expected_rows: list[dict[str, str]],
+    authoritative_team_ids: set[str],
+) -> None:
+    with path.open(
+        "r",
+        newline="",
+        encoding="utf-8",
+    ) as handle:
+        reader = csv.DictReader(handle)
+        actual_fieldnames = reader.fieldnames or []
+
+        if actual_fieldnames != KEEP_COLUMNS:
+            raise ValueError(
+                "Serialized roster_master.csv header mismatch"
+            )
+
+        rows = list(reader)
+
+    if len(rows) != len(expected_rows):
+        raise ValueError(
+            "Serialized roster_master.csv row count mismatch: "
+            f"expected={len(expected_rows)}, actual={len(rows)}"
+        )
+
+    if rows != expected_rows:
+        raise ValueError(
+            "Serialized roster_master.csv does not exactly match the "
+            "validated cleaned rows"
+        )
+
+    represented_team_ids: set[str] = set()
+    seen_keys: set[tuple[str, str]] = set()
+    athlete_team_assignments: dict[str, str] = {}
+
+    _validate_serialized_roster_rows(
+        rows,
+        authoritative_team_ids=authoritative_team_ids,
+        represented_team_ids=represented_team_ids,
+        seen_keys=seen_keys,
+        athlete_team_assignments=athlete_team_assignments,
+    )
+
     if represented_team_ids != authoritative_team_ids:
         missing_teams = sorted(
             authoritative_team_ids - represented_team_ids,
-            key=lambda value: int(value),
+            key=int,
         )
         foreign_teams = sorted(
             represented_team_ids - authoritative_team_ids,
-            key=lambda value: int(value),
+            key=int,
         )
 
         raise ValueError(
@@ -575,9 +643,12 @@ def publish_atomic(
             authoritative_team_ids=authoritative_team_ids,
         )
 
-        if OUTPUT_PATH.exists():
-            if OUTPUT_PATH.read_bytes() == temp_path.read_bytes():
-                return False
+        if (
+            OUTPUT_PATH.exists()
+            and OUTPUT_PATH.read_bytes()
+            == temp_path.read_bytes()
+        ):
+            return False
 
         os.replace(temp_path, OUTPUT_PATH)
         return True

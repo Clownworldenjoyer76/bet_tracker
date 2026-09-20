@@ -21,10 +21,11 @@ import os
 import re
 import sys
 import uuid
+from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
-from urllib.request import Request, urlopen
+from urllib.request import Request
 
 import yaml
 
@@ -36,6 +37,7 @@ CFB_ROOT = SCRIPT_PATH.parents[2]
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
+from http_security import open_https
 from pipeline_reporter import PipelineReporter
 
 
@@ -70,6 +72,7 @@ ROSTER_URL_TEMPLATE = (
     "sports/football/college-football/"
     "teams/{team_id}/roster"
 )
+ESPN_SITE_HOST = "site.api.espn.com"
 
 REQUIRED_OUTPUT_COLUMNS = [
     "season",
@@ -87,23 +90,18 @@ ATHLETE_TEAM_REF_KEY_PATTERN = re.compile(
     r"^teams\.\d+\.\$ref$"
 )
 
-_REQUEST_COUNT = 0
-_REQUEST_FAILURES: list[
-    dict[str, str]
-] = []
+@dataclass
+class RuntimeState:
+    request_count: int = 0
+    request_failures: list[dict[str, str]] = field(
+        default_factory=list
+    )
 
 
 class RosterValidationError(
     RuntimeError
 ):
     pass
-
-
-def reset_runtime_state() -> None:
-    global _REQUEST_COUNT
-
-    _REQUEST_COUNT = 0
-    _REQUEST_FAILURES.clear()
 
 
 def load_current_week() -> tuple[
@@ -266,9 +264,7 @@ def load_target_team_ids() -> list[str]:
 
     return sorted(
         team_ids,
-        key=lambda value: int(
-            value
-        ),
+        key=int,
     )
 
 
@@ -296,11 +292,10 @@ def fetch_json(
     url: str,
     *,
     label: str,
+    state: RuntimeState,
     timeout: int = 30,
 ) -> dict:
-    global _REQUEST_COUNT
-
-    _REQUEST_COUNT += 1
+    state.request_count += 1
 
     request = Request(
         url,
@@ -313,8 +308,9 @@ def fetch_json(
     )
 
     try:
-        with urlopen(
+        with open_https(
             request,
+            allowed_hosts={ESPN_SITE_HOST},
             timeout=timeout,
         ) as response:
             status = response.status
@@ -347,7 +343,7 @@ def fetch_json(
             ),
         }
 
-        _REQUEST_FAILURES.append(
+        state.request_failures.append(
             failure
         )
 
@@ -365,7 +361,7 @@ def fetch_json(
             "error": str(exc),
         }
 
-        _REQUEST_FAILURES.append(
+        state.request_failures.append(
             failure
         )
 
@@ -382,7 +378,7 @@ def fetch_json(
             "error": str(exc),
         }
 
-        _REQUEST_FAILURES.append(
+        state.request_failures.append(
             failure
         )
 
@@ -404,7 +400,7 @@ def fetch_json(
             "error": body,
         }
 
-        _REQUEST_FAILURES.append(
+        state.request_failures.append(
             failure
         )
 
@@ -429,7 +425,7 @@ def fetch_json(
             ),
         }
 
-        _REQUEST_FAILURES.append(
+        state.request_failures.append(
             failure
         )
 
@@ -452,7 +448,7 @@ def fetch_json(
             ),
         }
 
-        _REQUEST_FAILURES.append(
+        state.request_failures.append(
             failure
         )
 
@@ -756,6 +752,7 @@ def build_raw_rows(
     target_team_ids: list[str],
     season: int,
     season_type: int,
+    state: RuntimeState,
 ) -> tuple[
     list[dict[str, object]],
     set[str],
@@ -810,6 +807,7 @@ def build_raw_rows(
                 label=(
                     f"roster team_id={team_id}"
                 ),
+                state=state,
             )
 
             (
@@ -1021,6 +1019,53 @@ def build_raw_rows(
     )
 
 
+
+def _require_raw_roster_rows(
+    rows: list[dict[str, object]],
+) -> None:
+    if not rows:
+        raise ValueError(
+            "Raw roster output would be empty"
+        )
+
+
+def _require_raw_roster_columns(
+    missing_required_columns: list[str],
+) -> None:
+    if missing_required_columns:
+        raise ValueError(
+            "Raw roster output missing "
+            "required columns: "
+            f"{missing_required_columns}"
+        )
+
+
+def _validate_raw_roster_team_coverage(
+    expected_teams: set[str],
+    represented_teams: set[str],
+) -> None:
+    if represented_teams != expected_teams:
+        missing = sorted(
+            expected_teams
+            - represented_teams,
+            key=int,
+        )
+
+        foreign = sorted(
+            represented_teams
+            - expected_teams,
+            key=int,
+        )
+
+        raise ValueError(
+            "Raw roster team coverage "
+            "does not match authoritative "
+            "team set. "
+            f"missing={missing[:50]}, "
+            f"foreign={foreign[:50]}"
+        )
+
+
 def validate_final_rows(
     rows: list[
         dict[str, object]
@@ -1034,10 +1079,7 @@ def validate_final_rows(
     season: int,
     season_type: int,
 ) -> None:
-    if not rows:
-        raise ValueError(
-            "Raw roster output would be empty"
-        )
+    _require_raw_roster_rows(rows)
 
     missing_required_columns = [
         column
@@ -1046,12 +1088,9 @@ def validate_final_rows(
         if column not in columns
     ]
 
-    if missing_required_columns:
-        raise ValueError(
-            "Raw roster output missing "
-            "required columns: "
-            f"{missing_required_columns}"
-        )
+    _require_raw_roster_columns(
+        missing_required_columns
+    )
 
     expected_teams = set(
         target_team_ids
@@ -1061,30 +1100,10 @@ def validate_final_rows(
         team_row_counts
     )
 
-    if represented_teams != expected_teams:
-        missing = sorted(
-            expected_teams
-            - represented_teams,
-            key=lambda value: int(
-                value
-            ),
-        )
-
-        foreign = sorted(
-            represented_teams
-            - expected_teams,
-            key=lambda value: int(
-                value
-            ),
-        )
-
-        raise ValueError(
-            "Raw roster team coverage "
-            "does not match authoritative "
-            "team set. "
-            f"missing={missing[:50]}, "
-            f"foreign={foreign[:50]}"
-        )
+    _validate_raw_roster_team_coverage(
+        expected_teams,
+        represented_teams,
+    )
 
     zero_row_teams = sorted(
         team_id
@@ -1446,9 +1465,7 @@ def validate_staged_csv(
         missing = sorted(
             target_set
             - set(counts),
-            key=lambda value: int(
-                value
-            ),
+            key=int,
         )
 
         raise ValueError(
@@ -1496,12 +1513,12 @@ def publish_atomic(
             season_type=season_type,
         )
 
-        if OUTPUT_PATH.exists():
-            if (
-                OUTPUT_PATH.read_bytes()
-                == temp_path.read_bytes()
-            ):
-                return False
+        if (
+            OUTPUT_PATH.exists()
+            and OUTPUT_PATH.read_bytes()
+            == temp_path.read_bytes()
+        ):
+            return False
 
         os.replace(
             temp_path,
@@ -1521,6 +1538,7 @@ def publish_atomic(
 
 def run(
     report: PipelineReporter,
+    state: RuntimeState,
 ) -> int:
     (
         season,
@@ -1559,6 +1577,7 @@ def run(
         target_team_ids,
         season,
         season_type,
+        state,
     )
 
     requested_teams = len(
@@ -1768,7 +1787,7 @@ def run(
 
 
 def main() -> int:
-    reset_runtime_state()
+    state = RuntimeState()
 
     with PipelineReporter(
         script=__file__,
@@ -1804,23 +1823,24 @@ def main() -> int:
 
         try:
             return run(
-                report
+                report,
+                state,
             )
 
         finally:
             report.update_details(
                 {
                     "espn_request_count": (
-                        _REQUEST_COUNT
+                        state.request_count
                     ),
                     "espn_request_failure_count": (
                         len(
-                            _REQUEST_FAILURES
+                            state.request_failures
                         )
                     ),
                     "espn_request_failure_details": (
                         list(
-                            _REQUEST_FAILURES
+                            state.request_failures
                         )
                     ),
                 }

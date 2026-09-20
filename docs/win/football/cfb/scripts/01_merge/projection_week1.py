@@ -1310,43 +1310,54 @@ def calculate_weather_adjustment(
     )
 
 
+
+def _stage4_validate_team_map_columns(team_map: pd.DataFrame) -> None:
+    required = ["team_id", "canonical_team"]
+    missing = [column for column in required if column not in team_map.columns]
+    if missing:
+        raise ValueError("team_map.csv missing required columns: " f"{missing}")
+
+
+def _stage4_team_alias_values(
+    team_map: pd.DataFrame,
+    row: pd.Series,
+    canonical: str,
+    alias_columns: list[str],
+) -> list[str]:
+    values = [canonical]
+    for column in alias_columns:
+        if column not in team_map.columns:
+            continue
+        value = clean(row.get(column))
+        if value:
+            values.append(value)
+    location = clean(row.get("location"))
+    nickname = clean(row.get("nickname"))
+    if location and nickname:
+        values.append(f"{location} {nickname}")
+    return values
+
+
+def _stage4_register_team_aliases(
+    alias_to_team: dict[str, str],
+    canonical: str,
+    values: list[str],
+) -> None:
+    for value in values:
+        key = normalize_key(value)
+        if not key:
+            continue
+        prior = alias_to_team.get(key)
+        if prior is None or prior == canonical:
+            alias_to_team[key] = canonical
+
+
 class TeamResolver:
-    def __init__(
-        self,
-        team_map: pd.DataFrame,
-    ) -> None:
-        required = [
-            "team_id",
-            "canonical_team",
-        ]
-
-        missing = [
-            column
-            for column in required
-            if column not in team_map.columns
-        ]
-
-        if missing:
-            raise ValueError(
-                "team_map.csv missing required columns: "
-                f"{missing}"
-            )
-
-        self.alias_to_team: dict[
-            str,
-            str,
-        ] = {}
-
-        self.team_to_id: dict[
-            str,
-            str,
-        ] = {}
-
-        self.id_to_team: dict[
-            str,
-            str,
-        ] = {}
-
+    def __init__(self, team_map: pd.DataFrame) -> None:
+        _stage4_validate_team_map_columns(team_map)
+        self.alias_to_team: dict[str, str] = {}
+        self.team_to_id: dict[str, str] = {}
+        self.id_to_team: dict[str, str] = {}
         alias_columns = [
             "canonical_team",
             "alias",
@@ -1355,92 +1366,26 @@ class TeamResolver:
             "shortDisplayName",
             "team_slug",
         ]
-
         for _, row in team_map.iterrows():
-            canonical = clean(
-                row.get(
-                    "canonical_team"
-                )
-            )
-
-            team_id = clean(
-                row.get(
-                    "team_id"
-                )
-            )
-
+            canonical = clean(row.get("canonical_team"))
+            team_id = clean(row.get("team_id"))
             if not canonical:
                 continue
-
-            self.team_to_id.setdefault(
-                canonical,
-                team_id,
-            )
-
+            self.team_to_id.setdefault(canonical, team_id)
             if team_id:
-                self.id_to_team.setdefault(
-                    team_id,
-                    canonical,
-                )
-
-            values = [
-                canonical
-            ]
-
-            for column in alias_columns:
-                if column not in team_map.columns:
-                    continue
-
-                value = clean(
-                    row.get(
-                        column
-                    )
-                )
-
-                if value:
-                    values.append(
-                        value
-                    )
-
-            location = clean(
-                row.get(
-                    "location"
-                )
+                self.id_to_team.setdefault(team_id, canonical)
+            values = _stage4_team_alias_values(
+                team_map,
+                row,
+                canonical,
+                alias_columns,
+            )
+            _stage4_register_team_aliases(
+                self.alias_to_team,
+                canonical,
+                values,
             )
 
-            nickname = clean(
-                row.get(
-                    "nickname"
-                )
-            )
-
-            if (
-                location
-                and nickname
-            ):
-                values.append(
-                    f"{location} {nickname}"
-                )
-
-            for value in values:
-                key = normalize_key(
-                    value
-                )
-
-                if not key:
-                    continue
-
-                prior = self.alias_to_team.get(
-                    key
-                )
-
-                if (
-                    prior is None
-                    or prior == canonical
-                ):
-                    self.alias_to_team[
-                        key
-                    ] = canonical
 
     def resolve(
         self,
@@ -1509,387 +1454,149 @@ def shrink_metric(
 
 
 
-def build_prior_table(
+def _stage4_prepare_prior_work(
     team_stats: pd.DataFrame,
     resolver: TeamResolver,
 ) -> pd.DataFrame:
     work = team_stats.copy()
-
-    work[
-        "team"
-    ] = work[
-        "team"
-    ].map(
-        resolver.resolve
-    )
-
+    work["team"] = work["team"].map(resolver.resolve)
     missing_count_columns = [
         count_column
-        for count_column
-        in TEAM_METRIC_COUNT_COLUMNS.values()
+        for count_column in TEAM_METRIC_COUNT_COLUMNS.values()
         if count_column not in work.columns
     ]
-
     if missing_count_columns:
         raise ValueError(
-            "Prior team-stats file is missing "
-            "metric denominator columns: "
+            "Prior team-stats file is missing metric denominator columns: "
             f"{missing_count_columns}"
         )
-
     for metric in TEAM_METRICS:
-        count_column = (
-            TEAM_METRIC_COUNT_COLUMNS[
-                metric
-            ]
+        count_column = TEAM_METRIC_COUNT_COLUMNS[metric]
+        work[metric] = pd.to_numeric(work[metric], errors="coerce")
+        work[count_column] = pd.to_numeric(work[count_column], errors="coerce")
+        invalid_count = work[count_column].notna() & (
+            work[count_column].lt(0) | work[count_column].mod(1).ne(0)
         )
-
-        work[
-            metric
-        ] = pd.to_numeric(
-            work[
-                metric
-            ],
-            errors="coerce",
-        )
-
-        work[
-            count_column
-        ] = pd.to_numeric(
-            work[
-                count_column
-            ],
-            errors="coerce",
-        )
-
-        invalid_count = (
-            work[
-                count_column
-            ].notna()
-            & (
-                work[
-                    count_column
-                ].lt(0)
-                | work[
-                    count_column
-                ].mod(1).ne(0)
-            )
-        )
-
         if invalid_count.any():
             raise ValueError(
-                "Prior team-stats file contains "
-                f"invalid {count_column}"
+                "Prior team-stats file contains " f"invalid {count_column}"
             )
-
-        metric_present = (
-            work[
-                metric
-            ].notna()
-        )
-
-        positive_count = (
-            work[
-                count_column
-            ].fillna(
-                0.0
-            ).gt(0)
-        )
-
-        if (
-            metric_present
-            != positive_count
-        ).any():
+        metric_present = work[metric].notna()
+        positive_count = work[count_column].fillna(0.0).gt(0)
+        if (metric_present != positive_count).any():
             raise ValueError(
-                "Prior team-stats metric/count "
-                f"contract failed for {metric}"
+                "Prior team-stats metric/count " f"contract failed for {metric}"
             )
-
-    work = work[
-        work[
-            "team"
-        ].map(
-            clean
-        ).ne(
-            ""
-        )
-    ].copy()
-
+    work = work[work["team"].map(clean).ne("")].copy()
     if work.empty:
-        raise ValueError(
-            "Prior team-stats file has no usable team rows."
-        )
+        raise ValueError("Prior team-stats file has no usable team rows.")
+    return work
 
-    pooled_metrics = (
-        work[
-            [
-                "team"
-            ]
-        ]
-        .drop_duplicates()
-        .reset_index(
-            drop=True
-        )
-    )
 
+def _stage4_pool_prior_metrics(work: pd.DataFrame) -> pd.DataFrame:
+    pooled_metrics = work[["team"]].drop_duplicates().reset_index(drop=True)
     for metric in TEAM_METRICS:
-        count_column = (
-            TEAM_METRIC_COUNT_COLUMNS[
-                metric
-            ]
-        )
-
-        valid = (
-            work[
-                metric
-            ].notna()
-            & work[
-                count_column
-            ].fillna(
-                0.0
-            ).gt(0)
-        )
-
+        count_column = TEAM_METRIC_COUNT_COLUMNS[metric]
+        valid = work[metric].notna() & work[count_column].fillna(0.0).gt(0)
         if not valid.any():
-            pooled_metrics[
-                metric
-            ] = np.nan
+            pooled_metrics[metric] = np.nan
             continue
-
         weighted = pd.DataFrame(
             {
-                "team":
-                    work.loc[
-                        valid,
-                        "team",
-                    ],
-                "_numerator":
-                    (
-                        work.loc[
-                            valid,
-                            metric,
-                        ]
-                        * work.loc[
-                            valid,
-                            count_column,
-                        ]
-                    ),
-                "_denominator":
-                    work.loc[
-                        valid,
-                        count_column,
-                    ],
+                "team": work.loc[valid, "team"],
+                "_numerator": work.loc[valid, metric]
+                * work.loc[valid, count_column],
+                "_denominator": work.loc[valid, count_column],
             }
         )
-
         grouped_metric = (
-            weighted.groupby(
-                "team",
-                as_index=False,
-            )
+            weighted.groupby("team", as_index=False)
             .agg(
-                _numerator=(
-                    "_numerator",
-                    "sum",
-                ),
-                _denominator=(
-                    "_denominator",
-                    "sum",
-                ),
+                _numerator=("_numerator", "sum"),
+                _denominator=("_denominator", "sum"),
             )
         )
-
-        grouped_metric[
-            metric
-        ] = (
-            grouped_metric[
-                "_numerator"
-            ]
-            / grouped_metric[
-                "_denominator"
-            ]
+        grouped_metric[metric] = (
+            grouped_metric["_numerator"] / grouped_metric["_denominator"]
         )
-
-        pooled_metrics = (
-            pooled_metrics.merge(
-                grouped_metric[
-                    [
-                        "team",
-                        metric,
-                    ]
-                ],
-                on="team",
-                how="left",
-            )
+        pooled_metrics = pooled_metrics.merge(
+            grouped_metric[["team", metric]],
+            on="team",
+            how="left",
         )
+    return pooled_metrics
 
+
+def _stage4_build_prior_counts(
+    work: pd.DataFrame,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     grouped_count = (
-        work.groupby(
-            "team",
-            as_index=False,
-        )
+        work.groupby("team", as_index=False)
         .size()
-        .rename(
-            columns={
-                "size":
-                    "prior_team_weeks"
-            }
-        )
+        .rename(columns={"size": "prior_team_weeks"})
     )
-
     grouped_metric_count = (
-        work.groupby(
-            "team",
-            as_index=False,
-        )[
-            TEAM_METRICS
-        ]
+        work.groupby("team", as_index=False)[TEAM_METRICS]
         .count()
         .rename(
             columns={
-                metric:
-                    f"{metric}_observations"
+                metric: f"{metric}_observations"
                 for metric in TEAM_METRICS
             }
         )
     )
+    return grouped_count, grouped_metric_count
 
-    prior = (
-        pooled_metrics.merge(
-            grouped_count,
-            on="team",
-            how="left",
-        )
-        .merge(
-            grouped_metric_count,
-            on="team",
-            how="left",
-        )
+
+def _stage4_global_metric_mean(
+    work: pd.DataFrame,
+    metric: str,
+    count_column: str,
+) -> float:
+    valid = work[metric].notna() & work[count_column].fillna(0.0).gt(0)
+    denominator = float(work.loc[valid, count_column].sum())
+    if not math.isfinite(denominator) or denominator <= 0:
+        return 0.0
+    numerator = float(
+        (work.loc[valid, metric] * work.loc[valid, count_column]).sum()
     )
+    global_mean = numerator / denominator
+    if not math.isfinite(global_mean):
+        return 0.0
+    return global_mean
 
+
+def _stage4_shrink_prior_metrics(
+    work: pd.DataFrame,
+    prior: pd.DataFrame,
+) -> None:
     for metric in TEAM_METRICS:
-        count_column = (
-            TEAM_METRIC_COUNT_COLUMNS[
-                metric
-            ]
-        )
-
-        valid = (
-            work[
-                metric
-            ].notna()
-            & work[
-                count_column
-            ].fillna(
-                0.0
-            ).gt(0)
-        )
-
-        denominator = float(
-            work.loc[
-                valid,
-                count_column,
-            ].sum()
-        )
-
-        if (
-            not math.isfinite(
-                denominator
-            )
-            or denominator <= 0
-        ):
-            global_mean = 0.0
-        else:
-            numerator = float(
-                (
-                    work.loc[
-                        valid,
-                        metric,
-                    ]
-                    * work.loc[
-                        valid,
-                        count_column,
-                    ]
-                ).sum()
-            )
-
-            global_mean = (
-                numerator
-                / denominator
-            )
-
-            if not math.isfinite(
-                global_mean
-            ):
-                global_mean = 0.0
-
-        prior[
-            metric
-        ] = shrink_metric(
-            prior[
-                metric
-            ],
-            prior[
-                f"{metric}_observations"
-            ],
+        count_column = TEAM_METRIC_COUNT_COLUMNS[metric]
+        global_mean = _stage4_global_metric_mean(work, metric, count_column)
+        prior[metric] = shrink_metric(
+            prior[metric],
+            prior[f"{metric}_observations"],
             global_mean,
         )
 
-    prior[
-        "net_epa"
-    ] = (
-        prior[
-            "off_epa_per_play"
-        ]
-        - prior[
-            "def_epa_per_play"
-        ]
+
+def _stage4_add_prior_edges(prior: pd.DataFrame) -> None:
+    prior["net_epa"] = prior["off_epa_per_play"] - prior["def_epa_per_play"]
+    prior["success_edge"] = (
+        prior["off_success_rate"] - prior["def_success_rate"]
+    )
+    prior["ypp_edge"] = (
+        prior["yards_per_play"] - prior["yards_per_play_allowed"]
+    )
+    prior["ppd_edge"] = (
+        prior["points_per_drive"] - prior["points_per_drive_allowed"]
+    )
+    prior["red_zone_edge"] = (
+        prior["red_zone_td_rate"] - prior["red_zone_td_rate_allowed"]
     )
 
-    prior[
-        "success_edge"
-    ] = (
-        prior[
-            "off_success_rate"
-        ]
-        - prior[
-            "def_success_rate"
-        ]
-    )
 
-    prior[
-        "ypp_edge"
-    ] = (
-        prior[
-            "yards_per_play"
-        ]
-        - prior[
-            "yards_per_play_allowed"
-        ]
-    )
-
-    prior[
-        "ppd_edge"
-    ] = (
-        prior[
-            "points_per_drive"
-        ]
-        - prior[
-            "points_per_drive_allowed"
-        ]
-    )
-
-    prior[
-        "red_zone_edge"
-    ] = (
-        prior[
-            "red_zone_td_rate"
-        ]
-        - prior[
-            "red_zone_td_rate_allowed"
-        ]
-    )
-
+def _stage4_accumulate_prior_strength(prior: pd.DataFrame) -> None:
     strength_parts = {
         "net_epa": 0.30,
         "ppd_edge": 0.25,
@@ -1899,95 +1606,44 @@ def build_prior_table(
         "early_down_epa": 0.05,
         "third_down_conversion_rate": 0.05,
     }
-
-    prior[
-        "prior_strength_raw"
-    ] = 0.0
-
-    for (
-        metric,
-        weight,
-    ) in strength_parts.items():
-        values = pd.to_numeric(
-            prior[
-                metric
-            ],
-            errors="coerce",
-        )
-
-        mean = float(
-            values.mean(
-                skipna=True
-            )
-        )
-
-        std = float(
-            values.std(
-                skipna=True,
-                ddof=0,
-            )
-        )
-
-        if (
-            not math.isfinite(
-                std
-            )
-            or std < 1e-9
-        ):
-            z = pd.Series(
-                0.0,
-                index=prior.index,
-            )
-
+    prior["prior_strength_raw"] = 0.0
+    for metric, weight in strength_parts.items():
+        values = pd.to_numeric(prior[metric], errors="coerce")
+        mean = float(values.mean(skipna=True))
+        std = float(values.std(skipna=True, ddof=0))
+        if not math.isfinite(std) or std < 1e-9:
+            z = pd.Series(0.0, index=prior.index)
         else:
-            z = (
-                values.fillna(
-                    mean
-                )
-                - mean
-            ) / std
+            z = (values.fillna(mean) - mean) / std
+        prior["prior_strength_raw"] += weight * z
 
-        prior[
-            "prior_strength_raw"
-        ] += (
-            weight
-            * z
-        )
 
-    raw_mean = float(
-        prior[
-            "prior_strength_raw"
-        ].mean()
-    )
-
-    raw_std = float(
-        prior[
-            "prior_strength_raw"
-        ].std(
-            ddof=0
-        )
-    )
-
-    if (
-        not math.isfinite(
-            raw_std
-        )
-        or raw_std < 1e-9
-    ):
-        prior[
-            "prior_strength_z"
-        ] = 0.0
-
+def _stage4_normalize_prior_strength(prior: pd.DataFrame) -> None:
+    raw_mean = float(prior["prior_strength_raw"].mean())
+    raw_std = float(prior["prior_strength_raw"].std(ddof=0))
+    if not math.isfinite(raw_std) or raw_std < 1e-9:
+        prior["prior_strength_z"] = 0.0
     else:
-        prior[
-            "prior_strength_z"
-        ] = (
-            prior[
-                "prior_strength_raw"
-            ]
-            - raw_mean
+        prior["prior_strength_z"] = (
+            prior["prior_strength_raw"] - raw_mean
         ) / raw_std
 
+
+def build_prior_table(
+    team_stats: pd.DataFrame,
+    resolver: TeamResolver,
+) -> pd.DataFrame:
+    work = _stage4_prepare_prior_work(team_stats, resolver)
+    pooled_metrics = _stage4_pool_prior_metrics(work)
+    grouped_count, grouped_metric_count = _stage4_build_prior_counts(work)
+    prior = (
+        pooled_metrics.merge(grouped_count, on="team", how="left")
+        .merge(grouped_metric_count, on="team", how="left")
+    )
+    _stage4_shrink_prior_metrics(work, prior)
+    _stage4_add_prior_edges(prior)
+    _stage4_accumulate_prior_strength(prior)
+    _stage4_normalize_prior_strength(prior)
     return prior
 
 
@@ -2431,7 +2087,6 @@ def injury_status_multiplier(
 def build_injury_lookup(
     injuries_path: Path,
     resolver: TeamResolver,
-    fresh_days: int,
 ) -> dict[
     str,
     pd.DataFrame,
@@ -3063,1170 +2718,398 @@ def validate_probability_output(
             )
 
 
+def _stage1_optional_round(value: object, digits: int) -> object:
+    if value is None:
+        return None
+    return round(value, digits)
+
+
+def _stage1_lookup_row(lookup: pd.DataFrame | None, key: str) -> object:
+    if lookup is None or key not in lookup.index:
+        return None
+    return lookup.loc[key]
+
+
+def _stage1_prior_info(
+    team: str,
+    prior_lookup: pd.DataFrame,
+    fallback_prior: pd.Series,
+) -> tuple[int, bool, pd.Series]:
+    source = _stage1_lookup_row(prior_lookup, team)
+    weeks = 0 if source is None else int(source["prior_team_weeks"])
+    fallback = source is None or weeks < MIN_PRIOR_TEAM_WEEKS
+    return weeks, fallback, fallback_prior if fallback else source
+
+
+def _stage1_fpi_info(
+    home_team: str,
+    away_team: str,
+    fpi_lookup: pd.DataFrame | None,
+    home_field: float,
+) -> tuple[float | None, float | None, float | None]:
+    home_row = _stage1_lookup_row(fpi_lookup, home_team)
+    away_row = _stage1_lookup_row(fpi_lookup, away_team)
+    home_fpi = None if home_row is None else as_float(home_row.get("fpi"))
+    away_fpi = None if away_row is None else as_float(away_row.get("fpi"))
+    if home_fpi is None or away_fpi is None:
+        return home_fpi, away_fpi, None
+    return home_fpi, away_fpi, home_fpi - away_fpi + home_field
+
+
+def _stage1_espn_info(
+    game_id: str,
+    home_team: str,
+    away_team: str,
+    espn_lookup: pd.DataFrame | None,
+    resolver: TeamResolver,
+) -> tuple[
+    bool,
+    bool,
+    float | None,
+    float | None,
+    float | None,
+    float | None,
+    float | None,
+    float | None,
+    float | None,
+]:
+    espn_row = _stage1_lookup_row(espn_lookup, game_id)
+    if espn_row is None:
+        return False, False, None, None, None, None, None, None, None
+
+    espn_home_team = resolver.resolve(espn_row.get("home_team"))
+    espn_away_team = resolver.resolve(espn_row.get("away_team"))
+    match_valid = espn_home_team == home_team and espn_away_team == away_team
+    home_ptdiff = as_float(espn_row.get("home_PtDiff"))
+    away_ptdiff = as_float(espn_row.get("away_PtDiff"))
+    home_prob = as_float(espn_row.get("home_prob"))
+    away_prob = as_float(espn_row.get("away_prob"))
+    tie_prob = as_float(espn_row.get("tie_prob"))
+    matchup_quality = as_float(espn_row.get("matchupQuality"))
+
+    margin_consistent = False
+    if home_ptdiff is not None:
+        margin_consistent = (
+            True
+            if away_ptdiff is None
+            else abs(home_ptdiff + away_ptdiff) <= ESPN_MARGIN_SYMMETRY_TOLERANCE
+        )
+    home_margin = home_ptdiff if match_valid and margin_consistent else None
+    return (
+        match_valid,
+        margin_consistent,
+        home_margin,
+        home_ptdiff,
+        away_ptdiff,
+        home_prob,
+        away_prob,
+        tie_prob,
+        matchup_quality,
+    )
+
+
+def _stage1_row_float(row: object, key: str) -> float | None:
+    if row is None:
+        return None
+    return as_float(row.get(key))
+
+
+def _stage1_project_game(
+    sched_row: pd.Series,
+    *,
+    prior_lookup: pd.DataFrame,
+    fallback_prior: pd.Series,
+    fpi_lookup: pd.DataFrame | None,
+    espn_lookup: pd.DataFrame | None,
+    travel_lookup: pd.DataFrame | None,
+    weather_lookup: pd.DataFrame | None,
+    resolver: TeamResolver,
+    home_stadium_lookup: dict[str, set[str]],
+    injury_lookup: dict[str, pd.DataFrame],
+    margin_feature_coefficients: dict,
+    total_feature_coefficients: dict,
+    args: argparse.Namespace,
+) -> dict[str, object]:
+    game_id = normalize_game_id(sched_row.get("game_id"))
+    home_team = resolver.resolve(sched_row.get("home_team"))
+    away_team = resolver.resolve(sched_row.get("away_team"))
+
+    home_prior_team_weeks, home_prior_fallback, home_prior = _stage1_prior_info(
+        home_team, prior_lookup, fallback_prior
+    )
+    away_prior_team_weeks, away_prior_fallback, away_prior = _stage1_prior_info(
+        away_team, prior_lookup, fallback_prior
+    )
+
+    (
+        original_neutral,
+        effective_neutral,
+        neutral_corrected,
+        home_stadium_match,
+    ) = resolve_neutral_site(sched_row, home_team, home_stadium_lookup)
+    home_field = 0.0 if effective_neutral else float(args.home_field)
+    prior_margin = None
+    if not home_prior_fallback and not away_prior_fallback:
+        prior_margin = (
+            float(home_prior["prior_rating"])
+            - float(away_prior["prior_rating"])
+            + home_field
+        )
+
+    home_fpi, away_fpi, fpi_margin = _stage1_fpi_info(
+        home_team,
+        away_team,
+        fpi_lookup,
+        home_field,
+    )
+    home_spread = as_float(sched_row.get("home_spread"))
+    market_margin = -home_spread if home_spread is not None else None
+    (
+        espn_match_valid,
+        espn_margin_consistent,
+        espn_home_margin,
+        espn_home_ptdiff,
+        espn_away_ptdiff,
+        espn_home_prob,
+        espn_away_prob,
+        espn_tie_prob,
+        espn_matchup_quality,
+    ) = _stage1_espn_info(
+        game_id,
+        home_team,
+        away_team,
+        espn_lookup,
+        resolver,
+    )
+
+    blended_margin, margin_weights = weighted_blend(
+        [
+            (market_margin, args.market_margin_weight),
+            (fpi_margin, args.fpi_margin_weight),
+            (espn_home_margin, args.espn_margin_weight),
+            (prior_margin, args.prior_margin_weight),
+        ]
+    )
+    if blended_margin is None:
+        raise RuntimeError(f"No usable margin component for game_id={game_id}")
+
+    travel_row = _stage1_lookup_row(travel_lookup, game_id)
+    travel_features, travel_margin_adjustment, travel_features_used = (
+        calculate_travel_adjustment(travel_row, margin_feature_coefficients)
+    )
+    game_kickoff_utc = schedule_kickoff_utc(sched_row)
+    home_out, home_doubtful, home_questionable, home_injury_penalty = (
+        injury_summary_for_game(
+            home_team,
+            game_kickoff_utc,
+            injury_lookup,
+            args.fresh_injury_days,
+        )
+    )
+    away_out, away_doubtful, away_questionable, away_injury_penalty = (
+        injury_summary_for_game(
+            away_team,
+            game_kickoff_utc,
+            injury_lookup,
+            args.fresh_injury_days,
+        )
+    )
+    injury_adjustment = away_injury_penalty - home_injury_penalty
+    predicted_margin_before_travel = blended_margin + injury_adjustment
+    predicted_margin = predicted_margin_before_travel + travel_margin_adjustment
+
+    prior_total = prior_total_estimate(
+        home_prior,
+        away_prior,
+        args.drives_per_team,
+    )
+    market_total = as_float(sched_row.get("total"))
+    predicted_total, total_weights = weighted_blend(
+        [
+            (market_total, args.market_total_weight),
+            (prior_total, max(0.0, 1.0 - args.market_total_weight)),
+        ]
+    )
+    if predicted_total is None:
+        raise RuntimeError(f"No usable total component for game_id={game_id}")
+
+    predicted_total_before_weather = float(predicted_total)
+    weather_row = _stage1_lookup_row(weather_lookup, game_id)
+    (
+        weather_features,
+        weather_exposed,
+        weather_total_adjustment,
+        weather_features_used,
+    ) = calculate_weather_adjustment(weather_row, total_feature_coefficients)
+    predicted_total = predicted_total_before_weather + weather_total_adjustment
+    predicted_total = max(predicted_total, abs(predicted_margin) + 2.0)
+    predicted_home_score = (predicted_total + predicted_margin) / 2.0
+    predicted_away_score = (predicted_total - predicted_margin) / 2.0
+    betting_probabilities = build_betting_probabilities(
+        predicted_margin=predicted_margin,
+        predicted_total=predicted_total,
+        home_spread=home_spread,
+        market_total=market_total,
+        margin_sd=float(args.margin_sd),
+        total_sd=float(args.total_sd),
+    )
+
+    rec: dict[str, object] = {
+        column: clean(sched_row.get(column)) for column in OUTPUT_BASE_COLUMNS
+    }
+    rec.update(
+        {
+            "neutral_site_original": int(original_neutral),
+            "neutral_site": int(effective_neutral),
+            "neutral_site_corrected": int(neutral_corrected),
+            "home_stadium_match": int(home_stadium_match),
+            "home_field_points": round(home_field, 4),
+            "home_team": home_team,
+            "away_team": away_team,
+            "home_team_id": resolver.team_id(home_team),
+            "away_team_id": resolver.team_id(away_team),
+            "home_prior_team_weeks": home_prior_team_weeks,
+            "away_prior_team_weeks": away_prior_team_weeks,
+            "home_prior_fallback": int(home_prior_fallback),
+            "away_prior_fallback": int(away_prior_fallback),
+            "home_prior_rating": round(float(home_prior["prior_rating"]), 4),
+            "away_prior_rating": round(float(away_prior["prior_rating"]), 4),
+            "prior_home_margin": _stage1_optional_round(prior_margin, 4),
+            "home_fpi": _stage1_optional_round(home_fpi, 4),
+            "away_fpi": _stage1_optional_round(away_fpi, 4),
+            "fpi_home_margin": _stage1_optional_round(fpi_margin, 4),
+            "espn_prediction_match_valid": int(espn_match_valid),
+            "espn_margin_consistent": int(espn_margin_consistent),
+            "espn_matchup_quality": _stage1_optional_round(espn_matchup_quality, 4),
+            "espn_home_prob": _stage1_optional_round(espn_home_prob, 6),
+            "espn_away_prob": _stage1_optional_round(espn_away_prob, 6),
+            "espn_tie_prob": _stage1_optional_round(espn_tie_prob, 6),
+            "espn_home_ptdiff": _stage1_optional_round(espn_home_ptdiff, 4),
+            "espn_away_ptdiff": _stage1_optional_round(espn_away_ptdiff, 4),
+            "espn_home_margin": _stage1_optional_round(espn_home_margin, 4),
+            "market_home_margin": _stage1_optional_round(market_margin, 4),
+            "margin_weight_market": round(margin_weights[0], 4),
+            "margin_weight_fpi": round(margin_weights[1], 4),
+            "margin_weight_espn": round(margin_weights[2], 4),
+            "margin_weight_prior": round(margin_weights[3], 4),
+            "home_out_count": home_out,
+            "home_doubtful_count": home_doubtful,
+            "home_questionable_count": home_questionable,
+            "away_out_count": away_out,
+            "away_doubtful_count": away_doubtful,
+            "away_questionable_count": away_questionable,
+            "home_injury_penalty": round(home_injury_penalty, 4),
+            "away_injury_penalty": round(away_injury_penalty, 4),
+            "injury_margin_adjustment": round(injury_adjustment, 4),
+            "travel_data_available": int(travel_row is not None),
+            "away_miles_traveled": _stage1_row_float(travel_row, "away_miles_traveled"),
+            "home_miles_traveled": _stage1_row_float(travel_row, "home_miles_traveled"),
+            "travel_net_miles_1000": travel_features.get("travel_net_miles_1000"),
+            "travel_net_time_zones": travel_features.get("travel_net_time_zones"),
+            "travel_net_east_to_west": travel_features.get("travel_net_east_to_west"),
+            "travel_net_west_to_east": travel_features.get("travel_net_west_to_east"),
+            "travel_international": travel_features.get("travel_international"),
+            "travel_features_used": travel_features_used,
+            "travel_margin_adjustment": round(travel_margin_adjustment, 4),
+            "predicted_margin_before_travel": round(predicted_margin_before_travel, 4),
+            "prior_total": _stage1_optional_round(prior_total, 4),
+            "market_total": _stage1_optional_round(market_total, 4),
+            "total_weight_market": round(total_weights[0], 4),
+            "total_weight_prior": round(total_weights[1], 4),
+            "weather_data_available": int(weather_row is not None),
+            "weather_exposed": int(weather_exposed),
+            "weather_temperature_c": weather_features.get("weather_temperature_c"),
+            "weather_wind_speed_ms": weather_features.get("weather_wind_speed_ms"),
+            "weather_wind_gust_ms": weather_features.get("weather_wind_gust_ms"),
+            "weather_humidity_pct": weather_features.get("weather_humidity_pct"),
+            "weather_rain_flag": weather_features.get("weather_rain_flag"),
+            "weather_snow_flag": weather_features.get("weather_snow_flag"),
+            "weather_features_used": weather_features_used,
+            "weather_total_adjustment": round(weather_total_adjustment, 4),
+            "predicted_total_before_weather": round(predicted_total_before_weather, 4),
+            "predicted_margin": round(predicted_margin, 2),
+            "predicted_total": round(predicted_total, 2),
+            "predicted_home_score": round(predicted_home_score, 2),
+            "predicted_away_score": round(predicted_away_score, 2),
+            "home_win_probability": round(betting_probabilities["home_win_probability"], 6),
+            "away_win_probability": round(betting_probabilities["away_win_probability"], 6),
+            "home_cover_probability": round(betting_probabilities["home_cover_probability"], 6),
+            "away_cover_probability": round(betting_probabilities["away_cover_probability"], 6),
+            "over_probability": round(betting_probabilities["over_probability"], 6),
+            "under_probability": round(betting_probabilities["under_probability"], 6),
+            "probability_margin_sd": round(float(args.margin_sd), 4),
+            "probability_total_sd": round(float(args.total_sd), 4),
+            "spread_probability_line_available": int(home_spread is not None),
+            "total_probability_line_available": int(market_total is not None),
+            "projection_version": SCRIPT_VERSION,
+        }
+    )
+    for metric in TEAM_METRICS:
+        rec[f"home_prior_{metric}"] = round(float(home_prior[metric]), 6)
+        rec[f"away_prior_{metric}"] = round(float(away_prior[metric]), 6)
+    return rec
+
+
 def build_projection(
     schedule: pd.DataFrame,
     prior: pd.DataFrame,
     fpi: pd.DataFrame,
     espn_predictions: pd.DataFrame,
     resolver: TeamResolver,
-    home_stadium_lookup: dict[
-        str,
-        set[str],
-    ],
-    injury_lookup: dict[
-        str,
-        pd.DataFrame,
-    ],
+    home_stadium_lookup: dict[str, set[str]],
+    injury_lookup: dict[str, pd.DataFrame],
     travel: pd.DataFrame,
     weather: pd.DataFrame,
-    travel_weather_coefficients: dict[
-        str,
-        dict[
-            str,
-            dict[
-                str,
-                float,
-            ],
-        ],
-    ],
+    travel_weather_coefficients: dict[str, dict[str, dict[str, float]]],
     args: argparse.Namespace,
 ) -> pd.DataFrame:
-    prior_lookup = prior.set_index(
-        "team",
-        drop=False,
-    )
-
-    fpi_lookup = (
-        fpi.set_index(
-            "team",
-            drop=False,
-        )
-        if not fpi.empty
-        else None
-    )
-
+    prior_lookup = prior.set_index("team", drop=False)
+    fpi_lookup = fpi.set_index("team", drop=False) if not fpi.empty else None
     espn_lookup = (
-        espn_predictions.set_index(
-            "game_id",
-            drop=False,
-        )
+        espn_predictions.set_index("game_id", drop=False)
         if not espn_predictions.empty
         else None
     )
+    travel_lookup = travel.set_index("game_id", drop=False) if not travel.empty else None
+    weather_lookup = weather.set_index("game_id", drop=False) if not weather.empty else None
+    margin_feature_coefficients = travel_weather_coefficients.get("margin", {})
+    total_feature_coefficients = travel_weather_coefficients.get("total", {})
+    fallback_prior = prior.mean(numeric_only=True)
+    fallback_prior["prior_team_weeks"] = 0
+    fallback_prior["prior_rating"] = 0.0
 
-    travel_lookup = (
-        travel.set_index(
-            "game_id",
-            drop=False,
-        )
-        if not travel.empty
-        else None
-    )
-
-    weather_lookup = (
-        weather.set_index(
-            "game_id",
-            drop=False,
-        )
-        if not weather.empty
-        else None
-    )
-
-    margin_feature_coefficients = (
-        travel_weather_coefficients.get(
-            "margin",
-            {},
-        )
-    )
-
-    total_feature_coefficients = (
-        travel_weather_coefficients.get(
-            "total",
-            {},
-        )
-    )
-
-    output_rows: list[
-        dict[
-            str,
-            object,
-        ]
-    ] = []
-
-    fallback_prior = prior.mean(
-        numeric_only=True
-    )
-
-    fallback_prior[
-        "prior_team_weeks"
-    ] = 0
-
-    fallback_prior[
-        "prior_rating"
-    ] = 0.0
-
-    for _, sched_row in schedule.iterrows():
-        game_id = normalize_game_id(
-            sched_row.get(
-                "game_id"
-            )
-        )
-
-        home_team = resolver.resolve(
-            sched_row.get(
-                "home_team"
-            )
-        )
-
-        away_team = resolver.resolve(
-            sched_row.get(
-                "away_team"
-            )
-        )
-
-        if home_team in prior_lookup.index:
-            home_source_prior = prior_lookup.loc[
-                home_team
-            ]
-
-            home_prior_team_weeks = int(
-                home_source_prior[
-                    "prior_team_weeks"
-                ]
-            )
-
-        else:
-            home_source_prior = None
-            home_prior_team_weeks = 0
-
-        if away_team in prior_lookup.index:
-            away_source_prior = prior_lookup.loc[
-                away_team
-            ]
-
-            away_prior_team_weeks = int(
-                away_source_prior[
-                    "prior_team_weeks"
-                ]
-            )
-
-        else:
-            away_source_prior = None
-            away_prior_team_weeks = 0
-
-        home_prior_fallback = (
-            home_source_prior is None
-            or home_prior_team_weeks
-            < MIN_PRIOR_TEAM_WEEKS
-        )
-
-        away_prior_fallback = (
-            away_source_prior is None
-            or away_prior_team_weeks
-            < MIN_PRIOR_TEAM_WEEKS
-        )
-
-        home_prior = (
-            fallback_prior
-            if home_prior_fallback
-            else home_source_prior
-        )
-
-        away_prior = (
-            fallback_prior
-            if away_prior_fallback
-            else away_source_prior
-        )
-
-        (
-            original_neutral,
-            effective_neutral,
-            neutral_corrected,
-            home_stadium_match,
-        ) = resolve_neutral_site(
+    output_rows = [
+        _stage1_project_game(
             sched_row,
-            home_team,
-            home_stadium_lookup,
+            prior_lookup=prior_lookup,
+            fallback_prior=fallback_prior,
+            fpi_lookup=fpi_lookup,
+            espn_lookup=espn_lookup,
+            travel_lookup=travel_lookup,
+            weather_lookup=weather_lookup,
+            resolver=resolver,
+            home_stadium_lookup=home_stadium_lookup,
+            injury_lookup=injury_lookup,
+            margin_feature_coefficients=margin_feature_coefficients,
+            total_feature_coefficients=total_feature_coefficients,
+            args=args,
         )
-
-        home_field = (
-            0.0
-            if effective_neutral
-            else float(
-                args.home_field
-            )
-        )
-
-        if (
-            home_prior_fallback
-            or away_prior_fallback
-        ):
-            prior_margin = None
-
-        else:
-            prior_margin = (
-                float(
-                    home_prior[
-                        "prior_rating"
-                    ]
-                )
-                - float(
-                    away_prior[
-                        "prior_rating"
-                    ]
-                )
-                + home_field
-            )
-
-        home_fpi = None
-        away_fpi = None
-
-        if fpi_lookup is not None:
-            if home_team in fpi_lookup.index:
-                home_fpi = as_float(
-                    fpi_lookup.loc[
-                        home_team
-                    ].get(
-                        "fpi"
-                    )
-                )
-
-            if away_team in fpi_lookup.index:
-                away_fpi = as_float(
-                    fpi_lookup.loc[
-                        away_team
-                    ].get(
-                        "fpi"
-                    )
-                )
-
-        fpi_margin = None
-
-        if (
-            home_fpi is not None
-            and away_fpi is not None
-        ):
-            fpi_margin = (
-                home_fpi
-                - away_fpi
-                + home_field
-            )
-
-        home_spread = as_float(
-            sched_row.get(
-                "home_spread"
-            )
-        )
-
-        market_margin = (
-            -home_spread
-            if home_spread is not None
-            else None
-        )
-
-        espn_match_valid = False
-        espn_margin_consistent = False
-        espn_home_margin = None
-        espn_home_ptdiff = None
-        espn_away_ptdiff = None
-        espn_home_prob = None
-        espn_away_prob = None
-        espn_tie_prob = None
-        espn_matchup_quality = None
-
-        if (
-            espn_lookup is not None
-            and game_id in espn_lookup.index
-        ):
-            espn_row = espn_lookup.loc[
-                game_id
-            ]
-
-            espn_home_team = resolver.resolve(
-                espn_row.get(
-                    "home_team"
-                )
-            )
-
-            espn_away_team = resolver.resolve(
-                espn_row.get(
-                    "away_team"
-                )
-            )
-
-            espn_match_valid = (
-                espn_home_team
-                == home_team
-                and espn_away_team
-                == away_team
-            )
-
-            espn_home_ptdiff = as_float(
-                espn_row.get(
-                    "home_PtDiff"
-                )
-            )
-
-            espn_away_ptdiff = as_float(
-                espn_row.get(
-                    "away_PtDiff"
-                )
-            )
-
-            espn_home_prob = as_float(
-                espn_row.get(
-                    "home_prob"
-                )
-            )
-
-            espn_away_prob = as_float(
-                espn_row.get(
-                    "away_prob"
-                )
-            )
-
-            espn_tie_prob = as_float(
-                espn_row.get(
-                    "tie_prob"
-                )
-            )
-
-            espn_matchup_quality = as_float(
-                espn_row.get(
-                    "matchupQuality"
-                )
-            )
-
-            if espn_home_ptdiff is not None:
-                if espn_away_ptdiff is None:
-                    espn_margin_consistent = True
-
-                else:
-                    espn_margin_consistent = (
-                        abs(
-                            espn_home_ptdiff
-                            + espn_away_ptdiff
-                        )
-                        <= ESPN_MARGIN_SYMMETRY_TOLERANCE
-                    )
-
-            if (
-                espn_match_valid
-                and espn_margin_consistent
-            ):
-                espn_home_margin = (
-                    espn_home_ptdiff
-                )
-
-        (
-            blended_margin,
-            margin_weights,
-        ) = weighted_blend(
-            [
-                (
-                    market_margin,
-                    args.market_margin_weight,
-                ),
-                (
-                    fpi_margin,
-                    args.fpi_margin_weight,
-                ),
-                (
-                    espn_home_margin,
-                    args.espn_margin_weight,
-                ),
-                (
-                    prior_margin,
-                    args.prior_margin_weight,
-                ),
-            ]
-        )
-
-        if blended_margin is None:
-            raise RuntimeError(
-                "No usable margin component "
-                f"for game_id={game_id}"
-            )
-
-        travel_row = (
-            travel_lookup.loc[
-                game_id
-            ]
-            if (
-                travel_lookup is not None
-                and game_id in travel_lookup.index
-            )
-            else None
-        )
-
-        (
-            travel_features,
-            travel_margin_adjustment,
-            travel_features_used,
-        ) = calculate_travel_adjustment(
-            travel_row,
-            margin_feature_coefficients,
-        )
-
-        game_kickoff_utc = schedule_kickoff_utc(
-            sched_row
-        )
-
-        (
-            home_out,
-            home_doubtful,
-            home_questionable,
-            home_injury_penalty,
-        ) = injury_summary_for_game(
-            home_team,
-            game_kickoff_utc,
-            injury_lookup,
-            args.fresh_injury_days,
-        )
-
-        (
-            away_out,
-            away_doubtful,
-            away_questionable,
-            away_injury_penalty,
-        ) = injury_summary_for_game(
-            away_team,
-            game_kickoff_utc,
-            injury_lookup,
-            args.fresh_injury_days,
-        )
-
-        injury_adjustment = (
-            away_injury_penalty
-            - home_injury_penalty
-        )
-
-        predicted_margin_before_travel = (
-            blended_margin
-            + injury_adjustment
-        )
-
-        predicted_margin = (
-            predicted_margin_before_travel
-            + travel_margin_adjustment
-        )
-
-        prior_total = prior_total_estimate(
-            home_prior,
-            away_prior,
-            args.drives_per_team,
-        )
-
-        market_total = as_float(
-            sched_row.get(
-                "total"
-            )
-        )
-
-        (
-            predicted_total,
-            total_weights,
-        ) = weighted_blend(
-            [
-                (
-                    market_total,
-                    args.market_total_weight,
-                ),
-                (
-                    prior_total,
-                    max(
-                        0.0,
-                        1.0
-                        - args.market_total_weight,
-                    ),
-                ),
-            ]
-        )
-
-        if predicted_total is None:
-            raise RuntimeError(
-                "No usable total component "
-                f"for game_id={game_id}"
-            )
-
-        predicted_total_before_weather = float(
-            predicted_total
-        )
-
-        weather_row = (
-            weather_lookup.loc[
-                game_id
-            ]
-            if (
-                weather_lookup is not None
-                and game_id in weather_lookup.index
-            )
-            else None
-        )
-
-        (
-            weather_features,
-            weather_exposed,
-            weather_total_adjustment,
-            weather_features_used,
-        ) = calculate_weather_adjustment(
-            weather_row,
-            total_feature_coefficients,
-        )
-
-        predicted_total = (
-            predicted_total_before_weather
-            + weather_total_adjustment
-        )
-
-        predicted_total = max(
-            predicted_total,
-            abs(
-                predicted_margin
-            )
-            + 2.0,
-        )
-
-        predicted_home_score = (
-            predicted_total
-            + predicted_margin
-        ) / 2.0
-
-        predicted_away_score = (
-            predicted_total
-            - predicted_margin
-        ) / 2.0
-
-        betting_probabilities = (
-            build_betting_probabilities(
-                predicted_margin=
-                    predicted_margin,
-                predicted_total=
-                    predicted_total,
-                home_spread=
-                    home_spread,
-                market_total=
-                    market_total,
-                margin_sd=float(
-                    args.margin_sd
-                ),
-                total_sd=float(
-                    args.total_sd
-                ),
-            )
-        )
-
-        rec: dict[
-            str,
-            object,
-        ] = {
-            column:
-                clean(
-                    sched_row.get(
-                        column
-                    )
-                )
-            for column
-            in OUTPUT_BASE_COLUMNS
-        }
-
-        rec.update(
-            {
-                "neutral_site_original":
-                    int(
-                        original_neutral
-                    ),
-
-                "neutral_site":
-                    int(
-                        effective_neutral
-                    ),
-
-                "neutral_site_corrected":
-                    int(
-                        neutral_corrected
-                    ),
-
-                "home_stadium_match":
-                    int(
-                        home_stadium_match
-                    ),
-
-                "home_field_points":
-                    round(
-                        home_field,
-                        4,
-                    ),
-
-                "home_team":
-                    home_team,
-
-                "away_team":
-                    away_team,
-
-                "home_team_id":
-                    resolver.team_id(
-                        home_team
-                    ),
-
-                "away_team_id":
-                    resolver.team_id(
-                        away_team
-                    ),
-
-                "home_prior_team_weeks":
-                    home_prior_team_weeks,
-
-                "away_prior_team_weeks":
-                    away_prior_team_weeks,
-
-                "home_prior_fallback":
-                    int(
-                        home_prior_fallback
-                    ),
-
-                "away_prior_fallback":
-                    int(
-                        away_prior_fallback
-                    ),
-
-                "home_prior_rating":
-                    round(
-                        float(
-                            home_prior[
-                                "prior_rating"
-                            ]
-                        ),
-                        4,
-                    ),
-
-                "away_prior_rating":
-                    round(
-                        float(
-                            away_prior[
-                                "prior_rating"
-                            ]
-                        ),
-                        4,
-                    ),
-
-                "prior_home_margin":
-                    (
-                        None
-                        if prior_margin is None
-                        else round(
-                            prior_margin,
-                            4,
-                        )
-                    ),
-
-                "home_fpi":
-                    (
-                        None
-                        if home_fpi is None
-                        else round(
-                            home_fpi,
-                            4,
-                        )
-                    ),
-
-                "away_fpi":
-                    (
-                        None
-                        if away_fpi is None
-                        else round(
-                            away_fpi,
-                            4,
-                        )
-                    ),
-
-                "fpi_home_margin":
-                    (
-                        None
-                        if fpi_margin is None
-                        else round(
-                            fpi_margin,
-                            4,
-                        )
-                    ),
-
-                "espn_prediction_match_valid":
-                    int(
-                        espn_match_valid
-                    ),
-
-                "espn_margin_consistent":
-                    int(
-                        espn_margin_consistent
-                    ),
-
-                "espn_matchup_quality":
-                    (
-                        None
-                        if espn_matchup_quality is None
-                        else round(
-                            espn_matchup_quality,
-                            4,
-                        )
-                    ),
-
-                "espn_home_prob":
-                    (
-                        None
-                        if espn_home_prob is None
-                        else round(
-                            espn_home_prob,
-                            6,
-                        )
-                    ),
-
-                "espn_away_prob":
-                    (
-                        None
-                        if espn_away_prob is None
-                        else round(
-                            espn_away_prob,
-                            6,
-                        )
-                    ),
-
-                "espn_tie_prob":
-                    (
-                        None
-                        if espn_tie_prob is None
-                        else round(
-                            espn_tie_prob,
-                            6,
-                        )
-                    ),
-
-                "espn_home_ptdiff":
-                    (
-                        None
-                        if espn_home_ptdiff is None
-                        else round(
-                            espn_home_ptdiff,
-                            4,
-                        )
-                    ),
-
-                "espn_away_ptdiff":
-                    (
-                        None
-                        if espn_away_ptdiff is None
-                        else round(
-                            espn_away_ptdiff,
-                            4,
-                        )
-                    ),
-
-                "espn_home_margin":
-                    (
-                        None
-                        if espn_home_margin is None
-                        else round(
-                            espn_home_margin,
-                            4,
-                        )
-                    ),
-
-                "market_home_margin":
-                    (
-                        None
-                        if market_margin is None
-                        else round(
-                            market_margin,
-                            4,
-                        )
-                    ),
-
-                "margin_weight_market":
-                    round(
-                        margin_weights[
-                            0
-                        ],
-                        4,
-                    ),
-
-                "margin_weight_fpi":
-                    round(
-                        margin_weights[
-                            1
-                        ],
-                        4,
-                    ),
-
-                "margin_weight_espn":
-                    round(
-                        margin_weights[
-                            2
-                        ],
-                        4,
-                    ),
-
-                "margin_weight_prior":
-                    round(
-                        margin_weights[
-                            3
-                        ],
-                        4,
-                    ),
-
-                "home_out_count":
-                    home_out,
-
-                "home_doubtful_count":
-                    home_doubtful,
-
-                "home_questionable_count":
-                    home_questionable,
-
-                "away_out_count":
-                    away_out,
-
-                "away_doubtful_count":
-                    away_doubtful,
-
-                "away_questionable_count":
-                    away_questionable,
-
-                "home_injury_penalty":
-                    round(
-                        home_injury_penalty,
-                        4,
-                    ),
-
-                "away_injury_penalty":
-                    round(
-                        away_injury_penalty,
-                        4,
-                    ),
-
-                "injury_margin_adjustment":
-                    round(
-                        injury_adjustment,
-                        4,
-                    ),
-
-                "travel_data_available":
-                    int(
-                        travel_row is not None
-                    ),
-
-                "away_miles_traveled":
-                    (
-                        None
-                        if travel_row is None
-                        else as_float(
-                            travel_row.get(
-                                "away_miles_traveled"
-                            )
-                        )
-                    ),
-
-                "home_miles_traveled":
-                    (
-                        None
-                        if travel_row is None
-                        else as_float(
-                            travel_row.get(
-                                "home_miles_traveled"
-                            )
-                        )
-                    ),
-
-                "travel_net_miles_1000":
-                    travel_features.get(
-                        "travel_net_miles_1000"
-                    ),
-
-                "travel_net_time_zones":
-                    travel_features.get(
-                        "travel_net_time_zones"
-                    ),
-
-                "travel_net_east_to_west":
-                    travel_features.get(
-                        "travel_net_east_to_west"
-                    ),
-
-                "travel_net_west_to_east":
-                    travel_features.get(
-                        "travel_net_west_to_east"
-                    ),
-
-                "travel_international":
-                    travel_features.get(
-                        "travel_international"
-                    ),
-
-                "travel_features_used":
-                    travel_features_used,
-
-                "travel_margin_adjustment":
-                    round(
-                        travel_margin_adjustment,
-                        4,
-                    ),
-
-                "predicted_margin_before_travel":
-                    round(
-                        predicted_margin_before_travel,
-                        4,
-                    ),
-
-                "prior_total":
-                    (
-                        None
-                        if prior_total is None
-                        else round(
-                            prior_total,
-                            4,
-                        )
-                    ),
-
-                "market_total":
-                    (
-                        None
-                        if market_total is None
-                        else round(
-                            market_total,
-                            4,
-                        )
-                    ),
-
-                "total_weight_market":
-                    round(
-                        total_weights[
-                            0
-                        ],
-                        4,
-                    ),
-
-                "total_weight_prior":
-                    round(
-                        total_weights[
-                            1
-                        ],
-                        4,
-                    ),
-
-                "weather_data_available":
-                    int(
-                        weather_row is not None
-                    ),
-
-                "weather_exposed":
-                    int(
-                        weather_exposed
-                    ),
-
-                "weather_temperature_c":
-                    weather_features.get(
-                        "weather_temperature_c"
-                    ),
-
-                "weather_wind_speed_ms":
-                    weather_features.get(
-                        "weather_wind_speed_ms"
-                    ),
-
-                "weather_wind_gust_ms":
-                    weather_features.get(
-                        "weather_wind_gust_ms"
-                    ),
-
-                "weather_humidity_pct":
-                    weather_features.get(
-                        "weather_humidity_pct"
-                    ),
-
-                "weather_rain_flag":
-                    weather_features.get(
-                        "weather_rain_flag"
-                    ),
-
-                "weather_snow_flag":
-                    weather_features.get(
-                        "weather_snow_flag"
-                    ),
-
-                "weather_features_used":
-                    weather_features_used,
-
-                "weather_total_adjustment":
-                    round(
-                        weather_total_adjustment,
-                        4,
-                    ),
-
-                "predicted_total_before_weather":
-                    round(
-                        predicted_total_before_weather,
-                        4,
-                    ),
-
-                "predicted_margin":
-                    round(
-                        predicted_margin,
-                        2,
-                    ),
-
-                "predicted_total":
-                    round(
-                        predicted_total,
-                        2,
-                    ),
-
-                "predicted_home_score":
-                    round(
-                        predicted_home_score,
-                        2,
-                    ),
-
-                "predicted_away_score":
-                    round(
-                        predicted_away_score,
-                        2,
-                    ),
-
-                "home_win_probability":
-                    round(
-                        betting_probabilities[
-                            "home_win_probability"
-                        ],
-                        6,
-                    ),
-
-                "away_win_probability":
-                    round(
-                        betting_probabilities[
-                            "away_win_probability"
-                        ],
-                        6,
-                    ),
-
-                "home_cover_probability":
-                    round(
-                        betting_probabilities[
-                            "home_cover_probability"
-                        ],
-                        6,
-                    ),
-
-                "away_cover_probability":
-                    round(
-                        betting_probabilities[
-                            "away_cover_probability"
-                        ],
-                        6,
-                    ),
-
-                "over_probability":
-                    round(
-                        betting_probabilities[
-                            "over_probability"
-                        ],
-                        6,
-                    ),
-
-                "under_probability":
-                    round(
-                        betting_probabilities[
-                            "under_probability"
-                        ],
-                        6,
-                    ),
-
-                "probability_margin_sd":
-                    round(
-                        float(
-                            args.margin_sd
-                        ),
-                        4,
-                    ),
-
-                "probability_total_sd":
-                    round(
-                        float(
-                            args.total_sd
-                        ),
-                        4,
-                    ),
-
-                "spread_probability_line_available":
-                    int(
-                        home_spread is not None
-                    ),
-
-                "total_probability_line_available":
-                    int(
-                        market_total is not None
-                    ),
-
-                "projection_version":
-                    SCRIPT_VERSION,
-            }
-        )
-
-        for metric in TEAM_METRICS:
-            rec[
-                f"home_prior_{metric}"
-            ] = round(
-                float(
-                    home_prior[
-                        metric
-                    ]
-                ),
-                6,
-            )
-
-            rec[
-                f"away_prior_{metric}"
-            ] = round(
-                float(
-                    away_prior[
-                        metric
-                    ]
-                ),
-                6,
-            )
-
-        output_rows.append(
-            rec
-        )
-
-    result = pd.DataFrame(
-        output_rows
-    )
-
+        for _, sched_row in schedule.iterrows()
+    ]
+    result = pd.DataFrame(output_rows)
     if result.empty:
-        raise RuntimeError(
-            "No Week 1 games could be projected."
-        )
-
-    if result[
-        "game_id"
-    ].duplicated().any():
+        raise RuntimeError("No Week 1 games could be projected.")
+    if result["game_id"].duplicated().any():
         duplicates = result.loc[
-            result[
-                "game_id"
-            ].duplicated(
-                keep=False
-            ),
+            result["game_id"].duplicated(keep=False),
             "game_id",
         ].tolist()
-
         raise ValueError(
-            "Duplicate game_id values in output: "
-            f"{duplicates[:10]}"
+            f"Duplicate game_id values in output: {duplicates[:10]}"
         )
-
-    validate_probability_output(
-        result
-    )
-
+    validate_probability_output(result)
     return result
+
 
 
 def validate_args(
@@ -4536,7 +3419,6 @@ def _main_impl() -> None:
         build_injury_lookup(
             injuries_path,
             resolver,
-            args.fresh_injury_days,
         )
     )
 
@@ -4918,7 +3800,7 @@ def main() -> int:
             }
         )
 
-        result = _main_impl()
+        _main_impl()
 
         if not report_args.dry_run:
             if not output_path.is_file():
@@ -4957,13 +3839,7 @@ def main() -> int:
                 }
             )
 
-        return (
-            0
-            if result is None
-            else int(
-                result
-            )
-        )
+        return 0
 
 
 if __name__ == "__main__":

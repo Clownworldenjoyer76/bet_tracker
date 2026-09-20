@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
-from urllib.request import Request, urlopen
+from urllib.request import Request
 
 import yaml
 
@@ -25,6 +25,7 @@ CFB_ROOT = SCRIPT_PATH.parents[2]
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
+from http_security import open_https
 from pipeline_reporter import PipelineReporter
 
 CURRENT_WEEK_CONFIG_PATH = CFB_ROOT / "config" / "current_week.yaml"
@@ -36,6 +37,7 @@ ESPN_BASE = (
     "https://sports.core.api.espn.com/v2/sports/football/"
     "leagues/college-football"
 )
+ESPN_CORE_HOST = "sports.core.api.espn.com"
 SCRIPT_VERSION = "cfb-opening-odds-v2-2026-09-15"
 
 LEGACY_OUTPUT_COLUMNS = [
@@ -450,8 +452,9 @@ def http_get_json(
     )
 
     try:
-        with urlopen(
+        with open_https(
             request,
+            allowed_hosts={ESPN_CORE_HOST},
             timeout=45,
         ) as response:
             status = response.status
@@ -693,12 +696,12 @@ def fetch_ref(
     label: str,
 ) -> dict:
     if ref.startswith(
-        "http://"
+        "http://sports.core.api.espn.com/"
     ):
         ref = (
-            "https://"
+            "https://sports.core.api.espn.com/"
             + ref[
-                len("http://"):
+                len("http://sports.core.api.espn.com/"):
             ]
         )
 
@@ -1195,14 +1198,12 @@ def infer_opening_favorite(
         and away_ml is not None
     ):
         if (
-            home_ml < 0
-            and away_ml > 0
+            home_ml < 0 < away_ml
         ):
             return "home"
 
         if (
-            away_ml < 0
-            and home_ml > 0
+            away_ml < 0 < home_ml
         ):
             return "away"
 
@@ -2103,6 +2104,83 @@ def expected_movement(
     return ""
 
 
+
+def _validate_opener_row_identity(
+    *,
+    game_id: str,
+    provider_game_id: str,
+    market_type: str,
+    bet_side: str,
+    status: str,
+    index: int,
+    label: str,
+) -> None:
+    if not game_id:
+        raise ValueError(
+            f"{label} row {index} "
+            "has blank game_id"
+        )
+
+    if provider_game_id != game_id:
+        raise ValueError(
+            f"{label} row {index} "
+            "provider game ID mismatch: "
+            f"game_id={game_id}, "
+            "odds_provider_game_id="
+            f"{provider_game_id!r}"
+        )
+
+    if market_type not in VALID_MARKET_SIDES:
+        raise ValueError(
+            f"{label} row {index} "
+            "has invalid market_type="
+            f"{market_type!r}"
+        )
+
+    if bet_side not in VALID_MARKET_SIDES[market_type]:
+        raise ValueError(
+            f"{label} row {index} "
+            "has invalid bet_side="
+            f"{bet_side!r} for "
+            f"{market_type}"
+        )
+
+    if status not in VALID_STATUSES:
+        raise ValueError(
+            f"{label} row {index} "
+            "has invalid opener_status="
+            f"{status!r}"
+        )
+
+
+def _validate_opener_row_status(
+    *,
+    status: str,
+    has_opening: bool,
+    bookmaker: str,
+    index: int,
+    label: str,
+) -> None:
+    if status == "ok" and not has_opening:
+        raise ValueError(
+            f"{label} row {index} "
+            "status=ok without opening value"
+        )
+
+    if has_opening and status != "ok":
+        raise ValueError(
+            f"{label} row {index} "
+            "has opening value but "
+            f"status={status!r}"
+        )
+
+    if status == "ok" and not bookmaker:
+        raise ValueError(
+            f"{label} row {index} "
+            "status=ok with blank bookmaker"
+        )
+
+
 def validate_opener_row(
     row: dict[str, str],
     index: int,
@@ -2143,50 +2221,15 @@ def validate_opener_row(
         )
     ).strip()
 
-    if not game_id:
-        raise ValueError(
-            f"{label} row {index} "
-            "has blank game_id"
-        )
-
-    if provider_game_id != game_id:
-        raise ValueError(
-            f"{label} row {index} "
-            "provider game ID mismatch: "
-            f"game_id={game_id}, "
-            "odds_provider_game_id="
-            f"{provider_game_id!r}"
-        )
-
-    if (
-        market_type
-        not in VALID_MARKET_SIDES
-    ):
-        raise ValueError(
-            f"{label} row {index} "
-            "has invalid market_type="
-            f"{market_type!r}"
-        )
-
-    if (
-        bet_side
-        not in VALID_MARKET_SIDES[
-            market_type
-        ]
-    ):
-        raise ValueError(
-            f"{label} row {index} "
-            "has invalid bet_side="
-            f"{bet_side!r} for "
-            f"{market_type}"
-        )
-
-    if status not in VALID_STATUSES:
-        raise ValueError(
-            f"{label} row {index} "
-            "has invalid opener_status="
-            f"{status!r}"
-        )
+    _validate_opener_row_identity(
+        game_id=game_id,
+        provider_game_id=provider_game_id,
+        market_type=market_type,
+        bet_side=bet_side,
+        status=status,
+        index=index,
+        label=label,
+    )
 
     bookmaker = canonical_bookmaker(
         row.get(
@@ -2282,33 +2325,13 @@ def validate_opener_row(
         )
     )
 
-    if (
-        status == "ok"
-        and not has_opening
-    ):
-        raise ValueError(
-            f"{label} row {index} "
-            "status=ok without opening value"
-        )
-
-    if (
-        has_opening
-        and status != "ok"
-    ):
-        raise ValueError(
-            f"{label} row {index} "
-            "has opening value but "
-            f"status={status!r}"
-        )
-
-    if (
-        status == "ok"
-        and not bookmaker
-    ):
-        raise ValueError(
-            f"{label} row {index} "
-            "status=ok with blank bookmaker"
-        )
+    _validate_opener_row_status(
+        status=status,
+        has_opening=has_opening,
+        bookmaker=bookmaker,
+        index=index,
+        label=label,
+    )
 
     expected = expected_movement(
         row
@@ -2985,6 +3008,47 @@ def write_csv_atomic(
             pass
 
 
+
+def _count_blank_provider_timestamps(
+    final_rows: list[dict[str, str]],
+) -> int:
+    return sum(
+        1
+        for row in final_rows
+        if (
+            row_has_required_opening(row)
+            and not str(
+                row.get(
+                    "opening_timestamp",
+                    "",
+                )
+            ).strip()
+        )
+    )
+
+
+def _raise_if_opening_fetch_failed(
+    hard_failures: list[dict[str, object]],
+) -> None:
+    if hard_failures:
+        raise RuntimeError(
+            "One or more ESPN "
+            "opening-odds requests failed; "
+            "refusing to modify opener history. "
+            f"failures={len(hard_failures)}"
+        )
+
+
+def _add_existing_opener_output_input(
+    report: PipelineReporter,
+    output_path: Path,
+) -> None:
+    if output_path.exists():
+        report.add_input(
+            output_path
+        )
+
+
 def main() -> int:
     with PipelineReporter(
         script=__file__,
@@ -3054,10 +3118,10 @@ def main() -> int:
             / f"{season}_CFB_openers.csv"
         )
 
-        if output_path.exists():
-            report.add_input(
-                output_path
-            )
+        _add_existing_opener_output_input(
+            report,
+            output_path,
+        )
 
         report.add_output(
             output_path
@@ -3119,13 +3183,9 @@ def main() -> int:
             }
         )
 
-        if hard_failures:
-            raise RuntimeError(
-                "One or more ESPN "
-                "opening-odds requests failed; "
-                "refusing to modify opener history. "
-                f"failures={len(hard_failures)}"
-            )
+        _raise_if_opening_fetch_failed(
+            hard_failures
+        )
 
         validate_new_coverage(
             weekly_rows,
@@ -3170,18 +3230,10 @@ def main() -> int:
             ] == "error"
         )
 
-        blank_provider_timestamps = sum(
-            1
-            for row in final_rows
-            if row_has_required_opening(
-                row
+        blank_provider_timestamps = (
+            _count_blank_provider_timestamps(
+                final_rows
             )
-            and not str(
-                row.get(
-                    "opening_timestamp",
-                    "",
-                )
-            ).strip()
         )
 
         blank_capture_provenance = sum(

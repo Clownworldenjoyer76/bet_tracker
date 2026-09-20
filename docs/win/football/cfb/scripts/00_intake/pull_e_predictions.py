@@ -32,9 +32,10 @@ import re
 import sys
 import urllib.parse
 import uuid
+from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.request import Request
 
 import yaml
 
@@ -46,6 +47,7 @@ CFB_ROOT = SCRIPT_PATH.parents[2]
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
+from http_security import open_https
 from pipeline_reporter import PipelineReporter
 
 
@@ -124,16 +126,20 @@ UNRESOLVED_TEAM_NAMES = {
     "to be determined",
 }
 
-_REQUEST_COUNT = 0
-_REQUEST_SUCCESS_COUNT = 0
-_REQUEST_FAILURES: list[dict[str, object]] = []
-
-_PREDICTOR_RESPONSE_COUNT = 0
-_COMPLETE_GAME_COUNT = 0
-_INCOMPLETE_DETAILS: list[dict[str, object]] = []
-
-_DUPLICATE_GAME_SIDE_COUNT = 0
-_DUPLICATE_STAT_NAME_COUNT = 0
+@dataclass
+class RuntimeState:
+    request_count: int = 0
+    request_success_count: int = 0
+    request_failures: list[dict[str, object]] = field(
+        default_factory=list
+    )
+    predictor_response_count: int = 0
+    complete_game_count: int = 0
+    incomplete_details: list[dict[str, object]] = field(
+        default_factory=list
+    )
+    duplicate_game_side_count: int = 0
+    duplicate_stat_name_count: int = 0
 
 
 class PredictorValidationError(RuntimeError):
@@ -142,25 +148,6 @@ class PredictorValidationError(RuntimeError):
 
 class PredictorRequestError(RuntimeError):
     pass
-
-
-def reset_runtime_state() -> None:
-    global _REQUEST_COUNT
-    global _REQUEST_SUCCESS_COUNT
-    global _PREDICTOR_RESPONSE_COUNT
-    global _COMPLETE_GAME_COUNT
-    global _DUPLICATE_GAME_SIDE_COUNT
-    global _DUPLICATE_STAT_NAME_COUNT
-
-    _REQUEST_COUNT = 0
-    _REQUEST_SUCCESS_COUNT = 0
-    _PREDICTOR_RESPONSE_COUNT = 0
-    _COMPLETE_GAME_COUNT = 0
-    _DUPLICATE_GAME_SIDE_COUNT = 0
-    _DUPLICATE_STAT_NAME_COUNT = 0
-
-    _REQUEST_FAILURES.clear()
-    _INCOMPLETE_DETAILS.clear()
 
 
 def parse_positive_int(
@@ -379,6 +366,151 @@ def unresolved_team_name(
     ) in UNRESOLVED_TEAM_NAMES
 
 
+
+def _require_target_games_path(
+    path: Path,
+) -> None:
+    if not path.exists():
+        raise FileNotFoundError(
+            f"Target weekly schedule not found: {path}"
+        )
+
+
+def _load_target_game_rows(
+    reader: csv.DictReader,
+    games: dict[str, dict[str, str]],
+    *,
+    season: int,
+    season_type: int,
+    week: int,
+) -> None:
+    for line_number, row in enumerate(
+        reader,
+        start=2,
+    ):
+        if None in row:
+            raise PredictorValidationError(
+                "Malformed weekly-schedule row at "
+                f"CSV line {line_number}"
+            )
+
+        row_season = parse_positive_int(
+            row.get("season"),
+            label=(
+                "weekly schedule season at "
+                f"CSV line {line_number}"
+            ),
+        )
+
+        row_season_type = parse_positive_int(
+            row.get("season_type"),
+            label=(
+                "weekly schedule season_type at "
+                f"CSV line {line_number}"
+            ),
+        )
+
+        row_week = parse_positive_int(
+            row.get("week"),
+            label=(
+                "weekly schedule week at "
+                f"CSV line {line_number}"
+            ),
+        )
+
+        if (
+            row_season != season
+            or row_season_type != season_type
+            or row_week != week
+        ):
+            raise PredictorValidationError(
+                "Weekly schedule target mismatch at "
+                f"CSV line {line_number}: "
+                f"expected={season}/{season_type}/{week}, "
+                f"actual={row_season}/"
+                f"{row_season_type}/{row_week}"
+            )
+
+        game_id = parse_positive_int_text(
+            row.get("game_id"),
+            label=(
+                "weekly schedule game_id at "
+                f"CSV line {line_number}"
+            ),
+        )
+
+        if game_id in games:
+            raise PredictorValidationError(
+                "Duplicate target game_id in weekly schedule: "
+                f"{game_id}"
+            )
+
+        away_team = str(
+            row.get("away_team") or ""
+        ).strip()
+
+        home_team = str(
+            row.get("home_team") or ""
+        ).strip()
+
+        if not away_team:
+            raise PredictorValidationError(
+                "Blank away_team for "
+                f"game_id={game_id}"
+            )
+
+        if not home_team:
+            raise PredictorValidationError(
+                "Blank home_team for "
+                f"game_id={game_id}"
+            )
+
+        if unresolved_team_name(
+            away_team
+        ):
+            raise PredictorValidationError(
+                "Unresolved away_team for "
+                f"game_id={game_id}: {away_team!r}"
+            )
+
+        if unresolved_team_name(
+            home_team
+        ):
+            raise PredictorValidationError(
+                "Unresolved home_team for "
+                f"game_id={game_id}: {home_team!r}"
+            )
+
+        if (
+            normalize_name(away_team)
+            == normalize_name(home_team)
+        ):
+            raise PredictorValidationError(
+                "Weekly schedule has identical home/away "
+                f"team for game_id={game_id}"
+            )
+
+        games[game_id] = {
+            "season": str(season),
+            "season_type": str(
+                season_type
+            ),
+            "week": str(week),
+            "game_id": game_id,
+            "away_team": away_team,
+            "home_team": home_team,
+        }
+
+
+def _require_target_games(
+    games: dict[str, dict[str, str]],
+) -> None:
+    if not games:
+        raise PredictorValidationError(
+            "Target weekly schedule contains no games"
+        )
+
+
 def load_target_games(
     path: Path,
     *,
@@ -386,10 +518,7 @@ def load_target_games(
     season_type: int,
     week: int,
 ) -> dict[str, dict[str, str]]:
-    if not path.exists():
-        raise FileNotFoundError(
-            f"Target weekly schedule not found: {path}"
-        )
+    _require_target_games_path(path)
 
     with path.open(
         "r",
@@ -418,127 +547,15 @@ def load_target_games(
             dict[str, str],
         ] = {}
 
-        for line_number, row in enumerate(
+        _load_target_game_rows(
             reader,
-            start=2,
-        ):
-            if None in row:
-                raise PredictorValidationError(
-                    "Malformed weekly-schedule row at "
-                    f"CSV line {line_number}"
-                )
-
-            row_season = parse_positive_int(
-                row.get("season"),
-                label=(
-                    "weekly schedule season at "
-                    f"CSV line {line_number}"
-                ),
-            )
-
-            row_season_type = parse_positive_int(
-                row.get("season_type"),
-                label=(
-                    "weekly schedule season_type at "
-                    f"CSV line {line_number}"
-                ),
-            )
-
-            row_week = parse_positive_int(
-                row.get("week"),
-                label=(
-                    "weekly schedule week at "
-                    f"CSV line {line_number}"
-                ),
-            )
-
-            if (
-                row_season != season
-                or row_season_type != season_type
-                or row_week != week
-            ):
-                raise PredictorValidationError(
-                    "Weekly schedule target mismatch at "
-                    f"CSV line {line_number}: "
-                    f"expected={season}/{season_type}/{week}, "
-                    f"actual={row_season}/"
-                    f"{row_season_type}/{row_week}"
-                )
-
-            game_id = parse_positive_int_text(
-                row.get("game_id"),
-                label=(
-                    "weekly schedule game_id at "
-                    f"CSV line {line_number}"
-                ),
-            )
-
-            if game_id in games:
-                raise PredictorValidationError(
-                    "Duplicate target game_id in weekly schedule: "
-                    f"{game_id}"
-                )
-
-            away_team = str(
-                row.get("away_team") or ""
-            ).strip()
-
-            home_team = str(
-                row.get("home_team") or ""
-            ).strip()
-
-            if not away_team:
-                raise PredictorValidationError(
-                    "Blank away_team for "
-                    f"game_id={game_id}"
-                )
-
-            if not home_team:
-                raise PredictorValidationError(
-                    "Blank home_team for "
-                    f"game_id={game_id}"
-                )
-
-            if unresolved_team_name(
-                away_team
-            ):
-                raise PredictorValidationError(
-                    "Unresolved away_team for "
-                    f"game_id={game_id}: {away_team!r}"
-                )
-
-            if unresolved_team_name(
-                home_team
-            ):
-                raise PredictorValidationError(
-                    "Unresolved home_team for "
-                    f"game_id={game_id}: {home_team!r}"
-                )
-
-            if (
-                normalize_name(away_team)
-                == normalize_name(home_team)
-            ):
-                raise PredictorValidationError(
-                    "Weekly schedule has identical home/away "
-                    f"team for game_id={game_id}"
-                )
-
-            games[game_id] = {
-                "season": str(season),
-                "season_type": str(
-                    season_type
-                ),
-                "week": str(week),
-                "game_id": game_id,
-                "away_team": away_team,
-                "home_team": home_team,
-            }
-
-    if not games:
-        raise PredictorValidationError(
-            "Target weekly schedule contains no games"
+            games,
+            season=season,
+            season_type=season_type,
+            week=week,
         )
+
+    _require_target_games(games)
 
     return games
 
@@ -553,6 +570,7 @@ def predictor_url(
 
 def request_failure(
     *,
+    state: RuntimeState,
     game_id: str,
     url: str,
     error: str,
@@ -569,7 +587,7 @@ def request_failure(
             "http_status"
         ] = http_status
 
-    _REQUEST_FAILURES.append(
+    state.request_failures.append(
         detail
     )
 
@@ -581,11 +599,9 @@ def request_failure(
 def fetch_predictor(
     game_id: str,
     *,
+    state: RuntimeState,
     timeout: int = 20,
 ) -> dict:
-    global _REQUEST_COUNT
-    global _REQUEST_SUCCESS_COUNT
-    global _PREDICTOR_RESPONSE_COUNT
 
     url = predictor_url(
         game_id
@@ -603,7 +619,7 @@ def fetch_predictor(
             f"Unexpected predictor URL: {url!r}"
         )
 
-    _REQUEST_COUNT += 1
+    state.request_count += 1
 
     request = Request(
         url,
@@ -614,8 +630,9 @@ def fetch_predictor(
     )
 
     try:
-        with urlopen(
+        with open_https(
             request,
+            allowed_hosts={ESPN_CORE_HOST},
             timeout=timeout,
         ) as response:
             status = int(
@@ -642,6 +659,7 @@ def fetch_predictor(
             pass
 
         raise request_failure(
+            state=state,
             game_id=game_id,
             url=url,
             http_status=exc.code,
@@ -653,6 +671,7 @@ def fetch_predictor(
 
     except URLError as exc:
         raise request_failure(
+            state=state,
             game_id=game_id,
             url=url,
             error=str(exc),
@@ -660,6 +679,7 @@ def fetch_predictor(
 
     except Exception as exc:
         raise request_failure(
+            state=state,
             game_id=game_id,
             url=url,
             error=str(exc),
@@ -670,6 +690,7 @@ def fetch_predictor(
         or status >= 300
     ):
         raise request_failure(
+            state=state,
             game_id=game_id,
             url=url,
             http_status=status,
@@ -684,6 +705,7 @@ def fetch_predictor(
         )
     except Exception as exc:
         raise request_failure(
+            state=state,
             game_id=game_id,
             url=url,
             http_status=status,
@@ -697,6 +719,7 @@ def fetch_predictor(
         dict,
     ):
         raise request_failure(
+            state=state,
             game_id=game_id,
             url=url,
             http_status=status,
@@ -705,8 +728,8 @@ def fetch_predictor(
             ),
         )
 
-    _REQUEST_SUCCESS_COUNT += 1
-    _PREDICTOR_RESPONSE_COUNT += 1
+    state.request_success_count += 1
+    state.predictor_response_count += 1
 
     return payload
 
@@ -779,8 +802,8 @@ def parse_statistics(
     *,
     game_id: str,
     side: str,
+    state: RuntimeState,
 ) -> dict[str, str]:
-    global _DUPLICATE_STAT_NAME_COUNT
 
     statistics = side_data.get(
         "statistics"
@@ -829,7 +852,7 @@ def parse_statistics(
         )
 
         if name in stats:
-            _DUPLICATE_STAT_NAME_COUNT += 1
+            state.duplicate_stat_name_count += 1
 
             if stats[name] != value:
                 raise PredictorValidationError(
@@ -936,8 +959,8 @@ def validate_predictor_response(
     predictor: dict,
     *,
     target: dict[str, str],
+    state: RuntimeState,
 ) -> list[dict[str, str]]:
-    global _COMPLETE_GAME_COUNT
 
     game_id = target[
         "game_id"
@@ -1015,6 +1038,7 @@ def validate_predictor_response(
             side_data,
             game_id=game_id,
             side=side,
+            state=state,
         )
 
         row = {
@@ -1054,9 +1078,54 @@ def validate_predictor_response(
             f"for game_id={game_id}"
         )
 
-    _COMPLETE_GAME_COUNT += 1
+    state.complete_game_count += 1
 
     return rows
+
+
+
+def _validate_output_row_count(
+    rows: list[dict[str, str]],
+    expected_rows: int,
+) -> None:
+    if len(rows) != expected_rows:
+        raise PredictorValidationError(
+            "Predictor output row-count mismatch: "
+            f"expected={expected_rows}, actual={len(rows)}"
+        )
+
+
+def _validate_output_target_metadata(
+    *,
+    row_season: int,
+    row_type: int,
+    row_week: int,
+    season: int,
+    season_type: int,
+    week: int,
+    row_index: int,
+) -> None:
+    if (
+        row_season != season
+        or row_type != season_type
+        or row_week != week
+    ):
+        raise PredictorValidationError(
+            "Predictor output target metadata mismatch at "
+            f"row_index={row_index}"
+        )
+
+
+def _validate_output_game_coverage(
+    missing_ids: list[str],
+    foreign_ids: list[str],
+) -> None:
+    if missing_ids or foreign_ids:
+        raise PredictorValidationError(
+            "Predictor output game coverage mismatch: "
+            f"missing={missing_ids[:50]}, "
+            f"foreign={foreign_ids[:50]}"
+        )
 
 
 def validate_output_rows(
@@ -1066,19 +1135,18 @@ def validate_output_rows(
     season: int,
     season_type: int,
     week: int,
+    state: RuntimeState,
 ) -> None:
-    global _DUPLICATE_GAME_SIDE_COUNT
 
     expected_rows = (
         len(targets)
         * 2
     )
 
-    if len(rows) != expected_rows:
-        raise PredictorValidationError(
-            "Predictor output row-count mismatch: "
-            f"expected={expected_rows}, actual={len(rows)}"
-        )
+    _validate_output_row_count(
+        rows,
+        expected_rows,
+    )
 
     grouped: dict[
         str,
@@ -1120,15 +1188,15 @@ def validate_output_rows(
             ),
         )
 
-        if (
-            row_season != season
-            or row_type != season_type
-            or row_week != week
-        ):
-            raise PredictorValidationError(
-                "Predictor output target metadata mismatch at "
-                f"row_index={row_index}"
-            )
+        _validate_output_target_metadata(
+            row_season=row_season,
+            row_type=row_type,
+            row_week=row_week,
+            season=season,
+            season_type=season_type,
+            week=week,
+            row_index=row_index,
+        )
 
         game_id = parse_positive_int_text(
             row.get("game_id"),
@@ -1260,7 +1328,7 @@ def validate_output_rows(
         )
 
         if side in game_sides:
-            _DUPLICATE_GAME_SIDE_COUNT += 1
+            state.duplicate_game_side_count += 1
 
             raise PredictorValidationError(
                 "Duplicate predictor game/side row: "
@@ -1293,15 +1361,10 @@ def validate_output_rows(
         key=int,
     )
 
-    if (
-        missing_ids
-        or foreign_ids
-    ):
-        raise PredictorValidationError(
-            "Predictor output game coverage mismatch: "
-            f"missing={missing_ids[:50]}, "
-            f"foreign={foreign_ids[:50]}"
-        )
+    _validate_output_game_coverage(
+        missing_ids,
+        foreign_ids,
+    )
 
     for game_id, sides in (
         grouped.items()
@@ -1408,6 +1471,7 @@ def publish_atomic(
     season: int,
     season_type: int,
     week: int,
+    state: RuntimeState,
 ) -> bool:
     final_path.parent.mkdir(
         parents=True,
@@ -1448,14 +1512,15 @@ def publish_atomic(
             season=season,
             season_type=season_type,
             week=week,
+            state=state,
         )
 
-        if final_path.exists():
-            if (
-                final_path.read_bytes()
-                == temp_path.read_bytes()
-            ):
-                return False
+        if (
+            final_path.exists()
+            and final_path.read_bytes()
+            == temp_path.read_bytes()
+        ):
+            return False
 
         os.replace(
             temp_path,
@@ -1475,6 +1540,7 @@ def publish_atomic(
 
 def update_report(
     report: PipelineReporter,
+    state: RuntimeState,
     *,
     schedule_path: Path | None,
     final_path: Path | None,
@@ -1493,37 +1559,37 @@ def update_report(
             else ""
         ),
         "target_game_count": target_count,
-        "espn_request_count": _REQUEST_COUNT,
+        "espn_request_count": state.request_count,
         "espn_request_success_count": (
-            _REQUEST_SUCCESS_COUNT
+            state.request_success_count
         ),
         "espn_request_failure_count": len(
-            _REQUEST_FAILURES
+            state.request_failures
         ),
         "espn_request_failures": (
-            _REQUEST_FAILURES
+            state.request_failures
         ),
         "predictor_response_count": (
-            _PREDICTOR_RESPONSE_COUNT
+            state.predictor_response_count
         ),
         "complete_game_count": (
-            _COMPLETE_GAME_COUNT
+            state.complete_game_count
         ),
         "incomplete_predictor_count": len(
-            _INCOMPLETE_DETAILS
+            state.incomplete_details
         ),
         "incomplete_predictor_details": (
-            _INCOMPLETE_DETAILS
+            state.incomplete_details
         ),
         "raw_rows_expected": expected_rows,
         "raw_rows_produced": len(
             rows
         ),
         "duplicate_game_side_count": (
-            _DUPLICATE_GAME_SIDE_COUNT
+            state.duplicate_game_side_count
         ),
         "duplicate_stat_name_count": (
-            _DUPLICATE_STAT_NAME_COUNT
+            state.duplicate_stat_name_count
         ),
         "output_columns": OUTPUT_HEADER,
         "output_path": (
@@ -1546,7 +1612,7 @@ def update_report(
 def run(
     report: PipelineReporter,
 ) -> int:
-    reset_runtime_state()
+    state = RuntimeState()
 
     season: int | None = None
     season_type: int | None = None
@@ -1618,11 +1684,12 @@ def run(
 
             try:
                 predictor = fetch_predictor(
-                    game_id
+                    game_id,
+                    state=state,
                 )
 
             except PredictorRequestError as exc:
-                _INCOMPLETE_DETAILS.append(
+                state.incomplete_details.append(
                     {
                         "game_id": game_id,
                         "kind": "request_failure",
@@ -1636,11 +1703,12 @@ def run(
                     validate_predictor_response(
                         predictor,
                         target=target,
+                        state=state,
                     )
                 )
 
             except PredictorValidationError as exc:
-                _INCOMPLETE_DETAILS.append(
+                state.incomplete_details.append(
                     {
                         "game_id": game_id,
                         "kind": "validation_failure",
@@ -1671,7 +1739,7 @@ def run(
             rows_out=len(rows),
         )
 
-        if _INCOMPLETE_DETAILS:
+        if state.incomplete_details:
             failed_game_ids = [
                 str(
                     detail[
@@ -1679,15 +1747,15 @@ def run(
                     ]
                 )
                 for detail
-                in _INCOMPLETE_DETAILS
+                in state.incomplete_details
             ]
 
             raise RuntimeError(
                 "Target ESPN predictor collection is incomplete; "
                 "refusing partial publication. "
                 f"target_games={len(targets)}, "
-                f"complete_games={_COMPLETE_GAME_COUNT}, "
-                f"failed_games={len(_INCOMPLETE_DETAILS)}, "
+                f"complete_games={state.complete_game_count}, "
+                f"failed_games={len(state.incomplete_details)}, "
                 f"game_ids={failed_game_ids[:50]}"
             )
 
@@ -1697,6 +1765,7 @@ def run(
             season=season,
             season_type=season_type,
             week=week,
+            state=state,
         )
 
         output_modified = (
@@ -1707,11 +1776,13 @@ def run(
                 season=season,
                 season_type=season_type,
                 week=week,
+                state=state,
             )
         )
 
         update_report(
             report,
+            state,
             schedule_path=schedule_path,
             final_path=final_path,
             target_count=len(
@@ -1745,6 +1816,7 @@ def run(
 
         update_report(
             report,
+            state,
             schedule_path=schedule_path,
             final_path=final_path,
             target_count=len(

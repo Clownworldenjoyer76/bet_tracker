@@ -24,7 +24,7 @@ import uuid
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
-from urllib.request import Request, urlopen
+from urllib.request import Request
 
 import yaml
 
@@ -36,6 +36,7 @@ CFB_ROOT = SCRIPT_PATH.parents[2]
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
+from http_security import open_https
 from pipeline_reporter import PipelineReporter
 
 
@@ -131,13 +132,109 @@ def load_current_week() -> tuple[int, int, int]:
     return values["season"], values["season_type"], values["week"]
 
 
+
+def _require_league_master_path() -> None:
+    if not LEAGUE_MASTER_PATH.exists():
+        raise FileNotFoundError(
+            f"Missing league master: {LEAGUE_MASTER_PATH}"
+        )
+
+
+def _load_authoritative_team_rows(
+    reader: csv.DictReader,
+    teams: dict[str, str],
+    *,
+    season: int,
+    season_type: int,
+) -> None:
+    for row_number, row in enumerate(
+        reader,
+        start=2,
+    ):
+        if None in row:
+            raise ValueError(
+                "league_master.csv contains a malformed row at "
+                f"CSV line {row_number}"
+            )
+
+        team_id = str(
+            row.get("team_id") or ""
+        ).strip()
+        team_abbr = str(
+            row.get("team_abbr") or ""
+        ).strip()
+        row_season = str(
+            row.get("season") or ""
+        ).strip()
+        row_season_type = str(
+            row.get("season_type") or ""
+        ).strip()
+
+        if not team_id:
+            raise ValueError(
+                "league_master.csv has blank team_id at "
+                f"CSV line {row_number}"
+            )
+
+        if not team_id.isdigit() or int(team_id) <= 0:
+            raise ValueError(
+                "league_master.csv has invalid team_id at "
+                f"CSV line {row_number}: {team_id!r}"
+            )
+
+        if not team_abbr:
+            raise ValueError(
+                "league_master.csv has blank team_abbr at "
+                f"CSV line {row_number}"
+            )
+
+        if row_season != str(season):
+            raise ValueError(
+                "league_master.csv season mismatch at "
+                f"CSV line {row_number}: expected={season}, "
+                f"actual={row_season!r}"
+            )
+
+        if row_season_type != str(season_type):
+            raise ValueError(
+                "league_master.csv season_type mismatch at "
+                f"CSV line {row_number}: expected={season_type}, "
+                f"actual={row_season_type!r}"
+            )
+
+        if team_id in teams:
+            prior_abbr = teams[team_id]
+            if prior_abbr != team_abbr:
+                raise ValueError(
+                    "league_master.csv contains conflicting "
+                    "abbreviations for "
+                    f"team_id={team_id}: "
+                    f"{prior_abbr!r} vs {team_abbr!r}"
+                )
+
+            raise ValueError(
+                "league_master.csv contains duplicate "
+                f"team_id={team_id}"
+            )
+
+        teams[team_id] = team_abbr
+
+
+def _require_authoritative_teams(
+    teams: dict[str, str],
+) -> None:
+    if not teams:
+        raise ValueError(
+            "league_master.csv contains no authoritative teams"
+        )
+
+
 def load_authoritative_teams(
     *,
     season: int,
     season_type: int,
 ) -> list[tuple[str, str]]:
-    if not LEAGUE_MASTER_PATH.exists():
-        raise FileNotFoundError(f"Missing league master: {LEAGUE_MASTER_PATH}")
+    _require_league_master_path()
 
     with LEAGUE_MASTER_PATH.open(
         "r",
@@ -156,61 +253,14 @@ def load_authoritative_teams(
 
         teams: dict[str, str] = {}
 
-        for row_number, row in enumerate(reader, start=2):
-            if None in row:
-                raise ValueError(
-                    "league_master.csv contains a malformed row at "
-                    f"CSV line {row_number}"
-                )
+        _load_authoritative_team_rows(
+            reader,
+            teams,
+            season=season,
+            season_type=season_type,
+        )
 
-            team_id = str(row.get("team_id") or "").strip()
-            team_abbr = str(row.get("team_abbr") or "").strip()
-            row_season = str(row.get("season") or "").strip()
-            row_season_type = str(row.get("season_type") or "").strip()
-
-            if not team_id:
-                raise ValueError(
-                    f"league_master.csv has blank team_id at CSV line {row_number}"
-                )
-            if not team_id.isdigit() or int(team_id) <= 0:
-                raise ValueError(
-                    "league_master.csv has invalid team_id at "
-                    f"CSV line {row_number}: {team_id!r}"
-                )
-            if not team_abbr:
-                raise ValueError(
-                    "league_master.csv has blank team_abbr at "
-                    f"CSV line {row_number}"
-                )
-            if row_season != str(season):
-                raise ValueError(
-                    "league_master.csv season mismatch at "
-                    f"CSV line {row_number}: expected={season}, "
-                    f"actual={row_season!r}"
-                )
-            if row_season_type != str(season_type):
-                raise ValueError(
-                    "league_master.csv season_type mismatch at "
-                    f"CSV line {row_number}: expected={season_type}, "
-                    f"actual={row_season_type!r}"
-                )
-
-            if team_id in teams:
-                prior_abbr = teams[team_id]
-                if prior_abbr != team_abbr:
-                    raise ValueError(
-                        "league_master.csv contains conflicting abbreviations "
-                        f"for team_id={team_id}: "
-                        f"{prior_abbr!r} vs {team_abbr!r}"
-                    )
-                raise ValueError(
-                    f"league_master.csv contains duplicate team_id={team_id}"
-                )
-
-            teams[team_id] = team_abbr
-
-    if not teams:
-        raise ValueError("league_master.csv contains no authoritative teams")
+    _require_authoritative_teams(teams)
 
     return sorted(teams.items(), key=lambda item: int(item[0]))
 
@@ -270,7 +320,11 @@ def fetch_json(
     )
 
     try:
-        with urlopen(request, timeout=timeout) as response:
+        with open_https(
+            request,
+            allowed_hosts={ESPN_CORE_HOST},
+            timeout=timeout,
+        ) as response:
             status = response.status
             body = response.read().decode("utf-8")
     except HTTPError as exc:
@@ -577,6 +631,43 @@ def resolve_team_head_coach(
     return select_head_coach(candidates, team_id=team_id)
 
 
+def _populate_career_record_values(
+    career_records: list,
+    *,
+    team_id: str,
+    coach_id: str,
+    record_values: dict[str, set[str]],
+) -> None:
+    for record_index, record_ref_obj in enumerate(career_records):
+        if not isinstance(record_ref_obj, dict):
+            raise CoachValidationError(
+                "careerRecords contains non-object entry for "
+                f"team_id={team_id}, coach_id={coach_id}, "
+                f"record_index={record_index}"
+            )
+
+        record_ref = validate_espn_ref(
+            record_ref_obj.get("$ref", ""),
+            label=(
+                f"career record $ref team_id={team_id} "
+                f"coach_id={coach_id} record_index={record_index}"
+            ),
+        )
+        record = fetch_json(
+            record_ref,
+            request_kind="career_record",
+            label=(
+                f"career record team_id={team_id} "
+                f"coach_id={coach_id} record_index={record_index}"
+            ),
+        )
+
+        record_type = str(record.get("type") or "").strip()
+        summary = str(record.get("summary") or "").strip()
+        if record_type in record_values and summary:
+            record_values[record_type].add(summary)
+
+
 def get_career_records(
     coach: dict,
     *,
@@ -630,34 +721,12 @@ def get_career_records(
         "Post Season": set(),
     }
 
-    for record_index, record_ref_obj in enumerate(career_records):
-        if not isinstance(record_ref_obj, dict):
-            raise CoachValidationError(
-                "careerRecords contains non-object entry for "
-                f"team_id={team_id}, coach_id={coach_id}, "
-                f"record_index={record_index}"
-            )
-
-        record_ref = validate_espn_ref(
-            record_ref_obj.get("$ref", ""),
-            label=(
-                f"career record $ref team_id={team_id} "
-                f"coach_id={coach_id} record_index={record_index}"
-            ),
-        )
-        record = fetch_json(
-            record_ref,
-            request_kind="career_record",
-            label=(
-                f"career record team_id={team_id} "
-                f"coach_id={coach_id} record_index={record_index}"
-            ),
-        )
-
-        record_type = str(record.get("type") or "").strip()
-        summary = str(record.get("summary") or "").strip()
-        if record_type in record_values and summary:
-            record_values[record_type].add(summary)
+    _populate_career_record_values(
+        career_records,
+        team_id=team_id,
+        coach_id=coach_id,
+        record_values=record_values,
+    )
 
     for record_type, summaries in record_values.items():
         if len(summaries) > 1:
@@ -782,22 +851,77 @@ def build_rows(
     return rows, failures, diagnostics
 
 
+
+def _require_coach_rows(
+    rows: list[dict[str, str]],
+) -> None:
+    if not rows:
+        raise ValueError(
+            "Coaches output would be empty"
+        )
+
+
+def _require_coach_row_count(
+    rows: list[dict[str, str]],
+    expected_team_ids: set[str],
+) -> None:
+    if len(rows) != len(expected_team_ids):
+        raise ValueError(
+            "Coaches row count does not match "
+            "authoritative team count: "
+            f"rows={len(rows)}, "
+            f"teams={len(expected_team_ids)}"
+        )
+
+
+def _validate_coach_id(
+    coach_id: str,
+    *,
+    team_id: str,
+) -> None:
+    if not coach_id.isdigit() or int(coach_id) <= 0:
+        raise ValueError(
+            "Coaches output contains invalid coach id for "
+            f"team_id={team_id}: {coach_id!r}"
+        )
+
+
+def _validate_coach_team_coverage(
+    seen_team_ids: set[str],
+    expected_team_ids: set[str],
+) -> None:
+    if seen_team_ids != expected_team_ids:
+        missing = sorted(
+            expected_team_ids
+            - seen_team_ids,
+            key=int,
+        )
+        foreign = sorted(
+            seen_team_ids
+            - expected_team_ids,
+            key=int,
+        )
+        raise ValueError(
+            "Coaches output team coverage mismatch. "
+            f"missing={missing[:50]}, "
+            f"foreign={foreign[:50]}"
+        )
+
+
 def validate_final_rows(
     rows: list[dict[str, str]],
     *,
     teams: list[tuple[str, str]],
 ) -> None:
-    if not rows:
-        raise ValueError("Coaches output would be empty")
+    _require_coach_rows(rows)
 
     expected_by_team = dict(teams)
     expected_team_ids = set(expected_by_team)
 
-    if len(rows) != len(expected_team_ids):
-        raise ValueError(
-            "Coaches row count does not match authoritative team count: "
-            f"rows={len(rows)}, teams={len(expected_team_ids)}"
-        )
+    _require_coach_row_count(
+        rows,
+        expected_team_ids,
+    )
 
     seen_team_ids: set[str] = set()
     coach_team_assignments: dict[str, str] = {}
@@ -826,11 +950,10 @@ def validate_final_rows(
             raise ValueError(
                 f"Coaches output contains blank coach id for team_id={team_id}"
             )
-        if not coach_id.isdigit() or int(coach_id) <= 0:
-            raise ValueError(
-                "Coaches output contains invalid coach id for "
-                f"team_id={team_id}: {coach_id!r}"
-            )
+        _validate_coach_id(
+            coach_id,
+            team_id=team_id,
+        )
         if not name:
             raise ValueError(
                 f"Coaches output contains blank coach name for team_id={team_id}"
@@ -848,19 +971,10 @@ def validate_final_rows(
         seen_team_ids.add(team_id)
         coach_team_assignments[coach_id] = team_id
 
-    if seen_team_ids != expected_team_ids:
-        missing = sorted(
-            expected_team_ids - seen_team_ids,
-            key=lambda value: int(value),
-        )
-        foreign = sorted(
-            seen_team_ids - expected_team_ids,
-            key=lambda value: int(value),
-        )
-        raise ValueError(
-            "Coaches output team coverage mismatch. "
-            f"missing={missing[:50]}, foreign={foreign[:50]}"
-        )
+    _validate_coach_team_coverage(
+        seen_team_ids,
+        expected_team_ids,
+    )
 
 
 def temporary_path(final_path: Path) -> Path:
@@ -915,9 +1029,12 @@ def publish_atomic(
             teams=teams,
         )
 
-        if OUTPUT_PATH.exists():
-            if OUTPUT_PATH.read_bytes() == temp_path.read_bytes():
-                return False
+        if (
+            OUTPUT_PATH.exists()
+            and OUTPUT_PATH.read_bytes()
+            == temp_path.read_bytes()
+        ):
+            return False
 
         os.replace(temp_path, OUTPUT_PATH)
         return True
@@ -945,7 +1062,7 @@ def update_report_diagnostics(
     expected_team_ids = {team_id for team_id, _ in teams}
     missing_team_ids = sorted(
         expected_team_ids - resolved_team_ids,
-        key=lambda value: int(value),
+        key=int,
     )
     unique_coach_ids = {
         str(row.get("id") or "").strip()

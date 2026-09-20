@@ -1659,29 +1659,13 @@ def validate_team_output_block(
         )
 
 
-def validate_output_rows(
+def _validate_travel_output_rows(
     rows: list[dict[str, str]],
     *,
-    schedule_lookup: dict[
-        str,
-        dict[str, str],
-    ],
-    team_lookup: dict[
-        str,
-        dict[str, str],
-    ],
+    schedule_lookup: dict[str, dict[str, str]],
+    team_lookup: dict[str, dict[str, str]],
+    seen: set[str],
 ) -> None:
-    if len(rows) != len(
-        schedule_lookup
-    ):
-        raise TravelValidationError(
-            "Travel row-count mismatch: "
-            f"expected={len(schedule_lookup)}, "
-            f"actual={len(rows)}"
-        )
-
-    seen: set[str] = set()
-
     for line_number, row in enumerate(
         rows,
         start=2,
@@ -1853,6 +1837,37 @@ def validate_output_rows(
             mapped=home_mapped,
             game_id=game_id,
         )
+
+
+def validate_output_rows(
+    rows: list[dict[str, str]],
+    *,
+    schedule_lookup: dict[
+        str,
+        dict[str, str],
+    ],
+    team_lookup: dict[
+        str,
+        dict[str, str],
+    ],
+) -> None:
+    if len(rows) != len(
+        schedule_lookup
+    ):
+        raise TravelValidationError(
+            "Travel row-count mismatch: "
+            f"expected={len(schedule_lookup)}, "
+            f"actual={len(rows)}"
+        )
+
+    seen: set[str] = set()
+
+    _validate_travel_output_rows(
+        rows,
+        schedule_lookup=schedule_lookup,
+        team_lookup=team_lookup,
+        seen=seen,
+    )
 
     if seen != set(
         schedule_lookup

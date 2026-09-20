@@ -36,6 +36,7 @@ CFB_ROOT = SCRIPT_PATH.parents[2]
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
+from http_security import open_https
 from pipeline_reporter import PipelineReporter
 
 CONFIG_PATH = CFB_ROOT / "config" / "current_week.yaml"
@@ -51,6 +52,7 @@ METNO_URL = (
     "https://api.met.no/weatherapi/"
     "locationforecast/2.0/complete"
 )
+METNO_HOST = "api.met.no"
 
 METNO_USER_AGENT = os.environ.get(
     "METNO_USER_AGENT",
@@ -114,6 +116,7 @@ SCHEDULE_REQUIRED_COLUMNS = {
     "game_timezone",
     "kickoff_utc",
     "commence_time",
+    "game_locked",
     "stadium",
     "roof",
 }
@@ -496,6 +499,30 @@ def target_paths(
     )
 
 
+
+def schedule_game_locked(
+    game: dict[str, str],
+) -> bool:
+    game_id = clean(
+        game.get("game_id")
+    )
+
+    value = clean(
+        game.get("game_locked")
+    )
+
+    if value not in {
+        "0",
+        "1",
+    }:
+        raise WeatherValidationError(
+            "game_locked must be 0/1 for "
+            f"game_id={game_id}: {value!r}"
+        )
+
+    return value == "1"
+
+
 def resolve_kickoff_utc(
     game: dict[str, str],
 ) -> datetime:
@@ -518,15 +545,21 @@ def resolve_kickoff_utc(
             label=f"commence_time for game_id={game_id}",
         )
 
-        if abs(
-            (
-                authoritative
-                - commence
-            ).total_seconds()
-        ) > 1:
+        if (
+            abs(
+                (
+                    authoritative
+                    - commence
+                ).total_seconds()
+            ) > 1
+            and not schedule_game_locked(
+                game
+            )
+        ):
             raise WeatherValidationError(
                 "kickoff_utc and commence_time disagree "
-                f"for game_id={game_id}: "
+                "for unlocked game "
+                f"game_id={game_id}: "
                 f"kickoff_utc={authoritative.isoformat()} "
                 f"commence_time={commence.isoformat()}"
             )
@@ -1162,8 +1195,9 @@ def fetch_weather_json(
     )
 
     try:
-        with urllib.request.urlopen(
+        with open_https(
             request,
+            allowed_hosts={METNO_HOST},
             timeout=REQUEST_TIMEOUT,
         ) as response:
             http_status = int(
@@ -1412,24 +1446,26 @@ def select_kickoff_timestep(
     ][0]
 
     if (
-        kickoff_utc < first_time
-        or kickoff_utc > last_time
-    ):
-        if (
+        (
+            kickoff_utc < first_time
+            or kickoff_utc > last_time
+        )
+        and (
             offset_seconds
             > tolerance_seconds
-        ):
-            return TimestepResult(
-                status=(
-                    "outside_forecast_range"
-                ),
-                offset_seconds=(
-                    offset_seconds
-                ),
-                cadence_seconds=(
-                    cadence_seconds
-                ),
-            )
+        )
+    ):
+        return TimestepResult(
+            status=(
+                "outside_forecast_range"
+            ),
+            offset_seconds=(
+                offset_seconds
+            ),
+            cadence_seconds=(
+                cadence_seconds
+            ),
+        )
 
     if (
         offset_seconds
@@ -1856,6 +1892,36 @@ def has_usable_weather(
     )
 
 
+
+def prior_weather_usable_for_kickoff(
+    row: dict[str, object] | None,
+    kickoff_utc: datetime,
+) -> bool:
+    if not has_usable_weather(
+        row
+    ):
+        return False
+
+    timestep = parse_iso_utc(
+        row.get(
+            "weather_timestep_utc"
+        )
+    )
+
+    if timestep is None:
+        return False
+
+    return (
+        abs(
+            (
+                timestep
+                - kickoff_utc
+            ).total_seconds()
+        )
+        <= MAX_FORECAST_OFFSET_SECONDS
+    )
+
+
 def copy_prior_weather(
     target_row: dict[str, object],
     prior_row: dict[str, str],
@@ -1876,6 +1942,30 @@ def copy_prior_weather(
             "weather_fetched_at"
         )
     )
+
+
+
+def _validate_weather_flags(
+    row: dict[str, str],
+    *,
+    game_id: str,
+) -> None:
+    for field in (
+        "rain_flag",
+        "snow_flag",
+    ):
+        value = clean(
+            row.get(field)
+        )
+
+        if value and value not in {
+            "0",
+            "1",
+        }:
+            raise WeatherValidationError(
+                f"{field} must be 0/1/blank "
+                f"for game_id={game_id}: {value!r}"
+            )
 
 
 def validate_weather_values(
@@ -2005,25 +2095,10 @@ def validate_weather_values(
                 f"humidity outside [0,100] for game_id={game_id}"
             )
 
-    for field in (
-        "rain_flag",
-        "snow_flag",
-    ):
-        value = clean(
-            row.get(field)
-        )
-
-        if (
-            value
-            and value not in {
-                "0",
-                "1",
-            }
-        ):
-            raise WeatherValidationError(
-                f"{field} must be 0/1/blank "
-                f"for game_id={game_id}: {value!r}"
-            )
+    _validate_weather_flags(
+        row,
+        game_id=game_id,
+    )
 
     if not fetched_at:
         raise WeatherValidationError(
@@ -2045,6 +2120,126 @@ def validate_weather_values(
     )
 
 
+def _validate_weather_output_flags(
+    row: dict[str, str],
+    *,
+    game_id: str,
+) -> None:
+    for field in (
+        "dome_flag",
+        "retractable_roof_flag",
+        "open_air_flag",
+    ):
+        value = clean(
+            row.get(field)
+        )
+
+        if (
+            value
+            and value not in {
+                "0",
+                "1",
+            }
+        ):
+            raise WeatherValidationError(
+                f"{field} must be 0/1/blank "
+                f"for game_id={game_id}"
+            )
+
+
+def _validate_weather_output_coverage(
+    seen: set[str],
+    schedule_lookup: dict[str, dict[str, str]],
+) -> None:
+    if seen != set(
+        schedule_lookup
+    ):
+        raise WeatherValidationError(
+            "Weather game coverage does not match target schedule"
+        )
+
+
+def _validate_weather_output_row_count(
+    rows: list[dict[str, str]],
+    schedule_lookup: dict[str, dict[str, str]],
+) -> None:
+    if len(rows) != len(
+        schedule_lookup
+    ):
+        raise WeatherValidationError(
+            "Weather row-count mismatch: "
+            f"expected={len(schedule_lookup)}, "
+            f"actual={len(rows)}"
+        )
+
+
+
+def validate_weather_schedule_time(
+    row: dict[str, str],
+    game: dict[str, str],
+    *,
+    game_id: str,
+    strict_blank_timestamp: bool,
+) -> datetime:
+    allow_locked_existing_drift = (
+        schedule_game_locked(
+            game
+        )
+        and not strict_blank_timestamp
+    )
+
+    if (
+        clean(
+            row.get("game_time")
+        )
+        != clean(
+            game.get("game_time")
+        )
+        and not allow_locked_existing_drift
+    ):
+        raise WeatherValidationError(
+            "Weather game_time mismatch "
+            f"for game_id={game_id}"
+        )
+
+    expected_kickoff = (
+        resolve_kickoff_utc(
+            game
+        )
+    )
+
+    actual_kickoff = (
+        require_iso_utc(
+            row.get(
+                "kickoff_utc"
+            ),
+            label=(
+                "weather kickoff_utc "
+                f"for game_id={game_id}"
+            ),
+        )
+    )
+
+    if (
+        abs(
+            (
+                actual_kickoff
+                - expected_kickoff
+            ).total_seconds()
+        ) > 1
+        and not allow_locked_existing_drift
+    ):
+        raise WeatherValidationError(
+            "Weather kickoff mismatch "
+            f"for game_id={game_id}"
+        )
+
+    if allow_locked_existing_drift:
+        return actual_kickoff
+
+    return expected_kickoff
+
+
 def validate_output_rows(
     rows: list[dict[str, str]],
     *,
@@ -2058,14 +2253,10 @@ def validate_output_rows(
     ],
     strict_blank_timestamp: bool,
 ) -> list[float]:
-    if len(rows) != len(
-        schedule_lookup
-    ):
-        raise WeatherValidationError(
-            "Weather row-count mismatch: "
-            f"expected={len(schedule_lookup)}, "
-            f"actual={len(rows)}"
-        )
+    _validate_weather_output_row_count(
+        rows,
+        schedule_lookup,
+    )
 
     seen: set[str] = set()
     offsets: list[float] = []
@@ -2189,42 +2380,16 @@ def validate_output_rows(
             ),
         )
 
-        if clean(
-            row.get("game_time")
-        ) != clean(
-            game.get("game_time")
-        ):
-            raise WeatherValidationError(
-                f"Weather game_time mismatch for game_id={game_id}"
-            )
-
         expected_kickoff = (
-            resolve_kickoff_utc(
-                game
-            )
-        )
-
-        actual_kickoff = (
-            require_iso_utc(
-                row.get(
-                    "kickoff_utc"
-                ),
-                label=(
-                    "weather kickoff_utc "
-                    f"for game_id={game_id}"
+            validate_weather_schedule_time(
+                row,
+                game,
+                game_id=game_id,
+                strict_blank_timestamp=(
+                    strict_blank_timestamp
                 ),
             )
         )
-
-        if abs(
-            (
-                actual_kickoff
-                - expected_kickoff
-            ).total_seconds()
-        ) > 1:
-            raise WeatherValidationError(
-                f"Weather kickoff mismatch for game_id={game_id}"
-            )
 
         if clean(
             row.get("roof")
@@ -2235,26 +2400,10 @@ def validate_output_rows(
                 f"Weather roof mismatch for game_id={game_id}"
             )
 
-        for field in (
-            "dome_flag",
-            "retractable_roof_flag",
-            "open_air_flag",
-        ):
-            value = clean(
-                row.get(field)
-            )
-
-            if (
-                value
-                and value not in {
-                    "0",
-                    "1",
-                }
-            ):
-                raise WeatherValidationError(
-                    f"{field} must be 0/1/blank "
-                    f"for game_id={game_id}"
-                )
+        _validate_weather_output_flags(
+            row,
+            game_id=game_id,
+        )
 
         offset = validate_weather_values(
             row,
@@ -2270,12 +2419,10 @@ def validate_output_rows(
                 offset
             )
 
-    if seen != set(
-        schedule_lookup
-    ):
-        raise WeatherValidationError(
-            "Weather game coverage does not match target schedule"
-        )
+    _validate_weather_output_coverage(
+        seen,
+        schedule_lookup,
+    )
 
     return offsets
 
@@ -2364,557 +2511,326 @@ def weather_is_exposed(
     )
 
 
-def build_weather_rows(
-    schedule_rows: list[
-        dict[str, str]
-    ],
-    *,
-    travel_lookup: dict[
-        str,
-        dict[str, str],
-    ],
-    stadium_coordinate_lookup: dict[
-        tuple[float, float],
-        dict[str, str],
-    ],
-    existing_rows: dict[
-        str,
-        dict[str, str],
-    ],
-    fetched_at: datetime,
-    now_utc: datetime,
-    fetcher: Callable[
-        [str, str],
-        ProviderResult,
-    ] = fetch_weather_json,
-    sleep_fn: Callable[
-        [float],
-        None,
-    ] = time.sleep,
-) -> tuple[
-    list[dict[str, object]],
-    dict[str, object],
-]:
-    output_rows: list[
-        dict[str, object]
-    ] = []
-
-    provider_cache: dict[
-        tuple[str, str],
-        ProviderResult,
-    ] = {}
-
-    provider_status_counts: Counter[str] = Counter()
-    forecast_status_counts: Counter[str] = Counter()
-
-    provider_http_status_counts: Counter[str] = Counter()
-
-    provider_request_count = 0
-    provider_success_count = 0
-    provider_failure_count = 0
-
-    future_game_count = 0
-    completed_game_count = 0
-
-    newly_fetched_count = 0
-    reused_prior_count = 0
-    reused_completed_count = 0
-    reused_after_refresh_failure_count = 0
-
-    blank_weather_count = 0
-    roof_metadata_missing_count = 0
-    exposed_game_count = 0
-
-    refresh_failure_game_ids: list[str] = []
-    blank_weather_game_ids: list[str] = []
-
-    new_offset_hours: list[float] = []
-
-    for game in schedule_rows:
-        game_id = clean(
-            game.get("game_id")
-        )
-
-        travel_row = travel_lookup[
-            game_id
-        ]
-
-        (
-            venue_row,
-            roof_metadata_missing,
-        ) = venue_from_travel(
-            game,
-            travel_lookup,
-            stadium_coordinate_lookup,
-        )
-
-        if roof_metadata_missing:
-            roof_metadata_missing_count += 1
-
-        game[
-            "_venue_resolution_status"
-        ] = clean(
-            travel_row.get(
-                "venue_resolution_status"
-            )
-        )
-
-        kickoff_utc = (
-            resolve_kickoff_utc(
-                game
-            )
-        )
-
-        row = build_base_row(
-            game,
-            venue_row,
-            kickoff_utc,
-        )
-
-        if weather_is_exposed(
-            row
-        ):
-            exposed_game_count += 1
-
-        prior = existing_rows.get(
-            game_id
-        )
-
-        prior_usable = (
-            has_usable_weather(
-                prior
-            )
-        )
-
-        future = (
-            kickoff_utc
-            > now_utc
-        )
-
-        if not future:
-            completed_game_count += 1
-
-            if (
-                prior is not None
-                and prior_usable
-            ):
-                copy_prior_weather(
-                    row,
-                    prior,
-                )
-
-                reused_prior_count += 1
-                reused_completed_count += 1
-
-                forecast_status_counts[
-                    "reused_completed_forecast"
-                ] += 1
-
-            else:
-                blank_weather_count += 1
-
-                blank_weather_game_ids.append(
-                    game_id
-                )
-
-                forecast_status_counts[
-                    "completed_without_stored_weather"
-                ] += 1
-
-            output_rows.append(
-                row
-            )
-
-            continue
-
-        future_game_count += 1
-
-        (
-            request_latitude,
-            request_longitude,
-        ) = canonical_request_coordinates(
-            venue_row.get("latitude"),
-            venue_row.get("longitude"),
-        )
-
-        cache_key = (
-            request_latitude,
-            request_longitude,
-        )
-
-        provider_result = (
-            provider_cache.get(
-                cache_key
-            )
-        )
-
-        if provider_result is None:
-            provider_request_count += 1
-
-            provider_result = fetcher(
-                request_latitude,
-                request_longitude,
-            )
-
-            provider_cache[
-                cache_key
-            ] = provider_result
-
-            provider_status_counts[
-                provider_result.status
-            ] += 1
-
-            if (
-                provider_result.http_status
-                is not None
-            ):
-                provider_http_status_counts[
-                    str(
-                        provider_result.http_status
-                    )
-                ] += 1
-
-            if (
-                provider_result.status
-                == "request_success"
-            ):
-                provider_success_count += 1
-            else:
-                provider_failure_count += 1
-
-            sleep_fn(
-                REQUEST_SLEEP_SECONDS
-            )
-
-        if (
-            provider_result.status
-            != "request_success"
-            or provider_result.payload
-            is None
-        ):
-            forecast_status_counts[
-                provider_result.status
-            ] += 1
-
-            refresh_failure_game_ids.append(
-                game_id
-            )
-
-            if (
-                prior is not None
-                and prior_usable
-            ):
-                copy_prior_weather(
-                    row,
-                    prior,
-                )
-
-                reused_prior_count += 1
-                reused_after_refresh_failure_count += 1
-
-            else:
-                blank_weather_count += 1
-
-                blank_weather_game_ids.append(
-                    game_id
-                )
-
-            output_rows.append(
-                row
-            )
-
-            continue
-
-        timestep_result = (
-            select_kickoff_timestep(
-                provider_result.payload,
-                kickoff_utc,
-            )
-        )
-
-        if (
-            timestep_result.status
-            != "forecast_available"
-        ):
-            forecast_status_counts[
-                timestep_result.status
-            ] += 1
-
-            refresh_failure_game_ids.append(
-                game_id
-            )
-
-            if (
-                prior is not None
-                and prior_usable
-            ):
-                copy_prior_weather(
-                    row,
-                    prior,
-                )
-
-                reused_prior_count += 1
-                reused_after_refresh_failure_count += 1
-
-            else:
-                blank_weather_count += 1
-
-                blank_weather_game_ids.append(
-                    game_id
-                )
-
-            output_rows.append(
-                row
-            )
-
-            continue
-
-        try:
-            values = (
-                extract_weather_values(
-                    timestep_result
-                )
-            )
-        except WeatherValidationError:
-            forecast_status_counts[
-                "invalid_forecast_values"
-            ] += 1
-
-            refresh_failure_game_ids.append(
-                game_id
-            )
-
-            if (
-                prior is not None
-                and prior_usable
-            ):
-                copy_prior_weather(
-                    row,
-                    prior,
-                )
-
-                reused_prior_count += 1
-                reused_after_refresh_failure_count += 1
-
-            else:
-                blank_weather_count += 1
-
-                blank_weather_game_ids.append(
-                    game_id
-                )
-
-            output_rows.append(
-                row
-            )
-
-            continue
-
-        row.update(
-            values
-        )
-
-        row[
-            "weather_fetched_at"
-        ] = fetched_at.isoformat()
-
-        newly_fetched_count += 1
-
-        forecast_status_counts[
-            "forecast_available"
-        ] += 1
-
-        if (
-            timestep_result.offset_seconds
-            is not None
-        ):
-            new_offset_hours.append(
-                timestep_result.offset_seconds
-                / 3600.0
-            )
-
-        output_rows.append(
-            row
-        )
-
-    weather_available_count = sum(
-        has_usable_weather(
-            row
-        )
-        for row in output_rows
-    )
-
-    wind_speed_count = sum(
-        bool(
-            clean(
-                row.get("wind_speed")
-            )
-        )
-        for row in output_rows
-    )
-
-    temperature_count = sum(
-        bool(
-            clean(
-                row.get("temperature")
-            )
-        )
-        for row in output_rows
-    )
-
-    wind_gust_count = sum(
-        bool(
-            clean(
-                row.get("wind_gust")
-            )
-        )
-        for row in output_rows
-    )
-
-    precip_count = sum(
-        bool(
-            clean(
-                row.get(
-                    "precip_probability"
-                )
-            )
-        )
-        for row in output_rows
-    )
-
-    humidity_count = sum(
-        bool(
-            clean(
-                row.get("humidity")
-            )
-        )
-        for row in output_rows
-    )
-
-    all_offsets: list[float] = []
-
-    schedule_by_game_id = {
-        clean(
-            game.get("game_id")
-        ): game
-        for game in schedule_rows
+def _stage1_weather_state() -> dict[str, object]:
+    return {
+        "provider_cache": {},
+        "provider_status_counts": Counter(),
+        "forecast_status_counts": Counter(),
+        "provider_http_status_counts": Counter(),
+        "provider_request_count": 0,
+        "provider_success_count": 0,
+        "provider_failure_count": 0,
+        "future_game_count": 0,
+        "completed_game_count": 0,
+        "newly_fetched_count": 0,
+        "reused_prior_count": 0,
+        "reused_completed_count": 0,
+        "reused_after_refresh_failure_count": 0,
+        "blank_weather_count": 0,
+        "roof_metadata_missing_count": 0,
+        "exposed_game_count": 0,
+        "refresh_failure_game_ids": [],
+        "blank_weather_game_ids": [],
+        "new_offset_hours": [],
     }
 
+
+def _stage1_completed_weather(
+    row: dict[str, object],
+    *,
+    prior: dict[str, str] | None,
+    prior_usable: bool,
+    game_id: str,
+    state: dict[str, object],
+) -> dict[str, object]:
+    state["completed_game_count"] += 1
+    forecast_counts = state["forecast_status_counts"]
+    if prior is not None and prior_usable:
+        copy_prior_weather(row, prior)
+        state["reused_prior_count"] += 1
+        state["reused_completed_count"] += 1
+        forecast_counts["reused_completed_forecast"] += 1
+    else:
+        state["blank_weather_count"] += 1
+        state["blank_weather_game_ids"].append(game_id)
+        forecast_counts["completed_without_stored_weather"] += 1
+    return row
+
+
+def _stage1_refresh_failure(
+    row: dict[str, object],
+    *,
+    prior: dict[str, str] | None,
+    prior_usable: bool,
+    game_id: str,
+    status: str,
+    state: dict[str, object],
+) -> dict[str, object]:
+    state["forecast_status_counts"][status] += 1
+    state["refresh_failure_game_ids"].append(game_id)
+    if prior is not None and prior_usable:
+        copy_prior_weather(row, prior)
+        state["reused_prior_count"] += 1
+        state["reused_after_refresh_failure_count"] += 1
+    else:
+        state["blank_weather_count"] += 1
+        state["blank_weather_game_ids"].append(game_id)
+    return row
+
+
+def _stage1_provider_for_venue(
+    venue_row: dict[str, str],
+    *,
+    state: dict[str, object],
+    fetcher: Callable[[str, str], ProviderResult],
+    sleep_fn: Callable[[float], None],
+) -> ProviderResult:
+    request_latitude, request_longitude = canonical_request_coordinates(
+        venue_row.get("latitude"),
+        venue_row.get("longitude"),
+    )
+    cache_key = (request_latitude, request_longitude)
+    provider_cache = state["provider_cache"]
+    provider_result = provider_cache.get(cache_key)
+    if provider_result is not None:
+        return provider_result
+
+    state["provider_request_count"] += 1
+    provider_result = fetcher(request_latitude, request_longitude)
+    provider_cache[cache_key] = provider_result
+    state["provider_status_counts"][provider_result.status] += 1
+    if provider_result.http_status is not None:
+        state["provider_http_status_counts"][str(provider_result.http_status)] += 1
+    if provider_result.status == "request_success":
+        state["provider_success_count"] += 1
+    else:
+        state["provider_failure_count"] += 1
+    sleep_fn(REQUEST_SLEEP_SECONDS)
+    return provider_result
+
+
+def _stage1_build_weather_game(
+    game: dict[str, str],
+    *,
+    travel_lookup: dict[str, dict[str, str]],
+    stadium_coordinate_lookup: dict[tuple[float, float], dict[str, str]],
+    existing_rows: dict[str, dict[str, str]],
+    fetched_at: datetime,
+    now_utc: datetime,
+    state: dict[str, object],
+    fetcher: Callable[[str, str], ProviderResult],
+    sleep_fn: Callable[[float], None],
+) -> dict[str, object]:
+    game_id = clean(game.get("game_id"))
+    travel_row = travel_lookup[game_id]
+    venue_row, roof_metadata_missing = venue_from_travel(
+        game,
+        travel_lookup,
+        stadium_coordinate_lookup,
+    )
+    if roof_metadata_missing:
+        state["roof_metadata_missing_count"] += 1
+
+    game["_venue_resolution_status"] = clean(
+        travel_row.get("venue_resolution_status")
+    )
+    kickoff_utc = resolve_kickoff_utc(game)
+    row = build_base_row(game, venue_row, kickoff_utc)
+    if weather_is_exposed(row):
+        state["exposed_game_count"] += 1
+
+    prior = existing_rows.get(game_id)
+    prior_usable = (
+        prior_weather_usable_for_kickoff(
+            prior,
+            kickoff_utc,
+        )
+    )
+    if kickoff_utc <= now_utc:
+        return _stage1_completed_weather(
+            row,
+            prior=prior,
+            prior_usable=prior_usable,
+            game_id=game_id,
+            state=state,
+        )
+
+    state["future_game_count"] += 1
+    provider_result = _stage1_provider_for_venue(
+        venue_row,
+        state=state,
+        fetcher=fetcher,
+        sleep_fn=sleep_fn,
+    )
+    if provider_result.status != "request_success" or provider_result.payload is None:
+        return _stage1_refresh_failure(
+            row,
+            prior=prior,
+            prior_usable=prior_usable,
+            game_id=game_id,
+            status=provider_result.status,
+            state=state,
+        )
+
+    timestep_result = select_kickoff_timestep(
+        provider_result.payload,
+        kickoff_utc,
+    )
+    if timestep_result.status != "forecast_available":
+        return _stage1_refresh_failure(
+            row,
+            prior=prior,
+            prior_usable=prior_usable,
+            game_id=game_id,
+            status=timestep_result.status,
+            state=state,
+        )
+
+    try:
+        values = extract_weather_values(timestep_result)
+    except WeatherValidationError:
+        return _stage1_refresh_failure(
+            row,
+            prior=prior,
+            prior_usable=prior_usable,
+            game_id=game_id,
+            status="invalid_forecast_values",
+            state=state,
+        )
+
+    row.update(values)
+    row["weather_fetched_at"] = fetched_at.isoformat()
+    state["newly_fetched_count"] += 1
+    state["forecast_status_counts"]["forecast_available"] += 1
+    if timestep_result.offset_seconds is not None:
+        state["new_offset_hours"].append(
+            timestep_result.offset_seconds / 3600.0
+        )
+    return row
+
+
+def _stage1_weather_offsets(
+    output_rows: list[dict[str, object]],
+    schedule_rows: list[dict[str, str]],
+) -> list[float]:
+    all_offsets: list[float] = []
+    schedule_by_game_id = {
+        clean(game.get("game_id")): game for game in schedule_rows
+    }
     for row in output_rows:
-        if not has_usable_weather(
-            row
-        ):
+        if not has_usable_weather(row):
             continue
-
-        game_id = clean(
-            row.get("game_id")
-        )
-
-        kickoff = resolve_kickoff_utc(
-            schedule_by_game_id[
-                game_id
-            ]
-        )
-
+        game_id = clean(row.get("game_id"))
+        kickoff = resolve_kickoff_utc(schedule_by_game_id[game_id])
         timestep = require_iso_utc(
-            row.get(
-                "weather_timestep_utc"
-            ),
-            label=(
-                "weather_timestep_utc "
-                f"for game_id={game_id}"
-            ),
+            row.get("weather_timestep_utc"),
+            label=f"weather_timestep_utc for game_id={game_id}",
         )
-
         all_offsets.append(
-            abs(
-                (
-                    timestep
-                    - kickoff
-                ).total_seconds()
-            )
-            / 3600.0
+            abs((timestep - kickoff).total_seconds()) / 3600.0
         )
+    return all_offsets
 
-    metrics: dict[str, object] = {
-        "future_game_count": future_game_count,
-        "completed_game_count": completed_game_count,
-        "provider_request_count": provider_request_count,
-        "provider_request_success_count": provider_success_count,
-        "provider_request_failure_count": provider_failure_count,
+
+def _stage1_weather_metrics(
+    output_rows: list[dict[str, object]],
+    schedule_rows: list[dict[str, str]],
+    state: dict[str, object],
+) -> dict[str, object]:
+    weather_available_count = sum(has_usable_weather(row) for row in output_rows)
+    wind_speed_count = sum(
+        bool(clean(row.get("wind_speed"))) for row in output_rows
+    )
+    temperature_count = sum(
+        bool(clean(row.get("temperature"))) for row in output_rows
+    )
+    wind_gust_count = sum(
+        bool(clean(row.get("wind_gust"))) for row in output_rows
+    )
+    precip_count = sum(
+        bool(clean(row.get("precip_probability"))) for row in output_rows
+    )
+    humidity_count = sum(
+        bool(clean(row.get("humidity"))) for row in output_rows
+    )
+    all_offsets = _stage1_weather_offsets(output_rows, schedule_rows)
+    new_offsets = state["new_offset_hours"]
+    return {
+        "future_game_count": state["future_game_count"],
+        "completed_game_count": state["completed_game_count"],
+        "provider_request_count": state["provider_request_count"],
+        "provider_request_success_count": state["provider_success_count"],
+        "provider_request_failure_count": state["provider_failure_count"],
         "provider_request_status_counts": dict(
-            sorted(
-                provider_status_counts.items()
-            )
+            sorted(state["provider_status_counts"].items())
         ),
         "provider_http_status_counts": dict(
-            sorted(
-                provider_http_status_counts.items()
-            )
+            sorted(state["provider_http_status_counts"].items())
         ),
         "forecast_result_status_counts": dict(
-            sorted(
-                forecast_status_counts.items()
-            )
+            sorted(state["forecast_status_counts"].items())
         ),
-        "newly_fetched_game_count": newly_fetched_count,
-        "reused_prior_forecast_count": reused_prior_count,
-        "reused_completed_forecast_count": reused_completed_count,
-        "reused_after_refresh_failure_count": (
-            reused_after_refresh_failure_count
-        ),
-        "blank_weather_game_count": blank_weather_count,
-        "blank_weather_game_ids": sorted(
-            set(
-                blank_weather_game_ids
-            )
-        ),
-        "refresh_failure_game_ids": sorted(
-            set(
-                refresh_failure_game_ids
-            )
-        ),
+        "newly_fetched_game_count": state["newly_fetched_count"],
+        "reused_prior_forecast_count": state["reused_prior_count"],
+        "reused_completed_forecast_count": state["reused_completed_count"],
+        "reused_after_refresh_failure_count": state[
+            "reused_after_refresh_failure_count"
+        ],
+        "blank_weather_game_count": state["blank_weather_count"],
+        "blank_weather_game_ids": sorted(set(state["blank_weather_game_ids"])),
+        "refresh_failure_game_ids": sorted(set(state["refresh_failure_game_ids"])),
         "weather_available_game_count": weather_available_count,
         "wind_speed_coverage": wind_speed_count,
         "temperature_coverage": temperature_count,
         "wind_gust_coverage": wind_gust_count,
         "precip_probability_coverage": precip_count,
         "humidity_coverage": humidity_count,
-        "roof_metadata_missing_count": (
-            roof_metadata_missing_count
-        ),
-        "weather_exposed_game_count": (
-            exposed_game_count
-        ),
-        "new_forecast_offset_hours_max": (
-            max(new_offset_hours)
-            if new_offset_hours
-            else None
-        ),
+        "roof_metadata_missing_count": state["roof_metadata_missing_count"],
+        "weather_exposed_game_count": state["exposed_game_count"],
+        "new_forecast_offset_hours_max": max(new_offsets) if new_offsets else None,
         "new_forecast_offset_hours_median": (
-            statistics.median(
-                new_offset_hours
-            )
-            if new_offset_hours
-            else None
+            statistics.median(new_offsets) if new_offsets else None
         ),
-        "output_forecast_offset_hours_max": (
-            max(all_offsets)
-            if all_offsets
-            else None
-        ),
+        "output_forecast_offset_hours_max": max(all_offsets) if all_offsets else None,
         "output_forecast_offset_hours_median": (
-            statistics.median(
-                all_offsets
-            )
-            if all_offsets
-            else None
+            statistics.median(all_offsets) if all_offsets else None
         ),
     }
 
-    return (
+
+def build_weather_rows(
+    schedule_rows: list[dict[str, str]],
+    *,
+    travel_lookup: dict[str, dict[str, str]],
+    stadium_coordinate_lookup: dict[tuple[float, float], dict[str, str]],
+    existing_rows: dict[str, dict[str, str]],
+    fetched_at: datetime,
+    now_utc: datetime,
+    fetcher: Callable[[str, str], ProviderResult] = fetch_weather_json,
+    sleep_fn: Callable[[float], None] = time.sleep,
+) -> tuple[list[dict[str, object]], dict[str, object]]:
+    state = _stage1_weather_state()
+    output_rows = [
+        _stage1_build_weather_game(
+            game,
+            travel_lookup=travel_lookup,
+            stadium_coordinate_lookup=stadium_coordinate_lookup,
+            existing_rows=existing_rows,
+            fetched_at=fetched_at,
+            now_utc=now_utc,
+            state=state,
+            fetcher=fetcher,
+            sleep_fn=sleep_fn,
+        )
+        for game in schedule_rows
+    ]
+    metrics = _stage1_weather_metrics(
         output_rows,
-        metrics,
+        schedule_rows,
+        state,
     )
+    return output_rows, metrics
+
 
 
 def read_staged_rows(

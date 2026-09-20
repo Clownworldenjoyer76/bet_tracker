@@ -380,23 +380,16 @@ def load_clean_rows(
     return rows
 
 
-def validate_clean_rows(
+def _validate_clean_prediction_rows(
     rows: list[dict[str, str]],
     *,
     season: int,
     season_type: int,
     week: int,
     schedule: dict[str, dict[str, str]],
-) -> dict[str, Decimal]:
-    if len(rows) != len(schedule):
-        raise FinalizePredictionValidationError(
-            "Clean prediction row-count mismatch: "
-            f"expected={len(schedule)}, actual={len(rows)}"
-        )
-
-    seen: set[str] = set()
-    margins: dict[str, Decimal] = {}
-
+    seen: set[str],
+    margins: dict[str, Decimal],
+) -> None:
     for row_number, row in enumerate(
         rows,
         start=2,
@@ -563,6 +556,34 @@ def validate_clean_rows(
 
         margins[game_id] = mismatch
 
+
+def validate_clean_rows(
+    rows: list[dict[str, str]],
+    *,
+    season: int,
+    season_type: int,
+    week: int,
+    schedule: dict[str, dict[str, str]],
+) -> dict[str, Decimal]:
+    if len(rows) != len(schedule):
+        raise FinalizePredictionValidationError(
+            "Clean prediction row-count mismatch: "
+            f"expected={len(schedule)}, actual={len(rows)}"
+        )
+
+    seen: set[str] = set()
+    margins: dict[str, Decimal] = {}
+
+    _validate_clean_prediction_rows(
+        rows,
+        season=season,
+        season_type=season_type,
+        week=week,
+        schedule=schedule,
+        seen=seen,
+        margins=margins,
+    )
+
     if seen != set(schedule):
         raise FinalizePredictionValidationError(
             "Clean prediction game coverage does not "
@@ -721,12 +742,9 @@ def build_final_rows(
     )
 
 
-def validate_final_rows(
+
+def _require_final_prediction_row_count(
     rows: list[dict[str, str]],
-    *,
-    season: int,
-    season_type: int,
-    week: int,
     schedule: dict[str, dict[str, str]],
 ) -> None:
     if len(rows) != len(schedule):
@@ -735,16 +753,69 @@ def validate_final_rows(
             f"expected={len(schedule)}, actual={len(rows)}"
         )
 
+
+def _validate_final_prediction_schema(
+    row: dict[str, str],
+    *,
+    row_number: int,
+) -> None:
+    if list(row.keys()) != OUT_HEADERS:
+        raise FinalizePredictionValidationError(
+            f"Final prediction schema mismatch at row {row_number}"
+        )
+
+
+def _validate_final_prediction_identity(
+    row: dict[str, str],
+    *,
+    game_id: str,
+) -> None:
+    if (
+        text(row.get("sport"))
+        != "football"
+        or text(row.get("league"))
+        != "college-football"
+    ):
+        raise FinalizePredictionValidationError(
+            "Final sport/league mismatch "
+            f"for game_id={game_id}"
+        )
+
+
+def _validate_final_prediction_coverage(
+    seen: set[str],
+    schedule: dict[str, dict[str, str]],
+) -> None:
+    if seen != set(schedule):
+        raise FinalizePredictionValidationError(
+            "Final prediction game coverage does not "
+            "match target schedule"
+        )
+
+
+def validate_final_rows(
+    rows: list[dict[str, str]],
+    *,
+    season: int,
+    season_type: int,
+    week: int,
+    schedule: dict[str, dict[str, str]],
+) -> None:
+    _require_final_prediction_row_count(
+        rows,
+        schedule,
+    )
+
     seen: set[str] = set()
 
     for row_number, row in enumerate(
         rows,
         start=2,
     ):
-        if list(row.keys()) != OUT_HEADERS:
-            raise FinalizePredictionValidationError(
-                f"Final prediction schema mismatch at row {row_number}"
-            )
+        _validate_final_prediction_schema(
+            row,
+            row_number=row_number,
+        )
 
         game_id = str(
             positive_int(
@@ -962,22 +1033,15 @@ def validate_final_rows(
                         f"actual={text(row.get(field))!r}"
                     )
 
-        if (
-            text(row.get("sport"))
-            != "football"
-            or text(row.get("league"))
-            != "college-football"
-        ):
-            raise FinalizePredictionValidationError(
-                "Final sport/league mismatch "
-                f"for game_id={game_id}"
-            )
-
-    if seen != set(schedule):
-        raise FinalizePredictionValidationError(
-            "Final prediction game coverage does not "
-            "match target schedule"
+        _validate_final_prediction_identity(
+            row,
+            game_id=game_id,
         )
+
+    _validate_final_prediction_coverage(
+        seen,
+        schedule,
+    )
 
 
 def read_staged_rows(

@@ -353,12 +353,14 @@ def _coerce_boolean_series(
         ):
             return bool(value)
 
-        if isinstance(
-            value,
-            (int, np.integer),
+        if (
+            isinstance(
+                value,
+                (int, np.integer),
+            )
+            and int(value) in {0, 1}
         ):
-            if int(value) in {0, 1}:
-                return bool(int(value))
+            return bool(int(value))
 
         if isinstance(
             value,
@@ -1259,9 +1261,9 @@ def merge_stat_frames(frames: list[pd.DataFrame]) -> pd.DataFrame:
     return result
 
 
-def validate_team_stats_output(
+
+def _validate_team_stats_schema(
     team_stats: pd.DataFrame,
-    requested_season: str,
 ) -> None:
     if team_stats.empty:
         raise ValueError(
@@ -1273,6 +1275,68 @@ def validate_team_stats_output(
             "Team-stat output columns do not match "
             "the required output schema"
         )
+
+
+def _validate_team_stats_metric_counts(
+    team_stats: pd.DataFrame,
+) -> None:
+    for (
+        metric,
+        count_column,
+    ) in METRIC_COUNT_COLUMNS.items():
+        counts = pd.to_numeric(
+            team_stats[
+                count_column
+            ],
+            errors="coerce",
+        )
+
+        invalid = (
+            counts.notna()
+            & (
+                counts.lt(0)
+                | counts.mod(1).ne(0)
+            )
+        )
+
+        if invalid.any():
+            raise ValueError(
+                "Team-stat output contains invalid "
+                f"{count_column}"
+            )
+
+        metric_values = pd.to_numeric(
+            team_stats[
+                metric
+            ],
+            errors="coerce",
+        )
+
+        metric_present = (
+            metric_values.notna()
+        )
+
+        positive_count = (
+            counts.fillna(
+                0.0
+            ).gt(0)
+        )
+
+        if (
+            metric_present
+            != positive_count
+        ).any():
+            raise ValueError(
+                "Team-stat metric/count contract "
+                f"failed for {metric}"
+            )
+
+
+def validate_team_stats_output(
+    team_stats: pd.DataFrame,
+    requested_season: str,
+) -> None:
+    _validate_team_stats_schema(team_stats)
 
     expected_season = int(
         str(requested_season).strip()
@@ -1398,56 +1462,7 @@ def validate_team_stats_output(
             )
 
 
-    for (
-        metric,
-        count_column,
-    ) in METRIC_COUNT_COLUMNS.items():
-        counts = pd.to_numeric(
-            team_stats[
-                count_column
-            ],
-            errors="coerce",
-        )
-
-        invalid = (
-            counts.notna()
-            & (
-                counts.lt(0)
-                | counts.mod(1).ne(0)
-            )
-        )
-
-        if invalid.any():
-            raise ValueError(
-                "Team-stat output contains invalid "
-                f"{count_column}"
-            )
-
-        metric_values = pd.to_numeric(
-            team_stats[
-                metric
-            ],
-            errors="coerce",
-        )
-
-        metric_present = (
-            metric_values.notna()
-        )
-
-        positive_count = (
-            counts.fillna(
-                0.0
-            ).gt(0)
-        )
-
-        if (
-            metric_present
-            != positive_count
-        ).any():
-            raise ValueError(
-                "Team-stat metric/count contract "
-                f"failed for {metric}"
-            )
+    _validate_team_stats_metric_counts(team_stats)
 
     rate_columns = [
         "off_success_rate",
