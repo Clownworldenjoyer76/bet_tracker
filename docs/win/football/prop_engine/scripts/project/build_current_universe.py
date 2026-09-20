@@ -776,7 +776,17 @@ def latest_current_roster_rows(
         gsis = common.normalize_player_id(row.get(gsis_col))
         espn = common.normalize_player_id(row.get(espn_col)) if espn_col else ""
         name = clean(row.get(name_col))
-        key = candidate_key(team, espn, gsis, name)
+        if espn:
+            key = ("", "espn", espn)
+        elif gsis:
+            key = ("", "gsis", gsis)
+        else:
+            normalized_name = common.normalize_name(name)
+            if not normalized_name:
+                raise ValueError(
+                    f"Cannot key current roster row for team={team}: no ID or name"
+                )
+            key = (team, "name", normalized_name)
         previous = rows.get(key)
         if previous is None or (source_week, index) >= (previous[0], previous[1]):
             rows[key] = (
