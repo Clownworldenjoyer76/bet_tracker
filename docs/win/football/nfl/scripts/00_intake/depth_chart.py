@@ -748,6 +748,7 @@ def validate_flat_rows(
             )
 
         team_athlete_entries = 0
+        team_qb_entries = 0
 
         for id_column in athlete_id_columns:
             match = ATHLETE_ID_COLUMN_PATTERN.fullmatch(
@@ -756,8 +757,13 @@ def validate_flat_rows(
             if match is None:
                 continue
 
+            depth_num, position_key, _ = match.groups()
             player_id = clean(row.get(id_column))
             prefix = id_column[:-3]
+            position_column = (
+                f"depthchart.{depth_num}.positions."
+                f"{position_key}.position.abbreviation"
+            )
             name_column = f"{prefix}.displayName"
             guid_column = f"{prefix}.guid"
             uid_column = f"{prefix}.uid"
@@ -810,9 +816,19 @@ def validate_flat_rows(
             team_athlete_entries += 1
             athlete_entries += 1
 
+            if clean(row.get(position_column)).upper() == "QB":
+                team_qb_entries += 1
+
         if team_athlete_entries == 0:
             fail(
                 "Raw depth chart team row contains no athletes "
+                f"team_id={team_id} "
+                f"team_abbr={team_abbr}"
+            )
+
+        if team_qb_entries == 0:
+            fail(
+                "Raw depth chart team row contains no QB depth-chart rows "
                 f"team_id={team_id} "
                 f"team_abbr={team_abbr}"
             )

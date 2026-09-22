@@ -542,6 +542,7 @@ def validate_output_rows(
         seen_keys: set[
             tuple[str, str, str, str]
         ] = set()
+        team_qb_rows = 0
 
         for row_number, row in enumerate(
             rows,
@@ -625,6 +626,9 @@ def validate_output_rows(
                     f"backup={backup}"
                 )
 
+            if clean(row.get("position_abb")).upper() == "QB":
+                team_qb_rows += 1
+
             key = (
                 clean(row.get("team")),
                 clean(row.get("player_id")),
@@ -639,6 +643,12 @@ def validate_output_rows(
 
             seen_keys.add(key)
             total_rows += 1
+
+        if team_qb_rows == 0:
+            fail(
+                "Cleaned depth chart contains no QB depth-chart rows "
+                f"team={expected_abbr}"
+            )
 
     return total_rows
 
