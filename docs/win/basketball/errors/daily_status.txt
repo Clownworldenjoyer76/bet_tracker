@@ -1,10 +1,10 @@
 BASKETBALL DAILY STATUS
 =======================
-generated_at_utc: 2026-09-22T09:30:16Z
+generated_at_utc: 2026-09-22T12:28:47Z
 game_date_new_york: 2026_09_22
-github_run_id: 35710260572
+github_run_id: 35727053889
 github_run_attempt: 1
-workflow_status: success
+workflow_status: failure
 
 SEASON STATUS
 -------------
@@ -14,45 +14,22 @@ wnba: in_season
 
 SUMMARY
 -------
-txt_files_checked_this_run: 30
-txt_files_with_issues: 7
-txt_issue_lines: 23
-txt_issue_lines_suppressed_offseason: 28
+txt_files_checked_this_run: 5
+txt_files_with_issues: 3
+txt_issue_lines: 12
+txt_issue_lines_suppressed_offseason: 0
 no_map_teams: 1
 no_map_teams_suppressed_offseason: 0
-system_issues: 0
+system_issues: 1
 overall: ISSUES FOUND
 
 CURRENT-RUN TXT ISSUES
 ----------------------
-[docs/win/basketball/errors/00_intake/calculate_rolling_bias.txt]
+[docs/win/basketball/errors/00_intake/basketball_drat_scraper.txt]
 run_change: REWRITTEN
-15:2026-09-22T09:30:07+00:00 | INFO  | WNBA | READY_WITH_WARNINGS | margin=-5.012 total=-6.461 warnings=15
-
-[docs/win/basketball/errors/00_intake/clean_basketball_inputs_wnba.txt]
-run_change: REWRITTEN
-264:2026-09-22T09:30:07.400922 | WARN | Historical raw prediction has no existing cleaned copy; not applying current bias retroactively: docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_08_21_WNBA_predictions.csv
-265:2026-09-22T09:30:07.400939 | WARN | Historical raw prediction has no existing cleaned copy; not applying current bias retroactively: docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_08_22_WNBA_predictions.csv
-266:2026-09-22T09:30:07.400954 | WARN | Historical raw prediction has no existing cleaned copy; not applying current bias retroactively: docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_08_23_WNBA_predictions.csv
-267:2026-09-22T09:30:07.400976 | WARN | Historical raw prediction has no existing cleaned copy; not applying current bias retroactively: docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_08_24_WNBA_predictions.csv
-268:2026-09-22T09:30:07.400991 | WARN | Historical raw prediction has no existing cleaned copy; not applying current bias retroactively: docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_08_25_WNBA_predictions.csv
-269:2026-09-22T09:30:07.401007 | WARN | Historical raw prediction has no existing cleaned copy; not applying current bias retroactively: docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_08_26_WNBA_predictions.csv
-
-[docs/win/basketball/errors/00_intake/sdv_predict.txt]
-run_change: REWRITTEN
-1051:2026-09-22T09:30:05.667534+00:00 | Traceback (most recent call last):
-1062:RuntimeError: Unable to resolve SDV home_team_id for daily game_id=401918014 team='TBD'
-1068:2026-09-22T09:30:06.139647+00:00 | Traceback (most recent call last):
-1079:RuntimeError: Unable to resolve SDV home_team_id for daily game_id=401918017 team='TBD'
-1080:2026-09-22T09:30:06.161044+00:00 | STATUS: SUCCESS | league=WNBA dates_found=118 dates_written=116 rows_written=337 dates_skipped=0 date_errors=2
-
-[docs/win/basketball/errors/04_select/daily_slate.txt]
-run_change: REWRITTEN
-5:2026-09-22T09:30:08.720115+00:00 | WARN  | [wnba] extra input headers ignored: away_spread_adjusted_model_prob, away_spread_raw_ev, away_spread_raw_kelly, away_spread_signal_points, away_spread_uncertainty_adjusted_ev, away_spread_uncertainty_multiplier, away_spread_uncertainty_points, home_spread_adjusted_model_prob, home_spread_raw_ev, home_spread_raw_kelly, home_spread_signal_points, home_spread_uncertainty_adjusted_ev, home_spread_uncertainty_multiplier, home_spread_uncertainty_points, over_adjusted_model_prob, over_raw_ev, over_raw_kelly, over_signal_points, over_uncertainty_adjusted_ev, over_uncertainty_multiplier, over_uncertainty_points, provider_updated_at_utc, scraped_at_utc, sportsbook_provider, uncertainty_source, under_adjusted_model_prob, under_raw_ev, under_raw_kelly, under_signal_points, under_uncertainty_adjusted_ev, under_uncertainty_multiplier, under_uncertainty_points
-
-[docs/win/basketball/errors/05_final_scores/02_basketball_results_analyze.txt]
-run_change: REWRITTEN
-14:2026-09-22T09:30:15.128507+00:00 | WARNING | [WNBA] no closing-line files in docs/win/basketball/05_final_scores/closing_lines/wnba; CLV will be unavailable
+4:2026-09-22T08:28:42.806338-04:00 | ERROR scraping wnba: Page.wait_for_selector: Timeout 60000ms exceeded.
+8:Traceback (most recent call last)
+29:playwright._impl._errors.TimeoutError: Page.wait_for_selector: Timeout 60000ms exceeded.
 
 [docs/win/basketball/errors/pipeline_health.txt]
 run_change: REWRITTEN
@@ -75,5 +52,6 @@ wnba | TBD
 
 SYSTEM ISSUES
 -------------
-None
+[GITHUB WORKFLOW]
+ERROR: workflow status before daily-status generation is failure.
 
