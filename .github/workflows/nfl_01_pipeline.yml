@@ -83,6 +83,7 @@ jobs:
           exit 0
 
       - name: Commit and push DRAT
+        if: steps.clean_drat.outputs.exit_code == '0'
         run: |
           set -e
 
@@ -92,20 +93,56 @@ jobs:
           git add -A \
             docs/win/football/nfl/00_intake/predictions/drat/raw \
             docs/win/football/nfl/00_intake/predictions/drat/clean \
-            docs/win/football/nfl/errors/00_intake/clean_drat.txt
+            docs/win/football/nfl/errors/
 
           if git diff --cached --quiet; then
             echo "No changes to commit."
           else
             git commit -m "Pull and clean weekly DRAT predictions"
-            git push
+            if ! git pull --rebase --autostash origin "$GITHUB_REF_NAME"; then
+              git rebase --abort 2>/dev/null || true
+              exit 1
+            fi
+            git push origin "HEAD:$GITHUB_REF_NAME"
           fi
+
+      - name: Commit and push DRAT failure report
+        if: steps.clean_drat.outputs.exit_code != '0'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          REPORT="docs/win/football/nfl/errors/00_intake/clean_drat.json"
+
+          if [ ! -f "$REPORT" ]; then
+            echo "ERROR: clean_drat.py failed without producing $REPORT"
+            exit 1
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add -A -- "$REPORT"
+
+          if git diff --cached --quiet; then
+            echo "No DRAT failure report changes to commit."
+            exit 0
+          fi
+
+          git commit -m "Record DRAT cleaning failure report"
+
+          if ! git pull --rebase --autostash origin "$GITHUB_REF_NAME"; then
+            git rebase --abort 2>/dev/null || true
+            exit 1
+          fi
+
+          git push origin "HEAD:$GITHUB_REF_NAME"
 
       - name: Fail workflow if DRAT cleaning failed
         if: steps.clean_drat.outputs.exit_code != '0'
         run: |
           echo "clean_drat.py reported errors."
-          echo "See docs/win/football/nfl/errors/00_intake/clean_drat.txt"
+          echo "See docs/win/football/nfl/errors/00_intake/clean_drat.json"
           exit 1
 
       - name: Load NFL settings
@@ -117,15 +154,30 @@ jobs:
 
           NFL_SEASON="$(awk -F': *' '$1 == "season" {print $2; exit}' "$SETTINGS")"
           NFL_WEEK="$(awk -F': *' '$1 == "week" {print $2; exit}' "$SETTINGS")"
+          NFL_SEASON_TYPE_NAME="$(awk -F': *' '$1 == "season_type" {print $2; exit}' "$SETTINGS")"
+          NFL_SPORTSBOOK="$(awk -F': *' '$1 == "sportsbook" {print $2; exit}' "$SETTINGS")"
 
-          if [ -z "$NFL_SEASON" ] || [ -z "$NFL_WEEK" ]; then
-            echo "ERROR: season/week missing from $SETTINGS"
+          if [ -z "$NFL_SEASON" ] || [ -z "$NFL_WEEK" ] || [ -z "$NFL_SEASON_TYPE_NAME" ] || [ -z "$NFL_SPORTSBOOK" ]; then
+            echo "ERROR: season/week/season_type/sportsbook missing from $SETTINGS"
             exit 1
           fi
 
+          case "$NFL_SEASON_TYPE_NAME" in
+            pre)  NFL_SEASON_TYPE=1 ;;
+            reg)  NFL_SEASON_TYPE=2 ;;
+            post) NFL_SEASON_TYPE=3 ;;
+            *)
+              echo "ERROR: unsupported season_type in $SETTINGS: $NFL_SEASON_TYPE_NAME"
+              exit 1
+              ;;
+          esac
+
           echo "NFL_SEASON=$NFL_SEASON" >> "$GITHUB_ENV"
           echo "NFL_WEEK=$NFL_WEEK" >> "$GITHUB_ENV"
-          echo "Configured NFL season=$NFL_SEASON week=$NFL_WEEK"
+          echo "NFL_SEASON_TYPE_NAME=$NFL_SEASON_TYPE_NAME" >> "$GITHUB_ENV"
+          echo "NFL_SEASON_TYPE=$NFL_SEASON_TYPE" >> "$GITHUB_ENV"
+          echo "NFL_SPORTSBOOK=$NFL_SPORTSBOOK" >> "$GITHUB_ENV"
+          echo "Configured NFL season=$NFL_SEASON season_type=$NFL_SEASON_TYPE_NAME week=$NFL_WEEK sportsbook=$NFL_SPORTSBOOK"
 
       - name: Determine Tuesday mode
         shell: bash
@@ -151,6 +203,8 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: docs/win/football/nfl/requirements.txt
 
       - name: Install Tuesday dependencies
         if: env.IS_TUESDAY == 'true'
@@ -161,7 +215,8 @@ jobs:
       - name: Pull NFL schedule
         if: env.IS_TUESDAY == 'true'
         run: |
-          python docs/win/football/nfl/scripts/00_intake/pull_schedule.py
+          python docs/win/football/nfl/scripts/00_intake/pull_schedule.py \
+            --season "$NFL_SEASON"
 
       - name: Pull play-by-play
         if: env.IS_TUESDAY == 'true'
@@ -172,45 +227,51 @@ jobs:
       - name: Build team statistics
         if: env.IS_TUESDAY == 'true'
         run: |
-          set -o pipefail
           python docs/win/football/nfl/scripts/00_intake/pull_team_stats.py \
-            --season "$NFL_SEASON" \
-            2>&1 | tee docs/win/football/nfl/errors/00_intake/pull_team_stats.txt
+            --season "$NFL_SEASON"
 
       - name: Build quarterback statistics
         if: env.IS_TUESDAY == 'true'
         run: |
-          python docs/win/football/nfl/scripts/00_intake/pull_qb_stats.py
+          python docs/win/football/nfl/scripts/00_intake/pull_qb_stats.py \
+            --season "$NFL_SEASON"
 
       - name: Update league master and standings
         if: env.IS_TUESDAY == 'true'
         run: |
-          python docs/win/football/nfl/scripts/00_intake/league_master.py
+          python docs/win/football/nfl/scripts/00_intake/league_master.py \
+            --season "$NFL_SEASON" \
+            --season-type "$NFL_SEASON_TYPE"
 
       - name: Update coaches
         if: env.IS_TUESDAY == 'true'
         run: |
-          python docs/win/football/nfl/scripts/00_intake/coaches.py
+          python docs/win/football/nfl/scripts/00_intake/coaches.py \
+            --season "$NFL_SEASON"
 
       - name: Pull QBR
         if: env.IS_TUESDAY == 'true'
         run: |
-          python docs/win/football/nfl/scripts/00_intake/pull_qbr.py
+          python docs/win/football/nfl/scripts/00_intake/pull_qbr.py \
+            --season "$NFL_SEASON"
 
       - name: Pull team power index
         if: env.IS_TUESDAY == 'true'
         run: |
-          python docs/win/football/nfl/scripts/00_intake/team_power_index.py
+          python docs/win/football/nfl/scripts/00_intake/team_power_index.py \
+            --season "$NFL_SEASON"
 
       - name: Pull league leaders
         if: env.IS_TUESDAY == 'true'
         run: |
-          python docs/win/football/nfl/scripts/00_intake/pull_league_leaders.py
+          python docs/win/football/nfl/scripts/00_intake/pull_league_leaders.py \
+            --season "$NFL_SEASON"
 
       - name: Pull market futures
         if: env.IS_TUESDAY == 'true'
         run: |
-          python docs/win/football/nfl/scripts/00_intake/pull_market_futures.py
+          python docs/win/football/nfl/scripts/00_intake/pull_market_futures.py \
+            --season "$NFL_SEASON"
 
       # ============================================================
       # NFL 02 DAILY - EVERY RUN
@@ -220,6 +281,8 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: docs/win/football/nfl/requirements.txt
 
       - name: Install Daily dependencies
         run: |
@@ -228,11 +291,18 @@ jobs:
 
       - name: Pull current odds
         run: |
-          python docs/win/football/nfl/scripts/00_intake/pull_odds.py
+          python docs/win/football/nfl/scripts/00_intake/pull_odds.py \
+            --season "$NFL_SEASON" \
+            --season-type "$NFL_SEASON_TYPE" \
+            --week "$NFL_WEEK" \
+            --sportsbook "$NFL_SPORTSBOOK"
 
       - name: Build weekly schedule
         run: |
-          python docs/win/football/nfl/scripts/00_intake/build_weekly_schedule.py
+          python docs/win/football/nfl/scripts/00_intake/build_weekly_schedule.py \
+            --season "$NFL_SEASON" \
+            --season-type "$NFL_SEASON_TYPE_NAME" \
+            --week "$NFL_WEEK"
 
       - name: Verify weekly schedule matches settings
         shell: bash
@@ -246,16 +316,59 @@ jobs:
             exit 1
           fi
 
-          LATEST="$(find docs/win/football/nfl/00_intake/schedule/weekly -maxdepth 1 -type f -name 'week_*_NFL_weekly_schedule.csv' -printf '%T@ %p\n' | sort -nr | head -1 | cut -d' ' -f2-)"
+          python - "$EXPECTED" "$NFL_SEASON" "$NFL_SEASON_TYPE_NAME" "$NFL_WEEK" <<'PY'
+          import csv
+          import sys
+          from pathlib import Path
 
-          if [ "$LATEST" != "$EXPECTED" ]; then
-            echo "ERROR: build_weekly_schedule.py produced $LATEST but settings.yaml requires $EXPECTED"
-            exit 1
-          fi
+          path = Path(sys.argv[1])
+          expected = (sys.argv[2], sys.argv[3], sys.argv[4])
+
+          with path.open("r", newline="", encoding="utf-8-sig") as handle:
+              reader = csv.DictReader(handle)
+              columns = set(reader.fieldnames or [])
+              required = {"season", "season_type", "week"}
+              missing = sorted(required - columns)
+
+              if missing:
+                  raise SystemExit(
+                      f"ERROR: {path} missing required columns: {missing}"
+                  )
+
+              rows = list(reader)
+
+          if not rows:
+              raise SystemExit(f"ERROR: {path} contains no data rows")
+
+          mismatches = []
+
+          for line_number, row in enumerate(rows, start=2):
+              actual = (
+                  str(row.get("season", "")).strip(),
+                  str(row.get("season_type", "")).strip(),
+                  str(row.get("week", "")).strip(),
+              )
+
+              if actual != expected:
+                  mismatches.append((line_number, actual))
+
+                  if len(mismatches) >= 5:
+                      break
+
+          if mismatches:
+              raise SystemExit(
+                  f"ERROR: {path} does not match configured target "
+                  f"{expected}; examples={mismatches}"
+              )
+
+          print(f"Verified configured weekly schedule: {path} rows={len(rows)}")
+          PY
 
       - name: Build travel data
         run: |
-          python docs/win/football/nfl/scripts/00_intake/build_travel.py
+          python docs/win/football/nfl/scripts/00_intake/build_travel.py \
+            --season "$NFL_SEASON" \
+            --week "$NFL_WEEK"
 
       - name: Validate Tuesday outputs
         if: env.IS_TUESDAY == 'true'
@@ -276,16 +389,23 @@ jobs:
             echo "No NFL Tuesday output changes to commit."
           else
             git commit -m "Update NFL Tuesday AM data"
-            git push
+            if ! git pull --rebase --autostash origin "$GITHUB_REF_NAME"; then
+              git rebase --abort 2>/dev/null || true
+              exit 1
+            fi
+            git push origin "HEAD:$GITHUB_REF_NAME"
           fi
 
       - name: Build ESPN opening odds and movement
         run: |
-          python docs/win/football/nfl/scripts/00_intake/pull_opening_odds.py
+          python docs/win/football/nfl/scripts/00_intake/pull_opening_odds.py \
+            --season "$NFL_SEASON" \
+            --week "$NFL_WEEK"
 
       - name: Pull raw roster
         run: |
-          python docs/win/football/nfl/scripts/00_intake/pull_raw_roster.py
+          python docs/win/football/nfl/scripts/00_intake/pull_raw_roster.py \
+            --season "$NFL_SEASON"
 
       - name: Clean roster
         run: |
@@ -293,7 +413,8 @@ jobs:
 
       - name: Pull depth charts
         run: |
-          python docs/win/football/nfl/scripts/00_intake/depth_chart.py
+          python docs/win/football/nfl/scripts/00_intake/depth_chart.py \
+            --season "$NFL_SEASON"
 
       - name: Clean depth charts
         run: |
@@ -305,19 +426,26 @@ jobs:
 
       - name: Pull injuries
         run: |
-          python docs/win/football/nfl/scripts/00_intake/pull_injuries.py
+          python docs/win/football/nfl/scripts/00_intake/pull_injuries.py \
+            --season "$NFL_SEASON"
 
       - name: Fetch weather
         run: |
-          python docs/win/football/nfl/scripts/00_intake/fetch_weather.py
+          python docs/win/football/nfl/scripts/00_intake/fetch_weather.py \
+            --season "$NFL_SEASON" \
+            --week "$NFL_WEEK"
 
       - name: Pull ESPN predictions
         run: |
-          python docs/win/football/nfl/scripts/00_intake/pull_e_predictions.py
+          python docs/win/football/nfl/scripts/00_intake/pull_e_predictions.py \
+            --season "$NFL_SEASON"
 
       - name: Validate daily outputs
         run: |
-          python docs/win/football/nfl/scripts/validation/validate_daily.py
+          python docs/win/football/nfl/scripts/validation/validate_daily.py \
+            --season "$NFL_SEASON" \
+            --season-type "$NFL_SEASON_TYPE_NAME" \
+            --week "$NFL_WEEK"
 
       - name: Commit and push all daily outputs
         run: |
@@ -330,7 +458,11 @@ jobs:
             echo "No NFL daily output changes to commit."
           else
             git commit -m "Update NFL daily AM data"
-            git push
+            if ! git pull --rebase --autostash origin "$GITHUB_REF_NAME"; then
+              git rebase --abort 2>/dev/null || true
+              exit 1
+            fi
+            git push origin "HEAD:$GITHUB_REF_NAME"
           fi
 
       # ============================================================
@@ -341,6 +473,8 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: docs/win/football/nfl/requirements.txt
 
       - name: Install Prediction dependencies
         run: |
@@ -348,22 +482,34 @@ jobs:
           pip install -r docs/win/football/nfl/requirements.txt
 
       - name: Run clean_e_pred.py
-        run: python docs/win/football/nfl/scripts/00_intake/clean_e_pred.py
+        run: |
+          python docs/win/football/nfl/scripts/00_intake/clean_e_pred.py \
+            --season "$NFL_SEASON"
 
       - name: Run finalize_pred.py
-        run: python docs/win/football/nfl/scripts/00_intake/finalize_pred.py
+        run: |
+          python docs/win/football/nfl/scripts/00_intake/finalize_pred.py \
+            --season "$NFL_SEASON"
 
       - name: Run enrich_moneyline.py
-        run: python docs/win/football/nfl/scripts/00_intake/enrich_moneyline.py
+        run: |
+          python docs/win/football/nfl/scripts/00_intake/enrich_moneyline.py \
+            --season "$NFL_SEASON"
 
       - name: Run enrich_spread.py
-        run: python docs/win/football/nfl/scripts/00_intake/enrich_spread.py
+        run: |
+          python docs/win/football/nfl/scripts/00_intake/enrich_spread.py \
+            --season "$NFL_SEASON"
 
       - name: Run enrich_totals.py
-        run: python docs/win/football/nfl/scripts/00_intake/enrich_totals.py
+        run: |
+          python docs/win/football/nfl/scripts/00_intake/enrich_totals.py \
+            --season "$NFL_SEASON"
 
       - name: Run enrich_combine.py
-        run: python docs/win/football/nfl/scripts/00_intake/enrich_combine.py
+        run: |
+          python docs/win/football/nfl/scripts/00_intake/enrich_combine.py \
+            --season "$NFL_SEASON"
 
       - name: Commit and push Predictions
         run: |
@@ -372,15 +518,18 @@ jobs:
 
           git add docs/win/football/nfl/00_intake/predictions/clean \
                   docs/win/football/nfl/00_intake/predictions/final \
-                  docs/win/football/nfl/00_intake/predictions/enriched/ \
-                  docs/win/football/nfl/errors/00_intake/clean_e_pred.txt \
-                  docs/win/football/nfl/errors/00_intake/finalize_pred.txt
+                  docs/win/football/nfl/00_intake/predictions/enriched/
+          git add -A docs/win/football/nfl/errors/
 
           if git diff --staged --quiet; then
             echo "No changes to commit."
           else
             git commit -m "Update NFL predictions and enrichment"
-            git push
+            if ! git pull --rebase --autostash origin "$GITHUB_REF_NAME"; then
+              git rebase --abort 2>/dev/null || true
+              exit 1
+            fi
+            git push origin "HEAD:$GITHUB_REF_NAME"
           fi
 
       # ============================================================
@@ -391,6 +540,8 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: docs/win/football/nfl/requirements.txt
 
       - name: Install Projection dependencies
         run: |
@@ -417,12 +568,17 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           git add docs/win/football/nfl/01_merge/
+          git add -A docs/win/football/nfl/errors/
 
           if git diff --cached --quiet; then
             echo "No projection output changes to commit."
           else
             git commit -m "Update NFL projection output"
-            git push
+            if ! git pull --rebase --autostash origin "$GITHUB_REF_NAME"; then
+              git rebase --abort 2>/dev/null || true
+              exit 1
+            fi
+            git push origin "HEAD:$GITHUB_REF_NAME"
           fi
 
       # ============================================================
@@ -433,6 +589,8 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: docs/win/football/nfl/requirements.txt
 
       - name: Install Select dependencies
         run: |
@@ -531,12 +689,17 @@ jobs:
 
           git add docs/win/football/nfl/02_select/
           git add docs/win/football/nfl/03_picks/
+          git add -A docs/win/football/nfl/errors/
 
           if git diff --cached --quiet; then
             echo "No NFL selection or picks output changes to commit."
           else
             git commit -m "Run NFL selections and picks for all available weeks"
-            git push
+            if ! git pull --rebase --autostash origin "$GITHUB_REF_NAME"; then
+              git rebase --abort 2>/dev/null || true
+              exit 1
+            fi
+            git push origin "HEAD:$GITHUB_REF_NAME"
           fi
 
       # ============================================================
@@ -547,6 +710,8 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: docs/win/football/nfl/requirements.txt
 
       - name: Install Final Results dependencies
         run: |
@@ -559,7 +724,7 @@ jobs:
 
       - name: Grade NFL selected picks
         run: |
-          python docs/win/football/nfl/scripts/04_final_results/grade_selected_picks.py
+          python docs/win/football/nfl/scripts/04_final_results/01_nfl_results_grade.py
 
       - name: Analyze graded NFL bets
         run: |
@@ -583,7 +748,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           git add -A docs/win/football/nfl/04_final_results/
-          git add -A docs/win/football/nfl/errors/04_final_results/
+          git add -A docs/win/football/nfl/errors/
           git add -A docs/win/football/nfl/03_picks/survivor/
           git add -A frontend/nfl_dashboard.html
 
@@ -591,7 +756,11 @@ jobs:
             echo "No final-results changes to commit."
           else
             git commit -m "Update NFL final results and graded-bet reports"
-            git push
+            if ! git pull --rebase --autostash origin "$GITHUB_REF_NAME"; then
+              git rebase --abort 2>/dev/null || true
+              exit 1
+            fi
+            git push origin "HEAD:$GITHUB_REF_NAME"
           fi
 
       # ============================================================
@@ -603,11 +772,6 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install NM Bets dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r docs/win/football/nfl/requirements.txt
-
       - name: Generate NM NFL picks
         run: |
           python docs/win/football/nfl/scripts/03_picks/nmbets.py
@@ -618,6 +782,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           git add docs/win/football/nfl/03_picks/nmbets/
+          git add -A docs/win/football/nfl/errors/
 
           if git diff --cached --quiet; then
             echo "No NM NFL picks changes to commit."
@@ -625,4 +790,114 @@ jobs:
           fi
 
           git commit -m "Update NFL NM bets"
-          git push
+          if ! git pull --rebase --autostash origin "$GITHUB_REF_NAME"; then
+            git rebase --abort 2>/dev/null || true
+            exit 1
+          fi
+          git push origin "HEAD:$GITHUB_REF_NAME"
+
+
+      # ============================================================
+      # NFL 08 PIPELINE HEALTH
+      # ============================================================
+
+      - name: Generate NFL pipeline health
+        if: always()
+        id: nfl_pipeline_health
+        shell: bash
+        env:
+          NFL_PIPELINE_WORKFLOW: nfl_01
+          NFL_PIPELINE_JOB_STATUS: ${{ job.status }}
+          NFL_PROJECTION_MODE: ${{ inputs.projection_mode }}
+        run: |
+          set +e
+
+          python docs/win/football/nfl/scripts/pipeline_health.py
+          status=$?
+
+          echo "exit_code=${status}" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Commit NFL pipeline health
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          HEALTH_PATHS=(
+            docs/win/football/nfl/pipeline_health.json
+            docs/win/football/nfl/errors/pipeline_health.txt
+            frontend/data/pipeline_health/nfl.json
+          )
+
+          STAGE_PATHS=()
+
+          for FILE in "${HEALTH_PATHS[@]}"; do
+            if [ -e "$FILE" ] || git ls-files --error-unmatch "$FILE" >/dev/null 2>&1; then
+              STAGE_PATHS+=("$FILE")
+            fi
+          done
+
+          if [ "${#STAGE_PATHS[@]}" -eq 0 ]; then
+            echo "No NFL pipeline-health outputs exist to commit."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add -A -- "${STAGE_PATHS[@]}"
+
+          if git diff --cached --quiet -- "${STAGE_PATHS[@]}"; then
+            echo "No NFL pipeline-health changes to commit."
+          else
+            git commit -m "Update NFL pipeline health" -- "${STAGE_PATHS[@]}"
+
+            if ! git pull --rebase --autostash origin "$GITHUB_REF_NAME"; then
+              git rebase --abort 2>/dev/null || true
+              exit 1
+            fi
+
+            git push origin "HEAD:$GITHUB_REF_NAME"
+          fi
+
+      - name: Publish NFL failure reports
+        if: failure()
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          REPORT_DIR="docs/win/football/nfl/errors"
+
+          if [ ! -d "$REPORT_DIR" ]; then
+            echo "No NFL error-report directory exists."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add -A -- "$REPORT_DIR"
+
+          if git diff --cached --quiet -- "$REPORT_DIR"; then
+            echo "No NFL failure-report changes to commit."
+            exit 0
+          fi
+
+          git commit --only \
+            -m "Record NFL pipeline failure reports" \
+            -- "$REPORT_DIR"
+
+          if ! git pull --rebase --autostash origin "$GITHUB_REF_NAME"; then
+            git rebase --abort 2>/dev/null || true
+            exit 1
+          fi
+
+          git push origin "HEAD:$GITHUB_REF_NAME"
+
+      - name: Fail workflow if NFL pipeline health failed
+        if: always() && steps.nfl_pipeline_health.outputs.exit_code != '0'
+        run: |
+          echo "NFL pipeline health reported a fatal condition."
+          echo "See docs/win/football/nfl/pipeline_health.json"
+          exit 1
