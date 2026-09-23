@@ -30,12 +30,10 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
-import os
 import sys
 import traceback
 from datetime import UTC, datetime
 from pathlib import Path
-from zoneinfo import ZoneInfo
 
 import joblib
 import numpy as np
@@ -288,75 +286,6 @@ def normalize_gamepk(series: pd.Series) -> pd.Series:
     )
 
     return out
-
-
-def _current_pipeline_date() -> str:
-    env_date = str(os.environ.get("DATE", "") or "").strip().replace("-", "_")
-    if env_date:
-        parsed = pd.to_datetime(env_date.replace("_", "-"), errors="coerce")
-        if pd.notna(parsed):
-            return pd.Timestamp(parsed).strftime("%Y_%m_%d")
-    return datetime.now(ZoneInfo("America/New_York")).strftime("%Y_%m_%d")
-
-
-def _game_row_is_preservable(row: pd.Series) -> bool:
-    status_text = " ".join(
-        str(row.get(key, "") or "").strip().lower()
-        for key in (
-            "status",
-            "game_status",
-            "status_detail",
-            "detailed_state",
-            "abstract_game_state",
-        )
-    )
-    return not any(token in status_text for token in ("cancelled", "canceled", "postponed"))
-
-
-def preserve_existing_same_day_projections(
-    date_str: str,
-    result: pd.DataFrame,
-    games: pd.DataFrame,
-    output_path: Path,
-) -> pd.DataFrame:
-    """Upsert refreshed projections without deleting valid same-day projections."""
-    if date_str != _current_pipeline_date() or not output_path.exists():
-        return result
-
-    existing = pd.read_csv(output_path, dtype=str, encoding="utf-8-sig")
-    if existing.empty or "game_id" not in existing.columns:
-        return result
-
-    existing = existing.copy()
-    existing["game_id"] = normalize_game_id(existing["game_id"])
-    result = result.copy()
-    if "game_id" in result.columns:
-        result["game_id"] = normalize_game_id(result["game_id"])
-
-    valid_game_ids = {
-        str(row.get("game_id", "") or "").strip()
-        for _, row in games.iterrows()
-        if str(row.get("game_id", "") or "").strip() and _game_row_is_preservable(row)
-    }
-    refreshed_ids = set(result["game_id"].dropna().astype(str).str.strip()) if "game_id" in result.columns else set()
-    keep = existing["game_id"].isin(valid_game_ids - refreshed_ids)
-    preserved = existing.loc[keep].copy()
-
-    if preserved.empty:
-        return result
-
-    all_columns = list(dict.fromkeys(list(result.columns) + list(preserved.columns)))
-    result = result.reindex(columns=all_columns)
-    preserved = preserved.reindex(columns=all_columns)
-    combined = pd.concat([result, preserved], ignore_index=True, sort=False)
-
-    assert_unique_nonblank_key(combined, "game_id", f"preserved model_projection {date_str}")
-    _log(
-        f"PRESERVED same-day model projections date={date_str} "
-        f"count={len(preserved)} game_ids={sorted(preserved['game_id'].astype(str).tolist())}",
-        "WARN",
-    )
-    return combined
 
 
 def assert_unique_nonblank_key(
@@ -1407,10 +1336,6 @@ def process_date(
             dtype="string"
         )
 
-        result = preserve_existing_same_day_projections(
-            date_str, result, games, output_path
-        )
-
         result.to_csv(
             output_path,
             index=False,
@@ -1418,7 +1343,7 @@ def process_date(
 
         _log(
             f"WROTE {output_path} "
-            f"rows={len(result)}"
+            "rows=0"
         )
 
         return output_path
@@ -1603,10 +1528,6 @@ def process_date(
                 "Missing required preserved "
                 f"DRatings column: {col}"
             )
-
-    result = preserve_existing_same_day_projections(
-        date_str, result, games, output_path
-    )
 
     result.to_csv(
         output_path,
