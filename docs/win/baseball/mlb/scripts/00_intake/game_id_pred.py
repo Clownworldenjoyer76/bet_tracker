@@ -232,6 +232,85 @@ def write_output_csv(date_str: str, header: list[str], rows: list[dict], summary
     return out_path
 
 
+def game_row_is_preservable(row: dict) -> bool:
+    """Return False only when the current games row explicitly says cancelled/postponed."""
+    status_text = " ".join(
+        str(row.get(key, "") or "").strip().lower()
+        for key in (
+            "status",
+            "game_status",
+            "status_detail",
+            "detailed_state",
+            "abstract_game_state",
+        )
+    )
+    return not any(token in status_text for token in ("cancelled", "canceled", "postponed"))
+
+
+def preserve_existing_valid_rows(
+    date_str: str,
+    new_rows: list[dict],
+    games_rows: list[dict],
+) -> list[dict]:
+    """Upsert new rows by game_id while retaining valid same-day rows from prior runs."""
+    if parse_date_value(date_str) != current_cutoff_date():
+        return new_rows
+
+    out_path = OUT_DIR / f"{date_str}_MLB.csv"
+    if not out_path.exists():
+        return new_rows
+
+    existing_rows = load_csv(out_path, OUTPUT_HEADER, "existing pred_with_game_id")
+    if not existing_rows:
+        return new_rows
+
+    if not games_rows:
+        log(
+            f"{date_str} | schedule rows unavailable; retaining existing same-day output "
+            f"rows={len(existing_rows)} instead of destructively clearing it",
+            "WARN",
+        )
+        return existing_rows if not new_rows else new_rows
+
+    valid_game_ids = {
+        (row.get("game_id") or "").strip()
+        for row in games_rows
+        if (row.get("game_id") or "").strip() and game_row_is_preservable(row)
+    }
+
+    merged_by_game_id = {}
+    for row in existing_rows:
+        game_id = (row.get("game_id") or "").strip()
+        if game_id and game_id in valid_game_ids:
+            merged_by_game_id[game_id] = {col: row.get(col, "") for col in OUTPUT_HEADER}
+
+    preserved_before_update = set(merged_by_game_id)
+
+    for row in new_rows:
+        game_id = (row.get("game_id") or "").strip()
+        if not game_id:
+            fail(f"{date_str} | refusing to upsert blank game_id row: {row}")
+        merged_by_game_id[game_id] = {col: row.get(col, "") for col in OUTPUT_HEADER}
+
+    new_ids = {(row.get("game_id") or "").strip() for row in new_rows}
+    preserved_ids = sorted(preserved_before_update - new_ids)
+    if preserved_ids:
+        log(
+            f"{date_str} | PRESERVED existing same-day prediction rows absent from latest refresh: "
+            f"count={len(preserved_ids)} game_ids={preserved_ids}",
+            "WARN",
+        )
+
+    game_order = {
+        (row.get("game_id") or "").strip(): idx
+        for idx, row in enumerate(games_rows)
+        if (row.get("game_id") or "").strip()
+    }
+    merged_rows = list(merged_by_game_id.values())
+    merged_rows.sort(key=lambda row: (game_order.get((row.get("game_id") or "").strip(), math.inf), (row.get("game_id") or "").strip()))
+    return merged_rows
+
+
 # ─────────────────────────────────────────────
 # HELPERS
 # ─────────────────────────────────────────────
@@ -875,12 +954,19 @@ def process_date(date_str: str, pred_path: Path, summary: dict) -> None:
             write_csv(rejection_path, REJECTION_HEADER, rejection_rows)
             print_rejection_rows(date_str, rejection_path, rejection_rows)
 
-        write_output_csv(date_str, OUTPUT_HEADER, [], summary)
+        games_rows_for_preserve = (
+            load_csv(games_path, REQUIRED_GAMES_COLS, "games input", required_file=False)
+            if games_path.exists()
+            else []
+        )
+        preserved_rows = preserve_existing_valid_rows(date_str, [], games_rows_for_preserve)
+        validate_output_rows(date_str, len(preserved_rows), preserved_rows)
+        write_output_csv(date_str, OUTPUT_HEADER, preserved_rows, summary)
 
         log(
             f"{date_str} | no sportsbook-eligible prediction rows. "
             f"input_predictions={len(pred_rows)} nonfatal_rejections={nonfatal_rejection_count} "
-            f"output_rows=0"
+            f"output_rows={len(preserved_rows)} preserved_existing={len(preserved_rows)}"
         )
 
         summary["rejected"] += len(rejection_rows)
@@ -926,13 +1012,23 @@ def process_date(date_str: str, pred_path: Path, summary: dict) -> None:
                 write_csv(rejection_path, REJECTION_HEADER, rejection_rows)
                 print_rejection_rows(date_str, rejection_path, rejection_rows)
 
-            write_output_csv(date_str, OUTPUT_HEADER, [], summary)
+            existing_path = OUT_DIR / f"{date_str}_MLB.csv"
+            existing_rows = load_csv(existing_path, OUTPUT_HEADER, "existing pred_with_game_id") if existing_path.exists() else []
+            if existing_rows:
+                validate_output_rows(date_str, len(existing_rows), existing_rows)
+                log(
+                    f"{date_str} | current/future games file missing; retained existing output "
+                    f"rows={len(existing_rows)} because schedule validity cannot be re-established",
+                    "WARN",
+                )
+            else:
+                write_output_csv(date_str, OUTPUT_HEADER, [], summary)
 
             log(
                 f"{date_str} | current/future games file missing. "
                 f"games_path={games_path} input_predictions={len(pred_rows)} "
                 f"sportsbook_rows={len(book_rows)} eligible_predictions={eligible_count} "
-                f"output_rows=0 nonfatal_rejections={nonfatal_rejection_count}"
+                f"output_rows={len(existing_rows)} nonfatal_rejections={nonfatal_rejection_count}"
             )
 
             summary["rejected"] += len(rejection_rows)
@@ -982,13 +1078,23 @@ def process_date(date_str: str, pred_path: Path, summary: dict) -> None:
                 write_csv(rejection_path, REJECTION_HEADER, rejection_rows)
                 print_rejection_rows(date_str, rejection_path, rejection_rows)
 
-            write_output_csv(date_str, OUTPUT_HEADER, [], summary)
+            existing_path = OUT_DIR / f"{date_str}_MLB.csv"
+            existing_rows = load_csv(existing_path, OUTPUT_HEADER, "existing pred_with_game_id") if existing_path.exists() else []
+            if existing_rows:
+                validate_output_rows(date_str, len(existing_rows), existing_rows)
+                log(
+                    f"{date_str} | current/future games file empty; retained existing output "
+                    f"rows={len(existing_rows)} because schedule validity cannot be re-established",
+                    "WARN",
+                )
+            else:
+                write_output_csv(date_str, OUTPUT_HEADER, [], summary)
 
             log(
                 f"{date_str} | current/future games file empty. "
                 f"games_path={games_path} input_predictions={len(pred_rows)} "
                 f"sportsbook_rows={len(book_rows)} eligible_predictions={eligible_count} "
-                f"output_rows=0 nonfatal_rejections={nonfatal_rejection_count}"
+                f"output_rows={len(existing_rows)} nonfatal_rejections={nonfatal_rejection_count}"
             )
 
             summary["rejected"] += len(rejection_rows)
@@ -1347,10 +1453,15 @@ def process_date(date_str: str, pred_path: Path, summary: dict) -> None:
 
     validate_output_rows(date_str, eligible_count, output_rows)
 
+    refreshed_count = len(output_rows)
+    output_rows = preserve_existing_valid_rows(date_str, output_rows, games_rows)
+    validate_output_rows(date_str, len(output_rows), output_rows)
+
     written_path = write_output_csv(date_str, OUTPUT_HEADER, output_rows, summary)
 
     log(
         f"{date_str} | WROTE: {written_path} | rows={len(output_rows)} "
+        f"refreshed_rows={refreshed_count} preserved_rows={len(output_rows) - refreshed_count} "
         f"matched={matched} "
         f"input_predictions={len(pred_rows)} "
         f"sportsbook_rows={len(book_rows)} "

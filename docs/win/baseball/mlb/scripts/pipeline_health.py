@@ -179,6 +179,7 @@ def current_counts(now: datetime) -> tuple[dict, dict, list[str], list[str]]:
     paths = {
         "daily_games": BASE / f"00_intake/games/{date}_games.csv",
         "predictions": BASE / f"00_intake/predictions/model_projection/{date}_MLB.csv",
+        "prediction_source": BASE / f"00_intake/predictions/pred_with_game_id/{date}_MLB.csv",
         "sportsbook": BASE / f"00_intake/sportsbook/{date}_MLB.csv",
         "merged": BASE / f"01_merge/{date}_mlb_moneyline.csv",
         "selected": BASE / f"04_select/{date}_MLB.csv",
@@ -188,6 +189,7 @@ def current_counts(now: datetime) -> tuple[dict, dict, list[str], list[str]]:
     rows = {key: read_rows(path) for key, path in paths.items()}
     scheduled_ids, scheduled_blank, scheduled_dupes = ids_and_integrity(rows["daily_games"])
     prediction_ids, prediction_blank, prediction_dupes = ids_and_integrity(rows["predictions"])
+    prediction_source_ids, prediction_source_blank, prediction_source_dupes = ids_and_integrity(rows["prediction_source"])
     sportsbook_ids, sportsbook_blank, sportsbook_dupes = ids_and_integrity(rows["sportsbook"])
     merged_ids, merged_blank, merged_dupes = ids_and_integrity(rows["merged"])
 
@@ -197,22 +199,26 @@ def current_counts(now: datetime) -> tuple[dict, dict, list[str], list[str]]:
     integrity = {
         "blank_daily_game_ids": scheduled_blank,
         "blank_prediction_game_ids": prediction_blank,
+        "blank_prediction_source_game_ids": prediction_source_blank,
         "blank_sportsbook_game_ids": sportsbook_blank,
         "blank_merged_game_ids": merged_blank,
         "daily_duplicate_game_ids": scheduled_dupes,
         "prediction_duplicate_game_ids": prediction_dupes,
+        "prediction_source_duplicate_game_ids": prediction_source_dupes,
         "sportsbook_duplicate_game_ids": sportsbook_dupes,
         "merged_duplicate_game_ids": merged_dupes,
     }
 
-    if any((scheduled_blank, prediction_blank, sportsbook_blank, merged_blank)):
+    if any((scheduled_blank, prediction_blank, prediction_source_blank, sportsbook_blank, merged_blank)):
         fatals.append("MLB: blank game_id found in current-day pipeline data")
-    if any((scheduled_dupes, prediction_dupes, sportsbook_dupes, merged_dupes)):
+    if any((scheduled_dupes, prediction_dupes, prediction_source_dupes, sportsbook_dupes, merged_dupes)):
         fatals.append("MLB: duplicate game_id found in current-day pipeline data")
 
     scheduled_missing_predictions = sorted(scheduled_ids - prediction_ids)
     scheduled_missing_sportsbook = sorted(scheduled_ids - sportsbook_ids)
     sportsbook_not_merged = sorted(sportsbook_ids - merged_ids)
+    preserved_projection_ids = sorted((prediction_ids - prediction_source_ids) & scheduled_ids)
+    source_missing_but_projection_preserved = sorted((scheduled_ids - prediction_source_ids) & prediction_ids)
 
     if scheduled_missing_predictions:
         warnings.append(
@@ -233,6 +239,7 @@ def current_counts(now: datetime) -> tuple[dict, dict, list[str], list[str]]:
         "counts": {
             "scheduled_games": len(scheduled_ids),
             "prediction_games": len(prediction_ids),
+            "prediction_source_games": len(prediction_source_ids),
             "sportsbook_games": len(sportsbook_ids),
             "merged_games": len(merged_ids),
             "selected_bets": len(rows["selected"]),
@@ -244,6 +251,8 @@ def current_counts(now: datetime) -> tuple[dict, dict, list[str], list[str]]:
             "scheduled_missing_predictions": scheduled_missing_predictions,
             "scheduled_missing_sportsbook": scheduled_missing_sportsbook,
             "sportsbook_not_merged": sportsbook_not_merged,
+            "preserved_projection_ids": preserved_projection_ids,
+            "source_missing_but_projection_preserved": source_missing_but_projection_preserved,
         },
         "issues": [],
         "critical_failures": [],
