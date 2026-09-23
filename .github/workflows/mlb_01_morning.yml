@@ -1,4 +1,4 @@
-name: MLB 01 Model Train + Morning Pipeline
+name: MLB 01 Morning Pipeline
 
 on:
   workflow_dispatch:
@@ -104,8 +104,6 @@ jobs:
           path: docs/win/baseball/mlb/00_intake/sportsdataverse
           key: mlb-sdv-${{ runner.os }}-${{ github.ref_name }}-${{ github.run_id }}
 
-      # Final scores must exist before the run-model training set is built.
-      # These steps intentionally have no selected-bet dependency.
       - name: MLB Build Final Scores
         run: python docs/win/baseball/mlb/scripts/05_final_scores/build_mlb_final_scores.py
 
@@ -158,16 +156,10 @@ jobs:
             docs/win/baseball/mlb/scripts/modeling/test_probability_ev_kelly.py \
             -q
 
-      # evaluate_run_model.py evaluates candidates against the DRatings baseline.
-      # It promotes both models together only if BOTH candidate Poisson deviances
-      # are <= their corresponding DRatings baselines. Rejection is not an error;
-      # existing production artifacts remain unchanged.
       - name: MLB Evaluate Run Model Candidates + Promotion Gate
         run: |
           python docs/win/baseball/mlb/scripts/modeling/evaluate_run_model.py
 
-      # Validate production AFTER the promotion decision. On rejection this checks
-      # the pre-existing production artifacts; on promotion it checks the new pair.
       - name: MLB Validate Production Run Models
         shell: bash
         run: |
@@ -537,7 +529,7 @@ jobs:
         run: python docs/win/baseball/mlb/scripts/00_intake/game_id_pred.py
 
       - name: MLB Build Run Projection
-        run: python docs/win/baseball/mlb/scripts/00_intake/build_run_projection.py
+        run: python docs/win/baseball/mlb/scripts/00_intake/brp_pregame.py
 
       - name: MLB Merge Intake
         run: python docs/win/baseball/mlb/scripts/01_merge/merge_intake.py
