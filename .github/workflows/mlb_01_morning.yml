@@ -1,4 +1,4 @@
-name: MLB 01 Model Train + Morning Pipeline
+name: MLB 01 Morning Pipeline
 
 on:
   workflow_dispatch:
@@ -8,7 +8,7 @@ permissions:
 
 jobs:
   MLB_Model_Train_And_Morning:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     env:
       TZ: America/New_York
@@ -40,12 +40,27 @@ jobs:
       - name: Verify MLB Python dependency consistency
         run: python -m pip check
 
+      - name: Determine MLB workflow weekday
+        id: workflow_day
+        shell: bash
+        run: |
+          DAY_OF_WEEK="$(date +'%u')"
+          echo "day_of_week=${DAY_OF_WEEK}" >> "$GITHUB_OUTPUT"
+
+          if [ "${DAY_OF_WEEK}" = "1" ]; then
+            echo "is_monday=true" >> "$GITHUB_OUTPUT"
+            echo "Monday detected in America/New_York."
+          else
+            echo "is_monday=false" >> "$GITHUB_OUTPUT"
+            echo "Not Monday in America/New_York."
+          fi
+
       # ============================================================
       # MODEL TRAINING
       # ============================================================
 
       - name: Restore MLB SDV backfill cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: docs/win/baseball/mlb/00_intake/sportsdataverse
           key: mlb-sdv-${{ runner.os }}-${{ github.ref_name }}-${{ github.run_id }}
@@ -99,13 +114,11 @@ jobs:
             --to-date "${{ steps.sdv_range.outputs.to_date }}"
 
       - name: Save MLB SDV backfill cache
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: docs/win/baseball/mlb/00_intake/sportsdataverse
           key: mlb-sdv-${{ runner.os }}-${{ github.ref_name }}-${{ github.run_id }}
 
-      # Final scores must exist before the run-model training set is built.
-      # These steps intentionally have no selected-bet dependency.
       - name: MLB Build Final Scores
         run: python docs/win/baseball/mlb/scripts/05_final_scores/build_mlb_final_scores.py
 
@@ -158,16 +171,10 @@ jobs:
             docs/win/baseball/mlb/scripts/modeling/test_probability_ev_kelly.py \
             -q
 
-      # evaluate_run_model.py evaluates candidates against the DRatings baseline.
-      # It promotes both models together only if BOTH candidate Poisson deviances
-      # are <= their corresponding DRatings baselines. Rejection is not an error;
-      # existing production artifacts remain unchanged.
       - name: MLB Evaluate Run Model Candidates + Promotion Gate
         run: |
           python docs/win/baseball/mlb/scripts/modeling/evaluate_run_model.py
 
-      # Validate production AFTER the promotion decision. On rejection this checks
-      # the pre-existing production artifacts; on promotion it checks the new pair.
       - name: MLB Validate Production Run Models
         shell: bash
         run: |
@@ -480,7 +487,7 @@ jobs:
           PY
 
       - name: Upload model training data, candidates, and reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: mlb-run-model-training-${{ github.run_id }}
           path: |
@@ -537,6 +544,10 @@ jobs:
         run: python docs/win/baseball/mlb/scripts/00_intake/game_id_pred.py
 
       - name: MLB Build Run Projection
+        run: python docs/win/baseball/mlb/scripts/00_intake/brp_pregame.py
+
+      - name: MLB Full Historical Run Projection Rebuild
+        if: steps.workflow_day.outputs.is_monday == 'true'
         run: python docs/win/baseball/mlb/scripts/00_intake/build_run_projection.py
 
       - name: MLB Merge Intake
