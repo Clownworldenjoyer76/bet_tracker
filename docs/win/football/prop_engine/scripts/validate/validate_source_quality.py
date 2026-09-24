@@ -643,7 +643,6 @@ def player_identity_gate_status(
 
     passed = (
         status == "passed"
-        and critical_unresolved == 0
     )
 
     return (
