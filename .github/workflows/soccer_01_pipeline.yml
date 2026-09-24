@@ -2,11 +2,6 @@ name: Soccer Pipeline
 
 on:
   workflow_dispatch:
-    inputs:
-      date:
-        description: "Optional ESPN odds date (YYYY-MM-DD or YYYY_MM_DD). Blank uses today in America/New_York."
-        required: false
-        type: string
 
 permissions:
   contents: write
@@ -21,7 +16,7 @@ jobs:
 
     env:
       TZ: America/New_York
-      RUN_DATE: ${{ inputs.date }}
+      RUN_DATE: ""
       EPL_MODEL_ROOT: docs/win/soccer/ml/epl
       BUNDESLIGA_MODEL_ROOT: docs/win/soccer/ml/bundesliga
       LALIGA_MODEL_ROOT: docs/win/soccer/ml/laliga
@@ -32,8 +27,6 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
