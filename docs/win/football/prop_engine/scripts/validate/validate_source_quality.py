@@ -114,7 +114,8 @@ def clean(value: Any) -> str:
 
     return (
         ""
-        if text.casefold() in {
+        if text.casefold()
+        in {
             "",
             "nan",
             "none",
@@ -582,12 +583,6 @@ def universe_counts(
     )
 
 
-# WEEKLY_ROSTER_IDENTITY_GATE
-# Raw nflverse weekly rosters can contain developmental/unresolved backup rows
-# with no GSIS ID. build_player_identity.py runs before source-quality
-# validation and is the authoritative gate for unresolved current identity
-# records. This avoids requiring the current-week universe before that
-# universe has been built.
 def player_identity_gate_status(
     prop: Path,
 ) -> tuple[bool, int | None, str]:
@@ -1077,11 +1072,10 @@ def source_is_current(
     week: int,
 ) -> bool:
     """
-    Independently determine whether a source contains the slice required
-    for this pipeline week.
+    Determine whether the source contains the required slice for the
+    requested pipeline week.
 
-    This is intentionally independent of SOURCES iteration order so that
-    one source's fallback policy cannot depend on mutable loop state.
+    This is independent of SOURCES iteration order.
     """
     raw, existing_paths = load_source(
         source,
@@ -1145,6 +1139,87 @@ def write_csv_atomic(
         df,
         path,
     )
+
+
+def print_quality_details(
+    latest_run: pd.DataFrame,
+) -> None:
+    """
+    Emit source-level quality results to the Actions log so a failed
+    validation identifies the exact source and exact reason without
+    requiring source_quality.csv to be committed.
+    """
+    print("SOURCE QUALITY DETAILS:")
+
+    for _, row in latest_run.iterrows():
+        source = clean(
+            row.get("source")
+        )
+
+        quality = clean(
+            row.get("quality_status")
+        )
+
+        freshness_status = clean(
+            row.get("freshness_status")
+        )
+
+        notes = clean(
+            row.get("notes")
+        )
+
+        expected_rows = row.get(
+            "expected_rows"
+        )
+
+        actual_rows = row.get(
+            "actual_rows"
+        )
+
+        latest_source_week = row.get(
+            "latest_source_week"
+        )
+
+        print(
+            "SOURCE QUALITY RESULT: "
+            f"source={source} "
+            f"quality={quality} "
+            f"freshness={freshness_status} "
+            f"latest_source_week={latest_source_week} "
+            f"expected_rows={expected_rows} "
+            f"actual_rows={actual_rows} "
+            f"notes={notes}"
+        )
+
+    failed_rows = latest_run.loc[
+        latest_run[
+            "quality_status"
+        ]
+        .astype(str)
+        .eq("fail")
+    ]
+
+    if failed_rows.empty:
+        return
+
+    print(
+        "SOURCE QUALITY FAILURES:"
+    )
+
+    for _, row in failed_rows.iterrows():
+        print(
+            "SOURCE QUALITY FAILURE: "
+            f"source={clean(row.get('source'))} "
+            f"freshness={clean(row.get('freshness_status'))} "
+            f"latest_source_week={row.get('latest_source_week')} "
+            f"expected_rows={row.get('expected_rows')} "
+            f"actual_rows={row.get('actual_rows')} "
+            f"missing_player_id_pct={row.get('missing_player_id_pct')} "
+            f"duplicate_key_count={row.get('duplicate_key_count')} "
+            f"missing_team_pct={row.get('missing_team_pct')} "
+            f"missing_game_id_pct={row.get('missing_game_id_pct')} "
+            f"notes={clean(row.get('notes'))}"
+        )
 
 
 def main() -> int:
@@ -1212,10 +1287,6 @@ def main() -> int:
         paths["schedule"],
     )
 
-    # Participation is not currently available from nflverse for the
-    # 2026 season. Snap counts are the approved fallback. Resolve that
-    # fallback independently before source validation instead of relying
-    # on the order in which SOURCES happens to be processed.
     snap_counts_current = source_is_current(
         "snap_counts",
         paths["snap_counts"],
@@ -1646,7 +1717,7 @@ def main() -> int:
             current["week"],
             errors="coerce",
         ).eq(week)
-    ]
+    ].copy()
 
     counts = (
         latest_run[
@@ -1698,6 +1769,13 @@ def main() -> int:
             },
             sort_keys=True,
         )
+    )
+
+    # Always expose source-level validation results in the workflow log.
+    # This prevents failed runs from hiding the exact failing source when
+    # source_quality.csv is not subsequently committed by the workflow.
+    print_quality_details(
+        latest_run
     )
 
     print(
