@@ -1,7 +1,13 @@
 {
-  "fatal_errors": [],
+  "fatal_errors": [
+    "WNBA: 1 scheduled games missing predictions",
+    "WNBA: current ensemble prediction row count mismatch file=docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_09_24_WNBA_predictions.csv expected=5 actual=4",
+    "WNBA: scheduled game_ids missing from ensemble predictions docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_09_24_WNBA_predictions.csv: [\"401857215\"]",
+    "WNBA: configured production source=ensemble is missing scheduled game_ids in docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_09_24_WNBA_predictions.csv: [\"401857215\"]",
+    "WNBA: downstream cleaned prediction slate docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_09_24_WNBA_predictions.csv is missing scheduled game_ids=[\"401857215\"]"
+  ],
   "game_date_new_york": "2026_09_24",
-  "generated_at_utc": "2026-09-24T21:32:46.930266+00:00",
+  "generated_at_utc": "2026-09-24T23:29:45.022352+00:00",
   "leagues": {
     "nba": {
       "counts": {
@@ -82,15 +88,17 @@
     "wnba": {
       "counts": {
         "locked_bets": 2,
-        "merged_games": 5,
-        "prediction_games": 5,
+        "merged_games": 4,
+        "prediction_games": 4,
         "scheduled_games": 5,
         "selected_bets": 3,
         "sportsbook_games": 5
       },
       "coverage": {
         "predictions_not_merged": [],
-        "scheduled_missing_predictions": [],
+        "scheduled_missing_predictions": [
+          "2026_09_24|connecticut sun|toronto tempo"
+        ],
         "scheduled_missing_sportsbook": []
       },
       "identity": {
@@ -348,23 +356,29 @@
       },
       "wnba": {
         "configured_production_source": "ensemble",
-        "critical_failures": [],
+        "critical_failures": [
+          "WNBA: current ensemble prediction row count mismatch file=docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_09_24_WNBA_predictions.csv expected=5 actual=4",
+          "WNBA: scheduled game_ids missing from ensemble predictions docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_09_24_WNBA_predictions.csv: [\"401857215\"]",
+          "WNBA: configured production source=ensemble is missing scheduled game_ids in docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_09_24_WNBA_predictions.csv: [\"401857215\"]",
+          "WNBA: downstream cleaned prediction slate docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_09_24_WNBA_predictions.csv is missing scheduled game_ids=[\"401857215\"]"
+        ],
         "ensemble_enabled": true,
         "ensemble_predictions": {
           "ensemble_version_mismatch_game_ids": [],
           "exists": true,
           "feature_version_mismatch_game_ids": [],
           "game_ids": [
-            "401857215",
             "401857216",
             "401857217",
             "401857218",
             "401857219"
           ],
-          "missing_scheduled_game_ids": [],
+          "missing_scheduled_game_ids": [
+            "401857215"
+          ],
           "model_source_mismatch_game_ids": [],
           "required": true,
-          "row_count": 5,
+          "row_count": 4,
           "unexpected_game_ids": []
         },
         "feature": {
@@ -384,7 +398,12 @@
           "unexpected_game_ids": []
         },
         "in_season": true,
-        "issues": [],
+        "issues": [
+          "WNBA: current ensemble prediction row count mismatch file=docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_09_24_WNBA_predictions.csv expected=5 actual=4",
+          "WNBA: scheduled game_ids missing from ensemble predictions docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_09_24_WNBA_predictions.csv: [\"401857215\"]",
+          "WNBA: configured production source=ensemble is missing scheduled game_ids in docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_09_24_WNBA_predictions.csv: [\"401857215\"]",
+          "WNBA: downstream cleaned prediction slate docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_09_24_WNBA_predictions.csv is missing scheduled game_ids=[\"401857215\"]"
+        ],
         "paths": {
           "cleaned_predictions": "docs/win/basketball/00_intake/predictions/predictions_cleaned/wnba/2026_09_24_WNBA_predictions.csv",
           "configured_source_predictions": "docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_09_24_WNBA_predictions.csv",
@@ -398,29 +417,31 @@
         "production_source": {
           "cleaned_exists": true,
           "cleaned_game_ids": [
-            "401857215",
             "401857216",
             "401857217",
             "401857218",
             "401857219"
           ],
-          "cleaned_missing_scheduled_game_ids": [],
+          "cleaned_missing_scheduled_game_ids": [
+            "401857215"
+          ],
           "cleaned_model_source_mismatch_game_ids": [],
-          "cleaned_row_count": 5,
+          "cleaned_row_count": 4,
           "merged_exists": true,
           "merged_model_source_mismatch_game_ids": [],
-          "merged_row_count": 5,
+          "merged_row_count": 4,
           "raw_exists": true,
           "raw_game_ids": [
-            "401857215",
             "401857216",
             "401857217",
             "401857218",
             "401857219"
           ],
-          "raw_missing_scheduled_game_ids": [],
-          "raw_row_count": 5,
-          "source_confirmed_downstream": true
+          "raw_missing_scheduled_game_ids": [
+            "401857215"
+          ],
+          "raw_row_count": 4,
+          "source_confirmed_downstream": false
         },
         "scheduled_game_count": 5,
         "scheduled_game_ids": [
@@ -446,7 +467,7 @@
           "row_count": 5,
           "unexpected_game_ids": []
         },
-        "valid": true
+        "valid": false
       }
     },
     "ensemble_weights": {
@@ -649,62 +670,62 @@
     {
       "exists": true,
       "path": "docs/win/basketball/errors/00_intake/basketball_odds.txt",
-      "status": "2026-09-24T21:30:31.543934 | STATUS: SUCCESS"
+      "status": "2026-09-24T23:27:25.138946 | STATUS: SUCCESS"
     },
     {
       "exists": true,
       "path": "docs/win/basketball/errors/00_intake/basketball_drat_scraper.txt",
-      "status": "2026-09-24T17:30:59.743849-04:00 | STATUS: SUCCESS"
+      "status": "2026-09-24T19:27:30.839282-04:00 | STATUS: SUCCESS"
     },
     {
       "exists": true,
       "path": "docs/win/basketball/errors/00_intake/transform_basketball_nba.txt",
-      "status": "2026-09-24T21:31:06.597641 | STATUS: SUCCESS (offseason skipped)"
+      "status": "2026-09-24T23:27:37.221107 | STATUS: SUCCESS (offseason skipped)"
     },
     {
       "exists": true,
       "path": "docs/win/basketball/errors/00_intake/transform_basketball_ncaam.txt",
-      "status": "2026-09-24T21:31:06.598104 | STATUS: SUCCESS (offseason skipped)"
+      "status": "2026-09-24T23:27:37.221603 | STATUS: SUCCESS (offseason skipped)"
     },
     {
       "exists": true,
       "path": "docs/win/basketball/errors/00_intake/transform_basketball_wnba.txt",
-      "status": "2026-09-24T21:31:06.596331 | STATUS: SUCCESS"
+      "status": "2026-09-24T23:27:37.219309 | STATUS: SUCCESS"
     },
     {
       "exists": true,
       "path": "docs/win/basketball/errors/00_intake/basketball_daily_games.txt",
-      "status": "2026-09-24T21:31:10.054508 | STATUS: SUCCESS"
+      "status": "2026-09-24T23:27:42.317970 | STATUS: SUCCESS"
     },
     {
       "exists": true,
       "path": "docs/win/basketball/errors/00_intake/basketball_game_id.txt",
-      "status": "2026-09-24T21:31:10.322771 | STATUS: SUCCESS"
+      "status": "2026-09-24T23:27:42.713977 | STATUS: SUCCESS"
     },
     {
       "exists": true,
       "path": "docs/win/basketball/errors/00_intake/sdv_predict.txt",
-      "status": "2026-09-24T21:32:39.782385+00:00 | STATUS: SUCCESS | league=WNBA dates_found=120 dates_written=116 rows_written=337 dates_skipped=0 date_errors=4"
+      "status": "2026-09-24T23:29:36.405643+00:00 | STATUS: SUCCESS | league=WNBA dates_found=120 dates_written=116 rows_written=337 dates_skipped=0 date_errors=4"
     },
     {
       "exists": true,
       "path": "docs/win/basketball/errors/00_intake/basketball_model_ensemble.txt",
-      "status": "2026-09-24T21:32:40.101528+00:00 | STATUS: SUCCESS | mode=predict | matching_files=108 | files_written=108 | rows_written=317 | file_errors=0"
+      "status": "2026-09-24T23:29:36.910360+00:00 | STATUS: SUCCESS | mode=predict | matching_files=108 | files_written=108 | rows_written=316 | file_errors=0"
     },
     {
       "exists": true,
       "path": "docs/win/basketball/errors/00_intake/clean_basketball_inputs.txt",
-      "status": "2026-09-24T21:32:41.410081 | STATUS: SUCCESS"
+      "status": "2026-09-24T23:29:38.788473 | STATUS: SUCCESS"
     },
     {
       "exists": true,
       "path": "docs/win/basketball/errors/01_merge/merge_intake.txt",
-      "status": "2026-09-24T21:32:41.469667 | STATUS: SUCCESS"
+      "status": "2026-09-24T23:29:38.870287 | STATUS: SUCCESS"
     },
     {
       "exists": true,
       "path": "docs/win/basketball/errors/01_merge/build_juice_files.txt",
-      "status": "2026-09-24T21:32:41.983849 | STATUS: SUCCESS"
+      "status": "2026-09-24T23:29:39.621155 | STATUS: SUCCESS"
     },
     {
       "exists": true,
@@ -719,15 +740,15 @@
     {
       "exists": true,
       "path": "docs/win/basketball/errors/04_select/daily_slate.txt",
-      "status": "2026-09-24T21:32:42.914192+00:00 | INFO  | STATUS: SUCCESS"
+      "status": "2026-09-24T23:29:41.034494+00:00 | INFO  | STATUS: SUCCESS"
     },
     {
       "exists": true,
       "path": "docs/win/basketball/errors/05_final_scores/01_basketball_results_grade.txt",
-      "status": "2026-09-24T21:32:46.716692+00:00 | INFO  | STATUS: SUCCESS"
+      "status": "2026-09-24T23:29:44.692716+00:00 | INFO  | STATUS: SUCCESS"
     }
   ],
-  "status": "healthy",
+  "status": "failed",
   "wnba_bias_drift": {
     "definition": "adjusted_projected_minus_actual",
     "matched_games": 299,
