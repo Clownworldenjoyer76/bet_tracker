@@ -30,6 +30,8 @@ configured soccer leagues.
 
 from __future__ import annotations
 
+from _soccer_odds_core import *  # noqa: F401,F403 - preserve existing imports/API
+
 import csv
 import sys
 from datetime import date, timedelta
@@ -37,7 +39,6 @@ from pathlib import Path
 from typing import Any, Iterator, Mapping, Sequence
 
 import _soccer_odds_core as core
-from _soccer_odds_core import *  # noqa: F401,F403 - preserve existing imports/API
 
 
 CDN_SCOREBOARD = "https://cdn.espn.com/core/soccer/scoreboard"
@@ -446,8 +447,8 @@ def _read_existing(path: Path) -> list[dict[str, str]]:
 
             return [
                 {
-                    field: str(row.get(field) or "")
-                    for field in core.CSV_FIELDS
+                    csv_field: str(row.get(csv_field) or "")
+                    for csv_field in core.CSV_FIELDS
                 }
                 for row in reader
             ]
@@ -478,20 +479,20 @@ def _merge_rows(
 
     for fresh in rows:
         merged = {
-            field: str(fresh.get(field) or "")
-            for field in core.CSV_FIELDS
+            csv_field: str(fresh.get(csv_field) or "")
+            for csv_field in core.CSV_FIELDS
         }
 
         game_id = merged["game_id"].strip()
         prior = existing_by_id.get(game_id) if game_id else None
 
         if prior is not None:
-            for field in core.CSV_FIELDS:
+            for csv_field in core.CSV_FIELDS:
                 if (
-                    _is_blank(merged[field])
-                    and not _is_blank(prior.get(field))
+                    _is_blank(merged[csv_field])
+                    and not _is_blank(prior.get(csv_field))
                 ):
-                    merged[field] = prior[field]
+                    merged[csv_field] = prior[csv_field]
 
             seen_ids.add(game_id)
 

@@ -64,16 +64,19 @@ REQUIRED_COLUMNS = [
 # LOGGING
 # =========================
 
+# noinspection DuplicatedCode
 def reset_logs() -> None:
     ERROR_LOG.write_text("", encoding="utf-8")
     SUMMARY_LOG.write_text("", encoding="utf-8")
 
 
+# noinspection DuplicatedCode
 def log_error(msg: str) -> None:
     with open(ERROR_LOG, "a", encoding="utf-8") as f:
         f.write(f"[{datetime.now().isoformat()}] {msg}\n")
 
 
+# noinspection DuplicatedCode
 def log_summary(msg: str) -> None:
     with open(SUMMARY_LOG, "a", encoding="utf-8") as f:
         f.write(f"[{datetime.now().isoformat()}] {msg}\n")
@@ -94,6 +97,7 @@ def clear_output_files() -> None:
 # IO HELPERS
 # =========================
 
+# noinspection DuplicatedCode
 def safe_read_csv(path: Path) -> pd.DataFrame:
     try:
         if not path.exists():
@@ -136,7 +140,7 @@ def step_bucket(value, step: float, decimals: int) -> tuple[str, float | None]:
 
     try:
         v = float(value)
-    except Exception:
+    except (TypeError, ValueError):
         return "missing", None
 
     floor_val = math.floor(v / step) * step
@@ -171,7 +175,7 @@ def decimal_to_american(dec) -> float | None:
 
     try:
         d = float(dec)
-    except Exception:
+    except (TypeError, ValueError):
         return None
 
     if d <= 1.0:
@@ -189,7 +193,7 @@ def odds_bucket_from_american(american) -> tuple[str, float | None]:
 
     try:
         a = float(american)
-    except Exception:
+    except (TypeError, ValueError):
         return "missing", None
 
     if a <= -300:
@@ -230,7 +234,7 @@ def month_bucket(match_date) -> tuple[str, int | None]:
             if 1 <= mm <= 12:
                 return f"{mm:02d}", mm
 
-        except Exception:
+        except ValueError:
             pass
 
     return "missing", None
