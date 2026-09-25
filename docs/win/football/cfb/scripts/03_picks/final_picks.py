@@ -29,7 +29,7 @@ import shutil
 import sys
 import uuid
 from pathlib import Path
-from typing import Any
+from typing import Any, Never
 
 import pandas as pd
 import yaml
@@ -66,6 +66,12 @@ if str(SCRIPTS_DIR) not in sys.path:
     )
 
 from pipeline_reporter import PipelineReporter
+from pipeline_shared import (
+    clean_text as clean,
+    stage_dataframe_csv,
+    validate_game_ids as validate_ids,
+    weekly_schedule_path,
+)
 
 
 OUTPUT_COLUMNS = [
@@ -109,33 +115,10 @@ SCHEDULE_COLUMNS = [
 
 def fail(
     message: str,
-) -> None:
+) -> Never:
     raise RuntimeError(
         message
     )
-
-
-def clean(
-    value: Any,
-) -> str:
-    if value is None:
-        return ""
-
-    text = str(
-        value
-    ).strip()
-
-    if text.casefold() in {
-        "",
-        "nan",
-        "none",
-        "null",
-        "<na>",
-        "nat",
-    }:
-        return ""
-
-    return text
 
 
 def normalize_game_id(
@@ -374,56 +357,6 @@ def resolve_target(
         season_type,
         week,
     )
-
-
-def weekly_schedule_path(
-    week: int,
-) -> Path:
-    return (
-        CFB_ROOT
-        / "00_intake"
-        / "schedule"
-        / "weekly"
-        / f"week_{week}_CFB_weekly_schedule.csv"
-    )
-
-
-def validate_ids(
-    df: pd.DataFrame,
-    label: str,
-) -> None:
-    ids = df[
-        "game_id"
-    ].map(
-        normalize_game_id
-    )
-
-    if ids.eq(
-        ""
-    ).any():
-        fail(
-            f"{label}: blank game_id found"
-        )
-
-    duplicates = (
-        ids[
-            ids.duplicated(
-                keep=False
-            )
-        ]
-        .drop_duplicates()
-        .tolist()
-    )
-
-    if duplicates:
-        fail(
-            f"{label}: duplicate game_id values: "
-            f"{duplicates[:10]}"
-        )
-
-    df[
-        "game_id"
-    ] = ids
 
 
 def validate_target_values(
@@ -1029,31 +962,7 @@ def stage_csv(
     )
 
     try:
-        with temporary.open(
-            "w",
-            newline="",
-            encoding="utf-8",
-        ) as handle:
-            output.to_csv(
-                handle,
-                index=False,
-                lineterminator="\n",
-            )
-
-            handle.flush()
-
-            os.fsync(
-                handle.fileno()
-            )
-
-        serialized = pd.read_csv(
-            temporary,
-            dtype=str,
-            keep_default_na=False,
-            na_filter=False,
-            encoding="utf-8-sig",
-            low_memory=False,
-        )
+        serialized = stage_dataframe_csv(temporary, output)
 
         validate_output(
             serialized,
@@ -1489,6 +1398,7 @@ def main() -> int:
             args,
         )
 
+    raise RuntimeError("context manager unexpectedly suppressed an exception")
 
 if __name__ == "__main__":
     raise SystemExit(

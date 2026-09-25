@@ -22,6 +22,8 @@ if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
 from pipeline_reporter import PipelineReporter
+from pipeline_shared import write_csv_rows_durable
+from type_support import ScalarValue
 
 CONFIG_PATH = CFB_ROOT / "config" / "current_week.yaml"
 CLEAN_DIR = CFB_ROOT / "00_intake" / "predictions" / "clean"
@@ -51,11 +53,11 @@ class FinalizePredictionValidationError(RuntimeError):
     pass
 
 
-def text(value: object) -> str:
+def text(value: ScalarValue) -> str:
     return "" if value is None else str(value).strip()
 
 
-def positive_int(value: object, *, label: str) -> int:
+def positive_int(value: ScalarValue, *, label: str) -> int:
     value_text = text(value)
 
     if not re.fullmatch(r"\d+", value_text):
@@ -73,7 +75,7 @@ def positive_int(value: object, *, label: str) -> int:
     return parsed
 
 
-def finite_decimal(value: object, *, label: str) -> Decimal:
+def finite_decimal(value: ScalarValue, *, label: str) -> Decimal:
     value_text = text(value)
 
     if not value_text:
@@ -94,7 +96,7 @@ def finite_decimal(value: object, *, label: str) -> Decimal:
     return number
 
 
-def probability(value: object, *, label: str) -> Decimal:
+def probability(value: ScalarValue, *, label: str) -> Decimal:
     number = finite_decimal(value, label=label)
 
     if not Decimal("0") <= number <= Decimal("1"):
@@ -105,7 +107,7 @@ def probability(value: object, *, label: str) -> Decimal:
     return number
 
 
-def percentage(value: object, *, label: str) -> Decimal:
+def percentage(value: ScalarValue, *, label: str) -> Decimal:
     number = finite_decimal(value, label=label)
 
     if not Decimal("0") <= number <= Decimal("100"):
@@ -120,7 +122,7 @@ def fmt2(number: Decimal) -> str:
     return format(number.quantize(TWO_PLACES), ".2f")
 
 
-def validate_date(value: object, *, label: str) -> str:
+def validate_date(value: ScalarValue, *, label: str) -> str:
     value_text = text(value)
 
     if not value_text:
@@ -136,7 +138,7 @@ def validate_date(value: object, *, label: str) -> str:
     return value_text
 
 
-def validate_time(value: object, *, label: str) -> str:
+def validate_time(value: ScalarValue, *, label: str) -> str:
     value_text = text(value)
 
     if not value_text:
@@ -152,7 +154,7 @@ def validate_time(value: object, *, label: str) -> str:
     return value_text
 
 
-def binary_int(value: object, *, label: str) -> int:
+def binary_int(value: ScalarValue, *, label: str) -> int:
     value_text = text(value)
 
     if value_text not in {"0", "1"}:
@@ -380,6 +382,51 @@ def load_clean_rows(
     return rows
 
 
+def _validate_prediction_target(
+    row: dict[str, str],
+    *,
+    season: int,
+    season_type: int,
+    week: int,
+    prefix: str,
+    context: str,
+    mismatch_message: str,
+) -> None:
+    row_target = (
+        positive_int(row.get("season"), label=f"{prefix} season {context}"),
+        positive_int(row.get("season_type"), label=f"{prefix} season_type {context}"),
+        positive_int(row.get("week"), label=f"{prefix} week {context}"),
+    )
+    if row_target != (season, season_type, week):
+        raise FinalizePredictionValidationError(mismatch_message)
+
+
+def _claim_prediction_game(
+    row: dict[str, str],
+    *,
+    row_number: int,
+    schedule: dict[str, dict[str, str]],
+    seen: set[str],
+    kind: str,
+) -> tuple[str, dict[str, str]]:
+    game_id = str(
+        positive_int(
+            row.get("game_id"),
+            label=f"{kind} game_id row {row_number}",
+        )
+    )
+    if game_id in seen:
+        raise FinalizePredictionValidationError(
+            f"Duplicate {kind} prediction game_id={game_id}"
+        )
+    target = schedule.get(game_id)
+    if target is None:
+        raise FinalizePredictionValidationError(
+            f"{kind.capitalize()} prediction contains foreign game_id={game_id}"
+        )
+    seen.add(game_id)
+    return game_id, target
+
 def _validate_clean_prediction_rows(
     rows: list[dict[str, str]],
     *,
@@ -399,51 +446,22 @@ def _validate_clean_prediction_rows(
                 f"Clean prediction schema mismatch at row {row_number}"
             )
 
-        row_target = (
-            positive_int(
-                row.get("season"),
-                label=f"clean season row {row_number}",
-            ),
-            positive_int(
-                row.get("season_type"),
-                label=f"clean season_type row {row_number}",
-            ),
-            positive_int(
-                row.get("week"),
-                label=f"clean week row {row_number}",
-            ),
+        _validate_prediction_target(
+            row,
+            season=season,
+            season_type=season_type,
+            week=week,
+            prefix="clean",
+            context=f"row {row_number}",
+            mismatch_message=f"Clean prediction target mismatch at row {row_number}",
         )
-
-        if row_target != (
-            season,
-            season_type,
-            week,
-        ):
-            raise FinalizePredictionValidationError(
-                f"Clean prediction target mismatch at row {row_number}"
-            )
-
-        game_id = str(
-            positive_int(
-                row.get("game_id"),
-                label=f"clean game_id row {row_number}",
-            )
+        game_id, target = _claim_prediction_game(
+            row,
+            row_number=row_number,
+            schedule=schedule,
+            seen=seen,
+            kind="clean",
         )
-
-        if game_id in seen:
-            raise FinalizePredictionValidationError(
-                f"Duplicate clean prediction game_id={game_id}"
-            )
-
-        target = schedule.get(game_id)
-
-        if target is None:
-            raise FinalizePredictionValidationError(
-                f"Clean prediction contains foreign game_id={game_id}"
-            )
-
-        seen.add(game_id)
-
         for field in (
             "home_team",
             "away_team",
@@ -555,7 +573,6 @@ def _validate_clean_prediction_rows(
         )
 
         margins[game_id] = mismatch
-
 
 def validate_clean_rows(
     rows: list[dict[str, str]],
@@ -817,55 +834,22 @@ def validate_final_rows(
             row_number=row_number,
         )
 
-        game_id = str(
-            positive_int(
-                row.get("game_id"),
-                label=f"final game_id row {row_number}",
-            )
+        game_id, target = _claim_prediction_game(
+            row,
+            row_number=row_number,
+            schedule=schedule,
+            seen=seen,
+            kind="final",
         )
-
-        if game_id in seen:
-            raise FinalizePredictionValidationError(
-                f"Duplicate final prediction game_id={game_id}"
-            )
-
-        target = schedule.get(
-            game_id
+        _validate_prediction_target(
+            row,
+            season=season,
+            season_type=season_type,
+            week=week,
+            prefix="final",
+            context=game_id,
+            mismatch_message=f"Final prediction target mismatch for game_id={game_id}",
         )
-
-        if target is None:
-            raise FinalizePredictionValidationError(
-                f"Final prediction contains foreign game_id={game_id}"
-            )
-
-        seen.add(
-            game_id
-        )
-
-        row_target = (
-            positive_int(
-                row.get("season"),
-                label=f"final season {game_id}",
-            ),
-            positive_int(
-                row.get("season_type"),
-                label=f"final season_type {game_id}",
-            ),
-            positive_int(
-                row.get("week"),
-                label=f"final week {game_id}",
-            ),
-        )
-
-        if row_target != (
-            season,
-            season_type,
-            week,
-        ):
-            raise FinalizePredictionValidationError(
-                f"Final prediction target mismatch for game_id={game_id}"
-            )
-
         for field in (
             "home_team",
             "away_team",
@@ -1043,7 +1027,6 @@ def validate_final_rows(
         schedule,
     )
 
-
 def read_staged_rows(
     path: Path,
 ) -> list[dict[str, str]]:
@@ -1101,24 +1084,11 @@ def publish_atomic(
     )
 
     try:
-        with temp_path.open(
-            "w",
-            newline="",
-            encoding="utf-8",
-        ) as handle:
-            writer = csv.DictWriter(
-                handle,
-                fieldnames=OUT_HEADERS,
-                extrasaction="raise",
-            )
-
-            writer.writeheader()
-            writer.writerows(rows)
-
-            handle.flush()
-            os.fsync(
-                handle.fileno()
-            )
+        write_csv_rows_durable(
+            temp_path,
+            rows,
+            OUT_HEADERS,
+        )
 
         staged_rows = read_staged_rows(
             temp_path
@@ -1156,7 +1126,7 @@ def publish_atomic(
             temp_path.unlink(
                 missing_ok=True
             )
-        except Exception:
+        except OSError:
             pass
 
         raise

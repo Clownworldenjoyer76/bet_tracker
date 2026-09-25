@@ -2,8 +2,6 @@
 from __future__ import annotations
 
 import argparse
-import importlib.util
-import math
 import os
 import re
 import sys
@@ -28,6 +26,11 @@ if str(SCRIPTS_DIR) not in sys.path:
     )
 
 from pipeline_reporter import PipelineReporter
+from pipeline_shared import (
+    clean_text as clean,
+    finite_float as number,
+    load_module,
+)
 
 
 SCRIPT_VERSION = "cfb-backtest-v1-reporter-2026-09-16"
@@ -38,41 +41,6 @@ SCORES_PATH = CFB_ROOT / "scripts" / "04_final_results" / "pull_final_scores.py"
 MARKETS_PATH = CFB_ROOT / "config" / "markets.yaml"
 
 FILE_RE = re.compile(r"^week_(\d+)_CFB_selected\.csv$")
-
-
-def load_module(name: str, path: Path) -> ModuleType:
-    spec = importlib.util.spec_from_file_location(name, path)
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f"Unable to import {path}")
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[name] = module
-    spec.loader.exec_module(module)
-    return module
-
-
-def clean(value: Any) -> str:
-    if value is None:
-        return ""
-    try:
-        if pd.isna(value):
-            return ""
-    except Exception:
-        pass
-    text = str(value).strip()
-    if text.casefold() in {"", "nan", "none", "null", "<na>", "nat"}:
-        return ""
-    return text
-
-
-def number(value: Any) -> float | None:
-    text = clean(value)
-    if not text:
-        return None
-    try:
-        value = float(text)
-    except (TypeError, ValueError):
-        return None
-    return value if math.isfinite(value) else None
 
 
 def flag(value: Any) -> bool:
@@ -247,23 +215,12 @@ def bucket_prob(x: Any) -> str:
 
 
 def bucket_edge(x: Any) -> str:
-    x = number(x)
-    if x is None:
+    value = number(x)
+    if value is None:
         return "NA"
-    if x < 0:
-        return "<0"
-    if x < .02:
-        return "0-.0199"
-    if x < .04:
-        return ".02-.0399"
-    if x < .06:
-        return ".04-.0599"
-    if x < .10:
-        return ".06-.0999"
-    if x < .15:
-        return ".10-.1499"
-    return ".15+"
-
+    if value >= .15:
+        return ".15+"
+    return bucket_ev(value)
 
 def bucket_odds(x: Any) -> str:
     x = number(x)
@@ -404,8 +361,8 @@ def make_ledger(
 
 
 def summarize(frame: pd.DataFrame, groups: list[str]) -> pd.DataFrame:
-    def one(group: pd.DataFrame) -> dict[str, Any]:
-        grades = group["grade"].astype(str)
+    def one(group_frame: pd.DataFrame) -> dict[str, Any]:
+        grades = group_frame["grade"].astype(str)
         wins = int(grades.eq("WIN").sum())
         losses = int(grades.eq("LOSS").sum())
         pushes = int(grades.eq("PUSH").sum())
@@ -413,12 +370,12 @@ def summarize(frame: pd.DataFrame, groups: list[str]) -> pd.DataFrame:
         decisions = wins + losses
 
         profit = pd.to_numeric(
-            group.loc[grades.isin(["WIN", "LOSS", "PUSH"]), "profit_units"],
+            group_frame.loc[grades.isin(["WIN", "LOSS", "PUSH"]), "profit_units"],
             errors="coerce",
         ).sum()
 
         avg_model = pd.to_numeric(
-            group.loc[grades.isin(["WIN", "LOSS"]), "model_probability"],
+            group_frame.loc[grades.isin(["WIN", "LOSS"]), "model_probability"],
             errors="coerce",
         ).mean()
 
@@ -430,16 +387,16 @@ def summarize(frame: pd.DataFrame, groups: list[str]) -> pd.DataFrame:
             "losses": losses,
             "pushes": pushes,
             "win_rate": actual,
-            "avg_odds": pd.to_numeric(group["odds_american"], errors="coerce").mean(),
+            "avg_odds": pd.to_numeric(group_frame["odds_american"], errors="coerce").mean(),
             "avg_model_probability": avg_model,
             "calibration_gap": (
                 actual - avg_model
                 if decisions and not pd.isna(avg_model)
                 else np.nan
             ),
-            "avg_edge": pd.to_numeric(group["edge"], errors="coerce").mean(),
-            "avg_ev": pd.to_numeric(group["ev"], errors="coerce").mean(),
-            "avg_kelly": pd.to_numeric(group["kelly"], errors="coerce").mean(),
+            "avg_edge": pd.to_numeric(group_frame["edge"], errors="coerce").mean(),
+            "avg_ev": pd.to_numeric(group_frame["ev"], errors="coerce").mean(),
+            "avg_kelly": pd.to_numeric(group_frame["kelly"], errors="coerce").mean(),
             "net_units": float(profit),
             "roi": float(profit) / graded if graded else np.nan,
         }
@@ -518,6 +475,7 @@ def write_workbook(
     from openpyxl import load_workbook
     from openpyxl.styles import Font
     from openpyxl.utils import get_column_letter
+    from openpyxl.worksheet.formula import ArrayFormula, DataTableFormula
 
     wb = load_workbook(tmp)
 
@@ -532,8 +490,15 @@ def write_workbook(
             max_len = 10
             for row in range(1, min(ws.max_row, 3000) + 1):
                 value = ws.cell(row=row, column=col).value
-                if value is not None:
-                    max_len = max(max_len, len(str(value)) + 2)
+                if isinstance(value, ArrayFormula):
+                    display_value = value.text or ""
+                elif isinstance(value, DataTableFormula):
+                    display_value = value.ref or ""
+                elif value is not None:
+                    display_value = str(value)
+                else:
+                    continue
+                max_len = max(max_len, len(display_value) + 2)
             ws.column_dimensions[get_column_letter(col)].width = min(max_len, 34)
 
     wb.save(tmp)
@@ -882,6 +847,7 @@ def main() -> int:
             result
         )
 
+    raise RuntimeError("context manager unexpectedly suppressed an exception")
 
 if __name__ == "__main__":
     raise SystemExit(main())

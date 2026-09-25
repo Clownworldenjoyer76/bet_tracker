@@ -31,7 +31,7 @@ import re
 import sys
 import uuid
 from pathlib import Path
-from typing import Any
+from typing import Any, Never
 
 import numpy as np
 import pandas as pd
@@ -63,6 +63,15 @@ if str(
     )
 
 from pipeline_reporter import PipelineReporter
+from pipeline_shared import (
+    clean_text as clean,
+    normalize_game_id,
+    prepare_schedule_coverage,
+    require_schedule_coverage,
+    stage_dataframe_csv,
+    team_identity_values,
+    validate_target_columns,
+)
 
 
 SCRIPT_VERSION = (
@@ -156,49 +165,8 @@ MARKETS = {
 }
 
 
-def fail(message: str) -> None:
+def fail(message: str) -> Never:
     raise RuntimeError(message)
-
-
-def clean(
-    value: Any,
-) -> str:
-    if value is None:
-        return ""
-
-    text = str(
-        value
-    ).strip()
-
-    if text.casefold() in {
-        "",
-        "nan",
-        "none",
-        "null",
-        "<na>",
-        "nat",
-    }:
-        return ""
-
-    return text
-
-
-def normalize_game_id(
-    value: Any,
-) -> str:
-    text = clean(
-        value
-    )
-
-    if re.fullmatch(
-        r"\d+\.0",
-        text,
-    ):
-        return text[
-            :-2
-        ]
-
-    return text
 
 
 def integer_value(
@@ -1398,42 +1366,13 @@ def validate_input(
         "game_id"
     ] = normalized_ids
 
-    observed_seasons = {
-        integer_value(
-            value,
-            f"{path}: season",
-        )
-        for value in df[
-            "season"
-        ]
-    }
-
-    observed_weeks = {
-        integer_value(
-            value,
-            f"{path}: week",
-        )
-        for value in df[
-            "week"
-        ]
-    }
-
-    if observed_seasons != {
-        season
-    }:
-        fail(
-            f"{path}: expected only season={season}; "
-            f"found {sorted(observed_seasons)}"
-        )
-
-    if observed_weeks != {
-        week
-    }:
-        fail(
-            f"{path}: expected only week={week}; "
-            f"found {sorted(observed_weeks)}"
-        )
-
+    validate_target_columns(
+        df,
+        str(path),
+        season,
+        week,
+        integer_value,
+    )
 
 def validate_schedule_alignment(
     selected: pd.DataFrame,
@@ -1483,88 +1422,21 @@ def validate_schedule_alignment(
             f"values: {examples}"
         )
 
-    schedule = schedule.copy()
-
-    schedule[
-        "game_id"
-    ] = schedule_ids
-
-    schedule_seasons = {
-        integer_value(
-            value,
-            f"{schedule_path}: season",
-        )
-        for value in schedule[
-            "season"
-        ]
-    }
-
-    schedule_weeks = {
-        integer_value(
-            value,
-            f"{schedule_path}: week",
-        )
-        for value in schedule[
-            "week"
-        ]
-    }
-
-    if schedule_seasons != {
-        season
-    }:
-        fail(
-            f"{schedule_path}: expected only "
-            f"season={season}; "
-            f"found {sorted(schedule_seasons)}"
-        )
-
-    if schedule_weeks != {
-        week
-    }:
-        fail(
-            f"{schedule_path}: expected only "
-            f"week={week}; "
-            f"found {sorted(schedule_weeks)}"
-        )
-
-    selected_ids = set(
-        selected[
-            "game_id"
-        ]
+    schedule, _, _ = prepare_schedule_coverage(
+        schedule,
+        schedule_ids,
+        selected,
+        str(schedule_path),
+        season,
+        week,
+        integer_value,
     )
 
-    target_ids = set(
-        schedule[
-            "game_id"
-        ]
-    )
-
-    missing = sorted(
-        target_ids
-        - selected_ids
-    )
-
-    unexpected = sorted(
-        selected_ids
-        - target_ids
-    )
-
-    if (
-        missing
-        or unexpected
-    ):
-        fail(
-            "Selected input game coverage does not "
-            "match the target weekly schedule; "
-            f"missing_count={len(missing)} "
-            f"unexpected_count={len(unexpected)} "
-            f"missing_examples={missing[:10]} "
-            f"unexpected_examples={unexpected[:10]}"
-        )
-
-    schedule_lookup = schedule.set_index(
-        "game_id",
-        drop=False,
+    schedule_lookup = require_schedule_coverage(
+        selected,
+        schedule,
+        "Selected input game coverage does not "
+        "match the target weekly schedule",
     )
 
     mismatches: list[
@@ -1583,30 +1455,16 @@ def validate_schedule_alignment(
             game_id
         ]
 
-        selected_away = clean(
-            row.get(
-                "away_team"
-            )
+        (
+            selected_away,
+            selected_home,
+            schedule_away,
+            schedule_home,
+        ) = team_identity_values(
+            row,
+            schedule_row,
+            clean,
         )
-
-        selected_home = clean(
-            row.get(
-                "home_team"
-            )
-        )
-
-        schedule_away = clean(
-            schedule_row.get(
-                "away_team"
-            )
-        )
-
-        schedule_home = clean(
-            schedule_row.get(
-                "home_team"
-            )
-        )
-
         if (
             selected_away
             != schedule_away
@@ -1635,7 +1493,6 @@ def validate_schedule_alignment(
             f"count={len(mismatches)} "
             f"examples={mismatches[:10]}"
         )
-
 
 def candidate_numeric(
     row: pd.Series,
@@ -2719,9 +2576,7 @@ def analyze_source(
             ]
 
             for _, row in df.iterrows():
-                reasons: list[
-                    str
-                ] = []
+
 
                 if not market_cfg[
                     "enabled"
@@ -3011,31 +2866,7 @@ def publish_atomic_csv(
     )
 
     try:
-        with temporary.open(
-            "w",
-            newline="",
-            encoding="utf-8",
-        ) as handle:
-            output.to_csv(
-                handle,
-                index=False,
-                lineterminator="\n",
-            )
-
-            handle.flush()
-
-            os.fsync(
-                handle.fileno()
-            )
-
-        serialized = pd.read_csv(
-            temporary,
-            dtype=str,
-            keep_default_na=False,
-            na_filter=False,
-            encoding="utf-8-sig",
-            low_memory=False,
-        )
+        serialized = stage_dataframe_csv(temporary, output)
 
         validate_output_frame(
             serialized,
@@ -3776,7 +3607,7 @@ def main() -> int:
             args,
         )
 
-
+    raise RuntimeError("context manager unexpectedly suppressed an exception")
 
 if __name__ == "__main__":
     raise SystemExit(main())

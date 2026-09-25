@@ -12,7 +12,7 @@ from urllib.request import (
 
 
 class UrlSecurityError(ValueError):
-    'Raised when a provider URL violates the outbound request policy.'
+    """Raised when a provider URL violates the outbound request policy."""
 
 
 def _host_allowlist(
@@ -33,7 +33,7 @@ def _host_allowlist(
 
 
 def validate_https_url(
-    url: object,
+    url: str,
     *,
     allowed_hosts: Iterable[str],
     label: str = "URL",

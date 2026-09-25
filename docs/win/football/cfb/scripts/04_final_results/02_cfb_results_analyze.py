@@ -24,7 +24,7 @@ import sys
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Never
 
 import pandas as pd
 import yaml
@@ -42,6 +42,7 @@ if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
 from pipeline_reporter import PipelineReporter
+from pipeline_shared import stage_dataframe_csv
 
 
 DEFAULT_GRADED_DIR = CFB_ROOT / "04_final_results" / "graded"
@@ -164,7 +165,7 @@ WORK_COLUMNS = [
 ]
 
 
-def fail(message: str) -> None:
+def fail(message: str) -> Never:
     raise RuntimeError(message)
 
 
@@ -175,7 +176,7 @@ def clean(value: Any) -> str:
     try:
         if pd.isna(value):
             return ""
-    except Exception:
+    except (TypeError, ValueError):
         pass
 
     text = str(value).strip()
@@ -1439,85 +1440,55 @@ def bet_row(
             optional_float(
                 row.get("final_home_margin")
             ),
+        "week_label":
+            (
+                "Week "
+                + str(
+                    required_int(
+                        row.get("week"),
+                        f"game_id={game_id}: week",
+                    )
+                )
+            ),
+        "day_night":
+            build_day_night(
+                clean(
+                    row.get("game_time")
+                ),
+                (
+                    f"game_id={game_id}: "
+                    "game_time"
+                ),
+            ),
+        "ev_bucket":
+            ev_bucket(ev),
+        "odds_bucket":
+            odds_bucket(odds),
+        "kelly_bucket":
+            kelly_bucket(kelly),
+        "model_prob_bucket":
+            model_prob_bucket(model_prob),
+        "win_prob_bucket":
+            model_prob_bucket(model_prob),
+        "spread_line_bucket":
+            (
+                spread_line_bucket(line)
+                if market_type == "spread"
+                else "UNBUCKETED"
+            ),
+        "spread_role":
+            (
+                spread_role(line)
+                if market_type == "spread"
+                else "UNBUCKETED"
+            ),
+        "total_bucket":
+            (
+                total_bucket(line)
+                if market_type == "total"
+                else "UNBUCKETED"
+            ),
     }
-
-    output[
-        "week_label"
-    ] = (
-        f"Week {output['week']}"
-    )
-
-    output[
-        "day_night"
-    ] = build_day_night(
-        output[
-            "game_time"
-        ],
-        (
-            f"game_id={game_id}: "
-            "game_time"
-        ),
-    )
-
-    output[
-        "ev_bucket"
-    ] = ev_bucket(
-        ev
-    )
-
-    output[
-        "odds_bucket"
-    ] = odds_bucket(
-        odds
-    )
-
-    output[
-        "kelly_bucket"
-    ] = kelly_bucket(
-        kelly
-    )
-
-    output[
-        "model_prob_bucket"
-    ] = model_prob_bucket(
-        model_prob
-    )
-
-    output[
-        "win_prob_bucket"
-    ] = output[
-        "model_prob_bucket"
-    ]
-
-    output[
-        "spread_line_bucket"
-    ] = (
-        spread_line_bucket(
-            line
-        )
-        if market_type == "spread"
-        else "UNBUCKETED"
-    )
-
-    output[
-        "spread_role"
-    ] = (
-        spread_role(
-            line
-        )
-        if market_type == "spread"
-        else "UNBUCKETED"
-    )
-
-    output[
-        "total_bucket"
-    ] = (
-        total_bucket(
-            line
-        )
-        if market_type == "total"
-        else "UNBUCKETED"
-    )
 
     return output
 
@@ -1782,31 +1753,7 @@ def publish_csv(
     )
 
     try:
-        with temporary.open(
-            "w",
-            newline="",
-            encoding="utf-8",
-        ) as handle:
-            work.to_csv(
-                handle,
-                index=False,
-                lineterminator="\n",
-            )
-
-            handle.flush()
-
-            os.fsync(
-                handle.fileno()
-            )
-
-        serialized = pd.read_csv(
-            temporary,
-            dtype=str,
-            keep_default_na=False,
-            na_filter=False,
-            encoding="utf-8-sig",
-            low_memory=False,
-        )
+        serialized = stage_dataframe_csv(temporary, work)
 
         require_columns(
             serialized,

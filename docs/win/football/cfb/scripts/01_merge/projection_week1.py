@@ -46,7 +46,8 @@ import sys
 import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
-from zoneinfo import ZoneInfo
+from typing import Any, Optional
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import numpy as np
 import pandas as pd
@@ -64,6 +65,12 @@ if str(SCRIPTS_DIR) not in sys.path:
     )
 
 from pipeline_reporter import PipelineReporter
+from pipeline_shared import (
+    add_projection_core_arguments,
+    clean_text as clean,
+    print_projection_adjustment_counts,
+    print_projection_source_counts,
+)
 
 
 SCRIPT_VERSION = "cfb-week1-v12-rebuild-all-games-2026-09-21"
@@ -264,35 +271,7 @@ def parse_args() -> argparse.Namespace:
         default=1,
     )
 
-    parser.add_argument(
-        "--home-field",
-        type=float,
-        default=2.5,
-    )
-
-    parser.add_argument(
-        "--drives-per-team",
-        type=float,
-        default=11.5,
-    )
-
-    parser.add_argument(
-        "--market-margin-weight",
-        type=float,
-        default=0.36,
-    )
-
-    parser.add_argument(
-        "--fpi-margin-weight",
-        type=float,
-        default=0.28,
-    )
-
-    parser.add_argument(
-        "--espn-margin-weight",
-        type=float,
-        default=0.20,
-    )
+    add_projection_core_arguments(parser)
 
     parser.add_argument(
         "--prior-margin-weight",
@@ -341,37 +320,8 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def clean(
-    value: object,
-) -> str:
-    if value is None:
-        return ""
-
-    try:
-        if pd.isna(value):
-            return ""
-    except Exception:
-        pass
-
-    text = str(
-        value
-    ).strip()
-
-    if text.casefold() in {
-        "",
-        "nan",
-        "none",
-        "null",
-        "<na>",
-        "nat",
-    }:
-        return ""
-
-    return text
-
-
 def normalize_key(
-    value: object,
+    value: Any,
 ) -> str:
     text = unicodedata.normalize(
         "NFKD",
@@ -406,7 +356,7 @@ def normalize_key(
 
 
 def as_bool(
-    value: object,
+    value: Any,
 ) -> bool:
     return clean(
         value
@@ -420,8 +370,8 @@ def as_bool(
 
 
 def as_float(
-    value: object,
-) -> float | None:
+    value: Any,
+) -> Optional[float]:
     text = (
         clean(value)
         .replace(
@@ -522,7 +472,7 @@ def read_csv(
 
 
 def normalize_game_id(
-    value: object,
+    value: Any,
 ) -> str:
     text = clean(
         value
@@ -541,7 +491,7 @@ def normalize_game_id(
 
 def schedule_kickoff_utc(
     row: pd.Series,
-) -> datetime | None:
+) -> Optional[datetime]:
     authoritative_text = clean(
         row.get(
             "kickoff_utc"
@@ -595,7 +545,7 @@ def schedule_kickoff_utc(
             )
         )
 
-    except Exception:
+    except (ValueError, ZoneInfoNotFoundError):
         return None
 
     return local_dt.astimezone(
@@ -763,9 +713,9 @@ def load_travel_weather_coefficients(
 
 
 def _series_value(
-    row: pd.Series | None,
+    row: Optional[pd.Series],
     column: str,
-) -> float | None:
+) -> Optional[float]:
     if row is None:
         return None
 
@@ -777,10 +727,10 @@ def _series_value(
 
 
 def build_travel_features(
-    row: pd.Series | None,
+    row: Optional[pd.Series],
 ) -> dict[
     str,
-    float | None,
+    Optional[float],
 ]:
     if row is None:
         return {
@@ -889,7 +839,7 @@ def build_travel_features(
 
 
 def weather_is_exposed(
-    row: pd.Series | None,
+    row: Optional[pd.Series],
 ) -> bool:
     if row is None:
         return False
@@ -938,10 +888,10 @@ def weather_is_exposed(
 
 
 def build_weather_features(
-    row: pd.Series | None,
+    row: Optional[pd.Series],
 ) -> dict[
     str,
-    float | None,
+    Optional[float],
 ]:
     if row is None:
         return {
@@ -987,7 +937,7 @@ def build_weather_features(
 def calculate_feature_adjustment(
     features: dict[
         str,
-        float | None,
+        Optional[float],
     ],
     coefficients: dict[
         str,
@@ -1048,7 +998,7 @@ def calculate_feature_adjustment(
 
 
 def calculate_travel_adjustment(
-    row: pd.Series | None,
+    row: Optional[pd.Series],
     coefficients: dict[
         str,
         dict[
@@ -1059,7 +1009,7 @@ def calculate_travel_adjustment(
 ) -> tuple[
     dict[
         str,
-        float | None,
+        Optional[float],
     ],
     float,
     int,
@@ -1083,7 +1033,7 @@ def calculate_travel_adjustment(
 
 
 def calculate_weather_adjustment(
-    row: pd.Series | None,
+    row: Optional[pd.Series],
     coefficients: dict[
         str,
         dict[
@@ -1094,7 +1044,7 @@ def calculate_weather_adjustment(
 ) -> tuple[
     dict[
         str,
-        float | None,
+        Optional[float],
     ],
     bool,
     float,
@@ -1210,7 +1160,7 @@ class TeamResolver:
 
     def resolve(
         self,
-        value: object,
+        value: Any,
     ) -> str:
         raw = clean(
             value
@@ -1228,7 +1178,7 @@ class TeamResolver:
 
     def team_id(
         self,
-        value: object,
+        value: Any,
     ) -> str:
         return self.team_to_id.get(
             self.resolve(
@@ -2186,12 +2136,12 @@ def injury_summary_for_game(
 def weighted_blend(
     components: list[
         tuple[
-            float | None,
+            Optional[float],
             float,
         ]
     ],
 ) -> tuple[
-    float | None,
+    Optional[float],
     list[float],
 ]:
     valid = [
@@ -2282,7 +2232,7 @@ def prior_total_estimate(
     home: pd.Series,
     away: pd.Series,
     drives_per_team: float,
-) -> float | None:
+) -> Optional[float]:
     values = [
         as_float(
             home.get(
@@ -2370,8 +2320,8 @@ def normal_cdf(
 def build_betting_probabilities(
     predicted_margin: float,
     predicted_total: float,
-    home_spread: float | None,
-    market_total: float | None,
+    home_spread: Optional[float],
+    market_total: Optional[float],
     margin_sd: float,
     total_sd: float,
 ) -> dict[
@@ -2539,13 +2489,13 @@ def validate_probability_output(
             )
 
 
-def _stage1_optional_round(value: object, digits: int) -> object:
+def _stage1_optional_round(value: Optional[float], digits: int) -> Optional[float]:
     if value is None:
         return None
     return round(value, digits)
 
 
-def _stage1_lookup_row(lookup: pd.DataFrame | None, key: str) -> object:
+def _stage1_lookup_row(lookup: Optional[pd.DataFrame], key: str) -> Optional[pd.Series]:
     if lookup is None or key not in lookup.index:
         return None
     return lookup.loc[key]
@@ -2565,9 +2515,9 @@ def _stage1_prior_info(
 def _stage1_fpi_info(
     home_team: str,
     away_team: str,
-    fpi_lookup: pd.DataFrame | None,
+    fpi_lookup: Optional[pd.DataFrame],
     home_field: float,
-) -> tuple[float | None, float | None, float | None]:
+) -> tuple[Optional[float], Optional[float], Optional[float]]:
     home_row = _stage1_lookup_row(fpi_lookup, home_team)
     away_row = _stage1_lookup_row(fpi_lookup, away_team)
     home_fpi = None if home_row is None else as_float(home_row.get("fpi"))
@@ -2581,18 +2531,18 @@ def _stage1_espn_info(
     game_id: str,
     home_team: str,
     away_team: str,
-    espn_lookup: pd.DataFrame | None,
+    espn_lookup: Optional[pd.DataFrame],
     resolver: TeamResolver,
 ) -> tuple[
     bool,
     bool,
-    float | None,
-    float | None,
-    float | None,
-    float | None,
-    float | None,
-    float | None,
-    float | None,
+    Optional[float],
+    Optional[float],
+    Optional[float],
+    Optional[float],
+    Optional[float],
+    Optional[float],
+    Optional[float],
 ]:
     espn_row = _stage1_lookup_row(espn_lookup, game_id)
     if espn_row is None:
@@ -2629,7 +2579,7 @@ def _stage1_espn_info(
     )
 
 
-def _stage1_row_float(row: object, key: str) -> float | None:
+def _stage1_row_float(row: Optional[pd.Series], key: str) -> Optional[float]:
     if row is None:
         return None
     return as_float(row.get(key))
@@ -2640,10 +2590,10 @@ def _stage1_project_game(
     *,
     prior_lookup: pd.DataFrame,
     fallback_prior: pd.Series,
-    fpi_lookup: pd.DataFrame | None,
-    espn_lookup: pd.DataFrame | None,
-    travel_lookup: pd.DataFrame | None,
-    weather_lookup: pd.DataFrame | None,
+    fpi_lookup: Optional[pd.DataFrame],
+    espn_lookup: Optional[pd.DataFrame],
+    travel_lookup: Optional[pd.DataFrame],
+    weather_lookup: Optional[pd.DataFrame],
     resolver: TeamResolver,
     home_stadium_lookup: dict[str, set[str]],
     injury_lookup: dict[str, pd.DataFrame],
@@ -3012,6 +2962,45 @@ def validate_args(
         )
 
 
+def _projection_reference_paths(
+    root: Path,
+    season: int,
+    prior_season: int,
+) -> tuple[
+    Path,
+    Path,
+    Path,
+    Path,
+    Path,
+    Path,
+]:
+    return (
+        root
+        / "00_intake"
+        / "team_stats"
+        / f"{prior_season}_team_stats.csv",
+        root
+        / "data"
+        / "team_power_index"
+        / f"team_power_index_{season}.csv",
+        root
+        / "00_intake"
+        / "predictions"
+        / "final",
+        root
+        / "00_intake"
+        / "injuries"
+        / f"{season}_injuries.csv",
+        root
+        / "config"
+        / "mapping"
+        / "team_map.csv",
+        root
+        / "config"
+        / "mapping"
+        / "stadium_map.csv",
+    )
+
 def _main_impl() -> None:
     args = parse_args()
 
@@ -3047,46 +3036,17 @@ def _main_impl() -> None:
         / f"week_{args.week}_CFB_weekly_schedule.csv"
     )
 
-    prior_path = (
-        root
-        / "00_intake"
-        / "team_stats"
-        / f"{prior_season}_team_stats.csv"
-    )
-
-    fpi_path = (
-        root
-        / "data"
-        / "team_power_index"
-        / f"team_power_index_{season}.csv"
-    )
-
-    predictions_dir = (
-        root
-        / "00_intake"
-        / "predictions"
-        / "final"
-    )
-
-    injuries_path = (
-        root
-        / "00_intake"
-        / "injuries"
-        / f"{season}_injuries.csv"
-    )
-
-    team_map_path = (
-        root
-        / "config"
-        / "mapping"
-        / "team_map.csv"
-    )
-
-    stadium_map_path = (
-        root
-        / "config"
-        / "mapping"
-        / "stadium_map.csv"
+    (
+        prior_path,
+        fpi_path,
+        predictions_dir,
+        injuries_path,
+        team_map_path,
+        stadium_map_path,
+    ) = _projection_reference_paths(
+        root,
+        season,
+        prior_season,
     )
 
     travel_path = (
@@ -3330,45 +3290,14 @@ def _main_impl() -> None:
         f"{int(pd.to_numeric(predictions['neutral_site_corrected'], errors='coerce').fillna(0).sum())}"
     )
 
-    print(
-        "with_market_spread="
-        f"{int(pd.to_numeric(predictions['market_home_margin'], errors='coerce').notna().sum())}"
-    )
-
-    print(
-        "with_fpi="
-        f"{int(pd.to_numeric(predictions['fpi_home_margin'], errors='coerce').notna().sum())}"
-    )
-
-    print(
-        "with_espn="
-        f"{int(pd.to_numeric(predictions['espn_home_margin'], errors='coerce').notna().sum())}"
-    )
+    print_projection_source_counts(predictions)
 
     print(
         "with_prior_margin="
         f"{int(pd.to_numeric(predictions['prior_home_margin'], errors='coerce').notna().sum())}"
     )
 
-    print(
-        "with_market_total="
-        f"{int(pd.to_numeric(predictions['market_total'], errors='coerce').notna().sum())}"
-    )
-
-    print(
-        "fresh_injury_adjustments="
-        f"{int(pd.to_numeric(predictions['injury_margin_adjustment'], errors='coerce').fillna(0).abs().gt(0).sum())}"
-    )
-
-    print(
-        "travel_adjustments="
-        f"{int(pd.to_numeric(predictions['travel_margin_adjustment'], errors='coerce').fillna(0).abs().gt(0).sum())}"
-    )
-
-    print(
-        "weather_adjustments="
-        f"{int(pd.to_numeric(predictions['weather_total_adjustment'], errors='coerce').fillna(0).abs().gt(0).sum())}"
-    )
+    print_projection_adjustment_counts(predictions)
 
     if args.dry_run:
         print(
@@ -3512,46 +3441,17 @@ def main() -> int:
             / f"week_{week}_CFB_weekly_schedule.csv"
         )
 
-        prior_path = (
-            root
-            / "00_intake"
-            / "team_stats"
-            / f"{prior_season}_team_stats.csv"
-        )
-
-        fpi_path = (
-            root
-            / "data"
-            / "team_power_index"
-            / f"team_power_index_{season}.csv"
-        )
-
-        predictions_dir = (
-            root
-            / "00_intake"
-            / "predictions"
-            / "final"
-        )
-
-        injuries_path = (
-            root
-            / "00_intake"
-            / "injuries"
-            / f"{season}_injuries.csv"
-        )
-
-        team_map_path = (
-            root
-            / "config"
-            / "mapping"
-            / "team_map.csv"
-        )
-
-        stadium_map_path = (
-            root
-            / "config"
-            / "mapping"
-            / "stadium_map.csv"
+        (
+            prior_path,
+            fpi_path,
+            predictions_dir,
+            injuries_path,
+            team_map_path,
+            stadium_map_path,
+        ) = _projection_reference_paths(
+            root,
+            season,
+            prior_season,
         )
 
         travel_path = (
@@ -3646,14 +3546,15 @@ def main() -> int:
 
         return 0
 
+    raise RuntimeError("context manager unexpectedly suppressed an exception")
 
 if __name__ == "__main__":
     try:
         main()
 
-    except Exception as exc:
+    except Exception as main_exc:
         print(
-            f"ERROR: {exc}",
+            f"ERROR: {main_exc}",
             file=sys.stderr,
         )
 

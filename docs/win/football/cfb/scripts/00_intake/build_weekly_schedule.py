@@ -5,15 +5,12 @@ from __future__ import annotations
 
 import csv
 import json
-import os
 import re
 import sys
-import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-import yaml
 
 
 SCRIPT_PATH = Path(__file__).resolve()
@@ -24,6 +21,11 @@ if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
 from pipeline_reporter import PipelineReporter
+from pipeline_shared import (
+    load_current_week_config,
+    write_atomic_csv_rows,
+)
+from type_support import ScalarValue
 
 
 SCHEDULE_DIR = CFB_ROOT / "00_intake" / "schedule"
@@ -152,94 +154,6 @@ VALID_MISSING_REASONS = {
 }
 
 
-def load_current_week_config(
-    path: Path,
-) -> tuple[int, int, int]:
-    if not path.exists():
-        raise FileNotFoundError(
-            f"Missing current-week config: {path}"
-        )
-
-    with path.open(
-        "r",
-        encoding="utf-8",
-    ) as handle:
-        payload = yaml.safe_load(
-            handle
-        )
-
-    if not isinstance(
-        payload,
-        dict,
-    ):
-        raise ValueError(
-            "Current-week config must be a YAML mapping"
-        )
-
-    values: dict[str, int] = {}
-
-    for key in (
-        "season",
-        "season_type",
-        "week",
-    ):
-        if key not in payload:
-            raise ValueError(
-                "Current-week config missing "
-                f"required key: {key}"
-            )
-
-        raw = payload.get(
-            key
-        )
-
-        if isinstance(
-            raw,
-            bool,
-        ):
-            raise ValueError(
-                f"Current-week config {key} "
-                "must be an integer"
-            )
-
-        try:
-            values[key] = int(
-                str(raw).strip()
-            )
-        except (
-            TypeError,
-            ValueError,
-        ) as exc:
-            raise ValueError(
-                f"Current-week config {key} "
-                "must be an integer"
-            ) from exc
-
-    if values["season"] < 2000:
-        raise ValueError(
-            "Invalid season in current-week config: "
-            f"{values['season']}"
-        )
-
-    if values["season_type"] < 1:
-        raise ValueError(
-            "Invalid season_type in current-week config: "
-            f"{values['season_type']}"
-        )
-
-    if values["week"] < 1:
-        raise ValueError(
-            "Invalid week in current-week config: "
-            f"{values['week']}"
-        )
-
-    return (
-        values["season"],
-        values["season_type"],
-        values["week"],
-    )
-
-
 def read_csv(
     path: Path,
     required_columns: list[str],
@@ -249,6 +163,8 @@ def read_csv(
         raise FileNotFoundError(
             f"Missing {label}: {path}"
         )
+
+    rows: list[dict[str, str]] = []
 
     with path.open(
         "r",
@@ -276,10 +192,11 @@ def read_csv(
                 f"{label} missing columns: {missing}"
             )
 
-        return list(
+        rows = list(
             reader
         )
 
+    return rows
 
 def schedule_kickoff_utc(
     row: dict[str, str],
@@ -387,7 +304,7 @@ def kickoff_iso(
 
 
 def parse_aware_iso(
-    value: object,
+    value: ScalarValue,
     label: str,
 ) -> datetime:
     text = str(
@@ -808,8 +725,8 @@ def _stage1_request_records(
     raw_payload: dict,
     *,
     target_ids: set[str],
-) -> dict[str, dict[str, object]]:
-    request_by_id: dict[str, dict[str, object]] = {}
+) -> dict[str, dict[str, ScalarValue]]:
+    request_by_id: dict[str, dict[str, ScalarValue]] = {}
     for index, request in enumerate(raw_payload["request_urls"]):
         if not isinstance(request, dict):
             raise ValueError(
@@ -883,7 +800,7 @@ def _stage1_validate_available_snapshot_coverage(
     normalized_ids: set[str],
     raw_event_ids: list[str],
     raw_odds_ids: list[str],
-    request_by_id: dict[str, dict[str, object]],
+    request_by_id: dict[str, dict[str, ScalarValue]],
 ) -> None:
     available_ids = {
         game_id
@@ -915,7 +832,7 @@ def validate_snapshot_provenance(
     season: int,
     season_type: int,
     week: int,
-) -> tuple[str, str, dict[str, dict[str, object]]]:
+) -> tuple[str, str, dict[str, dict[str, ScalarValue]]]:
     if not odds_rows:
         raise ValueError("Normalized current odds CSV is empty")
 
@@ -1749,7 +1666,7 @@ def build_output_rows(
     target_rows: list[dict[str, str]],
     request_by_id: dict[
         str,
-        dict[str, object],
+        dict[str, ScalarValue],
     ],
     odds_summary: dict[
         str,
@@ -1892,20 +1809,20 @@ def build_output_rows(
         )
 
     output_rows.sort(
-        key=lambda row: (
-            row.get(
+        key=lambda sort_row: (
+            sort_row.get(
                 "game_date",
                 "",
             ),
-            row.get(
+            sort_row.get(
                 "game_time",
                 "",
             ),
-            row.get(
+            sort_row.get(
                 "away_team",
                 "",
             ),
-            row.get(
+            sort_row.get(
                 "home_team",
                 "",
             ),
@@ -2103,61 +2020,11 @@ def write_csv_atomic(
     path: Path,
     rows: list[dict[str, str]],
 ) -> None:
-    path.parent.mkdir(
-        parents=True,
-        exist_ok=True,
+    write_atomic_csv_rows(
+        path,
+        rows,
+        OUTPUT_COLUMNS,
     )
-
-    temp_path = path.with_name(
-        f".{path.name}."
-        f"{uuid.uuid4().hex}.tmp"
-    )
-
-    try:
-        with temp_path.open(
-            "w",
-            newline="",
-            encoding="utf-8",
-        ) as handle:
-            writer = csv.DictWriter(
-                handle,
-                fieldnames=OUTPUT_COLUMNS,
-            )
-
-            writer.writeheader()
-
-            for row in rows:
-                writer.writerow(
-                    {
-                        column: row.get(
-                            column,
-                            "",
-                        )
-                        for column
-                        in OUTPUT_COLUMNS
-                    }
-                )
-
-            handle.flush()
-
-            os.fsync(
-                handle.fileno()
-            )
-
-        os.replace(
-            temp_path,
-            path,
-        )
-
-    finally:
-        try:
-            temp_path.unlink(
-                missing_ok=True
-            )
-        except Exception:
-            pass
-
-
 
 def read_all_locked_weekly(
     path: Path,

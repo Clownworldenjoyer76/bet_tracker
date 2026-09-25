@@ -30,10 +30,9 @@ import re
 import sys
 import uuid
 from pathlib import Path
-from typing import Any
+from typing import Any, Never
 
 import pandas as pd
-import yaml
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -66,6 +65,16 @@ if str(SCRIPTS_DIR) not in sys.path:
     )
 
 from pipeline_reporter import PipelineReporter
+from pipeline_shared import (
+    clean_text,
+    normalized_frame_pair,
+    prepare_schedule_coverage,
+    register_report_paths,
+    require_columns,
+    resolve_weekly_report_target,
+    stage_dataframe_csv,
+    validate_target_columns,
+)
 
 
 REQUIRED_COLUMNS = [
@@ -139,33 +148,10 @@ OUTPUT_COLUMNS = [
 
 def fail(
     message: str,
-) -> None:
+) -> Never:
     raise RuntimeError(
         message
     )
-
-
-def clean_text(
-    value: Any,
-) -> str:
-    if value is None:
-        return ""
-
-    text = str(
-        value
-    ).strip()
-
-    if text.casefold() in {
-        "",
-        "nan",
-        "none",
-        "null",
-        "<na>",
-        "nat",
-    }:
-        return ""
-
-    return text
 
 
 def normalize_game_id(
@@ -291,35 +277,6 @@ def selection_flag(
     )
 
 
-def read_yaml(
-    path: Path,
-    label: str,
-) -> dict[str, Any]:
-    if not path.is_file():
-        fail(
-            f"Missing {label}: {path}"
-        )
-
-    with path.open(
-        "r",
-        encoding="utf-8",
-    ) as handle:
-        data = yaml.safe_load(
-            handle
-        )
-
-    if not isinstance(
-        data,
-        dict,
-    ):
-        fail(
-            f"{label} must contain a YAML mapping: "
-            f"{path}"
-        )
-
-    return data
-
-
 def read_csv(
     path: Path,
     label: str,
@@ -344,78 +301,6 @@ def read_csv(
         )
 
     return df
-
-
-def require_columns(
-    df: pd.DataFrame,
-    columns: list[str],
-    label: str,
-) -> None:
-    missing = [
-        column
-        for column in columns
-        if column not in df.columns
-    ]
-
-    if missing:
-        fail(
-            f"{label} missing required columns: "
-            f"{missing}"
-        )
-
-
-def resolve_target(
-    current_week: dict[str, Any],
-    season_override: int | None,
-    week_override: int | None,
-) -> tuple[
-    int,
-    int,
-]:
-    configured_season = integer_value(
-        current_week.get(
-            "season"
-        ),
-        "current_week.season",
-    )
-
-    configured_week = integer_value(
-        current_week.get(
-            "week"
-        ),
-        "current_week.week",
-    )
-
-    season = (
-        int(
-            season_override
-        )
-        if season_override is not None
-        else configured_season
-    )
-
-    week = (
-        int(
-            week_override
-        )
-        if week_override is not None
-        else configured_week
-    )
-
-    if season < 1900:
-        fail(
-            f"Invalid target season: {season}"
-        )
-
-    if week <= 0:
-        fail(
-            f"Invalid target week: {week}"
-        )
-
-    return (
-        season,
-        week,
-    )
 
 
 def week_from_filename(
@@ -505,42 +390,13 @@ def validate_input_target(
         "game_id"
     ] = ids
 
-    seasons = {
-        integer_value(
-            value,
-            f"{path}: season",
-        )
-        for value in df[
-            "season"
-        ]
-    }
-
-    weeks = {
-        integer_value(
-            value,
-            f"{path}: week",
-        )
-        for value in df[
-            "week"
-        ]
-    }
-
-    if seasons != {
-        season
-    }:
-        fail(
-            f"{path}: expected only season={season}; "
-            f"found {sorted(seasons)}"
-        )
-
-    if weeks != {
-        week
-    }:
-        fail(
-            f"{path}: expected only week={week}; "
-            f"found {sorted(weeks)}"
-        )
-
+    validate_target_columns(
+        df,
+        str(path),
+        season,
+        week,
+        integer_value,
+    )
 
 def validate_schedule_alignment(
     picks: pd.DataFrame,
@@ -591,70 +447,18 @@ def validate_schedule_alignment(
             f"game_id values: {examples}"
         )
 
-    schedule = schedule.copy()
-
-    schedule[
-        "game_id"
-    ] = ids
-
-    seasons = {
-        integer_value(
-            value,
-            f"{schedule_path}: season",
-        )
-        for value in schedule[
-            "season"
-        ]
-    }
-
-    weeks = {
-        integer_value(
-            value,
-            f"{schedule_path}: week",
-        )
-        for value in schedule[
-            "week"
-        ]
-    }
-
-    if seasons != {
-        season
-    }:
-        fail(
-            f"{schedule_path}: expected only "
-            f"season={season}; "
-            f"found {sorted(seasons)}"
-        )
-
-    if weeks != {
-        week
-    }:
-        fail(
-            f"{schedule_path}: expected only "
-            f"week={week}; "
-            f"found {sorted(weeks)}"
-        )
-
-    pick_ids = set(
-        picks[
-            "game_id"
-        ]
-    )
-
-    schedule_ids = set(
-        schedule[
-            "game_id"
-        ]
-    )
-
-    missing = sorted(
-        schedule_ids
-        - pick_ids
-    )
-
-    unexpected = sorted(
-        pick_ids
-        - schedule_ids
+    (
+        schedule,
+        missing,
+        unexpected,
+    ) = prepare_schedule_coverage(
+        schedule,
+        ids,
+        picks,
+        str(schedule_path),
+        season,
+        week,
+        integer_value,
     )
 
     if (
@@ -741,7 +545,6 @@ def validate_schedule_alignment(
             f"count={len(mismatches)} "
             f"examples={mismatches[:10]}"
         )
-
 
 def validate_selected_wagers(
     df: pd.DataFrame,
@@ -1597,30 +1400,12 @@ def validate_serialized_output(
             "Serialized clean output row count changed"
         )
 
-    left = serialized.reset_index(
-        drop=True
-    ).copy()
-
-    right = expected.reset_index(
-        drop=True
-    ).copy()
-
-    for column in OUTPUT_COLUMNS:
-        left[
-            column
-        ] = left[
-            column
-        ].map(
-            clean_text
-        )
-
-        right[
-            column
-        ] = right[
-            column
-        ].map(
-            clean_text
-        )
+    left, right = normalized_frame_pair(
+        serialized,
+        expected,
+        OUTPUT_COLUMNS,
+        clean_text,
+    )
 
     if not left.equals(
         right
@@ -1647,31 +1432,7 @@ def publish_atomic_csv(
     )
 
     try:
-        with temporary.open(
-            "w",
-            newline="",
-            encoding="utf-8",
-        ) as handle:
-            output.to_csv(
-                handle,
-                index=False,
-                lineterminator="\n",
-            )
-
-            handle.flush()
-
-            os.fsync(
-                handle.fileno()
-            )
-
-        serialized = pd.read_csv(
-            temporary,
-            dtype=str,
-            keep_default_na=False,
-            na_filter=False,
-            encoding="utf-8-sig",
-            low_memory=False,
-        )
+        serialized = stage_dataframe_csv(temporary, output)
 
         validate_serialized_output(
             serialized,
@@ -1923,22 +1684,12 @@ def run(
     report: PipelineReporter,
     args: argparse.Namespace,
 ) -> int:
-    current_week = read_yaml(
+    season, week = resolve_weekly_report_target(
+        report,
         CURRENT_WEEK_CONFIG_PATH,
-        "current-week config",
-    )
-
-    (
-        season,
-        week,
-    ) = resolve_target(
-        current_week,
         args.season,
         args.week,
     )
-
-    report.season = season
-    report.week = week
 
     input_path = (
         INPUT_DIR
@@ -1954,20 +1705,14 @@ def run(
         / f"week_{week}_CFB_clean_picks.csv"
     )
 
-    report.add_input(
-        CURRENT_WEEK_CONFIG_PATH
-    )
-
-    report.add_input(
-        input_path
-    )
-
-    report.add_input(
-        expected_schedule_path
-    )
-
-    report.add_output(
-        expected_output_path
+    register_report_paths(
+        report,
+        inputs=(
+            CURRENT_WEEK_CONFIG_PATH,
+            input_path,
+            expected_schedule_path,
+        ),
+        output=expected_output_path,
     )
 
     report.update_details(
@@ -2087,6 +1832,7 @@ def main() -> int:
             args,
         )
 
+    raise RuntimeError("context manager unexpectedly suppressed an exception")
 
 if __name__ == "__main__":
     raise SystemExit(

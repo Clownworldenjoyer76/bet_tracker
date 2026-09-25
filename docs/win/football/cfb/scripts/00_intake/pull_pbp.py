@@ -51,9 +51,9 @@ except ImportError:  # pragma: no cover
 
 try:
     from sportsdataverse.cfb import CFBPlayProcess
-except ImportError as exc:  # pragma: no cover
+except ImportError as sportsdataverse_exc:  # pragma: no cover
     CFBPlayProcess = None
-    SPORTSDATAVERSE_IMPORT_ERROR: Exception | None = exc
+    SPORTSDATAVERSE_IMPORT_ERROR: Exception | None = sportsdataverse_exc
 else:
     SPORTSDATAVERSE_IMPORT_ERROR = None
 
@@ -352,7 +352,7 @@ def sportsdataverse_version() -> str:
         return package_version("sportsdataverse")
     except PackageNotFoundError:
         return "not-installed"
-    except Exception:
+    except (TypeError, ValueError):
         return "unknown"
 
 
@@ -1376,6 +1376,8 @@ def main() -> int:
         print("status: success")
 
         return 0
+
+    raise RuntimeError("context manager unexpectedly suppressed an exception")
 
 if __name__ == "__main__":
     raise SystemExit(main())

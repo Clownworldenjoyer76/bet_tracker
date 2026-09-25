@@ -16,6 +16,8 @@ Output:
 
 from __future__ import annotations
 
+from http.client import HTTPException
+
 import csv
 import json
 import math
@@ -30,7 +32,6 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request
 
-import yaml
 
 
 SCRIPT_PATH = Path(__file__).resolve()
@@ -42,6 +43,11 @@ if str(SCRIPTS_DIR) not in sys.path:
 
 from http_security import open_https
 from pipeline_reporter import PipelineReporter
+from pipeline_shared import (
+    load_current_week_config,
+    require_csv_fieldnames,
+)
+from type_support import ScalarValue
 
 
 CURRENT_WEEK_CONFIG_PATH = CFB_ROOT / "config" / "current_week.yaml"
@@ -104,7 +110,7 @@ class PowerIndexValidationError(RuntimeError):
 
 
 def parse_integer(
-    value: object,
+    value: ScalarValue,
     *,
     label: str,
     minimum: int | None = None,
@@ -142,49 +148,6 @@ def parse_integer(
     return result
 
 
-def load_current_week() -> tuple[int, int, int]:
-    if not CURRENT_WEEK_CONFIG_PATH.exists():
-        raise FileNotFoundError(
-            f"Missing current-week config: {CURRENT_WEEK_CONFIG_PATH}"
-        )
-
-    with CURRENT_WEEK_CONFIG_PATH.open(
-        "r",
-        encoding="utf-8",
-    ) as handle:
-        payload = yaml.safe_load(handle)
-
-    if not isinstance(payload, dict):
-        raise ValueError(
-            "Current-week config must contain a YAML mapping"
-        )
-
-    values: dict[str, int] = {}
-
-    for key in ("season", "season_type", "week"):
-        if key not in payload:
-            raise ValueError(
-                f"Current-week config missing required key: {key}"
-            )
-
-        values[key] = parse_integer(
-            payload.get(key),
-            label=f"current_week.{key}",
-            minimum=1,
-        )
-
-    if values["season"] < 2000:
-        raise ValueError(
-            f"Invalid configured season: {values['season']}"
-        )
-
-    return (
-        values["season"],
-        values["season_type"],
-        values["week"],
-    )
-
-
 def load_authoritative_team_ids(
     *,
     season: int,
@@ -203,22 +166,15 @@ def load_authoritative_team_ids(
         reader = csv.DictReader(handle)
         fieldnames = reader.fieldnames or []
 
-        required = {
-            "team_id",
-            "season",
-            "season_type",
-        }
-
-        missing = sorted(
-            required - set(fieldnames)
+        require_csv_fieldnames(
+            fieldnames,
+            {
+                "team_id",
+                "season",
+                "season_type",
+            },
+            "league_master.csv",
         )
-
-        if missing:
-            raise ValueError(
-                "league_master.csv missing required columns: "
-                f"{missing}"
-            )
-
         team_ids: set[str] = set()
 
         for row_number, row in enumerate(
@@ -303,7 +259,6 @@ def load_authoritative_team_ids(
         key=int,
     )
 
-
 def output_path_for_season(
     season: int,
 ) -> Path:
@@ -338,10 +293,9 @@ def validate_espn_core_url(
         )
 
     if parsed.scheme == "http":
-        parsed = parsed._replace(
-            scheme="https"
+        return urllib.parse.urlunparse(
+            ("https", parsed.netloc, parsed.path, parsed.params, parsed.query, parsed.fragment)
         )
-        return parsed.geturl()
 
     return text
 
@@ -389,7 +343,7 @@ def fetch_json(
                 exc.read()
                 .decode("utf-8")
             )
-        except Exception:
+        except (HTTPException, OSError, UnicodeError, ValueError):
             pass
 
         failure = {
@@ -494,17 +448,19 @@ def build_page_url(
     query["page"] = [str(page)]
 
     return urllib.parse.urlunparse(
-        parsed._replace(
-            query=urllib.parse.urlencode(
-                query,
-                doseq=True,
-            )
+        (
+            parsed.scheme,
+            parsed.netloc,
+            parsed.path,
+            parsed.params,
+            urllib.parse.urlencode(query, doseq=True),
+            parsed.fragment,
         )
     )
 
 
 def optional_nonnegative_integer(
-    value: object,
+    value: ScalarValue,
     *,
     label: str,
 ) -> int | None:
@@ -878,7 +834,7 @@ def extract_team_identity(
 
 
 def scalar_to_text(
-    value: object,
+    value: ScalarValue,
     *,
     label: str,
 ) -> str:
@@ -905,7 +861,7 @@ def scalar_to_text(
 
 
 def parse_finite_number(
-    value: object,
+    value: ScalarValue,
     *,
     label: str,
 ) -> float:
@@ -935,7 +891,7 @@ def parse_finite_number(
 
 
 def parse_provider_timestamp(
-    value: object,
+    value: ScalarValue,
     *,
     label: str,
 ) -> tuple[str, datetime]:
@@ -1291,8 +1247,8 @@ def build_rows(
     )
 
     rows.sort(
-        key=lambda row: int(
-            row["team_id"]
+        key=lambda sort_row: int(
+            sort_row["team_id"]
         )
     )
 
@@ -1607,7 +1563,7 @@ def publish_atomic(
             temp_path.unlink(
                 missing_ok=True
             )
-        except Exception:
+        except OSError:
             pass
 
 
@@ -1687,7 +1643,7 @@ def update_report_details(
                 label="report fpi",
             )
             fpi_coverage += 1
-        except Exception:
+        except PowerIndexValidationError:
             pass
 
     (
@@ -1777,7 +1733,7 @@ def run(
         season,
         season_type,
         week,
-    ) = load_current_week()
+    ) = load_current_week_config(CURRENT_WEEK_CONFIG_PATH)
 
     report.season = season
     report.week = week
@@ -1908,6 +1864,7 @@ def main() -> int:
             report
         )
 
+    raise RuntimeError("context manager unexpectedly suppressed an exception")
 
 if __name__ == "__main__":
     raise SystemExit(

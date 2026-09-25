@@ -15,6 +15,8 @@ Output:
 
 from __future__ import annotations
 
+from http.client import HTTPException
+
 import csv
 import json
 import os
@@ -27,7 +29,6 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request
 
-import yaml
 
 
 SCRIPT_PATH = Path(__file__).resolve()
@@ -39,6 +40,11 @@ if str(SCRIPTS_DIR) not in sys.path:
 
 from http_security import open_https
 from pipeline_reporter import PipelineReporter
+from pipeline_shared import (
+    load_current_week_config,
+    write_csv_rows_durable,
+)
+from type_support import ScalarValue
 
 
 CURRENT_WEEK_CONFIG_PATH = (
@@ -102,98 +108,6 @@ class RosterValidationError(
     RuntimeError
 ):
     pass
-
-
-def load_current_week() -> tuple[
-    int,
-    int,
-    int,
-]:
-    if not CURRENT_WEEK_CONFIG_PATH.exists():
-        raise FileNotFoundError(
-            "Missing current-week config: "
-            f"{CURRENT_WEEK_CONFIG_PATH}"
-        )
-
-    with CURRENT_WEEK_CONFIG_PATH.open(
-        "r",
-        encoding="utf-8",
-    ) as handle:
-        payload = yaml.safe_load(
-            handle
-        )
-
-    if not isinstance(
-        payload,
-        dict,
-    ):
-        raise ValueError(
-            "Current-week config must "
-            "contain a YAML mapping"
-        )
-
-    values: dict[str, int] = {}
-
-    for key in (
-        "season",
-        "season_type",
-        "week",
-    ):
-        if key not in payload:
-            raise ValueError(
-                "Current-week config missing "
-                f"required key: {key}"
-            )
-
-        raw = payload.get(
-            key
-        )
-
-        if isinstance(
-            raw,
-            bool,
-        ):
-            raise ValueError(
-                f"Current-week config {key} "
-                "must be an integer"
-            )
-
-        try:
-            values[key] = int(
-                str(raw).strip()
-            )
-        except (
-            TypeError,
-            ValueError,
-        ) as exc:
-            raise ValueError(
-                f"Current-week config {key} "
-                "must be an integer"
-            ) from exc
-
-    if values["season"] < 2000:
-        raise ValueError(
-            "Invalid configured season: "
-            f"{values['season']}"
-        )
-
-    if values["season_type"] < 1:
-        raise ValueError(
-            "Invalid configured season_type: "
-            f"{values['season_type']}"
-        )
-
-    if values["week"] < 1:
-        raise ValueError(
-            "Invalid configured week: "
-            f"{values['week']}"
-        )
-
-    return (
-        values["season"],
-        values["season_type"],
-        values["week"],
-    )
 
 
 def load_target_team_ids() -> list[str]:
@@ -328,7 +242,7 @@ def fetch_json(
                 exc.read()
                 .decode("utf-8")
             )
-        except Exception:
+        except (HTTPException, OSError, UnicodeError, ValueError):
             pass
 
         failure = {
@@ -463,7 +377,7 @@ def flatten(
     obj: object,
     parent_key: str = "",
     sep: str = ".",
-) -> dict[str, object]:
+) -> dict[str, ScalarValue]:
     items: dict[
         str,
         object,
@@ -510,6 +424,18 @@ def flatten(
             )
 
     else:
+        if not (
+            obj is None
+            or isinstance(
+                obj,
+                (str, int, float, bool),
+            )
+        ):
+            raise TypeError(
+                "Unexpected non-scalar roster value "
+                f"at {parent_key!r}: {type(obj).__name__}"
+            )
+
         if parent_key:
             items[
                 parent_key
@@ -698,7 +624,7 @@ def extract_athletes(
 
 
 def validate_athlete_season_refs(
-    row: dict[str, object],
+    row: dict[str, ScalarValue],
     *,
     team_id: str,
     athlete_id: str,
@@ -754,7 +680,7 @@ def build_raw_rows(
     season_type: int,
     state: RuntimeState,
 ) -> tuple[
-    list[dict[str, object]],
+    list[dict[str, ScalarValue]],
     set[str],
     dict[str, int],
     list[dict[str, str]],
@@ -763,7 +689,7 @@ def build_raw_rows(
     int,
 ]:
     rows: list[
-        dict[str, object]
+        dict[str, ScalarValue]
     ] = []
 
     columns: set[str] = set(
@@ -1021,7 +947,7 @@ def build_raw_rows(
 
 
 def _require_raw_roster_rows(
-    rows: list[dict[str, object]],
+    rows: list[dict[str, ScalarValue]],
 ) -> None:
     if not rows:
         raise ValueError(
@@ -1068,7 +994,7 @@ def _validate_raw_roster_team_coverage(
 
 def validate_final_rows(
     rows: list[
-        dict[str, object]
+        dict[str, ScalarValue]
     ],
     columns: set[str],
     target_team_ids: list[str],
@@ -1270,40 +1196,16 @@ def temporary_path(
 def write_staged_csv(
     path: Path,
     rows: list[
-        dict[str, object]
+        dict[str, ScalarValue]
     ],
     fieldnames: list[str],
 ) -> None:
-    with path.open(
-        "w",
-        newline="",
-        encoding="utf-8",
-    ) as handle:
-        writer = csv.DictWriter(
-            handle,
-            fieldnames=fieldnames,
-        )
-
-        writer.writeheader()
-
-        for row in rows:
-            writer.writerow(
-                {
-                    column: row.get(
-                        column,
-                        "",
-                    )
-                    for column
-                    in fieldnames
-                }
-            )
-
-        handle.flush()
-
-        os.fsync(
-            handle.fileno()
-        )
-
+    write_csv_rows_durable(
+        path,
+        rows,
+        fieldnames,
+        project_columns=True,
+    )
 
 def validate_staged_csv(
     path: Path,
@@ -1477,7 +1379,7 @@ def validate_staged_csv(
 
 def publish_atomic(
     rows: list[
-        dict[str, object]
+        dict[str, ScalarValue]
     ],
     fieldnames: list[str],
     target_team_ids: list[str],
@@ -1532,7 +1434,7 @@ def publish_atomic(
             temp_path.unlink(
                 missing_ok=True
             )
-        except Exception:
+        except OSError:
             pass
 
 
@@ -1544,7 +1446,7 @@ def run(
         season,
         season_type,
         week,
-    ) = load_current_week()
+    ) = load_current_week_config(CURRENT_WEEK_CONFIG_PATH)
 
     report.season = season
     report.week = week
@@ -1846,6 +1748,7 @@ def main() -> int:
                 }
             )
 
+    raise RuntimeError("context manager unexpectedly suppressed an exception")
 
 if __name__ == "__main__":
     raise SystemExit(

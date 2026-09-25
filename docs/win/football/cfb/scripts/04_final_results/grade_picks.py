@@ -57,7 +57,7 @@ import os
 import re
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import numpy as np
 import pandas as pd
@@ -76,6 +76,7 @@ if str(SCRIPTS_DIR) not in sys.path:
     )
 
 from pipeline_reporter import PipelineReporter
+from pipeline_shared import clean_text as clean
 
 
 DEFAULT_PICKS_DIR = (
@@ -180,7 +181,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def get_season(
-    cli_season: int | None,
+    cli_season: Optional[int],
 ) -> int:
     if cli_season is not None:
         return int(
@@ -198,38 +199,6 @@ def get_season(
         )
 
     return 2026
-
-
-def clean(
-    value: Any,
-) -> str:
-    if value is None:
-        return ""
-
-    try:
-        if pd.isna(
-            value
-        ):
-            return ""
-
-    except Exception:
-        pass
-
-    text = str(
-        value
-    ).strip()
-
-    if text.casefold() in {
-        "",
-        "nan",
-        "none",
-        "null",
-        "<na>",
-        "nat",
-    }:
-        return ""
-
-    return text
 
 
 def normalize_game_id(
@@ -250,7 +219,7 @@ def normalize_game_id(
 
 def parse_float(
     value: Any,
-) -> float | None:
+) -> Optional[float]:
     text = clean(
         value
     )
@@ -336,8 +305,8 @@ def american_win_profit(
 
 def profit_for_grade(
     grade: str,
-    odds: float | None,
-) -> float | None:
+    odds: Optional[float],
+) -> Optional[float]:
     if grade == "WIN":
         if odds is None:
             return None
@@ -365,7 +334,7 @@ def selected_odds_or_raise(
     value: Any,
     game_id: str,
     market: str,
-) -> float | None:
+) -> Optional[float]:
     if not selected:
         return None
 
@@ -454,8 +423,8 @@ def result_completed(
 def grade_moneyline(
     selected: bool,
     selection: str,
-    home_score: float | None,
-    away_score: float | None,
+    home_score: Optional[float],
+    away_score: Optional[float],
     completed: bool,
     voided: bool,
 ) -> str:
@@ -500,9 +469,9 @@ def grade_moneyline(
 def grade_spread(
     selected: bool,
     selection: str,
-    line: float | None,
-    home_score: float | None,
-    away_score: float | None,
+    line: Optional[float],
+    home_score: Optional[float],
+    away_score: Optional[float],
     completed: bool,
     voided: bool,
 ) -> str:
@@ -555,9 +524,9 @@ def grade_spread(
 def grade_total(
     selected: bool,
     selection: str,
-    line: float | None,
-    home_score: float | None,
-    away_score: float | None,
+    line: Optional[float],
+    home_score: Optional[float],
+    away_score: Optional[float],
     completed: bool,
     voided: bool,
 ) -> str:
@@ -747,31 +716,31 @@ def grade_week(
     final_status: list[str] = []
     final_completed: list[int] = []
     final_away_scores: list[
-        float | None
+        Optional[float]
     ] = []
     final_home_scores: list[
-        float | None
+        Optional[float]
     ] = []
     final_totals: list[
-        float | None
+        Optional[float]
     ] = []
     final_home_margins: list[
-        float | None
+        Optional[float]
     ] = []
 
     ml_grades: list[str] = []
     ml_profits: list[
-        float | None
+        Optional[float]
     ] = []
 
     spread_grades: list[str] = []
     spread_profits: list[
-        float | None
+        Optional[float]
     ] = []
 
     total_grades: list[str] = []
     total_profits: list[
-        float | None
+        Optional[float]
     ] = []
 
     selected_bets_col: list[int] = []
@@ -788,7 +757,7 @@ def grade_week(
             "game_id"
         ]
 
-        result_row: pd.Series | None = None
+        result_row: Optional[pd.Series] = None
 
         if (
             result_lookup is not None
@@ -1240,109 +1209,16 @@ def grade_week(
         output_path,
     )
 
-    selected_bets = int(
-        pd.to_numeric(
-            output[
-                "selected_bets"
-            ],
-            errors="coerce",
-        )
-        .fillna(
-            0
-        )
-        .sum()
-    )
-
-    graded_bets = int(
-        pd.to_numeric(
-            output[
-                "graded_bets"
-            ],
-            errors="coerce",
-        )
-        .fillna(
-            0
-        )
-        .sum()
-    )
-
-    wins = int(
-        pd.to_numeric(
-            output[
-                "wins"
-            ],
-            errors="coerce",
-        )
-        .fillna(
-            0
-        )
-        .sum()
-    )
-
-    losses = int(
-        pd.to_numeric(
-            output[
-                "losses"
-            ],
-            errors="coerce",
-        )
-        .fillna(
-            0
-        )
-        .sum()
-    )
-
-    pushes = int(
-        pd.to_numeric(
-            output[
-                "pushes"
-            ],
-            errors="coerce",
-        )
-        .fillna(
-            0
-        )
-        .sum()
-    )
-
-    voids = int(
-        pd.to_numeric(
-            output[
-                "voids"
-            ],
-            errors="coerce",
-        )
-        .fillna(
-            0
-        )
-        .sum()
-    )
-
-    pending = int(
-        pd.to_numeric(
-            output[
-                "pending_bets"
-            ],
-            errors="coerce",
-        )
-        .fillna(
-            0
-        )
-        .sum()
-    )
-
-    units = float(
-        pd.to_numeric(
-            output[
-                "net_units"
-            ],
-            errors="coerce",
-        )
-        .fillna(
-            0.0
-        )
-        .sum()
-    )
+    (
+        selected_bets,
+        graded_bets,
+        wins,
+        losses,
+        pushes,
+        voids,
+        pending,
+        units,
+    ) = bet_summary_totals(output)
 
     print(
         f"WROTE {output_path} "
@@ -1485,6 +1361,29 @@ def _append_season_summary_total(
         )
 
 
+def bet_summary_totals(
+    frame: pd.DataFrame,
+) -> tuple[
+    int,
+    int,
+    int,
+    int,
+    int,
+    int,
+    int,
+    float,
+]:
+    return (
+        int(numeric_column_sum(frame, "selected_bets")),
+        int(numeric_column_sum(frame, "graded_bets")),
+        int(numeric_column_sum(frame, "wins")),
+        int(numeric_column_sum(frame, "losses")),
+        int(numeric_column_sum(frame, "pushes")),
+        int(numeric_column_sum(frame, "voids")),
+        int(numeric_column_sum(frame, "pending_bets")),
+        numeric_column_sum(frame, "net_units"),
+    )
+
 def build_season_summary(
     output_dir: Path,
     season: int,
@@ -1531,109 +1430,16 @@ def build_season_summary(
         ).any():
             continue
 
-        selected = int(
-            pd.to_numeric(
-                df[
-                    "selected_bets"
-                ],
-                errors="coerce",
-            )
-            .fillna(
-                0
-            )
-            .sum()
-        )
-
-        graded = int(
-            pd.to_numeric(
-                df[
-                    "graded_bets"
-                ],
-                errors="coerce",
-            )
-            .fillna(
-                0
-            )
-            .sum()
-        )
-
-        wins = int(
-            pd.to_numeric(
-                df[
-                    "wins"
-                ],
-                errors="coerce",
-            )
-            .fillna(
-                0
-            )
-            .sum()
-        )
-
-        losses = int(
-            pd.to_numeric(
-                df[
-                    "losses"
-                ],
-                errors="coerce",
-            )
-            .fillna(
-                0
-            )
-            .sum()
-        )
-
-        pushes = int(
-            pd.to_numeric(
-                df[
-                    "pushes"
-                ],
-                errors="coerce",
-            )
-            .fillna(
-                0
-            )
-            .sum()
-        )
-
-        voids = int(
-            pd.to_numeric(
-                df[
-                    "voids"
-                ],
-                errors="coerce",
-            )
-            .fillna(
-                0
-            )
-            .sum()
-        )
-
-        pending = int(
-            pd.to_numeric(
-                df[
-                    "pending_bets"
-                ],
-                errors="coerce",
-            )
-            .fillna(
-                0
-            )
-            .sum()
-        )
-
-        net_units = float(
-            pd.to_numeric(
-                df[
-                    "net_units"
-                ],
-                errors="coerce",
-            )
-            .fillna(
-                0.0
-            )
-            .sum()
-        )
+        (
+            selected,
+            graded,
+            wins,
+            losses,
+            pushes,
+            voids,
+            pending,
+            net_units,
+        ) = bet_summary_totals(df)
 
         roi = (
             net_units
@@ -2073,6 +1879,7 @@ def main() -> int:
 
         return 0
 
+    raise RuntimeError("context manager unexpectedly suppressed an exception")
 
 if __name__ == "__main__":
     raise SystemExit(

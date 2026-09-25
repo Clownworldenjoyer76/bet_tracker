@@ -49,7 +49,6 @@ from pathlib import Path
 from typing import Any
 
 import pandas as pd
-import yaml
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -94,6 +93,20 @@ if str(
     )
 
 from pipeline_reporter import PipelineReporter
+from pipeline_shared import (
+    clean_text as clean,
+    normalize_game_id,
+    normalized_frame_pair,
+    register_report_paths,
+    require_columns,
+    require_schedule_coverage,
+    resolve_weekly_report_target,
+    stage_dataframe_csv,
+    team_identity_values,
+    validate_game_ids,
+    validate_target_columns,
+    weekly_schedule_path,
+)
 
 
 OUTPUT_COLUMNS = [
@@ -129,47 +142,6 @@ def fail(
     raise RuntimeError(
         message
     )
-
-
-def clean(
-    value: Any,
-) -> str:
-    if value is None:
-        return ""
-
-    text = str(
-        value
-    ).strip()
-
-    if text.casefold() in {
-        "",
-        "nan",
-        "none",
-        "null",
-        "<na>",
-        "nat",
-    }:
-        return ""
-
-    return text
-
-
-def normalize_game_id(
-    value: Any,
-) -> str:
-    text = clean(
-        value
-    )
-
-    if re.fullmatch(
-        r"\d+\.0",
-        text,
-    ):
-        return text[
-            :-2
-        ]
-
-    return text
 
 
 def parse_float(
@@ -230,35 +202,6 @@ def integer_value(
     )
 
 
-def read_yaml(
-    path: Path,
-    label: str,
-) -> dict[str, Any]:
-    if not path.is_file():
-        fail(
-            f"Missing {label}: {path}"
-        )
-
-    with path.open(
-        "r",
-        encoding="utf-8",
-    ) as handle:
-        data = yaml.safe_load(
-            handle
-        )
-
-    if not isinstance(
-        data,
-        dict,
-    ):
-        fail(
-            f"{label} must contain a YAML mapping: "
-            f"{path}"
-        )
-
-    return data
-
-
 def read_csv(
     path: Path,
     label: str,
@@ -286,78 +229,6 @@ def read_csv(
     return df
 
 
-def require_columns(
-    df: pd.DataFrame,
-    required: list[str],
-    label: str,
-) -> None:
-    missing = [
-        column
-        for column in required
-        if column not in df.columns
-    ]
-
-    if missing:
-        fail(
-            f"{label}: missing required columns: "
-            f"{missing}"
-        )
-
-
-def resolve_target(
-    current_week: dict[str, Any],
-    season_override: int | None,
-    week_override: int | None,
-) -> tuple[
-    int,
-    int,
-]:
-    configured_season = integer_value(
-        current_week.get(
-            "season"
-        ),
-        "current_week.season",
-    )
-
-    configured_week = integer_value(
-        current_week.get(
-            "week"
-        ),
-        "current_week.week",
-    )
-
-    season = (
-        int(
-            season_override
-        )
-        if season_override is not None
-        else configured_season
-    )
-
-    week = (
-        int(
-            week_override
-        )
-        if week_override is not None
-        else configured_week
-    )
-
-    if season < 1900:
-        fail(
-            f"Invalid target season: {season}"
-        )
-
-    if week <= 0:
-        fail(
-            f"Invalid target week: {week}"
-        )
-
-    return (
-        season,
-        week,
-    )
-
-
 def selected_file_week(
     path: Path,
 ) -> int:
@@ -376,56 +247,6 @@ def selected_file_week(
             1
         )
     )
-
-
-def weekly_schedule_path(
-    week: int,
-) -> Path:
-    return (
-        CFB_ROOT
-        / "00_intake"
-        / "schedule"
-        / "weekly"
-        / f"week_{week}_CFB_weekly_schedule.csv"
-    )
-
-
-def validate_game_ids(
-    df: pd.DataFrame,
-    label: str,
-) -> None:
-    game_ids = df[
-        "game_id"
-    ].map(
-        normalize_game_id
-    )
-
-    if game_ids.eq(
-        ""
-    ).any():
-        fail(
-            f"{label}: blank game_id found"
-        )
-
-    duplicates = (
-        game_ids[
-            game_ids.duplicated(
-                keep=False
-            )
-        ]
-        .drop_duplicates()
-        .tolist()
-    )
-
-    if duplicates:
-        fail(
-            f"{label}: duplicate game_id values: "
-            f"{duplicates[:10]}"
-        )
-
-    df[
-        "game_id"
-    ] = game_ids
 
 
 def validate_source_target(
@@ -460,44 +281,13 @@ def validate_source_target(
         ),
     )
 
-    seasons = {
-        integer_value(
-            value,
-            f"{input_path}: season",
-        )
-        for value in source[
-            "season"
-        ]
-    }
-
-    weeks = {
-        integer_value(
-            value,
-            f"{input_path}: week",
-        )
-        for value in source[
-            "week"
-        ]
-    }
-
-    if seasons != {
-        season
-    }:
-        fail(
-            f"{input_path}: expected only "
-            f"season={season}; "
-            f"found {sorted(seasons)}"
-        )
-
-    if weeks != {
-        week
-    }:
-        fail(
-            f"{input_path}: expected only "
-            f"week={week}; "
-            f"found {sorted(weeks)}"
-        )
-
+    validate_target_columns(
+        source,
+        str(input_path),
+        season,
+        week,
+        integer_value,
+    )
     for column in [
         "away_team",
         "home_team",
@@ -532,7 +322,6 @@ def validate_source_target(
                 f"values; examples={examples}"
             )
 
-
 def validate_schedule_alignment(
     source: pd.DataFrame,
     schedule: pd.DataFrame,
@@ -561,82 +350,18 @@ def validate_schedule_alignment(
         ),
     )
 
-    schedule_seasons = {
-        integer_value(
-            value,
-            f"{schedule_path}: season",
-        )
-        for value in schedule[
-            "season"
-        ]
-    }
-
-    schedule_weeks = {
-        integer_value(
-            value,
-            f"{schedule_path}: week",
-        )
-        for value in schedule[
-            "week"
-        ]
-    }
-
-    if schedule_seasons != {
-        season
-    }:
-        fail(
-            f"{schedule_path}: expected only "
-            f"season={season}; "
-            f"found {sorted(schedule_seasons)}"
-        )
-
-    if schedule_weeks != {
-        week
-    }:
-        fail(
-            f"{schedule_path}: expected only "
-            f"week={week}; "
-            f"found {sorted(schedule_weeks)}"
-        )
-
-    source_ids = set(
-        source[
-            "game_id"
-        ]
+    validate_target_columns(
+        schedule,
+        str(schedule_path),
+        season,
+        week,
+        integer_value,
     )
-
-    schedule_ids = set(
-        schedule[
-            "game_id"
-        ]
-    )
-
-    missing = sorted(
-        schedule_ids
-        - source_ids
-    )
-
-    unexpected = sorted(
-        source_ids
-        - schedule_ids
-    )
-
-    if (
-        missing
-        or unexpected
-    ):
-        fail(
-            "Selected input game coverage does not "
-            "match the target weekly schedule; "
-            f"missing_count={len(missing)} "
-            f"unexpected_count={len(unexpected)} "
-            f"missing_examples={missing[:10]} "
-            f"unexpected_examples={unexpected[:10]}"
-        )
-
-    lookup = schedule.set_index(
-        "game_id",
-        drop=False,
+    lookup = require_schedule_coverage(
+        source,
+        schedule,
+        "Selected input game coverage does not "
+        "match the target weekly schedule",
     )
 
     mismatches: list[
@@ -655,30 +380,16 @@ def validate_schedule_alignment(
             game_id
         ]
 
-        source_away = clean(
-            row.get(
-                "away_team"
-            )
+        (
+            source_away,
+            source_home,
+            schedule_away,
+            schedule_home,
+        ) = team_identity_values(
+            row,
+            schedule_row,
+            clean,
         )
-
-        source_home = clean(
-            row.get(
-                "home_team"
-            )
-        )
-
-        schedule_away = clean(
-            schedule_row.get(
-                "away_team"
-            )
-        )
-
-        schedule_home = clean(
-            schedule_row.get(
-                "home_team"
-            )
-        )
-
         if (
             source_away != schedule_away
             or source_home != schedule_home
@@ -706,17 +417,17 @@ def validate_schedule_alignment(
             f"examples={mismatches[:10]}"
         )
 
-
 def validate_projection_consistency(
     source: pd.DataFrame,
 ) -> None:
     for position, row in enumerate(
         source.itertuples(
-            index=False
+            index=False,
+            name=None,
         ),
         start=2,
     ):
-        values = row._asdict()
+        values = dict(zip(source.columns, row, strict=True))
 
         game_id = normalize_game_id(
             values.get(
@@ -836,11 +547,12 @@ def build_output(
 
     for position, row in enumerate(
         source.itertuples(
-            index=False
+            index=False,
+            name=None,
         ),
         start=2,
     ):
-        values = row._asdict()
+        values = dict(zip(source.columns, row, strict=True))
 
         game_id = normalize_game_id(
             values.get(
@@ -1301,30 +1013,12 @@ def validate_serialized_output(
             "Serialized output columns changed"
         )
 
-    left = serialized.reset_index(
-        drop=True
-    ).copy()
-
-    right = expected.reset_index(
-        drop=True
-    ).copy()
-
-    for column in OUTPUT_COLUMNS:
-        left[
-            column
-        ] = left[
-            column
-        ].map(
-            clean
-        )
-
-        right[
-            column
-        ] = right[
-            column
-        ].map(
-            clean
-        )
+    left, right = normalized_frame_pair(
+        serialized,
+        expected,
+        OUTPUT_COLUMNS,
+        clean,
+    )
 
     if not left.equals(
         right
@@ -1353,31 +1047,7 @@ def publish_atomic_csv(
     )
 
     try:
-        with temporary.open(
-            "w",
-            newline="",
-            encoding="utf-8",
-        ) as handle:
-            output.to_csv(
-                handle,
-                index=False,
-                lineterminator="\n",
-            )
-
-            handle.flush()
-
-            os.fsync(
-                handle.fileno()
-            )
-
-        serialized = pd.read_csv(
-            temporary,
-            dtype=str,
-            keep_default_na=False,
-            na_filter=False,
-            encoding="utf-8-sig",
-            low_memory=False,
-        )
+        serialized = stage_dataframe_csv(temporary, output)
 
         validate_serialized_output(
             serialized,
@@ -1579,22 +1249,12 @@ def run(
     report: PipelineReporter,
     args: argparse.Namespace,
 ) -> int:
-    current_week = read_yaml(
+    season, week = resolve_weekly_report_target(
+        report,
         CURRENT_WEEK_CONFIG_PATH,
-        "current-week config",
-    )
-
-    (
-        season,
-        week,
-    ) = resolve_target(
-        current_week,
         args.season,
         args.week,
     )
-
-    report.season = season
-    report.week = week
 
     input_path = (
         DEFAULT_INPUT_DIR
@@ -1610,20 +1270,14 @@ def run(
         / f"all_week_{week}_CFB_picks.csv"
     )
 
-    report.add_input(
-        CURRENT_WEEK_CONFIG_PATH
-    )
-
-    report.add_input(
-        input_path
-    )
-
-    report.add_input(
-        schedule_path
-    )
-
-    report.add_output(
-        output_path
+    register_report_paths(
+        report,
+        inputs=(
+            CURRENT_WEEK_CONFIG_PATH,
+            input_path,
+            schedule_path,
+        ),
+        output=output_path,
     )
 
     report.update_details(
@@ -1745,6 +1399,7 @@ def main() -> int:
             args,
         )
 
+    raise RuntimeError("context manager unexpectedly suppressed an exception")
 
 if __name__ == "__main__":
     raise SystemExit(

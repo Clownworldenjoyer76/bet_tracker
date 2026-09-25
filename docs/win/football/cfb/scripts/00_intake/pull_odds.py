@@ -4,7 +4,8 @@
 
 from __future__ import annotations
 
-import csv
+from http.client import HTTPException
+
 import json
 import math
 import os
@@ -13,12 +14,12 @@ import sys
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Optional
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request
 from zoneinfo import ZoneInfo
 
-import yaml
 
 SCRIPT_PATH = Path(__file__).resolve()
 SCRIPTS_DIR = SCRIPT_PATH.parents[1]
@@ -29,6 +30,14 @@ if str(SCRIPTS_DIR) not in sys.path:
 
 from http_security import open_https
 from pipeline_reporter import PipelineReporter
+from pipeline_shared import (
+    format_american,
+    format_number,
+    load_current_week_config,
+    read_required_csv as read_csv,
+    write_csv_rows_durable,
+)
+from type_support import ScalarValue
 
 CURRENT_WEEK_CONFIG_PATH = CFB_ROOT / "config" / "current_week.yaml"
 SCHEDULE_DIR = CFB_ROOT / "00_intake" / "schedule"
@@ -92,97 +101,6 @@ VALID_MARKET_SIDES = {
 
 def utc_now() -> datetime:
     return datetime.now(timezone.utc)
-
-
-def load_current_week() -> tuple[int, int, int]:
-    if not CURRENT_WEEK_CONFIG_PATH.exists():
-        raise FileNotFoundError(
-            f"Missing current-week config: {CURRENT_WEEK_CONFIG_PATH}"
-        )
-
-    with CURRENT_WEEK_CONFIG_PATH.open(
-        "r",
-        encoding="utf-8",
-    ) as handle:
-        payload = yaml.safe_load(handle)
-
-    if not isinstance(payload, dict):
-        raise ValueError(
-            "Current-week config must contain a YAML mapping"
-        )
-
-    values: dict[str, int] = {}
-
-    for key in ("season", "season_type", "week"):
-        raw = payload.get(key)
-
-        if isinstance(raw, bool):
-            raise ValueError(
-                f"Current-week config {key} must be an integer"
-            )
-
-        try:
-            values[key] = int(
-                str(raw).strip()
-            )
-        except (TypeError, ValueError) as exc:
-            raise ValueError(
-                f"Current-week config {key} must be an integer"
-            ) from exc
-
-    if values["season"] < 2000:
-        raise ValueError(
-            f"Invalid season in current-week config: {values['season']}"
-        )
-
-    if values["season_type"] < 1:
-        raise ValueError(
-            "Invalid season_type in current-week config: "
-            f"{values['season_type']}"
-        )
-
-    if values["week"] < 1:
-        raise ValueError(
-            f"Invalid week in current-week config: {values['week']}"
-        )
-
-    return (
-        values["season"],
-        values["season_type"],
-        values["week"],
-    )
-
-
-def read_csv(
-    path: Path,
-    required_columns: list[str],
-    label: str,
-) -> list[dict[str, str]]:
-    if not path.exists():
-        raise FileNotFoundError(
-            f"Missing {label}: {path}"
-        )
-
-    with path.open(
-        "r",
-        newline="",
-        encoding="utf-8-sig",
-    ) as handle:
-        reader = csv.DictReader(handle)
-        fieldnames = reader.fieldnames or []
-
-        missing = [
-            column
-            for column in required_columns
-            if column not in fieldnames
-        ]
-
-        if missing:
-            raise ValueError(
-                f"{label} missing columns: {missing}"
-            )
-
-        return list(reader)
 
 
 def schedule_kickoff_utc(
@@ -381,7 +299,7 @@ def load_target_schedule(
 
 def build_url(
     path: str,
-    params: dict[str, object] | None = None,
+    params: Optional[dict[str, ScalarValue]] = None,
 ) -> str:
     url = f"{ESPN_BASE}{path}"
 
@@ -395,7 +313,7 @@ def build_url(
 
 def http_get_json(
     url: str,
-) -> tuple[int | None, object | None, str]:
+) -> tuple[Optional[int], Optional[object], str]:
     request = Request(
         url,
         headers={
@@ -422,7 +340,7 @@ def http_get_json(
             body = exc.read().decode(
                 "utf-8"
             )
-        except Exception:
+        except (HTTPException, OSError, UnicodeError, ValueError):
             pass
 
         return (
@@ -516,8 +434,8 @@ def fetch_ref(
 
 
 def to_float(
-    value: object,
-) -> float | None:
+    value: ScalarValue,
+) -> Optional[float]:
     if (
         value is None
         or isinstance(value, bool)
@@ -550,45 +468,21 @@ def to_float(
 
 
 def clean_number(
-    value: object,
+    value: ScalarValue,
 ) -> str:
-    number = to_float(
-        value
+    return format_number(
+        to_float(value)
     )
-
-    if number is None:
-        return ""
-
-    if number.is_integer():
-        return str(
-            int(number)
-        )
-
-    return str(number)
-
 
 def normalize_american(
-    value: object,
+    value: ScalarValue,
 ) -> str:
-    number = to_float(
-        value
+    return format_american(
+        to_float(value)
     )
-
-    if (
-        number is None
-        or number == 0
-    ):
-        return ""
-
-    return str(
-        int(
-            round(number)
-        )
-    )
-
 
 def american_to_decimal(
-    value: object,
+    value: ScalarValue,
 ) -> str:
     american = to_float(
         value
@@ -621,7 +515,7 @@ def american_to_decimal(
 
 def provider_info(
     odds_item: dict,
-) -> dict[str, object]:
+) -> dict[str, ScalarValue]:
     provider = odds_item.get(
         "provider"
     )
@@ -736,7 +630,7 @@ def resolve_odds_items(
 
 def select_primary_odds_item(
     items: list[dict],
-) -> dict | None:
+) -> Optional[dict]:
     if not items:
         return None
 
@@ -780,7 +674,7 @@ def select_primary_odds_item(
 def nested_value(
     data: dict,
     path: tuple[str, ...],
-) -> object | None:
+) -> Optional[object]:
     current: object = data
 
     for key in path:
@@ -800,27 +694,31 @@ def nested_value(
 def first_value(
     data: dict,
     paths: list[tuple[str, ...]],
-) -> object | None:
+) -> ScalarValue:
     for path in paths:
         value = nested_value(
             data,
             path,
         )
 
-        if (
-            value is not None
-            and str(
-                value
-            ).strip() != ""
+        if value is None:
+            continue
+
+        if not isinstance(
+            value,
+            (str, int, float, bool),
         ):
+            continue
+
+        if str(value).strip() != "":
             return value
 
     return None
 
 
 def parse_details_line(
-    details: object,
-) -> float | None:
+    details: ScalarValue,
+) -> Optional[float]:
     match = re.search(
         r"([+-]?\d+(?:\.\d+)?)\s*$",
         str(
@@ -837,7 +735,7 @@ def parse_details_line(
 
 
 def bool_value(
-    value: object,
+    value: ScalarValue,
 ) -> bool:
     if value is None:
         return False
@@ -1185,8 +1083,8 @@ def add_market_row(
     bookmaker: str,
     market_type: str,
     bet_side: str,
-    line: object,
-    odds_american: object,
+    line: ScalarValue,
+    odds_american: ScalarValue,
     current_fields: dict[str, str],
     snapshot_id: str,
     snapshot_fetched_at: str,
@@ -1243,7 +1141,7 @@ def normalize_event_odds(
     snapshot_fetched_at: str,
 ) -> tuple[
     list[dict[str, str]],
-    dict[str, object],
+    dict[str, ScalarValue],
 ]:
     info = provider_info(
         odds_item
@@ -1385,7 +1283,7 @@ def normalize_event_odds(
 def fetch_game_odds(
     game_id: str,
 ) -> tuple[
-    dict | None,
+    Optional[dict],
     str,
     int,
     str,
@@ -1555,40 +1453,23 @@ def _stage1_validate_market_line(
     game_id: str,
     market_type: str,
     bet_side: str,
-    home_spread: float | None,
-    away_spread: float | None,
+    home_spread: Optional[float],
+    away_spread: Optional[float],
 ) -> None:
-    if market_type == "h2h":
-        if line_text:
-            raise ValueError(f"H2H row has nonblank line for game_id={game_id}")
-        return
-    if to_float(line_text) is None:
-        raise ValueError(
-            f"{market_type} row has invalid line for game_id={game_id}"
-        )
-    if market_type == "spreads":
-        expected_line = home_spread if bet_side == "home" else away_spread
-        actual_line = to_float(line_text)
-        if (
-            expected_line is None
-            or actual_line is None
-            or abs(expected_line - actual_line) > 0.000001
-        ):
-            raise ValueError(
-                f"Spread row line mismatch for game_id={game_id}, side={bet_side}"
-            )
-    if market_type == "totals":
-        total = to_float(row["total"])
-        actual_line = to_float(line_text)
-        if (
-            total is None
-            or actual_line is None
-            or abs(total - actual_line) > 0.000001
-        ):
-            raise ValueError(
-                f"Total row line mismatch for game_id={game_id}, side={bet_side}"
-            )
-
+    _stage1_validate_basic_market_line(
+        line_text=line_text,
+        game_id=game_id,
+        market_type=market_type,
+    )
+    _stage1_validate_specific_market_line(
+        row=row,
+        line_text=line_text,
+        game_id=game_id,
+        market_type=market_type,
+        bet_side=bet_side,
+        home_spread=home_spread,
+        away_spread=away_spread,
+    )
 
 def _stage1_validate_basic_market_line(
     *,
@@ -1639,7 +1520,7 @@ def _stage1_validate_spread_pair(
     row: dict[str, str],
     *,
     game_id: str,
-) -> tuple[float | None, float | None]:
+) -> tuple[Optional[float], Optional[float]]:
     home_spread = to_float(row["home_spread"])
     away_spread = to_float(row["away_spread"])
     if (
@@ -1661,8 +1542,8 @@ def _stage1_validate_specific_market_line(
     game_id: str,
     market_type: str,
     bet_side: str,
-    home_spread: float | None,
-    away_spread: float | None,
+    home_spread: Optional[float],
+    away_spread: Optional[float],
 ) -> None:
     if market_type == "spreads":
         expected_line = home_spread if bet_side == "home" else away_spread
@@ -1767,35 +1648,12 @@ def write_csv_file(
     path: Path,
     rows: list[dict[str, str]],
 ) -> None:
-    with path.open(
-        "w",
-        newline="",
-        encoding="utf-8",
-    ) as handle:
-        writer = csv.DictWriter(
-            handle,
-            fieldnames=OUTPUT_COLUMNS,
-        )
-
-        writer.writeheader()
-
-        for row in rows:
-            writer.writerow(
-                {
-                    column: row.get(
-                        column,
-                        "",
-                    )
-                    for column
-                    in OUTPUT_COLUMNS
-                }
-            )
-
-        handle.flush()
-        os.fsync(
-            handle.fileno()
-        )
-
+    write_csv_rows_durable(
+        path,
+        rows,
+        OUTPUT_COLUMNS,
+        project_columns=True,
+    )
 
 def write_json_file(
     path: Path,
@@ -1881,7 +1739,7 @@ def _restore_current_output(
                 backup,
                 final_path,
             )
-        except Exception:
+        except OSError:
             pass
 
     elif not had_existing:
@@ -1889,7 +1747,7 @@ def _restore_current_output(
             final_path.unlink(
                 missing_ok=True
             )
-        except Exception:
+        except OSError:
             pass
 
 
@@ -2042,7 +1900,7 @@ def publish_output_bundle(
                 path.unlink(
                     missing_ok=True
                 )
-            except Exception:
+            except OSError:
                 pass
 
         _restore_current_output(
@@ -2062,7 +1920,7 @@ def publish_output_bundle(
                 path.unlink(
                     missing_ok=True
                 )
-            except Exception:
+            except OSError:
                 pass
 
         raise
@@ -2073,7 +1931,7 @@ def publish_output_bundle(
                 path.unlink(
                     missing_ok=True
                 )
-            except Exception:
+            except OSError:
                 pass
 
         if published_successfully:
@@ -2085,7 +1943,7 @@ def publish_output_bundle(
                     path.unlink(
                         missing_ok=True
                     )
-                except Exception:
+                except OSError:
                     pass
 
 
@@ -2151,7 +2009,7 @@ def main() -> int:
         )
 
         season, season_type, week = (
-            load_current_week()
+            load_current_week_config(CURRENT_WEEK_CONFIG_PATH)
         )
 
         report.season = season
@@ -2243,7 +2101,7 @@ def main() -> int:
         ] = []
 
         request_urls: list[
-            dict[str, object]
+            dict[str, ScalarValue]
         ] = []
 
         attempted_count = 0

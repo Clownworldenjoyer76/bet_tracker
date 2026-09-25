@@ -3,20 +3,19 @@
 
 from __future__ import annotations
 
+from http.client import HTTPException
+
 import csv
 import json
 import math
-import os
 import re
 import sys
-import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request
 
-import yaml
 
 SCRIPT_PATH = Path(__file__).resolve()
 SCRIPTS_DIR = SCRIPT_PATH.parents[1]
@@ -27,6 +26,14 @@ if str(SCRIPTS_DIR) not in sys.path:
 
 from http_security import open_https
 from pipeline_reporter import PipelineReporter
+from pipeline_shared import (
+    format_american,
+    format_number,
+    load_current_week_config,
+    read_required_csv as read_csv,
+    write_atomic_csv_rows,
+)
+from type_support import ScalarValue
 
 CURRENT_WEEK_CONFIG_PATH = CFB_ROOT / "config" / "current_week.yaml"
 WEEKLY_DIR = CFB_ROOT / "00_intake" / "schedule" / "weekly"
@@ -122,105 +129,8 @@ def utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def load_current_week() -> tuple[int, int, int]:
-    if not CURRENT_WEEK_CONFIG_PATH.exists():
-        raise FileNotFoundError(
-            f"Missing current-week config: {CURRENT_WEEK_CONFIG_PATH}"
-        )
-
-    with CURRENT_WEEK_CONFIG_PATH.open(
-        "r",
-        encoding="utf-8",
-    ) as handle:
-        payload = yaml.safe_load(handle)
-
-    if not isinstance(payload, dict):
-        raise ValueError(
-            "Current-week config must contain a YAML mapping"
-        )
-
-    values: dict[str, int] = {}
-
-    for key in (
-        "season",
-        "season_type",
-        "week",
-    ):
-        raw = payload.get(key)
-
-        if isinstance(raw, bool):
-            raise ValueError(
-                f"Current-week config {key} must be an integer"
-            )
-
-        try:
-            values[key] = int(
-                str(raw).strip()
-            )
-        except (
-            TypeError,
-            ValueError,
-        ) as exc:
-            raise ValueError(
-                f"Current-week config {key} must be an integer"
-            ) from exc
-
-    if values["season"] < 2000:
-        raise ValueError(
-            f"Invalid season: {values['season']}"
-        )
-
-    if values["season_type"] < 1:
-        raise ValueError(
-            f"Invalid season_type: {values['season_type']}"
-        )
-
-    if values["week"] < 1:
-        raise ValueError(
-            f"Invalid week: {values['week']}"
-        )
-
-    return (
-        values["season"],
-        values["season_type"],
-        values["week"],
-    )
-
-
-def read_csv(
-    path: Path,
-    required_columns: list[str],
-    label: str,
-) -> list[dict[str, str]]:
-    if not path.exists():
-        raise FileNotFoundError(
-            f"Missing {label}: {path}"
-        )
-
-    with path.open(
-        "r",
-        newline="",
-        encoding="utf-8-sig",
-    ) as handle:
-        reader = csv.DictReader(handle)
-        fieldnames = reader.fieldnames or []
-
-        missing = [
-            column
-            for column in required_columns
-            if column not in fieldnames
-        ]
-
-        if missing:
-            raise ValueError(
-                f"{label} missing columns: {missing}"
-            )
-
-        return list(reader)
-
-
 def parse_aware_iso(
-    value: object,
+    value: ScalarValue,
     label: str,
 ) -> datetime:
     text = str(
@@ -423,7 +333,7 @@ def validate_weekly_rows(
 
 def build_url(
     path: str,
-    params: dict[str, object] | None = None,
+    params: dict[str, ScalarValue] | None = None,
 ) -> str:
     url = f"{ESPN_BASE}{path}"
 
@@ -471,7 +381,7 @@ def http_get_json(
                 exc.read()
                 .decode("utf-8")
             )
-        except Exception:
+        except (HTTPException, OSError, UnicodeError, ValueError):
             pass
 
         return (
@@ -519,7 +429,7 @@ def http_get_json(
 
 
 def to_float(
-    value: object,
+    value: ScalarValue,
 ) -> float | None:
     if (
         value is None
@@ -557,42 +467,22 @@ def to_float(
 
 
 def clean_number(
-    value: object,
+    value: ScalarValue,
 ) -> str:
-    number = to_float(value)
-
-    if number is None:
-        return ""
-
-    if number.is_integer():
-        return str(
-            int(number)
-        )
-
-    return str(number)
-
-
-def normalize_american(
-    value: object,
-) -> str:
-    number = to_float(value)
-
-    if (
-        number is None
-        or number == 0
-    ):
-        return ""
-
-    return str(
-        int(
-            round(number)
-        )
+    return format_number(
+        to_float(value)
     )
 
+def normalize_american(
+    value: ScalarValue,
+) -> str:
+    return format_american(
+        to_float(value)
+    )
 
 def numeric_movement(
-    current_value: object,
-    opening_value: object,
+    current_value: ScalarValue,
+    opening_value: ScalarValue,
 ) -> str:
     current = to_float(
         current_value
@@ -627,7 +517,7 @@ def numeric_movement(
 
 
 def normalize_provider_timestamp(
-    value: object,
+    value: ScalarValue,
 ) -> str:
     text = str(
         value or ""
@@ -660,7 +550,7 @@ def normalize_provider_timestamp(
 
 
 def bookmaker_key(
-    value: object,
+    value: ScalarValue,
 ) -> str:
     return re.sub(
         r"[^a-z0-9]+",
@@ -674,7 +564,7 @@ def bookmaker_key(
 
 
 def canonical_bookmaker(
-    value: object,
+    value: ScalarValue,
 ) -> str:
     text = str(
         value or ""
@@ -738,7 +628,7 @@ def fetch_ref(
 
 def provider_info(
     odds_item: dict,
-) -> dict[str, object]:
+) -> dict[str, ScalarValue]:
     provider = odds_item.get(
         "provider"
     )
@@ -1529,9 +1419,9 @@ def row_has_required_opening(
 
 
 def status_fields(
-    value: object,
+    value: ScalarValue,
     missing_reason: str,
-    http_status: object,
+    http_status: ScalarValue,
 ) -> dict[str, str]:
     if str(
         value or ""
@@ -1603,7 +1493,7 @@ def build_game_rows(
     weekly_row: dict[str, str],
     opening: dict[str, str],
     bookmaker: str,
-    http_status: object,
+    http_status: ScalarValue,
     request_missing_reason: str,
     captured_at: str,
 ) -> list[dict[str, str]]:
@@ -2947,67 +2837,13 @@ def validate_final_rows(
 
 def write_csv_atomic(
     path: Path,
-    rows: list[
-        dict[str, str]
-    ],
+    rows: list[dict[str, str]],
 ) -> None:
-    path.parent.mkdir(
-        parents=True,
-        exist_ok=True,
+    write_atomic_csv_rows(
+        path,
+        rows,
+        OUTPUT_COLUMNS,
     )
-
-    temp_path = (
-        path.with_name(
-            f".{path.name}."
-            f"{uuid.uuid4().hex}.tmp"
-        )
-    )
-
-    try:
-        with temp_path.open(
-            "w",
-            newline="",
-            encoding="utf-8",
-        ) as handle:
-            writer = csv.DictWriter(
-                handle,
-                fieldnames=OUTPUT_COLUMNS,
-            )
-
-            writer.writeheader()
-
-            for row in rows:
-                writer.writerow(
-                    {
-                        column: row.get(
-                            column,
-                            "",
-                        )
-                        for column
-                        in OUTPUT_COLUMNS
-                    }
-                )
-
-            handle.flush()
-
-            os.fsync(
-                handle.fileno()
-            )
-
-        os.replace(
-            temp_path,
-            path,
-        )
-
-    finally:
-        try:
-            temp_path.unlink(
-                missing_ok=True
-            )
-        except Exception:
-            pass
-
-
 
 def _count_blank_provider_timestamps(
     final_rows: list[dict[str, str]],
@@ -3028,7 +2864,7 @@ def _count_blank_provider_timestamps(
 
 
 def _raise_if_opening_fetch_failed(
-    hard_failures: list[dict[str, object]],
+    hard_failures: list[dict[str, ScalarValue]],
 ) -> None:
     if hard_failures:
         raise RuntimeError(
@@ -3078,7 +2914,7 @@ def main() -> int:
             season,
             season_type,
             week,
-        ) = load_current_week()
+        ) = load_current_week_config(CURRENT_WEEK_CONFIG_PATH)
 
         report.season = season
         report.week = week

@@ -18,6 +18,8 @@ This script is an automated CFB pipeline intake step.
 
 from __future__ import annotations
 
+from http.client import HTTPException
+
 import csv
 import json
 import os
@@ -29,10 +31,10 @@ from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Optional
 from urllib.error import HTTPError, URLError
 from urllib.request import Request
 
-import yaml
 
 
 SCRIPT_PATH = Path(__file__).resolve()
@@ -44,6 +46,11 @@ if str(SCRIPTS_DIR) not in sys.path:
 
 from http_security import open_https
 from pipeline_reporter import PipelineReporter
+from pipeline_shared import (
+    load_current_week_config,
+    require_csv_fieldnames,
+)
+from type_support import ScalarValue
 
 
 CURRENT_WEEK_CONFIG_PATH = CFB_ROOT / "config" / "current_week.yaml"
@@ -92,9 +99,9 @@ class RuntimeState:
     )
     provider_status: str = ""
     provider_timestamp: str = ""
-    provider_timestamp_utc: datetime | None = None
-    provider_season: int | None = None
-    provider_season_type: int | None = None
+    provider_timestamp_utc: Optional[datetime] = None
+    provider_season: Optional[int] = None
+    provider_season_type: Optional[int] = None
     provider_team_group_count: int = 0
     provider_team_groups_with_injuries: int = 0
     provider_team_groups_without_injuries: int = 0
@@ -121,7 +128,7 @@ class InjuryValidationError(RuntimeError):
 
 
 def parse_positive_int_text(
-    value: object,
+    value: ScalarValue,
     *,
     label: str,
 ) -> str:
@@ -148,7 +155,7 @@ def parse_positive_int_text(
 
 
 def parse_positive_int(
-    value: object,
+    value: ScalarValue,
     *,
     label: str,
 ) -> int:
@@ -157,52 +164,6 @@ def parse_positive_int(
             value,
             label=label,
         )
-    )
-
-
-def load_current_week() -> tuple[int, int, int]:
-    if not CURRENT_WEEK_CONFIG_PATH.exists():
-        raise FileNotFoundError(
-            f"Missing current-week config: {CURRENT_WEEK_CONFIG_PATH}"
-        )
-
-    with CURRENT_WEEK_CONFIG_PATH.open(
-        "r",
-        encoding="utf-8",
-    ) as handle:
-        payload = yaml.safe_load(handle)
-
-    if not isinstance(payload, dict):
-        raise ValueError(
-            "Current-week config must contain a YAML mapping"
-        )
-
-    values: dict[str, int] = {}
-
-    for key in (
-        "season",
-        "season_type",
-        "week",
-    ):
-        if key not in payload:
-            raise ValueError(
-                f"Current-week config missing required key: {key}"
-            )
-
-        values[key] = parse_positive_int(
-            payload.get(key),
-            label=f"current_week.{key}",
-        )
-
-    if values["season"] < 2000:
-        raise ValueError(
-            f"Invalid configured season: {values['season']}"
-        )
-
-    return (
-        values["season"],
-        values["season_type"],
-        values["week"],
     )
 
 
@@ -224,22 +185,15 @@ def load_authoritative_team_ids(
         reader = csv.DictReader(handle)
         fieldnames = reader.fieldnames or []
 
-        required = {
-            "team_id",
-            "season",
-            "season_type",
-        }
-
-        missing = sorted(
-            required - set(fieldnames)
+        require_csv_fieldnames(
+            fieldnames,
+            {
+                "team_id",
+                "season",
+                "season_type",
+            },
+            "league_master.csv",
         )
-
-        if missing:
-            raise ValueError(
-                "league_master.csv missing required columns: "
-                f"{missing}"
-            )
-
         team_ids: set[str] = set()
 
         for row_number, row in enumerate(
@@ -308,8 +262,6 @@ def load_authoritative_team_ids(
         team_ids,
         key=int,
     )
-
-
 
 def _validate_canonical_team_name_uniqueness(
     canonical_by_id: dict[str, str],
@@ -540,7 +492,7 @@ def fetch_json(
                 exc.read()
                 .decode("utf-8")
             )
-        except Exception:
+        except (HTTPException, OSError, UnicodeError, ValueError):
             pass
 
         failure = {
@@ -665,7 +617,7 @@ def fetch_json(
 
 
 def parse_timestamp(
-    value: object,
+    value: ScalarValue,
     *,
     label: str,
 ) -> tuple[str, datetime]:
@@ -1463,12 +1415,12 @@ def build_rows(
             )
 
     rows.sort(
-        key=lambda row: (
-            row["team"].casefold(),
-            row["player_name"].casefold(),
-            int(row["player_id"]),
-            row["report_date"],
-            row["game_status"].casefold(),
+        key=lambda sort_row: (
+            sort_row["team"].casefold(),
+            sort_row["player_name"].casefold(),
+            int(sort_row["player_id"]),
+            sort_row["report_date"],
+            sort_row["game_status"].casefold(),
         )
     )
 
@@ -1736,7 +1688,7 @@ def publish_atomic(
             temp_path.unlink(
                 missing_ok=True
             )
-        except Exception:
+        except OSError:
             pass
 
 
@@ -1799,8 +1751,8 @@ def _injury_freshness_outcome(
 def _add_injury_output_details(
     details: dict[str, object],
     *,
-    output_path: Path | None,
-    output_modified: bool | None,
+    output_path: Optional[Path],
+    output_modified: Optional[bool],
 ) -> None:
     if output_path is not None:
         details[
@@ -1822,8 +1774,8 @@ def update_report_details(
     authoritative_team_ids: list[str],
     canonical_by_id: dict[str, str],
     rows: list[dict[str, str]],
-    output_path: Path | None,
-    output_modified: bool | None,
+    output_path: Optional[Path],
+    output_modified: Optional[bool],
 ) -> None:
     status_counts = _injury_status_counts(rows)
 
@@ -1984,7 +1936,7 @@ def run(
         season,
         season_type,
         week,
-    ) = load_current_week()
+    ) = load_current_week_config(CURRENT_WEEK_CONFIG_PATH)
 
     report.season = season
     report.week = week
@@ -2017,7 +1969,7 @@ def run(
         dict[str, str]
     ] = []
 
-    output_modified: bool | None = None
+    output_modified: Optional[bool] = None
 
     try:
         authoritative_team_ids = (
@@ -2170,6 +2122,7 @@ def main() -> int:
             report
         )
 
+    raise RuntimeError("context manager unexpectedly suppressed an exception")
 
 if __name__ == "__main__":
     raise SystemExit(

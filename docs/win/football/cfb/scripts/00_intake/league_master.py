@@ -5,6 +5,8 @@
 
 from __future__ import annotations
 
+from http.client import HTTPException
+
 import csv
 import json
 import os
@@ -23,7 +25,6 @@ from urllib.parse import (
 )
 from urllib.request import Request
 
-import yaml
 
 
 SCRIPT_PATH = Path(__file__).resolve()
@@ -35,6 +36,11 @@ if str(SCRIPTS_DIR) not in sys.path:
 
 from http_security import open_https, validate_https_url
 from pipeline_reporter import PipelineReporter
+from pipeline_shared import (
+    load_current_week_config,
+    write_csv_rows_durable,
+)
+from type_support import ScalarValue
 
 
 CURRENT_WEEK_CONFIG_PATH = (
@@ -156,78 +162,6 @@ class RuntimeState:
     )
 
 
-def load_current_week() -> tuple[int, int, int]:
-    if not CURRENT_WEEK_CONFIG_PATH.exists():
-        raise FileNotFoundError(
-            "Missing current-week config: "
-            f"{CURRENT_WEEK_CONFIG_PATH}"
-        )
-
-    with CURRENT_WEEK_CONFIG_PATH.open(
-        "r",
-        encoding="utf-8",
-    ) as handle:
-        payload = yaml.safe_load(handle)
-
-    if not isinstance(payload, dict):
-        raise ValueError(
-            "Current-week config must contain a YAML mapping"
-        )
-
-    values: dict[str, int] = {}
-
-    for key in (
-        "season",
-        "season_type",
-        "week",
-    ):
-        if key not in payload:
-            raise ValueError(
-                "Current-week config missing "
-                f"required key: {key}"
-            )
-
-        raw = payload.get(key)
-
-        if isinstance(raw, bool):
-            raise ValueError(
-                f"Current-week config {key} must be an integer"
-            )
-
-        try:
-            values[key] = int(
-                str(raw).strip()
-            )
-        except (
-            TypeError,
-            ValueError,
-        ) as exc:
-            raise ValueError(
-                f"Current-week config {key} must be an integer"
-            ) from exc
-
-    if values["season"] < 2000:
-        raise ValueError(
-            f"Invalid configured season: {values['season']}"
-        )
-
-    if values["season_type"] < 1:
-        raise ValueError(
-            f"Invalid configured season_type: {values['season_type']}"
-        )
-
-    if values["week"] < 1:
-        raise ValueError(
-            f"Invalid configured week: {values['week']}"
-        )
-
-    return (
-        values["season"],
-        values["season_type"],
-        values["week"],
-    )
-
-
 def groups_url(
     season: int,
     season_type: int,
@@ -239,7 +173,7 @@ def groups_url(
 
 
 def normalize_ref_url(
-    value: object,
+    value: ScalarValue,
 ) -> str:
     url = str(
         value or ""
@@ -313,7 +247,7 @@ def _read_fetch_http_error_body(
                 errors="replace",
             )
         )
-    except Exception:
+    except (HTTPException, OSError, UnicodeError, ValueError):
         return ""
 
 
@@ -415,8 +349,8 @@ def fetch_json(
 
     payload: object
 
-    body: object
-    status: object
+    body: str
+    status: int
 
     url = normalize_ref_url(
         url
@@ -457,8 +391,6 @@ def fetch_json(
             )
 
         except HTTPError as exc:
-            error_body = ""
-
             error_body = (
                 _read_fetch_http_error_body(
                     exc
@@ -784,7 +716,7 @@ def with_limit(
 
 
 def extract_team_id(
-    ref_url: object,
+    ref_url: ScalarValue,
 ) -> str:
     match = TEAM_ID_PATTERN.search(
         str(ref_url or "")
@@ -794,7 +726,7 @@ def extract_team_id(
 
 
 def extract_group_id(
-    ref_url: object,
+    ref_url: ScalarValue,
 ) -> str:
     match = GROUP_ID_PATTERN.search(
         str(ref_url or "")
@@ -1610,7 +1542,7 @@ def _append_standings_rows(
     type_name: str,
     accepted_team_ids: set[str],
     team_abbr_lookup: dict[str, str],
-    rows: list[dict[str, object]],
+    rows: list[dict[str, ScalarValue]],
     conf_name: str,
     conf_abbr: str,
     div_name: str,
@@ -1793,7 +1725,7 @@ def get_standings_rows(
     season: int,
     season_type: int,
     state: RuntimeState,
-) -> list[dict[str, object]]:
+) -> list[dict[str, ScalarValue]]:
     (
         conf_name,
         conf_abbr,
@@ -1810,7 +1742,7 @@ def get_standings_rows(
         return []
 
     rows: list[
-        dict[str, object]
+        dict[str, ScalarValue]
     ] = []
 
     for standings_payload in standings_payloads(
@@ -1947,21 +1879,21 @@ def discover_groups(
                 f"index={index}"
             )
 
-        ref_url = normalize_ref_url(
+        top_ref_url = normalize_ref_url(
             item.get(
                 "$ref",
                 "",
             )
         )
 
-        if not ref_url:
+        if not top_ref_url:
             raise RuntimeError(
                 "Top-level ESPN groups "
                 "contains item without $ref "
                 f"at index={index}"
             )
 
-        visit(ref_url)
+        visit(top_ref_url)
 
     if not discovered:
         raise RuntimeError(
@@ -1974,7 +1906,7 @@ def discover_groups(
 
 
 def membership_signature(
-    row: dict[str, object],
+    row: dict[str, ScalarValue],
 ) -> tuple[str, ...]:
     return (
         str(
@@ -2011,7 +1943,7 @@ def _apply_group_memberships(
     team_abbr_lookup: dict[str, str],
     memberships: dict[
         str,
-        tuple[int, dict[str, object]],
+        tuple[int, dict[str, ScalarValue]],
     ],
     conf_name: str,
     conf_abbr: str,
@@ -2139,7 +2071,7 @@ def build_memberships(
         str,
         tuple[
             int,
-            dict[str, object],
+            dict[str, ScalarValue],
         ],
     ],
     dict[str, str],
@@ -2164,7 +2096,7 @@ def build_memberships(
         str,
         tuple[
             int,
-            dict[str, object],
+            dict[str, ScalarValue],
         ],
     ] = {}
 
@@ -2277,7 +2209,7 @@ def build_memberships(
 
 
 def standings_key(
-    row: dict[str, object],
+    row: dict[str, ScalarValue],
 ) -> tuple[str, ...]:
     return (
         str(
@@ -2368,12 +2300,12 @@ def build_standings(
     season_type: int,
     state: RuntimeState,
 ) -> tuple[
-    list[dict[str, object]],
+    list[dict[str, ScalarValue]],
     int,
 ]:
     keyed: dict[
         tuple[str, ...],
-        dict[str, object],
+        dict[str, ScalarValue],
     ] = {}
 
     exact_duplicates = 0
@@ -2452,45 +2384,45 @@ def build_standings(
     )
 
     rows.sort(
-        key=lambda row: (
+        key=lambda sort_row: (
             str(
-                row.get(
+                sort_row.get(
                     "conference",
                     "",
                 )
             ),
             str(
-                row.get(
+                sort_row.get(
                     "division",
                     "",
                 )
             ),
             str(
-                row.get(
+                sort_row.get(
                     "team_abbr",
                     "",
                 )
             ),
             str(
-                row.get(
+                sort_row.get(
                     "standings_type",
                     "",
                 )
             ),
             str(
-                row.get(
+                sort_row.get(
                     "record_type",
                     "",
                 )
             ),
             str(
-                row.get(
+                sort_row.get(
                     "record_name",
                     "",
                 )
             ),
             str(
-                row.get(
+                sort_row.get(
                     "stat_name",
                     "",
                 )
@@ -2506,7 +2438,7 @@ def build_standings(
 
 def validate_master_rows(
     rows: list[
-        dict[str, object]
+        dict[str, ScalarValue]
     ],
     team_index: dict[
         str,
@@ -2627,7 +2559,7 @@ def validate_master_rows(
 
 
 def _require_standings_rows(
-    rows: list[dict[str, object]],
+    rows: list[dict[str, ScalarValue]],
 ) -> None:
     if not rows:
         raise ValueError(
@@ -2637,10 +2569,10 @@ def _require_standings_rows(
 
 def validate_standings_rows(
     rows: list[
-        dict[str, object]
+        dict[str, ScalarValue]
     ],
     master_rows: list[
-        dict[str, object]
+        dict[str, ScalarValue]
     ],
     season: int,
     season_type: int,
@@ -2805,38 +2737,16 @@ def validate_standings_rows(
 def write_csv_file(
     path: Path,
     rows: list[
-        dict[str, object]
+        dict[str, ScalarValue]
     ],
     columns: list[str],
 ) -> None:
-    with path.open(
-        "w",
-        newline="",
-        encoding="utf-8",
-    ) as handle:
-        writer = csv.DictWriter(
-            handle,
-            fieldnames=columns,
-        )
-
-        writer.writeheader()
-
-        for row in rows:
-            writer.writerow(
-                {
-                    column: row.get(
-                        column,
-                        "",
-                    )
-                    for column in columns
-                }
-            )
-
-        handle.flush()
-        os.fsync(
-            handle.fileno()
-        )
-
+    write_csv_rows_durable(
+        path,
+        rows,
+        columns,
+        project_columns=True,
+    )
 
 def temporary_path(
     final_path: Path,
@@ -2869,7 +2779,7 @@ def _restore_bundle_output(
                 backup,
                 final_path,
             )
-        except Exception:
+        except OSError:
             pass
 
     elif not existed:
@@ -2877,16 +2787,16 @@ def _restore_bundle_output(
             final_path.unlink(
                 missing_ok=True
             )
-        except Exception:
+        except OSError:
             pass
 
 
 def publish_bundle(
     master_rows: list[
-        dict[str, object]
+        dict[str, ScalarValue]
     ],
     standings_rows: list[
-        dict[str, object]
+        dict[str, ScalarValue]
     ],
 ) -> None:
     LEAGUE_MASTER_PATH.parent.mkdir(
@@ -2973,7 +2883,7 @@ def publish_bundle(
                 LEAGUE_MASTER_PATH.unlink(
                     missing_ok=True
                 )
-            except Exception:
+            except OSError:
                 pass
 
         if standings_published:
@@ -2981,7 +2891,7 @@ def publish_bundle(
                 LEAGUE_STANDINGS_PATH.unlink(
                     missing_ok=True
                 )
-            except Exception:
+            except OSError:
                 pass
 
         _restore_bundle_output(
@@ -3007,7 +2917,7 @@ def publish_bundle(
                 path.unlink(
                     missing_ok=True
                 )
-            except Exception:
+            except OSError:
                 pass
 
         if success:
@@ -3019,7 +2929,7 @@ def publish_bundle(
                     path.unlink(
                         missing_ok=True
                     )
-                except Exception:
+                except OSError:
                     pass
 
 
@@ -3031,7 +2941,7 @@ def run(
         season,
         season_type,
         week,
-    ) = load_current_week()
+    ) = load_current_week_config(CURRENT_WEEK_CONFIG_PATH)
 
     report.season = season
     report.week = week
@@ -3426,6 +3336,7 @@ def main() -> int:
                 }
             )
 
+    raise RuntimeError("context manager unexpectedly suppressed an exception")
 
 if __name__ == "__main__":
     raise SystemExit(

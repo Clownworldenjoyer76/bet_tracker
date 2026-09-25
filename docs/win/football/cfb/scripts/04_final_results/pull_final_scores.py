@@ -193,17 +193,20 @@ def fetch_json(
         },
     )
 
+    body = b""
+
     with open_https(
         request,
         allowed_hosts={ESPN_SITE_HOST},
         timeout=timeout,
     ) as response:
-        return json.loads(
-            response.read().decode(
-                "utf-8"
-            )
-        )
+        body = response.read()
 
+    return json.loads(
+        body.decode(
+            "utf-8"
+        )
+    )
 
 def extract_score(
     competitor: dict[str, Any],
@@ -387,7 +390,7 @@ def discover_pick_weeks(
                     None,
                 )
 
-        except Exception:
+        except (OSError, UnicodeError, csv.Error):
             continue
 
         if first is None:
@@ -405,7 +408,7 @@ def discover_pick_weeks(
                 )
             )
 
-        except Exception:
+        except (ValueError, OverflowError):
             continue
 
         if file_season == season:
@@ -525,7 +528,7 @@ def read_schedule(
                 )
             )
 
-        except Exception:
+        except (ValueError, OverflowError):
             continue
 
         if row_season != season:
@@ -1304,16 +1307,16 @@ def main() -> int:
             )
 
             rows.sort(
-                key=lambda row: (
-                    row.get(
+                key=lambda sort_row: (
+                    sort_row.get(
                         "game_date",
                         "",
                     ),
-                    row.get(
+                    sort_row.get(
                         "game_time",
                         "",
                     ),
-                    row.get(
+                    sort_row.get(
                         "game_id",
                         "",
                     ),
@@ -1384,6 +1387,7 @@ def main() -> int:
 
         return 0
 
+    raise RuntimeError("context manager unexpectedly suppressed an exception")
 
 if __name__ == "__main__":
     raise SystemExit(

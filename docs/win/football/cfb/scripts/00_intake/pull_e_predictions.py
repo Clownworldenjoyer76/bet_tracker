@@ -24,6 +24,8 @@ validation failure is fatal and prevents publication of a partial output.
 
 from __future__ import annotations
 
+from http.client import HTTPException
+
 import csv
 import json
 import math
@@ -34,6 +36,7 @@ import urllib.parse
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Optional
 from urllib.error import HTTPError, URLError
 from urllib.request import Request
 
@@ -49,6 +52,7 @@ if str(SCRIPTS_DIR) not in sys.path:
 
 from http_security import open_https
 from pipeline_reporter import PipelineReporter
+from type_support import ScalarValue
 
 
 CONFIG_PATH = CFB_ROOT / "config" / "current_week.yaml"
@@ -130,12 +134,12 @@ UNRESOLVED_TEAM_NAMES = {
 class RuntimeState:
     request_count: int = 0
     request_success_count: int = 0
-    request_failures: list[dict[str, object]] = field(
+    request_failures: list[dict[str, ScalarValue]] = field(
         default_factory=list
     )
     predictor_response_count: int = 0
     complete_game_count: int = 0
-    incomplete_details: list[dict[str, object]] = field(
+    incomplete_details: list[dict[str, ScalarValue]] = field(
         default_factory=list
     )
     duplicate_game_side_count: int = 0
@@ -151,7 +155,7 @@ class PredictorRequestError(RuntimeError):
 
 
 def parse_positive_int(
-    value: object,
+    value: ScalarValue,
     *,
     label: str,
 ) -> int:
@@ -183,7 +187,7 @@ def parse_positive_int(
 
 
 def parse_positive_int_text(
-    value: object,
+    value: ScalarValue,
     *,
     label: str,
 ) -> str:
@@ -196,7 +200,7 @@ def parse_positive_int_text(
 
 
 def scalar_text(
-    value: object,
+    value: ScalarValue,
     *,
     label: str,
 ) -> str:
@@ -225,7 +229,7 @@ def scalar_text(
 
 
 def finite_number(
-    value: object,
+    value: ScalarValue,
     *,
     label: str,
 ) -> float:
@@ -255,7 +259,7 @@ def finite_number(
 
 
 def validate_percent(
-    value: object,
+    value: ScalarValue,
     *,
     label: str,
 ) -> float:
@@ -276,7 +280,7 @@ def validate_percent(
 
 
 def normalize_name(
-    value: object,
+    value: ScalarValue,
 ) -> str:
     return " ".join(
         str(value or "").strip().split()
@@ -574,9 +578,9 @@ def request_failure(
     game_id: str,
     url: str,
     error: str,
-    http_status: int | None = None,
+    http_status: Optional[int] = None,
 ) -> PredictorRequestError:
-    detail: dict[str, object] = {
+    detail: dict[str, ScalarValue] = {
         "game_id": game_id,
         "url": url,
         "error": error,
@@ -655,7 +659,7 @@ def fetch_predictor(
                     errors="replace",
                 )
             )
-        except Exception:
+        except (HTTPException, OSError, UnicodeError, ValueError):
             pass
 
         raise request_failure(
@@ -1534,7 +1538,7 @@ def publish_atomic(
             temp_path.unlink(
                 missing_ok=True
             )
-        except Exception:
+        except OSError:
             pass
 
 
@@ -1542,11 +1546,11 @@ def update_report(
     report: PipelineReporter,
     state: RuntimeState,
     *,
-    schedule_path: Path | None,
-    final_path: Path | None,
+    schedule_path: Optional[Path],
+    final_path: Optional[Path],
     target_count: int,
     rows: list[dict[str, str]],
-    output_modified: bool | None,
+    output_modified: Optional[bool],
 ) -> None:
     expected_rows = (
         target_count * 2
@@ -1614,12 +1618,10 @@ def run(
 ) -> int:
     state = RuntimeState()
 
-    season: int | None = None
-    season_type: int | None = None
-    week: int | None = None
 
-    schedule_path: Path | None = None
-    final_path: Path | None = None
+
+    schedule_path: Optional[Path] = None
+    final_path: Optional[Path] = None
 
     targets: dict[
         str,
@@ -1630,7 +1632,7 @@ def run(
         dict[str, str]
     ] = []
 
-    output_modified: bool | None = None
+    output_modified: Optional[bool] = None
 
     try:
         (
@@ -1849,6 +1851,7 @@ def main() -> int:
             report
         )
 
+    raise RuntimeError("context manager unexpectedly suppressed an exception")
 
 if __name__ == "__main__":
     raise SystemExit(
