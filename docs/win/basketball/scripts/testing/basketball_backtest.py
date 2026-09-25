@@ -25,7 +25,6 @@ import yaml
 from scipy.stats import norm
 
 from staking_runtime import (
-    KELLY_FRACTION, STAKING_CONFIG_PATH,
     add_uncertainty_adjusted_ev, attach_candidate_uncertainty,
     requested_stake,
 )
@@ -183,7 +182,7 @@ def fv(value: Any) -> float | None:
 
         return number
 
-    except Exception:
+    except (TypeError, ValueError, OverflowError):
         return None
 
 
@@ -1680,7 +1679,7 @@ def american_to_decimal(
     ):
         return ""
 
-    if a == 0:
+    if not bool(a):
         return ""
 
     return (
@@ -2764,7 +2763,7 @@ def in_any_band(
             <= float(hi)
             for lo, hi in bands
         )
-    except Exception:
+    except (TypeError, ValueError, OverflowError):
         return False
 
 
@@ -5697,9 +5696,9 @@ def main():
 if __name__ == "__main__":
     try:
         main()
-    except Exception as exc:
+    except Exception as main_exc:
         print(
-            f"STATUS: FAILED | {exc}",
+            f"STATUS: FAILED | {main_exc}",
             file=sys.stderr,
         )
 

@@ -36,8 +36,8 @@ ERROR_DIR = Path("docs/win/basketball/errors/00_intake")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE = ERROR_DIR / "basketball_game_id.txt"
 
-with open(LOG_FILE, "w", encoding="utf-8") as f:
-    f.write(f"=== basketball_game_id RUN {datetime.now().isoformat()} ===\n")
+with open(LOG_FILE, "w", encoding="utf-8") as startup_log_handle:
+    startup_log_handle.write(f"=== basketball_game_id RUN {datetime.now().isoformat()} ===\n")
 
 
 def log(msg: str) -> None:
@@ -135,7 +135,41 @@ def load_daily_games_for_league(daily_games_dir: Path, league_label: str):
     return daily_map, daily_keys_by_date, duplicate_rows, files_found, rows_loaded
 
 
-def update_predictions(predictions_dir: Path, daily_map: dict, daily_keys_by_date: dict, league_label: str):
+def track_duplicate_row(
+    row: dict,
+    seen_keys: set,
+    duplicate_rows: list,
+    league_label: str,
+    csv_path: Path,
+):
+    key = make_key(
+        row.get("game_date"),
+        row.get("home_team"),
+        row.get("away_team"),
+    )
+
+    if key in seen_keys:
+        duplicate_rows.append({
+            "league": league_label,
+            "file": str(csv_path),
+            "game_date": clean_value(
+                row.get("game_date")
+            ),
+            "home_team": clean_value(
+                row.get("home_team")
+            ),
+            "away_team": clean_value(
+                row.get("away_team")
+            ),
+        })
+    else:
+        seen_keys.add(
+            key
+        )
+
+    return key
+
+def update_predictions(predictions_dir: Path, daily_map: dict, league_label: str):
     files_processed = 0
     rows_processed = 0
     rows_updated = 0
@@ -166,22 +200,13 @@ def update_predictions(predictions_dir: Path, daily_map: dict, daily_keys_by_dat
             for row in rows:
                 rows_processed += 1
 
-                key = make_key(
-                    row.get("game_date"),
-                    row.get("home_team"),
-                    row.get("away_team"),
+                key = track_duplicate_row(
+                    row,
+                    seen_keys,
+                    duplicate_prediction_rows,
+                    league_label,
+                    csv_path,
                 )
-
-                if key in seen_keys:
-                    duplicate_prediction_rows.append({
-                        "league": league_label,
-                        "file": str(csv_path),
-                        "game_date": clean_value(row.get("game_date")),
-                        "home_team": clean_value(row.get("home_team")),
-                        "away_team": clean_value(row.get("away_team")),
-                    })
-                else:
-                    seen_keys.add(key)
 
                 if key in daily_map:
                     matched_keys.add(key)
@@ -247,22 +272,13 @@ def update_final_scores(final_scores_dir: Path, daily_map: dict, league_label: s
             for row in rows:
                 rows_processed += 1
 
-                key = make_key(
-                    row.get("game_date"),
-                    row.get("home_team"),
-                    row.get("away_team"),
+                key = track_duplicate_row(
+                    row,
+                    seen_keys,
+                    duplicate_final_score_rows,
+                    league_label,
+                    csv_path,
                 )
-
-                if key in seen_keys:
-                    duplicate_final_score_rows.append({
-                        "league": league_label,
-                        "file": str(csv_path),
-                        "game_date": clean_value(row.get("game_date")),
-                        "home_team": clean_value(row.get("home_team")),
-                        "away_team": clean_value(row.get("away_team")),
-                    })
-                else:
-                    seen_keys.add(key)
 
                 if key in daily_map:
                     source_game_id = clean_value(daily_map[key].get("game_id"))
@@ -328,7 +344,6 @@ def main():
             ) = update_predictions(
                 cfg["predictions_dir"],
                 daily_map,
-                daily_keys_by_date,
                 league_label,
             )
 

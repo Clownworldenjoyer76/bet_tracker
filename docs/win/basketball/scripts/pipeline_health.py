@@ -122,18 +122,19 @@ def clean(value) -> str:
 
 def clean_id(value) -> str:
     text = clean(value)
-    if not text:
-        return ""
+    number = fnum(
+        text
+    )
 
-    try:
-        number = float(text)
-        if math.isfinite(number) and number.is_integer():
-            return str(int(number))
-    except (TypeError, ValueError):
-        pass
+    if (
+        number is not None
+        and number.is_integer()
+    ):
+        return str(
+            int(number)
+        )
 
     return text
-
 
 def fnum(value):
     try:
@@ -141,7 +142,7 @@ def fnum(value):
             return None
         number = float(value)
         return number if math.isfinite(number) else None
-    except Exception:
+    except (TypeError, ValueError, OverflowError):
         return None
 
 
@@ -182,7 +183,8 @@ def read_rows(path: Path) -> list[dict]:
         return []
 
     with path.open(newline="", encoding="utf-8-sig") as handle:
-        return list(csv.DictReader(handle))
+        result = list(csv.DictReader(handle))
+    return result
 
 
 def read_yaml_mapping(path: Path) -> dict:
@@ -313,49 +315,108 @@ def validate_month_day(league: str, label: str, month: int, day: int) -> None:
         ) from exc
 
 
+def parse_season_config_row(
+    league: str,
+    row,
+    required_fields: tuple[str, ...],
+) -> dict[str, int]:
+    if not isinstance(
+        row,
+        dict,
+    ):
+        raise ValueError(
+            "Missing season configuration "
+            f"for league={league}"
+        )
+
+    missing_field = next(
+        (
+            field
+            for field in required_fields
+            if field not in row
+        ),
+        None,
+    )
+
+    if missing_field is not None:
+        raise ValueError(
+            f"Missing {league}.{missing_field} "
+            f"in {SEASON_CONFIG}"
+        )
+
+    def parsed_value(
+        field: str,
+    ) -> int:
+        raw_value = row[
+            field
+        ]
+
+        try:
+            return int(
+                raw_value
+            )
+        except (
+            TypeError,
+            ValueError,
+        ) as exc:
+            raise ValueError(
+                f"Invalid {league}.{field}: "
+                f"{raw_value!r}"
+            ) from exc
+
+    values = {
+        field: parsed_value(
+            field
+        )
+        for field in required_fields
+    }
+
+    for label in (
+        "start",
+        "end",
+    ):
+        validate_month_day(
+            league,
+            label,
+            values[
+                f"{label}_month"
+            ],
+            values[
+                f"{label}_day"
+            ],
+        )
+
+    return values
+
+
 def load_season_config() -> dict[str, dict[str, int]]:
     if not SEASON_CONFIG.exists():
-        raise FileNotFoundError(f"Season config not found: {SEASON_CONFIG}")
-
-    raw = read_yaml_mapping(SEASON_CONFIG)
-    required_fields = ("start_month", "start_day", "end_month", "end_day")
-    config: dict[str, dict[str, int]] = {}
-
-    for league in LEAGUES:
-        row = raw.get(league)
-
-        if not isinstance(row, dict):
-            raise ValueError(f"Missing season configuration for league={league}")
-
-        values: dict[str, int] = {}
-
-        for field in required_fields:
-            if field not in row:
-                raise ValueError(f"Missing {league}.{field} in {SEASON_CONFIG}")
-
-            try:
-                values[field] = int(row[field])
-            except (TypeError, ValueError) as exc:
-                raise ValueError(
-                    f"Invalid {league}.{field}: {row[field]!r}"
-                ) from exc
-
-        validate_month_day(
-            league,
-            "start",
-            values["start_month"],
-            values["start_day"],
-        )
-        validate_month_day(
-            league,
-            "end",
-            values["end_month"],
-            values["end_day"],
+        raise FileNotFoundError(
+            f"Season config not found: "
+            f"{SEASON_CONFIG}"
         )
 
-        config[league] = values
+    raw = read_yaml_mapping(
+        SEASON_CONFIG
+    )
 
-    return config
+    required_fields = (
+        "start_month",
+        "start_day",
+        "end_month",
+        "end_day",
+    )
+
+    return {
+        league: parse_season_config_row(
+            league,
+            raw.get(
+                league
+            ),
+            required_fields,
+        )
+        for league in LEAGUES
+    }
 
 
 def in_season(
@@ -818,7 +879,7 @@ def validate_sdv_model_config() -> tuple[dict, dict, list[str]]:
             f"expected={SDV_MODEL_ROOT} actual={artifacts.get('root')!r}"
         )
 
-    if bool_value(artifacts.get("require_feature_version_match")) is not True:
+    if not bool_value(artifacts.get("require_feature_version_match")):
         report["errors"].append(
             f"{SDV_MODEL_CONFIG}: artifacts.require_feature_version_match "
             "must be true"
@@ -876,6 +937,35 @@ def validate_model_config() -> tuple[dict, str | None, dict, list[str]]:
     return cfg, source, report, fatals
 
 
+def explicit_ensemble_flag(
+    config: dict,
+) -> bool | None:
+    direct = bool_value(
+        config.get(
+            "ensemble_enabled"
+        )
+    )
+
+    if direct is not None:
+        return direct
+
+    nested = config.get(
+        "ensemble"
+    )
+
+    if isinstance(
+        nested,
+        dict,
+    ):
+        return bool_value(
+            nested.get(
+                "enabled"
+            )
+        )
+
+    return None
+
+
 def ensemble_enabled_for_league(
     model_cfg: dict,
     league: str,
@@ -884,36 +974,42 @@ def ensemble_enabled_for_league(
     if production_source == "ensemble":
         return True
 
-    direct = bool_value(model_cfg.get("ensemble_enabled"))
-    if direct is not None:
-        return direct
+    enabled = explicit_ensemble_flag(
+        model_cfg
+    )
 
-    ensemble_cfg = model_cfg.get("ensemble")
-    if isinstance(ensemble_cfg, dict):
-        enabled = bool_value(ensemble_cfg.get("enabled"))
-        if enabled is not None:
-            return enabled
-
-    leagues_cfg = model_cfg.get("leagues")
-    if not isinstance(leagues_cfg, dict):
-        return False
-
-    league_cfg = leagues_cfg.get(league)
-    if not isinstance(league_cfg, dict):
-        return False
-
-    enabled = bool_value(league_cfg.get("ensemble_enabled"))
     if enabled is not None:
         return enabled
 
-    league_ensemble = league_cfg.get("ensemble")
-    if isinstance(league_ensemble, dict):
-        enabled = bool_value(league_ensemble.get("enabled"))
-        if enabled is not None:
-            return enabled
+    leagues_cfg = model_cfg.get(
+        "leagues"
+    )
 
-    return False
+    if not isinstance(
+        leagues_cfg,
+        dict,
+    ):
+        return False
 
+    league_cfg = leagues_cfg.get(
+        league
+    )
+
+    if not isinstance(
+        league_cfg,
+        dict,
+    ):
+        return False
+
+    enabled = explicit_ensemble_flag(
+        league_cfg
+    )
+
+    return (
+        enabled
+        if enabled is not None
+        else False
+    )
 
 # =============================================================================
 # SDV HISTORICAL MANIFEST HEALTH
@@ -2146,7 +2242,7 @@ def load_all_csv(
     for path in sorted(folder.glob(pattern)):
         try:
             rows.extend(read_rows(path))
-        except Exception:
+        except (OSError, UnicodeError, csv.Error):
             continue
 
     return rows
@@ -2243,9 +2339,9 @@ def wnba_bias_drift() -> dict:
         })
 
     residuals.sort(
-        key=lambda row: (
-            row["game_date"],
-            row["game_id"],
+        key=lambda sort_row: (
+            sort_row["game_date"],
+            sort_row["game_id"],
         )
     )
 

@@ -94,6 +94,10 @@ def _log(msg: str, level: str = "INFO"):
         f.write(line + "\n")
 
 
+
+def log(msg: str, level: str = "INFO"):
+    _log(msg, level)
+
 # =========================
 # LOCK CURRENT PICKS
 # =========================
@@ -198,17 +202,17 @@ def american_to_decimal(odds):
         a = float(odds)
     except (TypeError, ValueError):
         return None
-    if a == 0:
+    if not bool(a):
         return None
     return 1 + (a / 100.0) if a > 0 else 1 + (100.0 / abs(a))
 
 
-def f(v):
+def optional_float(v):
     try:
         if v is None or pd.isna(v):
             return None
         return float(v)
-    except Exception:
+    except (TypeError, ValueError, OverflowError):
         return None
 
 
@@ -216,8 +220,8 @@ def determine_outcome(row) -> str:
     market = str(row.get("market_type", "")).lower()
     side   = str(row.get("bet_side", "")).lower()
 
-    home = f(row.get("home_score"))
-    away = f(row.get("away_score"))
+    home = optional_float(row.get("home_score"))
+    away = optional_float(row.get("away_score"))
     if home is None or away is None:
         return "Unknown"
 
@@ -230,7 +234,7 @@ def determine_outcome(row) -> str:
         return "Loss"
 
     if market == "spread":
-        line = f(row.get("bet_line"))
+        line = optional_float(row.get("bet_line"))
         if line is None:
             return "Unknown"
         if side == "home":
@@ -244,7 +248,7 @@ def determine_outcome(row) -> str:
         return "Win" if diff > 0 else "Loss"
 
     if market == "total":
-        line = f(row.get("bet_line"))
+        line = optional_float(row.get("bet_line"))
         if line is None:
             return "Unknown"
         total = home + away
@@ -270,7 +274,7 @@ def compute_profits(row) -> tuple:
     if decimal is None or decimal <= 1:
         return None, None
 
-    stake = f(row.get("bet_stake_pct"))
+    stake = optional_float(row.get("bet_stake_pct"))
 
     if result == "Win":
         unit  = decimal - 1.0

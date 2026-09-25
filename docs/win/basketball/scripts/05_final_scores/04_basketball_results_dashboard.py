@@ -125,13 +125,24 @@ def log_output(path: Path, rows: int, bytes_written: int) -> None:
 
 def finish(status: str) -> None:
     ended = datetime.now(UTC)
-    with LOG_FILE.open("a", encoding="utf-8") as handle:
-        handle.write(f"INPUT_SUMMARY | files={INPUT_FILE_COUNT} | rows={INPUT_ROW_COUNT}\n")
-        handle.write(f"OUTPUT_SUMMARY | files={OUTPUT_FILE_COUNT} | rows={OUTPUT_ROW_COUNT}\n")
-        handle.write(f"WARNING_COUNT: {WARNING_COUNT}\n")
-        handle.write(f"ERROR_COUNT: {ERROR_COUNT}\n")
-        handle.write(f"END_TIMESTAMP_UTC: {ended.isoformat()}\n")
-        handle.write(f"STATUS: {status}\n")
+
+    summary = (
+        f"INPUT_SUMMARY | files={INPUT_FILE_COUNT} | rows={INPUT_ROW_COUNT}",
+        f"OUTPUT_SUMMARY | files={OUTPUT_FILE_COUNT} | rows={OUTPUT_ROW_COUNT}",
+        f"WARNING_COUNT: {WARNING_COUNT}",
+        f"ERROR_COUNT: {ERROR_COUNT}",
+        f"END_TIMESTAMP_UTC: {ended.isoformat()}",
+        f"STATUS: {status}",
+    )
+
+    with LOG_FILE.open(
+        "a",
+        encoding="utf-8",
+    ) as handle:
+        handle.writelines(
+            f"{line}\n"
+            for line in summary
+        )
 
 
 # ============================================================
@@ -165,13 +176,13 @@ def clean_scalar(value):
     try:
         if pd.isna(value):
             return None
-    except Exception:
+    except (TypeError, ValueError):
         pass
 
     if hasattr(value, "item"):
         try:
             return value.item()
-        except Exception:
+        except (TypeError, ValueError):
             pass
 
     if isinstance(value, pd.Timestamp):
@@ -227,7 +238,7 @@ def to_number(value, default: float = 0.0) -> float:
         if value is None or pd.isna(value):
             return default
         return float(value)
-    except Exception:
+    except (TypeError, ValueError, OverflowError):
         return default
 
 

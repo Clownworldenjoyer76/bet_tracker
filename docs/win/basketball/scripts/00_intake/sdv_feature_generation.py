@@ -65,19 +65,22 @@ def clean(value: Any) -> str:
 
 
 def clean_id(value: Any) -> str:
-    text = clean(value)
-    if not text:
-        return ""
+    text = clean(
+        value
+    )
+    number = to_float(
+        text
+    )
 
-    try:
-        number = float(text)
-        if math.isfinite(number) and number.is_integer():
-            return str(int(number))
-    except (TypeError, ValueError):
-        pass
+    if (
+        number is not None
+        and number.is_integer()
+    ):
+        return str(
+            int(number)
+        )
 
     return text
-
 
 def to_float(value: Any) -> float | None:
     if value is None:
@@ -1089,7 +1092,7 @@ def read_possession_counts(
                 ],
             )
 
-        except Exception:
+        except pl.exceptions.ColumnNotFoundError:
             has_count_flag = False
             frame = game_frame
 

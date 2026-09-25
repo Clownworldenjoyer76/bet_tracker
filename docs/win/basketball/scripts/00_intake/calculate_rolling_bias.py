@@ -711,11 +711,12 @@ def read_csv_rows(
             f
         )
 
-        return (
+        result = (
             reader.fieldnames
             or [],
             list(reader),
         )
+    return result
 
 
 def require_columns(
@@ -1270,7 +1271,6 @@ def current_season_for_league(
 
 
 def season_status_for_league(
-    league: str,
     current_season: int | None,
 ) -> str:
     return (
@@ -2327,12 +2327,12 @@ def build_prediction_index_for_key(
                 key
             ] = sorted(
                 group,
-                key=lambda row: (
-                    row.get(
+                key=lambda sort_row: (
+                    sort_row.get(
                         "_source_file",
                         "",
                     ),
-                    row.get(
+                    sort_row.get(
                         "_source_row",
                         "",
                     ),
@@ -2711,21 +2711,21 @@ def deduplicate_final_rows(
     for group in grouped_remaining.values():
         preferred = sorted(
             group,
-            key=lambda row: (
+            key=lambda sort_row: (
                 (
                     0
                     if canonical_game_id(
-                        row.get(
+                        sort_row.get(
                             "game_id"
                         )
                     )
                     else 1
                 ),
-                row.get(
+                sort_row.get(
                     "_source_file",
                     "",
                 ),
-                row.get(
+                sort_row.get(
                     "_source_row",
                     "",
                 ),
@@ -2744,25 +2744,25 @@ def deduplicate_final_rows(
         )
 
     deduped.sort(
-        key=lambda row: (
+        key=lambda sort_row: (
             parse_game_datetime(
-                row.get(
+                sort_row.get(
                     "game_date"
                 ),
                 "",
             ),
             normalize_text(
-                row.get(
+                sort_row.get(
                     "home_team"
                 )
             ),
             normalize_text(
-                row.get(
+                sort_row.get(
                     "away_team"
                 )
             ),
             canonical_game_id(
-                row.get(
+                sort_row.get(
                     "game_id"
                 )
             ),
@@ -2932,7 +2932,6 @@ def load_current_completed_games(
     ] = {
         "current_season": current_season,
         "season_status": season_status_for_league(
-            league,
             current_season,
         ),
         **prediction_load_stats,
@@ -3060,7 +3059,7 @@ def load_current_completed_games(
 
                 continue
 
-            if identity_result is False:
+            if not identity_result:
                 stats[
                     "game_id_identity_mismatches"
                 ] += 1
@@ -3426,9 +3425,9 @@ def deduplicate_completed_games(
         # ordering.
         winner = sorted(
             group,
-            key=lambda game: (
-                game.source_priority,
-                game.sort_key,
+            key=lambda sort_game: (
+                sort_game.source_priority,
+                sort_game.sort_key,
             ),
         )[-1]
 
@@ -3437,8 +3436,8 @@ def deduplicate_completed_games(
         )
 
     chosen.sort(
-        key=lambda game: (
-            game.sort_key
+        key=lambda sort_game: (
+            sort_game.sort_key
         )
     )
 
@@ -4090,6 +4089,50 @@ def skipped_league_state(
     }
 
 
+def unsafe_history_component(
+    rule: dict,
+) -> dict:
+    method = rule.get(
+        "method"
+    )
+
+    window = rule.get(
+        "window_games"
+    )
+
+    if (
+        window is None
+        and method
+        == "regime_aware"
+    ):
+        windows = (
+            rule.get(
+                "windows_games"
+            )
+            or []
+        )
+
+        window = (
+            max(
+                windows
+            )
+            if windows
+            else None
+        )
+
+    return {
+        **component_stub(
+            "error",
+            method,
+            window,
+        ),
+        "error": (
+            "Unsafe historical "
+            "adjusted rows could "
+            "not be reversed"
+        ),
+    }
+
 def process_league(
     league: str,
     league_cfg: dict[str, Any],
@@ -4282,46 +4325,9 @@ def process_league(
                 "regime_aware",
             }
         ):
-            margin_method = margin_rule.get(
-                "method"
+            margin = unsafe_history_component(
+                margin_rule
             )
-
-            margin_window = margin_rule.get(
-                "window_games"
-            )
-
-            if (
-                margin_window is None
-                and margin_method
-                == "regime_aware"
-            ):
-                margin_windows = (
-                    margin_rule.get(
-                        "windows_games"
-                    )
-                    or []
-                )
-
-                margin_window = (
-                    max(
-                        margin_windows
-                    )
-                    if margin_windows
-                    else None
-                )
-
-            margin = {
-                **component_stub(
-                    "error",
-                    margin_method,
-                    margin_window,
-                ),
-                "error": (
-                    "Unsafe historical "
-                    "adjusted rows could "
-                    "not be reversed"
-                ),
-            }
 
         else:
             (
@@ -4343,46 +4349,9 @@ def process_league(
                 "regime_aware",
             }
         ):
-            total_method = total_rule.get(
-                "method"
+            total = unsafe_history_component(
+                total_rule
             )
-
-            total_window = total_rule.get(
-                "window_games"
-            )
-
-            if (
-                total_window is None
-                and total_method
-                == "regime_aware"
-            ):
-                total_windows = (
-                    total_rule.get(
-                        "windows_games"
-                    )
-                    or []
-                )
-
-                total_window = (
-                    max(
-                        total_windows
-                    )
-                    if total_windows
-                    else None
-                )
-
-            total = {
-                **component_stub(
-                    "error",
-                    total_method,
-                    total_window,
-                ),
-                "error": (
-                    "Unsafe historical "
-                    "adjusted rows could "
-                    "not be reversed"
-                ),
-            }
 
         else:
             (

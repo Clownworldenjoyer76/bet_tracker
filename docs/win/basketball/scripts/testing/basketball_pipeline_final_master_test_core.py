@@ -20,7 +20,6 @@ import hashlib
 import importlib.util
 import json
 import math
-import sys
 import tempfile
 import time
 import warnings
@@ -648,7 +647,7 @@ def format_float(
             f'{float(v):.{digits}f}'
         )
 
-    except Exception:
+    except (TypeError, ValueError, OverflowError):
         return str(v)
 
 
@@ -1611,10 +1610,6 @@ def apply_production_complementary_calibration(
 def reverse_bias_row_to_raw(
     row: pd.Series,
     league: str,
-    settings: dict[
-        str,
-        Any,
-    ],
     internal_season: int,
 ) -> tuple[
     float,
@@ -1666,7 +1661,7 @@ def reverse_bias_row_to_raw(
             flag
         )
 
-    except Exception:
+    except (TypeError, ValueError, OverflowError):
         flag = 0.0
 
     if flag == 0.0:
@@ -1819,10 +1814,6 @@ def load_module_from_path(
 def load_data(
     input_file: Path,
     league: str,
-    settings: dict[
-        str,
-        Any,
-    ],
     model_source: str,
     internal_season: int,
 ) -> pd.DataFrame:
@@ -2082,7 +2073,6 @@ def load_data(
         reverse_bias_row_to_raw(
             row,
             league,
-            settings,
             internal_season,
         )
         for (
@@ -3955,13 +3945,6 @@ def evaluate_std_modes(
         'mode',
         sort=False,
     ):
-        fold_nll = (
-            g.groupby(
-                'fold_id'
-            )[
-                'residual_nll'
-            ].mean()
-        )
 
         summary_rows.append({
             'market': market,
@@ -4355,7 +4338,7 @@ def fit_calibrator(
                 ],
             }
 
-        except Exception:
+        except (TypeError, ValueError):
             return {
                 'method': 'raw'
             }
@@ -7843,26 +7826,26 @@ def stress_top_joint_configs(
         blocks
     )
 
-    B = len(
+    block_count = len(
         unique_blocks
     )
 
-    K = len(
+    config_count = len(
         top
     )
 
     block_profit = np.zeros(
         (
-            B,
-            K,
+            block_count,
+            config_count,
         ),
         dtype=float,
     )
 
     block_bets = np.zeros(
         (
-            B,
-            K,
+            block_count,
+            config_count,
         ),
         dtype=float,
     )
@@ -7935,11 +7918,11 @@ def stress_top_joint_configs(
             )
 
     draws = rng.multinomial(
-        B,
+        block_count,
         np.repeat(
             1.0
-            / B,
-            B,
+            / block_count,
+            block_count,
         ),
         size=reps,
     )
@@ -11209,7 +11192,7 @@ def segment_betting_summary(
                     duplicates='drop',
                 )
 
-            except Exception:
+            except ValueError:
                 t[
                     'total_range'
                 ] = 'all'
@@ -11732,10 +11715,10 @@ def build_final_recommendations(
     )
 
     def evidence_for(
-        market: str,
+        market_name: str,
     ) -> str:
         d = decisions.loc[
-            market
+            market_name
         ]
 
         return (
@@ -11763,11 +11746,11 @@ def build_final_recommendations(
         )
 
     def market_pass(
-        market: str,
+        market_name: str,
     ) -> bool:
         return bool(
             decisions.loc[
-                market,
+                market_name,
                 'market_validated',
             ]
         )
@@ -12420,10 +12403,6 @@ def write_report(
         str,
         pd.DataFrame,
     ],
-    chosen_by_market: dict[
-        str,
-        pd.Series,
-    ],
     frozen_candidates: dict[
         str,
         dict[
@@ -12446,7 +12425,7 @@ def write_report(
         Path
     ],
 ) -> None:
-    L: list[
+    lines: list[
         str
     ] = []
 
@@ -12455,7 +12434,7 @@ def write_report(
         * 110
     )
 
-    L += [
+    lines += [
         line,
         (
             f'{league} FINAL MASTER '
@@ -12552,7 +12531,7 @@ def write_report(
         ),
     ]
 
-    L += [
+    lines += [
         '',
         line,
         (
@@ -12643,7 +12622,7 @@ def write_report(
             row
         )
 
-    L.append(
+    lines.append(
         dataframe_text(
             pd.DataFrame(
                 frozen_rows
@@ -12651,7 +12630,7 @@ def write_report(
         )
     )
 
-    L += [
+    lines += [
         '',
         line,
         (
@@ -12679,7 +12658,7 @@ def write_report(
         'spread',
         'total',
     ]:
-        L += [
+        lines += [
             (
                 f'\n{market.upper()} '
                 'BIAS OOS SUMMARY'
@@ -12700,7 +12679,7 @@ def write_report(
             ),
         ]
 
-    L += [
+    lines += [
         '',
         line,
         (
@@ -12714,7 +12693,7 @@ def write_report(
         'spread',
         'total',
     ]:
-        L += [
+        lines += [
             (
                 f'\n{market.upper()} '
                 'STD OOS SUMMARY'
@@ -12735,7 +12714,7 @@ def write_report(
             ),
         ]
 
-    L += [
+    lines += [
         '',
         line,
         (
@@ -12750,7 +12729,7 @@ def write_report(
         'spread',
         'total',
     ]:
-        L += [
+        lines += [
             f'\n{market.upper()}',
             dataframe_text(
                 cal_summaries[
@@ -12759,7 +12738,7 @@ def write_report(
             ),
         ]
 
-    L += [
+    lines += [
         '',
         line,
         '7. JOINT CONFIGURATION STRESS TESTS',
@@ -12771,7 +12750,7 @@ def write_report(
         'spread',
         'total',
     ]:
-        L += [
+        lines += [
             (
                 f'\n{market.upper()} '
                 'TOP CONFIGURATIONS'
@@ -12784,7 +12763,7 @@ def write_report(
             ),
         ]
 
-    L += [
+    lines += [
         '',
         line,
         (
@@ -12847,7 +12826,7 @@ def write_report(
     ]
 
     for p in output_files:
-        L.append(
+        lines.append(
             str(
                 p
             )
@@ -12855,7 +12834,7 @@ def write_report(
 
     path.write_text(
         '\n'.join(
-            L
+            lines
         )
         + '\n',
         encoding='utf-8',
@@ -12895,7 +12874,7 @@ def _step18_norm_date(value: Any) -> str:
     text = text[:10].replace('_', '-').replace('/', '-')
     try:
         return pd.Timestamp(text).strftime('%Y-%m-%d')
-    except Exception:
+    except (TypeError, ValueError, OverflowError):
         return ''
 
 
@@ -12914,7 +12893,6 @@ def _step18_sha256(path: Path) -> str:
 def _step18_build_source_frame(
     input_file: Path,
     source: str,
-    settings: dict[str, Any],
     internal_season: int,
     temp_dir: Path,
 ) -> pd.DataFrame:
@@ -13088,7 +13066,6 @@ def _step18_build_source_frame(
     return load_data(
         temp_file,
         'WNBA',
-        settings,
         source,
         internal_season,
     )
@@ -13155,7 +13132,7 @@ def _step18_probabilities(
 def _step18_decimal_to_american(value: Any) -> float:
     try:
         decimal = float(value)
-    except Exception:
+    except (TypeError, ValueError, OverflowError):
         return np.nan
     if not np.isfinite(decimal) or decimal <= 1.0:
         return np.nan
@@ -13611,7 +13588,6 @@ def run_wnba_market_band_validation(
             frame = _step18_build_source_frame(
                 input_file,
                 source,
-                settings,
                 internal_season,
                 temp_dir,
             )
@@ -13961,7 +13937,6 @@ def main() -> None:
     full_df = load_data(
         input_file,
         league,
-        settings,
         model_source,
         internal_season,
     )
@@ -14916,7 +14891,6 @@ def main() -> None:
         std_summaries,
         std_stress,
         cal_summaries,
-        chosen_by_market,
         frozen_candidates,
         stress_by_market,
         lockbox_summary,

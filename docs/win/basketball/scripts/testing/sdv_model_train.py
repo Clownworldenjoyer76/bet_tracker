@@ -83,34 +83,21 @@ def clean_id(
         value
     )
 
-    if not text:
-        return ""
+    number = to_float(
+        text
+    )
 
-    try:
-        number = float(
-            text
-        )
-
-        if (
-            math.isfinite(
-                number
-            )
-            and number.is_integer()
-        ):
-            return str(
-                int(
-                    number
-                )
-            )
-
-    except (
-        TypeError,
-        ValueError,
+    if (
+        number is None
+        or not number.is_integer()
     ):
-        pass
+        return text
 
-    return text
-
+    return str(
+        int(
+            number
+        )
+    )
 
 def to_float(
     value: Any,
@@ -1038,16 +1025,16 @@ def load_season_rows(
         )
 
     rows.sort(
-        key=lambda row: (
-            row[
+        key=lambda sort_row: (
+            sort_row[
                 "_target_date"
             ],
             clean(
-                row.get(
+                sort_row.get(
                     "game_date_time_utc"
                 )
             ),
-            row[
+            sort_row[
                 "game_id"
             ],
         )
@@ -1601,6 +1588,54 @@ def predict(
 
     return predictions
 
+
+def fit_target_pair(
+    fit_matrix: sparse.csr_matrix,
+    fit_rows: list[dict[str, Any]],
+    prediction_matrix: sparse.csr_matrix,
+    ridge_alpha: float,
+) -> tuple[
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+    np.ndarray,
+]:
+    margin_target = target_array(
+        fit_rows,
+        "_target_margin",
+    )
+    total_target = target_array(
+        fit_rows,
+        "_target_total",
+    )
+
+    margin_coefficients = fit_ridge(
+        fit_matrix,
+        margin_target,
+        ridge_alpha,
+    )
+    total_coefficients = fit_ridge(
+        fit_matrix,
+        total_target,
+        ridge_alpha,
+    )
+
+    return (
+        margin_target,
+        total_target,
+        margin_coefficients,
+        total_coefficients,
+        predict(
+            prediction_matrix,
+            margin_coefficients,
+        ),
+        predict(
+            prediction_matrix,
+            total_coefficients,
+        ),
+    )
 
 def expanding_date_folds(
     rows: list[
@@ -2308,36 +2343,18 @@ def run_oos(
             )
         )
 
-        margin_train = target_array(
-            train_rows,
-            "_target_margin",
-        )
-
-        total_train = target_array(
-            train_rows,
-            "_target_total",
-        )
-
-        margin_coefficients = fit_ridge(
-            train_matrix,
-            margin_train,
-            ridge_alpha,
-        )
-
-        total_coefficients = fit_ridge(
-            train_matrix,
-            total_train,
-            ridge_alpha,
-        )
-
-        predicted_margin = predict(
-            validation_matrix,
+        (
+            _,
+            _,
             margin_coefficients,
-        )
-
-        predicted_total = predict(
-            validation_matrix,
             total_coefficients,
+            predicted_margin,
+            predicted_total,
+        ) = fit_target_pair(
+            train_matrix,
+            train_rows,
+            validation_matrix,
+            ridge_alpha,
         )
 
         for (
@@ -3124,36 +3141,18 @@ def train_league(
         )
     )
 
-    actual_margin = target_array(
-        development_rows,
-        "_target_margin",
-    )
-
-    actual_total = target_array(
-        development_rows,
-        "_target_total",
-    )
-
-    margin_coefficients = fit_ridge(
-        final_matrix,
+    (
         actual_margin,
-        ridge_alpha,
-    )
-
-    total_coefficients = fit_ridge(
-        final_matrix,
         actual_total,
-        ridge_alpha,
-    )
-
-    development_margin_prediction = predict(
-        final_matrix,
         margin_coefficients,
-    )
-
-    development_total_prediction = predict(
-        final_matrix,
         total_coefficients,
+        development_margin_prediction,
+        development_total_prediction,
+    ) = fit_target_pair(
+        final_matrix,
+        development_rows,
+        final_matrix,
+        ridge_alpha,
     )
 
     margin_training_metrics = (

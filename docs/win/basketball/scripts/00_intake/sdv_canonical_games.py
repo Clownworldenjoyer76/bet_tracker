@@ -112,7 +112,7 @@ def clean(value: Any) -> str:
     try:
         if pd.isna(value):
             return ""
-    except Exception:
+    except (TypeError, ValueError):
         pass
 
     return str(value).strip()
@@ -305,7 +305,7 @@ def bool_text(
     try:
         if pd.isna(value):
             return ""
-    except Exception:
+    except (TypeError, ValueError):
         pass
 
     if isinstance(value, bool):
@@ -341,6 +341,8 @@ def fetch_schedule(
     sdv_season: int,
     limit: int,
 ) -> pd.DataFrame:
+    df: Any
+
     if league == "nba":
         from sportsdataverse.nba import espn_nba_schedule
 
@@ -790,7 +792,7 @@ def existing_file_is_valid(
 
         return True
 
-    except Exception:
+    except (OSError, UnicodeError, csv.Error):
         return False
 
 

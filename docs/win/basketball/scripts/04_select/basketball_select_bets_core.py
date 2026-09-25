@@ -37,11 +37,11 @@ LOG_FILE         = ERROR_DIR / "select_bets.txt"
 SELECT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
-with open(CONFIG_PATH, "r", encoding="utf-8") as f:
-    CONFIG = yaml.safe_load(f) or {}
+with open(CONFIG_PATH, "r", encoding="utf-8") as markets_config_handle:
+    CONFIG = yaml.safe_load(markets_config_handle) or {}
 
-with open(MODEL_CONFIG_PATH, "r", encoding="utf-8") as f:
-    MODEL_CONFIG = yaml.safe_load(f) or {}
+with open(MODEL_CONFIG_PATH, "r", encoding="utf-8") as model_config_handle:
+    MODEL_CONFIG = yaml.safe_load(model_config_handle) or {}
 
 ML_VS_SPREAD_TIEBREAK = str(CONFIG.get("ml_vs_spread_tiebreak", "ev")).strip().lower()
 TIEBREAK_COL_MAP = {
@@ -162,7 +162,7 @@ def fv(x):
         if x is None or pd.isna(x):
             return None
         return float(x)
-    except Exception:
+    except (TypeError, ValueError, OverflowError):
         return None
 
 
@@ -175,7 +175,7 @@ def in_any_band(value, bands):
 def parse_date(s):
     try:
         return datetime.strptime(s, "%Y_%m_%d")
-    except Exception:
+    except (TypeError, ValueError):
         return None
 
 
@@ -401,12 +401,29 @@ def build_spread_sides(row, league, game_date, cfg):
         scfg = cfg[side]
         if not scfg.get("enabled", True):
             continue
-        line  = fv(row.get(f"{side}_spread"))
-        odds  = fv(row.get(f"{side}_dk_spread_american"))
-        ev    = fv(row.get(f"{side}_spread_ev"))
-        kelly = fv(row.get(f"{side}_spread_kelly"))
-        mp    = fv(row.get(f"{side}_spread_model_prob"))
-        evm   = fv(row.get(f"{side}_spread_edge_vs_market_pct"))
+
+        (
+            line,
+            odds,
+            ev,
+            kelly,
+            mp,
+            evm,
+        ) = (
+            fv(
+                row.get(
+                    f"{side}_{suffix}"
+                )
+            )
+            for suffix in (
+                "spread",
+                "dk_spread_american",
+                "spread_ev",
+                "spread_kelly",
+                "spread_model_prob",
+                "spread_edge_vs_market_pct",
+            )
+        )
 
         if not passes_model_edge(ev, league, "spread"):
             DEBUG_COUNTS["rejected_spread"] += 1
