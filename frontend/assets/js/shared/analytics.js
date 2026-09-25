@@ -132,6 +132,44 @@ posthog.init('phc_r8rHehNywABoAFEGt5vTx8iTpoTY6hiFoyygPrMF6WE4', {
 })();
 /* SMH_INTERNAL_USER_MARKER_END */
 
+/* SMH_SESSION_REPLAY_START */
+(() => {
+  const INTERNAL_STORAGE_KEY = "smh_internal_user";
+  const replayPages = new Set([
+    "the_picks",
+    "games_today",
+    "kelly_calculator",
+    "prop_engine",
+    "props_nfl"
+  ]);
+
+  const page = (location.pathname.split("/").pop() || "index.html")
+    .replace(/\.html$/i, "") || "index";
+
+  const isInternal = localStorage.getItem(INTERNAL_STORAGE_KEY) === "1";
+  const shouldRecord = replayPages.has(page) && !isInternal;
+
+  if (
+    shouldRecord &&
+    window.posthog &&
+    typeof window.posthog.startSessionRecording === "function"
+  ) {
+    window.posthog.startSessionRecording();
+  } else if (
+    window.posthog &&
+    typeof window.posthog.stopSessionRecording === "function"
+  ) {
+    window.posthog.stopSessionRecording();
+  }
+
+  window.SMHSessionReplay = {
+    eligible: replayPages.has(page),
+    internal: isInternal,
+    recordingRequested: shouldRecord
+  };
+})();
+/* SMH_SESSION_REPLAY_END */
+
 /* SMH_PRODUCT_ANALYTICS_START */
 (() => {
   const VERSION = "1.0.0";
