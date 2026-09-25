@@ -65,9 +65,28 @@ posthog.init('phc_r8rHehNywABoAFEGt5vTx8iTpoTY6hiFoyygPrMF6WE4', {
   autocapture: true,
   capture_pageview: true,
   capture_pageleave: true,
+  before_send: function(event) {
+    if (
+      event &&
+      event.event === "$exception" &&
+      localStorage.getItem("smh_internal_user") === "1"
+    ) {
+      return null;
+    }
+    return event;
+  },
   disable_session_recording: true
 });
 
+/* SMH_ERROR_TRACKING_FILTER_START */
+/*
+  Frontend exception autocapture is enabled remotely in PostHog.
+  The before_send hook above drops only $exception events from this
+  browser when it has been explicitly marked as an internal/test browser.
+  All normal visitor exceptions keep PostHog's original event payload,
+  including URL/session context used for issue grouping and replay links.
+*/
+/* SMH_ERROR_TRACKING_FILTER_END */
 /* SMH_INTERNAL_USER_MARKER_START */
 (() => {
   const STORAGE_KEY = "smh_internal_user";
