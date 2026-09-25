@@ -1,3 +1,14 @@
+/* SMH_POSTHOG_LOADER_START */
+(() => {
+  if (window.__smhPostHogLoaderAdded) return;
+  window.__smhPostHogLoaderAdded = true;
+
+  const script = document.createElement("script");
+  script.src = "assets/js/shared/analytics.js";
+  script.async = true;
+  document.head.appendChild(script);
+})();
+/* SMH_POSTHOG_LOADER_END */
 (() => {
   const el = document.getElementById("nav-placeholder");
   if (!el) return;
