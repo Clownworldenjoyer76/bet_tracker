@@ -270,31 +270,7 @@ function buildGameCard(g, cfg) {
       <span class="gt-card-proj-total">· ${projTotal}</span>
     </div>`;
 
-  /* SMH_GAME_DETAILS_ANALYTICS_START */
-  card.addEventListener("click", () => {
-    if (window.SMHTrack) {
-      window.SMHTrack("game_details_opened", {
-        league: cfg.league || cfg.displayName,
-        sport: cfg.sport,
-        matchup: `${g.away_team || "â€”"} @ ${g.home_team || "â€”"}`,
-        selected_date: dateInput && dateInput.value ? dateInput.value : g.game_date
-      });
-    } else {
-      window.__smhAnalyticsQueue = window.__smhAnalyticsQueue || [];
-      window.__smhAnalyticsQueue.push([
-        "game_details_opened",
-        {
-          league: cfg.league || cfg.displayName,
-          sport: cfg.sport,
-          matchup: `${g.away_team || "â€”"} @ ${g.home_team || "â€”"}`,
-          selected_date: dateInput && dateInput.value ? dateInput.value : g.game_date
-        }
-      ]);
-    }
-
-    openModal(buildModalHtml(g, cfg));
-  });
-  /* SMH_GAME_DETAILS_ANALYTICS_END */
+  card.addEventListener("click", () => openModal(buildModalHtml(g, cfg)));
   return card;
 }
 

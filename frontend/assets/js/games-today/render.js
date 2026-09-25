@@ -109,7 +109,27 @@ export function buildGameCard(game) {
     ` : ""}
   `;
 
-  card.addEventListener("click", () => openGameModal(game));
+  /* SMH_GAME_DETAILS_ANALYTICS_START */
+  card.addEventListener("click", () => {
+    const props = {
+      league: game.league || game.displayLeague,
+      sport: game.sport,
+      matchup: game.title ||
+        `${game.card?.away || "â€”"} @ ${game.card?.home || "â€”"}`,
+      selected_date: game.card?.date ||
+        document.getElementById("gt-date")?.value
+    };
+
+    if (window.SMHTrack) {
+      window.SMHTrack("game_details_opened", props);
+    } else {
+      window.__smhAnalyticsQueue = window.__smhAnalyticsQueue || [];
+      window.__smhAnalyticsQueue.push(["game_details_opened", props]);
+    }
+
+    openGameModal(game);
+  });
+  /* SMH_GAME_DETAILS_ANALYTICS_END */
 
   return card;
 }
