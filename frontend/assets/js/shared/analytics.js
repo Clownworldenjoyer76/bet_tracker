@@ -67,3 +67,366 @@ posthog.init('phc_r8rHehNywABoAFEGt5vTx8iTpoTY6hiFoyygPrMF6WE4', {
   capture_pageleave: true,
   disable_session_recording: true
 });
+
+/* SMH_PRODUCT_ANALYTICS_START */
+(() => {
+  const VERSION = "1.0.0";
+
+  const LEAGUE_SPORT = {
+    NFL: "football",
+    CFB: "football",
+    CFL: "football",
+    NHL: "hockey",
+    MLB: "baseball",
+    MLB_LINEUPS: "baseball",
+    NBA: "basketball",
+    WNBA: "basketball",
+    NCAAM: "basketball",
+    NCAAB: "basketball",
+    UFC: "mma",
+    SOCCER: "soccer",
+    EPL: "soccer",
+    MLS: "soccer",
+    LIGUE1: "soccer",
+    LALIGA: "soccer",
+    SERIEA: "soccer",
+    BUNDESLIGA: "soccer"
+  };
+
+  function pageName() {
+    const file = (location.pathname.split("/").pop() || "index.html")
+      .replace(/\.html$/i, "");
+    return file || "index";
+  }
+
+  function normalizeLeague(value) {
+    const league = String(value || "").trim();
+    if (!league) return undefined;
+    if (league.toLowerCase() === "all") return "all";
+    return league.toUpperCase();
+  }
+
+  function inferSport(league) {
+    const key = normalizeLeague(league);
+    return key ? LEAGUE_SPORT[key] : undefined;
+  }
+
+  function deviceType() {
+    const width = window.innerWidth || document.documentElement.clientWidth || 0;
+    if (width < 768) return "mobile";
+    if (width < 1024) return "tablet";
+    return "desktop";
+  }
+
+  function selectedDate() {
+    const input =
+      document.getElementById("p-date") ||
+      document.getElementById("gt-date") ||
+      document.getElementById("date-picker");
+
+    const value = input && input.value ? String(input.value) : "";
+    return value ? value.replaceAll("_", "-") : undefined;
+  }
+
+  function normalizedFraction(value) {
+    if (value === null || value === undefined || value === "") return undefined;
+    let number = Number(value);
+    if (!Number.isFinite(number)) return undefined;
+
+    if (Math.abs(number) > 1 && Math.abs(number) <= 100) {
+      number /= 100;
+    }
+
+    return number;
+  }
+
+  function probabilityBand(value) {
+    const p = normalizedFraction(value);
+    if (p === undefined || p < 0 || p > 1) return undefined;
+    if (p < 0.45) return "<45%";
+    if (p < 0.55) return "45-55%";
+    if (p < 0.65) return "55-65%";
+    if (p < 0.75) return "65-75%";
+    return "75%+";
+  }
+
+  function confidenceTier(value) {
+    const edge = normalizedFraction(value);
+    if (edge === undefined) return undefined;
+    if (edge >= 0.15) return "5_very_high";
+    if (edge >= 0.10) return "4_high";
+    if (edge >= 0.07) return "3_strong";
+    if (edge >= 0.04) return "2_moderate";
+    if (edge > 0) return "1_low";
+    return "0_none";
+  }
+
+  function compact(properties) {
+    return Object.fromEntries(
+      Object.entries(properties).filter(([, value]) =>
+        value !== undefined &&
+        value !== null &&
+        value !== ""
+      )
+    );
+  }
+
+  function capture(eventName, properties = {}) {
+    if (!window.posthog || typeof window.posthog.capture !== "function") return;
+
+    const props = {
+      page: pageName(),
+      device_type: deviceType(),
+      ...properties
+    };
+
+    if (!props.selected_date) {
+      props.selected_date = selectedDate();
+    } else {
+      props.selected_date = String(props.selected_date).replaceAll("_", "-");
+    }
+
+    props.league = normalizeLeague(props.league);
+
+    if (!props.sport && props.league) {
+      props.sport = inferSport(props.league);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(props, "model_probability")) {
+      props.model_probability = normalizedFraction(props.model_probability);
+      props.model_probability_band = probabilityBand(props.model_probability);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(props, "edge")) {
+      props.edge = normalizedFraction(props.edge);
+      props.confidence_tier = confidenceTier(props.edge);
+    }
+
+    window.posthog.capture(eventName, compact(props));
+  }
+
+  function activeLeague() {
+    const active = document.querySelector(
+      "#league-controls .league-pill.active, " +
+      "#league-filters .filter-pill.active, " +
+      "#gt-filters .filter-pill.active, " +
+      ".league-pill.active[data-sport][data-league]"
+    );
+
+    if (!active) return undefined;
+
+    return normalizeLeague(
+      active.dataset.leagueSub ||
+      active.dataset.leagueKey ||
+      active.dataset.league
+    );
+  }
+
+  function activeSport() {
+    const active = document.querySelector(
+      "#league-controls .league-pill.active, " +
+      "#league-filters .filter-pill.active, " +
+      "#gt-filters .filter-pill.active, " +
+      ".league-pill.active[data-sport][data-league]"
+    );
+
+    return (active && active.dataset.sport) || inferSport(activeLeague());
+  }
+
+  function captureKelly(trigger) {
+    const fractionButton = document.querySelector(".fraction-btns button.active");
+    const pickCount = Number.parseInt(
+      (document.getElementById("total-picks") || {}).textContent || "",
+      10
+    );
+    const bankroll = Number.parseFloat(
+      (document.getElementById("bankroll") || {}).value || "0"
+    );
+
+    capture("kelly_calculated", {
+      trigger,
+      league: activeLeague(),
+      sport: activeSport(),
+      kelly_fraction: fractionButton ? Number(fractionButton.dataset.frac) : undefined,
+      pick_count: Number.isFinite(pickCount) ? pickCount : undefined,
+      has_bankroll: Number.isFinite(bankroll) && bankroll > 0
+    });
+  }
+
+  window.SMHAnalytics = {
+    version: VERSION,
+    capture,
+    inferSport,
+    probabilityBand,
+    confidenceTier
+  };
+
+  function captureSemanticPageView() {
+    const page = pageName();
+
+    if (page === "model_validation") {
+      const activeMarket = document.querySelector(".market-pill.active");
+      capture("model_validation_viewed", {
+        league: activeLeague() || "all",
+        sport: activeSport(),
+        bet_type: activeMarket ? activeMarket.dataset.market : "all"
+      });
+    }
+
+    if (page === "prop_engine") {
+      capture("props_viewed", {
+        view_type: "page",
+        props_surface: "player_prop_engine",
+        league: activeLeague(),
+        sport: activeSport()
+      });
+    }
+
+    if (page === "props_nfl") {
+      capture("props_viewed", {
+        view_type: "page",
+        props_surface: "nfl_model_props",
+        league: "NFL",
+        sport: "football",
+        season: (document.getElementById("seasonSelect") || {}).value,
+        week: (document.getElementById("weekSelect") || {}).value
+      });
+    }
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", captureSemanticPageView, { once: true });
+  } else {
+    captureSemanticPageView();
+  }
+
+  document.addEventListener("click", event => {
+    const target = event.target instanceof Element ? event.target : null;
+    if (!target) return;
+
+    const leagueControl = target.closest(
+      ".filter-pill[data-league], " +
+      ".league-pill[data-league], " +
+      ".league-pill[data-league-key]"
+    );
+
+    if (leagueControl && !leagueControl.disabled) {
+      const league = normalizeLeague(
+        leagueControl.dataset.leagueSub ||
+        leagueControl.dataset.leagueKey ||
+        leagueControl.dataset.league
+      );
+
+      capture("league_selected", {
+        league,
+        sport: leagueControl.dataset.sport || inferSport(league)
+      });
+    }
+
+    if (pageName() === "bet_history") {
+      const historyFilter = target.closest(
+        ".league-pill[data-league], .market-pill[data-market], .result-pill[data-result]"
+      );
+
+      if (historyFilter && !historyFilter.disabled) {
+        const activeLeagueControl =
+          document.querySelector("#league-controls .league-pill.active") ||
+          (historyFilter.matches(".league-pill") ? historyFilter : null);
+
+        const activeMarketControl =
+          document.querySelector(".market-pill.active") ||
+          (historyFilter.matches(".market-pill") ? historyFilter : null);
+
+        const activeResultControl =
+          document.querySelector(".result-pill.active") ||
+          (historyFilter.matches(".result-pill") ? historyFilter : null);
+
+        const filterType =
+          historyFilter.matches(".league-pill") ? "league" :
+          historyFilter.matches(".market-pill") ? "market" :
+          "result";
+
+        const filterValue =
+          historyFilter.dataset.leagueSub ||
+          historyFilter.dataset.league ||
+          historyFilter.dataset.market ||
+          historyFilter.dataset.result;
+
+        capture("bet_history_filtered", {
+          filter_type: filterType,
+          filter_value: filterValue,
+          league: activeLeagueControl
+            ? activeLeagueControl.dataset.leagueSub || activeLeagueControl.dataset.league
+            : "all",
+          bet_type: activeMarketControl ? activeMarketControl.dataset.market : "all",
+          result: activeResultControl ? activeResultControl.dataset.result : "all"
+        });
+      }
+    }
+
+    if (pageName() === "kelly_calculator") {
+      if (target.closest(".fraction-btns button")) {
+        setTimeout(() => captureKelly("fraction_change"), 0);
+      }
+    }
+
+    if (pageName() === "prop_engine") {
+      const analyzeButton = target.closest("#analyze-btn");
+      if (analyzeButton) {
+        const propSelect = document.getElementById("prop-select");
+        capture("props_viewed", {
+          view_type: "analysis",
+          props_surface: "player_prop_engine",
+          league: activeLeague(),
+          sport: activeSport(),
+          bet_type: propSelect && propSelect.selectedOptions.length
+            ? propSelect.selectedOptions[0].textContent.trim()
+            : undefined
+        });
+      }
+    }
+
+    if (pageName() === "props_nfl") {
+      const propButton = target.closest("#propButtons button");
+      if (propButton) {
+        capture("props_viewed", {
+          view_type: "filter",
+          props_surface: "nfl_model_props",
+          league: "NFL",
+          sport: "football",
+          bet_type: propButton.textContent.replace(/\s*\(\d+\)\s*$/, "").trim(),
+          season: (document.getElementById("seasonSelect") || {}).value,
+          week: (document.getElementById("weekSelect") || {}).value
+        });
+      }
+    }
+
+    const anchor = target.closest("a[href]");
+    if (anchor) {
+      try {
+        const destination = new URL(anchor.href, location.href);
+        if (
+          (destination.protocol === "http:" || destination.protocol === "https:") &&
+          destination.origin !== location.origin
+        ) {
+          capture("outbound_link_clicked", {
+            destination_domain: destination.hostname,
+            destination_url: destination.href
+          });
+        }
+      } catch (_) {
+        // Ignore malformed or non-web links.
+      }
+    }
+  });
+
+  document.addEventListener("change", event => {
+    const target = event.target instanceof Element ? event.target : null;
+    if (!target || pageName() !== "kelly_calculator") return;
+
+    if (target.matches("#bankroll")) {
+      captureKelly("bankroll_change");
+    }
+  });
+})();
+/* SMH_PRODUCT_ANALYTICS_END */

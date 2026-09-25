@@ -581,7 +581,23 @@ function buildUFCCard(row) {
       ${edgeDots(edge)}
     </div>`;
 
-  card.addEventListener("click", () => openModal(buildUFCModalHtml(row)));
+  /* SMH_UFC_PICK_ANALYTICS_START */
+  card.addEventListener("click", () => {
+    if (window.SMHAnalytics) {
+      window.SMHAnalytics.capture("pick_viewed", {
+        league: "UFC",
+        sport: "mma",
+        matchup: `${fighter} vs ${opponent}`,
+        bet_type: "moneyline",
+        model_probability: row.model_prob,
+        edge: row.edge,
+        selected_date: row.match_date
+      });
+    }
+
+    openModal(buildUFCModalHtml(row));
+  });
+  /* SMH_UFC_PICK_ANALYTICS_END */
   return card;
 }
 
@@ -770,7 +786,33 @@ function renderColumn(result) {
     const r     = picks[0];
     picks.forEach(p => {
       const card = buildCard(p, r, result.cfg);
-      card.addEventListener("click", () => openModal(buildModalHtml(r, picks, result.cfg)));
+      /* SMH_PICK_ANALYTICS_START */
+      card.addEventListener("click", () => {
+        if (window.SMHAnalytics) {
+          const probability = [
+            p.model_prob,
+            p.bet_model_prob,
+            p.bet_adjusted_model_prob,
+            p.selected_model_prob,
+            p.model_probability
+          ].find(value => value !== undefined && value !== null && value !== "");
+
+          window.SMHAnalytics.capture("pick_viewed", {
+            league: result.league,
+            sport: result.cfg && result.cfg.sport,
+            matchup: result.cfg && result.cfg.isSoccer
+              ? `${r.home_team || "â€”"} vs ${r.away_team || "â€”"}`
+              : `${r.away_team || "â€”"} @ ${r.home_team || "â€”"}`,
+            bet_type: p.market_type || p.market,
+            model_probability: probability,
+            edge: extractEdge(p),
+            selected_date: dateInput && dateInput.value ? dateInput.value : r.game_date
+          });
+        }
+
+        openModal(buildModalHtml(r, picks, result.cfg));
+      });
+      /* SMH_PICK_ANALYTICS_END */
       col.appendChild(card);
       count++;
     });
