@@ -68,6 +68,70 @@ posthog.init('phc_r8rHehNywABoAFEGt5vTx8iTpoTY6hiFoyygPrMF6WE4', {
   disable_session_recording: true
 });
 
+/* SMH_INTERNAL_USER_MARKER_START */
+(() => {
+  const STORAGE_KEY = "smh_internal_user";
+  const url = new URL(window.location.href);
+  const requested = url.searchParams.get("smh_internal");
+
+  if (requested === "1") {
+    localStorage.setItem(STORAGE_KEY, "1");
+    url.searchParams.delete("smh_internal");
+    history.replaceState({}, "", url.pathname + url.search + url.hash);
+  } else if (requested === "0") {
+    localStorage.removeItem(STORAGE_KEY);
+    url.searchParams.delete("smh_internal");
+    history.replaceState({}, "", url.pathname + url.search + url.hash);
+  }
+
+  const isInternal = localStorage.getItem(STORAGE_KEY) === "1";
+
+  if (
+    isInternal &&
+    window.posthog &&
+    typeof window.posthog.setPersonProperties === "function"
+  ) {
+    window.posthog.setPersonProperties({
+      $internal_or_test_user: true
+    });
+  } else if (
+    requested === "0" &&
+    window.posthog &&
+    typeof window.posthog.setPersonProperties === "function"
+  ) {
+    window.posthog.setPersonProperties({
+      $internal_or_test_user: false
+    });
+  }
+
+  window.SMHInternalUser = {
+    enabled: isInternal,
+    enable() {
+      localStorage.setItem(STORAGE_KEY, "1");
+      if (
+        window.posthog &&
+        typeof window.posthog.setPersonProperties === "function"
+      ) {
+        window.posthog.setPersonProperties({
+          $internal_or_test_user: true
+        });
+      }
+    },
+    disable() {
+      localStorage.removeItem(STORAGE_KEY);
+      if (
+        window.posthog &&
+        typeof window.posthog.setPersonProperties === "function"
+      ) {
+        window.posthog.setPersonProperties({
+          $internal_or_test_user: false
+        });
+      }
+    }
+  };
+})();
+/* SMH_INTERNAL_USER_MARKER_END */
+
 /* SMH_PRODUCT_ANALYTICS_START */
 (() => {
   const VERSION = "1.0.0";
