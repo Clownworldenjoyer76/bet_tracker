@@ -172,7 +172,11 @@ posthog.init('phc_r8rHehNywABoAFEGt5vTx8iTpoTY6hiFoyygPrMF6WE4', {
   }
 
   function capture(eventName, properties = {}) {
-    if (!window.posthog || typeof window.posthog.capture !== "function") return;
+    if (!window.posthog || typeof window.posthog.capture !== "function") {
+      window.__smhAnalyticsQueue = window.__smhAnalyticsQueue || [];
+      window.__smhAnalyticsQueue.push([eventName, properties]);
+      return;
+    }
 
     const props = {
       page: pageName(),
@@ -261,6 +265,16 @@ posthog.init('phc_r8rHehNywABoAFEGt5vTx8iTpoTY6hiFoyygPrMF6WE4', {
     confidenceTier
   };
 
+  window.SMHTrack = function(eventName, properties = {}) {
+    capture(eventName, properties);
+  };
+
+  const queuedEvents = window.__smhAnalyticsQueue || [];
+  window.__smhAnalyticsQueue = [];
+  queuedEvents.forEach(([eventName, properties]) => {
+    capture(eventName, properties || {});
+  });
+
   function captureSemanticPageView() {
     const page = pageName();
 
@@ -321,47 +335,6 @@ posthog.init('phc_r8rHehNywABoAFEGt5vTx8iTpoTY6hiFoyygPrMF6WE4', {
         league,
         sport: leagueControl.dataset.sport || inferSport(league)
       });
-    }
-
-    if (pageName() === "bet_history") {
-      const historyFilter = target.closest(
-        ".league-pill[data-league], .market-pill[data-market], .result-pill[data-result]"
-      );
-
-      if (historyFilter && !historyFilter.disabled) {
-        const activeLeagueControl =
-          document.querySelector("#league-controls .league-pill.active") ||
-          (historyFilter.matches(".league-pill") ? historyFilter : null);
-
-        const activeMarketControl =
-          document.querySelector(".market-pill.active") ||
-          (historyFilter.matches(".market-pill") ? historyFilter : null);
-
-        const activeResultControl =
-          document.querySelector(".result-pill.active") ||
-          (historyFilter.matches(".result-pill") ? historyFilter : null);
-
-        const filterType =
-          historyFilter.matches(".league-pill") ? "league" :
-          historyFilter.matches(".market-pill") ? "market" :
-          "result";
-
-        const filterValue =
-          historyFilter.dataset.leagueSub ||
-          historyFilter.dataset.league ||
-          historyFilter.dataset.market ||
-          historyFilter.dataset.result;
-
-        capture("bet_history_filtered", {
-          filter_type: filterType,
-          filter_value: filterValue,
-          league: activeLeagueControl
-            ? activeLeagueControl.dataset.leagueSub || activeLeagueControl.dataset.league
-            : "all",
-          bet_type: activeMarketControl ? activeMarketControl.dataset.market : "all",
-          result: activeResultControl ? activeResultControl.dataset.result : "all"
-        });
-      }
     }
 
     if (pageName() === "kelly_calculator") {

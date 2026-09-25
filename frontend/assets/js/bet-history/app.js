@@ -229,6 +229,30 @@ function filteredRows() {
   });
 }
 
+/* SMH_BET_HISTORY_ANALYTICS_START */
+function trackHistoryFilter(filterType, filterValue) {
+  var activeLeaguePill = document.querySelector('#league-controls .league-pill.active');
+  var league = activeLeaguePill
+    ? (activeLeaguePill.dataset.leagueSub || activeLeaguePill.dataset.league || 'all')
+    : activeLeague;
+
+  var props = {
+    filter_type: filterType,
+    filter_value: filterValue,
+    league: league || 'all',
+    bet_type: activeMarket || 'all',
+    result: activeResult || 'all'
+  };
+
+  if (window.SMHTrack) {
+    window.SMHTrack('bet_history_filtered', props);
+  } else {
+    window.__smhAnalyticsQueue = window.__smhAnalyticsQueue || [];
+    window.__smhAnalyticsQueue.push(['bet_history_filtered', props]);
+  }
+}
+/* SMH_BET_HISTORY_ANALYTICS_END */
+
 document.querySelectorAll('.league-pill').forEach(function(pill) {
   pill.addEventListener('click', function() {
     document.querySelectorAll('.league-pill').forEach(function(p) {
@@ -237,6 +261,11 @@ document.querySelectorAll('.league-pill').forEach(function(pill) {
 
     pill.classList.add('active');
     activeLeague = pill.dataset.league;
+
+    trackHistoryFilter(
+      'league',
+      pill.dataset.leagueSub || pill.dataset.league || 'all'
+    );
 
     if (allRows.length) render();
   });
@@ -251,6 +280,8 @@ document.querySelectorAll('.market-pill').forEach(function(pill) {
     pill.classList.add('active');
     activeMarket = pill.dataset.market;
 
+    trackHistoryFilter('market', activeMarket);
+
     if (allRows.length) render();
   });
 });
@@ -263,6 +294,8 @@ document.querySelectorAll('.result-pill').forEach(function(pill) {
 
     pill.classList.add('active');
     activeResult = pill.dataset.result;
+
+    trackHistoryFilter('result', activeResult);
 
     if (allRows.length) render();
   });
