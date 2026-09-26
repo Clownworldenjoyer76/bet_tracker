@@ -51,7 +51,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 import math
-import re
 import sys
 
 import numpy as np
@@ -113,17 +112,6 @@ COUNT_COLUMNS = [
     "raw_rate_sample_size",
 ]
 
-HISTORICAL_FRANCHISE_ALIASES = {
-    "SD": "LAC",
-    "OAK": "LV",
-    "STL": "LAR",
-}
-
-GAME_ID_RE = re.compile(
-    r"^(?P<season>\d{4})_(?P<week>\d{1,2})_"
-    r"(?P<away>[A-Za-z0-9]+)_(?P<home>[A-Za-z0-9]+)$"
-)
-
 TACKLE_ID_COLUMNS = [
     "solo_tackle_1_player_id",
     "solo_tackle_2_player_id",
@@ -134,95 +122,26 @@ TACKLE_ID_COLUMNS = [
 ]
 
 
-def clean(value: Any) -> str:
-    if value is None:
-        return ""
-
-    try:
-        if pd.isna(value):
-            return ""
-    except (TypeError, ValueError):
-        pass
-
-    text = str(value).strip()
-
-    if text.casefold() in {
-        "",
-        "nan",
-        "none",
-        "null",
-        "<na>",
-        "nat",
-    }:
-        return ""
-
-    return text
-
-
-def canonical_team(value: Any) -> str:
-    team = common.normalize_team(value)
-    return HISTORICAL_FRANCHISE_ALIASES.get(team, team)
-
-
 def defense_from_game_id(
     game_id: Any,
     offense_team: Any,
 ) -> str:
-    text = clean(game_id)
-    match = GAME_ID_RE.fullmatch(text)
-
-    if not match:
-        raise ValueError(
-            f"Unsupported nflverse game_id: {game_id!r}"
-        )
-
-    away = canonical_team(match.group("away"))
-    home = canonical_team(match.group("home"))
-    offense = canonical_team(offense_team)
-
-    if offense == away:
-        return home
-
-    if offense == home:
-        return away
-
-    raise ValueError(
-        f"Offense team {offense_team!r} does not belong to "
-        f"game_id {game_id!r} after team normalization."
+    return common.opponent_from_nflverse_game_id(
+        game_id,
+        offense_team,
+        invalid_message=f"Unsupported nflverse game_id: {game_id!r}",
+        mismatch_message=(
+            f"Offense team {offense_team!r} does not belong to "
+            f"game_id {game_id!r} after team normalization."
+        ),
     )
-
 
 def numeric_series(
     series: pd.Series,
     *,
     label: str,
 ) -> pd.Series:
-    converted = pd.to_numeric(
-        series,
-        errors="coerce",
-    )
-
-    invalid = (
-        series.notna()
-        & series.astype(str).str.strip().ne("")
-        & converted.isna()
-    )
-
-    if invalid.any():
-        examples = (
-            series.loc[invalid]
-            .astype(str)
-            .head(10)
-            .tolist()
-        )
-
-        raise ValueError(
-            f"{label}: non-numeric values found. "
-            f"Examples={examples}"
-        )
-
-    return converted.astype(float)
-
+    return common.numeric_series_required(series, label=label)
 
 def get_position_allowed_config(
     config: dict,
@@ -291,7 +210,7 @@ def build_dense_grid(
 
     base["defense_team"] = (
         base["team"]
-        .map(canonical_team)
+        .map(common.normalize_team)
     )
 
     base = (
@@ -392,7 +311,7 @@ def build_allowed_totals(
 
     working["team"] = (
         working["team"]
-        .map(canonical_team)
+        .map(common.normalize_team)
     )
 
     working["position_group"] = (
@@ -557,9 +476,9 @@ def tackle_credit_count(
     row: pd.Series,
 ) -> int:
     defenders = {
-        clean(row[column])
+        common.clean_text(row[column])
         for column in TACKLE_ID_COLUMNS
-        if clean(row[column])
+        if common.clean_text(row[column])
     }
 
     return len(defenders)
@@ -602,44 +521,28 @@ def build_tackles_generated(
             )
         )
 
-        if not path.is_file():
-            raise FileNotFoundError(
-                f"Rich-season PBP missing: {path}"
-            )
-
-        pbp = pd.read_csv(
+        pbp = common.read_regular_season_pbp(
             path,
             usecols=usecols,
-            low_memory=False,
+            season=season,
+            missing_message=(
+                f"Rich-season PBP missing: {path}"
+            ),
         )
-
-        pbp = pbp.loc[
-            pbp["season_type"]
-            .astype(str)
-            .str.upper()
-            .eq("REG")
-        ].copy()
-
-        pbp["season"] = season
-
-        pbp["week"] = pd.to_numeric(
-            pbp["week"],
-            errors="raise",
-        ).astype(int)
 
         pbp["game_id"] = (
             pbp["game_id"]
-            .map(clean)
+            .map(common.clean_text)
         )
 
         pbp["posteam"] = (
             pbp["posteam"]
-            .map(canonical_team)
+            .map(common.normalize_team)
         )
 
         pbp["defteam"] = (
             pbp["defteam"]
-            .map(canonical_team)
+            .map(common.normalize_team)
         )
 
         for column in [

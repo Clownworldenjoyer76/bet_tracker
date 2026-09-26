@@ -169,31 +169,6 @@ TEAM_HISTORY_ALIASES = {
 }
 
 
-def clean(value: Any) -> str:
-    if value is None:
-        return ""
-
-    try:
-        if pd.isna(value):
-            return ""
-    except (TypeError, ValueError):
-        pass
-
-    text = str(value).strip()
-
-    if text.casefold() in {
-        "",
-        "nan",
-        "none",
-        "null",
-        "<na>",
-        "nat",
-    }:
-        return ""
-
-    return text
-
-
 def normalize_team(value: Any) -> str:
     return common.normalize_team(value)
 
@@ -213,7 +188,7 @@ def normalize_team_history_identity(
 
 def normalize_position(value: Any) -> str:
     raw = (
-        clean(value)
+        common.clean_text(value)
         .upper()
         .replace(" ", "")
     )
@@ -268,7 +243,7 @@ def role_group(
             position
         ]
 
-    group = clean(
+    group = common.clean_text(
         position_group
     ).upper()
 
@@ -296,7 +271,7 @@ def normalize_injury_status(
     value: Any,
 ) -> str:
     status = (
-        clean(value)
+        common.clean_text(value)
         .casefold()
         .replace("-", " ")
         .replace("_", " ")
@@ -339,34 +314,12 @@ def numeric(
     *,
     label: str,
 ) -> pd.Series:
-    converted = pd.to_numeric(
+    return common.numeric_series_required(
         series,
-        errors="coerce",
+        label=label,
+        invalid_description="non-numeric values",
+        examples_label="Sample",
     )
-
-    invalid = (
-        series.notna()
-        & series.astype(str).str.strip().ne("")
-        & converted.isna()
-    )
-
-    if invalid.any():
-        sample = (
-            series.loc[invalid]
-            .astype(str)
-            .head(10)
-            .tolist()
-        )
-
-        raise ValueError(
-            f"{label}: non-numeric values. "
-            f"Sample={sample}"
-        )
-
-    return converted.astype(
-        float
-    )
-
 
 def max_available(
     left: Any,
@@ -466,7 +419,7 @@ def build_name_map(
         if not gsis:
             continue
 
-        normalized = clean(
+        normalized = common.clean_text(
             getattr(
                 row,
                 "normalized_name",
@@ -505,7 +458,7 @@ def build_name_map(
 def parse_modified(
     value: Any,
 ) -> pd.Timestamp | None:
-    text = clean(
+    text = common.clean_text(
         value
     )
 

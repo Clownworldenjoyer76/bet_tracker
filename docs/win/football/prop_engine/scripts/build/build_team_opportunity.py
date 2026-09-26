@@ -24,8 +24,6 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any
-import math
-import re
 import sys
 
 import numpy as np
@@ -210,75 +208,21 @@ RATE_COLUMNS = [
     "red_zone_td_rate_allowed",
 ]
 
-HISTORICAL_FRANCHISE_ALIASES = {
-    "SD": "LAC",
-    "OAK": "LV",
-    "STL": "LAR",
-}
-
-GAME_ID_RE = re.compile(
-    r"^(?P<season>\d{4})_(?P<week>\d{1,2})_"
-    r"(?P<away>[A-Za-z0-9]+)_(?P<home>[A-Za-z0-9]+)$"
-)
-
-
-def clean(value: Any) -> str:
-    if value is None:
-        return ""
-
-    try:
-        if pd.isna(value):
-            return ""
-    except (TypeError, ValueError):
-        pass
-
-    text = str(value).strip()
-
-    if text.casefold() in {
-        "",
-        "nan",
-        "none",
-        "null",
-        "<na>",
-        "nat",
-    }:
-        return ""
-
-    return text
-
-
-def canonical_team(value: Any) -> str:
-    team = common.normalize_team(value)
-    return HISTORICAL_FRANCHISE_ALIASES.get(team, team)
-
-
 def opponent_from_game_id(
     game_id: Any,
     team: Any,
 ) -> str:
-    text = clean(game_id)
-    match = GAME_ID_RE.fullmatch(text)
-
-    if not match:
-        raise ValueError(
+    return common.opponent_from_nflverse_game_id(
+        game_id,
+        team,
+        invalid_message=(
             f"Unsupported nflverse game_id for opponent mapping: {game_id!r}"
-        )
-
-    away = canonical_team(match.group("away"))
-    home = canonical_team(match.group("home"))
-    club = canonical_team(team)
-
-    if club == away:
-        return home
-
-    if club == home:
-        return away
-
-    raise ValueError(
-        f"Team {team!r} does not belong to game_id {game_id!r} "
-        f"after franchise normalization."
+        ),
+        mismatch_message=(
+            f"Team {team!r} does not belong to game_id {game_id!r} "
+            f"after franchise normalization."
+        ),
     )
-
 
 def numeric_series(
     series: pd.Series,
@@ -286,71 +230,17 @@ def numeric_series(
     label: str,
     fill_zero: bool = False,
 ) -> pd.Series:
-    converted = pd.to_numeric(
+    return common.numeric_series_required(
         series,
-        errors="coerce",
+        label=label,
+        fill_zero=fill_zero,
     )
-
-    invalid = (
-        series.notna()
-        & series.astype(str).str.strip().ne("")
-        & converted.isna()
-    )
-
-    if invalid.any():
-        examples = (
-            series.loc[invalid]
-            .astype(str)
-            .head(10)
-            .tolist()
-        )
-
-        raise ValueError(
-            f"{label}: non-numeric values found. "
-            f"Examples={examples}"
-        )
-
-    converted = converted.astype(float)
-
-    if fill_zero:
-        converted = converted.fillna(0.0)
-
-    return converted
-
 
 def safe_divide(
     numerator: pd.Series,
     denominator: pd.Series,
 ) -> pd.Series:
-    num = pd.to_numeric(
-        numerator,
-        errors="coerce",
-    ).astype(float)
-
-    den = pd.to_numeric(
-        denominator,
-        errors="coerce",
-    ).astype(float)
-
-    valid = (
-        num.notna()
-        & den.notna()
-        & den.ne(0.0)
-    )
-
-    result = pd.Series(
-        float("nan"),
-        index=num.index,
-        dtype="float64",
-    )
-
-    result.loc[valid] = (
-        num.loc[valid]
-        / den.loc[valid]
-    )
-
-    return result
-
+    return common.safe_divide_nonzero(numerator, denominator)
 
 def normalize_week_team_frame(
     df: pd.DataFrame,
@@ -367,11 +257,41 @@ def normalize_week_team_frame(
         errors="raise",
     ).astype(int)
 
-    output["team"] = output["team"].map(
-        canonical_team
-    )
+    output["team"] = output["team"].map(common.normalize_team)
 
     return output
+
+
+def regular_season_rows(
+    frame: pd.DataFrame,
+    *,
+    season: int,
+    path: Path,
+    row_label: str = "",
+) -> pd.DataFrame:
+    working = frame.loc[
+        pd.to_numeric(
+            frame["season"],
+            errors="coerce",
+        ).eq(season)
+        & frame["season_type"]
+        .astype(str)
+        .str.upper()
+        .eq("REG")
+    ].copy()
+
+    if working.empty:
+        label = f"{row_label} " if row_label else ""
+        raise RuntimeError(
+            f"{path}: no regular-season {label}rows for {season}."
+        )
+
+    working["season"] = season
+    working["week"] = pd.to_numeric(
+        working["week"],
+        errors="raise",
+    ).astype(int)
+    return working
 
 
 def build_stats_game_tables(
@@ -408,38 +328,20 @@ def build_stats_game_tables(
         str(path),
     )
 
-    working = source.loc[
-        pd.to_numeric(
-            source["season"],
-            errors="coerce",
-        ).eq(season)
-        &
-        source["season_type"]
-        .astype(str)
-        .str.upper()
-        .eq("REG")
-    ].copy()
-
-    if working.empty:
-        raise RuntimeError(
-            f"{path}: no regular-season rows for {season}."
-        )
-
-    working["season"] = season
-
-    working["week"] = pd.to_numeric(
-        working["week"],
-        errors="raise",
-    ).astype(int)
+    working = regular_season_rows(
+        source,
+        season=season,
+        path=path,
+    )
 
     working["game_id"] = (
         working["game_id"]
-        .map(clean)
+        .map(common.clean_text)
     )
 
     working["team"] = (
         working["team"]
-        .map(canonical_team)
+        .map(common.normalize_team)
     )
 
     if working["game_id"].eq("").any():
@@ -789,34 +691,17 @@ def build_pbp_tables(
 
     drive_col = get_drive_column(pbp)
 
-    working = pbp.loc[
-        pd.to_numeric(
-            pbp["season"],
-            errors="coerce",
-        ).eq(season)
-        &
-        pbp["season_type"]
-        .astype(str)
-        .str.upper()
-        .eq("REG")
-    ].copy()
+    working = regular_season_rows(
+        pbp,
+        season=season,
+        path=path,
+        row_label="PBP",
+    )
 
-    if working.empty:
-        raise RuntimeError(
-            f"{path}: no regular-season PBP rows for {season}."
-        )
-
-    working["season"] = season
-
-    working["week"] = pd.to_numeric(
-        working["week"],
-        errors="raise",
-    ).astype(int)
-
-    working["game_id"] = working["game_id"].map(clean)
-    working["posteam"] = working["posteam"].map(canonical_team)
-    working["defteam"] = working["defteam"].map(canonical_team)
-    working["receiver_player_id"] = working["receiver_player_id"].map(clean)
+    working["game_id"] = working["game_id"].map(common.clean_text)
+    working["posteam"] = working["posteam"].map(common.normalize_team)
+    working["defteam"] = working["defteam"].map(common.normalize_team)
+    working["receiver_player_id"] = working["receiver_player_id"].map(common.clean_text)
 
     numeric_columns = [
         "yardline_100",

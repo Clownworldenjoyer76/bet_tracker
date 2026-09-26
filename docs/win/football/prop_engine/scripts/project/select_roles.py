@@ -28,10 +28,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
-import subprocess
 import sys
-import tempfile
-import os
 from pathlib import Path
 from typing import Any
 
@@ -142,9 +139,6 @@ def resolve_season(args: argparse.Namespace, config: dict) -> int:
     return season
 
 
-def repo_relative(path: Path) -> str:
-    return str(path.resolve().relative_to(common.repo_root().resolve())).replace("\\", "/")
-
 
 def write_json_atomic(payload: dict[str, Any], path: Path) -> None:
     prop_root = common.prop_root().resolve()
@@ -153,51 +147,27 @@ def write_json_atomic(payload: dict[str, Any], path: Path) -> None:
         destination.relative_to(prop_root)
     except ValueError as exc:
         raise ValueError(f"Role log must remain under Prop Engine: {destination}") from exc
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    handle = tempfile.NamedTemporaryFile(
-        mode="w",
-        encoding="utf-8",
-        newline="\n",
-        prefix=f".{destination.name}.",
-        suffix=".tmp",
-        dir=destination.parent,
-        delete=False,
+    common.write_json_default_str_atomic(
+        destination,
+        payload,
+        ensure_ascii=False,
     )
-    temp_path = Path(handle.name)
-    try:
-        with handle:
-            json.dump(payload, handle, indent=2, sort_keys=True, ensure_ascii=False, default=str)
-            handle.write("\n")
-        os.replace(temp_path, destination)
-    finally:
-        if temp_path.exists():
-            temp_path.unlink()
 
 
 def run_market_preflight() -> dict[str, Any]:
-    audit_path = SCRIPTS_ROOT / "validate" / "audit_market_exclusion.py"
-    if not audit_path.exists():
-        raise FileNotFoundError(f"Issue 28 market-exclusion validator missing: {audit_path}")
-    completed = subprocess.run(
-        [sys.executable, str(audit_path)],
-        cwd=common.repo_root(),
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if completed.returncode != 0:
-        raise RuntimeError(
+    return common.run_market_exclusion_audit(
+        missing_message=(
+            "Issue 28 market-exclusion validator missing: {path}"
+        ),
+        failure_prefix=(
             "Market-exclusion preflight failed before role selection. "
-            f"stdout={completed.stdout[-2000:]!r} stderr={completed.stderr[-2000:]!r}"
-        )
-    if "MARKET EXCLUSION AUDIT: PASS" not in completed.stdout:
-        raise RuntimeError("Market-exclusion validator returned zero without PASS marker.")
-    return {
-        "passed": True,
-        "validator": repo_relative(audit_path),
-        "pass_marker": "MARKET EXCLUSION AUDIT: PASS",
-    }
-
+        ),
+        validator_posix=True,
+        include_pass_marker=True,
+        missing_pass_message=(
+            "Market-exclusion validator returned zero without PASS marker."
+        ),
+    )
 
 def current_universe_path(season: int, week: int) -> Path:
     return common.prop_root() / "data" / "current" / f"{season}_week_{week}_universe.parquet"
@@ -217,8 +187,6 @@ def load_universe(season: int, week: int) -> pd.DataFrame:
         raise FileNotFoundError(f"Issue 29 current universe is missing: {path}")
     frame = pd.read_parquet(path)
     common.require_columns(frame, UNIVERSE_REQUIRED, "Issue 29 current universe")
-    if list(frame.columns)[:0] != []:
-        pass
     frame = frame.copy()
     frame["season"] = pd.to_numeric(frame["season"], errors="raise").astype(int)
     frame["week"] = pd.to_numeric(frame["week"], errors="raise").astype(int)
@@ -398,7 +366,7 @@ def build_recent_kick_usage(config: dict, universe: pd.DataFrame, season: int, w
 
 def kicker_sort_score(rank: float, recent_attempts: float, starter: int) -> tuple[float, float, float]:
     rank_value = rank if math.isfinite(rank) else 999.0
-    return (-rank_value, float(starter), float(recent_attempts))
+    return -rank_value, float(starter), float(recent_attempts)
 
 
 def select_primary_kicker(team_all: pd.DataFrame, usage: dict[str, dict[str, float]]) -> tuple[str, float, str, set[str], dict[str, Any]]:
@@ -658,8 +626,8 @@ def main() -> int:
         "ambiguous_kicker_teams": audit["ambiguous_kicker_teams"],
         "market_exclusion_passed": bool(market["passed"]),
         "market_features_used": False,
-        "output": repo_relative(destination),
-        "log": repo_relative(log_path(season, week)),
+        "output": common.repo_relative_posix_path(destination),
+        "log": common.repo_relative_posix_path(log_path(season, week)),
     }
     log_payload = {
         **payload,

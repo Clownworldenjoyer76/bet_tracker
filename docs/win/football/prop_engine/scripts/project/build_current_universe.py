@@ -49,18 +49,17 @@ from pathlib import Path
 from typing import Any, Iterable
 from zoneinfo import ZoneInfo
 
-import numpy as np
 import pandas as pd
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 SCRIPTS_ROOT = SCRIPT_DIR.parent
 VALIDATE_DIR = SCRIPTS_ROOT / "validate"
-for value in (SCRIPTS_ROOT, VALIDATE_DIR):
-    if str(value) not in sys.path:
-        sys.path.insert(0, str(value))
+for search_path in (SCRIPTS_ROOT, VALIDATE_DIR):
+    if str(search_path) not in sys.path:
+        sys.path.insert(0, str(search_path))
 
 import common
-import audit_market_exclusion
+from validate import audit_market_exclusion
 
 
 OUTPUT_COLUMNS = [
@@ -465,12 +464,12 @@ def new_candidate(team: str) -> dict[str, Any]:
 
 def candidate_key(team: str, espn_id: str, gsis_id: str, name: str) -> tuple[str, str, str]:
     if espn_id:
-        return (team, "espn", espn_id)
+        return team, "espn", espn_id
     if gsis_id:
-        return (team, "gsis", gsis_id)
+        return team, "gsis", gsis_id
     normalized = common.normalize_name(name)
     if normalized:
-        return (team, "name", normalized)
+        return team, "name", normalized
     raise ValueError(f"Cannot key candidate for team={team}: no ID or name")
 
 
@@ -956,6 +955,19 @@ def merge_resolved_records(records: list[dict[str, Any]]) -> dict[str, Any]:
     return merged
 
 
+def multi_team_conflicts(
+    resolved_groups: dict[tuple[str, str], list[dict[str, Any]]],
+) -> dict[str, list[str]]:
+    player_teams: dict[str, set[str]] = defaultdict(set)
+    for team, gsis_id in resolved_groups:
+        player_teams[gsis_id].add(team)
+    return {
+        gsis_id: sorted(teams)
+        for gsis_id, teams in player_teams.items()
+        if len(teams) > 1
+    }
+
+
 def reconcile_multi_team_resolutions(
     resolved_groups: dict[tuple[str, str], list[dict[str, Any]]],
     resolution_methods: dict[tuple[str, str], set[str]],
@@ -963,15 +975,7 @@ def reconcile_multi_team_resolutions(
     resolver: IdentityResolver,
     abbreviations: set[str],
 ) -> list[dict[str, Any]]:
-    player_teams: dict[str, set[str]] = defaultdict(set)
-    for team, gsis_id in resolved_groups:
-        player_teams[gsis_id].add(team)
-
-    conflicts = {
-        gsis_id: sorted(teams)
-        for gsis_id, teams in player_teams.items()
-        if len(teams) > 1
-    }
+    conflicts = multi_team_conflicts(resolved_groups)
 
     reconciled: list[dict[str, Any]] = []
     unresolved: dict[str, dict[str, Any]] = {}
@@ -1026,15 +1030,7 @@ def reconcile_multi_team_resolutions(
             f"{dict(list(unresolved.items())[:10])}"
         )
 
-    post_teams: dict[str, set[str]] = defaultdict(set)
-    for team, gsis_id in resolved_groups:
-        post_teams[gsis_id].add(team)
-
-    remaining = {
-        gsis_id: sorted(teams)
-        for gsis_id, teams in post_teams.items()
-        if len(teams) > 1
-    }
+    remaining = multi_team_conflicts(resolved_groups)
 
     if remaining:
         raise ValueError(
@@ -1051,6 +1047,7 @@ def main() -> int:
     config = common.load_config()
 
     market_audit = audit_market_exclusion.run_production_audit(write_output=True)
+    # noinspection PySimplifyBooleanCheck
     if market_audit.get("passed") is not True:
         raise RuntimeError(f"Issue 28 market exclusion preflight failed: {market_audit}")
 

@@ -222,13 +222,6 @@ def finite_float(value: Any) -> float | None:
     return number if math.isfinite(number) else None
 
 
-def numeric(series: pd.Series) -> pd.Series:
-    return (
-        pd.to_numeric(series, errors="coerce")
-        .replace([np.inf, -np.inf], np.nan)
-        .astype("float64")
-    )
-
 
 
 def numeric_matrix(
@@ -261,7 +254,7 @@ def coalesce_numeric(frame: pd.DataFrame, columns: list[str]) -> pd.Series:
     for column in columns:
         if column not in frame.columns:
             continue
-        candidate = numeric(frame[column])
+        candidate = common.safe_numeric_float64(frame[column])
         result = result.where(result.notna(), candidate)
     return result
 
@@ -337,6 +330,16 @@ def metric_values(
         )
 
     return result
+
+
+def required_metric(
+    metrics: dict[str, float | None],
+    name: str,
+) -> float:
+    value = metrics[name]
+    if value is None:
+        raise ValueError(f"Required metric is unavailable: {name}")
+    return float(value)
 
 
 def resolve_folds(folds: pd.DataFrame) -> dict[str, Any]:
@@ -447,7 +450,7 @@ def load_baseline_windows(
             [*GRAIN, "target"],
             f"baseline {label} target grain",
         )
-        actual_values = numeric(frame["actual"])
+        actual_values = common.safe_numeric_float64(frame["actual"])
         invalid_actual = frame["actual"].notna() & actual_values.isna()
         if invalid_actual.any() or actual_values.isna().any():
             raise ValueError(
@@ -455,7 +458,7 @@ def load_baseline_windows(
             )
         frame["actual"] = actual_values
 
-        baseline_values = numeric(frame["baseline_projection"])
+        baseline_values = common.safe_numeric_float64(frame["baseline_projection"])
         invalid_baseline = (
             frame["baseline_projection"].notna()
             & baseline_values.isna()
@@ -513,7 +516,7 @@ def direct_feature_requirements(
 
 
 def train_fixed_booster(
-    X: pd.DataFrame,
+    x: pd.DataFrame,
     y: pd.Series,
     *,
     feature_names: list[str],
@@ -524,8 +527,8 @@ def train_fixed_booster(
     if rounds < 1:
         raise ValueError(f"Invalid boosting round count: {rounds}")
     dataset = lgb.Dataset(
-        X,
-        label=numeric(y),
+        x,
+        label=common.safe_numeric_float64(y),
         feature_name=feature_names,
         categorical_feature=categorical_features,
         free_raw_data=False,
@@ -544,15 +547,12 @@ def prepare_direct_frames(
     manifest: dict[str, Any],
     policy: dict[str, Any],
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    positions = {
-        str(value).strip().upper()
-        for value in manifest["eligible_positions"]
-    }
-    position = (
-        features["position"].fillna("").astype(str).str.strip().str.upper()
+    position_eligible = common.normalized_position_mask(
+        features["position"],
+        manifest["eligible_positions"],
     )
-    actual = numeric(features[f"target_{target}"])
-    eligible = position.isin(positions) & actual.notna()
+    actual = common.safe_numeric_float64(features[f"target_{target}"])
+    eligible = position_eligible & actual.notna()
 
     train = features.loc[
         eligible
@@ -607,13 +607,13 @@ def score_direct_variants(
     )
 
     levels_selection = direct.categorical_levels(train, categorical_features)
-    X_train = direct.model_matrix(
+    x_train = direct.model_matrix(
         train, numeric_features, categorical_features, levels_selection
     )
-    X_valid = direct.model_matrix(
+    x_valid = direct.model_matrix(
         validation, numeric_features, categorical_features, levels_selection
     )
-    y_train = numeric(train[f"target_{target}"])
+    y_train = common.safe_numeric_float64(train[f"target_{target}"])
 
     variants: list[dict[str, Any]] = [
         {
@@ -637,21 +637,21 @@ def score_direct_variants(
             }
         )
 
-    validation_actual = numeric(validation[f"target_{target}"]).to_numpy()
+    validation_actual = common.safe_numeric_float64(validation[f"target_{target}"]).to_numpy()
     variant_predictions: dict[str, np.ndarray] = {}
     variant_metrics: dict[str, dict[str, float | None]] = {}
 
     for variant in variants:
         params = direct.params_for(variant["objective"])
         model = train_fixed_booster(
-            X_train,
+            x_train,
             y_train,
             feature_names=feature_names,
             categorical_features=categorical_features,
             params=params,
             rounds=variant["rounds"],
         )
-        pred = model.predict(X_valid, num_iteration=variant["rounds"])
+        pred = model.predict(x_valid, num_iteration=variant["rounds"])
         pred = direct.transform_prediction(pred, variant["objective"])
         pred = transform_target_prediction(pred, config, target)
         variant_predictions[variant["name"]] = pred
@@ -677,13 +677,13 @@ def score_direct_variants(
     final_levels = persisted_manifest[
         "categorical_levels_final_through_2024"
     ]
-    X_test = direct.model_matrix(
+    x_test = direct.model_matrix(
         test, numeric_features, categorical_features, final_levels
     )
     persisted = lgb.Booster(model_file=str(chosen["model_file"]))
     if persisted.feature_name() != feature_names:
         raise ValueError(f"{target}: persisted direct feature order mismatch.")
-    test_pred = persisted.predict(X_test)
+    test_pred = persisted.predict(x_test)
     test_pred = direct.transform_prediction(test_pred, chosen["objective"])
     test_pred = transform_target_prediction(test_pred, config, target)
 
@@ -718,14 +718,11 @@ def component_inference_rows(
     if scope == "player":
         frame = features.copy()
         rule = str(spec["eligible_rule"])
-        positions = {
-            str(value).strip().upper()
-            for value in eligibility[rule]["eligible_positions"]
-        }
-        position = (
-            frame["position"].fillna("").astype(str).str.strip().str.upper()
+        mask = common.normalized_position_mask(
+            frame["position"],
+            eligibility[rule]["eligible_positions"],
         )
-        return frame.loc[position.isin(positions)].copy()
+        return frame.loc[mask].copy()
 
     opportunity.check_team_feature_invariance(features, component_features)
     return opportunity.team_rows_from_features(features, component_features)
@@ -770,10 +767,10 @@ def score_opportunity_models(
                 policy["selection_train_end_season"]
             )
         ].copy()
-        X_train = numeric_matrix(train, feature_names)
-        y_train = numeric(train["_label"])
+        x_train = numeric_matrix(train, feature_names)
+        y_train = common.safe_numeric_float64(train["_label"])
         model = train_fixed_booster(
-            X_train,
+            x_train,
             y_train,
             feature_names=feature_names,
             categorical_features=[],
@@ -784,9 +781,9 @@ def score_opportunity_models(
         valid_rows = component_inference_rows(
             validation_features, component, eligibility
         )
-        X_valid = numeric_matrix(valid_rows, feature_names)
+        x_valid = numeric_matrix(valid_rows, feature_names)
         valid_pred = opportunity.transform_prediction(
-            model.predict(X_valid), component
+            model.predict(x_valid), component
         )
 
         key = GRAIN if spec["scope"] == "player" else TEAM_GRAIN
@@ -796,7 +793,7 @@ def score_opportunity_models(
         validation_predictions[component] = valid_output
 
         test_rows = component_inference_rows(test_features, component, eligibility)
-        X_test = numeric_matrix(test_rows, feature_names)
+        x_test = numeric_matrix(test_rows, feature_names)
         persisted = lgb.Booster(
             model_file=str(
                 root
@@ -808,7 +805,7 @@ def score_opportunity_models(
         if persisted.feature_name() != feature_names:
             raise ValueError(f"{component}: persisted opportunity feature order mismatch.")
         test_pred = opportunity.transform_prediction(
-            persisted.predict(X_test), component
+            persisted.predict(x_test), component
         )
         test_output = test_rows[key].copy()
         test_output[component] = test_pred
@@ -836,75 +833,6 @@ def raw_efficiency_histories(
         )
         histories[model_name] = frame
     return history_features, histories
-
-
-def efficiency_inference_frame(
-    eff_features: pd.DataFrame,
-    raw_history: pd.DataFrame,
-    model_name: str,
-    year: int,
-    eligibility: dict[str, Any],
-) -> pd.DataFrame:
-    rule = efficiency.ELIGIBILITY_RULE[model_name]
-    positions = {
-        str(value).strip().upper()
-        for value in eligibility[rule]["eligible_positions"]
-    }
-    target_rows = eff_features.loc[
-        pd.to_numeric(eff_features["season"]).eq(year)
-    ].copy()
-    position = (
-        target_rows["position"].fillna("").astype(str).str.strip().str.upper()
-    )
-    target_rows = target_rows.loc[position.isin(positions)].copy()
-    if target_rows.empty:
-        raise ValueError(f"{model_name}: empty inference rows for {year}.")
-
-    prior_columns = [
-        *GRAIN,
-        "kickoff_timestamp",
-        "position",
-        "position_group",
-        "_prior_position_group",
-        "_numerator",
-        "_exposure",
-        "_label",
-    ]
-    history = raw_history[prior_columns].copy()
-    history["_inference_marker"] = 0
-
-    placeholder = target_rows[
-        [*GRAIN, "kickoff_timestamp", "position", "position_group"]
-    ].copy()
-    placeholder["_prior_position_group"] = efficiency.normalize_position_group(
-        placeholder["position"], placeholder["position_group"]
-    )
-    placeholder["_numerator"] = np.nan
-    placeholder["_exposure"] = np.nan
-    placeholder["_label"] = np.nan
-    placeholder["_inference_marker"] = 1
-
-    combined = pd.concat([history, placeholder], ignore_index=True, sort=False)
-    enriched = efficiency.add_strict_prior_features(combined, model_name)
-    inference_rows = enriched.loc[enriched["_inference_marker"].eq(1)].copy()
-
-    canonical_features = [
-        feature
-        for feature in efficiency.FEATURES[model_name]
-        if feature not in efficiency.DERIVED_FEATURES
-    ]
-    feature_join = target_rows[[*GRAIN, *canonical_features]].copy()
-    inference_rows = inference_rows.merge(
-        feature_join,
-        on=GRAIN,
-        how="left",
-        validate="one_to_one",
-        suffixes=("", "_canonical"),
-    )
-    common.ensure_unique(
-        inference_rows, GRAIN, f"{model_name} inference {year}"
-    )
-    return inference_rows
 
 
 def score_efficiency_models(
@@ -951,10 +879,10 @@ def score_efficiency_models(
             / model_name
             / "metadata.json"
         )
-        X_train = efficiency.feature_matrix(train, model_name)
-        y_train = numeric(train["_label"])
+        x_train = efficiency.feature_matrix(train, model_name)
+        y_train = common.safe_numeric_float64(train["_label"])
         model = train_fixed_booster(
-            X_train,
+            x_train,
             y_train,
             feature_names=feature_names,
             categorical_features=[],
@@ -962,12 +890,20 @@ def score_efficiency_models(
             rounds=int(metadata["best_iteration_selected_on_2024"]),
         )
 
-        valid_rows = efficiency_inference_frame(
+        valid_rows = efficiency.build_efficiency_inference_frame(
             eff_features,
             raw_history,
             model_name,
-            policy["validation_season"],
             eligibility,
+            season=policy["validation_season"],
+            empty_message=(
+                f"{model_name}: empty inference rows for "
+                f"{policy['validation_season']}."
+            ),
+            unique_label=(
+                f"{model_name} inference "
+                f"{policy['validation_season']}"
+            ),
         )
         valid_pred = efficiency.transform_prediction(
             model.predict(efficiency.feature_matrix(valid_rows, model_name)),
@@ -977,12 +913,20 @@ def score_efficiency_models(
         valid_output[model_name] = valid_pred
         validation_predictions[model_name] = valid_output
 
-        test_rows = efficiency_inference_frame(
+        test_rows = efficiency.build_efficiency_inference_frame(
             eff_features,
             raw_history,
             model_name,
-            policy["test_season"],
             eligibility,
+            season=policy["test_season"],
+            empty_message=(
+                f"{model_name}: empty inference rows for "
+                f"{policy['test_season']}."
+            ),
+            unique_label=(
+                f"{model_name} inference "
+                f"{policy['test_season']}"
+            ),
         )
         persisted = lgb.Booster(
             model_file=str(
@@ -1018,7 +962,7 @@ def attach_team_and_reconcile_share(
     )
     if frame["team"].isna().any():
         raise ValueError(f"{column}: missing team during share reconciliation.")
-    raw = numeric(frame[column]).clip(lower=0.0, upper=1.0)
+    raw = common.safe_numeric_float64(frame[column]).clip(lower=0.0, upper=1.0)
     totals = raw.groupby(
         [frame[k] for k in TEAM_GRAIN],
         sort=False,
@@ -1182,7 +1126,7 @@ def align_target_predictions(
         "direct_projection",
         "component_projection",
     ]:
-        output[column] = numeric(output[column])
+        output[column] = common.safe_numeric_float64(output[column])
         if output[column].isna().any():
             sample = output.loc[output[column].isna(), GRAIN].head(10)
             raise ValueError(
@@ -1373,14 +1317,7 @@ def build_selected_json(
 
 
 def main() -> int:
-    # ISSUE28_MARKET_EXCLUSION_PREFLIGHT
-    _issue28_audit = common.prop_root() / "scripts" / "validate" / "audit_market_exclusion.py"
-    _issue28_result = __import__("subprocess").run(
-        [__import__("sys").executable, str(_issue28_audit), "--preflight"],
-        check=False,
-    )
-    if _issue28_result.returncode != 0:
-        raise RuntimeError("Issue 28 market-exclusion preflight failed.")
+    common.run_market_exclusion_preflight()
 
     config = common.load_config()
     root = common.repo_root()
@@ -1585,7 +1522,7 @@ def main() -> int:
         metrics = candidate_metrics_for_frame(config, target, frame)
         selected = min(
             CANDIDATES,
-            key=lambda candidate: selection_key(metrics[candidate], candidate),
+            key=lambda candidate_name: selection_key(metrics[candidate_name], candidate_name),
         )
         validation_frames[target] = frame
         validation_metrics_by_target[target] = metrics
@@ -1594,7 +1531,7 @@ def main() -> int:
         print(
             f"  {target}: selected={selected}, "
             f"blend_direct_weight={weight:.2f}, "
-            f"validation_mae={metrics[selected]['mae']:.6f}"
+            f"validation_mae={required_metric(metrics[selected], 'mae'):.6f}"
         )
 
     # Architecture and blend decisions are frozen before test scoring begins.
@@ -1639,7 +1576,7 @@ def main() -> int:
         selected_metrics = validation_metrics_by_target[target][selected]
         reason = (
             f"selected on chronological validation only: {selected} had the "
-            f"lowest validation MAE={selected_metrics['mae']:.12g}; "
+            f"lowest validation MAE={required_metric(selected_metrics, 'mae'):.12g}; "
             "RMSE, median AE, then fixed candidate order are tie-breakers; "
             f"{policy['test_season']} metrics are reporting-only"
         )
@@ -1658,7 +1595,7 @@ def main() -> int:
             else:
                 row_reason = (
                     f"not selected on validation; selected={selected} with "
-                    f"validation_mae={selected_metrics['mae']:.12g}"
+                    f"validation_mae={required_metric(selected_metrics, 'mae'):.12g}"
                 )
 
             rows.append(

@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pandas as pd
 
+# noinspection DuplicatedCode
 PROP = Path(__file__).resolve().parents[1]
 SCRIPTS = PROP / "scripts"
 if str(SCRIPTS) not in sys.path:
@@ -32,7 +33,8 @@ universe = load_module(
 
 
 class IdentityTests(unittest.TestCase):
-    def crosswalk(self) -> pd.DataFrame:
+    @staticmethod
+    def crosswalk() -> pd.DataFrame:
         return pd.DataFrame(
             [
                 {

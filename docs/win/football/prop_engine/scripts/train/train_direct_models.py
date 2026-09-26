@@ -47,24 +47,19 @@ from __future__ import annotations
 
 import hashlib
 import json
-import math
-import os
 import sys
-import tempfile
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 import pandas as pd
-import yaml
-
 try:
     import lightgbm as lgb
-except ModuleNotFoundError as exc:
+except ModuleNotFoundError as import_error:
     raise SystemExit(
         "Issue 24 requires LightGBM. Install with: "
         "python -m pip install lightgbm"
-    ) from exc
+    ) from import_error
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -77,12 +72,10 @@ import common
 
 
 _CONFIG_CONTRACT = common.load_config()
-_TRAINING_CONTRACT = _CONFIG_CONTRACT["training"]
 SEED = 24024
-MODEL_SELECTION_TRAIN_END = int(_TRAINING_CONTRACT["model_selection_train_end_season"])
-DEVELOPMENT_VALIDATION_SEASON = int(_TRAINING_CONTRACT["development_validation_season"])
-FINAL_TRAIN_END = int(_TRAINING_CONTRACT["final_train_end_season"])
-UNTOUCHED_TEST_SEASON = int(_TRAINING_CONTRACT["untouched_test_season"])
+MODEL_SELECTION_TRAIN_END, DEVELOPMENT_VALIDATION_SEASON, FINAL_TRAIN_END, UNTOUCHED_TEST_SEASON = (
+    common.training_policy_seasons(_CONFIG_CONTRACT)
+)
 
 FEATURE_CONFIG_ROOT = (
     "docs/win/football/prop_engine/config/features"
@@ -140,102 +133,37 @@ ENVIRONMENT_JOIN_CONTRACT = {
 
 
 def load_json(path: Path) -> dict[str, Any]:
-    if not path.is_file():
-        raise FileNotFoundError(f"Required JSON missing: {path}")
-    with path.open("r", encoding="utf-8-sig") as handle:
-        value = json.load(handle)
-    if not isinstance(value, dict):
-        raise ValueError(f"Expected JSON object: {path}")
-    return value
-
+    return common.load_json_mapping(
+        path,
+        missing_message=f"Required JSON missing: {path}",
+    )
 
 def load_yaml(path: Path) -> dict[str, Any]:
-    if not path.is_file():
-        raise FileNotFoundError(f"Required YAML missing: {path}")
-    with path.open("r", encoding="utf-8-sig") as handle:
-        value = yaml.safe_load(handle)
-    if not isinstance(value, dict):
-        raise ValueError(f"Expected YAML mapping: {path}")
-    return value
+    return common.load_yaml_mapping(
+        path,
+        missing_message=f"Required YAML missing: {path}",
+    )
 
+def prop_output_destination(path: Path) -> Path:
+    destination = path.resolve()
+    prop = common.prop_root().resolve()
+    try:
+        destination.relative_to(prop)
+    except ValueError as exc:
+        raise ValueError(
+            f"Refusing write outside Prop Engine: {destination}"
+        ) from exc
 
-def stable_json_bytes(value: Any) -> bytes:
-    return (
-        json.dumps(
-            value,
-            sort_keys=True,
-            indent=2,
-            ensure_ascii=False,
-        )
-        + "\n"
-    ).encode("utf-8")
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    return destination
 
 
 def write_json_atomic(path: Path, value: dict[str, Any]) -> None:
-    destination = path.resolve()
-    prop = common.prop_root().resolve()
-    try:
-        destination.relative_to(prop)
-    except ValueError as exc:
-        raise ValueError(
-            f"Refusing write outside Prop Engine: {destination}"
-        ) from exc
-
-    destination.parent.mkdir(parents=True, exist_ok=True)
-
-    handle = tempfile.NamedTemporaryFile(
-        mode="wb",
-        dir=destination.parent,
-        prefix=f".{destination.name}.",
-        suffix=".tmp",
-        delete=False,
+    destination = prop_output_destination(path)
+    common.write_json_atomic(
+        destination,
+        value,
     )
-    temp_path = Path(handle.name)
-
-    try:
-        with handle:
-            handle.write(stable_json_bytes(value))
-        os.replace(temp_path, destination)
-    finally:
-        if temp_path.exists():
-            temp_path.unlink()
-
-
-def save_model_atomic(
-    booster: lgb.Booster,
-    path: Path,
-    num_iteration: int,
-) -> None:
-    destination = path.resolve()
-    prop = common.prop_root().resolve()
-    try:
-        destination.relative_to(prop)
-    except ValueError as exc:
-        raise ValueError(
-            f"Refusing write outside Prop Engine: {destination}"
-        ) from exc
-
-    destination.parent.mkdir(parents=True, exist_ok=True)
-
-    handle = tempfile.NamedTemporaryFile(
-        mode="wb",
-        dir=destination.parent,
-        prefix=f".{destination.name}.",
-        suffix=".tmp",
-        delete=False,
-    )
-    temp_path = Path(handle.name)
-    handle.close()
-
-    try:
-        booster.save_model(
-            str(temp_path),
-            num_iteration=num_iteration,
-        )
-        os.replace(temp_path, destination)
-    finally:
-        if temp_path.exists():
-            temp_path.unlink()
 
 
 def sha256_file(path: Path) -> str:
@@ -287,29 +215,13 @@ def numeric(series: pd.Series) -> pd.Series:
     )
 
 
-def clean_category(series: pd.Series) -> pd.Series:
-    result = (
-        series
-        .fillna("")
-        .astype(str)
-        .str.strip()
-    )
-    result = result.mask(
-        result.str.casefold().isin(
-            {"", "nan", "none", "null", "<na>", "nat"}
-        ),
-        "",
-    )
-    return result
-
-
 def categorical_levels(
     frame: pd.DataFrame,
     categorical_features: list[str],
 ) -> dict[str, list[str]]:
     levels: dict[str, list[str]] = {}
     for feature in categorical_features:
-        values = clean_category(frame[feature])
+        values = common.clean_category_series(frame[feature])
         observed = sorted(
             value
             for value in values.unique().tolist()
@@ -331,7 +243,7 @@ def model_matrix(
         data[feature] = numeric(frame[feature])
 
     for feature in categorical_features:
-        values = clean_category(frame[feature])
+        values = common.clean_category_series(frame[feature])
         category = pd.Categorical(
             values.where(values.ne(""), None),
             categories=levels[feature],
@@ -619,49 +531,6 @@ def transform_prediction(
     return values
 
 
-def rmse(y: np.ndarray, p: np.ndarray) -> float:
-    return float(
-        np.sqrt(
-            np.mean(
-                np.square(
-                    np.asarray(y, dtype=float)
-                    - np.asarray(p, dtype=float)
-                )
-            )
-        )
-    )
-
-
-def mae(y: np.ndarray, p: np.ndarray) -> float:
-    return float(
-        np.mean(
-            np.abs(
-                np.asarray(y, dtype=float)
-                - np.asarray(p, dtype=float)
-            )
-        )
-    )
-
-
-def r2(y: np.ndarray, p: np.ndarray) -> float | None:
-    actual = np.asarray(y, dtype=float)
-    pred = np.asarray(p, dtype=float)
-    denominator = float(
-        np.sum(
-            np.square(
-                actual - actual.mean()
-            )
-        )
-    )
-    if denominator <= 0.0:
-        return None
-    value = 1.0 - float(
-        np.sum(np.square(actual - pred))
-        / denominator
-    )
-    return value if math.isfinite(value) else None
-
-
 def train_candidate(
     target: str,
     objective: str,
@@ -682,19 +551,19 @@ def train_candidate(
         categorical_features,
     )
 
-    X_train = model_matrix(
+    x_train = model_matrix(
         selection_train,
         numeric_features,
         categorical_features,
         selection_levels,
     )
-    X_valid = model_matrix(
+    x_valid = model_matrix(
         validation,
         numeric_features,
         categorical_features,
         selection_levels,
     )
-    X_final = model_matrix(
+    x_final = model_matrix(
         final_train,
         numeric_features,
         categorical_features,
@@ -723,7 +592,7 @@ def train_candidate(
     ]
 
     train_set = lgb.Dataset(
-        X_train,
+        x_train,
         label=y_train,
         feature_name=feature_names,
         categorical_feature=categorical_features,
@@ -731,7 +600,7 @@ def train_candidate(
     )
 
     valid_set = lgb.Dataset(
-        X_valid,
+        x_valid,
         label=y_valid,
         feature_name=feature_names,
         categorical_feature=categorical_features,
@@ -767,7 +636,7 @@ def train_candidate(
 
     validation_prediction = transform_prediction(
         selected.predict(
-            X_valid,
+            x_valid,
             num_iteration=best_iteration,
         ),
         objective,
@@ -777,23 +646,13 @@ def train_candidate(
         dtype="float64"
     )
 
-    metrics = {
-        "rmse": rmse(
-            y_valid_array,
-            validation_prediction,
-        ),
-        "mae": mae(
-            y_valid_array,
-            validation_prediction,
-        ),
-        "r2": r2(
-            y_valid_array,
-            validation_prediction,
-        ),
-    }
+    metrics = common.regression_metrics(
+        y_valid_array,
+        validation_prediction,
+    )
 
     final_set = lgb.Dataset(
-        X_final,
+        x_final,
         label=y_final,
         feature_name=feature_names,
         categorical_feature=categorical_features,
@@ -809,7 +668,7 @@ def train_candidate(
         ],
     )
 
-    save_model_atomic(
+    common.save_lightgbm_model_atomic(
         final_model,
         output_path,
         best_iteration,
@@ -886,14 +745,7 @@ def build_target_frame(
 
 
 def main() -> int:
-    # ISSUE28_MARKET_EXCLUSION_PREFLIGHT
-    _issue28_audit = common.prop_root() / "scripts" / "validate" / "audit_market_exclusion.py"
-    _issue28_result = __import__("subprocess").run(
-        [__import__("sys").executable, str(_issue28_audit), "--preflight"],
-        check=False,
-    )
-    if _issue28_result.returncode != 0:
-        raise RuntimeError("Issue 28 market-exclusion preflight failed.")
+    common.run_market_exclusion_preflight()
 
     config = common.load_config()
     root = common.repo_root()
@@ -1026,36 +878,22 @@ def main() -> int:
             source,
         )
 
-        selection_train = frame.loc[
-            frame["season"].le(
+        (
+            selection_train,
+            validation,
+            final_train,
+        ) = common.temporal_training_splits(
+            frame,
+            label=target,
+            model_selection_train_end_season=(
                 MODEL_SELECTION_TRAIN_END
-            )
-        ].copy()
-
-        validation = frame.loc[
-            frame["season"].eq(
+            ),
+            development_validation_season=(
                 DEVELOPMENT_VALIDATION_SEASON
-            )
-        ].copy()
-
-        final_train = frame.loc[
-            frame["season"].le(
-                FINAL_TRAIN_END
-            )
-        ].copy()
-
-        if selection_train.empty:
-            raise ValueError(
-                f"{target}: empty selection training rows."
-            )
-        if validation.empty:
-            raise ValueError(
-                f"{target}: empty 2024 validation rows."
-            )
-        if final_train.empty:
-            raise ValueError(
-                f"{target}: empty final training rows."
-            )
+            ),
+            final_train_end_season=FINAL_TRAIN_END,
+            empty_noun="rows",
+        )
 
         target_dir = (
             common.prop_root()

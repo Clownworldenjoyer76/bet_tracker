@@ -2,9 +2,7 @@
 from __future__ import annotations
 
 import argparse
-import importlib.util
 import json
-import math
 import os
 import subprocess
 import sys
@@ -53,27 +51,6 @@ def parse_args() -> argparse.Namespace:
     )
     p.add_argument("--test-season", type=int, default=2025)
     return p.parse_args()
-
-
-def clean(value: Any) -> str:
-    if value is None:
-        return ""
-    try:
-        if pd.isna(value):
-            return ""
-    except (TypeError, ValueError):
-        pass
-    text = str(value).strip()
-    return "" if text.casefold() in {"", "nan", "none", "null", "<na>", "nat"} else text
-
-
-def load_json(path: Path) -> dict[str, Any]:
-    if not path.is_file():
-        raise FileNotFoundError(path)
-    value = json.loads(path.read_text(encoding="utf-8-sig"))
-    if not isinstance(value, dict):
-        raise ValueError(f"Expected JSON object: {path}")
-    return value
 
 
 def load_yaml(path: Path) -> dict[str, Any]:
@@ -140,44 +117,6 @@ def numeric(values: Any) -> np.ndarray:
     return pd.to_numeric(pd.Series(values), errors="coerce").to_numpy(dtype="float64")
 
 
-def apply_mapping(values: np.ndarray, mapping: dict[str, Any]) -> np.ndarray:
-    """Exact mapping logic used by scripts/project/project_week.py."""
-    xp = np.asarray(mapping["knots_x"], dtype="float64")
-    fp = np.asarray(mapping["knots_y"], dtype="float64")
-    out = np.interp(
-        np.asarray(values, dtype="float64"),
-        xp,
-        fp,
-        left=float(mapping["left_value"]),
-        right=float(mapping["right_value"]),
-    )
-    bounds = mapping.get("output_bounds", [None, None])
-    if bounds[0] is not None:
-        out = np.maximum(out, float(bounds[0]))
-    if bounds[1] is not None:
-        out = np.minimum(out, float(bounds[1]))
-    return out
-
-
-def count_outputs(
-    raw_selected: np.ndarray,
-    payload: dict[str, Any],
-) -> dict[str, np.ndarray]:
-    """Exact point/probability calibration math used by production."""
-    ccal = payload["count_calibration"]
-    raw = np.maximum(np.asarray(raw_selected, dtype="float64"), 0.0)
-    expected = apply_mapping(raw, ccal["expected_count"]["mapping"])
-    poisson_p1 = 1.0 - np.exp(-expected)
-    poisson_p2 = 1.0 - np.exp(-expected) * (1.0 + expected)
-    p1 = apply_mapping(poisson_p1, ccal["probability_1_plus"]["mapping"])
-    p2 = apply_mapping(poisson_p2, ccal["probability_2_plus"]["mapping"])
-    return {
-        "expected_count": np.maximum(expected, 0.0),
-        "probability_1_plus": np.clip(p1, 0.0, 1.0),
-        "probability_2_plus": np.clip(p2, 0.0, 1.0),
-    }
-
-
 def apply_point_prediction_blend(
     raw_selected: np.ndarray,
     calibrated_point: np.ndarray,
@@ -203,25 +142,6 @@ def bias(actual: np.ndarray, predicted: np.ndarray) -> float:
     return float(np.mean(predicted - actual))
 
 
-def poisson_deviance(actual: np.ndarray, predicted: np.ndarray) -> float:
-    y = np.asarray(actual, dtype="float64")
-    lam = np.maximum(np.asarray(predicted, dtype="float64"), 1e-12)
-    if np.any(y < 0):
-        raise ValueError("Poisson deviance cannot be computed with negative actual values.")
-    terms = np.empty_like(y)
-    zero = y <= 0.0
-    terms[zero] = lam[zero]
-    nz = ~zero
-    terms[nz] = y[nz] * np.log(y[nz] / lam[nz]) - (y[nz] - lam[nz])
-    return float(2.0 * np.mean(terms))
-
-
-def brier_1plus(actual: np.ndarray, probability: np.ndarray) -> float:
-    event = (np.asarray(actual, dtype="float64") >= 1.0).astype("float64")
-    p = np.clip(np.asarray(probability, dtype="float64"), 0.0, 1.0)
-    return float(np.mean(np.square(p - event)))
-
-
 def calibration_integrity(
     target: str,
     payload: dict[str, Any],
@@ -233,11 +153,11 @@ def calibration_integrity(
     if payload.get("target") != target:
         problems.append("calibration_target_mismatch")
 
-    selected_arch = clean(
+    selected_arch = common.clean_text(
         selected.get("selected_architecture")
         or selected.get("selected_candidate")
     )
-    if clean(payload.get("selected_architecture")) != selected_arch:
+    if common.clean_text(payload.get("selected_architecture")) != selected_arch:
         problems.append("calibration_architecture_mismatch")
 
     if payload.get("market_features_used") is not False:
@@ -249,7 +169,7 @@ def calibration_integrity(
     if not isinstance(source, dict):
         problems.append("calibration_source_missing")
     else:
-        if clean(source.get("split")) != "validation":
+        if common.clean_text(source.get("split")) != "validation":
             problems.append("calibration_not_from_validation")
         try:
             source_season = int(source.get("season"))
@@ -262,6 +182,7 @@ def calibration_integrity(
     if isinstance(policy, dict):
         if policy.get("test_rows_used_for_calibration") is not False:
             problems.append("test_rows_used_for_calibration")
+        # noinspection PySimplifyBooleanCheck
         if policy.get("test_reporting_only_preserved") is not True:
             problems.append("test_reporting_only_not_preserved")
     else:
@@ -285,9 +206,9 @@ def production_calibrated_values(
     - count / quantiles_and_count: count_outputs -> expected_count + calibrated p1+
     - quantiles only: selected point + residual q50
     """
-    mode = clean(calibration.get("calibration_mode"))
+    mode = common.clean_text(calibration.get("calibration_mode"))
     if mode in {"count", "quantiles_and_count"}:
-        out = count_outputs(raw_selected, calibration)
+        out = common.calibrated_count_outputs(raw_selected, calibration)
         base_point = np.asarray(out["expected_count"], dtype="float64")
         point = apply_point_prediction_blend(raw_selected, base_point, calibration)
         p1 = np.asarray(out["probability_1_plus"], dtype="float64")
@@ -309,7 +230,7 @@ def production_calibrated_values(
 
 
 def training_rows(target: str) -> int:
-    metadata = load_json(HERE / "models" / target / "metadata.json")
+    metadata = common.load_json_mapping(HERE / "models" / target / "metadata.json")
     rows = metadata.get("rows", {})
     if not isinstance(rows, dict):
         raise ValueError(f"{target}: metadata.rows missing")
@@ -459,10 +380,10 @@ def main() -> int:
         calibration_path = (
             HERE / "models" / "calibration" / f"{target}_calibration.json"
         )
-        selected = load_json(selected_path)
-        calibration = load_json(calibration_path)
+        selected = common.load_json_mapping(selected_path)
+        calibration = common.load_json_mapping(calibration_path)
 
-        architecture = clean(
+        architecture = common.clean_text(
             selected.get("selected_architecture")
             or selected.get("selected_candidate")
         )
@@ -589,8 +510,8 @@ def main() -> int:
                     "calibrated_production_point"
                 )
 
-            brier = brier_1plus(actual, p1)
-            poisson = poisson_deviance(actual, production)
+            brier = common.brier_1plus(actual, p1)
+            poisson = common.poisson_deviance(actual, production)
             gate_brier = (
                 brier <= float(section["maximum_brier_1plus"]) + 1e-12
             )
@@ -599,7 +520,6 @@ def main() -> int:
                 <= float(section["maximum_poisson_deviance"]) + 1e-12
             )
 
-        failed: list[str] = []
         gate_map = {
             "training_rows": gate_training,
             "absolute_bias": gate_bias,
@@ -618,7 +538,7 @@ def main() -> int:
         row = {
             "target": target,
             "selected_architecture": architecture,
-            "calibration_mode": clean(calibration.get("calibration_mode")),
+            "calibration_mode": common.clean_text(calibration.get("calibration_mode")),
             "calibration_method": calibration_method,
             "test_season": test_season,
             "test_rows": int(len(actual)),

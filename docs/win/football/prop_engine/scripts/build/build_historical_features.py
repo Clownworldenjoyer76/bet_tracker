@@ -201,27 +201,13 @@ ENVIRONMENT_REQUIRED_COLUMNS = [
 ]
 
 
-def clean_text(value: Any) -> str:
-    if value is None:
-        return ""
-    try:
-        if pd.isna(value):
-            return ""
-    except (TypeError, ValueError):
-        pass
-    text = str(value).strip()
-    if text.casefold() in {"", "nan", "none", "null", "<na>", "nat"}:
-        return ""
-    return text
-
-
 def canonical_franchise(value: Any) -> str:
     team = common.normalize_team(value)
     return HISTORICAL_FRANCHISE_ALIASES.get(team, team)
 
 
 def normalize_position_group(value: Any) -> str:
-    return clean_text(value).upper()
+    return common.clean_text(value).upper()
 
 
 def require_config_path(config: dict, key: str) -> str:
@@ -254,13 +240,7 @@ def safe_divide(
     numerator: pd.Series,
     denominator: pd.Series,
 ) -> pd.Series:
-    num = pd.to_numeric(numerator, errors="coerce").astype("float64")
-    den = pd.to_numeric(denominator, errors="coerce").astype("float64")
-    result = pd.Series(np.nan, index=num.index, dtype="float64")
-    valid = num.notna() & den.notna() & den.ne(0.0)
-    result.loc[valid] = num.loc[valid] / den.loc[valid]
-    return result
-
+    return common.safe_divide_nonzero(numerator, denominator)
 
 def safe_product(
     left: pd.Series,
@@ -612,6 +592,25 @@ def classify_feature_columns(
             )
 
     return numeric, categorical
+
+
+def build_specialized_feature_rename_map(
+    columns: list[str],
+    role_map: dict[str, str],
+    player_prefix: str,
+    role_columns: list[str],
+    player_columns: list[str],
+) -> dict[str, str]:
+    renamed: dict[str, str] = {}
+    for column in columns:
+        if column in role_map:
+            output_name = role_map[column]
+            role_columns.append(output_name)
+        else:
+            output_name = f"{player_prefix}{column}"
+            player_columns.append(output_name)
+        renamed[column] = output_name
+    return renamed
 
 
 def _run(reporter: PipelineReporter) -> int:
@@ -1042,15 +1041,13 @@ def _run(reporter: PipelineReporter) -> int:
         if column not in set(GRAIN + ["position"])
     ]
 
-    defensive_rename: dict[str, str] = {}
-    for column in defensive_source:
-        if column in DEFENSIVE_ROLE_MAP:
-            output_name = DEFENSIVE_ROLE_MAP[column]
-            role_columns.append(output_name)
-        else:
-            output_name = f"player_defensive_{column}"
-            player_columns.append(output_name)
-        defensive_rename[column] = output_name
+    defensive_rename = build_specialized_feature_rename_map(
+        defensive_source,
+        DEFENSIVE_ROLE_MAP,
+        "player_defensive_",
+        role_columns,
+        player_columns,
+    )
 
     out = out.merge(
         defensive[GRAIN + defensive_source].rename(
@@ -1075,15 +1072,13 @@ def _run(reporter: PipelineReporter) -> int:
         and column not in KICKING_REDUNDANT_ENVIRONMENT
     ]
 
-    kicking_rename: dict[str, str] = {}
-    for column in kicking_source:
-        if column in KICKING_ROLE_MAP:
-            output_name = KICKING_ROLE_MAP[column]
-            role_columns.append(output_name)
-        else:
-            output_name = f"player_kicking_{column}"
-            player_columns.append(output_name)
-        kicking_rename[column] = output_name
+    kicking_rename = build_specialized_feature_rename_map(
+        kicking_source,
+        KICKING_ROLE_MAP,
+        "player_kicking_",
+        role_columns,
+        player_columns,
+    )
 
     out = out.merge(
         kicking[GRAIN + kicking_source].rename(
@@ -1531,7 +1526,9 @@ def main() -> int:
         stage="historical_build",
         report_root=common.prop_root() / "logs" / "pipeline_reports",
     ) as reporter:
-        return _run(reporter)
+        result = _run(reporter)
+
+    return result
 
 
 if __name__ == "__main__":

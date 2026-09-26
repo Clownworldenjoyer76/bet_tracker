@@ -18,6 +18,7 @@ import numpy as np
 import pandas as pd
 import yaml
 
+# noinspection DuplicatedCode
 SCRIPT_DIR = Path(__file__).resolve().parent
 SCRIPTS_ROOT = SCRIPT_DIR.parent
 if str(SCRIPTS_ROOT) not in sys.path:
@@ -42,18 +43,6 @@ def parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 
-def clean(value: Any) -> str:
-    if value is None:
-        return ""
-    try:
-        if pd.isna(value):
-            return ""
-    except (TypeError, ValueError):
-        pass
-    text = str(value).strip()
-    return "" if text.casefold() in {"", "nan", "none", "null", "<na>", "nat"} else text
-
-
 def canonical_ids(frame: pd.DataFrame) -> pd.DataFrame:
     out = frame.copy()
     if "season" in out.columns:
@@ -61,7 +50,7 @@ def canonical_ids(frame: pd.DataFrame) -> pd.DataFrame:
     if "week" in out.columns:
         out["week"] = pd.to_numeric(out["week"], errors="raise").astype(int)
     if "game_id" in out.columns:
-        out["game_id"] = out["game_id"].map(clean)
+        out["game_id"] = out["game_id"].map(common.clean_text)
     if "player_id" in out.columns:
         out["player_id"] = out["player_id"].map(common.normalize_player_id)
     if "team" in out.columns:
@@ -117,6 +106,7 @@ def production_target_state(prop: Path) -> tuple[list[str], list[str]]:
         entry = registry[target]
         if not isinstance(entry, dict):
             raise AssertionError(f"{target}: invalid production registry entry")
+        # noinspection PySimplifyBooleanCheck
         if entry.get("production_approved") is True:
             version = entry.get("version")
             if not isinstance(version, str) or not version.strip():
@@ -142,14 +132,14 @@ def build_team_maps(team_master: pd.DataFrame) -> tuple[dict[str, str], set[str]
             continue
         abbrs.add(abbr)
         for c in source_cols:
-            value = clean(row.get(c))
+            value = common.clean_text(row.get(c))
             if value:
                 aliases.setdefault(value.casefold(), abbr)
     return aliases, abbrs
 
 
 def resolve_team(value: Any, aliases: dict[str, str], abbrs: set[str]) -> str:
-    text = clean(value)
+    text = common.clean_text(value)
     normalized = common.normalize_team(text)
     if normalized in abbrs:
         return normalized
@@ -168,7 +158,7 @@ def schedule_contract(schedule: pd.DataFrame, team_master: pd.DataFrame, season:
     team_map: dict[str, tuple[str, str]] = {}
     game_ids: set[str] = set()
     for row in frame.to_dict("records"):
-        gid = clean(row["game_id"])
+        gid = common.clean_text(row["game_id"])
         home = resolve_team(row["home_team"], aliases, abbrs)
         away = resolve_team(row["away_team"], aliases, abbrs)
         if not gid or not home or not away or home == away:
@@ -202,6 +192,7 @@ def run_market_audit(prop: Path) -> dict[str, Any]:
         )
     audit_path = prop / "evaluation" / "market_exclusion_audit.json"
     audit = read_json(audit_path)
+    # noinspection PySimplifyBooleanCheck
     if audit.get("passed") is not True:
         raise AssertionError("Market audit JSON is not passed=true")
     if audit.get("forbidden_source_references") not in ([], None):
@@ -252,24 +243,24 @@ def validate_model_schemas(
     for target in production_targets:
         selected_path = prop / "models" / target / "selected_model.json"
         selected = read_json(selected_path)
-        architecture = clean(selected.get("selected_architecture") or selected.get("selected_candidate"))
+        architecture = common.clean_text(selected.get("selected_architecture") or selected.get("selected_candidate"))
         if architecture not in {"direct", "component", "direct_component_blend"}:
             raise AssertionError(f"{target}: unsupported selected architecture {architecture!r}")
         architectures[target] = architecture
 
         if architecture in {"direct", "direct_component_blend"}:
             direct_info = selected.get("direct_variant") or {}
-            model_rel = clean(direct_info.get("model_file"))
-            model_path = (common.repo_root() / model_rel).resolve() if model_rel else prop / "models" / target / "direct_model.txt"
+            model_rel = common.clean_text(direct_info.get("model_file"))
+            selected_model_path = (common.repo_root() / model_rel).resolve() if model_rel else prop / "models" / target / "direct_model.txt"
             verify_model(
                 f"direct/{target}",
-                model_path,
+                selected_model_path,
                 prop / "models" / target / "feature_manifest.json",
             )
 
         if architecture in {"component", "direct_component_blend"}:
             for dep in selected.get("component_dependencies", []):
-                dependency = clean(dep)
+                dependency = common.clean_text(dep)
                 if dependency:
                     dependencies.add(dependency)
 
@@ -284,12 +275,12 @@ def validate_model_schemas(
             )
             continue
         if (efficiency_dir / "feature_manifest.json").is_file():
-            manifest = read_json(efficiency_dir / "feature_manifest.json")
-            canonical_features = list(manifest.get("canonical_features", []))
+            efficiency_manifest = read_json(efficiency_dir / "feature_manifest.json")
+            canonical_features = list(efficiency_manifest.get("canonical_features", []))
             if not canonical_features:
                 # Older/alternate manifests: model features minus explicitly derived fields.
-                all_features = list(manifest.get("numeric_features", [])) + list(manifest.get("categorical_features", []))
-                derived = set(manifest.get("derived_features", []))
+                all_features = list(efficiency_manifest.get("numeric_features", [])) + list(efficiency_manifest.get("categorical_features", []))
+                derived = set(efficiency_manifest.get("derived_features", []))
                 canonical_features = [f for f in all_features if f not in derived]
             verify_model(
                 f"efficiency/{dep}",
@@ -360,9 +351,9 @@ def main() -> int:
     frames: dict[str, pd.DataFrame] = {}
     required_error: Exception | None = None
     try:
-        missing = [str(p) for p in paths.values() if not p.is_file()]
-        if missing:
-            raise FileNotFoundError(f"Missing required current-week artifact(s): {missing}")
+        missing_paths = [str(p) for p in paths.values() if not p.is_file()]
+        if missing_paths:
+            raise FileNotFoundError(f"Missing required current-week artifact(s): {missing_paths}")
         frames["schedule"] = pd.read_csv(paths["schedule"], low_memory=False)
         frames["team_master"] = pd.read_csv(paths["team_master"], low_memory=False)
         frames["universe"] = canonical_ids(pd.read_parquet(paths["universe"]))
@@ -373,11 +364,11 @@ def main() -> int:
         frames["long"] = canonical_ids(pd.read_csv(paths["long"], low_memory=False))
         frames["active"] = canonical_ids(pd.read_csv(paths["active"], low_memory=False))
         frames["wide"] = canonical_ids(pd.read_csv(paths["wide"], low_memory=False))
-        for label, frame in frames.items():
-            if label not in {"schedule", "team_master"}:
-                ensure_week(frame, season, week, label)
-    except Exception as exc:
-        required_error = exc
+        for frame_label, loaded_frame in frames.items():
+            if frame_label not in {"schedule", "team_master"}:
+                ensure_week(loaded_frame, season, week, frame_label)
+    except Exception as load_error:
+        required_error = load_error
 
     def required_inputs() -> dict[str, Any]:
         if required_error is not None:
@@ -399,13 +390,13 @@ def main() -> int:
             for label in ("universe", "roles", "component", "allocation", "features", "long", "active", "wide"):
                 frame = frames[label]
                 if "game_id" in frame.columns:
-                    bad = sorted(set(frame["game_id"].map(clean)) - schedule_game_ids)
+                    bad = sorted(set(frame["game_id"].map(common.clean_text)) - schedule_game_ids)
                     if bad:
                         raise AssertionError(f"{label}: game IDs not in schedule: {bad[:10]}")
             bad_context = []
             for row in universe[["game_id", "team", "opponent", "player_id"]].to_dict("records"):
                 expected = schedule_map.get(common.normalize_team(row["team"]))
-                if expected is None or (clean(row["game_id"]), common.normalize_team(row["opponent"])) != expected:
+                if expected is None or (common.clean_text(row["game_id"]), common.normalize_team(row["opponent"])) != expected:
                     bad_context.append(row)
                     if len(bad_context) >= 10:
                         break
@@ -632,6 +623,7 @@ def main() -> int:
                 log = read_json(prop / "logs" / log_name)
                 if log.get("market_features_used") is not False:
                     raise AssertionError(f"{log_name}: market_features_used must be false")
+                # noinspection PySimplifyBooleanCheck
                 if log.get("market_exclusion_passed") is not True:
                     raise AssertionError(f"{log_name}: market_exclusion_passed must be true")
             details["weekly_logs_checked"] = 2

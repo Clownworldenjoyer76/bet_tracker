@@ -33,32 +33,29 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
-import subprocess
 import sys
-import tempfile
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 import pandas as pd
-import yaml
 
 try:
     import lightgbm as lgb
 except ModuleNotFoundError as exc:
     raise SystemExit("Issue 33 requires LightGBM in the active environment.") from exc
 
+# noinspection DuplicatedCode
 SCRIPT_DIR = Path(__file__).resolve().parent
 SCRIPTS_ROOT = SCRIPT_DIR.parent
 TRAIN_DIR = SCRIPTS_ROOT / "train"
-for p in (SCRIPTS_ROOT, TRAIN_DIR):
-    if str(p) not in sys.path:
-        sys.path.insert(0, str(p))
+for search_path in (SCRIPTS_ROOT, TRAIN_DIR):
+    if str(search_path) not in sys.path:
+        sys.path.insert(0, str(search_path))
 
 import common
-import train_opportunity_models as opportunity
-import train_efficiency_models as efficiency
+from train import train_opportunity_models as opportunity
+from train import train_efficiency_models as efficiency
 
 GRAIN = ["season", "week", "game_id", "player_id"]
 TEAM_GRAIN = ["season", "week", "game_id", "team"]
@@ -120,65 +117,15 @@ def parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 
-def repo_relative(path: Path) -> str:
-    return str(path.resolve().relative_to(common.repo_root().resolve()))
-
-
-def load_yaml(path: Path) -> dict[str, Any]:
-    if not path.is_file():
-        raise FileNotFoundError(f"Required YAML missing: {path}")
-    with path.open("r", encoding="utf-8-sig") as h:
-        value = yaml.safe_load(h)
-    if not isinstance(value, dict):
-        raise ValueError(f"Expected YAML mapping: {path}")
-    return value
-
-
-def load_json(path: Path) -> dict[str, Any]:
-    if not path.is_file():
-        raise FileNotFoundError(f"Required JSON missing: {path}")
-    with path.open("r", encoding="utf-8-sig") as h:
-        value = json.load(h)
-    if not isinstance(value, dict):
-        raise ValueError(f"Expected JSON object: {path}")
-    return value
-
-
-def write_json_atomic(payload: dict[str, Any], path: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    h = tempfile.NamedTemporaryFile(
-        mode="w", encoding="utf-8", newline="\n", prefix=f".{path.name}.",
-        suffix=".tmp", dir=path.parent, delete=False,
-    )
-    temp = Path(h.name)
-    try:
-        with h:
-            json.dump(payload, h, indent=2, sort_keys=True, ensure_ascii=False, default=str)
-            h.write("\n")
-        os.replace(temp, path)
-    finally:
-        if temp.exists():
-            temp.unlink()
-
 
 def run_market_preflight() -> dict[str, Any]:
-    path = SCRIPTS_ROOT / "validate" / "audit_market_exclusion.py"
-    if not path.is_file():
-        raise FileNotFoundError(f"Issue 28 market validator missing: {path}")
-    cp = subprocess.run(
-        [sys.executable, str(path)], cwd=common.repo_root(), capture_output=True,
-        text=True, check=False,
+    return common.run_market_exclusion_audit(
+        missing_message="Issue 28 market validator missing: {path}",
+        failure_prefix=(
+            "Market-exclusion preflight failed before "
+            "component projection. "
+        ),
     )
-    if cp.returncode != 0 or "MARKET EXCLUSION AUDIT: PASS" not in cp.stdout:
-        raise RuntimeError(
-            "Market-exclusion preflight failed before component projection. "
-            f"stdout={cp.stdout[-2000:]!r} stderr={cp.stderr[-2000:]!r}"
-        )
-    return {"passed": True, "validator": repo_relative(path)}
-
-
-def numeric(s: pd.Series) -> pd.Series:
-    return pd.to_numeric(s, errors="coerce").replace([np.inf, -np.inf], np.nan).astype("float64")
 
 
 def coalesce_numeric(frame: pd.DataFrame, columns: list[str]) -> pd.Series:
@@ -187,14 +134,14 @@ def coalesce_numeric(frame: pd.DataFrame, columns: list[str]) -> pd.Series:
         raise ValueError(f"Missing deterministic volume proxy columns: {missing}")
     out = pd.Series(np.nan, index=frame.index, dtype="float64")
     for c in columns:
-        value = numeric(frame[c])
+        value = common.safe_numeric_float64(frame[c])
         out = out.where(out.notna(), value)
     return out
 
 
 def validate_booster_manifest(root: Path, family: str, name: str) -> tuple[lgb.Booster, dict[str, Any], list[str]]:
     model_dir = root / "models" / family / name
-    manifest = load_json(model_dir / "feature_manifest.json")
+    manifest = common.load_json_mapping(model_dir / "feature_manifest.json")
     model_path = model_dir / "model.txt"
     if not model_path.is_file():
         raise FileNotFoundError(f"Required model missing: {model_path}")
@@ -245,8 +192,8 @@ def strict_prior_team_def_sack_rate(
     raw["week"] = pd.to_numeric(raw["week"], errors="raise").astype(int)
     raw = raw.loc[raw["season"].lt(season)].copy()
     raw["_team_key"] = raw["team"].map(opportunity.canonical_team)
-    sacks = numeric(raw["sacks"])
-    dropbacks = numeric(raw["opponent_dropbacks"])
+    sacks = common.safe_numeric_float64(raw["sacks"])
+    dropbacks = common.safe_numeric_float64(raw["opponent_dropbacks"])
     raw["_rate"] = np.where(
         sacks.notna() & dropbacks.notna() & dropbacks.ne(0.0),
         sacks / dropbacks,
@@ -347,7 +294,7 @@ def team_opponent_inference_rows(
 def zero_safe_product(*series: pd.Series) -> pd.Series:
     if not series:
         raise ValueError("zero_safe_product requires at least one series")
-    values = [numeric(item) for item in series]
+    values = [common.safe_numeric_float64(item) for item in series]
     result = values[0].copy()
     for item in values[1:]:
         result = result * item
@@ -414,10 +361,10 @@ def add_raw_target_components(base: pd.DataFrame) -> pd.DataFrame:
         "component_tackles",
         "component_sacks",
     ]:
-        out[column] = numeric(out[column]).clip(lower=0.0)
+        out[column] = common.safe_numeric_float64(out[column]).clip(lower=0.0)
 
     for column in TARGET_COMPONENT_COLUMNS:
-        out[column] = numeric(out[column])
+        out[column] = common.safe_numeric_float64(out[column])
         if out[column].isna().any() or (~np.isfinite(out[column])).any():
             raise ValueError(
                 f"Issue 33 nonfinite target component projection: {column}"
@@ -431,13 +378,13 @@ def _normalized_component_exposure(
     team_volume: pd.Series,
     eligible_mask: pd.Series,
 ) -> pd.Series:
-    raw = numeric(raw_exposure).fillna(0.0).clip(lower=0.0)
+    raw = common.safe_numeric_float64(raw_exposure).fillna(0.0).clip(lower=0.0)
     raw.loc[~eligible_mask.to_numpy(dtype=bool)] = 0.0
     total = raw.groupby(
         [base[column] for column in TEAM_GRAIN],
         sort=False,
     ).transform("sum")
-    volume = numeric(team_volume).fillna(0.0).clip(lower=0.0)
+    volume = common.safe_numeric_float64(team_volume).fillna(0.0).clip(lower=0.0)
     out = pd.Series(0.0, index=base.index, dtype="float64")
     positive = total.gt(0.0)
     out.loc[positive] = (
@@ -455,9 +402,9 @@ def _scale_component_for_allocated_exposure(
     *,
     fallback_unit_rate: pd.Series | None = None,
 ) -> pd.Series:
-    component = numeric(raw_component)
-    raw = numeric(raw_exposure).fillna(0.0).clip(lower=0.0)
-    allocated = numeric(allocated_exposure).fillna(0.0).clip(lower=0.0)
+    component = common.safe_numeric_float64(raw_component)
+    raw = common.safe_numeric_float64(raw_exposure).fillna(0.0).clip(lower=0.0)
+    allocated = common.safe_numeric_float64(allocated_exposure).fillna(0.0).clip(lower=0.0)
     out = pd.Series(0.0, index=component.index, dtype="float64")
 
     positive_raw = raw.gt(1e-12)
@@ -474,7 +421,7 @@ def _scale_component_for_allocated_exposure(
                 "Allocated component exposure is positive where raw exposure "
                 "is zero and no canonical fallback rate is available."
             )
-        unit = numeric(fallback_unit_rate)
+        unit = common.safe_numeric_float64(fallback_unit_rate)
         if unit.loc[fallback].isna().any():
             raise ValueError(
                 "Canonical fallback component rate is missing for allocated "
@@ -558,12 +505,12 @@ def final_component_points(
         raise ValueError("rushing_td_eligible length mismatch")
 
     allocated_carries = (
-        numeric(base["projected_team_rush_attempts"]).clip(lower=0.0)
-        * numeric(base["allocated_carry_share"]).clip(0.0, 1.0)
+        common.safe_numeric_float64(base["projected_team_rush_attempts"]).clip(lower=0.0)
+        * common.safe_numeric_float64(base["allocated_carry_share"]).clip(0.0, 1.0)
     )
     allocated_targets = (
-        numeric(base["projected_team_pass_attempts"]).clip(lower=0.0)
-        * numeric(base["allocated_target_share"]).clip(0.0, 1.0)
+        common.safe_numeric_float64(base["projected_team_pass_attempts"]).clip(lower=0.0)
+        * common.safe_numeric_float64(base["allocated_target_share"]).clip(0.0, 1.0)
     )
 
     rz_volume = coalesce_numeric(
@@ -589,32 +536,32 @@ def final_component_points(
     )
 
     points: dict[str, pd.Series] = {
-        "passing_yards": numeric(base["component_passing_yards"]),
-        "passing_tds": numeric(base["component_passing_tds"]),
-        "kicking_points": numeric(base["component_kicking_points"]),
+        "passing_yards": common.safe_numeric_float64(base["component_passing_yards"]),
+        "passing_tds": common.safe_numeric_float64(base["component_passing_tds"]),
+        "kicking_points": common.safe_numeric_float64(base["component_kicking_points"]),
+        "rushing_yards": _scale_component_for_allocated_exposure(
+            base["component_rushing_yards"],
+            base["projected_player_carries"],
+            allocated_carries,
+            fallback_unit_rate=base["projected_yards_per_carry"],
+        ),
+        "receiving_yards": _scale_component_for_allocated_exposure(
+            base["component_receiving_yards"],
+            base["projected_targets"],
+            allocated_targets,
+            fallback_unit_rate=base["projected_yards_per_target"],
+        ),
+        "rushing_tds": _scale_component_for_allocated_exposure(
+            base["component_rushing_tds"],
+            base["projected_goal_line_carries"],
+            allocated_gl_carries,
+        ),
+        "receiving_tds": _scale_component_for_allocated_exposure(
+            base["component_receiving_tds"],
+            base["projected_red_zone_targets"],
+            allocated_rz_targets,
+        ),
     }
-    points["rushing_yards"] = _scale_component_for_allocated_exposure(
-        base["component_rushing_yards"],
-        base["projected_player_carries"],
-        allocated_carries,
-        fallback_unit_rate=base["projected_yards_per_carry"],
-    )
-    points["receiving_yards"] = _scale_component_for_allocated_exposure(
-        base["component_receiving_yards"],
-        base["projected_targets"],
-        allocated_targets,
-        fallback_unit_rate=base["projected_yards_per_target"],
-    )
-    points["rushing_tds"] = _scale_component_for_allocated_exposure(
-        base["component_rushing_tds"],
-        base["projected_goal_line_carries"],
-        allocated_gl_carries,
-    )
-    points["receiving_tds"] = _scale_component_for_allocated_exposure(
-        base["component_receiving_tds"],
-        base["projected_red_zone_targets"],
-        allocated_rz_targets,
-    )
 
     tackle_unit = zero_safe_product(
         base["projected_opponent_plays"],
@@ -645,10 +592,10 @@ def final_component_points(
         "tackles",
         "sacks",
     ]:
-        points[target] = numeric(points[target]).clip(lower=0.0)
+        points[target] = common.safe_numeric_float64(points[target]).clip(lower=0.0)
 
     for target, values in points.items():
-        values = numeric(values)
+        values = common.safe_numeric_float64(values)
         if values.isna().any() or (~np.isfinite(values)).any():
             raise ValueError(
                 f"Issue 36 canonical component adjustment is nonfinite: {target}"
@@ -697,18 +644,11 @@ def component_inference_rows(
                 f"{component}: missing current feature(s): {missing[:30]}"
             )
         rule = str(spec["eligible_rule"])
-        positions = {
-            str(x).strip().upper()
-            for x in eligibility[rule]["eligible_positions"]
-        }
-        pos = (
-            features["position"]
-            .fillna("")
-            .astype(str)
-            .str.strip()
-            .str.upper()
+        mask = common.normalized_position_mask(
+            features["position"],
+            eligibility[rule]["eligible_positions"],
         )
-        return features.loc[pos.isin(positions)].copy()
+        return features.loc[mask].copy()
     raise ValueError(
         f"{component}: unsupported opportunity scope {scope!r}"
     )
@@ -747,9 +687,9 @@ def score_opportunity(
             eligibility,
             team_def_rate,
         )
-        X = opportunity.numeric_frame(rows, feature_names)
+        model_input = opportunity.numeric_frame(rows, feature_names)
         pred = opportunity.transform_prediction(
-            booster.predict(X),
+            booster.predict(model_input),
             component,
         )
         if not np.isfinite(pred).all():
@@ -791,59 +731,31 @@ def prepare_efficiency_history(config: dict[str, Any], hist: pd.DataFrame, eligi
     return result
 
 
-def efficiency_inference_frame(current: pd.DataFrame, raw_history: pd.DataFrame, model_name: str, eligibility: dict[str, Any]) -> pd.DataFrame:
-    rule = efficiency.ELIGIBILITY_RULE[model_name]
-    positions = {str(x).strip().upper() for x in eligibility[rule]["eligible_positions"]}
-    pos = current["position"].fillna("").astype(str).str.strip().str.upper()
-    target = current.loc[pos.isin(positions)].copy()
-    if target.empty:
-        raise ValueError(f"{model_name}: no current eligible rows")
-
-    prior_columns = [
-        *GRAIN, "kickoff_timestamp", "position", "position_group",
-        "_prior_position_group", "_numerator", "_exposure", "_label",
-    ]
-    missing = [c for c in prior_columns if c not in raw_history.columns]
-    if missing:
-        raise ValueError(f"{model_name}: raw prior history missing {missing}")
-    history = raw_history[prior_columns].copy()
-    history["_inference_marker"] = 0
-    placeholder = target[[*GRAIN, "kickoff_timestamp", "position", "position_group"]].copy()
-    placeholder["_prior_position_group"] = efficiency.normalize_position_group(
-        placeholder["position"], placeholder["position_group"]
-    )
-    placeholder["_numerator"] = np.nan
-    placeholder["_exposure"] = np.nan
-    placeholder["_label"] = np.nan
-    placeholder["_inference_marker"] = 1
-    combined = pd.concat([history, placeholder], ignore_index=True, sort=False)
-    enriched = efficiency.add_strict_prior_features(combined, model_name)
-    inference_rows = enriched.loc[enriched["_inference_marker"].eq(1)].copy()
-
-    canonical = [f for f in efficiency.FEATURES[model_name] if f not in efficiency.DERIVED_FEATURES]
-    missing = [c for c in canonical if c not in target.columns]
-    if missing:
-        raise ValueError(f"{model_name}: missing current canonical efficiency features: {missing}")
-    inference_rows = inference_rows.merge(
-        target[[*GRAIN, *canonical]], on=GRAIN, how="left", validate="one_to_one",
-        suffixes=("", "_canonical"),
-    )
-    common.ensure_unique(inference_rows, GRAIN, f"Issue 33 {model_name} inference")
-    return inference_rows
-
-
 def score_efficiency(root: Path, current: pd.DataFrame, history: pd.DataFrame, eligibility: dict[str, Any], config: dict[str, Any]) -> tuple[dict[str, pd.DataFrame], dict[str, Any]]:
     raw_histories = prepare_efficiency_history(config, history, eligibility)
     predictions: dict[str, pd.DataFrame] = {}
     audits: dict[str, Any] = {}
     for name in EFFICIENCY_NEEDED:
         booster, manifest, feature_names = validate_booster_manifest(root, "efficiency", name)
-        rows = efficiency_inference_frame(current, raw_histories[name], name, eligibility)
+        rows = efficiency.build_efficiency_inference_frame(
+            current,
+            raw_histories[name],
+            name,
+            eligibility,
+            empty_message=f"{name}: no current eligible rows",
+            unique_label=f"Issue 33 {name} inference",
+            missing_history_prefix=(
+                f"{name}: raw prior history missing"
+            ),
+            missing_canonical_prefix=(
+                f"{name}: missing current canonical efficiency features:"
+            ),
+        )
         expected = list(efficiency.FEATURES[name])
         if feature_names != expected:
             raise ValueError(f"{name}: manifest differs from trainer efficiency feature order")
-        X = efficiency.feature_matrix(rows, name)
-        pred = efficiency.transform_prediction(booster.predict(X), name)
+        model_input = efficiency.feature_matrix(rows, name)
+        pred = efficiency.transform_prediction(booster.predict(model_input), name)
         if not np.isfinite(pred).all():
             raise ValueError(f"{name}: nonfinite persisted-model prediction")
         out = rows[GRAIN].copy()
@@ -988,7 +900,7 @@ def main() -> int:
     if set(features["season"]) != {season} or set(features["week"]) != {week}:
         raise ValueError("Issue 33 current feature season/week mismatch")
 
-    eligibility = load_yaml(eligibility_path)
+    eligibility = common.load_yaml_mapping(eligibility_path)
     opp_pred, opp_audit = score_opportunity(
         prop,
         features,
@@ -1148,10 +1060,10 @@ def main() -> int:
         )
 
     qb_primary = (
-        numeric(base["primary_qb_flag"]).fillna(0).gt(0)
+        common.safe_numeric_float64(base["primary_qb_flag"]).fillna(0).gt(0)
     )
     kicker_primary = (
-        numeric(base["primary_kicker_flag"]).fillna(0).gt(0)
+        common.safe_numeric_float64(base["primary_kicker_flag"]).fillna(0).gt(0)
     )
     if int(qb_primary.sum()) != int(base["team"].nunique()):
         raise ValueError(
@@ -1166,7 +1078,7 @@ def main() -> int:
     base.loc[
         qb_primary,
         "projected_qb_pass_attempts",
-    ] = numeric(
+    ] = common.safe_numeric_float64(
         base.loc[qb_primary, "_raw_qb_pass_attempts"]
     ).to_numpy()
     if base.loc[
@@ -1178,32 +1090,32 @@ def main() -> int:
         )
 
     base["_raw_carry_share"] = (
-        numeric(base["_raw_carry_share"])
+        common.safe_numeric_float64(base["_raw_carry_share"])
         .fillna(0.0)
         .clip(0.0, 1.0)
     )
     base["projected_target_share"] = (
-        numeric(base["projected_target_share"])
+        common.safe_numeric_float64(base["projected_target_share"])
         .fillna(0.0)
         .clip(0.0, 1.0)
     )
     base["_raw_red_zone_target_share"] = (
-        numeric(base["_raw_red_zone_target_share"])
+        common.safe_numeric_float64(base["_raw_red_zone_target_share"])
         .fillna(0.0)
         .clip(0.0, 1.0)
     )
     base["_raw_goal_line_carry_share"] = (
-        numeric(base["_raw_goal_line_carry_share"])
+        common.safe_numeric_float64(base["_raw_goal_line_carry_share"])
         .fillna(0.0)
         .clip(0.0, 1.0)
     )
 
     base["projected_player_carries"] = (
-        numeric(base["projected_team_rush_attempts"]).clip(lower=0.0)
+        common.safe_numeric_float64(base["projected_team_rush_attempts"]).clip(lower=0.0)
         * base["_raw_carry_share"]
     )
     base["projected_targets"] = (
-        numeric(base["projected_team_pass_attempts"]).clip(lower=0.0)
+        common.safe_numeric_float64(base["projected_team_pass_attempts"]).clip(lower=0.0)
         * base["projected_target_share"]
     )
     rz_volume = coalesce_numeric(
@@ -1225,14 +1137,14 @@ def main() -> int:
     base.loc[
         kicker_primary,
         "projected_fg_attempts",
-    ] = numeric(
+    ] = common.safe_numeric_float64(
         base.loc[kicker_primary, "_team_fg_attempts"]
     ).to_numpy()
     base["projected_pat_attempts"] = 0.0
     base.loc[
         kicker_primary,
         "projected_pat_attempts",
-    ] = numeric(
+    ] = common.safe_numeric_float64(
         base.loc[kicker_primary, "_team_pat_attempts"]
     ).to_numpy()
 
@@ -1240,7 +1152,7 @@ def main() -> int:
     base.loc[
         kicker_primary,
         "projected_fg_make_probability",
-    ] = numeric(
+    ] = common.safe_numeric_float64(
         base.loc[
             kicker_primary,
             "_raw_fg_make_probability",
@@ -1250,7 +1162,7 @@ def main() -> int:
     base.loc[
         kicker_primary,
         "projected_pat_make_probability",
-    ] = numeric(
+    ] = common.safe_numeric_float64(
         base.loc[
             kicker_primary,
             "_raw_pat_make_probability",
@@ -1270,23 +1182,23 @@ def main() -> int:
             "Primary kicker is missing kicking component/efficiency prediction"
         )
 
-    base["projected_fg_make_probability"] = numeric(
+    base["projected_fg_make_probability"] = common.safe_numeric_float64(
         base["projected_fg_make_probability"]
     ).clip(0.0, 1.0)
-    base["projected_pat_make_probability"] = numeric(
+    base["projected_pat_make_probability"] = common.safe_numeric_float64(
         base["projected_pat_make_probability"]
     ).clip(0.0, 1.0)
 
     def_eligible = base["_raw_defensive_participation"].notna()
     base["projected_defensive_participation"] = (
-        numeric(base["_raw_defensive_participation"])
+        common.safe_numeric_float64(base["_raw_defensive_participation"])
         .fillna(0.0)
         .clip(0.0, 1.0)
     )
-    base["projected_tackle_rate"] = numeric(
+    base["projected_tackle_rate"] = common.safe_numeric_float64(
         base["projected_tackle_rate"]
     ).clip(0.0, 1.0)
-    base["projected_sack_rate"] = numeric(
+    base["projected_sack_rate"] = common.safe_numeric_float64(
         base["projected_sack_rate"]
     ).clip(0.0, 1.0)
     if base.loc[
@@ -1302,7 +1214,7 @@ def main() -> int:
         "_rushing_td_rate",
         "_receiving_td_rate",
     ]:
-        base[column] = numeric(base[column]).clip(0.0, 1.0)
+        base[column] = common.safe_numeric_float64(base[column]).clip(0.0, 1.0)
 
     nonnegative = [
         "projected_team_pass_attempts",
@@ -1320,7 +1232,7 @@ def main() -> int:
         "projected_defensive_participation",
     ]
     for column in nonnegative:
-        base[column] = numeric(base[column])
+        base[column] = common.safe_numeric_float64(base[column])
         if base[column].isna().any() or base[column].lt(0.0).any():
             raise ValueError(
                 f"Issue 33 invalid nonnegative projection column: {column}"
@@ -1368,19 +1280,19 @@ def main() -> int:
         "primary_kickers": int(kicker_primary.sum()),
         "market_exclusion_passed": bool(market["passed"]),
         "market_features_used": False,
-        "output": repo_relative(output_path),
-        "log": repo_relative(log_path),
+        "output": common.repo_relative_path(output_path),
+        "log": common.repo_relative_path(log_path),
     }
     log_payload = {
         **payload,
         "inputs": {
-            "features": repo_relative(features_path),
-            "roles": repo_relative(roles_path),
-            "historical_features": repo_relative(historical_path),
-            "eligibility": repo_relative(eligibility_path),
+            "features": common.repo_relative_path(features_path),
+            "roles": common.repo_relative_path(roles_path),
+            "historical_features": common.repo_relative_path(historical_path),
+            "eligibility": common.repo_relative_path(eligibility_path),
             **(
                 {
-                    "week1_priors": repo_relative(
+                    "week1_priors": common.repo_relative_path(
                         prop
                         / "data"
                         / "current"
@@ -1405,7 +1317,11 @@ def main() -> int:
             "market_exclusion_preflight": True,
         },
     }
-    write_json_atomic(log_payload, log_path)
+    common.write_json_default_str_atomic(
+        log_path,
+        log_payload,
+        ensure_ascii=False,
+    )
     print(
         json.dumps(
             {

@@ -40,31 +40,28 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
-import subprocess
 import sys
-import tempfile
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 import pandas as pd
-import yaml
 
 try:
     import lightgbm as lgb
 except ModuleNotFoundError as exc:
     raise SystemExit("Issue 34 requires LightGBM in the active environment.") from exc
 
+# noinspection DuplicatedCode
 SCRIPT_DIR = Path(__file__).resolve().parent
 SCRIPTS_ROOT = SCRIPT_DIR.parent
 TRAIN_DIR = SCRIPTS_ROOT / "train"
-for p in (SCRIPTS_ROOT, TRAIN_DIR):
-    if str(p) not in sys.path:
-        sys.path.insert(0, str(p))
+for search_path in (SCRIPTS_ROOT, TRAIN_DIR):
+    if str(search_path) not in sys.path:
+        sys.path.insert(0, str(search_path))
 
 import common
-import train_opportunity_models as opportunity
+from train import train_opportunity_models as opportunity
 
 GRAIN = ["season", "week", "game_id", "player_id"]
 TEAM_GRAIN = ["season", "week", "game_id", "team"]
@@ -145,85 +142,19 @@ def parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 
-def repo_relative(path: Path) -> str:
-    return str(path.resolve().relative_to(common.repo_root().resolve()))
-
-
-def load_yaml(path: Path) -> dict[str, Any]:
-    if not path.is_file():
-        raise FileNotFoundError(f"Required YAML missing: {path}")
-    with path.open("r", encoding="utf-8-sig") as h:
-        value = yaml.safe_load(h)
-    if not isinstance(value, dict):
-        raise ValueError(f"Expected YAML mapping: {path}")
-    return value
-
-
-def load_json(path: Path) -> dict[str, Any]:
-    if not path.is_file():
-        raise FileNotFoundError(f"Required JSON missing: {path}")
-    with path.open("r", encoding="utf-8-sig") as h:
-        value = json.load(h)
-    if not isinstance(value, dict):
-        raise ValueError(f"Expected JSON object: {path}")
-    return value
-
-
-def write_json_atomic(payload: dict[str, Any], path: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    h = tempfile.NamedTemporaryFile(
-        mode="w",
-        encoding="utf-8",
-        newline="\n",
-        prefix=f".{path.name}.",
-        suffix=".tmp",
-        dir=path.parent,
-        delete=False,
-    )
-    temp = Path(h.name)
-    try:
-        with h:
-            json.dump(payload, h, indent=2, sort_keys=True, ensure_ascii=False, default=str)
-            h.write("\n")
-        os.replace(temp, path)
-    finally:
-        if temp.exists():
-            temp.unlink()
-
 
 def run_market_preflight() -> dict[str, Any]:
-    path = SCRIPTS_ROOT / "validate" / "audit_market_exclusion.py"
-    if not path.is_file():
-        raise FileNotFoundError(f"Issue 28 market validator missing: {path}")
-    cp = subprocess.run(
-        [sys.executable, str(path)],
-        cwd=common.repo_root(),
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if cp.returncode != 0 or "MARKET EXCLUSION AUDIT: PASS" not in cp.stdout:
-        raise RuntimeError(
-            "Market-exclusion preflight failed before opportunity allocation. "
-            f"stdout={cp.stdout[-2000:]!r} stderr={cp.stderr[-2000:]!r}"
-        )
-    return {"passed": True, "validator": repo_relative(path)}
-
-
-def numeric(series: pd.Series) -> pd.Series:
-    return (
-        pd.to_numeric(series, errors="coerce")
-        .replace([np.inf, -np.inf], np.nan)
-        .astype("float64")
+    return common.run_market_exclusion_audit(
+        missing_message="Issue 28 market validator missing: {path}",
+        failure_prefix=(
+            "Market-exclusion preflight failed before "
+            "opportunity allocation. "
+        ),
     )
 
 
 def clip01(series: pd.Series) -> pd.Series:
-    return numeric(series).clip(lower=0.0, upper=1.0)
-
-
-def normalized_position(series: pd.Series) -> pd.Series:
-    return series.fillna("").astype(str).str.strip().str.upper()
+    return common.safe_numeric_float64(series).clip(lower=0.0, upper=1.0)
 
 
 def weighted_row_mean(frame: pd.DataFrame, columns: list[str], weights: list[float]) -> pd.Series:
@@ -245,7 +176,7 @@ def weighted_row_mean(frame: pd.DataFrame, columns: list[str], weights: list[flo
 
 
 def depth_score(depth_rank: pd.Series) -> pd.Series:
-    rank = numeric(depth_rank)
+    rank = common.safe_numeric_float64(depth_rank)
     out = pd.Series(0.10, index=rank.index, dtype="float64")
     out.loc[rank.le(4.0)] = 0.30
     out.loc[rank.le(3.0)] = 0.50
@@ -265,7 +196,7 @@ def score_component(
         raise ValueError(f"Issue 34 expected player-scope component: {component}")
 
     model_dir = prop_root / "models" / "components" / component
-    manifest = load_json(model_dir / "feature_manifest.json")
+    manifest = common.load_json_mapping(model_dir / "feature_manifest.json")
     model_path = model_dir / "model.txt"
     if not model_path.is_file():
         raise FileNotFoundError(f"Required component model missing: {model_path}")
@@ -283,19 +214,19 @@ def score_component(
 
     rule = str(spec["eligible_rule"])
     positions = {str(x).strip().upper() for x in eligibility[rule]["eligible_positions"]}
-    pos = normalized_position(features["position"])
+    pos = common.normalize_position_series(features["position"])
     rows = features.loc[pos.isin(positions)].copy()
     if rows.empty:
         raise ValueError(f"{component}: no current eligible rows")
 
     # All persisted Issue 22 component features are numeric. Building the frame
     # in one operation avoids the fragmented-DataFrame warning from the trainer helper.
-    X = pd.DataFrame(
-        {c: numeric(rows[c]).to_numpy() for c in feature_names},
+    model_input = pd.DataFrame(
+        {c: common.safe_numeric_float64(rows[c]).to_numpy() for c in feature_names},
         index=rows.index,
         columns=feature_names,
     )
-    pred = opportunity.transform_prediction(booster.predict(X), component)
+    pred = opportunity.transform_prediction(booster.predict(model_input), component)
     if not np.isfinite(pred).all():
         raise ValueError(f"{component}: nonfinite persisted-model prediction")
 
@@ -334,13 +265,13 @@ def add_role_signals(work: pd.DataFrame) -> pd.DataFrame:
     out["_confidence"] = clip01(out["role_confidence"]).fillna(0.5)
     out["_backup"] = (
         out["role_status"].fillna("").astype(str).str.strip().str.casefold().eq("backup")
-        | numeric(out["depth_backup_flag"]).fillna(0.0).gt(0.0)
+        | common.safe_numeric_float64(out["depth_backup_flag"]).fillna(0.0).gt(0.0)
     ).astype("float64")
-    out["_teammate_out"] = numeric(out["role_teammate_out_count_position"]).fillna(0.0).clip(lower=0.0)
+    out["_teammate_out"] = common.safe_numeric_float64(out["role_teammate_out_count_position"]).fillna(0.0).clip(lower=0.0)
 
-    explicit_promotion = numeric(out["role_starter_promotion_flag"]).fillna(0.0).gt(0.0)
+    explicit_promotion = common.safe_numeric_float64(out["role_starter_promotion_flag"]).fillna(0.0).gt(0.0)
     contextual_promotion = out["_teammate_out"].gt(0.0) & (
-        out["_starter"].gt(0.0) | numeric(out["depth_rank"]).fillna(99.0).le(1.0)
+        out["_starter"].gt(0.0) | common.safe_numeric_float64(out["depth_rank"]).fillna(99.0).le(1.0)
     )
     out["_promotion"] = (explicit_promotion | contextual_promotion).astype("float64")
     out["_recent_backup"] = (out["_backup"] * out["_recent_offense"]).clip(0.0, 1.0)
@@ -384,7 +315,7 @@ def allocate_share_family(
     for key, idx in out.groupby(TEAM_GRAIN, sort=True).groups.items():
         loc = pd.Index(idx)
         cand_idx = loc[candidate_mask.loc[loc].to_numpy(dtype=bool)]
-        volume = numeric(out.loc[loc, volume_col])
+        volume = common.safe_numeric_float64(out.loc[loc, volume_col])
         finite_volume = volume.dropna()
         if finite_volume.empty:
             raise ValueError(f"{family}: missing team volume for {key}")
@@ -420,7 +351,7 @@ def allocate_share_family(
             out.loc[cand_idx, f"_{family}_reason"] = f"{family}:depth_participation_fallback_no_raw_mass"
             fallback_teams += 1
 
-        score = numeric(score).fillna(0.0).clip(lower=0.0)
+        score = common.safe_numeric_float64(score).fillna(0.0).clip(lower=0.0)
         total = float(score.sum())
         if total <= EPS:
             raise ValueError(f"{family}: deterministic role-weight fallback has zero mass: {key}")
@@ -442,34 +373,46 @@ def allocate_share_family(
 def main() -> int:
     args = parse_args()
     config = common.load_config()
-    season = int(args.season) if args.season is not None else int(config["seasons"]["current"])
-    week = int(args.week)
-    if week < 1:
-        raise ValueError("week must be >= 1")
+    season, week = common.resolve_projection_season_week(
+        args.season,
+        args.week,
+        config,
+    )
 
-    repo = common.repo_root()
     prop = common.prop_root()
     market = run_market_preflight()
 
+    context_paths = common.current_projection_context_paths(
+        season,
+        week,
+    )
     component_path = prop / "data" / "current" / f"{season}_week_{week}_component_projections.parquet"
-    features_path = prop / "data" / "current" / "features" / f"{season}_week_{week}_features.parquet"
-    roles_path = prop / "data" / "current" / f"{season}_week_{week}_roles.parquet"
-    universe_path = prop / "data" / "current" / f"{season}_week_{week}_universe.parquet"
-    eligibility_path = prop / "config" / "target_eligibility.yaml"
+    features_path = context_paths["features"]
+    roles_path = context_paths["roles"]
+    universe_path = context_paths["universe"]
+    eligibility_path = context_paths["eligibility"]
     issue33_log = prop / "logs" / f"component_projections_{season}_week_{week}.json"
     output_path = prop / "data" / "current" / f"{season}_week_{week}_allocated_opportunity.parquet"
     log_path = prop / "logs" / f"allocated_opportunity_{season}_week_{week}.json"
 
-    for path in [component_path, features_path, roles_path, universe_path, eligibility_path, issue33_log]:
-        if not path.is_file():
-            raise FileNotFoundError(f"Issue 34 required input missing: {path}")
+    common.require_existing_files(
+        [
+            component_path,
+            features_path,
+            roles_path,
+            universe_path,
+            eligibility_path,
+            issue33_log,
+        ],
+        missing_message="Issue 34 required input missing: {path}",
+    )
 
     component = pd.read_parquet(component_path)
-    features = pd.read_parquet(features_path)
-    roles = pd.read_parquet(roles_path)
-    universe_all = pd.read_parquet(universe_path)
-    eligibility = load_yaml(eligibility_path)
-    issue33 = load_json(issue33_log)
+    features, roles, universe_all = common.read_current_projection_frames(
+        context_paths
+    )
+    eligibility = common.load_yaml_mapping(eligibility_path)
+    issue33 = common.load_json_mapping(issue33_log)
 
     common.require_columns(component, COMPONENT_REQUIRED, "Issue 33 component projections")
     common.require_columns(features, FEATURE_REQUIRED, "Issue 31 current features")
@@ -488,10 +431,14 @@ def main() -> int:
         raise ValueError("Issue 34 current features unexpectedly contain target columns")
 
     for frame, label in [(component, "component"), (features, "features"), (roles, "roles"), (universe_all, "universe")]:
-        frame["season"] = pd.to_numeric(frame["season"], errors="raise").astype(int)
-        frame["week"] = pd.to_numeric(frame["week"], errors="raise").astype(int)
-        if set(frame["season"]) != {season} or set(frame["week"]) != {week}:
-            raise ValueError(f"Issue 34 {label} season/week mismatch")
+        common.require_current_week_frame(
+            frame,
+            season=season,
+            week=week,
+            mismatch_message=(
+                f"Issue 34 {label} season/week mismatch"
+            ),
+        )
 
     # Context must agree across the accepted current-week artifacts.
     context = component[[*GRAIN, "team", "position"]].merge(
@@ -510,8 +457,8 @@ def main() -> int:
         | context["_role_team"].isna()
         | context["team"].astype(str).ne(context["_feature_team"].astype(str))
         | context["team"].astype(str).ne(context["_role_team"].astype(str))
-        | normalized_position(context["position"]).ne(normalized_position(context["_feature_position"]))
-        | normalized_position(context["position"]).ne(normalized_position(context["_role_position"]))
+        | common.normalize_position_series(context["position"]).ne(common.normalize_position_series(context["_feature_position"]))
+        | common.normalize_position_series(context["position"]).ne(common.normalize_position_series(context["_role_position"]))
     )
     if bad_context.any():
         raise ValueError(
@@ -528,13 +475,13 @@ def main() -> int:
     if eligible_universe["injury_game_status"].fillna("").astype(str).str.casefold().eq("out").any():
         raise ValueError("Issue 34 eligible allocation pool contains an Out player")
 
-    target_manifest = load_json(
+    target_manifest = common.load_json_mapping(
         prop / "models" / "components" / "player_target_share" / "feature_manifest.json"
     )
-    carry_manifest = load_json(
+    carry_manifest = common.load_json_mapping(
         prop / "models" / "components" / "player_carry_share" / "feature_manifest.json"
     )
-    def_manifest = load_json(
+    def_manifest = common.load_json_mapping(
         prop / "models" / "components" / "player_defensive_participation" / "feature_manifest.json"
     )
     if not bool(target_manifest.get("reconcile_during_current_week_allocation", False)):
@@ -577,8 +524,8 @@ def main() -> int:
         }
     )
 
-    rush_volume = numeric(work["projected_team_rush_attempts"]).clip(lower=0.0)
-    carry_volume = numeric(work["projected_player_carries"]).clip(lower=0.0)
+    rush_volume = common.safe_numeric_float64(work["projected_team_rush_attempts"]).clip(lower=0.0)
+    carry_volume = common.safe_numeric_float64(work["projected_player_carries"]).clip(lower=0.0)
     work["raw_projected_carry_share"] = 0.0
     positive_rush = rush_volume.gt(EPS)
     work.loc[positive_rush, "raw_projected_carry_share"] = (
@@ -629,30 +576,30 @@ def main() -> int:
 
     # Exact preservation check against the canonical Issue 33 carry volume.
     expected_carries = (
-        numeric(work["projected_team_rush_attempts"]).clip(lower=0.0)
+        common.safe_numeric_float64(work["projected_team_rush_attempts"]).clip(lower=0.0)
         * work["raw_projected_carry_share"]
     )
     if not np.allclose(
         expected_carries.to_numpy(),
-        numeric(work["projected_player_carries"]).fillna(0.0).to_numpy(),
+        common.safe_numeric_float64(work["projected_player_carries"]).fillna(0.0).to_numpy(),
         atol=1e-8,
         rtol=1e-8,
     ):
         raise ValueError("Issue 34 derived raw carry share disagrees with Issue 33 projected_player_carries")
     expected_targets = (
-        numeric(work["projected_team_pass_attempts"]).clip(lower=0.0)
+        common.safe_numeric_float64(work["projected_team_pass_attempts"]).clip(lower=0.0)
         * work["raw_projected_target_share"]
     )
     if not np.allclose(
         expected_targets.to_numpy(),
-        numeric(work["projected_targets"]).fillna(0.0).to_numpy(),
+        common.safe_numeric_float64(work["projected_targets"]).fillna(0.0).to_numpy(),
         atol=1e-8,
         rtol=1e-8,
     ):
         raise ValueError("Issue 34 raw target share disagrees with Issue 33 projected_targets")
 
     work = add_role_signals(work)
-    pos = normalized_position(work["position"])
+    pos = common.normalize_position_series(work["position"])
     receiver_positions = {str(x).upper() for x in eligibility["receiving_yards"]["eligible_positions"]}
     rusher_positions = {str(x).upper() for x in eligibility["rushing_yards"]["eligible_positions"]}
     defender_positions = {str(x).upper() for x in eligibility["tackles"]["eligible_positions"]}
@@ -712,10 +659,10 @@ def main() -> int:
     target_volume_error = 0.0
     carry_volume_error = 0.0
     for _, group in work.groupby(TEAM_GRAIN, sort=True):
-        pass_volume = max(float(numeric(group["projected_team_pass_attempts"]).dropna().iloc[0]), 0.0)
-        rush_volume = max(float(numeric(group["projected_team_rush_attempts"]).dropna().iloc[0]), 0.0)
-        target_alloc = float(group.loc[normalized_position(group["position"]).isin(receiver_positions), "allocated_target_share"].sum())
-        carry_alloc = float(group.loc[normalized_position(group["position"]).isin(rusher_positions), "allocated_carry_share"].sum())
+        pass_volume = max(float(common.safe_numeric_float64(group["projected_team_pass_attempts"]).dropna().iloc[0]), 0.0)
+        rush_volume = max(float(common.safe_numeric_float64(group["projected_team_rush_attempts"]).dropna().iloc[0]), 0.0)
+        target_alloc = float(group.loc[common.normalize_position_series(group["position"]).isin(receiver_positions), "allocated_target_share"].sum())
+        carry_alloc = float(group.loc[common.normalize_position_series(group["position"]).isin(rusher_positions), "allocated_carry_share"].sum())
         if pass_volume > EPS:
             target_volume_error = max(target_volume_error, abs(pass_volume * target_alloc - pass_volume))
         if rush_volume > EPS:
@@ -755,18 +702,18 @@ def main() -> int:
         "equal_split_default_used": False,
         "market_exclusion_passed": bool(market["passed"]),
         "market_features_used": False,
-        "output": repo_relative(output_path),
-        "log": repo_relative(log_path),
+        "output": common.repo_relative_path(output_path),
+        "log": common.repo_relative_path(log_path),
     }
     log_payload = {
         **payload,
         "inputs": {
-            "component_projections": repo_relative(component_path),
-            "features": repo_relative(features_path),
-            "roles": repo_relative(roles_path),
-            "universe": repo_relative(universe_path),
-            "eligibility": repo_relative(eligibility_path),
-            "issue33_log": repo_relative(issue33_log),
+            "component_projections": common.repo_relative_path(component_path),
+            "features": common.repo_relative_path(features_path),
+            "roles": common.repo_relative_path(roles_path),
+            "universe": common.repo_relative_path(universe_path),
+            "eligibility": common.repo_relative_path(eligibility_path),
+            "issue33_log": common.repo_relative_path(issue33_log),
         },
         "raw_component_models": {
             "player_target_share": {
@@ -796,7 +743,11 @@ def main() -> int:
             "market_exclusion_preflight": True,
         },
     }
-    write_json_atomic(log_payload, log_path)
+    common.write_json_default_str_atomic(
+        log_path,
+        log_payload,
+        ensure_ascii=False,
+    )
     print(json.dumps({"script": Path(__file__).name, "payload": payload}, sort_keys=True, separators=(",", ":")))
     print("TEAM OPPORTUNITY ALLOCATION: PASS")
     return 0

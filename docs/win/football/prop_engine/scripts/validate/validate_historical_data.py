@@ -4,10 +4,8 @@
 from __future__ import annotations
 
 import json
-import math
 import os
 import sys
-import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -119,20 +117,6 @@ def repo_path(value: str | os.PathLike[str]) -> Path:
     return path.resolve()
 
 
-def clean_text(value: Any) -> str:
-    if value is None:
-        return ""
-    try:
-        if pd.isna(value):
-            return ""
-    except (TypeError, ValueError):
-        pass
-    text = str(value).strip()
-    if text.casefold() in {"", "nan", "none", "null", "<na>", "nat"}:
-        return ""
-    return text
-
-
 def canonical_team(value: Any) -> str:
     team = common.normalize_team(value)
     return HISTORICAL_TEAM_ALIASES.get(team, team)
@@ -145,27 +129,10 @@ def write_json_atomic(payload: dict[str, Any], destination: Path) -> None:
         destination.relative_to(root)
     except ValueError as exc:
         raise ValueError(f"Historical validation write outside Prop Engine: {destination}") from exc
-
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    handle = tempfile.NamedTemporaryFile(
-        mode="w",
-        encoding="utf-8",
-        newline="\n",
-        prefix=f".{destination.name}.",
-        suffix=".tmp",
-        dir=destination.parent,
-        delete=False,
+    common.write_json_atomic(
+        destination,
+        payload,
     )
-    temp_path = Path(handle.name)
-    try:
-        with handle:
-            json.dump(payload, handle, indent=2, sort_keys=True, ensure_ascii=False)
-            handle.write("\n")
-        os.replace(temp_path, destination)
-    except Exception:
-        if temp_path.exists():
-            temp_path.unlink()
-        raise
 
 
 def add_check(
@@ -302,6 +269,33 @@ def target_training_counts(
     return training_end, minimum, counts
 
 
+def normalize_grain_columns(
+    frame: pd.DataFrame,
+    *,
+    include_player_id: bool = False,
+) -> None:
+    frame["season"] = pd.to_numeric(
+        frame["season"],
+        errors="raise",
+    ).astype(int)
+    frame["week"] = pd.to_numeric(
+        frame["week"],
+        errors="raise",
+    ).astype(int)
+    frame["game_id"] = (
+        frame["game_id"]
+        .astype("string")
+        .str.strip()
+    )
+
+    if include_player_id:
+        frame["player_id"] = (
+            frame["player_id"]
+            .astype("string")
+            .str.strip()
+        )
+
+
 def build_report() -> tuple[dict[str, Any], int]:
     config = common.load_config()
     feature_path = repo_path(config["paths"]["historical_features"])
@@ -367,8 +361,6 @@ def build_report() -> tuple[dict[str, Any], int]:
     # 3-4. Team/game consistency from canonical historical games.
     team_game_pass = False
     opponent_game_pass = False
-    team_details: dict[str, Any] = {}
-    opponent_details: dict[str, Any] = {}
     try:
         games = load_games(config)
         game_dup = games.duplicated(["season", "week", "game_id"], keep=False)
@@ -377,9 +369,9 @@ def build_report() -> tuple[dict[str, Any], int]:
                 f"Historical games have duplicated regular-season game grain: {int(game_dup.sum())} rows"
             )
         probe = frame[["season", "week", "game_id", "team", "opponent"]].copy()
-        probe["season"] = pd.to_numeric(probe["season"], errors="raise").astype(int)
-        probe["week"] = pd.to_numeric(probe["week"], errors="raise").astype(int)
-        probe["game_id"] = probe["game_id"].astype("string").str.strip()
+        normalize_grain_columns(
+            probe,
+        )
         probe["_team"] = probe["team"].map(canonical_team)
         probe["_opponent"] = probe["opponent"].map(canonical_team)
         probe = probe.merge(
@@ -644,19 +636,18 @@ def build_report() -> tuple[dict[str, Any], int]:
 
     # 17. No join multiplication: exact row/grain parity with the universe.
     join_pass = False
-    join_details: dict[str, Any] = {}
     try:
         universe = pd.read_parquet(universe_path, columns=GRAIN)
         universe_dup = universe.duplicated(GRAIN, keep=False)
         feature_keys = frame[GRAIN].copy()
-        feature_keys["season"] = pd.to_numeric(feature_keys["season"], errors="raise").astype(int)
-        feature_keys["week"] = pd.to_numeric(feature_keys["week"], errors="raise").astype(int)
-        universe["season"] = pd.to_numeric(universe["season"], errors="raise").astype(int)
-        universe["week"] = pd.to_numeric(universe["week"], errors="raise").astype(int)
-        universe["game_id"] = universe["game_id"].astype("string").str.strip()
-        universe["player_id"] = universe["player_id"].astype("string").str.strip()
-        feature_keys["game_id"] = feature_keys["game_id"].astype("string").str.strip()
-        feature_keys["player_id"] = feature_keys["player_id"].astype("string").str.strip()
+        normalize_grain_columns(
+            feature_keys,
+            include_player_id=True,
+        )
+        normalize_grain_columns(
+            universe,
+            include_player_id=True,
+        )
 
         exact_rows = len(feature_keys) == len(universe)
         manifest_rows = int(manifest.get("row_count", -1)) == len(feature_keys)

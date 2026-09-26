@@ -267,28 +267,7 @@ def safe_divide(
     numerator: pd.Series,
     denominator: pd.Series,
 ) -> pd.Series:
-    numerator = numeric(numerator)
-    denominator = numeric(denominator)
-
-    result = pd.Series(
-        np.nan,
-        index=numerator.index,
-        dtype="float64",
-    )
-
-    valid = (
-        numerator.notna()
-        & denominator.notna()
-        & denominator.gt(0.0)
-    )
-
-    result.loc[valid] = (
-        numerator.loc[valid]
-        / denominator.loc[valid]
-    )
-
-    return result.replace([np.inf, -np.inf], np.nan)
-
+    return common.safe_divide_positive(numerator, denominator)
 
 def season_week_mask(
     frame: pd.DataFrame,
@@ -443,84 +422,79 @@ def base_components(frame: pd.DataFrame) -> dict[str, pd.Series]:
     Construct deterministic pregame components that do not depend on fold
     outcomes or target columns.
     """
-    components: dict[str, pd.Series] = {}
-
-    # Passing.
-    components["projected_attempts_baseline"] = clip_nonnegative(
-        coalesce_numeric(
+    components: dict[str, pd.Series] = {
+        # Passing.
+        "projected_attempts_baseline": clip_nonnegative(
+            coalesce_numeric(
+                frame,
+                [
+                    "player_pass_attempts_roll3_mean",
+                    "player_pass_attempts_roll5_mean",
+                    "player_pass_attempts_season_to_date",
+                    "player_pass_attempts_career_prior",
+                    "player_pass_attempts_lag1",
+                ],
+            )
+        ),
+        # Preserve signed efficiency. Do not clip yardage rates to nonnegative.
+        "rolling_yards_per_attempt": coalesce_numeric(
             frame,
             [
-                "player_pass_attempts_roll3_mean",
-                "player_pass_attempts_roll5_mean",
-                "player_pass_attempts_season_to_date",
-                "player_pass_attempts_career_prior",
-                "player_pass_attempts_lag1",
+                "player_yards_per_attempt_roll5_mean",
+                "player_yards_per_attempt_roll3_mean",
+                "player_yards_per_attempt_season_to_date",
+                "player_yards_per_attempt_career_prior",
+                "player_yards_per_attempt_lag1",
             ],
-        )
-    )
-
-    # Preserve signed efficiency. Do not clip yardage rates to nonnegative.
-    components["rolling_yards_per_attempt"] = coalesce_numeric(
-        frame,
-        [
-            "player_yards_per_attempt_roll5_mean",
-            "player_yards_per_attempt_roll3_mean",
-            "player_yards_per_attempt_season_to_date",
-            "player_yards_per_attempt_career_prior",
-            "player_yards_per_attempt_lag1",
-        ],
-    )
-
-    components["rolling_passing_td_rate"] = clip_probability(
-        coalesce_numeric(
+        ),
+        "rolling_passing_td_rate": clip_probability(
+            coalesce_numeric(
+                frame,
+                [
+                    "player_passing_td_rate_roll5_mean",
+                    "player_passing_td_rate_roll3_mean",
+                    "player_passing_td_rate_season_to_date",
+                    "player_passing_td_rate_career_prior",
+                    "player_passing_td_rate_lag1",
+                ],
+            )
+        ),
+        # Rushing.
+        "projected_carries_baseline": clip_nonnegative(
+            coalesce_numeric(
+                frame,
+                [
+                    "player_carries_roll3_mean",
+                    "player_carries_roll5_mean",
+                    "player_carries_season_to_date",
+                    "player_carries_career_prior",
+                    "player_carries_lag1",
+                ],
+            )
+        ),
+        "rolling_yards_per_carry": coalesce_numeric(
             frame,
             [
-                "player_passing_td_rate_roll5_mean",
-                "player_passing_td_rate_roll3_mean",
-                "player_passing_td_rate_season_to_date",
-                "player_passing_td_rate_career_prior",
-                "player_passing_td_rate_lag1",
+                "player_yards_per_carry_roll5_mean",
+                "player_yards_per_carry_roll3_mean",
+                "player_yards_per_carry_season_to_date",
+                "player_yards_per_carry_career_prior",
+                "player_yards_per_carry_lag1",
             ],
-        )
-    )
-
-    # Rushing.
-    components["projected_carries_baseline"] = clip_nonnegative(
-        coalesce_numeric(
-            frame,
-            [
-                "player_carries_roll3_mean",
-                "player_carries_roll5_mean",
-                "player_carries_season_to_date",
-                "player_carries_career_prior",
-                "player_carries_lag1",
-            ],
-        )
-    )
-
-    components["rolling_yards_per_carry"] = coalesce_numeric(
-        frame,
-        [
-            "player_yards_per_carry_roll5_mean",
-            "player_yards_per_carry_roll3_mean",
-            "player_yards_per_carry_season_to_date",
-            "player_yards_per_carry_career_prior",
-            "player_yards_per_carry_lag1",
-        ],
-    )
-
-    components["projected_goal_line_carries"] = clip_nonnegative(
-        coalesce_numeric(
-            frame,
-            [
-                "player_goal_line_carries_roll3_mean",
-                "player_goal_line_carries_roll5_mean",
-                "player_goal_line_carries_season_to_date",
-                "player_goal_line_carries_career_prior",
-                "player_goal_line_carries_lag1",
-            ],
-        )
-    )
+        ),
+        "projected_goal_line_carries": clip_nonnegative(
+            coalesce_numeric(
+                frame,
+                [
+                    "player_goal_line_carries_roll3_mean",
+                    "player_goal_line_carries_roll5_mean",
+                    "player_goal_line_carries_season_to_date",
+                    "player_goal_line_carries_career_prior",
+                    "player_goal_line_carries_lag1",
+                ],
+            )
+        ),
+    }
 
     # Five-game historical exposure used only for TD-rate shrinkage.
     goal_line_exposure = (
@@ -1193,17 +1167,9 @@ def validate_output(
 
 
 def main() -> int:
-    # ISSUE28_MARKET_EXCLUSION_PREFLIGHT
-    _issue28_audit = common.prop_root() / "scripts" / "validate" / "audit_market_exclusion.py"
-    _issue28_result = __import__("subprocess").run(
-        [__import__("sys").executable, str(_issue28_audit), "--preflight"],
-        check=False,
-    )
-    if _issue28_result.returncode != 0:
-        raise RuntimeError("Issue 28 market-exclusion preflight failed.")
+    common.run_market_exclusion_preflight()
 
     config = common.load_config()
-    prop_root = common.prop_root()
 
     eligibility = load_yaml(
         common.repo_root() / ELIGIBILITY_PATH

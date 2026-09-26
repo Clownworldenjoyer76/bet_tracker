@@ -157,31 +157,6 @@ SACK_ALIASES = [
 ]
 
 
-def clean(value: Any) -> str:
-    if value is None:
-        return ""
-
-    try:
-        if pd.isna(value):
-            return ""
-    except (TypeError, ValueError):
-        pass
-
-    text = str(value).strip()
-
-    if text.casefold() in {
-        "",
-        "nan",
-        "none",
-        "null",
-        "<na>",
-        "nat",
-    }:
-        return ""
-
-    return text
-
-
 def choose_column(
     df: pd.DataFrame,
     aliases: list[str],
@@ -203,7 +178,7 @@ def choose_column(
 
 
 def normalize_position(value: Any) -> str:
-    return clean(value).upper()
+    return common.clean_text(value).upper()
 
 
 # Issue 7 source/team validation only.
@@ -243,7 +218,7 @@ def normalize_franchise_team(value: Any) -> str:
 
 
 def normalize_game_id(value: Any) -> str:
-    return clean(value)
+    return common.clean_text(value)
 
 
 def numeric_series(
@@ -251,32 +226,11 @@ def numeric_series(
     *,
     label: str,
 ) -> pd.Series:
-    converted = pd.to_numeric(
+    return common.numeric_series_required(
         series,
-        errors="coerce",
+        label=label,
+        invalid_description="non-numeric target values found",
     )
-
-    invalid = (
-        series.notna()
-        & series.astype(str).str.strip().ne("")
-        & converted.isna()
-    )
-
-    if invalid.any():
-        examples = (
-            series.loc[invalid]
-            .astype(str)
-            .head(10)
-            .tolist()
-        )
-
-        raise ValueError(
-            f"{label}: non-numeric target values found. "
-            f"Examples={examples}"
-        )
-
-    return converted.astype(float)
-
 
 def configured_direct_columns(
     config: dict,
@@ -293,7 +247,7 @@ def configured_direct_columns(
                 f"Config target {target!r} is missing."
             )
 
-        source_column = clean(
+        source_column = common.clean_text(
             definition.get("source_column")
         )
 
@@ -312,7 +266,7 @@ def configured_direct_columns(
             "Config target 'sacks' is missing."
         )
 
-    configured_sacks = clean(
+    configured_sacks = common.clean_text(
         sacks_definition.get("source_column")
     )
 
@@ -329,7 +283,7 @@ def configured_direct_columns(
             f"{configured_sacks!r}."
         )
 
-    tackle_definition = clean(
+    tackle_definition = common.clean_text(
         targets.get("tackles", {}).get("definition")
     ).replace(" ", "")
 
@@ -341,7 +295,7 @@ def configured_direct_columns(
             "'solo_tackles + assisted_tackles'."
         )
 
-    kicking_formula = clean(
+    kicking_formula = common.clean_text(
         targets.get("kicking_points", {}).get("formula")
     ).replace(" ", "")
 
@@ -572,7 +526,7 @@ def filter_unidentifiable_source_rows(
         row = source.loc[index]
 
         player_name = (
-            clean(row[name_col])
+            common.clean_text(row[name_col])
             if name_col
             else ""
         )
@@ -619,7 +573,7 @@ def filter_unidentifiable_source_rows(
                 ).iloc[0]
             ),
             "game_id": (
-                clean(row[game_col])
+                common.clean_text(row[game_col])
                 if game_col
                 else ""
             ),

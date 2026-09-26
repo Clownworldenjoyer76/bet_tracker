@@ -56,26 +56,22 @@ from __future__ import annotations
 
 import hashlib
 import json
-import math
-import os
 import sys
-import tempfile
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 import pandas as pd
-import yaml
-
 try:
     import lightgbm as lgb
-except ModuleNotFoundError as exc:
+except ModuleNotFoundError as import_error:
     raise SystemExit(
         "Issue 22 requires LightGBM. Install it in the active Python "
         "environment with: python -m pip install lightgbm"
-    ) from exc
+    ) from import_error
 
 
+# noinspection DuplicatedCode
 SCRIPT_DIR = Path(__file__).resolve().parent
 SCRIPTS_ROOT = SCRIPT_DIR.parent
 if str(SCRIPTS_ROOT) not in sys.path:
@@ -85,13 +81,10 @@ import common
 
 
 
-_CONFIG_CONTRACT = common.load_config()
-_TRAINING_CONTRACT = _CONFIG_CONTRACT["training"]
 SEED = 24024
-MODEL_SELECTION_TRAIN_END = int(_TRAINING_CONTRACT["model_selection_train_end_season"])
-DEVELOPMENT_VALIDATION_SEASON = int(_TRAINING_CONTRACT["development_validation_season"])
-FINAL_TRAIN_END = int(_TRAINING_CONTRACT["final_train_end_season"])
-UNTOUCHED_TEST_SEASON = int(_TRAINING_CONTRACT["untouched_test_season"])
+MODEL_SELECTION_TRAIN_END, DEVELOPMENT_VALIDATION_SEASON, FINAL_TRAIN_END, UNTOUCHED_TEST_SEASON = (
+    common.training_policy_seasons()
+)
 
 FEATURE_MANIFEST_PATH = (
     "docs/win/football/prop_engine/data/historical/features/"
@@ -774,26 +767,6 @@ COMPONENTS: dict[str, dict[str, Any]] = {
 }
 
 
-def load_json(path: Path) -> dict[str, Any]:
-    if not path.is_file():
-        raise FileNotFoundError(f"Required JSON does not exist: {path}")
-    with path.open("r", encoding="utf-8-sig") as handle:
-        value = json.load(handle)
-    if not isinstance(value, dict):
-        raise ValueError(f"Expected JSON object: {path}")
-    return value
-
-
-def load_yaml(path: Path) -> dict[str, Any]:
-    if not path.is_file():
-        raise FileNotFoundError(f"Required YAML does not exist: {path}")
-    with path.open("r", encoding="utf-8-sig") as handle:
-        value = yaml.safe_load(handle)
-    if not isinstance(value, dict):
-        raise ValueError(f"Expected YAML mapping: {path}")
-    return value
-
-
 def canonical_team(value: Any) -> str:
     team = common.normalize_team(value)
     return HISTORICAL_FRANCHISE_ALIASES.get(team, team)
@@ -843,136 +816,12 @@ def transform_prediction(
     raise KeyError(f"Unknown component transform: {component}")
 
 
-def stable_json_bytes(value: dict[str, Any]) -> bytes:
-    return (
-        json.dumps(
-            value,
-            sort_keys=True,
-            indent=2,
-            ensure_ascii=False,
-        )
-        + "\n"
-    ).encode("utf-8")
-
-
-def write_json_atomic(
-    path: Path,
-    value: dict[str, Any],
-) -> None:
-    root = common.prop_root().resolve()
-    destination = path.resolve()
-
-    try:
-        destination.relative_to(root)
-    except ValueError as exc:
-        raise ValueError(
-            f"Refusing to write outside Prop Engine root: {destination}"
-        ) from exc
-
-    destination.parent.mkdir(parents=True, exist_ok=True)
-
-    handle = tempfile.NamedTemporaryFile(
-        mode="wb",
-        prefix=f".{destination.name}.",
-        suffix=".tmp",
-        dir=destination.parent,
-        delete=False,
-    )
-    temp_path = Path(handle.name)
-
-    try:
-        with handle:
-            handle.write(stable_json_bytes(value))
-        os.replace(temp_path, destination)
-    finally:
-        if temp_path.exists():
-            temp_path.unlink()
-
-
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
-
-
-def save_model_atomic(
-    model: lgb.Booster,
-    path: Path,
-    num_iteration: int,
-) -> None:
-    root = common.prop_root().resolve()
-    destination = path.resolve()
-
-    try:
-        destination.relative_to(root)
-    except ValueError as exc:
-        raise ValueError(
-            f"Refusing to write outside Prop Engine root: {destination}"
-        ) from exc
-
-    destination.parent.mkdir(parents=True, exist_ok=True)
-
-    handle = tempfile.NamedTemporaryFile(
-        mode="wb",
-        prefix=f".{destination.name}.",
-        suffix=".tmp",
-        dir=destination.parent,
-        delete=False,
-    )
-    temp_path = Path(handle.name)
-    handle.close()
-
-    try:
-        model.save_model(
-            str(temp_path),
-            num_iteration=num_iteration,
-        )
-        os.replace(temp_path, destination)
-    finally:
-        if temp_path.exists():
-            temp_path.unlink()
-
-
-def rmse(actual: np.ndarray, pred: np.ndarray) -> float:
-    return float(
-        np.sqrt(
-            np.mean(
-                np.square(
-                    np.asarray(actual, dtype=float)
-                    - np.asarray(pred, dtype=float)
-                )
-            )
-        )
-    )
-
-
-def mae(actual: np.ndarray, pred: np.ndarray) -> float:
-    return float(
-        np.mean(
-            np.abs(
-                np.asarray(actual, dtype=float)
-                - np.asarray(pred, dtype=float)
-            )
-        )
-    )
-
-
-def r2(actual: np.ndarray, pred: np.ndarray) -> float | None:
-    y = np.asarray(actual, dtype=float)
-    p = np.asarray(pred, dtype=float)
-
-    denominator = float(np.sum(np.square(y - y.mean())))
-    if denominator <= 0.0:
-        return None
-
-    value = 1.0 - float(
-        np.sum(np.square(y - p))
-        / denominator
-    )
-
-    return value if math.isfinite(value) else None
 
 
 def assert_feature_contract(
@@ -1240,14 +1089,6 @@ def build_training_frames(
         "team opportunity labels",
     )
 
-    all_component_features = unique(
-        [
-            column
-            for component in COMPONENT_ORDER
-            for column in COMPONENTS[component]["features"]
-        ]
-    )
-
     # Restrict raw inputs to the final training cutoff before label assembly.
     # 2025 is not included in any training frame.
     base = features.loc[
@@ -1456,57 +1297,36 @@ def train_component(
             f"{component}: empty final training set."
         )
 
-    X_select = numeric_frame(selection_train, features)
+    x_select = numeric_frame(selection_train, features)
     y_select = selection_train["_label"].astype("float64")
 
-    X_valid = numeric_frame(validation, features)
+    x_valid = numeric_frame(validation, features)
     y_valid = validation["_label"].astype("float64")
 
-    X_final = numeric_frame(final_train, features)
+    x_final = numeric_frame(final_train, features)
     y_final = final_train["_label"].astype("float64")
 
-    if X_select.isna().all(axis=1).all():
+    if x_select.isna().all(axis=1).all():
         raise ValueError(
             f"{component}: every model-selection row has all features missing."
         )
 
-    if X_valid.isna().all(axis=1).all():
+    if x_valid.isna().all(axis=1).all():
         raise ValueError(
             f"{component}: every 2024 validation row has all features missing."
         )
 
-    params = {
-        "objective": "regression",
-        "metric": "rmse",
-        "boosting_type": "gbdt",
-        "learning_rate": 0.03,
-        "num_leaves": 31,
-        "min_data_in_leaf": 40,
-        "feature_fraction": 1.0,
-        "bagging_fraction": 1.0,
-        "bagging_freq": 0,
-        "lambda_l1": 0.0,
-        "lambda_l2": 0.0,
-        "max_bin": 255,
-        "verbosity": -1,
-        "seed": SEED,
-        "feature_fraction_seed": SEED,
-        "bagging_seed": SEED,
-        "data_random_seed": SEED,
-        "deterministic": True,
-        "force_col_wise": True,
-        "num_threads": 1,
-    }
+    params = common.lightgbm_regression_params(SEED)
 
     select_set = lgb.Dataset(
-        X_select,
+        x_select,
         label=y_select,
         feature_name=features,
         free_raw_data=False,
     )
 
     valid_set = lgb.Dataset(
-        X_valid,
+        x_valid,
         label=y_valid,
         feature_name=features,
         reference=select_set,
@@ -1541,7 +1361,7 @@ def train_component(
         )
 
     valid_raw = selected_model.predict(
-        X_valid,
+        x_valid,
         num_iteration=best_iteration,
     )
 
@@ -1552,14 +1372,13 @@ def train_component(
 
     valid_actual = y_valid.to_numpy(dtype="float64")
 
-    validation_metrics = {
-        "rmse": rmse(valid_actual, valid_pred),
-        "mae": mae(valid_actual, valid_pred),
-        "r2": r2(valid_actual, valid_pred),
-    }
+    validation_metrics = common.regression_metrics(
+        valid_actual,
+        valid_pred,
+    )
 
     final_set = lgb.Dataset(
-        X_final,
+        x_final,
         label=y_final,
         feature_name=features,
         free_raw_data=False,
@@ -1587,7 +1406,7 @@ def train_component(
 
     model_root.mkdir(parents=True, exist_ok=True)
 
-    save_model_atomic(
+    common.save_lightgbm_model_atomic(
         final_model,
         model_path,
         num_iteration=best_iteration,
@@ -1620,7 +1439,7 @@ def train_component(
         "forbidden_features": config["forbidden_features"],
     }
 
-    write_json_atomic(
+    common.write_json_atomic(
         manifest_path,
         feature_manifest,
     )
@@ -1712,7 +1531,7 @@ def train_component(
         "model_sha256": sha256_file(model_path),
     }
 
-    write_json_atomic(
+    common.write_json_atomic(
         metadata_path,
         metadata,
     )
@@ -1739,28 +1558,16 @@ def train_component(
 
 
 def main() -> int:
-    # ISSUE28_MARKET_EXCLUSION_PREFLIGHT
-    _issue28_audit = common.prop_root() / "scripts" / "validate" / "audit_market_exclusion.py"
-    _issue28_result = __import__("subprocess").run(
-        [__import__("sys").executable, str(_issue28_audit), "--preflight"],
-        check=False,
-    )
-    if _issue28_result.returncode != 0:
-        raise RuntimeError("Issue 28 market-exclusion preflight failed.")
-
-    config = common.load_config()
-    root = common.repo_root()
-
-    eligibility = load_yaml(
-        root / ELIGIBILITY_PATH
-    )
-
-    canonical_manifest = load_json(
-        root / FEATURE_MANIFEST_PATH
-    )
-
-    folds = common.read_parquet_required(
-        FOLDS_PATH
+    (
+        config,
+        root,
+        eligibility,
+        canonical_manifest,
+        folds,
+    ) = common.load_training_context(
+        eligibility_path=ELIGIBILITY_PATH,
+        feature_manifest_path=FEATURE_MANIFEST_PATH,
+        folds_path=FOLDS_PATH,
     )
 
     verify_backtest_policy(folds)

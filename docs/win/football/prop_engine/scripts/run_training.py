@@ -4,7 +4,7 @@ import hashlib, io, json, os, re, runpy, sys, tempfile, time, traceback
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Sequence
+from typing import Any, Callable
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
@@ -129,6 +129,7 @@ def _exit_code(exc):
     if isinstance(exc.code, int): return int(exc.code)
     return 1
 
+# noinspection PyBroadException
 def execute_script(*, step_number, script, scripts_root, repo_root, training_seed):
     path = (scripts_root/script).resolve(); started = now(); clock = time.perf_counter()
     out, err = Tee(sys.stdout), Tee(sys.stderr)
@@ -149,7 +150,7 @@ def execute_script(*, step_number, script, scripts_root, repo_root, training_see
             except SystemExit as exc:
                 code = _exit_code(exc)
                 if code != 0: status = 'failed'
-            except BaseException:
+            except Exception:
                 status, code = 'failed', 1
                 traceback.print_exc(file=err)
     finally:

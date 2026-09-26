@@ -35,7 +35,7 @@ import traceback
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Iterable, Sequence
+from typing import Any, Callable, Sequence
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
@@ -252,6 +252,7 @@ def _exit_code_from_system_exit(exc: SystemExit) -> int:
     return 1
 
 
+# noinspection PyBroadException
 def execute_script(
     *,
     step_number: int,
@@ -292,7 +293,7 @@ def execute_script(
                 exit_code = _exit_code_from_system_exit(exc)
                 if exit_code != 0:
                     status = "failed"
-            except BaseException:
+            except Exception:
                 status = "failed"
                 exit_code = 1
                 traceback.print_exc(file=stderr_tee)

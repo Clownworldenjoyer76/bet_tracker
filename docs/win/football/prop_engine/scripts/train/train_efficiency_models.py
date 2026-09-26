@@ -52,25 +52,22 @@ from __future__ import annotations
 import hashlib
 import json
 import math
-import os
 import sys
-import tempfile
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 import pandas as pd
-import yaml
-
 try:
     import lightgbm as lgb
-except ModuleNotFoundError as exc:
+except ModuleNotFoundError as import_error:
     raise SystemExit(
         "Issue 23 requires LightGBM. Install with: "
         "python -m pip install lightgbm"
-    ) from exc
+    ) from import_error
 
 
+# noinspection DuplicatedCode
 SCRIPT_DIR = Path(__file__).resolve().parent
 SCRIPTS_ROOT = SCRIPT_DIR.parent
 if str(SCRIPTS_ROOT) not in sys.path:
@@ -80,13 +77,10 @@ import common
 
 
 
-_CONFIG_CONTRACT = common.load_config()
-_TRAINING_CONTRACT = _CONFIG_CONTRACT["training"]
 SEED = 24024
-MODEL_SELECTION_TRAIN_END = int(_TRAINING_CONTRACT["model_selection_train_end_season"])
-DEVELOPMENT_VALIDATION_SEASON = int(_TRAINING_CONTRACT["development_validation_season"])
-FINAL_TRAIN_END = int(_TRAINING_CONTRACT["final_train_end_season"])
-UNTOUCHED_TEST_SEASON = int(_TRAINING_CONTRACT["untouched_test_season"])
+MODEL_SELECTION_TRAIN_END, DEVELOPMENT_VALIDATION_SEASON, FINAL_TRAIN_END, UNTOUCHED_TEST_SEASON = (
+    common.training_policy_seasons()
+)
 
 FEATURE_MANIFEST_PATH = (
     "docs/win/football/prop_engine/data/historical/features/"
@@ -311,60 +305,11 @@ PROHIBITED_SHARE_TOKENS = (
 )
 
 
-def load_json(path: Path) -> dict[str, Any]:
-    if not path.is_file():
-        raise FileNotFoundError(f"Required JSON does not exist: {path}")
-    with path.open("r", encoding="utf-8-sig") as handle:
-        value = json.load(handle)
-    if not isinstance(value, dict):
-        raise ValueError(f"Expected JSON object: {path}")
-    return value
-
-
-def load_yaml(path: Path) -> dict[str, Any]:
-    if not path.is_file():
-        raise FileNotFoundError(f"Required YAML does not exist: {path}")
-    with path.open("r", encoding="utf-8-sig") as handle:
-        value = yaml.safe_load(handle)
-    if not isinstance(value, dict):
-        raise ValueError(f"Expected YAML mapping: {path}")
-    return value
-
-
-def numeric(series: pd.Series) -> pd.Series:
-    return (
-        pd.to_numeric(series, errors="coerce")
-        .replace([np.inf, -np.inf], np.nan)
-        .astype("float64")
-    )
-
-
 def safe_rate(
     numerator: pd.Series,
     exposure: pd.Series,
 ) -> pd.Series:
-    num = numeric(numerator)
-    exp = numeric(exposure)
-
-    result = pd.Series(
-        np.nan,
-        index=num.index,
-        dtype="float64",
-    )
-
-    valid = (
-        num.notna()
-        & exp.notna()
-        & exp.gt(0.0)
-    )
-
-    result.loc[valid] = (
-        num.loc[valid]
-        / exp.loc[valid]
-    )
-
-    return result.replace([np.inf, -np.inf], np.nan)
-
+    return common.safe_divide_positive(numerator, exposure)
 
 def normalize_position_group(
     position: pd.Series,
@@ -409,90 +354,6 @@ def normalize_position_group(
     group = group.where(group.ne(""), fallback)
 
     return group
-
-
-def stable_json_bytes(value: dict[str, Any]) -> bytes:
-    return (
-        json.dumps(
-            value,
-            sort_keys=True,
-            indent=2,
-            ensure_ascii=False,
-        )
-        + "\n"
-    ).encode("utf-8")
-
-
-def write_json_atomic(
-    path: Path,
-    value: dict[str, Any],
-) -> None:
-    root = common.prop_root().resolve()
-    destination = path.resolve()
-
-    try:
-        destination.relative_to(root)
-    except ValueError as exc:
-        raise ValueError(
-            f"Refusing to write outside Prop Engine root: {destination}"
-        ) from exc
-
-    destination.parent.mkdir(parents=True, exist_ok=True)
-
-    handle = tempfile.NamedTemporaryFile(
-        mode="wb",
-        prefix=f".{destination.name}.",
-        suffix=".tmp",
-        dir=destination.parent,
-        delete=False,
-    )
-    temp_path = Path(handle.name)
-
-    try:
-        with handle:
-            handle.write(stable_json_bytes(value))
-        os.replace(temp_path, destination)
-    finally:
-        if temp_path.exists():
-            temp_path.unlink()
-
-
-def save_model_atomic(
-    model: lgb.Booster,
-    path: Path,
-    num_iteration: int,
-) -> None:
-    destination = path.resolve()
-    root = common.prop_root().resolve()
-
-    try:
-        destination.relative_to(root)
-    except ValueError as exc:
-        raise ValueError(
-            f"Refusing to write outside Prop Engine root: {destination}"
-        ) from exc
-
-    destination.parent.mkdir(parents=True, exist_ok=True)
-
-    handle = tempfile.NamedTemporaryFile(
-        mode="wb",
-        prefix=f".{destination.name}.",
-        suffix=".tmp",
-        dir=destination.parent,
-        delete=False,
-    )
-    temp_path = Path(handle.name)
-    handle.close()
-
-    try:
-        model.save_model(
-            str(temp_path),
-            num_iteration=num_iteration,
-        )
-        os.replace(temp_path, destination)
-    finally:
-        if temp_path.exists():
-            temp_path.unlink()
 
 
 def sha256_file(path: Path) -> str:
@@ -668,11 +529,6 @@ def build_exact_conditional_td_labels(
     ):
         path = root / pattern.format(season=season)
 
-        if not path.is_file():
-            raise FileNotFoundError(
-                f"Required rich-feature PBP is missing: {path}"
-            )
-
         usecols = [
             "season_type",
             "week",
@@ -686,24 +542,14 @@ def build_exact_conditional_td_labels(
             "pass_touchdown",
         ]
 
-        pbp = pd.read_csv(
+        pbp = common.read_regular_season_pbp(
             path,
             usecols=usecols,
-            low_memory=False,
+            season=season,
+            missing_message=(
+                f"Required rich-feature PBP is missing: {path}"
+            ),
         )
-
-        pbp = pbp.loc[
-            pbp["season_type"]
-            .astype(str)
-            .str.upper()
-            .eq("REG")
-        ].copy()
-
-        pbp["season"] = season
-        pbp["week"] = pd.to_numeric(
-            pbp["week"],
-            errors="raise",
-        ).astype(int)
 
         pbp["game_id"] = (
             pbp["game_id"]
@@ -711,19 +557,19 @@ def build_exact_conditional_td_labels(
             .str.strip()
         )
 
-        pbp["yardline_100"] = numeric(
+        pbp["yardline_100"] = common.safe_numeric_float64(
             pbp["yardline_100"]
         )
-        pbp["rush_attempt"] = numeric(
+        pbp["rush_attempt"] = common.safe_numeric_float64(
             pbp["rush_attempt"]
         ).fillna(0.0)
-        pbp["pass_attempt"] = numeric(
+        pbp["pass_attempt"] = common.safe_numeric_float64(
             pbp["pass_attempt"]
         ).fillna(0.0)
-        pbp["rush_touchdown"] = numeric(
+        pbp["rush_touchdown"] = common.safe_numeric_float64(
             pbp["rush_touchdown"]
         ).fillna(0.0)
-        pbp["pass_touchdown"] = numeric(
+        pbp["pass_touchdown"] = common.safe_numeric_float64(
             pbp["pass_touchdown"]
         ).fillna(0.0)
 
@@ -849,7 +695,7 @@ def build_exact_conditional_td_labels(
         "_red_zone_targets_pbp",
         "_red_zone_receiving_tds",
     ]:
-        output[column] = numeric(
+        output[column] = common.safe_numeric_float64(
             output[column]
         ).fillna(0.0)
 
@@ -978,14 +824,14 @@ def prepare_label_base(
         "_red_zone_targets_pbp",
         "_red_zone_receiving_tds",
     ]:
-        labels[column] = numeric(labels[column]).fillna(0.0)
+        labels[column] = common.safe_numeric_float64(labels[column]).fillna(0.0)
 
     rich = labels["season"].ge(
         int(config["seasons"]["rich_feature_start"])
     )
 
-    gl_opp = numeric(labels["goal_line_carries"])
-    rz_opp = numeric(labels["red_zone_targets"])
+    gl_opp = common.safe_numeric_float64(labels["goal_line_carries"])
+    rz_opp = common.safe_numeric_float64(labels["red_zone_targets"])
 
     gl_mismatch = (
         rich
@@ -1049,52 +895,52 @@ def build_component_label(
     frame = labels.copy()
 
     if model_name == "passing_yards_per_attempt":
-        numerator = numeric(frame["passing_yards"])
-        exposure = numeric(frame["pass_attempts"])
+        numerator = common.safe_numeric_float64(frame["passing_yards"])
+        exposure = common.safe_numeric_float64(frame["pass_attempts"])
 
     elif model_name == "passing_td_rate":
-        numerator = numeric(frame["passing_tds"])
-        exposure = numeric(frame["pass_attempts"])
+        numerator = common.safe_numeric_float64(frame["passing_tds"])
+        exposure = common.safe_numeric_float64(frame["pass_attempts"])
 
     elif model_name == "rushing_yards_per_carry":
-        numerator = numeric(frame["rushing_yards"])
-        exposure = numeric(frame["carries"])
+        numerator = common.safe_numeric_float64(frame["rushing_yards"])
+        exposure = common.safe_numeric_float64(frame["carries"])
 
     elif model_name == "rushing_td_per_goal_line_carry":
-        numerator = numeric(
+        numerator = common.safe_numeric_float64(
             frame["_goal_line_rush_tds"]
         )
-        exposure = numeric(
+        exposure = common.safe_numeric_float64(
             frame["_goal_line_carries_pbp"]
         )
 
     elif model_name == "receiving_yards_per_target":
-        numerator = numeric(frame["receiving_yards"])
-        exposure = numeric(frame["targets"])
+        numerator = common.safe_numeric_float64(frame["receiving_yards"])
+        exposure = common.safe_numeric_float64(frame["targets"])
 
     elif model_name == "receiving_td_per_red_zone_target":
-        numerator = numeric(
+        numerator = common.safe_numeric_float64(
             frame["_red_zone_receiving_tds"]
         )
-        exposure = numeric(
+        exposure = common.safe_numeric_float64(
             frame["_red_zone_targets_pbp"]
         )
 
     elif model_name == "field_goal_conversion":
-        numerator = numeric(frame["field_goals_made"])
-        exposure = numeric(frame["field_goal_attempts"])
+        numerator = common.safe_numeric_float64(frame["field_goals_made"])
+        exposure = common.safe_numeric_float64(frame["field_goal_attempts"])
 
     elif model_name == "extra_point_conversion":
-        numerator = numeric(frame["extra_points_made"])
-        exposure = numeric(frame["extra_point_attempts"])
+        numerator = common.safe_numeric_float64(frame["extra_points_made"])
+        exposure = common.safe_numeric_float64(frame["extra_point_attempts"])
 
     elif model_name == "tackle_rate_per_defensive_play":
-        rate = numeric(frame["tackle_rate_per_def_play"])
-        exposure = numeric(
+        rate = common.safe_numeric_float64(frame["tackle_rate_per_def_play"])
+        exposure = common.safe_numeric_float64(
             frame["defense_snap_pct"]
         )
 
-        fallback = numeric(
+        fallback = common.safe_numeric_float64(
             frame["defense_participation"]
         )
         exposure = exposure.where(
@@ -1110,12 +956,12 @@ def build_component_label(
         numerator = rate * exposure
 
     elif model_name == "sack_rate_per_defensive_play":
-        rate = numeric(frame["sack_rate_per_def_play"])
-        exposure = numeric(
+        rate = common.safe_numeric_float64(frame["sack_rate_per_def_play"])
+        exposure = common.safe_numeric_float64(
             frame["defense_snap_pct"]
         )
 
-        fallback = numeric(
+        fallback = common.safe_numeric_float64(
             frame["defense_participation"]
         )
         exposure = exposure.where(
@@ -1138,7 +984,7 @@ def build_component_label(
         "tackle_rate_per_defensive_play",
         "sack_rate_per_defensive_play",
     }:
-        source_rate = numeric(
+        source_rate = common.safe_numeric_float64(
             frame[
                 {
                     "tackle_rate_per_defensive_play":
@@ -1368,7 +1214,7 @@ def add_strict_prior_features(
             "eff_position_prior_rate",
             "eff_league_prior_rate",
         ]:
-            work[column] = numeric(
+            work[column] = common.safe_numeric_float64(
                 work[column]
             ).clip(lower=0.0, upper=1.0)
 
@@ -1384,11 +1230,11 @@ def add_strict_prior_features(
         SHRINKAGE_EXPOSURE[model_name]
     )
 
-    player_exp = numeric(
+    player_exp = common.safe_numeric_float64(
         work["_player_exp_prior"]
     ).fillna(0.0)
 
-    player_num = numeric(
+    player_num = common.safe_numeric_float64(
         work["_player_num_prior"]
     ).fillna(0.0)
 
@@ -1445,22 +1291,129 @@ def apply_eligibility(
     eligibility: dict[str, Any],
 ) -> pd.DataFrame:
     rule = ELIGIBILITY_RULE[model_name]
-    positions = {
-        str(value).strip().upper()
-        for value in eligibility[rule]["eligible_positions"]
-    }
-
-    pos = (
-        frame["position"]
-        .fillna("")
-        .astype(str)
-        .str.strip()
-        .str.upper()
+    mask = common.normalized_position_mask(
+        frame["position"],
+        eligibility[rule]["eligible_positions"],
     )
 
     return frame.loc[
-        pos.isin(positions)
+        mask
     ].copy()
+
+
+def build_efficiency_inference_frame(
+    current: pd.DataFrame,
+    raw_history: pd.DataFrame,
+    model_name: str,
+    eligibility: dict[str, Any],
+    *,
+    season: int | None = None,
+    empty_message: str,
+    unique_label: str,
+    missing_history_prefix: str | None = None,
+    missing_canonical_prefix: str | None = None,
+) -> pd.DataFrame:
+    rule = ELIGIBILITY_RULE[model_name]
+    target = current
+    if season is not None:
+        target = target.loc[
+            pd.to_numeric(target["season"]).eq(int(season))
+        ].copy()
+
+    position_eligible = common.normalized_position_mask(
+        target["position"],
+        eligibility[rule]["eligible_positions"],
+    )
+    target = target.loc[position_eligible].copy()
+    if target.empty:
+        raise ValueError(empty_message)
+
+    prior_columns = [
+        *GRAIN,
+        "kickoff_timestamp",
+        "position",
+        "position_group",
+        "_prior_position_group",
+        "_numerator",
+        "_exposure",
+        "_label",
+    ]
+    if missing_history_prefix is not None:
+        missing = [
+            column
+            for column in prior_columns
+            if column not in raw_history.columns
+        ]
+        if missing:
+            raise ValueError(
+                f"{missing_history_prefix} {missing}"
+            )
+
+    history = raw_history[prior_columns].copy()
+    history["_inference_marker"] = 0
+
+    placeholder = target[
+        [
+            *GRAIN,
+            "kickoff_timestamp",
+            "position",
+            "position_group",
+        ]
+    ].copy()
+    placeholder["_prior_position_group"] = normalize_position_group(
+        placeholder["position"],
+        placeholder["position_group"],
+    )
+    placeholder["_numerator"] = np.nan
+    placeholder["_exposure"] = np.nan
+    placeholder["_label"] = np.nan
+    placeholder["_inference_marker"] = 1
+
+    combined = pd.concat(
+        [history, placeholder],
+        ignore_index=True,
+        sort=False,
+    )
+    enriched = add_strict_prior_features(
+        combined,
+        model_name,
+    )
+    inference_rows = enriched.loc[
+        enriched["_inference_marker"].eq(1)
+    ].copy()
+
+    canonical_features = [
+        feature
+        for feature in FEATURES[model_name]
+        if feature not in DERIVED_FEATURES
+    ]
+    if missing_canonical_prefix is not None:
+        missing = [
+            column
+            for column in canonical_features
+            if column not in target.columns
+        ]
+        if missing:
+            raise ValueError(
+                f"{missing_canonical_prefix} {missing}"
+            )
+
+    feature_join = target[
+        [*GRAIN, *canonical_features]
+    ].copy()
+    inference_rows = inference_rows.merge(
+        feature_join,
+        on=GRAIN,
+        how="left",
+        validate="one_to_one",
+        suffixes=("", "_canonical"),
+    )
+    common.ensure_unique(
+        inference_rows,
+        GRAIN,
+        unique_label,
+    )
+    return inference_rows
 
 
 def feature_matrix(
@@ -1471,7 +1424,7 @@ def feature_matrix(
 
     return pd.DataFrame(
         {
-            column: numeric(frame[column])
+            column: common.safe_numeric_float64(frame[column])
             for column in columns
         },
         index=frame.index,
@@ -1566,10 +1519,10 @@ def final_prior_snapshot(
     ].copy()
 
     league_num = float(
-        numeric(source["_numerator"]).sum()
+        common.safe_numeric_float64(source["_numerator"]).sum()
     )
     league_exp = float(
-        numeric(source["_exposure"]).sum()
+        common.safe_numeric_float64(source["_exposure"]).sum()
     )
 
     league_rate = (
@@ -1588,10 +1541,10 @@ def final_prior_snapshot(
 
     for position_group, group in grouped:
         numerator = float(
-            numeric(group["_numerator"]).sum()
+            common.safe_numeric_float64(group["_numerator"]).sum()
         )
         exposure = float(
-            numeric(group["_exposure"]).sum()
+            common.safe_numeric_float64(group["_exposure"]).sum()
         )
 
         positions[str(position_group)] = {
@@ -1640,95 +1593,58 @@ def train_model(
     frame: pd.DataFrame,
     config: dict[str, Any],
 ) -> dict[str, Any]:
-    selection_train = frame.loc[
-        frame["season"].le(
+    (
+        selection_train,
+        validation,
+        final_train,
+    ) = common.temporal_training_splits(
+        frame,
+        label=model_name,
+        model_selection_train_end_season=(
             MODEL_SELECTION_TRAIN_END
-        )
-    ].copy()
-
-    validation = frame.loc[
-        frame["season"].eq(
+        ),
+        development_validation_season=(
             DEVELOPMENT_VALIDATION_SEASON
-        )
-    ].copy()
+        ),
+        final_train_end_season=FINAL_TRAIN_END,
+        empty_noun="set",
+    )
 
-    final_train = frame.loc[
-        frame["season"].le(
-            FINAL_TRAIN_END
-        )
-    ].copy()
-
-    if selection_train.empty:
-        raise ValueError(
-            f"{model_name}: empty selection training set."
-        )
-
-    if validation.empty:
-        raise ValueError(
-            f"{model_name}: empty 2024 validation set."
-        )
-
-    if final_train.empty:
-        raise ValueError(
-            f"{model_name}: empty final training set."
-        )
-
-    X_train = feature_matrix(
+    x_train = feature_matrix(
         selection_train,
         model_name,
     )
-    y_train = numeric(
+    y_train = common.safe_numeric_float64(
         selection_train["_label"]
     )
 
-    X_valid = feature_matrix(
+    x_valid = feature_matrix(
         validation,
         model_name,
     )
-    y_valid = numeric(
+    y_valid = common.safe_numeric_float64(
         validation["_label"]
     )
 
-    X_final = feature_matrix(
+    x_final = feature_matrix(
         final_train,
         model_name,
     )
-    y_final = numeric(
+    y_final = common.safe_numeric_float64(
         final_train["_label"]
     )
 
-    params = {
-        "objective": "regression",
-        "metric": "rmse",
-        "boosting_type": "gbdt",
-        "learning_rate": 0.03,
-        "num_leaves": 31,
-        "min_data_in_leaf": 40,
-        "feature_fraction": 1.0,
-        "bagging_fraction": 1.0,
-        "bagging_freq": 0,
-        "lambda_l1": 0.0,
-        "lambda_l2": 0.0,
-        "max_bin": 255,
-        "verbosity": -1,
-        "seed": SEED,
-        "feature_fraction_seed": SEED,
-        "bagging_seed": SEED,
-        "data_random_seed": SEED,
-        "deterministic": True,
-        "force_col_wise": True,
-        "num_threads": 1,
-    }
+    params = common.lightgbm_regression_params(SEED)
 
     train_set = lgb.Dataset(
-        X_train,
+        x_train,
         label=y_train,
         feature_name=FEATURES[model_name],
         free_raw_data=False,
     )
 
     valid_set = lgb.Dataset(
-        X_valid,
+        x_valid,
         label=y_valid,
         feature_name=FEATURES[model_name],
         reference=train_set,
@@ -1759,7 +1675,7 @@ def train_model(
 
     valid_pred = transform_prediction(
         selected.predict(
-            X_valid,
+            x_valid,
             num_iteration=best_iteration,
         ),
         model_name,
@@ -1785,7 +1701,7 @@ def train_model(
     }
 
     final_set = lgb.Dataset(
-        X_final,
+        x_final,
         label=y_final,
         feature_name=FEATURES[model_name],
         free_raw_data=False,
@@ -1816,7 +1732,7 @@ def train_model(
         exist_ok=True,
     )
 
-    save_model_atomic(
+    common.save_lightgbm_model_atomic(
         final_model,
         model_path,
         best_iteration,
@@ -1866,7 +1782,7 @@ def train_model(
         "forbidden_features": config["forbidden_features"],
     }
 
-    write_json_atomic(
+    common.write_json_atomic(
         manifest_path,
         manifest,
     )
@@ -2011,7 +1927,7 @@ def train_model(
             sha256_file(manifest_path),
     }
 
-    write_json_atomic(
+    common.write_json_atomic(
         metadata_path,
         metadata,
     )
@@ -2052,28 +1968,16 @@ def train_model(
 
 
 def main() -> int:
-    # ISSUE28_MARKET_EXCLUSION_PREFLIGHT
-    _issue28_audit = common.prop_root() / "scripts" / "validate" / "audit_market_exclusion.py"
-    _issue28_result = __import__("subprocess").run(
-        [__import__("sys").executable, str(_issue28_audit), "--preflight"],
-        check=False,
-    )
-    if _issue28_result.returncode != 0:
-        raise RuntimeError("Issue 28 market-exclusion preflight failed.")
-
-    config = common.load_config()
-    root = common.repo_root()
-
-    eligibility = load_yaml(
-        root / ELIGIBILITY_PATH
-    )
-
-    canonical_manifest = load_json(
-        root / FEATURE_MANIFEST_PATH
-    )
-
-    folds = common.read_parquet_required(
-        FOLDS_PATH
+    (
+        config,
+        root,
+        eligibility,
+        canonical_manifest,
+        folds,
+    ) = common.load_training_context(
+        eligibility_path=ELIGIBILITY_PATH,
+        feature_manifest_path=FEATURE_MANIFEST_PATH,
+        folds_path=FOLDS_PATH,
     )
 
     verify_backtest_policy(

@@ -79,20 +79,6 @@ GAME_RE = re.compile(
 HISTORICAL_FRANCHISE_ALIASES = {"SD": "LAC", "OAK": "LV", "STL": "LAR"}
 
 
-def clean(value: Any) -> str:
-    if value is None:
-        return ""
-    try:
-        if pd.isna(value):
-            return ""
-    except (TypeError, ValueError):
-        pass
-    text = str(value).strip()
-    if text.casefold() in {"", "nan", "none", "null", "<na>", "nat"}:
-        return ""
-    return text
-
-
 def canonical_team(value: Any) -> str:
     team = common.normalize_team(value)
     return HISTORICAL_FRANCHISE_ALIASES.get(team, team)
@@ -104,37 +90,27 @@ def numeric_series(
     label: str,
     fill_zero: bool = False,
 ) -> pd.Series:
-    converted = pd.to_numeric(series, errors="coerce")
-    invalid = (
-        series.notna()
-        & series.astype(str).str.strip().ne("")
-        & converted.isna()
+    return common.numeric_series_required(
+        series,
+        label=label,
+        fill_zero=fill_zero,
     )
-    if invalid.any():
-        examples = series.loc[invalid].astype(str).head(10).tolist()
-        raise ValueError(f"{label}: non-numeric values found. Examples={examples}")
-    converted = converted.astype(float)
-    return converted.fillna(0.0) if fill_zero else converted
 
-
-def safe_divide(numerator: pd.Series, denominator: pd.Series) -> pd.Series:
-    num = pd.to_numeric(numerator, errors="coerce").astype(float)
-    den = pd.to_numeric(denominator, errors="coerce").astype(float)
-    valid = num.notna() & den.notna() & den.ne(0.0)
-    result = pd.Series(float("nan"), index=num.index, dtype="float64")
-    result.loc[valid] = num.loc[valid] / den.loc[valid]
-    return result
-
+def safe_divide(
+    numerator: pd.Series,
+    denominator: pd.Series,
+) -> pd.Series:
+    return common.safe_divide_nonzero(numerator, denominator)
 
 def extract_gsis_ids(value: Any) -> list[str]:
-    text = clean(value)
+    text = common.clean_text(value)
     if not text:
         return []
     return list(dict.fromkeys(GSIS_RE.findall(text)))
 
 
 def parse_game_context(game_id: Any) -> tuple[int, int, str, str]:
-    text = clean(game_id)
+    text = common.clean_text(game_id)
     match = GAME_RE.fullmatch(text)
     if not match:
         raise ValueError(f"Unsupported nflverse game_id: {game_id!r}")
@@ -152,7 +128,7 @@ def unique_crosswalk_map(
 ) -> dict[str, str]:
     grouped: dict[str, set[str]] = defaultdict(set)
     for key_value, gsis_value in zip(crosswalk[key_column], crosswalk["gsis_id"]):
-        key = clean(key_value)
+        key = common.clean_text(key_value)
         gsis = common.normalize_player_id(gsis_value)
         if key and gsis:
             grouped[key].add(gsis)
@@ -173,8 +149,8 @@ def build_crosswalk_maps(
     )
     working = crosswalk.copy()
     working["gsis_id"] = working["gsis_id"].map(common.normalize_player_id)
-    working["pfr_id"] = working["pfr_id"].map(clean)
-    names = working["normalized_name"].map(clean)
+    working["pfr_id"] = working["pfr_id"].map(common.clean_text)
+    names = working["normalized_name"].map(common.clean_text)
     if "display_name" in working.columns:
         fallback = working["display_name"].map(common.normalize_name)
         names = names.where(names.ne(""), fallback)
@@ -211,7 +187,7 @@ def prepare_stats(
 
     working["season"] = season
     working["week"] = pd.to_numeric(working["week"], errors="raise").astype(int)
-    working["game_id"] = working["game_id"].map(clean)
+    working["game_id"] = working["game_id"].map(common.clean_text)
     working["player_id"] = working["player_id"].map(common.normalize_player_id)
     working["team"] = working["team"].map(canonical_team)
 
@@ -282,8 +258,8 @@ def prepare_stats(
         "tackles", "sacks", "qb_hits",
     ]
     result = working[base_columns].copy()
-    result["position"] = result["position"].map(clean).str.upper()
-    result["position_group"] = result["position_group"].map(clean).str.upper()
+    result["position"] = result["position"].map(common.clean_text).str.upper()
+    result["position_group"] = result["position_group"].map(common.clean_text).str.upper()
     return result, team_denominators, diagnostics
 
 
@@ -326,10 +302,10 @@ def prepare_snaps(
 
     working["season"] = season
     working["week"] = pd.to_numeric(working["week"], errors="raise").astype(int)
-    working["game_id"] = working["game_id"].map(clean)
+    working["game_id"] = working["game_id"].map(common.clean_text)
     working["_snap_team"] = working["team"].map(canonical_team)
 
-    pfr = working["pfr_player_id"].map(clean)
+    pfr = working["pfr_player_id"].map(common.clean_text)
     names = working["player"].map(common.normalize_name)
     resolved = pfr.map(pfr_map)
     fallback = names.map(name_map)
@@ -394,7 +370,7 @@ def build_participation(
     valid_rows = 0
 
     for row in source.itertuples(index=False):
-        game_id = clean(getattr(row, "nflverse_game_id"))
+        game_id = common.clean_text(getattr(row, "nflverse_game_id"))
         if not game_id:
             continue
         try:
@@ -540,7 +516,7 @@ def build_pbp_rich(
 
     working["season"] = season
     working["week"] = pd.to_numeric(working["week"], errors="raise").astype(int)
-    working["game_id"] = working["game_id"].map(clean)
+    working["game_id"] = working["game_id"].map(common.clean_text)
     working["team"] = working["posteam"].map(canonical_team)
 
     for column in ["pass_attempt", "qb_dropback", "rush_attempt", "qb_kneel"]:
@@ -580,10 +556,10 @@ def build_pbp_rich(
 
     player_keys = [*GRAIN, "team"]
     player_frame = pd.DataFrame(columns=player_keys)
-    for mask, id_column, output_column in event_specs:
+    for event_mask, id_column, output_column in event_specs:
         event = group_player_event(
             working,
-            mask=mask,
+            mask=event_mask,
             id_column=id_column,
             output_column=output_column,
         )

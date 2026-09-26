@@ -43,9 +43,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import math
 import os
-import subprocess
 import sys
 import tempfile
 from datetime import datetime, timezone
@@ -54,26 +52,16 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-import yaml
-
-try:
-    import lightgbm as lgb
-except ModuleNotFoundError as exc:
-    raise SystemExit("Issue 36 requires LightGBM in the active environment.") from exc
-
 SCRIPT_DIR = Path(__file__).resolve().parent
 SCRIPTS_ROOT = SCRIPT_DIR.parent
-TRAIN_DIR = SCRIPTS_ROOT / "train"
-for p in (SCRIPTS_ROOT, TRAIN_DIR, SCRIPT_DIR):
-    if str(p) not in sys.path:
-        sys.path.insert(0, str(p))
+for search_path in (SCRIPTS_ROOT, SCRIPT_DIR):
+    if str(search_path) not in sys.path:
+        sys.path.insert(0, str(search_path))
 
 import common
 
 _CONFIG_CONTRACT = common.load_config()
 import project_components as pc
-import train_opportunity_models as opportunity
-import train_efficiency_models as efficiency
 
 GRAIN = ["season", "week", "game_id", "player_id"]
 TEAM_GRAIN = ["season", "week", "game_id", "team"]
@@ -191,29 +179,18 @@ def parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 
-def repo_relative(path: Path) -> str:
-    return str(path.resolve().relative_to(common.repo_root().resolve())).replace("\\", "/")
-
 
 def load_json(path: Path) -> dict[str, Any]:
-    if not path.is_file():
-        raise FileNotFoundError(f"Required JSON missing: {path}")
-    with path.open("r", encoding="utf-8-sig") as h:
-        value = json.load(h)
-    if not isinstance(value, dict):
-        raise ValueError(f"Expected JSON object: {path}")
-    return value
-
+    return common.load_json_mapping(
+        path,
+        missing_message=f"Required JSON missing: {path}",
+    )
 
 def load_yaml(path: Path) -> dict[str, Any]:
-    if not path.is_file():
-        raise FileNotFoundError(f"Required YAML missing: {path}")
-    with path.open("r", encoding="utf-8-sig") as h:
-        value = yaml.safe_load(h)
-    if not isinstance(value, dict):
-        raise ValueError(f"Expected YAML mapping: {path}")
-    return value
-
+    return common.load_yaml_mapping(
+        path,
+        missing_message=f"Required YAML missing: {path}",
+    )
 
 def write_json_atomic(payload: dict[str, Any], path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -250,38 +227,17 @@ def sha256_file(path: Path) -> str:
 
 
 def run_market_preflight() -> dict[str, Any]:
-    path = SCRIPTS_ROOT / "validate" / "audit_market_exclusion.py"
-    if not path.is_file():
-        raise FileNotFoundError(f"Issue 28 market validator missing: {path}")
-    cp = subprocess.run(
-        [sys.executable, str(path)],
-        cwd=common.repo_root(),
-        capture_output=True,
-        text=True,
-        check=False,
+    return common.run_market_exclusion_audit(
+        missing_message="Issue 28 market validator missing: {path}",
+        failure_prefix=(
+            "Market-exclusion preflight failed before "
+            "final weekly projection. "
+        ),
+        validator_posix=True,
     )
-    if cp.returncode != 0 or "MARKET EXCLUSION AUDIT: PASS" not in cp.stdout:
-        raise RuntimeError(
-            "Market-exclusion preflight failed before final weekly projection. "
-            f"stdout={cp.stdout[-2000:]!r} stderr={cp.stderr[-2000:]!r}"
-        )
-    return {"passed": True, "validator": repo_relative(path)}
-
 
 def numeric(series: pd.Series) -> pd.Series:
     return pd.to_numeric(series, errors="coerce").replace([np.inf, -np.inf], np.nan).astype("float64")
-
-
-def clean_text(value: Any) -> str:
-    if value is None:
-        return ""
-    try:
-        if pd.isna(value):
-            return ""
-    except (TypeError, ValueError):
-        pass
-    text = str(value).strip()
-    return "" if text.casefold() in {"", "nan", "none", "null", "<na>", "nat"} else text
 
 
 def coalesce_numeric(frame: pd.DataFrame, columns: list[str]) -> pd.Series:
@@ -315,7 +271,7 @@ def load_selected_contracts(
         payload = load_json(path)
         if payload.get("target") != target:
             raise ValueError(f"{path}: target mismatch")
-        architecture = clean_text(payload.get("selected_architecture") or payload.get("selected_candidate"))
+        architecture = common.clean_text(payload.get("selected_architecture") or payload.get("selected_candidate"))
         if architecture not in supported:
             raise ValueError(f"{target}: unsupported production architecture {architecture!r}")
         if payload.get("market_features_used") is not False:
@@ -349,7 +305,7 @@ def load_calibrations(
             raise ValueError(f"{target}: calibration architecture differs from selected model")
         if payload.get("market_features_used") is not False or payload.get("forbidden_features_used") is not False:
             raise ValueError(f"{target}: calibration violates market exclusion")
-        mode = clean_text(payload.get("calibration_mode"))
+        mode = common.clean_text(payload.get("calibration_mode"))
         if mode not in {"quantiles", "count", "quantiles_and_count"}:
             raise ValueError(f"{target}: unsupported calibration mode {mode!r}")
         result[target] = payload
@@ -358,11 +314,11 @@ def load_calibrations(
 
 def _entry_version(entry: Any) -> str:
     if isinstance(entry, str):
-        return clean_text(entry)
+        return common.clean_text(entry)
     if not isinstance(entry, dict):
         return ""
     for key in ("model_version", "production_version", "active_version", "version", "release"):
-        value = clean_text(entry.get(key))
+        value = common.clean_text(entry.get(key))
         if value:
             return value
     return ""
@@ -390,8 +346,9 @@ def resolve_registry_versions(
 
         approved = entry.get("production_approved")
         version = entry.get("version")
+        # noinspection PySimplifyBooleanCheck
         if approved is True:
-            version_text = clean_text(version)
+            version_text = common.clean_text(version)
             if not version_text:
                 raise ValueError(f"{target}: approved target has blank production version.")
             versions[target] = version_text
@@ -409,174 +366,6 @@ def resolve_registry_versions(
     if not production_targets:
         raise ValueError("No approved production targets in registry.")
     return versions, sources, production_targets, deferred_targets
-
-
-TEAM_OPPONENT_CURRENT_SOURCE = {
-    "player_defensive_opponent_plays_roll3": "team_offensive_plays_roll3_mean",
-    "player_defensive_opponent_dropbacks_roll3": "team_dropbacks_roll3_mean",
-    "player_defensive_opponent_rush_rate_roll3": "team_rush_rate_roll3_mean",
-    "player_defensive_opponent_pass_rate_roll3": "team_pass_rate_roll3_mean",
-}
-TEAM_DEF_SACK_FEATURE = "player_defensive_team_def_sack_rate_roll3"
-
-
-def strict_prior_team_def_sack_rate(
-    config: dict[str, Any],
-    repo: Path,
-    season: int,
-) -> pd.DataFrame:
-    path = repo / str(config["paths"]["opponent_opportunity"])
-    raw = common.read_parquet_required(
-        path,
-        ["season", "week", "team", "sacks", "opponent_dropbacks"],
-    ).copy()
-    raw["season"] = pd.to_numeric(raw["season"], errors="raise").astype(int)
-    raw["week"] = pd.to_numeric(raw["week"], errors="raise").astype(int)
-    raw = raw.loc[raw["season"].lt(season)].copy()
-    raw["_team_key"] = raw["team"].map(opportunity.canonical_team)
-    raw["_sacks"] = numeric(raw["sacks"])
-    raw["_dropbacks"] = numeric(raw["opponent_dropbacks"])
-    raw["_rate"] = np.where(
-        raw["_sacks"].notna() & raw["_dropbacks"].notna() & raw["_dropbacks"].ne(0.0),
-        raw["_sacks"] / raw["_dropbacks"],
-        np.nan,
-    )
-    raw = raw.sort_values(["_team_key", "season", "week"], kind="mergesort")
-    records: list[dict[str, Any]] = []
-    for team, frame in raw.groupby("_team_key", sort=False):
-        rates = frame["_rate"].dropna().to_numpy(dtype="float64")
-        records.append({
-            "_team_key": team,
-            TEAM_DEF_SACK_FEATURE: (float(np.mean(rates[-3:])) if len(rates) else np.nan),
-        })
-    out = pd.DataFrame(records)
-    common.ensure_unique(out, ["_team_key"], "Issue 36 strict-prior team defensive sack rate")
-    return out
-
-
-def team_opponent_inference_rows(
-    features: pd.DataFrame,
-    feature_names: list[str],
-    team_def_rate: pd.DataFrame,
-) -> pd.DataFrame:
-    reconstructed = set(TEAM_OPPONENT_CURRENT_SOURCE) | {TEAM_DEF_SACK_FEATURE}
-    passthrough = [name for name in feature_names if name not in reconstructed]
-    common.require_columns(
-        features,
-        [*TEAM_GRAIN, "opponent", *passthrough, *TEAM_OPPONENT_CURRENT_SOURCE.values()],
-        "Issue 36 current team-opponent features",
-    )
-
-    # These are genuine team-game fields and must remain invariant.
-    opportunity.check_team_feature_invariance(features, passthrough)
-    rows = opportunity.team_rows_from_features(features, passthrough)
-
-    # Issue 15 defined player_defensive_opponent_* from the defender's
-    # opponent team_form. Reconstruct that definition by joining the opposing
-    # team's current lagged team-form values, rather than aggregating player rows.
-    source_cols = list(TEAM_OPPONENT_CURRENT_SOURCE.values())
-    opportunity.check_team_feature_invariance(features, source_cols)
-    opponent_context = opportunity.team_rows_from_features(features, source_cols)
-    opponent_context = opponent_context.rename(
-        columns={
-            "team": "_context_team",
-            **{source: target for target, source in TEAM_OPPONENT_CURRENT_SOURCE.items()},
-        }
-    )
-    rows = rows.merge(
-        opponent_context[[
-            "season", "week", "game_id", "_context_team",
-            *TEAM_OPPONENT_CURRENT_SOURCE.keys(),
-        ]],
-        left_on=["season", "week", "game_id", "opponent"],
-        right_on=["season", "week", "game_id", "_context_team"],
-        how="left",
-        validate="one_to_one",
-    )
-
-    rows["_team_key"] = rows["team"].map(opportunity.canonical_team)
-    rows = rows.merge(team_def_rate, on="_team_key", how="left", validate="many_to_one")
-    common.ensure_unique(rows, TEAM_GRAIN, "Issue 36 reconstructed team-opponent rows")
-    return rows
-
-
-def score_opportunity_component(
-    prop: Path,
-    features: pd.DataFrame,
-    eligibility: dict[str, Any],
-    component: str,
-    team_def_rate: pd.DataFrame,
-) -> pd.DataFrame:
-    booster, _manifest, feature_names = pc.validate_booster_manifest(prop, "components", component)
-    spec = opportunity.COMPONENTS[component]
-    scope = str(spec["scope"])
-    if scope == "team":
-        opportunity.check_team_feature_invariance(features, feature_names)
-        rows = opportunity.team_rows_from_features(features, feature_names)
-    elif scope == "team_opponent":
-        rows = team_opponent_inference_rows(features, feature_names, team_def_rate)
-    elif scope == "player":
-        rule = str(spec["eligible_rule"])
-        positions = {str(x).strip().upper() for x in eligibility[rule]["eligible_positions"]}
-        pos = features["position"].fillna("").astype(str).str.strip().str.upper()
-        rows = features.loc[pos.isin(positions)].copy()
-    else:
-        raise ValueError(f"{component}: unsupported opportunity scope {scope!r}")
-    X = opportunity.numeric_frame(rows, feature_names)
-    pred = opportunity.transform_prediction(booster.predict(X), component)
-    if not np.isfinite(pred).all():
-        raise ValueError(f"{component}: nonfinite persisted-model prediction")
-    key = GRAIN if scope == "player" else TEAM_GRAIN
-    out = rows[key].copy()
-    out[component] = pred
-    common.ensure_unique(out, key, f"Issue 36 {component}")
-    return out
-
-
-def efficiency_history_columns(model_names: list[str]) -> list[str]:
-    cols = [*GRAIN, "kickoff_timestamp", "position", "position_group"]
-    for name in model_names:
-        for f in efficiency.FEATURES[name]:
-            if f not in efficiency.DERIVED_FEATURES and f not in cols:
-                cols.append(f)
-    return cols
-
-
-def prepare_efficiency_raw_histories(
-    config: dict[str, Any],
-    history: pd.DataFrame,
-    eligibility: dict[str, Any],
-    model_names: list[str],
-) -> dict[str, pd.DataFrame]:
-    label_base = efficiency.prepare_label_base(config, history)
-    result: dict[str, pd.DataFrame] = {}
-    for name in model_names:
-        raw = efficiency.build_component_label(label_base, name)
-        raw = efficiency.apply_eligibility(raw, name, eligibility)
-        result[name] = raw
-    return result
-
-
-def score_efficiency_model(
-    prop: Path,
-    current: pd.DataFrame,
-    raw_history: pd.DataFrame,
-    eligibility: dict[str, Any],
-    model_name: str,
-) -> pd.DataFrame:
-    booster, _manifest, feature_names = pc.validate_booster_manifest(prop, "efficiency", model_name)
-    rows = pc.efficiency_inference_frame(current, raw_history, model_name, eligibility)
-    expected = list(efficiency.FEATURES[model_name])
-    if feature_names != expected:
-        raise ValueError(f"{model_name}: efficiency manifest differs from trainer order")
-    X = efficiency.feature_matrix(rows, model_name)
-    pred = efficiency.transform_prediction(booster.predict(X), model_name)
-    if not np.isfinite(pred).all():
-        raise ValueError(f"{model_name}: nonfinite persisted-model prediction")
-    out = rows[GRAIN].copy()
-    out[model_name] = pred
-    common.ensure_unique(out, GRAIN, f"Issue 36 {model_name}")
-    return out
 
 
 def normalize_share_for_target(
@@ -665,7 +454,7 @@ def select_point_prediction(
 
 
 def usage_signal(frame: pd.DataFrame, source: dict[str, Any]) -> np.ndarray:
-    method = clean_text(source.get("method"))
+    method = common.clean_text(source.get("method"))
     columns = list(source.get("columns", []))
     if method == "sum":
         total = np.zeros(len(frame), dtype="float64")
@@ -684,17 +473,6 @@ def usage_signal(frame: pd.DataFrame, source: dict[str, Any]) -> np.ndarray:
             raise ValueError(f"Calibration usage single source invalid: {columns}")
         return numeric(frame[columns[0]]).to_numpy(dtype="float64")
     return numeric(frame["selected_point_prediction"]).to_numpy(dtype="float64")
-
-
-def apply_usage_buckets(values: np.ndarray, thresholds: dict[str, Any]) -> np.ndarray:
-    low = float(thresholds["low_max"])
-    medium = float(thresholds["medium_max"])
-    labels = np.full(len(values), "low", dtype=object)
-    finite = np.isfinite(values)
-    labels[finite & (values > low)] = "medium"
-    labels[finite & (values > medium)] = "high"
-    labels[~finite] = "low"
-    return labels
 
 
 def risk_flags(frame: pd.DataFrame, threshold: int) -> dict[str, np.ndarray]:
@@ -750,44 +528,7 @@ def quantile_outputs(frame: pd.DataFrame, payload: dict[str, Any]) -> dict[str, 
         out[upper_name] = np.maximum(lower, upper)
     if bool(qcal.get("floor_at_zero")):
         out["q50"] = np.maximum(out["q50"], 0.0)
-    matrix = np.column_stack([out[name] for name in ["q10", "q25", "q50", "q75", "q90"]])
-    matrix = np.maximum.accumulate(matrix, axis=1)
-    for i, name in enumerate(["q10", "q25", "q50", "q75", "q90"]):
-        out[name] = matrix[:, i]
-    return out
-
-
-def apply_mapping(values: np.ndarray, mapping: dict[str, Any]) -> np.ndarray:
-    xp = np.asarray(mapping["knots_x"], dtype="float64")
-    fp = np.asarray(mapping["knots_y"], dtype="float64")
-    out = np.interp(
-        np.asarray(values, dtype="float64"),
-        xp,
-        fp,
-        left=float(mapping["left_value"]),
-        right=float(mapping["right_value"]),
-    )
-    bounds = mapping.get("output_bounds", [None, None])
-    if bounds[0] is not None:
-        out = np.maximum(out, float(bounds[0]))
-    if bounds[1] is not None:
-        out = np.minimum(out, float(bounds[1]))
-    return out
-
-
-def count_outputs(frame: pd.DataFrame, payload: dict[str, Any]) -> dict[str, np.ndarray]:
-    ccal = payload["count_calibration"]
-    raw = np.maximum(numeric(frame["selected_point_prediction"]).to_numpy(dtype="float64"), 0.0)
-    expected = apply_mapping(raw, ccal["expected_count"]["mapping"])
-    poisson_p1 = 1.0 - np.exp(-expected)
-    poisson_p2 = 1.0 - np.exp(-expected) * (1.0 + expected)
-    p1 = apply_mapping(poisson_p1, ccal["probability_1_plus"]["mapping"])
-    p2 = apply_mapping(poisson_p2, ccal["probability_2_plus"]["mapping"])
-    return {
-        "expected_count": np.maximum(expected, 0.0),
-        "probability_1_plus": np.clip(p1, 0.0, 1.0),
-        "probability_2_plus": np.clip(p2, 0.0, 1.0),
-    }
+    return common.enforce_monotone_quantiles(out)
 
 
 def apply_point_prediction_blend(
@@ -819,7 +560,10 @@ def calibrate_current_target(
     frame["selected_point_prediction"] = numeric(point).to_numpy(dtype="float64")
     frame["position_group"] = normalize_position_group(frame["position_group"])
     usage = usage_signal(frame, calibration["usage_bucket"]["source"])
-    frame["usage_bucket"] = apply_usage_buckets(usage, calibration["usage_bucket"]["thresholds"])
+    frame["usage_bucket"] = common.apply_usage_buckets(
+        usage,
+        calibration["usage_bucket"]["thresholds"],
+    )
 
     result = pd.DataFrame(index=frame.index)
     result["low"] = np.nan
@@ -835,7 +579,10 @@ def calibrate_current_target(
         result["low"] = qout["q10"]
         result["high"] = qout["q90"]
     if mode in {"count", "quantiles_and_count"}:
-        cout = count_outputs(frame, calibration)
+        cout = common.calibrated_count_outputs(
+            frame["selected_point_prediction"].to_numpy(dtype="float64"),
+            calibration,
+        )
         result["probability_1_plus"] = cout["probability_1_plus"]
         result["probability_2_plus"] = cout["probability_2_plus"]
 
@@ -856,10 +603,10 @@ def calibrate_current_target(
 
 def target_specific_reason(universe_row: pd.Series, target: str, eligible: bool) -> tuple[str, str]:
     if eligible:
-        reason = clean_text(universe_row.get("eligibility_reason")) or "eligible_target_role"
+        reason = common.clean_text(universe_row.get("eligibility_reason")) or "eligible_target_role"
         return "eligible", reason
-    base_status = clean_text(universe_row.get("eligibility_status")).casefold()
-    base_reason = clean_text(universe_row.get("eligibility_reason"))
+    base_status = common.clean_text(universe_row.get("eligibility_status")).casefold()
+    base_reason = common.clean_text(universe_row.get("eligibility_reason"))
     if base_status not in {"", "eligible", "active"} and base_reason:
         return "ineligible", base_reason
     return "ineligible", f"target_not_eligible_for_current_role_or_position:{target}"
@@ -1175,27 +922,27 @@ def main() -> int:
         "registry_version_sources": version_sources,
         "market_exclusion_passed": bool(market["passed"]),
         "market_features_used": False,
-        "audit_output": repo_relative(audit_output_path),
-        "active_output": repo_relative(active_output_path),
-        "log": repo_relative(log_path),
+        "audit_output": common.repo_relative_posix_path(audit_output_path),
+        "active_output": common.repo_relative_posix_path(active_output_path),
+        "log": common.repo_relative_posix_path(log_path),
         "component_runtime": component_audit,
     }
     log_payload = {
         **payload,
         "inputs": {
-            "universe": repo_relative(universe_path),
-            "component_projections": repo_relative(component_path),
-            "direct_projections": repo_relative(direct_path),
-            "allocated_opportunity": repo_relative(allocation_path),
-            "current_features": repo_relative(features_path),
-            "production_registry": repo_relative(registry_path),
-            "target_eligibility": repo_relative(eligibility_path),
+            "universe": common.repo_relative_posix_path(universe_path),
+            "component_projections": common.repo_relative_posix_path(component_path),
+            "direct_projections": common.repo_relative_posix_path(direct_path),
+            "allocated_opportunity": common.repo_relative_posix_path(allocation_path),
+            "current_features": common.repo_relative_posix_path(features_path),
+            "production_registry": common.repo_relative_posix_path(registry_path),
+            "target_eligibility": common.repo_relative_posix_path(eligibility_path),
             "selected_models": {
-                target: repo_relative(prop / "models" / target / "selected_model.json")
+                target: common.repo_relative_posix_path(prop / "models" / target / "selected_model.json")
                 for target in production_targets
             },
             "calibrations": {
-                target: repo_relative(prop / "models" / "calibration" / f"{target}_calibration.json")
+                target: common.repo_relative_posix_path(prop / "models" / "calibration" / f"{target}_calibration.json")
                 for target in production_targets
             },
         },

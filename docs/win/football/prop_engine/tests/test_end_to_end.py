@@ -11,6 +11,7 @@ import lightgbm as lgb
 import numpy as np
 import pandas as pd
 
+# noinspection DuplicatedCode
 PROP = Path(__file__).resolve().parents[1]
 SCRIPTS = PROP / "scripts"
 if str(SCRIPTS) not in sys.path:
@@ -166,6 +167,7 @@ class EndToEndHistoricalAsCurrentTests(unittest.TestCase):
         metadata = json.loads(
             (model_dir / "metadata.json").read_text(encoding="utf-8")
         )
+        self.assertIsInstance(metadata, dict)
         numeric = list(manifest.get("numeric_features", []))
         categorical = list(manifest.get("categorical_features", []))
         feature_columns = [*numeric, *categorical]

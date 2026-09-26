@@ -35,22 +35,18 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import os
-import subprocess
 import sys
-import tempfile
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 import pandas as pd
-import yaml
-
 try:
     import lightgbm as lgb
 except ModuleNotFoundError as exc:
     raise SystemExit("Issue 35 requires LightGBM in the active environment.") from exc
 
+# noinspection DuplicatedCode
 SCRIPT_DIR = Path(__file__).resolve().parent
 SCRIPTS_ROOT = SCRIPT_DIR.parent
 if str(SCRIPTS_ROOT) not in sys.path:
@@ -148,77 +144,19 @@ def parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 
-def repo_relative(path: Path) -> str:
-    return str(path.resolve().relative_to(common.repo_root().resolve()))
-
-
-def load_json(path: Path) -> dict[str, Any]:
-    if not path.is_file():
-        raise FileNotFoundError(f"Required JSON missing: {path}")
-    with path.open("r", encoding="utf-8-sig") as h:
-        value = json.load(h)
-    if not isinstance(value, dict):
-        raise ValueError(f"Expected JSON object: {path}")
-    return value
-
-
-def load_yaml(path: Path) -> dict[str, Any]:
-    if not path.is_file():
-        raise FileNotFoundError(f"Required YAML missing: {path}")
-    with path.open("r", encoding="utf-8-sig") as h:
-        value = yaml.safe_load(h)
-    if not isinstance(value, dict):
-        raise ValueError(f"Expected YAML mapping: {path}")
-    return value
-
-
-def write_json_atomic(payload: dict[str, Any], path: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    h = tempfile.NamedTemporaryFile(
-        mode="w", encoding="utf-8", newline="\n",
-        prefix=f".{path.name}.", suffix=".tmp", dir=path.parent, delete=False,
-    )
-    temp = Path(h.name)
-    try:
-        with h:
-            json.dump(payload, h, indent=2, sort_keys=True, ensure_ascii=False, default=str)
-            h.write("\n")
-        os.replace(temp, path)
-    finally:
-        if temp.exists():
-            temp.unlink()
-
 
 def run_market_preflight() -> dict[str, Any]:
-    path = SCRIPTS_ROOT / "validate" / "audit_market_exclusion.py"
-    if not path.is_file():
-        raise FileNotFoundError(f"Issue 28 market validator missing: {path}")
-    cp = subprocess.run(
-        [sys.executable, str(path)], cwd=common.repo_root(),
-        capture_output=True, text=True, check=False,
-    )
-    if cp.returncode != 0 or "MARKET EXCLUSION AUDIT: PASS" not in cp.stdout:
-        raise RuntimeError(
-            "Market-exclusion preflight failed before direct projection. "
-            f"stdout={cp.stdout[-2000:]!r} stderr={cp.stderr[-2000:]!r}"
-        )
-    return {"passed": True, "validator": repo_relative(path)}
-
-
-def numeric(series: pd.Series) -> pd.Series:
-    return (
-        pd.to_numeric(series, errors="coerce")
-        .replace([np.inf, -np.inf], np.nan)
-        .astype("float64")
+    return common.run_market_exclusion_audit(
+        missing_message="Issue 28 market validator missing: {path}",
+        failure_prefix=(
+            "Market-exclusion preflight failed before "
+            "direct projection. "
+        ),
     )
 
 
 def flag(series: pd.Series) -> pd.Series:
-    return numeric(series).fillna(0.0).gt(0.0)
-
-
-def normalized_position(series: pd.Series) -> pd.Series:
-    return series.fillna("").astype(str).str.strip().str.upper()
+    return common.safe_numeric_float64(series).fillna(0.0).gt(0.0)
 
 
 def any_positive(frame: pd.DataFrame, columns: list[str]) -> pd.Series:
@@ -227,16 +165,8 @@ def any_positive(frame: pd.DataFrame, columns: list[str]) -> pd.Series:
         raise ValueError(f"Missing current eligibility signal(s): {missing}")
     result = pd.Series(False, index=frame.index, dtype=bool)
     for c in columns:
-        result |= numeric(frame[c]).fillna(0.0).gt(0.0)
+        result |= common.safe_numeric_float64(frame[c]).fillna(0.0).gt(0.0)
     return result
-
-
-def clean_category(series: pd.Series) -> pd.Series:
-    result = series.fillna("").astype(str).str.strip()
-    return result.mask(
-        result.str.casefold().isin({"", "nan", "none", "null", "<na>", "nat"}),
-        "",
-    )
 
 
 def model_matrix(
@@ -247,11 +177,11 @@ def model_matrix(
 ) -> pd.DataFrame:
     data: dict[str, pd.Series] = {}
     for feature in numeric_features:
-        data[feature] = numeric(frame[feature])
+        data[feature] = common.safe_numeric_float64(frame[feature])
     for feature in categorical_features:
         if feature not in levels or not isinstance(levels[feature], list):
             raise ValueError(f"Missing persisted categorical levels for {feature}")
-        values = clean_category(frame[feature])
+        values = common.clean_category_series(frame[feature])
         category = pd.Categorical(
             values.where(values.ne(""), None),
             categories=[str(v) for v in levels[feature]],
@@ -299,10 +229,14 @@ def build_current_context(
     common.ensure_unique(universe_all, GRAIN, "Issue 29 current universe")
 
     for frame, label in [(features, "features"), (roles, "roles"), (universe_all, "universe")]:
-        frame["season"] = pd.to_numeric(frame["season"], errors="raise").astype(int)
-        frame["week"] = pd.to_numeric(frame["week"], errors="raise").astype(int)
-        if set(frame["season"]) != {season} or set(frame["week"]) != {week}:
-            raise ValueError(f"Issue 35 {label} season/week mismatch")
+        common.require_current_week_frame(
+            frame,
+            season=season,
+            week=week,
+            mismatch_message=(
+                f"Issue 35 {label} season/week mismatch"
+            ),
+        )
 
     eligible_universe = universe_all.loc[
         universe_all["eligibility_status"].fillna("").astype(str).str.strip().str.casefold().eq("eligible")
@@ -333,12 +267,12 @@ def build_current_context(
     if len(work) != len(features):
         raise ValueError("Issue 35 context join changed row count")
 
-    pos = normalized_position(work["position"])
+    pos = common.normalize_position_series(work["position"])
     bad = (
         work["team"].astype(str).ne(work["_role_team"].astype(str))
         | work["team"].astype(str).ne(work["_universe_team"].astype(str))
-        | pos.ne(normalized_position(work["_role_position"]))
-        | pos.ne(normalized_position(work["_universe_position"]))
+        | pos.ne(common.normalize_position_series(work["_role_position"]))
+        | pos.ne(common.normalize_position_series(work["_universe_position"]))
     )
     if bad.any():
         raise ValueError(
@@ -370,7 +304,7 @@ def eligibility_mask(
     if positions != manifest_positions or not positions:
         raise ValueError(f"{target}: eligible positions disagree between eligibility config and model manifest")
 
-    pos_ok = normalized_position(work["position"]).isin(set(positions))
+    pos_ok = common.normalize_position_series(work["position"]).isin(set(positions))
 
     if expected_requirement == "identified_qb_role":
         role_ok = flag(work["primary_qb_flag"])
@@ -380,7 +314,7 @@ def eligibility_mask(
         usage_cols = RUSH_USAGE_COLUMNS if target.startswith("rushing_") else RECEIVE_USAGE_COLUMNS
         recent_usage = any_positive(work, usage_cols)
         participation = any_positive(work, OFFENSE_PARTICIPATION_COLUMNS)
-        depth = numeric(work["depth_rank"])
+        depth = common.safe_numeric_float64(work["depth_rank"])
         plausible_depth = depth.notna() & depth.le(3.0)
         current_role = (
             flag(work["starter_flag"])
@@ -417,8 +351,8 @@ def validate_and_load_model(
         if not p.is_file():
             raise FileNotFoundError(f"{target}: required direct-model artifact missing: {p}")
 
-    manifest = load_json(manifest_path)
-    metadata = load_json(metadata_path)
+    manifest = common.load_json_mapping(manifest_path)
+    metadata = common.load_json_mapping(metadata_path)
     if str(manifest.get("target")) != target or str(metadata.get("target")) != target:
         raise ValueError(f"{target}: target mismatch in direct-model artifacts")
     if str(metadata.get("status")) != "trained":
@@ -469,33 +403,48 @@ def validate_and_load_model(
 def main() -> int:
     args = parse_args()
     config = common.load_config()
-    season = int(args.season) if args.season is not None else int(config["seasons"]["current"])
-    week = int(args.week)
-    if week < 1:
-        raise ValueError("week must be >= 1")
+    season, week = common.resolve_projection_season_week(
+        args.season,
+        args.week,
+        config,
+    )
 
     prop = common.prop_root()
     market = run_market_preflight()
 
-    features_path = prop / "data" / "current" / "features" / f"{season}_week_{week}_features.parquet"
-    roles_path = prop / "data" / "current" / f"{season}_week_{week}_roles.parquet"
-    universe_path = prop / "data" / "current" / f"{season}_week_{week}_universe.parquet"
+    context_paths = common.current_projection_context_paths(
+        season,
+        week,
+    )
+    features_path = context_paths["features"]
+    roles_path = context_paths["roles"]
+    universe_path = context_paths["universe"]
     allocated_path = prop / "data" / "current" / f"{season}_week_{week}_allocated_opportunity.parquet"
     issue34_log_path = prop / "logs" / f"allocated_opportunity_{season}_week_{week}.json"
-    eligibility_path = prop / "config" / "target_eligibility.yaml"
+    eligibility_path = context_paths["eligibility"]
     output_path = prop / "data" / "current" / f"{season}_week_{week}_direct_projections.parquet"
     log_path = prop / "logs" / f"direct_projections_{season}_week_{week}.json"
 
-    for p in [features_path, roles_path, universe_path, allocated_path, issue34_log_path, eligibility_path]:
-        if not p.is_file():
-            raise FileNotFoundError(f"Issue 35 required input/sequence artifact missing: {p}")
+    common.require_existing_files(
+        [
+            features_path,
+            roles_path,
+            universe_path,
+            allocated_path,
+            issue34_log_path,
+            eligibility_path,
+        ],
+        missing_message=(
+            "Issue 35 required input/sequence artifact missing: {path}"
+        ),
+    )
 
-    features = pd.read_parquet(features_path)
-    roles = pd.read_parquet(roles_path)
-    universe = pd.read_parquet(universe_path)
+    features, roles, universe = common.read_current_projection_frames(
+        context_paths
+    )
     allocated = pd.read_parquet(allocated_path)
-    issue34_log = load_json(issue34_log_path)
-    eligibility = load_yaml(eligibility_path)
+    issue34_log = common.load_json_mapping(issue34_log_path)
+    eligibility = common.load_yaml_mapping(eligibility_path)
 
     if str(issue34_log.get("status")) != "passed":
         raise ValueError("Issue 35 requires passed Issue 34 allocation log")
@@ -525,8 +474,8 @@ def main() -> int:
             raise ValueError(f"{target}: no eligible current target/player combinations")
 
         rows = work.loc[mask].copy()
-        X = model_matrix(rows, numeric_features, categorical_features, levels)
-        pred = np.asarray(booster.predict(X), dtype="float64")
+        model_input = model_matrix(rows, numeric_features, categorical_features, levels)
+        pred = np.asarray(booster.predict(model_input), dtype="float64")
         if pred.shape[0] != len(rows) or not np.isfinite(pred).all():
             raise ValueError(f"{target}: invalid direct-model prediction")
         pred = np.maximum(pred, 0.0)
@@ -537,7 +486,7 @@ def main() -> int:
             raise ValueError(f"{target}: ineligible direct projection row is non-null")
         if output.loc[mask, OUTPUT_MAP[target]].isna().any():
             raise ValueError(f"{target}: eligible direct projection row is null")
-        if numeric(output.loc[mask, OUTPUT_MAP[target]]).lt(0.0).any():
+        if common.safe_numeric_float64(output.loc[mask, OUTPUT_MAP[target]]).lt(0.0).any():
             raise ValueError(f"{target}: negative direct projection after flooring")
 
         eligibility_counts[target] = eligible_rows
@@ -578,18 +527,18 @@ def main() -> int:
         "internal_rounding": False,
         "market_exclusion_passed": bool(market["passed"]),
         "market_features_used": False,
-        "output": repo_relative(output_path),
-        "log": repo_relative(log_path),
+        "output": common.repo_relative_path(output_path),
+        "log": common.repo_relative_path(log_path),
     }
     log_payload = {
         **payload,
         "inputs": {
-            "features": repo_relative(features_path),
-            "roles": repo_relative(roles_path),
-            "universe": repo_relative(universe_path),
-            "allocated_opportunity_sequence_gate": repo_relative(allocated_path),
-            "issue34_log": repo_relative(issue34_log_path),
-            "target_eligibility": repo_relative(eligibility_path),
+            "features": common.repo_relative_path(features_path),
+            "roles": common.repo_relative_path(roles_path),
+            "universe": common.repo_relative_path(universe_path),
+            "allocated_opportunity_sequence_gate": common.repo_relative_path(allocated_path),
+            "issue34_log": common.repo_relative_path(issue34_log_path),
+            "target_eligibility": common.repo_relative_path(eligibility_path),
         },
         "models": model_audit,
         "policy": {
@@ -605,7 +554,11 @@ def main() -> int:
             "market_exclusion_preflight": True,
         },
     }
-    write_json_atomic(log_payload, log_path)
+    common.write_json_default_str_atomic(
+        log_path,
+        log_payload,
+        ensure_ascii=False,
+    )
     print(json.dumps({"script": Path(__file__).name, "payload": payload}, sort_keys=True, separators=(",", ":")))
     print("DIRECT PROJECTIONS BUILD: PASS")
     return 0

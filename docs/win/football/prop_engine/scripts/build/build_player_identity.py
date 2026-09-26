@@ -22,11 +22,8 @@ RULES:
 
 from __future__ import annotations
 
-import json
-import os
 import re
 import sys
-import tempfile
 from collections import defaultdict
 from pathlib import Path
 from typing import Any, Iterable
@@ -185,33 +182,8 @@ SEASON_FROM_FILENAME = re.compile(
 )
 
 
-def clean(value: Any) -> str:
-    if value is None:
-        return ""
-
-    try:
-        if pd.isna(value):
-            return ""
-    except (TypeError, ValueError):
-        pass
-
-    text = str(value).strip()
-
-    if text.casefold() in {
-        "",
-        "nan",
-        "none",
-        "null",
-        "<na>",
-        "nat",
-    }:
-        return ""
-
-    return text
-
-
 def normalize_position(value: Any) -> str:
-    return clean(value).upper()
+    return common.clean_text(value).upper()
 
 
 def choose_column(
@@ -310,7 +282,7 @@ def add_canonical(
         pfr_id
     )
 
-    display_name = clean(name)
+    display_name = common.clean_text(name)
     pos = normalize_position(position)
     pos_group = normalize_position(
         position_group
@@ -363,6 +335,22 @@ def add_canonical(
     record["sources"].add(source)
 
 
+def split_candidate_ids(
+    candidates: dict[str, set[str]],
+) -> tuple[dict[str, str], dict[str, list[str]]]:
+    unique = {
+        key: next(iter(gsis_ids))
+        for key, gsis_ids in candidates.items()
+        if len(gsis_ids) == 1
+    }
+    ambiguous = {
+        key: sorted(gsis_ids)
+        for key, gsis_ids in candidates.items()
+        if len(gsis_ids) > 1
+    }
+    return unique, ambiguous
+
+
 def unique_alias_index(
     canonical: dict[str, dict[str, Any]],
     field: str,
@@ -382,21 +370,7 @@ def unique_alias_index(
                     gsis_id
                 )
 
-    unique = {
-        alias: next(iter(gsis_ids))
-        for alias, gsis_ids
-        in candidates.items()
-        if len(gsis_ids) == 1
-    }
-
-    conflicts = {
-        alias: sorted(gsis_ids)
-        for alias, gsis_ids
-        in candidates.items()
-        if len(gsis_ids) > 1
-    }
-
-    return unique, conflicts
+    return split_candidate_ids(candidates)
 
 
 def authoritative_espn_index(
@@ -425,21 +399,7 @@ def authoritative_espn_index(
                 gsis_id
             )
 
-    unique = {
-        alias: next(iter(gsis_ids))
-        for alias, gsis_ids
-        in candidates.items()
-        if len(gsis_ids) == 1
-    }
-
-    conflicts = {
-        alias: sorted(gsis_ids)
-        for alias, gsis_ids
-        in candidates.items()
-        if len(gsis_ids) > 1
-    }
-
-    return unique, conflicts
+    return split_candidate_ids(candidates)
 
 
 def unique_name_index(
@@ -464,27 +424,13 @@ def unique_name_index(
                     normalized
                 ].add(gsis_id)
 
-    unique = {
-        normalized: next(iter(gsis_ids))
-        for normalized, gsis_ids
-        in candidates.items()
-        if len(gsis_ids) == 1
-    }
-
-    ambiguous = {
-        normalized: sorted(gsis_ids)
-        for normalized, gsis_ids
-        in candidates.items()
-        if len(gsis_ids) > 1
-    }
-
-    return unique, ambiguous
+    return split_candidate_ids(candidates)
 
 
 def parse_optional_season(
     value: Any,
 ) -> int | None:
-    text = clean(value)
+    text = common.clean_text(value)
 
     if not text:
         return None
@@ -501,55 +447,13 @@ def parse_optional_season(
 
 
 def truthy(value: Any) -> bool:
-    return clean(value).casefold() in {
+    return common.clean_text(value).casefold() in {
         "1",
         "true",
         "yes",
         "y",
         "starter",
     }
-
-
-def write_json_atomic(
-    payload: dict[str, Any],
-    path: Path,
-) -> None:
-    path.parent.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
-
-    handle = tempfile.NamedTemporaryFile(
-        mode="w",
-        encoding="utf-8",
-        newline="\n",
-        prefix=f".{path.name}.",
-        suffix=".tmp",
-        dir=path.parent,
-        delete=False,
-    )
-
-    temp_path = Path(handle.name)
-
-    try:
-        with handle:
-            json.dump(
-                payload,
-                handle,
-                indent=2,
-                sort_keys=True,
-                default=str,
-            )
-            handle.write("\n")
-
-        os.replace(
-            temp_path,
-            path,
-        )
-
-    finally:
-        if temp_path.exists():
-            temp_path.unlink()
 
 
 def merge_current(
@@ -1059,7 +963,7 @@ def main() -> int:
                 espn_id,
                 source="current_depth",
                 name=(
-                    clean(
+                    common.clean_text(
                         row[
                             depth_cols[
                                 "name"
@@ -1139,7 +1043,7 @@ def main() -> int:
             espn_id,
             source="current_roster",
             name=(
-                clean(
+                common.clean_text(
                     row[
                         current_roster_cols[
                             "name"
@@ -1179,7 +1083,7 @@ def main() -> int:
             ),
             team=team,
             status=(
-                clean(
+                common.clean_text(
                     row[
                         current_roster_cols[
                             "status"
@@ -2019,9 +1923,9 @@ def main() -> int:
         "unresolved_identity_policy": "skip_and_continue",
     }
 
-    write_json_atomic(
-        payload,
+    common.write_json_default_str_atomic(
         log_path,
+        payload,
     )
 
     common.log_run(

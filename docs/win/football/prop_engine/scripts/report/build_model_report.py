@@ -12,14 +12,12 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
 import os
-import subprocess
 import sys
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -67,64 +65,6 @@ SELECTED_PROJECTION_COLUMNS = {
 }
 
 # Exact reporting usage context follows the accepted Issue 26 calibration policy.
-USAGE_CANDIDATES = {
-    "passing_yards": [
-        "player_pass_attempts_roll3_mean",
-        "player_pass_attempts_roll5_mean",
-        "player_pass_attempts_ewm5",
-        "player_pass_attempts_career_prior",
-    ],
-    "passing_tds": [
-        "player_pass_attempts_roll3_mean",
-        "player_pass_attempts_roll5_mean",
-        "player_pass_attempts_ewm5",
-        "player_pass_attempts_career_prior",
-    ],
-    "rushing_yards": [
-        "player_carries_roll3_mean",
-        "player_carries_roll5_mean",
-        "player_carries_ewm5",
-        "player_carries_career_prior",
-    ],
-    "rushing_tds": [
-        "player_goal_line_carries_roll3_mean",
-        "player_goal_line_carries_roll5_mean",
-        "player_carries_roll3_mean",
-        "player_carries_career_prior",
-    ],
-    "receiving_yards": [
-        "player_targets_roll3_mean",
-        "player_targets_roll5_mean",
-        "player_targets_ewm5",
-        "player_targets_career_prior",
-    ],
-    "receiving_tds": [
-        "player_red_zone_targets_roll3_mean",
-        "player_red_zone_targets_roll5_mean",
-        "player_targets_roll3_mean",
-        "player_targets_career_prior",
-    ],
-    "kicking_points": [
-        "player_field_goal_attempts_roll3_mean",
-        "player_field_goal_attempts_roll5_mean",
-        "player_field_goal_attempts_career_prior",
-    ],
-    "tackles": [
-        "player_defense_participation_roll3_mean",
-        "role_participation_roll3",
-        "player_defense_participation_career_prior",
-    ],
-    "sacks": [
-        "player_defense_participation_roll3_mean",
-        "role_participation_roll3",
-        "player_defense_participation_career_prior",
-    ],
-}
-KICKING_USAGE_COMPONENTS = [
-    "player_field_goal_attempts_roll3_mean",
-    "player_extra_point_attempts_roll3_mean",
-]
-
 BASE_CONTEXT_REQUIRED = [
     *GRAIN,
     "position",
@@ -168,27 +108,6 @@ def parse_args() -> argparse.Namespace:
         help="Reporting split. Default is the untouched test split; validation is diagnostic only.",
     )
     return p.parse_args()
-
-
-def clean(value: Any) -> str:
-    if value is None:
-        return ""
-    try:
-        if pd.isna(value):
-            return ""
-    except (TypeError, ValueError):
-        pass
-    text = str(value).strip()
-    return "" if text.casefold() in {"", "nan", "none", "null", "<na>", "nat"} else text
-
-
-def read_json(path: Path) -> dict[str, Any]:
-    if not path.is_file():
-        raise FileNotFoundError(path)
-    value = json.loads(path.read_text(encoding="utf-8-sig"))
-    if not isinstance(value, dict):
-        raise ValueError(f"Expected JSON object: {path}")
-    return value
 
 
 def numeric(series: pd.Series) -> pd.Series:
@@ -235,19 +154,12 @@ def write_json_atomic(payload: dict[str, Any], path: Path) -> None:
 
 
 def run_market_preflight() -> dict[str, Any]:
-    script = common.prop_root() / "scripts" / "validate" / "audit_market_exclusion.py"
-    if not script.is_file():
-        raise FileNotFoundError(f"Market audit script missing: {script}")
-    cp = subprocess.run(
-        [sys.executable, str(script)], cwd=common.repo_root(), capture_output=True, text=True, check=False
-    )
-    if cp.returncode != 0 or "MARKET EXCLUSION AUDIT: PASS" not in cp.stdout:
-        raise RuntimeError(
+    return common.run_market_exclusion_audit(
+        missing_message="Market audit script missing: {path}",
+        failure_prefix=(
             "Market-exclusion preflight failed before model reporting. "
-            f"stdout={cp.stdout[-2000:]!r} stderr={cp.stderr[-2000:]!r}"
-        )
-    return {"passed": True, "validator": str(script.relative_to(common.repo_root()))}
-
+        ),
+    )
 
 def target_is_count(config: dict[str, Any], target: str) -> bool:
     # Match Issue 25 exactly. derived_count (kicking_points) is not evaluated as Poisson.
@@ -273,17 +185,20 @@ def metric_values(frame: pd.DataFrame, *, count_target: bool) -> dict[str, Any]:
     if count_target:
         if np.any(y < 0.0):
             raise ValueError("Negative actual found in count target")
-        lam = np.maximum(p, 1e-12)
-        terms = np.empty_like(y)
-        zero = y <= 0.0
-        terms[zero] = lam[zero]
-        nz = ~zero
-        terms[nz] = y[nz] * np.log(y[nz] / lam[nz]) - (y[nz] - lam[nz])
-        poisson = float(2.0 * np.mean(terms))
-        prob = np.clip(1.0 - np.exp(-np.maximum(p, 0.0)), 1e-12, 1.0 - 1e-12)
+        poisson = common.poisson_deviance(y, p)
+        prob = np.clip(
+            1.0 - np.exp(-np.maximum(p, 0.0)),
+            1e-12,
+            1.0 - 1e-12,
+        )
         event = (y >= 1.0).astype("float64")
-        brier = float(np.mean(np.square(prob - event)))
-        logloss = float(-np.mean(event * np.log(prob) + (1.0 - event) * np.log(1.0 - prob)))
+        brier = common.brier_1plus(y, prob)
+        logloss = float(
+            -np.mean(
+                event * np.log(prob)
+                + (1.0 - event) * np.log(1.0 - prob)
+            )
+        )
 
     return {
         "sample_size": int(n),
@@ -317,14 +232,14 @@ def rank_bucket(series: pd.Series, buckets: int, prefix: str) -> pd.Series:
 
 
 def coalesce_usage(frame: pd.DataFrame, target: str, available: set[str]) -> tuple[pd.Series, str]:
-    if target == "kicking_points" and all(c in available for c in KICKING_USAGE_COMPONENTS):
-        a = numeric(frame[KICKING_USAGE_COMPONENTS[0]])
-        b = numeric(frame[KICKING_USAGE_COMPONENTS[1]])
+    if target == "kicking_points" and all(c in available for c in common.KICKING_USAGE_COMPONENTS):
+        a = numeric(frame[common.KICKING_USAGE_COMPONENTS[0]])
+        b = numeric(frame[common.KICKING_USAGE_COMPONENTS[1]])
         value = a + b
         value = value.where(a.notna() | b.notna())
-        return value, "+".join(KICKING_USAGE_COMPONENTS)
+        return value, "+".join(common.KICKING_USAGE_COMPONENTS)
 
-    candidates = [c for c in USAGE_CANDIDATES[target] if c in available]
+    candidates = [c for c in common.USAGE_CANDIDATES[target] if c in available]
     if not candidates:
         raise ValueError(f"No canonical pregame usage feature available for {target}")
     out = pd.Series(np.nan, index=frame.index, dtype="float64")
@@ -362,8 +277,8 @@ def selected_rows(config: dict[str, Any], audit: pd.DataFrame, split: str) -> tu
     architectures: dict[str, str] = {}
     for target in config["targets"]:
         selected_path = common.prop_root() / "models" / target / "selected_model.json"
-        selected = read_json(selected_path)
-        architecture = clean(selected.get("selected_architecture") or selected.get("selected_candidate"))
+        selected = common.load_json_mapping(selected_path)
+        architecture = common.clean_text(selected.get("selected_architecture") or selected.get("selected_candidate"))
         if architecture not in SELECTED_PROJECTION_COLUMNS:
             raise ValueError(f"{target}: invalid selected architecture {architecture!r}")
         if bool(selected.get("test_used_for_selection", False)):
@@ -393,7 +308,7 @@ def load_context(config: dict[str, Any], selected: pd.DataFrame) -> tuple[pd.Dat
     if not path.is_file():
         raise FileNotFoundError(path)
     manifest_path = path.with_name("feature_manifest.json")
-    manifest = read_json(manifest_path)
+    manifest = common.load_json_mapping(manifest_path)
     schema = set(manifest.get("leading_columns", []))
     families = manifest.get("column_families", {})
     if isinstance(families, dict):
@@ -406,8 +321,8 @@ def load_context(config: dict[str, Any], selected: pd.DataFrame) -> tuple[pd.Dat
     if missing:
         raise ValueError(f"Historical feature table missing reporting context: {missing}")
 
-    optional = set(INJURY_STATUS_CANDIDATES + INJURY_FLAG_COLUMNS + KICKING_USAGE_COMPONENTS)
-    for candidates in USAGE_CANDIDATES.values():
+    optional = set(INJURY_STATUS_CANDIDATES + INJURY_FLAG_COLUMNS + common.KICKING_USAGE_COMPONENTS)
+    for candidates in common.USAGE_CANDIDATES.values():
         optional.update(candidates)
     columns = list(dict.fromkeys(BASE_CONTEXT_REQUIRED + sorted(optional & schema)))
     context = pd.read_parquet(path, columns=columns)
@@ -624,6 +539,7 @@ def main() -> int:
     }
     log_path = common.repo_root() / REPORT_LOG_REL
     write_json_atomic(payload, log_path)
+    # noinspection PyBroadException
     try:
         common.log_run(Path(__file__).name, payload)
     except Exception:

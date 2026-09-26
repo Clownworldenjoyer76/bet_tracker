@@ -44,18 +44,15 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import math
-import os
-import re
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 from typing import Any, Iterable
 
 import numpy as np
 import pandas as pd
 
+# noinspection DuplicatedCode
 SCRIPT_DIR = Path(__file__).resolve().parent
 SCRIPTS_ROOT = SCRIPT_DIR.parent
 if str(SCRIPTS_ROOT) not in sys.path:
@@ -144,27 +141,13 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def clean(value: Any) -> str:
-    if value is None:
-        return ""
-    try:
-        if pd.isna(value):
-            return ""
-    except (TypeError, ValueError):
-        pass
-    text = str(value).strip()
-    if text.casefold() in {"", "nan", "none", "null", "<na>", "nat"}:
-        return ""
-    return text
-
-
 def norm_team(value: Any) -> str:
     team = common.normalize_team(value)
     return TEAM_HISTORY_ALIASES.get(team, team)
 
 
 def norm_position(value: Any) -> str:
-    return clean(value).upper().replace(" ", "")
+    return common.clean_text(value).upper().replace(" ", "")
 
 
 def norm_game_id(value: Any) -> str:
@@ -172,7 +155,7 @@ def norm_game_id(value: Any) -> str:
 
 
 def norm_injury(value: Any) -> str:
-    text = clean(value).casefold().replace("-", " ").replace("_", " ")
+    text = common.clean_text(value).casefold().replace("-", " ").replace("_", " ")
     text = " ".join(text.split())
     if text in {"o", "out", "ir", "injured reserve"} or text.startswith("out "):
         return "out"
@@ -235,25 +218,10 @@ def write_json_atomic(path: Path, value: dict[str, Any]) -> None:
         path.relative_to(prop)
     except ValueError as exc:
         raise ValueError(f"Refusing write outside Prop Engine: {path}") from exc
-    path.parent.mkdir(parents=True, exist_ok=True)
-    handle = tempfile.NamedTemporaryFile(
-        mode="w",
-        encoding="utf-8",
-        newline="\n",
-        prefix=f".{path.name}.",
-        suffix=".tmp",
-        dir=path.parent,
-        delete=False,
+    common.write_json_default_str_atomic(
+        path,
+        value,
     )
-    temp = Path(handle.name)
-    try:
-        with handle:
-            json.dump(value, handle, indent=2, sort_keys=True, default=str)
-            handle.write("\n")
-        os.replace(temp, path)
-    finally:
-        if temp.exists():
-            temp.unlink()
 
 
 def run_market_audit(repo: Path) -> dict[str, Any]:
@@ -280,6 +248,7 @@ def run_market_audit(repo: Path) -> dict[str, Any]:
         / "docs/win/football/prop_engine/evaluation/market_exclusion_audit.json"
     )
     audit = read_json(audit_path)
+    # noinspection PySimplifyBooleanCheck
     if audit.get("passed") is not True:
         raise RuntimeError("Issue 28 market exclusion audit did not pass.")
     return audit
@@ -348,8 +317,8 @@ def selected_manifest_specs(
             raise ValueError(
                 f"Model feature order differs from manifest: {model_path}"
             )
-        derived = [clean(value) for value in manifest.get("derived_features", []) if clean(value)]
-        canonical = [clean(value) for value in manifest.get("canonical_features", []) if clean(value)]
+        derived = [common.clean_text(value) for value in manifest.get("derived_features", []) if common.clean_text(value)]
+        canonical = [common.clean_text(value) for value in manifest.get("canonical_features", []) if common.clean_text(value)]
         ordered = numeric + categorical
         if derived:
             if not canonical:
@@ -386,7 +355,7 @@ def selected_manifest_specs(
         if not selected_path.is_file():
             raise FileNotFoundError(f"Selected architecture missing: {selected_path}")
         selected = read_json(selected_path)
-        architecture = clean(selected.get("selected_architecture") or selected.get("selected_candidate"))
+        architecture = common.clean_text(selected.get("selected_architecture") or selected.get("selected_candidate"))
         if architecture in {"direct", "direct_component_blend"}:
             add_manifest(
                 model_root / target / "feature_manifest.json",
@@ -405,10 +374,10 @@ def selected_manifest_specs(
                     raise ValueError(
                         f"{selected_path}: {proxy_key} must be a list when present"
                     )
-                proxy_features.update(clean(value) for value in proxy_values if clean(value))
+                proxy_features.update(common.clean_text(value) for value in proxy_values if common.clean_text(value))
 
             for dep in deps:
-                dep_name = clean(dep)
+                dep_name = common.clean_text(dep)
                 component = model_root / "components" / dep_name / "feature_manifest.json"
                 efficiency = model_root / "efficiency" / dep_name / "feature_manifest.json"
                 if component.is_file():
@@ -657,7 +626,7 @@ def load_prior_reference(
             columns=columns,
             filters=[("season", "==", prior_season)],
         )
-    except Exception:
+    except (OSError, TypeError, ValueError, NotImplementedError):
         # Some parquet engines cannot push filters through every local file.
         frame = pd.read_parquet(historical_path, columns=columns)
         frame = frame.loc[as_num(frame["season"]).eq(prior_season)].copy()
@@ -865,7 +834,7 @@ def overlay_position_allowed_final_week(
     return out
 
 
-def current_role_overrides(out: pd.DataFrame, universe_all: pd.DataFrame, roles: pd.DataFrame) -> None:
+def current_role_overrides(out: pd.DataFrame, universe_all: pd.DataFrame) -> None:
     # Current depth/injury data overrides historical role state.
     depth = as_num(out["depth_rank"])
     if "role_depth_rank_pregame" in out:
@@ -1316,7 +1285,7 @@ def validate_model_slices(
         missing = [c for c in canonical if c not in out.columns]
         leaked_derived = [c for c in derived if c in out.columns]
 
-        required = [clean(value) for value in manifest.get("required_features", []) if clean(value)]
+        required = [common.clean_text(value) for value in manifest.get("required_features", []) if common.clean_text(value)]
         unknown_required = [c for c in required if c not in ordered]
         required_canonical = [c for c in required if c not in derived]
         missing_required = [c for c in required_canonical if c not in out.columns]
@@ -1417,7 +1386,6 @@ def main() -> int:
     leading = list(historical_manifest["leading_columns"])
     families = historical_manifest["column_families"]
     feature_columns = list(historical_manifest["feature_columns"])
-    target_columns = set(historical_manifest.get("target_columns", []))
     audit_columns = set(families.get("audit", []))
 
     if any(c.startswith("target_") for c in feature_columns):
@@ -1588,7 +1556,7 @@ def main() -> int:
         if season_to_date_columns:
             out.loc[:, season_to_date_columns] = np.nan
 
-    current_role_overrides(out, universe_all, roles)
+    current_role_overrides(out, universe_all)
 
     # The historical player/team/opponent prior overlays intentionally do not
     # carry target-game environment forward. Materialize the canonical

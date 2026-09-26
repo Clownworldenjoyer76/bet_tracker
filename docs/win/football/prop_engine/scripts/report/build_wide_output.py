@@ -21,7 +21,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -30,6 +29,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+# noinspection DuplicatedCode
 SCRIPT_DIR = Path(__file__).resolve().parent
 SCRIPTS_ROOT = SCRIPT_DIR.parent
 if str(SCRIPTS_ROOT) not in sys.path:
@@ -161,6 +161,7 @@ def production_target_state(prop: Path) -> tuple[list[str], list[str]]:
         entry = registry[target]
         if not isinstance(entry, dict):
             raise ValueError(f"{target}: invalid registry entry")
+        # noinspection PySimplifyBooleanCheck
         if entry.get("production_approved") is True:
             version = entry.get("version")
             if not isinstance(version, str) or not version.strip():
@@ -220,25 +221,10 @@ def write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
         path.relative_to(root)
     except ValueError as exc:
         raise ValueError(f"Refusing write outside Prop Engine: {path}") from exc
-    path.parent.mkdir(parents=True, exist_ok=True)
-    handle = tempfile.NamedTemporaryFile(
-        mode="w",
-        encoding="utf-8",
-        newline="\n",
-        prefix=f".{path.name}.",
-        suffix=".tmp",
-        dir=path.parent,
-        delete=False,
+    common.write_json_strict_atomic(
+        path,
+        payload,
     )
-    temp = Path(handle.name)
-    try:
-        with handle:
-            json.dump(payload, handle, indent=2, sort_keys=True, allow_nan=False)
-            handle.write("\n")
-        os.replace(temp, path)
-    finally:
-        if temp.exists():
-            temp.unlink()
 
 
 def write_csv_atomic(frame: pd.DataFrame, path: Path) -> None:
@@ -269,23 +255,12 @@ def write_csv_atomic(frame: pd.DataFrame, path: Path) -> None:
 
 
 def run_market_preflight() -> dict[str, Any]:
-    path = SCRIPTS_ROOT / "validate" / "audit_market_exclusion.py"
-    if not path.is_file():
-        raise FileNotFoundError(f"Issue 28 market validator missing: {path}")
-    cp = subprocess.run(
-        [sys.executable, str(path)],
-        cwd=common.repo_root(),
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if cp.returncode != 0 or "MARKET EXCLUSION AUDIT: PASS" not in cp.stdout:
-        raise RuntimeError(
+    return common.run_market_exclusion_audit(
+        missing_message="Issue 28 market validator missing: {path}",
+        failure_prefix=(
             "Market-exclusion preflight failed before Issue 37 reporting. "
-            f"stdout={cp.stdout[-2000:]!r} stderr={cp.stderr[-2000:]!r}"
-        )
-    return {"passed": True, "validator": repo_relative(path)}
-
+        ),
+    )
 
 def normalize_grain(frame: pd.DataFrame, label: str) -> pd.DataFrame:
     out = frame.copy()
@@ -325,7 +300,7 @@ def build_wide(source: pd.DataFrame, targets: list[str]) -> pd.DataFrame:
             f"sample={counts[bad_count].head(10).to_dict()}"
         )
     expected_targets = set(targets)
-    bad_set = counts.map(lambda values: set(map(str, values)) != expected_targets)
+    bad_set = counts.map(lambda target_values: set(map(str, target_values)) != expected_targets)
     if bad_set.any():
         raise ValueError(
             "Issue 37 target coverage mismatch per player-game; "

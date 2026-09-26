@@ -105,65 +105,6 @@ CONTEXT_REQUIRED = [
 
 # Ordered fallbacks. The first available pregame feature is used. Kicking has
 # a special two-column sum when both FG and XP attempt form fields are present.
-USAGE_CANDIDATES = {
-    "passing_yards": [
-        "player_pass_attempts_roll3_mean",
-        "player_pass_attempts_roll5_mean",
-        "player_pass_attempts_ewm5",
-        "player_pass_attempts_career_prior",
-    ],
-    "passing_tds": [
-        "player_pass_attempts_roll3_mean",
-        "player_pass_attempts_roll5_mean",
-        "player_pass_attempts_ewm5",
-        "player_pass_attempts_career_prior",
-    ],
-    "rushing_yards": [
-        "player_carries_roll3_mean",
-        "player_carries_roll5_mean",
-        "player_carries_ewm5",
-        "player_carries_career_prior",
-    ],
-    "rushing_tds": [
-        "player_goal_line_carries_roll3_mean",
-        "player_goal_line_carries_roll5_mean",
-        "player_carries_roll3_mean",
-        "player_carries_career_prior",
-    ],
-    "receiving_yards": [
-        "player_targets_roll3_mean",
-        "player_targets_roll5_mean",
-        "player_targets_ewm5",
-        "player_targets_career_prior",
-    ],
-    "receiving_tds": [
-        "player_red_zone_targets_roll3_mean",
-        "player_red_zone_targets_roll5_mean",
-        "player_targets_roll3_mean",
-        "player_targets_career_prior",
-    ],
-    "kicking_points": [
-        "player_field_goal_attempts_roll3_mean",
-        "player_field_goal_attempts_roll5_mean",
-        "player_field_goal_attempts_career_prior",
-    ],
-    "tackles": [
-        "player_defense_participation_roll3_mean",
-        "role_participation_roll3",
-        "player_defense_participation_career_prior",
-    ],
-    "sacks": [
-        "player_defense_participation_roll3_mean",
-        "role_participation_roll3",
-        "player_defense_participation_career_prior",
-    ],
-}
-
-KICKING_USAGE_COMPONENTS = [
-    "player_field_goal_attempts_roll3_mean",
-    "player_extra_point_attempts_roll3_mean",
-]
-
 LOW_HISTORY_GAMES = 4
 MIN_RISK_MULTIPLIERS = {
     "rookie": 1.25,
@@ -278,6 +219,7 @@ def load_selected_contracts(
             )
         if payload.get("test_used_for_selection") is not False:
             raise ValueError(f"{path}: 2025/test was used for selection.")
+        # noinspection PySimplifyBooleanCheck
         if payload.get("test_reporting_only") is not True:
             raise ValueError(f"{path}: test_reporting_only must be true.")
         if payload.get("market_features_used") is not False:
@@ -412,19 +354,19 @@ def context_columns_for_schema(
 
     for target in targets:
         if target == "kicking_points" and all(
-            column in schema for column in KICKING_USAGE_COMPONENTS
+            column in schema for column in common.KICKING_USAGE_COMPONENTS
         ):
             chosen[target] = {
                 "method": "sum",
-                "columns": list(KICKING_USAGE_COMPONENTS),
-                "label": "+".join(KICKING_USAGE_COMPONENTS),
+                "columns": list(common.KICKING_USAGE_COMPONENTS),
+                "label": "+".join(common.KICKING_USAGE_COMPONENTS),
             }
-            columns.extend(KICKING_USAGE_COMPONENTS)
+            columns.extend(common.KICKING_USAGE_COMPONENTS)
             continue
 
         available = [
             column
-            for column in USAGE_CANDIDATES[target]
+            for column in common.USAGE_CANDIDATES[target]
             if column in schema
         ]
         if available:
@@ -521,20 +463,6 @@ def fit_usage_buckets(values: np.ndarray) -> dict[str, float]:
     if medium < low:
         medium = low
     return {"low_max": float(low), "medium_max": float(medium)}
-
-
-def apply_usage_buckets(
-    values: np.ndarray,
-    thresholds: dict[str, float],
-) -> np.ndarray:
-    low = float(thresholds["low_max"])
-    medium = float(thresholds["medium_max"])
-    labels = np.full(len(values), "low", dtype=object)
-    finite = np.isfinite(values)
-    labels[finite & (values > low)] = "medium"
-    labels[finite & (values > medium)] = "high"
-    labels[~finite] = "low"
-    return labels
 
 
 def centered_scale(residual: np.ndarray, center: float) -> float:
@@ -808,13 +736,7 @@ def quantile_values(
         output["q50"] = np.maximum(output["q50"], 0.0)
     # Defensive monotonicity enforcement after flooring and independently
     # calibrated interval widening.
-    matrix = np.column_stack(
-        [output[name] for name in ["q10", "q25", "q50", "q75", "q90"]]
-    )
-    matrix = np.maximum.accumulate(matrix, axis=1)
-    for i, name in enumerate(["q10", "q25", "q50", "q75", "q90"]):
-        output[name] = matrix[:, i]
-    return output
+    return common.enforce_monotone_quantiles(output)
 
 
 def coverage_rows(
@@ -826,27 +748,27 @@ def coverage_rows(
     actual = frame["actual"].to_numpy(dtype="float64")
 
     def append_group(
-        interval_name: str,
-        lower_name: str,
-        upper_name: str,
-        expected: float,
-        mask: np.ndarray,
-        position_group: str,
+        group_interval_name: str,
+        group_lower_name: str,
+        group_upper_name: str,
+        group_expected: float,
+        group_mask: np.ndarray,
+        group_position: str,
         usage_bucket: str,
     ) -> None:
-        if not mask.any():
+        if not group_mask.any():
             return
-        lower = quantiles[lower_name][mask]
-        upper = quantiles[upper_name][mask]
-        y = actual[mask]
+        lower = quantiles[group_lower_name][group_mask]
+        upper = quantiles[group_upper_name][group_mask]
+        y = actual[group_mask]
         rows.append(
             {
                 "target": target,
-                "interval": interval_name,
-                "expected_coverage": float(expected),
+                "interval": group_interval_name,
+                "expected_coverage": float(group_expected),
                 "actual_coverage": coverage(y, lower, upper),
                 "mean_interval_width": float(np.mean(upper - lower)),
-                "position_group": position_group,
+                "position_group": group_position,
                 "usage_bucket": usage_bucket,
             }
         )
@@ -1002,24 +924,6 @@ def fit_monotone_mapping(
     }
 
 
-def apply_mapping(x: np.ndarray, mapping: dict[str, Any]) -> np.ndarray:
-    xp = np.asarray(mapping["knots_x"], dtype="float64")
-    fp = np.asarray(mapping["knots_y"], dtype="float64")
-    output = np.interp(
-        np.asarray(x, dtype="float64"),
-        xp,
-        fp,
-        left=float(mapping["left_value"]),
-        right=float(mapping["right_value"]),
-    )
-    bounds = mapping.get("output_bounds", [None, None])
-    if bounds[0] is not None:
-        output = np.maximum(output, float(bounds[0]))
-    if bounds[1] is not None:
-        output = np.minimum(output, float(bounds[1]))
-    return output
-
-
 def fit_count_calibration(frame: pd.DataFrame) -> dict[str, Any]:
     raw = np.maximum(
         frame["selected_point_prediction"].to_numpy(dtype="float64"),
@@ -1027,7 +931,7 @@ def fit_count_calibration(frame: pd.DataFrame) -> dict[str, Any]:
     )
     actual = np.maximum(frame["actual"].to_numpy(dtype="float64"), 0.0)
     expected_mapping = fit_monotone_mapping(raw, actual, probability=False)
-    calibrated_lambda = apply_mapping(raw, expected_mapping)
+    calibrated_lambda = common.apply_calibration_mapping(raw, expected_mapping)
     poisson_p1 = 1.0 - np.exp(-calibrated_lambda)
     poisson_p2 = 1.0 - np.exp(-calibrated_lambda) * (1.0 + calibrated_lambda)
     p1_mapping = fit_monotone_mapping(
@@ -1068,25 +972,6 @@ def _point_bias(actual: np.ndarray, prediction: np.ndarray) -> float:
     return float(np.mean(prediction - actual))
 
 
-def _point_poisson_deviance(actual: np.ndarray, prediction: np.ndarray) -> float:
-    y = np.asarray(actual, dtype="float64")
-    lam = np.maximum(np.asarray(prediction, dtype="float64"), 1e-12)
-    if np.any(y < 0.0):
-        raise ValueError("Negative actual in point-calibration Poisson gate.")
-    terms = np.empty_like(y)
-    zero = y <= 0.0
-    terms[zero] = lam[zero]
-    nz = ~zero
-    terms[nz] = y[nz] * np.log(y[nz] / lam[nz]) - (y[nz] - lam[nz])
-    return float(2.0 * np.mean(terms))
-
-
-def _point_brier_1plus(actual: np.ndarray, probability: np.ndarray) -> float:
-    event = (np.asarray(actual, dtype="float64") >= 1.0).astype("float64")
-    p = np.clip(np.asarray(probability, dtype="float64"), 0.0, 1.0)
-    return float(np.mean(np.square(p - event)))
-
-
 def _base_calibrated_point(
     frame: pd.DataFrame,
     payload: dict[str, Any],
@@ -1096,7 +981,7 @@ def _base_calibrated_point(
     raw = frame["selected_point_prediction"].to_numpy(dtype="float64")
     if "count_calibration" in payload:
         mapping = payload["count_calibration"]["expected_count"]["mapping"]
-        return np.maximum(apply_mapping(np.maximum(raw, 0.0), mapping), 0.0)
+        return np.maximum(common.apply_calibration_mapping(np.maximum(raw, 0.0), mapping), 0.0)
     qcal = payload.get("quantile_calibration")
     if not isinstance(qcal, dict):
         raise ValueError("Point calibration has no count or quantile calibration.")
@@ -1114,13 +999,13 @@ def _base_probability_1plus(
     raw = frame["selected_point_prediction"].to_numpy(dtype="float64")
     if "count_calibration" in payload:
         ccal = payload["count_calibration"]
-        expected = apply_mapping(
+        expected = common.apply_calibration_mapping(
             np.maximum(raw, 0.0),
             ccal["expected_count"]["mapping"],
         )
         poisson_p1 = 1.0 - np.exp(-np.maximum(expected, 0.0))
         return np.clip(
-            apply_mapping(poisson_p1, ccal["probability_1_plus"]["mapping"]),
+            common.apply_calibration_mapping(poisson_p1, ccal["probability_1_plus"]["mapping"]),
             0.0,
             1.0,
         )
@@ -1166,8 +1051,14 @@ def fit_point_prediction_blend(
         brier = None
         poisson = None
         if "maximum_brier_1plus" in acceptance and "maximum_poisson_deviance" in acceptance:
-            brier = _point_brier_1plus(actual, p1)
-            poisson = _point_poisson_deviance(actual, prediction)
+            brier = common.brier_1plus(actual, p1)
+            poisson = common.poisson_deviance(
+                actual,
+                prediction,
+                negative_actual_message=(
+                    "Negative actual in point-calibration Poisson gate."
+                ),
+            )
             gates["brier_1plus"] = brier <= float(acceptance["maximum_brier_1plus"]) + 1e-12
             gates["poisson_deviance"] = poisson <= float(acceptance["maximum_poisson_deviance"]) + 1e-12
 
@@ -1203,21 +1094,21 @@ def fit_point_prediction_blend(
             def rushing_yards_robust_margin(
                 item: dict[str, Any],
             ) -> tuple[float, float, float, float]:
-                abs_bias = float(item["validation_absolute_bias"])
-                candidate_mae = float(item["validation_mae"])
-                improvement = float(
+                item_abs_bias = float(item["validation_absolute_bias"])
+                item_mae = float(item["validation_mae"])
+                item_improvement = float(
                     item["validation_improvement_vs_baseline_pct"]
                 )
                 robust_margin = min(
-                    (max_bias - abs_bias) / max_bias,
-                    (max_mae - candidate_mae) / max_mae,
-                    (improvement - min_improvement)
+                    (max_bias - item_abs_bias) / max_bias,
+                    (max_mae - item_mae) / max_mae,
+                    (item_improvement - min_improvement)
                     / max(abs(min_improvement), 1.0),
                 )
                 return (
                     -robust_margin,
-                    candidate_mae,
-                    abs_bias,
+                    item_mae,
+                    item_abs_bias,
                     float(item["calibrated_weight"]),
                 )
 
@@ -1270,7 +1161,7 @@ def build_target_calibration(
     signal = usage_signal(frame, usage_source)
     thresholds = fit_usage_buckets(signal)
     frame = frame.copy().reset_index(drop=True)
-    frame["usage_bucket"] = apply_usage_buckets(signal, thresholds)
+    frame["usage_bucket"] = common.apply_usage_buckets(signal, thresholds)
 
     payload: dict[str, Any] = {
         "target": target,
@@ -1397,14 +1288,7 @@ def validate_coverage_table(table: pd.DataFrame) -> None:
 
 
 def main() -> int:
-    # ISSUE28_MARKET_EXCLUSION_PREFLIGHT
-    _issue28_audit = common.prop_root() / "scripts" / "validate" / "audit_market_exclusion.py"
-    _issue28_result = __import__("subprocess").run(
-        [__import__("sys").executable, str(_issue28_audit), "--preflight"],
-        check=False,
-    )
-    if _issue28_result.returncode != 0:
-        raise RuntimeError("Issue 28 market-exclusion preflight failed.")
+    common.run_market_exclusion_preflight()
 
     config = common.load_config()
 
@@ -1525,6 +1409,7 @@ def main() -> int:
         "interval_coverage_rows": int(len(coverage_table)),
         "results": summaries,
     }
+    # noinspection PyBroadException
     try:
         common.log_run("calibrate_uncertainty.py", run_payload)
     except Exception:

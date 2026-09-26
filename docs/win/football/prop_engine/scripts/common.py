@@ -28,16 +28,20 @@ MARKET POLICY:
 
 from __future__ import annotations
 
+import csv
 import json
 import logging
 import math
 import os
 import re
+import subprocess
+import sys
 import tempfile
 import unicodedata
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 
+import numpy as np
 import pandas as pd
 import yaml
 
@@ -74,6 +78,78 @@ _TEAM_ALIASES = {
     "LA": "LAR",
     "JAC": "JAX",
 }
+
+USAGE_CANDIDATES = {
+    "passing_yards": [
+        "player_pass_attempts_roll3_mean",
+        "player_pass_attempts_roll5_mean",
+        "player_pass_attempts_ewm5",
+        "player_pass_attempts_career_prior",
+    ],
+    "passing_tds": [
+        "player_pass_attempts_roll3_mean",
+        "player_pass_attempts_roll5_mean",
+        "player_pass_attempts_ewm5",
+        "player_pass_attempts_career_prior",
+    ],
+    "rushing_yards": [
+        "player_carries_roll3_mean",
+        "player_carries_roll5_mean",
+        "player_carries_ewm5",
+        "player_carries_career_prior",
+    ],
+    "rushing_tds": [
+        "player_goal_line_carries_roll3_mean",
+        "player_goal_line_carries_roll5_mean",
+        "player_carries_roll3_mean",
+        "player_carries_career_prior",
+    ],
+    "receiving_yards": [
+        "player_targets_roll3_mean",
+        "player_targets_roll5_mean",
+        "player_targets_ewm5",
+        "player_targets_career_prior",
+    ],
+    "receiving_tds": [
+        "player_red_zone_targets_roll3_mean",
+        "player_red_zone_targets_roll5_mean",
+        "player_targets_roll3_mean",
+        "player_targets_career_prior",
+    ],
+    "kicking_points": [
+        "player_field_goal_attempts_roll3_mean",
+        "player_field_goal_attempts_roll5_mean",
+        "player_field_goal_attempts_career_prior",
+    ],
+    "tackles": [
+        "player_defense_participation_roll3_mean",
+        "role_participation_roll3",
+        "player_defense_participation_career_prior",
+    ],
+    "sacks": [
+        "player_defense_participation_roll3_mean",
+        "role_participation_roll3",
+        "player_defense_participation_career_prior",
+    ],
+}
+
+KICKING_USAGE_COMPONENTS = [
+    "player_field_goal_attempts_roll3_mean",
+    "player_extra_point_attempts_roll3_mean",
+]
+
+
+HISTORICAL_RELOCATION_ALIASES = {
+    "SD": "LAC",
+    "OAK": "LV",
+    "STL": "LAR",
+}
+
+_NFLVERSE_OPPONENT_GAME_ID_RE = re.compile(
+    r"^(?P<season>\d{4})_(?P<week>\d{1,2})_"
+    r"(?P<away>[A-Za-z0-9]+)_(?P<home>[A-Za-z0-9]+)$"
+)
+
 
 _NFLVERSE_GAME_ID_RE = re.compile(
     r"^(?P<season>\d{4})_(?P<week>\d{1,2})_"
@@ -133,6 +209,75 @@ def prop_root() -> Path:
     return path
 
 
+def run_market_exclusion_audit(
+    *,
+    missing_message: str,
+    failure_prefix: str,
+    validator_posix: bool = False,
+    include_pass_marker: bool = False,
+    missing_pass_message: str | None = None,
+) -> dict[str, Any]:
+    audit = (
+        prop_root()
+        / "scripts"
+        / "validate"
+        / "audit_market_exclusion.py"
+    )
+    if not audit.is_file():
+        raise FileNotFoundError(
+            missing_message.format(path=audit)
+        )
+
+    completed = subprocess.run(
+        [sys.executable, str(audit)],
+        cwd=repo_root(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    pass_marker = "MARKET EXCLUSION AUDIT: PASS"
+    if completed.returncode != 0:
+        raise RuntimeError(
+            f"{failure_prefix}"
+            f"stdout={completed.stdout[-2000:]!r} "
+            f"stderr={completed.stderr[-2000:]!r}"
+        )
+
+    if pass_marker not in completed.stdout:
+        if missing_pass_message is not None:
+            raise RuntimeError(missing_pass_message)
+        raise RuntimeError(
+            f"{failure_prefix}"
+            f"stdout={completed.stdout[-2000:]!r} "
+            f"stderr={completed.stderr[-2000:]!r}"
+        )
+
+    validator = (
+        repo_relative_posix_path(audit)
+        if validator_posix
+        else repo_relative_path(audit)
+    )
+    result: dict[str, Any] = {
+        "passed": True,
+        "validator": validator,
+    }
+    if include_pass_marker:
+        result["pass_marker"] = pass_marker
+    return result
+
+
+def run_market_exclusion_preflight() -> None:
+    """Require the canonical market-exclusion audit to pass before training."""
+    audit = prop_root() / "scripts" / "validate" / "audit_market_exclusion.py"
+    result = subprocess.run(
+        [sys.executable, str(audit), "--preflight"],
+        check=False,
+    )
+    if result.returncode != 0:
+        raise RuntimeError("Issue 28 market-exclusion preflight failed.")
+
+
 def _resolve_repo_path(path: str | os.PathLike[str]) -> Path:
     value = Path(path).expanduser()
 
@@ -155,6 +300,229 @@ def _resolve_prop_output_path(path: str | os.PathLike[str]) -> Path:
         ) from exc
 
     return resolved
+
+
+def load_json_mapping(
+    path: str | os.PathLike[str],
+    *,
+    missing_message: str | None = None,
+) -> dict[str, Any]:
+    resolved = Path(path)
+    if not resolved.is_file():
+        raise FileNotFoundError(
+            missing_message or f"Required JSON missing: {resolved}"
+        )
+    with resolved.open("r", encoding="utf-8-sig") as handle:
+        value = json.load(handle)
+    if not isinstance(value, dict):
+        raise ValueError(f"Expected JSON object: {resolved}")
+    return value
+
+
+def load_yaml_mapping(
+    path: str | os.PathLike[str],
+    *,
+    missing_message: str | None = None,
+) -> dict[str, Any]:
+    resolved = Path(path)
+    if not resolved.is_file():
+        raise FileNotFoundError(
+            missing_message or f"Required YAML missing: {resolved}"
+        )
+    with resolved.open("r", encoding="utf-8-sig") as handle:
+        value = yaml.safe_load(handle)
+    if not isinstance(value, dict):
+        raise ValueError(f"Expected YAML mapping: {resolved}")
+    return value
+
+
+def load_training_context(
+    *,
+    eligibility_path: str | os.PathLike[str],
+    feature_manifest_path: str | os.PathLike[str],
+    folds_path: str | os.PathLike[str],
+) -> tuple[
+    dict[str, Any],
+    Path,
+    dict[str, Any],
+    dict[str, Any],
+    pd.DataFrame,
+]:
+    run_market_exclusion_preflight()
+
+    config = load_config()
+    root = repo_root()
+
+    eligibility_file = root / Path(eligibility_path)
+    manifest_file = root / Path(feature_manifest_path)
+
+    eligibility = load_yaml_mapping(
+        eligibility_file,
+        missing_message=(
+            f"Required YAML does not exist: {eligibility_file}"
+        ),
+    )
+    canonical_manifest = load_json_mapping(
+        manifest_file,
+        missing_message=(
+            f"Required JSON does not exist: {manifest_file}"
+        ),
+    )
+    folds = read_parquet_required(folds_path)
+
+    return (
+        config,
+        root,
+        eligibility,
+        canonical_manifest,
+        folds,
+    )
+
+
+def read_regular_season_pbp(
+    path: str | os.PathLike[str],
+    *,
+    usecols: list[str],
+    season: int,
+    missing_message: str,
+) -> pd.DataFrame:
+    resolved = Path(path)
+    if not resolved.is_file():
+        raise FileNotFoundError(missing_message)
+
+    frame = pd.read_csv(
+        resolved,
+        usecols=usecols,
+        low_memory=False,
+    )
+
+    frame = frame.loc[
+        frame["season_type"]
+        .astype(str)
+        .str.upper()
+        .eq("REG")
+    ].copy()
+
+    frame["season"] = int(season)
+    frame["week"] = pd.to_numeric(
+        frame["week"],
+        errors="raise",
+    ).astype(int)
+
+    return frame
+
+
+def require_current_week_frame(
+    frame: pd.DataFrame,
+    *,
+    season: int,
+    week: int,
+    mismatch_message: str,
+) -> None:
+    frame["season"] = pd.to_numeric(
+        frame["season"],
+        errors="raise",
+    ).astype(int)
+    frame["week"] = pd.to_numeric(
+        frame["week"],
+        errors="raise",
+    ).astype(int)
+
+    if (
+        set(frame["season"]) != {int(season)}
+        or set(frame["week"]) != {int(week)}
+    ):
+        raise ValueError(mismatch_message)
+
+
+def repo_relative_path(
+    path: str | os.PathLike[str],
+) -> str:
+    relative = Path(path).resolve().relative_to(
+        repo_root().resolve()
+    )
+    return str(relative)
+
+
+def repo_relative_posix_path(
+    path: str | os.PathLike[str],
+) -> str:
+    relative = Path(path).resolve().relative_to(
+        repo_root().resolve()
+    )
+    return relative.as_posix()
+
+
+def current_projection_context_paths(
+    season: int,
+    week: int,
+) -> dict[str, Path]:
+    prop = prop_root()
+    return {
+        "features": (
+            prop
+            / "data"
+            / "current"
+            / "features"
+            / f"{int(season)}_week_{int(week)}_features.parquet"
+        ),
+        "roles": (
+            prop
+            / "data"
+            / "current"
+            / f"{int(season)}_week_{int(week)}_roles.parquet"
+        ),
+        "universe": (
+            prop
+            / "data"
+            / "current"
+            / f"{int(season)}_week_{int(week)}_universe.parquet"
+        ),
+        "eligibility": (
+            prop
+            / "config"
+            / "target_eligibility.yaml"
+        ),
+    }
+
+
+def require_existing_files(
+    paths: Iterable[str | os.PathLike[str]],
+    *,
+    missing_message: str,
+) -> None:
+    for candidate in paths:
+        path = Path(candidate)
+        if not path.is_file():
+            raise FileNotFoundError(
+                missing_message.format(path=path)
+            )
+
+
+def read_current_projection_frames(
+    paths: Mapping[str, Path],
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    return (
+        pd.read_parquet(paths["features"]),
+        pd.read_parquet(paths["roles"]),
+        pd.read_parquet(paths["universe"]),
+    )
+
+
+def resolve_projection_season_week(
+    requested_season: int | None,
+    requested_week: int,
+    config: Mapping[str, Any],
+) -> tuple[int, int]:
+    season = (
+        int(requested_season)
+        if requested_season is not None
+        else int(config["seasons"]["current"])
+    )
+    week = int(requested_week)
+    if week < 1:
+        raise ValueError("week must be >= 1")
+    return season, week
 
 
 def load_config() -> dict:
@@ -233,6 +601,21 @@ def load_config() -> dict:
 
     return config
 
+
+
+
+def training_policy_seasons(
+    config: Mapping[str, Any] | None = None,
+) -> tuple[int, int, int, int]:
+    # Canonical train/validation/final/test season cutoffs.
+    active = load_config() if config is None else config
+    training = active["training"]
+    return (
+        int(training["model_selection_train_end_season"]),
+        int(training["development_validation_season"]),
+        int(training["final_train_end_season"]),
+        int(training["untouched_test_season"]),
+    )
 
 
 def forbidden_input_paths(
@@ -500,6 +883,88 @@ def write_parquet_atomic(
         raise
 
 
+def read_csv_dict_rows(
+    path: str | os.PathLike[str],
+) -> tuple[list[dict[str, str]], list[str]]:
+    source = Path(path)
+    if not source.is_file():
+        raise FileNotFoundError(f"Missing input file: {source}")
+    with source.open("r", newline="", encoding="utf-8-sig") as handle:
+        reader = csv.DictReader(handle)
+        rows = [dict(row) for row in reader]
+        return rows, list(reader.fieldnames or [])
+
+
+def write_filtered_csv_dict_rows_atomic(
+    path: str | os.PathLike[str],
+    fieldnames: Sequence[str],
+    rows: Iterable[Mapping[str, Any]],
+) -> None:
+    destination = Path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+
+    fields = list(fieldnames)
+    handle = tempfile.NamedTemporaryFile(
+        mode="w",
+        newline="",
+        encoding="utf-8",
+        prefix=f".{destination.name}.",
+        suffix=".tmp",
+        dir=destination.parent,
+        delete=False,
+    )
+    temp_path = Path(handle.name)
+
+    try:
+        with handle:
+            writer = csv.DictWriter(
+                handle,
+                fieldnames=fields,
+                extrasaction="ignore",
+            )
+            writer.writeheader()
+            for row in rows:
+                writer.writerow(
+                    {
+                        field: row.get(field, "")
+                        for field in fields
+                    }
+                )
+
+        os.replace(temp_path, destination)
+    finally:
+        if temp_path.exists():
+            temp_path.unlink()
+
+
+def write_csv_dict_rows_atomic(
+    path: str | os.PathLike[str],
+    fieldnames: list[str],
+    rows: list[dict[str, str]],
+) -> None:
+    destination = Path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    handle = tempfile.NamedTemporaryFile(
+        mode="w",
+        newline="",
+        encoding="utf-8",
+        prefix=f".{destination.name}.",
+        suffix=".tmp",
+        dir=destination.parent,
+        delete=False,
+    )
+    temp_path = Path(handle.name)
+    try:
+        with handle:
+            writer = csv.DictWriter(handle, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(rows)
+        os.replace(temp_path, destination)
+    finally:
+        if temp_path.exists():
+            temp_path.unlink()
+
+
 def write_csv_atomic(
     df: pd.DataFrame,
     path: str | os.PathLike[str],
@@ -547,6 +1012,374 @@ def write_csv_atomic(
         raise
 
 
+
+def stable_json_bytes(value: dict[str, Any]) -> bytes:
+    """Serialize a JSON object deterministically as UTF-8 with a final newline."""
+    return (
+        json.dumps(
+            value,
+            sort_keys=True,
+            indent=2,
+            ensure_ascii=False,
+        )
+        + "\n"
+    ).encode("utf-8")
+
+
+def write_json_default_str_atomic(
+    path: str | os.PathLike[str],
+    value: dict[str, Any],
+    *,
+    ensure_ascii: bool = True,
+) -> None:
+    # Preserve legacy sorted/indented JSON with default=str.
+    # noinspection DuplicatedCode
+    destination = Path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+
+    handle = tempfile.NamedTemporaryFile(
+        mode="w",
+        encoding="utf-8",
+        newline="\n",
+        prefix=f".{destination.name}.",
+        suffix=".tmp",
+        dir=destination.parent,
+        delete=False,
+    )
+    temp_path = Path(handle.name)
+
+    try:
+        with handle:
+            json.dump(
+                value,
+                handle,
+                indent=2,
+                sort_keys=True,
+                ensure_ascii=ensure_ascii,
+                default=str,
+            )
+            handle.write("\n")
+        os.replace(temp_path, destination)
+    finally:
+        if temp_path.exists():
+            temp_path.unlink()
+
+
+def write_json_strict_atomic(
+    path: str | os.PathLike[str],
+    value: dict[str, Any],
+) -> None:
+    # Preserve sorted/indented JSON while rejecting NaN/Infinity.
+    # noinspection DuplicatedCode
+    destination = Path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+
+    handle = tempfile.NamedTemporaryFile(
+        mode="w",
+        encoding="utf-8",
+        newline="\n",
+        prefix=f".{destination.name}.",
+        suffix=".tmp",
+        dir=destination.parent,
+        delete=False,
+    )
+    temp_path = Path(handle.name)
+
+    try:
+        with handle:
+            json.dump(
+                value,
+                handle,
+                indent=2,
+                sort_keys=True,
+                allow_nan=False,
+            )
+            handle.write("\n")
+        os.replace(temp_path, destination)
+    finally:
+        if temp_path.exists():
+            temp_path.unlink()
+
+def write_json_preserve_order_atomic(
+    path: str | os.PathLike[str],
+    value: dict[str, Any],
+) -> None:
+    # Preserve insertion order and UTF-8 literals.
+    # noinspection DuplicatedCode
+    destination = Path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+
+    handle = tempfile.NamedTemporaryFile(
+        mode="w",
+        encoding="utf-8",
+        newline="\n",
+        prefix=f".{destination.name}.",
+        suffix=".tmp",
+        dir=destination.parent,
+        delete=False,
+    )
+    temp_path = Path(handle.name)
+
+    try:
+        with handle:
+            json.dump(
+                value,
+                handle,
+                indent=2,
+                sort_keys=False,
+                ensure_ascii=False,
+            )
+            handle.write("\n")
+        os.replace(temp_path, destination)
+    finally:
+        if temp_path.exists():
+            temp_path.unlink()
+
+
+def write_json_atomic(
+    path: str | os.PathLike[str],
+    value: dict[str, Any],
+) -> None:
+    """Write deterministic JSON atomically inside the Prop Engine root."""
+    destination = _resolve_prop_output_path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    handle = tempfile.NamedTemporaryFile(
+        mode="wb",
+        prefix=f".{destination.name}.",
+        suffix=".tmp",
+        dir=destination.parent,
+        delete=False,
+    )
+    temp_path = Path(handle.name)
+    try:
+        with handle:
+            handle.write(stable_json_bytes(value))
+        _atomic_replace(temp_path, destination)
+    finally:
+        if temp_path.exists():
+            temp_path.unlink()
+
+
+
+def save_lightgbm_model_atomic(
+    model: Any,
+    path: str | os.PathLike[str],
+    num_iteration: int,
+) -> None:
+    # Persist a LightGBM-compatible model atomically inside Prop Engine.
+    destination = _resolve_prop_output_path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+
+    handle = tempfile.NamedTemporaryFile(
+        mode="wb",
+        prefix=f".{destination.name}.",
+        suffix=".tmp",
+        dir=destination.parent,
+        delete=False,
+    )
+    temp_path = Path(handle.name)
+    handle.close()
+
+    try:
+        model.save_model(
+            str(temp_path),
+            num_iteration=num_iteration,
+        )
+        os.replace(temp_path, destination)
+    finally:
+        if temp_path.exists():
+            temp_path.unlink()
+
+
+def lightgbm_regression_params(seed: int) -> dict[str, Any]:
+    """Return the deterministic regression parameters shared by component trainers."""
+    return {
+        "objective": "regression",
+        "metric": "rmse",
+        "boosting_type": "gbdt",
+        "learning_rate": 0.03,
+        "num_leaves": 31,
+        "min_data_in_leaf": 40,
+        "feature_fraction": 1.0,
+        "bagging_fraction": 1.0,
+        "bagging_freq": 0,
+        "lambda_l1": 0.0,
+        "lambda_l2": 0.0,
+        "max_bin": 255,
+        "verbosity": -1,
+        "seed": seed,
+        "feature_fraction_seed": seed,
+        "bagging_seed": seed,
+        "data_random_seed": seed,
+        "deterministic": True,
+        "force_col_wise": True,
+        "num_threads": 1,
+    }
+
+def apply_calibration_mapping(
+    values: np.ndarray,
+    mapping: Mapping[str, Any],
+) -> np.ndarray:
+    """Apply a persisted monotone calibration mapping."""
+    xp = np.asarray(mapping["knots_x"], dtype="float64")
+    fp = np.asarray(mapping["knots_y"], dtype="float64")
+    output = np.interp(
+        np.asarray(values, dtype="float64"),
+        xp,
+        fp,
+        left=float(mapping["left_value"]),
+        right=float(mapping["right_value"]),
+    )
+    bounds = mapping.get("output_bounds", [None, None])
+    if bounds[0] is not None:
+        output = np.maximum(output, float(bounds[0]))
+    if bounds[1] is not None:
+        output = np.minimum(output, float(bounds[1]))
+    return output
+
+
+def calibrated_count_outputs(
+    raw_selected: np.ndarray,
+    payload: Mapping[str, Any],
+) -> dict[str, np.ndarray]:
+    """Apply persisted count calibration to point predictions."""
+    count_calibration = payload["count_calibration"]
+    raw = np.maximum(np.asarray(raw_selected, dtype="float64"), 0.0)
+    expected = apply_calibration_mapping(
+        raw,
+        count_calibration["expected_count"]["mapping"],
+    )
+    poisson_p1 = 1.0 - np.exp(-expected)
+    poisson_p2 = 1.0 - np.exp(-expected) * (1.0 + expected)
+    p1 = apply_calibration_mapping(
+        poisson_p1,
+        count_calibration["probability_1_plus"]["mapping"],
+    )
+    p2 = apply_calibration_mapping(
+        poisson_p2,
+        count_calibration["probability_2_plus"]["mapping"],
+    )
+    return {
+        "expected_count": np.maximum(expected, 0.0),
+        "probability_1_plus": np.clip(p1, 0.0, 1.0),
+        "probability_2_plus": np.clip(p2, 0.0, 1.0),
+    }
+
+
+def apply_usage_buckets(
+    values: np.ndarray,
+    thresholds: Mapping[str, Any],
+) -> np.ndarray:
+    """Assign low/medium/high usage buckets using persisted thresholds."""
+    low = float(thresholds["low_max"])
+    medium = float(thresholds["medium_max"])
+    labels = np.full(len(values), "low", dtype=object)
+    finite = np.isfinite(values)
+    labels[finite & (values > low)] = "medium"
+    labels[finite & (values > medium)] = "high"
+    labels[~finite] = "low"
+    return labels
+
+
+def enforce_monotone_quantiles(
+    output: dict[str, np.ndarray],
+) -> dict[str, np.ndarray]:
+    """Ensure q10 <= q25 <= q50 <= q75 <= q90 row-wise."""
+    names = ("q10", "q25", "q50", "q75", "q90")
+    matrix = np.column_stack([output[name] for name in names])
+    matrix = np.maximum.accumulate(matrix, axis=1)
+    for index, name in enumerate(names):
+        output[name] = matrix[:, index]
+    return output
+
+
+def temporal_training_splits(
+    frame: pd.DataFrame,
+    *,
+    label: str,
+    model_selection_train_end_season: int,
+    development_validation_season: int,
+    final_train_end_season: int,
+    empty_noun: str = "rows",
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    selection_train = frame.loc[
+        frame["season"].le(model_selection_train_end_season)
+    ].copy()
+    validation = frame.loc[
+        frame["season"].eq(development_validation_season)
+    ].copy()
+    final_train = frame.loc[
+        frame["season"].le(final_train_end_season)
+    ].copy()
+
+    if selection_train.empty:
+        raise ValueError(
+            f"{label}: empty selection training {empty_noun}."
+        )
+    if validation.empty:
+        raise ValueError(
+            f"{label}: empty {development_validation_season} "
+            f"validation {empty_noun}."
+        )
+    if final_train.empty:
+        raise ValueError(
+            f"{label}: empty final training {empty_noun}."
+        )
+
+    return selection_train, validation, final_train
+
+def regression_metrics(
+    actual: np.ndarray,
+    predicted: np.ndarray,
+) -> dict[str, float | None]:
+    y = np.asarray(actual, dtype=float)
+    p = np.asarray(predicted, dtype=float)
+    error = y - p
+    rmse = float(np.sqrt(np.mean(np.square(error))))
+    mae = float(np.mean(np.abs(error)))
+    denominator = float(np.sum(np.square(y - y.mean())))
+    if denominator <= 0.0:
+        r2 = None
+    else:
+        value = 1.0 - float(np.sum(np.square(error)) / denominator)
+        r2 = value if math.isfinite(value) else None
+    return {"rmse": rmse, "mae": mae, "r2": r2}
+
+
+def poisson_deviance(
+    actual: np.ndarray,
+    predicted: np.ndarray,
+    *,
+    negative_actual_message: str = (
+        "Poisson deviance cannot be computed with negative actual values."
+    ),
+) -> float:
+    """Return mean Poisson deviance using a strictly positive prediction floor."""
+    y = np.asarray(actual, dtype="float64")
+    lam = np.maximum(np.asarray(predicted, dtype="float64"), 1e-12)
+    if np.any(y < 0.0):
+        raise ValueError(negative_actual_message)
+    terms = np.empty_like(y)
+    zero = y <= 0.0
+    terms[zero] = lam[zero]
+    nonzero = ~zero
+    terms[nonzero] = (
+        y[nonzero] * np.log(y[nonzero] / lam[nonzero])
+        - (y[nonzero] - lam[nonzero])
+    )
+    return float(2.0 * np.mean(terms))
+
+
+def brier_1plus(
+    actual: np.ndarray,
+    probability: np.ndarray,
+) -> float:
+    """Return Brier score for the event actual >= 1."""
+    event = (np.asarray(actual, dtype="float64") >= 1.0).astype("float64")
+    clipped = np.clip(np.asarray(probability, dtype="float64"), 0.0, 1.0)
+    return float(np.mean(np.square(clipped - event)))
+
+
 def _is_missing_scalar(value: Any) -> bool:
     if value is None:
         return True
@@ -560,6 +1393,126 @@ def _is_missing_scalar(value: Any) -> bool:
         return missing
 
     return False
+
+
+def clean_category_series(
+    series: pd.Series,
+) -> pd.Series:
+    result = (
+        series
+        .fillna("")
+        .astype(str)
+        .str.strip()
+    )
+    return result.mask(
+        result.str.casefold().isin(
+            {"", "nan", "none", "null", "<na>", "nat"}
+        ),
+        "",
+    )
+
+
+def clean_text(value: Any) -> str:
+    # Preserve the exact nullable-text semantics used by Prop Engine scripts.
+    if value is None:
+        return ""
+    try:
+        if pd.isna(value):
+            return ""
+    except (TypeError, ValueError):
+        pass
+    text = str(value).strip()
+    if text.casefold() in {"", "nan", "none", "null", "<na>", "nat"}:
+        return ""
+    return text
+
+
+def numeric_series_required(
+    series: pd.Series,
+    *,
+    label: str,
+    fill_zero: bool = False,
+    invalid_description: str = "non-numeric values found",
+    examples_label: str = "Examples",
+) -> pd.Series:
+    converted = pd.to_numeric(series, errors="coerce")
+    invalid = (
+        series.notna()
+        & series.astype(str).str.strip().ne("")
+        & converted.isna()
+    )
+    if invalid.any():
+        examples = series.loc[invalid].astype(str).head(10).tolist()
+        raise ValueError(
+            f"{label}: {invalid_description}. "
+            f"{examples_label}={examples}"
+        )
+    converted = converted.astype(float)
+    return converted.fillna(0.0) if fill_zero else converted
+
+
+def safe_divide_nonzero(
+    numerator: pd.Series,
+    denominator: pd.Series,
+    *,
+    replace_infinite: bool = False,
+) -> pd.Series:
+    num = pd.to_numeric(numerator, errors="coerce").astype("float64")
+    den = pd.to_numeric(denominator, errors="coerce").astype("float64")
+    if replace_infinite:
+        num = num.replace([np.inf, -np.inf], np.nan)
+        den = den.replace([np.inf, -np.inf], np.nan)
+    result = pd.Series(np.nan, index=num.index, dtype="float64")
+    valid = num.notna() & den.notna() & den.ne(0.0)
+    result.loc[valid] = num.loc[valid] / den.loc[valid]
+    return result
+
+
+def safe_divide_positive(
+    numerator: pd.Series,
+    denominator: pd.Series,
+    *,
+    replace_result_infinite: bool = True,
+) -> pd.Series:
+    num = (
+        pd.to_numeric(numerator, errors="coerce")
+        .replace([np.inf, -np.inf], np.nan)
+        .astype("float64")
+    )
+    den = (
+        pd.to_numeric(denominator, errors="coerce")
+        .replace([np.inf, -np.inf], np.nan)
+        .astype("float64")
+    )
+    result = pd.Series(np.nan, index=num.index, dtype="float64")
+    valid = num.notna() & den.notna() & den.gt(0.0)
+    result.loc[valid] = num.loc[valid] / den.loc[valid]
+    if replace_result_infinite:
+        result = result.replace([np.inf, -np.inf], np.nan)
+    return result
+
+
+def normalize_position_series(
+    series: pd.Series,
+) -> pd.Series:
+    return (
+        series
+        .fillna("")
+        .astype(str)
+        .str.strip()
+        .str.upper()
+    )
+
+
+def normalized_position_mask(
+    series: pd.Series,
+    eligible_positions: Iterable[Any],
+) -> pd.Series:
+    positions = {
+        str(value).strip().upper()
+        for value in eligible_positions
+    }
+    return normalize_position_series(series).isin(positions)
 
 
 def normalize_team(value: Any) -> str:
@@ -628,6 +1581,36 @@ def normalize_name(value: Any) -> str:
     return " ".join(
         text.split()
     )
+
+
+def opponent_from_nflverse_game_id(
+    game_id: Any,
+    team: Any,
+    *,
+    invalid_message: str,
+    mismatch_message: str,
+) -> str:
+    text = clean_text(game_id)
+    match = _NFLVERSE_OPPONENT_GAME_ID_RE.fullmatch(text)
+
+    if not match:
+        raise ValueError(invalid_message)
+
+    def canonical(value: Any) -> str:
+        normalized = normalize_team(value)
+        return HISTORICAL_RELOCATION_ALIASES.get(normalized, normalized)
+
+    away = canonical(match.group("away"))
+    home = canonical(match.group("home"))
+    club = canonical(team)
+
+    if club == away:
+        return home
+
+    if club == home:
+        return away
+
+    raise ValueError(mismatch_message)
 
 
 def parse_game_id(value: Any) -> str:
@@ -796,6 +1779,23 @@ def reject_forbidden_feature_columns(
             "column(s) detected: "
             + details
         )
+
+
+def safe_numeric_float64(
+    series: pd.Series,
+) -> pd.Series:
+    # Preserve projection/training numeric coercion semantics.
+    return (
+        pd.to_numeric(
+            series,
+            errors="coerce",
+        )
+        .replace(
+            [np.inf, -np.inf],
+            np.nan,
+        )
+        .astype("float64")
+    )
 
 
 def safe_numeric(

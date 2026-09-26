@@ -28,11 +28,7 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
-import os
-import subprocess
 import sys
-import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -172,9 +168,6 @@ def norm_position_group(position: Any, group: Any) -> str:
     return POSITION_GROUP_ALIASES.get(p, p)
 
 
-def repo_relative(path: Path) -> str:
-    return str(path.resolve().relative_to(common.repo_root().resolve())).replace("\\", "/")
-
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Build explicit NFL Week 1 priors.")
@@ -190,27 +183,16 @@ def resolve_season(args: argparse.Namespace, config: dict) -> int:
 
 
 def run_market_preflight() -> dict[str, Any]:
-    audit_path = SCRIPTS_ROOT / "validate" / "audit_market_exclusion.py"
-    if not audit_path.is_file():
-        raise FileNotFoundError(f"Issue 28 market-exclusion validator missing: {audit_path}")
-    completed = subprocess.run(
-        [sys.executable, str(audit_path)],
-        cwd=common.repo_root(),
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if completed.returncode != 0 or "MARKET EXCLUSION AUDIT: PASS" not in completed.stdout:
-        raise RuntimeError(
+    return common.run_market_exclusion_audit(
+        missing_message=(
+            "Issue 28 market-exclusion validator missing: {path}"
+        ),
+        failure_prefix=(
             "Market-exclusion preflight failed before Week 1 priors. "
-            f"stdout={completed.stdout[-2000:]!r} stderr={completed.stderr[-2000:]!r}"
-        )
-    return {
-        "passed": True,
-        "validator": repo_relative(audit_path),
-        "pass_marker": "MARKET EXCLUSION AUDIT: PASS",
-    }
-
+        ),
+        validator_posix=True,
+        include_pass_marker=True,
+    )
 
 def write_json_atomic(payload: dict[str, Any], path: Path) -> None:
     destination = path.resolve()
@@ -219,21 +201,11 @@ def write_json_atomic(payload: dict[str, Any], path: Path) -> None:
         destination.relative_to(prop)
     except ValueError as exc:
         raise ValueError(f"Week 1 prior log must remain under Prop Engine: {destination}") from exc
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    handle = tempfile.NamedTemporaryFile(
-        mode="w", encoding="utf-8", newline="\n",
-        prefix=f".{destination.name}.", suffix=".tmp",
-        dir=destination.parent, delete=False,
+    common.write_json_default_str_atomic(
+        destination,
+        payload,
+        ensure_ascii=False,
     )
-    temp_path = Path(handle.name)
-    try:
-        with handle:
-            json.dump(payload, handle, indent=2, sort_keys=True, ensure_ascii=False, default=str)
-            handle.write("\n")
-        os.replace(temp_path, destination)
-    finally:
-        if temp_path.exists():
-            temp_path.unlink()
 
 
 def blend(recent: pd.Series, career: pd.Series, recent_weight: float = RECENT_WEIGHT) -> pd.Series:
@@ -666,16 +638,16 @@ def main() -> int:
         "uncertainty_widened_rows": int(priors["week1_uncertainty_multiplier"].gt(1.0).sum()),
         "market_exclusion_passed": bool(market["passed"]),
         "market_features_used": False,
-        "output": repo_relative(output_path),
-        "log": repo_relative(log_path),
+        "output": common.repo_relative_posix_path(output_path),
+        "log": common.repo_relative_posix_path(log_path),
     }
     log_payload = {
         **payload,
         "inputs": {
-            "roles": repo_relative(roles_path),
-            "features": repo_relative(features_path),
-            "historical_universe": repo_relative(historical_path),
-            "historical_features": repo_relative(historical_features_path),
+            "roles": common.repo_relative_posix_path(roles_path),
+            "features": common.repo_relative_posix_path(features_path),
+            "historical_universe": common.repo_relative_posix_path(historical_path),
+            "historical_features": common.repo_relative_posix_path(historical_features_path),
         },
         "policy": {
             "returning_player_recent_plus_career": True,
