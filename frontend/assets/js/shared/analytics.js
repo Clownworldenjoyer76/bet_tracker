@@ -189,6 +189,55 @@ posthog.init('phc_r8rHehNywABoAFEGt5vTx8iTpoTY6hiFoyygPrMF6WE4', {
 })();
 /* SMH_SESSION_REPLAY_END */
 
+/* SMH_FEATURE_FLAGS_START */
+(() => {
+  function isEnabled(key) {
+    if (
+      !key ||
+      !window.posthog ||
+      typeof window.posthog.isFeatureEnabled !== "function"
+    ) {
+      return false;
+    }
+
+    return window.posthog.isFeatureEnabled(key) === true;
+  }
+
+  function getValue(key) {
+    if (
+      !key ||
+      !window.posthog ||
+      typeof window.posthog.getFeatureFlag !== "function"
+    ) {
+      return undefined;
+    }
+
+    return window.posthog.getFeatureFlag(key);
+  }
+
+  function onFlags(callback) {
+    if (
+      typeof callback !== "function" ||
+      !window.posthog ||
+      typeof window.posthog.onFeatureFlags !== "function"
+    ) {
+      return;
+    }
+
+    window.posthog.onFeatureFlags(callback);
+  }
+
+  window.SMHFeatureFlags = {
+    isEnabled,
+    getValue,
+    onFlags,
+    canary() {
+      return isEnabled("smh-canary");
+    }
+  };
+})();
+/* SMH_FEATURE_FLAGS_END */
+
 /* SMH_PRODUCT_ANALYTICS_START */
 (() => {
   const VERSION = "1.0.0";
