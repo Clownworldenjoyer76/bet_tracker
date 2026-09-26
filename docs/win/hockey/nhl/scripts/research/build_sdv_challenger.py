@@ -63,12 +63,13 @@ based on regular-season games, matching SportsDataverse ``nhl_team_ratings``.
 
 from __future__ import annotations
 
+import sys
+
 import argparse
 import json
 import math
 import os
 import re
-import sys
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from importlib.metadata import PackageNotFoundError, version
@@ -83,6 +84,26 @@ import numpy as np
 import pandas as pd
 import polars as pl
 from scipy.optimize import minimize
+
+
+RESEARCH_DIR = Path(__file__).resolve().parent
+if str(RESEARCH_DIR) not in sys.path:
+    sys.path.insert(0, str(RESEARCH_DIR))
+
+# noinspection PyPep8
+from sdv_ratings_common import prior_adjusted_ratings
+
+
+SCRIPTS_DIR = Path(__file__).resolve().parents[1]
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
+
+# noinspection PyPep8
+from model_blend_common import (
+    design_matrix,
+    fit_blend_weights,
+    ridge_linear_coefficients,
+)
 
 
 SCRIPT_VERSION = "SDV-P6-2026-08-30-v2"
@@ -373,63 +394,43 @@ def load_p5_game_rates(season: int) -> tuple[pl.DataFrame, pl.DataFrame]:
     return schedule, game_rates
 
 
-def ratings_from_prior_games(game_rates: pl.DataFrame, target_date: date) -> pl.DataFrame:
-    """Reconstruct nhl_team_ratings from rows strictly before target_date."""
-    from sportsdataverse.nhl.nhl_prediction_constants import get_constants
-    from sportsdataverse.nhl.nhl_team_ratings import adjust_rate_opponent
-
-    prior = game_rates.filter(pl.col("date") < pl.lit(target_date))
-    if prior.is_empty():
-        return pl.DataFrame()
-
-    const = get_constants("nhl")
-    xg_adj = adjust_rate_opponent(
-        prior,
-        for_col="xgf",
-        against_col="xga",
-        hfa=const.hfa,
-        avg=const.avg_xgf,
-        shrink_k=const.shrink_k,
+def ratings_from_prior_games(
+    game_rates: pl.DataFrame,
+    target_date: date,
+) -> pl.DataFrame:
+    out = prior_adjusted_ratings(
+        game_rates,
+        target_date,
     )
-    goal_adj = adjust_rate_opponent(
-        prior,
-        for_col="gf",
-        against_col="ga",
-        hfa=const.hfa,
-        avg=const.avg_total_goals / 2.0,
-        shrink_k=const.shrink_k,
-    )
-    if xg_adj.is_empty():
-        return pl.DataFrame()
-
-    out = xg_adj.join(
-        goal_adj.select(
-            "team",
-            pl.col("adj_for").alias("adj_gf"),
-            pl.col("adj_against").alias("adj_ga"),
-        ),
-        on="team",
-        how="left",
-    ).rename(
-        {
-            "adj_for": "adj_xgf",
-            "adj_against": "adj_xga",
-            "adj_net": "adj_xg_net",
-        }
-    )
+    if out.is_empty():
+        return out
 
     net_mean = out.get_column("adj_xg_net").mean()
     net_std = out.get_column("adj_xg_net").std()
+
     out = out.with_columns(
-        pl.col("adj_xgf").rank(method="ordinal", descending=True).cast(pl.Int64).alias("off_rank"),
-        pl.col("adj_xga").rank(method="ordinal", descending=False).cast(pl.Int64).alias("def_rank"),
-        pl.col("adj_xg_net").rank(method="ordinal", descending=True).cast(pl.Int64).alias("net_rank"),
+        pl.col("adj_xgf")
+        .rank(method="ordinal", descending=True)
+        .cast(pl.Int64)
+        .alias("off_rank"),
+        pl.col("adj_xga")
+        .rank(method="ordinal", descending=False)
+        .cast(pl.Int64)
+        .alias("def_rank"),
+        pl.col("adj_xg_net")
+        .rank(method="ordinal", descending=True)
+        .cast(pl.Int64)
+        .alias("net_rank"),
         (
-            ((pl.col("adj_xg_net") - float(net_mean)) / float(net_std))
+            (
+                (pl.col("adj_xg_net") - float(net_mean))
+                / float(net_std)
+            )
             if net_std
             else pl.lit(0.0)
         ).alias("net_z"),
     )
+
     return out.select(
         "season",
         "team",
@@ -537,7 +538,7 @@ def load_dratings_predictions(season: int) -> pd.DataFrame:
     for path in prediction_csv_paths():
         try:
             frame = pd.read_csv(path, dtype={"game_id": "string"})
-        except Exception:
+        except (OSError, UnicodeError, ValueError):
             continue
         if not required.issubset(frame.columns):
             continue
@@ -602,7 +603,7 @@ def load_final_scores(season: int) -> pd.DataFrame:
     for path in sorted(FINAL_SCORES_ROOT.glob("*.csv")):
         try:
             frame = pd.read_csv(path, dtype={"game_id": "string"})
-        except Exception:
+        except (OSError, UnicodeError, ValueError):
             continue
         if not required.issubset(frame.columns):
             continue
@@ -740,17 +741,14 @@ def metrics_to_frame(frame: pd.DataFrame) -> pd.DataFrame:
 
 def fit_logistic(x: np.ndarray, y: np.ndarray) -> LogisticModel:
     """L2-stabilized logistic regression using SciPy; no sklearn dependency."""
-    x = np.asarray(x, dtype=float)
     y = np.asarray(y, dtype=float)
-    if x.ndim == 1:
-        x = x[:, None]
-    design = np.column_stack([np.ones(len(x)), x])
+    design = design_matrix(x)
 
-    def objective(beta: np.ndarray) -> float:
-        z = np.clip(design @ beta, -35.0, 35.0)
+    def objective(coefficients: np.ndarray) -> float:
+        z = np.clip(design @ coefficients, -35.0, 35.0)
         p = 1.0 / (1.0 + np.exp(-z))
         nll = -np.sum(y * np.log(np.clip(p, EPS, 1 - EPS)) + (1 - y) * np.log(np.clip(1 - p, EPS, 1 - EPS)))
-        penalty = 1e-4 * float(np.sum(beta[1:] ** 2))
+        penalty = 1e-4 * float(np.sum(coefficients[1:] ** 2))
         return float(nll + penalty)
 
     result = minimize(objective, np.zeros(design.shape[1]), method="BFGS")
@@ -758,46 +756,23 @@ def fit_logistic(x: np.ndarray, y: np.ndarray) -> LogisticModel:
     return LogisticModel(beta)
 
 
-def fit_linear(x: np.ndarray, y: np.ndarray) -> LinearModel:
-    x = np.asarray(x, dtype=float)
-    y = np.asarray(y, dtype=float)
-    if x.ndim == 1:
-        x = x[:, None]
-    design = np.column_stack([np.ones(len(x)), x])
-    ridge = 1e-6 * np.eye(design.shape[1])
-    ridge[0, 0] = 0.0
-    beta = np.linalg.solve(design.T @ design + ridge, design.T @ y)
-    return LinearModel(beta)
+def fit_linear(
+    x: np.ndarray,
+    y: np.ndarray,
+) -> LinearModel:
+    return LinearModel(
+        ridge_linear_coefficients(x, y)
+    )
 
 
 def apply_logistic(model: LogisticModel, x: np.ndarray) -> np.ndarray:
-    x = np.asarray(x, dtype=float)
-    if x.ndim == 1:
-        x = x[:, None]
-    design = np.column_stack([np.ones(len(x)), x])
+    design = design_matrix(x)
     return model.predict_proba(design)
 
 
 def apply_linear(model: LinearModel, x: np.ndarray) -> np.ndarray:
-    x = np.asarray(x, dtype=float)
-    if x.ndim == 1:
-        x = x[:, None]
-    design = np.column_stack([np.ones(len(x)), x])
+    design = design_matrix(x)
     return model.predict(design)
-
-
-def select_probability_weight(y: np.ndarray, p_drat: np.ndarray, p_sdv: np.ndarray) -> float:
-    """Choose past-only weight on calibrated D-Ratings probability by log loss."""
-    grid = np.linspace(0.0, 1.0, 101)
-    losses = [log_loss(y, w * p_drat + (1.0 - w) * p_sdv) for w in grid]
-    return float(grid[int(np.argmin(losses))])
-
-
-def select_numeric_weight(y: np.ndarray, drat: np.ndarray, sdv: np.ndarray) -> float:
-    """Choose past-only D-Ratings weight by RMSE."""
-    grid = np.linspace(0.0, 1.0, 101)
-    losses = [rmse(y, w * drat + (1.0 - w) * sdv) for w in grid]
-    return float(grid[int(np.argmin(losses))])
 
 
 def build_walkforward_ensemble(frame: pd.DataFrame, min_train_rows: int) -> pd.DataFrame:
@@ -824,28 +799,30 @@ def build_walkforward_ensemble(frame: pd.DataFrame, min_train_rows: int) -> pd.D
             continue
 
         y_train = train["actual_home_win"].to_numpy(float)
-
-        # Calibrate each probability independently using only past rows.
-        drat_cal = fit_logistic(train[["drat_home_win_prob"]].to_numpy(float), y_train)
-        sdv_cal = fit_logistic(train[["sdv_home_win_prob"]].to_numpy(float), y_train)
-        drat_train_cal = apply_logistic(drat_cal, train[["drat_home_win_prob"]].to_numpy(float))
-        sdv_train_cal = apply_logistic(sdv_cal, train[["sdv_home_win_prob"]].to_numpy(float))
-        prob_weight = select_probability_weight(y_train, drat_train_cal, sdv_train_cal)
-
-        drat_test_cal = apply_logistic(drat_cal, test[["drat_home_win_prob"]].to_numpy(float))
-        sdv_test_cal = apply_logistic(sdv_cal, test[["sdv_home_win_prob"]].to_numpy(float))
-        weighted_prob = prob_weight * drat_test_cal + (1.0 - prob_weight) * sdv_test_cal
-
-        # Margin / total weighted models are independently tuned on prior rows.
-        margin_weight = select_numeric_weight(
-            train["actual_margin"].to_numpy(float),
-            train["drat_exp_margin"].to_numpy(float),
-            train["sdv_exp_margin"].to_numpy(float),
+        (
+            drat_cal,
+            sdv_cal,
+            prob_weight,
+            margin_weight,
+            total_weight,
+        ) = fit_blend_weights(
+            train,
+            y_train,
+            fit_logistic,
+            apply_logistic,
         )
-        total_weight = select_numeric_weight(
-            train["actual_total"].to_numpy(float),
-            train["drat_exp_total"].to_numpy(float),
-            train["sdv_exp_total"].to_numpy(float),
+
+        drat_test_cal = apply_logistic(
+            drat_cal,
+            test[["drat_home_win_prob"]].to_numpy(float),
+        )
+        sdv_test_cal = apply_logistic(
+            sdv_cal,
+            test[["sdv_home_win_prob"]].to_numpy(float),
+        )
+        weighted_prob = (
+            prob_weight * drat_test_cal
+            + (1.0 - prob_weight) * sdv_test_cal
         )
 
         # Meta-model: both models + disagreement enter as features. Fits use

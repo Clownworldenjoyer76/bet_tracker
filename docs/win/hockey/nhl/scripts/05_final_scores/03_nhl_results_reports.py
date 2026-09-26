@@ -3,9 +3,18 @@
 
 from datetime import datetime, UTC
 from pathlib import Path
+import sys
 
 import numpy as np
 import pandas as pd
+
+
+SCRIPTS_DIR = str(Path(__file__).resolve().parents[1])
+if SCRIPTS_DIR not in sys.path:
+    sys.path.insert(0, SCRIPTS_DIR)
+
+# noinspection PyPep8
+from market_common import normalize_market, normalize_side
 
 
 ###############################################################
@@ -256,25 +265,6 @@ def safe_read(path: Path) -> pd.DataFrame:
         ) from e
 
 
-def normalize_market(value) -> str:
-    value = str(value).strip().lower()
-
-    if value in {"moneyline", "ml"}:
-        return "moneyline"
-
-    if value in {"puck_line", "puckline", "spread"}:
-        return "puck_line"
-
-    if value in {"total", "totals"}:
-        return "total"
-
-    return value
-
-
-def normalize_side(value) -> str:
-    return str(value).strip().lower()
-
-
 def side_group(row) -> str:
     market = normalize_market(row.get("market_type", ""))
     side = normalize_side(row.get("bet_side", ""))
@@ -311,7 +301,7 @@ def bucket_value(value, bands: list[tuple[float, float]]) -> str:
 
     try:
         v = float(value)
-    except Exception:
+    except (TypeError, ValueError, OverflowError):
         return "missing"
 
     for low, high in bands:
@@ -333,7 +323,7 @@ def american_to_profit_per_unit(odds) -> float:
 
     try:
         odds = float(odds)
-    except Exception:
+    except (TypeError, ValueError, OverflowError):
         return np.nan
 
     if odds > 0:

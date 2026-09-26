@@ -382,7 +382,7 @@ def official_schedule_cutoff_lookup() -> dict[
                 path,
                 dtype=str,
             ).fillna("")
-        except Exception:
+        except (OSError, UnicodeError, ValueError):
             continue
 
         if (
@@ -2717,7 +2717,7 @@ def pull_goalie_live_profiles(
                 player_id = int(
                     value
                 )
-            except Exception:
+            except (TypeError, ValueError, OverflowError):
                 continue
 
             parsed = safe_pull(
@@ -2762,62 +2762,42 @@ def pull_season_context(
     season: int,
 ):
     context = {
-        "pbp": None,
-        "shifts": None,
-        "goalie_box": None,
-        "skater_box": None,
-        "rosters": None,
+        "pbp": safe_pull(
+            failures,
+            "lineup-strength",
+            "load_nhl_pbp_full",
+            nhl.load_nhl_pbp_full,
+            season,
+        ),
+        "shifts": safe_pull(
+            failures,
+            "lineup-strength",
+            "load_nhl_shifts",
+            nhl.load_nhl_shifts,
+            season,
+        ),
+        "goalie_box": safe_pull(
+            failures,
+            "goalie",
+            "load_nhl_goalie_boxscores",
+            nhl.load_nhl_goalie_boxscores,
+            season,
+        ),
+        "skater_box": safe_pull(
+            failures,
+            "lineup-strength",
+            "load_nhl_skater_boxscores",
+            nhl.load_nhl_skater_boxscores,
+            season,
+        ),
+        "rosters": safe_pull(
+            failures,
+            "lineup-strength",
+            "load_nhl_rosters",
+            nhl.load_nhl_rosters,
+            season,
+        ),
     }
-
-    context[
-        "pbp"
-    ] = safe_pull(
-        failures,
-        "lineup-strength",
-        "load_nhl_pbp_full",
-        nhl.load_nhl_pbp_full,
-        season,
-    )
-
-    context[
-        "shifts"
-    ] = safe_pull(
-        failures,
-        "lineup-strength",
-        "load_nhl_shifts",
-        nhl.load_nhl_shifts,
-        season,
-    )
-
-    context[
-        "goalie_box"
-    ] = safe_pull(
-        failures,
-        "goalie",
-        "load_nhl_goalie_boxscores",
-        nhl.load_nhl_goalie_boxscores,
-        season,
-    )
-
-    context[
-        "skater_box"
-    ] = safe_pull(
-        failures,
-        "lineup-strength",
-        "load_nhl_skater_boxscores",
-        nhl.load_nhl_skater_boxscores,
-        season,
-    )
-
-    context[
-        "rosters"
-    ] = safe_pull(
-        failures,
-        "lineup-strength",
-        "load_nhl_rosters",
-        nhl.load_nhl_rosters,
-        season,
-    )
 
     return context
 
@@ -3252,21 +3232,21 @@ def goalie_usage_candidates(
         combined.to_dict(
             orient="records"
         ),
-        key=lambda row: (
+        key=lambda candidate_row: (
             -int(
-                row.get(
+                candidate_row.get(
                     "prior_appearances",
                     0,
                 )
             ),
             str(
-                row.get(
+                candidate_row.get(
                     "goalie",
                     "",
                 )
             ),
             str(
-                row.get(
+                candidate_row.get(
                     "player_id",
                     "",
                 )
@@ -4384,7 +4364,6 @@ def pull_fatigue(
     *,
     current: bool,
     target_date: date,
-    season: int,
     prefix: str,
     teams: list[str],
     schedule: Any,
@@ -4479,8 +4458,6 @@ def pull_predictions(
     failures: list[str],
     *,
     current: bool,
-    target_date: date,
-    season: int,
     prefix: str,
     schedule: Any,
     slate: Any,
@@ -5192,7 +5169,6 @@ def run_one(
             failures,
             current=current,
             target_date=target_date,
-            season=season,
             prefix=prefix,
             teams=teams,
             schedule=schedule,
@@ -5205,8 +5181,6 @@ def run_one(
         pull_predictions(
             failures,
             current=current,
-            target_date=target_date,
-            season=season,
             prefix=prefix,
             schedule=schedule,
             slate=slate,
@@ -5311,6 +5285,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    # noinspection PyBroadException
     try:
         main()
 

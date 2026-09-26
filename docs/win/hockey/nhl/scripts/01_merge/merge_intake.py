@@ -5,6 +5,7 @@ import csv
 import re
 import traceback
 from pathlib import Path
+from typing import Never
 from datetime import datetime, UTC, timedelta
 from zoneinfo import ZoneInfo
 
@@ -368,8 +369,8 @@ REQUIRED_TEAM_STRENGTH_COLUMNS = [
 ]
 
 
-with open(LOG_FILE, "w", encoding="utf-8") as f:
-    f.write(
+with open(LOG_FILE, "w", encoding="utf-8") as startup_log:
+    startup_log.write(
         f"=== merge_intake RUN "
         f"{datetime.now(UTC).isoformat()} ===\n"
     )
@@ -382,7 +383,7 @@ def log(msg: str) -> None:
         )
 
 
-def fail(message: str) -> None:
+def fail(message: str) -> Never:
     log(f"FATAL: {message}")
     log("STATUS: FAILED")
     raise SystemExit(message)
@@ -3192,7 +3193,7 @@ def load_sdv_prediction_index() -> dict[str, dict[str, str]]:
             try:
                 value = float(raw)
             except ValueError:
-                fail(
+                return fail(
                     "SportsDataverse prediction row has non-numeric required value: "
                     f"{SDV_PREDICTIONS_PATH} row={row_number} "
                     f"game_id={game_id} column={source_col} value={raw!r}"

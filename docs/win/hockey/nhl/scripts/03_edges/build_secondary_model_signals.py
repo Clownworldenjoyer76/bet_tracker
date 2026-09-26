@@ -3,17 +3,30 @@
 
 from __future__ import annotations
 
-import math
 import sys
+
 import traceback
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from pathlib import Path
+from typing import Never
 
 import numpy as np
 import pandas as pd
 import yaml
 from scipy.optimize import minimize
+
+
+SCRIPTS_DIR = Path(__file__).resolve().parents[1]
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
+
+# noinspection PyPep8
+from model_blend_common import (
+    design_matrix,
+    fit_blend_weights,
+    ridge_linear_coefficients,
+)
 
 
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -130,7 +143,7 @@ def log(message: str) -> None:
         f.write(f"{now()} | {message}\n")
 
 
-def fail(message: str) -> None:
+def fail(message: str) -> Never:
     log(f"FATAL | {message}")
     raise SystemExit(message)
 
@@ -158,12 +171,12 @@ def load_secondary_config() -> dict:
     try:
         payload = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8"))
     except Exception as exc:
-        fail(f"Unable to read {CONFIG_PATH}: {exc}")
+        return fail(f"Unable to read {CONFIG_PATH}: {exc}")
 
     try:
         config = payload["markets"]["nhl"]["secondary_model"]
     except Exception as exc:
-        fail(f"Missing markets.nhl.secondary_model in {CONFIG_PATH}: {exc}")
+        return fail(f"Missing markets.nhl.secondary_model in {CONFIG_PATH}: {exc}")
 
     return config
 
@@ -297,11 +310,8 @@ def rmse(y: np.ndarray, pred: np.ndarray) -> float:
 
 
 def fit_logistic(x: np.ndarray, y: np.ndarray) -> LogisticModel:
-    x = np.asarray(x, dtype=float)
     y = np.asarray(y, dtype=float)
-    if x.ndim == 1:
-        x = x[:, None]
-    design = np.column_stack([np.ones(len(x)), x])
+    design = design_matrix(x)
 
     def objective(beta: np.ndarray) -> float:
         z = np.clip(design @ beta, -35.0, 35.0)
@@ -319,44 +329,23 @@ def fit_logistic(x: np.ndarray, y: np.ndarray) -> LogisticModel:
 
 
 def apply_logistic(model: LogisticModel, x: np.ndarray) -> np.ndarray:
-    x = np.asarray(x, dtype=float)
-    if x.ndim == 1:
-        x = x[:, None]
-    design = np.column_stack([np.ones(len(x)), x])
+    design = design_matrix(x)
     z = np.clip(design @ model.coefficients, -35.0, 35.0)
     return 1.0 / (1.0 + np.exp(-z))
 
 
-def fit_linear(x: np.ndarray, y: np.ndarray) -> LinearModel:
-    x = np.asarray(x, dtype=float)
-    y = np.asarray(y, dtype=float)
-    if x.ndim == 1:
-        x = x[:, None]
-    design = np.column_stack([np.ones(len(x)), x])
-    ridge = 1e-6 * np.eye(design.shape[1])
-    ridge[0, 0] = 0.0
-    beta = np.linalg.solve(design.T @ design + ridge, design.T @ y)
-    return LinearModel(beta)
+def fit_linear(
+    x: np.ndarray,
+    y: np.ndarray,
+) -> LinearModel:
+    return LinearModel(
+        ridge_linear_coefficients(x, y)
+    )
 
 
 def apply_linear(model: LinearModel, x: np.ndarray) -> np.ndarray:
-    x = np.asarray(x, dtype=float)
-    if x.ndim == 1:
-        x = x[:, None]
-    design = np.column_stack([np.ones(len(x)), x])
+    design = design_matrix(x)
     return design @ model.coefficients
-
-
-def select_probability_weight(y: np.ndarray, p_drat: np.ndarray, p_sdv: np.ndarray) -> float:
-    grid = np.linspace(0.0, 1.0, 101)
-    losses = [log_loss(y, w * p_drat + (1.0 - w) * p_sdv) for w in grid]
-    return float(grid[int(np.argmin(losses))])
-
-
-def select_numeric_weight(y: np.ndarray, drat: np.ndarray, sdv: np.ndarray) -> float:
-    grid = np.linspace(0.0, 1.0, 101)
-    losses = [rmse(y, w * drat + (1.0 - w) * sdv) for w in grid]
-    return float(grid[int(np.argmin(losses))])
 
 
 def fit_bundle_for_target(
@@ -373,21 +362,17 @@ def fit_bundle_for_target(
         return None
 
     y = train["actual_home_win"].to_numpy(float)
-    drat_cal = fit_logistic(train[["drat_home_win_prob"]].to_numpy(float), y)
-    sdv_cal = fit_logistic(train[["sdv_home_win_prob"]].to_numpy(float), y)
-    drat_cal_values = apply_logistic(drat_cal, train[["drat_home_win_prob"]].to_numpy(float))
-    sdv_cal_values = apply_logistic(sdv_cal, train[["sdv_home_win_prob"]].to_numpy(float))
-
-    prob_weight = select_probability_weight(y, drat_cal_values, sdv_cal_values)
-    margin_weight = select_numeric_weight(
-        train["actual_margin"].to_numpy(float),
-        train["drat_exp_margin"].to_numpy(float),
-        train["sdv_exp_margin"].to_numpy(float),
-    )
-    total_weight = select_numeric_weight(
-        train["actual_total"].to_numpy(float),
-        train["drat_exp_total"].to_numpy(float),
-        train["sdv_exp_total"].to_numpy(float),
+    (
+        drat_cal,
+        sdv_cal,
+        prob_weight,
+        margin_weight,
+        total_weight,
+    ) = fit_blend_weights(
+        train,
+        y,
+        fit_logistic,
+        apply_logistic,
     )
 
     prob_disagreement = (train["sdv_home_win_prob"] - train["drat_home_win_prob"]).abs()

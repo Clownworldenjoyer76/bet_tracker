@@ -1,11 +1,22 @@
 # docs/win/hockey/nhl/scripts/00_intake/hockey_drat_scraper.py
 
 import csv
+import sys
 import json
-import re
 import traceback
-import unicodedata
 from pathlib import Path
+
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+# noinspection PyPep8
+from team_map_common import (
+    normalize_team_alias_key,
+    parse_nhl_team_map_row,
+    register_team_identity,
+)
 from datetime import datetime
 
 import pandas as pd
@@ -30,8 +41,8 @@ LOG_FILE = ERROR_DIR / "hockey_drat_scraper.txt"
 
 EXPECTED_GAME_TYPES = {"2", "3"}
 
-with open(LOG_FILE, "w", encoding="utf-8") as f:
-    f.write(f"=== hockey_drat_scraper RUN {datetime.now(ET).isoformat()} ===\n")
+with open(LOG_FILE, "w", encoding="utf-8") as startup_log:
+    startup_log.write(f"=== hockey_drat_scraper RUN {datetime.now(ET).isoformat()} ===\n")
 
 
 def log(msg: str) -> None:
@@ -45,7 +56,7 @@ def convert_utc_to_et(date_time_str: str) -> str:
         dt_utc = UTC.localize(dt)
         dt_et = dt_utc.astimezone(ET)
         return dt_et.strftime("%m/%d/%Y %I:%M %p")
-    except Exception:
+    except (TypeError, ValueError, OverflowError):
         return date_time_str
 
 
@@ -54,32 +65,21 @@ def parse_et_datetime(date_time_str: str) -> datetime:
     return ET.localize(dt)
 
 
-def strip_record(name: str) -> str:
-    return re.sub(r"\s*\(\d+[-–]\d+[-–]?\d*\)\s*$", "", str(name)).strip()
-
-
-def normalize_alias_key(value: str) -> str:
-    text = strip_record(value)
-    text = unicodedata.normalize("NFKD", text)
-    text = "".join(
-        char
-        for char in text
-        if not unicodedata.combining(char)
-    )
-    text = text.lower().replace("&", " and ")
-    text = re.sub(r"[^a-z0-9]+", " ", text)
-    return re.sub(r"\s+", " ", text).strip()
-
-
 def load_team_map() -> dict:
     if not TEAM_MAP_PATH.exists():
-        raise FileNotFoundError(f"Missing team mapping file: {TEAM_MAP_PATH}")
+        raise FileNotFoundError(
+            f"Missing team mapping file: {TEAM_MAP_PATH}"
+        )
 
     by_source: dict[str, dict[str, dict[str, str]]] = {}
     by_id: dict[str, dict[str, str]] = {}
 
-    with TEAM_MAP_PATH.open("r", newline="", encoding="utf-8-sig") as f:
-        reader = csv.DictReader(f)
+    with TEAM_MAP_PATH.open(
+        "r",
+        newline="",
+        encoding="utf-8-sig",
+    ) as handle:
+        reader = csv.DictReader(handle)
 
         required = {
             "league",
@@ -98,63 +98,54 @@ def load_team_map() -> dict:
             )
 
         for row_number, row in enumerate(reader, start=2):
-            if str(row.get("league", "")).strip().lower() != "nhl":
+            parsed = parse_nhl_team_map_row(
+                row,
+                row_number,
+                TEAM_MAP_PATH,
+            )
+            if parsed is None:
                 continue
 
-            source = str(row.get("source", "")).strip().lower()
-            alias = str(row.get("alias", "")).strip()
-            canonical = str(row.get("canonical_team", "")).strip()
-            team_id = str(row.get("nhl_team_id", "")).strip()
-            abbrev = str(row.get("nhl_abbrev", "")).strip().upper()
+            (
+                source,
+                alias,
+                team_id,
+                _abbrev,
+                identity,
+            ) = parsed
 
-            if not source or not alias or not canonical:
-                continue
+            register_team_identity(
+                by_id,
+                team_id,
+                identity,
+                TEAM_MAP_PATH,
+            )
 
-            if canonical != "TBD":
-                if not team_id or not team_id.isdigit():
-                    raise ValueError(
-                        f"{TEAM_MAP_PATH} row {row_number} has invalid "
-                        f"nhl_team_id={team_id!r}"
-                    )
-
-                if not re.fullmatch(r"[A-Z]{3}", abbrev):
-                    raise ValueError(
-                        f"{TEAM_MAP_PATH} row {row_number} has invalid "
-                        f"nhl_abbrev={abbrev!r}"
-                    )
-
-            identity = {
-                "canonical_team": canonical,
-                "nhl_team_id": team_id,
-                "nhl_abbrev": abbrev,
-            }
-
-            if team_id:
-                prior = by_id.get(team_id)
-                if prior is not None and prior != identity:
-                    raise ValueError(
-                        f"{TEAM_MAP_PATH} has conflicting identity for "
-                        f"nhl_team_id={team_id}: {prior} != {identity}"
-                    )
-                by_id[team_id] = identity
-
-            key = normalize_alias_key(alias)
-            source_map = by_source.setdefault(source, {})
+            key = normalize_team_alias_key(alias)
+            source_map = by_source.setdefault(
+                source,
+                {},
+            )
             prior = source_map.get(key)
 
             if prior is not None and prior != identity:
                 raise ValueError(
                     f"{TEAM_MAP_PATH} has conflicting mapping for "
-                    f"source={source} alias={alias!r}: {prior} != {identity}"
+                    f"source={source} alias={alias!r}: "
+                    f"{prior} != {identity}"
                 )
 
             source_map[key] = identity
 
     if not by_source.get("dratings"):
-        raise ValueError(f"No dratings mappings loaded from {TEAM_MAP_PATH}")
+        raise ValueError(
+            f"No dratings mappings loaded from {TEAM_MAP_PATH}"
+        )
 
     if not by_source.get("official_nhl"):
-        raise ValueError(f"No official_nhl mappings loaded from {TEAM_MAP_PATH}")
+        raise ValueError(
+            f"No official_nhl mappings loaded from {TEAM_MAP_PATH}"
+        )
 
     if len(by_id) != 32:
         raise ValueError(
@@ -173,7 +164,7 @@ def resolve_team_identity(
     source: str,
     team_map: dict,
 ) -> dict[str, str] | None:
-    key = normalize_alias_key(value)
+    key = normalize_team_alias_key(value)
 
     for candidate_source in (source, "shared", "official_nhl"):
         identity = (
@@ -448,6 +439,20 @@ def is_game_row(row):
     return len(row) >= 6 and "\n" in row[1]
 
 
+def split_pair(
+    value: str,
+    *,
+    strip: bool = False,
+) -> tuple[str, str]:
+    parts = str(value).split("\n")
+    first, second = parts[0], parts[1]
+
+    if strip:
+        return first.strip(), second.strip()
+
+    return first, second
+
+
 def parse_nhl(row):
     if not is_game_row(row):
         return None
@@ -455,19 +460,13 @@ def parse_nhl(row):
     try:
         if len(row) == 11:
             date_time = convert_utc_to_et(row[0].replace("\n", " "))
-            t = row[1].split("\n")
-            team1, team2 = t[0].strip(), t[1].strip()
-            wp = row[3].split("\n")
-            wp1, wp2 = wp[0], wp[1]
-            ml = row[4].split("\n")
-            ml1, ml2 = ml[0], ml[1]
-            sp = row[5].split("\n")
-            sp1, sp2 = sp[0], sp[1]
-            ps = row[6].split("\n")
-            proj1, proj2 = ps[0], ps[1]
+            team1, team2 = split_pair(row[1], strip=True)
+            wp1, wp2 = split_pair(row[3])
+            ml1, ml2 = split_pair(row[4])
+            sp1, sp2 = split_pair(row[5])
+            proj1, proj2 = split_pair(row[6])
             total = row[7]
-            ou = row[8].split("\n")
-            over_line, under_line = ou[0], ou[1]
+            over_line, under_line = split_pair(row[8])
 
             return {
                 "sport": "NHL",
@@ -492,16 +491,11 @@ def parse_nhl(row):
 
         if len(row) == 8:
             date_time = convert_utc_to_et(row[0].replace("\n", " "))
-            t = row[1].split("\n")
-            team1, team2 = t[0].strip(), t[1].strip()
-            wp = row[2].split("\n")
-            wp1, wp2 = wp[0], wp[1]
-            ml = row[3].split("\n")
-            ml1, ml2 = ml[0], ml[1]
-            sp = row[4].split("\n")
-            sp1, sp2 = sp[0], sp[1]
-            sc = row[5].split("\n")
-            score1, score2 = sc[0].strip(), sc[1].strip()
+            team1, team2 = split_pair(row[1], strip=True)
+            wp1, wp2 = split_pair(row[2])
+            ml1, ml2 = split_pair(row[3])
+            sp1, sp2 = split_pair(row[4])
+            score1, score2 = split_pair(row[5], strip=True)
 
             return {
                 "sport": "NHL",

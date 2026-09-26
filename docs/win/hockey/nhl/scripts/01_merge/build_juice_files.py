@@ -10,6 +10,22 @@ from datetime import datetime, UTC
 import pandas as pd
 from scipy.stats import poisson, skellam
 
+
+SCRIPTS_DIR = str(Path(__file__).resolve().parents[1])
+if SCRIPTS_DIR not in sys.path:
+    sys.path.insert(0, SCRIPTS_DIR)
+
+# noinspection PyPep8
+from feature_columns_common import (
+    FATIGUE_FEATURE_COLUMNS,
+    GOALIE_FEATURE_COLUMNS,
+    GOALIE_NUMERIC_FEATURE_COLUMNS,
+    LINEUP_FEATURE_COLUMNS,
+    LINEUP_NUMERIC_FEATURE_COLUMNS,
+    SDV_PREDICTION_COLUMNS,
+    TEAM_STRENGTH_FEATURE_COLUMNS,
+)
+
 BASE_DIR = Path("docs/win/hockey/nhl")
 INPUT_DIR = BASE_DIR / "01_merge"
 OUTPUT_DIR = INPUT_DIR / "01_merguiced"
@@ -17,74 +33,6 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 ERROR_DIR = BASE_DIR / "errors" / "01_merge"
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE = ERROR_DIR / "build_juice_files.txt"
-
-FATIGUE_FEATURE_COLUMNS = [
-    "home_days_rest","away_days_rest","home_back_to_back","away_back_to_back",
-    "home_games_in_4_days","away_games_in_4_days","home_three_in_four","away_three_in_four",
-    "home_games_in_6_days","away_games_in_6_days","home_four_in_six","away_four_in_six",
-    "home_games_in_7_days","away_games_in_7_days","rest_differential",
-]
-
-TEAM_STRENGTH_FEATURE_COLUMNS = [
-    "home_adj_xgf","away_adj_xgf","adj_xgf_differential",
-    "home_adj_xga","away_adj_xga","adj_xga_differential",
-    "home_adj_xg_net","away_adj_xg_net","adj_xg_net_differential",
-    "home_adj_gf","away_adj_gf","adj_gf_differential",
-    "home_adj_ga","away_adj_ga","adj_ga_differential",
-    "home_off_rank","away_off_rank","off_rank_differential",
-    "home_def_rank","away_def_rank","def_rank_differential",
-    "home_net_rank","away_net_rank","net_rank_differential",
-    "home_net_z","away_net_z","net_z_differential",
-]
-
-LINEUP_NUMERIC_FEATURE_COLUMNS = [
-    "home_skater_rapm","away_skater_rapm","skater_rapm_differential",
-    "home_skater_war","away_skater_war","skater_war_differential",
-    "home_pp_value","away_pp_value","pp_value_differential",
-    "home_pk_value","away_pk_value","pk_value_differential",
-    "home_forward_line_strength","away_forward_line_strength","forward_line_strength_differential",
-    "home_defense_pair_strength","away_defense_pair_strength","defense_pair_strength_differential",
-]
-
-LINEUP_METADATA_COLUMNS = [
-    "home_lineup_status","away_lineup_status",
-    "home_lineup_observed_at","away_lineup_observed_at",
-    "home_lineup_source","away_lineup_source",
-]
-
-LINEUP_FEATURE_COLUMNS = [
-    *LINEUP_NUMERIC_FEATURE_COLUMNS,*LINEUP_METADATA_COLUMNS,
-]
-
-GOALIE_FEATURE_COLUMNS = [
-    "home_expected_starter",
-    "away_expected_starter",
-    "home_starter_gsax",
-    "away_starter_gsax",
-    "home_backup_gsax",
-    "away_backup_gsax",
-    "starter_gsax_differential",
-    "home_goalie_status",
-    "away_goalie_status",
-    "home_goalie_status_observed_at",
-    "away_goalie_status_observed_at",
-    "home_goalie_status_source",
-    "away_goalie_status_source",
-]
-
-GOALIE_NUMERIC_FEATURE_COLUMNS = [
-    "home_starter_gsax",
-    "away_starter_gsax",
-    "home_backup_gsax",
-    "away_backup_gsax",
-    "starter_gsax_differential",
-]
-
-SDV_PREDICTION_COLUMNS = [
-    "sdv_home_win_prob",
-    "sdv_exp_margin",
-    "sdv_exp_total",
-]
 
 BASE_COLUMNS = [
     "sport","league","game_date","game_time","game_id","away_team","home_team",
@@ -162,8 +110,8 @@ TOTAL_COLUMNS = BASE_COLUMNS + [
     *TOTAL_PROVENANCE_COLUMNS,
 ]
 
-with open(LOG_FILE, "w", encoding="utf-8") as f:
-    f.write(f"=== build_juice_files RUN {datetime.now(UTC).isoformat()} ===\n")
+with open(LOG_FILE, "w", encoding="utf-8") as startup_log:
+    startup_log.write(f"=== build_juice_files RUN {datetime.now(UTC).isoformat()} ===\n")
 
 def log(msg: str) -> None:
     with open(LOG_FILE, "a", encoding="utf-8") as f:
@@ -184,27 +132,54 @@ def fair_decimal(prob):
         return None
     return 1 / prob
 
-def calculate_home_puck_probability(home_line, home_projected_goals, away_projected_goals):
-    if any(pd.isna(v) for v in (home_line, home_projected_goals, away_projected_goals)):
+def _calculate_puck_probability(
+    line,
+    projected_goals,
+    opponent_projected_goals,
+):
+    if any(
+        pd.isna(value)
+        for value in (
+            line,
+            projected_goals,
+            opponent_projected_goals,
+        )
+    ):
         return None
-    if home_projected_goals <= 0 or away_projected_goals <= 0:
+    if projected_goals <= 0 or opponent_projected_goals <= 0:
         return None
-    threshold = math.floor(-home_line)
-    probability = 1 - skellam.cdf(threshold, home_projected_goals, away_projected_goals)
+    threshold = math.floor(-line)
+    probability = 1 - skellam.cdf(
+        threshold,
+        projected_goals,
+        opponent_projected_goals,
+    )
     if pd.isna(probability):
         return None
     return min(max(probability, 0.01), 0.99)
 
-def calculate_away_puck_probability(away_line, away_projected_goals, home_projected_goals):
-    if any(pd.isna(v) for v in (away_line, away_projected_goals, home_projected_goals)):
-        return None
-    if away_projected_goals <= 0 or home_projected_goals <= 0:
-        return None
-    threshold = math.floor(-away_line)
-    probability = 1 - skellam.cdf(threshold, away_projected_goals, home_projected_goals)
-    if pd.isna(probability):
-        return None
-    return min(max(probability, 0.01), 0.99)
+
+def calculate_home_puck_probability(
+    home_line,
+    home_projected_goals,
+    away_projected_goals,
+):
+    return _calculate_puck_probability(
+        home_line,
+        home_projected_goals,
+        away_projected_goals,
+    )
+
+def calculate_away_puck_probability(
+    away_line,
+    away_projected_goals,
+    home_projected_goals,
+):
+    return _calculate_puck_probability(
+        away_line,
+        away_projected_goals,
+        home_projected_goals,
+    )
 
 def calculate_total_probabilities(total_line, total_projected_goals):
     if pd.isna(total_line) or pd.isna(total_projected_goals) or total_projected_goals <= 0:
@@ -227,7 +202,7 @@ def calculate_total_probabilities(total_line, total_projected_goals):
         return None, None
     return min(max(over_prob, 0.01), 0.99), min(max(under_prob, 0.01), 0.99)
 
-def validate_schema(path: Path, df: pd.DataFrame) -> list[str]:
+def validate_schema(df: pd.DataFrame) -> list[str]:
     return [col for col in MERGED_REQUIRED_COLUMNS if col not in df.columns]
 
 def build_moneyline(df: pd.DataFrame, output_path: Path) -> int:
@@ -239,17 +214,56 @@ def build_moneyline(df: pd.DataFrame, output_path: Path) -> int:
     log(f"WROTE {output_path} ({len(moneyline)} rows)")
     return len(moneyline)
 
+def _append_probability_pair(
+    first_probability,
+    second_probability,
+    first_probabilities,
+    second_probabilities,
+    first_fair_prices,
+    second_fair_prices,
+    issue_label,
+    row_number,
+    game_id,
+) -> None:
+    if first_probability is None or second_probability is None:
+        log(
+            f"ROW ISSUE: {issue_label} probability unavailable "
+            f"row_number={row_number} game_id={game_id}"
+        )
+    first_probabilities.append(first_probability)
+    second_probabilities.append(second_probability)
+    first_fair_prices.append(
+        fair_decimal(first_probability)
+        if first_probability is not None
+        else None
+    )
+    second_fair_prices.append(
+        fair_decimal(second_probability)
+        if second_probability is not None
+        else None
+    )
+
+
 def build_puck_line(df: pd.DataFrame, output_path: Path) -> int:
     puck_line = df.copy()
     away_probs, home_probs, away_fair, home_fair = [], [], [], []
-    for idx, row in puck_line.iterrows():
-        hp = calculate_home_puck_probability(row["home_puck_line"], row["home_projected_goals"], row["away_projected_goals"])
-        ap = calculate_away_puck_probability(row["away_puck_line"], row["away_projected_goals"], row["home_projected_goals"])
-        if hp is None or ap is None:
-            log(f"ROW ISSUE: puck-line probability unavailable idx={idx} game_id={row.get('game_id','')}")
-        home_probs.append(hp); away_probs.append(ap)
-        home_fair.append(fair_decimal(hp) if hp is not None else None)
-        away_fair.append(fair_decimal(ap) if ap is not None else None)
+
+    for row_number, (_, row) in enumerate(puck_line.iterrows()):
+        hp = calculate_home_puck_probability(
+            row["home_puck_line"],
+            row["home_projected_goals"],
+            row["away_projected_goals"],
+        )
+        ap = calculate_away_puck_probability(
+            row["away_puck_line"],
+            row["away_projected_goals"],
+            row["home_projected_goals"],
+        )
+        _append_probability_pair(
+            hp, ap, home_probs, away_probs, home_fair, away_fair,
+            "puck-line", row_number, row.get("game_id", ""),
+        )
+
     puck_line["away_prob_puck_line"] = away_probs
     puck_line["home_prob_puck_line"] = home_probs
     puck_line["away_fair_decimal_puck_line"] = away_fair
@@ -262,13 +276,17 @@ def build_puck_line(df: pd.DataFrame, output_path: Path) -> int:
 def build_total(df: pd.DataFrame, output_path: Path) -> int:
     total = df.copy()
     over_probs, under_probs, over_fair, under_fair = [], [], [], []
-    for idx, row in total.iterrows():
-        op, up = calculate_total_probabilities(row["total"], row["total_projected_goals"])
-        if op is None or up is None:
-            log(f"ROW ISSUE: total probability unavailable idx={idx} game_id={row.get('game_id','')}")
-        over_probs.append(op); under_probs.append(up)
-        over_fair.append(fair_decimal(op) if op is not None else None)
-        under_fair.append(fair_decimal(up) if up is not None else None)
+
+    for row_number, (_, row) in enumerate(total.iterrows()):
+        op, up = calculate_total_probabilities(
+            row["total"],
+            row["total_projected_goals"],
+        )
+        _append_probability_pair(
+            op, up, over_probs, under_probs, over_fair, under_fair,
+            "total", row_number, row.get("game_id", ""),
+        )
+
     total["over_prob_total"] = over_probs
     total["under_prob_total"] = under_probs
     total["over_fair_decimal_total"] = over_fair
@@ -283,7 +301,7 @@ def process_file(path: Path) -> list[tuple[str, int]]:
     if df.empty:
         log(f"EMPTY: {path} — skipping")
         return []
-    missing = validate_schema(path, df)
+    missing = validate_schema(df)
     if missing:
         raise ValueError(f"{path} missing required columns: {missing}")
     numeric_columns = [

@@ -9,7 +9,7 @@ import sys
 import traceback
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Never
 from zoneinfo import ZoneInfo
 
 import pandas as pd
@@ -89,7 +89,7 @@ def log(msg: str) -> None:
         f.write(f"{stamp} | {msg}\n")
 
 
-def fail(msg: str) -> None:
+def fail(msg: str) -> Never:
     log(f"ERROR: {msg}")
     raise RuntimeError(msg)
 
@@ -167,7 +167,7 @@ def parse_int_score(value: Any) -> int | None:
 
     try:
         number = float(text)
-    except Exception:
+    except (TypeError, ValueError, OverflowError):
         return None
 
     if not number.is_integer():
@@ -340,7 +340,7 @@ def load_existing_status_snapshot() -> pd.DataFrame:
             dtype=str,
         ).fillna("")
     except Exception as e:
-        fail(
+        return fail(
             f"Failed reading existing status snapshot "
             f"{STATUS_FILE}: {e}"
         )
@@ -428,13 +428,23 @@ def split_status_history_by_date(
     if status_df.empty:
         return {}
 
-    return {
-        str(game_date): group.copy().reset_index(drop=True)
-        for game_date, group in status_df.groupby(
-            "game_date",
-            sort=False,
+    history: dict[str, pd.DataFrame] = {}
+
+    for game_date, group in status_df.groupby(
+        "game_date",
+        sort=False,
+    ):
+        if not isinstance(game_date, str):
+            fail(
+                "Existing NHL status history contains "
+                "a non-string game_date key."
+            )
+
+        history[game_date] = (
+            group.copy().reset_index(drop=True)
         )
-    }
+
+    return history
 
 
 def load_existing_final_scores_for_date(
@@ -453,7 +463,7 @@ def load_existing_final_scores_for_date(
             dtype=str,
         ).fillna("")
     except Exception as e:
-        fail(
+        return fail(
             f"Failed reading existing official final-score file "
             f"{path}: {e}"
         )
@@ -984,6 +994,51 @@ def official_team_name(
     ).strip()
 
 
+def official_team_payloads(
+    game: dict[str, Any],
+    game_id: str,
+    context: str,
+) -> tuple[
+    dict[str, Any],
+    dict[str, Any],
+    str,
+    str,
+]:
+    away_team_data = game.get(
+        "awayTeam",
+        {},
+    )
+    home_team_data = game.get(
+        "homeTeam",
+        {},
+    )
+
+    if not isinstance(
+        away_team_data,
+        dict,
+    ):
+        fail(
+            f"{context} {game_id} "
+            "has invalid awayTeam data"
+        )
+
+    if not isinstance(
+        home_team_data,
+        dict,
+    ):
+        fail(
+            f"{context} {game_id} "
+            "has invalid homeTeam data"
+        )
+
+    return (
+        away_team_data,
+        home_team_data,
+        official_team_name(away_team_data),
+        official_team_name(home_team_data),
+    )
+
+
 def fetch_official_score_payload(
     game_date: str,
 ) -> dict[str, Any]:
@@ -1010,7 +1065,7 @@ def fetch_official_score_payload(
         )
 
     except Exception as e:
-        fail(
+        return fail(
             f"Official NHL API request failed "
             f"for {game_date}: {e}"
         )
@@ -1026,7 +1081,7 @@ def fetch_official_score_payload(
         payload = response.json()
 
     except Exception as e:
-        fail(
+        return fail(
             f"Official NHL API returned invalid JSON "
             f"for {game_date}: {e}"
         )
@@ -1124,40 +1179,15 @@ def build_official_status_rows(
             )
         ).strip().upper()
 
-        away_team_data = game.get(
-            "awayTeam",
-            {},
-        )
-
-        home_team_data = game.get(
-            "homeTeam",
-            {},
-        )
-
-        if not isinstance(
+        (
             away_team_data,
-            dict,
-        ):
-            fail(
-                f"Official NHL game {game_id} "
-                "has invalid awayTeam data"
-            )
-
-        if not isinstance(
             home_team_data,
-            dict,
-        ):
-            fail(
-                f"Official NHL game {game_id} "
-                "has invalid homeTeam data"
-            )
-
-        away_team = official_team_name(
-            away_team_data
-        )
-
-        home_team = official_team_name(
-            home_team_data
+            away_team,
+            home_team,
+        ) = official_team_payloads(
+            game,
+            game_id,
+            'Official NHL game',
         )
 
         if (
@@ -1267,40 +1297,15 @@ def build_official_final_rows(
                 f"date={game_date} | game_id={game_id}"
             )
 
-        away_team_data = game.get(
-            "awayTeam",
-            {},
-        )
-
-        home_team_data = game.get(
-            "homeTeam",
-            {},
-        )
-
-        if not isinstance(
+        (
             away_team_data,
-            dict,
-        ):
-            fail(
-                f"Official final game {game_id} "
-                "has invalid awayTeam data"
-            )
-
-        if not isinstance(
             home_team_data,
-            dict,
-        ):
-            fail(
-                f"Official final game {game_id} "
-                "has invalid homeTeam data"
-            )
-
-        away_team = official_team_name(
-            away_team_data
-        )
-
-        home_team = official_team_name(
-            home_team_data
+            away_team,
+            home_team,
+        ) = official_team_payloads(
+            game,
+            game_id,
+            'Official final game',
         )
 
         away_score = parse_int_score(
@@ -1969,16 +1974,16 @@ if __name__ == "__main__":
             main()
         )
 
-    except Exception as e:
+    except Exception as main_exc:
         ensure_dirs()
 
         log(
-            f"FATAL: {e}\n"
+            f"FATAL: {main_exc}\n"
             f"{traceback.format_exc()}"
         )
 
         print(
-            f"transform_final_scores failed: {e}",
+            f"transform_final_scores failed: {main_exc}",
             file=sys.stderr,
         )
 
