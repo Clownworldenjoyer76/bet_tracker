@@ -32,8 +32,8 @@ LEGACY_OFFICIAL_PROBABILITY_COLUMNS = [
     "under_normalized_prob_total",
 ]
 
-with open(CONFIG_PATH, "r", encoding="utf-8") as f:
-    _yaml = yaml.safe_load(f)["markets"]["mlb"]
+with open(CONFIG_PATH, "r", encoding="utf-8") as config_file:
+    _yaml = yaml.safe_load(config_file)["markets"]["mlb"]
     CONFIG = _yaml
     FILTERS = _yaml
 
@@ -552,7 +552,7 @@ def fv(x):
         if pd.isna(x):
             return None
         return float(x)
-    except Exception:
+    except (TypeError, ValueError):
         return None
 
 
@@ -561,7 +561,7 @@ def iv(x):
         if pd.isna(x):
             return None
         return int(x)
-    except Exception:
+    except (TypeError, ValueError, OverflowError):
         return None
 
 
@@ -570,7 +570,7 @@ def sv(x):
         if pd.isna(x):
             return None
         return str(x).strip()
-    except Exception:
+    except (TypeError, ValueError):
         return None
 
 

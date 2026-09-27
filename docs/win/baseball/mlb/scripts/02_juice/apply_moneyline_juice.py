@@ -245,7 +245,7 @@ def validate_juice_config(juice_df: pd.DataFrame) -> None:
         raise ValueError(f"moneyline juice config missing fav_ud/venue combinations: {missing_combos}")
 
     overlap_count = 0
-    for (fav_ud, venue), group in juice_df.groupby(["fav_ud", "venue"]):
+    for _, group in juice_df.groupby(["fav_ud", "venue"]):
         group = group.sort_values(["band_min", "band_max"])
         prev_max = None
         for _, row in group.iterrows():
@@ -319,7 +319,7 @@ def process_row(df, juice_df, idx, row, audit_rows):
         away_dk_decimal = float(row["away_dk_moneyline_decimal"])
         home_fair = float(row["home_fair_decimal_moneyline"])
         away_fair = float(row["away_fair_decimal_moneyline"])
-    except Exception:
+    except (TypeError, ValueError, KeyError):
         append_audit_rows(audit_rows, row, "home", "bad_parse")
         append_audit_rows(audit_rows, row, "away", "bad_parse")
         _log(f"row={idx} reason=conversion_failed", "SKIP")

@@ -104,14 +104,14 @@ def log(msg):
 
 def american_to_decimal(odds):
     try:
-        if pd.isna(odds):
-            return None
         odds = float(odds)
-        if odds == 0:
-            return None
-        return 1 + (odds / 100) if odds > 0 else 1 + (100 / abs(odds))
-    except Exception:
+    except (TypeError, ValueError):
         return None
+
+    if math.isnan(odds) or odds == 0:
+        return None
+
+    return 1 + (odds / 100) if odds > 0 else 1 + (100 / abs(odds))
 
 
 def parse_slate_date_and_market(file_path: str):
@@ -576,7 +576,7 @@ def _filter_valid_run_projection_rows(
 
             try:
                 numeric_value = float(value)
-            except Exception:
+            except (TypeError, ValueError):
                 issues.append(
                     f"nonnumeric {col}={value}"
                 )

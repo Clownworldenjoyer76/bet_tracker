@@ -123,7 +123,7 @@ def build_id_to_name_map(rows: list) -> dict:
 def parse_int(value, default=0) -> int:
     try:
         return int(str(value).strip())
-    except Exception:
+    except (TypeError, ValueError):
         return default
 
 
@@ -135,7 +135,7 @@ def utc_to_local_datetime(
     try:
         dt = datetime.fromisoformat(str(utc_str).replace("Z", "+00:00"))
         return dt.astimezone(ZoneInfo(tz_id))
-    except Exception:
+    except (TypeError, ValueError, OverflowError, KeyError):
         return None
 
 
@@ -153,7 +153,7 @@ def parse_book_datetime(
             "%Y-%m-%d %H:%M:%S",
         )
         return dt.replace(tzinfo=ZoneInfo(tz_id))
-    except Exception:
+    except (TypeError, ValueError, OverflowError, KeyError):
         return None
 
 
@@ -221,7 +221,6 @@ def write_games_file(
 
 def process_date(
     date_str: str,
-    team_map: dict,
     id_to_name: dict,
     summary: dict,
 ) -> None:
@@ -403,9 +402,9 @@ def process_date(
             continue
 
         if (
-            len(raws) > 1
-            and len(unused_books) > 1
-            and len(raws) == len(unused_books)
+            1
+            < len(raws)
+            == len(unused_books)
         ):
             sorted_raws = sorted(
                 raws,
@@ -646,13 +645,13 @@ def process_date(
     if output_rows:
         output_rows = sorted(
             output_rows,
-            key=lambda r: (
-                r.get("game_date", ""),
-                r.get("game_time", ""),
-                r.get("home_team", ""),
-                r.get("away_team", ""),
+            key=lambda sort_row: (
+                sort_row.get("game_date", ""),
+                sort_row.get("game_time", ""),
+                sort_row.get("home_team", ""),
+                sort_row.get("away_team", ""),
                 parse_int(
-                    r.get("gameNumber", "1"),
+                    sort_row.get("gameNumber", "1"),
                     1,
                 ),
             ),
@@ -729,7 +728,6 @@ def main():
             try:
                 process_date(
                     date_str,
-                    team_map,
                     id_to_name,
                     summary,
                 )

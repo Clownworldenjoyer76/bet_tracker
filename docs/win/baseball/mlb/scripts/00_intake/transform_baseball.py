@@ -11,8 +11,8 @@ ERROR_DIR = Path("docs/win/baseball/mlb/errors/00_intake")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE = ERROR_DIR / "transform_baseball.txt"
 
-with open(LOG_FILE, "w", encoding="utf-8") as f:
-    f.write(f"=== transform_baseball RUN {datetime.now().isoformat()} ===\n")
+with open(LOG_FILE, "w", encoding="utf-8") as startup_log:
+    startup_log.write(f"=== transform_baseball RUN {datetime.now().isoformat()} ===\n")
 
 
 def log(msg: str) -> None:
@@ -112,7 +112,7 @@ def process_file(file_path, files_written):
 
         try:
             dt, game_date, game_time = parse_datetime(row[0])
-        except Exception:
+        except (IndexError, AttributeError, TypeError, ValueError):
             parse_errors += 1
             continue
 
@@ -170,7 +170,7 @@ def process_file(file_path, files_written):
 
                 predictions_by_date.setdefault(game_date, []).append(pred_row)
 
-            except Exception:
+            except (IndexError, AttributeError, TypeError, ValueError):
                 parse_errors += 1
                 continue
 

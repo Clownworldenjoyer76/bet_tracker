@@ -76,9 +76,9 @@ OUTPUT_FILE_COUNT = 0
 OUTPUT_ROW_COUNT = 0
 INPUT_FILES_SEEN: set[str] = set()
 
-with LOG_FILE.open("w", encoding="utf-8") as f:
-    f.write("=== 04_mlb_results_dashboard ===\n")
-    f.write(f"START_TIMESTAMP_UTC: {RUN_STARTED.isoformat()}\n")
+with LOG_FILE.open("w", encoding="utf-8") as startup_log:
+    startup_log.write("=== 04_mlb_results_dashboard ===\n")
+    startup_log.write(f"START_TIMESTAMP_UTC: {RUN_STARTED.isoformat()}\n")
 
 
 def _now() -> str:
@@ -155,12 +155,12 @@ def _clean_value(value):
     try:
         if pd.isna(value):
             return None
-    except Exception:
+    except (TypeError, ValueError):
         pass
     if hasattr(value, "item"):
         try:
             return value.item()
-        except Exception:
+        except (TypeError, ValueError):
             pass
     if isinstance(value, pd.Timestamp):
         return value.isoformat()

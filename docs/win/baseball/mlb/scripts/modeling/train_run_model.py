@@ -31,6 +31,7 @@ import json
 import traceback
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Never
 
 import joblib
 import numpy as np
@@ -156,7 +157,7 @@ def _log(message: str, level: str = "INFO") -> None:
         f.write(f"{_now()} | {level:<5} | {message.rstrip()}\n")
 
 
-def fail(message: str) -> None:
+def fail(message: str) -> Never:
     _log(message, "ERROR")
     raise RuntimeError(message)
 
@@ -385,10 +386,10 @@ def select_hyperparameters(
     target_column: str,
     label: str,
 ) -> tuple[dict, float]:
-    X_train = train[feature_columns]
+    x_train = train[feature_columns]
     y_train = train[target_column]
 
-    X_validation = validation[feature_columns]
+    x_validation = validation[feature_columns]
     y_validation = validation[target_column]
 
     best_params = None
@@ -408,12 +409,12 @@ def select_hyperparameters(
         )
 
         model.fit(
-            X_train,
+            x_train,
             y_train,
         )
 
         validation_predictions = model.predict(
-            X_validation
+            x_validation
         )
 
         validation_score = safe_mean_poisson_deviance(
@@ -499,7 +500,9 @@ def train_one_side(
         target_column = "target_away_runs"
         baseline_column = "dratings_away_projected_runs"
     else:
-        fail(f"Unknown model side: {side}")
+        message = f"Unknown model side: {side}"
+        _log(message, "ERROR")
+        raise RuntimeError(message)
 
     selected_hyperparameters, validation_score = (
         select_hyperparameters(

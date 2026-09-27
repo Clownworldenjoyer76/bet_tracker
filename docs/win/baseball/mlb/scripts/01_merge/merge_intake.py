@@ -59,8 +59,8 @@ FORBIDDEN_READ_TOKENS = [
 SCRIPT_NAME = "merge_intake.py"
 STAGE_NAME = "01_merge"
 
-with open(LOG_FILE, "w", encoding="utf-8") as f:
-    f.write(f"=== merge_intake RUN {RUN_TS} ===\n")
+with open(LOG_FILE, "w", encoding="utf-8") as startup_log:
+    startup_log.write(f"=== merge_intake RUN {RUN_TS} ===\n")
 
 
 # ─────────────────────────────────────────────
@@ -78,7 +78,7 @@ def _safe_log_text(msg):
     )
 
     text = re.sub(
-        r'(?i)\bbearer\s+[A-Za-z0-9\-\._~\+/]+=*',
+        r'(?i)\bbearer\s+[A-Za-z0-9\-._~+/]+=*',
         'Bearer [REDACTED]',
         text,
     )
@@ -1169,7 +1169,7 @@ def american_to_prob(odds):
             )
         )
 
-    except Exception:
+    except (TypeError, ValueError, ZeroDivisionError, OverflowError):
         return None
 
 
@@ -1272,8 +1272,6 @@ def choose_team_for_audit(
 
 
 def validate_model_projection_row(
-    date,
-    game_id,
     pred_row,
 ):
     """
@@ -1317,7 +1315,7 @@ def validate_model_projection_row(
             ]
         )
 
-    except Exception:
+    except (TypeError, ValueError, KeyError):
         return (
             "model_projection_run_values_nonnumeric"
         )
@@ -1815,8 +1813,6 @@ def process_date(
 
         reject_reason = (
             validate_model_projection_row(
-                date,
-                game_id,
                 p,
             )
         )
@@ -2757,7 +2753,7 @@ def process_date(
 # MAIN
 # ─────────────────────────────────────────────
 
-if __name__ == "__main__":
+def main():
     summary = {
         "slates_processed": 0,
         "slates_written": 0,
@@ -2928,3 +2924,7 @@ if __name__ == "__main__":
         )
 
         raise
+
+
+if __name__ == "__main__":
+    main()

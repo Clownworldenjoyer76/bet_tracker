@@ -24,8 +24,8 @@ ERROR_DIR = Path("docs/win/baseball/mlb/errors/00_intake")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE = ERROR_DIR / "baseball_drat_scraper.txt"
 
-with open(LOG_FILE, "w", encoding="utf-8") as f:
-    f.write(f"=== baseball_drat_scraper RUN {datetime.now(ET).isoformat()} ===\n")
+with open(LOG_FILE, "w", encoding="utf-8") as startup_log:
+    startup_log.write(f"=== baseball_drat_scraper RUN {datetime.now(ET).isoformat()} ===\n")
 
 
 def log(msg: str) -> None:
@@ -39,7 +39,7 @@ def convert_utc_to_et(date_time_str: str) -> str:
         dt_utc = UTC.localize(dt)
         dt_et = dt_utc.astimezone(ET)
         return dt_et.strftime("%m/%d/%Y %I:%M %p")
-    except Exception:
+    except (TypeError, ValueError, OverflowError):
         return date_time_str
 
 
@@ -57,7 +57,7 @@ def scrape_page(page, url):
             if cells:
                 try:
                     cells[0] = convert_utc_to_et(cells[0].replace("\n", " "))
-                except Exception:
+                except (AttributeError, TypeError, IndexError):
                     pass
                 all_rows.append(cells)
 

@@ -51,7 +51,6 @@ Outputs:
 from __future__ import annotations
 
 import importlib.util
-import json
 import warnings
 from datetime import UTC, datetime
 from pathlib import Path
@@ -1436,7 +1435,7 @@ def write_report(
         ).isoformat()
     )
 
-    SUMMARY_HTML = (
+    summary_html = (
         summary
         .to_html(
             index=False,
@@ -1447,7 +1446,7 @@ def write_report(
         )
     )
 
-    FOLDS_HTML = (
+    folds_html = (
         folds
         .to_html(
             index=False,
@@ -1458,7 +1457,7 @@ def write_report(
         )
     )
 
-    BUCKETS_HTML = (
+    buckets_html = (
         buckets
         .to_html(
             index=False,
@@ -1500,11 +1499,11 @@ th:first-child, td:first-child {{
 <p>Generated: {generated_at}</p>
 <h2>{verdict}</h2>
 <h2>Aggregate Results</h2>
-{SUMMARY_HTML}
+{summary_html}
 <h2>Fold Results</h2>
-{FOLDS_HTML}
+{folds_html}
 <h2>Probability Buckets</h2>
-{BUCKETS_HTML}
+{buckets_html}
 </body>
 </html>
 """,

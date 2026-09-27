@@ -46,7 +46,7 @@ import os
 import re
 import sys
 import traceback
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -258,7 +258,7 @@ def norm(s: str) -> str:
 def parse_int(value, default=0) -> int:
     try:
         return int(str(value).strip())
-    except Exception:
+    except (TypeError, ValueError):
         return default
 
 
@@ -373,7 +373,7 @@ def parse_book_datetime(date_str: str, time_str: str):
     return parse_games_datetime(date_str, time_str)
 
 
-def minutes_between(a, b):
+def minutes_between(a: datetime | None, b: datetime | None) -> float | None:
     if a is None or b is None:
         return None
 
@@ -455,21 +455,21 @@ def describe_book_entry(book_entry: dict) -> str:
     return "|".join(diff_fields)
 
 
-def describe_candidates(scored: list[tuple]) -> str:
+def describe_candidates(scored: list[tuple[float | None, dict]]) -> str:
     parts = []
 
     for diff, game_entry in scored:
-        diff_text = "NA" if diff is None else str(round(diff, 1))
+        diff_text = "NA" if diff is None else f"{diff:.1f}"
         parts.append(f"{describe_game_entry(game_entry)}|diff_minutes={diff_text}")
 
     return "; ".join(parts)
 
 
-def describe_book_candidates(scored: list[tuple]) -> str:
+def describe_book_candidates(scored: list[tuple[float | None, dict]]) -> str:
     parts = []
 
     for diff, book_entry in scored:
-        diff_text = "NA" if diff is None else str(round(diff, 1))
+        diff_text = "NA" if diff is None else f"{diff:.1f}"
         parts.append(f"{describe_book_entry(book_entry)}|diff_minutes={diff_text}")
 
     return "; ".join(parts)
@@ -704,7 +704,7 @@ def build_sportsbook_presence(date_str: str, pred_groups: dict, pred_key_order: 
             )
             continue
 
-        if len(preds) > 1 and len(unused_books) > 1 and len(preds) == len(unused_books):
+        if 1 < len(preds) == len(unused_books):
             sorted_preds = sorted(
                 preds,
                 key=lambda x: (
@@ -1317,7 +1317,6 @@ def process_date(date_str: str, pred_path: Path, summary: dict) -> None:
                 rejection_rows,
             )
 
-        preserved_rows = []
         preserved_count = 0
 
         is_current_date = (
@@ -1903,9 +1902,8 @@ def process_date(date_str: str, pred_path: Path, summary: dict) -> None:
             continue
 
         if (
-            len(preds) > 1
-            and len(unused_games) > 1
-            and len(preds)
+            1
+            < len(preds)
             == len(unused_games)
         ):
             sorted_preds = sorted(
