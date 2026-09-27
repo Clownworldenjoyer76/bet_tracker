@@ -1,8 +1,13 @@
 name: Qodana
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 on:
   workflow_dispatch:
   pull_request:
   push:
+<<<<<<< Updated upstream
     branches: # Specify your branches here
       - main # The 'main' branch
       - 'releases/*' # The release branches
@@ -26,3 +31,90 @@ jobs:
         env:
           QODANA_TOKEN: ${{ secrets.QODANA_TOKEN_1493839823 }}
           QODANA_ENDPOINT: 'https://qodana.cloud'
+=======
+    branches:
+      - main
+      - 'releases/*'
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+jobs:
+  qodana:
+    name: Qodana - bet_tracker
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Set up Python 3.14.5
+        id: python-qodana
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.14.5'
+
+      - name: Install Qodana analysis dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python -m pip install --upgrade pip==26.2.1
+
+          python -m pip install \
+            numpy==2.5.2 \
+            pandas==3.0.5 \
+            scipy==1.18.0 \
+            PyYAML==6.0.3 \
+            pyarrow==25.0.1 \
+            polars==1.44.2 \
+            scikit-learn==1.9.0 \
+            xgboost==3.4.1 \
+            lightgbm==4.6.0 \
+            requests==2.34.2 \
+            openpyxl==3.1.5 \
+            joblib==1.5.3 \
+            python-dateutil==2.9.0.post0 \
+            narwhals==2.26.0 \
+            tzdata==2026.3 \
+            playwright==1.62.0 \
+            pytz==2026.3.post1 \
+            nflreadpy==0.1.5 \
+            pytest==9.1.1 \
+            urllib3
+
+          for package in \
+            'sportsdataverse==0.0.75' \
+            'nfl_data_py==0.3.3' \
+            'catboost==1.2.10'
+          do
+            if ! python -m pip install --no-deps --ignore-requires-python "$package"; then
+              echo "::warning::Optional Qodana analysis package unavailable: $package"
+            fi
+          done
+
+          python --version
+          python -c "import sys; print(sys.executable)"
+
+      - name: Qodana Scan
+        uses: JetBrains/qodana-action@v2026.2
+        with:
+          args: |
+            --linter qodana-python
+            --within-docker false
+            --config qodana.yaml
+          pr-mode: false
+          push-fixes: none
+          artifact-name: qodana-bet-tracker
+          primary-cache-key: qodana-2026.2-bet-tracker-${{ github.ref }}-${{ github.sha }}
+          additional-cache-key: qodana-2026.2-bet-tracker-${{ github.ref }}
+        env:
+          QODANA_TOKEN: ${{ secrets.QODANA_TOKEN_1493839823 }}
+          QODANA_ENDPOINT: https://qodana.cloud
+          QODANA_PYTHON_PATH: ${{ steps.python-qodana.outputs.python-path }}
+>>>>>>> Stashed changes

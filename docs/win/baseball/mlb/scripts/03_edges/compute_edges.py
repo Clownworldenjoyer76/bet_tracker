@@ -8,6 +8,14 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from edge_common import (
+    MONEYLINE_REQUIRED_COLUMNS,
+    RUN_LINE_REQUIRED_COLUMNS,
+    TOTAL_REQUIRED_COLUMNS,
+    detect_market,
+    record_unrecognized_file,
+)
+
 INPUT_DIR = Path("docs/win/baseball/mlb/02_juice")
 OUTPUT_DIR = Path("docs/win/baseball/mlb/03_edges")
 ERROR_DIR = Path("docs/win/baseball/mlb/errors/03_edges")
@@ -31,52 +39,6 @@ FORBIDDEN_READ_TOKENS = [
 SCRIPT_NAME = "compute_edges.py"
 STAGE_NAME = "03_edges"
 PROB_TOLERANCE = 1e-6
-
-
-MONEYLINE_REQUIRED_COLUMNS = [
-    "game_id",
-    "sport",
-    "league",
-    "game_date",
-    "game_time",
-    "home_team",
-    "away_team",
-    "home_model_prob_moneyline",
-    "away_model_prob_moneyline",
-    "home_dk_decimal_moneyline",
-    "away_dk_decimal_moneyline",
-]
-
-RUN_LINE_REQUIRED_COLUMNS = [
-    "game_id",
-    "sport",
-    "league",
-    "game_date",
-    "game_time",
-    "home_team",
-    "away_team",
-    "home_model_prob_run_line",
-    "away_model_prob_run_line",
-    "home_dk_run_line_decimal",
-    "away_dk_run_line_decimal",
-]
-
-TOTAL_REQUIRED_COLUMNS = [
-    "game_id",
-    "sport",
-    "league",
-    "game_date",
-    "game_time",
-    "home_team",
-    "away_team",
-    "over_model_prob_total_win",
-    "over_model_prob_total_loss",
-    "under_model_prob_total_win",
-    "under_model_prob_total_loss",
-    "total_model_prob_push",
-    "dk_total_over_decimal",
-    "dk_total_under_decimal",
-]
 
 
 # =========================
@@ -174,22 +136,33 @@ def _write_summary(summary: dict, per_file: list) -> None:
 # =========================
 
 def duplicate_columns(columns) -> list:
-    seen = set()
-    duplicates = []
+    counts: dict[str, int] = {}
 
-    for col in columns:
-        if col in seen and col not in duplicates:
-            duplicates.append(col)
-        seen.add(col)
+    for column in columns:
+        counts[column] = counts.get(column, 0) + 1
 
-    return duplicates
+    return [
+        column
+        for column in dict.fromkeys(columns)
+        if counts[column] > 1
+    ]
 
 
-def validate_no_duplicate_columns(df: pd.DataFrame, label: str) -> None:
-    dupes = duplicate_columns(list(df.columns))
+def validate_no_duplicate_columns(
+    df: pd.DataFrame,
+    label: str,
+) -> None:
+    duplicate_names = duplicate_columns(
+        tuple(df.columns)
+    )
 
-    if dupes:
-        raise ValueError(f"{label} has duplicate columns: {dupes}")
+    if not duplicate_names:
+        return
+
+    raise ValueError(
+        f"{label} has duplicate columns: "
+        f"{duplicate_names}"
+    )
 
 
 def validate_required_columns(
@@ -197,10 +170,18 @@ def validate_required_columns(
     required_columns: list,
     label: str,
 ) -> None:
-    missing = [col for col in required_columns if col not in df.columns]
+    available_columns = set(df.columns)
+    missing = [
+        column
+        for column in required_columns
+        if column not in available_columns
+    ]
 
     if missing:
-        raise ValueError(f"{label} missing required columns: {missing}")
+        raise ValueError(
+            f"{label} missing required columns: "
+            f"{missing}"
+        )
 
 
 def validate_input_structure(
@@ -739,24 +720,16 @@ def main():
             "status": "ok",
         }
 
-        if "moneyline" in name:
-            market = "moneyline"
+        market = detect_market(name)
 
-        elif "run_line" in name:
-            market = "run_line"
-
-        elif "total" in name:
-            market = "total"
-
-        else:
-            _log(
-                f"SKIP unrecognized file: "
-                f"{input_file.name}"
+        if market is None:
+            record_unrecognized_file(
+                input_file,
+                pf,
+                summary,
+                per_file,
+                _log,
             )
-
-            pf["status"] = "skipped"
-            summary["skipped"] += 1
-            per_file.append(pf)
             continue
 
         pf["market"] = market

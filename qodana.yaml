@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 ####################################################################################################################
 # WARNING: Do not store sensitive information in this file, as its contents will be included in the Qodana report. #
 ####################################################################################################################
@@ -8,3 +9,88 @@ profile:
   name: qodana.recommended
 include:
   - name: CheckDependencyLicenses
+=======
+version: "1.0"
+
+linter: qodana-python
+
+profile:
+  name: qodana.recommended
+
+include:
+  - name: CheckDependencyLicenses
+
+exclude:
+  - name: All
+    paths:
+      - Python
+      - .github/inactive_workflows
+      - docs/win/baseball/mlb/vendor
+      - docs/win/baseball/mlb/00_intake/sportsdataverse/cache
+      - docs/win/football/cfb/05_backtest/output
+      - docs/win/football/cfb/archive
+      - docs/win/football/nfl/models/archive
+      - docs/win/football/prop_engine/output
+      - docs/win/football/prop_engine/scripts/build
+      - docs/win/hockey/nhl/00_intake/predictions/archive
+
+  - name: PyClassHasNoInitInspection
+    paths:
+      - docs/win/basketball
+      - docs/win/football/cfb
+      - docs/win/hockey/nhl
+
+  - name: DuplicatedCode
+    paths:
+      - docs/win/baseball/mlb/scripts/modeling/test_total_park_recency.py
+      - docs/win/baseball/mlb/scripts/modeling/test_total_repeated_holdout.py
+      - docs/win/baseball/mlb/scripts/modeling/test_total_simplified_models.py
+      - docs/win/baseball/mlb/scripts/modeling/test_moneyline_expected_lineup.py
+      - docs/win/baseball/mlb/scripts/modeling/test_moneyline_feature_expansion.py
+      - docs/win/baseball/mlb/scripts/modeling/backtest_new_pipeline_correlations.py
+      - docs/win/baseball/mlb/scripts/modeling/test_moneyline_bullpen_detail.py
+      - docs/win/baseball/mlb/scripts/modeling/test_runline_calibration.py
+      - docs/win/baseball/mlb/scripts/modeling/test_total_residual_model.py
+      - docs/win/baseball/mlb/scripts/modeling/test_moneyline_final_features.py
+      - docs/win/hockey/nhl/scripts/00_intake/hockey_drat_scraper.py
+      - docs/win/hockey/nhl/scripts/01_merge/build_juice_files.py
+      - docs/win/hockey/nhl/scripts/00_intake/name_normalization_common.py
+      - docs/win/hockey/nhl/scripts/00_intake/team_map_common.py
+      - docs/win/hockey/nhl/scripts/02_juice/apply_moneyline_juice.py
+      - docs/win/hockey/nhl/scripts/02_juice/apply_puck_line_juice.py
+      - docs/win/hockey/nhl/scripts/02_juice/apply_total_juice.py
+      - docs/win/hockey/nhl/scripts/05_final_scores/01_nhl_results_grade.py
+      - docs/win/hockey/nhl/scripts/05_final_scores/02_nhl_results_analyze.py
+      - docs/win/hockey/nhl/scripts/05_final_scores/03_nhl_results_reports.py
+      - docs/win/soccer/scripts/01_merge/bundesliga_ml_infer.py
+      - docs/win/soccer/scripts/01_merge/epl_ml_infer.py
+      - docs/win/soccer/scripts/01_merge/laliga_ml_infer.py
+      - docs/win/soccer/scripts/01_merge/ligue1_ml_infer.py
+      - docs/win/soccer/scripts/01_merge/mls_ml_infer.py
+      - docs/win/soccer/scripts/01_merge/seriea_ml_infer.py
+      - docs/win/soccer/ml/bundesliga/soccer_model_wrapper.py
+      - docs/win/soccer/ml/epl/soccer_model_wrapper.py
+      - docs/win/soccer/ml/laliga/soccer_model_wrapper.py
+      - docs/win/soccer/ml/ligue1/soccer_model_wrapper.py
+      - docs/win/soccer/ml/mls/soccer_model_wrapper.py
+      - docs/win/soccer/ml/seriea/soccer_model_wrapper.py
+
+  - name: PyTypeHintsInspection
+    paths:
+      - docs/win/hockey/nhl/scripts/research/evaluate_sdv_edge_microstats.py
+      - docs/win/hockey/nhl/scripts/00_intake/transform_hockey_odds.py
+      - docs/win/hockey/nhl/scripts/research/build_sdv_challenger.py
+      - docs/win/hockey/nhl/scripts/05_final_scores/transform_final_scores.py
+      - docs/win/hockey/nhl/scripts/00_intake/team_map_common.py
+      - docs/win/hockey/nhl/scripts/pipeline_health.py
+      - docs/win/hockey/nhl/scripts/tests/validate_pipeline.py
+      - docs/win/hockey/nhl/scripts/03_edges/edge_pipeline_common.py
+      - docs/win/hockey/nhl/scripts/02_juice/validate_juice_config.py
+      - docs/win/hockey/nhl/scripts/00_intake/hockey_drat_scraper.py
+      - docs/win/hockey/nhl/scripts/05_final_scores/04_nhl_clv.py
+      - docs/win/hockey/nhl/scripts/00_intake/pull_sdv.py
+      - docs/win/hockey/nhl/scripts/research/build_sdv_history.py
+      - docs/win/hockey/nhl/scripts/01_merge/merge_intake.py
+      - docs/win/hockey/nhl/scripts/00_intake/reconcile_game_ids.py
+      - docs/win/hockey/nhl/scripts/02_juice/juice_common.py
+>>>>>>> Stashed changes
