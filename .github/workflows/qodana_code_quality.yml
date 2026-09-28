@@ -21,8 +21,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: 0
-
+          fetch-depth: 1
       - name: Set up Python 3.14.5
         id: python-qodana
         uses: actions/setup-python@v7
@@ -75,6 +74,8 @@ jobs:
 
       - name: Qodana project-model preflight
         shell: bash
+        env:
+          QODANA_PYTHON_PATH: ${{ steps.python-qodana.outputs.python-path }}
         run: |
           set -euo pipefail
 
