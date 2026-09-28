@@ -1,37 +1,9 @@
 name: Qodana
-<<<<<<< Updated upstream
-=======
 
->>>>>>> Stashed changes
 on:
   workflow_dispatch:
   pull_request:
   push:
-<<<<<<< Updated upstream
-    branches: # Specify your branches here
-      - main # The 'main' branch
-      - 'releases/*' # The release branches
-
-jobs:
-  qodana:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-      checks: write
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}  # to check out the actual pull request commit, not the merge commit
-          fetch-depth: 0  # a full history is required for pull request analysis
-      - name: 'Qodana Scan'
-        uses: JetBrains/qodana-action@v2026.1
-        with:
-          pr-mode: false
-        env:
-          QODANA_TOKEN: ${{ secrets.QODANA_TOKEN_1493839823 }}
-          QODANA_ENDPOINT: 'https://qodana.cloud'
-=======
     branches:
       - main
       - 'releases/*'
@@ -86,7 +58,8 @@ jobs:
             pytz==2026.3.post1 \
             nflreadpy==0.1.5 \
             pytest==9.1.1 \
-            urllib3
+            urllib3 \
+            beautifulsoup4
 
           for package in \
             'sportsdataverse==0.0.75' \
@@ -100,6 +73,7 @@ jobs:
 
           python --version
           python -c "import sys; print(sys.executable)"
+          python -c "from bs4 import BeautifulSoup; print('bs4=PASS')"
 
       - name: Qodana Scan
         uses: JetBrains/qodana-action@v2026.2
@@ -115,6 +89,5 @@ jobs:
           additional-cache-key: qodana-2026.2-bet-tracker-${{ github.ref }}
         env:
           QODANA_TOKEN: ${{ secrets.QODANA_TOKEN_1493839823 }}
-          QODANA_ENDPOINT: https://qodana.cloud
+          QODANA_ENDPOINT: 'https://qodana.cloud'
           QODANA_PYTHON_PATH: ${{ steps.python-qodana.outputs.python-path }}
->>>>>>> Stashed changes
