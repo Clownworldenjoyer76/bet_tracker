@@ -6,6 +6,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: repo-write-lock-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   MLB_Afternoon_Update:
     runs-on: ubuntu-24.04
