@@ -98,6 +98,44 @@ jobs:
           print("NHL_FEATURE_COLUMNS=PASS")
           print("NHL_MODULE=" + f.__file__)
           PY
+      - name: NHL dynamic monkeypatch target preflight
+        shell: bash
+        env:
+          QODANA_PYTHON_PATH: ${{ steps.python-qodana.outputs.python-path }}
+        run: |
+          set -euo pipefail
+
+          "$QODANA_PYTHON_PATH" - <<'PY'
+          import importlib.util
+          import sys
+          from pathlib import Path
+
+          import sportsdataverse.nhl as nhl
+
+          if not hasattr(nhl, "team_game_xg_rates"):
+              raise SystemExit("sportsdataverse.nhl.team_game_xg_rates is missing")
+
+          path = Path("docs/win/hockey/nhl/scripts/00_intake/pull_sdv.py").resolve()
+          spec = importlib.util.spec_from_file_location("qodana_pull_sdv_preflight", path)
+          if spec is None or spec.loader is None:
+              raise SystemExit("Unable to load pull_sdv.py module spec")
+
+          module = importlib.util.module_from_spec(spec)
+          sys.modules[spec.name] = module
+          spec.loader.exec_module(module)
+
+          required = (
+              "official_schedule_cutoff_lookup",
+              "ratings_from_game_rates",
+          )
+          missing = [name for name in required if not hasattr(module, name)]
+          if missing:
+              raise SystemExit("Missing pull_sdv.py targets: " + ", ".join(missing))
+
+          print("NHL_MONKEYPATCH_TARGETS=PASS")
+          print("SDV_TEAM_GAME_XG_RATES=PASS")
+          print("PULL_SDV_DYNAMIC_TARGETS=PASS")
+          PY
       - name: Qodana Scan
         uses: JetBrains/qodana-action@v2026.2
         with:
