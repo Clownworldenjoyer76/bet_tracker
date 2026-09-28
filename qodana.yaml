@@ -5,6 +5,9 @@ linter: qodana-python
 profile:
   name: qodana.recommended
 
+bootstrap: |
+  "$QODANA_PYTHON_PATH" -m pip install --disable-pip-version-check beautifulsoup4
+  "$QODANA_PYTHON_PATH" -c "from bs4 import BeautifulSoup; print('QODANA_BOOTSTRAP_BS4=PASS')"
 include:
   - name: CheckDependencyLicenses
 
@@ -81,6 +84,6 @@ exclude:
       - docs/win/hockey/nhl/scripts/00_intake/reconcile_game_ids.py
       - docs/win/hockey/nhl/scripts/02_juice/juice_common.py
 
-  - name: PyUnresolvedReferencesInspection
+  - name: PyUnresolvedReferences
     paths:
       - docs/win/hockey/nhl/scripts/01_merge/build_juice_files.py

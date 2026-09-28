@@ -13,6 +13,9 @@ jobs:
     name: Qodana - bet_tracker
     runs-on: ubuntu-24.04
 
+
+    env:
+      PYTHONPATH: ${{ github.workspace }}/scripts:${{ github.workspace }}/docs/win/baseball/mlb/scripts:${{ github.workspace }}/docs/win/basketball/scripts:${{ github.workspace }}/docs/win/football/cfb/scripts:${{ github.workspace }}/docs/win/football/cfl/scripts:${{ github.workspace }}/docs/win/football/nfl/scripts:${{ github.workspace }}/docs/win/football/prop_engine/scripts:${{ github.workspace }}/docs/win/hockey/nhl/scripts:${{ github.workspace }}/docs/win/mma/ufc/scripts:${{ github.workspace }}/docs/win/mma/ufc/scripts/builder_scripts:${{ github.workspace }}/docs/win/soccer/scripts:${{ github.workspace }}/docs/win/soccer/scripts/00_intake:${{ github.workspace }}/docs/win/soccer/scripts/01_merge:${{ github.workspace }}/docs/win/soccer/scripts/02_juice:${{ github.workspace }}/docs/win/soccer/scripts/03_edges:${{ github.workspace }}/docs/win/soccer/scripts/04_select:${{ github.workspace }}/docs/win/soccer/scripts/05_final_scores:${{ github.workspace }}/docs/win/soccer/ml/epl:${{ github.workspace }}/docs/win/soccer/ml/bundesliga:${{ github.workspace }}/docs/win/soccer/ml/laliga:${{ github.workspace }}/docs/win/soccer/ml/ligue1:${{ github.workspace }}/docs/win/soccer/ml/mls:${{ github.workspace }}/docs/win/soccer/ml/seriea
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -70,6 +73,30 @@ jobs:
           python -c "import sys; print(sys.executable)"
           python -c "from bs4 import BeautifulSoup; print('bs4=PASS')"
 
+      - name: Qodana project-model preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          "$QODANA_PYTHON_PATH" -c "from bs4 import BeautifulSoup; print('UFC_BS4=PASS')"
+
+          "$QODANA_PYTHON_PATH" - <<'PY'
+          import feature_columns_common as f
+
+          required = (
+              "FATIGUE_FEATURE_COLUMNS",
+              "GOALIE_FEATURE_COLUMNS",
+              "GOALIE_NUMERIC_FEATURE_COLUMNS",
+              "LINEUP_FEATURE_COLUMNS",
+              "LINEUP_NUMERIC_FEATURE_COLUMNS",
+          )
+          missing = [name for name in required if not hasattr(f, name)]
+          if missing:
+              raise SystemExit("Missing NHL exports: " + ", ".join(missing))
+
+          print("NHL_FEATURE_COLUMNS=PASS")
+          print("NHL_MODULE=" + f.__file__)
+          PY
       - name: Qodana Scan
         uses: JetBrains/qodana-action@v2026.2
         with:
@@ -80,8 +107,8 @@ jobs:
           pr-mode: false
           push-fixes: none
           artifact-name: qodana-bet-tracker
-          primary-cache-key: qodana-2026.2-bet-tracker-${{ github.ref }}-${{ github.sha }}
-          additional-cache-key: qodana-2026.2-bet-tracker-${{ github.ref }}
+          primary-cache-key: qodana-2026.2-bet-tracker-projectmodel-v2-${{ github.ref }}-${{ github.sha }}
+          additional-cache-key: qodana-2026.2-bet-tracker-projectmodel-v2-${{ github.ref }}
         env:
           QODANA_TOKEN: ${{ secrets.QODANA_TOKEN_1493839823 }}
           QODANA_ENDPOINT: 'https://qodana.cloud'
