@@ -105,7 +105,8 @@ def get_case_insensitive(row: dict, *names: str):
 
 def read_csv_rows(path: Path) -> list[dict]:
     with path.open(newline="", encoding="utf-8-sig") as f:
-        return list(csv.DictReader(f))
+        _qodana_return_value = list(csv.DictReader(f))
+    return _qodana_return_value
 
 
 def build_alert_block(alert: dict) -> str:

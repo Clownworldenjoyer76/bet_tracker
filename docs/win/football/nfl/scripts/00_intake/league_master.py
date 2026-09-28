@@ -1353,7 +1353,8 @@ def read_csv_rows(
                 f"{actual_headers}"
             )
 
-        return list(reader)
+        _qodana_return_value = list(reader)
+    return _qodana_return_value
 
 
 def restore_backups(

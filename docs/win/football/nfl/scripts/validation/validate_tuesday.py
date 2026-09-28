@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from __future__ import annotations
+from typing import NoReturn
 
 import argparse
 import csv
@@ -41,7 +42,7 @@ def clean(value: Any) -> str:
     return "" if value is None else str(value).strip()
 
 
-def fail(message: str) -> None:
+def fail(message: str) -> NoReturn:
     print(f"VALIDATION FAILED: {message}", file=sys.stderr)
     raise TuesdayValidationError(message)
 

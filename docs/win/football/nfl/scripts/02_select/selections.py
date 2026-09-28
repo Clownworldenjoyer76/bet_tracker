@@ -33,6 +33,7 @@ Kelly is full Kelly capped at settings.yaml selection_defaults.max_kelly.
 """
 
 from __future__ import annotations
+from typing import NoReturn
 
 import argparse
 import csv
@@ -205,7 +206,7 @@ SEASON_TYPE_ALIASES = {
 }
 
 
-def fail(message: str) -> None:
+def fail(message: str) -> NoReturn:
     raise RuntimeError(message)
 
 

@@ -29,7 +29,8 @@ def load_json(path: Path) -> dict:
     if not path.is_file():
         raise FileNotFoundError(f"Missing v4 production artifact: {path}")
     with path.open("r", encoding="utf-8") as handle:
-        return json.load(handle)
+        _qodana_return_value = json.load(handle)
+    return _qodana_return_value
 
 
 def clean_text(value: object) -> str:

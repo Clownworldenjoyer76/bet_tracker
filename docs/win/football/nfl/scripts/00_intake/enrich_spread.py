@@ -7,6 +7,7 @@ directions remain data-driven from spread_enrichment.csv.
 """
 
 from __future__ import annotations
+from typing import NoReturn
 
 import argparse
 import csv
@@ -323,7 +324,7 @@ class SpreadEnrichmentError(RuntimeError):
     pass
 
 
-def fail(message: str) -> None:
+def fail(message: str) -> NoReturn:
     raise SpreadEnrichmentError(message)
 
 

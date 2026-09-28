@@ -21,6 +21,7 @@ Error/run log:
 """
 
 from __future__ import annotations
+from typing import NoReturn
 
 import csv
 import json
@@ -126,7 +127,7 @@ def clean(value: Any) -> str:
     return text
 
 
-def fail(message: str) -> None:
+def fail(message: str) -> NoReturn:
     raise RuntimeError(message)
 
 

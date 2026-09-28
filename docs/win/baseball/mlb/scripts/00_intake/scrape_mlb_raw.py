@@ -221,7 +221,8 @@ def load_existing_rows(out_path: Path) -> dict:
 
     with out_path.open("r", newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
-        return {row["gamePk"]: row for row in reader}
+        _qodana_return_value = {row["gamePk"]: row for row in reader}
+    return _qodana_return_value
 
 
 def merge_row(existing: dict, new: dict) -> dict:

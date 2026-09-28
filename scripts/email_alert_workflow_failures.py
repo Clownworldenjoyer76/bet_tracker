@@ -67,7 +67,8 @@ def github_api_get(url: str, token: str) -> dict:
     )
 
     with urllib.request.urlopen(req, timeout=30) as response:
-        return json.loads(response.read().decode("utf-8"))
+        _qodana_return_value = json.loads(response.read().decode("utf-8"))
+    return _qodana_return_value
 
 
 def normalize_workflow_path(path_value: str) -> str:

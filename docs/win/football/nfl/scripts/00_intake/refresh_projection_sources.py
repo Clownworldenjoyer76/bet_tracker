@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import annotations
+from typing import NoReturn
 
 import argparse
 import csv
@@ -84,7 +85,7 @@ class ProjectionSourceRefreshError(RuntimeError):
     pass
 
 
-def fail(message: str) -> None:
+def fail(message: str) -> NoReturn:
     raise ProjectionSourceRefreshError(message)
 
 

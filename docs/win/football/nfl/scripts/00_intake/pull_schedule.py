@@ -1921,7 +1921,8 @@ def run(season: int) -> int:
             log.info("pull_schedule.py finished")
             log.write_legacy()
 
-        return 1 if log.has_errors else 0
+        _qodana_return_value = 1 if log.has_errors else 0
+    return _qodana_return_value
 
 
 def main() -> int:

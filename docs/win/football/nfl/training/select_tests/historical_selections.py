@@ -16,6 +16,7 @@ necessarily the exact odds that would have been available earlier in the week.
 """
 
 from __future__ import annotations
+from typing import NoReturn
 
 import argparse
 import json
@@ -89,7 +90,7 @@ REPORT_SPECS = {
 }
 
 
-def fail(message: str) -> None:
+def fail(message: str) -> NoReturn:
     raise RuntimeError(message)
 
 

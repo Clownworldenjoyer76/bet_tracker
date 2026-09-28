@@ -99,7 +99,8 @@ def read_csv(path: Path) -> list[dict[str, str]]:
         return []
 
     with path.open("r", newline="", encoding="utf-8") as f:
-        return list(csv.DictReader(f))
+        _qodana_return_value = list(csv.DictReader(f))
+    return _qodana_return_value
 
 
 def write_csv(path: Path, fieldnames: list[str], rows: list[dict[str, str]]) -> None:

@@ -2,6 +2,7 @@
 """Build cumulative NFL opening-odds and market-movement history."""
 
 from __future__ import annotations
+from typing import NoReturn
 
 import argparse
 import csv
@@ -115,7 +116,7 @@ def log(message: str) -> None:
         handle.write(f"[{utc_now_iso()}] {message}\n")
 
 
-def fail(message: str) -> None:
+def fail(message: str) -> NoReturn:
     log(f"ERROR: {message}")
     raise OpeningOddsError(message)
 

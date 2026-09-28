@@ -11,7 +11,7 @@ import os
 import shutil
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Never
+from typing import Any, NoReturn
 from zoneinfo import ZoneInfo
 
 import yaml
@@ -86,7 +86,7 @@ def parse_args() -> argparse.Namespace:
     return args
 
 
-def fail(message: str) -> Never:
+def fail(message: str) -> NoReturn:
     raise RuntimeError(message)
 
 

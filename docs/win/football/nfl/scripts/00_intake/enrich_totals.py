@@ -7,6 +7,7 @@ directions remain data-driven from totals_enrichment.csv.
 """
 
 from __future__ import annotations
+from typing import NoReturn
 
 import argparse
 import csv
@@ -231,7 +232,7 @@ class TotalsEnrichmentError(RuntimeError):
     pass
 
 
-def fail(message: str) -> None:
+def fail(message: str) -> NoReturn:
     raise TotalsEnrichmentError(message)
 
 

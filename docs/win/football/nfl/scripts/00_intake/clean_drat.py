@@ -1057,7 +1057,8 @@ def main() -> int:
             stale_managed_outputs_removed=stale_managed_outputs_removed,
         )
 
-        return 1 if log.has_errors else 0
+        _qodana_return_value = 1 if log.has_errors else 0
+    return _qodana_return_value
 
 
 if __name__ == "__main__":
