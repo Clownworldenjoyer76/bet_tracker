@@ -8,6 +8,7 @@ import traceback
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.error import HTTPError, URLError
+from zoneinfo import ZoneInfo
 from urllib.request import urlopen
 
 
@@ -23,6 +24,8 @@ OUTPUT_DIR = Path("docs/win/baseball/mlb/00_intake/mlb_raw")
 ERROR_DIR = Path("docs/win/baseball/mlb/errors/00_intake")
 ERROR_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE = ERROR_DIR / "scrape_mlb_raw.txt"
+
+TIMEZONE = ZoneInfo("America/New_York")
 
 CSV_HEADERS = [
     "gamePk",
@@ -259,7 +262,7 @@ def main() -> int:
     target_date = (
         sys.argv[1]
         if len(sys.argv) > 1
-        else datetime.now().strftime("%Y-%m-%d")
+        else datetime.now(TIMEZONE).strftime("%Y-%m-%d")
     )
     out_name = f"{target_date.replace('-', '_')}_mlb_raw.csv"
     out_path = OUTPUT_DIR / out_name
