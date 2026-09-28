@@ -586,20 +586,22 @@ def build_dimension_frames(
 
 
 def build_report_frames(df: pd.DataFrame) -> dict[Path, pd.DataFrame]:
-    frames: dict[Path, pd.DataFrame] = {}
-
-    frames[Path("nfl_summary_overall.csv")] = aggregate(df, ["league", "market_type"])
-    frames[Path("reports/overview/nfl_report_metric_definitions.csv")] = metric_definitions_frame()
-    frames[Path("reports/overview/nfl_summary_overall.csv")] = overall_row(df)
-    frames[Path("reports/overview/nfl_summary_by_market.csv")] = aggregate(
-        df, ["league", "market_type"], variable_label=True
-    )
-    frames[Path("reports/overview/nfl_summary_by_side_group.csv")] = aggregate(
-        df, ["league", "side_group"], variable_label=True
-    )
-    frames[Path("reports/overview/nfl_summary_by_season_type.csv")] = aggregate(
-        df, ["league", "season_type"], variable_label=True
-    )
+    frames: dict[Path, pd.DataFrame] = {
+        Path("nfl_summary_overall.csv"): aggregate(
+            df, ["league", "market_type"]
+        ),
+        Path("reports/overview/nfl_report_metric_definitions.csv"): metric_definitions_frame(),
+        Path("reports/overview/nfl_summary_overall.csv"): overall_row(df),
+        Path("reports/overview/nfl_summary_by_market.csv"): aggregate(
+            df, ["league", "market_type"], variable_label=True
+        ),
+        Path("reports/overview/nfl_summary_by_side_group.csv"): aggregate(
+            df, ["league", "side_group"], variable_label=True
+        ),
+        Path("reports/overview/nfl_summary_by_season_type.csv"): aggregate(
+            df, ["league", "season_type"], variable_label=True
+        ),
+    }
 
     by_week = aggregate(df, ["league", "week"], variable_label=True)
     if not by_week.empty:
