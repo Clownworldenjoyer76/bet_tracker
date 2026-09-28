@@ -64,6 +64,8 @@ from pipeline_reporter import PipelineReporter
 DEFAULT_INPUT_DIR = NFL_ROOT / "02_select"
 DEFAULT_OUTPUT_DIR = NFL_ROOT / "03_picks" / "all_games"
 
+pd: Any = None
+
 SOURCE_FILENAME_PATTERN = re.compile(
     r"^week_(\d+)_NFL_selected\.csv$"
 )

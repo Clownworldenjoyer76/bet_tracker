@@ -71,6 +71,7 @@ SELECTED_OUTPUT_DIR = NFL_ROOT / "03_picks" / "selected"
 LOCKED_OUTPUT_DIR = NFL_ROOT / "03_picks" / "locked"
 PROJECTION_OUTPUT_DIR = NFL_ROOT / "03_picks" / "projection"
 
+pd: Any = None
 EASTERN_TZ = None
 
 ROOT_PICKS_PATTERN = re.compile(

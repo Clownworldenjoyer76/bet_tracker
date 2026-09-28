@@ -51,6 +51,10 @@ DEFAULT_MARKETS_PATH = NFL_ROOT / "config/markets.yaml"
 DEFAULT_OUTPUT_DIR = NFL_ROOT / "03_picks"
 DEFAULT_PATTERN = "*NFL_selected.csv"
 
+np: Any = None
+pd: Any = None
+yaml: Any = None
+
 def load_runtime_dependencies(
     reporter: PipelineReporter,
 ) -> None:

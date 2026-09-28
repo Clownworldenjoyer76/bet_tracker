@@ -60,6 +60,10 @@ from pipeline_reporter import PipelineReporter
 
 DEFAULT_SETTINGS_PATH = NFL_ROOT / "config/settings.yaml"
 
+np: Any = None
+pd: Any = None
+yaml: Any = None
+
 def load_runtime_dependencies(
     reporter: PipelineReporter,
 ) -> None:
