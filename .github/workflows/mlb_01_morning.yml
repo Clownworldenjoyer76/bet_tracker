@@ -129,7 +129,56 @@ jobs:
       - name: MLB Normalize Final Score Names
         run: python docs/win/baseball/mlb/scripts/05_final_scores/normalize_final_score_mlb_names.py
 
+      - name: Determine whether yesterday had MLB games
+        id: yesterday_games
+        shell: bash
+        run: |
+          YESTERDAY="$(date -d 'yesterday' +'%Y_%m_%d')"
+          GAMES_FILE="docs/win/baseball/mlb/00_intake/games/${YESTERDAY}_games.csv"
+
+          echo "Checking whether yesterday had scheduled MLB games: ${GAMES_FILE}"
+
+          if [ ! -s "${GAMES_FILE}" ]; then
+            echo "had_games=false" >> "$GITHUB_OUTPUT"
+            echo "No non-empty games file exists for ${YESTERDAY}. Treating yesterday as a no-games day."
+            exit 0
+          fi
+
+          HAS_DATA="$(
+            python - "${GAMES_FILE}" <<'PY'
+          import csv
+          import sys
+
+          path = sys.argv[1]
+
+          try:
+              with open(path, "r", encoding="utf-8-sig", newline="") as handle:
+                  reader = csv.reader(handle)
+                  rows = list(reader)
+          except Exception as exc:
+              print(f"ERROR: Unable to inspect games file {path}: {exc}", file=sys.stderr)
+              raise SystemExit(2)
+
+          if len(rows) > 1 and any(
+              any(str(value).strip() for value in row)
+              for row in rows[1:]
+          ):
+              print("true")
+          else:
+              print("false")
+          PY
+          )"
+
+          if [ "${HAS_DATA}" = "true" ]; then
+            echo "had_games=true" >> "$GITHUB_OUTPUT"
+            echo "MLB games were present for ${YESTERDAY}."
+          else
+            echo "had_games=false" >> "$GITHUB_OUTPUT"
+            echo "Games file exists but contains no game rows for ${YESTERDAY}. Treating yesterday as a no-games day."
+          fi
+
       - name: Verify yesterday final-score CSV exists before training
+        if: steps.yesterday_games.outputs.had_games == 'true'
         shell: bash
         run: |
           YESTERDAY="$(date -d 'yesterday' +'%Y_%m_%d')"
@@ -138,7 +187,7 @@ jobs:
           echo "Verifying yesterday final-score file before run-model training: ${FINAL_FILE}"
 
           if [ ! -s "${FINAL_FILE}" ]; then
-            echo "ERROR: Yesterday final-score CSV is missing or empty before build_run_training_set.py: ${FINAL_FILE}"
+            echo "ERROR: Yesterday had MLB games, but the final-score CSV is missing or empty before build_run_training_set.py: ${FINAL_FILE}"
             exit 1
           fi
 
@@ -148,6 +197,7 @@ jobs:
         run: python docs/win/baseball/mlb/scripts/modeling/build_run_training_set.py
 
       - name: Verify yesterday was not skipped for late final scores
+        if: steps.yesterday_games.outputs.had_games == 'true'
         shell: bash
         run: |
           YESTERDAY="$(date -d 'yesterday' +'%Y_%m_%d')"
