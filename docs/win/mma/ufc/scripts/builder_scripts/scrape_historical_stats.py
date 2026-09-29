@@ -5,30 +5,14 @@ import time
 from datetime import datetime
 import pandas as pd
 
+from builder_feature_common import summarize_historical_fights
+from ufcstats_common import build_fighter_index
+
 HEADERS = {"User-Agent": "Mozilla/5.0"}
 
 # --- Step 1: Build name -> URL index ---
 print("Building fighter URL index...")
-name_to_url = {}
-for char in "abcdefghijklmnopqrstuvwxyz":
-    url = f"http://ufcstats.com/statistics/fighters?char={char}&page=all"
-    try:
-        r = requests.get(url, headers=HEADERS, timeout=10)
-        soup = BeautifulSoup(r.text, "html.parser")
-        rows = soup.select("tr.b-statistics__table-row")
-        for row in rows:
-            cols = row.select("td")
-            a_tag = row.select_one("a")
-            if not cols or not a_tag:
-                continue
-            first = cols[0].get_text(strip=True)
-            last = cols[1].get_text(strip=True)
-            if first and last:
-                name_to_url[f"{first} {last}"] = a_tag["href"]
-    except Exception as e:
-        print(f"  Error {char}: {e}")
-    time.sleep(0.8)
-print(f"Index: {len(name_to_url)} fighters")
+name_to_url = build_fighter_index(HEADERS, delay=0.8)
 
 MANUAL = {
     "Jj Aldrich": "JJ Aldrich", "Kb Bhullar": "KB Bhullar", "Tj Brown": "TJ Brown",
@@ -56,26 +40,28 @@ MANUAL = {
 }
 lower_index = {k.lower(): v for k, v in name_to_url.items()}
 
-def find_url(name):
-    if name in name_to_url: return name_to_url[name]
-    mapped = MANUAL.get(name)
+def find_url(fighter_name):
+    if fighter_name in name_to_url: return name_to_url[fighter_name]
+    mapped = MANUAL.get(fighter_name)
     if mapped and mapped in name_to_url: return name_to_url[mapped]
-    return lower_index.get(name.lower())
+    return lower_index.get(fighter_name.lower())
 
 def parse_date(date_str):
     date_str = date_str.strip().replace(".", "")
     for fmt in ["%b %d, %Y", "%b %d %Y"]:
         try:
             return datetime.strptime(date_str, fmt)
-        except:
+        except ValueError:
             pass
     return None
 
 def safe_int(val):
-    try: return int(val.strip())
-    except: return 0
+    try:
+        return int(val.strip())
+    except (AttributeError, TypeError, ValueError):
+        return 0
 
-def scrape_fighter_history(url):
+def scrape_fighter_history(fighter_url):
     """
     Column mapping (confirmed):
       col[0]: result
@@ -90,13 +76,13 @@ def scrape_fighter_history(url):
       col[9]: time
     """
     try:
-        r = requests.get(url, headers=HEADERS, timeout=10)
+        r = requests.get(fighter_url, headers=HEADERS, timeout=10)
         soup = BeautifulSoup(r.text, "html.parser")
         fights = []
         rows = soup.select("tr.b-fight-details__table-row")
 
-        for row in rows:
-            cols = row.select("td")
+        for fight_row in rows:
+            cols = fight_row.select("td")
             if len(cols) < 9:
                 continue
             result = cols[0].get_text(strip=True).lower()
@@ -140,7 +126,7 @@ def scrape_fighter_history(url):
             try:
                 m, s = fight_time_str.split(":")
                 last_round_seconds = int(m) * 60 + int(s)
-            except:
+            except (AttributeError, ValueError):
                 last_round_seconds = 300
             total_minutes = max(0.5, (fight_round - 1) * 5 + last_round_seconds / 60)
 
@@ -162,31 +148,9 @@ def scrape_fighter_history(url):
         return []
 
 def compute_stats_before(fights, before_date):
-    prior = [f for f in fights if f["date"] < before_date]
-    if not prior:
-        return {}
-    wins = sum(1 for f in prior if f["result"] == "win")
-    losses = sum(1 for f in prior if f["result"] == "loss")
-    total_minutes = sum(f["minutes"] for f in prior)
-    total_sig_landed = sum(f["sig_landed"] for f in prior)
-    total_sig_attempted = sum(f["sig_attempted"] for f in prior)
-    total_td_landed = sum(f["td_landed"] for f in prior)
-    total_td_attempted = sum(f["td_attempted"] for f in prior)
+    prior = [fight for fight in fights if fight["date"] < before_date]
+    return summarize_historical_fights(prior)
 
-    slpm = total_sig_landed / total_minutes if total_minutes > 0 else 0
-    str_acc = total_sig_landed / total_sig_attempted if total_sig_attempted > 0 else 0
-    td_acc = total_td_landed / total_td_attempted if total_td_attempted > 0 else 0
-    career_wr = wins / (wins + losses) if (wins + losses) > 0 else 0
-
-    return {
-        "h_career_wins": wins,
-        "h_career_losses": losses,
-        "h_career_fights": wins + losses,
-        "h_career_wr": career_wr,
-        "h_slpm": round(slpm, 4),
-        "h_str_acc": round(str_acc, 4),
-        "h_td_acc": round(td_acc, 4),
-    }
 
 # --- Step 2: Scrape ---
 df = pd.read_parquet("ufc_master_clean.parquet")
