@@ -1,81 +1,630 @@
-<!DOCTYPE html>
+
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Hockey Analytics</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hockey Dashboard</title>
 <link rel="stylesheet" href="assets/css/matstheme.css">
 <style>
-.master-wrap {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 28px 20px 48px;
+:root {
+  --bg:#0e1117;
+  --panel:#161b22;
+  --panel2:#1c232c;
+  --text:#e6edf3;
+  --muted:#8b949e;
+  --accent:#58a6ff;
+  --good:#3fb950;
+  --bad:#f85149;
+  --border:#30363d;
+  --table-border:#46515e;
 }
-.master-head {
-  margin-bottom: 22px;
-  border-bottom: 1px solid var(--border-soft);
-  padding-bottom: 14px;
+*{box-sizing:border-box}
+html,body{
+  margin:0;
+  padding:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
 }
-.master-head h1 {
-  margin: 0 0 6px;
-  font-size: 24px;
-  letter-spacing: 2px;
-  text-transform: uppercase;
+header{
+  padding:18px 24px;
+  border-bottom:1px solid var(--border);
+  display:flex;
+  justify-content:space-between;
+  align-items:baseline;
+  gap:12px;
+  flex-wrap:wrap;
 }
-.master-sub {
-  color: var(--text-muted);
-  font-size: 11px;
-  letter-spacing: 1px;
-  text-transform: uppercase;
+header h1{margin:0;font-size:20px}
+header .ts{font-size:12px;color:var(--muted)}
+.selector-bar{
+  padding:10px 24px;
+  border-bottom:1px solid var(--border);
+  background:var(--panel);
+  display:flex;
+  gap:6px;
+  flex-wrap:wrap;
+  align-items:center;
+  position:sticky;
+  top:0;
+  z-index:10;
 }
-.league-grid-master {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-  gap: 14px;
+.selector-bar .lbl{
+  color:var(--muted);
+  font-size:12px;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+  margin-right:6px;
 }
-.league-card {
-  display: block;
-  background: var(--bg-card);
-  border: 1px solid var(--border-soft);
-  border-radius: 4px;
-  padding: 18px;
-  color: var(--text-main);
-  text-decoration: none;
-  transition: border-color .15s, transform .15s;
+.season-btn{
+  background:var(--panel2);
+  border:1px solid var(--border);
+  color:var(--text);
+  padding:6px 14px;
+  border-radius:4px;
+  cursor:pointer;
+  font-size:13px;
 }
-.league-card:hover {
-  border-color: var(--accent-green);
-  transform: translateY(-1px);
+.season-btn.active{
+  background:var(--accent);
+  color:#0e1117;
+  border-color:var(--accent);
+  font-weight:600;
 }
-.league-name {
-  color: var(--accent-green);
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  text-transform: uppercase;
+main{max-width:1500px;margin:0 auto;padding:18px 24px}
+h2{
+  font-size:16px;
+  margin:24px 0 8px;
+  border-bottom:1px solid var(--border);
+  padding-bottom:4px;
 }
-.league-link {
-  margin-top: 10px;
-  color: var(--text-muted);
-  font-size: 10px;
-  letter-spacing: 1px;
+.kpis{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(135px,1fr));
+  gap:10px;
+  margin:12px 0;
 }
+.kpi{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:6px;
+  padding:12px;
+}
+.kpi .label{
+  font-size:11px;
+  color:var(--muted);
+  text-transform:uppercase;
+  letter-spacing:.05em;
+}
+.kpi .value{font-size:22px;font-weight:600;margin-top:4px}
+.good{color:var(--good)}
+.bad{color:var(--bad)}
+.muted{color:var(--muted)}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;margin:14px 0 0}
+.tab{
+  background:var(--panel2);
+  border:1px solid var(--border);
+  color:var(--muted);
+  padding:7px 12px;
+  border-radius:6px 6px 0 0;
+  cursor:pointer;
+  font-size:13px;
+}
+.tab.active{color:var(--text);border-bottom-color:var(--panel2)}
+.tab-body{
+  background:var(--panel2);
+  border:1px solid var(--border);
+  border-top:none;
+  padding:14px;
+  border-radius:0 6px 6px 6px;
+}
+.controls{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-bottom:10px;
+}
+.controls label{font-size:12px;color:var(--muted)}
+.controls select{
+  background:var(--panel);
+  border:1px solid var(--border);
+  color:var(--text);
+  padding:5px 8px;
+  border-radius:4px;
+}
+.scroll{
+  overflow:auto;
+  max-height:62vh;
+  border:1px solid var(--table-border);
+  border-radius:6px;
+}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{
+  padding:7px 9px;
+  text-align:center;
+  border:1px solid var(--table-border);
+  white-space:nowrap;
+  vertical-align:middle;
+}
+th{
+  position:sticky;
+  top:0;
+  background:var(--panel2);
+  color:var(--muted);
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  cursor:pointer;
+  user-select:none;
+}
+td.num{text-align:center;font-variant-numeric:tabular-nums}
+.note{
+  padding:10px 12px;
+  border:1px solid var(--border);
+  border-radius:6px;
+  background:var(--panel);
+  color:var(--muted);
+  font-size:12px;
+}
+td.win-pct-strong{background:rgba(63,185,80,.24);color:#7ee787;font-weight:700}
+td.win-pct-green{background:rgba(63,185,80,.16);color:#56d364;font-weight:600}
+td.win-pct-light{background:rgba(63,185,80,.09);color:#8ddb8c;font-weight:600}
+td.win-pct-neutral{background:rgba(139,148,158,.09);color:#c9d1d9}
+td.win-pct-red{background:rgba(248,81,73,.14);color:#ff7b72;font-weight:600}
 </style>
 </head>
 <body>
 <div id="nav-placeholder"></div>
-<main class="master-wrap">
-  <div class="master-head">
-    <h1>Hockey Analytics</h1>
-    <div class="master-sub">Master sport dashboard · 1 league configured</div>
+
+<header>
+  <h1>Hockey Dashboard</h1>
+  <span class="ts">Built 2026-09-29T13:53:09+00:00 UTC</span>
+</header>
+
+<div class="selector-bar season-bar" style="display:none">
+  <span class="lbl">Season:</span>
+  <button class="season-btn active" data-season="current" onclick="selectSeason('current')">Current</button>
+</div>
+
+<main>
+<h2>NHL Analytics</h2>
+<div class="kpis" id="headline"></div>
+
+<h2>By Market</h2>
+<div id="by-market"></div>
+
+<h2>Model Calibration</h2>
+<div id="calibration">
+  <div class="tabs">
+    <button class="tab active" data-key="metrics">Metrics</button>
+    <button class="tab" data-key="probability">Probability Buckets</button>
+    <button class="tab" data-key="expected">Expected vs Realized</button>
+    <button class="tab" data-key="walk_forward">Walk Forward</button>
   </div>
-  <div class="league-grid-master">
-      <a class="league-card" href="nhl_dashboard.html">
-        <div class="league-name">NHL</div>
-        <div class="league-link">OPEN DASHBOARD →</div>
-      </a>
+  <div class="tab-body">
+    <div class="tab-panel" data-key="metrics"></div>
+    <div class="tab-panel" data-key="probability" style="display:none"></div>
+    <div class="tab-panel" data-key="expected" style="display:none"></div>
+    <div class="tab-panel" data-key="walk_forward" style="display:none"></div>
   </div>
+</div>
+
+<h2>Closing Line Value</h2>
+<div class="note">
+  Positive implied-probability CLV and positive decimal-ratio CLV mean the selected price beat the close, matching the NHL pipeline's CLV definitions.
+</div>
+<div class="kpis" id="clv-headline"></div>
+<div id="clv-table"></div>
+
+<h2>Per Market Drilldown</h2>
+<div id="markets">
+  <div class="tabs"><button class="tab active" data-key="moneyline">Moneyline</button>
+<button class="tab" data-key="puck_line">Puck Line</button>
+<button class="tab" data-key="total">Total</button></div>
+  <div class="tab-body"><div class="tab-panel market-panel-moneyline" data-key="moneyline"></div>
+<div class="tab-panel market-panel-puck_line" data-key="puck_line" style="display:none"></div>
+<div class="tab-panel market-panel-total" data-key="total" style="display:none"></div></div>
+</div>
 </main>
+
 <script src="assets/js/shared/nav.js"></script>
+<script>
+
+let ACTIVE_SEASON = null;
+
+function fmtPct(v){
+  if(v==null||isNaN(Number(v)))return "";
+  return (Number(v)*100).toFixed(2)+"%";
+}
+function fmtNum(v,d=3){
+  if(v==null||isNaN(Number(v)))return "";
+  return Number(v).toFixed(d);
+}
+function fmtInt(v){
+  if(v==null||isNaN(Number(v)))return "";
+  return Number(v).toLocaleString();
+}
+function signedClass(v){
+  if(v==null||isNaN(Number(v)))return "";
+  return Number(v)>0?"good":(Number(v)<0?"bad":"");
+}
+function winPctClass(v){
+  if(v==null||isNaN(Number(v)))return "";
+  const pct=Number(v);
+  if(pct>=0.80)return "win-pct-strong";
+  if(pct>=0.70)return "win-pct-green";
+  if(pct>=0.60)return "win-pct-light";
+  if(pct>=0.50)return "win-pct-neutral";
+  return "win-pct-red";
+}
+function showTab(host,key){
+  host.querySelectorAll(":scope > .tabs .tab").forEach(x=>{
+    x.classList.toggle("active",x.dataset.key===key);
+  });
+  host.querySelectorAll(":scope > .tab-body > .tab-panel").forEach(x=>{
+    x.style.display=x.dataset.key===key?"":"none";
+  });
+}
+function renderTable(data,columns,container){
+  if(!data||!data.length){
+    container.innerHTML='<div class="muted">No rows available.</div>';
+    return;
+  }
+
+  const wrap=document.createElement("div");
+  wrap.className="scroll";
+  const table=document.createElement("table");
+  const thead=document.createElement("thead");
+  const tbody=document.createElement("tbody");
+  const hr=document.createElement("tr");
+
+  let sortKey=null;
+  let sortDir="desc";
+
+  columns.forEach(c=>{
+    const th=document.createElement("th");
+    th.textContent=c.label;
+    th.addEventListener("click",()=>{
+      if(sortKey===c.key)sortDir=sortDir==="asc"?"desc":"asc";
+      else{
+        sortKey=c.key;
+        sortDir="desc";
+      }
+      draw();
+    });
+    hr.appendChild(th);
+  });
+
+  thead.appendChild(hr);
+
+  function draw(){
+    const rows=data.slice();
+
+    if(sortKey){
+      rows.sort((a,b)=>{
+        const av=a[sortKey],bv=b[sortKey];
+        if(av==null)return 1;
+        if(bv==null)return -1;
+
+        const an=Number(av),bn=Number(bv);
+        if(!Number.isNaN(an)&&!Number.isNaN(bn)){
+          return sortDir==="asc"?an-bn:bn-an;
+        }
+
+        return sortDir==="asc"
+          ?String(av).localeCompare(String(bv))
+          :String(bv).localeCompare(String(av));
+      });
+    }
+
+    tbody.innerHTML="";
+
+    rows.forEach(r=>{
+      const tr=document.createElement("tr");
+
+      columns.forEach(c=>{
+        const td=document.createElement("td");
+        const v=r[c.key];
+
+        if(c.fmt==="int"){
+          td.classList.add("num");
+          td.textContent=fmtInt(v);
+        }else if(c.fmt==="pct"){
+          td.classList.add("num");
+          td.textContent=fmtPct(v);
+
+          if(String(c.key).toLowerCase()==="win_pct"){
+            const cls=winPctClass(v);
+            if(cls)td.classList.add(cls);
+          }
+        }else if(c.fmt==="num"){
+          td.classList.add("num");
+          td.textContent=fmtNum(v,c.decimals==null?3:c.decimals);
+
+          if(c.signed){
+            const cls=signedClass(v);
+            if(cls)td.classList.add(cls);
+          }
+        }else{
+          td.textContent=v==null?"":String(v);
+        }
+
+        tr.appendChild(td);
+      });
+
+      tbody.appendChild(tr);
+    });
+  }
+
+  draw();
+  table.appendChild(thead);
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+  container.innerHTML="";
+  container.appendChild(wrap);
+}
+
+const RESULT_COLUMNS=[
+  {key:"variable",label:"Bucket"},
+  {key:"side_group",label:"Side"},
+  {key:"Win",label:"W",fmt:"int"},
+  {key:"Loss",label:"L",fmt:"int"},
+  {key:"Push",label:"P",fmt:"int"},
+  {key:"Total",label:"Total",fmt:"int"},
+  {key:"Win_Pct",label:"Win %",fmt:"pct"},
+  {key:"units",label:"Units",fmt:"num",decimals:3,signed:true},
+  {key:"roi",label:"ROI",fmt:"pct"},
+  {key:"avg_odds",label:"Avg Odds",fmt:"num",decimals:1},
+  {key:"avg_ev",label:"Avg EV",fmt:"pct"},
+  {key:"avg_kelly",label:"Avg Kelly",fmt:"pct"},
+  {key:"avg_win_prob",label:"Avg Win Prob",fmt:"pct"}
+];
+
+const TALLY_COLUMNS=[
+  {key:"market_type",label:"Market"},
+  {key:"Win",label:"W",fmt:"int"},
+  {key:"Loss",label:"L",fmt:"int"},
+  {key:"Push",label:"P",fmt:"int"},
+  {key:"Total",label:"Total",fmt:"int"},
+  {key:"Win_Pct",label:"Win %",fmt:"pct"},
+  {key:"units",label:"Units",fmt:"num",decimals:3,signed:true},
+  {key:"roi",label:"ROI",fmt:"pct"},
+  {key:"avg_odds",label:"Avg Odds",fmt:"num",decimals:1},
+  {key:"avg_ev",label:"Avg EV",fmt:"pct"},
+  {key:"avg_kelly",label:"Avg Kelly",fmt:"pct"},
+  {key:"avg_win_prob",label:"Avg Win Prob",fmt:"pct"}
+];
+
+const CAL_METRICS=[
+  {key:"market_type",label:"Market"},
+  {key:"bets",label:"Bets",fmt:"int"},
+  {key:"expected_win_rate",label:"Expected",fmt:"pct"},
+  {key:"realized_win_rate",label:"Realized",fmt:"pct"},
+  {key:"calibration_gap",label:"Gap",fmt:"num",decimals:4,signed:true},
+  {key:"brier_score",label:"Brier",fmt:"num",decimals:4},
+  {key:"log_loss",label:"Log Loss",fmt:"num",decimals:4},
+  {key:"expected_wins",label:"Expected Wins",fmt:"num",decimals:2},
+  {key:"realized_wins",label:"Realized Wins",fmt:"num",decimals:0}
+];
+
+const CAL_PROB=[
+  {key:"market_type",label:"Market"},
+  {key:"probability_bucket",label:"Bucket"},
+  {key:"bets",label:"Bets",fmt:"int"},
+  {key:"avg_model_prob",label:"Avg Model",fmt:"pct"},
+  {key:"realized_win_rate",label:"Realized",fmt:"pct"},
+  {key:"calibration_gap",label:"Gap",fmt:"num",decimals:4,signed:true},
+  {key:"brier_score",label:"Brier",fmt:"num",decimals:4},
+  {key:"log_loss",label:"Log Loss",fmt:"num",decimals:4}
+];
+
+const CAL_EXPECTED=[
+  {key:"market_type",label:"Market"},
+  {key:"bets",label:"Bets",fmt:"int"},
+  {key:"expected_probability",label:"Expected",fmt:"pct"},
+  {key:"realized_probability",label:"Realized",fmt:"pct"},
+  {key:"difference",label:"Difference",fmt:"num",decimals:4,signed:true},
+  {key:"expected_wins",label:"Expected Wins",fmt:"num",decimals:2},
+  {key:"realized_wins",label:"Realized Wins",fmt:"num",decimals:0}
+];
+
+const WALK=[
+  {key:"market_type",label:"Market"},
+  {key:"through_game_date",label:"Through Date"},
+  {key:"Win",label:"W",fmt:"int"},
+  {key:"Loss",label:"L",fmt:"int"},
+  {key:"Push",label:"P",fmt:"int"},
+  {key:"bets_including_pushes",label:"Bets",fmt:"int"},
+  {key:"win_pct",label:"Win %",fmt:"pct"},
+  {key:"units",label:"Units",fmt:"num",decimals:3,signed:true},
+  {key:"roi",label:"ROI",fmt:"pct"},
+  {key:"calibration_gap",label:"Cal Gap",fmt:"num",decimals:4,signed:true},
+  {key:"brier_score",label:"Brier",fmt:"num",decimals:4},
+  {key:"log_loss",label:"Log Loss",fmt:"num",decimals:4}
+];
+
+const CLV_COLUMNS=[
+  {key:"game_date",label:"Date"},
+  {key:"away_team",label:"Away"},
+  {key:"home_team",label:"Home"},
+  {key:"market_type",label:"Market"},
+  {key:"bet_side",label:"Side"},
+  {key:"selected_provider_name",label:"Selected Book"},
+  {key:"dk_odds_american",label:"Selected Odds"},
+  {key:"closing_provider_name",label:"Closing Book"},
+  {key:"closing_odds_american",label:"Closing Odds"},
+  {key:"clv_implied_probability",label:"Implied CLV",fmt:"num",decimals:4,signed:true},
+  {key:"clv_decimal_ratio",label:"Decimal CLV",fmt:"num",decimals:4,signed:true},
+  {key:"line_clv",label:"Line CLV",fmt:"num",decimals:3,signed:true},
+  {key:"clv_status",label:"Status"}
+];
+
+function kpi(label,value,fmt){
+  let text="N/A";
+  let cls="";
+
+  if(value!=null&&!Number.isNaN(Number(value))){
+    if(fmt==="pct"){
+      text=fmtPct(value);
+    }else if(fmt==="int"){
+      text=fmtInt(value);
+    }else if(fmt==="num"){
+      text=fmtNum(value,3);
+      cls=signedClass(value);
+    }else if(fmt==="odds"){
+      text=fmtNum(value,1);
+    }
+  }
+
+  return '<div class="kpi"><div class="label">'+label+
+    '</div><div class="value '+cls+'">'+text+'</div></div>';
+}
+
+function buildMarketPanel(market,panel){
+  const dims=Object.keys(market.by||{}).filter(d=>
+    ((market.by[d]||[]).length||(market.by_side[d]||[]).length)
+  );
+
+  if(!dims.length){
+    panel.innerHTML='<div class="muted">No report rows available.</div>';
+    return;
+  }
+
+  panel.innerHTML=
+    '<div class="controls">'+
+      '<label>Dimension: <select class="dim">'+
+        dims.map(d=>
+          '<option value="'+d+'">'+d.replaceAll("_"," ")+'</option>'
+        ).join("")+
+      '</select></label>'+
+      '<label>View: <select class="view">'+
+        '<option value="overall">Overall</option>'+
+        '<option value="side">Split home/away</option>'+
+      '</select></label>'+
+    '</div>'+
+    '<div class="tablehost"></div>';
+
+  const dim=panel.querySelector(".dim");
+  const view=panel.querySelector(".view");
+  const host=panel.querySelector(".tablehost");
+
+  function refresh(){
+    const d=dim.value;
+    const rows=view.value==="side"
+      ?((market.by_side||{})[d]||[])
+      :((market.by||{})[d]||[]);
+
+    renderTable(rows,RESULT_COLUMNS,host);
+  }
+
+  dim.addEventListener("change",refresh);
+  view.addEventListener("change",refresh);
+  refresh();
+}
+
+function buildDashboard(data){
+  const h=data.headline||{};
+
+  document.getElementById("headline").innerHTML=[
+    kpi("Bets",h.bets,"int"),
+    kpi("Wins",h.wins,"int"),
+    kpi("Losses",h.losses,"int"),
+    kpi("Pushes",h.pushes,"int"),
+    kpi("Win %",h.win_pct,"pct"),
+    kpi("Units",h.units,"num"),
+    kpi("ROI",h.roi,"pct"),
+    kpi("Avg Odds",h.avg_odds,"odds"),
+    kpi("Avg EV",h.avg_ev,"pct"),
+    kpi("Avg Kelly",h.avg_kelly,"pct"),
+    kpi("Avg Win Prob",h.avg_win_prob,"pct")
+  ].join("");
+
+  renderTable(
+    data.tally||[],
+    TALLY_COLUMNS,
+    document.getElementById("by-market")
+  );
+
+  const cal=document.getElementById("calibration");
+  const calCols={
+    metrics:CAL_METRICS,
+    probability:CAL_PROB,
+    expected:CAL_EXPECTED,
+    walk_forward:WALK
+  };
+
+  Object.entries(data.calibration||{}).forEach(([key,rows])=>{
+    const panel=cal.querySelector('.tab-panel[data-key="'+key+'"]');
+    if(panel)renderTable(rows||[],calCols[key]||[],panel);
+  });
+
+  const ch=(data.clv||{}).headline||{};
+
+  document.getElementById("clv-headline").innerHTML=[
+    kpi("Selections",ch.selections,"int"),
+    kpi("Comparable",ch.comparable,"int"),
+    kpi("Positive CLV",ch.positive,"int"),
+    kpi("Positive CLV %",ch.positive_pct,"pct"),
+    kpi("Avg Implied CLV",ch.avg_implied_clv,"pct"),
+    kpi("Avg Decimal CLV",ch.avg_decimal_ratio,"pct")
+  ].join("");
+
+  renderTable(
+    (data.clv||{}).rows||[],
+    CLV_COLUMNS,
+    document.getElementById("clv-table")
+  );
+
+  const markets=document.getElementById("markets");
+
+  Object.entries(data.markets||{}).forEach(([key,market])=>{
+    const panel=markets.querySelector(".market-panel-"+key);
+    if(panel)buildMarketPanel(market,panel);
+  });
+}
+
+function selectSeason(season){
+  if(!ALL_DATA[season])return;
+
+  ACTIVE_SEASON=season;
+
+  document.querySelectorAll(".season-btn").forEach(btn=>{
+    btn.classList.toggle("active",btn.dataset.season===season);
+  });
+
+  buildDashboard(ALL_DATA[season].data);
+
+  try{
+    localStorage.setItem("nhl_dash_season",season);
+  }catch(e){}
+}
+
+document.addEventListener("DOMContentLoaded",()=>{
+  const cal=document.getElementById("calibration");
+  cal.querySelectorAll(":scope > .tabs .tab").forEach(tab=>{
+    tab.addEventListener("click",()=>showTab(cal,tab.dataset.key));
+  });
+
+  const markets=document.getElementById("markets");
+  markets.querySelectorAll(":scope > .tabs .tab").forEach(tab=>{
+    tab.addEventListener("click",()=>showTab(markets,tab.dataset.key));
+  });
+
+  let initial=DEFAULT_SEASON;
+
+  try{
+    const stored=localStorage.getItem("nhl_dash_season");
+    if(stored&&ALL_DATA[stored])initial=stored;
+  }catch(e){}
+
+  selectSeason(initial);
+});
+
+
+const ALL_DATA={"current": {"label": "Current", "data": {"headline": {"bets": 0, "wins": 0, "losses": 0, "pushes": 0, "win_pct": null, "units": null, "roi": null, "avg_odds": null, "avg_ev": null, "avg_kelly": null, "avg_win_prob": null}, "tally": [{"league": "nhl", "market_type": "moneyline", "side_group": "ALL", "variable": "ALL", "Win": 0, "Loss": 0, "Push": 0, "Total": 0, "bets_excluding_pushes": 0, "bets_including_pushes": 0, "Win_Pct": null, "units": null, "roi": null, "avg_odds": null, "avg_ev": null, "avg_kelly": null, "avg_win_prob": null}, {"league": "nhl", "market_type": "puck_line", "side_group": "ALL", "variable": "ALL", "Win": 0, "Loss": 0, "Push": 0, "Total": 0, "bets_excluding_pushes": 0, "bets_including_pushes": 0, "Win_Pct": null, "units": null, "roi": null, "avg_odds": null, "avg_ev": null, "avg_kelly": null, "avg_win_prob": null}, {"league": "nhl", "market_type": "total", "side_group": "ALL", "variable": "ALL", "Win": 0, "Loss": 0, "Push": 0, "Total": 0, "bets_excluding_pushes": 0, "bets_including_pushes": 0, "Win_Pct": null, "units": null, "roi": null, "avg_odds": null, "avg_ev": null, "avg_kelly": null, "avg_win_prob": null}], "markets": {"moneyline": {"display": "Moneyline", "by": {"ev": [], "kelly": [], "odds": [], "win_prob": []}, "by_side": {"ev": [], "kelly": [], "odds": [], "win_prob": []}}, "puck_line": {"display": "Puck Line", "by": {"ev": [], "kelly": [], "odds": [], "side": [], "win_prob": []}, "by_side": {"ev": [], "kelly": [], "odds": [], "side": [], "win_prob": []}}, "total": {"display": "Total", "by": {"ev": [], "kelly": [], "odds": [], "side": [], "total_range": [], "win_prob": []}, "by_side": {"ev": [], "kelly": [], "odds": [], "side": [], "total_range": [], "win_prob": []}}}, "calibration": {"metrics": [{"league": "nhl", "market_type": "ALL", "bets": 0, "expected_win_rate": null, "realized_win_rate": null, "calibration_gap": null, "brier_score": null, "log_loss": null, "expected_wins": 0.0, "realized_wins": 0.0}, {"league": "nhl", "market_type": "moneyline", "bets": 0, "expected_win_rate": null, "realized_win_rate": null, "calibration_gap": null, "brier_score": null, "log_loss": null, "expected_wins": 0.0, "realized_wins": 0.0}, {"league": "nhl", "market_type": "puck_line", "bets": 0, "expected_win_rate": null, "realized_win_rate": null, "calibration_gap": null, "brier_score": null, "log_loss": null, "expected_wins": 0.0, "realized_wins": 0.0}, {"league": "nhl", "market_type": "total", "bets": 0, "expected_win_rate": null, "realized_win_rate": null, "calibration_gap": null, "brier_score": null, "log_loss": null, "expected_wins": 0.0, "realized_wins": 0.0}], "probability": [], "expected": [{"league": "nhl", "market_type": "ALL", "bets": 0, "expected_probability": null, "realized_probability": null, "difference": null, "expected_wins": 0.0, "realized_wins": 0.0}, {"league": "nhl", "market_type": "moneyline", "bets": 0, "expected_probability": null, "realized_probability": null, "difference": null, "expected_wins": 0.0, "realized_wins": 0.0}, {"league": "nhl", "market_type": "puck_line", "bets": 0, "expected_probability": null, "realized_probability": null, "difference": null, "expected_wins": 0.0, "realized_wins": 0.0}, {"league": "nhl", "market_type": "total", "bets": 0, "expected_probability": null, "realized_probability": null, "difference": null, "expected_wins": 0.0, "realized_wins": 0.0}], "walk_forward": []}, "clv": {"headline": {}, "rows": []}}}};
+const DEFAULT_SEASON="current";
+</script>
 </body>
 </html>
