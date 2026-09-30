@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Injury Impact Tracker · SportsModelHub</title>
+
+<link rel="stylesheet" href="assets/css/matstheme.css">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="assets/css/pages/injury_tracker.css">
+<link rel="stylesheet" href="assets/css/site-polish.css">
+</head>
+
+<body>
+
+<div id="nav-placeholder"></div>
+
+<div class="page-header">
+  <div class="page-title">Injury Impact Tracker</div>
+  <div class="page-subtitle">
+    TODAY'S PICKS FIRST · IMPACT INJURIES · FULL LEAGUE BROWSER
+  </div>
+</div>
+
+<div class="controls" id="league-controls">
+
+  <button
+    type="button"
+    class="league-pill active"
+    data-filter-type="all"
+    data-filter-value="all"
+  >All</button>
+
+  <div class="control-group" data-group="football">
+    <button
+      type="button"
+      class="group-pill"
+      data-group-toggle="football"
+    >Football</button>
+
+    <div class="submenu">
+      <button
+        type="button"
+        class="submenu-pill"
+        data-filter-type="group"
+        data-filter-value="football"
+      >All Football</button>
+
+      <button
+        type="button"
+        class="submenu-pill"
+        data-filter-type="league"
+        data-filter-value="NFL"
+      >NFL</button>
+
+      <button
+        type="button"
+        class="submenu-pill"
+        data-filter-type="league"
+        data-filter-value="CFB"
+      >College Football</button>
+
+      <button
+        type="button"
+        class="submenu-pill"
+        data-filter-type="league"
+        data-filter-value="CFL"
+      >CFL</button>
+    </div>
+  </div>
+
+  <button
+    type="button"
+    class="league-pill"
+    data-filter-type="league"
+    data-filter-value="NHL"
+  >NHL</button>
+
+  <button
+    type="button"
+    class="league-pill"
+    data-filter-type="league"
+    data-filter-value="MLB"
+  >MLB</button>
+
+  <div class="control-group" data-group="basketball">
+    <button
+      type="button"
+      class="group-pill"
+      data-group-toggle="basketball"
+    >Basketball</button>
+
+    <div class="submenu">
+      <button
+        type="button"
+        class="submenu-pill"
+        data-filter-type="group"
+        data-filter-value="basketball"
+      >All Basketball</button>
+
+      <button
+        type="button"
+        class="submenu-pill"
+        data-filter-type="league"
+        data-filter-value="NBA"
+      >NBA</button>
+
+      <button
+        type="button"
+        class="submenu-pill"
+        data-filter-type="league"
+        data-filter-value="NCAAM"
+      >College Basketball</button>
+
+      <button
+        type="button"
+        class="submenu-pill"
+        data-filter-type="league"
+        data-filter-value="WNBA"
+      >WNBA</button>
+    </div>
+  </div>
+
+  <div class="control-group" data-group="soccer">
+    <button
+      type="button"
+      class="group-pill"
+      data-group-toggle="soccer"
+    >Soccer</button>
+
+    <div class="submenu">
+      <button
+        type="button"
+        class="submenu-pill"
+        data-filter-type="group"
+        data-filter-value="soccer"
+      >All Soccer</button>
+
+      <button
+        type="button"
+        class="submenu-pill"
+        data-filter-type="league"
+        data-filter-value="MLS"
+      >MLS</button>
+
+      <button
+        type="button"
+        class="submenu-pill"
+        data-filter-type="league"
+        data-filter-value="EPL"
+      >EPL</button>
+
+      <button
+        type="button"
+        class="submenu-pill"
+        data-filter-type="league"
+        data-filter-value="LALIGA"
+      >La Liga</button>
+
+      <button
+        type="button"
+        class="submenu-pill"
+        data-filter-type="league"
+        data-filter-value="LIGUE1"
+      >Ligue 1</button>
+
+      <button
+        type="button"
+        class="submenu-pill"
+        data-filter-type="league"
+        data-filter-value="SERIEA"
+      >Serie A</button>
+
+      <button
+        type="button"
+        class="submenu-pill"
+        data-filter-type="league"
+        data-filter-value="BUNDESLIGA"
+      >Bundesliga</button>
+    </div>
+  </div>
+
+  <button
+    type="button"
+    class="league-pill"
+    data-filter-type="league"
+    data-filter-value="UFC"
+  >UFC</button>
+
+  <input
+    type="text"
+    class="search-box"
+    id="inj-search"
+    placeholder="Search player or team..."
+  >
+</div>
+
+<div class="status-bar loading" id="inj-status">
+  <span class="status-dot yellow" id="status-dot"></span>
+  <span id="status-text">
+    Loading injury feeds and today's picks...
+  </span>
+</div>
+
+<section class="impact-wrap">
+
+  <div class="section-kicker">Priority</div>
+
+  <div class="section-title">
+    Injuries Affecting Today's Picks
+  </div>
+
+  <div class="section-copy">
+    Only injuries from teams participating in games on today's Picks page
+    are promoted here.
+  </div>
+
+  <div class="summary-strip">
+
+    <div class="summary-item">
+      <span class="summary-val val-green" id="sum-picks">—</span>
+      <span class="summary-lbl">Today's Picks</span>
+    </div>
+
+    <div class="summary-item">
+      <span class="summary-val val-blue" id="sum-teams">—</span>
+      <span class="summary-lbl">Picked Teams With Injuries</span>
+    </div>
+
+    <div class="summary-item">
+      <span class="summary-val val-red" id="sum-out">—</span>
+      <span class="summary-lbl">Out</span>
+    </div>
+
+    <div class="summary-item">
+      <span
+        class="summary-val val-yellow"
+        id="sum-questionable"
+      >—</span>
+      <span class="summary-lbl">
+        Questionable / Doubtful
+      </span>
+    </div>
+
+  </div>
+
+  <div class="impact-grid" id="impact-grid"></div>
+
+  <div
+    class="impact-empty"
+    id="impact-empty"
+    style="display:none"
+  ></div>
+
+</section>
+
+<section class="browser-wrap">
+
+  <div class="section-kicker">Reference</div>
+
+  <div class="section-title">
+    All League Injuries
+  </div>
+
+  <div class="section-copy">
+    The full feed remains available without dumping every injury record
+    onto the page at once.
+  </div>
+
+  <div class="browser-toolbar">
+
+    <span class="toolbar-label">Status</span>
+
+    <select class="status-select" id="status-filter">
+      <option value="impact">
+        Out + Doubtful + Questionable
+      </option>
+      <option value="out">
+        Out Only
+      </option>
+      <option value="questionable">
+        Questionable + Doubtful
+      </option>
+      <option value="dtd">
+        Day-To-Day
+      </option>
+      <option value="all">
+        All Statuses
+      </option>
+    </select>
+
+    <span class="result-count" id="result-count">—</span>
+
+  </div>
+
+  <div class="table-wrap">
+
+    <table>
+      <thead>
+        <tr>
+          <th>League</th>
+          <th>Team</th>
+          <th>Player</th>
+          <th>Pos</th>
+          <th>Status</th>
+          <th>Injury</th>
+        </tr>
+      </thead>
+
+      <tbody id="inj-tbody"></tbody>
+    </table>
+
+    <div
+      class="empty-state"
+      id="inj-empty"
+      style="display:none"
+    >
+      No injuries match these filters
+    </div>
+
+  </div>
+
+  <button
+    type="button"
+    class="load-more"
+    id="load-more"
+  >
+    Load 50 More
+  </button>
+
+</section>
+
+<script src="assets/js/shared/config.js"></script>
+<script src="assets/js/shared/nav.js"></script>
+
+<script src="assets/js/pages/injury_tracker.js"></script>
+
+</body>
+</html>

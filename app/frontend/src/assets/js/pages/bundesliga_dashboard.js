@@ -1,0 +1,383 @@
+function fmtPct(v) {
+  if (v == null || isNaN(v)) return '';
+  return (Number(v) * 100).toFixed(2) + '%';
+}
+function fmtNum(v, d) {
+  if (v == null || isNaN(v)) return '';
+  return Number(v).toFixed(d);
+}
+function fmtInt(v) {
+  if (v == null || isNaN(v)) return '';
+  return Number(v).toLocaleString();
+}
+function signedClass(v) {
+  if (v == null || isNaN(v)) return '';
+  return Number(v) > 0 ? 'good' : (Number(v) < 0 ? 'bad' : '');
+}
+function winPctClass(v) {
+  if (v == null || isNaN(v)) return '';
+  const pct = Number(v);
+  if (pct >= 0.80) return 'win-pct-strong';
+  if (pct >= 0.70) return 'win-pct-green';
+  if (pct >= 0.60) return 'win-pct-light';
+  if (pct >= 0.50) return 'win-pct-neutral';
+  return 'win-pct-red';
+}
+
+function showTab(host, key) {
+  host.querySelectorAll(':scope > .tabs .tab').forEach(el => {
+    el.classList.toggle('active', el.dataset.key === key);
+  });
+  host.querySelectorAll(':scope > .tab-body > .tab-panel').forEach(el => {
+    el.style.display = el.dataset.key === key ? '' : 'none';
+  });
+}
+
+function renderTable(data, columns, container) {
+  if (!data || data.length === 0) {
+    container.innerHTML = '<div class="muted">No rows available.</div>';
+    return;
+  }
+
+  const wrap = document.createElement('div');
+  wrap.className = 'scroll';
+  const table = document.createElement('table');
+  const thead = document.createElement('thead');
+  const headRow = document.createElement('tr');
+  const tbody = document.createElement('tbody');
+
+  let sortCol = null;
+  let sortDir = 'desc';
+
+  columns.forEach(col => {
+    const th = document.createElement('th');
+    th.textContent = col.label;
+    th.onclick = () => {
+      if (sortCol === col.key) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+      else {
+        sortCol = col.key;
+        sortDir = 'desc';
+      }
+      drawRows();
+    };
+    headRow.appendChild(th);
+  });
+
+  thead.appendChild(headRow);
+
+  function drawRows() {
+    const rows = data.slice();
+    if (sortCol) {
+      rows.sort((a, b) => {
+        const av = a[sortCol];
+        const bv = b[sortCol];
+        if (av == null) return 1;
+        if (bv == null) return -1;
+        if (!isNaN(Number(av)) && !isNaN(Number(bv))) {
+          return sortDir === 'asc' ? Number(av) - Number(bv) : Number(bv) - Number(av);
+        }
+        return sortDir === 'asc'
+          ? String(av).localeCompare(String(bv))
+          : String(bv).localeCompare(String(av));
+      });
+    }
+
+    tbody.innerHTML = '';
+    rows.forEach(row => {
+      const tr = document.createElement('tr');
+      columns.forEach(col => {
+        const td = document.createElement('td');
+        const v = row[col.key];
+
+        if (col.fmt === 'int') {
+          td.classList.add('num');
+          td.textContent = fmtInt(v);
+        } else if (col.fmt === 'pct') {
+          td.classList.add('num');
+          td.textContent = fmtPct(v);
+          if (col.key === 'Win_Pct') {
+            const winClass = winPctClass(v);
+            if (winClass) td.classList.add(winClass);
+          }
+        } else if (col.fmt === 'num') {
+          td.classList.add('num');
+          td.textContent = fmtNum(v, col.decimals == null ? 3 : col.decimals);
+          if (col.signed) {
+            const cls = signedClass(v);
+            if (cls) td.classList.add(cls);
+          }
+        } else {
+          td.textContent = v == null ? '' : String(v);
+        }
+
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+  }
+
+  drawRows();
+  table.appendChild(thead);
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+  container.innerHTML = '';
+  container.appendChild(wrap);
+}
+
+const RESULT_COLUMNS = [
+  { key: 'bucket', label: 'Bucket' },
+  { key: 'Win', label: 'W', fmt: 'int' },
+  { key: 'Loss', label: 'L', fmt: 'int' },
+  { key: 'Push', label: 'P', fmt: 'int' },
+  { key: 'Total', label: 'Total', fmt: 'int' },
+  { key: 'Sample_Count', label: 'Sample', fmt: 'int' },
+  { key: 'Win_Pct', label: 'Win %', fmt: 'pct' },
+];
+
+const RESULT_SIDE_COLUMNS = [
+  { key: 'side', label: 'Side' },
+  ...RESULT_COLUMNS,
+];
+
+const MODEL_COLUMNS = [
+  { key: 'model', label: 'Model' },
+  { key: 'sample_count', label: 'Sample', fmt: 'int' },
+  { key: 'brier_score', label: 'Brier', fmt: 'num', decimals: 4 },
+  { key: 'log_loss', label: 'Log Loss', fmt: 'num', decimals: 4 },
+  { key: 'rps', label: 'RPS', fmt: 'num', decimals: 4 },
+];
+
+const XG_COLUMNS = [
+  { key: 'sample_count', label: 'Sample', fmt: 'int' },
+  { key: 'home_xg_mae', label: 'Home xG MAE', fmt: 'num', decimals: 3 },
+  { key: 'home_xg_rmse', label: 'Home xG RMSE', fmt: 'num', decimals: 3 },
+  { key: 'home_xg_bias', label: 'Home xG Bias', fmt: 'num', decimals: 3, signed: true },
+  { key: 'away_xg_mae', label: 'Away xG MAE', fmt: 'num', decimals: 3 },
+  { key: 'away_xg_rmse', label: 'Away xG RMSE', fmt: 'num', decimals: 3 },
+  { key: 'away_xg_bias', label: 'Away xG Bias', fmt: 'num', decimals: 3, signed: true },
+  { key: 'total_xg_mae', label: 'Total xG MAE', fmt: 'num', decimals: 3 },
+  { key: 'total_xg_rmse', label: 'Total xG RMSE', fmt: 'num', decimals: 3 },
+  { key: 'total_xg_bias', label: 'Total xG Bias', fmt: 'num', decimals: 3, signed: true },
+];
+
+const CAL_COLUMNS = [
+  { key: 'model', label: 'Model' },
+  { key: 'outcome', label: 'Outcome' },
+  { key: 'bucket', label: 'Bucket' },
+  { key: 'sample_count', label: 'Sample', fmt: 'int' },
+  { key: 'mean_predicted_probability', label: 'Mean Pred', fmt: 'pct' },
+  { key: 'observed_rate', label: 'Observed', fmt: 'pct' },
+  { key: 'calibration_gap', label: 'Gap', fmt: 'num', decimals: 4, signed: true },
+];
+
+function selectLeague(league) {
+  document.querySelectorAll('.league-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.league === league);
+  });
+  document.querySelectorAll('.league-section').forEach(section => {
+    section.classList.toggle('active', section.dataset.league === league);
+  });
+  try {
+    localStorage.setItem('soccer_dash_league', league);
+  } catch (e) {}
+}
+
+function buildModelArea(section, data) {
+  const host = section.querySelector('.model-area');
+  const leagueColumn = [{ key: 'league', label: 'League' }];
+
+  renderTable(
+    data.model_metrics || [],
+    data.is_all ? [...leagueColumn, ...MODEL_COLUMNS] : MODEL_COLUMNS,
+    host.querySelector('.model-core')
+  );
+
+  renderTable(
+    data.xg_metrics || [],
+    data.is_all ? [...leagueColumn, ...XG_COLUMNS] : XG_COLUMNS,
+    host.querySelector('.model-xg')
+  );
+
+  const calibrationRows = data.calibration || [];
+  const calibrationHost = host.querySelector('.model-calibration');
+
+  if (!calibrationRows.length) {
+    calibrationHost.innerHTML = '<div class="muted">No calibration rows available.</div>';
+  } else {
+    const models = [...new Set(calibrationRows.map(r => r.model).filter(Boolean))].sort();
+    const outcomes = [...new Set(calibrationRows.map(r => r.outcome).filter(Boolean))].sort();
+
+    calibrationHost.innerHTML =
+      '<div class="controls">' +
+        '<label>Model: <select class="cal-model"><option value="ALL">All</option>' +
+          models.map(v => '<option value="' + v + '">' + v + '</option>').join('') +
+        '</select></label>' +
+        '<label>Outcome: <select class="cal-outcome"><option value="ALL">All</option>' +
+          outcomes.map(v => '<option value="' + v + '">' + v + '</option>').join('') +
+        '</select></label>' +
+      '</div>' +
+      '<div class="cal-table"></div>';
+
+    const modelSel = calibrationHost.querySelector('.cal-model');
+    const outcomeSel = calibrationHost.querySelector('.cal-outcome');
+    const tableHost = calibrationHost.querySelector('.cal-table');
+
+    const refreshCalibration = () => {
+      const filtered = calibrationRows.filter(row =>
+        (modelSel.value === 'ALL' || String(row.model) === modelSel.value) &&
+        (outcomeSel.value === 'ALL' || String(row.outcome) === outcomeSel.value)
+      );
+      renderTable(
+        filtered,
+        data.is_all ? [...leagueColumn, ...CAL_COLUMNS] : CAL_COLUMNS,
+        tableHost
+      );
+    };
+
+    modelSel.onchange = refreshCalibration;
+    outcomeSel.onchange = refreshCalibration;
+    refreshCalibration();
+  }
+
+  host.querySelectorAll(':scope > .tabs .tab').forEach(tab => {
+    tab.onclick = () => showTab(host, tab.dataset.key);
+  });
+}
+
+function buildMarketArea(section, data) {
+  const host = section.querySelector('.market-area');
+  let firstAvailable = null;
+
+  Object.entries(data.markets || {}).forEach(([key, market]) => {
+    const panel = host.querySelector('.panel-' + key);
+    const tab = host.querySelector(':scope > .tabs .tab[data-key="' + key + '"]');
+    if (!panel) return;
+
+    const dimensions = Object.keys(market.by || {});
+    if (!dimensions.length) {
+      panel.style.display = 'none';
+      if (tab) tab.style.display = 'none';
+      return;
+    }
+
+    if (firstAvailable == null) firstAvailable = key;
+
+    panel.innerHTML =
+      '<div class="controls">' +
+        '<label>Dimension: <select class="dim-select">' +
+          dimensions.map(dim => '<option value="' + dim + '">' + dim.replaceAll('_', ' ') + '</option>').join('') +
+        '</select></label>' +
+        '<label>View: <select class="view-select">' +
+          '<option value="overall">Overall</option>' +
+          '<option value="side">Split by side</option>' +
+        '</select></label>' +
+      '</div>' +
+      '<div class="market-table"></div>';
+
+    const dimSel = panel.querySelector('.dim-select');
+    const viewSel = panel.querySelector('.view-select');
+    const tableHost = panel.querySelector('.market-table');
+
+    const refresh = () => {
+      const dim = dimSel.value;
+      const sideView = viewSel.value === 'side';
+      const rows = sideView
+        ? ((market.by_side || {})[dim] || [])
+        : ((market.by || {})[dim] || []);
+      renderTable(
+        rows,
+        sideView ? RESULT_SIDE_COLUMNS : RESULT_COLUMNS,
+        tableHost
+      );
+    };
+
+    dimSel.onchange = refresh;
+    viewSel.onchange = refresh;
+    refresh();
+  });
+
+  host.querySelectorAll(':scope > .tabs .tab').forEach(tab => {
+    tab.onclick = () => showTab(host, tab.dataset.key);
+  });
+
+  if (firstAvailable != null) {
+    showTab(host, firstAvailable);
+  } else {
+    host.querySelector(':scope > .tab-body').innerHTML =
+      '<div class="muted">No market drilldown reports available.</div>';
+  }
+}
+
+function buildLeagueSection(league, data) {
+  const section = document.querySelector(
+    '.league-section[data-league="' + league + '"]'
+  );
+  if (!section) return;
+
+  const h = data.headline || {};
+  const kpi = (label, value, fmt) => {
+    let display = 'N/A';
+    if (value != null && !(typeof value === 'number' && isNaN(value))) {
+      if (fmt === 'pct') display = fmtPct(value);
+      else if (fmt === 'int') display = fmtInt(value);
+      else display = String(value);
+    }
+    return '<div class="kpi"><div class="label">' + label +
+      '</div><div class="value">' + display + '</div></div>';
+  };
+
+  section.querySelector('.kpis').innerHTML = [
+    kpi('Bets', h.total, 'int'),
+    kpi('Wins', h.wins, 'int'),
+    kpi('Losses', h.losses, 'int'),
+    kpi('Pushes', h.pushes, 'int'),
+    kpi('Win %', h.win_pct, 'pct'),
+  ].join('');
+
+  renderTable(
+    data.by_market || [],
+    [
+      { key: 'market_display', label: 'Market' },
+      { key: 'Win', label: 'W', fmt: 'int' },
+      { key: 'Loss', label: 'L', fmt: 'int' },
+      { key: 'Push', label: 'P', fmt: 'int' },
+      { key: 'Total', label: 'Total', fmt: 'int' },
+      { key: 'Win_Pct', label: 'Win %', fmt: 'pct' },
+    ],
+    section.querySelector('.by-market')
+  );
+
+  renderTable(
+    data.tally || [],
+    [
+      { key: 'market', label: 'Market' },
+      { key: 'market_type', label: 'Side' },
+      { key: 'Win', label: 'W', fmt: 'int' },
+      { key: 'Loss', label: 'L', fmt: 'int' },
+      { key: 'Push', label: 'P', fmt: 'int' },
+      { key: 'Total', label: 'Total', fmt: 'int' },
+      { key: 'Win_Pct', label: 'Win %', fmt: 'pct' },
+    ],
+    section.querySelector('.side-tally')
+  );
+
+  buildModelArea(section, data);
+  buildMarketArea(section, data);
+}
+
+
+const ALL_DATA = {"bundesliga": {"league": "bundesliga", "display": "Bundesliga", "headline": {"wins": 22, "losses": 6, "pushes": 0, "total": 28, "win_pct": 0.7857142857142857}, "tally": [{"market": "btts", "market_type": "yes", "Win": 14, "Loss": 3, "Push": 0, "Total": 17, "Sample_Count": 17, "Win_Pct": 0.8235}, {"market": "match_odds", "market_type": "away", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"market": "total25", "market_type": "under", "Win": 1, "Loss": 1, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.5}, {"market": "total35", "market_type": "under", "Win": 6, "Loss": 2, "Push": 0, "Total": 8, "Sample_Count": 8, "Win_Pct": 0.75}], "by_market": [{"market": "btts", "market_display": "BTTS", "Win": 14, "Loss": 3, "Push": 0, "Total": 17, "Sample_Count": 17, "Win_Pct": 0.8235294117647058}, {"market": "match_odds", "market_display": "Match Odds", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"market": "total25", "market_display": "Total 2.5", "Win": 1, "Loss": 1, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.5}, {"market": "total35", "market_display": "Total 3.5", "Win": 6, "Loss": 2, "Push": 0, "Total": 8, "Sample_Count": 8, "Win_Pct": 0.75}], "model_metrics": [{"scope": "league", "league": "bundesliga", "model": "raw", "sample_count": 65, "brier_score": 0.5465576923076924, "log_loss": 0.9262925725407564, "rps": 0.1981358692307691}, {"scope": "league", "league": "bundesliga", "model": "engine", "sample_count": 72, "brier_score": 0.5747879913367357, "log_loss": 0.9719286675560284, "rps": 0.2072069751258467}], "calibration": [{"scope": "league", "league": "bundesliga", "model": "raw", "outcome": "home", "bucket": "0.0_to_0.1", "bucket_low": 0.0, "bucket_high": 0.1, "sample_count": 1, "mean_predicted_probability": 0.074, "observed_rate": 0.0, "calibration_gap": -0.074}, {"scope": "league", "league": "bundesliga", "model": "raw", "outcome": "home", "bucket": "0.1_to_0.2", "bucket_low": 0.1, "bucket_high": 0.2, "sample_count": 2, "mean_predicted_probability": 0.1935, "observed_rate": 0.5, "calibration_gap": 0.3065}, {"scope": "league", "league": "bundesliga", "model": "raw", "outcome": "home", "bucket": "0.2_to_0.3", "bucket_low": 0.2, "bucket_high": 0.3, "sample_count": 9, "mean_predicted_probability": 0.2518888888888889, "observed_rate": 0.2222222222222222, "calibration_gap": -0.0296666666666666}, {"scope": "league", "league": "bundesliga", "model": "raw", "outcome": "home", "bucket": "0.3_to_0.4", "bucket_low": 0.3, "bucket_high": 0.4, "sample_count": 8, "mean_predicted_probability": 0.34125, "observed_rate": 0.5, "calibration_gap": 0.15875}, {"scope": "league", "league": "bundesliga", "model": "raw", "outcome": "home", "bucket": "0.4_to_0.5", "bucket_low": 0.4, "bucket_high": 0.5, "sample_count": 23, "mean_predicted_probability": 0.442086956521739, "observed_rate": 0.4782608695652174, "calibration_gap": 0.0361739130434783}, {"scope": "league", "league": "bundesliga", "model": "raw", "outcome": "home", "bucket": "0.5_to_0.6", "bucket_low": 0.5, "bucket_high": 0.6, "sample_count": 5, "mean_predicted_probability": 0.5598, "observed_rate": 0.2, "calibration_gap": -0.3597999999999999}, {"scope": "league", "league": "bundesliga", "model": "raw", "outcome": "home", "bucket": "0.6_to_0.7", "bucket_low": 0.6, "bucket_high": 0.7, "sample_count": 11, "mean_predicted_probability": 0.6570909090909091, "observed_rate": 0.8181818181818182, "calibration_gap": 0.1610909090909091}, {"scope": "league", "league": "bundesliga", "model": "raw", "outcome": "home", "bucket": "0.7_to_0.8", "bucket_low": 0.7, "bucket_high": 0.8, "sample_count": 2, "mean_predicted_probability": 0.721, "observed_rate": 0.5, "calibration_gap": -0.2209999999999999}, {"scope": "league", "league": "bundesliga", "model": "raw", "outcome": "home", "bucket": "0.8_to_0.9", "bucket_low": 0.8, "bucket_high": 0.9, "sample_count": 4, "mean_predicted_probability": 0.8514999999999999, "observed_rate": 1.0, "calibration_gap": 0.1485}, {"scope": "league", "league": "bundesliga", "model": "raw", "outcome": "home", "bucket": "0.9_to_1.0", "bucket_low": 0.9, "bucket_high": 1.0, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}, {"scope": "league", "league": "bundesliga", "model": "raw", "outcome": "draw", "bucket": "0.0_to_0.1", "bucket_low": 0.0, "bucket_high": 0.1, "sample_count": 2, "mean_predicted_probability": 0.075, "observed_rate": 0.0, "calibration_gap": -0.075}, {"scope": "league", "league": "bundesliga", "model": "raw", "outcome": "draw", "bucket": "0.1_to_0.2", "bucket_low": 0.1, "bucket_high": 0.2, "sample_count": 17, "mean_predicted_probability": 0.170235294117647, "observed_rate": 0.1176470588235294, "calibration_gap": -0.0525882352941176}, {"scope": "league", "league": "bundesliga", "model": "raw", "outcome": "draw", "bucket": "0.2_to_0.3", "bucket_low": 0.2, "bucket_high": 0.3, "sample_count": 46, "mean_predicted_probability": 0.2379347826086956, "observed_rate": 0.217391304347826, "calibration_gap": -0.0205434782608695}, {"scope": "league", "league": "bundesliga", "model": "raw", "outcome": "draw", "bucket": "0.3_to_0.4", "bucket_low": 0.3, "bucket_high": 0.4, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}, {"scope": "league", "league": "bundesliga", "model": "raw", "outcome": "draw", "bucket": "0.4_to_0.5", "bucket_low": 0.4, "bucket_high": 0.5, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}, {"scope": "league", "league": "bundesliga", "model": "raw", "outcome": "draw", "bucket": "0.5_to_0.6", "bucket_low": 0.5, "bucket_high": 0.6, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}, {"scope": "league", "league": "bundesliga", "model": "raw", "outcome": "draw", "bucket": "0.6_to_0.7", "bucket_low": 0.6, "bucket_high": 0.7, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}, {"scope": "league", "league": "bundesliga", "model": "raw", "outcome": "draw", "bucket": "0.7_to_0.8", "bucket_low": 0.7, "bucket_high": 0.8, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}, {"scope": "league", "league": "bundesliga", "model": "raw", "outcome": "draw", "bucket": "0.8_to_0.9", "bucket_low": 0.8, "bucket_high": 0.9, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}, {"scope": "league", "league": "bundesliga", "model": "raw", "outcome": "draw", "bucket": "0.9_to_1.0", "bucket_low": 0.9, "bucket_high": 1.0, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}, {"scope": "league", "league": "bundesliga", "model": "raw", "outcome": "away", "bucket": "0.0_to_0.1", "bucket_low": 0.0, "bucket_high": 0.1, "sample_count": 4, "mean_predicted_probability": 0.0535, "observed_rate": 0.0, "calibration_gap": -0.0535}, {"scope": "league", "league": "bundesliga", "model": "raw", "outcome": "away", "bucket": "0.1_to_0.2", "bucket_low": 0.1, "bucket_high": 0.2, "sample_count": 13, "mean_predicted_probability": 0.1523846153846153, "observed_rate": 0.0769230769230769, "calibration_gap": -0.0754615384615384}, {"scope": "league", "league": "bundesliga", "model": "raw", "outcome": "away", "bucket": "0.2_to_0.3", "bucket_low": 0.2, "bucket_high": 0.3, "sample_count": 13, "mean_predicted_probability": 0.2601538461538462, "observed_rate": 0.3076923076923077, "calibration_gap": 0.0475384615384615}, {"scope": "league", "league": "bundesliga", "model": "raw", "outcome": "away", "bucket": "0.3_to_0.4", "bucket_low": 0.3, "bucket_high": 0.4, "sample_count": 16, "mean_predicted_probability": 0.3329999999999999, "observed_rate": 0.25, "calibration_gap": -0.0829999999999999}, {"scope": "league", "league": "bundesliga", "model": "raw", "outcome": "away", "bucket": "0.4_to_0.5", "bucket_low": 0.4, "bucket_high": 0.5, "sample_count": 10, "mean_predicted_probability": 0.4349, "observed_rate": 0.6, "calibration_gap": 0.1650999999999999}, {"scope": "league", "league": "bundesliga", "model": "raw", "outcome": "away", "bucket": "0.5_to_0.6", "bucket_low": 0.5, "bucket_high": 0.6, "sample_count": 7, "mean_predicted_probability": 0.5497142857142857, "observed_rate": 0.4285714285714285, "calibration_gap": -0.1211428571428571}, {"scope": "league", "league": "bundesliga", "model": "raw", "outcome": "away", "bucket": "0.6_to_0.7", "bucket_low": 0.6, "bucket_high": 0.7, "sample_count": 1, "mean_predicted_probability": 0.612, "observed_rate": 1.0, "calibration_gap": 0.388}, {"scope": "league", "league": "bundesliga", "model": "raw", "outcome": "away", "bucket": "0.7_to_0.8", "bucket_low": 0.7, "bucket_high": 0.8, "sample_count": 1, "mean_predicted_probability": 0.79, "observed_rate": 1.0, "calibration_gap": 0.2099999999999999}, {"scope": "league", "league": "bundesliga", "model": "raw", "outcome": "away", "bucket": "0.8_to_0.9", "bucket_low": 0.8, "bucket_high": 0.9, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}, {"scope": "league", "league": "bundesliga", "model": "raw", "outcome": "away", "bucket": "0.9_to_1.0", "bucket_low": 0.9, "bucket_high": 1.0, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}, {"scope": "league", "league": "bundesliga", "model": "engine", "outcome": "home", "bucket": "0.0_to_0.1", "bucket_low": 0.0, "bucket_high": 0.1, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}, {"scope": "league", "league": "bundesliga", "model": "engine", "outcome": "home", "bucket": "0.1_to_0.2", "bucket_low": 0.1, "bucket_high": 0.2, "sample_count": 4, "mean_predicted_probability": 0.1564176683277745, "observed_rate": 0.25, "calibration_gap": 0.0935823316722254}, {"scope": "league", "league": "bundesliga", "model": "engine", "outcome": "home", "bucket": "0.2_to_0.3", "bucket_low": 0.2, "bucket_high": 0.3, "sample_count": 11, "mean_predicted_probability": 0.2449082736512367, "observed_rate": 0.2727272727272727, "calibration_gap": 0.0278189990760359}, {"scope": "league", "league": "bundesliga", "model": "engine", "outcome": "home", "bucket": "0.3_to_0.4", "bucket_low": 0.3, "bucket_high": 0.4, "sample_count": 19, "mean_predicted_probability": 0.3637460569025111, "observed_rate": 0.4210526315789473, "calibration_gap": 0.0573065746764361}, {"scope": "league", "league": "bundesliga", "model": "engine", "outcome": "home", "bucket": "0.4_to_0.5", "bucket_low": 0.4, "bucket_high": 0.5, "sample_count": 14, "mean_predicted_probability": 0.4407103568177998, "observed_rate": 0.4285714285714285, "calibration_gap": -0.0121389282463713}, {"scope": "league", "league": "bundesliga", "model": "engine", "outcome": "home", "bucket": "0.5_to_0.6", "bucket_low": 0.5, "bucket_high": 0.6, "sample_count": 7, "mean_predicted_probability": 0.5484088544481732, "observed_rate": 0.5714285714285714, "calibration_gap": 0.0230197169803981}, {"scope": "league", "league": "bundesliga", "model": "engine", "outcome": "home", "bucket": "0.6_to_0.7", "bucket_low": 0.6, "bucket_high": 0.7, "sample_count": 11, "mean_predicted_probability": 0.6584638178455429, "observed_rate": 0.8181818181818182, "calibration_gap": 0.1597180003362753}, {"scope": "league", "league": "bundesliga", "model": "engine", "outcome": "home", "bucket": "0.7_to_0.8", "bucket_low": 0.7, "bucket_high": 0.8, "sample_count": 6, "mean_predicted_probability": 0.7235196385869878, "observed_rate": 0.8333333333333334, "calibration_gap": 0.1098136947463456}, {"scope": "league", "league": "bundesliga", "model": "engine", "outcome": "home", "bucket": "0.8_to_0.9", "bucket_low": 0.8, "bucket_high": 0.9, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}, {"scope": "league", "league": "bundesliga", "model": "engine", "outcome": "home", "bucket": "0.9_to_1.0", "bucket_low": 0.9, "bucket_high": 1.0, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}, {"scope": "league", "league": "bundesliga", "model": "engine", "outcome": "draw", "bucket": "0.0_to_0.1", "bucket_low": 0.0, "bucket_high": 0.1, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}, {"scope": "league", "league": "bundesliga", "model": "engine", "outcome": "draw", "bucket": "0.1_to_0.2", "bucket_low": 0.1, "bucket_high": 0.2, "sample_count": 8, "mean_predicted_probability": 0.1641775804478199, "observed_rate": 0.125, "calibration_gap": -0.0391775804478199}, {"scope": "league", "league": "bundesliga", "model": "engine", "outcome": "draw", "bucket": "0.2_to_0.3", "bucket_low": 0.2, "bucket_high": 0.3, "sample_count": 42, "mean_predicted_probability": 0.2564885875094335, "observed_rate": 0.2142857142857142, "calibration_gap": -0.0422028732237192}, {"scope": "league", "league": "bundesliga", "model": "engine", "outcome": "draw", "bucket": "0.3_to_0.4", "bucket_low": 0.3, "bucket_high": 0.4, "sample_count": 22, "mean_predicted_probability": 0.3058229562598458, "observed_rate": 0.1818181818181818, "calibration_gap": -0.124004774441664}, {"scope": "league", "league": "bundesliga", "model": "engine", "outcome": "draw", "bucket": "0.4_to_0.5", "bucket_low": 0.4, "bucket_high": 0.5, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}, {"scope": "league", "league": "bundesliga", "model": "engine", "outcome": "draw", "bucket": "0.5_to_0.6", "bucket_low": 0.5, "bucket_high": 0.6, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}, {"scope": "league", "league": "bundesliga", "model": "engine", "outcome": "draw", "bucket": "0.6_to_0.7", "bucket_low": 0.6, "bucket_high": 0.7, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}, {"scope": "league", "league": "bundesliga", "model": "engine", "outcome": "draw", "bucket": "0.7_to_0.8", "bucket_low": 0.7, "bucket_high": 0.8, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}, {"scope": "league", "league": "bundesliga", "model": "engine", "outcome": "draw", "bucket": "0.8_to_0.9", "bucket_low": 0.8, "bucket_high": 0.9, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}, {"scope": "league", "league": "bundesliga", "model": "engine", "outcome": "draw", "bucket": "0.9_to_1.0", "bucket_low": 0.9, "bucket_high": 1.0, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}, {"scope": "league", "league": "bundesliga", "model": "engine", "outcome": "away", "bucket": "0.0_to_0.1", "bucket_low": 0.0, "bucket_high": 0.1, "sample_count": 9, "mean_predicted_probability": 0.0904372551375001, "observed_rate": 0.1111111111111111, "calibration_gap": 0.0206738559736109}, {"scope": "league", "league": "bundesliga", "model": "engine", "outcome": "away", "bucket": "0.1_to_0.2", "bucket_low": 0.1, "bucket_high": 0.2, "sample_count": 15, "mean_predicted_probability": 0.1373555957027373, "observed_rate": 0.1333333333333333, "calibration_gap": -0.004022262369404}, {"scope": "league", "league": "bundesliga", "model": "engine", "outcome": "away", "bucket": "0.2_to_0.3", "bucket_low": 0.2, "bucket_high": 0.3, "sample_count": 12, "mean_predicted_probability": 0.256485190201272, "observed_rate": 0.5, "calibration_gap": 0.243514809798728}, {"scope": "league", "league": "bundesliga", "model": "engine", "outcome": "away", "bucket": "0.3_to_0.4", "bucket_low": 0.3, "bucket_high": 0.4, "sample_count": 21, "mean_predicted_probability": 0.3360195971055961, "observed_rate": 0.2857142857142857, "calibration_gap": -0.0503053113913103}, {"scope": "league", "league": "bundesliga", "model": "engine", "outcome": "away", "bucket": "0.4_to_0.5", "bucket_low": 0.4, "bucket_high": 0.5, "sample_count": 6, "mean_predicted_probability": 0.4658826944615868, "observed_rate": 0.5, "calibration_gap": 0.0341173055384131}, {"scope": "league", "league": "bundesliga", "model": "engine", "outcome": "away", "bucket": "0.5_to_0.6", "bucket_low": 0.5, "bucket_high": 0.6, "sample_count": 4, "mean_predicted_probability": 0.5450809581999785, "observed_rate": 0.25, "calibration_gap": -0.2950809581999785}, {"scope": "league", "league": "bundesliga", "model": "engine", "outcome": "away", "bucket": "0.6_to_0.7", "bucket_low": 0.6, "bucket_high": 0.7, "sample_count": 3, "mean_predicted_probability": 0.6365858220218908, "observed_rate": 0.6666666666666666, "calibration_gap": 0.0300808446447757}, {"scope": "league", "league": "bundesliga", "model": "engine", "outcome": "away", "bucket": "0.7_to_0.8", "bucket_low": 0.7, "bucket_high": 0.8, "sample_count": 2, "mean_predicted_probability": 0.7341047776132232, "observed_rate": 0.5, "calibration_gap": -0.2341047776132232}, {"scope": "league", "league": "bundesliga", "model": "engine", "outcome": "away", "bucket": "0.8_to_0.9", "bucket_low": 0.8, "bucket_high": 0.9, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}, {"scope": "league", "league": "bundesliga", "model": "engine", "outcome": "away", "bucket": "0.9_to_1.0", "bucket_low": 0.9, "bucket_high": 1.0, "sample_count": 0, "mean_predicted_probability": null, "observed_rate": null, "calibration_gap": null}], "xg_metrics": [{"scope": "league", "league": "bundesliga", "sample_count": 72, "home_xg_mae": 1.185277777777778, "home_xg_rmse": 1.3868058824347247, "home_xg_bias": -0.3988888888888889, "away_xg_mae": 0.9131944444444444, "away_xg_rmse": 1.1944193149811333, "away_xg_bias": -0.0376388888888888, "total_xg_mae": 1.434861111111111, "total_xg_rmse": 1.7385222811980932, "total_xg_bias": -0.4365277777777778}], "markets": {"match_odds": {"display": "Match Odds", "by": {"ev": [{"bucket": "0.00_to_0.05", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}], "kelly": [{"bucket": "0.00_to_0.05", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}], "month": [{"bucket": 4, "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}], "odds": [{"bucket": "-149_to_-100", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}], "model_prob": [{"bucket": "0.5_to_0.6", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}], "win_prob": [{"bucket": "0.5_to_0.6", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}]}, "by_side": {"ev": [{"bucket": "0.00_to_0.05", "side": "away", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}], "kelly": [{"bucket": "0.00_to_0.05", "side": "away", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}], "month": [{"bucket": 4, "side": "away", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}], "odds": [{"bucket": "-149_to_-100", "side": "away", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}], "model_prob": [{"bucket": "0.5_to_0.6", "side": "away", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}], "win_prob": [{"bucket": "0.5_to_0.6", "side": "away", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}]}}, "btts": {"display": "BTTS", "by": {"ev": [{"bucket": "0.00_to_0.05", "Win": 4, "Loss": 1, "Push": 0, "Total": 5, "Sample_Count": 5, "Win_Pct": 0.8}, {"bucket": "0.05_to_0.10", "Win": 5, "Loss": 0, "Push": 0, "Total": 5, "Sample_Count": 5, "Win_Pct": 1.0}, {"bucket": "0.10_to_0.15", "Win": 4, "Loss": 1, "Push": 0, "Total": 5, "Sample_Count": 5, "Win_Pct": 0.8}, {"bucket": "0.15_to_0.20", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.65_to_0.70", "Win": 0, "Loss": 1, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 0.0}], "kelly": [{"bucket": "0.00_to_0.05", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.05_to_0.10", "Win": 3, "Loss": 1, "Push": 0, "Total": 4, "Sample_Count": 4, "Win_Pct": 0.75}, {"bucket": "0.10_to_0.15", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.15_to_0.20", "Win": 4, "Loss": 0, "Push": 0, "Total": 4, "Sample_Count": 4, "Win_Pct": 1.0}, {"bucket": "0.20_to_0.25", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.25_to_0.30", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.30_to_0.35", "Win": 3, "Loss": 0, "Push": 0, "Total": 3, "Sample_Count": 3, "Win_Pct": 1.0}, {"bucket": "0.45_to_0.50", "Win": 0, "Loss": 2, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.0}], "month": [{"bucket": 4, "Win": 8, "Loss": 1, "Push": 0, "Total": 9, "Sample_Count": 9, "Win_Pct": 0.8889}, {"bucket": 5, "Win": 6, "Loss": 1, "Push": 0, "Total": 7, "Sample_Count": 7, "Win_Pct": 0.8571}, {"bucket": 9, "Win": 0, "Loss": 1, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 0.0}], "odds": [{"bucket": "-300_or_lower", "Win": 1, "Loss": 1, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.5}, {"bucket": "-299_to_-250", "Win": 2, "Loss": 0, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 1.0}, {"bucket": "-249_to_-200", "Win": 6, "Loss": 0, "Push": 0, "Total": 6, "Sample_Count": 6, "Win_Pct": 1.0}, {"bucket": "-199_to_-150", "Win": 5, "Loss": 1, "Push": 0, "Total": 6, "Sample_Count": 6, "Win_Pct": 0.8333}, {"bucket": "+100_to_+149", "Win": 0, "Loss": 1, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 0.0}], "model_prob": [{"bucket": "0.6_to_0.7", "Win": 4, "Loss": 2, "Push": 0, "Total": 6, "Sample_Count": 6, "Win_Pct": 0.6667}, {"bucket": "0.7_to_0.8", "Win": 6, "Loss": 0, "Push": 0, "Total": 6, "Sample_Count": 6, "Win_Pct": 1.0}, {"bucket": "0.8_to_0.9", "Win": 4, "Loss": 1, "Push": 0, "Total": 5, "Sample_Count": 5, "Win_Pct": 0.8}]}, "by_side": {"ev": [{"bucket": "0.00_to_0.05", "side": "yes", "Win": 4, "Loss": 1, "Push": 0, "Total": 5, "Sample_Count": 5, "Win_Pct": 0.8}, {"bucket": "0.05_to_0.10", "side": "yes", "Win": 5, "Loss": 0, "Push": 0, "Total": 5, "Sample_Count": 5, "Win_Pct": 1.0}, {"bucket": "0.10_to_0.15", "side": "yes", "Win": 4, "Loss": 1, "Push": 0, "Total": 5, "Sample_Count": 5, "Win_Pct": 0.8}, {"bucket": "0.15_to_0.20", "side": "yes", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.65_to_0.70", "side": "yes", "Win": 0, "Loss": 1, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 0.0}], "kelly": [{"bucket": "0.00_to_0.05", "side": "yes", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.05_to_0.10", "side": "yes", "Win": 3, "Loss": 1, "Push": 0, "Total": 4, "Sample_Count": 4, "Win_Pct": 0.75}, {"bucket": "0.10_to_0.15", "side": "yes", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.15_to_0.20", "side": "yes", "Win": 4, "Loss": 0, "Push": 0, "Total": 4, "Sample_Count": 4, "Win_Pct": 1.0}, {"bucket": "0.20_to_0.25", "side": "yes", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.25_to_0.30", "side": "yes", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.30_to_0.35", "side": "yes", "Win": 3, "Loss": 0, "Push": 0, "Total": 3, "Sample_Count": 3, "Win_Pct": 1.0}, {"bucket": "0.45_to_0.50", "side": "yes", "Win": 0, "Loss": 2, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.0}], "month": [{"bucket": 4, "side": "yes", "Win": 8, "Loss": 1, "Push": 0, "Total": 9, "Sample_Count": 9, "Win_Pct": 0.8889}, {"bucket": 5, "side": "yes", "Win": 6, "Loss": 1, "Push": 0, "Total": 7, "Sample_Count": 7, "Win_Pct": 0.8571}, {"bucket": 9, "side": "yes", "Win": 0, "Loss": 1, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 0.0}], "odds": [{"bucket": "-300_or_lower", "side": "yes", "Win": 1, "Loss": 1, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.5}, {"bucket": "-299_to_-250", "side": "yes", "Win": 2, "Loss": 0, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 1.0}, {"bucket": "-249_to_-200", "side": "yes", "Win": 6, "Loss": 0, "Push": 0, "Total": 6, "Sample_Count": 6, "Win_Pct": 1.0}, {"bucket": "-199_to_-150", "side": "yes", "Win": 5, "Loss": 1, "Push": 0, "Total": 6, "Sample_Count": 6, "Win_Pct": 0.8333}, {"bucket": "+100_to_+149", "side": "yes", "Win": 0, "Loss": 1, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 0.0}], "model_prob": [{"bucket": "0.6_to_0.7", "side": "yes", "Win": 4, "Loss": 2, "Push": 0, "Total": 6, "Sample_Count": 6, "Win_Pct": 0.6667}, {"bucket": "0.7_to_0.8", "side": "yes", "Win": 6, "Loss": 0, "Push": 0, "Total": 6, "Sample_Count": 6, "Win_Pct": 1.0}, {"bucket": "0.8_to_0.9", "side": "yes", "Win": 4, "Loss": 1, "Push": 0, "Total": 5, "Sample_Count": 5, "Win_Pct": 0.8}]}}, "total25": {"display": "Total 2.5", "by": {"ev": [{"bucket": "0.40_to_0.45", "Win": 0, "Loss": 1, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 0.0}, {"bucket": "0.45_to_0.50", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}], "kelly": [{"bucket": "0.15_to_0.20", "Win": 1, "Loss": 1, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.5}], "month": [{"bucket": 5, "Win": 1, "Loss": 1, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.5}], "odds": [{"bucket": "+200_to_+249", "Win": 0, "Loss": 1, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 0.0}, {"bucket": "+250_to_+299", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}], "model_prob": [{"bucket": "0.3_to_0.4", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.4_to_0.5", "Win": 0, "Loss": 1, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 0.0}]}, "by_side": {"ev": [{"bucket": "0.40_to_0.45", "side": "under", "Win": 0, "Loss": 1, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 0.0}, {"bucket": "0.45_to_0.50", "side": "under", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}], "kelly": [{"bucket": "0.15_to_0.20", "side": "under", "Win": 1, "Loss": 1, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.5}], "month": [{"bucket": 5, "side": "under", "Win": 1, "Loss": 1, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.5}], "odds": [{"bucket": "+200_to_+249", "side": "under", "Win": 0, "Loss": 1, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 0.0}, {"bucket": "+250_to_+299", "side": "under", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}], "model_prob": [{"bucket": "0.3_to_0.4", "side": "under", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.4_to_0.5", "side": "under", "Win": 0, "Loss": 1, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 0.0}]}}, "total35": {"display": "Total 3.5", "by": {"ev": [{"bucket": "0.05_to_0.10", "Win": 2, "Loss": 1, "Push": 0, "Total": 3, "Sample_Count": 3, "Win_Pct": 0.6667}, {"bucket": "0.30_to_0.35", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.35_to_0.40", "Win": 1, "Loss": 1, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.5}, {"bucket": "0.45_to_0.50", "Win": 2, "Loss": 0, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 1.0}], "kelly": [{"bucket": "0.05_to_0.10", "Win": 0, "Loss": 1, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 0.0}, {"bucket": "0.10_to_0.15", "Win": 2, "Loss": 0, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 1.0}, {"bucket": "0.30_to_0.35", "Win": 2, "Loss": 0, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 1.0}, {"bucket": "0.35_to_0.40", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.40_to_0.45", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.45_to_0.50", "Win": 0, "Loss": 1, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 0.0}], "month": [{"bucket": 5, "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": 8, "Win": 3, "Loss": 0, "Push": 0, "Total": 3, "Sample_Count": 3, "Win_Pct": 1.0}, {"bucket": 9, "Win": 2, "Loss": 2, "Push": 0, "Total": 4, "Sample_Count": 4, "Win_Pct": 0.5}], "odds": [{"bucket": "-149_to_-100", "Win": 2, "Loss": 2, "Push": 0, "Total": 4, "Sample_Count": 4, "Win_Pct": 0.5}, {"bucket": "+100_to_+149", "Win": 4, "Loss": 0, "Push": 0, "Total": 4, "Sample_Count": 4, "Win_Pct": 1.0}], "model_prob": [{"bucket": "0.6_to_0.7", "Win": 6, "Loss": 1, "Push": 0, "Total": 7, "Sample_Count": 7, "Win_Pct": 0.8571}, {"bucket": "0.7_to_0.8", "Win": 0, "Loss": 1, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 0.0}]}, "by_side": {"ev": [{"bucket": "0.05_to_0.10", "side": "under", "Win": 2, "Loss": 1, "Push": 0, "Total": 3, "Sample_Count": 3, "Win_Pct": 0.6667}, {"bucket": "0.30_to_0.35", "side": "under", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.35_to_0.40", "side": "under", "Win": 1, "Loss": 1, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 0.5}, {"bucket": "0.45_to_0.50", "side": "under", "Win": 2, "Loss": 0, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 1.0}], "kelly": [{"bucket": "0.05_to_0.10", "side": "under", "Win": 0, "Loss": 1, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 0.0}, {"bucket": "0.10_to_0.15", "side": "under", "Win": 2, "Loss": 0, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 1.0}, {"bucket": "0.30_to_0.35", "side": "under", "Win": 2, "Loss": 0, "Push": 0, "Total": 2, "Sample_Count": 2, "Win_Pct": 1.0}, {"bucket": "0.35_to_0.40", "side": "under", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.40_to_0.45", "side": "under", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": "0.45_to_0.50", "side": "under", "Win": 0, "Loss": 1, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 0.0}], "month": [{"bucket": 5, "side": "under", "Win": 1, "Loss": 0, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 1.0}, {"bucket": 8, "side": "under", "Win": 3, "Loss": 0, "Push": 0, "Total": 3, "Sample_Count": 3, "Win_Pct": 1.0}, {"bucket": 9, "side": "under", "Win": 2, "Loss": 2, "Push": 0, "Total": 4, "Sample_Count": 4, "Win_Pct": 0.5}], "odds": [{"bucket": "-149_to_-100", "side": "under", "Win": 2, "Loss": 2, "Push": 0, "Total": 4, "Sample_Count": 4, "Win_Pct": 0.5}, {"bucket": "+100_to_+149", "side": "under", "Win": 4, "Loss": 0, "Push": 0, "Total": 4, "Sample_Count": 4, "Win_Pct": 1.0}], "model_prob": [{"bucket": "0.6_to_0.7", "side": "under", "Win": 6, "Loss": 1, "Push": 0, "Total": 7, "Sample_Count": 7, "Win_Pct": 0.8571}, {"bucket": "0.7_to_0.8", "side": "under", "Win": 0, "Loss": 1, "Push": 0, "Total": 1, "Sample_Count": 1, "Win_Pct": 0.0}]}}}}};
+
+document.addEventListener('DOMContentLoaded', () => {
+  Object.keys(ALL_DATA).forEach(league => {
+    buildLeagueSection(league, ALL_DATA[league]);
+  });
+
+  let initial = 'bundesliga';
+  try {
+    const stored = localStorage.getItem('soccer_dash_league');
+    if (stored && ALL_DATA[stored]) initial = stored;
+  } catch (e) {}
+
+  selectLeague(initial);
+});

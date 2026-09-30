@@ -1,0 +1,51 @@
+{% extends "accounts/base.html" %}
+{% block title %}Create Account{% endblock %}
+{% block content %}
+<div class="auth-card">
+  <div class="auth-eyebrow">ACCOUNT</div>
+  <h1>Create account</h1>
+  <p class="auth-intro">
+    Create your SportsModelHub account. Private data and personalized features
+    will be attached to this identity as they are introduced.
+  </p>
+
+  {% include "accounts/_form_errors.html" %}
+
+  <form method="post" class="auth-form" novalidate>
+    {% csrf_token %}
+
+    <div class="auth-field">
+      <label for="{{ form.email.id_for_label }}">Email</label>
+      {{ form.email }}
+      {% for error in form.email.errors %}
+        <div class="auth-field-error">{{ error }}</div>
+      {% endfor %}
+    </div>
+
+    <div class="auth-field">
+      <label for="{{ form.password1.id_for_label }}">Password</label>
+      {{ form.password1 }}
+      {% if form.password1.help_text %}
+        <div class="auth-help">{{ form.password1.help_text|safe }}</div>
+      {% endif %}
+      {% for error in form.password1.errors %}
+        <div class="auth-field-error">{{ error }}</div>
+      {% endfor %}
+    </div>
+
+    <div class="auth-field">
+      <label for="{{ form.password2.id_for_label }}">Confirm password</label>
+      {{ form.password2 }}
+      {% for error in form.password2.errors %}
+        <div class="auth-field-error">{{ error }}</div>
+      {% endfor %}
+    </div>
+
+    <button type="submit" class="auth-primary">Create account</button>
+  </form>
+
+  <div class="auth-footer">
+    Already have an account? <a href="{% url 'accounts:login' %}">Sign in</a>
+  </div>
+</div>
+{% endblock %}

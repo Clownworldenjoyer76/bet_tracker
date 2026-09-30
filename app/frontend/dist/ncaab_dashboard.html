@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NCAAB Analytics | Dashboard</title>
+<link rel="stylesheet" href="assets/css/matstheme.css">
+<link rel="stylesheet" href="assets/css/dashboard.css">
+<link rel="stylesheet" href="assets/css/pages/ncaab_dashboard.css">
+<link rel="stylesheet" href="assets/css/site-polish.css">
+</head>
+<body>
+<div id="nav-placeholder"></div>
+
+<header>
+  <div>
+    <h1>NCAAB Analytics</h1>
+    <div class="header-sub">Betting Performance Dashboard</div>
+  </div>
+  <div class="status-pill" id="last-updated">LOADING...</div>
+</header>
+
+<div class="dash-tabs">
+  <a class="active" onclick="showSection('market', this)">Market</a>
+  <a onclick="showSection('side', this)">Side</a>
+  <a onclick="showSection('edge', this)">Edge</a>
+  <a onclick="showSection('odds', this)">Odds</a>
+  <a onclick="showSection('kelly', this)">Kelly</a>
+  <a onclick="showSection('date', this)">By Date</a>
+  <a onclick="showSection('betlog', this)">Bet Log</a>
+  <a onclick="showSection('tally', this)">Tally</a>
+</div>
+
+<main>
+  <div class="stat-grid" id="stat-cards" style="display:none">
+    <div class="stat-card accent">
+      <div class="stat-label">Total Bets</div>
+      <div class="stat-value accent" id="s-bets">—</div>
+    </div>
+    <div class="stat-card green">
+      <div class="stat-label">Win Rate</div>
+      <div class="stat-value green" id="s-wr">—</div>
+    </div>
+    <div class="stat-card gold">
+      <div class="stat-label">ROI</div>
+      <div class="stat-value gold" id="s-roi">—</div>
+    </div>
+    <div class="stat-card green">
+      <div class="stat-label">Units</div>
+      <div class="stat-value green" id="s-units">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Wins</div>
+      <div class="stat-value green" id="s-wins">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Losses</div>
+      <div class="stat-value red" id="s-losses">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Avg Edge</div>
+      <div class="stat-value accent" id="s-edge">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Avg Odds</div>
+      <div class="stat-value" id="s-odds">—</div>
+    </div>
+  </div>
+
+  <div class="section active" id="sec-market">
+    <div class="section-title"><span></span>BY MARKET</div>
+    <div class="table-wrap"><div class="loading" id="load-market">Loading...</div></div>
+  </div>
+  <div class="section" id="sec-side">
+    <div class="section-title"><span></span>BY SIDE</div>
+    <div class="table-wrap"><div class="loading" id="load-side">Loading...</div></div>
+  </div>
+  <div class="section" id="sec-edge">
+    <div class="section-title"><span></span>BY EDGE BUCKET</div>
+    <div class="grid-2">
+      <div>
+        <div class="section-title" style="font-size:1rem">MONEYLINE</div>
+        <div class="table-wrap"><div class="loading" id="load-edge-ml">Loading...</div></div>
+      </div>
+      <div>
+        <div class="section-title" style="font-size:1rem">SPREAD</div>
+        <div class="table-wrap"><div class="loading" id="load-edge-sp">Loading...</div></div>
+      </div>
+    </div>
+    <div class="section-title" style="font-size:1rem">TOTAL</div>
+    <div class="table-wrap"><div class="loading" id="load-edge-tot">Loading...</div></div>
+  </div>
+  <div class="section" id="sec-odds">
+    <div class="section-title"><span></span>BY ODDS BUCKET</div>
+    <div class="grid-2">
+      <div>
+        <div class="section-title" style="font-size:1rem">MONEYLINE</div>
+        <div class="table-wrap"><div class="loading" id="load-odds-ml">Loading...</div></div>
+      </div>
+      <div>
+        <div class="section-title" style="font-size:1rem">SPREAD</div>
+        <div class="table-wrap"><div class="loading" id="load-odds-sp">Loading...</div></div>
+      </div>
+    </div>
+    <div class="section-title" style="font-size:1rem">TOTAL</div>
+    <div class="table-wrap"><div class="loading" id="load-odds-tot">Loading...</div></div>
+  </div>
+  <div class="section" id="sec-kelly">
+    <div class="section-title"><span></span>BY KELLY BUCKET</div>
+    <div class="grid-2">
+      <div>
+        <div class="section-title" style="font-size:1rem">MONEYLINE</div>
+        <div class="table-wrap"><div class="loading" id="load-kelly-ml">Loading...</div></div>
+      </div>
+      <div>
+        <div class="section-title" style="font-size:1rem">SPREAD</div>
+        <div class="table-wrap"><div class="loading" id="load-kelly-sp">Loading...</div></div>
+      </div>
+    </div>
+    <div class="section-title" style="font-size:1rem">TOTAL</div>
+    <div class="table-wrap"><div class="loading" id="load-kelly-tot">Loading...</div></div>
+  </div>
+  <div class="section" id="sec-date">
+    <div class="section-title"><span></span>PERFORMANCE BY DATE</div>
+    <div class="date-chart">
+      <canvas id="date-canvas" height="280"></canvas>
+    </div>
+    <div class="table-wrap"><div class="loading" id="load-date">Loading...</div></div>
+  </div>
+  <div class="section" id="sec-betlog">
+    <div class="section-title"><span></span>BET LOG</div>
+    <input type="text" class="search-bar" placeholder="Search teams, market, result..." oninput="filterBetLog(this.value)">
+    <div class="table-wrap" id="betlog-wrap"><div class="loading">Loading...</div></div>
+    <div class="pagination" id="betlog-pages"></div>
+  </div>
+  <div class="section" id="sec-tally">
+    <div class="section-title"><span></span>MARKET TALLY</div>
+    <div class="bar-chart" id="tally-chart"><div class="loading">Loading...</div></div>
+    <div class="table-wrap"><div class="loading" id="load-tally-table">Loading...</div></div>
+  </div>
+</main>
+
+<script src="assets/js/shared/nav.js"></script>
+<script src="assets/js/pages/ncaab_dashboard.js"></script>
+</body>
+</html>

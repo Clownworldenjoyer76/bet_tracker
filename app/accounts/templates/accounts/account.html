@@ -1,0 +1,178 @@
+{% extends "accounts/base.html" %}
+{% block title %}Account{% endblock %}
+{% block content %}
+<div class="auth-card auth-card-wide">
+  <div class="auth-eyebrow">ACCOUNT</div>
+  <h1>Your account</h1>
+  <p class="auth-intro">
+    Your account is private. Preferences saved here are attached only to your
+    authenticated user record.
+  </p>
+
+  <dl class="account-details">
+    <div>
+      <dt>Email</dt>
+      <dd>{{ request.user.email }}</dd>
+    </div>
+    <div>
+      <dt>Joined</dt>
+      <dd>{{ request.user.date_joined|date:"M j, Y" }}</dd>
+    </div>
+    <div>
+      <dt>Status</dt>
+      <dd>Active</dd>
+    </div>
+    <div>
+      <dt>Plan</dt>
+      <dd>{{ access_plan.name }}</dd>
+    </div>
+    <div>
+      <dt>Subscription</dt>
+      <dd>{{ access_status_label }}</dd>
+    </div>
+  </dl>
+
+  <div class="account-section">
+    <div class="auth-eyebrow">ACCESS</div>
+    <h2>Entitlements</h2>
+    <p class="auth-intro">
+      Your current plan controls premium server-side features. Billing is not
+      connected yet; plan assignments and temporary overrides are managed
+      internally through Django admin.
+    </p>
+    <div class="account-feature-list">
+      {% for feature in access_features %}
+        <span class="account-feature">{{ feature }}</span>
+      {% empty %}
+        <span class="auth-help">No active feature entitlements.</span>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="account-section">
+    <div class="auth-eyebrow">BILLING</div>
+    <h2>Subscription billing</h2>
+
+    {% if billing_notice == "success" %}
+      <div class="auth-alert auth-alert-success" role="status">
+        Checkout completed. Access updates after Stripe confirms the subscription webhook.
+      </div>
+    {% elif billing_notice == "canceled" %}
+      <div class="auth-alert" role="status">
+        Checkout was canceled. Your current plan was not changed.
+      </div>
+    {% endif %}
+
+    {% if billing_checkout_configured %}
+      {% if access_plan.slug == "free" %}
+        <p class="auth-intro">
+          Upgrade checkout is handled on Stripe's hosted payment page. Premium
+          access is granted only after the signed webhook updates your internal
+          subscription record.
+        </p>
+        <form method="post" action="{% url 'accounts:billing_checkout' %}">
+          {% csrf_token %}
+          <button type="submit" class="auth-primary">Upgrade to Pro</button>
+        </form>
+      {% else %}
+        <p class="auth-intro">
+          Your current application plan is {{ access_plan.name }}.
+        </p>
+      {% endif %}
+
+      {% if billing_customer_linked %}
+        <form method="post" action="{% url 'accounts:billing_portal' %}" class="account-billing-secondary">
+          {% csrf_token %}
+          <button type="submit" class="auth-secondary">Manage billing</button>
+        </form>
+      {% endif %}
+
+      {% if billing_external_status %}
+        <dl class="account-details account-billing-details">
+          <div>
+            <dt>Provider status</dt>
+            <dd>{{ billing_external_status }}</dd>
+          </div>
+          <div>
+            <dt>Cancel at period end</dt>
+            <dd>{{ billing_cancel_at_period_end|yesno:"Yes,No" }}</dd>
+          </div>
+          {% if billing_current_period_end %}
+            <div>
+              <dt>Current period end</dt>
+              <dd>{{ billing_current_period_end|date:"M j, Y" }}</dd>
+            </div>
+          {% endif %}
+        </dl>
+      {% endif %}
+    {% else %}
+      <p class="auth-intro">
+        Billing code is installed but local Stripe credentials and the Pro
+        Price ID have not been configured yet.
+      </p>
+    {% endif %}
+
+    {% if billing_checkout_configured and not billing_webhook_configured %}
+      <div class="auth-alert auth-alert-error" role="alert">
+        Checkout is configured, but the Stripe webhook signing secret is missing.
+        Do not treat checkout redirects as proof of subscription access.
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="account-section">
+    <div class="auth-eyebrow">PREFERENCES</div>
+    <h2>Display & Kelly settings</h2>
+    <p class="auth-intro">
+      Signed-in preferences follow you across sessions. The bankroll value is
+      used only to calculate displayed stake amounts on the Kelly Calculator.
+    </p>
+
+    {% if preferences_saved %}
+      <div class="auth-alert auth-alert-success" role="status">
+        Preferences saved.
+      </div>
+    {% endif %}
+
+    <form method="post" class="auth-form">
+      {% csrf_token %}
+
+      <div class="auth-field">
+        <label for="{{ preferences_form.timezone.id_for_label }}">Timezone</label>
+        {{ preferences_form.timezone }}
+        {% for error in preferences_form.timezone.errors %}
+          <div class="auth-field-error">{{ error }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="auth-field">
+        <label for="{{ preferences_form.bankroll.id_for_label }}">Bankroll</label>
+        {{ preferences_form.bankroll }}
+        <div class="auth-help">
+          Optional. Stored privately in your account and used for Kelly stake calculations.
+        </div>
+        {% for error in preferences_form.bankroll.errors %}
+          <div class="auth-field-error">{{ error }}</div>
+        {% endfor %}
+      </div>
+
+      <div class="auth-field">
+        <label for="{{ preferences_form.kelly_fraction.id_for_label }}">Kelly fraction</label>
+        {{ preferences_form.kelly_fraction }}
+        {% for error in preferences_form.kelly_fraction.errors %}
+          <div class="auth-field-error">{{ error }}</div>
+        {% endfor %}
+      </div>
+
+      <button type="submit" class="auth-primary">Save preferences</button>
+    </form>
+  </div>
+
+  <div class="account-section account-section-last">
+    <form method="post" action="{% url 'accounts:logout' %}">
+      {% csrf_token %}
+      <button type="submit" class="auth-secondary">Sign out</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
