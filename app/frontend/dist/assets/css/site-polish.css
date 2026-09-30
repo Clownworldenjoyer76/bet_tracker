@@ -604,61 +604,32 @@ body.generated-dashboard tbody tr:hover {
     landing-bg-desktop.webp
 
   Interior pages:
-    interior-bg-desktop.webp
+    solid #0f141b via --bg-card
 
-  Home -> interior:
-    700ms crossfade before navigation.
+  No image transition is used.
 */
 
 body {
   position: relative;
   min-height: 100vh;
-  background: transparent !important;
+  background: var(--bg-card) !important;
   isolation: isolate;
 }
 
-body::before,
-body::after {
+body.smh-home-page {
+  background: transparent !important;
+}
+
+body.smh-home-page::before {
   content: "";
   position: fixed;
   inset: 0;
   pointer-events: none;
+  z-index: -2;
   background-position: center center;
   background-repeat: no-repeat;
   background-size: cover;
-}
-
-/* Interior is the default background for every page. */
-body::before {
-  z-index: -2;
-  background-image: url("../images/interior-bg-desktop.webp");
-}
-
-/* Home starts on the landing artwork. */
-body.smh-home-page::before {
   background-image: url("../images/landing-bg-desktop.webp");
-}
-
-/*
-  Hidden interior layer on Home.
-  It fades over the landing artwork before navigation.
-*/
-body.smh-home-page::after {
-  z-index: -1;
-  opacity: 0;
-  background-image: url("../images/interior-bg-desktop.webp");
-  transition: opacity 700ms ease-in-out;
-  will-change: opacity;
-}
-
-body.smh-home-page.smh-bg-transitioning::after {
-  opacity: 1;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  body.smh-home-page::after {
-    transition: none;
-  }
 }
 
 /* SMH_BACKGROUND_SYSTEM_END */
