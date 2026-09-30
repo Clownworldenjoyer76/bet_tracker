@@ -96,29 +96,53 @@
         });
       }
 
-      // Clock + signed-in preference sync.
-      const tzSel   = document.getElementById('tz-select');
+      // Clock + signed-in Account timezone sync.
       const clockEl = document.getElementById('live-clock');
-      let preferenceCsrfToken = null;
-      let signedInPreferences = false;
+      let clockTimeZone = 'America/New_York';
 
-      tzSel.value = localStorage.getItem('edgelytics_tz') || 'America/New_York';
+      function timeZoneLabel(now) {
+        try {
+          const part = new Intl.DateTimeFormat('en-US', {
+            timeZone: clockTimeZone,
+            timeZoneName: 'short'
+          }).formatToParts(now).find(part => part.type === 'timeZoneName');
+
+          return part ? part.value : '';
+        } catch {
+          return '';
+        }
+      }
 
       function tick() {
-        const tz    = tzSel.value;
-        const label = tzSel.options[tzSel.selectedIndex].text;
-        const now   = new Date();
+        const now = new Date();
         const compact = window.matchMedia('(max-width: 900px)').matches;
+
         const t = now.toLocaleTimeString('en-US', {
-          timeZone: tz,
+          timeZone: clockTimeZone,
           hour12: true,
           hour: 'numeric',
           minute: '2-digit'
         });
+
         const d = now.toLocaleDateString('en-US', compact
-          ? { timeZone: tz, month: 'short', day: 'numeric' }
-          : { timeZone: tz, weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
-        clockEl.textContent = compact ? `${t} · ${d}` : `${label}  ${t}   ${d}`;
+          ? {
+              timeZone: clockTimeZone,
+              month: 'short',
+              day: 'numeric'
+            }
+          : {
+              timeZone: clockTimeZone,
+              weekday: 'long',
+              month: 'long',
+              day: 'numeric',
+              year: 'numeric'
+            });
+
+        const label = timeZoneLabel(now);
+
+        clockEl.textContent = compact
+          ? `${t} · ${d}`
+          : `${label ? label + '  ' : ''}${t}   ${d}`;
       }
 
       async function loadAccountPreferences() {
@@ -131,45 +155,22 @@
           if (!response.ok) return;
 
           const data = await response.json();
-          if (!data.authenticated) return;
+          if (!data.authenticated || !data.timezone) return;
 
-          signedInPreferences = true;
-          preferenceCsrfToken = data.csrfToken || null;
+          try {
+            new Intl.DateTimeFormat('en-US', {
+              timeZone: data.timezone
+            }).format(new Date());
 
-          if (data.timezone && Array.from(tzSel.options).some(option => option.value === data.timezone)) {
-            tzSel.value = data.timezone;
-            localStorage.setItem('edgelytics_tz', data.timezone);
+            clockTimeZone = data.timezone;
             tick();
+          } catch {
+            // Keep default timezone if saved value is invalid.
           }
-        } catch (error) {
-          // Local browser preference remains the fallback.
+        } catch {
+          // Default timezone remains the fallback.
         }
       }
-
-      async function saveAccountTimezone(timezone) {
-        if (!signedInPreferences || !preferenceCsrfToken) return;
-
-        try {
-          await fetch('https://api.sportsmodelhub.com/api/account/preferences/', {
-            method: 'POST',
-            credentials: 'include',
-            headers: {
-              'Accept': 'application/json',
-              'Content-Type': 'application/json',
-              'X-CSRFToken': preferenceCsrfToken
-            },
-            body: JSON.stringify({ timezone: timezone })
-          });
-        } catch (error) {
-          // Keep the local preference when the server is temporarily unavailable.
-        }
-      }
-
-      tzSel.addEventListener('change', () => {
-        localStorage.setItem('edgelytics_tz', tzSel.value);
-        tick();
-        saveAccountTimezone(tzSel.value);
-      });
 
       tick();
       loadAccountPreferences();
