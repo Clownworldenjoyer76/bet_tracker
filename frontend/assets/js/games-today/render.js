@@ -39,8 +39,9 @@ export function buildFilters(results) {
   container.innerHTML = "";
 
   const makePill = (text, league) => {
-    const pill = document.createElement("div");
+    const pill = document.createElement("button");
     pill.className = `filter-pill${league === "all" ? " active" : ""}`;
+    pill.type = "button";
     pill.textContent = text;
     pill.dataset.league = league;
     return pill;
@@ -73,8 +74,15 @@ export function buildFilters(results) {
 export function buildGameCard(game) {
   const card = document.createElement("div");
   card.className = "gt-card";
+  card.setAttribute("role", "button");
+  card.tabIndex = 0;
 
   const c = game.card || {};
+  card.setAttribute(
+    "aria-label",
+    "Open game details: " +
+      (game.title || [c.away, c.home].filter(Boolean).join(" at ") || game.displayLeague || "game")
+  );
   const spreadLabel = labelForSpread(game);
 
   card.innerHTML = `
@@ -130,6 +138,13 @@ export function buildGameCard(game) {
     openGameModal(game);
   });
   /* SMH_GAME_DETAILS_ANALYTICS_END */
+
+  card.addEventListener("keydown", event => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      card.click();
+    }
+  });
 
   return card;
 }

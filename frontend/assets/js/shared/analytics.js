@@ -157,7 +157,6 @@ posthog.init('phc_r8rHehNywABoAFEGt5vTx8iTpoTY6hiFoyygPrMF6WE4', {
   const replayPages = new Set([
     "the_picks",
     "games_today",
-    "kelly_calculator",
     "prop_engine",
     "props_nfl"
   ]);

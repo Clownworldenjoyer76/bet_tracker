@@ -45,26 +45,134 @@
         }
       });
 
-      // Clock
+      // Mobile navigation
+      const siteNav = el.querySelector('.site-nav');
+      const mobileNavToggle = el.querySelector('#nav-mobile-toggle');
+      const mobileNavState = mobileNavToggle ? mobileNavToggle.querySelector('.nav-mobile-state') : null;
+      const mobileQuery = window.matchMedia('(max-width: 900px)');
+
+      function closeMobileNav() {
+        if (!siteNav || !mobileNavToggle) return;
+        siteNav.classList.remove('nav-open');
+        mobileNavToggle.setAttribute('aria-expanded', 'false');
+        if (mobileNavState) mobileNavState.textContent = '☰';
+        el.querySelectorAll('.nav-dropdown.open').forEach(item => item.classList.remove('open'));
+      }
+
+      if (siteNav && mobileNavToggle) {
+        mobileNavToggle.addEventListener('click', () => {
+          const opening = !siteNav.classList.contains('nav-open');
+          siteNav.classList.toggle('nav-open', opening);
+          mobileNavToggle.setAttribute('aria-expanded', opening ? 'true' : 'false');
+          if (mobileNavState) mobileNavState.textContent = opening ? 'CLOSE' : '☰';
+        });
+
+        el.querySelectorAll('.nav-dropdown-toggle').forEach(toggle => {
+          toggle.addEventListener('click', event => {
+            if (!mobileQuery.matches) return;
+            event.preventDefault();
+            const item = toggle.closest('.nav-dropdown');
+            if (!item) return;
+            const opening = !item.classList.contains('open');
+            el.querySelectorAll('.nav-dropdown.open').forEach(other => {
+              if (other !== item) other.classList.remove('open');
+            });
+            item.classList.toggle('open', opening);
+          });
+        });
+
+        el.querySelectorAll('.nav-links a[href]').forEach(link => {
+          link.addEventListener('click', () => {
+            if (mobileQuery.matches) closeMobileNav();
+          });
+        });
+
+        window.addEventListener('keydown', event => {
+          if (event.key === 'Escape') closeMobileNav();
+        });
+
+        window.addEventListener('resize', () => {
+          if (!mobileQuery.matches) closeMobileNav();
+        });
+      }
+
+      // Clock + signed-in preference sync.
       const tzSel   = document.getElementById('tz-select');
       const clockEl = document.getElementById('live-clock');
+      let preferenceCsrfToken = null;
+      let signedInPreferences = false;
+
       tzSel.value = localStorage.getItem('edgelytics_tz') || 'America/New_York';
 
       function tick() {
         const tz    = tzSel.value;
         const label = tzSel.options[tzSel.selectedIndex].text;
         const now   = new Date();
-        const t = now.toLocaleTimeString('en-US', { timeZone: tz, hour12: true });
-        const d = now.toLocaleDateString('en-US', { timeZone: tz, weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
-        clockEl.textContent = `${label}  ${t}   ${d}`;
+        const compact = window.matchMedia('(max-width: 900px)').matches;
+        const t = now.toLocaleTimeString('en-US', {
+          timeZone: tz,
+          hour12: true,
+          hour: 'numeric',
+          minute: '2-digit'
+        });
+        const d = now.toLocaleDateString('en-US', compact
+          ? { timeZone: tz, month: 'short', day: 'numeric' }
+          : { timeZone: tz, weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+        clockEl.textContent = compact ? `${t} · ${d}` : `${label}  ${t}   ${d}`;
+      }
+
+      async function loadAccountPreferences() {
+        try {
+          const response = await fetch('https://api.sportsmodelhub.com/api/account/preferences/', {
+            credentials: 'include',
+            headers: { 'Accept': 'application/json' }
+          });
+
+          if (!response.ok) return;
+
+          const data = await response.json();
+          if (!data.authenticated) return;
+
+          signedInPreferences = true;
+          preferenceCsrfToken = data.csrfToken || null;
+
+          if (data.timezone && Array.from(tzSel.options).some(option => option.value === data.timezone)) {
+            tzSel.value = data.timezone;
+            localStorage.setItem('edgelytics_tz', data.timezone);
+            tick();
+          }
+        } catch (error) {
+          // Local browser preference remains the fallback.
+        }
+      }
+
+      async function saveAccountTimezone(timezone) {
+        if (!signedInPreferences || !preferenceCsrfToken) return;
+
+        try {
+          await fetch('https://api.sportsmodelhub.com/api/account/preferences/', {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+              'X-CSRFToken': preferenceCsrfToken
+            },
+            body: JSON.stringify({ timezone: timezone })
+          });
+        } catch (error) {
+          // Keep the local preference when the server is temporarily unavailable.
+        }
       }
 
       tzSel.addEventListener('change', () => {
         localStorage.setItem('edgelytics_tz', tzSel.value);
         tick();
+        saveAccountTimezone(tzSel.value);
       });
 
       tick();
+      loadAccountPreferences();
       setInterval(tick, 1000);
 
       // Ticker
@@ -191,7 +299,8 @@
       '.ti-tag-inj{color:#ff4444;}',
       '.ti-tag-txn{color:#facc15;}',
       '.ti-body{color:#aaa;}',
-      '@keyframes ticker-scroll{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}'
+      '@keyframes ticker-scroll{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}',
+      '@media(max-width:900px){.ticker-item{padding:0 18px}.ticker-label{padding:0 8px}.ticker-wrap{height:27px}}'
     ].join('');
     document.head.appendChild(s);
   }
@@ -247,4 +356,146 @@
     renderTicker(items);
   }
 
+})();
+
+/* NAV ACCESSIBILITY POLISH 2026-09-29 */
+(() => {
+  if (window.__smhNavAccessibilityPolish) return;
+  window.__smhNavAccessibilityPolish = true;
+
+  function syncDropdownAria() {
+    document.querySelectorAll('.nav-dropdown-toggle').forEach(toggle => {
+      const parent = toggle.closest('.nav-dropdown');
+      const expanded = !!parent && (
+        parent.classList.contains('open') ||
+        parent.matches(':focus-within')
+      );
+      toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    });
+  }
+
+  document.addEventListener('keydown', event => {
+    const toggle = event.target.closest?.('.nav-dropdown-toggle');
+
+    if (toggle && (event.key === 'Enter' || event.key === ' ')) {
+      event.preventDefault();
+      toggle.click();
+      queueMicrotask(syncDropdownAria);
+      return;
+    }
+
+    if (toggle && event.key === 'ArrowDown') {
+      event.preventDefault();
+
+      const parent = toggle.closest('.nav-dropdown');
+      if (parent && !parent.classList.contains('open')) {
+        toggle.click();
+      }
+
+      requestAnimationFrame(() => {
+        const first = parent?.querySelector(
+          ':scope > .nav-dropdown-menu a[href], :scope > .nav-dropdown-menu button'
+        );
+        first?.focus();
+        syncDropdownAria();
+      });
+      return;
+    }
+
+    if (event.key === 'Escape') {
+      const parent = event.target.closest?.('.nav-dropdown');
+      if (!parent) return;
+
+      const parentToggle = parent.querySelector(':scope > .nav-dropdown-toggle');
+      parent.classList.remove('open');
+      parentToggle?.focus();
+      syncDropdownAria();
+    }
+  });
+
+  document.addEventListener('click', () => {
+    queueMicrotask(syncDropdownAria);
+  });
+
+  document.addEventListener('focusin', syncDropdownAria);
+  document.addEventListener('focusout', () => {
+    setTimeout(syncDropdownAria, 0);
+  });
+
+  const navHost = document.getElementById('nav-placeholder');
+  if (navHost) {
+    new MutationObserver(syncDropdownAria).observe(navHost, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['class']
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', syncDropdownAria);
+  } else {
+    syncDropdownAria();
+  }
+})();
+
+/* NAV ESCAPE SUPPRESSION 2026-09-29 */
+(() => {
+  if (window.__smhNavEscapeSuppression) return;
+  window.__smhNavEscapeSuppression = true;
+
+  const enforce = () => {
+    document.querySelectorAll('.nav-dropdown.keyboard-closed').forEach(parent => {
+      parent.querySelector(':scope > .nav-dropdown-toggle')
+        ?.setAttribute('aria-expanded', 'false');
+    });
+  };
+
+  document.addEventListener('keydown', event => {
+    const toggle = event.target.closest?.('.nav-dropdown-toggle');
+    const parent = event.target.closest?.('.nav-dropdown');
+
+    if (toggle && (event.key === 'Enter' || event.key === ' ' || event.key === 'ArrowDown')) {
+      parent?.classList.remove('keyboard-closed');
+      return;
+    }
+
+    if (event.key !== 'Escape' || !parent) return;
+
+    event.preventDefault();
+    event.stopImmediatePropagation();
+
+    const parentToggle = parent.querySelector(':scope > .nav-dropdown-toggle');
+
+    parent.classList.remove('open');
+    parent.classList.add('keyboard-closed');
+    parentToggle?.setAttribute('aria-expanded', 'false');
+
+    requestAnimationFrame(() => {
+      parentToggle?.focus();
+      parentToggle?.setAttribute('aria-expanded', 'false');
+      queueMicrotask(enforce);
+    });
+  }, true);
+
+  document.addEventListener('focusin', event => {
+    const parent = event.target.closest?.('.nav-dropdown');
+    if (parent && (!event.relatedTarget || !parent.contains(event.relatedTarget))) {
+      parent.classList.remove('keyboard-closed');
+    }
+    queueMicrotask(enforce);
+  }, true);
+
+  document.addEventListener('pointerover', event => {
+    event.target.closest?.('.nav-dropdown')?.classList.remove('keyboard-closed');
+  }, true);
+
+  const host = document.getElementById('nav-placeholder');
+  if (host) {
+    new MutationObserver(enforce).observe(host,{
+      subtree:true,
+      attributes:true,
+      attributeFilter:['class']
+    });
+  }
 })();

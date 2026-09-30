@@ -384,6 +384,14 @@
           competitors[i].team = await fetchRef(competitors[i].team);
         } catch (e) {}
       }
+
+      if (isRefItem(competitors[i].score)) {
+        try {
+          competitors[i].score = await fetchRef(competitors[i].score);
+        } catch (e) {
+          competitors[i].score = null;
+        }
+      }
     }
 
     var away = competitors.find(function(t) {
@@ -463,9 +471,25 @@
     if (score === null || score === undefined || score === '') return null;
 
     if (typeof score === 'object') {
-      if (score.displayValue !== undefined) return String(score.displayValue);
-      if (score.value !== undefined) return String(score.value);
-      if (score.score !== undefined) return String(score.score);
+      var keys = ['displayValue', 'value', 'score', 'points', 'total'];
+
+      for (var i = 0; i < keys.length; i++) {
+        if (!Object.prototype.hasOwnProperty.call(score, keys[i])) continue;
+
+        var value = score[keys[i]];
+
+        if (value === null || value === undefined || value === '') continue;
+
+        if (typeof value === 'object') {
+          var nested = normalizeScore(value);
+          if (nested !== null) return nested;
+          continue;
+        }
+
+        return String(value);
+      }
+
+      return null;
     }
 
     return String(score);
