@@ -739,3 +739,33 @@ body.smh-home-page::before {
 }
 
 /* SMH_NAV_ICONS_END */
+/* SMH_PAGE_TRANSITIONS_START */
+@view-transition {
+  navigation: auto;
+}
+
+@keyframes smh-page-transition-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+@keyframes smh-page-transition-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+::view-transition-old(root) {
+  animation: smh-page-transition-out 160ms ease both;
+}
+
+::view-transition-new(root) {
+  animation: smh-page-transition-in 160ms ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 1ms;
+  }
+}
+/* SMH_PAGE_TRANSITIONS_END */
