@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - "frontend/**"
+      - "app/frontend/**"`r`n      - "frontend/**"
       - ".github/workflows/___pages.yml"
 
   workflow_dispatch:
@@ -31,15 +31,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      - name: Build frontend from source
+        shell: pwsh
+        run: ./app/frontend/build/build.ps1
+
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
       - name: Upload frontend
         uses: actions/upload-pages-artifact@v5
         with:
-          path: ./frontend
+          path: ./app/frontend/dist
           include-hidden-files: true
 
       - name: Deploy GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
