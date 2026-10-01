@@ -242,13 +242,17 @@ def model_prob_bucket(value: Any) -> str:
 def spread_range_bucket(value: Any) -> str:
     value = to_float(value)
     if value is None: return "UNBUCKETED"
+    if value == 0: return "0.0"
+
+    prefix = "negative" if value < 0 else "positive"
     absolute = abs(value)
-    if absolute <= 2.5: return "0_to_2.5"
-    if absolute <= 3.5: return "3_to_3.5"
-    if absolute <= 6.5: return "4_to_6.5"
-    if absolute <= 9.5: return "7_to_9.5"
-    if absolute <= 13.5: return "10_to_13.5"
-    return "14_plus"
+
+    if absolute <= 2.5: return f"{prefix}_0_to_2.5"
+    if absolute <= 3.5: return f"{prefix}_3_to_3.5"
+    if absolute <= 6.5: return f"{prefix}_4_to_6.5"
+    if absolute <= 9.5: return f"{prefix}_7_to_9.5"
+    if absolute <= 13.5: return f"{prefix}_10_to_13.5"
+    return f"{prefix}_14_plus"
 
 
 def spread_line_bucket(value: Any) -> str:

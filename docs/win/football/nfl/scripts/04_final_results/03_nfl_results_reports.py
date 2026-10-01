@@ -109,8 +109,33 @@ WIN_PROB_BUCKETS = {
     "UNBUCKETED",
 }
 SPREAD_RANGE_BUCKETS = {
-    "0_to_2.5", "3_to_3.5", "4_to_6.5", "7_to_9.5",
-    "10_to_13.5", "14_plus", "UNBUCKETED",
+    "negative_14_plus", "negative_10_to_13.5", "negative_7_to_9.5",
+    "negative_4_to_6.5", "negative_3_to_3.5", "negative_0_to_2.5",
+    "0.0",
+    "positive_0_to_2.5", "positive_3_to_3.5", "positive_4_to_6.5",
+    "positive_7_to_9.5", "positive_10_to_13.5", "positive_14_plus",
+    "UNBUCKETED",
+}
+
+SPREAD_RANGE_BUCKET_ORDER = {
+    "negative_14_plus": 0,
+    "negative_10_to_13.5": 1,
+    "negative_7_to_9.5": 2,
+    "negative_4_to_6.5": 3,
+    "negative_3_to_3.5": 4,
+    "negative_0_to_2.5": 5,
+    "0.0": 6,
+    "positive_0_to_2.5": 7,
+    "positive_3_to_3.5": 8,
+    "positive_4_to_6.5": 9,
+    "positive_7_to_9.5": 10,
+    "positive_10_to_13.5": 11,
+    "positive_14_plus": 12,
+}
+
+SIDE_GROUP_ORDER = {
+    "HOME": 0,
+    "AWAY": 1,
 }
 TOTAL_RANGE_BUCKETS = {
     "37.5_or_lower", "38_to_40.5", "41_to_43.5", "44_to_46.5",
@@ -585,6 +610,38 @@ def build_dimension_frames(
     return overall, side
 
 
+def sort_spread_range_side_summary(frame: pd.DataFrame) -> pd.DataFrame:
+    if frame.empty:
+        return frame
+
+    sorted_frame = frame.copy()
+    sorted_frame["_side_sort"] = sorted_frame["side_group"].map(SIDE_GROUP_ORDER)
+    sorted_frame["_variable_sort"] = sorted_frame["variable"].map(SPREAD_RANGE_BUCKET_ORDER)
+
+    if sorted_frame["_side_sort"].isna().any():
+        unknown = sorted(
+            sorted_frame.loc[
+                sorted_frame["_side_sort"].isna(),
+                "side_group",
+            ].astype(str).unique().tolist()
+        )
+        fail(f"Unsupported side_group in spread range report: {unknown}")
+
+    if sorted_frame["_variable_sort"].isna().any():
+        unknown = sorted(
+            sorted_frame.loc[
+                sorted_frame["_variable_sort"].isna(),
+                "variable",
+            ].astype(str).unique().tolist()
+        )
+        fail(f"Unsupported spread_range_bucket in spread range report: {unknown}")
+
+    return sorted_frame.sort_values(
+        ["_side_sort", "_variable_sort"],
+        kind="mergesort",
+    ).drop(columns=["_side_sort", "_variable_sort"]).reset_index(drop=True)
+
+
 def build_report_frames(df: pd.DataFrame) -> dict[Path, pd.DataFrame]:
     frames: dict[Path, pd.DataFrame] = {
         Path("nfl_summary_overall.csv"): aggregate(
@@ -633,6 +690,10 @@ def build_report_frames(df: pd.DataFrame) -> dict[Path, pd.DataFrame]:
                 bucket_column,
                 valid_sides=spec["sides"],
             )
+
+            if market == "spread" and dimension == "spread_range":
+                side = sort_spread_range_side_summary(side)
+
             base = Path("reports") / spec["directory"] / f"nfl_{spec['file_key']}_by_{dimension}"
             frames[Path(f"{base}.csv")] = overall
             frames[Path(f"{base}_side_summary.csv")] = side
