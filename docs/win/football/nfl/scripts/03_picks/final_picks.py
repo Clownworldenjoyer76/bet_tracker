@@ -22,8 +22,10 @@ Selected output:
     total_selected
 - Preserves the selected-market probability, implied probability, edge, EV,
   full Kelly, Kelly, and selection-reason fields required by graded reporting.
-- If an existing selected file contains a game whose commence_time has passed,
-  that existing row is preserved exactly and cannot be replaced or removed.
+- Rebuilds the selected output entirely from the current weekly picks input on
+  every run. Existing selected rows are not preserved after kickoff, so reruns
+  can retroactively add, replace, or remove prior-week selections after the
+  current markets.yaml has been reapplied upstream by picks.py.
 
 Locked output:
 - Timestamped immutable copy of the selected output.
@@ -48,7 +50,7 @@ import shutil
 import sys
 import tempfile
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -345,17 +347,6 @@ def build_projection_output(
     return projection[
         PROJECTION_OUTPUT_COLUMNS
     ].copy()
-
-
-def started_mask(df: pd.DataFrame) -> pd.Series:
-    kickoff = pd.to_datetime(
-        df["commence_time"],
-        utc=True,
-        errors="coerce",
-    )
-
-    now_utc = pd.Timestamp(datetime.now(timezone.utc))
-    return kickoff.notna() & kickoff.le(now_utc)
 
 
 def validate_csv_header(
@@ -1222,109 +1213,6 @@ def validate_projection_output(
     )
 
 
-def preserve_started_selected_rows(
-    selected_output: pd.DataFrame,
-    selected_output_path: Path,
-    *,
-    requested_week: int,
-    reporter: PipelineReporter,
-) -> pd.DataFrame:
-    if not selected_output_path.exists():
-        reporter.set_detail(
-            "preserved_started_rows",
-            0,
-        )
-        return selected_output
-
-    reporter.add_input(
-        selected_output_path
-    )
-
-    existing = read_csv(
-        selected_output_path,
-        "existing selected output",
-        allow_empty=True,
-    )
-
-    validate_selected_frame(
-        existing,
-        label=(
-            "existing selected output"
-        ),
-        requested_week=requested_week,
-        allow_empty=True,
-    )
-
-    if existing.empty:
-        reporter.set_detail(
-            "preserved_started_rows",
-            0,
-        )
-        return selected_output
-
-    existing_started = existing.loc[
-        started_mask(existing)
-    ].copy()
-
-    if existing_started.empty:
-        reporter.set_detail(
-            "preserved_started_rows",
-            0,
-        )
-        return selected_output
-
-    started_game_ids = {
-        clean(value)
-        for value in existing_started[
-            "game_id"
-        ]
-        if clean(value)
-    }
-
-    current_unstarted = (
-        selected_output.loc[
-            ~selected_output[
-                "game_id"
-            ]
-            .map(clean)
-            .isin(
-                started_game_ids
-            )
-        ]
-        .copy()
-    )
-
-    combined = pd.concat(
-        [
-            existing_started,
-            current_unstarted,
-        ],
-        ignore_index=True,
-    )
-
-    combined = combined[
-        SELECTED_OUTPUT_COLUMNS
-    ].copy()
-
-    validate_selected_frame(
-        combined,
-        label=(
-            "preserved selected output"
-        ),
-        requested_week=requested_week,
-        allow_empty=True,
-    )
-
-    reporter.set_detail(
-        "preserved_started_rows",
-        len(
-            existing_started
-        ),
-    )
-
-    return combined
-
-
 def stage_frame(
     frame: pd.DataFrame,
     target_path: Path,
@@ -2011,13 +1899,13 @@ def run(
         )
     )
 
-    selected_output = (
-        preserve_started_selected_rows(
-            selected_output,
-            selected_output_path,
-            requested_week=week,
-            reporter=reporter,
-        )
+    reporter.set_detail(
+        "preserved_started_rows",
+        0,
+    )
+    reporter.set_detail(
+        "retroactive_selected_rebuild",
+        True,
     )
 
     validate_selected_output(
