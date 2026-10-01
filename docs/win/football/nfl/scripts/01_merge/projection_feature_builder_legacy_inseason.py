@@ -4040,14 +4040,6 @@ def prepare_week(
             f"weeks={week_values}"
         )
 
-    base = filter_unstarted_games(
-        root,
-        base,
-        season,
-        week,
-        str(combined_path),
-    )
-
     original = base.copy()
 
     collisions = [
