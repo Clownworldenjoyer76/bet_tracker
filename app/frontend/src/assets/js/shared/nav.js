@@ -1,3 +1,22 @@
+/* SMH_FAVICON_START */
+(() => {
+  const icons = [
+    ['image/png', '16x16', 'assets/images/favicon-16x16.png'],
+    ['image/png', '32x32', 'assets/images/favicon-32x32.png'],
+    ['image/png', '48x48', 'assets/images/favicon-48x48.png'],
+    ['image/svg+xml', 'any', 'assets/images/sportsmodelhub-favicon.svg']
+  ];
+
+  icons.forEach(([type, sizes, href]) => {
+    const link = document.createElement('link');
+    link.rel = 'icon';
+    link.type = type;
+    link.sizes = sizes;
+    link.href = href;
+    document.head.appendChild(link);
+  });
+})();
+/* SMH_FAVICON_END */
 /* SMH_POSTHOG_LOADER_START */
 (() => {
   if (window.__smhPostHogLoaderAdded) return;
