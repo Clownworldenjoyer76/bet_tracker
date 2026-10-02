@@ -1,6 +1,9 @@
 # docs/win/baseball/mlb/config/markets.yaml
+
 markets:
   mlb:
+    # ── Context / Environment Settings ──────────────────────────
+    #
     # rain_exclude_on_will_it_rain:
     #   true  = exclude outdoor/weather-applicable games when will_it_rain == 1
     #   false = do not exclude from will_it_rain
@@ -9,8 +12,12 @@ markets:
     #   true  = exclude outdoor/weather-applicable games when symbol_code contains
     #           one of rain_symbol_terms
     #   false = do not exclude from symbol_code terms
+    #
+    # Step 5 separates these controls so false on will_it_rain does not
+    # accidentally leave symbol-code rain filtering enabled.
     rain_exclude_on_will_it_rain: false
     rain_exclude_on_symbol_code: false
+
     rain_symbol_terms:
       - rain
       - heavyrain
@@ -18,10 +25,13 @@ markets:
       - sleet
       - snow
       - thunder
+
     # Set false to allow more totals through even when one/both SP samples are low.
     sp_sample_exclude_totals: false
+
     # Flag only. Does not exclude bets.
     lineup_low_sample_warn: 4
+
     # Require complete lineup and starting-pitcher data.
     context_data_filters:
       enabled: true
@@ -29,11 +39,14 @@ markets:
       away_batters_found_min: 5
       home_sp_found_required: 1
       away_sp_found_required: 1
+
+
     ###################################################
     # ── Moneyline ────────────────────────────────────
     ###################################################
     moneyline:
       enabled: true
+      # Allow both sides to be selected if they pass.
       pick_preference: best_prob
       home:
         enabled: true

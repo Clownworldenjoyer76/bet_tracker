@@ -441,45 +441,54 @@ def audit_and_drop_blank_score_game_ids(scores):
     return clean_scores, len(blank_scores)
 
 
+def _grade_moneyline_outcome(side, away_score, home_score):
+    if away_score == home_score:
+        return "Push"
+    if side == "home":
+        return "Win" if home_score > away_score else "Loss"
+    if side == "away":
+        return "Win" if away_score > home_score else "Loss"
+    return ""
+
+
+def _grade_run_line_outcome(side, row, away_score, home_score):
+    line = float(row.get("line", ""))
+    if side == "home":
+        difference = home_score + line - away_score
+    elif side == "away":
+        difference = away_score + line - home_score
+    else:
+        return ""
+    if abs(difference) < 1e-9:
+        return "Push"
+    return "Win" if difference > 0 else "Loss"
+
+
+def _grade_total_outcome(side, row, away_score, home_score):
+    line = float(row.get("line", ""))
+    final_total = away_score + home_score
+    if abs(final_total - line) < 1e-9:
+        return "Push"
+    if side == "over":
+        return "Win" if final_total > line else "Loss"
+    if side == "under":
+        return "Win" if final_total < line else "Loss"
+    return ""
+
+
 def determine_outcome(row):
     try:
         market = str(row.get("market_type", "")).strip().lower()
         side = str(row.get("bet_side", "")).strip().lower()
         away_score = float(row["final_away_score"])
         home_score = float(row["final_home_score"])
-
-        if market == "moneyline":
-            if away_score == home_score:
-                return "Push"
-            if side == "home":
-                return "Win" if home_score > away_score else "Loss"
-            if side == "away":
-                return "Win" if away_score > home_score else "Loss"
-
-        if market == "run_line":
-            line = float(row.get("line", ""))
-            if side == "home":
-                difference = home_score + line - away_score
-            elif side == "away":
-                difference = away_score + line - home_score
-            else:
-                return ""
-
-            if abs(difference) < 1e-9:
-                return "Push"
-            return "Win" if difference > 0 else "Loss"
-
-        if market == "total":
-            line = float(row.get("line", ""))
-            final_total = away_score + home_score
-
-            if abs(final_total - line) < 1e-9:
-                return "Push"
-            if side == "over":
-                return "Win" if final_total > line else "Loss"
-            if side == "under":
-                return "Win" if final_total < line else "Loss"
-
+        graders = {
+            "moneyline": lambda: _grade_moneyline_outcome(side, away_score, home_score),
+            "run_line": lambda: _grade_run_line_outcome(side, row, away_score, home_score),
+            "total": lambda: _grade_total_outcome(side, row, away_score, home_score),
+        }
+        grader = graders.get(market)
+        return grader() if grader is not None else ""
     except Exception as error:
         log_error(
             f"DETERMINE OUTCOME ERROR | "
@@ -487,9 +496,7 @@ def determine_outcome(row):
             f"market_type={row.get('market_type', '')} "
             f"bet_side={row.get('bet_side', '')} | {error}"
         )
-
-    return ""
-
+        return ""
 
 def build_calculation(row):
     try:
@@ -531,57 +538,131 @@ def build_calculation(row):
     return ""
 
 
+def _resolve_score_merge_field(
+    output,
+    base,
+):
+    score_column = f"{base}_score"
+    bet_column = f"{base}_bet"
+
+    if score_column in output.columns:
+        output[base] = output[
+            score_column
+        ]
+        return
+
+    if (
+        base not in output.columns
+        and bet_column in output.columns
+    ):
+        output[base] = output[
+            bet_column
+        ]
+
+
+def _resolve_selected_merge_field(
+    output,
+    base,
+):
+    if base in output.columns:
+        return
+
+    bet_column = f"{base}_bet"
+
+    if bet_column in output.columns:
+        output[base] = output[
+            bet_column
+        ]
+        return
+
+    score_column = f"{base}_score"
+
+    if score_column in output.columns:
+        output[base] = output[
+            score_column
+        ]
+
+
+def _merged_column_base(column):
+    if column == "take_bet":
+        return None
+
+    if column.endswith("_bet"):
+        return column[:-4]
+
+    if column.endswith("_score"):
+        return column[:-6]
+
+    return None
+
+
 def resolve_merge_columns(frame):
     output = frame.copy()
 
     score_fields = {
-        "game_date", "game_time", "home_team", "away_team",
-        "sport", "league", "final_home_score", "final_away_score",
-        "final_total", "home_run_line", "away_run_line", "total",
-        "gamePk", "gameNumber", "game_status",
+        "game_date",
+        "game_time",
+        "home_team",
+        "away_team",
+        "sport",
+        "league",
+        "final_home_score",
+        "final_away_score",
+        "final_total",
+        "home_run_line",
+        "away_run_line",
+        "total",
+        "gamePk",
+        "gameNumber",
+        "game_status",
         "final_scores_generated_at",
     }
+
     selected_fields = {
-        "sport", "league", "game_date", "game_time",
-        "home_team", "away_team", "source_file",
+        "sport",
+        "league",
+        "game_date",
+        "game_time",
+        "home_team",
+        "away_team",
+        "source_file",
     }
 
     for base in score_fields:
-        score_column = f"{base}_score"
-        bet_column = f"{base}_bet"
-
-        if score_column in output.columns:
-            output[base] = output[score_column]
-        elif base not in output.columns and bet_column in output.columns:
-            output[base] = output[bet_column]
+        _resolve_score_merge_field(
+            output,
+            base,
+        )
 
     for base in selected_fields:
-        bet_column = f"{base}_bet"
-        score_column = f"{base}_score"
+        _resolve_selected_merge_field(
+            output,
+            base,
+        )
 
-        if base not in output.columns and bet_column in output.columns:
-            output[base] = output[bet_column]
-        elif base not in output.columns and score_column in output.columns:
-            output[base] = output[score_column]
+    resolved_fields = (
+        score_fields
+        | selected_fields
+    )
 
-    columns_to_drop = []
-    for column in output.columns:
-        if column == "take_bet":
-            continue
-        if column.endswith("_bet"):
-            base = column[:-4]
-        elif column.endswith("_score"):
-            base = column[:-6]
-        else:
-            continue
+    columns_to_drop = [
+        column
+        for column in output.columns
+        if _merged_column_base(column)
+        in resolved_fields
+    ]
 
-        if base in selected_fields or base in score_fields:
-            columns_to_drop.append(column)
+    output = output.drop(
+        columns=columns_to_drop,
+        errors="ignore",
+    )
 
-    output = output.drop(columns=columns_to_drop, errors="ignore")
-    validate_no_duplicate_columns(output, "post-resolve graded rows")
+    validate_no_duplicate_columns(
+        output,
+        "post-resolve graded rows",
+    )
+
     return output
-
 
 def load_selected_bets():
     files = sorted(SELECT_DIR.glob("*MLB*.csv"))
@@ -913,9 +994,6 @@ def write_reconciliation(all_bets, final, unmatched):
                 .str.strip()
             )
 
-        def count_reason(reason):
-            return int((reasons == reason).sum())
-
         selected_count = len(selected_date)
         graded_count = len(graded_date)
         unmatched_count = len(unmatched_date)
@@ -927,13 +1005,13 @@ def write_reconciliation(all_bets, final, unmatched):
             "selected_rows": selected_count,
             "graded_rows": graded_count,
             "unmatched_rows": unmatched_count,
-            "missing_final_score_rows": count_reason("missing_final_score"),
-            "missing_game_id_rows": count_reason("missing_game_id"),
-            "future_game_rows": count_reason("future_game"),
-            "postponed_rows": count_reason("postponed"),
-            "canceled_rows": count_reason("canceled"),
-            "game_not_final_rows": count_reason("game_not_final"),
-            "unknown_game_status_rows": count_reason("unknown_game_status"),
+            "missing_final_score_rows": int((reasons == "missing_final_score").sum()),
+            "missing_game_id_rows": int((reasons == "missing_game_id").sum()),
+            "future_game_rows": int((reasons == "future_game").sum()),
+            "postponed_rows": int((reasons == "postponed").sum()),
+            "canceled_rows": int((reasons == "canceled").sum()),
+            "game_not_final_rows": int((reasons == "game_not_final").sum()),
+            "unknown_game_status_rows": int((reasons == "unknown_game_status").sum()),
             "other_unmatched_rows": other_count,
             "status": (
                 "ok"

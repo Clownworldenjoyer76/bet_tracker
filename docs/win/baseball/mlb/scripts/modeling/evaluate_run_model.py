@@ -33,11 +33,9 @@ This script never fits or tunes a model.
 from __future__ import annotations
 
 import argparse
-import importlib.util
 import json
 import math
 import shutil
-import sys
 import traceback
 from datetime import UTC, datetime
 from pathlib import Path
@@ -48,6 +46,8 @@ import numpy as np
 import pandas as pd
 from scipy.stats import spearmanr
 from sklearn.metrics import mean_absolute_error, mean_poisson_deviance
+
+from module_loader import load_module_from_path
 
 
 BASE_DIR = Path("docs/win/baseball/mlb")
@@ -164,33 +164,18 @@ def _find_repo_root() -> Path:
 
 
 def _load_module(name: str, path: Path):
-    if not path.exists():
-        fail(f"Required production module not found: {path}")
-
-    module_dir = str(path.parent)
-    added_to_path = module_dir not in sys.path
-
-    if added_to_path:
-        sys.path.insert(0, module_dir)
-
-    try:
-        spec = importlib.util.spec_from_file_location(
-            name,
-            path,
-        )
-
-        if spec is None or spec.loader is None:
-            fail(f"Could not load production module: {path}")
-
-        module = importlib.util.module_from_spec(spec)
-        sys.modules[name] = module
-        spec.loader.exec_module(module)
-
-        return module
-
-    finally:
-        if added_to_path:
-            sys.path.remove(module_dir)
+    return load_module_from_path(
+        name,
+        path,
+        fail=fail,
+        missing_message=(
+            "Required production module not found: {path}"
+        ),
+        invalid_spec_message=(
+            "Could not load production module: {path}"
+        ),
+        add_parent_to_path=True,
+    )
 
 
 def _load_production_math():
@@ -1870,33 +1855,33 @@ def build_value_records(
                     "moneyline",
                     "home",
                     float(getattr(row, f"{system}_home_ml_prob")),
-                    getattr(row, "home_dk_moneyline_decimal"),
-                    int(getattr(row, "observed_home_ml_win")),
+                    row.home_dk_moneyline_decimal,
+                    int(row.observed_home_ml_win),
                     np.nan,
                 ),
                 (
                     "moneyline",
                     "away",
                     float(getattr(row, f"{system}_away_ml_prob")),
-                    getattr(row, "away_dk_moneyline_decimal"),
-                    int(getattr(row, "observed_away_ml_win")),
+                    row.away_dk_moneyline_decimal,
+                    int(row.observed_away_ml_win),
                     np.nan,
                 ),
                 (
                     "run_line",
                     "home",
                     getattr(row, f"{system}_home_rl_prob"),
-                    getattr(row, "home_dk_run_line_decimal"),
-                    getattr(row, "observed_home_rl_win"),
-                    getattr(row, "home_run_line"),
+                    row.home_dk_run_line_decimal,
+                    row.observed_home_rl_win,
+                    row.home_run_line,
                 ),
                 (
                     "run_line",
                     "away",
                     getattr(row, f"{system}_away_rl_prob"),
-                    getattr(row, "away_dk_run_line_decimal"),
-                    getattr(row, "observed_away_rl_win"),
-                    getattr(row, "away_run_line"),
+                    row.away_dk_run_line_decimal,
+                    row.observed_away_rl_win,
+                    row.away_run_line,
                 ),
             ]
 
@@ -1985,8 +1970,8 @@ def build_value_records(
                             f"{system}_over_total_conditional_prob",
                         )
                     ),
-                    getattr(row, "dk_total_over_decimal"),
-                    getattr(row, "observed_over_win"),
+                    row.dk_total_over_decimal,
+                    row.observed_over_win,
                 ),
                 (
                     "under",
@@ -2008,8 +1993,8 @@ def build_value_records(
                             f"{system}_under_total_conditional_prob",
                         )
                     ),
-                    getattr(row, "dk_total_under_decimal"),
-                    getattr(row, "observed_under_win"),
+                    row.dk_total_under_decimal,
+                    row.observed_under_win,
                 ),
             ]
 

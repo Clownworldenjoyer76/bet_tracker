@@ -599,45 +599,70 @@ def row_count_check(slate: str, market_frames: dict, summary: dict) -> None:
         _log(f"{slate} market row-count check OK: {counts}")
 
 
-def validate_config() -> None:
+def _validate_context_config() -> None:
     context_cfg = CONFIG.get("context_data_filters", {})
 
-    if context_cfg.get("enabled", False):
-        for key in ["home_batters_found_min", "away_batters_found_min"]:
-            value = context_cfg.get(key)
-            if not isinstance(value, int) or not 0 <= value <= 9:
-                raise ValueError(f"context_data_filters.{key} must be an integer from 0 to 9")
+    if not context_cfg.get("enabled", False):
+        return
 
-        for key in ["home_sp_found_required", "away_sp_found_required"]:
-            value = context_cfg.get(key)
-            if value not in {0, 1}:
-                raise ValueError(f"context_data_filters.{key} must be 0 or 1")
+    for key in ["home_batters_found_min", "away_batters_found_min"]:
+        value = context_cfg.get(key)
+        if not isinstance(value, int) or not 0 <= value <= 9:
+            raise ValueError(
+                f"context_data_filters.{key} must be an integer from 0 to 9"
+            )
 
-    run_line_preference = CONFIG.get("run_line", {}).get("pick_preference", "best_ev")
-    if run_line_preference not in {"best_ev", "best_prob"}:
+    for key in ["home_sp_found_required", "away_sp_found_required"]:
+        value = context_cfg.get(key)
+        if value not in {0, 1}:
+            raise ValueError(
+                f"context_data_filters.{key} must be 0 or 1"
+            )
+
+
+def _validate_run_line_preference() -> None:
+    preference = CONFIG.get("run_line", {}).get(
+        "pick_preference",
+        "best_ev",
+    )
+    if preference not in {"best_ev", "best_prob"}:
         raise ValueError(
             "run_line.pick_preference must be best_ev or best_prob."
         )
 
+
+def _validate_market_bands() -> None:
+    band_keys = [
+        "ev_bands",
+        "kelly_bands",
+        "odds_bands",
+        "line_bands",
+        "prob_bands",
+    ]
+
     for market in ["moneyline", "run_line", "total"]:
         market_cfg = CONFIG.get(market, {})
+
         for side, rules in market_cfg.items():
             if not isinstance(rules, dict):
                 continue
 
-            for key in ["ev_bands", "kelly_bands", "odds_bands", "line_bands", "prob_bands"]:
-                if key not in rules:
-                    continue
-                for band in rules[key]:
+            for key in band_keys:
+                for band in rules.get(key, []):
                     if len(band) != 2:
-                        raise ValueError(f"{market}.{side}.{key} contains invalid band: {band}")
+                        raise ValueError(
+                            f"{market}.{side}.{key} contains invalid band: {band}"
+                        )
                     if band[0] > band[1]:
-                        raise ValueError(f"{market}.{side}.{key} contains inverted band: {band}")
+                        raise ValueError(
+                            f"{market}.{side}.{key} contains inverted band: {band}"
+                        )
 
 
-# =========================
-# HELPERS
-# =========================
+def validate_config() -> None:
+    _validate_context_config()
+    _validate_run_line_preference()
+    _validate_market_bands()
 
 def fv(x):
     try:
@@ -713,36 +738,69 @@ def check_probability_basis(prob_for_selection, prob_for_ev, prob_for_kelly, ev_
     return True, "", ""
 
 
+def _matches_exclude_rule(ev, kelly, odds, line, prob, rule):
+    values = (
+        ("ev", ev),
+        ("kelly", kelly),
+        ("odds", odds),
+        ("line", line),
+        ("prob", prob),
+    )
+
+    for name, value in values:
+        min_key = f"{name}_min"
+        max_key = f"{name}_max"
+
+        if min_key in rule and (
+            value is None or value < rule[min_key]
+        ):
+            return False
+
+        if max_key in rule and (
+            value is None or value > rule[max_key]
+        ):
+            return False
+
+    if "prob_bands" in rule and (
+        prob is None or not in_range(prob, rule["prob_bands"])
+    ):
+        return False
+
+    return True
+
+
 def violates_exclude_rules(ev, kelly, odds, line, prob, rules):
-    for r in rules.get("exclude_rules", []):
-        if "ev_min" in r and (ev is None or ev < r["ev_min"]):
-            continue
-        if "ev_max" in r and (ev is None or ev > r["ev_max"]):
-            continue
-        if "kelly_min" in r and (kelly is None or kelly < r["kelly_min"]):
-            continue
-        if "kelly_max" in r and (kelly is None or kelly > r["kelly_max"]):
-            continue
-        if "odds_min" in r and (odds is None or odds < r["odds_min"]):
-            continue
-        if "odds_max" in r and (odds is None or odds > r["odds_max"]):
-            continue
-        if "line_min" in r and (line is None or line < r["line_min"]):
-            continue
-        if "line_max" in r and (line is None or line > r["line_max"]):
-            continue
-        if "prob_min" in r and (prob is None or prob < r["prob_min"]):
-            continue
-        if "prob_max" in r and (prob is None or prob > r["prob_max"]):
-            continue
+    return any(
+        _matches_exclude_rule(ev, kelly, odds, line, prob, rule)
+        for rule in rules.get("exclude_rules", [])
+    )
 
-        if "prob_bands" in r:
-            if prob is None or not in_range(prob, r["prob_bands"]):
-                continue
+def _optional_band_checks(odds, line, prob, rules):
+    specifications = (
+        ("odds", odds, "odds_bands", "odds_fail", "outside_odds_bands"),
+        ("line", line, "line_bands", "line_fail", "outside_line_bands"),
+        ("prob", prob, "prob_bands", "prob_fail", "outside_prob_bands"),
+    )
 
-        return True
+    return [
+        (label, value, rules[key], counter, failure)
+        for label, value, key, counter, failure in specifications
+        if key in rules
+    ]
 
-    return False
+
+def _probability_limit_failure(prob, rules):
+    if "prob_min" in rules and (
+        prob is None or prob < rules["prob_min"]
+    ):
+        return "below_prob_min"
+
+    if "prob_max" in rules and (
+        prob is None or prob > rules["prob_max"]
+    ):
+        return "above_prob_max"
+
+    return None
 
 
 def check_rules(ev, kelly, odds, line, prob, rules, counters):
@@ -756,46 +814,32 @@ def check_rules(ev, kelly, odds, line, prob, rules, counters):
         counters["kelly_fail"] += 1
         return False, "kelly_fail", "kelly<=0"
 
-    ev_band = matched_band(ev, rules.get("ev_bands", []))
-    if ev_band is None:
-        counters["ev_fail"] += 1
-        return False, "ev_fail", "outside_ev_bands"
-    reason_parts.append(f"ev_band={ev_band}")
+    band_checks = [
+        ("ev", ev, rules.get("ev_bands", []), "ev_fail", "outside_ev_bands"),
+        (
+            "kelly",
+            kelly,
+            rules.get("kelly_bands", []),
+            "kelly_fail",
+            "outside_kelly_bands",
+        ),
+    ]
+    band_checks.extend(
+        _optional_band_checks(odds, line, prob, rules)
+    )
 
-    kelly_band = matched_band(kelly, rules.get("kelly_bands", []))
-    if kelly_band is None:
-        counters["kelly_fail"] += 1
-        return False, "kelly_fail", "outside_kelly_bands"
-    reason_parts.append(f"kelly_band={kelly_band}")
+    for label, value, ranges, counter, failure in band_checks:
+        band = matched_band(value, ranges)
+        if band is None:
+            counters[counter] += 1
+            return False, counter, failure
 
-    if "odds_bands" in rules:
-        odds_band = matched_band(odds, rules["odds_bands"])
-        if odds_band is None:
-            counters["odds_fail"] += 1
-            return False, "odds_fail", "outside_odds_bands"
-        reason_parts.append(f"odds_band={odds_band}")
+        reason_parts.append(f"{label}_band={band}")
 
-    if "line_bands" in rules:
-        line_band = matched_band(line, rules["line_bands"])
-        if line_band is None:
-            counters["line_fail"] += 1
-            return False, "line_fail", "outside_line_bands"
-        reason_parts.append(f"line_band={line_band}")
-
-    if "prob_bands" in rules:
-        prob_band = matched_band(prob, rules["prob_bands"])
-        if prob_band is None:
-            counters["prob_fail"] += 1
-            return False, "prob_fail", "outside_prob_bands"
-        reason_parts.append(f"prob_band={prob_band}")
-
-    if "prob_min" in rules and (prob is None or prob < rules["prob_min"]):
+    probability_failure = _probability_limit_failure(prob, rules)
+    if probability_failure is not None:
         counters["prob_fail"] += 1
-        return False, "prob_fail", "below_prob_min"
-
-    if "prob_max" in rules and (prob is None or prob > rules["prob_max"]):
-        counters["prob_fail"] += 1
-        return False, "prob_fail", "above_prob_max"
+        return False, "prob_fail", probability_failure
 
     if violates_exclude_rules(ev, kelly, odds, line, prob, rules):
         counters["excluded"] += 1
@@ -803,7 +847,6 @@ def check_rules(ev, kelly, odds, line, prob, rules, counters):
 
     counters["passed"] += 1
     return True, "", ";".join(reason_parts)
-
 
 def init_counter():
     return {
@@ -1413,13 +1456,8 @@ def choose_slates(slates: dict) -> tuple[list, str]:
 # MAIN
 # =========================
 
-def main():
-    locked_at = _now()
-
-    with open(LOG_FILE, "w", encoding="utf-8") as f:
-        f.write(f"=== MLB select_bets RUN {_now()} ===\n")
-
-    summary = {
+def _new_selection_summary():
+    return {
         "run_mode": "unresolved",
         "slates_found": 0,
         "slates_processed": 0,
@@ -1452,445 +1490,1092 @@ def main():
         "counters": {},
     }
 
-    per_slate = []
-    selected_audit_rows = []
-    rejection_rows = []
-    run_line_audit_rows = []
 
+def _prepare_selection_run():
     for old in OUTPUT_DIR.glob("*.csv"):
         old.unlink()
+
     for old in AUDIT_DIR.glob("*.csv"):
         old.unlink()
 
     _log(f"INPUT_DIR : {INPUT_DIR}")
     _log(f"OUTPUT_DIR: {OUTPUT_DIR}")
     _log(
-        f"Rain filter: will_it_rain={FILTERS.get('rain_exclude_on_will_it_rain', True)} "
-        f"symbol_code={FILTERS.get('rain_exclude_on_symbol_code', False)} "
+        f"Rain filter: will_it_rain="
+        f"{FILTERS.get('rain_exclude_on_will_it_rain', True)} "
+        f"symbol_code="
+        f"{FILTERS.get('rain_exclude_on_symbol_code', False)} "
         f"symbol_terms={FILTERS.get('rain_symbol_terms')} | "
-        f"SP sample exclude totals: {FILTERS.get('sp_sample_exclude_totals')} | "
-        f"Lineup low sample warn: {FILTERS.get('lineup_low_sample_warn')} | "
-        f"Context data filters: {FILTERS.get('context_data_filters')}"
+        f"SP sample exclude totals: "
+        f"{FILTERS.get('sp_sample_exclude_totals')} | "
+        f"Lineup low sample warn: "
+        f"{FILTERS.get('lineup_low_sample_warn')} | "
+        f"Context data filters: "
+        f"{FILTERS.get('context_data_filters')}"
     )
-    _log("Selection requires EV > 0 and Kelly > 0 for run-line candidates; EV/Kelly/selection must share the canonical probability basis.")
-    _log("Selection matches market rows by game_id only. Team/date fallback matching is disabled.")
+    _log(
+        "Selection requires EV > 0 and Kelly > 0 for run-line "
+        "candidates; EV/Kelly/selection must share the canonical "
+        "probability basis."
+    )
+    _log(
+        "Selection matches market rows by game_id only. "
+        "Team/date fallback matching is disabled."
+    )
+
+
+def _new_global_counters():
+    return {
+        "moneyline": {
+            "home": init_counter(),
+            "away": init_counter(),
+        },
+        "run_line": {
+            "home": init_counter(),
+            "away": init_counter(),
+        },
+        "total": {
+            "over": init_counter(),
+            "under": init_counter(),
+        },
+    }
+
+
+def _load_market_file(
+    path,
+    required_columns,
+    label,
+    summary,
+    missing_key,
+    missing_message,
+    forbidden_columns=None,
+):
+    if not path.exists():
+        summary[missing_key] += 1
+        _log(missing_message, "WARN")
+        return None
+
+    frame = read_market_csv(
+        path,
+        required_columns,
+        label,
+    )
+
+    if forbidden_columns is not None:
+        validate_forbidden_columns(
+            frame,
+            forbidden_columns,
+            label,
+        )
+
+    return frame
+
+
+def _load_slate_markets(slate, summary):
+    moneyline = _load_market_file(
+        INPUT_DIR / f"{slate}_mlb_moneyline.csv",
+        REQUIRED_MONEYLINE_COLUMNS,
+        f"{slate} moneyline input",
+        summary,
+        "missing_moneyline",
+        (
+            f"{slate} missing moneyline file — "
+            "continuing without moneyline"
+        ),
+    )
+
+    run_line = _load_market_file(
+        INPUT_DIR / f"{slate}_mlb_run_line.csv",
+        REQUIRED_RUN_LINE_COLUMNS,
+        f"{slate} run-line input",
+        summary,
+        "missing_run_line",
+        (
+            f"{slate} missing run_line file — "
+            "continuing without run_line"
+        ),
+        FORBIDDEN_RUN_LINE_COLUMNS,
+    )
+
+    total = _load_market_file(
+        INPUT_DIR / f"{slate}_mlb_total.csv",
+        REQUIRED_TOTAL_COLUMNS,
+        f"{slate} total input",
+        summary,
+        "missing_total",
+        (
+            f"{slate} missing total file — "
+            "continuing without total"
+        ),
+    )
+
+    return {
+        "moneyline": moneyline,
+        "run_line": run_line,
+        "total": total,
+    }
+
+
+def _new_slate_summary(slate):
+    return {
+        "slate": slate,
+        "bets": 0,
+        "ml": 0,
+        "rl": 0,
+        "tot": 0,
+        "status": "ok",
+    }
+
+
+def _mark_slate_skipped(ps, summary, message):
+    _log(message, "WARN")
+    ps["status"] = "skipped"
+    summary["skipped_slates"] += 1
+
+
+def _base_game_state(base_row, market_frames):
+    game_id = str(
+        base_row["game_id"]
+    ).strip()
+
+    run_line = get_market_row(
+        market_frames["run_line"],
+        game_id,
+    )
+    moneyline = get_market_row(
+        market_frames["moneyline"],
+        game_id,
+    )
+    total = get_market_row(
+        market_frames["total"],
+        game_id,
+    )
+
+    context_row = (
+        run_line
+        if run_line is not None
+        else total
+        if total is not None
+        else moneyline
+    )
+
+    base = {
+        "game_id": game_id,
+        "sport": base_row.get("sport", ""),
+        "game_date": base_row["game_date"],
+        "game_time": base_row.get("game_time", ""),
+        "league": LEAGUE_CODE,
+        "away_team": base_row["away_team"],
+        "home_team": base_row["home_team"],
+        "home_batters_found": (
+            iv(context_row.get("home_batters_found"))
+            if context_row is not None
+            else None
+        ),
+        "away_batters_found": (
+            iv(context_row.get("away_batters_found"))
+            if context_row is not None
+            else None
+        ),
+        "home_sp_found": (
+            iv(context_row.get("home_sp_found"))
+            if context_row is not None
+            else None
+        ),
+        "away_sp_found": (
+            iv(context_row.get("away_sp_found"))
+            if context_row is not None
+            else None
+        ),
+    }
+
+    return (
+        base,
+        run_line,
+        moneyline,
+        total,
+        context_row,
+    )
+
+
+def _append_global_rejection(
+    rejection_rows,
+    game_date,
+    game_id,
+    reason,
+    detail,
+):
+    rejection_rows.append({
+        "date": game_date,
+        "game_id": game_id,
+        "market": "all",
+        "side": "all",
+        "fail_reason": reason,
+        "fail_detail": detail,
+        "prob_used_for_selection": None,
+        "prob_used_for_ev": None,
+        "prob_used_for_kelly": None,
+        "ev": None,
+        "kelly": None,
+        "odds": None,
+        "line": None,
+        "ev_probability_source": None,
+        "kelly_probability_source": None,
+    })
+
+
+def _context_excludes_game(
+    context_row,
+    run_line,
+    game_date,
+    game_id,
+    summary,
+    rejection_rows,
+    run_line_audit_rows,
+):
+    failure = context_data_exclusion_reason(
+        context_row
+    )
+
+    if not failure:
+        return False
+
+    summary["context_data_excluded"] += 1
+
+    if failure["batter_failure"]:
+        summary[
+            "context_data_batter_excluded"
+        ] += 1
+
+    if failure["sp_failure"]:
+        summary[
+            "context_data_sp_excluded"
+        ] += 1
+
+    _log(
+        f"  {game_id} context data excluded "
+        f"({failure['detail']})",
+        "WARN",
+    )
+
+    _append_global_rejection(
+        rejection_rows,
+        game_date,
+        game_id,
+        "context_data_excluded",
+        failure["detail"],
+    )
+
+    if run_line is not None:
+        audit_run_line_global_rejection(
+            run_line,
+            run_line_audit_rows,
+            "context_data_excluded",
+        )
+
+    return True
+
+
+def _rain_excludes_game(
+    context_row,
+    run_line,
+    game_date,
+    game_id,
+    summary,
+    rejection_rows,
+    run_line_audit_rows,
+):
+    reason = rain_exclusion_reason(
+        context_row
+    )
+
+    if not reason:
+        return False
+
+    summary["rain_excluded"] += 1
+
+    if reason == "will_it_rain":
+        summary[
+            "rain_excluded_will_it_rain"
+        ] += 1
+    elif reason == "symbol_code":
+        summary[
+            "rain_excluded_symbol_code"
+        ] += 1
+
+    _log(
+        f"  {game_id} rain excluded "
+        f"(reason={reason} "
+        f"will_it_rain="
+        f"{iv(context_row.get('will_it_rain'))} "
+        f"symbol_code="
+        f"{sv(context_row.get('symbol_code'))})",
+        "WARN",
+    )
+
+    _append_global_rejection(
+        rejection_rows,
+        game_date,
+        game_id,
+        "rain_excluded",
+        reason,
+    )
+
+    if run_line is not None:
+        audit_run_line_global_rejection(
+            run_line,
+            run_line_audit_rows,
+            f"rain_excluded:{reason}",
+        )
+
+    return True
+
+
+def _append_selected_pick(
+    base,
+    result,
+    key,
+    low_confidence,
+    final,
+    seen,
+    selected_audit_rows,
+    ps,
+    count_key,
+    summary,
+):
+    if key in seen:
+        return
+
+    if low_confidence:
+        summary["low_confidence"] += 1
+
+    selected = {
+        **base,
+        **result,
+        "low_confidence": low_confidence,
+    }
+
+    final.append(selected)
+    selected_audit_rows.append(
+        selected_audit_row(selected)
+    )
+    seen.add(key)
+    ps[count_key] += 1
+
+
+def _process_game_run_line(
+    run_line,
+    base,
+    game_id,
+    low_confidence,
+    global_counters,
+    rejection_rows,
+    run_line_audit_rows,
+    final,
+    seen,
+    selected_audit_rows,
+    ps,
+    summary,
+):
+    if run_line is None:
+        return
+
+    for result in process_run_line(
+        run_line,
+        global_counters,
+        rejection_rows,
+        run_line_audit_rows,
+    ):
+        _append_selected_pick(
+            base,
+            result,
+            (
+                f"{game_id}_"
+                f"{result['market_type']}"
+            ),
+            low_confidence,
+            final,
+            seen,
+            selected_audit_rows,
+            ps,
+            "rl",
+            summary,
+        )
+
+
+def _process_game_total(
+    total,
+    base,
+    game_id,
+    game_date,
+    low_confidence,
+    global_counters,
+    rejection_rows,
+    final,
+    seen,
+    selected_audit_rows,
+    ps,
+    summary,
+):
+    if total is None:
+        return
+
+    if sp_sample_excluded_for_total(total):
+        summary["sp_sample_excluded"] += 1
+
+        _log(
+            f"  {game_id} total SP sample excluded "
+            f"(home="
+            f"{sv(total.get('home_sp_sample_flag'))} "
+            f"away="
+            f"{sv(total.get('away_sp_sample_flag'))})",
+            "WARN",
+        )
+
+        rejection_rows.append({
+            "date": game_date,
+            "game_id": game_id,
+            "market": "total",
+            "side": "all",
+            "fail_reason": "sp_sample_excluded",
+            "fail_detail": (
+                f"home="
+                f"{sv(total.get('home_sp_sample_flag'))};"
+                f"away="
+                f"{sv(total.get('away_sp_sample_flag'))}"
+            ),
+            "prob_used_for_selection": None,
+            "prob_used_for_ev": None,
+            "prob_used_for_kelly": None,
+            "ev": None,
+            "kelly": None,
+            "odds": None,
+            "line": fv(total.get("total")),
+            "ev_probability_source": None,
+            "kelly_probability_source": None,
+        })
+        return
+
+    for result in process_total(
+        total,
+        global_counters,
+        rejection_rows,
+    ):
+        key = (
+            f"{game_id}_"
+            f"{result['market_type']}_"
+            f"{result['bet_side']}_"
+            f"{result['line']}"
+        )
+
+        _append_selected_pick(
+            base,
+            result,
+            key,
+            low_confidence,
+            final,
+            seen,
+            selected_audit_rows,
+            ps,
+            "tot",
+            summary,
+        )
+
+
+def _process_game_moneyline(
+    moneyline,
+    base,
+    game_id,
+    low_confidence,
+    global_counters,
+    rejection_rows,
+    final,
+    seen,
+    selected_audit_rows,
+    ps,
+    summary,
+):
+    if moneyline is None:
+        return
+
+    for result in process_moneyline(
+        moneyline,
+        global_counters,
+        rejection_rows,
+    ):
+        key = (
+            f"{game_id}_"
+            f"{result['market_type']}_"
+            f"{result['bet_side']}_"
+            f"{result['line']}"
+        )
+
+        _append_selected_pick(
+            base,
+            result,
+            key,
+            low_confidence,
+            final,
+            seen,
+            selected_audit_rows,
+            ps,
+            "ml",
+            summary,
+        )
+
+
+def _process_base_game(
+    base_row,
+    market_frames,
+    global_counters,
+    rejection_rows,
+    run_line_audit_rows,
+    selected_audit_rows,
+    final,
+    seen,
+    ps,
+    summary,
+):
+    (
+        base,
+        run_line,
+        moneyline,
+        total,
+        context_row,
+    ) = _base_game_state(
+        base_row,
+        market_frames,
+    )
+
+    game_id = base["game_id"]
+    game_date = base["game_date"]
+
+    if _context_excludes_game(
+        context_row,
+        run_line,
+        game_date,
+        game_id,
+        summary,
+        rejection_rows,
+        run_line_audit_rows,
+    ):
+        return
+
+    low_confidence = is_low_confidence(
+        context_row
+    )
+
+    if _rain_excludes_game(
+        context_row,
+        run_line,
+        game_date,
+        game_id,
+        summary,
+        rejection_rows,
+        run_line_audit_rows,
+    ):
+        return
+
+    _process_game_run_line(
+        run_line,
+        base,
+        game_id,
+        low_confidence,
+        global_counters,
+        rejection_rows,
+        run_line_audit_rows,
+        final,
+        seen,
+        selected_audit_rows,
+        ps,
+        summary,
+    )
+
+    _process_game_total(
+        total,
+        base,
+        game_id,
+        game_date,
+        low_confidence,
+        global_counters,
+        rejection_rows,
+        final,
+        seen,
+        selected_audit_rows,
+        ps,
+        summary,
+    )
+
+    _process_game_moneyline(
+        moneyline,
+        base,
+        game_id,
+        low_confidence,
+        global_counters,
+        rejection_rows,
+        final,
+        seen,
+        selected_audit_rows,
+        ps,
+        summary,
+    )
+
+
+def _write_slate_output(
+    slate,
+    final,
+    ps,
+    summary,
+    locked_at,
+):
+    ps["bets"] = len(final)
+
+    if not final:
+        _log(
+            f"{slate} no bets passed filters",
+            "WARN",
+        )
+        ps["status"] = "no_bets"
+        return
+
+    out = OUTPUT_DIR / f"{slate}_MLB.csv"
+    locked_out = (
+        LOCKED_DIR / f"{slate}_MLB.csv"
+    )
+
+    out_df = pd.DataFrame(final)
+
+    validation_counts = write_output_csv(
+        out_df,
+        out,
+        f"{slate} selected output",
+    )
+
+    new_locked_picks = append_new_locked_picks(
+        out_df,
+        locked_out,
+        locked_at,
+    )
+
+    for key, value in validation_counts.items():
+        summary[key] += value
+
+    summary["slates_written"] += 1
+    summary["total_bets"] += len(final)
+    summary["moneyline_bets"] += ps["ml"]
+    summary["run_line_bets"] += ps["rl"]
+    summary["total_mkt_bets"] += ps["tot"]
+
+    _log(
+        f"WROTE: {out.name} "
+        f"({len(final)} bets | "
+        f"ml={ps['ml']} "
+        f"rl={ps['rl']} "
+        f"tot={ps['tot']})"
+    )
+
+    if new_locked_picks:
+        _log(
+            f"WROTE LOCKED: {locked_out} "
+            f"(new picks appended="
+            f"{new_locked_picks})"
+        )
+    else:
+        _log(
+            f"LOCKED UNCHANGED: {locked_out} "
+            "(no new picks)"
+        )
+
+
+def _process_slate_body(
+    slate,
+    ps,
+    summary,
+    global_counters,
+    rejection_rows,
+    run_line_audit_rows,
+    selected_audit_rows,
+    locked_at,
+):
+    summary["slates_processed"] += 1
+
+    market_frames = _load_slate_markets(
+        slate,
+        summary,
+    )
+
+    if all(
+        frame is None or frame.empty
+        for frame in market_frames.values()
+    ):
+        _mark_slate_skipped(
+            ps,
+            summary,
+            (
+                f"{slate} no usable market files "
+                "— skipping slate"
+            ),
+        )
+        return
+
+    row_count_check(
+        slate,
+        market_frames,
+        summary,
+    )
+
+    base_games = build_base_games(
+        market_frames
+    )
+
+    if base_games.empty:
+        _mark_slate_skipped(
+            ps,
+            summary,
+            (
+                f"{slate} no base games after "
+                "market load — skipping slate"
+            ),
+        )
+        return
+
+    final = []
+    seen = set()
+
+    for _, base_row in base_games.iterrows():
+        _process_base_game(
+            base_row,
+            market_frames,
+            global_counters,
+            rejection_rows,
+            run_line_audit_rows,
+            selected_audit_rows,
+            final,
+            seen,
+            ps,
+            summary,
+        )
+
+    _write_slate_output(
+        slate,
+        final,
+        ps,
+        summary,
+        locked_at,
+    )
+
+
+def _process_slate(
+    slate,
+    summary,
+    global_counters,
+    rejection_rows,
+    run_line_audit_rows,
+    selected_audit_rows,
+    locked_at,
+):
+    ps = _new_slate_summary(slate)
+
+    _log(f"--- SLATE: {slate}")
 
     try:
-        validate_config()
+        _process_slate_body(
+            slate,
+            ps,
+            summary,
+            global_counters,
+            rejection_rows,
+            run_line_audit_rows,
+            selected_audit_rows,
+            locked_at,
+        )
 
-        files = sorted(INPUT_DIR.glob("*_mlb_*.csv"))
-        _log(f"Files found: {len(files)}")
+    except ValueError as exc:
+        message = str(exc)
 
-        if not files:
-            _log("No input files found", "WARN")
-            _write_summary(summary, per_slate)
-            return
+        if (
+            "multiple rows for one game_id"
+            in message
+            or "Multiple rows matched game_id"
+            in message
+        ):
+            summary[
+                "duplicate_game_id_errors"
+            ] += 1
 
-        slates = {}
+        _log(
+            f"{slate} SCHEMA FAILED: {exc}\n"
+            f"{traceback.format_exc()}",
+            "ERROR",
+        )
 
-        for fp in files:
-            key = fp.name.split("_mlb_")[0]
-            slates.setdefault(key, []).append(fp)
-
-        summary["slates_found"] = len(slates)
-
-        slate_keys, run_mode = choose_slates(slates)
-        summary["run_mode"] = run_mode
-        _log(f"Selected run mode: {run_mode}")
-        _log(f"Slate keys to process: {slate_keys}")
-
-        global_counters = {
-            "moneyline": {
-                "home": init_counter(),
-                "away": init_counter(),
-            },
-            "run_line": {
-                "home": init_counter(),
-                "away": init_counter(),
-            },
-            "total": {
-                "over": init_counter(),
-                "under": init_counter(),
-            },
-        }
-
-        for slate in slate_keys:
-            ps = {
-                "slate": slate,
-                "bets": 0,
-                "ml": 0,
-                "rl": 0,
-                "tot": 0,
-                "status": "ok",
-            }
-
-            _log(f"--- SLATE: {slate}")
-
-            try:
-                summary["slates_processed"] += 1
-
-                ml_path = INPUT_DIR / f"{slate}_mlb_moneyline.csv"
-                rl_path = INPUT_DIR / f"{slate}_mlb_run_line.csv"
-                tt_path = INPUT_DIR / f"{slate}_mlb_total.csv"
-
-                ml_df = None
-                rl_df = None
-                tt_df = None
-
-                if ml_path.exists():
-                    ml_df = read_market_csv(
-                        ml_path,
-                        REQUIRED_MONEYLINE_COLUMNS,
-                        f"{slate} moneyline input",
-                    )
-                else:
-                    summary["missing_moneyline"] += 1
-                    _log(f"{slate} missing moneyline file — continuing without moneyline", "WARN")
-
-                if rl_path.exists():
-                    rl_df = read_market_csv(
-                        rl_path,
-                        REQUIRED_RUN_LINE_COLUMNS,
-                        f"{slate} run-line input",
-                    )
-                    validate_forbidden_columns(
-                        rl_df,
-                        FORBIDDEN_RUN_LINE_COLUMNS,
-                        f"{slate} run-line input",
-                    )
-                else:
-                    summary["missing_run_line"] += 1
-                    _log(f"{slate} missing run_line file — continuing without run_line", "WARN")
-
-                if tt_path.exists():
-                    tt_df = read_market_csv(
-                        tt_path,
-                        REQUIRED_TOTAL_COLUMNS,
-                        f"{slate} total input",
-                    )
-                else:
-                    summary["missing_total"] += 1
-                    _log(f"{slate} missing total file — continuing without total", "WARN")
-
-                market_frames = {
-                    "moneyline": ml_df,
-                    "run_line": rl_df,
-                    "total": tt_df,
-                }
-
-                if all(df is None or df.empty for df in market_frames.values()):
-                    _log(f"{slate} no usable market files — skipping slate", "WARN")
-                    ps["status"] = "skipped"
-                    summary["skipped_slates"] += 1
-                    per_slate.append(ps)
-                    continue
-
-                row_count_check(slate, market_frames, summary)
-
-                base_games = build_base_games(market_frames)
-
-                if base_games.empty:
-                    _log(f"{slate} no base games after market load — skipping slate", "WARN")
-                    ps["status"] = "skipped"
-                    summary["skipped_slates"] += 1
-                    per_slate.append(ps)
-                    continue
-
-                final = []
-                seen = set()
-
-                for _, base_row in base_games.iterrows():
-                    game_id = str(base_row["game_id"]).strip()
-                    sport = base_row.get("sport", "")
-                    game_date = base_row["game_date"]
-                    game_time = base_row.get("game_time", "")
-                    away = base_row["away_team"]
-                    home = base_row["home_team"]
-
-                    base = {
-                        "game_id": game_id,
-                        "sport": sport,
-                        "game_date": game_date,
-                        "game_time": game_time,
-                        "league": LEAGUE_CODE,
-                        "away_team": away,
-                        "home_team": home,
-                    }
-
-                    rl_row = get_market_row(rl_df, game_id)
-                    ml_row = get_market_row(ml_df, game_id)
-                    tt_row = get_market_row(tt_df, game_id)
-
-                    context_row = rl_row if rl_row is not None else (tt_row if tt_row is not None else ml_row)
-
-                    base.update({
-                        "home_batters_found": iv(context_row.get("home_batters_found")) if context_row is not None else None,
-                        "away_batters_found": iv(context_row.get("away_batters_found")) if context_row is not None else None,
-                        "home_sp_found": iv(context_row.get("home_sp_found")) if context_row is not None else None,
-                        "away_sp_found": iv(context_row.get("away_sp_found")) if context_row is not None else None,
-                    })
-
-                    context_failure = context_data_exclusion_reason(context_row)
-
-                    if context_failure:
-                        summary["context_data_excluded"] += 1
-
-                        if context_failure["batter_failure"]:
-                            summary["context_data_batter_excluded"] += 1
-
-                        if context_failure["sp_failure"]:
-                            summary["context_data_sp_excluded"] += 1
-
-                        _log(
-                            f"  {game_id} context data excluded "
-                            f"({context_failure['detail']})",
-                            "WARN",
-                        )
-
-                        rejection_rows.append({
-                            "date": game_date,
-                            "game_id": game_id,
-                            "market": "all",
-                            "side": "all",
-                            "fail_reason": "context_data_excluded",
-                            "fail_detail": context_failure["detail"],
-                            "prob_used_for_selection": None,
-                            "prob_used_for_ev": None,
-                            "prob_used_for_kelly": None,
-                            "ev": None,
-                            "kelly": None,
-                            "odds": None,
-                            "line": None,
-                            "ev_probability_source": None,
-                            "kelly_probability_source": None,
-                        })
-                        if rl_row is not None:
-                            audit_run_line_global_rejection(
-                                rl_row,
-                                run_line_audit_rows,
-                                "context_data_excluded",
-                            )
-                        continue
-
-                    low_conf = is_low_confidence(context_row)
-
-                    rain_reason = rain_exclusion_reason(context_row)
-
-                    if rain_reason:
-                        summary["rain_excluded"] += 1
-                        if rain_reason == "will_it_rain":
-                            summary["rain_excluded_will_it_rain"] += 1
-                        elif rain_reason == "symbol_code":
-                            summary["rain_excluded_symbol_code"] += 1
-
-                        _log(
-                            f"  {game_id} rain excluded "
-                            f"(reason={rain_reason} will_it_rain={iv(context_row.get('will_it_rain'))} "
-                            f"symbol_code={sv(context_row.get('symbol_code'))})",
-                            "WARN",
-                        )
-
-                        rejection_rows.append({
-                            "date": game_date,
-                            "game_id": game_id,
-                            "market": "all",
-                            "side": "all",
-                            "fail_reason": "rain_excluded",
-                            "fail_detail": rain_reason,
-                            "prob_used_for_selection": None,
-                            "prob_used_for_ev": None,
-                            "prob_used_for_kelly": None,
-                            "ev": None,
-                            "kelly": None,
-                            "odds": None,
-                            "line": None,
-                            "ev_probability_source": None,
-                            "kelly_probability_source": None,
-                        })
-                        if rl_row is not None:
-                            audit_run_line_global_rejection(
-                                rl_row,
-                                run_line_audit_rows,
-                                f"rain_excluded:{rain_reason}",
-                            )
-                        continue
-
-                    if rl_row is not None:
-                        for r in process_run_line(rl_row, global_counters, rejection_rows, run_line_audit_rows):
-                            k = f"{game_id}_{r['market_type']}"
-
-                            if k not in seen:
-                                if low_conf:
-                                    summary["low_confidence"] += 1
-
-                                selected = {**base, **r, "low_confidence": low_conf}
-                                final.append(selected)
-                                selected_audit_rows.append(selected_audit_row(selected))
-                                seen.add(k)
-                                ps["rl"] += 1
-
-                    if tt_row is not None:
-                        if sp_sample_excluded_for_total(tt_row):
-                            summary["sp_sample_excluded"] += 1
-                            _log(
-                                f"  {game_id} total SP sample excluded "
-                                f"(home={sv(tt_row.get('home_sp_sample_flag'))} "
-                                f"away={sv(tt_row.get('away_sp_sample_flag'))})",
-                                "WARN",
-                            )
-                            rejection_rows.append({
-                                "date": game_date,
-                                "game_id": game_id,
-                                "market": "total",
-                                "side": "all",
-                                "fail_reason": "sp_sample_excluded",
-                                "fail_detail": (
-                                    f"home={sv(tt_row.get('home_sp_sample_flag'))};"
-                                    f"away={sv(tt_row.get('away_sp_sample_flag'))}"
-                                ),
-                                "prob_used_for_selection": None,
-                                "prob_used_for_ev": None,
-                                "prob_used_for_kelly": None,
-                                "ev": None,
-                                "kelly": None,
-                                "odds": None,
-                                "line": fv(tt_row.get("total")),
-                                "ev_probability_source": None,
-                                "kelly_probability_source": None,
-                            })
-                        else:
-                            for r in process_total(tt_row, global_counters, rejection_rows):
-                                k = f"{game_id}_{r['market_type']}_{r['bet_side']}_{r['line']}"
-
-                                if k not in seen:
-                                    if low_conf:
-                                        summary["low_confidence"] += 1
-
-                                    selected = {**base, **r, "low_confidence": low_conf}
-                                    final.append(selected)
-                                    selected_audit_rows.append(selected_audit_row(selected))
-                                    seen.add(k)
-                                    ps["tot"] += 1
-
-                    if ml_row is not None:
-                        for r in process_moneyline(ml_row, global_counters, rejection_rows):
-                            k = f"{game_id}_{r['market_type']}_{r['bet_side']}_{r['line']}"
-
-                            if k not in seen:
-                                if low_conf:
-                                    summary["low_confidence"] += 1
-
-                                selected = {**base, **r, "low_confidence": low_conf}
-                                final.append(selected)
-                                selected_audit_rows.append(selected_audit_row(selected))
-                                seen.add(k)
-                                ps["ml"] += 1
-
-                ps["bets"] = len(final)
-
-                if final:
-                    out = OUTPUT_DIR / f"{slate}_MLB.csv"
-                    locked_out = LOCKED_DIR / f"{slate}_MLB.csv"
-
-                    out_df = pd.DataFrame(final)
-                    validation_counts = write_output_csv(out_df, out, f"{slate} selected output")
-
-                    new_locked_picks = append_new_locked_picks(
-                        out_df,
-                        locked_out,
-                        locked_at,
-                    )
-
-                    for key, value in validation_counts.items():
-                        summary[key] += value
-
-                    summary["slates_written"] += 1
-                    summary["total_bets"] += len(final)
-                    summary["moneyline_bets"] += ps["ml"]
-                    summary["run_line_bets"] += ps["rl"]
-                    summary["total_mkt_bets"] += ps["tot"]
-
-                    _log(
-                        f"WROTE: {out.name} "
-                        f"({len(final)} bets | ml={ps['ml']} rl={ps['rl']} tot={ps['tot']})"
-                    )
-                    if new_locked_picks:
-                        _log(
-                            f"WROTE LOCKED: {locked_out} "
-                            f"(new picks appended={new_locked_picks})"
-                        )
-                    else:
-                        _log(f"LOCKED UNCHANGED: {locked_out} (no new picks)")
-                else:
-                    _log(f"{slate} no bets passed filters", "WARN")
-                    ps["status"] = "no_bets"
-
-            except ValueError as e:
-                message = str(e)
-                if "multiple rows for one game_id" in message or "Multiple rows matched game_id" in message:
-                    summary["duplicate_game_id_errors"] += 1
-                _log(f"{slate} SCHEMA FAILED: {e}\n{traceback.format_exc()}", "ERROR")
-                ps["status"] = "schema_error"
-                summary["schema_errors"] += 1
-                summary["errors"] += 1
-
-            except Exception as e:
-                _log(f"{slate} FAILED: {e}\n{traceback.format_exc()}", "ERROR")
-                ps["status"] = "error"
-                summary["errors"] += 1
-
-            per_slate.append(ps)
-
-        summary["counters"] = global_counters
-
-        rejection_df = pd.DataFrame(rejection_rows, columns=REJECTION_AUDIT_COLUMNS)
-        selected_audit_df = pd.DataFrame(selected_audit_rows, columns=SELECTED_AUDIT_COLUMNS)
-        run_line_audit_df = pd.DataFrame(run_line_audit_rows, columns=RUN_LINE_AUDIT_COLUMNS)
-
-        rejection_audit_path = AUDIT_DIR / "selection_rejection_audit.csv"
-        selected_audit_path = AUDIT_DIR / "selected_bet_audit.csv"
-        run_line_audit_path = AUDIT_DIR / "run_line_selection_audit.csv"
-
-        rejection_df.to_csv(rejection_audit_path, index=False)
-        selected_audit_df.to_csv(selected_audit_path, index=False)
-        run_line_audit_df.to_csv(run_line_audit_path, index=False)
-
-        summary["rejection_audit_rows"] = len(rejection_df)
-        summary["selected_audit_rows"] = len(selected_audit_df)
-
-        _log(f"WROTE AUDIT: {rejection_audit_path} rows={len(rejection_df)}")
-        _log(f"WROTE AUDIT: {selected_audit_path} rows={len(selected_audit_df)}")
-        _log(f"WROTE AUDIT: {run_line_audit_path} rows={len(run_line_audit_df)}")
-
-    except Exception as e:
-        _log(f"FATAL: {e}\n{traceback.format_exc()}", "ERROR")
+        ps["status"] = "schema_error"
+        summary["schema_errors"] += 1
         summary["errors"] += 1
 
-    _write_summary(summary, per_slate)
+    except Exception as exc:
+        _log(
+            f"{slate} FAILED: {exc}\n"
+            f"{traceback.format_exc()}",
+            "ERROR",
+        )
 
-    if summary["errors"] > 0 or summary["schema_errors"] > 0:
+        ps["status"] = "error"
+        summary["errors"] += 1
+
+    return ps
+
+
+def _write_selection_audits(
+    summary,
+    rejection_rows,
+    selected_audit_rows,
+    run_line_audit_rows,
+):
+    rejection_df = pd.DataFrame(
+        rejection_rows,
+        columns=REJECTION_AUDIT_COLUMNS,
+    )
+
+    selected_audit_df = pd.DataFrame(
+        selected_audit_rows,
+        columns=SELECTED_AUDIT_COLUMNS,
+    )
+
+    run_line_audit_df = pd.DataFrame(
+        run_line_audit_rows,
+        columns=RUN_LINE_AUDIT_COLUMNS,
+    )
+
+    rejection_path = (
+        AUDIT_DIR
+        / "selection_rejection_audit.csv"
+    )
+    selected_path = (
+        AUDIT_DIR
+        / "selected_bet_audit.csv"
+    )
+    run_line_path = (
+        AUDIT_DIR
+        / "run_line_selection_audit.csv"
+    )
+
+    rejection_df.to_csv(
+        rejection_path,
+        index=False,
+    )
+    selected_audit_df.to_csv(
+        selected_path,
+        index=False,
+    )
+    run_line_audit_df.to_csv(
+        run_line_path,
+        index=False,
+    )
+
+    summary["rejection_audit_rows"] = len(
+        rejection_df
+    )
+    summary["selected_audit_rows"] = len(
+        selected_audit_df
+    )
+
+    _log(
+        f"WROTE AUDIT: {rejection_path} "
+        f"rows={len(rejection_df)}"
+    )
+    _log(
+        f"WROTE AUDIT: {selected_path} "
+        f"rows={len(selected_audit_df)}"
+    )
+    _log(
+        f"WROTE AUDIT: {run_line_path} "
+        f"rows={len(run_line_audit_df)}"
+    )
+
+
+def _run_selection(
+    summary,
+    per_slate,
+    selected_audit_rows,
+    rejection_rows,
+    run_line_audit_rows,
+    locked_at,
+):
+    validate_config()
+
+    files = sorted(
+        INPUT_DIR.glob("*_mlb_*.csv")
+    )
+
+    _log(f"Files found: {len(files)}")
+
+    if not files:
+        _log(
+            "No input files found",
+            "WARN",
+        )
+        _write_summary(
+            summary,
+            per_slate,
+        )
+        return False
+
+    slates = {}
+
+    for file_path in files:
+        key = file_path.name.split(
+            "_mlb_"
+        )[0]
+
+        slates.setdefault(
+            key,
+            [],
+        ).append(file_path)
+
+    summary["slates_found"] = len(slates)
+
+    slate_keys, run_mode = choose_slates(
+        slates
+    )
+
+    summary["run_mode"] = run_mode
+
+    _log(
+        f"Selected run mode: {run_mode}"
+    )
+    _log(
+        f"Slate keys to process: "
+        f"{slate_keys}"
+    )
+
+    global_counters = (
+        _new_global_counters()
+    )
+
+    for slate in slate_keys:
+        per_slate.append(
+            _process_slate(
+                slate,
+                summary,
+                global_counters,
+                rejection_rows,
+                run_line_audit_rows,
+                selected_audit_rows,
+                locked_at,
+            )
+        )
+
+    summary["counters"] = global_counters
+
+    _write_selection_audits(
+        summary,
+        rejection_rows,
+        selected_audit_rows,
+        run_line_audit_rows,
+    )
+
+    return True
+
+
+def _finish_selection_run(
+    summary,
+    per_slate,
+):
+    _write_summary(
+        summary,
+        per_slate,
+    )
+
+    if (
+        summary["errors"] > 0
+        or summary["schema_errors"] > 0
+    ):
         print(
-            f"baseball select_bets completed with errors. "
-            f"errors={summary['errors']} schema_errors={summary['schema_errors']}"
+            f"baseball select_bets completed "
+            f"with errors. "
+            f"errors={summary['errors']} "
+            f"schema_errors="
+            f"{summary['schema_errors']}"
         )
         raise SystemExit(1)
 
     print(
         f"baseball select_bets complete. "
         f"run_mode={summary['run_mode']} "
-        f"slates_written={summary['slates_written']} "
+        f"slates_written="
+        f"{summary['slates_written']} "
         f"total_bets={summary['total_bets']} "
-        f"moneyline_bets={summary['moneyline_bets']} "
-        f"run_line_bets={summary['run_line_bets']} "
-        f"total_mkt_bets={summary['total_mkt_bets']} "
-        f"selected_nonpositive_kelly={summary['selected_nonpositive_kelly']} "
-        f"selected_probability_source_mismatch={summary['selected_probability_source_mismatch']} "
-        f"rain_excluded_will_it_rain={summary['rain_excluded_will_it_rain']} "
-        f"rain_excluded_symbol_code={summary['rain_excluded_symbol_code']} "
-        f"context_data_excluded={summary['context_data_excluded']} "
-        f"rejection_audit_rows={summary['rejection_audit_rows']} "
-        f"selected_audit_rows={summary['selected_audit_rows']} "
-        f"row_count_warnings={summary['row_count_warnings']}"
+        f"moneyline_bets="
+        f"{summary['moneyline_bets']} "
+        f"run_line_bets="
+        f"{summary['run_line_bets']} "
+        f"total_mkt_bets="
+        f"{summary['total_mkt_bets']} "
+        f"selected_nonpositive_kelly="
+        f"{summary['selected_nonpositive_kelly']} "
+        f"selected_probability_source_mismatch="
+        f"{summary['selected_probability_source_mismatch']} "
+        f"rain_excluded_will_it_rain="
+        f"{summary['rain_excluded_will_it_rain']} "
+        f"rain_excluded_symbol_code="
+        f"{summary['rain_excluded_symbol_code']} "
+        f"context_data_excluded="
+        f"{summary['context_data_excluded']} "
+        f"rejection_audit_rows="
+        f"{summary['rejection_audit_rows']} "
+        f"selected_audit_rows="
+        f"{summary['selected_audit_rows']} "
+        f"row_count_warnings="
+        f"{summary['row_count_warnings']}"
+    )
+
+
+def main():
+    locked_at = _now()
+
+    with open(
+        LOG_FILE,
+        "w",
+        encoding="utf-8",
+    ) as handle:
+        handle.write(
+            f"=== MLB select_bets RUN "
+            f"{_now()} ===\n"
+        )
+
+    summary = _new_selection_summary()
+    per_slate = []
+    selected_audit_rows = []
+    rejection_rows = []
+    run_line_audit_rows = []
+
+    _prepare_selection_run()
+
+    try:
+        completed = _run_selection(
+            summary,
+            per_slate,
+            selected_audit_rows,
+            rejection_rows,
+            run_line_audit_rows,
+            locked_at,
+        )
+
+        if not completed:
+            return
+
+    except Exception as exc:
+        _log(
+            f"FATAL: {exc}\n"
+            f"{traceback.format_exc()}",
+            "ERROR",
+        )
+        summary["errors"] += 1
+
+    _finish_selection_run(
+        summary,
+        per_slate,
     )
 
 

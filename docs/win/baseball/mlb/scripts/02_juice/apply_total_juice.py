@@ -161,74 +161,240 @@ def config_uses_odds_bands(juice_df: pd.DataFrame) -> bool:
     return all(col in juice_df.columns for col in OPTIONAL_ODDS_BAND_COLUMNS)
 
 
-def validate_juice_config(juice_df: pd.DataFrame) -> bool:
-    uses_odds_bands = config_uses_odds_bands(juice_df)
+def _juice_required_columns(uses_odds_bands):
+    columns = [
+        "band_min",
+        "band_max",
+        "extra_juice",
+    ]
 
-    required_check_cols = ["band_min", "band_max", "extra_juice"]
     if uses_odds_bands:
-        required_check_cols += OPTIONAL_ODDS_BAND_COLUMNS
+        columns += OPTIONAL_ODDS_BAND_COLUMNS
+
+    return columns
+
+
+def _invalid_juice_config_mask(
+    juice_df,
+    uses_odds_bands,
+):
+    required_columns = (
+        _juice_required_columns(
+            uses_odds_bands
+        )
+    )
 
     invalid_mask = (
-        juice_df[required_check_cols].isna().any(axis=1) |
-        (juice_df["band_min"] >= juice_df["band_max"]) |
-        (~juice_df["side"].isin(["over", "under"]))
+        juice_df[
+            required_columns
+        ].isna().any(axis=1)
+        | (
+            juice_df["band_min"]
+            >= juice_df["band_max"]
+        )
+        | (
+            ~juice_df["side"].isin(
+                ["over", "under"]
+            )
+        )
     )
 
     if uses_odds_bands:
-        invalid_mask = invalid_mask | (juice_df["odds_min"] >= juice_df["odds_max"])
+        invalid_mask = (
+            invalid_mask
+            | (
+                juice_df["odds_min"]
+                >= juice_df["odds_max"]
+            )
+        )
 
-    invalid = juice_df[invalid_mask]
-    if not invalid.empty:
-        raise ValueError(f"total juice config contains invalid rows: {len(invalid)}")
+    return invalid_mask
 
-    duplicate_subset = ["band_min", "band_max", "side"]
+
+def _juice_duplicate_mask(
+    juice_df,
+    uses_odds_bands,
+):
+    subset = [
+        "band_min",
+        "band_max",
+        "side",
+    ]
+
     if uses_odds_bands:
-        duplicate_subset += OPTIONAL_ODDS_BAND_COLUMNS
+        subset += OPTIONAL_ODDS_BAND_COLUMNS
 
-    dupes = juice_df.duplicated(subset=duplicate_subset, keep=False)
-    if dupes.any():
-        raise ValueError(f"total juice config contains duplicate bands: {int(dupes.sum())}")
+    return juice_df.duplicated(
+        subset=subset,
+        keep=False,
+    )
 
-    required_sides = {"over", "under"}
-    present_sides = set(juice_df["side"])
-    missing_sides = sorted(required_sides - present_sides)
-    if missing_sides:
-        raise ValueError(f"total juice config missing side combinations: {missing_sides}")
 
+def _count_odds_band_overlaps(juice_df):
     overlap_count = 0
-    if uses_odds_bands:
-        group_cols = ["side"]
-        for side, group in juice_df.groupby(group_cols):
-            rows = list(group.sort_values(["band_min", "band_max", "odds_min", "odds_max"]).to_dict("records"))
-            for i, left in enumerate(rows):
-                for right in rows[i + 1:]:
-                    total_overlap = float(left["band_min"]) < float(right["band_max"]) and float(right["band_min"]) < float(left["band_max"])
-                    odds_overlap = float(left["odds_min"]) < float(right["odds_max"]) and float(right["odds_min"]) < float(left["odds_max"])
-                    if total_overlap and odds_overlap:
-                        overlap_count += 1
-    else:
-        for side, group in juice_df.groupby("side"):
-            group = group.sort_values(["band_min", "band_max"])
-            prev_max = None
-            for _, row in group.iterrows():
-                if prev_max is not None and float(row["band_min"]) < prev_max:
+
+    for _, group in juice_df.groupby(
+        ["side"]
+    ):
+        rows = list(
+            group.sort_values(
+                [
+                    "band_min",
+                    "band_max",
+                    "odds_min",
+                    "odds_max",
+                ]
+            ).to_dict("records")
+        )
+
+        for index, left in enumerate(rows):
+            for right in rows[index + 1:]:
+                total_overlap = (
+                    float(left["band_min"])
+                    < float(right["band_max"])
+                    and float(right["band_min"])
+                    < float(left["band_max"])
+                )
+
+                odds_overlap = (
+                    float(left["odds_min"])
+                    < float(right["odds_max"])
+                    and float(right["odds_min"])
+                    < float(left["odds_max"])
+                )
+
+                if (
+                    total_overlap
+                    and odds_overlap
+                ):
                     overlap_count += 1
-                prev_max = max(prev_max, float(row["band_max"])) if prev_max is not None else float(row["band_max"])
+
+    return overlap_count
+
+
+def _count_total_band_overlaps(juice_df):
+    overlap_count = 0
+
+    for _, group in juice_df.groupby(
+        "side"
+    ):
+        group = group.sort_values(
+            ["band_min", "band_max"]
+        )
+        previous_max = None
+
+        for _, row in group.iterrows():
+            band_min = float(
+                row["band_min"]
+            )
+            band_max = float(
+                row["band_max"]
+            )
+
+            if (
+                previous_max is not None
+                and band_min < previous_max
+            ):
+                overlap_count += 1
+
+            previous_max = (
+                max(
+                    previous_max,
+                    band_max,
+                )
+                if previous_max is not None
+                else band_max
+            )
+
+    return overlap_count
+
+
+def _count_juice_config_overlaps(
+    juice_df,
+    uses_odds_bands,
+):
+    if uses_odds_bands:
+        return _count_odds_band_overlaps(
+            juice_df
+        )
+
+    return _count_total_band_overlaps(
+        juice_df
+    )
+
+
+def validate_juice_config(
+    juice_df: pd.DataFrame,
+) -> bool:
+    uses_odds_bands = (
+        config_uses_odds_bands(
+            juice_df
+        )
+    )
+
+    invalid = juice_df[
+        _invalid_juice_config_mask(
+            juice_df,
+            uses_odds_bands,
+        )
+    ]
+
+    if not invalid.empty:
+        raise ValueError(
+            "total juice config contains "
+            f"invalid rows: {len(invalid)}"
+        )
+
+    duplicates = _juice_duplicate_mask(
+        juice_df,
+        uses_odds_bands,
+    )
+
+    if duplicates.any():
+        raise ValueError(
+            "total juice config contains "
+            "duplicate bands: "
+            f"{int(duplicates.sum())}"
+        )
+
+    missing_sides = sorted(
+        {"over", "under"}
+        - set(juice_df["side"])
+    )
+
+    if missing_sides:
+        raise ValueError(
+            "total juice config missing "
+            f"side combinations: {missing_sides}"
+        )
+
+    overlap_count = (
+        _count_juice_config_overlaps(
+            juice_df,
+            uses_odds_bands,
+        )
+    )
 
     if overlap_count:
-        raise ValueError(f"total juice config contains overlapping bands: {overlap_count}")
+        raise ValueError(
+            "total juice config contains "
+            f"overlapping bands: {overlap_count}"
+        )
 
     if uses_odds_bands:
-        _log("total juice config uses odds-price bands via odds_min/odds_max")
+        _log(
+            "total juice config uses odds-price "
+            "bands via odds_min/odds_max"
+        )
     else:
-        _log("total juice config does not use odds-price bands; applying total/side bands only", "WARN")
+        _log(
+            "total juice config does not use "
+            "odds-price bands; applying "
+            "total/side bands only",
+            "WARN",
+        )
 
     return uses_odds_bands
-
-
-# =========================
-# JUICE LOOKUP
-# =========================
 
 def find_band_row(juice_df, total, side, dk_american, uses_odds_bands):
     band = juice_df[
@@ -388,47 +554,105 @@ def process_side(df, juice_df, side, uses_odds_bands, audit_rows):
 # NORMALIZATION
 # =========================
 
+def _normalized_total_probabilities(row):
+    try:
+        over_prob = float(
+            row["over_juiced_prob_total"]
+        )
+        under_prob = float(
+            row["under_juiced_prob_total"]
+        )
+    except (
+        TypeError,
+        ValueError,
+        KeyError,
+        OverflowError,
+    ):
+        return None
+
+    if not (
+        math.isfinite(over_prob)
+        and math.isfinite(under_prob)
+    ):
+        return None
+
+    total = over_prob + under_prob
+
+    if total <= 0:
+        return None
+
+    return (
+        over_prob / total,
+        under_prob / total,
+    )
+
+
+def _update_total_normalization_audit(
+    audit_rows,
+    game_id,
+    side,
+    probability,
+):
+    for audit_row in reversed(audit_rows):
+        matches = (
+            audit_row["game_id"] == game_id
+            and audit_row["market"] == "total"
+            and audit_row["side"] == side
+            and pd.isna(
+                audit_row["normalized_prob"]
+            )
+        )
+
+        if matches:
+            audit_row[
+                "normalized_prob"
+            ] = probability
+            return
+
+
 def apply_normalization(df, audit_rows):
     df["over_normalized_prob_total"] = pd.NA
     df["under_normalized_prob_total"] = pd.NA
 
     for idx, row in df.iterrows():
-        try:
-            op = float(row["over_juiced_prob_total"])
-            up = float(row["under_juiced_prob_total"])
+        normalized = (
+            _normalized_total_probabilities(
+                row
+            )
+        )
 
-            if not math.isfinite(op) or not math.isfinite(up):
-                continue
-
-            total = op + up
-
-            if total <= 0:
-                continue
-
-            over_norm = op / total
-            under_norm = up / total
-
-            df.at[idx, "over_normalized_prob_total"] = over_norm
-            df.at[idx, "under_normalized_prob_total"] = under_norm
-
-            for audit_row in reversed(audit_rows):
-                if audit_row["game_id"] == row.get("game_id") and audit_row["market"] == "total" and audit_row["side"] == "over" and pd.isna(audit_row["normalized_prob"]):
-                    audit_row["normalized_prob"] = over_norm
-                    break
-            for audit_row in reversed(audit_rows):
-                if audit_row["game_id"] == row.get("game_id") and audit_row["market"] == "total" and audit_row["side"] == "under" and pd.isna(audit_row["normalized_prob"]):
-                    audit_row["normalized_prob"] = under_norm
-                    break
-
-        except (TypeError, ValueError, KeyError, ZeroDivisionError, OverflowError):
+        if normalized is None:
             continue
 
+        over_norm, under_norm = normalized
+
+        df.at[
+            idx,
+            "over_normalized_prob_total",
+        ] = over_norm
+
+        df.at[
+            idx,
+            "under_normalized_prob_total",
+        ] = under_norm
+
+        game_id = row.get("game_id")
+
+        _update_total_normalization_audit(
+            audit_rows,
+            game_id,
+            "over",
+            over_norm,
+        )
+
+        _update_total_normalization_audit(
+            audit_rows,
+            game_id,
+            "under",
+            under_norm,
+        )
+
     return df
-
-
-# =========================
-# MAIN
-# =========================
 
 def main():
     with open(LOG_FILE, "w", encoding="utf-8") as f:
