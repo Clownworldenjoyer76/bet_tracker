@@ -21,6 +21,12 @@ from zoneinfo import ZoneInfo
 
 import yaml
 
+SCRIPTS_DIR = Path(__file__).resolve().parents[1]
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
+
+from basketball_shared import resolve_repository_path
+
 
 LEAGUES = ["nba", "ncaam", "wnba"]
 
@@ -364,7 +370,12 @@ def in_season(
 
 
 def load_rows(path: Path) -> list[dict]:
-    with open(path, newline="", encoding="utf-8") as f:
+    safe_path = resolve_repository_path(
+        path,
+        strict=True,
+    )
+
+    with safe_path.open(newline="", encoding="utf-8") as f:
         result = list(csv.DictReader(f))
     return result
 
@@ -395,13 +406,17 @@ def write_csv(
     fieldnames: list[str],
     rows: list[dict],
 ) -> None:
-    path.parent.mkdir(
+    safe_path = resolve_repository_path(
+        path,
+        strict=False,
+    )
+
+    safe_path.parent.mkdir(
         parents=True,
         exist_ok=True,
     )
 
-    with open(
-        path,
+    with safe_path.open(
         "w",
         newline="",
         encoding="utf-8",

@@ -1730,11 +1730,9 @@ def expanding_date_folds(
         ) == 0:
             continue
 
-        chunk_dates = {
-            value
-            for value
-            in chunk.tolist()
-        }
+        chunk_dates = set(
+            chunk.tolist()
+        )
 
         validation_start = min(
             chunk_dates
@@ -2346,8 +2344,8 @@ def run_oos(
         (
             _,
             _,
-            margin_coefficients,
-            total_coefficients,
+            _,
+            _,
             predicted_margin,
             predicted_total,
         ) = fit_target_pair(

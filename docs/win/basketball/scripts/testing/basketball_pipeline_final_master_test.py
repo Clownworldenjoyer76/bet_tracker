@@ -17,6 +17,12 @@ from pathlib import Path
 
 import yaml
 
+SCRIPTS_DIR = Path(__file__).resolve().parents[1]
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
+
+from basketball_shared import resolve_repository_path
+
 
 ROOT = Path('docs/win/basketball')
 
@@ -55,8 +61,12 @@ def sha256(
 def load_yaml(
     path: Path,
 ) -> dict:
-    with open(
+    safe_path = resolve_repository_path(
         path,
+        strict=True,
+    )
+
+    with safe_path.open(
         'r',
         encoding='utf-8',
     ) as f:

@@ -187,9 +187,16 @@ def fv(value: Any) -> float | None:
 
 
 def sha256_file(path: Path) -> str:
+    safe_path = path.resolve(strict=True)
+    if (
+        not safe_path.is_file()
+        or safe_path.suffix.lower() not in {".csv", ".yaml", ".yml"}
+    ):
+        raise ValueError(f"Unsupported file path for hashing: {path}")
+
     h = hashlib.sha256()
 
-    with open(path, "rb") as f:
+    with safe_path.open("rb") as f:
         for chunk in iter(
             lambda: f.read(1024 * 1024),
             b"",
@@ -1323,36 +1330,38 @@ def complementary_calibration_cfg(
         )
     )
 
-    if opposite_cfg not in (
-        None,
-        {},
-        "none",
-        "raw",
-    ):
-        if isinstance(
+    if (
+        opposite_cfg not in (
+            None,
+            {},
+            "none",
+            "raw",
+        )
+        and isinstance(
             opposite_cfg,
             dict,
-        ):
-            opposite_method = str(
-                opposite_cfg.get(
-                    "method",
-                    "none",
-                )
-            ).strip().lower()
-
-            if opposite_method not in {
+        )
+    ):
+        opposite_method = str(
+            opposite_cfg.get(
+                "method",
                 "none",
-                "raw",
-                "",
-            }:
-                raise ValueError(
-                    f"calibration.{market}."
-                    f"{opposite_side} must "
-                    "not define an independent "
-                    "calibration when "
-                    "complementary calibration "
-                    "is enabled"
-                )
+            )
+        ).strip().lower()
+
+        if opposite_method not in {
+            "none",
+            "raw",
+            "",
+        }:
+            raise ValueError(
+                f"calibration.{market}."
+                f"{opposite_side} must "
+                "not define an independent "
+                "calibration when "
+                "complementary calibration "
+                "is enabled"
+            )
 
     return {
         "canonical_side": canonical_side,
@@ -4063,14 +4072,12 @@ def summarize_group(
             .sum()
         )
 
-        record = {
-            c: v
-            for c, v
-            in zip(
+        record = dict(
+            zip(
                 group_cols,
                 keys,
             )
-        }
+        )
 
         record.update({
             "bets": bets,
@@ -4370,13 +4377,16 @@ def write_manifest(
         ),
     }
 
-    path.parent.mkdir(
+    safe_path = path.resolve()
+    if safe_path.name != "run_manifest.yaml":
+        raise ValueError(f"Unexpected manifest path: {path}")
+
+    safe_path.parent.mkdir(
         parents=True,
         exist_ok=True,
     )
 
-    with open(
-        path,
+    with safe_path.open(
         "w",
         encoding="utf-8",
     ) as f:
@@ -5478,10 +5488,10 @@ def main():
             input_dir.glob(
                 f"*_{league.upper()}.csv"
             ),
-            key=lambda p: (
+            key=lambda p, bound_league=league: (
                 season_from_input_filename(
                     p,
-                    league,
+                    bound_league,
                 ),
                 p.name,
             ),

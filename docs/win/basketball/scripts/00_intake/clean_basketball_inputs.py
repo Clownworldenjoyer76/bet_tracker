@@ -14,6 +14,7 @@
 # bias values come from rolling_bias_state.yaml. Past cleaned prediction files are preserved so
 # today's rolling bias is never retroactively applied to historical predictions.
 
+import sys
 import csv
 import re
 import traceback
@@ -22,6 +23,12 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import yaml
+
+SCRIPTS_DIR = Path(__file__).resolve().parents[1]
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
+
+from basketball_shared import resolve_repository_path
 
 # =========================
 # PATHS
@@ -199,7 +206,12 @@ def row_key(row):
 
 
 def read_csv(path: Path):
-    with open(path, "r", newline="", encoding="utf-8-sig") as f:
+    safe_path = resolve_repository_path(
+        path,
+        strict=True,
+    )
+
+    with safe_path.open("r", newline="", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
         rows = list(reader)
         fieldnames = reader.fieldnames or []
@@ -207,8 +219,13 @@ def read_csv(path: Path):
 
 
 def write_csv(path: Path, fieldnames, rows):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w", newline="", encoding="utf-8") as f:
+    safe_path = resolve_repository_path(
+        path,
+        strict=False,
+    )
+
+    safe_path.parent.mkdir(parents=True, exist_ok=True)
+    with safe_path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
         writer.writeheader()
         writer.writerows(rows)
@@ -362,12 +379,15 @@ def resolve_bias_values() -> dict:
                     configured_window = rule.get("window_games")
                     state_window = state_component.get("window_games")
 
-                    if configured_window is not None and state_window is not None:
-                        if int(configured_window) != int(state_window):
-                            raise ValueError(
-                                f"{league} {component} rolling window mismatch: "
-                                f"config={configured_window} state={state_window}"
-                            )
+                    if (
+                        configured_window is not None
+                        and state_window is not None
+                        and int(configured_window) != int(state_window)
+                    ):
+                        raise ValueError(
+                            f"{league} {component} rolling window mismatch: "
+                            f"config={configured_window} state={state_window}"
+                        )
 
                     window_games = (
                         int(configured_window)
@@ -675,7 +695,7 @@ def build_pred_index(pred_files):
     index = {}
 
     for league, files in pred_files.items():
-        for path, (fieldnames, rows) in files.items():
+        for path, (_, rows) in files.items():
             for row in rows:
                 key = row_key(row)
                 if key:
@@ -1123,8 +1143,8 @@ def write_league_summaries(
         log_league(league, f"sportsbook_outlier_market_rows_blanked: {sportsbook_outlier_market_blanked.get(league, 0)}")
         log_league(league, f"historical_cleaned_files_preserved   : {preserved_historical.get(league, 0)}")
         log_league(league, f"historical_raw_missing_cleaned_skipped: {skipped_historical_missing.get(league, 0)}")
-        log_league(league, f"prediction_rows_removed              : 0")
-        log_league(league, f"sportsbook_rows_removed              : 0")
+        log_league(league, "prediction_rows_removed              : 0")
+        log_league(league, "sportsbook_rows_removed              : 0")
         log_league(league, f"bias_files_with_adjusted_rows        : {sum_nested(bias_stats, league, 'files_with_biased_rows')}")
         log_league(league, f"bias_rows_adjusted                   : {sum_nested(bias_stats, league, 'rows_adjusted')}")
         log_league(league, f"bias_rows_skipped_already_flagged    : {sum_nested(bias_stats, league, 'rows_skipped_already_flagged')}")
@@ -1188,8 +1208,8 @@ def write_master_summary(
         log_master(f"sportsbook_outlier_market_rows_blanked: {sportsbook_outlier_market_blanked.get(league, 0)}")
         log_master(f"historical_cleaned_files_preserved   : {preserved_historical.get(league, 0)}")
         log_master(f"historical_raw_missing_cleaned_skipped: {skipped_historical_missing.get(league, 0)}")
-        log_master(f"prediction_rows_removed              : 0")
-        log_master(f"sportsbook_rows_removed              : 0")
+        log_master("prediction_rows_removed              : 0")
+        log_master("sportsbook_rows_removed              : 0")
         log_master(f"bias_files_with_adjusted_rows        : {sum_nested(bias_stats, league, 'files_with_biased_rows')}")
         log_master(f"bias_rows_adjusted                   : {sum_nested(bias_stats, league, 'rows_adjusted')}")
         log_master(f"prediction_files_written             : {sum_nested(pred_write_stats, league, 'files_written')}")

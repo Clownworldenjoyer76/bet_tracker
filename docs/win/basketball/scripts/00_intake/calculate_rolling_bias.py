@@ -47,6 +47,12 @@ from zoneinfo import ZoneInfo
 
 import yaml
 
+SCRIPTS_DIR = Path(__file__).resolve().parents[1]
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
+
+from basketball_shared import resolve_repository_path
+
 
 # ============================================================================
 # PATHS / CONSTANTS
@@ -701,8 +707,12 @@ def read_csv_rows(
     list[str],
     list[dict[str, str]],
 ]:
-    with open(
+    safe_path = resolve_repository_path(
         path,
+        strict=True,
+    )
+
+    with safe_path.open(
         "r",
         newline="",
         encoding="utf-8-sig",
@@ -1047,14 +1057,13 @@ def final_files_for_league(
 # SEASON RULES
 # ============================================================================
 
-_SEASON_CONFIG_CACHE: dict[str, dict[str, int]] | None = None
+_SEASON_CONFIG_CACHE = {"value": None}
 
 
 def load_season_config() -> dict[str, dict[str, int]]:
-    global _SEASON_CONFIG_CACHE
-
-    if _SEASON_CONFIG_CACHE is not None:
-        return _SEASON_CONFIG_CACHE
+    cached = _SEASON_CONFIG_CACHE["value"]
+    if cached is not None:
+        return cached
 
     if not SEASON_CONFIG_PATH.exists():
         raise FileNotFoundError(
@@ -1168,9 +1177,7 @@ def load_season_config() -> dict[str, dict[str, int]]:
             league
         ] = values
 
-    _SEASON_CONFIG_CACHE = (
-        config
-    )
+    _SEASON_CONFIG_CACHE["value"] = config
 
     return config
 

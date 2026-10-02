@@ -1,11 +1,18 @@
 #!/usr/bin/env python3
 # docs/win/basketball/scripts/00_intake/basketball_game_id.py
 
+import sys
 import csv
 import traceback
 from pathlib import Path
 from datetime import datetime
 from collections import defaultdict
+
+SCRIPTS_DIR = Path(__file__).resolve().parents[1]
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
+
+from basketball_shared import resolve_repository_path
 
 # =========================
 # PATHS
@@ -72,7 +79,12 @@ def ensure_fieldnames(fieldnames, wanted):
 
 
 def read_csv_rows(path: Path):
-    with open(path, newline="", encoding="utf-8") as f:
+    safe_path = resolve_repository_path(
+        path,
+        strict=True,
+    )
+
+    with safe_path.open(newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         rows = list(reader)
         fieldnames = reader.fieldnames or []
@@ -80,7 +92,12 @@ def read_csv_rows(path: Path):
 
 
 def write_csv_rows(path: Path, fieldnames, rows):
-    with open(path, "w", newline="", encoding="utf-8") as f:
+    safe_path = resolve_repository_path(
+        path,
+        strict=False,
+    )
+
+    with safe_path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(rows)
@@ -318,13 +335,13 @@ def main():
     duplicate_key_rows = []
 
     try:
-        for league_key, cfg in LEAGUES.items():
+        for cfg in LEAGUES.values():
             league_label = cfg["league_label"]
             log(f"--- LEAGUE {league_label} ---")
 
             (
                 daily_map,
-                daily_keys_by_date,
+                _,
                 daily_duplicate_rows,
                 daily_files_found,
                 daily_rows_loaded,
