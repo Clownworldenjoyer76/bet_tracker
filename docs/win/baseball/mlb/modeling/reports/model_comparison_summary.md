@@ -1,6 +1,6 @@
 # MLB Run Model Comparison
 
-- Generated: `2026-10-02T12:18:43.166100+00:00`
+- Generated: `2026-10-03T15:00:42.260401+00:00`
 - Untouched chronological test period: `2026-09-03` through `2026-10-01`
 - Test games: `83`
 - Model fitting/tuning performed by this evaluation script: `NO`
@@ -60,12 +60,12 @@ Calibration YES/NO uses weighted expected calibration error (ECE) <= `0.05`. Tot
 ## EV, realized return, and Kelly
 
 - New-model priced candidates evaluated: `494`; positive-EV candidates: `217`.
-- New-model all-candidate mean predicted EV vs realized return: `-0.044999` vs `-0.054636`.
-- New-model positive-EV mean predicted EV vs realized return: `0.201450` vs `-0.065668`.
-- Does higher predicted EV correspond to higher realized return? EV/return Spearman = `0.027443`. A positive value indicates higher EV tended to correspond to higher realized return in this test sample.
+- New-model all-candidate mean predicted EV vs realized return: `-0.044941` vs `-0.054534`.
+- New-model positive-EV mean predicted EV vs realized return: `0.201627` vs `-0.065438`.
+- Does higher predicted EV correspond to higher realized return? EV/return Spearman = `0.027866`. A positive value indicates higher EV tended to correspond to higher realized return in this test sample.
 - Is positive EV overstated versus realized return? **YES** (defined here as mean realized return below mean predicted EV among positive-EV candidates).
-- DRatings-run baseline all-candidate mean predicted EV vs realized return: `-0.056605` vs `-0.054636`; EV/return Spearman `-0.063821`.
-- Does Kelly increase monotonically with actual model edge? Edge/Kelly-raw Spearman = `0.992318`; mean raw Kelly across ordered edge bins is non-decreasing: **YES** across `10` populated edge bins.
+- DRatings-run baseline all-candidate mean predicted EV vs realized return: `-0.056580` vs `-0.054534`; EV/return Spearman `-0.062983`.
+- Does Kelly increase monotonically with actual model edge? Edge/Kelly-raw Spearman = `0.992317`; mean raw Kelly across ordered edge bins is non-decreasing: **YES** across `10` populated edge bins.
 
 ## Run-line side preference
 
