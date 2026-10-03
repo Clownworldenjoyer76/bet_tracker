@@ -129,12 +129,28 @@ jobs:
         shell: bash
         run: |
           YESTERDAY="$(date -d 'yesterday' +'%Y_%m_%d')"
+          GAME_FILE="docs/win/baseball/mlb/00_intake/games/${YESTERDAY}_games.csv"
           FINAL_FILE="docs/win/baseball/mlb/05_final_scores/results/final_scores/${YESTERDAY}_final_scores_MLB.csv"
 
+          echo "Checking yesterday game file: ${GAME_FILE}"
+
+          if [ ! -f "${GAME_FILE}" ]; then
+            echo "No yesterday game file exists for ${YESTERDAY}. No final-score file is required."
+            exit 0
+          fi
+
+          GAME_ROWS="$(awk 'END { print NR > 1 ? NR - 1 : 0 }' "${GAME_FILE}")"
+
+          if [ "${GAME_ROWS}" -eq 0 ]; then
+            echo "Yesterday game file contains no game rows for ${YESTERDAY}. No final-score file is required."
+            exit 0
+          fi
+
+          echo "Yesterday contains ${GAME_ROWS} game row(s)."
           echo "Verifying yesterday final-score file before run-model training: ${FINAL_FILE}"
 
           if [ ! -s "${FINAL_FILE}" ]; then
-            echo "ERROR: Yesterday final-score CSV is missing or empty before build_run_training_set.py: ${FINAL_FILE}"
+            echo "ERROR: Yesterday had games, but its final-score CSV is missing or empty before build_run_training_set.py: ${FINAL_FILE}"
             exit 1
           fi
 
@@ -147,7 +163,20 @@ jobs:
         shell: bash
         run: |
           YESTERDAY="$(date -d 'yesterday' +'%Y_%m_%d')"
+          GAME_FILE="docs/win/baseball/mlb/00_intake/games/${YESTERDAY}_games.csv"
           TRAIN_LOG="docs/win/baseball/mlb/errors/modeling/build_run_training_set.txt"
+
+          if [ ! -f "${GAME_FILE}" ]; then
+            echo "No yesterday game file exists for ${YESTERDAY}. Late-final-score verification is not applicable."
+            exit 0
+          fi
+
+          GAME_ROWS="$(awk 'END { print NR > 1 ? NR - 1 : 0 }' "${GAME_FILE}")"
+
+          if [ "${GAME_ROWS}" -eq 0 ]; then
+            echo "Yesterday game file contains no game rows for ${YESTERDAY}. Late-final-score verification is not applicable."
+            exit 0
+          fi
 
           if [ ! -f "${TRAIN_LOG}" ]; then
             echo "ERROR: Training log not found: ${TRAIN_LOG}"
