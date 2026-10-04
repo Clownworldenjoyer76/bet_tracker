@@ -139,7 +139,7 @@ jobs:
             exit 0
           fi
 
-          GAME_ROWS="$(awk 'END { print NR > 1 ? NR - 1 : 0 }' "${GAME_FILE}")"
+          GAME_ROWS="$(awk 'END { print (NR > 1 ? NR - 1 : 0) }' "${GAME_FILE}")"
 
           if [ "${GAME_ROWS}" -eq 0 ]; then
             echo "Yesterday game file contains no game rows for ${YESTERDAY}. No final-score file is required."
@@ -171,7 +171,7 @@ jobs:
             exit 0
           fi
 
-          GAME_ROWS="$(awk 'END { print NR > 1 ? NR - 1 : 0 }' "${GAME_FILE}")"
+          GAME_ROWS="$(awk 'END { print (NR > 1 ? NR - 1 : 0) }' "${GAME_FILE}")"
 
           if [ "${GAME_ROWS}" -eq 0 ]; then
             echo "Yesterday game file contains no game rows for ${YESTERDAY}. Late-final-score verification is not applicable."
