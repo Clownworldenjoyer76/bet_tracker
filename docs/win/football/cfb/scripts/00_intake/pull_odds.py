@@ -1243,11 +1243,7 @@ def normalize_event_odds(
             snapshot_fetched_at,
         )
 
-    if (
-        current["total"]
-        or current["over_american"]
-        or current["under_american"]
-    ):
+    if to_float(current["total"]) is not None:
         add_market_row(
             rows,
             event,
