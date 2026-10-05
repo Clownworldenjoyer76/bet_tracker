@@ -1,8 +1,8 @@
 # MLB Run Model Comparison
 
-- Generated: `2026-10-04T11:10:48.745467+00:00`
-- Untouched chronological test period: `2026-09-04` through `2026-10-03`
-- Test games: `85`
+- Generated: `2026-10-05T18:59:37.248510+00:00`
+- Untouched chronological test period: `2026-09-05` through `2026-10-04`
+- Test games: `80`
 - Model fitting/tuning performed by this evaluation script: `NO`
 - Promotion status: `candidate_rejected`
 
@@ -12,8 +12,8 @@ Candidate promotion requires mean Poisson deviance <= the DRatings baseline for 
 
 | Side | DRatings baseline Poisson | Candidate Poisson | Candidate <= baseline |
 | --- | --- | --- | --- |
-| home | 1.994126 | 2.092419 | NO |
-| away | 2.006743 | 2.007135 | NO |
+| home | 2.026137 | 2.340974 | NO |
+| away | 2.055004 | 1.909737 | YES |
 
 - Production artifacts changed: **NO**.
 
@@ -21,15 +21,15 @@ Candidate promotion requires mean Poisson deviance <= the DRatings baseline for 
 
 | System | Side | Rows | MAE | Mean Poisson deviance | Mean predicted runs | Mean actual runs |
 | --- | --- | --- | --- | --- | --- | --- |
-| dratings | home | 85 | 2.294353 | 1.994126 | 4.303765 | 4.482353 |
-| new_model | home | 85 | 2.366982 | 2.092419 | 4.573134 | 4.482353 |
-| dratings | away | 85 | 2.218706 | 2.006743 | 4.014235 | 4.658824 |
-| new_model | away | 85 | 2.273630 | 2.007135 | 4.054177 | 4.658824 |
+| dratings | home | 80 | 2.374875 | 2.026137 | 4.291875 | 4.475000 |
+| new_model | home | 80 | 2.541516 | 2.340974 | 4.354858 | 4.475000 |
+| dratings | away | 80 | 2.254000 | 2.055004 | 4.032000 | 4.675000 |
+| new_model | away | 80 | 2.230141 | 1.909737 | 4.302556 | 4.675000 |
 
 ### Run-prediction questions
 
-- Does the new model improve home-run prediction error? **NO** (MAE `2.294353` -> `2.366982`; Poisson deviance `1.994126` -> `2.092419`).
-- Does the new model improve away-run prediction error? **NO** (MAE `2.218706` -> `2.273630`; Poisson deviance `2.006743` -> `2.007135`).
+- Does the new model improve home-run prediction error? **NO** (MAE `2.374875` -> `2.541516`; Poisson deviance `2.026137` -> `2.340974`).
+- Does the new model improve away-run prediction error? **YES** (MAE `2.254000` -> `2.230141`; Poisson deviance `2.055004` -> `1.909737`).
 
 ## Probability calibration
 
@@ -37,9 +37,9 @@ Calibration YES/NO uses weighted expected calibration error (ECE) <= `0.05`. Tot
 
 | Market | New-model ECE | Calibrated | Predicted-vs-observed Spearman | Observed rate exactly non-decreasing | Populated bins |
 | --- | --- | --- | --- | --- | --- |
-| moneyline | 0.110229 | NO | 0.809524 | NO | 8 |
-| run_line | 0.198239 | NO | 0.380952 | NO | 8 |
-| total | 0.119074 | NO | -0.285714 | NO | 8 |
+| moneyline | 0.130148 | NO | 0.733333 | NO | 10 |
+| run_line | 0.152453 | NO | -0.179644 | NO | 8 |
+| total | 0.175269 | NO | 0.428571 | NO | 8 |
 
 - Are predicted moneyline probabilities calibrated? **NO**.
 - Are predicted run-line probabilities calibrated? **NO**.
@@ -50,28 +50,28 @@ Calibration YES/NO uses weighted expected calibration error (ECE) <= `0.05`. Tot
 
 | System | Market | Evaluation side | Rows | Log loss |
 | --- | --- | --- | --- | --- |
-| dratings | moneyline | home | 85 | 0.628937 |
-| dratings | run_line | home | 83 | 0.693112 |
-| dratings | total | over_resolved | 82 | 0.705035 |
-| new_model | moneyline | home | 85 | 0.667127 |
-| new_model | run_line | home | 83 | 0.726482 |
-| new_model | total | over_resolved | 82 | 0.727596 |
+| dratings | moneyline | home | 80 | 0.625437 |
+| dratings | run_line | home | 79 | 0.700516 |
+| dratings | total | over_resolved | 78 | 0.698819 |
+| new_model | moneyline | home | 80 | 0.714033 |
+| new_model | run_line | home | 79 | 0.743026 |
+| new_model | total | over_resolved | 78 | 0.757563 |
 
 ## EV, realized return, and Kelly
 
-- New-model priced candidates evaluated: `506`; positive-EV candidates: `221`.
-- New-model all-candidate mean predicted EV vs realized return: `-0.048323` vs `-0.057885`.
-- New-model positive-EV mean predicted EV vs realized return: `0.188359` vs `-0.085385`.
-- Does higher predicted EV correspond to higher realized return? EV/return Spearman = `-0.030324`. A positive value indicates higher EV tended to correspond to higher realized return in this test sample.
+- New-model priced candidates evaluated: `478`; positive-EV candidates: `205`.
+- New-model all-candidate mean predicted EV vs realized return: `-0.045107` vs `-0.056067`.
+- New-model positive-EV mean predicted EV vs realized return: `0.226254` vs `-0.043707`.
+- Does higher predicted EV correspond to higher realized return? EV/return Spearman = `-0.049260`. A positive value indicates higher EV tended to correspond to higher realized return in this test sample.
 - Is positive EV overstated versus realized return? **YES** (defined here as mean realized return below mean predicted EV among positive-EV candidates).
-- DRatings-run baseline all-candidate mean predicted EV vs realized return: `-0.056154` vs `-0.057885`; EV/return Spearman `-0.059948`.
-- Does Kelly increase monotonically with actual model edge? Edge/Kelly-raw Spearman = `0.992270`; mean raw Kelly across ordered edge bins is non-decreasing: **YES** across `10` populated edge bins.
+- DRatings-run baseline all-candidate mean predicted EV vs realized return: `-0.055822` vs `-0.056067`; EV/return Spearman `-0.042265`.
+- Does Kelly increase monotonically with actual model edge? Edge/Kelly-raw Spearman = `0.991882`; mean raw Kelly across ordered edge bins is non-decreasing: **YES** across `10` populated edge bins.
 
 ## Run-line side preference
 
-- Games with both run-line sides priced/evaluated: `83`.
-- Higher-EV side was `-1.5` in `30` games (`36.14%` of non-ties).
-- Higher-EV side was `+1.5` in `53` games (`63.86%` of non-ties).
+- Games with both run-line sides priced/evaluated: `79`.
+- Higher-EV side was `-1.5` in `34` games (`43.04%` of non-ties).
+- Higher-EV side was `+1.5` in `45` games (`56.96%` of non-ties).
 - Exact EV ties: `0`.
 
 ## Interpretation constraint
