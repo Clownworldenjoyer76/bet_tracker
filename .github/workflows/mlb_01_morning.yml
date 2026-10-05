@@ -679,65 +679,54 @@ jobs:
         run: python docs/win/baseball/mlb/scripts/pipeline_health.py
 
       # ============================================================
-      # COMMIT MODELS + MORNING OUTPUTS
+      # COMMIT ALL MLB OUTPUTS ATOMICALLY
       # ============================================================
 
-      - name: Commit MLB models and morning outputs
+      - name: Commit and push MLB outputs
         if: always()
         shell: bash
         run: |
+          set -euo pipefail
+
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           git add docs/win/baseball/mlb/
           git add frontend/baseball_dashboard.html
           git add frontend/mlb_dashboard.html
+          git add frontend/data/pipeline_health/mlb.json
 
-          git restore --staged \
+          git restore --source=HEAD --staged --worktree -- \
             docs/win/baseball/mlb/audit/leakage_audit.csv \
+            2>/dev/null || true
+
+          git clean -f -- \
+            docs/win/baseball/mlb/audit/leakage_audit.csv \
+            2>/dev/null || true
+
+          git restore --source=HEAD --staged --worktree -- \
             docs/win/baseball/mlb/models/run_projection/candidates/ \
             2>/dev/null || true
 
-          git diff --cached --quiet || \
-            git commit -m "chore: update MLB models and morning pipeline outputs"
+          git clean -fd -- \
+            docs/win/baseball/mlb/models/run_projection/candidates/ \
+            2>/dev/null || true
 
-          for ATTEMPT in 1 2 3; do
-            echo "Push attempt ${ATTEMPT}/3"
+          if git diff --cached --quiet; then
+            echo "No MLB output changes to commit."
+            exit 0
+          fi
 
-            git fetch origin main
+          git commit -m "chore: update MLB morning pipeline outputs"
 
-            if ! git rebase origin/main; then
-              echo "ERROR: Rebase conflict while integrating current origin/main."
-              git rebase --abort || true
-              exit 1
-            fi
+          if [ -n "$(git status --porcelain --untracked-files=all)" ]; then
+            echo "ERROR: Working tree is dirty after commit."
+            git status --short
+            exit 1
+          fi
 
-            if git push origin HEAD:main; then
-              echo "MLB models and morning outputs pushed successfully."
-              exit 0
-            fi
-
-            echo "Remote main changed during push attempt ${ATTEMPT}; retrying."
-          done
-
-          echo "ERROR: Failed to push after 3 attempts."
-          exit 1
-
-      - name: Commit MLB pipeline health frontend
-        if: always()
-        shell: bash
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          git add docs/win/baseball/mlb/pipeline_health.json
-          git add frontend/data/pipeline_health/mlb.json
-
-          git diff --cached --quiet || \
-            git commit -m "chore: update MLB pipeline health"
-
-          for ATTEMPT in 1 2 3; do
-            echo "Push attempt ${ATTEMPT}/3"
+          for ATTEMPT in 1 2 3 4 5; do
+            echo "Push attempt ${ATTEMPT}/5"
 
             git fetch origin main
 
@@ -748,12 +737,12 @@ jobs:
             fi
 
             if git push origin HEAD:main; then
-              echo "MLB pipeline health pushed successfully."
+              echo "MLB outputs pushed successfully."
               exit 0
             fi
 
             echo "Remote main changed during push attempt ${ATTEMPT}; retrying."
           done
 
-          echo "ERROR: Failed to push after 3 attempts."
+          echo "ERROR: Failed to push after 5 attempts."
           exit 1
