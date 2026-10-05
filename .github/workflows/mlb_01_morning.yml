@@ -679,10 +679,10 @@ jobs:
         run: python docs/win/baseball/mlb/scripts/pipeline_health.py
 
       # ============================================================
-      # COMMIT ALL MLB OUTPUTS ATOMICALLY
+      # PUBLISH MLB OUTPUTS ON TOP OF LATEST MAIN
       # ============================================================
 
-      - name: Commit and push MLB outputs
+      - name: Publish MLB outputs
         if: always()
         shell: bash
         run: |
@@ -691,58 +691,81 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
+          # Stage only the outputs this workflow is allowed to publish.
           git add docs/win/baseball/mlb/
           git add frontend/baseball_dashboard.html
           git add frontend/mlb_dashboard.html
           git add frontend/data/pipeline_health/mlb.json
 
-          git restore --source=HEAD --staged --worktree -- \
+          # Never publish these generated training/audit artifacts.
+          git restore --staged -- \
             docs/win/baseball/mlb/audit/leakage_audit.csv \
             2>/dev/null || true
 
-          git clean -f -- \
-            docs/win/baseball/mlb/audit/leakage_audit.csv \
-            2>/dev/null || true
-
-          git restore --source=HEAD --staged --worktree -- \
-            docs/win/baseball/mlb/models/run_projection/candidates/ \
-            2>/dev/null || true
-
-          git clean -fd -- \
+          git restore --staged -- \
             docs/win/baseball/mlb/models/run_projection/candidates/ \
             2>/dev/null || true
 
           if git diff --cached --quiet; then
-            echo "No MLB output changes to commit."
+            echo "No MLB output changes to publish."
             exit 0
           fi
 
-          git commit -m "chore: update MLB morning pipeline outputs"
+          # Create a local snapshot commit containing only this run's intended changes.
+          git commit -m "chore: capture MLB morning pipeline outputs"
 
-          if [ -n "$(git status --porcelain --untracked-files=all)" ]; then
-            echo "ERROR: Working tree is dirty after commit."
-            git status --short
-            exit 1
+          SOURCE_COMMIT="$(git rev-parse HEAD)"
+          CHANGED_PATHS="${RUNNER_TEMP}/mlb_changed_paths.z"
+
+          git diff-tree \
+            --no-commit-id \
+            --name-only \
+            -r \
+            -z \
+            "${SOURCE_COMMIT}" \
+            > "${CHANGED_PATHS}"
+
+          if [ ! -s "${CHANGED_PATHS}" ]; then
+            echo "No changed MLB paths were captured."
+            exit 0
           fi
 
+          # Each attempt starts from the newest main, then reapplies only
+          # the files produced or changed by this MLB run.
           for ATTEMPT in 1 2 3 4 5; do
-            echo "Push attempt ${ATTEMPT}/5"
+            echo "Publish attempt ${ATTEMPT}/5"
 
             git fetch origin main
+            git reset --hard origin/main
 
-            if ! git rebase origin/main; then
-              echo "ERROR: Rebase conflict while integrating current origin/main."
-              git rebase --abort || true
-              exit 1
-            fi
+            while IFS= read -r -d '' PATHNAME; do
+              if git cat-file -e "${SOURCE_COMMIT}:${PATHNAME}" 2>/dev/null; then
+                git restore \
+                  --source="${SOURCE_COMMIT}" \
+                  --worktree \
+                  -- \
+                  "${PATHNAME}"
+              else
+                rm -rf -- "${PATHNAME}"
+              fi
 
-            if git push origin HEAD:main; then
-              echo "MLB outputs pushed successfully."
+              git add -A -- "${PATHNAME}"
+            done < "${CHANGED_PATHS}"
+
+            if git diff --cached --quiet; then
+              echo "Latest main already contains the MLB output changes."
               exit 0
             fi
 
-            echo "Remote main changed during push attempt ${ATTEMPT}; retrying."
+            git commit -m "chore: update MLB morning pipeline outputs"
+
+            if git push origin HEAD:main; then
+              echo "MLB outputs published successfully."
+              exit 0
+            fi
+
+            echo "main changed before the push completed; retrying from newest main."
           done
 
-          echo "ERROR: Failed to push after 5 attempts."
+          echo "ERROR: Failed to publish MLB outputs after 5 attempts."
           exit 1
