@@ -1204,14 +1204,8 @@ def normalize_event_odds(
         )
 
     if (
-        current["home_spread"]
-        or current["away_spread"]
-        or current[
-            "home_spread_american"
-        ]
-        or current[
-            "away_spread_american"
-        ]
+        to_float(current["home_spread"]) is not None
+        and to_float(current["away_spread"]) is not None
     ):
         add_market_row(
             rows,
