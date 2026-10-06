@@ -10,7 +10,6 @@ body.home-page .auth-shell{width:100%}
 .home-history .status-dot.green{background:var(--accent-green);box-shadow:0 0 6px rgba(0,255,132,.45)}
 .home-history .status-dot.red{background:var(--accent-red);box-shadow:0 0 6px rgba(255,45,45,.45)}
 .home-history .history-grid{display:grid;grid-template-columns:1fr;gap:10px}
-.home-history .day-card:nth-child(n+8){display:none}
 .home-history .day-card{border:1px solid var(--border-soft);background:rgba(255,255,255,.018);padding:12px}
 .home-history .date-label{color:var(--text-muted);font:700 9px "Barlow Condensed",sans-serif;letter-spacing:.12em;text-transform:uppercase;margin-bottom:3px}
 .home-history .date-value{color:var(--text-main);font:900 20px/1.1 "Barlow Condensed",sans-serif;letter-spacing:.04em;margin-bottom:10px}
@@ -29,24 +28,76 @@ body.home-page .auth-shell{width:100%}
 .home-history .day-card:hover{border-color:rgba(0,255,132,.35)}
 #modal{display:none}
 #modal.open{display:flex}
-.home-pk-overlay{position:fixed;inset:0;background:rgba(0,0,0,.82);display:none;align-items:center;justify-content:center;padding:24px;z-index:2147483000}
-.home-pk-overlay.open{display:flex}
-.home-pk-panel{background:#000;border:1px solid rgba(0,255,132,.25);border-radius:4px;width:min(1100px,100%);max-height:88vh;overflow-y:auto;box-shadow:0 32px 64px rgba(0,0,0,.7)}
+.home-pk-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;padding:24px;z-index:2147483000}
+.home-pk-overlay.open{display:flex;animation:homePkFade .2s ease}
+.home-pk-panel{background:#000;border:1px solid rgba(0,255,132,.25);border-radius:4px;width:min(900px,100%);max-height:88vh;overflow-y:auto;box-shadow:0 32px 64px rgba(0,0,0,.7)}
 .home-pk-head{position:sticky;top:0;z-index:2;background:#000;display:flex;align-items:center;gap:16px;padding:16px 20px;border-bottom:1px solid rgba(255,255,255,.08)}
 .home-pk-title{font:800 24px "Barlow Condensed",sans-serif;letter-spacing:4px;color:var(--accent-green);text-transform:uppercase}
 .home-pk-title span{color:var(--text-main);margin-left:10px}
 .home-pk-x{background:transparent;border:1px solid rgba(0,255,132,.3);color:var(--accent-green);font:400 22px/1 monospace;width:34px;height:34px;cursor:pointer;border-radius:3px}
 .home-pk-filters{display:none}
+@keyframes homePkFade{from{opacity:0}to{opacity:1}}
+@keyframes homePkIn{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes homePkSpin{to{transform:rotate(360deg)}}
+.home-pk-overlay.open .home-pk-panel{animation:homePkIn .24s ease}
+#modal.open{animation:homePkFade .18s ease}
+#modal.open .modal-card{animation:homePkIn .22s ease}
+.home-pk-overlay .pick-card{animation:homePkIn .3s ease both;transition:transform .16s ease,border-color .16s ease,background .16s ease,box-shadow .16s ease}
+.home-pk-overlay .pick-card:hover{transform:translateY(-3px);box-shadow:0 8px 20px rgba(0,255,132,.1)}
+.home-pk-overlay .card-ev{font-size:13px;letter-spacing:.04em}
+#modal .modal-ev{font-size:13px;letter-spacing:.04em}
+.home-pk-overlay #status.loading::before{content:"";display:inline-block;width:12px;height:12px;border:2px solid rgba(0,255,132,.25);border-top-color:var(--accent-green);border-radius:50%;margin-right:8px;vertical-align:-2px;animation:homePkSpin .7s linear infinite}
+.home-history .day-card{position:relative;transition:border-color .18s ease,transform .18s ease,box-shadow .18s ease}
+.home-history .day-card::after{content:"View picks \2192";position:absolute;top:14px;right:16px;color:var(--accent-green);font:700 12px "Barlow Condensed",sans-serif;letter-spacing:.11em;text-transform:uppercase;opacity:.5;transition:opacity .18s ease,transform .18s ease}
+.home-history .day-card:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(0,255,132,.08)}
+.home-history .day-card:hover::after{opacity:1;transform:translateX(3px)}
+.res-badge{font:800 13px "IBM Plex Mono",monospace;letter-spacing:.16em;padding:4px 12px;border-radius:3px;margin-left:8px}
+.res-win{color:#000;background:#00ff84;box-shadow:0 0 10px rgba(0,255,132,.35)}
+.res-loss{color:#fff;background:#ff2d2d;box-shadow:0 0 10px rgba(255,45,45,.35)}
+.home-pk-overlay .card-time{margin-right:auto}
+#modal .res-badge{margin-left:auto}
+.home-pk-overlay .pick-card.pk-win{border-left-width:4px;border-left-color:#00ff84}
+.home-pk-overlay .pick-card.pk-loss{border-left-width:4px;border-left-color:#ff2d2d}
+.home-pk-overlay .pick-card{display:flex;flex-direction:column}
+.home-pk-overlay .card-top{min-height:29px}
+.home-pk-overlay .card-matchup{margin-bottom:6px}
+.home-pk-overlay .card-bet{margin-top:auto}
+.home-history .hist-hidden{display:none}
+.home-history .day-card{border-left-width:4px}
+.home-history .day-card:has(.day-stat:nth-child(2) .val-green){border-left-color:var(--accent-green)}
+.home-history .day-card:has(.day-stat:nth-child(2) .val-red){border-left-color:var(--accent-red)}
+.home-history .day-card:has(.day-stat:nth-child(2) .val-yellow){border-left-color:var(--accent-yellow)}
+.hist-summary{border:1px solid rgba(0,255,132,.25);background:rgba(0,255,132,.04);padding:12px;margin-bottom:12px}
+.hist-summary .hs-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.hist-summary .hs-title{font:900 15px "Barlow Condensed",sans-serif;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-green)}
+.hist-summary .hs-range{color:var(--text-muted);font:700 12px "Barlow Condensed",sans-serif;letter-spacing:.11em;text-transform:uppercase}
+.hist-summary .hs-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.hist-skel{height:118px;border:1px solid var(--border-soft);border-left-width:4px;background:linear-gradient(100deg,rgba(255,255,255,.02) 30%,rgba(255,255,255,.08) 50%,rgba(255,255,255,.02) 70%);background-size:200% 100%;animation:histShimmer 1.3s linear infinite}
+@keyframes histShimmer{from{background-position:200% 0}to{background-position:-200% 0}}
+.hist-more{display:block;width:100%;margin-top:12px;background:transparent;border:1px solid rgba(0,255,132,.3);color:var(--accent-green);font:700 13px "Barlow Condensed",sans-serif;letter-spacing:.14em;text-transform:uppercase;padding:10px;cursor:pointer;transition:background .18s ease}
+.hist-more:hover{background:rgba(0,255,132,.1)}
+.hist-more[hidden]{display:none}
+.home-pk-nav{background:transparent;border:1px solid rgba(0,255,132,.3);color:var(--accent-green);font:400 22px/1 monospace;width:34px;height:34px;cursor:pointer;border-radius:3px;flex:0 0 auto;transition:background .18s ease}
+.home-pk-nav:hover:not(:disabled){background:rgba(0,255,132,.1)}
+.home-pk-nav:disabled{opacity:.25;cursor:default}
+.res-pending{color:#c7cbd6;background:rgba(255,255,255,.08);box-shadow:inset 0 0 0 1px rgba(255,255,255,.2)}
+.home-pk-overlay .card-sc{font:800 14px "IBM Plex Mono",monospace;color:#fff;background:rgba(255,255,255,.1);padding:0 6px;border-radius:2px}
+@media (max-width:640px){.home-pk-overlay{padding:0;align-items:stretch}.home-pk-panel{width:100%;height:100vh;height:100dvh;max-height:none;border:0;border-radius:0}.home-pk-head{flex-wrap:wrap;padding:12px 14px;gap:8px}.home-pk-title{font-size:18px;letter-spacing:1px;min-width:0}.home-pk-title span{margin-left:6px}.home-pk-nav,.home-pk-x{width:30px;height:30px}.home-pk-head #status{order:5;flex-basis:100%;margin-left:0}#modal{padding:12px}.hist-summary .hs-stats{gap:8px}}
 </style>
 <section class="home-history" aria-label="Completed bet history">
 <div class="section-header"><div class="section-title">Completed Bet History</div><div class="section-note">Last 7 completed dates, all sports, all markets</div></div>
 <div class="status-line"><span class="status-dot" id="status-dot"></span><span id="status-text">Loading completed bet history...</span></div>
-<div class="history-grid" id="history-grid"><div class="empty-state">Loading completed bet history...</div></div>
+<div class="hist-summary" id="hist-summary" hidden>
+<div class="hs-head"><span class="hs-title" id="hs-title">Last 7 days</span><span class="hs-range" id="hs-range"></span></div>
+<div class="hs-stats"><div><div class="day-stat-label">Total Bets</div><div class="day-stat-value" id="hs-bets"></div></div><div><div class="day-stat-label">W-L-P Record</div><div class="day-stat-value" id="hs-rec"></div></div><div><div class="day-stat-label">Win Rate</div><div class="day-stat-value" id="hs-rate"></div></div></div>
+</div>
+<div class="history-grid" id="history-grid"><div class="hist-skel"></div><div class="hist-skel"></div><div class="hist-skel"></div><div class="hist-skel"></div></div>
+<button type="button" class="hist-more" id="hist-more" hidden>Load more</button>
 </section>
 <div hidden><span id="summary-completed"></span><span id="summary-record"></span><span id="summary-win-rate"></span><span id="summary-model-prob"></span><span id="summary-profit"></span></div>
 <div class="home-pk-overlay" id="home-pk-overlay">
 <div class="home-pk-panel" role="dialog" aria-modal="true" aria-label="Picks for the selected date">
-<div class="home-pk-head"><div class="home-pk-title">Picks<span id="home-pk-date"></span></div><div id="status" class="status"></div><button type="button" class="home-pk-x" id="home-pk-close" aria-label="Close">&times;</button></div>
+<div class="home-pk-head"><button type="button" class="home-pk-nav" id="home-pk-prev" aria-label="Previous date">&#8249;</button><div class="home-pk-title">Picks<span id="home-pk-date"></span></div><button type="button" class="home-pk-nav" id="home-pk-next" aria-label="Next date">&#8250;</button><div id="status" class="status"></div><button type="button" class="home-pk-x" id="home-pk-close" aria-label="Close">&times;</button></div>
 <div class="home-pk-filters"><div id="league-filters"></div></div>
 <input id="p-date" type="date" hidden>
 <div id="ufc-event-selector" hidden></div>
