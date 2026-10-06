@@ -1,0 +1,56 @@
+<style>
+body.home-page .auth-page{display:grid;grid-template-columns:minmax(0,560px) minmax(0,1fr);gap:22px;width:min(1500px,calc(100% - 48px));margin:0 auto;padding:22px 0 44px;min-height:0;place-items:start stretch}
+body.home-page .auth-shell{width:100%}
+.home-history{min-width:0;background:var(--bg-card);border:1px solid var(--border-soft);padding:16px}
+.home-history .section-header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;border-bottom:1px solid var(--border-soft);padding-bottom:7px;margin-bottom:14px}
+.home-history .section-title{font:900 15px "Barlow Condensed",sans-serif;letter-spacing:.14em;color:var(--accent-green);text-transform:uppercase}
+.home-history .section-note{color:var(--text-muted);font-size:9px;letter-spacing:.08em;text-transform:uppercase}
+.home-history .status-line{display:flex;align-items:center;gap:8px;min-height:18px;margin-bottom:12px;color:var(--text-muted);font-size:10px}
+.home-history .status-dot{width:6px;height:6px;border-radius:50%;flex:0 0 auto;background:var(--accent-yellow);box-shadow:0 0 6px rgba(250,204,21,.45)}
+.home-history .status-dot.green{background:var(--accent-green);box-shadow:0 0 6px rgba(0,255,132,.45)}
+.home-history .status-dot.red{background:var(--accent-red);box-shadow:0 0 6px rgba(255,45,45,.45)}
+.home-history .history-grid{display:grid;grid-template-columns:1fr;gap:10px}
+.home-history .day-card:nth-child(n+8){display:none}
+.home-history .day-card{border:1px solid var(--border-soft);background:rgba(255,255,255,.018);padding:12px}
+.home-history .date-label{color:var(--text-muted);font:700 9px "Barlow Condensed",sans-serif;letter-spacing:.12em;text-transform:uppercase;margin-bottom:3px}
+.home-history .date-value{color:var(--text-main);font:900 20px/1.1 "Barlow Condensed",sans-serif;letter-spacing:.04em;margin-bottom:10px}
+.home-history .day-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.home-history .day-stat{min-width:0}
+.home-history .day-stat:nth-child(4){display:none}
+.home-history .day-stat-label{color:var(--text-muted);font:700 12px "Barlow Condensed",sans-serif;letter-spacing:.11em;text-transform:uppercase;margin-bottom:4px}
+.home-history .day-stat-value{color:var(--text-main);font:600 20px "IBM Plex Mono",monospace;overflow-wrap:anywhere}
+.home-history .val-green{color:var(--accent-green)}
+.home-history .val-red{color:var(--accent-red)}
+.home-history .val-yellow{color:var(--accent-yellow)}
+.home-history .val-blue{color:var(--accent-blue)}
+.home-history .empty-state{padding:34px 16px;border:1px dashed var(--border-soft);color:var(--text-muted);text-align:center;font:700 13px "Barlow Condensed",sans-serif;letter-spacing:.1em;text-transform:uppercase}
+@media(max-width:900px){body.home-page .auth-page{grid-template-columns:minmax(0,1fr);width:min(100% - 24px,1500px)}}
+.home-history .day-card{cursor:pointer}
+.home-history .day-card:hover{border-color:rgba(0,255,132,.35)}
+#modal{display:none}
+#modal.open{display:flex}
+.home-pk-overlay{position:fixed;inset:0;background:rgba(0,0,0,.82);display:none;align-items:center;justify-content:center;padding:24px;z-index:2147483000}
+.home-pk-overlay.open{display:flex}
+.home-pk-panel{background:#000;border:1px solid rgba(0,255,132,.25);border-radius:4px;width:min(1100px,100%);max-height:88vh;overflow-y:auto;box-shadow:0 32px 64px rgba(0,0,0,.7)}
+.home-pk-head{position:sticky;top:0;z-index:2;background:#000;display:flex;align-items:center;gap:16px;padding:16px 20px;border-bottom:1px solid rgba(255,255,255,.08)}
+.home-pk-title{font:800 24px "Barlow Condensed",sans-serif;letter-spacing:4px;color:var(--accent-green);text-transform:uppercase}
+.home-pk-title span{color:var(--text-main);margin-left:10px}
+.home-pk-x{background:transparent;border:1px solid rgba(0,255,132,.3);color:var(--accent-green);font:400 22px/1 monospace;width:34px;height:34px;cursor:pointer;border-radius:3px}
+.home-pk-filters{padding:12px 20px 0}
+</style>
+<section class="home-history" aria-label="Completed bet history">
+<div class="section-header"><div class="section-title">Completed Bet History</div><div class="section-note">Last 7 completed dates, all sports, all markets</div></div>
+<div class="status-line"><span class="status-dot" id="status-dot"></span><span id="status-text">Loading completed bet history...</span></div>
+<div class="history-grid" id="history-grid"><div class="empty-state">Loading completed bet history...</div></div>
+</section>
+<div hidden><span id="summary-completed"></span><span id="summary-record"></span><span id="summary-win-rate"></span><span id="summary-model-prob"></span><span id="summary-profit"></span></div>
+<div class="home-pk-overlay" id="home-pk-overlay">
+<div class="home-pk-panel" role="dialog" aria-modal="true" aria-label="Picks for the selected date">
+<div class="home-pk-head"><div class="home-pk-title">Picks<span id="home-pk-date"></span></div><div id="status" class="status"></div><button type="button" class="home-pk-x" id="home-pk-close" aria-label="Close">&times;</button></div>
+<div class="home-pk-filters"><div id="league-filters"></div></div>
+<input id="p-date" type="date" hidden>
+<div id="ufc-event-selector" hidden></div>
+<div id="games"></div>
+</div>
+</div>
+<div id="modal" class="modal"><div class="modal-card" onclick="event.stopPropagation()"><div id="modal-content"></div><button type="button" class="modal-close-btn" onclick="document.getElementById('modal').classList.remove('open')">Close</button></div></div>

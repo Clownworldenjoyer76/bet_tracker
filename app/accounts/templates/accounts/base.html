@@ -9,15 +9,17 @@
   <link rel="stylesheet" href="/assets/css/pages/auth.css">
   <link rel="stylesheet" href="/assets/css/site-polish.css?v=glass-20261006">
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}">
   <div id="nav-placeholder"></div>
 
   <main class="auth-page">
     <section class="auth-shell">
       {% block content %}{% endblock %}
     </section>
+    {% block page_extra %}{% endblock %}
   </main>
 
   <script src="/assets/js/shared/nav.js"></script>
+  {% block scripts_extra %}{% endblock %}
 </body>
 </html>

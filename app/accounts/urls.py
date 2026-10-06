@@ -5,6 +5,8 @@ from . import billing_views, views
 app_name = "accounts"
 
 urlpatterns = [
+    path("", views.home_view, name="home"),
+    path("index.html", views.home_view, name="home_index"),
     path("register.html", views.register_view, name="register"),
     path("login.html", views.EmailLoginView.as_view(), name="login"),
     path("logout.html", views.AccountLogoutView.as_view(), name="logout"),

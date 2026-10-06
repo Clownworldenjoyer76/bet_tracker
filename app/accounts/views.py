@@ -133,7 +133,7 @@ def register_view(request):
 
 
 @login_required
-def account_view(request):
+def account_view(request, template_name="accounts/account.html"):
     preferences, _ = UserPreferences.objects.get_or_create(user=request.user)
     saved = False
 
@@ -157,7 +157,7 @@ def account_view(request):
 
     return render(
         request,
-        "accounts/account.html",
+        template_name,
         {
             "preferences_form": form,
             "preferences_saved": saved,
@@ -247,3 +247,21 @@ def premium_analytics_access_api(request):
             "feature": FEATURE_PREMIUM_ANALYTICS,
         }
     )
+
+from django.views.decorators.cache import never_cache
+
+
+class HomeLoginView(EmailLoginView):
+    template_name = "accounts/home_login.html"
+    redirect_authenticated_user = False
+
+    def get_success_url(self):
+        return self.get_redirect_url() or "/"
+
+
+@never_cache
+def home_view(request):
+    if request.user.is_authenticated:
+        return account_view(request, template_name="accounts/home_account.html")
+
+    return HomeLoginView.as_view()(request)

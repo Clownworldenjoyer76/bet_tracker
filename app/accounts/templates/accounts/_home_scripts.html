@@ -1,0 +1,27 @@
+<script src="/assets/js/bet-history/config.js"></script>
+<script src="/assets/js/bet-history/sources.js"></script>
+<script src="/assets/js/bet-history/csv.js"></script>
+<script src="/assets/js/bet-history/normalize.js"></script>
+<script src="/assets/js/pages/index.js"></script>
+<script>
+(function(){
+var MN=['January','February','March','April','May','June','July','August','September','October','November','December'];
+var ov=document.getElementById('home-pk-overlay'),hg=document.getElementById('history-grid'),started=false,cur='',chain=Promise.resolve(),st={};
+function pad(n){return n<10?'0'+n:String(n)}
+function parse(t){var m=/^([A-Za-z]+) (\d{1,2}), (\d{4})$/.exec(String(t||'').trim());if(!m)return null;var i=MN.indexOf(m[1]);return i<0?null:{y:+m[3],m:i,d:+m[2]}}
+function once(k,f){return st[k]?Promise.resolve():f().then(function(){st[k]=1})}
+function css(h){return new Promise(function(ok,no){var l=document.createElement('link');l.rel='stylesheet';l.href=h;l.onload=ok;l.onerror=function(){no(new Error(h))};document.head.appendChild(l)})}
+function js(s){return new Promise(function(ok,no){var e=document.createElement('script');e.src=s;e.onload=ok;e.onerror=function(){no(new Error(s))};document.body.appendChild(e)})}
+function idle(){return new Promise(function(ok){(function t(){var s=document.getElementById('status');if(!s||s.className.indexOf('loading')<0)ok();else setTimeout(t,100)})()})}
+function fail(e){started=false;var s=document.getElementById('status');if(s){s.className='status';s.textContent='Could not load picks ('+e.message+')'}}
+function boot(p){return once('css',function(){return css('/assets/css/pages/the_picks.css')}).then(function(){return once('cfg',function(){return js('/assets/js/shared/config.js')})}).then(function(){return once('app',function(){var RD=Date,used=false;window.Date=class extends RD{constructor(){if(arguments.length===0&&!used){used=true;window.Date=RD;super(p.y,p.m,p.d,12)}else{super(...arguments)}}};return js('/assets/js/shared/app.js').then(function(){window.Date=RD},function(e){window.Date=RD;throw e})})}).then(function(){return once('pk',function(){return js('/assets/js/pages/the_picks.js')})})}
+function show(p){var v=p.y+'-'+pad(p.m+1)+'-'+pad(p.d);document.getElementById('home-pk-date').textContent=MN[p.m]+' '+p.d+', '+p.y;ov.classList.add('open');
+if(!started){started=true;cur=v;chain=boot(p).catch(fail);return}
+if(v===cur)return;cur=v;chain=chain.then(idle).then(function(){var i=document.getElementById('p-date');i.value=v;i.dispatchEvent(new Event('change'))})}
+function close(){ov.classList.remove('open')}
+if(hg)hg.addEventListener('click',function(e){var c=e.target.closest('.day-card');if(!c)return;var d=c.querySelector('.date-value'),p=parse(d&&d.textContent);if(p)show(p)});
+document.getElementById('home-pk-close').addEventListener('click',close);
+ov.addEventListener('click',function(e){if(e.target===ov)close()});
+document.addEventListener('keydown',function(e){if(e.key!=='Escape')return;var m=document.getElementById('modal');if(m&&m.classList.contains('open'))m.classList.remove('open');else close()});
+})();
+</script>
