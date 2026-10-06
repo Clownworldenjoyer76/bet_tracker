@@ -609,10 +609,22 @@ body.generated-dashboard tbody tr:hover {
   No image transition is used.
 */
 
+html {
+  background: #000;
+  background-image:
+    radial-gradient(ellipse at 50% -10%, rgba(10,46,28,.55) 0%, rgba(0,0,0,0) 60%),
+    repeating-linear-gradient(45deg, rgba(255,255,255,.012) 0 2px, rgba(0,0,0,0) 2px 6px);
+  background-attachment: fixed;
+}
+
 body {
   position: relative;
   min-height: 100vh;
-  background: var(--bg-card) !important;
+  background: #000 !important;
+  background-image:
+    radial-gradient(ellipse at 50% -10%, rgba(10,46,28,.55) 0%, rgba(0,0,0,0) 60%),
+    repeating-linear-gradient(45deg, rgba(255,255,255,.012) 0 2px, rgba(0,0,0,0) 2px 6px) !important;
+  background-attachment: fixed !important;
   isolation: isolate;
 }
 
@@ -769,3 +781,202 @@ body.smh-home-page::before {
   }
 }
 /* SMH_PAGE_TRANSITIONS_END */
+
+/* SMH-TRANSPARENT-2026-10-06 */
+:root {
+  --bg-card: rgba(15, 20, 27, 0.55);
+}
+
+html {
+  background: #000 !important;
+  background-image:
+    radial-gradient(ellipse at 50% -10%, rgba(10,46,28,.55) 0%, rgba(0,0,0,0) 60%),
+    repeating-linear-gradient(45deg, rgba(255,255,255,.012) 0 2px, rgba(0,0,0,0) 2px 6px) !important;
+  background-attachment: fixed !important;
+}
+
+.site-nav {
+  --bg-card: #0f141b;
+  background: transparent !important;
+}
+
+.modal-box,
+.modal-card {
+  --bg-card: #0f141b;
+}
+/* SMH-TRANSPARENT-2-2026-10-06 */
+:root {
+  --bg-card: transparent;
+}
+
+.topbar {
+  --bg-card: #000;
+  background: #000 !important;
+}
+
+.ticker-wrap {
+  background: #000 !important;
+}
+
+select option {
+  background-color: #0f141b;
+}
+/* SMH-GLASS-2026-10-06 */
+:root {
+  --bg-card: rgba(4, 20, 12, 0.45);
+}
+
+*, *::before, *::after {
+  --g-card: rgba(4, 20, 12, 0.45);
+  --g-card-hover: rgba(4, 20, 12, 0.6);
+  --picks-card: rgba(4, 20, 12, 0.45);
+  --picks-card-hover: rgba(4, 20, 12, 0.6);
+  --manual-card: rgba(4, 20, 12, 0.45);
+  --manual-card-hover: rgba(4, 20, 12, 0.6);
+  --panel: rgba(4, 20, 12, 0.45);
+  --panel2: rgba(4, 20, 12, 0.45);
+  --panel-2: rgba(4, 20, 12, 0.45);
+}
+
+.news-card,
+.txn-row,
+.player-headshot-ph,
+.dash-tabs,
+.manual-body textarea {
+  background: rgba(4, 20, 12, 0.45) !important;
+}
+/* SMH-BLACK-2026-10-06 */
+:root {
+  --bg-card: rgba(0, 0, 0, 0.45);
+}
+
+*, *::before, *::after {
+  --g-card: rgba(0, 0, 0, 0.45);
+  --g-card-hover: rgba(0, 0, 0, 0.6);
+  --picks-card: rgba(0, 0, 0, 0.45);
+  --picks-card-hover: rgba(0, 0, 0, 0.6);
+  --manual-card: rgba(0, 0, 0, 0.45);
+  --manual-card-hover: rgba(0, 0, 0, 0.6);
+  --panel: rgba(0, 0, 0, 0.45);
+  --panel2: rgba(0, 0, 0, 0.45);
+  --panel-2: rgba(0, 0, 0, 0.45);
+}
+
+.news-card,
+.txn-row,
+.player-headshot-ph,
+.dash-tabs,
+.manual-body textarea {
+  background: rgba(0, 0, 0, 0.45) !important;
+}
+
+.site-nav {
+  --bg-card: #000;
+}
+
+.submenu,
+.submenu-pill,
+.modal-box,
+.modal-card,
+.gt-modal-card,
+.cal-box,
+.auth-field select,
+.history-sort option {
+  --bg-card: #000;
+  background: #000 !important;
+}
+
+select option {
+  background-color: #000;
+}
+
+[class*="overlay"],
+[class*="gt-modal"],
+[id*="modal"] {
+  z-index: 2147483000 !important;
+}
+/* SMH-NAVSHADE-2026-10-06 */
+@media (min-width: 901px) {
+  .nav-dropdown-menu,
+  .nav-dropdown-menu-nested {
+    display: block !important;
+    visibility: hidden;
+    pointer-events: none;
+    clip-path: inset(0 0 100% 0);
+    transition: clip-path 0.28s ease, visibility 0s linear 0.28s;
+  }
+
+  .nav-dropdown:hover > .nav-dropdown-menu,
+  .nav-dropdown.open > .nav-dropdown-menu,
+  .nav-submenu:hover > .nav-dropdown-menu-nested {
+    visibility: visible;
+    pointer-events: auto;
+    clip-path: inset(0 0 0 0);
+    transition: clip-path 0.28s ease, visibility 0s linear 0s;
+  }
+
+  .nav-dropdown:has(:focus-visible) > .nav-dropdown-menu {
+    visibility: visible;
+    pointer-events: auto;
+    clip-path: inset(0 0 0 0);
+    transition: clip-path 0.28s ease, visibility 0s linear 0s;
+  }
+
+  .nav-submenu:has(:focus-visible) > .nav-dropdown-menu-nested {
+    visibility: visible;
+    pointer-events: auto;
+    clip-path: inset(0 0 0 0);
+    transition: clip-path 0.28s ease, visibility 0s linear 0s;
+  }
+
+  .nav-dropdown:focus-within:not(:hover):not(.open) > .nav-dropdown-menu {
+    visibility: hidden;
+    pointer-events: none;
+    clip-path: inset(0 0 100% 0);
+    transition: clip-path 0.28s ease, visibility 0s linear 0.28s;
+  }
+
+  .nav-dropdown:has(:focus-visible):focus-within > .nav-dropdown-menu {
+    visibility: visible;
+    pointer-events: auto;
+    clip-path: inset(0 0 0 0);
+    transition: clip-path 0.28s ease, visibility 0s linear 0s;
+  }
+
+  .nav-dropdown:hover:focus-within > .nav-dropdown-menu,
+  .nav-dropdown.open:focus-within > .nav-dropdown-menu {
+    visibility: visible;
+    pointer-events: auto;
+    clip-path: inset(0 0 0 0);
+    transition: clip-path 0.28s ease, visibility 0s linear 0s;
+  }
+
+  .nav-dropdown.keyboard-closed > .nav-dropdown-menu {
+    visibility: hidden;
+    pointer-events: none;
+    clip-path: inset(0 0 100% 0);
+  }
+}
+
+@media (min-width: 901px) and (prefers-reduced-motion: reduce) {
+  .nav-dropdown-menu,
+  .nav-dropdown-menu-nested {
+    transition: none !important;
+  }
+}
+/* SMH-AUTH-2026-10-06 */
+.auth-field input,
+.auth-field select {
+  background: #000 !important;
+}
+/* SMH-AUTOFILL-2026-10-06 */
+.auth-field input:-webkit-autofill,
+.auth-field input:-webkit-autofill:hover,
+.auth-field input:-webkit-autofill:focus,
+.auth-field select:-webkit-autofill {
+  -webkit-text-fill-color: #f2f2f2 !important;
+  caret-color: #f2f2f2;
+  -webkit-box-shadow: 0 0 0 1000px #000 inset !important;
+  box-shadow: 0 0 0 1000px #000 inset !important;
+  transition: background-color 9999s ease-in-out 0s;
+}
