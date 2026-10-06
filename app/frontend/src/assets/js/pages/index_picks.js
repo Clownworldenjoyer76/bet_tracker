@@ -472,7 +472,7 @@ function mpHtml(p, cfg, cls) {
   else if (cfg.sport === "basketball") { raw = p.bet_adjusted_model_prob; }
   else { raw = p.model_prob; }
   var n = parseFloat(raw);
-  return isNaN(n) ? "" : "<span class=" + JSON.stringify(cls) + ">Model Probability " + (n * 100).toFixed(2) + "%</span>";
+  return isNaN(n) ? "" : "<span class=" + JSON.stringify(cls) + "><span class=\"mp-l\">Model Probability</span> <span class=\"mp-v\">" + (n * 100).toFixed(2) + "%</span></span>";
 }
 function cardBody(p, r, cfg, pitcherLine) {
   const m = String(p.market_type || p.market || "").toLowerCase();
