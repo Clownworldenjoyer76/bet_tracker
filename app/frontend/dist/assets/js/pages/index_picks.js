@@ -474,6 +474,29 @@ function mpHtml(p, cfg, cls) {
   var n = parseFloat(raw);
   return isNaN(n) ? "" : "<span class=" + JSON.stringify(cls) + ">Model Probability " + (n * 100).toFixed(2) + "%</span>";
 }
+function cardBody(p, r, cfg, pitcherLine) {
+  const m = String(p.market_type || p.market || "").toLowerCase();
+  let mkt = "", pick = "";
+  if (cfg.isSoccer) {
+    const side = String(p.side || p.bet_side || "").toLowerCase();
+    const tm = m.match(/^total(\d{2,3})$/);
+    mkt = m === "btts" ? "BTTS" : m === "match_odds" ? "ML 1x2" : tm ? "Total " + parseInt(tm[1], 10) / 10 : m.toUpperCase().replace(/_/g, " ");
+    const sl = { yes: "Yes", no: "No", draw: "Draw", over: "Over", under: "Under", home: r.home_team || "Home", away: r.away_team || "Away" };
+    pick = (sl[side] || side) + (p.odds ? " (" + p.odds + ")" : "");
+  } else {
+    mkt = { moneyline: "ML", run_line: "Run Line", total: "Total", spread: "Spread", puck_line: "Puck Line" }[m] || m.replace(/_/g, " ");
+    pick = buildBetText(p, r, cfg);
+    if (cfg.isFootball) pick = pick.replace(/^(ML|Spread|Total)\s+\S{1,3}\s+/, "");
+  }
+  return `<div class="card-matchup cm-stack">
+      <div class="cm-line"><span class="card-team">${r.away_team || "\u2014"}</span>${scHtml(p, "a")}</div>
+      <div class="card-at">@</div>
+      <div class="cm-line"><span class="card-team">${r.home_team || "\u2014"}</span>${scHtml(p, "h")}</div>
+    </div>
+    ${pitcherLine}
+    <div class="card-mkt">${mkt}</div>
+    <div class="card-bet">${pick}</div>`;
+}
 function buildCard(p, r, cfg) {
   const card     = document.createElement("div");
   card.className = "pick-card";
@@ -505,13 +528,7 @@ function buildCard(p, r, cfg) {
       <span class="card-time">${r.game_time || "—"}</span>
       <span class="card-league-tag">${cfg.displayName}</span>${badgeHtml(p)}
     </div>
-    <div class="card-matchup">
-      <span class="card-team">${r.away_team || "—"}</span>${scHtml(p, "a")}
-      <span class="card-at">@</span>
-      <span class="card-team">${r.home_team || "—"}</span>${scHtml(p, "h")}
-    </div>
-    ${pitcherLine}
-    <div class="card-bet">${betText}</div>
+    ${cardBody(p, r, cfg, pitcherLine)}
     <div class="card-footer">
       ${mpHtml(p, cfg, "card-ev pos")}
     </div>`;
@@ -595,11 +612,12 @@ function buildUFCCard(row) {
       <span class="card-time">MMA</span>
       <span class="card-league-tag">UFC</span>
     </div>
-    <div class="card-matchup">
-      <span class="card-team">${fighter}</span>
-      <span class="card-at">vs</span>
-      <span class="card-team">${opponent}</span>
+    <div class="card-matchup cm-stack">
+      <div class="cm-line"><span class="card-team">${fighter}</span></div>
+      <div class="card-at">vs</div>
+      <div class="cm-line"><span class="card-team">${opponent}</span></div>
     </div>
+    <div class="card-mkt">Winner</div>
     <div class="card-bet">${fighter} ${ml}</div>
     <div class="card-footer">
       ${mpHtml(row, {}, "card-ev pos")}
