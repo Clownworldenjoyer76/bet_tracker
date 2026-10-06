@@ -13,6 +13,12 @@ WRITES:
 
 This step does NOT apply betting filters or choose a bet.
 
+For games that have already kicked off, the last published candidate row is
+preserved exactly. Current/unstarted games are rebuilt from the current
+projection and sportsbook inputs. This keeps the candidate universe complete
+so downstream filtering can reapply the current markets.yaml retroactively
+without recalculating completed games from post-kickoff data.
+
 It preserves the existing enriched input columns and appends raw candidate
 metrics for every available side:
 
@@ -65,6 +71,7 @@ np: Any = None
 pd: Any = None
 yaml: Any = None
 
+
 def load_runtime_dependencies(
     reporter: PipelineReporter,
 ) -> None:
@@ -89,6 +96,7 @@ def load_runtime_dependencies(
         "dependency_imports_ok",
         True,
     )
+
 
 PREDICTION_COLUMNS = [
     "predicted_margin",
@@ -340,7 +348,6 @@ def read_yaml(
         )
 
     return data
-
 
 
 def validate_csv_header(
@@ -962,15 +969,6 @@ def evaluate_spread(
     }
 
 
-
-
-
-
-
-
-
-
-
 def evaluate_total(
     row: pd.Series,
 ) -> dict[str, Any]:
@@ -1231,7 +1229,6 @@ def validate_settings(
     )
 
 
-
 def validate_projection_outputs(
     df: pd.DataFrame,
     label: str,
@@ -1369,7 +1366,6 @@ def validate_combined(
     validate_probability_pairs(
         df
     )
-
 
 
 def merge_schedule(
@@ -1649,7 +1645,468 @@ def merge_schedule(
     )
 
 
+def scoped_schedule_with_kickoffs(
+    schedule: pd.DataFrame,
+    season: int,
+    week: int,
+    season_type: str,
+) -> tuple[pd.DataFrame, dict[str, Any]]:
+    frame = schedule.copy()
 
+    require_columns(
+        frame,
+        [
+            "season",
+            "season_type",
+            "week",
+            "game_id",
+            "away_team",
+            "home_team",
+            "commence_time",
+        ],
+        "weekly schedule",
+    )
+
+    validate_unique_game_ids(
+        frame,
+        "weekly schedule",
+    )
+
+    season_values = pd.to_numeric(
+        frame["season"],
+        errors="coerce",
+    )
+    week_values = pd.to_numeric(
+        frame["week"],
+        errors="coerce",
+    )
+    type_values = frame[
+        "season_type"
+    ].map(
+        normalize_season_type
+    )
+
+    frame = frame.loc[
+        (
+            season_values
+            == season
+        )
+        & (
+            week_values
+            == week
+        )
+        & (
+            type_values
+            == season_type
+        )
+    ].copy()
+
+    if frame.empty:
+        fail(
+            "Weekly schedule has no rows for "
+            f"season={season}, week={week}, "
+            f"season_type={season_type}"
+        )
+
+    kickoff_by_game: dict[
+        str,
+        Any,
+    ] = {}
+
+    for _, row in frame.iterrows():
+        game_id = normalize_game_id(
+            row["game_id"]
+        )
+        raw_kickoff = clean(
+            row["commence_time"]
+        )
+
+        if not raw_kickoff:
+            fail(
+                "Weekly schedule missing "
+                f"commence_time for game_id={game_id}"
+            )
+
+        kickoff = pd.to_datetime(
+            raw_kickoff,
+            utc=True,
+            errors="coerce",
+        )
+
+        if pd.isna(kickoff):
+            fail(
+                "Weekly schedule has invalid "
+                f"commence_time for game_id={game_id}: "
+                f"{raw_kickoff!r}"
+            )
+
+        kickoff_by_game[
+            game_id
+        ] = kickoff
+
+    return (
+        frame,
+        kickoff_by_game,
+    )
+
+
+def validate_existing_candidate_output(
+    existing: pd.DataFrame,
+    source_columns: list[str],
+    season: int,
+    week: int,
+    season_type: str,
+    max_kelly: float,
+) -> pd.DataFrame:
+    expected_columns = (
+        source_columns
+        + SELECTION_COLUMNS
+        + CANDIDATE_COLUMNS
+    )
+
+    if list(existing.columns) != expected_columns:
+        fail(
+            "Existing candidate output schema "
+            "does not match the current candidate "
+            "schema; refusing to discard frozen "
+            "started-game candidate rows"
+        )
+
+    existing_original = existing[
+        source_columns
+    ].copy()
+
+    validate_combined(
+        existing_original,
+        season,
+        week,
+        season_type,
+        "existing candidate source rows",
+    )
+
+    validate_candidate_output(
+        existing,
+        existing_original,
+        max_kelly,
+        "existing candidate output",
+    )
+
+    return existing_original
+
+
+def merge_preserved_started_candidates(
+    current_output: pd.DataFrame,
+    current_original: pd.DataFrame,
+    existing_output: pd.DataFrame | None,
+    schedule_scope: pd.DataFrame,
+    kickoff_by_game: dict[str, Any],
+    max_kelly: float,
+    reporter: PipelineReporter,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    now_utc = pd.Timestamp.now(
+        tz="UTC"
+    )
+
+    started_ids = {
+        game_id
+        for game_id, kickoff
+        in kickoff_by_game.items()
+        if kickoff <= now_utc
+    }
+
+    current_ids = set(
+        current_output[
+            "game_id"
+        ].map(
+            normalize_game_id
+        )
+    )
+
+    preserved_output = current_output.iloc[
+        0:0
+    ].copy()
+    preserved_original = current_original.iloc[
+        0:0
+    ].copy()
+
+    existing_rows = 0
+
+    if (
+        existing_output is not None
+        and not existing_output.empty
+    ):
+        existing_rows = len(
+            existing_output
+        )
+
+        existing_original = (
+            validate_existing_candidate_output(
+                existing_output,
+                list(
+                    current_original.columns
+                ),
+                parse_int(
+                    current_original[
+                        "season"
+                    ].iloc[0]
+                )
+                or 0,
+                parse_int(
+                    current_original[
+                        "week"
+                    ].iloc[0]
+                )
+                or 0,
+                normalize_season_type(
+                    current_original[
+                        "season_type"
+                    ].iloc[0]
+                ),
+                max_kelly,
+            )
+        )
+
+        existing_ids = existing_output[
+            "game_id"
+        ].map(
+            normalize_game_id
+        )
+
+        preserve_mask = (
+            existing_ids.isin(
+                started_ids
+            )
+        )
+
+        preserved_output = (
+            existing_output.loc[
+                preserve_mask
+            ]
+            .copy()
+        )
+
+        preserved_original = (
+            existing_original.loc[
+                preserve_mask
+            ]
+            .copy()
+        )
+
+    preserved_ids = set(
+        preserved_output[
+            "game_id"
+        ].map(
+            normalize_game_id
+        )
+    )
+
+    current_keep_mask = (
+        ~current_output[
+            "game_id"
+        ]
+        .map(
+            normalize_game_id
+        )
+        .isin(
+            preserved_ids
+        )
+    )
+
+    current_output_kept = (
+        current_output.loc[
+            current_keep_mask
+        ]
+        .copy()
+    )
+    current_original_kept = (
+        current_original.loc[
+            current_keep_mask
+        ]
+        .copy()
+    )
+
+    merged_output = pd.concat(
+        [
+            preserved_output,
+            current_output_kept,
+        ],
+        ignore_index=True,
+    )
+    merged_original = pd.concat(
+        [
+            preserved_original,
+            current_original_kept,
+        ],
+        ignore_index=True,
+    )
+
+    validate_unique_game_ids(
+        merged_output,
+        "merged candidate output",
+    )
+    validate_unique_game_ids(
+        merged_original,
+        "merged candidate source rows",
+    )
+
+    output_ids = set(
+        merged_output[
+            "game_id"
+        ].map(
+            normalize_game_id
+        )
+    )
+
+    missing_started_ids = sorted(
+        started_ids
+        - output_ids
+    )
+
+    if missing_started_ids:
+        fail(
+            "Started games are missing frozen "
+            "candidate rows, so the full week "
+            "cannot be re-filtered safely with "
+            "markets.yaml. Restore the last "
+            "pre-kickoff candidate artifact for "
+            "these game_id values before rerunning: "
+            f"{missing_started_ids}"
+        )
+
+    schedule_order = {
+        normalize_game_id(
+            game_id
+        ): index
+        for index, game_id
+        in enumerate(
+            schedule_scope[
+                "game_id"
+            ].tolist()
+        )
+    }
+
+    unexpected_ids = sorted(
+        output_ids
+        - set(
+            schedule_order
+        )
+    )
+
+    if unexpected_ids:
+        fail(
+            "Candidate output contains game_id "
+            "values not present in the weekly "
+            f"schedule: {unexpected_ids[:10]}"
+        )
+
+    merged_output[
+        "_schedule_order"
+    ] = (
+        merged_output[
+            "game_id"
+        ]
+        .map(
+            normalize_game_id
+        )
+        .map(
+            schedule_order
+        )
+    )
+    merged_original[
+        "_schedule_order"
+    ] = (
+        merged_original[
+            "game_id"
+        ]
+        .map(
+            normalize_game_id
+        )
+        .map(
+            schedule_order
+        )
+    )
+
+    if (
+        merged_output[
+            "_schedule_order"
+        ].isna().any()
+        or merged_original[
+            "_schedule_order"
+        ].isna().any()
+    ):
+        fail(
+            "Unable to order merged candidate "
+            "rows by weekly schedule"
+        )
+
+    merged_output = (
+        merged_output.sort_values(
+            "_schedule_order",
+            kind="stable",
+        )
+        .drop(
+            columns=[
+                "_schedule_order"
+            ]
+        )
+        .reset_index(
+            drop=True
+        )
+    )
+
+    merged_original = (
+        merged_original.sort_values(
+            "_schedule_order",
+            kind="stable",
+        )
+        .drop(
+            columns=[
+                "_schedule_order"
+            ]
+        )
+        .reset_index(
+            drop=True
+        )
+    )
+
+    validate_candidate_output(
+        merged_output,
+        merged_original,
+        max_kelly,
+        "merged candidate output",
+    )
+
+    reporter.update_details(
+        {
+            "candidate_persistence_mode": (
+                "preserve_started_refresh_unstarted"
+            ),
+            "candidate_snapshot_time_utc": (
+                now_utc.isoformat()
+            ),
+            "existing_candidate_rows": (
+                existing_rows
+            ),
+            "schedule_started_games": len(
+                started_ids
+            ),
+            "preserved_started_candidate_rows": len(
+                preserved_output
+            ),
+            "refreshed_candidate_rows": len(
+                current_output_kept
+            ),
+            "current_projection_game_ids": len(
+                current_ids
+            ),
+            "missing_started_candidate_rows": 0,
+        }
+    )
+
+    return (
+        merged_output,
+        merged_original,
+    )
 
 
 def build_output(
@@ -1769,7 +2226,6 @@ def build_output(
         )
 
     return output
-
 
 
 def _require_close(
@@ -2508,7 +2964,6 @@ def publish_candidate_csv(
                 )
 
 
-
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
 
@@ -2808,27 +3263,65 @@ def run(
         sportsbook,
     )
 
-    output = build_output(
+    current_output = build_output(
         combined,
         working,
         max_kelly,
     )
 
     validate_candidate_output(
-        output,
+        current_output,
         combined,
         max_kelly,
-        "in-memory candidate output",
+        "current in-memory candidate output",
+    )
+
+    schedule_scope, kickoff_by_game = (
+        scoped_schedule_with_kickoffs(
+            schedule,
+            season,
+            week,
+            season_type,
+        )
+    )
+
+    existing_output = None
+
+    if output_path.is_file():
+        reporter.add_input(
+            output_path
+        )
+
+        existing_output = read_csv(
+            output_path,
+            "existing candidate output",
+            optional=True,
+        )
+
+    output, validation_original = (
+        merge_preserved_started_candidates(
+            current_output,
+            combined,
+            existing_output,
+            schedule_scope,
+            kickoff_by_game,
+            max_kelly,
+            reporter,
+        )
     )
 
     summary = candidate_summary(
         output
     )
+
     reporter.update_details(
         {
             "source_rows": source_rows,
             "source_columns": len(
                 combined.columns
+            ),
+            "current_candidate_rows": len(
+                current_output
             ),
             "output_rows": len(
                 output
@@ -2848,12 +3341,13 @@ def run(
     try:
         validate_serialized_candidate_csv(
             staged_path,
-            original=combined,
+            original=validation_original,
             max_kelly=max_kelly,
             label=(
                 "staged candidate output"
             ),
         )
+
         reporter.set_detail(
             "staged_roundtrip_verified",
             True,
@@ -2862,7 +3356,7 @@ def run(
         publish_candidate_csv(
             staged_path,
             output_path,
-            original=combined,
+            original=validation_original,
             max_kelly=max_kelly,
             reporter=reporter,
         )
