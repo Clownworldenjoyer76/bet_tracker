@@ -185,3 +185,26 @@ STRIPE_PORTAL_CONFIGURATION_ID = os.getenv(
 FRONTEND_SOURCE_DIR = BASE_DIR / "frontend" / "src"
 FRONTEND_DIST_DIR = BASE_DIR / "frontend" / "dist"
 
+
+
+# SMH_EMAIL_SMTP_START
+EMAIL_HOST = os.getenv("EMAIL_HOST", "localhost").strip()
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "25"))
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "").strip()
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "false").strip().lower() in {"1", "true", "yes", "on"}
+EMAIL_USE_SSL = os.getenv("EMAIL_USE_SSL", "false").strip().lower() in {"1", "true", "yes", "on"}
+SERVER_EMAIL = os.getenv("SERVER_EMAIL", DEFAULT_FROM_EMAIL).strip()
+# SMH_EMAIL_SMTP_END
+
+# SMH_STATIC_START
+STATIC_ROOT = BASE_DIR / "staticfiles"
+if "whitenoise.middleware.WhiteNoiseMiddleware" not in MIDDLEWARE:
+    MIDDLEWARE = list(MIDDLEWARE)
+    MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
+# SMH_STATIC_END
+
+
+# SMH_ADMIN_TEMPLATES_START
+TEMPLATES[0]["DIRS"] = list(TEMPLATES[0].get("DIRS", [])) + [BASE_DIR / "admin_templates"]
+# SMH_ADMIN_TEMPLATES_END

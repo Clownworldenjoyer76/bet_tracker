@@ -1,0 +1,44 @@
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ("accounts", "0005_stripe_billing_integration"),
+    ]
+
+    operations = [
+        migrations.CreateModel(
+            name="ContactMessage",
+            fields=[
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=100)),
+                ("email", models.EmailField(max_length=254)),
+                ("subject", models.CharField(max_length=150)),
+                ("message", models.TextField()),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[("new", "New"), ("replied", "Replied")],
+                        default="new",
+                        max_length=20,
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("reply", models.TextField(blank=True)),
+                ("replied_at", models.DateTimeField(blank=True, null=True)),
+            ],
+            options={
+                "verbose_name": "contact message",
+                "ordering": ("-created_at",),
+            },
+        ),
+    ]

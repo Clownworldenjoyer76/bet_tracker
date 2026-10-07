@@ -1,0 +1,13 @@
+{% extends "admin/change_form.html" %}
+{% load i18n admin_urls %}
+{% block submit_buttons_bottom %}
+<div class="submit-row">
+  {% if original and not original.replied_at %}
+  <input type="submit" value="Send reply" class="default" name="_send">
+  {% endif %}
+  {% if original and has_delete_permission %}
+    {% url opts|admin_urlname:'delete' original.pk|admin_urlquote as delete_url %}
+    <a href="{% add_preserved_filters delete_url %}" class="deletelink">{% translate "Delete" %}</a>
+  {% endif %}
+</div>
+{% endblock %}

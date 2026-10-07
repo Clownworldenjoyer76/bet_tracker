@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import billing_views, views
+from . import billing_views, contact, views
 
 app_name = "accounts"
 
@@ -11,6 +11,7 @@ urlpatterns = [
     path("login.html", views.EmailLoginView.as_view(), name="login"),
     path("logout.html", views.AccountLogoutView.as_view(), name="logout"),
     path("account.html", views.account_view, name="account"),
+    path("contact.html", contact.contact_view, name="contact"),
     path(
         "billing/checkout/",
         billing_views.checkout_view,

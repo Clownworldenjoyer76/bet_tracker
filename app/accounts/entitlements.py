@@ -91,8 +91,8 @@ def entitlement_summary(user):
 
     return {
         "plan": {
-            "slug": subscription.plan.slug,
-            "name": subscription.plan.name,
+            "slug": "admin" if user.is_superuser else subscription.plan.slug,
+            "name": "Admin" if user.is_superuser else subscription.plan.name,
         },
         "status": subscription.status,
         "status_label": subscription.get_status_display(),

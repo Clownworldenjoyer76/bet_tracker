@@ -29,7 +29,8 @@ from .forms import (
     RegistrationForm,
     UserPreferencesForm,
 )
-from .models import UserPreferences
+from django.db.models import Q
+from .models import ContactMessage, UserPreferences
 
 
 
@@ -166,6 +167,9 @@ def account_view(request, template_name="accounts/account.html"):
             "access_status_label": access["status_label"],
             "access_features": access["features"],
             "billing_notice": request.GET.get("billing", ""),
+            "inbox_messages": ContactMessage.objects.filter(
+                Q(user=request.user) | Q(email__iexact=request.user.email)
+            ).order_by("-created_at")[:50],
             **billing_account_context(request.user),
         },
     )

@@ -241,3 +241,39 @@ class BillingEvent(models.Model):
 
     def __str__(self):
         return f"{self.provider} · {self.event_type} · {self.external_event_id}"
+
+
+class ContactMessage(models.Model):
+    class Status(models.TextChoices):
+        NEW = "new", "New"
+        REPLIED = "replied", "Replied"
+
+    name = models.CharField(max_length=100)
+    email = models.EmailField()
+    subject = models.CharField(max_length=150)
+    message = models.TextField()
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.NEW,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    reply = models.TextField(blank=True)
+    replied_at = models.DateTimeField(null=True, blank=True)
+    is_read = models.BooleanField(default=False)
+    email_sent = models.BooleanField(default=False)
+    user = models.ForeignKey(
+        "accounts.User",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="contact_messages",
+    )
+
+    class Meta:
+        ordering = ("-created_at",)
+        verbose_name = "contact message"
+        verbose_name_plural = "MESSAGES"
+
+    def __str__(self):
+        return f"{self.email} - {self.subject}"

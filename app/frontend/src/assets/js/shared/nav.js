@@ -12,7 +12,7 @@
     link.rel = 'icon';
     link.type = type;
     link.sizes = sizes;
-    link.href = href;
+    link.href = (window.SMH_NAV_BASE || '') + href;
     document.head.appendChild(link);
   });
 })();
@@ -23,7 +23,7 @@
   window.__smhPostHogLoaderAdded = true;
 
   const script = document.createElement("script");
-  script.src = "assets/js/shared/analytics.js";
+  script.src = (window.SMH_NAV_BASE || "") + "assets/js/shared/analytics.js";
   script.async = true;
   document.head.appendChild(script);
 })();
@@ -46,13 +46,20 @@
     document.head.appendChild(sharedLeagueNav);
   }
 
-  fetch("nav.html")
+  fetch((window.SMH_NAV_BASE || "") + "nav.html")
     .then(r => {
       if (!r.ok) throw new Error("nav.html not found");
       return r.text();
     })
     .then(html => {
       el.innerHTML = html;
+      if (window.SMH_NAV_BASE) {
+        el.querySelectorAll('a[href]').forEach(a => {
+          const h = a.getAttribute('href');
+          if (h && !/^(?:[a-z][a-z0-9+.-]*:|\/|#)/i.test(h)) a.setAttribute('href', window.SMH_NAV_BASE + h);
+        });
+        setTimeout(() => el.querySelectorAll('.active').forEach(x => x.classList.remove('active')), 0);
+      }
 
       // Active state
       const page = location.pathname.split('/').pop().replace('.html', '') || 'index';
@@ -602,3 +609,84 @@
   });
 })();
 /* SMH_NAV_PREFETCH_END */
+;
+/* SMH_FOOTER_START */
+(() => {
+  if (window.__smhFooterAdded) return;
+  window.__smhFooterAdded = true;
+
+  const FOOTER_DISCLAIMER = "For informational and entertainment purposes only. Not betting, financial, or legal advice. Data may be delayed or inaccurate; past results don't guarantee future results. Gambling involves risk of loss. Please gamble responsibly.";
+
+  const FOOTER_LINKS = [
+    ["Disclaimer", "/disclaimer.html"],
+    ["Terms", "/terms.html"],
+    ["Privacy", "/privacy.html"],
+    ["Responsible Gambling", "/responsible_gambling.html"],
+    ["Contact", "/contact.html"]
+  ];
+
+  let cssHref = "/assets/css/footer.css";
+  const self = document.currentScript;
+  if (self && self.src) {
+    const m = /^(.*)\/js\/shared\/nav\.js(\?.*)?$/.exec(self.src);
+    if (m) cssHref = m[1] + "/css/footer.css";
+  }
+
+  if (!document.querySelector("link[data-smh-footer-css]")) {
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = cssHref + "?v=footer-20261007";
+    link.setAttribute("data-smh-footer-css", "1");
+    document.head.appendChild(link);
+  }
+
+  function addFooter() {
+    if (document.querySelector("footer.smh-footer")) return;
+
+    const footer = document.createElement("footer");
+    footer.className = "smh-footer";
+    footer.setAttribute("role", "contentinfo");
+
+    const inner = document.createElement("div");
+    inner.className = "smh-footer-inner";
+
+    const nav = document.createElement("nav");
+    nav.className = "smh-footer-links";
+    nav.setAttribute("aria-label", "Footer");
+
+    FOOTER_LINKS.forEach(([label, href], index) => {
+      const item = document.createElement("span");
+      item.className = "smh-footer-item";
+
+      if (index > 0) {
+        const sep = document.createElement("span");
+        sep.className = "smh-footer-sep";
+        sep.setAttribute("aria-hidden", "true");
+        sep.textContent = "|";
+        item.appendChild(sep);
+      }
+
+      const a = document.createElement("a");
+      a.href = href;
+      a.textContent = label;
+      item.appendChild(a);
+      nav.appendChild(item);
+    });
+
+    const p = document.createElement("p");
+    p.className = "smh-footer-disclaimer";
+    p.textContent = FOOTER_DISCLAIMER;
+
+    inner.appendChild(nav);
+    inner.appendChild(p);
+    footer.appendChild(inner);
+    document.body.appendChild(footer);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", addFooter);
+  } else {
+    addFooter();
+  }
+})();
+/* SMH_FOOTER_END */

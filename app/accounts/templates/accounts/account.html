@@ -32,6 +32,46 @@
     </div>
   </dl>
 
+  <div class="account-section" id="inbox">
+    <style>
+      .smh-inbox { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+      .smh-inbox-item { background: var(--bg-card, #0f141b); border: 1px solid var(--border-soft, #1a1f26); border-radius: 4px; padding: 12px 14px; }
+      .smh-inbox-head { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+      .smh-inbox-subject { font-weight: 700; color: var(--foreground, #f2f2f2); }
+      .smh-inbox-badge { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--accent-yellow, #facc15); white-space: nowrap; }
+      .smh-inbox-badge.replied { color: var(--accent-green, #00ff84); }
+      .smh-inbox-meta { font-size: 11px; color: var(--text-muted, #7c8796); margin: 2px 0 8px; }
+      .smh-inbox-body { font-size: 13px; color: var(--text-main, #f2f2f2); }
+      .smh-inbox-reply { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--border-soft, #1a1f26); }
+      .smh-inbox-reply .smh-inbox-meta { color: var(--accent-green, #00ff84); }
+    </style>
+    <div class="auth-eyebrow">INBOX</div>
+    <h2>Messages</h2>
+    {% if inbox_messages %}
+      <ul class="smh-inbox">
+        {% for m in inbox_messages %}
+          <li class="smh-inbox-item">
+            <div class="smh-inbox-head">
+              <span class="smh-inbox-subject">{{ m.subject }}</span>
+              <span class="smh-inbox-badge{% if m.replied_at %} replied{% endif %}">{% if m.replied_at %}Replied{% else %}Awaiting reply{% endif %}</span>
+            </div>
+            <div class="smh-inbox-meta">You wrote &middot; {{ m.created_at|date:"M j, Y g:i a" }}</div>
+            <div class="smh-inbox-body">{{ m.message|linebreaksbr }}</div>
+            {% if m.replied_at %}
+              <div class="smh-inbox-reply">
+                <div class="smh-inbox-meta">Reply from SportsModelHub &middot; {{ m.replied_at|date:"M j, Y g:i a" }}</div>
+                <div class="smh-inbox-body">{{ m.reply|linebreaksbr }}</div>
+              </div>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="auth-intro">No messages yet.</p>
+    {% endif %}
+    <p class="auth-help"><a href="/contact.html">Contact support</a></p>
+  </div>
+
   <div class="account-section">
     <div class="auth-eyebrow">ACCESS</div>
     <h2>Entitlements</h2>

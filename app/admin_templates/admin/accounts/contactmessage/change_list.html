@@ -1,0 +1,51 @@
+{% extends "admin/change_list.html" %}
+{% block extrahead %}{{ block.super }}
+<style>
+#changelist #result_list tbody tr { cursor: pointer; }
+#changelist #result_list tbody tr:hover td,
+#changelist #result_list tbody tr:hover th { background: rgba(0, 255, 132, 0.08); }
+#changelist #result_list tbody th a,
+#changelist #result_list tbody th a:link,
+#changelist #result_list tbody th a:visited { color: inherit; text-decoration: none; font-weight: inherit; }
+#changelist #result_list tbody tr.smh-unread td,
+#changelist #result_list tbody tr.smh-unread th,
+#changelist #result_list tbody tr.smh-unread th a { font-weight: 700; color: #ffffff; }
+.smh-sortbar { display: flex; align-items: center; gap: 10px; padding: 10px 12px; }
+.smh-sortbar label { color: var(--body-quiet-color, #7c8796); letter-spacing: 1px; text-transform: uppercase; font-size: 11px; }
+.smh-sortbar select { min-width: 190px; }
+</style>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  var rows = document.querySelectorAll("#result_list tbody tr");
+  rows.forEach(function (tr) {
+    var link = tr.querySelector("th a, td a");
+    if (!link) { return; }
+    var cells = tr.querySelectorAll("td");
+    for (var i = 0; i < cells.length; i++) {
+      if (cells[i].textContent.trim() === "Unread") { tr.classList.add("smh-unread"); break; }
+    }
+    tr.addEventListener("click", function (e) {
+      if (e.target.closest("a, input, button, label, select")) { return; }
+      window.location.href = link.href;
+    });
+  });
+  var sel = document.getElementById("smh-sort");
+  if (sel) {
+    sel.addEventListener("change", function () {
+      var params = new URLSearchParams(window.location.search);
+      params.set("o", sel.value);
+      params.delete("p");
+      window.location.search = params.toString();
+    });
+  }
+});
+</script>
+{% endblock %}
+{% block search %}{{ block.super }}
+<div class="smh-sortbar">
+  <label for="smh-sort">Sort by</label>
+  <select id="smh-sort">
+    {% for opt in sort_options %}<option value="{{ opt.o }}"{% if opt.selected or not request.GET.o and opt.o == sort_default_o %} selected{% endif %}>{{ opt.label }}</option>{% endfor %}
+  </select>
+</div>
+{% endblock %}

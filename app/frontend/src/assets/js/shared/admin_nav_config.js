@@ -1,0 +1,1 @@
+window.SMH_NAV_BASE = '/';
