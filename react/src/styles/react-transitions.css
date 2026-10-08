@@ -1,0 +1,76 @@
+.smh-react-chrome {
+  view-transition-name: site-chrome;
+}
+
+.smh-react-page {
+  view-transition-name: page-content;
+}
+
+::view-transition-group(site-chrome) {
+  animation-duration: 180ms;
+}
+
+::view-transition-group(page-content) {
+  animation-duration: 220ms;
+}
+
+::view-transition-old(page-content) {
+  animation: smh-page-out 120ms ease-out both;
+}
+
+::view-transition-new(page-content) {
+  animation: smh-page-in 220ms ease-out both;
+}
+
+@keyframes smh-page-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes smh-page-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*) {
+    animation-duration: 1ms;
+  }
+}
+
+/* REACT NAV DROPDOWN STACKING FIX */
+.smh-react-shell {
+  position: relative;
+  overflow: visible;
+}
+
+.smh-react-chrome {
+  position: relative;
+  z-index: 10000;
+  overflow: visible;
+}
+
+#nav-placeholder {
+  position: relative;
+  z-index: 10001;
+  overflow: visible;
+}
+
+.smh-react-page {
+  position: relative;
+  z-index: 1;
+}

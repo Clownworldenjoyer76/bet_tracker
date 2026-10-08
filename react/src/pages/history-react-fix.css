@@ -1,0 +1,54 @@
+.history-react-page .section {
+  display: block !important;
+}
+
+/*
+ * React Bet History dropdown isolation.
+ *
+ * The legacy league-nav CSS places the submenu above the page, but the page
+ * underneath remains interactive. Keep the open dropdown in its own stacking
+ * layer, make every dropdown surface fully opaque, and prevent pointer events
+ * from reaching page controls/content behind it while a league group is open.
+ */
+.history-react-page #league-controls {
+  position: relative !important;
+  z-index: 1000 !important;
+  overflow: visible !important;
+}
+
+.history-react-page #league-controls .shared-league-nav-main,
+.history-react-page #league-controls .control-group {
+  overflow: visible !important;
+}
+
+.history-react-page #league-controls .control-group.open {
+  position: relative;
+  z-index: 1002 !important;
+  opacity: 1 !important;
+}
+
+.history-react-page #league-controls .control-group.open .submenu {
+  z-index: 1003 !important;
+  background: #121923 !important;
+  background-color: #121923 !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  isolation: isolate;
+  mix-blend-mode: normal;
+}
+
+.history-react-page #league-controls .control-group.open .submenu-pill {
+  position: relative;
+  z-index: 1;
+  background: #0f141b !important;
+  background-color: #0f141b !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+/* Nothing underneath an open league dropdown may receive a click. */
+.history-react-page.history-dropdown-open .controls:not(#league-controls),
+.history-react-page.history-dropdown-open .status-bar,
+.history-react-page.history-dropdown-open .main {
+  pointer-events: none !important;
+}
