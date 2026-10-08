@@ -32,9 +32,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Build frontend from source
-        shell: pwsh
-        run: ./app/frontend/build/build.ps1
+      # No build step: Pages publishes the committed app/frontend/dist exactly as committed.
+      # dist is produced by G:\bet_tracker_react (react-dist -> deploy-react-to-production.ps1) and committed manually.
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5

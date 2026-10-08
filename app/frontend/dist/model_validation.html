@@ -1,130 +1,15 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Model Validation</title>
-  <link rel="stylesheet" href="assets/css/matstheme.css">
-  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/css/pages/model_validation.css">
-<link rel="stylesheet" href="assets/css/site-polish.css">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style id="smh-no-flash">html,body{background:#0b0f14}</style>
+  <script type="module" crossorigin src="./assets/main-BBuwKpmk.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/main-DlILljm4.css">
 </head>
 <body>
-<div id="nav-placeholder"></div>
-<div class="page-header">
-  <div>
-    <div class="page-title">Model Validation</div>
-    <div class="page-subtitle">MODEL PROB vs ACTUAL OUTCOME · CALIBRATION · EV TRACKING · <span class="info-trigger" onclick="openModal()">What is Model Validation?</span></div>
-  </div>
-</div>
-<div class="controls" id="league-controls">
-  <button type="button" class="league-pill active" data-league-key="all" data-league="all">All</button>
-
-  <button type="button" class="league-pill" data-league-key="cfb" data-league="CFB">College Football</button>
-
-  <button type="button" class="league-pill" data-league-key="nhl" data-league="NHL">NHL</button>
-
-  <button type="button" class="league-pill" data-league-key="mlb" data-league="MLB">MLB</button>
-  <button type="button" class="league-pill" data-league-key="mlb_lineups" data-league="MLB_LINEUPS">MLB · With Lineups</button>
-
-  <button type="button" class="league-pill" data-league-key="wnba" data-league="WNBA">WNBA</button>
-
-  <button type="button" class="league-pill" data-league-key="mls" data-league="SOCCER" data-league-sub="MLS">MLS</button>
-  <button type="button" class="league-pill" data-league-key="epl" data-league="SOCCER" data-league-sub="EPL">EPL</button>
-  <button type="button" class="league-pill" data-league-key="laliga" data-league="SOCCER" data-league-sub="LALIGA">La Liga</button>
-  <button type="button" class="league-pill" data-league-key="ligue1" data-league="SOCCER" data-league-sub="LIGUE1">Ligue 1</button>
-  <button type="button" class="league-pill" data-league-key="seriea" data-league="SOCCER" data-league-sub="SERIEA">Serie A</button>
-  <button type="button" class="league-pill" data-league-key="bundesliga" data-league="SOCCER" data-league-sub="BUNDESLIGA">Bundesliga</button>
-
-  <button type="button" class="league-pill" data-league-key="ufc" data-league="UFC">UFC</button>
-</div>
-
-<div class="controls">
-  <div class="market-pill active" data-market="all">All Markets</div>
-  <div class="market-pill" data-market="moneyline">Moneyline</div>
-  <div class="market-pill" data-market="spread">Spread / Line</div>
-  <div class="market-pill" data-market="total">Total</div>
-  <button class="refresh-btn" onclick="loadAll()">↻ Refresh</button>
-</div>
-<div class="status-bar" id="val-status">
-  <span class="status-dot yellow" id="status-dot"></span>
-  <span id="status-text">Loading data...</span>
-</div>
-<div class="main" id="val-main"></div>
-
-<script src="assets/js/shared/nav.js"></script>
-<script src="assets/js/shared/kelly-league-availability.js"></script>
-<script src="assets/js/shared/league_nav.js"></script>
-
-<!-- MODAL -->
-<div class="cal-overlay" id="cal-modal" onclick="if(event.target===this)closeModal()">
-  <div class="cal-box">
-    <div class="cal-header">
-      <div class="cal-title">What is Model Validation?</div>
-      <button class="cal-close" onclick="closeModal()">✕</button>
-    </div>
-    <div class="cal-body">
-
-      <!-- graphic -->
-      <div class="cal-graphic">
-        <div class="cal-demo">
-          <div class="cal-demo-title">Perfectly Calibrated</div>
-          <div class="cal-demo-row">
-            <span class="cal-demo-lbl">45%</span>
-            <div class="cal-demo-bar"><div class="cal-demo-pred" style="width:45%"></div><div class="cal-demo-act act-good" style="width:46%"></div></div>
-            <span class="cal-demo-note" style="color:var(--accent-green)">+1% ✓</span>
-          </div>
-          <div class="cal-demo-row">
-            <span class="cal-demo-lbl">60%</span>
-            <div class="cal-demo-bar"><div class="cal-demo-pred" style="width:60%"></div><div class="cal-demo-act act-good" style="width:61%"></div></div>
-            <span class="cal-demo-note" style="color:var(--accent-green)">+1% ✓</span>
-          </div>
-          <div class="cal-demo-row">
-            <span class="cal-demo-lbl">75%</span>
-            <div class="cal-demo-bar"><div class="cal-demo-pred" style="width:75%"></div><div class="cal-demo-act act-good" style="width:74%"></div></div>
-            <span class="cal-demo-note" style="color:var(--accent-green)">-1% ✓</span>
-          </div>
-        </div>
-        <div class="cal-demo">
-          <div class="cal-demo-title">Overconfident Model</div>
-          <div class="cal-demo-row">
-            <span class="cal-demo-lbl">45%</span>
-            <div class="cal-demo-bar"><div class="cal-demo-pred" style="width:45%"></div><div class="cal-demo-act act-over" style="width:30%"></div></div>
-            <span class="cal-demo-note" style="color:var(--accent-red)">-15% ✗</span>
-          </div>
-          <div class="cal-demo-row">
-            <span class="cal-demo-lbl">60%</span>
-            <div class="cal-demo-bar"><div class="cal-demo-pred" style="width:60%"></div><div class="cal-demo-act act-over" style="width:44%"></div></div>
-            <span class="cal-demo-note" style="color:var(--accent-red)">-16% ✗</span>
-          </div>
-          <div class="cal-demo-row">
-            <span class="cal-demo-lbl">75%</span>
-            <div class="cal-demo-bar"><div class="cal-demo-pred" style="width:75%"></div><div class="cal-demo-act act-over" style="width:55%"></div></div>
-            <span class="cal-demo-note" style="color:var(--accent-red)">-20% ✗</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="cal-legend">
-        <span><span class="legend-dot" style="background:rgba(0,191,255,0.5)"></span>Predicted probability (blue bar)</span>
-        <span><span class="legend-dot" style="background:var(--accent-green)"></span>Actual win rate (green bar)</span>
-      </div>
-
-      <div class="cal-text">
-        <p>The model assigns a probability to each bet before the game is played. For example, <strong>"this team has a <span class="hl-blue">65%</span> chance to cover."</strong></p>
-        <p>Calibration measures whether those predictions are accurate in reality. If the model says <span class="hl-blue">65%</span> and teams actually win <span class="hl-green">65%</span> of the time in that bucket — the model is <strong>perfectly calibrated.</strong></p>
-        <p>If it predicts <span class="hl-blue">65%</span> but they only win <span class="hl-red">50%</span>, the model is <strong class="hl-red">overconfident</strong>. If they win <span class="hl-yellow">75%</span>, it's <strong class="hl-yellow">underestimating.</strong></p>
-        <p>The bars show <span class="hl-blue">predicted probability in blue</span> and <span class="hl-green">actual win rate in green</span>. If these align closely across all buckets, the model's confidence levels are trustworthy — not just that it wins bets.</p>
-      </div>
-
-    </div>
-  </div>
-</div>
-<script src="assets/js/pages/model_validation.2.js"></script>
-<script src="assets/js/model-validation/config.js"></script>
-<script src="assets/js/model-validation/sources.js"></script>
-<script src="assets/js/model-validation/csv.js"></script>
-<script src="assets/js/model-validation/normalize.js"></script>
-<script src="assets/js/model-validation/app.js"></script>
+  <div id="root"></div>
 </body>
 </html>

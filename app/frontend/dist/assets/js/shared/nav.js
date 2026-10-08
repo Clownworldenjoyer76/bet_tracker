@@ -526,10 +526,93 @@
     });
   }
 })();
+/* SMH_NAV_PREFETCH_START */
+(() => {
+  if (window.__smhNavPrefetchInitialized) return;
+  window.__smhNavPrefetchInitialized = true;
 
+  const prefetched = new Set();
+
+  const prefetch = (anchor) => {
+    if (!anchor) return;
+    if (anchor.dataset.smhPrefetched === "1") return;
+    if (anchor.target && anchor.target !== "_self") return;
+    if (anchor.hasAttribute("download")) return;
+
+    const raw = anchor.getAttribute("href");
+    if (!raw) return;
+    if (/^(?:#|javascript:|mailto:|tel:)/i.test(raw)) return;
+
+    let url;
+    try {
+      url = new URL(raw, window.location.href);
+    } catch {
+      return;
+    }
+
+    if (url.origin !== window.location.origin) return;
+
+    url.hash = "";
+
+    if (
+      url.pathname === window.location.pathname &&
+      url.search === window.location.search
+    ) {
+      return;
+    }
+
+    const key = url.href;
+
+    if (prefetched.has(key)) return;
+    prefetched.add(key);
+    anchor.dataset.smhPrefetched = "1";
+
+    const hint = document.createElement("link");
+    hint.rel = "prefetch";
+    hint.href = key;
+    hint.setAttribute("data-smh-nav-prefetch", "1");
+
+    document.head.appendChild(hint);
+  };
+
+  const findNavLink = (event) => {
+    const target = event.target;
+
+    if (!(target instanceof Element)) return null;
+
+    return target.closest(
+      ".site-nav a[href], .nav-links a[href]"
+    );
+  };
+
+  document.addEventListener(
+    "pointerover",
+    (event) => {
+      const anchor = findNavLink(event);
+      if (anchor) prefetch(anchor);
+    },
+    { passive: true }
+  );
+
+  document.addEventListener(
+    "pointerdown",
+    (event) => {
+      const anchor = findNavLink(event);
+      if (anchor) prefetch(anchor);
+    },
+    { passive: true }
+  );
+
+  document.addEventListener("focusin", (event) => {
+    const anchor = findNavLink(event);
+    if (anchor) prefetch(anchor);
+  });
+})();
+/* SMH_NAV_PREFETCH_END */
 ;
 /* SMH_FOOTER_START */
 (() => {
+  if (window.__smhReactNavScriptLoaded) return; /* React pages render Footer.tsx */
   if (window.__smhFooterAdded) return;
   window.__smhFooterAdded = true;
 

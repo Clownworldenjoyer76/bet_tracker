@@ -381,6 +381,7 @@ posthog.init('phc_r8rHehNywABoAFEGt5vTx8iTpoTY6hiFoyygPrMF6WE4', {
   function activeLeague() {
     const active = document.querySelector(
       "#league-controls .league-pill.active, " +
+      "#smh-league-controls .league-pill.active, " +
       "#league-filters .filter-pill.active, " +
       "#gt-filters .filter-pill.active, " +
       ".league-pill.active[data-sport][data-league]"
@@ -398,6 +399,7 @@ posthog.init('phc_r8rHehNywABoAFEGt5vTx8iTpoTY6hiFoyygPrMF6WE4', {
   function activeSport() {
     const active = document.querySelector(
       "#league-controls .league-pill.active, " +
+      "#smh-league-controls .league-pill.active, " +
       "#league-filters .filter-pill.active, " +
       "#gt-filters .filter-pill.active, " +
       ".league-pill.active[data-sport][data-league]"

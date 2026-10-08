@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
-    [switch]$NoClean
+    [switch]$NoClean,
+    [string]$OutDir
 )
 
 Set-StrictMode -Version Latest
@@ -13,7 +14,24 @@ $Components  = Join-Path $SourceRoot 'components'
 $AssetsRoot  = Join-Path $SourceRoot 'assets'
 $DataRoot    = Join-Path $SourceRoot 'data'
 $PublicRoot  = Join-Path $SourceRoot 'public'
-$DistRoot    = Join-Path $ProjectRoot 'dist'
+$ProductionDist = [System.IO.Path]::GetFullPath((Join-Path $ProjectRoot 'dist'))
+
+# Legacy builds must never target the production dist (the React deployment target).
+if ([string]::IsNullOrWhiteSpace($OutDir)) {
+    throw "build.ps1 requires -OutDir <non-production folder>. It never builds into app\frontend\dist."
+}
+$DistRoot       = [System.IO.Path]::GetFullPath($OutDir).TrimEnd('\', '/')
+$ProductionNorm = $ProductionDist.TrimEnd('\', '/')
+$SourceNorm     = ([System.IO.Path]::GetFullPath($SourceRoot)).TrimEnd('\', '/')
+function Test-SamePathOrInside([string]$Child, [string]$Parent) {
+    return ($Child -ieq $Parent) -or
+        $Child.StartsWith($Parent + '\', [System.StringComparison]::OrdinalIgnoreCase) -or
+        $Child.StartsWith($Parent + '/', [System.StringComparison]::OrdinalIgnoreCase)
+}
+if ((Test-SamePathOrInside $DistRoot $ProductionNorm) -or (Test-SamePathOrInside $ProductionNorm $DistRoot) -or
+    (Test-SamePathOrInside $DistRoot $SourceNorm) -or (Test-SamePathOrInside $SourceNorm $DistRoot)) {
+    throw "Refusing -OutDir '$DistRoot': it is, contains, or sits inside the production dist or the source tree."
+}
 
 foreach ($required in @($SourceRoot, $PagesRoot, $AssetsRoot)) {
     if (-not (Test-Path -LiteralPath $required)) {
@@ -21,10 +39,16 @@ foreach ($required in @($SourceRoot, $PagesRoot, $AssetsRoot)) {
     }
 }
 
+$LegacyMarker = Join-Path $DistRoot '.legacy-build-output'
 if ((Test-Path -LiteralPath $DistRoot) -and -not $NoClean) {
+    $existingItems = @(Get-ChildItem -LiteralPath $DistRoot -Force)
+    if ($existingItems.Count -gt 0 -and -not (Test-Path -LiteralPath $LegacyMarker)) {
+        throw "Refusing to clean '$DistRoot': it is not empty and was not created by this script (no .legacy-build-output marker)."
+    }
     Remove-Item -LiteralPath $DistRoot -Recurse -Force
 }
 New-Item -ItemType Directory -Path $DistRoot -Force | Out-Null
+Set-Content -LiteralPath $LegacyMarker -Value 'Created by build.ps1. Not a production directory.' -Encoding ASCII
 
 function Copy-DirectoryContents {
     param(
