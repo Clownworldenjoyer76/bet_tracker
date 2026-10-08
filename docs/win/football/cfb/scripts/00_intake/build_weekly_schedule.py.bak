@@ -1893,13 +1893,7 @@ def _stage1_validate_weekly_odds_fields(
             raise ValueError(
                 f"Weekly schedule odds_away_team mismatch for game_id={game_id}"
             )
-        commence_time = str(row.get("commence_time", "")).strip()
-        if str(row.get("game_locked", "")).strip() == "1":
-            parse_aware_iso(
-                commence_time,
-                f"preserved locked odds commence_time for game_id={game_id}",
-            )
-        elif commence_time != expected_kickoff:
+        if str(row.get("commence_time", "")).strip() != expected_kickoff:
             raise ValueError(
                 f"Weekly schedule commence_time mismatch for game_id={game_id}"
             )
