@@ -124,17 +124,7 @@ jobs:
         run: python docs/win/football/cfb/scripts/00_intake/league_master.py
 
       - name: Pull raw rosters
-        id: cfb_raw_roster
         run: python docs/win/football/cfb/scripts/00_intake/pull_raw_roster.py
-
-      - name: Upload raw roster failure diagnostics
-        if: ${{ failure() && steps.cfb_raw_roster.outcome == 'failure' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: cfb-roster-failure-${{ github.run_id }}-${{ github.run_attempt }}
-          path: docs/win/football/cfb/errors/00_intake/pull_raw_roster.json
-          if-no-files-found: warn
-          retention-days: 14
 
       - name: Clean rosters
         run: python docs/win/football/cfb/scripts/00_intake/roster_cleanup.py

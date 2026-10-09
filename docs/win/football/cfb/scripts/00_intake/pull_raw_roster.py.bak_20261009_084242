@@ -1578,13 +1578,6 @@ def run(
     )
 
     if processing_failures:
-        for failure in processing_failures:
-            print(
-                "ROSTER_TEAM_FAILURE "
-                + json.dumps(failure, sort_keys=True),
-                file=sys.stderr,
-                flush=True,
-            )
         raise RuntimeError(
             "One or more roster teams "
             "failed validation or retrieval; "
@@ -1737,13 +1730,6 @@ def main() -> int:
             )
 
         finally:
-            for failure in state.request_failures:
-                print(
-                    "ROSTER_ESPN_REQUEST_FAILURE "
-                    + json.dumps(failure, sort_keys=True),
-                    file=sys.stderr,
-                    flush=True,
-                )
             report.update_details(
                 {
                     "espn_request_count": (
