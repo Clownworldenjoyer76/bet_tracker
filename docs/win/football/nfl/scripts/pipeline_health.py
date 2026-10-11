@@ -39,7 +39,7 @@ SETTINGS_PATH = NFL_ROOT / "config" / "settings.yaml"
 OUTPUT = NFL_ROOT / "pipeline_health.json"
 LOG = ERRORS / "pipeline_health.txt"
 FRONTEND_OUTPUT = REPO_ROOT / "frontend" / "data" / "pipeline_health" / "nfl.json"
-DASHBOARD_OUTPUT = REPO_ROOT / "frontend" / "nfl_dashboard.html"
+DASHBOARD_OUTPUT = REPO_ROOT / "frontend" / "data" / "dashboards" / "nfl.json"
 
 NY = ZoneInfo("America/New_York")
 WORKFLOW_KEY = "nfl_01"
