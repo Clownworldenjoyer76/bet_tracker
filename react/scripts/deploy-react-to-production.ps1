@@ -47,8 +47,8 @@ $NavRel         = 'nav.html'
 $NavJsRel       = 'assets\js\shared\nav.js'
 # Shells that exist in react-dist but are intentionally NOT deployed
 $NeverDeployShells = @('index.html','account.html')
-# Extensionless aliases (Django serves exact file names only): dist file -> react-dist shell it is copied from
-$AliasPages = @{ 'news' = 'news.html' }
+# Extensionless aliases: none. Django maps /news to news.html (EXTENSIONLESS_HTML_ALIASES in app/siteapp/views.py).
+$AliasPages = @{}
 
 # ---------------- DENYLIST (asserted on every destination) ----------------
 $DenyRegex = @(

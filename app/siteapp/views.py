@@ -6,6 +6,9 @@ from django.db import connection
 from django.http import FileResponse, Http404, JsonResponse
 from django.views.decorators.http import require_GET
 
+# Extensionless URLs served as an existing .html page (exact matches only).
+EXTENSIONLESS_HTML_ALIASES = {"news": "news.html"}
+
 
 def _safe_frontend_path(relative_path: str) -> Path:
     root = Path(settings.FRONTEND_DIST_DIR).resolve()
@@ -28,6 +31,7 @@ def frontend_file(request, path: str = ""):
     This is intentionally a compatibility bridge for the first Django phase.
     """
     relative_path = path or "index.html"
+    relative_path = EXTENSIONLESS_HTML_ALIASES.get(relative_path, relative_path)
     target = _safe_frontend_path(relative_path)
 
     if target.is_dir():
