@@ -48,6 +48,7 @@ export default defineConfig({
         basketballDashboard: resolve(rootDir, "basketball_dashboard.html"),
         wnbaDashboard: resolve(rootDir, "wnba_dashboard.html"),
         nflDashboard: resolve(rootDir, "nfl_dashboard.html"),
+        ncaafDashboard: resolve(rootDir, "ncaaf_dashboard.html"),
         ufcDashboard: resolve(rootDir, "ufc_dashboard.html"),
         nhlDashboard: resolve(rootDir, "nhl_dashboard.html"),
         soccerDashboard: resolve(rootDir, "soccer_dashboard.html"),

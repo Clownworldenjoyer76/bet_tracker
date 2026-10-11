@@ -35,6 +35,7 @@ const REACT_ROUTES = new Set([
   "/ufc_dashboard.html",
   "/nhl_dashboard.html",
   "/nfl_dashboard.html",
+  "/ncaaf_dashboard.html",
   "/bet_history.html",
   "/transactions.html",
 ]);

@@ -10,6 +10,7 @@ import WnbaDashboard from "./pages/WnbaDashboard";
 import NhlDashboard from "./pages/NhlDashboard";
 import UfcDashboard from "./pages/UfcDashboard";
 import NflDashboard from "./pages/NflDashboard";
+import CfbDashboard from "./pages/CfbDashboard";
 import SoccerDashboard from "./pages/SoccerDashboard";
 import LiveScores from "./pages/LiveScores";
 import FinalScores from "./pages/FinalScores";
@@ -87,6 +88,7 @@ export default function App() {
         />
 
         <Route path="/nfl_dashboard.html" element={<NflDashboard />} />
+        <Route path="/ncaaf_dashboard.html" element={<CfbDashboard />} />
         <Route path="/news.html" element={<News />} />
         <Route path="/injury_tracker.html" element={<InjuryTracker />} />
         <Route path="/transactions.html" element={<Transactions />} />
