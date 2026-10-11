@@ -456,7 +456,7 @@ function Test-Http([string]$path, [string]$mustContain, [string]$ctRegex) {
     if ($ct -notmatch $ctRegex) { $fails.Add("Content-Type '$ct' at $u (expected $ctRegex)") }
   }
   if ($mustContain) {
-    if (([string]$r.Content) -notmatch $mustContain) { $fails.Add("expected content not found at $u") }
+    $body = if ($r.Content -is [byte[]]) { [Text.Encoding]::UTF8.GetString($r.Content) } else { [string]$r.Content }; if ($body -notmatch $mustContain) { $fails.Add("expected content not found at $u") }
   }
 }
 Write-Host 'HTTP verification against ' $BaseUrl
