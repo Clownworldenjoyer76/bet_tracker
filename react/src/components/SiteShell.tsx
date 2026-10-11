@@ -38,6 +38,9 @@ const REACT_ROUTES = new Set([
   "/ncaaf_dashboard.html",
   "/bet_history.html",
   "/transactions.html",
+  "/model_validation.html",
+  "/manual_data.html",
+  "/manual_venue_data.html",
 ]);
 
 interface SiteShellProps {
@@ -72,14 +75,6 @@ export default function SiteShell({ children }: SiteShellProps) {
   }, []);
 
   const handleClickCapture = (event: MouseEvent<HTMLDivElement>) => {
-    // SMH_FULL_RELOAD_CONTENT_ROUTES
-    if (
-      location.pathname === "/model_validation.html" ||
-      location.pathname === "/manual_data.html" ||
-      location.pathname === "/manual_venue_data.html"
-    ) {
-      return;
-    }
     if (
       event.defaultPrevented ||
       event.button !== 0 ||

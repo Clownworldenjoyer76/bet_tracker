@@ -90,6 +90,7 @@ export default function App() {
         <Route path="/nfl_dashboard.html" element={<NflDashboard />} />
         <Route path="/ncaaf_dashboard.html" element={<CfbDashboard />} />
         <Route path="/news.html" element={<News />} />
+        <Route path="/news" element={<News />} />
         <Route path="/injury_tracker.html" element={<InjuryTracker />} />
         <Route path="/transactions.html" element={<Transactions />} />
 

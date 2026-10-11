@@ -39,7 +39,7 @@ $Pages = @(
   'prop_engine.html','props_nfl.html','kelly_calculator.html','bet_history.html','bet_history_daily.html',
   'mlb_dashboard.html','baseball_dashboard.html','model_validation.html','manual_data.html','manual_venue_data.html',
   'pipeline_health.html','nba_dashboard.html','ncaam_dashboard.html','basketball_dashboard.html','wnba_dashboard.html',
-  'nfl_dashboard.html','ufc_dashboard.html','nhl_dashboard.html','soccer_dashboard.html'
+  'nfl_dashboard.html','ufc_dashboard.html','nhl_dashboard.html','soccer_dashboard.html','ncaaf_dashboard.html'
 )
 $HistoryFiles   = @('MLB.csv','MLB_LINEUPS.csv','WNBA.csv','NHL.csv','SOCCER.csv','UFC.csv')
 $AnalyticsRel   = 'assets\js\shared\analytics.js'
@@ -47,13 +47,15 @@ $NavRel         = 'nav.html'
 $NavJsRel       = 'assets\js\shared\nav.js'
 # Shells that exist in react-dist but are intentionally NOT deployed
 $NeverDeployShells = @('index.html','account.html')
+# Extensionless aliases (Django serves exact file names only): dist file -> react-dist shell it is copied from
+$AliasPages = @{ 'news' = 'news.html' }
 
 # ---------------- DENYLIST (asserted on every destination) ----------------
 $DenyRegex = @(
   '^(index|account|contact|about|accessibility|disclaimer|faq|methodology|privacy|responsible_gambling|terms|mat)\.html$',
-  '^(football|hockey|mma|ncaaf|ncaab|cfl|bundesliga|epl|laliga|ligue1|mls|seriea)_dashboard\.html$',
+  '^(football|hockey|mma|ncaab|cfl|bundesliga|epl|laliga|ligue1|mls|seriea)_dashboard\.html$',
   '^(nhl|soccer|ufc)_pipeline_health\.html$',
-  '^\.nojekyll$', '^basketball\.json$', '^news$',
+  '^\.nojekyll$', '^basketball\.json$',
   '^data(\\|$)', '^assets\\css(\\|$)', '^assets\\images(\\|$)'
 )
 
@@ -66,6 +68,7 @@ function Test-Denied([string]$rel) {
 function Test-AllowedShape([string]$rel, [string]$kind) {
   switch ($kind) {
     'page'    { return ($Pages -contains $rel) }
+    'alias'   { return ($AliasPages.ContainsKey($rel)) }
     'asset'   { return ($rel -match '^assets\\[A-Za-z0-9._-]+$') }
     'history' { return ($rel -match '^history-data\\(MLB|MLB_LINEUPS|WNBA|NHL|SOCCER|UFC)\.csv$') }
     'shared'  { return ($rel -eq $AnalyticsRel -or $rel -eq $NavJsRel) }
@@ -332,6 +335,7 @@ if (Test-Path -LiteralPath $srcNavJs) { Add-Plan $NavJsRel $srcNavJs 'shared' }
 foreach ($h in $HistoryFiles) { Add-Plan ('history-data\' + $h) (Join-Path $Src ('history-data\' + $h)) 'history' }
 if (-not $NavSkip -and (Test-Path -LiteralPath (Join-Path $Src $NavRel))) { Add-Plan $NavRel (Join-Path $Src $NavRel) 'nav' }
 foreach ($p in $Pages) { $sp = Join-Path $Src $p; if (Test-Path -LiteralPath $sp) { Add-Plan $p $sp 'page' } }
+foreach ($al in $AliasPages.Keys) { $sp = Join-Path $Src $AliasPages[$al]; if (Test-Path -LiteralPath $sp) { Add-Plan $al $sp 'alias' } }
 
 # ---- 7. obsolete Vite root assets (only evaluated; removed only with -Apply -CleanOldAssets after verification)
 $newAssetNames = @($AssetFiles | ForEach-Object { $_.Name })
@@ -416,7 +420,7 @@ function Save-Manifest([string]$status, $removedList) {
 Save-Manifest 'applying' @()
 
 # copy order: assets -> shared -> history -> nav -> pages (shells last so they never point at missing files)
-$rank = @{ asset=1; shared=2; history=3; nav=4; page=5 }
+$rank = @{ asset=1; shared=2; history=3; nav=4; page=5; alias=5 }
 foreach ($c in @($changes | Sort-Object { $rank[$_.Kind] })) {
   Copy-Safe $c.Src $c.Dst
   Write-Host ("  {0,-8} {1}" -f $c.Action, $c.Rel)
@@ -428,7 +432,7 @@ foreach ($c in $changes) {
   if (-not (Test-Path -LiteralPath $c.Dst)) { $fails.Add("missing after copy: $($c.Rel)"); continue }
   if ((Get-Md5 $c.Dst) -ne $c.SrcMd5)       { $fails.Add("hash mismatch after copy: $($c.Rel)") }
 }
-foreach ($p in $Pages) {
+foreach ($p in @($Pages) + @($AliasPages.Keys)) {
   $t = [IO.File]::ReadAllText((Join-Path $Dst $p))
   foreach ($m in [regex]::Matches($t, '(?:src|href)="(\./[^"]+)"')) {
     if (-not (Test-Path -LiteralPath (Join-Path $Dst ($m.Groups[1].Value.Substring(2) -replace '/', '\')))) { $fails.Add("$p references missing file in dist: $($m.Groups[1].Value)") }
@@ -461,6 +465,7 @@ try {
   if (([string]$rz.Content | ConvertFrom-Json).status -ne 'ok') { $fails.Add('/readyz status is not ok') }
 } catch { $fails.Add("/readyz failed: $($_.Exception.Message)") }
 foreach ($p in $Pages) { Test-Http ('/' + $p) 'id="root"' 'text/html' }
+foreach ($al in $AliasPages.Keys) { Test-Http ('/' + $al) 'id="root"' '' }
 foreach ($n in @($jsRefs.Keys))  { Test-Http ('/assets/' + $n) '' 'javascript' }
 foreach ($n in @($cssRefs.Keys)) { Test-Http ('/assets/' + $n) '' 'css' }
 foreach ($h in $HistoryFiles)    { Test-Http ('/history-data/' + $h) '' '' }
