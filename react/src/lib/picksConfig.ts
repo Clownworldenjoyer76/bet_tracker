@@ -1,6 +1,6 @@
 /*
   Picks league configuration - native port of the REPO_CONFIG block in assets/js/shared/config.js
-  (the football week mapping, the soccer shared base and every league entry, unchanged).
+  (shared configuration; football weeks resolve from pipeline health).
   PAGE_LEAGUES / isPageLeagueEnabled from the same legacy file are not used by the Picks page and are not ported here.
 */
 
@@ -82,30 +82,7 @@ const SOCCER_BASE: LeagueCfg = {
   },
 };
 
-// --- Football week mapping ----------------------------------------------------
-// Only verified date ranges belong here.
-type WeekRange = { season: number; week: number; start: string; end: string };
-
-const FOOTBALL_WEEK_RANGES: Record<string, WeekRange[]> = {
-  CFB: [
-    {
-      season: 2026,
-      week: 4,
-      start: "2026_09_20",
-      end: "2026_09_27",
-    },
-  ],
-
-  NFL: [],
-};
-
-function footballWeekForDate(league: string, date: string): number | null {
-  const ranges = FOOTBALL_WEEK_RANGES[league] || [];
-
-  const match = ranges.find((r) => date >= r.start && date <= r.end);
-
-  return match ? match.week : null;
-}
+// Football weeks are resolved from pipeline health at runtime.
 
 function cleanFootballOdds(value: unknown): string {
   if (value === null || value === undefined || value === "") return "";
@@ -426,32 +403,24 @@ export const REPO_CONFIG: Record<string, LeagueCfg> = {
     filterFn: () => true,
     joinKey: "game_id",
 
-    selectFiles: (date) => {
-      const week = footballWeekForDate("CFB", date);
-
-      return week ? ["win/football/cfb/03_picks/selected/week_" + week + "_CFB_select_picks.csv"] : [];
-    },
+    // The football loader resolves the weekly selected CSV.
 
     expandRows: expandFootballSelections,
     buildBetText: buildFootballBetText,
   },
 
   // --- NFL ------------------------------------------------------------------
-  // Disabled until the selected-picks pipeline files exist.
+  // NFL selections exist; the current week comes from pipeline health.
   NFL: {
     sport: "football",
     league: "NFL",
     displayName: "NFL",
-    enabled: false,
+    enabled: true,
     isFootball: true,
     filterFn: () => true,
     joinKey: "game_id",
 
-    selectFiles: (date) => {
-      const week = footballWeekForDate("NFL", date);
-
-      return week ? ["win/football/nfl/03_picks/selected/week_" + week + "_NFL_select_picks.csv"] : [];
-    },
+    // The football loader resolves the weekly selected CSV.
 
     expandRows: expandFootballSelections,
     buildBetText: buildFootballBetText,

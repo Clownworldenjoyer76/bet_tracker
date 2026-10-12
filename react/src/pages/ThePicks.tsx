@@ -5,7 +5,7 @@
   Legacy behaviors found and preserved:
    1. Date picker (#p-date) starts at today (local); every change reloads the picks. Status shows "Loading..." while loading,
       then "{n} pick(s) - {date}".
-   2. Leagues come from the config list, skipping any with enabled: false (NFL is disabled); one column per league in that order.
+   2. Leagues come from the config list, skipping any with enabled: false (CFB and NFL resolve weeks dynamically); one column per league in that order.
    3. Per league: loads the select CSV (first path that loads wins), plus the optional prediction and sportsbook CSVs, from
       https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/docs/. Rows are normalized / expanded per league,
       filtered to the league and to the chosen date; if none match the date the latest earlier date is found and treated as
@@ -25,6 +25,7 @@
 */
 import { useEffect, useState, type ReactNode } from "react";
 import { PICKS_LEAGUES, REPO_CONFIG, type LeagueCfg, type Row } from "../lib/picksConfig";
+import { resolveFootballSelections } from "../lib/footballPicks";
 import "../../../app/frontend/src/assets/css/pages/the_picks.css";
 
 const MID = String.fromCharCode(0xb7);
@@ -495,8 +496,27 @@ async function loadLeague(
   const predPaths = resolvePaths(cfg.predFile, dateFormatted);
   const bookPaths = resolvePaths(cfg.bookFile, dateFormatted);
 
+  const selectRequest =
+    league === "CFB" || league === "NFL"
+      ? resolveFootballSelections(
+          league,
+          dateFormatted,
+          signal,
+          fetchCSV
+        ).catch((error: unknown): CsvResult => {
+          if (!signal.aborted) {
+            console.warn(
+              "[picks] Football pipeline data unavailable:",
+              league,
+              error
+            );
+          }
+          return { ok: false, rows: [] };
+        })
+      : fetchMultiCSV(selectPaths, signal);
+
   const [selectRes, predRes, bookRes] = await Promise.all([
-    fetchMultiCSV(selectPaths, signal),
+    selectRequest,
     predPaths.length ? fetchMultiCSV(predPaths, signal) : emptyRes,
     bookPaths.length ? fetchMultiCSV(bookPaths, signal) : emptyRes,
   ]);
