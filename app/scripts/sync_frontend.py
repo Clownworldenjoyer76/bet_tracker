@@ -9,7 +9,8 @@ ROOT = Path(__file__).resolve().parent.parent
 FRONTEND = ROOT / "frontend"
 SOURCE = FRONTEND / "src"
 PAGES = SOURCE / "pages"
-COMPONENTS = SOURCE / "components"
+REACT_ROOT = ROOT.parent / "react"
+REACT_NAV = REACT_ROOT / "public" / "nav.html"
 ASSETS = SOURCE / "assets"
 DATA = SOURCE / "data"
 PUBLIC = SOURCE / "public"
@@ -82,9 +83,9 @@ def build(out: Path) -> None:
         if page.is_file():
             shutil.copy2(page, out / page.name)
 
-    nav = COMPONENTS / "nav.html"
-    if nav.exists():
-        shutil.copy2(nav, out / "nav.html")
+    if not REACT_NAV.is_file():
+        raise RuntimeError(f"Canonical React nav missing: {REACT_NAV}")
+    shutil.copy2(REACT_NAV, out / "nav.html")
 
     copy_contents(ASSETS, out / "assets")
     copy_contents(DATA, out / "data")
@@ -105,6 +106,22 @@ def validate(dist: Path) -> None:
         errors.append("index.html is missing.")
     if not (dist / "nav.html").exists():
         errors.append("nav.html is missing.")
+
+    react_routes: set[str] = set()
+    if (dist / LEGACY_MARKER).is_file():
+        app_file = REACT_ROOT / "src" / "App.tsx"
+        vite_file = REACT_ROOT / "vite.config.ts"
+        if not app_file.is_file() or not vite_file.is_file():
+            raise SystemExit("VALIDATION FAILED: React route inventory missing.")
+        app_text = app_file.read_text(encoding="utf-8")
+        vite_text = vite_file.read_text(encoding="utf-8")
+        app_routes = set(re.findall(r'path\s*=\s*"/([^"]+\.html)"', app_text))
+        vite_inputs = set(re.findall(r'resolve\(rootDir,\s*"([^"]+\.html)"\)', vite_text))
+        react_routes = {
+            name for name in (app_routes & vite_inputs)
+            if (REACT_ROOT / name).is_file()
+            and (PRODUCTION_DIST / name).is_file()
+        }
 
     for file in dist.iterdir():
         if not file.is_file():
@@ -137,6 +154,8 @@ def validate(dist: Path) -> None:
 
             candidate = file.parent / clean
             if not candidate.exists():
+                if clean == Path(clean).name and clean in react_routes:
+                    continue
                 errors.append(f"{file.name}: missing local reference '{url}'.")
 
     if errors:

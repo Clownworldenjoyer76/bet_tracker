@@ -10,7 +10,8 @@ $ErrorActionPreference = 'Stop'
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 $SourceRoot  = Join-Path $ProjectRoot 'src'
 $PagesRoot   = Join-Path $SourceRoot 'pages'
-$Components  = Join-Path $SourceRoot 'components'
+$ReactRoot   = [IO.Path]::GetFullPath((Join-Path $ProjectRoot '..\..\react'))
+$ReactNav    = Join-Path $ReactRoot 'public\nav.html'
 $AssetsRoot  = Join-Path $SourceRoot 'assets'
 $DataRoot    = Join-Path $SourceRoot 'data'
 $PublicRoot  = Join-Path $SourceRoot 'public'
@@ -68,10 +69,11 @@ Get-ChildItem -LiteralPath $PagesRoot -File -Force | ForEach-Object {
     Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $DistRoot $_.Name) -Force
 }
 
-# nav.html is an existing runtime component loaded by assets/js/shared/nav.js.
-if (Test-Path -LiteralPath (Join-Path $Components 'nav.html')) {
-    Copy-Item -LiteralPath (Join-Path $Components 'nav.html') -Destination (Join-Path $DistRoot 'nav.html') -Force
+# Navigation comes from the single canonical React public source.
+if (-not (Test-Path -LiteralPath $ReactNav -PathType Leaf)) {
+    throw "Canonical React nav missing: $ReactNav"
 }
+Copy-Item -LiteralPath $ReactNav -Destination (Join-Path $DistRoot 'nav.html') -Force
 
 Copy-DirectoryContents -Source $AssetsRoot -Destination (Join-Path $DistRoot 'assets')
 Copy-DirectoryContents -Source $DataRoot   -Destination (Join-Path $DistRoot 'data')
@@ -80,6 +82,29 @@ Copy-DirectoryContents -Source $DataRoot   -Destination (Join-Path $DistRoot 'da
 if (Test-Path -LiteralPath $PublicRoot) {
     Get-ChildItem -LiteralPath $PublicRoot -File -Force | ForEach-Object {
         Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $DistRoot $_.Name) -Force
+    }
+}
+
+$ReactApp = Join-Path $ReactRoot 'src\App.tsx'
+$ReactVite = Join-Path $ReactRoot 'vite.config.ts'
+foreach ($requiredReact in @($ReactApp, $ReactVite)) {
+    if (-not (Test-Path -LiteralPath $requiredReact -PathType Leaf)) {
+        throw "React route inventory missing: $requiredReact"
+    }
+}
+$appText = [IO.File]::ReadAllText($ReactApp)
+$viteText = [IO.File]::ReadAllText($ReactVite)
+$viteInputs = @{}
+foreach ($m in [regex]::Matches($viteText, 'resolve\(rootDir,\s*"([^"]+\.html)"\)')) {
+    $viteInputs[$m.Groups[1].Value] = $true
+}
+$reactRoutes = @{}
+foreach ($m in [regex]::Matches($appText, 'path\s*=\s*"/([^"]+\.html)"')) {
+    $name = $m.Groups[1].Value
+    if ($viteInputs.ContainsKey($name) -and
+        (Test-Path -LiteralPath (Join-Path $ReactRoot $name) -PathType Leaf) -and
+        (Test-Path -LiteralPath (Join-Path $ProductionDist $name) -PathType Leaf)) {
+        $reactRoutes[$name] = $true
     }
 }
 
@@ -117,6 +142,8 @@ Get-ChildItem -LiteralPath $DistRoot -File -Force | ForEach-Object {
 
             $candidate = Join-Path $file.DirectoryName $clean
             if (-not (Test-Path -LiteralPath $candidate)) {
+                if ($reactRoutes.ContainsKey($clean) -and
+                    $clean -eq [IO.Path]::GetFileName($clean)) { continue }
                 $errors.Add("$($file.Name): missing local reference '$url'.")
             }
         }
