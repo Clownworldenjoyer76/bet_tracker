@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import "../../../app/frontend/src/assets/css/generated/ufc-dashboard.css";
 
-import data from "../data/ufc-dashboard.json";
+import { DashboardDataStatus, SavedDataNotice, useDashboardData } from "../lib/liveData";
 import reportColumns from "../data/ufc-report-columns.json";
 
 type Row = Record<string, unknown>;
@@ -23,10 +23,13 @@ const TABS = [
 ] as const;
 
 const columns = reportColumns as Column[];
-const ufcData = data as {
+type UfcData = {
   headline: Row;
   reports: Record<string, { rows?: Row[] }>;
 };
+
+// Set from the live (or saved) dashboard data before the view renders.
+let ufcData: UfcData = { headline: {}, reports: {} };
 
 function fmtPct(value: unknown) {
   if (
@@ -287,7 +290,7 @@ function Kpi({
   );
 }
 
-export default function UfcDashboard() {
+function UfcDashboardView() {
   const [activeTab, setActiveTab] =
     useState("ev");
 
@@ -403,3 +406,15 @@ export default function UfcDashboard() {
   );
 }
 
+export default function UfcDashboard() {
+  const state = useDashboardData("ufc", (loaded) => {
+    ufcData = loaded as UfcData;
+  });
+  if (state.status !== "ready") return <DashboardDataStatus state={state} />;
+  return (
+    <>
+      {state.source === "snapshot" ? <SavedDataNotice generatedAt={state.generatedAt} /> : null}
+      <UfcDashboardView key={state.source} />
+    </>
+  );
+}

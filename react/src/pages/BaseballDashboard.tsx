@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import dashboardData from "../data/baseball-dashboard.json";
+import { DashboardDataStatus, SavedDataNotice, useDashboardData } from "../lib/liveData";
 
 type Cell = string | number | null | undefined;
 type Row = Record<string, Cell>;
@@ -18,8 +18,8 @@ type FeedData = {
   overview?: Record<string, Row[]>;
 };
 
-const ALL_DATA =
-  dashboardData as unknown as Record<string, FeedData>;
+// Set from the live (or saved) dashboard data before the view renders.
+let ALL_DATA: Record<string, FeedData> = {};
 
 type Column = {
   key: string;
@@ -584,7 +584,7 @@ function FeedSection({
   );
 }
 
-export default function BaseballDashboard() {
+function BaseballDashboardView() {
   const feeds = Object.keys(ALL_DATA);
 
   const [feed, setFeed] = useState(() => {
@@ -658,6 +658,19 @@ export default function BaseballDashboard() {
       </div>
 
       <FeedSection data={activeFeed} />
+    </>
+  );
+}
+
+export default function BaseballDashboard() {
+  const state = useDashboardData("baseball", (loaded) => {
+    ALL_DATA = loaded as Record<string, FeedData>;
+  });
+  if (state.status !== "ready") return <DashboardDataStatus state={state} />;
+  return (
+    <>
+      {state.source === "snapshot" ? <SavedDataNotice generatedAt={state.generatedAt} /> : null}
+      <BaseballDashboardView key={state.source} />
     </>
   );
 }

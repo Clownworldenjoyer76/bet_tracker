@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 
 import "../../../app/frontend/src/assets/css/generated/basketball-dashboard.css";
 
-import allData from "../data/basketball-dashboard.json";
+import { DashboardDataStatus, SavedDataNotice, useDashboardData } from "../lib/liveData";
 
 
 type Row = Record<string, unknown>;
@@ -11,7 +11,8 @@ type Feed = Record<string, unknown>;
 
 type AllData = Record<string, Record<string, Feed>>;
 
-const data = allData as unknown as AllData;
+// Set from the live (or saved) dashboard data before the view renders.
+let data = {} as AllData;
 
 const MARKET_ORDER = [
   "moneyline",
@@ -312,7 +313,7 @@ function FeedContent({ feed }: { feed: Feed }) {
   );
 }
 
-export default function BasketballDashboard() {
+function BasketballDashboardView() {
   const seasons = Object.keys(data);
 
   const [season, setSeason] = useState(() => {
@@ -439,9 +440,15 @@ export default function BasketballDashboard() {
   );
 }
 
-
-
-
-
-
-
+export default function BasketballDashboard() {
+  const state = useDashboardData("basketball", (loaded) => {
+    data = loaded as AllData;
+  });
+  if (state.status !== "ready") return <DashboardDataStatus state={state} />;
+  return (
+    <>
+      {state.source === "snapshot" ? <SavedDataNotice generatedAt={state.generatedAt} /> : null}
+      <BasketballDashboardView key={state.source} />
+    </>
+  );
+}

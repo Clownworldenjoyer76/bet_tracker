@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import "../styles/soccer-dashboard.css";
-import allData from "../data/soccer-dashboard.json";
+import { DashboardDataStatus, SavedDataNotice, useDashboardData } from "../lib/liveData";
 
 type Row = Record<string, any>;
 
@@ -37,9 +37,10 @@ type LeagueData = {
   markets?: Record<string, MarketData>;
 };
 
-const DATA = allData as unknown as Record<string, LeagueData>;
+// Set from the live (or saved) dashboard data before the view renders.
+let DATA: Record<string, LeagueData> = {};
 
-const LEAGUES = [
+const LEAGUE_ORDER = [
   "all",
   "mls",
   "epl",
@@ -47,7 +48,11 @@ const LEAGUES = [
   "ligue1",
   "seriea",
   "bundesliga",
-].filter(key => DATA[key]);
+];
+
+function availableLeagues(): string[] {
+  return LEAGUE_ORDER.filter(key => DATA[key]);
+}
 
 const RESULT_COLUMNS: Column[] = [
   { key: "bucket", label: "Bucket" },
@@ -460,7 +465,7 @@ function LeagueView({ data }: { data: LeagueData }) {
   );
 }
 
-export default function SoccerDashboard() {
+function SoccerDashboardView() {
   const [league, setLeague] = useState(() => {
     try {
       const requested = new URLSearchParams(window.location.search).get("league");
@@ -490,7 +495,7 @@ export default function SoccerDashboard() {
 
       <div className="league-bar">
         <span className="lbl">League:</span>
-        {LEAGUES.map(key => (
+        {availableLeagues().map(key => (
           <button
             key={key}
             className={`league-btn ${league === key ? "active" : ""}`}
@@ -506,3 +511,15 @@ export default function SoccerDashboard() {
   );
 }
 
+export default function SoccerDashboard() {
+  const state = useDashboardData("soccer", (loaded) => {
+    DATA = loaded as Record<string, LeagueData>;
+  });
+  if (state.status !== "ready") return <DashboardDataStatus state={state} />;
+  return (
+    <>
+      {state.source === "snapshot" ? <SavedDataNotice generatedAt={state.generatedAt} /> : null}
+      <SoccerDashboardView key={state.source} />
+    </>
+  );
+}

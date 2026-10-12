@@ -5,7 +5,7 @@ import "../../../app/frontend/src/assets/css/dashboard.css";
 import "./nfl-dashboard.css";
 import "../../../app/frontend/src/assets/css/site-polish.css";
 
-import data from "../data/nfl-dashboard.json";
+import { DashboardDataStatus, SavedDataNotice, useDashboardData } from "../lib/liveData";
 
 type RawRow = Record<string, string | number | null | undefined>;
 
@@ -32,7 +32,8 @@ type Column = {
   color?: "win" | "loss";
 };
 
-const nflData = data as unknown as Record<string, RawRow[]>;
+// Set from the live (or saved) dashboard data before the view renders.
+let nflData: Record<string, RawRow[]> = {};
 
 const PAGE_SIZE = 50;
 
@@ -809,7 +810,7 @@ const TABS: [string, string][] = [
   ["betlog", "Bet Log"],
 ];
 
-export default function NflDashboard() {
+function NflDashboardView() {
   const overallRow: RawRow = nflData.summary_overall?.[0] ?? {};
   const hasData = (nflData.bet_log ?? []).length > 0;
 
@@ -1044,6 +1045,19 @@ export default function NflDashboard() {
           </section>
         )}
       </main>
+    </>
+  );
+}
+
+export default function NflDashboard() {
+  const state = useDashboardData("nfl", (loaded) => {
+    nflData = loaded as Record<string, RawRow[]>;
+  });
+  if (state.status !== "ready") return <DashboardDataStatus state={state} />;
+  return (
+    <>
+      {state.source === "snapshot" ? <SavedDataNotice generatedAt={state.generatedAt} /> : null}
+      <NflDashboardView key={state.source} />
     </>
   );
 }

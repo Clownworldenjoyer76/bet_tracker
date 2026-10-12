@@ -345,7 +345,7 @@ if (Test-Path -LiteralPath $dstAssetDir) {
   $otherHtml = @(Get-ChildItem -LiteralPath $Dst -Filter *.html -File | Where-Object { $Pages -notcontains $_.Name })
   $otherText = ($otherHtml | ForEach-Object { [IO.File]::ReadAllText($_.FullName) }) -join "`n"
   foreach ($f in @(Get-ChildItem -LiteralPath $dstAssetDir -File)) {
-    if (($newAssetNames -notcontains $f.Name) -and ($f.Name -match '^(main|landing-bg-desktop)-[A-Za-z0-9_-]+\.(js|css|webp)$')) {
+    if (($newAssetNames -notcontains $f.Name) -and ($f.Name -match '^(main|landing-bg-desktop|dashboard-[a-z]+|pipeline-health-[a-z]+)-[A-Za-z0-9_-]+\.(js|css|webp)$')) {
       if ($otherText.Contains($f.Name)) { $Warnings.Add("old asset $($f.Name) is still referenced by a non-React page; will not be cleaned") }
       else { $Obsolete += $f }
     }

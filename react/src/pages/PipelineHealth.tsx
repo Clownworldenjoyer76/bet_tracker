@@ -2,9 +2,10 @@
   PipelineHealth - native React port of legacy pipeline_health.html + assets/js/pages/pipeline_health.js.
 
   Legacy behaviors found and preserved:
-   1. Six sport sources (Basketball, MLB, NHL, CFB, Soccer, UFC), each fetched once on load from the relative path
-      data/pipeline_health/{key}.json with cache: "no-store", all in parallel. A non-OK response or fetch error
-      marks that sport as not loaded.
+   1. Six sport sources (Basketball, MLB, NHL, CFB, Soccer, UFC), each fetched once on load, all in parallel.
+      Changed from legacy: fetched live from GitHub (frontend/data/pipeline_health/{key}.json, see lib/liveData);
+      if that fails, the copy saved into the build is used and the panel says it is a saved copy. A sport with
+      neither is marked as not loaded.
    2. Status bar: yellow dot + "Loading pipeline health data..." until loading finishes; then green dot with
       "N sport pipeline file(s) loaded - selectors become active as each sport is added", or red dot with
       "No pipeline health files could be loaded" when none loaded.
@@ -29,6 +30,7 @@
   Difference: values are rendered as React text (legacy escaped them into innerHTML) - same visible result.
 */
 import { useEffect, useState } from "react";
+import { fetchLiveJson, loadSnapshot } from "../lib/liveData";
 import "../../../app/frontend/src/assets/css/pages/pipeline_health.css";
 
 const MID = String.fromCharCode(0xb7);
@@ -39,12 +41,12 @@ type Source = { key: string; label: string; path: string };
 type Loose = Record<string, any>;
 
 const SPORT_SOURCES: Source[] = [
-  { key: "basketball", label: "Basketball", path: "data/pipeline_health/basketball.json" },
-  { key: "mlb", label: "MLB", path: "data/pipeline_health/mlb.json" },
-  { key: "nhl", label: "NHL", path: "data/pipeline_health/nhl.json" },
-  { key: "cfb", label: "CFB", path: "data/pipeline_health/cfb.json" },
-  { key: "soccer", label: "Soccer", path: "data/pipeline_health/soccer.json" },
-  { key: "ufc", label: "UFC", path: "data/pipeline_health/ufc.json" },
+  { key: "basketball", label: "Basketball", path: "pipeline_health/basketball.json" },
+  { key: "mlb", label: "MLB", path: "pipeline_health/mlb.json" },
+  { key: "nhl", label: "NHL", path: "pipeline_health/nhl.json" },
+  { key: "cfb", label: "CFB", path: "pipeline_health/cfb.json" },
+  { key: "soccer", label: "Soccer", path: "pipeline_health/soccer.json" },
+  { key: "ufc", label: "UFC", path: "pipeline_health/ufc.json" },
 ];
 
 function arr(v: any): any[] {
@@ -377,7 +379,7 @@ function ModelHealth({ data }: { data: Loose }) {
   );
 }
 
-function SportPanel({ source, data }: { source: Source; data: Loose }) {
+function SportPanel({ source, data, saved }: { source: Source; data: Loose; saved: boolean }) {
   const summary = summaryFor(data);
   const status = sportStatus(data);
   const statusLabel = status === "failed" ? "Failed" : status === "warning" ? "Warning" : "Healthy";
@@ -392,6 +394,7 @@ function SportPanel({ source, data }: { source: Source; data: Loose }) {
           <div className="sport-meta">
             Game date: {text(data.game_date_new_york || EMDASH)} {MID} Generated:{" "}
             {formatGenerated(data.generated_at_utc)}
+            {saved ? " " + MID + " Saved copy (live data unavailable)" : ""}
           </div>
         </div>
         <span className={"badge " + status}>{statusLabel}</span>
@@ -438,6 +441,7 @@ function SportPanel({ source, data }: { source: Source; data: Loose }) {
 
 export default function PipelineHealth() {
   const [health, setHealth] = useState<Record<string, Loose>>({});
+  const [savedKeys, setSavedKeys] = useState<string[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [loadedCount, setLoadedCount] = useState(0);
   const [activeSport, setActiveSport] = useState("all");
@@ -449,19 +453,19 @@ export default function PipelineHealth() {
 
     const loadAll = async () => {
       const next: Record<string, Loose> = {};
+      const saved: string[] = [];
 
       const results = await Promise.all(
         SPORT_SOURCES.map(async (source) => {
           try {
-            const response = await fetch(source.path, {
-              cache: "no-store",
-              signal: controller.signal,
-            });
-
-            if (!response.ok) return { source, ok: false };
-
-            next[source.key] = await response.json();
-
+            next[source.key] = (await fetchLiveJson(source.path, controller.signal)) as Loose;
+            return { source, ok: true };
+          } catch {
+            if (controller.signal.aborted) return { source, ok: false };
+          }
+          try {
+            next[source.key] = (await loadSnapshot("pipeline-health", source.key)) as Loose;
+            saved.push(source.key);
             return { source, ok: true };
           } catch {
             return { source, ok: false };
@@ -472,6 +476,7 @@ export default function PipelineHealth() {
       if (controller.signal.aborted) return;
 
       setHealth(next);
+      setSavedKeys(saved);
       setLoadedCount(results.filter((r) => r.ok).length);
       setLoaded(true);
     };
@@ -556,7 +561,12 @@ export default function PipelineHealth() {
           {ready ? (
             selected.length ? (
               selected.map((source) => (
-                <SportPanel key={source.key} source={source} data={health[source.key]} />
+                <SportPanel
+                  key={source.key}
+                  source={source}
+                  data={health[source.key]}
+                  saved={savedKeys.includes(source.key)}
+                />
               ))
             ) : (
               <div className="empty-state">

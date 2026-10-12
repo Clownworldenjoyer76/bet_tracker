@@ -5,7 +5,7 @@ import "../../../app/frontend/src/assets/css/dashboard.css";
 import "./cfb-dashboard.css";
 import "../../../app/frontend/src/assets/css/site-polish.css";
 
-import data from "../data/cfb-dashboard.json";
+import { DashboardDataStatus, SavedDataNotice, useDashboardData } from "../lib/liveData";
 
 type RawRow = Record<string, string | number | null | undefined>;
 
@@ -40,7 +40,8 @@ type PlainColumn = {
   format?: "pct" | "num" | "int" | "text";
 };
 
-const cfbData = data as unknown as Record<string, RawRow[]>;
+// Set from the live (or saved) dashboard data before the view renders.
+let cfbData: Record<string, RawRow[]> = {};
 
 const PAGE_SIZE = 50;
 
@@ -945,7 +946,7 @@ const TABS: [string, string][] = [
   ["betlog", "Bet Log"],
 ];
 
-export default function CfbDashboard() {
+function CfbDashboardView() {
   const overallRow: RawRow = cfbData.summary_overall?.[0] ?? {};
   const hasData = (cfbData.bet_log ?? []).length > 0;
 
@@ -1196,6 +1197,19 @@ export default function CfbDashboard() {
           </section>
         )}
       </main>
+    </>
+  );
+}
+
+export default function CfbDashboard() {
+  const state = useDashboardData("cfb", (loaded) => {
+    cfbData = loaded as Record<string, RawRow[]>;
+  });
+  if (state.status !== "ready") return <DashboardDataStatus state={state} />;
+  return (
+    <>
+      {state.source === "snapshot" ? <SavedDataNotice generatedAt={state.generatedAt} /> : null}
+      <CfbDashboardView key={state.source} />
     </>
   );
 }
