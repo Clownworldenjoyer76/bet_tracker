@@ -19,7 +19,7 @@ LEGACY_MARKER = ".legacy-build-output"
 ATTR_RE = re.compile(r'(?i)\b(?:href|src)=["\']([^"\']+)["\']')
 INLINE_STYLE_RE = re.compile(r"(?is)<style(?:\s[^>]*)?>")
 INLINE_SCRIPT_RE = re.compile(r"(?is)<script(?![^>]*\bsrc\s*=)[^>]*>")
-# React-owned pages (deployed from G:\bet_tracker_react) contain exactly one tiny
+# React-owned pages (deployed from G:\bet_tracker\react) contain exactly one tiny
 # inline no-flash style. It is allowed only in files that contain the React root div.
 REACT_ROOT_MARKER = '<div id="root">'
 REACT_NOFLASH_STYLE_RE = re.compile(r'(?is)<style\s+id="smh-no-flash">[^<]*</style>')
