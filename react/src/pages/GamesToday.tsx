@@ -21,7 +21,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import "../../../app/frontend/src/assets/js/shared/config.js";
 import "../../../app/frontend/src/assets/css/matstheme.css";
 import "../../../app/frontend/src/assets/css/pages/games_today.css";
-import "../../../app/frontend/src/assets/css/site-polish.css";
+import "../styles/site-polish.css";
 import {
   MID,
   isPresent,
