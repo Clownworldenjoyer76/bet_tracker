@@ -53,8 +53,7 @@ $AliasPages = @{}
 # ---------------- DENYLIST (asserted on every destination) ----------------
 $DenyRegex = @(
   '^(index|account|contact|about|accessibility|disclaimer|faq|methodology|privacy|responsible_gambling|terms|mat)\.html$',
-  '^(football|hockey|mma|ncaab|cfl|bundesliga|epl|laliga|ligue1|mls|seriea)_dashboard\.html$',
-  '^(nhl|soccer|ufc)_pipeline_health\.html$',
+  '^(football|ncaab|cfl)_dashboard\.html$',
   '^\.nojekyll$', '^basketball\.json$',
   '^data(\\|$)', '^assets\\css(\\|$)', '^assets\\images(\\|$)'
 )
