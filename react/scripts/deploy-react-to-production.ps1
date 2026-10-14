@@ -17,6 +17,7 @@
 [CmdletBinding()]
 param(
   [switch]$Apply,
+  [switch]$IncludeReactV2Pages,
   [switch]$CleanOldAssets,
   [switch]$SkipNav,
   [string]$Rollback,
@@ -47,6 +48,19 @@ $NavRel         = 'nav.html'
 $NavJsRel       = 'assets\js\shared\nav.js'
 # Shells that exist in react-dist but are intentionally NOT deployed
 $NeverDeployShells = @('index.html','account.html')
+# REACT_V2_OPT_IN_POLICY_BEGIN
+# Explicit opt-in for React V2 migration shells. Ordinary -Apply is unchanged.
+# For a V2 rollback, also supply -IncludeReactV2Pages with -Rollback and -Apply.
+# Privacy/Terms deliberately remain denylisted: their React content is unapproved draft text.
+$ReactV2OptInPages = @(
+  'index.html','account.html','login.html','register.html','contact.html',
+  'password_reset.html','password_reset_done.html','password_reset_complete.html',
+  'football_dashboard.html','props_dashboard.html','ncaab_dashboard.html',
+  'about.html','accessibility.html','disclaimer.html','faq.html','methodology.html',
+  'responsible_gambling.html','mat.html'
+)
+if ($IncludeReactV2Pages) { $Pages += $ReactV2OptInPages }
+# REACT_V2_OPT_IN_POLICY_END
 # Extensionless aliases: none. Django maps /news to news.html (EXTENSIONLESS_HTML_ALIASES in app/siteapp/views.py).
 $AliasPages = @{}
 
@@ -59,6 +73,11 @@ $DenyRegex = @(
 )
 
 function Test-Denied([string]$rel) {
+  # Only the exact 20 reviewed filenames bypass the old denylist when opt-in is supplied.
+  if ($IncludeReactV2Pages -and ($ReactV2OptInPages -contains $rel)) {
+    if ($rel -match '\.\.') { return $true }
+    return $false
+  }
   if ($rel -match '\.\.') { return $true }
   foreach ($rx in $DenyRegex) { if ($rel -match $rx) { return $true } }
   if ($rel -match '^assets\\js(\\|$)' -and $rel -ne $AnalyticsRel -and $rel -ne $NavJsRel) { return $true }

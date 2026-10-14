@@ -8,6 +8,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods
 
 from .models import ContactMessage
+from .react_bridge import react_enabled, form_bootstrap, render_react
 
 CONTACT_RATE_LIMIT = 5
 CONTACT_RATE_WINDOW_SECONDS = 3600
@@ -96,4 +97,7 @@ def contact_view(request):
     else:
         form = ContactForm()
 
+    if react_enabled():
+        return render_react(request, "contact.html",
+                            form_bootstrap(request, form, page="contact", extra={"sent": sent}))
     return render(request, "accounts/contact.html", {"form": form, "sent": sent})

@@ -1,0 +1,36 @@
+.smh-home{width:min(1480px,calc(100% - 32px));margin:0 auto;padding:18px 0 44px}
+.smh-home-grid{display:grid;grid-template-columns:minmax(300px,450px) minmax(0,1fr);gap:18px;align-items:start}
+.smh-home-account,.smh-home-content{min-width:0}
+.smh-home-account .auth-page{padding:0;min-height:0;width:auto;max-width:100%;margin:0}
+.smh-home-account .auth-shell{min-width:0;max-width:100%;width:100%;padding:0;margin:0}
+.smh-home-account .auth-card{max-width:100%;box-sizing:border-box}
+.smh-home-content{display:grid;gap:18px}
+.smh-home-panel{min-width:0;padding:16px;border:1px solid var(--border-soft,#29313a);background:var(--bg-card,#11161d)}
+.smh-home-panel-heading{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:10px;padding-bottom:10px;margin-bottom:12px;border-bottom:1px solid var(--border-soft,#29313a)}
+.smh-home-panel-heading h2{margin:0;font:800 20px 'Barlow Condensed',sans-serif;letter-spacing:.09em;text-transform:uppercase;color:var(--accent-green,#00ff84)}
+.smh-home-panel-heading a,.smh-home-panel-heading span{font-size:12px}
+.smh-home-leagues{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.smh-home-league{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:16px 12px;border:1px solid var(--border-soft,#29313a);text-decoration:none;color:var(--text-main,#eee);font:700 16px 'Barlow Condensed',sans-serif}
+.smh-home-league:hover,.smh-home-league:focus-visible{border-color:var(--accent-green,#00ff84)}
+.smh-home-games .gt-header h1,.smh-home-history .page-header h1{font-size:20px}
+.smh-home-history .history-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.smh-home-history .day-card:nth-child(n+8){display:none}
+.smh-home-subtle{font-size:12px;margin-top:12px}
+@media(max-width:1100px){.smh-home-grid{grid-template-columns:minmax(0,1fr)}.smh-home-account{max-width:720px}}
+@media(max-width:650px){.smh-home-leagues{grid-template-columns:repeat(2,minmax(0,1fr))}.smh-home-history .history-grid{grid-template-columns:1fr}.smh-home{width:calc(100% - 20px)}}
+
+/* Phase 6: interactive completed-day cards and historical picks dialog. */
+.smh-home-history .smh-selectable-day{cursor:pointer;position:relative}
+.smh-home-history .smh-selectable-day:hover{border-color:var(--accent-green,#00ff84)}
+.smh-home-history .smh-selectable-day:focus-visible{outline:3px solid var(--accent-green,#00ff84);outline-offset:2px}
+.smh-home-picks-backdrop{position:fixed;inset:0;z-index:2147483000;background:rgba(0,0,0,.84);display:flex;align-items:center;justify-content:center;padding:14px;box-sizing:border-box}
+.smh-home-picks-dialog{width:min(1100px,100%);max-height:94vh;overflow:auto;background:#0b0f14;border:1px solid var(--accent-green,#00ff84);box-shadow:0 20px 70px rgba(0,0,0,.8);outline:none}
+.smh-home-picks-dialog-head{position:sticky;top:0;z-index:15;background:#0b0f14;border-bottom:1px solid var(--border-soft,#29313a);display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px}
+.smh-home-picks-dialog-head h2{font:800 22px 'Barlow Condensed',sans-serif;margin:0;color:var(--accent-green,#00ff84)}
+.smh-home-picks-dialog-head button{cursor:pointer;padding:8px 14px;background:transparent;border:1px solid currentColor;color:var(--accent-green,#00ff84)}
+.smh-home-picks-dialog-body{padding:16px;min-width:0}
+.smh-home-history-results{overflow:auto;max-height:65vh}
+.smh-home-history-results table{border-collapse:collapse;width:100%;font-size:13px;text-align:left}
+.smh-home-history-results th,.smh-home-history-results td{border-bottom:1px solid var(--border-soft,#29313a);padding:9px 12px;vertical-align:top}
+.smh-home-history-results th{color:var(--accent-green,#00ff84)}
+@media(max-width:650px){.smh-home-picks-dialog-body{padding:8px}.smh-home-picks-backdrop{padding:4px}}

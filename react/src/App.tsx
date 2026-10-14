@@ -29,10 +29,28 @@ import BetHistory from "./pages/BetHistory";
 import BetHistoryDaily from "./pages/BetHistoryDaily";
 import ModelValidation from "./pages/ModelValidation";
 
-function Home() {
-  return null;
-}
 
+
+import FootballMaster from "./pages/FootballMaster";
+import Home from "./pages/Home";
+import Account from "./pages/Account";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import Contact from "./pages/Contact";
+import PasswordReset from "./pages/PasswordReset";
+import PasswordResetDone from "./pages/PasswordResetDone";
+import PasswordResetConfirm from "./pages/PasswordResetConfirm";
+import PasswordResetComplete from "./pages/PasswordResetComplete";
+import PropsMaster from "./pages/PropsMaster";
+import MatDashboard from "./pages/MatDashboard";
+import About from "./pages/About";
+import Accessibility from "./pages/Accessibility";
+import Disclaimer from "./pages/Disclaimer";
+import Faq from "./pages/Faq";
+import Methodology from "./pages/Methodology";
+import Privacy from "./pages/Privacy";
+import ResponsibleGambling from "./pages/ResponsibleGambling";
+import Terms from "./pages/Terms";
 import ManualData from "./pages/ManualData";
 import ManualVenueData from "./pages/ManualVenueData";
 import PipelineHealth from "./pages/PipelineHealth";
@@ -109,6 +127,27 @@ export default function App() {
         <Route path="/manual_data.html" element={<ManualData />} />
         <Route path="/manual_venue_data.html" element={<ManualVenueData />} />
         <Route path="/pipeline_health.html" element={<PipelineHealth />} />
+        <Route path="/football_dashboard.html" element={<FootballMaster />} />
+        <Route path="/props_dashboard.html" element={<PropsMaster />} />
+        <Route path="/ncaab_dashboard.html" element={<NcaamDashboard />} />
+        <Route path="/mat.html" element={<MatDashboard />} />
+        <Route path="/about.html" element={<About />} />
+        <Route path="/accessibility.html" element={<Accessibility />} />
+        <Route path="/disclaimer.html" element={<Disclaimer />} />
+        <Route path="/faq.html" element={<Faq />} />
+        <Route path="/methodology.html" element={<Methodology />} />
+        <Route path="/privacy.html" element={<Privacy />} />
+        <Route path="/responsible_gambling.html" element={<ResponsibleGambling />} />
+        <Route path="/terms.html" element={<Terms />} />
+        <Route path="/account.html" element={<Account />} />
+        <Route path="/login.html" element={<Login />} />
+        <Route path="/register.html" element={<Register />} />
+        <Route path="/contact.html" element={<Contact />} />
+        <Route path="/password_reset.html" element={<PasswordReset />} />
+        <Route path="/password_reset_done.html" element={<PasswordResetDone />} />
+        <Route path="/password_reset_complete.html" element={<PasswordResetComplete />} />
+        <Route path="/reset/*" element={<PasswordResetConfirm />} />
+
       </Routes>
     </SiteShell>
   );

@@ -9,6 +9,18 @@ declare global {
 }
 
 const REACT_ROUTES = new Set([
+  "/football_dashboard.html",
+  "/props_dashboard.html",
+  "/ncaab_dashboard.html",
+  "/mat.html",
+  "/about.html",
+  "/accessibility.html",
+  "/disclaimer.html",
+  "/faq.html",
+  "/methodology.html",
+  "/privacy.html",
+  "/responsible_gambling.html",
+  "/terms.html",
   "/teams.html",
   "/the_picks.html",
   "/prop_engine.html",
