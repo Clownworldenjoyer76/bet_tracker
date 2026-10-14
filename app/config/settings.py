@@ -208,3 +208,8 @@ if "whitenoise.middleware.WhiteNoiseMiddleware" not in MIDDLEWARE:
 # SMH_ADMIN_TEMPLATES_START
 TEMPLATES[0]["DIRS"] = list(TEMPLATES[0].get("DIRS", [])) + [BASE_DIR / "admin_templates"]
 # SMH_ADMIN_TEMPLATES_END
+
+# REACT_V2_RELEASE_FLAGS_BEGIN
+REACT_ACCOUNT_PAGES_ENABLED = os.getenv("REACT_ACCOUNT_PAGES_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
+REACT_HOME_PAGE_ENABLED = os.getenv("REACT_HOME_PAGE_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
+# REACT_V2_RELEASE_FLAGS_END
