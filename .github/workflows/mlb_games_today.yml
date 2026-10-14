@@ -1,0 +1,49 @@
+name: MLB Games Today
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  mlb-games-today:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout bet_tracker (output repository)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout baseball (input repository and script)
+        uses: actions/checkout@v4
+        with:
+          repository: Clownworldenjoyer76/baseball
+          ref: main
+          path: .mlb-source
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Create MLB games today CSV files
+        run: |
+          python .mlb-source/docs/win/baseball/mlb/scripts/mlb_games_today.py \
+            --source-root .mlb-source \
+            --output-root .
+
+      - name: Commit and push generated CSV files
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f -- frontend/data/index_home/*_mlb_games_today.csv
+          if git diff --cached --quiet; then
+            echo "No CSV changes to commit."
+            exit 0
+          fi
+          git commit -m "Update MLB games today CSV files"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
