@@ -29,11 +29,18 @@ import BetHistory from "./pages/BetHistory";
 import BetHistoryDaily from "./pages/BetHistoryDaily";
 import ModelValidation from "./pages/ModelValidation";
 
-function Home() {
-  return <section aria-label="SportsModelHub home"><h1>SportsModelHub</h1><p>Sports analytics and model dashboards</p><p><a href="/games_today.html">Games today</a> · <a href="/the_picks.html">The Picks</a></p></section>;
-}
+
 
 import FootballMaster from "./pages/FootballMaster";
+import Home from "./pages/Home";
+import Account from "./pages/Account";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import Contact from "./pages/Contact";
+import PasswordReset from "./pages/PasswordReset";
+import PasswordResetDone from "./pages/PasswordResetDone";
+import PasswordResetConfirm from "./pages/PasswordResetConfirm";
+import PasswordResetComplete from "./pages/PasswordResetComplete";
 import PropsMaster from "./pages/PropsMaster";
 import MatDashboard from "./pages/MatDashboard";
 import About from "./pages/About";
@@ -132,6 +139,14 @@ export default function App() {
         <Route path="/privacy.html" element={<Privacy />} />
         <Route path="/responsible_gambling.html" element={<ResponsibleGambling />} />
         <Route path="/terms.html" element={<Terms />} />
+        <Route path="/account.html" element={<Account />} />
+        <Route path="/login.html" element={<Login />} />
+        <Route path="/register.html" element={<Register />} />
+        <Route path="/contact.html" element={<Contact />} />
+        <Route path="/password_reset.html" element={<PasswordReset />} />
+        <Route path="/password_reset_done.html" element={<PasswordResetDone />} />
+        <Route path="/password_reset_complete.html" element={<PasswordResetComplete />} />
+        <Route path="/reset/*" element={<PasswordResetConfirm />} />
 
       </Routes>
     </SiteShell>

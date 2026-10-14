@@ -1,6 +1,7 @@
 import json
 from decimal import Decimal, InvalidOperation
 
+from django.conf import settings
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import (
@@ -18,6 +19,7 @@ from django.urls import reverse_lazy
 from django.views.decorators.http import require_http_methods
 
 from .billing import billing_account_context
+from .react_bridge import react_enabled, form_bootstrap, account_bootstrap, render_react
 from .entitlements import (
     FEATURE_PREMIUM_ANALYTICS,
     ensure_user_subscription,
@@ -86,6 +88,14 @@ class EmailLoginView(LoginView):
     template_name = "accounts/login.html"
     redirect_authenticated_user = True
 
+    def render_to_response(self, context, **response_kwargs):
+        if react_enabled():
+            boot = form_bootstrap(self.request, context.get("form"), page="login",
+                                  extra={"values": {"next": str(context.get("next") or ""),
+                                                    "username": str(context.get("form")["username"].value() or "")}})
+            return render_react(self.request, "login.html", boot)
+        return super().render_to_response(context, **response_kwargs)
+
 
 class AccountLogoutView(LogoutView):
     http_method_names = ["post", "options"]
@@ -98,18 +108,43 @@ class AccountPasswordResetView(PasswordResetView):
     subject_template_name = "accounts/password_reset_subject.txt"
     success_url = reverse_lazy("accounts:password_reset_done")
 
+    def render_to_response(self, context, **response_kwargs):
+        if react_enabled():
+            return render_react(self.request, "password_reset.html",
+                                form_bootstrap(self.request, context.get("form"), page="password_reset"))
+        return super().render_to_response(context, **response_kwargs)
+
 
 class AccountPasswordResetDoneView(PasswordResetDoneView):
     template_name = "accounts/password_reset_done.html"
+
+    def render_to_response(self, context, **response_kwargs):
+        if react_enabled():
+            return render_react(self.request, "password_reset_done.html",
+                                form_bootstrap(self.request, page="password_reset_done"))
+        return super().render_to_response(context, **response_kwargs)
 
 
 class AccountPasswordResetConfirmView(PasswordResetConfirmView):
     template_name = "accounts/password_reset_confirm.html"
     success_url = reverse_lazy("accounts:password_reset_complete")
 
+    def render_to_response(self, context, **response_kwargs):
+        if react_enabled():
+            return render_react(self.request, "password_reset.html",
+                                form_bootstrap(self.request, context.get("form"), page="password_reset_confirm",
+                                    extra={"validLink": bool(context.get("validlink"))}))
+        return super().render_to_response(context, **response_kwargs)
+
 
 class AccountPasswordResetCompleteView(PasswordResetCompleteView):
     template_name = "accounts/password_reset_complete.html"
+
+    def render_to_response(self, context, **response_kwargs):
+        if react_enabled():
+            return render_react(self.request, "password_reset_complete.html",
+                                form_bootstrap(self.request, page="password_reset_complete"))
+        return super().render_to_response(context, **response_kwargs)
 
 
 def register_view(request):
@@ -130,11 +165,13 @@ def register_view(request):
     else:
         form = RegistrationForm()
 
+    if react_enabled():
+        return render_react(request, "register.html", form_bootstrap(request, form, page="register"))
     return render(request, "accounts/register.html", {"form": form})
 
 
 @login_required
-def account_view(request, template_name="accounts/account.html"):
+def account_view(request, template_name="accounts/account.html", react_shell=None):
     preferences, _ = UserPreferences.objects.get_or_create(user=request.user)
     saved = False
 
@@ -156,10 +193,7 @@ def account_view(request, template_name="accounts/account.html"):
 
     access = entitlement_summary(request.user)
 
-    return render(
-        request,
-        template_name,
-        {
+    context = {
             "preferences_form": form,
             "preferences_saved": saved,
             "access_plan": access["plan"],
@@ -171,8 +205,15 @@ def account_view(request, template_name="accounts/account.html"):
                 Q(user=request.user) | Q(email__iexact=request.user.email)
             ).order_by("-created_at")[:50],
             **billing_account_context(request.user),
-        },
-    )
+        }
+    if react_shell == "index.html" and react_home_enabled():
+        data = account_bootstrap(request, context=context, form=form)
+        data["page"] = "home_account"
+        return render_react(request, "index.html", data)
+    if react_enabled() and template_name == "accounts/account.html":
+        return render_react(request, "account.html",
+                            account_bootstrap(request, context=context, form=form))
+    return render(request, template_name, context)
 
 
 @require_http_methods(["GET", "POST"])
@@ -262,10 +303,24 @@ class HomeLoginView(EmailLoginView):
     def get_success_url(self):
         return self.get_redirect_url() or "/"
 
+    def render_to_response(self, context, **response_kwargs):
+        if react_home_enabled():
+            data = form_bootstrap(self.request, context.get("form"), page="home_login",
+                                  extra={"values": {"next": str(context.get("next") or ""),
+                                                    "username": str(context.get("form")["username"].value() or "")}})
+            return render_react(self.request, "index.html", data)
+        return super().render_to_response(context, **response_kwargs)
+
+
+def react_home_enabled():
+    return getattr(settings, "REACT_HOME_PAGE_ENABLED", False) is True
+
 
 @never_cache
 def home_view(request):
     if request.user.is_authenticated:
+        if react_home_enabled():
+            return account_view(request, template_name="accounts/home_account.html", react_shell="index.html")
         return account_view(request, template_name="accounts/home_account.html")
 
     return HomeLoginView.as_view()(request)

@@ -42,7 +42,7 @@ function valClass(base: string, extra: string) {
   return extra ? base + " " + extra : base;
 }
 
-export default function BetHistoryDaily() {
+export default function BetHistoryDaily({ onDateSelect }: { onDateSelect?: (day: string, rows: NormalizedRow[]) => void } = {}) {
   const [graded, setGraded] = useState<NormalizedRow[] | null>(null);
   const [statusText, setStatusText] = useState("Loading completed bet history...");
   const [statusState, setStatusState] = useState("");
@@ -83,6 +83,11 @@ export default function BetHistoryDaily() {
 
   const summary = useMemo(() => (graded ? summarize(graded) : null), [graded]);
   const dayCards = useMemo(() => (graded ? buildDayCards(graded) : null), [graded]);
+
+  const selectDay = (day: string) => {
+    if (!onDateSelect || !graded) return;
+    onDateSelect(day, graded.filter((row) => String(row.game_date).split("_").join("-") === day));
+  };
 
   return (
     <div className="history-react-page">
@@ -142,7 +147,17 @@ export default function BetHistoryDaily() {
               <div className="empty-state">No completed bet history available</div>
             ) : (
               dayCards.map((card) => (
-                <article className="day-card" key={card.date}>
+                <article
+                  className={"day-card" + (onDateSelect ? " smh-selectable-day" : "")}
+                  key={card.date}
+                  role={onDateSelect ? "button" : undefined}
+                  tabIndex={onDateSelect ? 0 : undefined}
+                  aria-label={onDateSelect ? `View picks for ${formatDateLong(card.date)}` : undefined}
+                  onClick={onDateSelect ? () => selectDay(card.date) : undefined}
+                  onKeyDown={onDateSelect ? (event) => {
+                    if (event.key === "Enter" || event.key === " ") { event.preventDefault(); selectDay(card.date); }
+                  } : undefined}
+                >
                   <div className="date-label">Date</div>
                   <div className="date-value">{formatDateLong(card.date)}</div>
                   <div className="day-stats">
