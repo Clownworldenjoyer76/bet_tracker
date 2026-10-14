@@ -7,7 +7,7 @@ from pathlib import Path
 
 
 INPUT_DIR = Path("docs/win/baseball/mlb/01_merge")
-OUTPUT_DIR = Path("frontend/data/index_home")
+OUTPUT_DIR = Path("frontend/data/baseball/index_home")
 MARKETS = ("total", "moneyline", "run_line")
 FILENAME = re.compile(r"^(\d{4}_\d{2}_\d{2})_mlb_(total|moneyline|run_line)\.csv$")
 
