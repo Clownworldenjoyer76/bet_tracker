@@ -60,6 +60,14 @@ export default function Home() {
 
   return (
     <main className="smh-home" aria-label="SportsModelHub homepage">
+      <header className="smh-home-intro">
+        <div className="smh-home-intro-copy">
+          <span className="smh-home-eyebrow">SPORTSMODELHUB / OVERVIEW</span>
+          <h1>Sports analytics, in one place.</h1>
+          <p>Today's games, league dashboards, and completed bet history.</p>
+        </div>
+        <a className="smh-home-intro-action" href="/games_today.html">View today's games <span aria-hidden="true">&rarr;</span></a>
+      </header>
       <div className="smh-home-grid">
         <aside className="smh-home-account" aria-label="Account and membership">
           {session.authenticated ? <Account /> : <Login />}

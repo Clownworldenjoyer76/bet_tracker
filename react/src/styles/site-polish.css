@@ -598,52 +598,36 @@ body.generated-dashboard tbody tr:hover {
 }
 
 /* SMH_BACKGROUND_SYSTEM_START */
-
-/*
-  Home:
-    landing-bg-desktop.webp
-
-  Interior pages:
-    solid #0f141b via --bg-card
-
-  No image transition is used.
-*/
-
+/* React V2 home: image-free atmospheric background; preserve interior styles. */
 html {
-  background: #000;
+  background:#000;
   background-image:
     radial-gradient(ellipse at 50% -10%, rgba(10,46,28,.55) 0%, rgba(0,0,0,0) 60%),
     repeating-linear-gradient(45deg, rgba(255,255,255,.012) 0 2px, rgba(0,0,0,0) 2px 6px);
-  background-attachment: fixed;
+  background-attachment:fixed;
 }
-
 body {
-  position: relative;
-  min-height: 100vh;
-  background: #000 !important;
+  position:relative; min-height:100vh; background:#000 !important;
   background-image:
     radial-gradient(ellipse at 50% -10%, rgba(10,46,28,.55) 0%, rgba(0,0,0,0) 60%),
     repeating-linear-gradient(45deg, rgba(255,255,255,.012) 0 2px, rgba(0,0,0,0) 2px 6px) !important;
-  background-attachment: fixed !important;
-  isolation: isolate;
+  background-attachment:fixed !important;
+  isolation:isolate;
 }
-
 body.smh-home-page {
-  background: transparent !important;
+  background:
+    radial-gradient(ellipse at 8% 7%,rgba(0,204,128,.17),transparent 42%),
+    radial-gradient(ellipse at 88% 11%,rgba(40,112,159,.19),transparent 46%),
+    linear-gradient(165deg,#08141b 0%,#0a1219 48%,#050a0e 100%) !important;
+  background-attachment:fixed !important;
 }
-
 body.smh-home-page::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: -2;
-  background-position: center center;
-  background-repeat: no-repeat;
-  background-size: cover;
-  background-image: url("../../../app/frontend/src/assets/images/landing-bg-desktop.webp");
+  content:""; position:fixed; inset:0; pointer-events:none; z-index:-2;
+  background-image:linear-gradient(rgba(120,205,183,.065) 1px,transparent 1px),linear-gradient(90deg,rgba(120,205,183,.065) 1px,transparent 1px);
+  background-size:44px 44px; opacity:.45;
+  -webkit-mask-image:linear-gradient(to bottom,#000,transparent 95%);
+  mask-image:linear-gradient(to bottom,#000,transparent 95%);
 }
-
 /* SMH_BACKGROUND_SYSTEM_END */
 
 
