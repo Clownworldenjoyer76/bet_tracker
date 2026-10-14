@@ -51,12 +51,13 @@ $NeverDeployShells = @('index.html','account.html')
 # REACT_V2_OPT_IN_POLICY_BEGIN
 # Explicit opt-in for React V2 migration shells. Ordinary -Apply is unchanged.
 # For a V2 rollback, also supply -IncludeReactV2Pages with -Rollback and -Apply.
+# Privacy/Terms deliberately remain denylisted: their React content is unapproved draft text.
 $ReactV2OptInPages = @(
   'index.html','account.html','login.html','register.html','contact.html',
   'password_reset.html','password_reset_done.html','password_reset_complete.html',
   'football_dashboard.html','props_dashboard.html','ncaab_dashboard.html',
   'about.html','accessibility.html','disclaimer.html','faq.html','methodology.html',
-  'privacy.html','responsible_gambling.html','terms.html','mat.html'
+  'responsible_gambling.html','mat.html'
 )
 if ($IncludeReactV2Pages) { $Pages += $ReactV2OptInPages }
 # REACT_V2_OPT_IN_POLICY_END
