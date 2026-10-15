@@ -1,4 +1,4 @@
-name: Hockey Games Today
+name: UFC Games Today
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ permissions:
   contents: write
 
 jobs:
-  hockey-games-today:
+  ufc-games-today:
     runs-on: ubuntu-24.04
 
     steps:
@@ -19,15 +19,15 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Combine NHL market CSVs
-        run: python docs/win/hockey/nhl/scripts/hockey_games_today.py
+      - name: Copy UFC edges CSVs
+        run: python docs/win/mma/ufc/scripts/ufc_games_today.py
 
       - name: Commit and push generated CSVs
         shell: bash
         run: |
           shopt -s nullglob
           files=(
-            frontend/data/index_home/hockey/NHL/*_NHL_games_today.csv
+            frontend/data/index_home/ufc/*_ufc_edges.csv
           )
 
           if (( ${#files[@]} == 0 )); then
@@ -43,5 +43,5 @@ jobs:
 
           git -c user.name="github-actions[bot]" \
               -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
-              commit -m "Update NHL games today CSVs"
+              commit -m "Update UFC games today CSVs"
           git push origin "HEAD:${GITHUB_REF_NAME}"

@@ -31,6 +31,9 @@ jobs:
       - name: Combine NHL market CSVs
         run: python docs/win/hockey/nhl/scripts/hockey_games_today.py
 
+      - name: Copy UFC edges CSVs
+        run: python docs/win/mma/ufc/scripts/ufc_games_today.py
+
       - name: Commit and push generated CSVs
         shell: bash
         run: |
@@ -43,6 +46,7 @@ jobs:
             frontend/data/index_home/football/CFB/*.csv
             frontend/data/index_home/football/NFL/*.csv
             frontend/data/index_home/hockey/NHL/*_NHL_games_today.csv
+            frontend/data/index_home/ufc/*_ufc_edges.csv
           )
 
           if (( ${#files[@]} == 0 )); then
