@@ -1,58 +1,143 @@
-.smh-home{width:min(1480px,calc(100% - 32px));margin:0 auto;padding:18px 0 44px}
-.smh-home-grid{display:grid;grid-template-columns:minmax(300px,450px) minmax(0,1fr);gap:18px;align-items:start}
-.smh-home-account,.smh-home-content{min-width:0}
-.smh-home-account .auth-page{padding:0;min-height:0;width:auto;max-width:100%;margin:0}
-.smh-home-account .auth-shell{min-width:0;max-width:100%;width:100%;padding:0;margin:0}
-.smh-home-account .auth-card{max-width:100%;box-sizing:border-box}
-.smh-home-content{display:grid;gap:18px}
-.smh-home-panel{min-width:0;padding:16px;border:1px solid var(--border-soft,#29313a);background:var(--bg-card,#11161d)}
-.smh-home-panel-heading{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:10px;padding-bottom:10px;margin-bottom:12px;border-bottom:1px solid var(--border-soft,#29313a)}
-.smh-home-panel-heading h2{margin:0;font:800 20px 'Barlow Condensed',sans-serif;letter-spacing:.09em;text-transform:uppercase;color:var(--accent-green,#00ff84)}
-.smh-home-panel-heading a,.smh-home-panel-heading span{font-size:12px}
-.smh-home-leagues{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
-.smh-home-league{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:16px 12px;border:1px solid var(--border-soft,#29313a);text-decoration:none;color:var(--text-main,#eee);font:700 16px 'Barlow Condensed',sans-serif}
-.smh-home-league:hover,.smh-home-league:focus-visible{border-color:var(--accent-green,#00ff84)}
-.smh-home-games .gt-header h1,.smh-home-history .page-header h1{font-size:20px}
-.smh-home-history .history-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-.smh-home-history .day-card:nth-child(n+8){display:none}
-.smh-home-subtle{font-size:12px;margin-top:12px}
-@media(max-width:1100px){.smh-home-grid{grid-template-columns:minmax(0,1fr)}.smh-home-account{max-width:720px}}
-@media(max-width:650px){.smh-home-leagues{grid-template-columns:repeat(2,minmax(0,1fr))}.smh-home-history .history-grid{grid-template-columns:1fr}.smh-home{width:calc(100% - 20px)}}
+/* SMH_HOME_ORIGINAL_DJANGO_RESTORATION_20261014
+   Scoped homepage restoration: keep shared nav, routes, and other pages unchanged.
+   The original optional announcement/membership/ad sections depend on Django context
+   not exposed to this React page, so no placeholders are rendered without content.
+*/
 
-/* Phase 6: interactive completed-day cards and historical picks dialog. */
-.smh-home-history .smh-selectable-day{cursor:pointer;position:relative}
-.smh-home-history .smh-selectable-day:hover{border-color:var(--accent-green,#00ff84)}
-.smh-home-history .smh-selectable-day:focus-visible{outline:3px solid var(--accent-green,#00ff84);outline-offset:2px}
-.smh-home-picks-backdrop{position:fixed;inset:0;z-index:2147483000;background:rgba(0,0,0,.84);display:flex;align-items:center;justify-content:center;padding:14px;box-sizing:border-box}
-.smh-home-picks-dialog{width:min(1100px,100%);max-height:94vh;overflow:auto;background:#0b0f14;border:1px solid var(--accent-green,#00ff84);box-shadow:0 20px 70px rgba(0,0,0,.8);outline:none}
-.smh-home-picks-dialog-head{position:sticky;top:0;z-index:15;background:#0b0f14;border-bottom:1px solid var(--border-soft,#29313a);display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px}
-.smh-home-picks-dialog-head h2{font:800 22px 'Barlow Condensed',sans-serif;margin:0;color:var(--accent-green,#00ff84)}
-.smh-home-picks-dialog-head button{cursor:pointer;padding:8px 14px;background:transparent;border:1px solid currentColor;color:var(--accent-green,#00ff84)}
-.smh-home-picks-dialog-body{padding:16px;min-width:0}
-.smh-home-history-results{overflow:auto;max-height:65vh}
-.smh-home-history-results table{border-collapse:collapse;width:100%;font-size:13px;text-align:left}
-.smh-home-history-results th,.smh-home-history-results td{border-bottom:1px solid var(--border-soft,#29313a);padding:9px 12px;vertical-align:top}
-.smh-home-history-results th{color:var(--accent-green,#00ff84)}
-@media(max-width:650px){.smh-home-picks-dialog-body{padding:8px}.smh-home-picks-backdrop{padding:4px}}
+/* Same background as other React pages; remove only homepage-specific teal/blue gradient. */
+body.smh-home-page {
+  background: #000 !important;
+  background-image:
+    radial-gradient(ellipse at 50% -10%, rgba(10,46,28,.55) 0%, rgba(0,0,0,0) 60%),
+    repeating-linear-gradient(45deg, rgba(255,255,255,.012) 0 2px, rgba(0,0,0,0) 2px 6px) !important;
+  background-attachment: fixed !important;
+}
+body.smh-home-page::before { content: none !important; }
 
-/* SMH_HOME_VISUAL_REFRESH_20261014: React-only layout; no legacy image dependencies. */
-.smh-home { width:min(1440px,calc(100% - 48px)); padding:26px 0 64px; }
-.smh-home-intro { display:flex; align-items:end; justify-content:space-between; gap:24px; margin-bottom:22px; padding:25px 28px; border:1px solid rgba(82,142,132,.35); border-radius:14px; background:linear-gradient(115deg,rgba(13,38,43,.92),rgba(9,19,29,.91)); box-shadow:0 14px 50px rgba(0,0,0,.19); }
-.smh-home-intro-copy { min-width:0; }
-.smh-home-eyebrow { display:block; margin-bottom:7px; color:#69dbab; font:700 10px 'IBM Plex Mono',monospace; letter-spacing:.22em; }
-.smh-home-intro h1 { margin:0 0 7px; color:#f2f9f7; font:800 clamp(28px,3vw,43px)/1.1 'Barlow Condensed',sans-serif; letter-spacing:.02em; }
-.smh-home-intro p { margin:0; color:#b3c5c7; font-size:13px; line-height:1.65; }
-.smh-home-intro-action { display:inline-flex; flex-shrink:0; align-items:center; justify-content:center; padding:12px 16px; border-radius:8px; background:#00db83; color:#031911; font:800 12px 'IBM Plex Mono',monospace; text-decoration:none; }
-.smh-home-intro-action:hover,.smh-home-intro-action:focus-visible { background:#5afdb4; color:#031911; }
-.smh-home-grid { grid-template-columns:minmax(285px,350px) minmax(0,1fr); gap:20px; }
-.smh-home-content { grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; align-items:start; }
-.smh-home-content > .smh-home-panel:first-child { grid-column:1/-1; }
-.smh-home-panel { min-width:0; border:1px solid rgba(111,148,158,.28); border-radius:12px; background:rgba(11,22,30,.91); box-shadow:0 9px 28px rgba(0,0,0,.12); }
-.smh-home-league { border-radius:7px; background:rgba(20,42,45,.52); transition:background .15s,border-color .15s; }
-.smh-home-league:hover,.smh-home-league:focus-visible { background:rgba(0,255,132,.075); }
-.smh-home-account .auth-card { border-radius:12px; }
-@media(min-width:1101px) { .smh-home-account { position:sticky; top:106px; } }
-@media(max-width:1180px) { .smh-home-grid { grid-template-columns:minmax(270px,320px) minmax(0,1fr); } .smh-home-content { grid-template-columns:minmax(0,1fr); } .smh-home-content > .smh-home-panel:first-child { grid-column:auto; } }
-@media(max-width:900px) { .smh-home-grid { grid-template-columns:minmax(0,1fr); } .smh-home-account { position:static; max-width:none; } .smh-home-content { grid-template-columns:repeat(2,minmax(0,1fr)); } .smh-home-content > .smh-home-panel:first-child { grid-column:1/-1; } }
-@media(max-width:700px) { .smh-home { width:calc(100% - 24px); padding:12px 0 40px; } .smh-home-intro { flex-direction:column; align-items:stretch; gap:15px; padding:20px 18px; } .smh-home-intro-action { align-self:start; } .smh-home-content { grid-template-columns:minmax(0,1fr); gap:12px; } .smh-home-content > .smh-home-panel:first-child { grid-column:auto; } .smh-home-grid { gap:12px; } .smh-home-panel { padding:14px; } }
-@media(max-width:400px) { .smh-home-leagues { grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; } .smh-home-league { padding:12px 9px; font-size:14px; } }
+.smh-home {
+  width: min(1500px, calc(100% - 48px));
+  margin: 0 auto;
+  padding: 22px 0 44px;
+  min-width: 0;
+}
+.smh-home-content {
+  display: grid;
+  grid-template-columns: minmax(0, 560px) minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+}
+.smh-home-left {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+@media (max-width: 900px) {
+  .smh-home-content { grid-template-columns: minmax(0, 1fr); }
+  .smh-home { width: min(1500px, calc(100% - 24px)); }
+}
+
+/* Original left-column panel and tile rules from _home_left.html. */
+
+.hl-panel{min-width:0;background:var(--bg-card);border:1px solid var(--border-soft);padding:16px}
+.hl-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;border-bottom:1px solid var(--border-soft);padding-bottom:7px;margin-bottom:14px}
+.hl-title{font:900 15px "Barlow Condensed",sans-serif;letter-spacing:.14em;color:var(--accent-green);text-transform:uppercase}
+.hl-note{color:var(--text-muted);font-size:9px;letter-spacing:.08em;text-transform:uppercase}
+.hl-ph{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;border:1px dashed var(--border-soft);color:var(--text-muted);font:700 13px "Barlow Condensed",sans-serif;letter-spacing:.1em;text-transform:uppercase;padding:18px 14px;min-height:84px}
+.hl-ph small{display:block;margin-top:4px;font:400 10px "IBM Plex Mono",monospace;letter-spacing:.06em;text-transform:none;opacity:.75}
+.hl-ad{width:300px;max-width:100%;height:250px;margin:0 auto}
+.hl-tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.hl-tile{--c:#00ff84;--cg:rgba(0,255,132,.45);position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:96px;padding:12px 6px;overflow:hidden;text-decoration:none;color:var(--text-muted);border:1px solid var(--border-soft);background:rgba(255,255,255,.018);cursor:pointer;opacity:0;animation:hlIn .45s ease forwards;transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease,color .2s ease}
+.hl-tile::before{content:"";position:absolute;top:0;bottom:0;left:-60%;width:40%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.09),transparent);transform:skewX(-18deg);transition:left .55s ease}
+.hl-tile::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 50% 38%,var(--cg),transparent 68%);opacity:0;transition:opacity .25s ease;pointer-events:none}
+.hl-tile svg{position:relative;z-index:1;width:36px;height:36px;transition:transform .25s ease,filter .25s ease,color .2s ease}
+.hl-tile span{position:relative;z-index:1;font:700 13px "Barlow Condensed",sans-serif;letter-spacing:.12em;text-transform:uppercase;text-align:center;line-height:1.15}
+.hl-tile:hover,.hl-tile:focus-visible{transform:translateY(-3px);border-color:var(--c);color:var(--text-main);box-shadow:0 0 18px var(--cg),inset 0 0 14px rgba(0,0,0,.35);outline:none}
+.hl-tile:hover::before,.hl-tile:focus-visible::before{left:120%}
+.hl-tile:hover::after,.hl-tile:focus-visible::after{opacity:1}
+.hl-tile:hover svg,.hl-tile:focus-visible svg{color:var(--c);transform:scale(1.14) rotate(-6deg);filter:drop-shadow(0 0 6px var(--cg))}
+.hl-tile:active{transform:translateY(-1px) scale(.98)}
+@keyframes hlIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.hl-games{max-height:460px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:rgba(0,255,132,.3) transparent}
+.hl-row{display:grid;grid-template-columns:84px 104px minmax(0,1fr);align-items:center;gap:10px;padding:8px 6px;border-bottom:1px solid rgba(255,255,255,.06)}
+.hl-row:last-child{border-bottom:0}
+.hl-row:hover{background:rgba(0,255,132,.04)}
+.hl-badge{justify-self:start;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:2px 8px;border:1px solid rgba(0,255,132,.35);background:rgba(0,255,132,.06);color:var(--accent-green);font:700 10px "IBM Plex Mono",monospace;letter-spacing:.1em;text-transform:uppercase}
+.hl-time{color:var(--accent-yellow);font:600 13px "IBM Plex Mono",monospace;white-space:nowrap}
+.hl-match{color:var(--text-main);font:600 15px "Barlow Condensed",sans-serif;letter-spacing:.04em;line-height:1.2;overflow-wrap:anywhere}
+.hl-at{color:var(--text-muted);font-size:11px;margin:0 5px}
+.hl-state{padding:26px 12px;border:1px dashed var(--border-soft);color:var(--text-muted);text-align:center;font:700 13px "Barlow Condensed",sans-serif;letter-spacing:.1em;text-transform:uppercase}
+.hl-state.loading::before{content:"";display:inline-block;width:12px;height:12px;border:2px solid rgba(0,255,132,.25);border-top-color:var(--accent-green);border-radius:50%;margin-right:8px;vertical-align:-2px;animation:homePkSpin .8s linear infinite}
+@media(max-width:640px){.hl-row{grid-template-columns:56px 100px minmax(0,1fr);gap:4px}.hl-time{font-size:11px}.hl-tile{min-height:84px}.hl-tile svg{width:30px;height:30px}.hl-tile span{font-size:11px;letter-spacing:.08em}}
+@media (prefers-reduced-motion:reduce){.hl-tile{animation:none;opacity:1}.hl-tile,.hl-tile svg,.hl-tile::before,.hl-tile::after{transition:none}}
+.hl-body{color:var(--text-main);overflow-wrap:anywhere}.hl-body img{max-width:100%;height:auto}.hl-adbody{text-align:center}
+
+/* Original right-column history and overlay styles from _home_extra.html. */
+
+.home-history{min-width:0;background:var(--bg-card);border:1px solid var(--border-soft);padding:16px}
+.home-history .section-header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;border-bottom:1px solid var(--border-soft);padding-bottom:7px;margin-bottom:14px}
+.home-history .section-title{font:900 15px "Barlow Condensed",sans-serif;letter-spacing:.14em;color:var(--accent-green);text-transform:uppercase}
+.home-history .section-note{color:var(--text-muted);font-size:9px;letter-spacing:.08em;text-transform:uppercase}
+.home-history .status-line{display:flex;align-items:center;gap:8px;min-height:18px;margin-bottom:12px;color:var(--text-muted);font-size:10px}
+.home-history .status-dot{width:6px;height:6px;border-radius:50%;flex:0 0 auto;background:var(--accent-yellow);box-shadow:0 0 6px rgba(250,204,21,.45)}
+.home-history .status-dot.green{background:var(--accent-green);box-shadow:0 0 6px rgba(0,255,132,.45)}
+.home-history .status-dot.red{background:var(--accent-red);box-shadow:0 0 6px rgba(255,45,45,.45)}
+.home-history .history-grid{display:grid;grid-template-columns:1fr;gap:10px}
+.home-history .day-card{border:1px solid var(--border-soft);background:rgba(255,255,255,.018);padding:12px}
+.home-history .date-label{color:var(--text-muted);font:700 9px "Barlow Condensed",sans-serif;letter-spacing:.12em;text-transform:uppercase;margin-bottom:3px}
+.home-history .date-value{color:var(--text-main);font:900 20px/1.1 "Barlow Condensed",sans-serif;letter-spacing:.04em;margin-bottom:10px}
+.home-history .day-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.home-history .day-stat{min-width:0}
+.home-history .day-stat:nth-child(4){display:none}
+.home-history .day-stat-label{color:var(--text-muted);font:700 12px "Barlow Condensed",sans-serif;letter-spacing:.11em;text-transform:uppercase;margin-bottom:4px}
+.home-history .day-stat-value{color:var(--text-main);font:600 20px "IBM Plex Mono",monospace;overflow-wrap:anywhere}
+.home-history .val-green{color:var(--accent-green)}
+.home-history .val-red{color:var(--accent-red)}
+.home-history .val-yellow{color:var(--accent-yellow)}
+.home-history .val-blue{color:var(--accent-blue)}
+.home-history .empty-state{padding:34px 16px;border:1px dashed var(--border-soft);color:var(--text-muted);text-align:center;font:700 13px "Barlow Condensed",sans-serif;letter-spacing:.1em;text-transform:uppercase}
+.home-history .day-card{cursor:pointer}
+.home-history .day-card:hover{border-color:rgba(0,255,132,.35)}
+.home-pk-overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;padding:24px;z-index:2147483000}
+.home-pk-overlay.open{display:flex;animation:homePkFade .2s ease}
+.home-pk-panel{background:#000;border:1px solid rgba(0,255,132,.25);border-radius:4px;width:min(900px,100%);max-height:88vh;overflow-y:auto;box-shadow:0 32px 64px rgba(0,0,0,.7)}
+.home-pk-head{position:sticky;top:0;z-index:2;background:#000;display:flex;align-items:center;gap:16px;padding:16px 20px;border-bottom:1px solid rgba(255,255,255,.08)}
+.home-pk-title{font:800 24px "Barlow Condensed",sans-serif;letter-spacing:4px;color:var(--accent-green);text-transform:uppercase}
+.home-pk-title span{color:var(--text-main);margin-left:10px}
+.home-pk-x{background:transparent;border:1px solid rgba(0,255,132,.3);color:var(--accent-green);font:400 22px/1 monospace;width:34px;height:34px;cursor:pointer;border-radius:3px}
+@keyframes homePkFade{from{opacity:0}to{opacity:1}}
+@keyframes homePkIn{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes homePkSpin{to{transform:rotate(360deg)}}
+.home-pk-overlay.open .home-pk-panel{animation:homePkIn .24s ease}
+.home-history .day-card{position:relative;transition:border-color .18s ease,transform .18s ease,box-shadow .18s ease}
+.home-history .day-card::after{content:"View picks \2192";position:absolute;top:14px;right:16px;color:var(--accent-green);font:700 12px "Barlow Condensed",sans-serif;letter-spacing:.11em;text-transform:uppercase;opacity:.5;transition:opacity .18s ease,transform .18s ease}
+.home-history .day-card:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(0,255,132,.08)}
+.home-history .day-card:hover::after{opacity:1;transform:translateX(3px)}
+.home-history .hist-hidden{display:none}
+.home-history .day-card{border-left-width:4px}
+.home-history .day-card:has(.day-stat:nth-child(2) .val-green){border-left-color:var(--accent-green)}
+.home-history .day-card:has(.day-stat:nth-child(2) .val-red){border-left-color:var(--accent-red)}
+.home-history .day-card:has(.day-stat:nth-child(2) .val-yellow){border-left-color:var(--accent-yellow)}
+.hist-summary{border:1px solid rgba(0,255,132,.25);background:rgba(0,255,132,.04);padding:12px;margin-bottom:12px}
+.hist-summary .hs-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.hist-summary .hs-title{font:900 15px "Barlow Condensed",sans-serif;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-green)}
+.hist-summary .hs-range{color:var(--text-muted);font:700 12px "Barlow Condensed",sans-serif;letter-spacing:.11em;text-transform:uppercase}
+.hist-summary .hs-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.hist-skel{height:118px;border:1px solid var(--border-soft);border-left-width:4px;background:linear-gradient(100deg,rgba(255,255,255,.02) 30%,rgba(255,255,255,.08) 50%,rgba(255,255,255,.02) 70%);background-size:200% 100%;animation:histShimmer 1.3s linear infinite}
+@keyframes histShimmer{from{background-position:200% 0}to{background-position:-200% 0}}
+.hist-more{display:block;width:100%;margin-top:12px;background:transparent;border:1px solid rgba(0,255,132,.3);color:var(--accent-green);font:700 13px "Barlow Condensed",sans-serif;letter-spacing:.14em;text-transform:uppercase;padding:10px;cursor:pointer;transition:background .18s ease}
+.hist-more:hover{background:rgba(0,255,132,.1)}
+.hist-more[hidden]{display:none}
+.home-pk-nav{background:transparent;border:1px solid rgba(0,255,132,.3);color:var(--accent-green);font:400 22px/1 monospace;width:34px;height:34px;cursor:pointer;border-radius:3px;flex:0 0 auto;transition:background .18s ease}
+.home-pk-nav:hover:not(:disabled){background:rgba(0,255,132,.1)}
+.home-pk-nav:disabled{opacity:.25;cursor:default}
+@media (max-width:640px){.home-pk-overlay{padding:0;align-items:stretch}.home-pk-panel{width:100%;height:100vh;height:100dvh;max-height:none;border:0;border-radius:0}.home-pk-head{flex-wrap:wrap;padding:12px 14px;gap:8px}.home-pk-title{font-size:18px;letter-spacing:1px;min-width:0}.home-pk-title span{margin-left:6px}.home-pk-nav,.home-pk-x{width:30px;height:30px}.home-pk-head #status{order:5;flex-basis:100%;margin-left:0}#modal{padding:12px}.hist-summary .hs-stats{gap:8px}}
+
+/* Preserve the existing React graded-bets table within the original overlay shell.
+   The Django Picks card engine is not imported, so no unsupported script injection occurs. */
+.home-pk-results { padding:16px 20px; overflow:auto; }
+.home-pk-results table { width:100%; border-collapse:collapse; text-align:left; font-size:12px; }
+.home-pk-results th, .home-pk-results td { padding:9px 12px; border-bottom:1px solid var(--border-soft); vertical-align:top; }
+.home-pk-results th { color:var(--accent-green); }
+.smh-home .day-card:focus-visible { outline:3px solid var(--accent-green); outline-offset:2px; }
+@media(max-width:640px) { .home-pk-results { padding:8px; } }
