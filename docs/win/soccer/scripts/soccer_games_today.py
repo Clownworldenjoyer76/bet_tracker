@@ -20,7 +20,7 @@ MARKETS = {
     "__total_35": "total_35",
 }
 FILE_PATTERN = re.compile(
-    r"^(\d{4}_\d{2}_\d{2})_(Bundesliga|epl|laliga|ligue1|seriea|mls)"
+    r"^(\d{4}_\d{2}_\d{2})_([Bb]undesliga|epl|laliga|ligue1|seriea|mls)"
     r"(_btts|__match_odds|__total_25|__total_35)\.csv$"
 )
 
@@ -114,6 +114,8 @@ def main():
         if match is None:
             continue
         date, league, suffix = match.groups()
+        if league == "bundesliga":
+            league = "Bundesliga"
         found[(date, league)][MARKETS[suffix]] = path
 
     if not found:
