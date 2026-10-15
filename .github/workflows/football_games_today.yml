@@ -1,0 +1,48 @@
+name: Football Games Today
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  football-games-today:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Copy football schedule CSVs
+        run: python docs/win/football/scripts/football_games_today.py
+
+      - name: Commit and push generated CSVs
+        shell: bash
+        run: |
+          shopt -s nullglob
+          files=(
+            frontend/data/index_home/football/CFB/*.csv
+            frontend/data/index_home/football/NFL/*.csv
+          )
+
+          if (( ${#files[@]} == 0 )); then
+            echo "No output files; nothing to commit."
+            exit 0
+          fi
+
+          git add -- "${files[@]}"
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -m "Update football games today CSVs"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
