@@ -28,6 +28,9 @@ jobs:
       - name: Copy football schedule CSVs
         run: python docs/win/football/scripts/football_games_today.py
 
+      - name: Combine NHL market CSVs
+        run: python docs/win/hockey/nhl/scripts/hockey_games_today.py
+
       - name: Commit and push generated CSVs
         shell: bash
         run: |
@@ -39,6 +42,7 @@ jobs:
             frontend/data/index_home/baseball/*_mlb_games_today.csv
             frontend/data/index_home/football/CFB/*.csv
             frontend/data/index_home/football/NFL/*.csv
+            frontend/data/index_home/hockey/NHL/*_NHL_games_today.csv
           )
 
           if (( ${#files[@]} == 0 )); then
