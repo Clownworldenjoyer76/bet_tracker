@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 """
 Pull the configured NFL season roster from ESPN Core and publish one flattened
@@ -363,7 +364,8 @@ def load_canonical_team_ids(
 
         if missing:
             fail(
-                f"{TEAM_MAP_PATH} missing columns: {missing}"
+                f"{TEAM_MAP_PATH} missing columns: "
+                f"{missing}"
             )
 
         team_ids: set[str] = set()
@@ -591,6 +593,182 @@ def fetch_athlete_entry(
         "athlete_ref": athlete_ref,
         "athlete": athlete,
     }
+
+
+# ============================================================
+# MULTI-TEAM ROSTER RESOLUTION
+# ============================================================
+
+def get_explicit_athlete_team_id(
+    athlete: dict[str, Any],
+) -> str:
+    """
+    Extract ESPN's explicit team assignment.
+
+    Do not infer team membership from roster-list order,
+    athlete status, or the first team that returned the player.
+    """
+    team = athlete.get("team")
+
+    if team is None:
+        return ""
+
+    if isinstance(team, dict):
+        direct_id = clean(team.get("id"))
+        team_ref = normalize_ref(team.get("$ref"))
+
+        ref_id = ""
+        if team_ref:
+            ref_id = id_from_ref(team_ref, "team")
+
+        if direct_id and not direct_id.isdigit():
+            fail(
+                "Invalid explicit ESPN athlete team ID "
+                f"value={direct_id!r}"
+            )
+
+        if direct_id and ref_id and direct_id != ref_id:
+            fail(
+                "Conflicting ESPN athlete team identifiers "
+                f"team.id={direct_id} team.ref={ref_id}"
+            )
+
+        return direct_id or ref_id
+
+    direct_id = clean(team)
+
+    if direct_id.isdigit():
+        return direct_id
+
+    fail(
+        "Unrecognized ESPN athlete team assignment "
+        f"value={team!r}"
+    )
+
+
+def resolve_multi_team_memberships(
+    records: list[dict[str, Any]],
+    *,
+    canonical_team_ids: set[str],
+) -> list[dict[str, Any]]:
+    """
+    Resolve players listed on multiple team rosters using
+    ESPN's explicit athlete-team reference.
+
+    Preserve the original record and team_id for the
+    selected membership. Never silently select a team
+    based on iteration order.
+
+    Ambiguous, missing, or contradictory ESPN assignments
+    remain fatal validation errors.
+    """
+    by_athlete: dict[str, list[dict[str, Any]]] = {}
+
+    for record in records:
+        athlete = record.get("athlete")
+
+        if not isinstance(athlete, dict):
+            fail(
+                "Cannot resolve team memberships: "
+                "athlete record is not an object"
+            )
+
+        athlete_id = clean(athlete.get("id"))
+
+        if not athlete_id:
+            fail(
+                "Cannot resolve team memberships: "
+                "athlete ID is missing"
+            )
+
+        by_athlete.setdefault(
+            athlete_id,
+            [],
+        ).append(record)
+
+    resolved_teams: dict[str, str] = {}
+
+    for athlete_id, athlete_records in by_athlete.items():
+        observed_teams = {
+            clean(record.get("team_id"))
+            for record in athlete_records
+        }
+
+        if len(observed_teams) <= 1:
+            continue
+
+        explicit_teams: set[str] = set()
+
+        for record in athlete_records:
+            team_id = get_explicit_athlete_team_id(
+                record["athlete"]
+            )
+
+            if team_id:
+                explicit_teams.add(team_id)
+
+        if len(explicit_teams) != 1:
+            fail(
+                "Cannot safely resolve multi-team athlete: "
+                f"athlete_id={athlete_id} "
+                f"roster_teams={sorted(observed_teams)} "
+                f"explicit_teams={sorted(explicit_teams)}"
+            )
+
+        selected_team = next(iter(explicit_teams))
+
+        if selected_team not in canonical_team_ids:
+            fail(
+                "ESPN athlete references an unknown NFL team: "
+                f"athlete_id={athlete_id} "
+                f"team_id={selected_team}"
+            )
+
+        if selected_team not in observed_teams:
+            fail(
+                "ESPN athlete team does not match any "
+                "reported roster membership: "
+                f"athlete_id={athlete_id} "
+                f"explicit_team={selected_team} "
+                f"roster_teams={sorted(observed_teams)}"
+            )
+
+        resolved_teams[athlete_id] = selected_team
+
+        print(
+            "resolved_multi_team "
+            f"athlete_id={athlete_id} "
+            f"selected_team={selected_team} "
+            f"removed_teams="
+            f"{sorted(observed_teams - {selected_team})}"
+        )
+
+    if not resolved_teams:
+        return records
+
+    resolved_records = []
+
+    for record in records:
+        athlete_id = clean(
+            record["athlete"].get("id")
+        )
+        team_id = clean(
+            record.get("team_id")
+        )
+
+        selected_team = resolved_teams.get(athlete_id)
+
+        if selected_team is None or team_id == selected_team:
+            resolved_records.append(record)
+
+    print(
+        "multi_team_resolution "
+        f"players_resolved={len(resolved_teams)} "
+        f"records_before={len(records)} "
+        f"records_after={len(resolved_records)}"
+    )
+
+    return resolved_records
 
 
 def fetch_optional_json(
@@ -1138,6 +1316,13 @@ def run(
             )
         )
 
+    # Resolve overlapping ESPN roster memberships before
+    # enforcing the existing unique-athlete validation.
+    athlete_records = resolve_multi_team_memberships(
+        athlete_records,
+        canonical_team_ids=canonical_team_ids,
+    )
+
     validate_athlete_records(
         athlete_records,
         canonical_team_ids=(
@@ -1234,13 +1419,9 @@ def run(
     ) = build_rows(
         athlete_records,
         college_map=college_map,
-        position_parent_map=(
-            position_parent_map
-        ),
+        position_parent_map=position_parent_map,
         season_year=season_year,
-        season_start_date=(
-            season_start_date
-        ),
+        season_start_date=season_start_date,
         season_end_date=season_end_date,
     )
 
