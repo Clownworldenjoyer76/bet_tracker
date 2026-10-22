@@ -1,8 +1,10 @@
 import InfoPageLayout from "../components/InfoPageLayout";
+import "./disclaimer.css";
 
 export default function Disclaimer() {
   return (
     <InfoPageLayout title="Disclaimer">
+      <div className="disclaimer-document">
       <section>
         <h2>General Information</h2>
         <p>The information provided on SportsModelHub.com ("SportsModelHub," "we," "our," or "us") is intended for general informational and entertainment purposes only.</p>
@@ -70,6 +72,7 @@ export default function Disclaimer() {
         <p>If you have questions or concerns regarding this disclaimer, affiliate relationships, advertisements, or website content, please contact us through our support page:</p>
         <p><a href="/contact.html">Contact / Support</a></p>
       </section>
+      </div>
     </InfoPageLayout>
   );
 }
