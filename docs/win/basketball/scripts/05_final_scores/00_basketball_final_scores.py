@@ -240,10 +240,40 @@ def read_existing(path: Path) -> list[dict]:
     return result
 
 
-def merge_rows(existing: list[dict], fetched: list[dict], label: str) -> list[dict]:
+def conflict_details(previous: dict, incoming: dict) -> str:
+    """Display both records and exact changed fields without changing scores."""
+    fields = (
+        "game_id",
+        "game_date",
+        "home_team",
+        "away_team",
+        "home_score",
+        "away_score",
+        "total",
+        "home_spread",
+        "away_spread",
+    )
+    previous_values = {field: str(previous.get(field, "")).strip() for field in fields}
+    incoming_values = {field: str(incoming.get(field, "")).strip() for field in fields}
+    changes = {
+        field: {"stored": previous_values[field], "incoming": incoming_values[field]}
+        for field in fields
+        if previous_values[field] != incoming_values[field]
+    }
+    return (
+        f"stored={json.dumps(previous_values, ensure_ascii=False)}; "
+        f"incoming={json.dumps(incoming_values, ensure_ascii=False)}; "
+        f"differences={json.dumps(changes, ensure_ascii=False)}"
+    )
+
+
+def merge_rows(
+    existing: list[dict], fetched: list[dict], label: str, output_path: Path | None = None
+) -> list[dict]:
     merged = [dict(row) for row in existing]
-    by_id: dict[str, tuple[tuple[str, str, str], tuple[str, str]]] = {}
-    by_comp: dict[tuple[str, str, str], tuple[str, str]] = {}
+    by_id: dict[str, dict] = {}
+    by_comp: dict[tuple[str, str, str], dict] = {}
+    source = f" file={output_path};" if output_path is not None else ""
 
     def register(row: dict) -> None:
         registered_gid = str(row.get("game_id") or "").strip()
@@ -253,16 +283,25 @@ def merge_rows(existing: list[dict], fetched: list[dict], label: str) -> list[di
         if not registered_gid or not all(registered_key) or not all(registered_scores):
             return
 
-        registered_prior_id = by_id.get(registered_gid)
-        if registered_prior_id and (registered_prior_id[0] != registered_key or registered_prior_id[1] != registered_scores):
-            raise RuntimeError(f"{label}: conflicting final score for game_id {registered_gid}")
+        prior_id = by_id.get(registered_gid)
+        if prior_id and (
+            composite(prior_id) != registered_key
+            or score_signature(prior_id) != registered_scores
+        ):
+            raise RuntimeError(
+                f"{label}: conflicting final score for game_id {registered_gid};"
+                f"{source} {conflict_details(prior_id, row)}"
+            )
 
-        registered_prior_comp = by_comp.get(registered_key)
-        if registered_prior_comp and registered_prior_comp != registered_scores:
-            raise RuntimeError(f"{label}: conflicting final score for {registered_key}")
+        prior_comp = by_comp.get(registered_key)
+        if prior_comp and score_signature(prior_comp) != registered_scores:
+            raise RuntimeError(
+                f"{label}: conflicting final score for {registered_key};"
+                f"{source} {conflict_details(prior_comp, row)}"
+            )
 
-        by_id[registered_gid] = (registered_key, registered_scores)
-        by_comp[registered_key] = registered_scores
+        by_id[registered_gid] = dict(row)
+        by_comp[registered_key] = dict(row)
 
     for row in merged:
         register(row)
@@ -274,13 +313,19 @@ def merge_rows(existing: list[dict], fetched: list[dict], label: str) -> list[di
 
         prior_id = by_id.get(gid)
         if prior_id:
-            if prior_id[0] != key or prior_id[1] != scores:
-                raise RuntimeError(f"{label}: fetched score conflicts for game_id {gid}")
+            if composite(prior_id) != key or score_signature(prior_id) != scores:
+                raise RuntimeError(
+                    f"{label}: fetched score conflicts for game_id {gid};"
+                    f"{source} {conflict_details(prior_id, row)}"
+                )
             continue
 
         prior_comp = by_comp.get(key)
-        if prior_comp and prior_comp != scores:
-            raise RuntimeError(f"{label}: fetched score conflicts for {key}")
+        if prior_comp and score_signature(prior_comp) != scores:
+            raise RuntimeError(
+                f"{label}: fetched score conflicts for {key};"
+                f"{source} {conflict_details(prior_comp, row)}"
+            )
 
         merged.append(dict(row))
         register(row)
@@ -316,7 +361,7 @@ def fetch_one(league_key: str, game_date: date) -> tuple[int, Path | None]:
         / f"{game_date.strftime('%Y_%m_%d')}_final_scores_{cfg['label']}.csv"
     )
     existing = read_existing(output)
-    merged = merge_rows(existing, fetched, f"{cfg['label']} {game_date}")
+    merged = merge_rows(existing, fetched, f"{cfg['label']} {game_date}", output)
     write_rows(output, merged)
 
     log(
