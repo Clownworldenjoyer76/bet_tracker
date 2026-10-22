@@ -1,753 +1,753 @@
-=== MLB select_bets RUN 2026-10-21T07:52:26.509935+00:00 ===
-2026-10-21T07:52:26.529101+00:00 | INFO  | INPUT_DIR : docs/win/baseball/mlb/03_edges/ev_kelly
-2026-10-21T07:52:26.529168+00:00 | INFO  | OUTPUT_DIR: docs/win/baseball/mlb/04_select/morning
-2026-10-21T07:52:26.529213+00:00 | INFO  | Rain filter: will_it_rain=False symbol_code=False symbol_terms=['rain', 'heavyrain', 'lightrain', 'sleet', 'snow', 'thunder'] | SP sample exclude totals: False | Lineup low sample warn: 4 | Context data filters: {'enabled': False, 'home_batters_found_min': 0, 'away_batters_found_min': 0, 'home_sp_found_required': 0, 'away_sp_found_required': 0}
-2026-10-21T07:52:26.529242+00:00 | INFO  | Selection requires EV > 0 and Kelly > 0 for run-line candidates; EV/Kelly/selection must share the canonical probability basis.
-2026-10-21T07:52:26.529267+00:00 | INFO  | Selection matches market rows by game_id only. Team/date fallback matching is disabled.
-2026-10-21T07:52:26.532154+00:00 | INFO  | Files found: 585
-2026-10-21T07:52:26.532451+00:00 | INFO  | Selected run mode: rebuild_all
-2026-10-21T07:52:26.532506+00:00 | INFO  | Slate keys to process: ['2026_03_29', '2026_03_30', '2026_03_31', '2026_04_01', '2026_04_02', '2026_04_03', '2026_04_04', '2026_04_05', '2026_04_06', '2026_04_07', '2026_04_08', '2026_04_09', '2026_04_10', '2026_04_11', '2026_04_12', '2026_04_13', '2026_04_14', '2026_04_15', '2026_04_16', '2026_04_17', '2026_04_18', '2026_04_19', '2026_04_20', '2026_04_21', '2026_04_22', '2026_04_23', '2026_04_24', '2026_04_25', '2026_04_26', '2026_04_27', '2026_04_28', '2026_04_29', '2026_04_30', '2026_05_01', '2026_05_02', '2026_05_03', '2026_05_04', '2026_05_05', '2026_05_06', '2026_05_07', '2026_05_08', '2026_05_09', '2026_05_10', '2026_05_11', '2026_05_12', '2026_05_13', '2026_05_14', '2026_05_15', '2026_05_16', '2026_05_17', '2026_05_18', '2026_05_19', '2026_05_20', '2026_05_21', '2026_05_22', '2026_05_23', '2026_05_24', '2026_05_25', '2026_05_26', '2026_05_27', '2026_05_28', '2026_05_29', '2026_05_30', '2026_05_31', '2026_06_01', '2026_06_02', '2026_06_03', '2026_06_04', '2026_06_05', '2026_06_06', '2026_06_07', '2026_06_08', '2026_06_09', '2026_06_10', '2026_06_11', '2026_06_12', '2026_06_13', '2026_06_14', '2026_06_15', '2026_06_16', '2026_06_17', '2026_06_18', '2026_06_19', '2026_06_20', '2026_06_21', '2026_06_22', '2026_06_23', '2026_06_24', '2026_06_25', '2026_06_26', '2026_06_27', '2026_06_28', '2026_06_29', '2026_06_30', '2026_07_01', '2026_07_02', '2026_07_03', '2026_07_04', '2026_07_05', '2026_07_06', '2026_07_07', '2026_07_08', '2026_07_09', '2026_07_10', '2026_07_11', '2026_07_12', '2026_07_16', '2026_07_17', '2026_07_18', '2026_07_19', '2026_07_20', '2026_07_21', '2026_07_22', '2026_07_23', '2026_07_24', '2026_07_25', '2026_07_26', '2026_07_27', '2026_07_28', '2026_07_29', '2026_07_30', '2026_07_31', '2026_08_01', '2026_08_02', '2026_08_03', '2026_08_04', '2026_08_05', '2026_08_06', '2026_08_07', '2026_08_08', '2026_08_09', '2026_08_10', '2026_08_11', '2026_08_12', '2026_08_13', '2026_08_14', '2026_08_15', '2026_08_16', '2026_08_17', '2026_08_18', '2026_08_19', '2026_08_20', '2026_08_24', '2026_08_25', '2026_08_26', '2026_08_27', '2026_08_28', '2026_08_29', '2026_08_30', '2026_08_31', '2026_09_01', '2026_09_02', '2026_09_03', '2026_09_04', '2026_09_05', '2026_09_06', '2026_09_07', '2026_09_08', '2026_09_09', '2026_09_10', '2026_09_11', '2026_09_12', '2026_09_13', '2026_09_14', '2026_09_15', '2026_09_16', '2026_09_17', '2026_09_18', '2026_09_19', '2026_09_20', '2026_09_21', '2026_09_22', '2026_09_23', '2026_09_24', '2026_09_25', '2026_09_26', '2026_09_27', '2026_09_29', '2026_09_30', '2026_10_01', '2026_10_03', '2026_10_04', '2026_10_05', '2026_10_06', '2026_10_07', '2026_10_08', '2026_10_10', '2026_10_11', '2026_10_12', '2026_10_13', '2026_10_14', '2026_10_15', '2026_10_16', '2026_10_18', '2026_10_19']
-2026-10-21T07:52:26.532544+00:00 | INFO  | --- SLATE: 2026_03_29
-2026-10-21T07:52:26.550479+00:00 | INFO  | 2026_03_29 market row-count check OK: {'moneyline': 12, 'run_line': 12, 'total': 12}
-2026-10-21T07:52:26.591626+00:00 | INFO  | WROTE: 2026_03_29_MLB.csv (7 bets | ml=5 rl=0 tot=2)
-2026-10-21T07:52:26.591686+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_03_29_MLB.csv (no new picks)
-2026-10-21T07:52:26.591796+00:00 | INFO  | --- SLATE: 2026_03_30
-2026-10-21T07:52:26.608203+00:00 | INFO  | 2026_03_30 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:26.654934+00:00 | INFO  | WROTE: 2026_03_30_MLB.csv (10 bets | ml=8 rl=0 tot=2)
-2026-10-21T07:52:26.655006+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_03_30_MLB.csv (no new picks)
-2026-10-21T07:52:26.655183+00:00 | INFO  | --- SLATE: 2026_03_31
-2026-10-21T07:52:26.670567+00:00 | INFO  | 2026_03_31 market row-count check OK: {'moneyline': 14, 'run_line': 14, 'total': 14}
-2026-10-21T07:52:26.714717+00:00 | INFO  | WROTE: 2026_03_31_MLB.csv (9 bets | ml=7 rl=1 tot=1)
-2026-10-21T07:52:26.714767+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_03_31_MLB.csv (no new picks)
-2026-10-21T07:52:26.714884+00:00 | INFO  | --- SLATE: 2026_04_01
-2026-10-21T07:52:26.730712+00:00 | INFO  | 2026_04_01 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:26.777271+00:00 | INFO  | WROTE: 2026_04_01_MLB.csv (4 bets | ml=4 rl=0 tot=0)
-2026-10-21T07:52:26.777320+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_01_MLB.csv (no new picks)
-2026-10-21T07:52:26.777436+00:00 | INFO  | --- SLATE: 2026_04_02
-2026-10-21T07:52:26.792017+00:00 | INFO  | 2026_04_02 market row-count check OK: {'moneyline': 3, 'run_line': 3, 'total': 3}
-2026-10-21T07:52:26.807633+00:00 | INFO  | WROTE: 2026_04_02_MLB.csv (3 bets | ml=2 rl=0 tot=1)
-2026-10-21T07:52:26.807681+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_02_MLB.csv (no new picks)
-2026-10-21T07:52:26.807780+00:00 | INFO  | --- SLATE: 2026_04_03
-2026-10-21T07:52:26.823391+00:00 | INFO  | 2026_04_03 market row-count check OK: {'moneyline': 14, 'run_line': 14, 'total': 14}
-2026-10-21T07:52:26.866503+00:00 | INFO  | WROTE: 2026_04_03_MLB.csv (4 bets | ml=2 rl=0 tot=2)
-2026-10-21T07:52:26.866555+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_03_MLB.csv (no new picks)
-2026-10-21T07:52:26.866677+00:00 | INFO  | --- SLATE: 2026_04_04
-2026-10-21T07:52:26.882579+00:00 | INFO  | 2026_04_04 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:26.928155+00:00 | INFO  | WROTE: 2026_04_04_MLB.csv (4 bets | ml=4 rl=0 tot=0)
-2026-10-21T07:52:26.928204+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_04_MLB.csv (no new picks)
-2026-10-21T07:52:26.928320+00:00 | INFO  | --- SLATE: 2026_04_05
-2026-10-21T07:52:26.943561+00:00 | INFO  | 2026_04_05 market row-count check OK: {'moneyline': 16, 'run_line': 16, 'total': 16}
-2026-10-21T07:52:26.991499+00:00 | INFO  | WROTE: 2026_04_05_MLB.csv (5 bets | ml=4 rl=0 tot=1)
-2026-10-21T07:52:26.991553+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_05_MLB.csv (no new picks)
-2026-10-21T07:52:26.991676+00:00 | INFO  | --- SLATE: 2026_04_06
-2026-10-21T07:52:27.007036+00:00 | INFO  | 2026_04_06 market row-count check OK: {'moneyline': 13, 'run_line': 13, 'total': 13}
-2026-10-21T07:52:27.048245+00:00 | INFO  | WROTE: 2026_04_06_MLB.csv (5 bets | ml=5 rl=0 tot=0)
-2026-10-21T07:52:27.048297+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_06_MLB.csv (no new picks)
-2026-10-21T07:52:27.048424+00:00 | INFO  | --- SLATE: 2026_04_07
-2026-10-21T07:52:27.064388+00:00 | INFO  | 2026_04_07 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:27.111326+00:00 | INFO  | WROTE: 2026_04_07_MLB.csv (6 bets | ml=4 rl=0 tot=2)
-2026-10-21T07:52:27.111375+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_07_MLB.csv (no new picks)
-2026-10-21T07:52:27.111495+00:00 | INFO  | --- SLATE: 2026_04_08
-2026-10-21T07:52:27.127406+00:00 | INFO  | 2026_04_08 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:27.173063+00:00 | INFO  | WROTE: 2026_04_08_MLB.csv (7 bets | ml=6 rl=0 tot=1)
-2026-10-21T07:52:27.173112+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_08_MLB.csv (no new picks)
-2026-10-21T07:52:27.173225+00:00 | INFO  | --- SLATE: 2026_04_09
-2026-10-21T07:52:27.187922+00:00 | INFO  | 2026_04_09 market row-count check OK: {'moneyline': 6, 'run_line': 6, 'total': 6}
-2026-10-21T07:52:27.211170+00:00 | INFO  | WROTE: 2026_04_09_MLB.csv (2 bets | ml=1 rl=0 tot=1)
-2026-10-21T07:52:27.211217+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_09_MLB.csv (no new picks)
-2026-10-21T07:52:27.211327+00:00 | INFO  | --- SLATE: 2026_04_10
-2026-10-21T07:52:27.226711+00:00 | INFO  | 2026_04_10 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:27.273344+00:00 | INFO  | WROTE: 2026_04_10_MLB.csv (4 bets | ml=1 rl=0 tot=3)
-2026-10-21T07:52:27.273392+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_10_MLB.csv (no new picks)
-2026-10-21T07:52:27.273509+00:00 | INFO  | --- SLATE: 2026_04_11
-2026-10-21T07:52:27.288624+00:00 | INFO  | 2026_04_11 market row-count check OK: {'moneyline': 11, 'run_line': 11, 'total': 11}
-2026-10-21T07:52:27.324547+00:00 | INFO  | WROTE: 2026_04_11_MLB.csv (6 bets | ml=4 rl=0 tot=2)
-2026-10-21T07:52:27.324593+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_11_MLB.csv (no new picks)
-2026-10-21T07:52:27.324701+00:00 | INFO  | --- SLATE: 2026_04_12
-2026-10-21T07:52:27.340057+00:00 | INFO  | 2026_04_12 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:27.385485+00:00 | INFO  | WROTE: 2026_04_12_MLB.csv (2 bets | ml=2 rl=0 tot=0)
-2026-10-21T07:52:27.385532+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_12_MLB.csv (no new picks)
-2026-10-21T07:52:27.385637+00:00 | INFO  | --- SLATE: 2026_04_13
-2026-10-21T07:52:27.400638+00:00 | INFO  | 2026_04_13 market row-count check OK: {'moneyline': 10, 'run_line': 10, 'total': 10}
-2026-10-21T07:52:27.433433+00:00 | INFO  | WROTE: 2026_04_13_MLB.csv (2 bets | ml=2 rl=0 tot=0)
-2026-10-21T07:52:27.433479+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_13_MLB.csv (no new picks)
-2026-10-21T07:52:27.433576+00:00 | INFO  | --- SLATE: 2026_04_14
-2026-10-21T07:52:27.448765+00:00 | WARN  | 2026_04_14 market row-count mismatch before selection: {'moneyline': 15, 'run_line': 14, 'total': 14}
-2026-10-21T07:52:27.494041+00:00 | INFO  | WROTE: 2026_04_14_MLB.csv (4 bets | ml=3 rl=0 tot=1)
-2026-10-21T07:52:27.494086+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_14_MLB.csv (no new picks)
-2026-10-21T07:52:27.494191+00:00 | INFO  | --- SLATE: 2026_04_15
-2026-10-21T07:52:27.509446+00:00 | INFO  | 2026_04_15 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:27.554540+00:00 | INFO  | WROTE: 2026_04_15_MLB.csv (4 bets | ml=4 rl=0 tot=0)
-2026-10-21T07:52:27.554587+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_15_MLB.csv (no new picks)
-2026-10-21T07:52:27.554695+00:00 | INFO  | --- SLATE: 2026_04_16
-2026-10-21T07:52:27.569991+00:00 | INFO  | 2026_04_16 market row-count check OK: {'moneyline': 10, 'run_line': 10, 'total': 10}
-2026-10-21T07:52:27.603240+00:00 | INFO  | WROTE: 2026_04_16_MLB.csv (2 bets | ml=2 rl=0 tot=0)
-2026-10-21T07:52:27.603292+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_16_MLB.csv (no new picks)
-2026-10-21T07:52:27.603415+00:00 | INFO  | --- SLATE: 2026_04_17
-2026-10-21T07:52:27.618985+00:00 | INFO  | 2026_04_17 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:27.657434+00:00 | WARN  | 2026_04_17 no bets passed filters
-2026-10-21T07:52:27.657580+00:00 | INFO  | --- SLATE: 2026_04_18
-2026-10-21T07:52:27.673329+00:00 | INFO  | 2026_04_18 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:27.719475+00:00 | INFO  | WROTE: 2026_04_18_MLB.csv (11 bets | ml=9 rl=0 tot=2)
-2026-10-21T07:52:27.719522+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_18_MLB.csv (no new picks)
-2026-10-21T07:52:27.719641+00:00 | INFO  | --- SLATE: 2026_04_19
-2026-10-21T07:52:27.735191+00:00 | INFO  | 2026_04_19 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:27.781156+00:00 | INFO  | WROTE: 2026_04_19_MLB.csv (4 bets | ml=4 rl=0 tot=0)
-2026-10-21T07:52:27.781206+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_19_MLB.csv (no new picks)
-2026-10-21T07:52:27.781324+00:00 | INFO  | --- SLATE: 2026_04_20
-2026-10-21T07:52:27.796496+00:00 | INFO  | 2026_04_20 market row-count check OK: {'moneyline': 10, 'run_line': 10, 'total': 10}
-2026-10-21T07:52:27.829652+00:00 | INFO  | WROTE: 2026_04_20_MLB.csv (5 bets | ml=4 rl=0 tot=1)
-2026-10-21T07:52:27.829701+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_20_MLB.csv (no new picks)
-2026-10-21T07:52:27.829815+00:00 | INFO  | --- SLATE: 2026_04_21
-2026-10-21T07:52:27.845287+00:00 | INFO  | 2026_04_21 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:27.891730+00:00 | INFO  | WROTE: 2026_04_21_MLB.csv (10 bets | ml=8 rl=0 tot=2)
-2026-10-21T07:52:27.891776+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_21_MLB.csv (no new picks)
-2026-10-21T07:52:27.891889+00:00 | INFO  | --- SLATE: 2026_04_22
-2026-10-21T07:52:27.906993+00:00 | INFO  | 2026_04_22 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:27.952947+00:00 | INFO  | WROTE: 2026_04_22_MLB.csv (10 bets | ml=9 rl=0 tot=1)
-2026-10-21T07:52:27.953033+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_22_MLB.csv (no new picks)
-2026-10-21T07:52:27.953183+00:00 | INFO  | --- SLATE: 2026_04_23
-2026-10-21T07:52:27.968051+00:00 | INFO  | 2026_04_23 market row-count check OK: {'moneyline': 9, 'run_line': 9, 'total': 9}
-2026-10-21T07:52:27.998558+00:00 | INFO  | WROTE: 2026_04_23_MLB.csv (2 bets | ml=1 rl=0 tot=1)
-2026-10-21T07:52:27.998603+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_23_MLB.csv (no new picks)
-2026-10-21T07:52:27.998699+00:00 | INFO  | --- SLATE: 2026_04_24
-2026-10-21T07:52:28.013759+00:00 | INFO  | 2026_04_24 market row-count check OK: {'moneyline': 14, 'run_line': 14, 'total': 14}
-2026-10-21T07:52:28.057195+00:00 | INFO  | WROTE: 2026_04_24_MLB.csv (7 bets | ml=4 rl=0 tot=3)
-2026-10-21T07:52:28.057251+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_24_MLB.csv (no new picks)
-2026-10-21T07:52:28.057380+00:00 | INFO  | --- SLATE: 2026_04_25
-2026-10-21T07:52:28.073149+00:00 | INFO  | 2026_04_25 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:28.118430+00:00 | INFO  | WROTE: 2026_04_25_MLB.csv (2 bets | ml=1 rl=0 tot=1)
-2026-10-21T07:52:28.118480+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_25_MLB.csv (no new picks)
-2026-10-21T07:52:28.118594+00:00 | INFO  | --- SLATE: 2026_04_26
-2026-10-21T07:52:28.134514+00:00 | INFO  | 2026_04_26 market row-count check OK: {'moneyline': 16, 'run_line': 16, 'total': 16}
-2026-10-21T07:52:28.183292+00:00 | INFO  | WROTE: 2026_04_26_MLB.csv (11 bets | ml=9 rl=0 tot=2)
-2026-10-21T07:52:28.183340+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_26_MLB.csv (no new picks)
-2026-10-21T07:52:28.183462+00:00 | INFO  | --- SLATE: 2026_04_27
-2026-10-21T07:52:28.198601+00:00 | INFO  | 2026_04_27 market row-count check OK: {'moneyline': 8, 'run_line': 8, 'total': 8}
-2026-10-21T07:52:28.227149+00:00 | INFO  | WROTE: 2026_04_27_MLB.csv (4 bets | ml=3 rl=0 tot=1)
-2026-10-21T07:52:28.227195+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_27_MLB.csv (no new picks)
-2026-10-21T07:52:28.227292+00:00 | INFO  | --- SLATE: 2026_04_28
-2026-10-21T07:52:28.242562+00:00 | INFO  | 2026_04_28 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:28.289129+00:00 | INFO  | WROTE: 2026_04_28_MLB.csv (10 bets | ml=10 rl=0 tot=0)
-2026-10-21T07:52:28.289176+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_28_MLB.csv (no new picks)
-2026-10-21T07:52:28.289301+00:00 | INFO  | --- SLATE: 2026_04_29
-2026-10-21T07:52:28.304832+00:00 | INFO  | 2026_04_29 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:28.351167+00:00 | INFO  | WROTE: 2026_04_29_MLB.csv (8 bets | ml=7 rl=0 tot=1)
-2026-10-21T07:52:28.351222+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_29_MLB.csv (no new picks)
-2026-10-21T07:52:28.351355+00:00 | INFO  | --- SLATE: 2026_04_30
-2026-10-21T07:52:28.366899+00:00 | INFO  | 2026_04_30 market row-count check OK: {'moneyline': 9, 'run_line': 9, 'total': 9}
-2026-10-21T07:52:28.398158+00:00 | INFO  | WROTE: 2026_04_30_MLB.csv (4 bets | ml=4 rl=0 tot=0)
-2026-10-21T07:52:28.398205+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_30_MLB.csv (no new picks)
-2026-10-21T07:52:28.398314+00:00 | INFO  | --- SLATE: 2026_05_01
-2026-10-21T07:52:28.413937+00:00 | INFO  | 2026_05_01 market row-count check OK: {'moneyline': 14, 'run_line': 14, 'total': 14}
-2026-10-21T07:52:28.456825+00:00 | INFO  | WROTE: 2026_05_01_MLB.csv (4 bets | ml=3 rl=0 tot=1)
-2026-10-21T07:52:28.456871+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_01_MLB.csv (no new picks)
-2026-10-21T07:52:28.457010+00:00 | INFO  | --- SLATE: 2026_05_02
-2026-10-21T07:52:28.472296+00:00 | INFO  | 2026_05_02 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:28.517921+00:00 | INFO  | WROTE: 2026_05_02_MLB.csv (2 bets | ml=2 rl=0 tot=0)
-2026-10-21T07:52:28.517999+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_02_MLB.csv (no new picks)
-2026-10-21T07:52:28.518158+00:00 | INFO  | --- SLATE: 2026_05_03
-2026-10-21T07:52:28.533534+00:00 | INFO  | 2026_05_03 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:28.579800+00:00 | INFO  | WROTE: 2026_05_03_MLB.csv (4 bets | ml=3 rl=0 tot=1)
-2026-10-21T07:52:28.579848+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_03_MLB.csv (no new picks)
-2026-10-21T07:52:28.579997+00:00 | INFO  | --- SLATE: 2026_05_04
-2026-10-21T07:52:28.595320+00:00 | INFO  | 2026_05_04 market row-count check OK: {'moneyline': 12, 'run_line': 12, 'total': 12}
-2026-10-21T07:52:28.633465+00:00 | INFO  | WROTE: 2026_05_04_MLB.csv (3 bets | ml=3 rl=0 tot=0)
-2026-10-21T07:52:28.633512+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_04_MLB.csv (no new picks)
-2026-10-21T07:52:28.633637+00:00 | INFO  | --- SLATE: 2026_05_05
-2026-10-21T07:52:28.648779+00:00 | WARN  | 2026_05_05 market row-count mismatch before selection: {'moneyline': 15, 'run_line': 14, 'total': 14}
-2026-10-21T07:52:28.693398+00:00 | INFO  | WROTE: 2026_05_05_MLB.csv (2 bets | ml=1 rl=0 tot=1)
-2026-10-21T07:52:28.693447+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_05_MLB.csv (no new picks)
-2026-10-21T07:52:28.693565+00:00 | INFO  | --- SLATE: 2026_05_06
-2026-10-21T07:52:28.708720+00:00 | INFO  | 2026_05_06 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:28.769803+00:00 | INFO  | WROTE: 2026_05_06_MLB.csv (5 bets | ml=3 rl=0 tot=2)
-2026-10-21T07:52:28.769850+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_06_MLB.csv (no new picks)
-2026-10-21T07:52:28.770009+00:00 | INFO  | --- SLATE: 2026_05_07
-2026-10-21T07:52:28.785019+00:00 | INFO  | 2026_05_07 market row-count check OK: {'moneyline': 10, 'run_line': 10, 'total': 10}
-2026-10-21T07:52:28.818244+00:00 | INFO  | WROTE: 2026_05_07_MLB.csv (1 bets | ml=1 rl=0 tot=0)
-2026-10-21T07:52:28.818292+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_07_MLB.csv (no new picks)
-2026-10-21T07:52:28.818410+00:00 | INFO  | --- SLATE: 2026_05_08
-2026-10-21T07:52:28.833663+00:00 | INFO  | 2026_05_08 market row-count check OK: {'moneyline': 14, 'run_line': 14, 'total': 14}
-2026-10-21T07:52:28.877012+00:00 | INFO  | WROTE: 2026_05_08_MLB.csv (2 bets | ml=0 rl=0 tot=2)
-2026-10-21T07:52:28.877065+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_08_MLB.csv (no new picks)
-2026-10-21T07:52:28.877203+00:00 | INFO  | --- SLATE: 2026_05_09
-2026-10-21T07:52:28.893152+00:00 | INFO  | 2026_05_09 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:28.938562+00:00 | INFO  | WROTE: 2026_05_09_MLB.csv (2 bets | ml=1 rl=0 tot=1)
-2026-10-21T07:52:28.938613+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_09_MLB.csv (no new picks)
-2026-10-21T07:52:28.938737+00:00 | INFO  | --- SLATE: 2026_05_10
-2026-10-21T07:52:28.954793+00:00 | INFO  | 2026_05_10 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:29.000803+00:00 | INFO  | WROTE: 2026_05_10_MLB.csv (5 bets | ml=5 rl=0 tot=0)
-2026-10-21T07:52:29.000862+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_10_MLB.csv (no new picks)
-2026-10-21T07:52:29.001084+00:00 | INFO  | --- SLATE: 2026_05_11
-2026-10-21T07:52:29.016134+00:00 | INFO  | 2026_05_11 market row-count check OK: {'moneyline': 6, 'run_line': 6, 'total': 6}
-2026-10-21T07:52:29.039543+00:00 | INFO  | WROTE: 2026_05_11_MLB.csv (2 bets | ml=2 rl=0 tot=0)
-2026-10-21T07:52:29.039592+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_11_MLB.csv (no new picks)
-2026-10-21T07:52:29.039703+00:00 | INFO  | --- SLATE: 2026_05_12
-2026-10-21T07:52:29.055318+00:00 | INFO  | 2026_05_12 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:29.094040+00:00 | WARN  | 2026_05_12 no bets passed filters
-2026-10-21T07:52:29.094178+00:00 | INFO  | --- SLATE: 2026_05_13
-2026-10-21T07:52:29.109921+00:00 | INFO  | 2026_05_13 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:29.155908+00:00 | INFO  | WROTE: 2026_05_13_MLB.csv (6 bets | ml=4 rl=0 tot=2)
-2026-10-21T07:52:29.155986+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_13_MLB.csv (no new picks)
-2026-10-21T07:52:29.156118+00:00 | INFO  | --- SLATE: 2026_05_14
-2026-10-21T07:52:29.171507+00:00 | INFO  | 2026_05_14 market row-count check OK: {'moneyline': 11, 'run_line': 11, 'total': 11}
-2026-10-21T07:52:29.207478+00:00 | INFO  | WROTE: 2026_05_14_MLB.csv (4 bets | ml=3 rl=0 tot=1)
-2026-10-21T07:52:29.207524+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_14_MLB.csv (no new picks)
-2026-10-21T07:52:29.207627+00:00 | INFO  | --- SLATE: 2026_05_15
-2026-10-21T07:52:29.223035+00:00 | WARN  | 2026_05_15 market row-count mismatch before selection: {'moneyline': 14, 'run_line': 13, 'total': 14}
-2026-10-21T07:52:29.266669+00:00 | INFO  | WROTE: 2026_05_15_MLB.csv (7 bets | ml=4 rl=0 tot=3)
-2026-10-21T07:52:29.266717+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_15_MLB.csv (no new picks)
-2026-10-21T07:52:29.266832+00:00 | INFO  | --- SLATE: 2026_05_16
-2026-10-21T07:52:29.282250+00:00 | INFO  | 2026_05_16 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:29.328571+00:00 | INFO  | WROTE: 2026_05_16_MLB.csv (4 bets | ml=2 rl=0 tot=2)
-2026-10-21T07:52:29.328618+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_16_MLB.csv (no new picks)
-2026-10-21T07:52:29.328738+00:00 | INFO  | --- SLATE: 2026_05_17
-2026-10-21T07:52:29.343864+00:00 | INFO  | 2026_05_17 market row-count check OK: {'moneyline': 14, 'run_line': 14, 'total': 14}
-2026-10-21T07:52:29.389749+00:00 | INFO  | WROTE: 2026_05_17_MLB.csv (5 bets | ml=3 rl=0 tot=2)
-2026-10-21T07:52:29.389806+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_17_MLB.csv (no new picks)
-2026-10-21T07:52:29.389974+00:00 | INFO  | --- SLATE: 2026_05_18
-2026-10-21T07:52:29.405947+00:00 | INFO  | 2026_05_18 market row-count check OK: {'moneyline': 14, 'run_line': 14, 'total': 14}
-2026-10-21T07:52:29.442209+00:00 | WARN  | 2026_05_18 no bets passed filters
-2026-10-21T07:52:29.442343+00:00 | INFO  | --- SLATE: 2026_05_19
-2026-10-21T07:52:29.457782+00:00 | INFO  | 2026_05_19 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:29.503362+00:00 | INFO  | WROTE: 2026_05_19_MLB.csv (2 bets | ml=1 rl=0 tot=1)
-2026-10-21T07:52:29.503411+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_19_MLB.csv (no new picks)
-2026-10-21T07:52:29.503585+00:00 | INFO  | --- SLATE: 2026_05_20
-2026-10-21T07:52:29.518973+00:00 | INFO  | 2026_05_20 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:29.565843+00:00 | INFO  | WROTE: 2026_05_20_MLB.csv (6 bets | ml=5 rl=0 tot=1)
-2026-10-21T07:52:29.565896+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_20_MLB.csv (no new picks)
-2026-10-21T07:52:29.566065+00:00 | INFO  | --- SLATE: 2026_05_21
-2026-10-21T07:52:29.581079+00:00 | INFO  | 2026_05_21 market row-count check OK: {'moneyline': 7, 'run_line': 7, 'total': 7}
-2026-10-21T07:52:29.606697+00:00 | INFO  | WROTE: 2026_05_21_MLB.csv (2 bets | ml=1 rl=0 tot=1)
-2026-10-21T07:52:29.606744+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_21_MLB.csv (no new picks)
-2026-10-21T07:52:29.606855+00:00 | INFO  | --- SLATE: 2026_05_22
-2026-10-21T07:52:29.622116+00:00 | INFO  | 2026_05_22 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:29.667778+00:00 | INFO  | WROTE: 2026_05_22_MLB.csv (4 bets | ml=3 rl=0 tot=1)
-2026-10-21T07:52:29.667825+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_22_MLB.csv (no new picks)
-2026-10-21T07:52:29.668001+00:00 | INFO  | --- SLATE: 2026_05_23
-2026-10-21T07:52:29.683147+00:00 | INFO  | 2026_05_23 market row-count check OK: {'moneyline': 16, 'run_line': 16, 'total': 16}
-2026-10-21T07:52:29.731432+00:00 | INFO  | WROTE: 2026_05_23_MLB.csv (8 bets | ml=6 rl=0 tot=2)
-2026-10-21T07:52:29.731478+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_23_MLB.csv (no new picks)
-2026-10-21T07:52:29.731589+00:00 | INFO  | --- SLATE: 2026_05_24
-2026-10-21T07:52:29.746725+00:00 | INFO  | 2026_05_24 market row-count check OK: {'moneyline': 16, 'run_line': 16, 'total': 16}
-2026-10-21T07:52:29.794989+00:00 | INFO  | WROTE: 2026_05_24_MLB.csv (6 bets | ml=4 rl=0 tot=2)
-2026-10-21T07:52:29.795040+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_24_MLB.csv (no new picks)
-2026-10-21T07:52:29.795155+00:00 | INFO  | --- SLATE: 2026_05_25
-2026-10-21T07:52:29.810141+00:00 | INFO  | 2026_05_25 market row-count check OK: {'moneyline': 13, 'run_line': 13, 'total': 13}
-2026-10-21T07:52:29.850182+00:00 | INFO  | WROTE: 2026_05_25_MLB.csv (1 bets | ml=1 rl=0 tot=0)
-2026-10-21T07:52:29.850231+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_25_MLB.csv (no new picks)
-2026-10-21T07:52:29.850393+00:00 | INFO  | --- SLATE: 2026_05_26
-2026-10-21T07:52:29.865539+00:00 | INFO  | 2026_05_26 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:29.913445+00:00 | INFO  | WROTE: 2026_05_26_MLB.csv (5 bets | ml=4 rl=0 tot=1)
-2026-10-21T07:52:29.913498+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_26_MLB.csv (no new picks)
-2026-10-21T07:52:29.913618+00:00 | INFO  | --- SLATE: 2026_05_27
-2026-10-21T07:52:29.928601+00:00 | INFO  | 2026_05_27 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:29.973905+00:00 | INFO  | WROTE: 2026_05_27_MLB.csv (5 bets | ml=4 rl=0 tot=1)
-2026-10-21T07:52:29.973983+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_27_MLB.csv (no new picks)
-2026-10-21T07:52:29.974114+00:00 | INFO  | --- SLATE: 2026_05_28
-2026-10-21T07:52:29.988707+00:00 | INFO  | 2026_05_28 market row-count check OK: {'moneyline': 6, 'run_line': 6, 'total': 6}
-2026-10-21T07:52:30.005732+00:00 | WARN  | 2026_05_28 no bets passed filters
-2026-10-21T07:52:30.005834+00:00 | INFO  | --- SLATE: 2026_05_29
-2026-10-21T07:52:30.021277+00:00 | INFO  | 2026_05_29 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:30.068356+00:00 | INFO  | WROTE: 2026_05_29_MLB.csv (4 bets | ml=3 rl=0 tot=1)
-2026-10-21T07:52:30.068412+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_29_MLB.csv (no new picks)
-2026-10-21T07:52:30.068551+00:00 | INFO  | --- SLATE: 2026_05_30
-2026-10-21T07:52:30.084731+00:00 | INFO  | 2026_05_30 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:30.124401+00:00 | WARN  | 2026_05_30 no bets passed filters
-2026-10-21T07:52:30.124540+00:00 | INFO  | --- SLATE: 2026_05_31
-2026-10-21T07:52:30.140443+00:00 | WARN  | 2026_05_31 market row-count mismatch before selection: {'moneyline': 14, 'run_line': 14, 'total': 15}
-2026-10-21T07:52:30.187113+00:00 | INFO  | WROTE: 2026_05_31_MLB.csv (4 bets | ml=2 rl=0 tot=2)
-2026-10-21T07:52:30.187163+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_31_MLB.csv (no new picks)
-2026-10-21T07:52:30.187283+00:00 | INFO  | --- SLATE: 2026_06_01
-2026-10-21T07:52:30.202629+00:00 | INFO  | 2026_06_01 market row-count check OK: {'moneyline': 9, 'run_line': 9, 'total': 9}
-2026-10-21T07:52:30.227705+00:00 | WARN  | 2026_06_01 no bets passed filters
-2026-10-21T07:52:30.227831+00:00 | INFO  | --- SLATE: 2026_06_02
-2026-10-21T07:52:30.244039+00:00 | INFO  | 2026_06_02 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:30.290773+00:00 | INFO  | WROTE: 2026_06_02_MLB.csv (1 bets | ml=1 rl=0 tot=0)
-2026-10-21T07:52:30.290821+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_02_MLB.csv (no new picks)
-2026-10-21T07:52:30.290938+00:00 | INFO  | --- SLATE: 2026_06_03
-2026-10-21T07:52:30.306581+00:00 | INFO  | 2026_06_03 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:30.353713+00:00 | INFO  | WROTE: 2026_06_03_MLB.csv (2 bets | ml=2 rl=0 tot=0)
-2026-10-21T07:52:30.353762+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_03_MLB.csv (no new picks)
-2026-10-21T07:52:30.353921+00:00 | INFO  | --- SLATE: 2026_06_04
-2026-10-21T07:52:30.368917+00:00 | INFO  | 2026_06_04 market row-count check OK: {'moneyline': 9, 'run_line': 9, 'total': 9}
-2026-10-21T07:52:30.400911+00:00 | INFO  | WROTE: 2026_06_04_MLB.csv (3 bets | ml=3 rl=0 tot=0)
-2026-10-21T07:52:30.400984+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_04_MLB.csv (no new picks)
-2026-10-21T07:52:30.401108+00:00 | INFO  | --- SLATE: 2026_06_05
-2026-10-21T07:52:30.417029+00:00 | INFO  | 2026_06_05 market row-count check OK: {'moneyline': 14, 'run_line': 14, 'total': 14}
-2026-10-21T07:52:30.461763+00:00 | INFO  | WROTE: 2026_06_05_MLB.csv (7 bets | ml=7 rl=0 tot=0)
-2026-10-21T07:52:30.461813+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_05_MLB.csv (no new picks)
-2026-10-21T07:52:30.461941+00:00 | INFO  | --- SLATE: 2026_06_06
-2026-10-21T07:52:30.477942+00:00 | INFO  | 2026_06_06 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:30.526160+00:00 | INFO  | WROTE: 2026_06_06_MLB.csv (6 bets | ml=6 rl=0 tot=0)
-2026-10-21T07:52:30.526211+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_06_MLB.csv (no new picks)
-2026-10-21T07:52:30.526342+00:00 | INFO  | --- SLATE: 2026_06_07
-2026-10-21T07:52:30.542073+00:00 | INFO  | 2026_06_07 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:30.589460+00:00 | INFO  | WROTE: 2026_06_07_MLB.csv (8 bets | ml=8 rl=0 tot=0)
-2026-10-21T07:52:30.589510+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_07_MLB.csv (no new picks)
-2026-10-21T07:52:30.589623+00:00 | INFO  | --- SLATE: 2026_06_08
-2026-10-21T07:52:30.604503+00:00 | INFO  | 2026_06_08 market row-count check OK: {'moneyline': 8, 'run_line': 8, 'total': 8}
-2026-10-21T07:52:30.632939+00:00 | INFO  | WROTE: 2026_06_08_MLB.csv (4 bets | ml=4 rl=0 tot=0)
-2026-10-21T07:52:30.633008+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_08_MLB.csv (no new picks)
-2026-10-21T07:52:30.633124+00:00 | INFO  | --- SLATE: 2026_06_09
-2026-10-21T07:52:30.648411+00:00 | INFO  | 2026_06_09 market row-count check OK: {'moneyline': 9, 'run_line': 9, 'total': 9}
-2026-10-21T07:52:30.680214+00:00 | INFO  | WROTE: 2026_06_09_MLB.csv (5 bets | ml=3 rl=0 tot=2)
-2026-10-21T07:52:30.680261+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_09_MLB.csv (no new picks)
-2026-10-21T07:52:30.680370+00:00 | INFO  | --- SLATE: 2026_06_10
-2026-10-21T07:52:30.695555+00:00 | INFO  | 2026_06_10 market row-count check OK: {'moneyline': 9, 'run_line': 9, 'total': 9}
-2026-10-21T07:52:30.720215+00:00 | WARN  | 2026_06_10 no bets passed filters
-2026-10-21T07:52:30.720350+00:00 | INFO  | --- SLATE: 2026_06_11
-2026-10-21T07:52:30.736110+00:00 | INFO  | 2026_06_11 market row-count check OK: {'moneyline': 6, 'run_line': 6, 'total': 6}
-2026-10-21T07:52:30.760172+00:00 | INFO  | WROTE: 2026_06_11_MLB.csv (6 bets | ml=4 rl=0 tot=2)
-2026-10-21T07:52:30.760218+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_11_MLB.csv (no new picks)
-2026-10-21T07:52:30.760335+00:00 | INFO  | --- SLATE: 2026_06_12
-2026-10-21T07:52:30.775109+00:00 | INFO  | 2026_06_12 market row-count check OK: {'moneyline': 8, 'run_line': 8, 'total': 8}
-2026-10-21T07:52:30.804176+00:00 | INFO  | WROTE: 2026_06_12_MLB.csv (4 bets | ml=4 rl=0 tot=0)
-2026-10-21T07:52:30.804225+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_12_MLB.csv (no new picks)
-2026-10-21T07:52:30.804333+00:00 | INFO  | --- SLATE: 2026_06_13
-2026-10-21T07:52:30.819253+00:00 | INFO  | 2026_06_13 market row-count check OK: {'moneyline': 8, 'run_line': 8, 'total': 8}
-2026-10-21T07:52:30.848001+00:00 | INFO  | WROTE: 2026_06_13_MLB.csv (3 bets | ml=3 rl=0 tot=0)
-2026-10-21T07:52:30.848050+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_13_MLB.csv (no new picks)
-2026-10-21T07:52:30.848179+00:00 | INFO  | --- SLATE: 2026_06_14
-2026-10-21T07:52:30.863366+00:00 | INFO  | 2026_06_14 market row-count check OK: {'moneyline': 8, 'run_line': 8, 'total': 8}
-2026-10-21T07:52:30.892930+00:00 | INFO  | WROTE: 2026_06_14_MLB.csv (4 bets | ml=4 rl=0 tot=0)
-2026-10-21T07:52:30.893005+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_14_MLB.csv (no new picks)
-2026-10-21T07:52:30.893152+00:00 | INFO  | --- SLATE: 2026_06_15
-2026-10-21T07:52:30.908273+00:00 | INFO  | 2026_06_15 market row-count check OK: {'moneyline': 9, 'run_line': 9, 'total': 9}
-2026-10-21T07:52:30.939334+00:00 | INFO  | WROTE: 2026_06_15_MLB.csv (3 bets | ml=3 rl=0 tot=0)
-2026-10-21T07:52:30.939382+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_15_MLB.csv (no new picks)
-2026-10-21T07:52:30.939502+00:00 | INFO  | --- SLATE: 2026_06_16
-2026-10-21T07:52:30.955231+00:00 | INFO  | 2026_06_16 market row-count check OK: {'moneyline': 14, 'run_line': 14, 'total': 14}
-2026-10-21T07:52:30.998565+00:00 | INFO  | WROTE: 2026_06_16_MLB.csv (5 bets | ml=4 rl=0 tot=1)
-2026-10-21T07:52:30.998610+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_16_MLB.csv (no new picks)
-2026-10-21T07:52:30.998724+00:00 | INFO  | --- SLATE: 2026_06_17
-2026-10-21T07:52:31.014208+00:00 | INFO  | 2026_06_17 market row-count check OK: {'moneyline': 13, 'run_line': 13, 'total': 13}
-2026-10-21T07:52:31.056647+00:00 | INFO  | WROTE: 2026_06_17_MLB.csv (5 bets | ml=5 rl=0 tot=0)
-2026-10-21T07:52:31.056692+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_17_MLB.csv (no new picks)
-2026-10-21T07:52:31.056805+00:00 | INFO  | --- SLATE: 2026_06_18
-2026-10-21T07:52:31.072197+00:00 | INFO  | 2026_06_18 market row-count check OK: {'moneyline': 9, 'run_line': 9, 'total': 9}
-2026-10-21T07:52:31.097237+00:00 | WARN  | 2026_06_18 no bets passed filters
-2026-10-21T07:52:31.097364+00:00 | INFO  | --- SLATE: 2026_06_19
-2026-10-21T07:52:31.113501+00:00 | INFO  | 2026_06_19 market row-count check OK: {'moneyline': 13, 'run_line': 13, 'total': 13}
-2026-10-21T07:52:31.155287+00:00 | INFO  | WROTE: 2026_06_19_MLB.csv (4 bets | ml=3 rl=0 tot=1)
-2026-10-21T07:52:31.155335+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_19_MLB.csv (no new picks)
-2026-10-21T07:52:31.155455+00:00 | INFO  | --- SLATE: 2026_06_20
-2026-10-21T07:52:31.170873+00:00 | INFO  | 2026_06_20 market row-count check OK: {'moneyline': 14, 'run_line': 14, 'total': 14}
-2026-10-21T07:52:31.214420+00:00 | INFO  | WROTE: 2026_06_20_MLB.csv (4 bets | ml=3 rl=0 tot=1)
-2026-10-21T07:52:31.214464+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_20_MLB.csv (no new picks)
-2026-10-21T07:52:31.214597+00:00 | INFO  | --- SLATE: 2026_06_21
-2026-10-21T07:52:31.229985+00:00 | INFO  | 2026_06_21 market row-count check OK: {'moneyline': 14, 'run_line': 14, 'total': 14}
-2026-10-21T07:52:31.274000+00:00 | INFO  | WROTE: 2026_06_21_MLB.csv (5 bets | ml=4 rl=0 tot=1)
-2026-10-21T07:52:31.274046+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_21_MLB.csv (no new picks)
-2026-10-21T07:52:31.274156+00:00 | INFO  | --- SLATE: 2026_06_22
-2026-10-21T07:52:31.289041+00:00 | INFO  | 2026_06_22 market row-count check OK: {'moneyline': 13, 'run_line': 13, 'total': 13}
-2026-10-21T07:52:31.330353+00:00 | INFO  | WROTE: 2026_06_22_MLB.csv (8 bets | ml=6 rl=0 tot=2)
-2026-10-21T07:52:31.330396+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_22_MLB.csv (no new picks)
-2026-10-21T07:52:31.330496+00:00 | INFO  | --- SLATE: 2026_06_23
-2026-10-21T07:52:31.345353+00:00 | INFO  | 2026_06_23 market row-count check OK: {'moneyline': 14, 'run_line': 14, 'total': 14}
-2026-10-21T07:52:31.389480+00:00 | INFO  | WROTE: 2026_06_23_MLB.csv (4 bets | ml=3 rl=0 tot=1)
-2026-10-21T07:52:31.389533+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_23_MLB.csv (no new picks)
-2026-10-21T07:52:31.389713+00:00 | INFO  | --- SLATE: 2026_06_24
-2026-10-21T07:52:31.404844+00:00 | INFO  | 2026_06_24 market row-count check OK: {'moneyline': 14, 'run_line': 14, 'total': 14}
-2026-10-21T07:52:31.449690+00:00 | INFO  | WROTE: 2026_06_24_MLB.csv (10 bets | ml=8 rl=0 tot=2)
-2026-10-21T07:52:31.449737+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_24_MLB.csv (no new picks)
-2026-10-21T07:52:31.449857+00:00 | INFO  | --- SLATE: 2026_06_25
-2026-10-21T07:52:31.464777+00:00 | INFO  | 2026_06_25 market row-count check OK: {'moneyline': 9, 'run_line': 9, 'total': 9}
-2026-10-21T07:52:31.496284+00:00 | INFO  | WROTE: 2026_06_25_MLB.csv (2 bets | ml=2 rl=0 tot=0)
-2026-10-21T07:52:31.496333+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_25_MLB.csv (no new picks)
-2026-10-21T07:52:31.496461+00:00 | INFO  | --- SLATE: 2026_06_26
-2026-10-21T07:52:31.511748+00:00 | INFO  | 2026_06_26 market row-count check OK: {'moneyline': 14, 'run_line': 14, 'total': 14}
-2026-10-21T07:52:31.555782+00:00 | INFO  | WROTE: 2026_06_26_MLB.csv (4 bets | ml=3 rl=0 tot=1)
-2026-10-21T07:52:31.555829+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_26_MLB.csv (no new picks)
-2026-10-21T07:52:31.555950+00:00 | INFO  | --- SLATE: 2026_06_27
-2026-10-21T07:52:31.571330+00:00 | INFO  | 2026_06_27 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:31.618519+00:00 | INFO  | WROTE: 2026_06_27_MLB.csv (8 bets | ml=8 rl=0 tot=0)
-2026-10-21T07:52:31.618565+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_27_MLB.csv (no new picks)
-2026-10-21T07:52:31.618726+00:00 | INFO  | --- SLATE: 2026_06_28
-2026-10-21T07:52:31.633857+00:00 | INFO  | 2026_06_28 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:31.680797+00:00 | INFO  | WROTE: 2026_06_28_MLB.csv (11 bets | ml=10 rl=0 tot=1)
-2026-10-21T07:52:31.680842+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_28_MLB.csv (no new picks)
-2026-10-21T07:52:31.680947+00:00 | INFO  | --- SLATE: 2026_06_29
-2026-10-21T07:52:31.696302+00:00 | INFO  | 2026_06_29 market row-count check OK: {'moneyline': 13, 'run_line': 13, 'total': 13}
-2026-10-21T07:52:31.738053+00:00 | INFO  | WROTE: 2026_06_29_MLB.csv (6 bets | ml=6 rl=0 tot=0)
-2026-10-21T07:52:31.738099+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_29_MLB.csv (no new picks)
-2026-10-21T07:52:31.738235+00:00 | INFO  | --- SLATE: 2026_06_30
-2026-10-21T07:52:31.753833+00:00 | INFO  | 2026_06_30 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:31.800857+00:00 | INFO  | WROTE: 2026_06_30_MLB.csv (9 bets | ml=7 rl=0 tot=2)
-2026-10-21T07:52:31.800902+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_30_MLB.csv (no new picks)
-2026-10-21T07:52:31.801050+00:00 | INFO  | --- SLATE: 2026_07_01
-2026-10-21T07:52:31.816351+00:00 | INFO  | 2026_07_01 market row-count check OK: {'moneyline': 14, 'run_line': 14, 'total': 14}
-2026-10-21T07:52:31.860378+00:00 | INFO  | WROTE: 2026_07_01_MLB.csv (3 bets | ml=3 rl=0 tot=0)
-2026-10-21T07:52:31.860426+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_01_MLB.csv (no new picks)
-2026-10-21T07:52:31.860542+00:00 | INFO  | --- SLATE: 2026_07_02
-2026-10-21T07:52:31.875521+00:00 | INFO  | 2026_07_02 market row-count check OK: {'moneyline': 9, 'run_line': 9, 'total': 9}
-2026-10-21T07:52:31.907485+00:00 | INFO  | WROTE: 2026_07_02_MLB.csv (4 bets | ml=2 rl=0 tot=2)
-2026-10-21T07:52:31.907536+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_02_MLB.csv (no new picks)
-2026-10-21T07:52:31.907670+00:00 | INFO  | --- SLATE: 2026_07_03
-2026-10-21T07:52:31.923250+00:00 | INFO  | 2026_07_03 market row-count check OK: {'moneyline': 13, 'run_line': 13, 'total': 13}
-2026-10-21T07:52:31.965124+00:00 | INFO  | WROTE: 2026_07_03_MLB.csv (7 bets | ml=6 rl=0 tot=1)
-2026-10-21T07:52:31.965171+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_03_MLB.csv (no new picks)
-2026-10-21T07:52:31.965337+00:00 | INFO  | --- SLATE: 2026_07_04
-2026-10-21T07:52:31.981240+00:00 | INFO  | 2026_07_04 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:32.028086+00:00 | INFO  | WROTE: 2026_07_04_MLB.csv (9 bets | ml=7 rl=0 tot=2)
-2026-10-21T07:52:32.028145+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_04_MLB.csv (no new picks)
-2026-10-21T07:52:32.028266+00:00 | INFO  | --- SLATE: 2026_07_05
-2026-10-21T07:52:32.043581+00:00 | INFO  | 2026_07_05 market row-count check OK: {'moneyline': 14, 'run_line': 14, 'total': 14}
-2026-10-21T07:52:32.088245+00:00 | INFO  | WROTE: 2026_07_05_MLB.csv (7 bets | ml=6 rl=0 tot=1)
-2026-10-21T07:52:32.088299+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_05_MLB.csv (no new picks)
-2026-10-21T07:52:32.088418+00:00 | INFO  | --- SLATE: 2026_07_06
-2026-10-21T07:52:32.103583+00:00 | INFO  | 2026_07_06 market row-count check OK: {'moneyline': 8, 'run_line': 8, 'total': 8}
-2026-10-21T07:52:32.132111+00:00 | INFO  | WROTE: 2026_07_06_MLB.csv (2 bets | ml=1 rl=0 tot=1)
-2026-10-21T07:52:32.132159+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_06_MLB.csv (no new picks)
-2026-10-21T07:52:32.132280+00:00 | INFO  | --- SLATE: 2026_07_07
-2026-10-21T07:52:32.147579+00:00 | INFO  | 2026_07_07 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:32.194272+00:00 | INFO  | WROTE: 2026_07_07_MLB.csv (3 bets | ml=1 rl=0 tot=2)
-2026-10-21T07:52:32.194318+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_07_MLB.csv (no new picks)
-2026-10-21T07:52:32.194468+00:00 | INFO  | --- SLATE: 2026_07_08
-2026-10-21T07:52:32.209588+00:00 | INFO  | 2026_07_08 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:32.256808+00:00 | INFO  | WROTE: 2026_07_08_MLB.csv (8 bets | ml=5 rl=1 tot=2)
-2026-10-21T07:52:32.256856+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_08_MLB.csv (no new picks)
-2026-10-21T07:52:32.257017+00:00 | INFO  | --- SLATE: 2026_07_09
-2026-10-21T07:52:32.272235+00:00 | INFO  | 2026_07_09 market row-count check OK: {'moneyline': 13, 'run_line': 13, 'total': 13}
-2026-10-21T07:52:32.314827+00:00 | INFO  | WROTE: 2026_07_09_MLB.csv (13 bets | ml=10 rl=1 tot=2)
-2026-10-21T07:52:32.314879+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_09_MLB.csv (no new picks)
-2026-10-21T07:52:32.315046+00:00 | INFO  | --- SLATE: 2026_07_10
-2026-10-21T07:52:32.330729+00:00 | INFO  | 2026_07_10 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:32.378313+00:00 | INFO  | WROTE: 2026_07_10_MLB.csv (10 bets | ml=9 rl=0 tot=1)
-2026-10-21T07:52:32.378360+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_10_MLB.csv (no new picks)
-2026-10-21T07:52:32.378483+00:00 | INFO  | --- SLATE: 2026_07_11
-2026-10-21T07:52:32.393652+00:00 | INFO  | 2026_07_11 market row-count check OK: {'moneyline': 10, 'run_line': 10, 'total': 10}
-2026-10-21T07:52:32.427403+00:00 | INFO  | WROTE: 2026_07_11_MLB.csv (3 bets | ml=3 rl=0 tot=0)
-2026-10-21T07:52:32.427448+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_11_MLB.csv (no new picks)
-2026-10-21T07:52:32.427554+00:00 | INFO  | --- SLATE: 2026_07_12
-2026-10-21T07:52:32.442720+00:00 | INFO  | 2026_07_12 market row-count check OK: {'moneyline': 14, 'run_line': 14, 'total': 14}
-2026-10-21T07:52:32.487219+00:00 | INFO  | WROTE: 2026_07_12_MLB.csv (6 bets | ml=4 rl=0 tot=2)
-2026-10-21T07:52:32.487266+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_12_MLB.csv (no new picks)
-2026-10-21T07:52:32.487386+00:00 | INFO  | --- SLATE: 2026_07_16
-2026-10-21T07:52:32.501800+00:00 | INFO  | 2026_07_16 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
-2026-10-21T07:52:32.512034+00:00 | INFO  | WROTE: 2026_07_16_MLB.csv (1 bets | ml=1 rl=0 tot=0)
-2026-10-21T07:52:32.512085+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_16_MLB.csv (no new picks)
-2026-10-21T07:52:32.512169+00:00 | INFO  | --- SLATE: 2026_07_17
-2026-10-21T07:52:32.527295+00:00 | INFO  | 2026_07_17 market row-count check OK: {'moneyline': 14, 'run_line': 14, 'total': 14}
-2026-10-21T07:52:32.572482+00:00 | INFO  | WROTE: 2026_07_17_MLB.csv (11 bets | ml=10 rl=0 tot=1)
-2026-10-21T07:52:32.572529+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_17_MLB.csv (no new picks)
-2026-10-21T07:52:32.572658+00:00 | INFO  | --- SLATE: 2026_07_18
-2026-10-21T07:52:32.587802+00:00 | INFO  | 2026_07_18 market row-count check OK: {'moneyline': 9, 'run_line': 9, 'total': 9}
-2026-10-21T07:52:32.619059+00:00 | INFO  | WROTE: 2026_07_18_MLB.csv (4 bets | ml=4 rl=0 tot=0)
-2026-10-21T07:52:32.619105+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_18_MLB.csv (no new picks)
-2026-10-21T07:52:32.619217+00:00 | INFO  | --- SLATE: 2026_07_19
-2026-10-21T07:52:32.634353+00:00 | INFO  | 2026_07_19 market row-count check OK: {'moneyline': 12, 'run_line': 12, 'total': 12}
-2026-10-21T07:52:32.673829+00:00 | INFO  | WROTE: 2026_07_19_MLB.csv (7 bets | ml=7 rl=0 tot=0)
-2026-10-21T07:52:32.673876+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_19_MLB.csv (no new picks)
-2026-10-21T07:52:32.674029+00:00 | INFO  | --- SLATE: 2026_07_20
-2026-10-21T07:52:32.689193+00:00 | INFO  | 2026_07_20 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:32.736335+00:00 | INFO  | WROTE: 2026_07_20_MLB.csv (6 bets | ml=5 rl=0 tot=1)
-2026-10-21T07:52:32.736382+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_20_MLB.csv (no new picks)
-2026-10-21T07:52:32.736509+00:00 | INFO  | --- SLATE: 2026_07_21
-2026-10-21T07:52:32.751631+00:00 | INFO  | 2026_07_21 market row-count check OK: {'moneyline': 9, 'run_line': 9, 'total': 9}
-2026-10-21T07:52:32.783432+00:00 | INFO  | WROTE: 2026_07_21_MLB.csv (5 bets | ml=5 rl=0 tot=0)
-2026-10-21T07:52:32.783482+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_21_MLB.csv (no new picks)
-2026-10-21T07:52:32.783602+00:00 | INFO  | --- SLATE: 2026_07_22
-2026-10-21T07:52:32.798149+00:00 | INFO  | 2026_07_22 market row-count check OK: {'moneyline': 3, 'run_line': 3, 'total': 3}
-2026-10-21T07:52:32.813382+00:00 | INFO  | WROTE: 2026_07_22_MLB.csv (1 bets | ml=1 rl=0 tot=0)
-2026-10-21T07:52:32.813430+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_22_MLB.csv (no new picks)
-2026-10-21T07:52:32.813542+00:00 | INFO  | --- SLATE: 2026_07_23
-2026-10-21T07:52:32.828056+00:00 | INFO  | 2026_07_23 market row-count check OK: {'moneyline': 5, 'run_line': 5, 'total': 5}
-2026-10-21T07:52:32.848715+00:00 | INFO  | WROTE: 2026_07_23_MLB.csv (2 bets | ml=1 rl=0 tot=1)
-2026-10-21T07:52:32.848764+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_23_MLB.csv (no new picks)
-2026-10-21T07:52:32.848889+00:00 | INFO  | --- SLATE: 2026_07_24
-2026-10-21T07:52:32.864727+00:00 | INFO  | 2026_07_24 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:32.911789+00:00 | INFO  | WROTE: 2026_07_24_MLB.csv (7 bets | ml=5 rl=0 tot=2)
-2026-10-21T07:52:32.911835+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_24_MLB.csv (no new picks)
-2026-10-21T07:52:32.911982+00:00 | INFO  | --- SLATE: 2026_07_25
-2026-10-21T07:52:32.927836+00:00 | INFO  | 2026_07_25 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:32.973991+00:00 | INFO  | WROTE: 2026_07_25_MLB.csv (2 bets | ml=1 rl=0 tot=1)
-2026-10-21T07:52:32.974062+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_25_MLB.csv (no new picks)
-2026-10-21T07:52:32.975293+00:00 | INFO  | --- SLATE: 2026_07_26
-2026-10-21T07:52:32.991396+00:00 | INFO  | 2026_07_26 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:33.038924+00:00 | INFO  | WROTE: 2026_07_26_MLB.csv (9 bets | ml=8 rl=0 tot=1)
-2026-10-21T07:52:33.039007+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_26_MLB.csv (no new picks)
-2026-10-21T07:52:33.039156+00:00 | INFO  | --- SLATE: 2026_07_27
-2026-10-21T07:52:33.054884+00:00 | INFO  | 2026_07_27 market row-count check OK: {'moneyline': 12, 'run_line': 12, 'total': 12}
-2026-10-21T07:52:33.095629+00:00 | INFO  | WROTE: 2026_07_27_MLB.csv (7 bets | ml=7 rl=0 tot=0)
-2026-10-21T07:52:33.095688+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_27_MLB.csv (no new picks)
-2026-10-21T07:52:33.095826+00:00 | INFO  | --- SLATE: 2026_07_28
-2026-10-21T07:52:33.111394+00:00 | INFO  | 2026_07_28 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:33.158240+00:00 | INFO  | WROTE: 2026_07_28_MLB.csv (5 bets | ml=5 rl=0 tot=0)
-2026-10-21T07:52:33.158287+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_28_MLB.csv (no new picks)
-2026-10-21T07:52:33.158452+00:00 | INFO  | --- SLATE: 2026_07_29
-2026-10-21T07:52:33.173654+00:00 | INFO  | 2026_07_29 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:33.220391+00:00 | INFO  | WROTE: 2026_07_29_MLB.csv (8 bets | ml=7 rl=0 tot=1)
-2026-10-21T07:52:33.220438+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_29_MLB.csv (no new picks)
-2026-10-21T07:52:33.220565+00:00 | INFO  | --- SLATE: 2026_07_30
-2026-10-21T07:52:33.236075+00:00 | INFO  | 2026_07_30 market row-count check OK: {'moneyline': 10, 'run_line': 10, 'total': 10}
-2026-10-21T07:52:33.270659+00:00 | INFO  | WROTE: 2026_07_30_MLB.csv (7 bets | ml=6 rl=0 tot=1)
-2026-10-21T07:52:33.270707+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_30_MLB.csv (no new picks)
-2026-10-21T07:52:33.270831+00:00 | INFO  | --- SLATE: 2026_07_31
-2026-10-21T07:52:33.286308+00:00 | INFO  | 2026_07_31 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:33.333633+00:00 | INFO  | WROTE: 2026_07_31_MLB.csv (7 bets | ml=3 rl=0 tot=4)
-2026-10-21T07:52:33.333686+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_31_MLB.csv (no new picks)
-2026-10-21T07:52:33.333827+00:00 | INFO  | --- SLATE: 2026_08_01
-2026-10-21T07:52:33.349396+00:00 | INFO  | 2026_08_01 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:33.395890+00:00 | INFO  | WROTE: 2026_08_01_MLB.csv (4 bets | ml=4 rl=0 tot=0)
-2026-10-21T07:52:33.395940+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_08_01_MLB.csv (no new picks)
-2026-10-21T07:52:33.396145+00:00 | INFO  | --- SLATE: 2026_08_02
-2026-10-21T07:52:33.411514+00:00 | INFO  | 2026_08_02 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:33.458348+00:00 | INFO  | WROTE: 2026_08_02_MLB.csv (6 bets | ml=4 rl=0 tot=2)
-2026-10-21T07:52:33.458394+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_08_02_MLB.csv (no new picks)
-2026-10-21T07:52:33.458550+00:00 | INFO  | --- SLATE: 2026_08_03
-2026-10-21T07:52:33.473419+00:00 | INFO  | 2026_08_03 market row-count check OK: {'moneyline': 6, 'run_line': 6, 'total': 6}
-2026-10-21T07:52:33.496783+00:00 | INFO  | WROTE: 2026_08_03_MLB.csv (2 bets | ml=2 rl=0 tot=0)
-2026-10-21T07:52:33.496839+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_08_03_MLB.csv (no new picks)
-2026-10-21T07:52:33.496938+00:00 | INFO  | --- SLATE: 2026_08_04
-2026-10-21T07:52:33.512287+00:00 | INFO  | 2026_08_04 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:33.558664+00:00 | INFO  | WROTE: 2026_08_04_MLB.csv (3 bets | ml=3 rl=0 tot=0)
-2026-10-21T07:52:33.558709+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_08_04_MLB.csv (no new picks)
-2026-10-21T07:52:33.558863+00:00 | INFO  | --- SLATE: 2026_08_05
-2026-10-21T07:52:33.574354+00:00 | INFO  | 2026_08_05 market row-count check OK: {'moneyline': 11, 'run_line': 11, 'total': 11}
-2026-10-21T07:52:33.610806+00:00 | INFO  | WROTE: 2026_08_05_MLB.csv (1 bets | ml=1 rl=0 tot=0)
-2026-10-21T07:52:33.610852+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_08_05_MLB.csv (no new picks)
-2026-10-21T07:52:33.610985+00:00 | INFO  | --- SLATE: 2026_08_06
-2026-10-21T07:52:33.625410+00:00 | INFO  | 2026_08_06 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
-2026-10-21T07:52:33.635760+00:00 | INFO  | WROTE: 2026_08_06_MLB.csv (1 bets | ml=1 rl=0 tot=0)
-2026-10-21T07:52:33.635805+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_08_06_MLB.csv (no new picks)
-2026-10-21T07:52:33.635890+00:00 | INFO  | --- SLATE: 2026_08_07
-2026-10-21T07:52:33.650165+00:00 | INFO  | 2026_08_07 market row-count check OK: {'moneyline': 4, 'run_line': 4, 'total': 4}
-2026-10-21T07:52:33.668458+00:00 | INFO  | WROTE: 2026_08_07_MLB.csv (1 bets | ml=1 rl=0 tot=0)
-2026-10-21T07:52:33.668504+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_08_07_MLB.csv (no new picks)
-2026-10-21T07:52:33.668617+00:00 | INFO  | --- SLATE: 2026_08_08
-2026-10-21T07:52:33.682659+00:00 | INFO  | 2026_08_08 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
-2026-10-21T07:52:33.688241+00:00 | WARN  | 2026_08_08 no bets passed filters
-2026-10-21T07:52:33.688338+00:00 | INFO  | --- SLATE: 2026_08_09
-2026-10-21T07:52:33.702682+00:00 | INFO  | 2026_08_09 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
-2026-10-21T07:52:33.707893+00:00 | WARN  | 2026_08_09 no bets passed filters
-2026-10-21T07:52:33.707991+00:00 | INFO  | --- SLATE: 2026_08_10
-2026-10-21T07:52:33.722689+00:00 | INFO  | 2026_08_10 market row-count check OK: {'moneyline': 6, 'run_line': 6, 'total': 6}
-2026-10-21T07:52:33.746295+00:00 | INFO  | WROTE: 2026_08_10_MLB.csv (1 bets | ml=0 rl=0 tot=1)
-2026-10-21T07:52:33.746340+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_08_10_MLB.csv (no new picks)
-2026-10-21T07:52:33.746449+00:00 | INFO  | --- SLATE: 2026_08_11
-2026-10-21T07:52:33.761715+00:00 | INFO  | 2026_08_11 market row-count check OK: {'moneyline': 11, 'run_line': 11, 'total': 11}
-2026-10-21T07:52:33.791503+00:00 | WARN  | 2026_08_11 no bets passed filters
-2026-10-21T07:52:33.791637+00:00 | INFO  | --- SLATE: 2026_08_12
-2026-10-21T07:52:33.806741+00:00 | INFO  | 2026_08_12 market row-count check OK: {'moneyline': 2, 'run_line': 2, 'total': 2}
-2026-10-21T07:52:33.815029+00:00 | WARN  | 2026_08_12 no bets passed filters
-2026-10-21T07:52:33.815165+00:00 | INFO  | --- SLATE: 2026_08_13
-2026-10-21T07:52:33.830884+00:00 | INFO  | 2026_08_13 market row-count check OK: {'moneyline': 2, 'run_line': 2, 'total': 2}
-2026-10-21T07:52:33.839215+00:00 | WARN  | 2026_08_13 no bets passed filters
-2026-10-21T07:52:33.839350+00:00 | INFO  | --- SLATE: 2026_08_14
-2026-10-21T07:52:33.854974+00:00 | INFO  | 2026_08_14 market row-count check OK: {'moneyline': 4, 'run_line': 4, 'total': 4}
-2026-10-21T07:52:33.873673+00:00 | INFO  | WROTE: 2026_08_14_MLB.csv (1 bets | ml=0 rl=0 tot=1)
-2026-10-21T07:52:33.873718+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_08_14_MLB.csv (no new picks)
-2026-10-21T07:52:33.873821+00:00 | INFO  | --- SLATE: 2026_08_15
-2026-10-21T07:52:33.888755+00:00 | INFO  | 2026_08_15 market row-count check OK: {'moneyline': 2, 'run_line': 2, 'total': 2}
-2026-10-21T07:52:33.896798+00:00 | WARN  | 2026_08_15 no bets passed filters
-2026-10-21T07:52:33.896916+00:00 | INFO  | --- SLATE: 2026_08_16
-2026-10-21T07:52:33.912158+00:00 | INFO  | 2026_08_16 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
-2026-10-21T07:52:33.917588+00:00 | WARN  | 2026_08_16 no bets passed filters
-2026-10-21T07:52:33.917670+00:00 | INFO  | --- SLATE: 2026_08_17
-2026-10-21T07:52:33.932817+00:00 | INFO  | 2026_08_17 market row-count check OK: {'moneyline': 9, 'run_line': 9, 'total': 9}
-2026-10-21T07:52:33.964686+00:00 | INFO  | WROTE: 2026_08_17_MLB.csv (3 bets | ml=3 rl=0 tot=0)
-2026-10-21T07:52:33.964732+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_08_17_MLB.csv (no new picks)
-2026-10-21T07:52:33.964841+00:00 | INFO  | --- SLATE: 2026_08_18
-2026-10-21T07:52:33.980845+00:00 | INFO  | 2026_08_18 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:34.027571+00:00 | INFO  | WROTE: 2026_08_18_MLB.csv (1 bets | ml=1 rl=0 tot=0)
-2026-10-21T07:52:34.027619+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_08_18_MLB.csv (no new picks)
-2026-10-21T07:52:34.027742+00:00 | INFO  | --- SLATE: 2026_08_19
-2026-10-21T07:52:34.043809+00:00 | INFO  | 2026_08_19 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:34.090552+00:00 | INFO  | WROTE: 2026_08_19_MLB.csv (2 bets | ml=2 rl=0 tot=0)
-2026-10-21T07:52:34.090602+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_08_19_MLB.csv (no new picks)
-2026-10-21T07:52:34.090737+00:00 | INFO  | --- SLATE: 2026_08_20
-2026-10-21T07:52:34.106403+00:00 | INFO  | 2026_08_20 market row-count check OK: {'moneyline': 9, 'run_line': 9, 'total': 9}
-2026-10-21T07:52:34.137901+00:00 | INFO  | WROTE: 2026_08_20_MLB.csv (2 bets | ml=2 rl=0 tot=0)
-2026-10-21T07:52:34.137948+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_08_20_MLB.csv (no new picks)
-2026-10-21T07:52:34.138099+00:00 | INFO  | --- SLATE: 2026_08_24
-2026-10-21T07:52:34.153258+00:00 | INFO  | 2026_08_24 market row-count check OK: {'moneyline': 10, 'run_line': 10, 'total': 10}
-2026-10-21T07:52:34.187075+00:00 | INFO  | WROTE: 2026_08_24_MLB.csv (4 bets | ml=3 rl=0 tot=1)
-2026-10-21T07:52:34.187121+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_08_24_MLB.csv (no new picks)
-2026-10-21T07:52:34.187237+00:00 | INFO  | --- SLATE: 2026_08_25
-2026-10-21T07:52:34.202976+00:00 | INFO  | 2026_08_25 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:34.249356+00:00 | INFO  | WROTE: 2026_08_25_MLB.csv (3 bets | ml=2 rl=0 tot=1)
-2026-10-21T07:52:34.249408+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_08_25_MLB.csv (no new picks)
-2026-10-21T07:52:34.249553+00:00 | INFO  | --- SLATE: 2026_08_26
-2026-10-21T07:52:34.265381+00:00 | INFO  | 2026_08_26 market row-count check OK: {'moneyline': 12, 'run_line': 12, 'total': 12}
-2026-10-21T07:52:34.305203+00:00 | INFO  | WROTE: 2026_08_26_MLB.csv (4 bets | ml=4 rl=0 tot=0)
-2026-10-21T07:52:34.305250+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_08_26_MLB.csv (no new picks)
-2026-10-21T07:52:34.305366+00:00 | INFO  | --- SLATE: 2026_08_27
-2026-10-21T07:52:34.320641+00:00 | INFO  | 2026_08_27 market row-count check OK: {'moneyline': 7, 'run_line': 7, 'total': 7}
-2026-10-21T07:52:34.347451+00:00 | INFO  | WROTE: 2026_08_27_MLB.csv (4 bets | ml=4 rl=0 tot=0)
-2026-10-21T07:52:34.347512+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_08_27_MLB.csv (no new picks)
-2026-10-21T07:52:34.347644+00:00 | INFO  | --- SLATE: 2026_08_28
-2026-10-21T07:52:34.363650+00:00 | INFO  | 2026_08_28 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
-2026-10-21T07:52:34.411047+00:00 | INFO  | WROTE: 2026_08_28_MLB.csv (3 bets | ml=3 rl=0 tot=0)
-2026-10-21T07:52:34.411105+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_08_28_MLB.csv (no new picks)
-2026-10-21T07:52:34.411231+00:00 | INFO  | --- SLATE: 2026_08_29
-2026-10-21T07:52:34.425905+00:00 | INFO  | 2026_08_29 market row-count check OK: {'moneyline': 3, 'run_line': 3, 'total': 3}
-2026-10-21T07:52:34.441388+00:00 | INFO  | WROTE: 2026_08_29_MLB.csv (1 bets | ml=0 rl=0 tot=1)
-2026-10-21T07:52:34.441432+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_08_29_MLB.csv (no new picks)
-2026-10-21T07:52:34.441523+00:00 | INFO  | --- SLATE: 2026_08_30
-2026-10-21T07:52:34.456933+00:00 | INFO  | 2026_08_30 market row-count check OK: {'moneyline': 14, 'run_line': 14, 'total': 14}
-2026-10-21T07:52:34.501356+00:00 | INFO  | WROTE: 2026_08_30_MLB.csv (8 bets | ml=7 rl=0 tot=1)
-2026-10-21T07:52:34.501406+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_08_30_MLB.csv (no new picks)
-2026-10-21T07:52:34.501590+00:00 | INFO  | --- SLATE: 2026_08_31
-2026-10-21T07:52:34.516368+00:00 | INFO  | 2026_08_31 market row-count check OK: {'moneyline': 2, 'run_line': 2, 'total': 2}
-2026-10-21T07:52:34.529465+00:00 | INFO  | WROTE: 2026_08_31_MLB.csv (2 bets | ml=2 rl=0 tot=0)
-2026-10-21T07:52:34.529508+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_08_31_MLB.csv (no new picks)
-2026-10-21T07:52:34.529600+00:00 | INFO  | --- SLATE: 2026_09_01
-2026-10-21T07:52:34.544386+00:00 | INFO  | 2026_09_01 market row-count check OK: {'moneyline': 4, 'run_line': 4, 'total': 4}
-2026-10-21T07:52:34.562773+00:00 | INFO  | WROTE: 2026_09_01_MLB.csv (1 bets | ml=1 rl=0 tot=0)
-2026-10-21T07:52:34.562820+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_09_01_MLB.csv (no new picks)
-2026-10-21T07:52:34.562934+00:00 | INFO  | --- SLATE: 2026_09_02
-2026-10-21T07:52:34.577469+00:00 | INFO  | 2026_09_02 market row-count check OK: {'moneyline': 2, 'run_line': 2, 'total': 2}
-2026-10-21T07:52:34.590521+00:00 | INFO  | WROTE: 2026_09_02_MLB.csv (1 bets | ml=0 rl=0 tot=1)
-2026-10-21T07:52:34.590565+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_09_02_MLB.csv (no new picks)
-2026-10-21T07:52:34.590652+00:00 | INFO  | --- SLATE: 2026_09_03
-2026-10-21T07:52:34.604947+00:00 | INFO  | 2026_09_03 market row-count check OK: {'moneyline': 2, 'run_line': 2, 'total': 2}
-2026-10-21T07:52:34.613077+00:00 | WARN  | 2026_09_03 no bets passed filters
-2026-10-21T07:52:34.613193+00:00 | INFO  | --- SLATE: 2026_09_04
-2026-10-21T07:52:34.628018+00:00 | WARN  | 2026_09_04 market row-count mismatch before selection: {'moneyline': 4, 'run_line': 3, 'total': 4}
-2026-10-21T07:52:34.640723+00:00 | WARN  | 2026_09_04 no bets passed filters
-2026-10-21T07:52:34.640845+00:00 | INFO  | --- SLATE: 2026_09_05
-2026-10-21T07:52:34.655429+00:00 | INFO  | 2026_09_05 market row-count check OK: {'moneyline': 2, 'run_line': 2, 'total': 2}
-2026-10-21T07:52:34.663313+00:00 | WARN  | 2026_09_05 no bets passed filters
-2026-10-21T07:52:34.663413+00:00 | INFO  | --- SLATE: 2026_09_06
-2026-10-21T07:52:34.677782+00:00 | INFO  | 2026_09_06 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
-2026-10-21T07:52:34.683204+00:00 | WARN  | 2026_09_06 no bets passed filters
-2026-10-21T07:52:34.683279+00:00 | INFO  | --- SLATE: 2026_09_07
-2026-10-21T07:52:34.697524+00:00 | INFO  | 2026_09_07 market row-count check OK: {'moneyline': 2, 'run_line': 2, 'total': 2}
-2026-10-21T07:52:34.705318+00:00 | WARN  | 2026_09_07 no bets passed filters
-2026-10-21T07:52:34.705409+00:00 | INFO  | --- SLATE: 2026_09_08
-2026-10-21T07:52:34.719895+00:00 | INFO  | 2026_09_08 market row-count check OK: {'moneyline': 5, 'run_line': 5, 'total': 5}
-2026-10-21T07:52:34.741082+00:00 | INFO  | WROTE: 2026_09_08_MLB.csv (3 bets | ml=2 rl=0 tot=1)
-2026-10-21T07:52:34.741127+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_09_08_MLB.csv (no new picks)
-2026-10-21T07:52:34.741228+00:00 | INFO  | --- SLATE: 2026_09_09
-2026-10-21T07:52:34.755259+00:00 | INFO  | 2026_09_09 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
-2026-10-21T07:52:34.760406+00:00 | WARN  | 2026_09_09 no bets passed filters
-2026-10-21T07:52:34.760480+00:00 | INFO  | --- SLATE: 2026_09_10
-2026-10-21T07:52:34.774741+00:00 | INFO  | 2026_09_10 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
-2026-10-21T07:52:34.785243+00:00 | INFO  | WROTE: 2026_09_10_MLB.csv (1 bets | ml=1 rl=0 tot=0)
-2026-10-21T07:52:34.785287+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_09_10_MLB.csv (no new picks)
-2026-10-21T07:52:34.785367+00:00 | INFO  | --- SLATE: 2026_09_11
-2026-10-21T07:52:34.799785+00:00 | INFO  | 2026_09_11 market row-count check OK: {'moneyline': 3, 'run_line': 3, 'total': 3}
-2026-10-21T07:52:34.810280+00:00 | WARN  | 2026_09_11 no bets passed filters
-2026-10-21T07:52:34.810392+00:00 | INFO  | --- SLATE: 2026_09_12
-2026-10-21T07:52:34.824987+00:00 | INFO  | 2026_09_12 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
-2026-10-21T07:52:34.830379+00:00 | WARN  | 2026_09_12 no bets passed filters
-2026-10-21T07:52:34.830462+00:00 | INFO  | --- SLATE: 2026_09_13
-2026-10-21T07:52:34.845098+00:00 | INFO  | 2026_09_13 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
-2026-10-21T07:52:34.850655+00:00 | WARN  | 2026_09_13 no bets passed filters
-2026-10-21T07:52:34.850739+00:00 | INFO  | --- SLATE: 2026_09_14
-2026-10-21T07:52:34.865278+00:00 | INFO  | 2026_09_14 market row-count check OK: {'moneyline': 3, 'run_line': 3, 'total': 3}
-2026-10-21T07:52:34.875681+00:00 | WARN  | 2026_09_14 no bets passed filters
-2026-10-21T07:52:34.875785+00:00 | INFO  | --- SLATE: 2026_09_15
-2026-10-21T07:52:34.890302+00:00 | INFO  | 2026_09_15 market row-count check OK: {'moneyline': 2, 'run_line': 2, 'total': 2}
-2026-10-21T07:52:34.898208+00:00 | WARN  | 2026_09_15 no bets passed filters
-2026-10-21T07:52:34.898315+00:00 | INFO  | --- SLATE: 2026_09_16
-2026-10-21T07:52:34.912987+00:00 | INFO  | 2026_09_16 market row-count check OK: {'moneyline': 3, 'run_line': 3, 'total': 3}
-2026-10-21T07:52:34.923350+00:00 | WARN  | 2026_09_16 no bets passed filters
-2026-10-21T07:52:34.923450+00:00 | INFO  | --- SLATE: 2026_09_17
-2026-10-21T07:52:34.937747+00:00 | INFO  | 2026_09_17 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
-2026-10-21T07:52:34.943233+00:00 | WARN  | 2026_09_17 no bets passed filters
-2026-10-21T07:52:34.943315+00:00 | INFO  | --- SLATE: 2026_09_18
-2026-10-21T07:52:34.957715+00:00 | INFO  | 2026_09_18 market row-count check OK: {'moneyline': 4, 'run_line': 4, 'total': 4}
-2026-10-21T07:52:34.970507+00:00 | WARN  | 2026_09_18 no bets passed filters
-2026-10-21T07:52:34.970602+00:00 | INFO  | --- SLATE: 2026_09_19
-2026-10-21T07:52:34.984979+00:00 | INFO  | 2026_09_19 market row-count check OK: {'moneyline': 3, 'run_line': 3, 'total': 3}
-2026-10-21T07:52:34.995363+00:00 | WARN  | 2026_09_19 no bets passed filters
-2026-10-21T07:52:34.995451+00:00 | INFO  | --- SLATE: 2026_09_20
-2026-10-21T07:52:35.009600+00:00 | INFO  | 2026_09_20 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
-2026-10-21T07:52:35.014860+00:00 | WARN  | 2026_09_20 no bets passed filters
-2026-10-21T07:52:35.014943+00:00 | INFO  | --- SLATE: 2026_09_21
-2026-10-21T07:52:35.029170+00:00 | INFO  | 2026_09_21 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
-2026-10-21T07:52:35.039633+00:00 | INFO  | WROTE: 2026_09_21_MLB.csv (1 bets | ml=1 rl=0 tot=0)
-2026-10-21T07:52:35.039677+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_09_21_MLB.csv (no new picks)
-2026-10-21T07:52:35.039758+00:00 | INFO  | --- SLATE: 2026_09_22
-2026-10-21T07:52:35.054330+00:00 | INFO  | 2026_09_22 market row-count check OK: {'moneyline': 5, 'run_line': 5, 'total': 5}
-2026-10-21T07:52:35.075539+00:00 | INFO  | WROTE: 2026_09_22_MLB.csv (3 bets | ml=3 rl=0 tot=0)
-2026-10-21T07:52:35.075586+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_09_22_MLB.csv (no new picks)
-2026-10-21T07:52:35.075702+00:00 | INFO  | --- SLATE: 2026_09_23
-2026-10-21T07:52:35.090086+00:00 | INFO  | 2026_09_23 market row-count check OK: {'moneyline': 4, 'run_line': 4, 'total': 4}
-2026-10-21T07:52:35.103011+00:00 | WARN  | 2026_09_23 no bets passed filters
-2026-10-21T07:52:35.103142+00:00 | INFO  | --- SLATE: 2026_09_24
-2026-10-21T07:52:35.117546+00:00 | INFO  | 2026_09_24 market row-count check OK: {'moneyline': 3, 'run_line': 3, 'total': 3}
-2026-10-21T07:52:35.127917+00:00 | WARN  | 2026_09_24 no bets passed filters
-2026-10-21T07:52:35.128047+00:00 | INFO  | --- SLATE: 2026_09_25
-2026-10-21T07:52:35.142287+00:00 | INFO  | 2026_09_25 market row-count check OK: {'moneyline': 3, 'run_line': 3, 'total': 3}
-2026-10-21T07:52:35.152487+00:00 | WARN  | 2026_09_25 no bets passed filters
-2026-10-21T07:52:35.152574+00:00 | INFO  | --- SLATE: 2026_09_26
-2026-10-21T07:52:35.167378+00:00 | WARN  | 2026_09_26 market row-count mismatch before selection: {'moneyline': 10, 'run_line': 9, 'total': 10}
-2026-10-21T07:52:35.201345+00:00 | INFO  | WROTE: 2026_09_26_MLB.csv (7 bets | ml=4 rl=1 tot=2)
-2026-10-21T07:52:35.201391+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_09_26_MLB.csv (no new picks)
-2026-10-21T07:52:35.201513+00:00 | INFO  | --- SLATE: 2026_09_27
-2026-10-21T07:52:35.216437+00:00 | INFO  | 2026_09_27 market row-count check OK: {'moneyline': 12, 'run_line': 12, 'total': 12}
-2026-10-21T07:52:35.256154+00:00 | INFO  | WROTE: 2026_09_27_MLB.csv (6 bets | ml=4 rl=0 tot=2)
-2026-10-21T07:52:35.256199+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_09_27_MLB.csv (no new picks)
-2026-10-21T07:52:35.256326+00:00 | INFO  | --- SLATE: 2026_09_29
-2026-10-21T07:52:35.270565+00:00 | INFO  | 2026_09_29 market row-count check OK: {'moneyline': 2, 'run_line': 2, 'total': 2}
-2026-10-21T07:52:35.283700+00:00 | INFO  | WROTE: 2026_09_29_MLB.csv (1 bets | ml=1 rl=0 tot=0)
-2026-10-21T07:52:35.283745+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_09_29_MLB.csv (no new picks)
-2026-10-21T07:52:35.283843+00:00 | INFO  | --- SLATE: 2026_09_30
-2026-10-21T07:52:35.298207+00:00 | INFO  | 2026_09_30 market row-count check OK: {'moneyline': 2, 'run_line': 2, 'total': 2}
-2026-10-21T07:52:35.306186+00:00 | WARN  | 2026_09_30 no bets passed filters
-2026-10-21T07:52:35.306299+00:00 | INFO  | --- SLATE: 2026_10_01
-2026-10-21T07:52:35.321430+00:00 | INFO  | 2026_10_01 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
-2026-10-21T07:52:35.326715+00:00 | WARN  | 2026_10_01 no bets passed filters
-2026-10-21T07:52:35.326798+00:00 | INFO  | --- SLATE: 2026_10_03
-2026-10-21T07:52:35.340972+00:00 | INFO  | 2026_10_03 market row-count check OK: {'moneyline': 2, 'run_line': 2, 'total': 2}
-2026-10-21T07:52:35.354040+00:00 | INFO  | WROTE: 2026_10_03_MLB.csv (1 bets | ml=1 rl=0 tot=0)
-2026-10-21T07:52:35.354088+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_10_03_MLB.csv (no new picks)
-2026-10-21T07:52:35.354185+00:00 | INFO  | --- SLATE: 2026_10_04
-2026-10-21T07:52:35.368362+00:00 | INFO  | 2026_10_04 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
-2026-10-21T07:52:35.373544+00:00 | WARN  | 2026_10_04 no bets passed filters
-2026-10-21T07:52:35.373621+00:00 | INFO  | --- SLATE: 2026_10_05
-2026-10-21T07:52:35.388030+00:00 | INFO  | 2026_10_05 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
-2026-10-21T07:52:35.398817+00:00 | INFO  | WROTE: 2026_10_05_MLB.csv (1 bets | ml=1 rl=0 tot=0)
-2026-10-21T07:52:35.398866+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_10_05_MLB.csv (no new picks)
-2026-10-21T07:52:35.398984+00:00 | INFO  | --- SLATE: 2026_10_06
-2026-10-21T07:52:35.413689+00:00 | INFO  | 2026_10_06 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
-2026-10-21T07:52:35.419291+00:00 | WARN  | 2026_10_06 no bets passed filters
-2026-10-21T07:52:35.419387+00:00 | INFO  | --- SLATE: 2026_10_07
-2026-10-21T07:52:35.434046+00:00 | INFO  | 2026_10_07 market row-count check OK: {'moneyline': 4, 'run_line': 4, 'total': 4}
-2026-10-21T07:52:35.452915+00:00 | INFO  | WROTE: 2026_10_07_MLB.csv (2 bets | ml=2 rl=0 tot=0)
-2026-10-21T07:52:35.453004+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_10_07_MLB.csv (no new picks)
-2026-10-21T07:52:35.453140+00:00 | INFO  | --- SLATE: 2026_10_08
-2026-10-21T07:52:35.467654+00:00 | INFO  | 2026_10_08 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
-2026-10-21T07:52:35.477691+00:00 | INFO  | WROTE: 2026_10_08_MLB.csv (1 bets | ml=1 rl=0 tot=0)
-2026-10-21T07:52:35.477736+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_10_08_MLB.csv (no new picks)
-2026-10-21T07:52:35.477817+00:00 | INFO  | --- SLATE: 2026_10_10
-2026-10-21T07:52:35.492399+00:00 | INFO  | 2026_10_10 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
-2026-10-21T07:52:35.497674+00:00 | WARN  | 2026_10_10 no bets passed filters
-2026-10-21T07:52:35.497757+00:00 | INFO  | --- SLATE: 2026_10_11
-2026-10-21T07:52:35.512177+00:00 | INFO  | 2026_10_11 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
-2026-10-21T07:52:35.517489+00:00 | WARN  | 2026_10_11 no bets passed filters
-2026-10-21T07:52:35.517569+00:00 | INFO  | --- SLATE: 2026_10_12
-2026-10-21T07:52:35.531881+00:00 | INFO  | 2026_10_12 market row-count check OK: {'moneyline': 2, 'run_line': 2, 'total': 2}
-2026-10-21T07:52:35.540012+00:00 | WARN  | 2026_10_12 no bets passed filters
-2026-10-21T07:52:35.540118+00:00 | INFO  | --- SLATE: 2026_10_13
-2026-10-21T07:52:35.554526+00:00 | INFO  | 2026_10_13 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
-2026-10-21T07:52:35.564670+00:00 | INFO  | WROTE: 2026_10_13_MLB.csv (1 bets | ml=1 rl=0 tot=0)
-2026-10-21T07:52:35.564715+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_10_13_MLB.csv (no new picks)
-2026-10-21T07:52:35.564792+00:00 | INFO  | --- SLATE: 2026_10_14
-2026-10-21T07:52:35.579031+00:00 | INFO  | 2026_10_14 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
-2026-10-21T07:52:35.584547+00:00 | WARN  | 2026_10_14 no bets passed filters
-2026-10-21T07:52:35.584629+00:00 | INFO  | --- SLATE: 2026_10_15
-2026-10-21T07:52:35.599050+00:00 | INFO  | 2026_10_15 market row-count check OK: {'moneyline': 2, 'run_line': 2, 'total': 2}
-2026-10-21T07:52:35.612202+00:00 | INFO  | WROTE: 2026_10_15_MLB.csv (1 bets | ml=1 rl=0 tot=0)
-2026-10-21T07:52:35.612248+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_10_15_MLB.csv (no new picks)
-2026-10-21T07:52:35.612349+00:00 | INFO  | --- SLATE: 2026_10_16
-2026-10-21T07:52:35.626517+00:00 | INFO  | 2026_10_16 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
-2026-10-21T07:52:35.631783+00:00 | WARN  | 2026_10_16 no bets passed filters
-2026-10-21T07:52:35.631866+00:00 | INFO  | --- SLATE: 2026_10_18
-2026-10-21T07:52:35.646501+00:00 | INFO  | 2026_10_18 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
-2026-10-21T07:52:35.652048+00:00 | WARN  | 2026_10_18 no bets passed filters
-2026-10-21T07:52:35.652125+00:00 | INFO  | --- SLATE: 2026_10_19
-2026-10-21T07:52:35.666521+00:00 | INFO  | 2026_10_19 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
-2026-10-21T07:52:35.671947+00:00 | WARN  | 2026_10_19 no bets passed filters
-2026-10-21T07:52:35.808723+00:00 | INFO  | WROTE AUDIT: docs/win/baseball/mlb/04_select/morning/audit/selection_rejection_audit.csv rows=10562
-2026-10-21T07:52:35.808773+00:00 | INFO  | WROTE AUDIT: docs/win/baseball/mlb/04_select/morning/audit/selected_bet_audit.csv rows=676
-2026-10-21T07:52:35.808801+00:00 | INFO  | WROTE AUDIT: docs/win/baseball/mlb/04_select/morning/audit/run_line_selection_audit.csv rows=3740
+=== MLB select_bets RUN 2026-10-22T07:48:52.069890+00:00 ===
+2026-10-22T07:48:52.091513+00:00 | INFO  | INPUT_DIR : docs/win/baseball/mlb/03_edges/ev_kelly
+2026-10-22T07:48:52.091557+00:00 | INFO  | OUTPUT_DIR: docs/win/baseball/mlb/04_select/morning
+2026-10-22T07:48:52.091589+00:00 | INFO  | Rain filter: will_it_rain=False symbol_code=False symbol_terms=['rain', 'heavyrain', 'lightrain', 'sleet', 'snow', 'thunder'] | SP sample exclude totals: False | Lineup low sample warn: 4 | Context data filters: {'enabled': False, 'home_batters_found_min': 0, 'away_batters_found_min': 0, 'home_sp_found_required': 0, 'away_sp_found_required': 0}
+2026-10-22T07:48:52.091608+00:00 | INFO  | Selection requires EV > 0 and Kelly > 0 for run-line candidates; EV/Kelly/selection must share the canonical probability basis.
+2026-10-22T07:48:52.091626+00:00 | INFO  | Selection matches market rows by game_id only. Team/date fallback matching is disabled.
+2026-10-22T07:48:52.093742+00:00 | INFO  | Files found: 585
+2026-10-22T07:48:52.093942+00:00 | INFO  | Selected run mode: rebuild_all
+2026-10-22T07:48:52.093975+00:00 | INFO  | Slate keys to process: ['2026_03_29', '2026_03_30', '2026_03_31', '2026_04_01', '2026_04_02', '2026_04_03', '2026_04_04', '2026_04_05', '2026_04_06', '2026_04_07', '2026_04_08', '2026_04_09', '2026_04_10', '2026_04_11', '2026_04_12', '2026_04_13', '2026_04_14', '2026_04_15', '2026_04_16', '2026_04_17', '2026_04_18', '2026_04_19', '2026_04_20', '2026_04_21', '2026_04_22', '2026_04_23', '2026_04_24', '2026_04_25', '2026_04_26', '2026_04_27', '2026_04_28', '2026_04_29', '2026_04_30', '2026_05_01', '2026_05_02', '2026_05_03', '2026_05_04', '2026_05_05', '2026_05_06', '2026_05_07', '2026_05_08', '2026_05_09', '2026_05_10', '2026_05_11', '2026_05_12', '2026_05_13', '2026_05_14', '2026_05_15', '2026_05_16', '2026_05_17', '2026_05_18', '2026_05_19', '2026_05_20', '2026_05_21', '2026_05_22', '2026_05_23', '2026_05_24', '2026_05_25', '2026_05_26', '2026_05_27', '2026_05_28', '2026_05_29', '2026_05_30', '2026_05_31', '2026_06_01', '2026_06_02', '2026_06_03', '2026_06_04', '2026_06_05', '2026_06_06', '2026_06_07', '2026_06_08', '2026_06_09', '2026_06_10', '2026_06_11', '2026_06_12', '2026_06_13', '2026_06_14', '2026_06_15', '2026_06_16', '2026_06_17', '2026_06_18', '2026_06_19', '2026_06_20', '2026_06_21', '2026_06_22', '2026_06_23', '2026_06_24', '2026_06_25', '2026_06_26', '2026_06_27', '2026_06_28', '2026_06_29', '2026_06_30', '2026_07_01', '2026_07_02', '2026_07_03', '2026_07_04', '2026_07_05', '2026_07_06', '2026_07_07', '2026_07_08', '2026_07_09', '2026_07_10', '2026_07_11', '2026_07_12', '2026_07_16', '2026_07_17', '2026_07_18', '2026_07_19', '2026_07_20', '2026_07_21', '2026_07_22', '2026_07_23', '2026_07_24', '2026_07_25', '2026_07_26', '2026_07_27', '2026_07_28', '2026_07_29', '2026_07_30', '2026_07_31', '2026_08_01', '2026_08_02', '2026_08_03', '2026_08_04', '2026_08_05', '2026_08_06', '2026_08_07', '2026_08_08', '2026_08_09', '2026_08_10', '2026_08_11', '2026_08_12', '2026_08_13', '2026_08_14', '2026_08_15', '2026_08_16', '2026_08_17', '2026_08_18', '2026_08_19', '2026_08_20', '2026_08_24', '2026_08_25', '2026_08_26', '2026_08_27', '2026_08_28', '2026_08_29', '2026_08_30', '2026_08_31', '2026_09_01', '2026_09_02', '2026_09_03', '2026_09_04', '2026_09_05', '2026_09_06', '2026_09_07', '2026_09_08', '2026_09_09', '2026_09_10', '2026_09_11', '2026_09_12', '2026_09_13', '2026_09_14', '2026_09_15', '2026_09_16', '2026_09_17', '2026_09_18', '2026_09_19', '2026_09_20', '2026_09_21', '2026_09_22', '2026_09_23', '2026_09_24', '2026_09_25', '2026_09_26', '2026_09_27', '2026_09_29', '2026_09_30', '2026_10_01', '2026_10_03', '2026_10_04', '2026_10_05', '2026_10_06', '2026_10_07', '2026_10_08', '2026_10_10', '2026_10_11', '2026_10_12', '2026_10_13', '2026_10_14', '2026_10_15', '2026_10_16', '2026_10_18', '2026_10_19']
+2026-10-22T07:48:52.094003+00:00 | INFO  | --- SLATE: 2026_03_29
+2026-10-22T07:48:52.106172+00:00 | INFO  | 2026_03_29 market row-count check OK: {'moneyline': 12, 'run_line': 12, 'total': 12}
+2026-10-22T07:48:52.132108+00:00 | INFO  | WROTE: 2026_03_29_MLB.csv (7 bets | ml=5 rl=0 tot=2)
+2026-10-22T07:48:52.132150+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_03_29_MLB.csv (no new picks)
+2026-10-22T07:48:52.132212+00:00 | INFO  | --- SLATE: 2026_03_30
+2026-10-22T07:48:52.142917+00:00 | INFO  | 2026_03_30 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:52.172863+00:00 | INFO  | WROTE: 2026_03_30_MLB.csv (10 bets | ml=8 rl=0 tot=2)
+2026-10-22T07:48:52.172901+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_03_30_MLB.csv (no new picks)
+2026-10-22T07:48:52.173017+00:00 | INFO  | --- SLATE: 2026_03_31
+2026-10-22T07:48:52.183048+00:00 | INFO  | 2026_03_31 market row-count check OK: {'moneyline': 14, 'run_line': 14, 'total': 14}
+2026-10-22T07:48:52.210302+00:00 | INFO  | WROTE: 2026_03_31_MLB.csv (9 bets | ml=7 rl=1 tot=1)
+2026-10-22T07:48:52.210338+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_03_31_MLB.csv (no new picks)
+2026-10-22T07:48:52.210404+00:00 | INFO  | --- SLATE: 2026_04_01
+2026-10-22T07:48:52.220437+00:00 | INFO  | 2026_04_01 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:52.248537+00:00 | INFO  | WROTE: 2026_04_01_MLB.csv (4 bets | ml=4 rl=0 tot=0)
+2026-10-22T07:48:52.248571+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_01_MLB.csv (no new picks)
+2026-10-22T07:48:52.248633+00:00 | INFO  | --- SLATE: 2026_04_02
+2026-10-22T07:48:52.257916+00:00 | INFO  | 2026_04_02 market row-count check OK: {'moneyline': 3, 'run_line': 3, 'total': 3}
+2026-10-22T07:48:52.267950+00:00 | INFO  | WROTE: 2026_04_02_MLB.csv (3 bets | ml=2 rl=0 tot=1)
+2026-10-22T07:48:52.267983+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_02_MLB.csv (no new picks)
+2026-10-22T07:48:52.268038+00:00 | INFO  | --- SLATE: 2026_04_03
+2026-10-22T07:48:52.278018+00:00 | INFO  | 2026_04_03 market row-count check OK: {'moneyline': 14, 'run_line': 14, 'total': 14}
+2026-10-22T07:48:52.304523+00:00 | INFO  | WROTE: 2026_04_03_MLB.csv (4 bets | ml=2 rl=0 tot=2)
+2026-10-22T07:48:52.304558+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_03_MLB.csv (no new picks)
+2026-10-22T07:48:52.304620+00:00 | INFO  | --- SLATE: 2026_04_04
+2026-10-22T07:48:52.314769+00:00 | INFO  | 2026_04_04 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:52.343008+00:00 | INFO  | WROTE: 2026_04_04_MLB.csv (4 bets | ml=4 rl=0 tot=0)
+2026-10-22T07:48:52.343043+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_04_MLB.csv (no new picks)
+2026-10-22T07:48:52.343108+00:00 | INFO  | --- SLATE: 2026_04_05
+2026-10-22T07:48:52.353212+00:00 | INFO  | 2026_04_05 market row-count check OK: {'moneyline': 16, 'run_line': 16, 'total': 16}
+2026-10-22T07:48:52.382926+00:00 | INFO  | WROTE: 2026_04_05_MLB.csv (5 bets | ml=4 rl=0 tot=1)
+2026-10-22T07:48:52.382961+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_05_MLB.csv (no new picks)
+2026-10-22T07:48:52.383031+00:00 | INFO  | --- SLATE: 2026_04_06
+2026-10-22T07:48:52.393068+00:00 | INFO  | 2026_04_06 market row-count check OK: {'moneyline': 13, 'run_line': 13, 'total': 13}
+2026-10-22T07:48:52.418549+00:00 | INFO  | WROTE: 2026_04_06_MLB.csv (5 bets | ml=5 rl=0 tot=0)
+2026-10-22T07:48:52.418589+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_06_MLB.csv (no new picks)
+2026-10-22T07:48:52.418659+00:00 | INFO  | --- SLATE: 2026_04_07
+2026-10-22T07:48:52.428947+00:00 | INFO  | 2026_04_07 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:52.457475+00:00 | INFO  | WROTE: 2026_04_07_MLB.csv (6 bets | ml=4 rl=0 tot=2)
+2026-10-22T07:48:52.457512+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_07_MLB.csv (no new picks)
+2026-10-22T07:48:52.457587+00:00 | INFO  | --- SLATE: 2026_04_08
+2026-10-22T07:48:52.468029+00:00 | INFO  | 2026_04_08 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:52.497464+00:00 | INFO  | WROTE: 2026_04_08_MLB.csv (7 bets | ml=6 rl=0 tot=1)
+2026-10-22T07:48:52.497505+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_08_MLB.csv (no new picks)
+2026-10-22T07:48:52.497588+00:00 | INFO  | --- SLATE: 2026_04_09
+2026-10-22T07:48:52.507640+00:00 | INFO  | 2026_04_09 market row-count check OK: {'moneyline': 6, 'run_line': 6, 'total': 6}
+2026-10-22T07:48:52.522520+00:00 | INFO  | WROTE: 2026_04_09_MLB.csv (2 bets | ml=1 rl=0 tot=1)
+2026-10-22T07:48:52.522555+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_09_MLB.csv (no new picks)
+2026-10-22T07:48:52.522629+00:00 | INFO  | --- SLATE: 2026_04_10
+2026-10-22T07:48:52.532812+00:00 | INFO  | 2026_04_10 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:52.561375+00:00 | INFO  | WROTE: 2026_04_10_MLB.csv (4 bets | ml=1 rl=0 tot=3)
+2026-10-22T07:48:52.561412+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_10_MLB.csv (no new picks)
+2026-10-22T07:48:52.561487+00:00 | INFO  | --- SLATE: 2026_04_11
+2026-10-22T07:48:52.571670+00:00 | INFO  | 2026_04_11 market row-count check OK: {'moneyline': 11, 'run_line': 11, 'total': 11}
+2026-10-22T07:48:52.594311+00:00 | INFO  | WROTE: 2026_04_11_MLB.csv (6 bets | ml=4 rl=0 tot=2)
+2026-10-22T07:48:52.594347+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_11_MLB.csv (no new picks)
+2026-10-22T07:48:52.594414+00:00 | INFO  | --- SLATE: 2026_04_12
+2026-10-22T07:48:52.604445+00:00 | INFO  | 2026_04_12 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:52.632405+00:00 | INFO  | WROTE: 2026_04_12_MLB.csv (2 bets | ml=2 rl=0 tot=0)
+2026-10-22T07:48:52.632437+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_12_MLB.csv (no new picks)
+2026-10-22T07:48:52.632501+00:00 | INFO  | --- SLATE: 2026_04_13
+2026-10-22T07:48:52.642336+00:00 | INFO  | 2026_04_13 market row-count check OK: {'moneyline': 10, 'run_line': 10, 'total': 10}
+2026-10-22T07:48:52.662838+00:00 | INFO  | WROTE: 2026_04_13_MLB.csv (2 bets | ml=2 rl=0 tot=0)
+2026-10-22T07:48:52.662870+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_13_MLB.csv (no new picks)
+2026-10-22T07:48:52.662931+00:00 | INFO  | --- SLATE: 2026_04_14
+2026-10-22T07:48:52.672945+00:00 | WARN  | 2026_04_14 market row-count mismatch before selection: {'moneyline': 15, 'run_line': 14, 'total': 14}
+2026-10-22T07:48:52.700602+00:00 | INFO  | WROTE: 2026_04_14_MLB.csv (4 bets | ml=3 rl=0 tot=1)
+2026-10-22T07:48:52.700635+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_14_MLB.csv (no new picks)
+2026-10-22T07:48:52.700697+00:00 | INFO  | --- SLATE: 2026_04_15
+2026-10-22T07:48:52.710698+00:00 | INFO  | 2026_04_15 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:52.738769+00:00 | INFO  | WROTE: 2026_04_15_MLB.csv (4 bets | ml=4 rl=0 tot=0)
+2026-10-22T07:48:52.738815+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_15_MLB.csv (no new picks)
+2026-10-22T07:48:52.738910+00:00 | INFO  | --- SLATE: 2026_04_16
+2026-10-22T07:48:52.748692+00:00 | INFO  | 2026_04_16 market row-count check OK: {'moneyline': 10, 'run_line': 10, 'total': 10}
+2026-10-22T07:48:52.769432+00:00 | INFO  | WROTE: 2026_04_16_MLB.csv (2 bets | ml=2 rl=0 tot=0)
+2026-10-22T07:48:52.769465+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_16_MLB.csv (no new picks)
+2026-10-22T07:48:52.769525+00:00 | INFO  | --- SLATE: 2026_04_17
+2026-10-22T07:48:52.779852+00:00 | INFO  | 2026_04_17 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:52.803612+00:00 | WARN  | 2026_04_17 no bets passed filters
+2026-10-22T07:48:52.803769+00:00 | INFO  | --- SLATE: 2026_04_18
+2026-10-22T07:48:52.814544+00:00 | INFO  | 2026_04_18 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:52.843299+00:00 | INFO  | WROTE: 2026_04_18_MLB.csv (11 bets | ml=9 rl=0 tot=2)
+2026-10-22T07:48:52.843336+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_18_MLB.csv (no new picks)
+2026-10-22T07:48:52.843406+00:00 | INFO  | --- SLATE: 2026_04_19
+2026-10-22T07:48:52.853549+00:00 | INFO  | 2026_04_19 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:52.882071+00:00 | INFO  | WROTE: 2026_04_19_MLB.csv (4 bets | ml=4 rl=0 tot=0)
+2026-10-22T07:48:52.882108+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_19_MLB.csv (no new picks)
+2026-10-22T07:48:52.882187+00:00 | INFO  | --- SLATE: 2026_04_20
+2026-10-22T07:48:52.892205+00:00 | INFO  | 2026_04_20 market row-count check OK: {'moneyline': 10, 'run_line': 10, 'total': 10}
+2026-10-22T07:48:52.913281+00:00 | INFO  | WROTE: 2026_04_20_MLB.csv (5 bets | ml=4 rl=0 tot=1)
+2026-10-22T07:48:52.913317+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_20_MLB.csv (no new picks)
+2026-10-22T07:48:52.913386+00:00 | INFO  | --- SLATE: 2026_04_21
+2026-10-22T07:48:52.923613+00:00 | INFO  | 2026_04_21 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:52.952162+00:00 | INFO  | WROTE: 2026_04_21_MLB.csv (10 bets | ml=8 rl=0 tot=2)
+2026-10-22T07:48:52.952197+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_21_MLB.csv (no new picks)
+2026-10-22T07:48:52.952265+00:00 | INFO  | --- SLATE: 2026_04_22
+2026-10-22T07:48:52.962461+00:00 | INFO  | 2026_04_22 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:52.991211+00:00 | INFO  | WROTE: 2026_04_22_MLB.csv (10 bets | ml=9 rl=0 tot=1)
+2026-10-22T07:48:52.991251+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_22_MLB.csv (no new picks)
+2026-10-22T07:48:52.991343+00:00 | INFO  | --- SLATE: 2026_04_23
+2026-10-22T07:48:53.001573+00:00 | INFO  | 2026_04_23 market row-count check OK: {'moneyline': 9, 'run_line': 9, 'total': 9}
+2026-10-22T07:48:53.020921+00:00 | INFO  | WROTE: 2026_04_23_MLB.csv (2 bets | ml=1 rl=0 tot=1)
+2026-10-22T07:48:53.020957+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_23_MLB.csv (no new picks)
+2026-10-22T07:48:53.021020+00:00 | INFO  | --- SLATE: 2026_04_24
+2026-10-22T07:48:53.031083+00:00 | INFO  | 2026_04_24 market row-count check OK: {'moneyline': 14, 'run_line': 14, 'total': 14}
+2026-10-22T07:48:53.057714+00:00 | INFO  | WROTE: 2026_04_24_MLB.csv (7 bets | ml=4 rl=0 tot=3)
+2026-10-22T07:48:53.057747+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_24_MLB.csv (no new picks)
+2026-10-22T07:48:53.057829+00:00 | INFO  | --- SLATE: 2026_04_25
+2026-10-22T07:48:53.068110+00:00 | INFO  | 2026_04_25 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:53.096861+00:00 | INFO  | WROTE: 2026_04_25_MLB.csv (2 bets | ml=1 rl=0 tot=1)
+2026-10-22T07:48:53.096900+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_25_MLB.csv (no new picks)
+2026-10-22T07:48:53.096986+00:00 | INFO  | --- SLATE: 2026_04_26
+2026-10-22T07:48:53.107520+00:00 | INFO  | 2026_04_26 market row-count check OK: {'moneyline': 16, 'run_line': 16, 'total': 16}
+2026-10-22T07:48:53.137563+00:00 | INFO  | WROTE: 2026_04_26_MLB.csv (11 bets | ml=9 rl=0 tot=2)
+2026-10-22T07:48:53.137598+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_26_MLB.csv (no new picks)
+2026-10-22T07:48:53.137669+00:00 | INFO  | --- SLATE: 2026_04_27
+2026-10-22T07:48:53.147568+00:00 | INFO  | 2026_04_27 market row-count check OK: {'moneyline': 8, 'run_line': 8, 'total': 8}
+2026-10-22T07:48:53.165468+00:00 | INFO  | WROTE: 2026_04_27_MLB.csv (4 bets | ml=3 rl=0 tot=1)
+2026-10-22T07:48:53.165500+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_27_MLB.csv (no new picks)
+2026-10-22T07:48:53.165567+00:00 | INFO  | --- SLATE: 2026_04_28
+2026-10-22T07:48:53.175718+00:00 | INFO  | 2026_04_28 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:53.203926+00:00 | INFO  | WROTE: 2026_04_28_MLB.csv (10 bets | ml=10 rl=0 tot=0)
+2026-10-22T07:48:53.203958+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_28_MLB.csv (no new picks)
+2026-10-22T07:48:53.204023+00:00 | INFO  | --- SLATE: 2026_04_29
+2026-10-22T07:48:53.214314+00:00 | INFO  | 2026_04_29 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:53.242606+00:00 | INFO  | WROTE: 2026_04_29_MLB.csv (8 bets | ml=7 rl=0 tot=1)
+2026-10-22T07:48:53.242638+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_29_MLB.csv (no new picks)
+2026-10-22T07:48:53.242706+00:00 | INFO  | --- SLATE: 2026_04_30
+2026-10-22T07:48:53.252588+00:00 | INFO  | 2026_04_30 market row-count check OK: {'moneyline': 9, 'run_line': 9, 'total': 9}
+2026-10-22T07:48:53.271690+00:00 | INFO  | WROTE: 2026_04_30_MLB.csv (4 bets | ml=4 rl=0 tot=0)
+2026-10-22T07:48:53.271722+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_04_30_MLB.csv (no new picks)
+2026-10-22T07:48:53.271799+00:00 | INFO  | --- SLATE: 2026_05_01
+2026-10-22T07:48:53.281925+00:00 | INFO  | 2026_05_01 market row-count check OK: {'moneyline': 14, 'run_line': 14, 'total': 14}
+2026-10-22T07:48:53.308396+00:00 | INFO  | WROTE: 2026_05_01_MLB.csv (4 bets | ml=3 rl=0 tot=1)
+2026-10-22T07:48:53.308428+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_01_MLB.csv (no new picks)
+2026-10-22T07:48:53.308490+00:00 | INFO  | --- SLATE: 2026_05_02
+2026-10-22T07:48:53.318511+00:00 | INFO  | 2026_05_02 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:53.347371+00:00 | INFO  | WROTE: 2026_05_02_MLB.csv (2 bets | ml=2 rl=0 tot=0)
+2026-10-22T07:48:53.347415+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_02_MLB.csv (no new picks)
+2026-10-22T07:48:53.347506+00:00 | INFO  | --- SLATE: 2026_05_03
+2026-10-22T07:48:53.358338+00:00 | INFO  | 2026_05_03 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:53.387171+00:00 | INFO  | WROTE: 2026_05_03_MLB.csv (4 bets | ml=3 rl=0 tot=1)
+2026-10-22T07:48:53.387208+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_03_MLB.csv (no new picks)
+2026-10-22T07:48:53.387292+00:00 | INFO  | --- SLATE: 2026_05_04
+2026-10-22T07:48:53.397618+00:00 | INFO  | 2026_05_04 market row-count check OK: {'moneyline': 12, 'run_line': 12, 'total': 12}
+2026-10-22T07:48:53.421767+00:00 | INFO  | WROTE: 2026_05_04_MLB.csv (3 bets | ml=3 rl=0 tot=0)
+2026-10-22T07:48:53.421819+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_04_MLB.csv (no new picks)
+2026-10-22T07:48:53.421893+00:00 | INFO  | --- SLATE: 2026_05_05
+2026-10-22T07:48:53.432215+00:00 | WARN  | 2026_05_05 market row-count mismatch before selection: {'moneyline': 15, 'run_line': 14, 'total': 14}
+2026-10-22T07:48:53.460574+00:00 | INFO  | WROTE: 2026_05_05_MLB.csv (2 bets | ml=1 rl=0 tot=1)
+2026-10-22T07:48:53.460610+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_05_MLB.csv (no new picks)
+2026-10-22T07:48:53.460716+00:00 | INFO  | --- SLATE: 2026_05_06
+2026-10-22T07:48:53.471112+00:00 | INFO  | 2026_05_06 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:53.517714+00:00 | INFO  | WROTE: 2026_05_06_MLB.csv (5 bets | ml=3 rl=0 tot=2)
+2026-10-22T07:48:53.517754+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_06_MLB.csv (no new picks)
+2026-10-22T07:48:53.517862+00:00 | INFO  | --- SLATE: 2026_05_07
+2026-10-22T07:48:53.527923+00:00 | INFO  | 2026_05_07 market row-count check OK: {'moneyline': 10, 'run_line': 10, 'total': 10}
+2026-10-22T07:48:53.548614+00:00 | INFO  | WROTE: 2026_05_07_MLB.csv (1 bets | ml=1 rl=0 tot=0)
+2026-10-22T07:48:53.548653+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_07_MLB.csv (no new picks)
+2026-10-22T07:48:53.548716+00:00 | INFO  | --- SLATE: 2026_05_08
+2026-10-22T07:48:53.558820+00:00 | INFO  | 2026_05_08 market row-count check OK: {'moneyline': 14, 'run_line': 14, 'total': 14}
+2026-10-22T07:48:53.585456+00:00 | INFO  | WROTE: 2026_05_08_MLB.csv (2 bets | ml=0 rl=0 tot=2)
+2026-10-22T07:48:53.585489+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_08_MLB.csv (no new picks)
+2026-10-22T07:48:53.585588+00:00 | INFO  | --- SLATE: 2026_05_09
+2026-10-22T07:48:53.595762+00:00 | INFO  | 2026_05_09 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:53.624111+00:00 | INFO  | WROTE: 2026_05_09_MLB.csv (2 bets | ml=1 rl=0 tot=1)
+2026-10-22T07:48:53.624145+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_09_MLB.csv (no new picks)
+2026-10-22T07:48:53.624241+00:00 | INFO  | --- SLATE: 2026_05_10
+2026-10-22T07:48:53.634425+00:00 | INFO  | 2026_05_10 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:53.662814+00:00 | INFO  | WROTE: 2026_05_10_MLB.csv (5 bets | ml=5 rl=0 tot=0)
+2026-10-22T07:48:53.662846+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_10_MLB.csv (no new picks)
+2026-10-22T07:48:53.662913+00:00 | INFO  | --- SLATE: 2026_05_11
+2026-10-22T07:48:53.672718+00:00 | INFO  | 2026_05_11 market row-count check OK: {'moneyline': 6, 'run_line': 6, 'total': 6}
+2026-10-22T07:48:53.687187+00:00 | INFO  | WROTE: 2026_05_11_MLB.csv (2 bets | ml=2 rl=0 tot=0)
+2026-10-22T07:48:53.687219+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_11_MLB.csv (no new picks)
+2026-10-22T07:48:53.687276+00:00 | INFO  | --- SLATE: 2026_05_12
+2026-10-22T07:48:53.697401+00:00 | INFO  | 2026_05_12 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:53.721200+00:00 | WARN  | 2026_05_12 no bets passed filters
+2026-10-22T07:48:53.721306+00:00 | INFO  | --- SLATE: 2026_05_13
+2026-10-22T07:48:53.731507+00:00 | INFO  | 2026_05_13 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:53.760613+00:00 | INFO  | WROTE: 2026_05_13_MLB.csv (6 bets | ml=4 rl=0 tot=2)
+2026-10-22T07:48:53.760653+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_13_MLB.csv (no new picks)
+2026-10-22T07:48:53.760740+00:00 | INFO  | --- SLATE: 2026_05_14
+2026-10-22T07:48:53.771210+00:00 | INFO  | 2026_05_14 market row-count check OK: {'moneyline': 11, 'run_line': 11, 'total': 11}
+2026-10-22T07:48:53.794506+00:00 | INFO  | WROTE: 2026_05_14_MLB.csv (4 bets | ml=3 rl=0 tot=1)
+2026-10-22T07:48:53.794543+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_14_MLB.csv (no new picks)
+2026-10-22T07:48:53.794628+00:00 | INFO  | --- SLATE: 2026_05_15
+2026-10-22T07:48:53.805194+00:00 | WARN  | 2026_05_15 market row-count mismatch before selection: {'moneyline': 14, 'run_line': 13, 'total': 14}
+2026-10-22T07:48:53.832981+00:00 | INFO  | WROTE: 2026_05_15_MLB.csv (7 bets | ml=4 rl=0 tot=3)
+2026-10-22T07:48:53.833018+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_15_MLB.csv (no new picks)
+2026-10-22T07:48:53.833135+00:00 | INFO  | --- SLATE: 2026_05_16
+2026-10-22T07:48:53.843715+00:00 | INFO  | 2026_05_16 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:53.872626+00:00 | INFO  | WROTE: 2026_05_16_MLB.csv (4 bets | ml=2 rl=0 tot=2)
+2026-10-22T07:48:53.872661+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_16_MLB.csv (no new picks)
+2026-10-22T07:48:53.872744+00:00 | INFO  | --- SLATE: 2026_05_17
+2026-10-22T07:48:53.882930+00:00 | INFO  | 2026_05_17 market row-count check OK: {'moneyline': 14, 'run_line': 14, 'total': 14}
+2026-10-22T07:48:53.910175+00:00 | INFO  | WROTE: 2026_05_17_MLB.csv (5 bets | ml=3 rl=0 tot=2)
+2026-10-22T07:48:53.910208+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_17_MLB.csv (no new picks)
+2026-10-22T07:48:53.910291+00:00 | INFO  | --- SLATE: 2026_05_18
+2026-10-22T07:48:53.920650+00:00 | INFO  | 2026_05_18 market row-count check OK: {'moneyline': 14, 'run_line': 14, 'total': 14}
+2026-10-22T07:48:53.942923+00:00 | WARN  | 2026_05_18 no bets passed filters
+2026-10-22T07:48:53.943006+00:00 | INFO  | --- SLATE: 2026_05_19
+2026-10-22T07:48:53.953352+00:00 | INFO  | 2026_05_19 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:53.981564+00:00 | INFO  | WROTE: 2026_05_19_MLB.csv (2 bets | ml=1 rl=0 tot=1)
+2026-10-22T07:48:53.981597+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_19_MLB.csv (no new picks)
+2026-10-22T07:48:53.981662+00:00 | INFO  | --- SLATE: 2026_05_20
+2026-10-22T07:48:53.991824+00:00 | INFO  | 2026_05_20 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:54.020069+00:00 | INFO  | WROTE: 2026_05_20_MLB.csv (6 bets | ml=5 rl=0 tot=1)
+2026-10-22T07:48:54.020103+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_20_MLB.csv (no new picks)
+2026-10-22T07:48:54.020171+00:00 | INFO  | --- SLATE: 2026_05_21
+2026-10-22T07:48:54.030071+00:00 | INFO  | 2026_05_21 market row-count check OK: {'moneyline': 7, 'run_line': 7, 'total': 7}
+2026-10-22T07:48:54.045997+00:00 | INFO  | WROTE: 2026_05_21_MLB.csv (2 bets | ml=1 rl=0 tot=1)
+2026-10-22T07:48:54.046029+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_21_MLB.csv (no new picks)
+2026-10-22T07:48:54.046090+00:00 | INFO  | --- SLATE: 2026_05_22
+2026-10-22T07:48:54.056217+00:00 | INFO  | 2026_05_22 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:54.084517+00:00 | INFO  | WROTE: 2026_05_22_MLB.csv (4 bets | ml=3 rl=0 tot=1)
+2026-10-22T07:48:54.084549+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_22_MLB.csv (no new picks)
+2026-10-22T07:48:54.084615+00:00 | INFO  | --- SLATE: 2026_05_23
+2026-10-22T07:48:54.094890+00:00 | INFO  | 2026_05_23 market row-count check OK: {'moneyline': 16, 'run_line': 16, 'total': 16}
+2026-10-22T07:48:54.125160+00:00 | INFO  | WROTE: 2026_05_23_MLB.csv (8 bets | ml=6 rl=0 tot=2)
+2026-10-22T07:48:54.125196+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_23_MLB.csv (no new picks)
+2026-10-22T07:48:54.125292+00:00 | INFO  | --- SLATE: 2026_05_24
+2026-10-22T07:48:54.136256+00:00 | INFO  | 2026_05_24 market row-count check OK: {'moneyline': 16, 'run_line': 16, 'total': 16}
+2026-10-22T07:48:54.167405+00:00 | INFO  | WROTE: 2026_05_24_MLB.csv (6 bets | ml=4 rl=0 tot=2)
+2026-10-22T07:48:54.167445+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_24_MLB.csv (no new picks)
+2026-10-22T07:48:54.167536+00:00 | INFO  | --- SLATE: 2026_05_25
+2026-10-22T07:48:54.178191+00:00 | INFO  | 2026_05_25 market row-count check OK: {'moneyline': 13, 'run_line': 13, 'total': 13}
+2026-10-22T07:48:54.203794+00:00 | INFO  | WROTE: 2026_05_25_MLB.csv (1 bets | ml=1 rl=0 tot=0)
+2026-10-22T07:48:54.203833+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_25_MLB.csv (no new picks)
+2026-10-22T07:48:54.203912+00:00 | INFO  | --- SLATE: 2026_05_26
+2026-10-22T07:48:54.214422+00:00 | INFO  | 2026_05_26 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:54.243085+00:00 | INFO  | WROTE: 2026_05_26_MLB.csv (5 bets | ml=4 rl=0 tot=1)
+2026-10-22T07:48:54.243122+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_26_MLB.csv (no new picks)
+2026-10-22T07:48:54.243191+00:00 | INFO  | --- SLATE: 2026_05_27
+2026-10-22T07:48:54.253416+00:00 | INFO  | 2026_05_27 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:54.281860+00:00 | INFO  | WROTE: 2026_05_27_MLB.csv (5 bets | ml=4 rl=0 tot=1)
+2026-10-22T07:48:54.281895+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_27_MLB.csv (no new picks)
+2026-10-22T07:48:54.281969+00:00 | INFO  | --- SLATE: 2026_05_28
+2026-10-22T07:48:54.291872+00:00 | INFO  | 2026_05_28 market row-count check OK: {'moneyline': 6, 'run_line': 6, 'total': 6}
+2026-10-22T07:48:54.302991+00:00 | WARN  | 2026_05_28 no bets passed filters
+2026-10-22T07:48:54.303074+00:00 | INFO  | --- SLATE: 2026_05_29
+2026-10-22T07:48:54.314037+00:00 | INFO  | 2026_05_29 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:54.343164+00:00 | INFO  | WROTE: 2026_05_29_MLB.csv (4 bets | ml=3 rl=0 tot=1)
+2026-10-22T07:48:54.343200+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_29_MLB.csv (no new picks)
+2026-10-22T07:48:54.343273+00:00 | INFO  | --- SLATE: 2026_05_30
+2026-10-22T07:48:54.353620+00:00 | INFO  | 2026_05_30 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:54.378220+00:00 | WARN  | 2026_05_30 no bets passed filters
+2026-10-22T07:48:54.378301+00:00 | INFO  | --- SLATE: 2026_05_31
+2026-10-22T07:48:54.388445+00:00 | WARN  | 2026_05_31 market row-count mismatch before selection: {'moneyline': 14, 'run_line': 14, 'total': 15}
+2026-10-22T07:48:54.417287+00:00 | INFO  | WROTE: 2026_05_31_MLB.csv (4 bets | ml=2 rl=0 tot=2)
+2026-10-22T07:48:54.417321+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_05_31_MLB.csv (no new picks)
+2026-10-22T07:48:54.417392+00:00 | INFO  | --- SLATE: 2026_06_01
+2026-10-22T07:48:54.427567+00:00 | INFO  | 2026_06_01 market row-count check OK: {'moneyline': 9, 'run_line': 9, 'total': 9}
+2026-10-22T07:48:54.443417+00:00 | WARN  | 2026_06_01 no bets passed filters
+2026-10-22T07:48:54.443521+00:00 | INFO  | --- SLATE: 2026_06_02
+2026-10-22T07:48:54.454637+00:00 | INFO  | 2026_06_02 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:54.484386+00:00 | INFO  | WROTE: 2026_06_02_MLB.csv (1 bets | ml=1 rl=0 tot=0)
+2026-10-22T07:48:54.484427+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_02_MLB.csv (no new picks)
+2026-10-22T07:48:54.484525+00:00 | INFO  | --- SLATE: 2026_06_03
+2026-10-22T07:48:54.495435+00:00 | INFO  | 2026_06_03 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:54.525256+00:00 | INFO  | WROTE: 2026_06_03_MLB.csv (2 bets | ml=2 rl=0 tot=0)
+2026-10-22T07:48:54.525297+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_03_MLB.csv (no new picks)
+2026-10-22T07:48:54.525384+00:00 | INFO  | --- SLATE: 2026_06_04
+2026-10-22T07:48:54.535567+00:00 | INFO  | 2026_06_04 market row-count check OK: {'moneyline': 9, 'run_line': 9, 'total': 9}
+2026-10-22T07:48:54.555510+00:00 | INFO  | WROTE: 2026_06_04_MLB.csv (3 bets | ml=3 rl=0 tot=0)
+2026-10-22T07:48:54.555546+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_04_MLB.csv (no new picks)
+2026-10-22T07:48:54.555621+00:00 | INFO  | --- SLATE: 2026_06_05
+2026-10-22T07:48:54.565815+00:00 | INFO  | 2026_06_05 market row-count check OK: {'moneyline': 14, 'run_line': 14, 'total': 14}
+2026-10-22T07:48:54.593198+00:00 | INFO  | WROTE: 2026_06_05_MLB.csv (7 bets | ml=7 rl=0 tot=0)
+2026-10-22T07:48:54.593233+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_05_MLB.csv (no new picks)
+2026-10-22T07:48:54.593306+00:00 | INFO  | --- SLATE: 2026_06_06
+2026-10-22T07:48:54.603422+00:00 | INFO  | 2026_06_06 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:54.632546+00:00 | INFO  | WROTE: 2026_06_06_MLB.csv (6 bets | ml=6 rl=0 tot=0)
+2026-10-22T07:48:54.632581+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_06_MLB.csv (no new picks)
+2026-10-22T07:48:54.632654+00:00 | INFO  | --- SLATE: 2026_06_07
+2026-10-22T07:48:54.642947+00:00 | INFO  | 2026_06_07 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:54.672053+00:00 | INFO  | WROTE: 2026_06_07_MLB.csv (8 bets | ml=8 rl=0 tot=0)
+2026-10-22T07:48:54.672087+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_07_MLB.csv (no new picks)
+2026-10-22T07:48:54.672158+00:00 | INFO  | --- SLATE: 2026_06_08
+2026-10-22T07:48:54.681998+00:00 | INFO  | 2026_06_08 market row-count check OK: {'moneyline': 8, 'run_line': 8, 'total': 8}
+2026-10-22T07:48:54.699705+00:00 | INFO  | WROTE: 2026_06_08_MLB.csv (4 bets | ml=4 rl=0 tot=0)
+2026-10-22T07:48:54.699737+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_08_MLB.csv (no new picks)
+2026-10-22T07:48:54.699821+00:00 | INFO  | --- SLATE: 2026_06_09
+2026-10-22T07:48:54.709675+00:00 | INFO  | 2026_06_09 market row-count check OK: {'moneyline': 9, 'run_line': 9, 'total': 9}
+2026-10-22T07:48:54.729211+00:00 | INFO  | WROTE: 2026_06_09_MLB.csv (5 bets | ml=3 rl=0 tot=2)
+2026-10-22T07:48:54.729243+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_09_MLB.csv (no new picks)
+2026-10-22T07:48:54.729306+00:00 | INFO  | --- SLATE: 2026_06_10
+2026-10-22T07:48:54.739170+00:00 | INFO  | 2026_06_10 market row-count check OK: {'moneyline': 9, 'run_line': 9, 'total': 9}
+2026-10-22T07:48:54.754482+00:00 | WARN  | 2026_06_10 no bets passed filters
+2026-10-22T07:48:54.754585+00:00 | INFO  | --- SLATE: 2026_06_11
+2026-10-22T07:48:54.764578+00:00 | INFO  | 2026_06_11 market row-count check OK: {'moneyline': 6, 'run_line': 6, 'total': 6}
+2026-10-22T07:48:54.779569+00:00 | INFO  | WROTE: 2026_06_11_MLB.csv (6 bets | ml=4 rl=0 tot=2)
+2026-10-22T07:48:54.779601+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_11_MLB.csv (no new picks)
+2026-10-22T07:48:54.779663+00:00 | INFO  | --- SLATE: 2026_06_12
+2026-10-22T07:48:54.789385+00:00 | INFO  | 2026_06_12 market row-count check OK: {'moneyline': 8, 'run_line': 8, 'total': 8}
+2026-10-22T07:48:54.807176+00:00 | INFO  | WROTE: 2026_06_12_MLB.csv (4 bets | ml=4 rl=0 tot=0)
+2026-10-22T07:48:54.807207+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_12_MLB.csv (no new picks)
+2026-10-22T07:48:54.807274+00:00 | INFO  | --- SLATE: 2026_06_13
+2026-10-22T07:48:54.817077+00:00 | INFO  | 2026_06_13 market row-count check OK: {'moneyline': 8, 'run_line': 8, 'total': 8}
+2026-10-22T07:48:54.834578+00:00 | INFO  | WROTE: 2026_06_13_MLB.csv (3 bets | ml=3 rl=0 tot=0)
+2026-10-22T07:48:54.834609+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_13_MLB.csv (no new picks)
+2026-10-22T07:48:54.834672+00:00 | INFO  | --- SLATE: 2026_06_14
+2026-10-22T07:48:54.844440+00:00 | INFO  | 2026_06_14 market row-count check OK: {'moneyline': 8, 'run_line': 8, 'total': 8}
+2026-10-22T07:48:54.863144+00:00 | INFO  | WROTE: 2026_06_14_MLB.csv (4 bets | ml=4 rl=0 tot=0)
+2026-10-22T07:48:54.863183+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_14_MLB.csv (no new picks)
+2026-10-22T07:48:54.863268+00:00 | INFO  | --- SLATE: 2026_06_15
+2026-10-22T07:48:54.873673+00:00 | INFO  | 2026_06_15 market row-count check OK: {'moneyline': 9, 'run_line': 9, 'total': 9}
+2026-10-22T07:48:54.894319+00:00 | INFO  | WROTE: 2026_06_15_MLB.csv (3 bets | ml=3 rl=0 tot=0)
+2026-10-22T07:48:54.894358+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_15_MLB.csv (no new picks)
+2026-10-22T07:48:54.894451+00:00 | INFO  | --- SLATE: 2026_06_16
+2026-10-22T07:48:54.905139+00:00 | INFO  | 2026_06_16 market row-count check OK: {'moneyline': 14, 'run_line': 14, 'total': 14}
+2026-10-22T07:48:54.933304+00:00 | INFO  | WROTE: 2026_06_16_MLB.csv (5 bets | ml=4 rl=0 tot=1)
+2026-10-22T07:48:54.933344+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_16_MLB.csv (no new picks)
+2026-10-22T07:48:54.933435+00:00 | INFO  | --- SLATE: 2026_06_17
+2026-10-22T07:48:54.943891+00:00 | INFO  | 2026_06_17 market row-count check OK: {'moneyline': 13, 'run_line': 13, 'total': 13}
+2026-10-22T07:48:54.970608+00:00 | INFO  | WROTE: 2026_06_17_MLB.csv (5 bets | ml=5 rl=0 tot=0)
+2026-10-22T07:48:54.970648+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_17_MLB.csv (no new picks)
+2026-10-22T07:48:54.970744+00:00 | INFO  | --- SLATE: 2026_06_18
+2026-10-22T07:48:54.981251+00:00 | INFO  | 2026_06_18 market row-count check OK: {'moneyline': 9, 'run_line': 9, 'total': 9}
+2026-10-22T07:48:54.996991+00:00 | WARN  | 2026_06_18 no bets passed filters
+2026-10-22T07:48:54.997079+00:00 | INFO  | --- SLATE: 2026_06_19
+2026-10-22T07:48:55.007969+00:00 | INFO  | 2026_06_19 market row-count check OK: {'moneyline': 13, 'run_line': 13, 'total': 13}
+2026-10-22T07:48:55.034054+00:00 | INFO  | WROTE: 2026_06_19_MLB.csv (4 bets | ml=3 rl=0 tot=1)
+2026-10-22T07:48:55.034089+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_19_MLB.csv (no new picks)
+2026-10-22T07:48:55.034164+00:00 | INFO  | --- SLATE: 2026_06_20
+2026-10-22T07:48:55.044469+00:00 | INFO  | 2026_06_20 market row-count check OK: {'moneyline': 14, 'run_line': 14, 'total': 14}
+2026-10-22T07:48:55.071642+00:00 | INFO  | WROTE: 2026_06_20_MLB.csv (4 bets | ml=3 rl=0 tot=1)
+2026-10-22T07:48:55.071675+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_20_MLB.csv (no new picks)
+2026-10-22T07:48:55.071776+00:00 | INFO  | --- SLATE: 2026_06_21
+2026-10-22T07:48:55.082104+00:00 | INFO  | 2026_06_21 market row-count check OK: {'moneyline': 14, 'run_line': 14, 'total': 14}
+2026-10-22T07:48:55.109512+00:00 | INFO  | WROTE: 2026_06_21_MLB.csv (5 bets | ml=4 rl=0 tot=1)
+2026-10-22T07:48:55.109547+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_21_MLB.csv (no new picks)
+2026-10-22T07:48:55.109618+00:00 | INFO  | --- SLATE: 2026_06_22
+2026-10-22T07:48:55.119818+00:00 | INFO  | 2026_06_22 market row-count check OK: {'moneyline': 13, 'run_line': 13, 'total': 13}
+2026-10-22T07:48:55.145624+00:00 | INFO  | WROTE: 2026_06_22_MLB.csv (8 bets | ml=6 rl=0 tot=2)
+2026-10-22T07:48:55.145659+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_22_MLB.csv (no new picks)
+2026-10-22T07:48:55.145732+00:00 | INFO  | --- SLATE: 2026_06_23
+2026-10-22T07:48:55.155874+00:00 | INFO  | 2026_06_23 market row-count check OK: {'moneyline': 14, 'run_line': 14, 'total': 14}
+2026-10-22T07:48:55.182924+00:00 | INFO  | WROTE: 2026_06_23_MLB.csv (4 bets | ml=3 rl=0 tot=1)
+2026-10-22T07:48:55.182956+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_23_MLB.csv (no new picks)
+2026-10-22T07:48:55.183025+00:00 | INFO  | --- SLATE: 2026_06_24
+2026-10-22T07:48:55.193061+00:00 | INFO  | 2026_06_24 market row-count check OK: {'moneyline': 14, 'run_line': 14, 'total': 14}
+2026-10-22T07:48:55.220584+00:00 | INFO  | WROTE: 2026_06_24_MLB.csv (10 bets | ml=8 rl=0 tot=2)
+2026-10-22T07:48:55.220616+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_24_MLB.csv (no new picks)
+2026-10-22T07:48:55.220715+00:00 | INFO  | --- SLATE: 2026_06_25
+2026-10-22T07:48:55.230585+00:00 | INFO  | 2026_06_25 market row-count check OK: {'moneyline': 9, 'run_line': 9, 'total': 9}
+2026-10-22T07:48:55.249940+00:00 | INFO  | WROTE: 2026_06_25_MLB.csv (2 bets | ml=2 rl=0 tot=0)
+2026-10-22T07:48:55.249971+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_25_MLB.csv (no new picks)
+2026-10-22T07:48:55.250038+00:00 | INFO  | --- SLATE: 2026_06_26
+2026-10-22T07:48:55.260010+00:00 | INFO  | 2026_06_26 market row-count check OK: {'moneyline': 14, 'run_line': 14, 'total': 14}
+2026-10-22T07:48:55.286892+00:00 | INFO  | WROTE: 2026_06_26_MLB.csv (4 bets | ml=3 rl=0 tot=1)
+2026-10-22T07:48:55.286925+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_26_MLB.csv (no new picks)
+2026-10-22T07:48:55.286990+00:00 | INFO  | --- SLATE: 2026_06_27
+2026-10-22T07:48:55.297039+00:00 | INFO  | 2026_06_27 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:55.325765+00:00 | INFO  | WROTE: 2026_06_27_MLB.csv (8 bets | ml=8 rl=0 tot=0)
+2026-10-22T07:48:55.325811+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_27_MLB.csv (no new picks)
+2026-10-22T07:48:55.325880+00:00 | INFO  | --- SLATE: 2026_06_28
+2026-10-22T07:48:55.335863+00:00 | INFO  | 2026_06_28 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:55.366161+00:00 | INFO  | WROTE: 2026_06_28_MLB.csv (11 bets | ml=10 rl=0 tot=1)
+2026-10-22T07:48:55.366197+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_28_MLB.csv (no new picks)
+2026-10-22T07:48:55.366276+00:00 | INFO  | --- SLATE: 2026_06_29
+2026-10-22T07:48:55.376461+00:00 | INFO  | 2026_06_29 market row-count check OK: {'moneyline': 13, 'run_line': 13, 'total': 13}
+2026-10-22T07:48:55.402258+00:00 | INFO  | WROTE: 2026_06_29_MLB.csv (6 bets | ml=6 rl=0 tot=0)
+2026-10-22T07:48:55.402291+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_29_MLB.csv (no new picks)
+2026-10-22T07:48:55.402361+00:00 | INFO  | --- SLATE: 2026_06_30
+2026-10-22T07:48:55.412703+00:00 | INFO  | 2026_06_30 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:55.441628+00:00 | INFO  | WROTE: 2026_06_30_MLB.csv (9 bets | ml=7 rl=0 tot=2)
+2026-10-22T07:48:55.441662+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_06_30_MLB.csv (no new picks)
+2026-10-22T07:48:55.441729+00:00 | INFO  | --- SLATE: 2026_07_01
+2026-10-22T07:48:55.451864+00:00 | INFO  | 2026_07_01 market row-count check OK: {'moneyline': 14, 'run_line': 14, 'total': 14}
+2026-10-22T07:48:55.478825+00:00 | INFO  | WROTE: 2026_07_01_MLB.csv (3 bets | ml=3 rl=0 tot=0)
+2026-10-22T07:48:55.478861+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_01_MLB.csv (no new picks)
+2026-10-22T07:48:55.478928+00:00 | INFO  | --- SLATE: 2026_07_02
+2026-10-22T07:48:55.488805+00:00 | INFO  | 2026_07_02 market row-count check OK: {'moneyline': 9, 'run_line': 9, 'total': 9}
+2026-10-22T07:48:55.508150+00:00 | INFO  | WROTE: 2026_07_02_MLB.csv (4 bets | ml=2 rl=0 tot=2)
+2026-10-22T07:48:55.508181+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_02_MLB.csv (no new picks)
+2026-10-22T07:48:55.508274+00:00 | INFO  | --- SLATE: 2026_07_03
+2026-10-22T07:48:55.518276+00:00 | INFO  | 2026_07_03 market row-count check OK: {'moneyline': 13, 'run_line': 13, 'total': 13}
+2026-10-22T07:48:55.543851+00:00 | INFO  | WROTE: 2026_07_03_MLB.csv (7 bets | ml=6 rl=0 tot=1)
+2026-10-22T07:48:55.543884+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_03_MLB.csv (no new picks)
+2026-10-22T07:48:55.543948+00:00 | INFO  | --- SLATE: 2026_07_04
+2026-10-22T07:48:55.554011+00:00 | INFO  | 2026_07_04 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:55.583050+00:00 | INFO  | WROTE: 2026_07_04_MLB.csv (9 bets | ml=7 rl=0 tot=2)
+2026-10-22T07:48:55.583082+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_04_MLB.csv (no new picks)
+2026-10-22T07:48:55.583182+00:00 | INFO  | --- SLATE: 2026_07_05
+2026-10-22T07:48:55.593280+00:00 | INFO  | 2026_07_05 market row-count check OK: {'moneyline': 14, 'run_line': 14, 'total': 14}
+2026-10-22T07:48:55.620459+00:00 | INFO  | WROTE: 2026_07_05_MLB.csv (7 bets | ml=6 rl=0 tot=1)
+2026-10-22T07:48:55.620497+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_05_MLB.csv (no new picks)
+2026-10-22T07:48:55.620562+00:00 | INFO  | --- SLATE: 2026_07_06
+2026-10-22T07:48:55.630404+00:00 | INFO  | 2026_07_06 market row-count check OK: {'moneyline': 8, 'run_line': 8, 'total': 8}
+2026-10-22T07:48:55.648181+00:00 | INFO  | WROTE: 2026_07_06_MLB.csv (2 bets | ml=1 rl=0 tot=1)
+2026-10-22T07:48:55.648213+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_06_MLB.csv (no new picks)
+2026-10-22T07:48:55.648274+00:00 | INFO  | --- SLATE: 2026_07_07
+2026-10-22T07:48:55.658983+00:00 | INFO  | 2026_07_07 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:55.687866+00:00 | INFO  | WROTE: 2026_07_07_MLB.csv (3 bets | ml=1 rl=0 tot=2)
+2026-10-22T07:48:55.687914+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_07_MLB.csv (no new picks)
+2026-10-22T07:48:55.687987+00:00 | INFO  | --- SLATE: 2026_07_08
+2026-10-22T07:48:55.700579+00:00 | INFO  | 2026_07_08 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:55.737090+00:00 | INFO  | WROTE: 2026_07_08_MLB.csv (8 bets | ml=5 rl=1 tot=2)
+2026-10-22T07:48:55.737124+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_08_MLB.csv (no new picks)
+2026-10-22T07:48:55.737199+00:00 | INFO  | --- SLATE: 2026_07_09
+2026-10-22T07:48:55.747940+00:00 | INFO  | 2026_07_09 market row-count check OK: {'moneyline': 13, 'run_line': 13, 'total': 13}
+2026-10-22T07:48:55.774126+00:00 | INFO  | WROTE: 2026_07_09_MLB.csv (13 bets | ml=10 rl=1 tot=2)
+2026-10-22T07:48:55.774160+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_09_MLB.csv (no new picks)
+2026-10-22T07:48:55.774234+00:00 | INFO  | --- SLATE: 2026_07_10
+2026-10-22T07:48:55.784494+00:00 | INFO  | 2026_07_10 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:55.813977+00:00 | INFO  | WROTE: 2026_07_10_MLB.csv (10 bets | ml=9 rl=0 tot=1)
+2026-10-22T07:48:55.814011+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_10_MLB.csv (no new picks)
+2026-10-22T07:48:55.814113+00:00 | INFO  | --- SLATE: 2026_07_11
+2026-10-22T07:48:55.824163+00:00 | INFO  | 2026_07_11 market row-count check OK: {'moneyline': 10, 'run_line': 10, 'total': 10}
+2026-10-22T07:48:55.845247+00:00 | INFO  | WROTE: 2026_07_11_MLB.csv (3 bets | ml=3 rl=0 tot=0)
+2026-10-22T07:48:55.845278+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_11_MLB.csv (no new picks)
+2026-10-22T07:48:55.845350+00:00 | INFO  | --- SLATE: 2026_07_12
+2026-10-22T07:48:55.855356+00:00 | INFO  | 2026_07_12 market row-count check OK: {'moneyline': 14, 'run_line': 14, 'total': 14}
+2026-10-22T07:48:55.882629+00:00 | INFO  | WROTE: 2026_07_12_MLB.csv (6 bets | ml=4 rl=0 tot=2)
+2026-10-22T07:48:55.882663+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_12_MLB.csv (no new picks)
+2026-10-22T07:48:55.882762+00:00 | INFO  | --- SLATE: 2026_07_16
+2026-10-22T07:48:55.892189+00:00 | INFO  | 2026_07_16 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
+2026-10-22T07:48:55.898632+00:00 | INFO  | WROTE: 2026_07_16_MLB.csv (1 bets | ml=1 rl=0 tot=0)
+2026-10-22T07:48:55.898663+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_16_MLB.csv (no new picks)
+2026-10-22T07:48:55.898709+00:00 | INFO  | --- SLATE: 2026_07_17
+2026-10-22T07:48:55.908778+00:00 | INFO  | 2026_07_17 market row-count check OK: {'moneyline': 14, 'run_line': 14, 'total': 14}
+2026-10-22T07:48:55.936323+00:00 | INFO  | WROTE: 2026_07_17_MLB.csv (11 bets | ml=10 rl=0 tot=1)
+2026-10-22T07:48:55.936358+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_17_MLB.csv (no new picks)
+2026-10-22T07:48:55.936431+00:00 | INFO  | --- SLATE: 2026_07_18
+2026-10-22T07:48:55.946362+00:00 | INFO  | 2026_07_18 market row-count check OK: {'moneyline': 9, 'run_line': 9, 'total': 9}
+2026-10-22T07:48:55.965716+00:00 | INFO  | WROTE: 2026_07_18_MLB.csv (4 bets | ml=4 rl=0 tot=0)
+2026-10-22T07:48:55.965747+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_18_MLB.csv (no new picks)
+2026-10-22T07:48:55.965829+00:00 | INFO  | --- SLATE: 2026_07_19
+2026-10-22T07:48:55.975727+00:00 | INFO  | 2026_07_19 market row-count check OK: {'moneyline': 12, 'run_line': 12, 'total': 12}
+2026-10-22T07:48:55.999844+00:00 | INFO  | WROTE: 2026_07_19_MLB.csv (7 bets | ml=7 rl=0 tot=0)
+2026-10-22T07:48:55.999877+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_19_MLB.csv (no new picks)
+2026-10-22T07:48:55.999967+00:00 | INFO  | --- SLATE: 2026_07_20
+2026-10-22T07:48:56.009968+00:00 | INFO  | 2026_07_20 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:56.038664+00:00 | INFO  | WROTE: 2026_07_20_MLB.csv (6 bets | ml=5 rl=0 tot=1)
+2026-10-22T07:48:56.038699+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_20_MLB.csv (no new picks)
+2026-10-22T07:48:56.038767+00:00 | INFO  | --- SLATE: 2026_07_21
+2026-10-22T07:48:56.048585+00:00 | INFO  | 2026_07_21 market row-count check OK: {'moneyline': 9, 'run_line': 9, 'total': 9}
+2026-10-22T07:48:56.068049+00:00 | INFO  | WROTE: 2026_07_21_MLB.csv (5 bets | ml=5 rl=0 tot=0)
+2026-10-22T07:48:56.068082+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_21_MLB.csv (no new picks)
+2026-10-22T07:48:56.068145+00:00 | INFO  | --- SLATE: 2026_07_22
+2026-10-22T07:48:56.077705+00:00 | INFO  | 2026_07_22 market row-count check OK: {'moneyline': 3, 'run_line': 3, 'total': 3}
+2026-10-22T07:48:56.087505+00:00 | INFO  | WROTE: 2026_07_22_MLB.csv (1 bets | ml=1 rl=0 tot=0)
+2026-10-22T07:48:56.087536+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_22_MLB.csv (no new picks)
+2026-10-22T07:48:56.087594+00:00 | INFO  | --- SLATE: 2026_07_23
+2026-10-22T07:48:56.097000+00:00 | INFO  | 2026_07_23 market row-count check OK: {'moneyline': 5, 'run_line': 5, 'total': 5}
+2026-10-22T07:48:56.110047+00:00 | INFO  | WROTE: 2026_07_23_MLB.csv (2 bets | ml=1 rl=0 tot=1)
+2026-10-22T07:48:56.110080+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_23_MLB.csv (no new picks)
+2026-10-22T07:48:56.110142+00:00 | INFO  | --- SLATE: 2026_07_24
+2026-10-22T07:48:56.120129+00:00 | INFO  | 2026_07_24 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:56.148891+00:00 | INFO  | WROTE: 2026_07_24_MLB.csv (7 bets | ml=5 rl=0 tot=2)
+2026-10-22T07:48:56.148923+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_24_MLB.csv (no new picks)
+2026-10-22T07:48:56.148993+00:00 | INFO  | --- SLATE: 2026_07_25
+2026-10-22T07:48:56.159009+00:00 | INFO  | 2026_07_25 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:56.187508+00:00 | INFO  | WROTE: 2026_07_25_MLB.csv (2 bets | ml=1 rl=0 tot=1)
+2026-10-22T07:48:56.187544+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_25_MLB.csv (no new picks)
+2026-10-22T07:48:56.187618+00:00 | INFO  | --- SLATE: 2026_07_26
+2026-10-22T07:48:56.197657+00:00 | INFO  | 2026_07_26 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:56.226707+00:00 | INFO  | WROTE: 2026_07_26_MLB.csv (9 bets | ml=8 rl=0 tot=1)
+2026-10-22T07:48:56.226740+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_26_MLB.csv (no new picks)
+2026-10-22T07:48:56.226826+00:00 | INFO  | --- SLATE: 2026_07_27
+2026-10-22T07:48:56.236843+00:00 | INFO  | 2026_07_27 market row-count check OK: {'moneyline': 12, 'run_line': 12, 'total': 12}
+2026-10-22T07:48:56.261145+00:00 | INFO  | WROTE: 2026_07_27_MLB.csv (7 bets | ml=7 rl=0 tot=0)
+2026-10-22T07:48:56.261188+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_27_MLB.csv (no new picks)
+2026-10-22T07:48:56.261255+00:00 | INFO  | --- SLATE: 2026_07_28
+2026-10-22T07:48:56.271442+00:00 | INFO  | 2026_07_28 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:56.300007+00:00 | INFO  | WROTE: 2026_07_28_MLB.csv (5 bets | ml=5 rl=0 tot=0)
+2026-10-22T07:48:56.300040+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_28_MLB.csv (no new picks)
+2026-10-22T07:48:56.300107+00:00 | INFO  | --- SLATE: 2026_07_29
+2026-10-22T07:48:56.310380+00:00 | INFO  | 2026_07_29 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:56.340119+00:00 | INFO  | WROTE: 2026_07_29_MLB.csv (8 bets | ml=7 rl=0 tot=1)
+2026-10-22T07:48:56.340157+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_29_MLB.csv (no new picks)
+2026-10-22T07:48:56.340243+00:00 | INFO  | --- SLATE: 2026_07_30
+2026-10-22T07:48:56.350390+00:00 | INFO  | 2026_07_30 market row-count check OK: {'moneyline': 10, 'run_line': 10, 'total': 10}
+2026-10-22T07:48:56.371806+00:00 | INFO  | WROTE: 2026_07_30_MLB.csv (7 bets | ml=6 rl=0 tot=1)
+2026-10-22T07:48:56.371843+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_30_MLB.csv (no new picks)
+2026-10-22T07:48:56.371918+00:00 | INFO  | --- SLATE: 2026_07_31
+2026-10-22T07:48:56.382141+00:00 | INFO  | 2026_07_31 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:56.411107+00:00 | INFO  | WROTE: 2026_07_31_MLB.csv (7 bets | ml=3 rl=0 tot=4)
+2026-10-22T07:48:56.411140+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_07_31_MLB.csv (no new picks)
+2026-10-22T07:48:56.411217+00:00 | INFO  | --- SLATE: 2026_08_01
+2026-10-22T07:48:56.421457+00:00 | INFO  | 2026_08_01 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:56.450938+00:00 | INFO  | WROTE: 2026_08_01_MLB.csv (4 bets | ml=4 rl=0 tot=0)
+2026-10-22T07:48:56.450979+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_08_01_MLB.csv (no new picks)
+2026-10-22T07:48:56.451065+00:00 | INFO  | --- SLATE: 2026_08_02
+2026-10-22T07:48:56.461629+00:00 | INFO  | 2026_08_02 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:56.490750+00:00 | INFO  | WROTE: 2026_08_02_MLB.csv (6 bets | ml=4 rl=0 tot=2)
+2026-10-22T07:48:56.490799+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_08_02_MLB.csv (no new picks)
+2026-10-22T07:48:56.490872+00:00 | INFO  | --- SLATE: 2026_08_03
+2026-10-22T07:48:56.500693+00:00 | INFO  | 2026_08_03 market row-count check OK: {'moneyline': 6, 'run_line': 6, 'total': 6}
+2026-10-22T07:48:56.516083+00:00 | INFO  | WROTE: 2026_08_03_MLB.csv (2 bets | ml=2 rl=0 tot=0)
+2026-10-22T07:48:56.516118+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_08_03_MLB.csv (no new picks)
+2026-10-22T07:48:56.516197+00:00 | INFO  | --- SLATE: 2026_08_04
+2026-10-22T07:48:56.526481+00:00 | INFO  | 2026_08_04 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:56.555507+00:00 | INFO  | WROTE: 2026_08_04_MLB.csv (3 bets | ml=3 rl=0 tot=0)
+2026-10-22T07:48:56.555543+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_08_04_MLB.csv (no new picks)
+2026-10-22T07:48:56.555661+00:00 | INFO  | --- SLATE: 2026_08_05
+2026-10-22T07:48:56.566007+00:00 | INFO  | 2026_08_05 market row-count check OK: {'moneyline': 11, 'run_line': 11, 'total': 11}
+2026-10-22T07:48:56.589258+00:00 | INFO  | WROTE: 2026_08_05_MLB.csv (1 bets | ml=1 rl=0 tot=0)
+2026-10-22T07:48:56.589295+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_08_05_MLB.csv (no new picks)
+2026-10-22T07:48:56.589414+00:00 | INFO  | --- SLATE: 2026_08_06
+2026-10-22T07:48:56.599212+00:00 | INFO  | 2026_08_06 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
+2026-10-22T07:48:56.606034+00:00 | INFO  | WROTE: 2026_08_06_MLB.csv (1 bets | ml=1 rl=0 tot=0)
+2026-10-22T07:48:56.606066+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_08_06_MLB.csv (no new picks)
+2026-10-22T07:48:56.606118+00:00 | INFO  | --- SLATE: 2026_08_07
+2026-10-22T07:48:56.615587+00:00 | INFO  | 2026_08_07 market row-count check OK: {'moneyline': 4, 'run_line': 4, 'total': 4}
+2026-10-22T07:48:56.627291+00:00 | INFO  | WROTE: 2026_08_07_MLB.csv (1 bets | ml=1 rl=0 tot=0)
+2026-10-22T07:48:56.627326+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_08_07_MLB.csv (no new picks)
+2026-10-22T07:48:56.627393+00:00 | INFO  | --- SLATE: 2026_08_08
+2026-10-22T07:48:56.636857+00:00 | INFO  | 2026_08_08 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
+2026-10-22T07:48:56.640503+00:00 | WARN  | 2026_08_08 no bets passed filters
+2026-10-22T07:48:56.640559+00:00 | INFO  | --- SLATE: 2026_08_09
+2026-10-22T07:48:56.649971+00:00 | INFO  | 2026_08_09 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
+2026-10-22T07:48:56.653388+00:00 | WARN  | 2026_08_09 no bets passed filters
+2026-10-22T07:48:56.653442+00:00 | INFO  | --- SLATE: 2026_08_10
+2026-10-22T07:48:56.663361+00:00 | INFO  | 2026_08_10 market row-count check OK: {'moneyline': 6, 'run_line': 6, 'total': 6}
+2026-10-22T07:48:56.678678+00:00 | INFO  | WROTE: 2026_08_10_MLB.csv (1 bets | ml=0 rl=0 tot=1)
+2026-10-22T07:48:56.678722+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_08_10_MLB.csv (no new picks)
+2026-10-22T07:48:56.678814+00:00 | INFO  | --- SLATE: 2026_08_11
+2026-10-22T07:48:56.689080+00:00 | INFO  | 2026_08_11 market row-count check OK: {'moneyline': 11, 'run_line': 11, 'total': 11}
+2026-10-22T07:48:56.707636+00:00 | WARN  | 2026_08_11 no bets passed filters
+2026-10-22T07:48:56.707729+00:00 | INFO  | --- SLATE: 2026_08_12
+2026-10-22T07:48:56.717524+00:00 | INFO  | 2026_08_12 market row-count check OK: {'moneyline': 2, 'run_line': 2, 'total': 2}
+2026-10-22T07:48:56.722672+00:00 | WARN  | 2026_08_12 no bets passed filters
+2026-10-22T07:48:56.722741+00:00 | INFO  | --- SLATE: 2026_08_13
+2026-10-22T07:48:56.732457+00:00 | INFO  | 2026_08_13 market row-count check OK: {'moneyline': 2, 'run_line': 2, 'total': 2}
+2026-10-22T07:48:56.737520+00:00 | WARN  | 2026_08_13 no bets passed filters
+2026-10-22T07:48:56.737591+00:00 | INFO  | --- SLATE: 2026_08_14
+2026-10-22T07:48:56.747335+00:00 | INFO  | 2026_08_14 market row-count check OK: {'moneyline': 4, 'run_line': 4, 'total': 4}
+2026-10-22T07:48:56.759215+00:00 | INFO  | WROTE: 2026_08_14_MLB.csv (1 bets | ml=0 rl=0 tot=1)
+2026-10-22T07:48:56.759250+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_08_14_MLB.csv (no new picks)
+2026-10-22T07:48:56.759317+00:00 | INFO  | --- SLATE: 2026_08_15
+2026-10-22T07:48:56.768813+00:00 | INFO  | 2026_08_15 market row-count check OK: {'moneyline': 2, 'run_line': 2, 'total': 2}
+2026-10-22T07:48:56.774140+00:00 | WARN  | 2026_08_15 no bets passed filters
+2026-10-22T07:48:56.774215+00:00 | INFO  | --- SLATE: 2026_08_16
+2026-10-22T07:48:56.784354+00:00 | INFO  | 2026_08_16 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
+2026-10-22T07:48:56.788015+00:00 | WARN  | 2026_08_16 no bets passed filters
+2026-10-22T07:48:56.788081+00:00 | INFO  | --- SLATE: 2026_08_17
+2026-10-22T07:48:56.798422+00:00 | INFO  | 2026_08_17 market row-count check OK: {'moneyline': 9, 'run_line': 9, 'total': 9}
+2026-10-22T07:48:56.819174+00:00 | INFO  | WROTE: 2026_08_17_MLB.csv (3 bets | ml=3 rl=0 tot=0)
+2026-10-22T07:48:56.819212+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_08_17_MLB.csv (no new picks)
+2026-10-22T07:48:56.819305+00:00 | INFO  | --- SLATE: 2026_08_18
+2026-10-22T07:48:56.830000+00:00 | INFO  | 2026_08_18 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:56.859901+00:00 | INFO  | WROTE: 2026_08_18_MLB.csv (1 bets | ml=1 rl=0 tot=0)
+2026-10-22T07:48:56.859941+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_08_18_MLB.csv (no new picks)
+2026-10-22T07:48:56.860030+00:00 | INFO  | --- SLATE: 2026_08_19
+2026-10-22T07:48:56.870818+00:00 | INFO  | 2026_08_19 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:56.900971+00:00 | INFO  | WROTE: 2026_08_19_MLB.csv (2 bets | ml=2 rl=0 tot=0)
+2026-10-22T07:48:56.901011+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_08_19_MLB.csv (no new picks)
+2026-10-22T07:48:56.901102+00:00 | INFO  | --- SLATE: 2026_08_20
+2026-10-22T07:48:56.911606+00:00 | INFO  | 2026_08_20 market row-count check OK: {'moneyline': 9, 'run_line': 9, 'total': 9}
+2026-10-22T07:48:56.932170+00:00 | INFO  | WROTE: 2026_08_20_MLB.csv (2 bets | ml=2 rl=0 tot=0)
+2026-10-22T07:48:56.932208+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_08_20_MLB.csv (no new picks)
+2026-10-22T07:48:56.932294+00:00 | INFO  | --- SLATE: 2026_08_24
+2026-10-22T07:48:56.942670+00:00 | INFO  | 2026_08_24 market row-count check OK: {'moneyline': 10, 'run_line': 10, 'total': 10}
+2026-10-22T07:48:56.964368+00:00 | INFO  | WROTE: 2026_08_24_MLB.csv (4 bets | ml=3 rl=0 tot=1)
+2026-10-22T07:48:56.964407+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_08_24_MLB.csv (no new picks)
+2026-10-22T07:48:56.964487+00:00 | INFO  | --- SLATE: 2026_08_25
+2026-10-22T07:48:56.975266+00:00 | INFO  | 2026_08_25 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:57.005408+00:00 | INFO  | WROTE: 2026_08_25_MLB.csv (3 bets | ml=2 rl=0 tot=1)
+2026-10-22T07:48:57.005448+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_08_25_MLB.csv (no new picks)
+2026-10-22T07:48:57.005544+00:00 | INFO  | --- SLATE: 2026_08_26
+2026-10-22T07:48:57.016418+00:00 | INFO  | 2026_08_26 market row-count check OK: {'moneyline': 12, 'run_line': 12, 'total': 12}
+2026-10-22T07:48:57.041097+00:00 | INFO  | WROTE: 2026_08_26_MLB.csv (4 bets | ml=4 rl=0 tot=0)
+2026-10-22T07:48:57.041132+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_08_26_MLB.csv (no new picks)
+2026-10-22T07:48:57.041206+00:00 | INFO  | --- SLATE: 2026_08_27
+2026-10-22T07:48:57.051211+00:00 | INFO  | 2026_08_27 market row-count check OK: {'moneyline': 7, 'run_line': 7, 'total': 7}
+2026-10-22T07:48:57.067658+00:00 | INFO  | WROTE: 2026_08_27_MLB.csv (4 bets | ml=4 rl=0 tot=0)
+2026-10-22T07:48:57.067691+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_08_27_MLB.csv (no new picks)
+2026-10-22T07:48:57.067762+00:00 | INFO  | --- SLATE: 2026_08_28
+2026-10-22T07:48:57.078073+00:00 | INFO  | 2026_08_28 market row-count check OK: {'moneyline': 15, 'run_line': 15, 'total': 15}
+2026-10-22T07:48:57.107218+00:00 | INFO  | WROTE: 2026_08_28_MLB.csv (3 bets | ml=3 rl=0 tot=0)
+2026-10-22T07:48:57.107250+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_08_28_MLB.csv (no new picks)
+2026-10-22T07:48:57.107321+00:00 | INFO  | --- SLATE: 2026_08_29
+2026-10-22T07:48:57.117018+00:00 | INFO  | 2026_08_29 market row-count check OK: {'moneyline': 3, 'run_line': 3, 'total': 3}
+2026-10-22T07:48:57.126883+00:00 | INFO  | WROTE: 2026_08_29_MLB.csv (1 bets | ml=0 rl=0 tot=1)
+2026-10-22T07:48:57.126914+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_08_29_MLB.csv (no new picks)
+2026-10-22T07:48:57.126970+00:00 | INFO  | --- SLATE: 2026_08_30
+2026-10-22T07:48:57.137031+00:00 | INFO  | 2026_08_30 market row-count check OK: {'moneyline': 14, 'run_line': 14, 'total': 14}
+2026-10-22T07:48:57.164593+00:00 | INFO  | WROTE: 2026_08_30_MLB.csv (8 bets | ml=7 rl=0 tot=1)
+2026-10-22T07:48:57.164628+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_08_30_MLB.csv (no new picks)
+2026-10-22T07:48:57.164717+00:00 | INFO  | --- SLATE: 2026_08_31
+2026-10-22T07:48:57.174372+00:00 | INFO  | 2026_08_31 market row-count check OK: {'moneyline': 2, 'run_line': 2, 'total': 2}
+2026-10-22T07:48:57.182917+00:00 | INFO  | WROTE: 2026_08_31_MLB.csv (2 bets | ml=2 rl=0 tot=0)
+2026-10-22T07:48:57.182946+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_08_31_MLB.csv (no new picks)
+2026-10-22T07:48:57.183002+00:00 | INFO  | --- SLATE: 2026_09_01
+2026-10-22T07:48:57.193174+00:00 | INFO  | 2026_09_01 market row-count check OK: {'moneyline': 4, 'run_line': 4, 'total': 4}
+2026-10-22T07:48:57.204559+00:00 | INFO  | WROTE: 2026_09_01_MLB.csv (1 bets | ml=1 rl=0 tot=0)
+2026-10-22T07:48:57.204593+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_09_01_MLB.csv (no new picks)
+2026-10-22T07:48:57.204658+00:00 | INFO  | --- SLATE: 2026_09_02
+2026-10-22T07:48:57.214249+00:00 | INFO  | 2026_09_02 market row-count check OK: {'moneyline': 2, 'run_line': 2, 'total': 2}
+2026-10-22T07:48:57.224209+00:00 | INFO  | WROTE: 2026_09_02_MLB.csv (1 bets | ml=0 rl=0 tot=1)
+2026-10-22T07:48:57.224240+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_09_02_MLB.csv (no new picks)
+2026-10-22T07:48:57.224313+00:00 | INFO  | --- SLATE: 2026_09_03
+2026-10-22T07:48:57.235025+00:00 | INFO  | 2026_09_03 market row-count check OK: {'moneyline': 2, 'run_line': 2, 'total': 2}
+2026-10-22T07:48:57.239925+00:00 | WARN  | 2026_09_03 no bets passed filters
+2026-10-22T07:48:57.239989+00:00 | INFO  | --- SLATE: 2026_09_04
+2026-10-22T07:48:57.254421+00:00 | WARN  | 2026_09_04 market row-count mismatch before selection: {'moneyline': 4, 'run_line': 3, 'total': 4}
+2026-10-22T07:48:57.263546+00:00 | WARN  | 2026_09_04 no bets passed filters
+2026-10-22T07:48:57.263633+00:00 | INFO  | --- SLATE: 2026_09_05
+2026-10-22T07:48:57.274677+00:00 | INFO  | 2026_09_05 market row-count check OK: {'moneyline': 2, 'run_line': 2, 'total': 2}
+2026-10-22T07:48:57.279815+00:00 | WARN  | 2026_09_05 no bets passed filters
+2026-10-22T07:48:57.279887+00:00 | INFO  | --- SLATE: 2026_09_06
+2026-10-22T07:48:57.289463+00:00 | INFO  | 2026_09_06 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
+2026-10-22T07:48:57.293091+00:00 | WARN  | 2026_09_06 no bets passed filters
+2026-10-22T07:48:57.293149+00:00 | INFO  | --- SLATE: 2026_09_07
+2026-10-22T07:48:57.302553+00:00 | INFO  | 2026_09_07 market row-count check OK: {'moneyline': 2, 'run_line': 2, 'total': 2}
+2026-10-22T07:48:57.307632+00:00 | WARN  | 2026_09_07 no bets passed filters
+2026-10-22T07:48:57.307712+00:00 | INFO  | --- SLATE: 2026_09_08
+2026-10-22T07:48:57.317686+00:00 | INFO  | 2026_09_08 market row-count check OK: {'moneyline': 5, 'run_line': 5, 'total': 5}
+2026-10-22T07:48:57.331122+00:00 | INFO  | WROTE: 2026_09_08_MLB.csv (3 bets | ml=2 rl=0 tot=1)
+2026-10-22T07:48:57.331154+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_09_08_MLB.csv (no new picks)
+2026-10-22T07:48:57.331218+00:00 | INFO  | --- SLATE: 2026_09_09
+2026-10-22T07:48:57.340580+00:00 | INFO  | 2026_09_09 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
+2026-10-22T07:48:57.343932+00:00 | WARN  | 2026_09_09 no bets passed filters
+2026-10-22T07:48:57.343985+00:00 | INFO  | --- SLATE: 2026_09_10
+2026-10-22T07:48:57.353307+00:00 | INFO  | 2026_09_10 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
+2026-10-22T07:48:57.359952+00:00 | INFO  | WROTE: 2026_09_10_MLB.csv (1 bets | ml=1 rl=0 tot=0)
+2026-10-22T07:48:57.359987+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_09_10_MLB.csv (no new picks)
+2026-10-22T07:48:57.360035+00:00 | INFO  | --- SLATE: 2026_09_11
+2026-10-22T07:48:57.369435+00:00 | INFO  | 2026_09_11 market row-count check OK: {'moneyline': 3, 'run_line': 3, 'total': 3}
+2026-10-22T07:48:57.376028+00:00 | WARN  | 2026_09_11 no bets passed filters
+2026-10-22T07:48:57.376103+00:00 | INFO  | --- SLATE: 2026_09_12
+2026-10-22T07:48:57.385574+00:00 | INFO  | 2026_09_12 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
+2026-10-22T07:48:57.389055+00:00 | WARN  | 2026_09_12 no bets passed filters
+2026-10-22T07:48:57.389112+00:00 | INFO  | --- SLATE: 2026_09_13
+2026-10-22T07:48:57.398513+00:00 | INFO  | 2026_09_13 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
+2026-10-22T07:48:57.402078+00:00 | WARN  | 2026_09_13 no bets passed filters
+2026-10-22T07:48:57.402129+00:00 | INFO  | --- SLATE: 2026_09_14
+2026-10-22T07:48:57.411880+00:00 | INFO  | 2026_09_14 market row-count check OK: {'moneyline': 3, 'run_line': 3, 'total': 3}
+2026-10-22T07:48:57.418778+00:00 | WARN  | 2026_09_14 no bets passed filters
+2026-10-22T07:48:57.418871+00:00 | INFO  | --- SLATE: 2026_09_15
+2026-10-22T07:48:57.428367+00:00 | INFO  | 2026_09_15 market row-count check OK: {'moneyline': 2, 'run_line': 2, 'total': 2}
+2026-10-22T07:48:57.433414+00:00 | WARN  | 2026_09_15 no bets passed filters
+2026-10-22T07:48:57.433478+00:00 | INFO  | --- SLATE: 2026_09_16
+2026-10-22T07:48:57.443103+00:00 | INFO  | 2026_09_16 market row-count check OK: {'moneyline': 3, 'run_line': 3, 'total': 3}
+2026-10-22T07:48:57.449549+00:00 | WARN  | 2026_09_16 no bets passed filters
+2026-10-22T07:48:57.449618+00:00 | INFO  | --- SLATE: 2026_09_17
+2026-10-22T07:48:57.458958+00:00 | INFO  | 2026_09_17 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
+2026-10-22T07:48:57.462413+00:00 | WARN  | 2026_09_17 no bets passed filters
+2026-10-22T07:48:57.462466+00:00 | INFO  | --- SLATE: 2026_09_18
+2026-10-22T07:48:57.471871+00:00 | INFO  | 2026_09_18 market row-count check OK: {'moneyline': 4, 'run_line': 4, 'total': 4}
+2026-10-22T07:48:57.479930+00:00 | WARN  | 2026_09_18 no bets passed filters
+2026-10-22T07:48:57.479993+00:00 | INFO  | --- SLATE: 2026_09_19
+2026-10-22T07:48:57.489350+00:00 | INFO  | 2026_09_19 market row-count check OK: {'moneyline': 3, 'run_line': 3, 'total': 3}
+2026-10-22T07:48:57.495855+00:00 | WARN  | 2026_09_19 no bets passed filters
+2026-10-22T07:48:57.495916+00:00 | INFO  | --- SLATE: 2026_09_20
+2026-10-22T07:48:57.505237+00:00 | INFO  | 2026_09_20 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
+2026-10-22T07:48:57.508575+00:00 | WARN  | 2026_09_20 no bets passed filters
+2026-10-22T07:48:57.508624+00:00 | INFO  | --- SLATE: 2026_09_21
+2026-10-22T07:48:57.518012+00:00 | INFO  | 2026_09_21 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
+2026-10-22T07:48:57.524698+00:00 | INFO  | WROTE: 2026_09_21_MLB.csv (1 bets | ml=1 rl=0 tot=0)
+2026-10-22T07:48:57.524728+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_09_21_MLB.csv (no new picks)
+2026-10-22T07:48:57.524778+00:00 | INFO  | --- SLATE: 2026_09_22
+2026-10-22T07:48:57.534324+00:00 | INFO  | 2026_09_22 market row-count check OK: {'moneyline': 5, 'run_line': 5, 'total': 5}
+2026-10-22T07:48:57.548043+00:00 | INFO  | WROTE: 2026_09_22_MLB.csv (3 bets | ml=3 rl=0 tot=0)
+2026-10-22T07:48:57.548080+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_09_22_MLB.csv (no new picks)
+2026-10-22T07:48:57.548155+00:00 | INFO  | --- SLATE: 2026_09_23
+2026-10-22T07:48:57.557893+00:00 | INFO  | 2026_09_23 market row-count check OK: {'moneyline': 4, 'run_line': 4, 'total': 4}
+2026-10-22T07:48:57.566288+00:00 | WARN  | 2026_09_23 no bets passed filters
+2026-10-22T07:48:57.566362+00:00 | INFO  | --- SLATE: 2026_09_24
+2026-10-22T07:48:57.575939+00:00 | INFO  | 2026_09_24 market row-count check OK: {'moneyline': 3, 'run_line': 3, 'total': 3}
+2026-10-22T07:48:57.582677+00:00 | WARN  | 2026_09_24 no bets passed filters
+2026-10-22T07:48:57.582746+00:00 | INFO  | --- SLATE: 2026_09_25
+2026-10-22T07:48:57.592301+00:00 | INFO  | 2026_09_25 market row-count check OK: {'moneyline': 3, 'run_line': 3, 'total': 3}
+2026-10-22T07:48:57.598965+00:00 | WARN  | 2026_09_25 no bets passed filters
+2026-10-22T07:48:57.599040+00:00 | INFO  | --- SLATE: 2026_09_26
+2026-10-22T07:48:57.609310+00:00 | WARN  | 2026_09_26 market row-count mismatch before selection: {'moneyline': 10, 'run_line': 9, 'total': 10}
+2026-10-22T07:48:57.630883+00:00 | INFO  | WROTE: 2026_09_26_MLB.csv (7 bets | ml=4 rl=1 tot=2)
+2026-10-22T07:48:57.630918+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_09_26_MLB.csv (no new picks)
+2026-10-22T07:48:57.630995+00:00 | INFO  | --- SLATE: 2026_09_27
+2026-10-22T07:48:57.641262+00:00 | INFO  | 2026_09_27 market row-count check OK: {'moneyline': 12, 'run_line': 12, 'total': 12}
+2026-10-22T07:48:57.666221+00:00 | INFO  | WROTE: 2026_09_27_MLB.csv (6 bets | ml=4 rl=0 tot=2)
+2026-10-22T07:48:57.666260+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_09_27_MLB.csv (no new picks)
+2026-10-22T07:48:57.666352+00:00 | INFO  | --- SLATE: 2026_09_29
+2026-10-22T07:48:57.676349+00:00 | INFO  | 2026_09_29 market row-count check OK: {'moneyline': 2, 'run_line': 2, 'total': 2}
+2026-10-22T07:48:57.685247+00:00 | INFO  | WROTE: 2026_09_29_MLB.csv (1 bets | ml=1 rl=0 tot=0)
+2026-10-22T07:48:57.685283+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_09_29_MLB.csv (no new picks)
+2026-10-22T07:48:57.685352+00:00 | INFO  | --- SLATE: 2026_09_30
+2026-10-22T07:48:57.694881+00:00 | INFO  | 2026_09_30 market row-count check OK: {'moneyline': 2, 'run_line': 2, 'total': 2}
+2026-10-22T07:48:57.700009+00:00 | WARN  | 2026_09_30 no bets passed filters
+2026-10-22T07:48:57.700085+00:00 | INFO  | --- SLATE: 2026_10_01
+2026-10-22T07:48:57.709829+00:00 | INFO  | 2026_10_01 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
+2026-10-22T07:48:57.713274+00:00 | WARN  | 2026_10_01 no bets passed filters
+2026-10-22T07:48:57.713333+00:00 | INFO  | --- SLATE: 2026_10_03
+2026-10-22T07:48:57.722813+00:00 | INFO  | 2026_10_03 market row-count check OK: {'moneyline': 2, 'run_line': 2, 'total': 2}
+2026-10-22T07:48:57.731408+00:00 | INFO  | WROTE: 2026_10_03_MLB.csv (1 bets | ml=1 rl=0 tot=0)
+2026-10-22T07:48:57.731441+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_10_03_MLB.csv (no new picks)
+2026-10-22T07:48:57.731501+00:00 | INFO  | --- SLATE: 2026_10_04
+2026-10-22T07:48:57.740995+00:00 | INFO  | 2026_10_04 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
+2026-10-22T07:48:57.744463+00:00 | WARN  | 2026_10_04 no bets passed filters
+2026-10-22T07:48:57.744519+00:00 | INFO  | --- SLATE: 2026_10_05
+2026-10-22T07:48:57.753930+00:00 | INFO  | 2026_10_05 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
+2026-10-22T07:48:57.761036+00:00 | INFO  | WROTE: 2026_10_05_MLB.csv (1 bets | ml=1 rl=0 tot=0)
+2026-10-22T07:48:57.761071+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_10_05_MLB.csv (no new picks)
+2026-10-22T07:48:57.761125+00:00 | INFO  | --- SLATE: 2026_10_06
+2026-10-22T07:48:57.770639+00:00 | INFO  | 2026_10_06 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
+2026-10-22T07:48:57.774263+00:00 | WARN  | 2026_10_06 no bets passed filters
+2026-10-22T07:48:57.774323+00:00 | INFO  | --- SLATE: 2026_10_07
+2026-10-22T07:48:57.784284+00:00 | INFO  | 2026_10_07 market row-count check OK: {'moneyline': 4, 'run_line': 4, 'total': 4}
+2026-10-22T07:48:57.796314+00:00 | INFO  | WROTE: 2026_10_07_MLB.csv (2 bets | ml=2 rl=0 tot=0)
+2026-10-22T07:48:57.796349+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_10_07_MLB.csv (no new picks)
+2026-10-22T07:48:57.796422+00:00 | INFO  | --- SLATE: 2026_10_08
+2026-10-22T07:48:57.806483+00:00 | INFO  | 2026_10_08 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
+2026-10-22T07:48:57.813692+00:00 | INFO  | WROTE: 2026_10_08_MLB.csv (1 bets | ml=1 rl=0 tot=0)
+2026-10-22T07:48:57.813728+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_10_08_MLB.csv (no new picks)
+2026-10-22T07:48:57.813804+00:00 | INFO  | --- SLATE: 2026_10_10
+2026-10-22T07:48:57.823889+00:00 | INFO  | 2026_10_10 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
+2026-10-22T07:48:57.827641+00:00 | WARN  | 2026_10_10 no bets passed filters
+2026-10-22T07:48:57.827711+00:00 | INFO  | --- SLATE: 2026_10_11
+2026-10-22T07:48:57.837580+00:00 | INFO  | 2026_10_11 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
+2026-10-22T07:48:57.841346+00:00 | WARN  | 2026_10_11 no bets passed filters
+2026-10-22T07:48:57.841413+00:00 | INFO  | --- SLATE: 2026_10_12
+2026-10-22T07:48:57.851542+00:00 | INFO  | 2026_10_12 market row-count check OK: {'moneyline': 2, 'run_line': 2, 'total': 2}
+2026-10-22T07:48:57.857365+00:00 | WARN  | 2026_10_12 no bets passed filters
+2026-10-22T07:48:57.857448+00:00 | INFO  | --- SLATE: 2026_10_13
+2026-10-22T07:48:57.867475+00:00 | INFO  | 2026_10_13 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
+2026-10-22T07:48:57.874725+00:00 | INFO  | WROTE: 2026_10_13_MLB.csv (1 bets | ml=1 rl=0 tot=0)
+2026-10-22T07:48:57.874763+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_10_13_MLB.csv (no new picks)
+2026-10-22T07:48:57.874843+00:00 | INFO  | --- SLATE: 2026_10_14
+2026-10-22T07:48:57.884675+00:00 | INFO  | 2026_10_14 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
+2026-10-22T07:48:57.888600+00:00 | WARN  | 2026_10_14 no bets passed filters
+2026-10-22T07:48:57.888668+00:00 | INFO  | --- SLATE: 2026_10_15
+2026-10-22T07:48:57.898510+00:00 | INFO  | 2026_10_15 market row-count check OK: {'moneyline': 2, 'run_line': 2, 'total': 2}
+2026-10-22T07:48:57.907767+00:00 | INFO  | WROTE: 2026_10_15_MLB.csv (1 bets | ml=1 rl=0 tot=0)
+2026-10-22T07:48:57.907825+00:00 | INFO  | LOCKED UNCHANGED: docs/win/baseball/mlb/04_select/morning/locked/2026_10_15_MLB.csv (no new picks)
+2026-10-22T07:48:57.907907+00:00 | INFO  | --- SLATE: 2026_10_16
+2026-10-22T07:48:57.917775+00:00 | INFO  | 2026_10_16 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
+2026-10-22T07:48:57.921312+00:00 | WARN  | 2026_10_16 no bets passed filters
+2026-10-22T07:48:57.921370+00:00 | INFO  | --- SLATE: 2026_10_18
+2026-10-22T07:48:57.930859+00:00 | INFO  | 2026_10_18 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
+2026-10-22T07:48:57.934475+00:00 | WARN  | 2026_10_18 no bets passed filters
+2026-10-22T07:48:57.934536+00:00 | INFO  | --- SLATE: 2026_10_19
+2026-10-22T07:48:57.944016+00:00 | INFO  | 2026_10_19 market row-count check OK: {'moneyline': 1, 'run_line': 1, 'total': 1}
+2026-10-22T07:48:57.947466+00:00 | WARN  | 2026_10_19 no bets passed filters
+2026-10-22T07:48:58.078524+00:00 | INFO  | WROTE AUDIT: docs/win/baseball/mlb/04_select/morning/audit/selection_rejection_audit.csv rows=10562
+2026-10-22T07:48:58.078567+00:00 | INFO  | WROTE AUDIT: docs/win/baseball/mlb/04_select/morning/audit/selected_bet_audit.csv rows=676
+2026-10-22T07:48:58.078587+00:00 | INFO  | WROTE AUDIT: docs/win/baseball/mlb/04_select/morning/audit/run_line_selection_audit.csv rows=3740
 
 ============================================================
-SUMMARY  2026-10-21T07:52:35.809430+00:00
+SUMMARY  2026-10-22T07:48:58.079230+00:00
 ============================================================
   run_mode                          : rebuild_all
   slates_found                      : 195
