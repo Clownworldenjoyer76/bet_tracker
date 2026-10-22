@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 """Merge basketball market CSVs into one games-today CSV per league and date.
 
@@ -9,7 +10,7 @@ import csv
 import re
 from pathlib import Path
 
-INPUT_ROOT = Path("docs/win/basketball/01_merge/wnba")
+INPUT_ROOT = Path("docs/win/basketball/01_merge")
 OUTPUT_ROOT = Path("frontend/data/index_home/basketball")
 LEAGUES = ("WNBA", "NBA", "NCAAM")
 MARKETS = ("spread", "total", "moneyline")
@@ -17,14 +18,14 @@ DATE_PATTERN = re.compile(r"\d{4}_\d{2}_\d{2}\Z")
 
 
 def input_path(league: str, market: str, date: str) -> Path:
-    return INPUT_ROOT / market / f"{date}_{league}_{market}.csv"
+    return INPUT_ROOT / league.lower() / market / f"{date}_{league}_{market}.csv"
 
 
 def available_dates(league: str) -> list[str]:
     dates = set()
     for market in MARKETS:
         suffix = f"_{league}_{market}.csv"
-        for path in (INPUT_ROOT / market).glob(f"*{suffix}"):
+        for path in (INPUT_ROOT / league.lower() / market).glob(f"*{suffix}"):
             date = path.name[: -len(suffix)]
             if path.is_file() and DATE_PATTERN.fullmatch(date):
                 dates.add(date)
