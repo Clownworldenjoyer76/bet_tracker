@@ -1,8 +1,8 @@
 BASKETBALL DAILY STATUS
 =======================
-generated_at_utc: 2026-10-23T14:37:22Z
+generated_at_utc: 2026-10-23T14:58:33Z
 game_date_new_york: 2026_10_23
-github_run_id: 39970468431
+github_run_id: 39973429767
 github_run_attempt: 1
 workflow_status: failure
 
@@ -14,10 +14,10 @@ wnba: in_season
 
 SUMMARY
 -------
-txt_files_checked_this_run: 14
-txt_files_with_issues: 2
-txt_issue_lines: 5
-txt_issue_lines_suppressed_offseason: 0
+txt_files_checked_this_run: 27
+txt_files_with_issues: 6
+txt_issue_lines: 22
+txt_issue_lines_suppressed_offseason: 8
 no_map_teams: 2
 no_map_teams_suppressed_offseason: 0
 system_issues: 1
@@ -25,10 +25,39 @@ overall: ISSUES FOUND
 
 CURRENT-RUN TXT ISSUES
 ----------------------
+[docs/win/basketball/errors/00_intake/calculate_rolling_bias.txt]
+run_change: REWRITTEN
+15:2026-10-23T14:58:22+00:00 | INFO  | WNBA | READY_WITH_WARNINGS | margin=-6.076 total=-6.593 warnings=17
+
+[docs/win/basketball/errors/00_intake/clean_basketball_inputs_wnba.txt]
+run_change: REWRITTEN
+260:2026-10-23T14:58:22.565318 | WARN | Historical raw prediction has no existing cleaned copy; not applying current bias retroactively: docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_08_21_WNBA_predictions.csv
+261:2026-10-23T14:58:22.565347 | WARN | Historical raw prediction has no existing cleaned copy; not applying current bias retroactively: docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_08_22_WNBA_predictions.csv
+262:2026-10-23T14:58:22.565375 | WARN | Historical raw prediction has no existing cleaned copy; not applying current bias retroactively: docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_08_23_WNBA_predictions.csv
+263:2026-10-23T14:58:22.565404 | WARN | Historical raw prediction has no existing cleaned copy; not applying current bias retroactively: docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_08_24_WNBA_predictions.csv
+264:2026-10-23T14:58:22.565430 | WARN | Historical raw prediction has no existing cleaned copy; not applying current bias retroactively: docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_08_25_WNBA_predictions.csv
+265:2026-10-23T14:58:22.565457 | WARN | Historical raw prediction has no existing cleaned copy; not applying current bias retroactively: docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_08_26_WNBA_predictions.csv
+
+[docs/win/basketball/errors/04_select/daily_slate.txt]
+run_change: REWRITTEN
+3:2026-10-23T14:58:29.612086+00:00 | WARN  | [nba] extra input headers ignored: away_ml_adjusted_model_prob, away_ml_raw_ev, away_ml_raw_kelly, away_ml_signal_points, away_ml_uncertainty_adjusted_ev, away_ml_uncertainty_multiplier, away_ml_uncertainty_points, away_spread_adjusted_model_prob, away_spread_raw_ev, away_spread_raw_kelly, away_spread_signal_points, away_spread_uncertainty_adjusted_ev, away_spread_uncertainty_multiplier, away_spread_uncertainty_points, bet_probability_basis, bet_raw_edge_vs_market, bet_raw_model_prob, bet_stake_allocation, home_ml_adjusted_model_prob, home_ml_raw_ev, home_ml_raw_kelly, home_ml_signal_points, home_ml_uncertainty_adjusted_ev, home_ml_uncertainty_multiplier, home_ml_uncertainty_points, home_spread_adjusted_model_prob, home_spread_raw_ev, home_spread_raw_kelly, home_spread_signal_points, home_spread_uncertainty_adjusted_ev, home_spread_uncertainty_multiplier, home_spread_uncertainty_points, over_adjusted_model_prob, over_raw_ev, over_raw_kelly, over_signal_points, over_uncertainty_adjusted_ev, over_uncertainty_multiplier, over_uncertainty_points, provider_updated_at_utc, scraped_at_utc, sportsbook_provider, uncertainty_source, under_adjusted_model_prob, under_raw_ev, under_raw_kelly, under_signal_points, under_uncertainty_adjusted_ev, under_uncertainty_multiplier, under_uncertainty_points
+
+[docs/win/basketball/errors/05_final_scores/01_basketball_results_grade.txt]
+run_change: REWRITTEN
+13:2026-10-23T14:58:31.918136+00:00 | ERROR | [nba replay] FATAL during grading: You are trying to merge on int64 and object columns for key 'game_id'. If you wish to proceed you should use pd.concat
+14:Traceback (most recent call last)
+30:ValueError: You are trying to merge on int64 and object columns for key 'game_id'. If you wish to proceed you should use pd.concat
+34:2026-10-23T14:58:31.945902+00:00 | ERROR | [nba locked] FATAL during grading: You are trying to merge on int64 and object columns for key 'game_id'. If you wish to proceed you should use pd.concat
+35:Traceback (most recent call last)
+51:ValueError: You are trying to merge on int64 and object columns for key 'game_id'. If you wish to proceed you should use pd.concat
+67:2026-10-23T14:58:32.270250+00:00 | INFO  |   errors                   : 2
+
 [docs/win/basketball/errors/pipeline_health.txt]
 run_change: REWRITTEN
+8:status: failed
 17:WNBA drift 25: games=25 margin=-3.666 total=-1.0332 warning=True
 20:WARN: WNBA 25-game residual drift exceeds 2.0: margin=-3.666, total=-1.033
+21:FATAL: stage failure: docs/win/basketball/errors/05_final_scores/01_basketball_results_grade.txt -> 2026-10-23T14:58:32.270773+00:00 | INFO  | STATUS: COMPLETED WITH ERRORS
 
 [docs/win/basketball/errors/wnba_bias_drift.txt]
 run_change: REWRITTEN
