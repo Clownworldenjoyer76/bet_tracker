@@ -14,7 +14,7 @@ import tempfile
 from pathlib import Path
 
 INPUT_ROOT = Path("docs/win/basketball/01_merge")
-MODEL_ROOT = Path("docs/win/basketball/03_edges/ev_kelly/wnba")
+MODEL_ROOT = Path("docs/win/basketball/03_edges/ev_kelly")
 OUTPUT_ROOT = Path("frontend/data/index_home/basketball")
 LEAGUES = ("WNBA", "NBA", "NCAAM")
 MARKETS = ("spread", "total", "moneyline")
@@ -31,8 +31,7 @@ def input_path(league: str, market: str, date: str) -> Path:
 
 
 def model_path(league: str, market: str, date: str) -> Path:
-    # The EV/Kelly folder is named "wnba" for all three leagues as specified.
-    return MODEL_ROOT / market / f"{date}_{league}_{market}.csv"
+    return MODEL_ROOT / league.lower() / market / f"{date}_{league}_{market}.csv"
 
 
 def available_dates(league: str) -> list[str]:
