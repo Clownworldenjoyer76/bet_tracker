@@ -2,24 +2,16 @@
 #!/usr/bin/env python3
 """Fetch completed NBA/NCAAM/WNBA final scores from ESPN.
 
-Default behavior fetches the current New York date plus the previous
-7 dates so a missed workflow run does not create a grading hole.
-
-Existing final scores remain authoritative. Repeated fetches may
-confirm existing records but may not silently change results.
+Default: current New York date plus the previous seven days.
 
 NBA team-name comparisons use:
     docs/win/basketball/maps/team_map_nba.csv
 
-Aliases are used for comparison only. Existing saved team names
-are not rewritten.
+Aliases are resolved transitively. Placeholder names such as
+TBC and TBD are supported without changing actual team identities.
 
-Examples:
-    python docs/win/basketball/scripts/05_final_scores/00_basketball_final_scores.py
-
-    python docs/win/basketball/scripts/05_final_scores/00_basketball_final_scores.py --date 2026_10_21
-
-    python docs/win/basketball/scripts/05_final_scores/00_basketball_final_scores.py --start-date 2026_10_20 --end-date 2026_10_22
+Previously stored final scores and team names are preserved.
+Genuine game-ID, matchup, and final-score conflicts are fatal.
 """
 
 from __future__ import annotations
@@ -39,15 +31,11 @@ from zoneinfo import ZoneInfo
 
 
 BASE = Path("docs/win/basketball")
-
 RESULTS_BASE = BASE / "05_final_scores/results"
 ERROR_DIR = BASE / "errors/05_final_scores"
 LOG_FILE = ERROR_DIR / "00_basketball_final_scores.txt"
-
 NBA_TEAM_MAP = BASE / "maps/team_map_nba.csv"
-
 NY = ZoneInfo("America/New_York")
-
 
 LEAGUES = {
     "nba": {
@@ -63,7 +51,6 @@ LEAGUES = {
         "label": "WNBA",
     },
 }
-
 
 OUTPUT_COLUMNS = [
     "sport",
@@ -86,34 +73,21 @@ def now_utc() -> str:
     ).isoformat()
 
 
-def log(
-    message: str,
-    level: str = "INFO",
-) -> None:
-    ERROR_DIR.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
+def log(message: str, level: str = "INFO") -> None:
+    ERROR_DIR.mkdir(parents=True, exist_ok=True)
 
     line = (
-        f"{now_utc()} | "
-        f"{level:<5} | "
+        f"{now_utc()} | {level:<5} | "
         f"{message.rstrip()}"
     )
-
     print(line, flush=True)
 
-    with LOG_FILE.open(
-        "a",
-        encoding="utf-8",
-    ) as handle:
+    with LOG_FILE.open("a", encoding="utf-8") as handle:
         handle.write(line + "\n")
 
 
 def normalize_text(value: Any) -> str:
-    return " ".join(
-        str(value or "").strip().split()
-    )
+    return " ".join(str(value or "").strip().split())
 
 
 def comparison_text(value: Any) -> str:
@@ -122,19 +96,27 @@ def comparison_text(value: Any) -> str:
 
 @lru_cache(maxsize=1)
 def load_nba_team_map() -> dict[str, str]:
-    """Load the repository's authoritative NBA alias mapping.
+    """Load and validate the existing NBA team-map CSV.
 
-    Both aliases and canonical names resolve to canonical names.
+    Explicit alias mappings take precedence over implicit
+    canonical-name self mappings.
 
-    Fail if the file is missing, malformed, or maps one alias
-    to different teams. Never silently guess an alias.
+    This prevents the erroneous conflict:
+        TBC -> TBD
+        Winner of EC -> TBC
+
+    Alias chains are resolved to their final destination.
+
+    Contradictory explicit aliases and circular mappings
+    remain fatal.
     """
     if not NBA_TEAM_MAP.is_file():
         raise FileNotFoundError(
             f"NBA team map not found: {NBA_TEAM_MAP}"
         )
 
-    mapping: dict[str, str] = {}
+    explicit: dict[str, str] = {}
+    canonical_names: set[str] = set()
 
     with NBA_TEAM_MAP.open(
         newline="",
@@ -157,74 +139,108 @@ def load_nba_team_map() -> dict[str, str]:
             )
 
         for line_number, row in enumerate(
-            reader,
-            start=2,
+            reader, start=2
         ):
-            league = comparison_text(
-                row.get("league")
-            )
-
-            if league != "nba":
+            if comparison_text(row.get("league")) != "nba":
                 continue
 
-            alias = comparison_text(
-                row.get("alias")
-            )
-
+            alias = comparison_text(row.get("alias"))
             canonical = comparison_text(
                 row.get("canonical_team")
             )
 
             if not alias or not canonical:
                 raise ValueError(
-                    "Blank NBA team-map alias or canonical "
-                    f"name on line {line_number}"
+                    "Blank NBA alias/canonical name "
+                    f"on line {line_number}"
                 )
 
-            for key in (alias, canonical):
-                existing = mapping.get(key)
+            previous = explicit.get(alias)
 
-                if (
-                    existing is not None
-                    and existing != canonical
-                ):
-                    raise ValueError(
-                        "Conflicting NBA team-map entry "
-                        f"on line {line_number}: "
-                        f"{key!r} maps to both "
-                        f"{existing!r} and {canonical!r}"
-                    )
+            if previous is not None and previous != canonical:
+                raise ValueError(
+                    "Conflicting NBA team-map alias "
+                    f"on line {line_number}: "
+                    f"{alias!r} maps to both "
+                    f"{previous!r} and {canonical!r}"
+                )
 
-                mapping[key] = canonical
+            explicit[alias] = canonical
+            canonical_names.add(canonical)
 
-    if not mapping:
+    if not explicit:
         raise ValueError(
-            f"NBA team map contains no NBA aliases: "
+            "NBA team map contains no NBA mappings: "
             f"{NBA_TEAM_MAP}"
         )
 
-    return mapping
+    # Resolve explicit mappings first.
+    # An alias can legitimately appear as another row's
+    # canonical target, as with TBC and TBD.
+    resolved: dict[str, str] = {}
+
+    def resolve(name: str, visiting: set[str]) -> str:
+        if name in resolved:
+            return resolved[name]
+
+        if name in visiting:
+            raise ValueError(
+                "Circular NBA team-map aliases involving "
+                f"{name!r}"
+            )
+
+        destination = explicit.get(name)
+
+        if destination is None or destination == name:
+            resolved[name] = name
+            return name
+
+        visiting.add(name)
+        try:
+            terminal = resolve(destination, visiting)
+        finally:
+            visiting.remove(name)
+
+        resolved[name] = terminal
+        return terminal
+
+    for alias in explicit:
+        resolve(alias, set())
+
+    # Canonical names without their own explicit alias
+    # map to themselves.
+    for canonical in canonical_names:
+        if canonical not in resolved:
+            resolved[canonical] = canonical
+
+    # Ensure the same canonical identity is never
+    # ambiguously represented by a contradictory explicit
+    # mapping. Self mappings and alias chains are valid.
+    for alias, target in explicit.items():
+        if resolved[alias] != resolved[target]:
+            raise ValueError(
+                "Unresolved NBA team-map conflict: "
+                f"{alias!r} -> {target!r}"
+            )
+
+    log(
+        "NBA TEAM MAP VALIDATED | "
+        f"path={NBA_TEAM_MAP} "
+        f"explicit_aliases={len(explicit)} "
+        f"resolved_names={len(resolved)}"
+    )
+
+    return resolved
 
 
-def normalize_team(
-    value: Any,
-    league: str,
-) -> str:
-    """Resolve equivalent names for identity comparisons.
-
-    Only NBA uses team_map_nba.csv. Other leagues retain
-    whitespace/case normalization without NBA aliases.
-    """
+def normalize_team(value: Any, league: str) -> str:
     name = comparison_text(value)
 
     if not name:
         return ""
 
     if comparison_text(league) == "nba":
-        return load_nba_team_map().get(
-            name,
-            name,
-        )
+        return load_nba_team_map().get(name, name)
 
     return name
 
@@ -239,10 +255,7 @@ def parse_date_value(value: str) -> date:
         "%Y%m%d",
     ):
         try:
-            return datetime.strptime(
-                text,
-                fmt,
-            ).date()
+            return datetime.strptime(text, fmt).date()
         except ValueError:
             pass
 
@@ -252,17 +265,11 @@ def parse_date_value(value: str) -> date:
     )
 
 
-def date_range(
-    start: date,
-    end: date,
-):
+def date_range(start: date, end: date):
     if end < start:
-        raise ValueError(
-            "end date is before start date"
-        )
+        raise ValueError("end date is before start date")
 
     current = start
-
     while current <= end:
         yield current
         current += timedelta(days=1)
@@ -276,30 +283,20 @@ def score_value(value: Any) -> int | None:
         )
 
     try:
-        return int(
-            float(str(value).strip())
-        )
-    except (
-        ValueError,
-        TypeError,
-        OverflowError,
-    ):
+        return int(float(str(value).strip()))
+    except (ValueError, TypeError, OverflowError):
         return None
 
 
 def fetch_json(url: str) -> dict:
     parsed = urllib.parse.urlsplit(url)
 
-    if (
-        parsed.scheme != "https"
-        or not parsed.hostname
-    ):
+    if parsed.scheme != "https" or not parsed.hostname:
         raise ValueError(
             f"Only HTTPS URLs are permitted: {url}"
         )
 
     target = parsed.path or "/"
-
     if parsed.query:
         target = f"{target}?{parsed.query}"
 
@@ -330,9 +327,7 @@ def fetch_json(url: str) -> dict:
                 f"HTTP {response.status} fetching {url}"
             )
 
-        return json.loads(
-            payload.decode("utf-8")
-        )
+        return json.loads(payload.decode("utf-8"))
 
     except (
         OSError,
@@ -356,8 +351,8 @@ def scoreboard_url(
     })
 
     return (
-        "https://site.api.espn.com/apis/"
-        "site/v2/sports/basketball/"
+        "https://site.api.espn.com/apis/site/v2/"
+        "sports/basketball/"
         f"{espn_slug}/scoreboard?{query}"
     )
 
@@ -367,16 +362,11 @@ def parse_completed_games(
     league_key: str,
     game_date: date,
 ) -> list[dict]:
-    league_label = LEAGUES[
-        league_key
-    ]["label"]
-
+    league_label = LEAGUES[league_key]["label"]
     rows: list[dict] = []
 
     for event in payload.get("events") or []:
-        competitions = (
-            event.get("competitions") or []
-        )
+        competitions = event.get("competitions") or []
 
         if not competitions:
             continue
@@ -388,15 +378,9 @@ def parse_completed_games(
             or event.get("status")
             or {}
         )
+        status_type = status.get("type") or {}
 
-        status_type = (
-            status.get("type") or {}
-        )
-
-        completed = bool(
-            status_type.get("completed")
-        )
-
+        completed = bool(status_type.get("completed"))
         state = str(
             status_type.get("state") or ""
         ).strip().lower()
@@ -416,31 +400,20 @@ def parse_completed_games(
 
             if home_away == "home":
                 home = competitor
-
             elif home_away == "away":
                 away = competitor
 
         if home is None or away is None:
             continue
 
-        home_score = score_value(
-            home.get("score")
-        )
+        home_score = score_value(home.get("score"))
+        away_score = score_value(away.get("score"))
 
-        away_score = score_value(
-            away.get("score")
-        )
-
-        if (
-            home_score is None
-            or away_score is None
-        ):
+        if home_score is None or away_score is None:
             continue
 
         home_team = (
-            (home.get("team") or {}).get(
-                "displayName"
-            )
+            (home.get("team") or {}).get("displayName")
             or (home.get("team") or {}).get(
                 "shortDisplayName"
             )
@@ -448,9 +421,7 @@ def parse_completed_games(
         )
 
         away_team = (
-            (away.get("team") or {}).get(
-                "displayName"
-            )
+            (away.get("team") or {}).get("displayName")
             or (away.get("team") or {}).get(
                 "shortDisplayName"
             )
@@ -476,15 +447,9 @@ def parse_completed_games(
             "sport": "Basketball",
             "league": league_label,
             "game_id": game_id,
-            "game_date": game_date.strftime(
-                "%Y_%m_%d"
-            ),
-            "home_team": str(
-                home_team
-            ).strip(),
-            "away_team": str(
-                away_team
-            ).strip(),
+            "game_date": game_date.strftime("%Y_%m_%d"),
+            "home_team": str(home_team).strip(),
+            "away_team": str(away_team).strip(),
             "home_score": home_score,
             "away_score": away_score,
             "total": home_score + away_score,
@@ -495,14 +460,7 @@ def parse_completed_games(
     return rows
 
 
-def composite(
-    row: dict,
-) -> tuple[str, str, str]:
-    """Canonical game identity: date, home team, away team.
-
-    The league is taken from the record itself, preventing
-    NBA aliases from affecting NCAAM or WNBA comparisons.
-    """
+def composite(row: dict) -> tuple[str, str, str]:
     league = row.get("league") or ""
 
     return (
@@ -520,27 +478,14 @@ def composite(
     )
 
 
-def score_signature(
-    row: dict,
-) -> tuple[str, str]:
+def score_signature(row: dict) -> tuple[str, str]:
     return (
-        str(
-            row.get("home_score") or ""
-        ).strip(),
-        str(
-            row.get("away_score") or ""
-        ).strip(),
+        str(row.get("home_score") or "").strip(),
+        str(row.get("away_score") or "").strip(),
     )
 
 
-def result_signature(
-    row: dict,
-) -> tuple[str, ...]:
-    """Compare all final-score numerical output fields.
-
-    Team names are deliberately excluded here because
-    equivalent aliases are handled by composite().
-    """
+def result_signature(row: dict) -> tuple[str, ...]:
     return tuple(
         str(row.get(field, "")).strip()
         for field in (
@@ -553,14 +498,11 @@ def result_signature(
     )
 
 
-def read_existing(
-    path: Path,
-) -> list[dict]:
+def read_existing(path: Path) -> list[dict]:
     if not path.exists():
         return []
 
-    with open(
-        path,
+    with path.open(
         newline="",
         encoding="utf-8-sig",
     ) as handle:
@@ -570,8 +512,8 @@ def read_existing(
             set(reader.fieldnames or [])
         ):
             raise ValueError(
-                "Existing final-score CSV has "
-                f"missing required columns: {path}"
+                "Existing final-score CSV missing "
+                f"required columns: {path}"
             )
 
         return list(reader)
@@ -581,7 +523,6 @@ def conflict_details(
     previous: dict,
     incoming: dict,
 ) -> str:
-    """Report actual differences, including equivalent aliases."""
     fields = (
         "game_id",
         "game_date",
@@ -614,10 +555,7 @@ def conflict_details(
             "incoming": incoming_values[field],
         }
         for field in fields
-        if (
-            previous_values[field]
-            != incoming_values[field]
-        )
+        if previous_values[field] != incoming_values[field]
     }
 
     return (
@@ -645,28 +583,19 @@ def merge_rows(
     label: str,
     output_path: Path | None = None,
 ) -> list[dict]:
-    """Merge final scores without changing verified historical results.
+    """Merge results while protecting stored final scores.
 
-    Equivalent NBA names compare equal using team_map_nba.csv.
+    Valid NBA aliases compare equal.
 
-    Genuine conflicts remain fatal:
-    - same game ID, different date or opponents
-    - same matchup, different game ID
-    - same game, different scores
-    - same game, different total or spread
-
-    Saved names and scores are never rewritten.
+    Fatal conflicts include:
+      Same game ID with different teams/date.
+      Same matchup with different game IDs.
+      Changed final scores, total, or spreads.
     """
-    merged = [
-        dict(row)
-        for row in existing
-    ]
+    merged = [dict(row) for row in existing]
 
     by_id: dict[str, dict] = {}
-    by_comp: dict[
-        tuple[str, str, str],
-        dict,
-    ] = {}
+    by_comp: dict[tuple[str, str, str], dict] = {}
 
     source = (
         f" file={output_path};"
@@ -675,141 +604,113 @@ def merge_rows(
     )
 
     def register(row: dict) -> None:
-        gid = str(
-            row.get("game_id") or ""
-        ).strip()
-
+        gid = str(row.get("game_id") or "").strip()
         key = composite(row)
         scores = score_signature(row)
         values = result_signature(row)
 
-        if (
-            not gid
-            or not all(key)
-            or not all(scores)
-        ):
+        if not gid or not all(key) or not all(scores):
             raise RuntimeError(
                 f"{label}: invalid final-score identity;"
                 f"{source} row={json.dumps(row)}"
             )
 
-        previous_id = by_id.get(gid)
+        prior_id = by_id.get(gid)
 
-        if previous_id is not None:
+        if prior_id is not None:
             if (
-                composite(previous_id) != key
-                or result_signature(
-                    previous_id
-                ) != values
+                composite(prior_id) != key
+                or result_signature(prior_id) != values
             ):
                 raise RuntimeError(
                     f"{label}: conflicting final score "
                     f"for game_id {gid};"
                     f"{source} "
-                    f"{conflict_details(previous_id, row)}"
+                    f"{conflict_details(prior_id, row)}"
                 )
 
-        previous_comp = by_comp.get(key)
+        prior_comp = by_comp.get(key)
 
-        if previous_comp is not None:
-            previous_gid = str(
-                previous_comp.get("game_id") or ""
+        if prior_comp is not None:
+            prior_gid = str(
+                prior_comp.get("game_id") or ""
             ).strip()
 
-            if previous_gid != gid:
+            if prior_gid != gid:
                 raise RuntimeError(
                     f"{label}: conflicting game IDs "
                     f"for matchup {key}: "
-                    f"{previous_gid} vs {gid};"
+                    f"{prior_gid} vs {gid};"
                     f"{source} "
-                    f"{conflict_details(previous_comp, row)}"
+                    f"{conflict_details(prior_comp, row)}"
                 )
 
-            if (
-                result_signature(previous_comp)
-                != values
-            ):
+            if result_signature(prior_comp) != values:
                 raise RuntimeError(
                     f"{label}: conflicting final score "
                     f"for matchup {key};"
                     f"{source} "
-                    f"{conflict_details(previous_comp, row)}"
+                    f"{conflict_details(prior_comp, row)}"
                 )
 
         by_id[gid] = dict(row)
         by_comp[key] = dict(row)
 
-    # Validate all existing records before accepting
-    # any newly fetched results.
     for row in merged:
         register(row)
 
     for row in fetched:
-        gid = str(
-            row.get("game_id") or ""
-        ).strip()
-
+        gid = str(row.get("game_id") or "").strip()
         key = composite(row)
         scores = score_signature(row)
         values = result_signature(row)
 
-        if (
-            not gid
-            or not all(key)
-            or not all(scores)
-        ):
+        if not gid or not all(key) or not all(scores):
             raise RuntimeError(
                 f"{label}: invalid fetched "
                 f"final-score identity;"
                 f"{source} row={json.dumps(row)}"
             )
 
-        previous_id = by_id.get(gid)
+        prior_id = by_id.get(gid)
 
-        if previous_id is not None:
+        if prior_id is not None:
             if (
-                composite(previous_id) != key
-                or result_signature(
-                    previous_id
-                ) != values
+                composite(prior_id) != key
+                or result_signature(prior_id) != values
             ):
                 raise RuntimeError(
                     f"{label}: fetched score conflicts "
                     f"for game_id {gid};"
                     f"{source} "
-                    f"{conflict_details(previous_id, row)}"
+                    f"{conflict_details(prior_id, row)}"
                 )
 
-            # Exact same game, including equivalent NBA
-            # aliases. Preserve the saved CSV row.
+            # Same game and result. Preserve saved row.
             continue
 
-        previous_comp = by_comp.get(key)
+        prior_comp = by_comp.get(key)
 
-        if previous_comp is not None:
-            previous_gid = str(
-                previous_comp.get("game_id") or ""
+        if prior_comp is not None:
+            prior_gid = str(
+                prior_comp.get("game_id") or ""
             ).strip()
 
-            if previous_gid != gid:
+            if prior_gid != gid:
                 raise RuntimeError(
                     f"{label}: fetched game ID conflict "
                     f"for matchup {key}: "
-                    f"stored={previous_gid} "
-                    f"incoming={gid};"
+                    f"stored={prior_gid} incoming={gid};"
                     f"{source} "
-                    f"{conflict_details(previous_comp, row)}"
+                    f"{conflict_details(prior_comp, row)}"
                 )
 
-            if (
-                result_signature(previous_comp)
-                != values
-            ):
+            if result_signature(prior_comp) != values:
                 raise RuntimeError(
                     f"{label}: fetched score conflicts "
                     f"for matchup {key};"
                     f"{source} "
-                    f"{conflict_details(previous_comp, row)}"
+                    f"{conflict_details(prior_comp, row)}"
                 )
 
             continue
@@ -820,22 +721,16 @@ def merge_rows(
     return merged
 
 
-def write_rows(
-    path: Path,
-    rows: list[dict],
-) -> None:
+def write_rows(path: Path, rows: list[dict]) -> None:
     path.parent.mkdir(
         parents=True,
         exist_ok=True,
     )
 
-    temp = path.with_suffix(
-        path.suffix + ".tmp"
-    )
+    temp = path.with_suffix(path.suffix + ".tmp")
 
     try:
-        with open(
-            temp,
+        with temp.open(
             "w",
             newline="",
             encoding="utf-8",
@@ -844,15 +739,11 @@ def write_rows(
                 handle,
                 fieldnames=OUTPUT_COLUMNS,
             )
-
             writer.writeheader()
 
             for row in rows:
                 writer.writerow({
-                    column: row.get(
-                        column,
-                        "",
-                    )
+                    column: row.get(column, "")
                     for column in OUTPUT_COLUMNS
                 })
 
@@ -907,10 +798,7 @@ def fetch_one(
         output,
     )
 
-    write_rows(
-        output,
-        merged,
-    )
+    write_rows(output, merged)
 
     log(
         f"[{cfg['label']}] {game_date}: "
@@ -1013,14 +901,11 @@ def resolve_dates(args) -> list[date]:
         )
 
     today = datetime.now(NY).date()
-
     start = today - timedelta(
         days=args.lookback_days
     )
 
-    return list(
-        date_range(start, today)
-    )
+    return list(date_range(start, today))
 
 
 def main() -> None:
@@ -1040,8 +925,6 @@ def main() -> None:
     dates = resolve_dates(args)
     leagues = args.league or list(LEAGUES)
 
-    # Validate the NBA aliases before fetching scores.
-    # Other leagues do not depend on the NBA map.
     if "nba" in leagues:
         aliases = load_nba_team_map()
 
@@ -1086,9 +969,7 @@ def main() -> None:
             "ERROR",
         )
 
-        raise RuntimeError(
-            "\n".join(failures)
-        )
+        raise RuntimeError("\n".join(failures))
 
     log("STATUS: SUCCESS")
 
@@ -1102,5 +983,4 @@ if __name__ == "__main__":
             f"STATUS: FAILED | {main_exc}",
             file=sys.stderr,
         )
-
         sys.exit(1)
