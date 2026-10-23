@@ -461,21 +461,14 @@ def parse_completed_games(
 
 
 def composite(row: dict) -> tuple[str, str, str]:
-    league = row.get("league") or ""
-
+    league = str(row.get("league") or "")
     return (
-        str(
-            row.get("game_date") or ""
-        ).strip().replace("-", "_"),
-        normalize_team(
-            row.get("home_team"),
-            league,
-        ),
-        normalize_team(
-            row.get("away_team"),
-            league,
-        ),
+        str(row.get("game_date") or "").strip().replace("-", "_"),
+        normalize_team(row.get("home_team"), league),
+        normalize_team(row.get("away_team"), league),
     )
+
+
 
 
 def score_signature(row: dict) -> tuple[str, str]:
@@ -578,147 +571,74 @@ def conflict_details(
 
 
 def merge_rows(
-    existing: list[dict],
-    fetched: list[dict],
-    label: str,
+    existing: list[dict], fetched: list[dict], label: str,
     output_path: Path | None = None,
 ) -> list[dict]:
-    """Merge results while protecting stored final scores.
+    """Preserve finals, merge equivalent NBA aliases, and promote blank IDs.
 
-    Valid NBA aliases compare equal.
-
-    Fatal conflicts include:
-      Same game ID with different teams/date.
-      Same matchup with different game IDs.
-      Changed final scores, total, or spreads.
+    A matching (date, canonical home, canonical away) with the same
+    result is one game, even if an older stored row has no game_id.
+    Conflicting results, matchups or nonblank game IDs remain fatal.
     """
-    merged = [dict(row) for row in existing]
-
+    merged: list[dict] = []
     by_id: dict[str, dict] = {}
     by_comp: dict[tuple[str, str, str], dict] = {}
+    source = f" file={output_path};" if output_path is not None else ""
 
-    source = (
-        f" file={output_path};"
-        if output_path is not None
-        else ""
-    )
+    def signature(row: dict) -> tuple[str, ...]:
+        return tuple(str(row.get(field, "")).strip() for field in (
+            "home_score", "away_score", "total", "home_spread", "away_spread"
+        ))
 
-    def register(row: dict) -> None:
+    def insert(row: dict, *, fetched_row: bool) -> None:
         gid = str(row.get("game_id") or "").strip()
         key = composite(row)
-        scores = score_signature(row)
-        values = result_signature(row)
+        scores = signature(row)
+        if not all(key) or not all(scores[:2]):
+            raise RuntimeError(f"{label}: incomplete final-score record;{source} {row}")
+        if fetched_row and not gid:
+            raise RuntimeError(f"{label}: incoming game_id is blank;{source} {row}")
 
-        if not gid or not all(key) or not all(scores):
+        same_id = by_id.get(gid) if gid else None
+        if same_id is not None and (
+            composite(same_id) != key or signature(same_id) != scores
+        ):
             raise RuntimeError(
-                f"{label}: invalid final-score identity;"
-                f"{source} row={json.dumps(row)}"
+                f"{label}: conflicting final for game_id {gid};{source} "
+                f"stored={same_id} incoming={row}"
             )
 
-        prior_id = by_id.get(gid)
-
-        if prior_id is not None:
-            if (
-                composite(prior_id) != key
-                or result_signature(prior_id) != values
-            ):
+        previous = by_comp.get(key)
+        if previous is not None:
+            old_id = str(previous.get("game_id") or "").strip()
+            if signature(previous) != scores:
                 raise RuntimeError(
-                    f"{label}: conflicting final score "
-                    f"for game_id {gid};"
-                    f"{source} "
-                    f"{conflict_details(prior_id, row)}"
+                    f"{label}: conflicting final for {key};{source} "
+                    f"stored={previous} incoming={row}"
                 )
-
-        prior_comp = by_comp.get(key)
-
-        if prior_comp is not None:
-            prior_gid = str(
-                prior_comp.get("game_id") or ""
-            ).strip()
-
-            if prior_gid != gid:
+            if old_id and gid and old_id != gid:
                 raise RuntimeError(
-                    f"{label}: conflicting game IDs "
-                    f"for matchup {key}: "
-                    f"{prior_gid} vs {gid};"
-                    f"{source} "
-                    f"{conflict_details(prior_comp, row)}"
+                    f"{label}: conflicting game IDs for {key};{source} "
+                    f"stored={old_id} incoming={gid}"
                 )
+            if not old_id and gid:
+                previous["game_id"] = gid
+                by_id[gid] = previous
+            return
 
-            if result_signature(prior_comp) != values:
-                raise RuntimeError(
-                    f"{label}: conflicting final score "
-                    f"for matchup {key};"
-                    f"{source} "
-                    f"{conflict_details(prior_comp, row)}"
-                )
+        saved = dict(row)
+        merged.append(saved)
+        by_comp[key] = saved
+        if gid:
+            by_id[gid] = saved
 
-        by_id[gid] = dict(row)
-        by_comp[key] = dict(row)
-
-    for row in merged:
-        register(row)
-
+    for row in existing:
+        insert(row, fetched_row=False)
     for row in fetched:
-        gid = str(row.get("game_id") or "").strip()
-        key = composite(row)
-        scores = score_signature(row)
-        values = result_signature(row)
-
-        if not gid or not all(key) or not all(scores):
-            raise RuntimeError(
-                f"{label}: invalid fetched "
-                f"final-score identity;"
-                f"{source} row={json.dumps(row)}"
-            )
-
-        prior_id = by_id.get(gid)
-
-        if prior_id is not None:
-            if (
-                composite(prior_id) != key
-                or result_signature(prior_id) != values
-            ):
-                raise RuntimeError(
-                    f"{label}: fetched score conflicts "
-                    f"for game_id {gid};"
-                    f"{source} "
-                    f"{conflict_details(prior_id, row)}"
-                )
-
-            # Same game and result. Preserve saved row.
-            continue
-
-        prior_comp = by_comp.get(key)
-
-        if prior_comp is not None:
-            prior_gid = str(
-                prior_comp.get("game_id") or ""
-            ).strip()
-
-            if prior_gid != gid:
-                raise RuntimeError(
-                    f"{label}: fetched game ID conflict "
-                    f"for matchup {key}: "
-                    f"stored={prior_gid} incoming={gid};"
-                    f"{source} "
-                    f"{conflict_details(prior_comp, row)}"
-                )
-
-            if result_signature(prior_comp) != values:
-                raise RuntimeError(
-                    f"{label}: fetched score conflicts "
-                    f"for matchup {key};"
-                    f"{source} "
-                    f"{conflict_details(prior_comp, row)}"
-                )
-
-            continue
-
-        merged.append(dict(row))
-        register(row)
-
+        insert(row, fetched_row=True)
     return merged
+
+
 
 
 def write_rows(path: Path, rows: list[dict]) -> None:
