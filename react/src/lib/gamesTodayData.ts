@@ -675,47 +675,16 @@ export async function loadCFB(date: string, signal?: AbortSignal): Promise<Leagu
 }
 
 export async function loadBasketball(league: string, date: string, signal?: AbortSignal): Promise<LeagueResult> {
-  const lower = league.toLowerCase();
   const upper = league.toUpperCase();
-
-  const [gamesRes, predRes, bookRes] = await Promise.all([
-    fetchFirstCSV(
-      [
-        `win/basketball/daily_games/${lower}/${date}_${lower}.csv`,
-        `win/basketball/daily_games/${lower}/${date}_${upper}.csv`,
-        `win/basketball/daily_games/${upper}/${date}_${lower}.csv`,
-        `win/basketball/daily_games/${upper}/${date}_${upper}.csv`,
-      ],
-      signal
-    ),
-    fetchFirstCSV(
-      [
-        `win/basketball/00_intake/predictions/predictions_cleaned/${lower}/${date}_${lower}_predictions.csv`,
-        `win/basketball/00_intake/predictions/predictions_cleaned/${lower}/${date}_${upper}_predictions.csv`,
-        `win/basketball/00_intake/predictions/predictions_cleaned/${upper}/${date}_${lower}_predictions.csv`,
-        `win/basketball/00_intake/predictions/predictions_cleaned/${upper}/${date}_${upper}_predictions.csv`,
-      ],
-      signal
-    ),
-    fetchFirstCSV(
-      [
-        `win/basketball/00_intake/sportsbook/sportsbook_cleaned/${lower}/${date}_${lower}_odds.csv`,
-        `win/basketball/00_intake/sportsbook/sportsbook_cleaned/${lower}/${date}_${upper}_odds.csv`,
-        `win/basketball/00_intake/sportsbook/sportsbook_cleaned/${upper}/${date}_${lower}_odds.csv`,
-        `win/basketball/00_intake/sportsbook/sportsbook_cleaned/${upper}/${date}_${upper}_odds.csv`,
-      ],
-      signal
-    ),
-  ]);
-
-  const predictionByGameId = mapByGameId(predRes.rows);
-  const bookByGameId = mapByGameId(bookRes.rows);
+  // Single published CSV for NBA, NCAAM, and WNBA; the model fields originate in EV/Kelly.
+  const source = `https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/index_home/basketball/${upper}/${date}_${upper}_games_today.csv`;
+  const gamesRes = await fetchCSV(source, signal);
   const displayLeague = displayLeagueConfig(league, league);
 
   const games: Game[] = gamesRes.rows.map((base) => {
-    const pred: Row = predictionByGameId[base.game_id] || {};
-    const book: Row = bookByGameId[base.game_id] || {};
-    const gameTime = base.game_time || pred.game_time || book.game_time;
+    const pred: Row = base;
+    const book: Row = base;
+    const gameTime = base.game_time || "";
 
     return {
       league,
@@ -744,8 +713,8 @@ export async function loadBasketball(league: string, date: string, signal?: Abor
       modal: cleanModalRows([
         ["Date", formatDate(base.game_date)],
         ["Time", formatTime(gameTime)],
-        ["Away Win Probability", formatProb(pred.away_prob)],
-        ["Home Win Probability", formatProb(pred.home_prob)],
+        ["Away Win Probability", formatProb(pred.away_model_prob)],
+        ["Home Win Probability", formatProb(pred.home_model_prob)],
         ["Away Projected Points", formatOneDecimal(pred.away_projected_points)],
         ["Home Projected Points", formatOneDecimal(pred.home_projected_points)],
         ["Projected Total Points", formatOneDecimal(pred.total_projected_points)],
