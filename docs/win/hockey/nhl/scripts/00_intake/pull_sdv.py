@@ -1081,6 +1081,19 @@ def save_object(
         is_polars_frame(obj)
         or is_pandas_frame(obj)
     ):
+        production_features = {
+            ("fatigue", "fatigue"),
+            ("team-strength", "team_ratings_asof"),
+            ("goalie", "game_goalie_features_asof"),
+            ("lineup-strength", "game_lineup_features_asof"),
+        }
+        if (category, label) in production_features and len(obj.columns) == 0:
+            print(
+                f"SDV empty feature snapshot skipped: "
+                f"{category}/{label} ({prefix})"
+            )
+            return written
+
         snap = (
             out_dir
             / f"{prefix}_{label}.csv"

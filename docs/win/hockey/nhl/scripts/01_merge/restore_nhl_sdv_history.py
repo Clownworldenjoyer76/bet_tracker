@@ -280,6 +280,10 @@ def prepare_history() -> None:
         for path in sorted(folder.glob(f"*_ET_{suffix}.csv")):
             matched = filename_pattern.fullmatch(path.name)
 
+            if matched and not path.read_text(encoding="utf-8-sig").strip():
+                print(f"SDV empty historical snapshot skipped: {path}")
+                continue
+
             if (
                 matched
                 and matched.group(1) not in latest_dates
