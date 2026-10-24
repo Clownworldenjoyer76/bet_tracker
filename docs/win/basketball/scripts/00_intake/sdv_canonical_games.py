@@ -1193,6 +1193,15 @@ def build_league(
         from wnba_sdv_current_refresh import refresh as _wnba_refresh
         _wnba_refresh(Path.cwd())  # completed stats + daily schedule; abort on errors
 
+    # WNBA_2027_SEASON_REFRESH_HOOK_V1
+    if league == "wnba" and int(internal) == 2027:
+        from wnba_sdv_2027_refresh import refresh as _wnba_2027_refresh
+        _wnba_2027_refresh(Path.cwd())
+        _wnba_2027_canonical = output_path("wnba", 2027)
+        if _wnba_2027_canonical.is_file():
+            return _wnba_2027_canonical  # avoids truncated season-wide SDV fetch
+        raise RuntimeError("WNBA 2027 scoreboard has no regular/playoff schedule yet")
+
     # A corrupted existing cache must not be used as a
     # fallback or merged into fresh data.
     previous = []
