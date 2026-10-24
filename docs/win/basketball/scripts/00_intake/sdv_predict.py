@@ -2683,6 +2683,11 @@ def main() -> int:
 
             return 0
 
+        # WNBA_2026_LOCAL_REFRESH_HOOK_V1
+        if args.league == "wnba":
+            from wnba_sdv_current_refresh import refresh as _wnba_refresh
+            _wnba_refresh(Path.cwd())  # must precede WNBA feature computation
+
         dates_written = 0
         rows_written = 0
         dates_skipped = 0

@@ -1188,6 +1188,11 @@ def build_league(
         f"sdv_season={mapped_sdv_season}"
     )
 
+    # WNBA_2026_LOCAL_REFRESH_HOOK_V1
+    if league == "wnba" and int(internal) == 2026:
+        from wnba_sdv_current_refresh import refresh as _wnba_refresh
+        _wnba_refresh(Path.cwd())  # completed stats + daily schedule; abort on errors
+
     # A corrupted existing cache must not be used as a
     # fallback or merged into fresh data.
     previous = []
