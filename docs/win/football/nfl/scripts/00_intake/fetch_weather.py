@@ -29,7 +29,7 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 from zoneinfo import ZoneInfo
 
 SCRIPT_PATH = Path(__file__).resolve()
@@ -143,7 +143,7 @@ def clean(value: Any) -> str:
     return "" if value is None else str(value).strip()
 
 
-def fail(message: str) -> None:
+def fail(message: str) -> NoReturn:
     raise WeatherError(message)
 
 
@@ -496,8 +496,6 @@ def is_future_game(game_dt: datetime) -> bool:
 def fetch_weather_json(
     lat: str,
     lon: str,
-    *,
-    game_id: str,
 ) -> tuple[dict[str, Any] | None, int, str]:
     url = f"{METNO_URL}?lat={lat}&lon={lon}"
     request = urllib.request.Request(
@@ -995,7 +993,6 @@ def process_games(
             fetch_weather_json(
                 lat,
                 lon,
-                game_id=game_id,
             )
         )
         metrics[

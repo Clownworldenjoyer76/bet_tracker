@@ -42,6 +42,8 @@ No raw source files are edited.
 from __future__ import annotations
 
 from pathlib import Path
+from numbers import Number
+import typing
 import math
 import sys
 
@@ -201,11 +203,18 @@ def require_columns(
         )
 
 
+class _ValidatedScalarString(typing.Protocol):
+    def __str__(self) -> str:
+        ...
+
+
 def clean_text(value: object) -> str:
     if value is None:
         return ""
+    if not isinstance(value, (str, Number, bool, pd.Timestamp)):
+        raise TypeError(f"Unsupported historical feature type: {type(value).__name__}")
 
-    text = str(value).strip()
+    text = str(typing.cast(_ValidatedScalarString, value)).strip()
 
     if text.lower() in BLANK_STRINGS:
         return ""
@@ -1245,9 +1254,9 @@ if __name__ == "__main__":
         raise SystemExit(
             main()
         )
-    except Exception as exc:
+    except Exception as cli_error:
         print(
-            f"ERROR: {exc}",
+            f"ERROR: {cli_error}",
             file=sys.stderr,
         )
         raise

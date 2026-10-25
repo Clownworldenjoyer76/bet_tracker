@@ -123,6 +123,8 @@ def nfl_root() -> Path:
 def clean(value: object) -> str:
     if value is None or pd.isna(value):
         return ""
+    if not isinstance(value, (str, int, float, bool, np.generic, datetime)):
+        raise TypeError(f"Unsupported team feature value type: {type(value).__name__}")
     text = str(value).strip()
     if text.casefold() in {"", "nan", "none", "null", "<na>", "nat"}:
         return ""
@@ -343,7 +345,7 @@ def parse_timestamp(
             utc=True,
             errors="coerce",
         )
-    except Exception:
+    except (TypeError, ValueError, OverflowError):
         return None
 
     return (
@@ -714,7 +716,7 @@ def load_team_name_lookup(
                 ):
                     raise ValueError(
                         f"{path}: ambiguous team alias "
-                        f"{value!r} maps to both "
+                        f"{clean(value)!r} maps to both "
                         f"{existing} and {abbr}"
                     )
 
@@ -920,7 +922,7 @@ class CurrentRoster:
                 encoding="utf-8-sig",
                 low_memory=False,
             )
-        except Exception:
+        except (OSError, UnicodeError, ValueError, pd.errors.ParserError):
             return
 
         if df.empty:
@@ -3852,7 +3854,6 @@ def previous_game_kickoff(
 
 def add_injury_features(
     work: pd.DataFrame,
-    season: int,
     week1_mode: bool,
     full_schedule: pd.DataFrame,
     team_lookup: dict[str, str],
@@ -4719,7 +4720,6 @@ def prepare_week(
 
     add_injury_features(
         base,
-        season,
         week1_mode,
         full_schedule,
         team_lookup,

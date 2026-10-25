@@ -9,10 +9,9 @@ import os
 import shutil
 import sys
 import tempfile
-import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 
 SCRIPT_PATH = Path(__file__).resolve()
@@ -128,7 +127,7 @@ def load_runtime_dependencies(
     )
 
 
-def fail(message: str) -> None:
+def fail(message: str) -> NoReturn:
     raise RuntimeError(message)
 
 
@@ -155,7 +154,7 @@ def to_float(value: Any) -> float | None:
     try:
         result = float(str(value).strip())
         return result if math.isfinite(result) else None
-    except Exception:
+    except (TypeError, ValueError, OverflowError):
         return None
 
 

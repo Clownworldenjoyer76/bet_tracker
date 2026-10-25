@@ -13,13 +13,11 @@ from __future__ import annotations
 import argparse
 import csv
 import importlib.util
-import json
 import sys
 from collections import defaultdict
-from datetime import datetime, timezone
 from pathlib import Path
 from types import ModuleType
-from typing import Any
+from typing import Any, NoReturn
 
 SCRIPT_PATH = Path(__file__).resolve()
 SCRIPTS_DIR = SCRIPT_PATH.parents[1]
@@ -56,7 +54,7 @@ def clean(value: Any) -> str:
     return "" if value is None else str(value).strip()
 
 
-def fail(message: str) -> None:
+def fail(message: str) -> NoReturn:
     print(f"VALIDATION FAILED: {message}", file=sys.stderr)
     raise DailyValidationError(message)
 

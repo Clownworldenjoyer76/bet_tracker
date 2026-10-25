@@ -136,8 +136,10 @@ def clean(value: object) -> str:
         missing = pd.isna(value)
         if isinstance(missing, (bool, np.bool_)) and missing:
             return ""
-    except Exception:
+    except (TypeError, ValueError):
         pass
+    if not isinstance(value, (str, int, float, bool, np.generic)):
+        raise TypeError(f"Unsupported Week 1 feature type: {type(value).__name__}")
     text = str(value).strip()
     if text.casefold() in {"", "nan", "none", "null", "<na>", "nat"}:
         return ""
@@ -215,7 +217,7 @@ def parse_timestamp(value: object) -> pd.Timestamp | None:
         return None
     try:
         ts = pd.to_datetime(text, utc=True, errors="coerce")
-    except Exception:
+    except (TypeError, ValueError, OverflowError):
         return None
     return None if pd.isna(ts) else ts
 
@@ -336,16 +338,16 @@ class TeamNormalizer:
                 continue
             self.canonical_abbrs.add(abbr)
 
-        def add_alias(value: object, abbr: str) -> None:
+        def add_alias(value: object, alias_abbr: str) -> None:
             key = normalize_name(value)
             if not key:
                 return
             previous = self.alias_to_abbr.get(key)
-            if previous is not None and previous != abbr:
+            if previous is not None and previous != alias_abbr:
                 raise ValueError(
-                    f"{path}: ambiguous team alias {clean(value)!r}: {previous} vs {abbr}"
+                    f"{path}: ambiguous team alias {clean(value)!r}: {previous} vs {alias_abbr}"
                 )
-            self.alias_to_abbr[key] = abbr
+            self.alias_to_abbr[key] = alias_abbr
 
         for _, row in df.iterrows():
             abbr = clean(row["team_abbr"]).upper()
@@ -705,7 +707,7 @@ class SnapProvider:
             for identity in identities:
                 self.series.setdefault((team, identity), []).append(item)
         for key in self.series:
-            self.series[key].sort(key=lambda item: item[0])
+            self.series[key].sort(key=lambda snap_entry: snap_entry[0])
 
     def latest(self, team: str, pfr_id: str, name: str) -> tuple[float, float, str] | None:
         identities = []

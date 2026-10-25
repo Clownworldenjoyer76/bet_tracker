@@ -34,6 +34,11 @@ from __future__ import annotations
 import csv
 from pathlib import Path
 import sys
+from typing import Protocol
+
+
+class _CsvRowWriter(Protocol):
+    def writerow(self, row: list[str], /) -> int: ...
 
 
 NFL_ROOT = Path("docs/win/football/nfl")
@@ -219,7 +224,7 @@ def split_source() -> tuple[
     total_rows = 0
 
     handles: dict[str, object] = {}
-    writers: dict[str, csv.writer] = {}
+    writers: dict[str, _CsvRowWriter] = {}
 
     try:
         with SOURCE_PATH.open(
@@ -301,7 +306,7 @@ def split_source() -> tuple[
         for handle in handles.values():
             try:
                 handle.close()
-            except Exception:
+            except (OSError, ValueError):
                 pass
 
     if total_rows == 0:
@@ -517,9 +522,9 @@ if __name__ == "__main__":
         raise SystemExit(
             main()
         )
-    except Exception as exc:
+    except Exception as cli_error:
         print(
-            f"ERROR: {exc}",
+            f"ERROR: {cli_error}",
             file=sys.stderr,
         )
         raise

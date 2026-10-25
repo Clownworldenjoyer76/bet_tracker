@@ -222,7 +222,7 @@ def to_float(value: Any) -> float | None:
     try:
         result = float(str(value).strip())
         return result if math.isfinite(result) else None
-    except Exception:
+    except (TypeError, ValueError, OverflowError):
         return None
 
 
@@ -554,7 +554,6 @@ def build_metric_row(sub: pd.DataFrame) -> dict[str, Any]:
 
 
 def aggregate(df: pd.DataFrame, group_cols: list[str], variable_label: bool = False) -> pd.DataFrame:
-    prefix = ["league", "market_type"] if "market_type" in group_cols else ["league"]
     if variable_label:
         prefix = [col for col in group_cols[:-1]] + ["variable"]
     else:

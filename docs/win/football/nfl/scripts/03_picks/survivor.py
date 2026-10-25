@@ -10,7 +10,7 @@ import shutil
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 
 SCRIPT_PATH = Path(__file__).resolve()
@@ -66,7 +66,7 @@ EPSILON = 1e-9
 DISPLAY_RECONCILIATION_TOLERANCE = 0.150000001
 
 
-def fail(message):
+def fail(message) -> NoReturn:
     raise RuntimeError(message)
 
 
@@ -440,7 +440,7 @@ def build_output(rows, week, input_path):
         )
 
     output.sort(
-        key=lambda row: row["pt_diff"],
+        key=lambda ranked_pick: ranked_pick["pt_diff"],
         reverse=True,
     )
 
@@ -484,7 +484,7 @@ def expected_output_rows(
         )
 
     expected.sort(
-        key=lambda row: row["pt_diff"],
+        key=lambda ranked_row: ranked_row["pt_diff"],
         reverse=True,
     )
     return expected

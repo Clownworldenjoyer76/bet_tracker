@@ -40,6 +40,8 @@ below so international_flag remains correct.
 from __future__ import annotations
 
 from datetime import datetime
+from numbers import Number
+import typing
 from pathlib import Path
 from zoneinfo import ZoneInfo
 import math
@@ -242,15 +244,21 @@ def require_columns(
         )
 
 
+class _ValidatedScalarString(typing.Protocol):
+    def __str__(self) -> str:
+        ...
+
+
 def clean(
     value: object,
 ) -> str:
     if value is None:
         return ""
 
-    text = str(
-        value
-    ).strip()
+    if not isinstance(value, (str, Number, bool, datetime)):
+        raise TypeError(f"Unsupported training value type: {type(value).__name__}")
+
+    text = str(typing.cast(_ValidatedScalarString, value)).strip()
 
     if text.lower() in BLANK_VALUES:
         return ""
@@ -1051,7 +1059,7 @@ def process_season(
 
         away_offset = (
             utc_offset_hours(
-                str(
+                clean(
                     away_info[
                         "timezone"
                     ]
@@ -1064,7 +1072,7 @@ def process_season(
 
         home_offset = (
             utc_offset_hours(
-                str(
+                clean(
                     home_info[
                         "timezone"
                     ]
@@ -1347,9 +1355,9 @@ if __name__ == "__main__":
             main()
         )
 
-    except Exception as exc:
+    except Exception as cli_error:
         print(
-            f"ERROR: {exc}",
+            f"ERROR: {cli_error}",
             file=sys.stderr,
         )
         raise

@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import NoReturn
 
 import argparse
-import csv
 import hashlib
 import math
 import os
@@ -119,13 +118,13 @@ def import_pandas() -> None:
 
     try:
         import pandas as pandas_module
-    except ImportError as exc:
+    except ImportError:
         fail(
             "This script requires pandas and a parquet engine. "
             "Install docs/win/football/nfl/requirements.txt."
         )
-
-    pd = pandas_module
+    else:
+        pd = pandas_module
 
 
 def clean(value: Any) -> str:
@@ -891,7 +890,7 @@ def publish_pair_with_rollback(
             try:
                 if target.exists():
                     target.unlink()
-            except Exception:
+            except OSError:
                 pass
 
         restore_errors = []

@@ -15,7 +15,7 @@ import sys
 import tempfile
 import uuid
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 SCRIPT_PATH = Path(__file__).resolve()
 SCRIPTS_DIR = SCRIPT_PATH.parents[1]
@@ -388,7 +388,7 @@ pd = None
 class CombineEnrichmentError(RuntimeError):
     pass
 
-def fail(message: str) -> None:
+def fail(message: str) -> NoReturn:
     raise CombineEnrichmentError(message)
 
 def clean(value: Any) -> str:
@@ -408,9 +408,10 @@ def import_pandas() -> None:
         return
     try:
         import pandas as pandas_module
-    except ImportError as exc:
+    except ImportError:
         fail("This script requires pandas. Install the repository requirements before running it.")
-    pd = pandas_module
+    else:
+        pd = pandas_module
 
 def read_raw_header(path: Path) -> list[str]:
     if not path.is_file():
