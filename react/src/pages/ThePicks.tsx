@@ -14,7 +14,7 @@
    4. Pick cards: time, league tag, matchup, pitchers (MLB), bet text, EV and edge dots (football cards hide the footer).
       MLB cards show "Lineups not available yet" when low_confidence is set. Clicking a card sends the pick_viewed analytics event
       and opens the game modal (football, soccer and the full projections / lines / picks layout).
-   5. UFC: finds the next event from win/mma/ufc/03_select/_index.json (else probes today + 7 days with HEAD requests), shows the
+   5. UFC: discovers dated consolidated CSVs in frontend/data/ufc/pred_sb_sel/, shows the
       event date in the UFC Event box, loads that card CSV and shows fighter cards and a modal with implied / model probability, EV, Kelly, edge.
    6. League filter pills (All plus one per league): choosing one shows only that column (All shows every column, including empty ones).
       Columns without any pick are hidden until a pill is chosen. "NO PICKS FOR THIS DATE" replaces the columns when nothing loaded.
@@ -26,6 +26,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { PICKS_LEAGUES, REPO_CONFIG, type LeagueCfg, type Row } from "../lib/picksConfig";
 import { resolveFootballSelections } from "../lib/footballPicks";
+import { findUfcEventDate, fetchUfcSelection, toSelectedUfcRows } from "../lib/ufcSources";
 import "../../../app/frontend/src/assets/css/pages/the_picks.css";
 
 const MID = String.fromCharCode(0xb7);
@@ -38,7 +39,7 @@ const NBSP = String.fromCharCode(0xa0);
 const LEGACY_ANALYTICS_DASH = String.fromCharCode(0xe2, 0x20ac, 0x201d);
 
 const BASE_RAW = "https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/docs/";
-const UFC_MANIFEST_PATH = "win/mma/ufc/03_select/_index.json";
+// UFC event dates now come from the consolidated GitHub directory.
 
 type CsvResult = { ok: boolean; rows: Row[]; source?: string };
 
@@ -398,84 +399,22 @@ function parseTime(t: string | undefined): number {
   return 9999;
 }
 
-// --- UFC: Find Nearest Event --------------------------------------------------
-
-function ymdToFileDate(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return y + "_" + m + "_" + day;
-}
-
-async function findUFCEventDate(signal: AbortSignal): Promise<string | null> {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const todayStr = ymdToFileDate(today);
-
-  // 1) Preferred path: read the manifest. Schema: ["YYYY_MM_DD", ...]
-  try {
-    const r = await fetch(BASE_RAW + UFC_MANIFEST_PATH, { cache: "no-store", signal });
-    if (r.ok) {
-      const dates = await r.json();
-      if (Array.isArray(dates) && dates.length) {
-        const sorted = [...dates].sort();
-        const upcoming = sorted.find((d) => d >= todayStr);
-        if (upcoming) return upcoming;
-        // Nothing upcoming - show the most recent past event so the page is not empty between fight cards.
-        return sorted[sorted.length - 1];
-      }
-    }
-  } catch {
-    /* fall through to probe */
-  }
-
-  // 2) Fallback: small probe (today + 7 days).
-  const candidates: { date: string; offset: number }[] = [];
-  for (let offset = 0; offset <= 7; offset++) {
-    const d = new Date(today);
-    d.setDate(today.getDate() + offset);
-    candidates.push({ date: ymdToFileDate(d), offset });
-  }
-
-  const results = await Promise.all(
-    candidates.map(async ({ date, offset }) => {
-      const url = BASE_RAW + "win/mma/ufc/03_select/" + date + "_ufc_select.csv";
-      try {
-        const r = await fetch(url, { method: "HEAD", signal });
-        return r.ok ? { date, offset } : null;
-      } catch {
-        return null;
-      }
-    })
-  );
-
-  const valid = results
-    .filter((x): x is { date: string; offset: number } => !!x)
-    .sort((a, b) => a.offset - b.offset);
-  return valid.length ? valid[0].date : null;
-}
-
-// --- UFC: Load ----------------------------------------------------------------
+// --- UFC: Discover event dates in the new consolidated CSV directory ---------
 
 async function loadUFC(signal: AbortSignal, setEventText: (text: string) => void): Promise<LeagueResult> {
   const cfg = REPO_CONFIG["UFC"];
-  const eventDate = await findUFCEventDate(signal);
-
+  const eventDate = await findUfcEventDate(signal);
   if (signal.aborted) return { league: "UFC", cfg, picks: 0, error: "Cancelled" };
-
-  // Update event selector
   setEventText(eventDate ? replaceAllText(eventDate, "_", "-") : "No upcoming event");
-
   if (!eventDate) return { league: "UFC", cfg, picks: 0, error: "No event found" };
-
-  const url = BASE_RAW + "win/mma/ufc/03_select/" + eventDate + "_ufc_select.csv";
-  const res = await fetchCSV(url, signal);
-
-  if (!res.ok || res.rows.length === 0) return { league: "UFC", cfg, picks: 0 };
-
-  return { league: "UFC", cfg, eventDate, rows: res.rows, picks: res.rows.length };
+  try {
+    const allFights = await fetchUfcSelection(eventDate, signal);
+    const selected = toSelectedUfcRows(allFights);
+    return { league: "UFC", cfg, eventDate, rows: selected, picks: selected.length };
+  } catch {
+    return { league: "UFC", cfg, eventDate, rows: [], picks: 0, error: "UFC data unavailable" };
+  }
 }
-
 // --- League Loader ------------------------------------------------------------
 
 async function loadLeague(

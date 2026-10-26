@@ -536,65 +536,48 @@ function buildCard(p, r, cfg) {
   return card;
 }
 
-// ─── UFC: Find Nearest Event ──────────────────────────────────────────────────
+// --- UFC: Discover the consolidated event CSVs -------------------------------
 
 const BASE_RAW = "https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/docs/";
-const UFC_MANIFEST_PATH = "win/mma/ufc/03_select/_index.json";
-
-function ymdToFileDate(d) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}_${m}_${day}`;
-}
+const UFC_SELECTION_INDEX = "https://api.github.com/repos/Clownworldenjoyer76/bet_tracker/contents/frontend/data/ufc/pred_sb_sel?ref=main";
+const UFC_SELECTION_RAW = "https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/ufc/pred_sb_sel/";
 
 async function findUFCEventDate() {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const todayStr = ymdToFileDate(today);
-
-  // 1) Preferred path: read the manifest. No probing, no console noise.
-  //    Schema: ["YYYY_MM_DD", ...]
   try {
-    const r = await fetch(`${BASE_RAW}${UFC_MANIFEST_PATH}`, { cache: "no-store" });
-    if (r.ok) {
-      const dates = await r.json();
-      if (Array.isArray(dates) && dates.length) {
-        const sorted  = [...dates].sort();
-        const upcoming = sorted.find(d => d >= todayStr);
-        if (upcoming) return upcoming;
-        // Nothing upcoming — show the most recent past event so the page
-        // isn't empty between fight cards.
-        return sorted[sorted.length - 1];
-      }
-    }
-  } catch { /* fall through to probe */ }
-
-  // 2) Fallback: small probe (today + 7 days) so the console shows at most
-  //    7 misses instead of 31 if the manifest is missing.
-  const candidates = [];
-  for (let offset = 0; offset <= 7; offset++) {
-    const d = new Date(today);
-    d.setDate(today.getDate() + offset);
-    candidates.push({ date: ymdToFileDate(d), offset });
-  }
-
-  const results = await Promise.all(
-    candidates.map(async ({ date, offset }) => {
-      const url = `${BASE_RAW}win/mma/ufc/03_select/${date}_ufc_select.csv`;
-      try {
-        const r = await fetch(url, { method: "HEAD" });
-        return r.ok ? { date, offset } : null;
-      } catch {
-        return null;
-      }
-    })
-  );
-
-  const valid = results.filter(Boolean).sort((a, b) => a.offset - b.offset);
-  return valid.length ? valid[0].date : null;
+    const response = await fetch(UFC_SELECTION_INDEX, { cache: "no-store" });
+    if (!response.ok) return null;
+    const files = await response.json();
+    if (!Array.isArray(files)) return null;
+    const dates = files.filter(file => file.type === "file")
+      .map(file => /^([0-9]{4}_[0-9]{2}_[0-9]{2})_pred_sb_sel_ufc\.csv$/i.exec(file.name || ""))
+      .filter(Boolean).map(match => match[1]).sort();
+    if (!dates.length) return null;
+    const today = new Date();
+    const key = [today.getFullYear(), String(today.getMonth()+1).padStart(2,"0"), String(today.getDate()).padStart(2,"0")].join("_");
+    return dates.find(date => date >= key) || dates[dates.length - 1];
+  } catch { return null; }
 }
 
+function selectedUFCRows(rows) {
+  return rows.flatMap(row => {
+    const chosen = String(row.selected_fighter || "").trim().toLowerCase();
+    if (!chosen) return [];
+    const isF1 = chosen === String(row.fighter_1 || "").trim().toLowerCase();
+    const isF2 = chosen === String(row.fighter_2 || "").trim().toLowerCase();
+    if (!isF1 && !isF2) return [];
+    const suffix = isF1 ? "f1" : "f2";
+    return [{ ...row,
+      fighter: isF1 ? row.fighter_1 : row.fighter_2,
+      opponent: isF1 ? row.fighter_2 : row.fighter_1,
+      moneyline: row["moneyline_" + suffix] || "",
+      implied_prob: row["implied_prob_" + suffix] || "",
+      model_prob: row["model_prob_" + suffix] || "",
+      edge: row["edge_" + suffix] || "",
+      ev: row["ev_" + suffix] || "",
+      kelly: row.selected_kelly || ""
+    }];
+  });
+}
 // ─── UFC: Build Card ──────────────────────────────────────────────────────────
 
 function buildUFCCard(row) {
@@ -686,27 +669,14 @@ function buildUFCModalHtml(row) {
 async function loadUFC() {
   const cfg = REPO_CONFIG["UFC"];
   const eventDate = await findUFCEventDate();
-
-  // Update event selector if present
   const ufcSelector = document.getElementById("ufc-event-selector");
-  if (ufcSelector) {
-    if (eventDate) {
-      ufcSelector.textContent = eventDate.replaceAll("_", "-");
-    } else {
-      ufcSelector.textContent = "No upcoming event";
-    }
-  }
-
+  if (ufcSelector) ufcSelector.textContent = eventDate ? eventDate.replaceAll("_", "-") : "No upcoming event";
   if (!eventDate) return { league: "UFC", cfg, picks: 0, error: "No event found" };
-
-  const url = `${BASE_RAW}win/mma/ufc/03_select/${eventDate}_ufc_select.csv`;
-  const res = await fetchCSV(url);
-
-  if (!res.ok || res.rows.length === 0) return { league: "UFC", cfg, picks: 0 };
-
-  return { league: "UFC", cfg, eventDate, rows: res.rows, picks: res.rows.length };
+  const res = await fetchCSV(UFC_SELECTION_RAW + eventDate + "_pred_sb_sel_ufc.csv");
+  if (!res.ok) return { league: "UFC", cfg, picks: 0, error: "UFC data unavailable" };
+  const rows = selectedUFCRows(res.rows);
+  return { league: "UFC", cfg, eventDate, rows, picks: rows.length };
 }
-
 // ─── UFC: Render Column ───────────────────────────────────────────────────────
 
 function renderUFCColumn(result) {

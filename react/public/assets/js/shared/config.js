@@ -548,7 +548,7 @@ window.REPO_CONFIG = {
     displayName:  "UFC",
     enabled: true,
     isUFC:        true,
-    selectFiles:  (date) => [`win/mma/ufc/03_select/${date}_ufc_select.csv`],
+    selectFiles:  (date) => [`frontend/data/ufc/pred_sb_sel/${date}_pred_sb_sel_ufc.csv`],
   },
 
 };

@@ -42,7 +42,7 @@ $Pages = @(
   'pipeline_health.html','nba_dashboard.html','ncaam_dashboard.html','basketball_dashboard.html','wnba_dashboard.html',
   'nfl_dashboard.html','ufc_dashboard.html','nhl_dashboard.html','soccer_dashboard.html','ncaaf_dashboard.html'
 )
-$HistoryFiles   = @('MLB.csv','MLB_LINEUPS.csv','WNBA.csv','NHL.csv','SOCCER.csv','UFC.csv')
+$HistoryFiles   = @('MLB.csv','MLB_LINEUPS.csv','WNBA.csv','NHL.csv','SOCCER.csv')
 $AnalyticsRel   = 'assets\js\shared\analytics.js'
 $NavRel         = 'nav.html'
 $NavJsRel       = 'assets\js\shared\nav.js'
@@ -88,7 +88,7 @@ function Test-AllowedShape([string]$rel, [string]$kind) {
     'page'    { return ($Pages -contains $rel) }
     'alias'   { return ($AliasPages.ContainsKey($rel)) }
     'asset'   { return ($rel -match '^assets\\[A-Za-z0-9._-]+$') }
-    'history' { return ($rel -match '^history-data\\(MLB|MLB_LINEUPS|WNBA|NHL|SOCCER|UFC)\.csv$') }
+    'history' { return ($rel -match '^history-data\\(MLB|MLB_LINEUPS|WNBA|NHL|SOCCER)\.csv$') }
     'shared'  { return ($rel -eq $AnalyticsRel -or $rel -eq $NavJsRel) }
     'nav'     { return ($rel -eq $NavRel) }
   }

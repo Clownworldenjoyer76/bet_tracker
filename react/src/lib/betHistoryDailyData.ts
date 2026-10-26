@@ -48,7 +48,17 @@ export const SOURCES: Source[] = [
   { url: "history-data/WNBA.csv", label: "WNBA", enabled: true },
   { url: "history-data/NHL.csv", label: "NHL", enabled: true },
   { url: "history-data/SOCCER.csv", label: "SOCCER", enabled: true },
-  { url: "history-data/UFC.csv", label: "UFC", enabled: true },
+  {
+    indexUrl: "https://api.github.com/repos/Clownworldenjoyer76/bet_tracker/contents/frontend/data/ufc/graded?ref=main",
+    indexItemToUrl: (item) => {
+      const entry = item as { type?: string; name?: string; download_url?: string };
+      if (!entry || entry.type !== "file") return "";
+      if (!/^\d{4}_\d{2}_\d{2}_graded_ufc\.csv$/i.test(entry.name || "")) return "";
+      return entry.download_url || "";
+    },
+    label: "UFC",
+    enabled: true,
+  },
 ];
 
 // ---- csv.js -------------------------------------------------------------

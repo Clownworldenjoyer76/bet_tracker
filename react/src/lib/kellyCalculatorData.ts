@@ -6,6 +6,8 @@
 export const MID = String.fromCharCode(0xb7);
 export const DASH = String.fromCharCode(0x2014);
 
+import { findUfcEventDate, fetchUfcSelection, toSelectedUfcRows } from "./ufcSources";
+
 export const BASE = "https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/";
 export const BASE_DOCS = BASE + "docs/";
 
@@ -485,86 +487,28 @@ function processConfigPicks(rows: any[], configKey: string, sportKey: string, da
 
 // ---------------------------------------------------------------- UFC
 
-async function findUFCEventDate(signal?: AbortSignal): Promise<string | null> {
-  const today = new Date();
-  const candidates: { date: string; offset: number }[] = [];
-
-  for (let offset = -30; offset <= 30; offset++) {
-    const d = new Date(today);
-
-    d.setDate(today.getDate() + offset);
-
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-
-    candidates.push({ date: `${y}_${m}_${day}`, offset: Math.abs(offset) });
-  }
-
-  const results = await Promise.all(
-    candidates.map(async ({ date, offset }) => {
-      const url = `${BASE_DOCS}win/mma/ufc/03_select/${date}_ufc_select.csv`;
-
-      try {
-        const r = await fetch(url, { method: "HEAD", signal });
-
-        return r.ok ? { date, offset } : null;
-      } catch {
-        return null;
-      }
-    })
-  );
-
-  const valid = results
-    .filter((x): x is { date: string; offset: number } => x !== null)
-    .sort((a, b) => a.offset - b.offset);
-
-  return valid.length ? valid[0].date : null;
-}
-
 async function loadUFCPicks(signal: AbortSignal | undefined, onUfcEvent: (text: string) => void): Promise<KellyPick[]> {
-  const eventDate = await findUFCEventDate(signal);
-
-  if (!eventDate) {
-    onUfcEvent("No event");
-
-    return [];
-  }
-
+  const eventDate = await findUfcEventDate(signal);
+  if (!eventDate) { onUfcEvent("No event"); return []; }
   onUfcEvent(eventDate.split("_").join("-"));
-
   try {
-    const url = `${BASE_DOCS}win/mma/ufc/03_select/${eventDate}_ufc_select.csv`;
-    const r = await fetch(url, { signal });
-
-    if (!r.ok) return [];
-
-    const rows = parseCSV(await r.text());
-
-    return rows
-      .map((row: any): KellyPick | null => {
-        const kelly = parseFloat(row.kelly || 0);
-        const ev = parseFloat(row.ev || 0);
-
-        if (isNaN(kelly) || kelly <= 0) return null;
-
-        return {
-          matchup: `${row.fighter} vs ${row.opponent}`,
-          time: "",
-          market_type: "ufc",
-          side: `${row.fighter} ${row.moneyline || ""}`,
-          odds: row.moneyline || DASH,
-          ev: isNaN(ev) ? null : ev,
-          kelly,
-          isUFC: true,
-        };
-      })
-      .filter((p): p is KellyPick => p !== null);
-  } catch {
-    return [];
-  }
+    const selected = toSelectedUfcRows(await fetchUfcSelection(eventDate, signal));
+    return selected.map((row): KellyPick => {
+      const ev = row.ev === "" ? NaN : Number(row.ev);
+      const kelly = row.kelly === "" ? NaN : Number(row.kelly);
+      return {
+        matchup: `${row.fighter} vs ${row.opponent}`,
+        time: "",
+        market_type: "ufc",
+        side: `${row.fighter} ${row.moneyline || ""}`,
+        odds: row.moneyline || DASH,
+        ev: Number.isFinite(ev) ? ev : null,
+        kelly: Number.isFinite(kelly) ? kelly : 0,
+        isUFC: true,
+      };
+    });
+  } catch { return []; }
 }
-
 // ---------------------------------------------------------------- full load (legacy loadAll)
 
 export async function loadKellyPicks(

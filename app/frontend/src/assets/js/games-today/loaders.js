@@ -577,56 +577,41 @@ export async function loadSoccer(meta, date) {
 }
 
 export async function loadUFC(date) {
-  const [predRes, bookRes] = await Promise.all([
-    fetchCSV(`win/mma/ufc/00_intake/predictions/${date}_ufc_predictions.csv`),
-    fetchCSV(`win/mma/ufc/00_intake/sportsbook/${date}_ufc_odds.csv`),
-  ]);
-
-  const bookByFight = mapUFCByFight(bookRes.rows);
+  const csv = await fetchCSV(`https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/ufc/pred_sb_sel/${date}_pred_sb_sel_ufc.csv`);
   const displayLeague = displayLeagueConfig("UFC", "UFC");
-
-  const games = predRes.rows.map(pred => {
-    const book = bookByFight[ufcFightKey(pred)] || {};
-
-    return {
-      league: "UFC",
-      sport: "mma",
-      displayLeague,
-      sortTime: 99998,
-      title: `${pred.fighter_1} vs ${pred.fighter_2}`,
-      card: {
-        date: formatDate(pred.match_date),
-        time: "",
-        away: pred.fighter_2,
-        home: pred.fighter_1,
-        moneyline: [
-          book.moneyline_fighter_1 && `${pred.fighter_1} ${formatOdds(book.moneyline_fighter_1)}`,
-          book.moneyline_fighter_2 && `${pred.fighter_2} ${formatOdds(book.moneyline_fighter_2)}`,
-        ].filter(Boolean),
-        spread: [],
-        total: "",
-        projection: [
-          pred.fighter_1_win_prob && `${pred.fighter_1} ${formatProb(pred.fighter_1_win_prob)}`,
-          pred.fighter_2_win_prob && `${pred.fighter_2} ${formatProb(pred.fighter_2_win_prob)}`,
-        ].filter(Boolean).join(" · "),
-      },
-      modal: cleanModalRows([
-        ["Date", formatDate(pred.match_date)],
-        ["Fighter 1", pred.fighter_1],
-        ["Fighter 2", pred.fighter_2],
-        ["Fighter 1 Win Probability", formatProb(pred.fighter_1_win_prob)],
-        ["Fighter 2 Win Probability", formatProb(pred.fighter_2_win_prob)],
-        ["Fighter 1 Moneyline", formatOdds(book.moneyline_fighter_1)],
-        ["Fighter 2 Moneyline", formatOdds(book.moneyline_fighter_2)],
-      ]),
-    };
-  });
-
-  return {
+  const games = csv.rows.map(row => ({
     league: "UFC",
-    displayName: displayLeague,
-    games,
-  };
+    sport: "mma",
+    displayLeague,
+    sortTime: 99998,
+    title: `${row.fighter_1} vs ${row.fighter_2}`,
+    card: {
+      date: formatDate(row.match_date),
+      time: "",
+      away: row.fighter_2,
+      home: row.fighter_1,
+      moneyline: [
+        row.moneyline_f1 && `${row.fighter_1} ${formatOdds(row.moneyline_f1)}`,
+        row.moneyline_f2 && `${row.fighter_2} ${formatOdds(row.moneyline_f2)}`,
+      ].filter(Boolean),
+      spread: [],
+      total: "",
+      projection: [
+        row.model_prob_f1 && `${row.fighter_1} ${formatProb(row.model_prob_f1)}`,
+        row.model_prob_f2 && `${row.fighter_2} ${formatProb(row.model_prob_f2)}`,
+      ].filter(Boolean).join(" " + String.fromCharCode(0xb7) + " "),
+    },
+    modal: cleanModalRows([
+      ["Date", formatDate(row.match_date)],
+      ["Fighter 1", row.fighter_1],
+      ["Fighter 2", row.fighter_2],
+      ["Fighter 1 Win Probability", formatProb(row.model_prob_f1)],
+      ["Fighter 2 Win Probability", formatProb(row.model_prob_f2)],
+      ["Fighter 1 Moneyline", formatOdds(row.moneyline_f1)],
+      ["Fighter 2 Moneyline", formatOdds(row.moneyline_f2)],
+    ]),
+  }));
+  return { league: "UFC", displayName: displayLeague, games };
 }
 
 export async function loadAllLeagues(dateStr) {

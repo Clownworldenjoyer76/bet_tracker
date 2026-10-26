@@ -4,7 +4,7 @@
 
   Legacy behaviors preserved:
    1. Sources (raw.githubusercontent.com, main): NHL, MLB, MLB_LINEUPS, WNBA, SOCCER final CSVs; CFB (week_N_CFB_graded.csv)
-      and UFC (YYYY_MM_DD_ufc_graded.csv) files listed through the GitHub contents API. Plain fetch, all in parallel.
+      and UFC (YYYY_MM_DD_graded_ufc.csv) files listed through the GitHub contents API. Plain fetch, all in parallel.
    2. Same CSV parser, CFB/UFC row expansion and row normalization (league, market, side, line, probability, EV, Kelly,
       odds, date, result).
    3. Status bar: "Fetching graded model history from GitHub..." (yellow), then "N bets loaded / D decisions / F source
@@ -60,10 +60,10 @@ const SOURCES: Source[] = [
     enabled: true,
   },
   {
-    indexUrl: API_BASE + "docs/win/mma/ufc/04_final/graded?ref=" + BRANCH,
+    indexUrl: API_BASE + "frontend/data/ufc/graded?ref=" + BRANCH,
     indexItemToUrl: (item) => {
       if (!item || item.type !== "file") return "";
-      if (!/^\d{4}_\d{2}_\d{2}_ufc_graded\.csv$/i.test(item.name || "")) return "";
+      if (!/^\d{4}_\d{2}_\d{2}_graded_ufc\.csv$/i.test(item.name || "")) return "";
       return item.download_url || "";
     },
     adapter: "ufc",
