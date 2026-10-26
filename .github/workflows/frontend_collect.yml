@@ -1,0 +1,44 @@
+name: Frontend Collect
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  collect:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout bet_tracker
+        uses: actions/checkout@v7
+        with:
+          ref: main
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Collect UFC frontend files
+        run: python scripts/frontend_collect.py
+
+      - name: Commit and push collected files
+        shell: bash
+        run: |
+          git add -A -- \
+            frontend/data/ufc/graded/ \
+            frontend/data/ufc/pred_sb_sel/ \
+            frontend/data/dashboards/ufc.json \
+            frontend/data/pipeline_health/ufc.json
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -m "Collect UFC frontend files"
+          git push origin HEAD:main
