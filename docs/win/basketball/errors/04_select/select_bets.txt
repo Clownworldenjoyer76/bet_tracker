@@ -1,44 +1,851 @@
-=== basketball select_bets RUN 2026-10-26T19:27:11.097025+00:00 ===
-2026-10-26T19:27:11.097129+00:00 | INFO  | Old basketball daily pick outputs deleted: daily_picks=0
-2026-10-26T19:27:11.097164+00:00 | INFO  | INPUT_DIR : /tmp/basketball_select_asbr7d5r/input
-2026-10-26T19:27:11.097185+00:00 | INFO  | OUTPUT_DIR: /tmp/basketball_select_asbr7d5r/select
-2026-10-26T19:27:11.097203+00:00 | INFO  | MODEL_CONFIG: docs/win/basketball/config/model_config.yaml
-2026-10-26T19:27:11.097239+00:00 | INFO  | staking.yaml: kelly_fraction=0.25 uncertainty=signal_to_noise_market_shrink/signal_to_noise_market_shrink_v1; exposure limits enforced on adjusted-Kelly requests
-2026-10-26T19:27:11.097258+00:00 | INFO  | ml_vs_spread_tiebreak: kelly
-2026-10-26T19:27:11.097279+00:00 | INFO  | NBA model edges: moneyline=0.02 spread=0.015 total=0.0
-2026-10-26T19:27:11.097300+00:00 | INFO  | NCAAM model edges: moneyline=0.015 spread=0.015 total=0.03
-2026-10-26T19:27:11.097322+00:00 | INFO  | WNBA model edges: moneyline=0.0 spread=0.05 total=0.03
-2026-10-26T19:27:11.102133+00:00 | INFO  | --- FILE: 2026_10_26_NBA_moneyline.csv league=nba market=moneyline rows=9 mode=all_qualifying model_edge=0.02
-2026-10-26T19:27:11.105245+00:00 | INFO  | 2026_10_26_NBA_moneyline.csv | 7 selected from 9 rows
-2026-10-26T19:27:11.108619+00:00 | INFO  | --- FILE: 2026_10_26_NBA_spread.csv league=nba market=spread rows=9 mode=all_qualifying model_edge=0.015
-2026-10-26T19:27:11.110070+00:00 | INFO  | 2026_10_26_NBA_spread.csv | 1 selected from 9 rows
-2026-10-26T19:27:11.112932+00:00 | INFO  | --- FILE: 2026_10_26_NBA_total.csv league=nba market=total rows=9 mode=all_qualifying model_edge=0.0
-2026-10-26T19:27:11.114834+00:00 | INFO  | 2026_10_26_NBA_total.csv | 7 selected from 9 rows
-2026-10-26T19:27:11.116154+00:00 | WARN  | INPUT FOLDER MISSING: /tmp/basketball_select_asbr7d5r/input/ncaam/moneyline
-2026-10-26T19:27:11.116199+00:00 | WARN  | INPUT FOLDER MISSING: /tmp/basketball_select_asbr7d5r/input/ncaam/spread
-2026-10-26T19:27:11.116229+00:00 | WARN  | INPUT FOLDER MISSING: /tmp/basketball_select_asbr7d5r/input/ncaam/total
-2026-10-26T19:27:11.117690+00:00 | INFO  | --- FILE: 2026_10_26_WNBA_moneyline.csv league=wnba market=moneyline rows=1 mode=all_qualifying model_edge=0.0
-2026-10-26T19:27:11.118280+00:00 | INFO  | 2026_10_26_WNBA_moneyline.csv | 0 selected from 1 rows
-2026-10-26T19:27:11.119735+00:00 | INFO  | --- FILE: 2026_10_26_WNBA_spread.csv league=wnba market=spread rows=1 mode=all_qualifying model_edge=0.05
-2026-10-26T19:27:11.120303+00:00 | INFO  | 2026_10_26_WNBA_spread.csv | 0 selected from 1 rows
-2026-10-26T19:27:11.121783+00:00 | INFO  | --- FILE: 2026_10_26_WNBA_total.csv league=wnba market=total rows=1 mode=all_qualifying model_edge=0.03
-2026-10-26T19:27:11.122371+00:00 | INFO  | 2026_10_26_WNBA_total.csv | 0 selected from 1 rows
-2026-10-26T19:27:11.144838+00:00 | INFO  | WROTE DAILY PICKS: /tmp/basketball_select_asbr7d5r/select/nba/daily_picks/2026_10_26_nba_selected.csv (4 rows)
-2026-10-26T19:27:11.145691+00:00 | INFO  | NO FINAL SELECTED ROWS FOR LEAGUE: ncaam; daily pick files not written
-2026-10-26T19:27:11.146436+00:00 | INFO  | NO FINAL SELECTED ROWS FOR LEAGUE: wnba; daily pick files not written
+=== basketball select_bets RUN 2026-10-26T19:51:16.200020+00:00 ===
+2026-10-26T19:51:16.200542+00:00 | INFO  | DELETED OLD DAILY PICK FILE: docs/win/basketball/04_select/nba/daily_picks/2026_10_24_nba_selected.csv
+2026-10-26T19:51:16.200740+00:00 | INFO  | DELETED OLD DAILY PICK FILE: docs/win/basketball/04_select/nba/daily_picks/2026_10_26_nba_selected.csv
+2026-10-26T19:51:16.200983+00:00 | INFO  | DELETED OLD DAILY PICK FILE: docs/win/basketball/04_select/nba/daily_picks/2026_10_22_nba_selected.csv
+2026-10-26T19:51:16.201176+00:00 | INFO  | DELETED OLD DAILY PICK FILE: docs/win/basketball/04_select/nba/daily_picks/2026_10_23_nba_selected.csv
+2026-10-26T19:51:16.201346+00:00 | INFO  | DELETED OLD DAILY PICK FILE: docs/win/basketball/04_select/nba/daily_picks/2026_10_20_nba_selected.csv
+2026-10-26T19:51:16.201548+00:00 | INFO  | DELETED OLD DAILY PICK FILE: docs/win/basketball/04_select/nba/daily_picks/2026_10_21_nba_selected.csv
+2026-10-26T19:51:16.201836+00:00 | INFO  | DELETED OLD DAILY PICK FILE: docs/win/basketball/04_select/wnba/daily_picks/2026_09_21_wnba_selected.csv
+2026-10-26T19:51:16.202027+00:00 | INFO  | DELETED OLD DAILY PICK FILE: docs/win/basketball/04_select/wnba/daily_picks/2026_09_17_wnba_selected.csv
+2026-10-26T19:51:16.202178+00:00 | INFO  | DELETED OLD DAILY PICK FILE: docs/win/basketball/04_select/wnba/daily_picks/2026_09_22_wnba_selected.csv
+2026-10-26T19:51:16.202303+00:00 | INFO  | DELETED OLD DAILY PICK FILE: docs/win/basketball/04_select/wnba/daily_picks/2026_09_24_wnba_selected.csv
+2026-10-26T19:51:16.202463+00:00 | INFO  | DELETED OLD DAILY PICK FILE: docs/win/basketball/04_select/wnba/daily_picks/2026_07_22_wnba_selected.csv
+2026-10-26T19:51:16.202617+00:00 | INFO  | DELETED OLD DAILY PICK FILE: docs/win/basketball/04_select/wnba/daily_picks/2026_06_10_wnba_selected.csv
+2026-10-26T19:51:16.202765+00:00 | INFO  | DELETED OLD DAILY PICK FILE: docs/win/basketball/04_select/wnba/daily_picks/2026_07_15_wnba_selected.csv
+2026-10-26T19:51:16.202987+00:00 | INFO  | DELETED OLD DAILY PICK FILE: docs/win/basketball/04_select/wnba/daily_picks/2026_06_17_wnba_selected.csv
+2026-10-26T19:51:16.203144+00:00 | INFO  | DELETED OLD DAILY PICK FILE: docs/win/basketball/04_select/wnba/daily_picks/2026_07_19_wnba_selected.csv
+2026-10-26T19:51:16.203292+00:00 | INFO  | DELETED OLD DAILY PICK FILE: docs/win/basketball/04_select/wnba/daily_picks/2026_07_31_wnba_selected.csv
+2026-10-26T19:51:16.203443+00:00 | INFO  | DELETED OLD DAILY PICK FILE: docs/win/basketball/04_select/wnba/daily_picks/2026_07_17_wnba_selected.csv
+2026-10-26T19:51:16.203571+00:00 | INFO  | DELETED OLD DAILY PICK FILE: docs/win/basketball/04_select/wnba/daily_picks/2026_09_29_wnba_selected.csv
+2026-10-26T19:51:16.203714+00:00 | INFO  | DELETED OLD DAILY PICK FILE: docs/win/basketball/04_select/wnba/daily_picks/2026_09_19_wnba_selected.csv
+2026-10-26T19:51:16.203849+00:00 | INFO  | DELETED OLD DAILY PICK FILE: docs/win/basketball/04_select/wnba/daily_picks/2026_07_30_wnba_selected.csv
+2026-10-26T19:51:16.204015+00:00 | INFO  | DELETED OLD DAILY PICK FILE: docs/win/basketball/04_select/wnba/daily_picks/2026_05_10_wnba_selected.csv
+2026-10-26T19:51:16.204187+00:00 | INFO  | DELETED OLD DAILY PICK FILE: docs/win/basketball/04_select/wnba/daily_picks/2026_09_30_wnba_selected.csv
+2026-10-26T19:51:16.204351+00:00 | INFO  | DELETED OLD DAILY PICK FILE: docs/win/basketball/04_select/wnba/daily_picks/2026_08_06_wnba_selected.csv
+2026-10-26T19:51:16.204497+00:00 | INFO  | DELETED OLD DAILY PICK FILE: docs/win/basketball/04_select/wnba/daily_picks/2026_06_20_wnba_selected.csv
+2026-10-26T19:51:16.204641+00:00 | INFO  | DELETED OLD DAILY PICK FILE: docs/win/basketball/04_select/wnba/daily_picks/2026_09_18_wnba_selected.csv
+2026-10-26T19:51:16.204769+00:00 | INFO  | DELETED OLD DAILY PICK FILE: docs/win/basketball/04_select/wnba/daily_picks/2026_07_13_wnba_selected.csv
+2026-10-26T19:51:16.204943+00:00 | INFO  | DELETED OLD DAILY PICK FILE: docs/win/basketball/04_select/wnba/daily_picks/2026_05_09_wnba_selected.csv
+2026-10-26T19:51:16.205072+00:00 | INFO  | DELETED OLD DAILY PICK FILE: docs/win/basketball/04_select/wnba/daily_picks/2026_06_22_wnba_selected.csv
+2026-10-26T19:51:16.205219+00:00 | INFO  | DELETED OLD DAILY PICK FILE: docs/win/basketball/04_select/wnba/daily_picks/2026_05_08_wnba_selected.csv
+2026-10-26T19:51:16.205380+00:00 | INFO  | DELETED OLD DAILY PICK FILE: docs/win/basketball/04_select/wnba/daily_picks/2026_07_02_wnba_selected.csv
+2026-10-26T19:51:16.205398+00:00 | INFO  | Old basketball daily pick outputs deleted: daily_picks=30
+2026-10-26T19:51:16.205414+00:00 | INFO  | INPUT_DIR : docs/win/basketball/03_edges/ev_kelly
+2026-10-26T19:51:16.205425+00:00 | INFO  | OUTPUT_DIR: docs/win/basketball/04_select
+2026-10-26T19:51:16.205436+00:00 | INFO  | MODEL_CONFIG: docs/win/basketball/config/model_config.yaml
+2026-10-26T19:51:16.205453+00:00 | INFO  | staking.yaml: kelly_fraction=0.25 uncertainty=signal_to_noise_market_shrink/signal_to_noise_market_shrink_v1; exposure limits enforced on adjusted-Kelly requests
+2026-10-26T19:51:16.205464+00:00 | INFO  | ml_vs_spread_tiebreak: kelly
+2026-10-26T19:51:16.205478+00:00 | INFO  | NBA model edges: moneyline=0.0 spread=0.0 total=0.0
+2026-10-26T19:51:16.205490+00:00 | INFO  | NCAAM model edges: moneyline=0.0 spread=0.0 total=0.0
+2026-10-26T19:51:16.205503+00:00 | INFO  | WNBA model edges: moneyline=0.0 spread=0.0 total=0.0
+2026-10-26T19:51:16.211060+00:00 | INFO  | --- FILE: 2026_10_20_NBA_moneyline.csv league=nba market=moneyline rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.213498+00:00 | INFO  | 2026_10_20_NBA_moneyline.csv | 3 selected from 3 rows
+2026-10-26T19:51:16.217246+00:00 | INFO  | --- FILE: 2026_10_21_NBA_moneyline.csv league=nba market=moneyline rows=11 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.220192+00:00 | INFO  | 2026_10_21_NBA_moneyline.csv | 11 selected from 11 rows
+2026-10-26T19:51:16.223307+00:00 | INFO  | --- FILE: 2026_10_22_NBA_moneyline.csv league=nba market=moneyline rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.224325+00:00 | INFO  | 2026_10_22_NBA_moneyline.csv | 2 selected from 2 rows
+2026-10-26T19:51:16.227154+00:00 | INFO  | --- FILE: 2026_10_23_NBA_moneyline.csv league=nba market=moneyline rows=12 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.230191+00:00 | INFO  | 2026_10_23_NBA_moneyline.csv | 12 selected from 12 rows
+2026-10-26T19:51:16.233436+00:00 | INFO  | --- FILE: 2026_10_24_NBA_moneyline.csv league=nba market=moneyline rows=8 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.235634+00:00 | INFO  | 2026_10_24_NBA_moneyline.csv | 8 selected from 8 rows
+2026-10-26T19:51:16.238504+00:00 | INFO  | --- FILE: 2026_10_26_NBA_moneyline.csv league=nba market=moneyline rows=9 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.240800+00:00 | INFO  | 2026_10_26_NBA_moneyline.csv | 8 selected from 9 rows
+2026-10-26T19:51:16.243693+00:00 | INFO  | --- FILE: 2026_10_20_NBA_spread.csv league=nba market=spread rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.244721+00:00 | INFO  | 2026_10_20_NBA_spread.csv | 2 selected from 3 rows
+2026-10-26T19:51:16.247412+00:00 | INFO  | --- FILE: 2026_10_21_NBA_spread.csv league=nba market=spread rows=11 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.249983+00:00 | INFO  | 2026_10_21_NBA_spread.csv | 7 selected from 11 rows
+2026-10-26T19:51:16.252719+00:00 | INFO  | --- FILE: 2026_10_22_NBA_spread.csv league=nba market=spread rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.253906+00:00 | INFO  | 2026_10_22_NBA_spread.csv | 0 selected from 2 rows
+2026-10-26T19:51:16.256007+00:00 | INFO  | --- FILE: 2026_10_23_NBA_spread.csv league=nba market=spread rows=12 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.258000+00:00 | INFO  | 2026_10_23_NBA_spread.csv | 2 selected from 12 rows
+2026-10-26T19:51:16.261486+00:00 | INFO  | --- FILE: 2026_10_24_NBA_spread.csv league=nba market=spread rows=8 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.263390+00:00 | INFO  | 2026_10_24_NBA_spread.csv | 4 selected from 8 rows
+2026-10-26T19:51:16.266355+00:00 | INFO  | --- FILE: 2026_10_26_NBA_spread.csv league=nba market=spread rows=9 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.268025+00:00 | INFO  | 2026_10_26_NBA_spread.csv | 2 selected from 9 rows
+2026-10-26T19:51:16.270817+00:00 | INFO  | --- FILE: 2026_10_20_NBA_total.csv league=nba market=total rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.271906+00:00 | INFO  | 2026_10_20_NBA_total.csv | 3 selected from 3 rows
+2026-10-26T19:51:16.274428+00:00 | INFO  | --- FILE: 2026_10_21_NBA_total.csv league=nba market=total rows=11 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.276767+00:00 | INFO  | 2026_10_21_NBA_total.csv | 5 selected from 11 rows
+2026-10-26T19:51:16.279382+00:00 | INFO  | --- FILE: 2026_10_22_NBA_total.csv league=nba market=total rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.280190+00:00 | INFO  | 2026_10_22_NBA_total.csv | 1 selected from 2 rows
+2026-10-26T19:51:16.282798+00:00 | INFO  | --- FILE: 2026_10_23_NBA_total.csv league=nba market=total rows=12 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.284994+00:00 | INFO  | 2026_10_23_NBA_total.csv | 4 selected from 12 rows
+2026-10-26T19:51:16.287658+00:00 | INFO  | --- FILE: 2026_10_24_NBA_total.csv league=nba market=total rows=8 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.289410+00:00 | INFO  | 2026_10_24_NBA_total.csv | 4 selected from 8 rows
+2026-10-26T19:51:16.292057+00:00 | INFO  | --- FILE: 2026_10_26_NBA_total.csv league=nba market=total rows=9 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.294248+00:00 | INFO  | 2026_10_26_NBA_total.csv | 7 selected from 9 rows
+2026-10-26T19:51:16.295614+00:00 | WARN  | NO FILES: league=ncaam market=moneyline
+2026-10-26T19:51:16.295668+00:00 | WARN  | NO FILES: league=ncaam market=spread
+2026-10-26T19:51:16.295700+00:00 | WARN  | NO FILES: league=ncaam market=total
+2026-10-26T19:51:16.297532+00:00 | INFO  | --- FILE: 2026_05_08_WNBA_moneyline.csv league=wnba market=moneyline rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.298840+00:00 | INFO  | 2026_05_08_WNBA_moneyline.csv | 2 selected from 3 rows
+2026-10-26T19:51:16.301364+00:00 | INFO  | --- FILE: 2026_05_09_WNBA_moneyline.csv league=wnba market=moneyline rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.302344+00:00 | INFO  | 2026_05_09_WNBA_moneyline.csv | 1 selected from 4 rows
+2026-10-26T19:51:16.304773+00:00 | INFO  | --- FILE: 2026_05_10_WNBA_moneyline.csv league=wnba market=moneyline rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.305885+00:00 | INFO  | 2026_05_10_WNBA_moneyline.csv | 1 selected from 4 rows
+2026-10-26T19:51:16.308364+00:00 | INFO  | --- FILE: 2026_05_12_WNBA_moneyline.csv league=wnba market=moneyline rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.308940+00:00 | INFO  | 2026_05_12_WNBA_moneyline.csv | 0 selected from 2 rows
+2026-10-26T19:51:16.310418+00:00 | INFO  | --- FILE: 2026_05_13_WNBA_moneyline.csv league=wnba market=moneyline rows=1 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.310944+00:00 | INFO  | 2026_05_13_WNBA_moneyline.csv | 0 selected from 1 rows
+2026-10-26T19:51:16.312416+00:00 | INFO  | --- FILE: 2026_05_14_WNBA_moneyline.csv league=wnba market=moneyline rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.313046+00:00 | INFO  | 2026_05_14_WNBA_moneyline.csv | 0 selected from 2 rows
+2026-10-26T19:51:16.314522+00:00 | INFO  | --- FILE: 2026_05_15_WNBA_moneyline.csv league=wnba market=moneyline rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.315260+00:00 | INFO  | 2026_05_15_WNBA_moneyline.csv | 0 selected from 4 rows
+2026-10-26T19:51:16.316765+00:00 | INFO  | --- FILE: 2026_05_17_WNBA_moneyline.csv league=wnba market=moneyline rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.317638+00:00 | INFO  | 2026_05_17_WNBA_moneyline.csv | 0 selected from 4 rows
+2026-10-26T19:51:16.319101+00:00 | INFO  | --- FILE: 2026_05_18_WNBA_moneyline.csv league=wnba market=moneyline rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.319752+00:00 | INFO  | 2026_05_18_WNBA_moneyline.csv | 0 selected from 2 rows
+2026-10-26T19:51:16.321229+00:00 | INFO  | --- FILE: 2026_05_19_WNBA_moneyline.csv league=wnba market=moneyline rows=1 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.321750+00:00 | INFO  | 2026_05_19_WNBA_moneyline.csv | 0 selected from 1 rows
+2026-10-26T19:51:16.323213+00:00 | INFO  | --- FILE: 2026_05_20_WNBA_moneyline.csv league=wnba market=moneyline rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.323984+00:00 | INFO  | 2026_05_20_WNBA_moneyline.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.325461+00:00 | INFO  | --- FILE: 2026_05_21_WNBA_moneyline.csv league=wnba market=moneyline rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.326184+00:00 | INFO  | 2026_05_21_WNBA_moneyline.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.327640+00:00 | INFO  | --- FILE: 2026_05_22_WNBA_moneyline.csv league=wnba market=moneyline rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.328398+00:00 | INFO  | 2026_05_22_WNBA_moneyline.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.329862+00:00 | INFO  | --- FILE: 2026_05_23_WNBA_moneyline.csv league=wnba market=moneyline rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.330743+00:00 | INFO  | 2026_05_23_WNBA_moneyline.csv | 1 selected from 3 rows
+2026-10-26T19:51:16.333300+00:00 | INFO  | --- FILE: 2026_05_24_WNBA_moneyline.csv league=wnba market=moneyline rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.334093+00:00 | INFO  | 2026_05_24_WNBA_moneyline.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.335635+00:00 | INFO  | --- FILE: 2026_05_25_WNBA_moneyline.csv league=wnba market=moneyline rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.336531+00:00 | INFO  | 2026_05_25_WNBA_moneyline.csv | 2 selected from 2 rows
+2026-10-26T19:51:16.338927+00:00 | INFO  | --- FILE: 2026_05_27_WNBA_moneyline.csv league=wnba market=moneyline rows=5 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.340021+00:00 | INFO  | 2026_05_27_WNBA_moneyline.csv | 1 selected from 5 rows
+2026-10-26T19:51:16.342464+00:00 | INFO  | --- FILE: 2026_05_28_WNBA_moneyline.csv league=wnba market=moneyline rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.343110+00:00 | INFO  | 2026_05_28_WNBA_moneyline.csv | 0 selected from 2 rows
+2026-10-26T19:51:16.344601+00:00 | INFO  | --- FILE: 2026_05_29_WNBA_moneyline.csv league=wnba market=moneyline rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.345481+00:00 | INFO  | 2026_05_29_WNBA_moneyline.csv | 0 selected from 4 rows
+2026-10-26T19:51:16.347002+00:00 | INFO  | --- FILE: 2026_05_30_WNBA_moneyline.csv league=wnba market=moneyline rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.347796+00:00 | INFO  | 2026_05_30_WNBA_moneyline.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.349263+00:00 | INFO  | --- FILE: 2026_05_31_WNBA_moneyline.csv league=wnba market=moneyline rows=1 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.349809+00:00 | INFO  | 2026_05_31_WNBA_moneyline.csv | 0 selected from 1 rows
+2026-10-26T19:51:16.351295+00:00 | INFO  | --- FILE: 2026_06_01_WNBA_moneyline.csv league=wnba market=moneyline rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.351926+00:00 | INFO  | 2026_06_01_WNBA_moneyline.csv | 0 selected from 2 rows
+2026-10-26T19:51:16.353425+00:00 | INFO  | --- FILE: 2026_06_02_WNBA_moneyline.csv league=wnba market=moneyline rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.354248+00:00 | INFO  | 2026_06_02_WNBA_moneyline.csv | 0 selected from 4 rows
+2026-10-26T19:51:16.355735+00:00 | INFO  | --- FILE: 2026_06_03_WNBA_moneyline.csv league=wnba market=moneyline rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.356383+00:00 | INFO  | 2026_06_03_WNBA_moneyline.csv | 0 selected from 2 rows
+2026-10-26T19:51:16.358219+00:00 | INFO  | --- FILE: 2026_06_04_WNBA_moneyline.csv league=wnba market=moneyline rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.359295+00:00 | INFO  | 2026_06_04_WNBA_moneyline.csv | 0 selected from 2 rows
+2026-10-26T19:51:16.361150+00:00 | INFO  | --- FILE: 2026_06_05_WNBA_moneyline.csv league=wnba market=moneyline rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.362080+00:00 | INFO  | 2026_06_05_WNBA_moneyline.csv | 1 selected from 3 rows
+2026-10-26T19:51:16.364585+00:00 | INFO  | --- FILE: 2026_06_06_WNBA_moneyline.csv league=wnba market=moneyline rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.365592+00:00 | INFO  | 2026_06_06_WNBA_moneyline.csv | 1 selected from 4 rows
+2026-10-26T19:51:16.367968+00:00 | INFO  | --- FILE: 2026_06_07_WNBA_moneyline.csv league=wnba market=moneyline rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.368635+00:00 | INFO  | 2026_06_07_WNBA_moneyline.csv | 0 selected from 2 rows
+2026-10-26T19:51:16.370159+00:00 | INFO  | --- FILE: 2026_06_08_WNBA_moneyline.csv league=wnba market=moneyline rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.371001+00:00 | INFO  | 2026_06_08_WNBA_moneyline.csv | 1 selected from 3 rows
+2026-10-26T19:51:16.373405+00:00 | INFO  | --- FILE: 2026_06_09_WNBA_moneyline.csv league=wnba market=moneyline rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.374375+00:00 | INFO  | 2026_06_09_WNBA_moneyline.csv | 2 selected from 3 rows
+2026-10-26T19:51:16.376847+00:00 | INFO  | --- FILE: 2026_06_10_WNBA_moneyline.csv league=wnba market=moneyline rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.377721+00:00 | INFO  | 2026_06_10_WNBA_moneyline.csv | 2 selected from 2 rows
+2026-10-26T19:51:16.380111+00:00 | INFO  | --- FILE: 2026_06_11_WNBA_moneyline.csv league=wnba market=moneyline rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.381030+00:00 | INFO  | 2026_06_11_WNBA_moneyline.csv | 0 selected from 4 rows
+2026-10-26T19:51:16.382575+00:00 | INFO  | --- FILE: 2026_06_12_WNBA_moneyline.csv league=wnba market=moneyline rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.383184+00:00 | INFO  | 2026_06_12_WNBA_moneyline.csv | 0 selected from 2 rows
+2026-10-26T19:51:16.384660+00:00 | INFO  | --- FILE: 2026_06_13_WNBA_moneyline.csv league=wnba market=moneyline rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.385527+00:00 | INFO  | 2026_06_13_WNBA_moneyline.csv | 0 selected from 4 rows
+2026-10-26T19:51:16.386996+00:00 | INFO  | --- FILE: 2026_06_14_WNBA_moneyline.csv league=wnba market=moneyline rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.387620+00:00 | INFO  | 2026_06_14_WNBA_moneyline.csv | 0 selected from 2 rows
+2026-10-26T19:51:16.389073+00:00 | INFO  | --- FILE: 2026_06_15_WNBA_moneyline.csv league=wnba market=moneyline rows=1 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.389616+00:00 | INFO  | 2026_06_15_WNBA_moneyline.csv | 0 selected from 1 rows
+2026-10-26T19:51:16.391056+00:00 | INFO  | --- FILE: 2026_06_16_WNBA_moneyline.csv league=wnba market=moneyline rows=1 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.391585+00:00 | INFO  | 2026_06_16_WNBA_moneyline.csv | 0 selected from 1 rows
+2026-10-26T19:51:16.393087+00:00 | INFO  | --- FILE: 2026_06_17_WNBA_moneyline.csv league=wnba market=moneyline rows=6 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.394465+00:00 | INFO  | 2026_06_17_WNBA_moneyline.csv | 3 selected from 6 rows
+2026-10-26T19:51:16.396951+00:00 | INFO  | --- FILE: 2026_06_18_WNBA_moneyline.csv league=wnba market=moneyline rows=1 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.397535+00:00 | INFO  | 2026_06_18_WNBA_moneyline.csv | 0 selected from 1 rows
+2026-10-26T19:51:16.399022+00:00 | INFO  | --- FILE: 2026_06_19_WNBA_moneyline.csv league=wnba market=moneyline rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.400045+00:00 | INFO  | 2026_06_19_WNBA_moneyline.csv | 2 selected from 3 rows
+2026-10-26T19:51:16.402595+00:00 | INFO  | --- FILE: 2026_06_20_WNBA_moneyline.csv league=wnba market=moneyline rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.403638+00:00 | INFO  | 2026_06_20_WNBA_moneyline.csv | 2 selected from 3 rows
+2026-10-26T19:51:16.406143+00:00 | INFO  | --- FILE: 2026_06_21_WNBA_moneyline.csv league=wnba market=moneyline rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.407050+00:00 | INFO  | 2026_06_21_WNBA_moneyline.csv | 1 selected from 3 rows
+2026-10-26T19:51:16.409469+00:00 | INFO  | --- FILE: 2026_06_22_WNBA_moneyline.csv league=wnba market=moneyline rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.410634+00:00 | INFO  | 2026_06_22_WNBA_moneyline.csv | 2 selected from 4 rows
+2026-10-26T19:51:16.413016+00:00 | INFO  | --- FILE: 2026_06_23_WNBA_moneyline.csv league=wnba market=moneyline rows=1 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.413578+00:00 | INFO  | 2026_06_23_WNBA_moneyline.csv | 0 selected from 1 rows
+2026-10-26T19:51:16.415072+00:00 | INFO  | --- FILE: 2026_06_24_WNBA_moneyline.csv league=wnba market=moneyline rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.416061+00:00 | INFO  | 2026_06_24_WNBA_moneyline.csv | 1 selected from 4 rows
+2026-10-26T19:51:16.418458+00:00 | INFO  | --- FILE: 2026_06_25_WNBA_moneyline.csv league=wnba market=moneyline rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.419265+00:00 | INFO  | 2026_06_25_WNBA_moneyline.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.420765+00:00 | INFO  | --- FILE: 2026_06_26_WNBA_moneyline.csv league=wnba market=moneyline rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.421516+00:00 | INFO  | 2026_06_26_WNBA_moneyline.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.422965+00:00 | INFO  | --- FILE: 2026_06_27_WNBA_moneyline.csv league=wnba market=moneyline rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.423698+00:00 | INFO  | 2026_06_27_WNBA_moneyline.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.425186+00:00 | INFO  | --- FILE: 2026_06_28_WNBA_moneyline.csv league=wnba market=moneyline rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.426028+00:00 | INFO  | 2026_06_28_WNBA_moneyline.csv | 0 selected from 4 rows
+2026-10-26T19:51:16.427493+00:00 | INFO  | --- FILE: 2026_07_02_WNBA_moneyline.csv league=wnba market=moneyline rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.428351+00:00 | INFO  | 2026_07_02_WNBA_moneyline.csv | 1 selected from 3 rows
+2026-10-26T19:51:16.431044+00:00 | INFO  | --- FILE: 2026_07_03_WNBA_moneyline.csv league=wnba market=moneyline rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.431714+00:00 | INFO  | 2026_07_03_WNBA_moneyline.csv | 0 selected from 2 rows
+2026-10-26T19:51:16.433175+00:00 | INFO  | --- FILE: 2026_07_04_WNBA_moneyline.csv league=wnba market=moneyline rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.433830+00:00 | INFO  | 2026_07_04_WNBA_moneyline.csv | 0 selected from 2 rows
+2026-10-26T19:51:16.435339+00:00 | INFO  | --- FILE: 2026_07_05_WNBA_moneyline.csv league=wnba market=moneyline rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.435970+00:00 | INFO  | 2026_07_05_WNBA_moneyline.csv | 0 selected from 2 rows
+2026-10-26T19:51:16.437459+00:00 | INFO  | --- FILE: 2026_07_06_WNBA_moneyline.csv league=wnba market=moneyline rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.438341+00:00 | INFO  | 2026_07_06_WNBA_moneyline.csv | 1 selected from 3 rows
+2026-10-26T19:51:16.440784+00:00 | INFO  | --- FILE: 2026_07_07_WNBA_moneyline.csv league=wnba market=moneyline rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.441447+00:00 | INFO  | 2026_07_07_WNBA_moneyline.csv | 0 selected from 2 rows
+2026-10-26T19:51:16.442940+00:00 | INFO  | --- FILE: 2026_07_08_WNBA_moneyline.csv league=wnba market=moneyline rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.443904+00:00 | INFO  | 2026_07_08_WNBA_moneyline.csv | 2 selected from 3 rows
+2026-10-26T19:51:16.446330+00:00 | INFO  | --- FILE: 2026_07_09_WNBA_moneyline.csv league=wnba market=moneyline rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.447250+00:00 | INFO  | 2026_07_09_WNBA_moneyline.csv | 1 selected from 3 rows
+2026-10-26T19:51:16.449672+00:00 | INFO  | --- FILE: 2026_07_10_WNBA_moneyline.csv league=wnba market=moneyline rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.450435+00:00 | INFO  | 2026_07_10_WNBA_moneyline.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.451918+00:00 | INFO  | --- FILE: 2026_07_11_WNBA_moneyline.csv league=wnba market=moneyline rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.452669+00:00 | INFO  | 2026_07_11_WNBA_moneyline.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.454149+00:00 | INFO  | --- FILE: 2026_07_12_WNBA_moneyline.csv league=wnba market=moneyline rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.455245+00:00 | INFO  | 2026_07_12_WNBA_moneyline.csv | 2 selected from 4 rows
+2026-10-26T19:51:16.457720+00:00 | INFO  | --- FILE: 2026_07_13_WNBA_moneyline.csv league=wnba market=moneyline rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.458492+00:00 | INFO  | 2026_07_13_WNBA_moneyline.csv | 1 selected from 2 rows
+2026-10-26T19:51:16.460878+00:00 | INFO  | --- FILE: 2026_07_14_WNBA_moneyline.csv league=wnba market=moneyline rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.461543+00:00 | INFO  | 2026_07_14_WNBA_moneyline.csv | 0 selected from 2 rows
+2026-10-26T19:51:16.463088+00:00 | INFO  | --- FILE: 2026_07_15_WNBA_moneyline.csv league=wnba market=moneyline rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.464075+00:00 | INFO  | 2026_07_15_WNBA_moneyline.csv | 2 selected from 3 rows
+2026-10-26T19:51:16.466448+00:00 | INFO  | --- FILE: 2026_07_16_WNBA_moneyline.csv league=wnba market=moneyline rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.467093+00:00 | INFO  | 2026_07_16_WNBA_moneyline.csv | 0 selected from 2 rows
+2026-10-26T19:51:16.468595+00:00 | INFO  | --- FILE: 2026_07_17_WNBA_moneyline.csv league=wnba market=moneyline rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.469746+00:00 | INFO  | 2026_07_17_WNBA_moneyline.csv | 2 selected from 4 rows
+2026-10-26T19:51:16.472159+00:00 | INFO  | --- FILE: 2026_07_18_WNBA_moneyline.csv league=wnba market=moneyline rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.473136+00:00 | INFO  | 2026_07_18_WNBA_moneyline.csv | 2 selected from 3 rows
+2026-10-26T19:51:16.475543+00:00 | INFO  | --- FILE: 2026_07_19_WNBA_moneyline.csv league=wnba market=moneyline rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.476488+00:00 | INFO  | 2026_07_19_WNBA_moneyline.csv | 1 selected from 3 rows
+2026-10-26T19:51:16.478879+00:00 | INFO  | --- FILE: 2026_07_20_WNBA_moneyline.csv league=wnba market=moneyline rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.479863+00:00 | INFO  | 2026_07_20_WNBA_moneyline.csv | 1 selected from 4 rows
+2026-10-26T19:51:16.482253+00:00 | INFO  | --- FILE: 2026_07_22_WNBA_moneyline.csv league=wnba market=moneyline rows=6 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.483626+00:00 | INFO  | 2026_07_22_WNBA_moneyline.csv | 2 selected from 6 rows
+2026-10-26T19:51:16.486056+00:00 | INFO  | --- FILE: 2026_07_28_WNBA_moneyline.csv league=wnba market=moneyline rows=5 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.487142+00:00 | INFO  | 2026_07_28_WNBA_moneyline.csv | 1 selected from 5 rows
+2026-10-26T19:51:16.489539+00:00 | INFO  | --- FILE: 2026_07_29_WNBA_moneyline.csv league=wnba market=moneyline rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.490181+00:00 | INFO  | 2026_07_29_WNBA_moneyline.csv | 0 selected from 2 rows
+2026-10-26T19:51:16.491744+00:00 | INFO  | --- FILE: 2026_07_30_WNBA_moneyline.csv league=wnba market=moneyline rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.492592+00:00 | INFO  | 2026_07_30_WNBA_moneyline.csv | 1 selected from 3 rows
+2026-10-26T19:51:16.495123+00:00 | INFO  | --- FILE: 2026_07_31_WNBA_moneyline.csv league=wnba market=moneyline rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.496054+00:00 | INFO  | 2026_07_31_WNBA_moneyline.csv | 1 selected from 3 rows
+2026-10-26T19:51:16.498516+00:00 | INFO  | --- FILE: 2026_08_01_WNBA_moneyline.csv league=wnba market=moneyline rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.499159+00:00 | INFO  | 2026_08_01_WNBA_moneyline.csv | 0 selected from 2 rows
+2026-10-26T19:51:16.500789+00:00 | INFO  | --- FILE: 2026_08_02_WNBA_moneyline.csv league=wnba market=moneyline rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.501766+00:00 | INFO  | 2026_08_02_WNBA_moneyline.csv | 1 selected from 4 rows
+2026-10-26T19:51:16.504250+00:00 | INFO  | --- FILE: 2026_08_03_WNBA_moneyline.csv league=wnba market=moneyline rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.505105+00:00 | INFO  | 2026_08_03_WNBA_moneyline.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.506624+00:00 | INFO  | --- FILE: 2026_08_04_WNBA_moneyline.csv league=wnba market=moneyline rows=1 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.507252+00:00 | INFO  | 2026_08_04_WNBA_moneyline.csv | 1 selected from 1 rows
+2026-10-26T19:51:16.509648+00:00 | INFO  | --- FILE: 2026_08_05_WNBA_moneyline.csv league=wnba market=moneyline rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.510516+00:00 | INFO  | 2026_08_05_WNBA_moneyline.csv | 0 selected from 4 rows
+2026-10-26T19:51:16.512008+00:00 | INFO  | --- FILE: 2026_08_06_WNBA_moneyline.csv league=wnba market=moneyline rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.512964+00:00 | INFO  | 2026_08_06_WNBA_moneyline.csv | 1 selected from 3 rows
+2026-10-26T19:51:16.515401+00:00 | INFO  | --- FILE: 2026_08_07_WNBA_moneyline.csv league=wnba market=moneyline rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.516139+00:00 | INFO  | 2026_08_07_WNBA_moneyline.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.517626+00:00 | INFO  | --- FILE: 2026_08_08_WNBA_moneyline.csv league=wnba market=moneyline rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.518378+00:00 | INFO  | 2026_08_08_WNBA_moneyline.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.519863+00:00 | INFO  | --- FILE: 2026_08_09_WNBA_moneyline.csv league=wnba market=moneyline rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.520839+00:00 | INFO  | 2026_08_09_WNBA_moneyline.csv | 1 selected from 4 rows
+2026-10-26T19:51:16.523540+00:00 | INFO  | --- FILE: 2026_08_10_WNBA_moneyline.csv league=wnba market=moneyline rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.524186+00:00 | INFO  | 2026_08_10_WNBA_moneyline.csv | 0 selected from 2 rows
+2026-10-26T19:51:16.525687+00:00 | INFO  | --- FILE: 2026_08_11_WNBA_moneyline.csv league=wnba market=moneyline rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.526431+00:00 | INFO  | 2026_08_11_WNBA_moneyline.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.527913+00:00 | INFO  | --- FILE: 2026_08_12_WNBA_moneyline.csv league=wnba market=moneyline rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.528654+00:00 | INFO  | 2026_08_12_WNBA_moneyline.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.530126+00:00 | INFO  | --- FILE: 2026_08_13_WNBA_moneyline.csv league=wnba market=moneyline rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.530862+00:00 | INFO  | 2026_08_13_WNBA_moneyline.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.532354+00:00 | INFO  | --- FILE: 2026_08_14_WNBA_moneyline.csv league=wnba market=moneyline rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.533086+00:00 | INFO  | 2026_08_14_WNBA_moneyline.csv | 1 selected from 2 rows
+2026-10-26T19:51:16.535564+00:00 | INFO  | --- FILE: 2026_08_15_WNBA_moneyline.csv league=wnba market=moneyline rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.536305+00:00 | INFO  | 2026_08_15_WNBA_moneyline.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.537765+00:00 | INFO  | --- FILE: 2026_08_16_WNBA_moneyline.csv league=wnba market=moneyline rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.538506+00:00 | INFO  | 2026_08_16_WNBA_moneyline.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.539958+00:00 | INFO  | --- FILE: 2026_08_17_WNBA_moneyline.csv league=wnba market=moneyline rows=1 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.540486+00:00 | INFO  | 2026_08_17_WNBA_moneyline.csv | 0 selected from 1 rows
+2026-10-26T19:51:16.542009+00:00 | INFO  | --- FILE: 2026_08_18_WNBA_moneyline.csv league=wnba market=moneyline rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.542870+00:00 | INFO  | 2026_08_18_WNBA_moneyline.csv | 0 selected from 4 rows
+2026-10-26T19:51:16.544366+00:00 | INFO  | --- FILE: 2026_08_19_WNBA_moneyline.csv league=wnba market=moneyline rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.545125+00:00 | INFO  | 2026_08_19_WNBA_moneyline.csv | 1 selected from 2 rows
+2026-10-26T19:51:16.547600+00:00 | INFO  | --- FILE: 2026_08_20_WNBA_moneyline.csv league=wnba market=moneyline rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.548508+00:00 | INFO  | 2026_08_20_WNBA_moneyline.csv | 1 selected from 3 rows
+2026-10-26T19:51:16.550951+00:00 | INFO  | --- FILE: 2026_08_30_WNBA_moneyline.csv league=wnba market=moneyline rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.552074+00:00 | INFO  | 2026_08_30_WNBA_moneyline.csv | 1 selected from 4 rows
+2026-10-26T19:51:16.554651+00:00 | INFO  | --- FILE: 2026_09_17_WNBA_moneyline.csv league=wnba market=moneyline rows=5 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.555931+00:00 | INFO  | 2026_09_17_WNBA_moneyline.csv | 2 selected from 5 rows
+2026-10-26T19:51:16.558587+00:00 | INFO  | --- FILE: 2026_09_18_WNBA_moneyline.csv league=wnba market=moneyline rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.559736+00:00 | INFO  | 2026_09_18_WNBA_moneyline.csv | 3 selected from 3 rows
+2026-10-26T19:51:16.562386+00:00 | INFO  | --- FILE: 2026_09_19_WNBA_moneyline.csv league=wnba market=moneyline rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.563455+00:00 | INFO  | 2026_09_19_WNBA_moneyline.csv | 2 selected from 3 rows
+2026-10-26T19:51:16.566096+00:00 | INFO  | --- FILE: 2026_09_20_WNBA_moneyline.csv league=wnba market=moneyline rows=5 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.567581+00:00 | INFO  | 2026_09_20_WNBA_moneyline.csv | 4 selected from 5 rows
+2026-10-26T19:51:16.570218+00:00 | INFO  | --- FILE: 2026_09_21_WNBA_moneyline.csv league=wnba market=moneyline rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.571065+00:00 | INFO  | 2026_09_21_WNBA_moneyline.csv | 1 selected from 2 rows
+2026-10-26T19:51:16.573753+00:00 | INFO  | --- FILE: 2026_09_22_WNBA_moneyline.csv league=wnba market=moneyline rows=5 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.575250+00:00 | INFO  | 2026_09_22_WNBA_moneyline.csv | 4 selected from 5 rows
+2026-10-26T19:51:16.577935+00:00 | INFO  | --- FILE: 2026_09_23_WNBA_moneyline.csv league=wnba market=moneyline rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.578798+00:00 | INFO  | 2026_09_23_WNBA_moneyline.csv | 1 selected from 2 rows
+2026-10-26T19:51:16.581402+00:00 | INFO  | --- FILE: 2026_09_24_WNBA_moneyline.csv league=wnba market=moneyline rows=5 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.582778+00:00 | INFO  | 2026_09_24_WNBA_moneyline.csv | 3 selected from 5 rows
+2026-10-26T19:51:16.585558+00:00 | INFO  | --- FILE: 2026_09_27_WNBA_moneyline.csv league=wnba market=moneyline rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.586918+00:00 | INFO  | 2026_09_27_WNBA_moneyline.csv | 4 selected from 4 rows
+2026-10-26T19:51:16.589751+00:00 | INFO  | --- FILE: 2026_09_29_WNBA_moneyline.csv league=wnba market=moneyline rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.590700+00:00 | INFO  | 2026_09_29_WNBA_moneyline.csv | 2 selected from 2 rows
+2026-10-26T19:51:16.593403+00:00 | INFO  | --- FILE: 2026_09_30_WNBA_moneyline.csv league=wnba market=moneyline rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.594347+00:00 | INFO  | 2026_09_30_WNBA_moneyline.csv | 2 selected from 2 rows
+2026-10-26T19:51:16.596969+00:00 | INFO  | --- FILE: 2026_10_01_WNBA_moneyline.csv league=wnba market=moneyline rows=1 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.597710+00:00 | INFO  | 2026_10_01_WNBA_moneyline.csv | 1 selected from 1 rows
+2026-10-26T19:51:16.600330+00:00 | INFO  | --- FILE: 2026_10_02_WNBA_moneyline.csv league=wnba market=moneyline rows=1 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.601054+00:00 | INFO  | 2026_10_02_WNBA_moneyline.csv | 1 selected from 1 rows
+2026-10-26T19:51:16.603682+00:00 | INFO  | --- FILE: 2026_10_04_WNBA_moneyline.csv league=wnba market=moneyline rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.604658+00:00 | INFO  | 2026_10_04_WNBA_moneyline.csv | 2 selected from 2 rows
+2026-10-26T19:51:16.607227+00:00 | INFO  | --- FILE: 2026_10_07_WNBA_moneyline.csv league=wnba market=moneyline rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.608160+00:00 | INFO  | 2026_10_07_WNBA_moneyline.csv | 2 selected from 2 rows
+2026-10-26T19:51:16.610683+00:00 | INFO  | --- FILE: 2026_10_09_WNBA_moneyline.csv league=wnba market=moneyline rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.611636+00:00 | INFO  | 2026_10_09_WNBA_moneyline.csv | 2 selected from 2 rows
+2026-10-26T19:51:16.614182+00:00 | INFO  | --- FILE: 2026_10_17_WNBA_moneyline.csv league=wnba market=moneyline rows=1 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.614800+00:00 | INFO  | 2026_10_17_WNBA_moneyline.csv | 0 selected from 1 rows
+2026-10-26T19:51:16.616313+00:00 | INFO  | --- FILE: 2026_10_24_WNBA_moneyline.csv league=wnba market=moneyline rows=1 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.616913+00:00 | INFO  | 2026_10_24_WNBA_moneyline.csv | 0 selected from 1 rows
+2026-10-26T19:51:16.618430+00:00 | INFO  | --- FILE: 2026_10_26_WNBA_moneyline.csv league=wnba market=moneyline rows=1 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.619022+00:00 | INFO  | 2026_10_26_WNBA_moneyline.csv | 0 selected from 1 rows
+2026-10-26T19:51:16.620990+00:00 | INFO  | --- FILE: 2026_05_08_WNBA_spread.csv league=wnba market=spread rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.621750+00:00 | INFO  | 2026_05_08_WNBA_spread.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.623225+00:00 | INFO  | --- FILE: 2026_05_09_WNBA_spread.csv league=wnba market=spread rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.624079+00:00 | INFO  | 2026_05_09_WNBA_spread.csv | 0 selected from 4 rows
+2026-10-26T19:51:16.625603+00:00 | INFO  | --- FILE: 2026_05_10_WNBA_spread.csv league=wnba market=spread rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.626472+00:00 | INFO  | 2026_05_10_WNBA_spread.csv | 0 selected from 4 rows
+2026-10-26T19:51:16.627941+00:00 | INFO  | --- FILE: 2026_05_12_WNBA_spread.csv league=wnba market=spread rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.628532+00:00 | INFO  | 2026_05_12_WNBA_spread.csv | 0 selected from 2 rows
+2026-10-26T19:51:16.629992+00:00 | INFO  | --- FILE: 2026_05_13_WNBA_spread.csv league=wnba market=spread rows=1 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.630530+00:00 | INFO  | 2026_05_13_WNBA_spread.csv | 0 selected from 1 rows
+2026-10-26T19:51:16.632002+00:00 | INFO  | --- FILE: 2026_05_14_WNBA_spread.csv league=wnba market=spread rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.632657+00:00 | INFO  | 2026_05_14_WNBA_spread.csv | 0 selected from 2 rows
+2026-10-26T19:51:16.634130+00:00 | INFO  | --- FILE: 2026_05_15_WNBA_spread.csv league=wnba market=spread rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.634894+00:00 | INFO  | 2026_05_15_WNBA_spread.csv | 0 selected from 4 rows
+2026-10-26T19:51:16.636394+00:00 | INFO  | --- FILE: 2026_05_17_WNBA_spread.csv league=wnba market=spread rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.637223+00:00 | INFO  | 2026_05_17_WNBA_spread.csv | 0 selected from 4 rows
+2026-10-26T19:51:16.638753+00:00 | INFO  | --- FILE: 2026_05_18_WNBA_spread.csv league=wnba market=spread rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.639412+00:00 | INFO  | 2026_05_18_WNBA_spread.csv | 0 selected from 2 rows
+2026-10-26T19:51:16.640878+00:00 | INFO  | --- FILE: 2026_05_19_WNBA_spread.csv league=wnba market=spread rows=1 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.641370+00:00 | INFO  | 2026_05_19_WNBA_spread.csv | 0 selected from 1 rows
+2026-10-26T19:51:16.642824+00:00 | INFO  | --- FILE: 2026_05_20_WNBA_spread.csv league=wnba market=spread rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.643587+00:00 | INFO  | 2026_05_20_WNBA_spread.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.645066+00:00 | INFO  | --- FILE: 2026_05_21_WNBA_spread.csv league=wnba market=spread rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.645881+00:00 | INFO  | 2026_05_21_WNBA_spread.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.647404+00:00 | INFO  | --- FILE: 2026_05_22_WNBA_spread.csv league=wnba market=spread rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.648153+00:00 | INFO  | 2026_05_22_WNBA_spread.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.649644+00:00 | INFO  | --- FILE: 2026_05_23_WNBA_spread.csv league=wnba market=spread rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.650514+00:00 | INFO  | 2026_05_23_WNBA_spread.csv | 1 selected from 3 rows
+2026-10-26T19:51:16.653017+00:00 | INFO  | --- FILE: 2026_05_24_WNBA_spread.csv league=wnba market=spread rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.653773+00:00 | INFO  | 2026_05_24_WNBA_spread.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.655247+00:00 | INFO  | --- FILE: 2026_05_25_WNBA_spread.csv league=wnba market=spread rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.656119+00:00 | INFO  | 2026_05_25_WNBA_spread.csv | 2 selected from 2 rows
+2026-10-26T19:51:16.658540+00:00 | INFO  | --- FILE: 2026_05_27_WNBA_spread.csv league=wnba market=spread rows=5 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.659627+00:00 | INFO  | 2026_05_27_WNBA_spread.csv | 1 selected from 5 rows
+2026-10-26T19:51:16.662103+00:00 | INFO  | --- FILE: 2026_05_28_WNBA_spread.csv league=wnba market=spread rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.662776+00:00 | INFO  | 2026_05_28_WNBA_spread.csv | 0 selected from 2 rows
+2026-10-26T19:51:16.664298+00:00 | INFO  | --- FILE: 2026_05_29_WNBA_spread.csv league=wnba market=spread rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.665168+00:00 | INFO  | 2026_05_29_WNBA_spread.csv | 0 selected from 4 rows
+2026-10-26T19:51:16.666678+00:00 | INFO  | --- FILE: 2026_05_30_WNBA_spread.csv league=wnba market=spread rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.667458+00:00 | INFO  | 2026_05_30_WNBA_spread.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.668921+00:00 | INFO  | --- FILE: 2026_05_31_WNBA_spread.csv league=wnba market=spread rows=1 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.669446+00:00 | INFO  | 2026_05_31_WNBA_spread.csv | 0 selected from 1 rows
+2026-10-26T19:51:16.670846+00:00 | INFO  | --- FILE: 2026_06_01_WNBA_spread.csv league=wnba market=spread rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.671487+00:00 | INFO  | 2026_06_01_WNBA_spread.csv | 0 selected from 2 rows
+2026-10-26T19:51:16.672911+00:00 | INFO  | --- FILE: 2026_06_02_WNBA_spread.csv league=wnba market=spread rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.673757+00:00 | INFO  | 2026_06_02_WNBA_spread.csv | 0 selected from 4 rows
+2026-10-26T19:51:16.675232+00:00 | INFO  | --- FILE: 2026_06_03_WNBA_spread.csv league=wnba market=spread rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.675897+00:00 | INFO  | 2026_06_03_WNBA_spread.csv | 0 selected from 2 rows
+2026-10-26T19:51:16.677387+00:00 | INFO  | --- FILE: 2026_06_04_WNBA_spread.csv league=wnba market=spread rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.678031+00:00 | INFO  | 2026_06_04_WNBA_spread.csv | 0 selected from 2 rows
+2026-10-26T19:51:16.679516+00:00 | INFO  | --- FILE: 2026_06_05_WNBA_spread.csv league=wnba market=spread rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.680422+00:00 | INFO  | 2026_06_05_WNBA_spread.csv | 1 selected from 3 rows
+2026-10-26T19:51:16.682809+00:00 | INFO  | --- FILE: 2026_06_06_WNBA_spread.csv league=wnba market=spread rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.683677+00:00 | INFO  | 2026_06_06_WNBA_spread.csv | 0 selected from 4 rows
+2026-10-26T19:51:16.685180+00:00 | INFO  | --- FILE: 2026_06_07_WNBA_spread.csv league=wnba market=spread rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.685963+00:00 | INFO  | 2026_06_07_WNBA_spread.csv | 1 selected from 2 rows
+2026-10-26T19:51:16.688455+00:00 | INFO  | --- FILE: 2026_06_08_WNBA_spread.csv league=wnba market=spread rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.689208+00:00 | INFO  | 2026_06_08_WNBA_spread.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.690708+00:00 | INFO  | --- FILE: 2026_06_09_WNBA_spread.csv league=wnba market=spread rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.691491+00:00 | INFO  | 2026_06_09_WNBA_spread.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.692950+00:00 | INFO  | --- FILE: 2026_06_10_WNBA_spread.csv league=wnba market=spread rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.693725+00:00 | INFO  | 2026_06_10_WNBA_spread.csv | 1 selected from 2 rows
+2026-10-26T19:51:16.696159+00:00 | INFO  | --- FILE: 2026_06_11_WNBA_spread.csv league=wnba market=spread rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.697037+00:00 | INFO  | 2026_06_11_WNBA_spread.csv | 0 selected from 4 rows
+2026-10-26T19:51:16.698547+00:00 | INFO  | --- FILE: 2026_06_12_WNBA_spread.csv league=wnba market=spread rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.699151+00:00 | INFO  | 2026_06_12_WNBA_spread.csv | 0 selected from 2 rows
+2026-10-26T19:51:16.700657+00:00 | INFO  | --- FILE: 2026_06_13_WNBA_spread.csv league=wnba market=spread rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.701528+00:00 | INFO  | 2026_06_13_WNBA_spread.csv | 0 selected from 4 rows
+2026-10-26T19:51:16.703031+00:00 | INFO  | --- FILE: 2026_06_14_WNBA_spread.csv league=wnba market=spread rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.703659+00:00 | INFO  | 2026_06_14_WNBA_spread.csv | 0 selected from 2 rows
+2026-10-26T19:51:16.705137+00:00 | INFO  | --- FILE: 2026_06_15_WNBA_spread.csv league=wnba market=spread rows=1 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.705693+00:00 | INFO  | 2026_06_15_WNBA_spread.csv | 0 selected from 1 rows
+2026-10-26T19:51:16.707144+00:00 | INFO  | --- FILE: 2026_06_16_WNBA_spread.csv league=wnba market=spread rows=1 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.707695+00:00 | INFO  | 2026_06_16_WNBA_spread.csv | 0 selected from 1 rows
+2026-10-26T19:51:16.709187+00:00 | INFO  | --- FILE: 2026_06_17_WNBA_spread.csv league=wnba market=spread rows=6 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.710367+00:00 | INFO  | 2026_06_17_WNBA_spread.csv | 1 selected from 6 rows
+2026-10-26T19:51:16.712851+00:00 | INFO  | --- FILE: 2026_06_18_WNBA_spread.csv league=wnba market=spread rows=1 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.713403+00:00 | INFO  | 2026_06_18_WNBA_spread.csv | 0 selected from 1 rows
+2026-10-26T19:51:16.714901+00:00 | INFO  | --- FILE: 2026_06_19_WNBA_spread.csv league=wnba market=spread rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.715803+00:00 | INFO  | 2026_06_19_WNBA_spread.csv | 1 selected from 3 rows
+2026-10-26T19:51:16.718183+00:00 | INFO  | --- FILE: 2026_06_20_WNBA_spread.csv league=wnba market=spread rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.718956+00:00 | INFO  | 2026_06_20_WNBA_spread.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.720452+00:00 | INFO  | --- FILE: 2026_06_21_WNBA_spread.csv league=wnba market=spread rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.721315+00:00 | INFO  | 2026_06_21_WNBA_spread.csv | 1 selected from 3 rows
+2026-10-26T19:51:16.724097+00:00 | INFO  | --- FILE: 2026_06_22_WNBA_spread.csv league=wnba market=spread rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.725127+00:00 | INFO  | 2026_06_22_WNBA_spread.csv | 1 selected from 4 rows
+2026-10-26T19:51:16.727566+00:00 | INFO  | --- FILE: 2026_06_23_WNBA_spread.csv league=wnba market=spread rows=1 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.728111+00:00 | INFO  | 2026_06_23_WNBA_spread.csv | 0 selected from 1 rows
+2026-10-26T19:51:16.729647+00:00 | INFO  | --- FILE: 2026_06_24_WNBA_spread.csv league=wnba market=spread rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.730518+00:00 | INFO  | 2026_06_24_WNBA_spread.csv | 0 selected from 4 rows
+2026-10-26T19:51:16.732038+00:00 | INFO  | --- FILE: 2026_06_25_WNBA_spread.csv league=wnba market=spread rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.732795+00:00 | INFO  | 2026_06_25_WNBA_spread.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.734246+00:00 | INFO  | --- FILE: 2026_06_26_WNBA_spread.csv league=wnba market=spread rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.735028+00:00 | INFO  | 2026_06_26_WNBA_spread.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.736519+00:00 | INFO  | --- FILE: 2026_06_27_WNBA_spread.csv league=wnba market=spread rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.737246+00:00 | INFO  | 2026_06_27_WNBA_spread.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.738757+00:00 | INFO  | --- FILE: 2026_06_28_WNBA_spread.csv league=wnba market=spread rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.739630+00:00 | INFO  | 2026_06_28_WNBA_spread.csv | 0 selected from 4 rows
+2026-10-26T19:51:16.741109+00:00 | INFO  | --- FILE: 2026_07_02_WNBA_spread.csv league=wnba market=spread rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.741993+00:00 | INFO  | 2026_07_02_WNBA_spread.csv | 1 selected from 3 rows
+2026-10-26T19:51:16.744488+00:00 | INFO  | --- FILE: 2026_07_03_WNBA_spread.csv league=wnba market=spread rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.745154+00:00 | INFO  | 2026_07_03_WNBA_spread.csv | 0 selected from 2 rows
+2026-10-26T19:51:16.746641+00:00 | INFO  | --- FILE: 2026_07_04_WNBA_spread.csv league=wnba market=spread rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.747408+00:00 | INFO  | 2026_07_04_WNBA_spread.csv | 1 selected from 2 rows
+2026-10-26T19:51:16.749810+00:00 | INFO  | --- FILE: 2026_07_05_WNBA_spread.csv league=wnba market=spread rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.750555+00:00 | INFO  | 2026_07_05_WNBA_spread.csv | 0 selected from 2 rows
+2026-10-26T19:51:16.752064+00:00 | INFO  | --- FILE: 2026_07_06_WNBA_spread.csv league=wnba market=spread rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.752964+00:00 | INFO  | 2026_07_06_WNBA_spread.csv | 1 selected from 3 rows
+2026-10-26T19:51:16.755486+00:00 | INFO  | --- FILE: 2026_07_07_WNBA_spread.csv league=wnba market=spread rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.756132+00:00 | INFO  | 2026_07_07_WNBA_spread.csv | 0 selected from 2 rows
+2026-10-26T19:51:16.757610+00:00 | INFO  | --- FILE: 2026_07_08_WNBA_spread.csv league=wnba market=spread rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.758377+00:00 | INFO  | 2026_07_08_WNBA_spread.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.759849+00:00 | INFO  | --- FILE: 2026_07_09_WNBA_spread.csv league=wnba market=spread rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.760727+00:00 | INFO  | 2026_07_09_WNBA_spread.csv | 1 selected from 3 rows
+2026-10-26T19:51:16.763127+00:00 | INFO  | --- FILE: 2026_07_10_WNBA_spread.csv league=wnba market=spread rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.763910+00:00 | INFO  | 2026_07_10_WNBA_spread.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.765539+00:00 | INFO  | --- FILE: 2026_07_11_WNBA_spread.csv league=wnba market=spread rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.766456+00:00 | INFO  | 2026_07_11_WNBA_spread.csv | 1 selected from 3 rows
+2026-10-26T19:51:16.768929+00:00 | INFO  | --- FILE: 2026_07_12_WNBA_spread.csv league=wnba market=spread rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.769930+00:00 | INFO  | 2026_07_12_WNBA_spread.csv | 1 selected from 4 rows
+2026-10-26T19:51:16.772369+00:00 | INFO  | --- FILE: 2026_07_13_WNBA_spread.csv league=wnba market=spread rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.773144+00:00 | INFO  | 2026_07_13_WNBA_spread.csv | 1 selected from 2 rows
+2026-10-26T19:51:16.775651+00:00 | INFO  | --- FILE: 2026_07_14_WNBA_spread.csv league=wnba market=spread rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.776425+00:00 | INFO  | 2026_07_14_WNBA_spread.csv | 0 selected from 2 rows
+2026-10-26T19:51:16.777918+00:00 | INFO  | --- FILE: 2026_07_15_WNBA_spread.csv league=wnba market=spread rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.778797+00:00 | INFO  | 2026_07_15_WNBA_spread.csv | 1 selected from 3 rows
+2026-10-26T19:51:16.781196+00:00 | INFO  | --- FILE: 2026_07_16_WNBA_spread.csv league=wnba market=spread rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.781864+00:00 | INFO  | 2026_07_16_WNBA_spread.csv | 0 selected from 2 rows
+2026-10-26T19:51:16.783401+00:00 | INFO  | --- FILE: 2026_07_17_WNBA_spread.csv league=wnba market=spread rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.784391+00:00 | INFO  | 2026_07_17_WNBA_spread.csv | 1 selected from 4 rows
+2026-10-26T19:51:16.786899+00:00 | INFO  | --- FILE: 2026_07_18_WNBA_spread.csv league=wnba market=spread rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.787804+00:00 | INFO  | 2026_07_18_WNBA_spread.csv | 1 selected from 3 rows
+2026-10-26T19:51:16.790230+00:00 | INFO  | --- FILE: 2026_07_19_WNBA_spread.csv league=wnba market=spread rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.791014+00:00 | INFO  | 2026_07_19_WNBA_spread.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.792528+00:00 | INFO  | --- FILE: 2026_07_20_WNBA_spread.csv league=wnba market=spread rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.793400+00:00 | INFO  | 2026_07_20_WNBA_spread.csv | 0 selected from 4 rows
+2026-10-26T19:51:16.794944+00:00 | INFO  | --- FILE: 2026_07_22_WNBA_spread.csv league=wnba market=spread rows=6 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.796031+00:00 | INFO  | 2026_07_22_WNBA_spread.csv | 0 selected from 6 rows
+2026-10-26T19:51:16.797556+00:00 | INFO  | --- FILE: 2026_07_28_WNBA_spread.csv league=wnba market=spread rows=5 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.798661+00:00 | INFO  | 2026_07_28_WNBA_spread.csv | 1 selected from 5 rows
+2026-10-26T19:51:16.801160+00:00 | INFO  | --- FILE: 2026_07_29_WNBA_spread.csv league=wnba market=spread rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.801849+00:00 | INFO  | 2026_07_29_WNBA_spread.csv | 0 selected from 2 rows
+2026-10-26T19:51:16.803390+00:00 | INFO  | --- FILE: 2026_07_30_WNBA_spread.csv league=wnba market=spread rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.804111+00:00 | INFO  | 2026_07_30_WNBA_spread.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.805621+00:00 | INFO  | --- FILE: 2026_07_31_WNBA_spread.csv league=wnba market=spread rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.806506+00:00 | INFO  | 2026_07_31_WNBA_spread.csv | 1 selected from 3 rows
+2026-10-26T19:51:16.808921+00:00 | INFO  | --- FILE: 2026_08_01_WNBA_spread.csv league=wnba market=spread rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.809586+00:00 | INFO  | 2026_08_01_WNBA_spread.csv | 0 selected from 2 rows
+2026-10-26T19:51:16.811082+00:00 | INFO  | --- FILE: 2026_08_02_WNBA_spread.csv league=wnba market=spread rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.812191+00:00 | INFO  | 2026_08_02_WNBA_spread.csv | 2 selected from 4 rows
+2026-10-26T19:51:16.814697+00:00 | INFO  | --- FILE: 2026_08_03_WNBA_spread.csv league=wnba market=spread rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.815494+00:00 | INFO  | 2026_08_03_WNBA_spread.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.816974+00:00 | INFO  | --- FILE: 2026_08_04_WNBA_spread.csv league=wnba market=spread rows=1 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.817523+00:00 | INFO  | 2026_08_04_WNBA_spread.csv | 0 selected from 1 rows
+2026-10-26T19:51:16.818956+00:00 | INFO  | --- FILE: 2026_08_05_WNBA_spread.csv league=wnba market=spread rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.819810+00:00 | INFO  | 2026_08_05_WNBA_spread.csv | 0 selected from 4 rows
+2026-10-26T19:51:16.821253+00:00 | INFO  | --- FILE: 2026_08_06_WNBA_spread.csv league=wnba market=spread rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.822119+00:00 | INFO  | 2026_08_06_WNBA_spread.csv | 1 selected from 3 rows
+2026-10-26T19:51:16.824508+00:00 | INFO  | --- FILE: 2026_08_07_WNBA_spread.csv league=wnba market=spread rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.825261+00:00 | INFO  | 2026_08_07_WNBA_spread.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.826727+00:00 | INFO  | --- FILE: 2026_08_08_WNBA_spread.csv league=wnba market=spread rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.827473+00:00 | INFO  | 2026_08_08_WNBA_spread.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.828918+00:00 | INFO  | --- FILE: 2026_08_09_WNBA_spread.csv league=wnba market=spread rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.829914+00:00 | INFO  | 2026_08_09_WNBA_spread.csv | 1 selected from 4 rows
+2026-10-26T19:51:16.832421+00:00 | INFO  | --- FILE: 2026_08_10_WNBA_spread.csv league=wnba market=spread rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.833086+00:00 | INFO  | 2026_08_10_WNBA_spread.csv | 0 selected from 2 rows
+2026-10-26T19:51:16.834583+00:00 | INFO  | --- FILE: 2026_08_11_WNBA_spread.csv league=wnba market=spread rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.835371+00:00 | INFO  | 2026_08_11_WNBA_spread.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.836862+00:00 | INFO  | --- FILE: 2026_08_12_WNBA_spread.csv league=wnba market=spread rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.837689+00:00 | INFO  | 2026_08_12_WNBA_spread.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.839239+00:00 | INFO  | --- FILE: 2026_08_13_WNBA_spread.csv league=wnba market=spread rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.840013+00:00 | INFO  | 2026_08_13_WNBA_spread.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.841518+00:00 | INFO  | --- FILE: 2026_08_14_WNBA_spread.csv league=wnba market=spread rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.842282+00:00 | INFO  | 2026_08_14_WNBA_spread.csv | 1 selected from 2 rows
+2026-10-26T19:51:16.844661+00:00 | INFO  | --- FILE: 2026_08_15_WNBA_spread.csv league=wnba market=spread rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.845454+00:00 | INFO  | 2026_08_15_WNBA_spread.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.846926+00:00 | INFO  | --- FILE: 2026_08_16_WNBA_spread.csv league=wnba market=spread rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.847659+00:00 | INFO  | 2026_08_16_WNBA_spread.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.849132+00:00 | INFO  | --- FILE: 2026_08_17_WNBA_spread.csv league=wnba market=spread rows=1 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.849664+00:00 | INFO  | 2026_08_17_WNBA_spread.csv | 0 selected from 1 rows
+2026-10-26T19:51:16.851143+00:00 | INFO  | --- FILE: 2026_08_18_WNBA_spread.csv league=wnba market=spread rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.851993+00:00 | INFO  | 2026_08_18_WNBA_spread.csv | 0 selected from 4 rows
+2026-10-26T19:51:16.853478+00:00 | INFO  | --- FILE: 2026_08_19_WNBA_spread.csv league=wnba market=spread rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.854220+00:00 | INFO  | 2026_08_19_WNBA_spread.csv | 1 selected from 2 rows
+2026-10-26T19:51:16.856713+00:00 | INFO  | --- FILE: 2026_08_20_WNBA_spread.csv league=wnba market=spread rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.857510+00:00 | INFO  | 2026_08_20_WNBA_spread.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.859044+00:00 | INFO  | --- FILE: 2026_08_30_WNBA_spread.csv league=wnba market=spread rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.860230+00:00 | INFO  | 2026_08_30_WNBA_spread.csv | 2 selected from 4 rows
+2026-10-26T19:51:16.862876+00:00 | INFO  | --- FILE: 2026_09_17_WNBA_spread.csv league=wnba market=spread rows=5 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.864283+00:00 | INFO  | 2026_09_17_WNBA_spread.csv | 3 selected from 5 rows
+2026-10-26T19:51:16.866910+00:00 | INFO  | --- FILE: 2026_09_18_WNBA_spread.csv league=wnba market=spread rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.867985+00:00 | INFO  | 2026_09_18_WNBA_spread.csv | 2 selected from 3 rows
+2026-10-26T19:51:16.870941+00:00 | INFO  | --- FILE: 2026_09_19_WNBA_spread.csv league=wnba market=spread rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.872127+00:00 | INFO  | 2026_09_19_WNBA_spread.csv | 3 selected from 3 rows
+2026-10-26T19:51:16.875152+00:00 | INFO  | --- FILE: 2026_09_20_WNBA_spread.csv league=wnba market=spread rows=5 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.876574+00:00 | INFO  | 2026_09_20_WNBA_spread.csv | 3 selected from 5 rows
+2026-10-26T19:51:16.879213+00:00 | INFO  | --- FILE: 2026_09_21_WNBA_spread.csv league=wnba market=spread rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.880161+00:00 | INFO  | 2026_09_21_WNBA_spread.csv | 2 selected from 2 rows
+2026-10-26T19:51:16.882738+00:00 | INFO  | --- FILE: 2026_09_22_WNBA_spread.csv league=wnba market=spread rows=5 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.884338+00:00 | INFO  | 2026_09_22_WNBA_spread.csv | 5 selected from 5 rows
+2026-10-26T19:51:16.886991+00:00 | INFO  | --- FILE: 2026_09_23_WNBA_spread.csv league=wnba market=spread rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.887862+00:00 | INFO  | 2026_09_23_WNBA_spread.csv | 1 selected from 2 rows
+2026-10-26T19:51:16.890506+00:00 | INFO  | --- FILE: 2026_09_24_WNBA_spread.csv league=wnba market=spread rows=5 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.891769+00:00 | INFO  | 2026_09_24_WNBA_spread.csv | 2 selected from 5 rows
+2026-10-26T19:51:16.894454+00:00 | INFO  | --- FILE: 2026_09_27_WNBA_spread.csv league=wnba market=spread rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.895546+00:00 | INFO  | 2026_09_27_WNBA_spread.csv | 0 selected from 4 rows
+2026-10-26T19:51:16.897110+00:00 | INFO  | --- FILE: 2026_09_29_WNBA_spread.csv league=wnba market=spread rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.897982+00:00 | INFO  | 2026_09_29_WNBA_spread.csv | 1 selected from 2 rows
+2026-10-26T19:51:16.900598+00:00 | INFO  | --- FILE: 2026_09_30_WNBA_spread.csv league=wnba market=spread rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.901468+00:00 | INFO  | 2026_09_30_WNBA_spread.csv | 1 selected from 2 rows
+2026-10-26T19:51:16.904057+00:00 | INFO  | --- FILE: 2026_10_01_WNBA_spread.csv league=wnba market=spread rows=1 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.904699+00:00 | INFO  | 2026_10_01_WNBA_spread.csv | 0 selected from 1 rows
+2026-10-26T19:51:16.906219+00:00 | INFO  | --- FILE: 2026_10_02_WNBA_spread.csv league=wnba market=spread rows=1 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.906840+00:00 | INFO  | 2026_10_02_WNBA_spread.csv | 0 selected from 1 rows
+2026-10-26T19:51:16.908347+00:00 | INFO  | --- FILE: 2026_10_04_WNBA_spread.csv league=wnba market=spread rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.909060+00:00 | INFO  | 2026_10_04_WNBA_spread.csv | 0 selected from 2 rows
+2026-10-26T19:51:16.910587+00:00 | INFO  | --- FILE: 2026_10_07_WNBA_spread.csv league=wnba market=spread rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.911430+00:00 | INFO  | 2026_10_07_WNBA_spread.csv | 1 selected from 2 rows
+2026-10-26T19:51:16.914022+00:00 | INFO  | --- FILE: 2026_10_09_WNBA_spread.csv league=wnba market=spread rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.914903+00:00 | INFO  | 2026_10_09_WNBA_spread.csv | 1 selected from 2 rows
+2026-10-26T19:51:16.917576+00:00 | INFO  | --- FILE: 2026_10_17_WNBA_spread.csv league=wnba market=spread rows=1 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.918200+00:00 | INFO  | 2026_10_17_WNBA_spread.csv | 0 selected from 1 rows
+2026-10-26T19:51:16.919741+00:00 | INFO  | --- FILE: 2026_10_24_WNBA_spread.csv league=wnba market=spread rows=1 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.920366+00:00 | INFO  | 2026_10_24_WNBA_spread.csv | 0 selected from 1 rows
+2026-10-26T19:51:16.921904+00:00 | INFO  | --- FILE: 2026_10_26_WNBA_spread.csv league=wnba market=spread rows=1 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.922638+00:00 | INFO  | 2026_10_26_WNBA_spread.csv | 1 selected from 1 rows
+2026-10-26T19:51:16.925704+00:00 | INFO  | --- FILE: 2026_05_08_WNBA_total.csv league=wnba market=total rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.926710+00:00 | INFO  | 2026_05_08_WNBA_total.csv | 2 selected from 3 rows
+2026-10-26T19:51:16.929059+00:00 | INFO  | --- FILE: 2026_05_09_WNBA_total.csv league=wnba market=total rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.930303+00:00 | INFO  | 2026_05_09_WNBA_total.csv | 4 selected from 4 rows
+2026-10-26T19:51:16.932899+00:00 | INFO  | --- FILE: 2026_05_10_WNBA_total.csv league=wnba market=total rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.934057+00:00 | INFO  | 2026_05_10_WNBA_total.csv | 3 selected from 4 rows
+2026-10-26T19:51:16.936431+00:00 | INFO  | --- FILE: 2026_05_12_WNBA_total.csv league=wnba market=total rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.937007+00:00 | INFO  | 2026_05_12_WNBA_total.csv | 0 selected from 2 rows
+2026-10-26T19:51:16.938453+00:00 | INFO  | --- FILE: 2026_05_13_WNBA_total.csv league=wnba market=total rows=1 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.938980+00:00 | INFO  | 2026_05_13_WNBA_total.csv | 0 selected from 1 rows
+2026-10-26T19:51:16.940415+00:00 | INFO  | --- FILE: 2026_05_14_WNBA_total.csv league=wnba market=total rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.941240+00:00 | INFO  | 2026_05_14_WNBA_total.csv | 2 selected from 2 rows
+2026-10-26T19:51:16.961252+00:00 | INFO  | --- FILE: 2026_05_15_WNBA_total.csv league=wnba market=total rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.961985+00:00 | INFO  | 2026_05_15_WNBA_total.csv | 0 selected from 4 rows
+2026-10-26T19:51:16.963438+00:00 | INFO  | --- FILE: 2026_05_17_WNBA_total.csv league=wnba market=total rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.964682+00:00 | INFO  | 2026_05_17_WNBA_total.csv | 4 selected from 4 rows
+2026-10-26T19:51:16.967044+00:00 | INFO  | --- FILE: 2026_05_18_WNBA_total.csv league=wnba market=total rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.967921+00:00 | INFO  | 2026_05_18_WNBA_total.csv | 2 selected from 2 rows
+2026-10-26T19:51:16.970347+00:00 | INFO  | --- FILE: 2026_05_19_WNBA_total.csv league=wnba market=total rows=1 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.970841+00:00 | INFO  | 2026_05_19_WNBA_total.csv | 0 selected from 1 rows
+2026-10-26T19:51:16.972293+00:00 | INFO  | --- FILE: 2026_05_20_WNBA_total.csv league=wnba market=total rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.973150+00:00 | INFO  | 2026_05_20_WNBA_total.csv | 1 selected from 3 rows
+2026-10-26T19:51:16.975514+00:00 | INFO  | --- FILE: 2026_05_21_WNBA_total.csv league=wnba market=total rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.976388+00:00 | INFO  | 2026_05_21_WNBA_total.csv | 1 selected from 3 rows
+2026-10-26T19:51:16.978792+00:00 | INFO  | --- FILE: 2026_05_22_WNBA_total.csv league=wnba market=total rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.979771+00:00 | INFO  | 2026_05_22_WNBA_total.csv | 2 selected from 3 rows
+2026-10-26T19:51:16.982098+00:00 | INFO  | --- FILE: 2026_05_23_WNBA_total.csv league=wnba market=total rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.982862+00:00 | INFO  | 2026_05_23_WNBA_total.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.984307+00:00 | INFO  | --- FILE: 2026_05_24_WNBA_total.csv league=wnba market=total rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.985058+00:00 | INFO  | 2026_05_24_WNBA_total.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.986522+00:00 | INFO  | --- FILE: 2026_05_25_WNBA_total.csv league=wnba market=total rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.987225+00:00 | INFO  | 2026_05_25_WNBA_total.csv | 0 selected from 2 rows
+2026-10-26T19:51:16.988704+00:00 | INFO  | --- FILE: 2026_05_27_WNBA_total.csv league=wnba market=total rows=5 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.989667+00:00 | INFO  | 2026_05_27_WNBA_total.csv | 0 selected from 5 rows
+2026-10-26T19:51:16.991105+00:00 | INFO  | --- FILE: 2026_05_28_WNBA_total.csv league=wnba market=total rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.991772+00:00 | INFO  | 2026_05_28_WNBA_total.csv | 0 selected from 2 rows
+2026-10-26T19:51:16.993195+00:00 | INFO  | --- FILE: 2026_05_29_WNBA_total.csv league=wnba market=total rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.994167+00:00 | INFO  | 2026_05_29_WNBA_total.csv | 1 selected from 4 rows
+2026-10-26T19:51:16.996534+00:00 | INFO  | --- FILE: 2026_05_30_WNBA_total.csv league=wnba market=total rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.997305+00:00 | INFO  | 2026_05_30_WNBA_total.csv | 0 selected from 3 rows
+2026-10-26T19:51:16.998764+00:00 | INFO  | --- FILE: 2026_05_31_WNBA_total.csv league=wnba market=total rows=1 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:16.999301+00:00 | INFO  | 2026_05_31_WNBA_total.csv | 0 selected from 1 rows
+2026-10-26T19:51:17.000832+00:00 | INFO  | --- FILE: 2026_06_01_WNBA_total.csv league=wnba market=total rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.001493+00:00 | INFO  | 2026_06_01_WNBA_total.csv | 0 selected from 2 rows
+2026-10-26T19:51:17.002932+00:00 | INFO  | --- FILE: 2026_06_02_WNBA_total.csv league=wnba market=total rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.003804+00:00 | INFO  | 2026_06_02_WNBA_total.csv | 0 selected from 4 rows
+2026-10-26T19:51:17.005254+00:00 | INFO  | --- FILE: 2026_06_03_WNBA_total.csv league=wnba market=total rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.005904+00:00 | INFO  | 2026_06_03_WNBA_total.csv | 0 selected from 2 rows
+2026-10-26T19:51:17.007345+00:00 | INFO  | --- FILE: 2026_06_04_WNBA_total.csv league=wnba market=total rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.007985+00:00 | INFO  | 2026_06_04_WNBA_total.csv | 0 selected from 2 rows
+2026-10-26T19:51:17.009506+00:00 | INFO  | --- FILE: 2026_06_05_WNBA_total.csv league=wnba market=total rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.010260+00:00 | INFO  | 2026_06_05_WNBA_total.csv | 0 selected from 3 rows
+2026-10-26T19:51:17.011723+00:00 | INFO  | --- FILE: 2026_06_06_WNBA_total.csv league=wnba market=total rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.012582+00:00 | INFO  | 2026_06_06_WNBA_total.csv | 0 selected from 4 rows
+2026-10-26T19:51:17.014021+00:00 | INFO  | --- FILE: 2026_06_07_WNBA_total.csv league=wnba market=total rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.014653+00:00 | INFO  | 2026_06_07_WNBA_total.csv | 0 selected from 2 rows
+2026-10-26T19:51:17.016012+00:00 | INFO  | --- FILE: 2026_06_08_WNBA_total.csv league=wnba market=total rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.016745+00:00 | INFO  | 2026_06_08_WNBA_total.csv | 0 selected from 3 rows
+2026-10-26T19:51:17.018131+00:00 | INFO  | --- FILE: 2026_06_09_WNBA_total.csv league=wnba market=total rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.018867+00:00 | INFO  | 2026_06_09_WNBA_total.csv | 0 selected from 3 rows
+2026-10-26T19:51:17.020308+00:00 | INFO  | --- FILE: 2026_06_10_WNBA_total.csv league=wnba market=total rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.020946+00:00 | INFO  | 2026_06_10_WNBA_total.csv | 0 selected from 2 rows
+2026-10-26T19:51:17.022379+00:00 | INFO  | --- FILE: 2026_06_11_WNBA_total.csv league=wnba market=total rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.023210+00:00 | INFO  | 2026_06_11_WNBA_total.csv | 0 selected from 4 rows
+2026-10-26T19:51:17.024694+00:00 | INFO  | --- FILE: 2026_06_12_WNBA_total.csv league=wnba market=total rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.025354+00:00 | INFO  | 2026_06_12_WNBA_total.csv | 0 selected from 2 rows
+2026-10-26T19:51:17.026770+00:00 | INFO  | --- FILE: 2026_06_13_WNBA_total.csv league=wnba market=total rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.027627+00:00 | INFO  | 2026_06_13_WNBA_total.csv | 0 selected from 4 rows
+2026-10-26T19:51:17.029086+00:00 | INFO  | --- FILE: 2026_06_14_WNBA_total.csv league=wnba market=total rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.029712+00:00 | INFO  | 2026_06_14_WNBA_total.csv | 0 selected from 2 rows
+2026-10-26T19:51:17.031136+00:00 | INFO  | --- FILE: 2026_06_15_WNBA_total.csv league=wnba market=total rows=1 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.031685+00:00 | INFO  | 2026_06_15_WNBA_total.csv | 0 selected from 1 rows
+2026-10-26T19:51:17.033079+00:00 | INFO  | --- FILE: 2026_06_16_WNBA_total.csv league=wnba market=total rows=1 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.033617+00:00 | INFO  | 2026_06_16_WNBA_total.csv | 0 selected from 1 rows
+2026-10-26T19:51:17.035026+00:00 | INFO  | --- FILE: 2026_06_17_WNBA_total.csv league=wnba market=total rows=6 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.036058+00:00 | INFO  | 2026_06_17_WNBA_total.csv | 0 selected from 6 rows
+2026-10-26T19:51:17.037525+00:00 | INFO  | --- FILE: 2026_06_18_WNBA_total.csv league=wnba market=total rows=1 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.038058+00:00 | INFO  | 2026_06_18_WNBA_total.csv | 0 selected from 1 rows
+2026-10-26T19:51:17.039513+00:00 | INFO  | --- FILE: 2026_06_19_WNBA_total.csv league=wnba market=total rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.040261+00:00 | INFO  | 2026_06_19_WNBA_total.csv | 0 selected from 3 rows
+2026-10-26T19:51:17.041718+00:00 | INFO  | --- FILE: 2026_06_20_WNBA_total.csv league=wnba market=total rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.042517+00:00 | INFO  | 2026_06_20_WNBA_total.csv | 0 selected from 3 rows
+2026-10-26T19:51:17.043959+00:00 | INFO  | --- FILE: 2026_06_21_WNBA_total.csv league=wnba market=total rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.044731+00:00 | INFO  | 2026_06_21_WNBA_total.csv | 0 selected from 3 rows
+2026-10-26T19:51:17.046200+00:00 | INFO  | --- FILE: 2026_06_22_WNBA_total.csv league=wnba market=total rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.047190+00:00 | INFO  | 2026_06_22_WNBA_total.csv | 1 selected from 4 rows
+2026-10-26T19:51:17.049500+00:00 | INFO  | --- FILE: 2026_06_23_WNBA_total.csv league=wnba market=total rows=1 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.050010+00:00 | INFO  | 2026_06_23_WNBA_total.csv | 0 selected from 1 rows
+2026-10-26T19:51:17.051443+00:00 | INFO  | --- FILE: 2026_06_24_WNBA_total.csv league=wnba market=total rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.052258+00:00 | INFO  | 2026_06_24_WNBA_total.csv | 0 selected from 4 rows
+2026-10-26T19:51:17.053693+00:00 | INFO  | --- FILE: 2026_06_25_WNBA_total.csv league=wnba market=total rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.054496+00:00 | INFO  | 2026_06_25_WNBA_total.csv | 0 selected from 3 rows
+2026-10-26T19:51:17.055957+00:00 | INFO  | --- FILE: 2026_06_26_WNBA_total.csv league=wnba market=total rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.056736+00:00 | INFO  | 2026_06_26_WNBA_total.csv | 0 selected from 3 rows
+2026-10-26T19:51:17.058260+00:00 | INFO  | --- FILE: 2026_06_27_WNBA_total.csv league=wnba market=total rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.059021+00:00 | INFO  | 2026_06_27_WNBA_total.csv | 0 selected from 3 rows
+2026-10-26T19:51:17.060482+00:00 | INFO  | --- FILE: 2026_06_28_WNBA_total.csv league=wnba market=total rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.061341+00:00 | INFO  | 2026_06_28_WNBA_total.csv | 0 selected from 4 rows
+2026-10-26T19:51:17.062771+00:00 | INFO  | --- FILE: 2026_07_02_WNBA_total.csv league=wnba market=total rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.063551+00:00 | INFO  | 2026_07_02_WNBA_total.csv | 0 selected from 3 rows
+2026-10-26T19:51:17.065006+00:00 | INFO  | --- FILE: 2026_07_03_WNBA_total.csv league=wnba market=total rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.065795+00:00 | INFO  | 2026_07_03_WNBA_total.csv | 1 selected from 2 rows
+2026-10-26T19:51:17.068232+00:00 | INFO  | --- FILE: 2026_07_04_WNBA_total.csv league=wnba market=total rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.068971+00:00 | INFO  | 2026_07_04_WNBA_total.csv | 0 selected from 2 rows
+2026-10-26T19:51:17.070441+00:00 | INFO  | --- FILE: 2026_07_05_WNBA_total.csv league=wnba market=total rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.071194+00:00 | INFO  | 2026_07_05_WNBA_total.csv | 1 selected from 2 rows
+2026-10-26T19:51:17.073584+00:00 | INFO  | --- FILE: 2026_07_06_WNBA_total.csv league=wnba market=total rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.074355+00:00 | INFO  | 2026_07_06_WNBA_total.csv | 0 selected from 3 rows
+2026-10-26T19:51:17.075830+00:00 | INFO  | --- FILE: 2026_07_07_WNBA_total.csv league=wnba market=total rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.076492+00:00 | INFO  | 2026_07_07_WNBA_total.csv | 0 selected from 2 rows
+2026-10-26T19:51:17.078009+00:00 | INFO  | --- FILE: 2026_07_08_WNBA_total.csv league=wnba market=total rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.078885+00:00 | INFO  | 2026_07_08_WNBA_total.csv | 1 selected from 3 rows
+2026-10-26T19:51:17.081259+00:00 | INFO  | --- FILE: 2026_07_09_WNBA_total.csv league=wnba market=total rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.082115+00:00 | INFO  | 2026_07_09_WNBA_total.csv | 1 selected from 3 rows
+2026-10-26T19:51:17.084581+00:00 | INFO  | --- FILE: 2026_07_10_WNBA_total.csv league=wnba market=total rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.085380+00:00 | INFO  | 2026_07_10_WNBA_total.csv | 0 selected from 3 rows
+2026-10-26T19:51:17.086846+00:00 | INFO  | --- FILE: 2026_07_11_WNBA_total.csv league=wnba market=total rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.087732+00:00 | INFO  | 2026_07_11_WNBA_total.csv | 1 selected from 3 rows
+2026-10-26T19:51:17.090158+00:00 | INFO  | --- FILE: 2026_07_12_WNBA_total.csv league=wnba market=total rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.091039+00:00 | INFO  | 2026_07_12_WNBA_total.csv | 0 selected from 4 rows
+2026-10-26T19:51:17.092509+00:00 | INFO  | --- FILE: 2026_07_13_WNBA_total.csv league=wnba market=total rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.093259+00:00 | INFO  | 2026_07_13_WNBA_total.csv | 1 selected from 2 rows
+2026-10-26T19:51:17.095605+00:00 | INFO  | --- FILE: 2026_07_14_WNBA_total.csv league=wnba market=total rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.096252+00:00 | INFO  | 2026_07_14_WNBA_total.csv | 0 selected from 2 rows
+2026-10-26T19:51:17.097682+00:00 | INFO  | --- FILE: 2026_07_15_WNBA_total.csv league=wnba market=total rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.098615+00:00 | INFO  | 2026_07_15_WNBA_total.csv | 1 selected from 3 rows
+2026-10-26T19:51:17.101068+00:00 | INFO  | --- FILE: 2026_07_16_WNBA_total.csv league=wnba market=total rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.101739+00:00 | INFO  | 2026_07_16_WNBA_total.csv | 0 selected from 2 rows
+2026-10-26T19:51:17.103197+00:00 | INFO  | --- FILE: 2026_07_17_WNBA_total.csv league=wnba market=total rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.104321+00:00 | INFO  | 2026_07_17_WNBA_total.csv | 2 selected from 4 rows
+2026-10-26T19:51:17.106721+00:00 | INFO  | --- FILE: 2026_07_18_WNBA_total.csv league=wnba market=total rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.107695+00:00 | INFO  | 2026_07_18_WNBA_total.csv | 2 selected from 3 rows
+2026-10-26T19:51:17.110106+00:00 | INFO  | --- FILE: 2026_07_19_WNBA_total.csv league=wnba market=total rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.110998+00:00 | INFO  | 2026_07_19_WNBA_total.csv | 1 selected from 3 rows
+2026-10-26T19:51:17.113286+00:00 | INFO  | --- FILE: 2026_07_20_WNBA_total.csv league=wnba market=total rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.114119+00:00 | INFO  | 2026_07_20_WNBA_total.csv | 0 selected from 4 rows
+2026-10-26T19:51:17.115539+00:00 | INFO  | --- FILE: 2026_07_22_WNBA_total.csv league=wnba market=total rows=6 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.116653+00:00 | INFO  | 2026_07_22_WNBA_total.csv | 1 selected from 6 rows
+2026-10-26T19:51:17.119348+00:00 | INFO  | --- FILE: 2026_07_28_WNBA_total.csv league=wnba market=total rows=5 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.120259+00:00 | INFO  | 2026_07_28_WNBA_total.csv | 0 selected from 5 rows
+2026-10-26T19:51:17.121677+00:00 | INFO  | --- FILE: 2026_07_29_WNBA_total.csv league=wnba market=total rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.122321+00:00 | INFO  | 2026_07_29_WNBA_total.csv | 0 selected from 2 rows
+2026-10-26T19:51:17.123741+00:00 | INFO  | --- FILE: 2026_07_30_WNBA_total.csv league=wnba market=total rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.124544+00:00 | INFO  | 2026_07_30_WNBA_total.csv | 1 selected from 3 rows
+2026-10-26T19:51:17.126845+00:00 | INFO  | --- FILE: 2026_07_31_WNBA_total.csv league=wnba market=total rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.127775+00:00 | INFO  | 2026_07_31_WNBA_total.csv | 2 selected from 3 rows
+2026-10-26T19:51:17.130110+00:00 | INFO  | --- FILE: 2026_08_01_WNBA_total.csv league=wnba market=total rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.130769+00:00 | INFO  | 2026_08_01_WNBA_total.csv | 0 selected from 2 rows
+2026-10-26T19:51:17.132228+00:00 | INFO  | --- FILE: 2026_08_02_WNBA_total.csv league=wnba market=total rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.133229+00:00 | INFO  | 2026_08_02_WNBA_total.csv | 1 selected from 4 rows
+2026-10-26T19:51:17.135595+00:00 | INFO  | --- FILE: 2026_08_03_WNBA_total.csv league=wnba market=total rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.136357+00:00 | INFO  | 2026_08_03_WNBA_total.csv | 0 selected from 3 rows
+2026-10-26T19:51:17.137814+00:00 | INFO  | --- FILE: 2026_08_04_WNBA_total.csv league=wnba market=total rows=1 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.138353+00:00 | INFO  | 2026_08_04_WNBA_total.csv | 0 selected from 1 rows
+2026-10-26T19:51:17.139870+00:00 | INFO  | --- FILE: 2026_08_05_WNBA_total.csv league=wnba market=total rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.140842+00:00 | INFO  | 2026_08_05_WNBA_total.csv | 1 selected from 4 rows
+2026-10-26T19:51:17.143195+00:00 | INFO  | --- FILE: 2026_08_06_WNBA_total.csv league=wnba market=total rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.144259+00:00 | INFO  | 2026_08_06_WNBA_total.csv | 3 selected from 3 rows
+2026-10-26T19:51:17.146690+00:00 | INFO  | --- FILE: 2026_08_07_WNBA_total.csv league=wnba market=total rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.147466+00:00 | INFO  | 2026_08_07_WNBA_total.csv | 0 selected from 3 rows
+2026-10-26T19:51:17.148912+00:00 | INFO  | --- FILE: 2026_08_08_WNBA_total.csv league=wnba market=total rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.149852+00:00 | INFO  | 2026_08_08_WNBA_total.csv | 1 selected from 3 rows
+2026-10-26T19:51:17.152206+00:00 | INFO  | --- FILE: 2026_08_09_WNBA_total.csv league=wnba market=total rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.153079+00:00 | INFO  | 2026_08_09_WNBA_total.csv | 0 selected from 4 rows
+2026-10-26T19:51:17.154537+00:00 | INFO  | --- FILE: 2026_08_10_WNBA_total.csv league=wnba market=total rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.155280+00:00 | INFO  | 2026_08_10_WNBA_total.csv | 0 selected from 2 rows
+2026-10-26T19:51:17.156774+00:00 | INFO  | --- FILE: 2026_08_11_WNBA_total.csv league=wnba market=total rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.157541+00:00 | INFO  | 2026_08_11_WNBA_total.csv | 0 selected from 3 rows
+2026-10-26T19:51:17.158989+00:00 | INFO  | --- FILE: 2026_08_12_WNBA_total.csv league=wnba market=total rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.159732+00:00 | INFO  | 2026_08_12_WNBA_total.csv | 0 selected from 3 rows
+2026-10-26T19:51:17.161204+00:00 | INFO  | --- FILE: 2026_08_13_WNBA_total.csv league=wnba market=total rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.161963+00:00 | INFO  | 2026_08_13_WNBA_total.csv | 0 selected from 3 rows
+2026-10-26T19:51:17.163416+00:00 | INFO  | --- FILE: 2026_08_14_WNBA_total.csv league=wnba market=total rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.164017+00:00 | INFO  | 2026_08_14_WNBA_total.csv | 0 selected from 2 rows
+2026-10-26T19:51:17.165583+00:00 | INFO  | --- FILE: 2026_08_15_WNBA_total.csv league=wnba market=total rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.166326+00:00 | INFO  | 2026_08_15_WNBA_total.csv | 0 selected from 3 rows
+2026-10-26T19:51:17.167780+00:00 | INFO  | --- FILE: 2026_08_16_WNBA_total.csv league=wnba market=total rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.168504+00:00 | INFO  | 2026_08_16_WNBA_total.csv | 0 selected from 3 rows
+2026-10-26T19:51:17.169941+00:00 | INFO  | --- FILE: 2026_08_17_WNBA_total.csv league=wnba market=total rows=1 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.170459+00:00 | INFO  | 2026_08_17_WNBA_total.csv | 0 selected from 1 rows
+2026-10-26T19:51:17.171905+00:00 | INFO  | --- FILE: 2026_08_18_WNBA_total.csv league=wnba market=total rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.172744+00:00 | INFO  | 2026_08_18_WNBA_total.csv | 0 selected from 4 rows
+2026-10-26T19:51:17.174180+00:00 | INFO  | --- FILE: 2026_08_19_WNBA_total.csv league=wnba market=total rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.174820+00:00 | INFO  | 2026_08_19_WNBA_total.csv | 0 selected from 2 rows
+2026-10-26T19:51:17.176300+00:00 | INFO  | --- FILE: 2026_08_20_WNBA_total.csv league=wnba market=total rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.177183+00:00 | INFO  | 2026_08_20_WNBA_total.csv | 1 selected from 3 rows
+2026-10-26T19:51:17.179644+00:00 | INFO  | --- FILE: 2026_08_30_WNBA_total.csv league=wnba market=total rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.180806+00:00 | INFO  | 2026_08_30_WNBA_total.csv | 2 selected from 4 rows
+2026-10-26T19:51:17.183361+00:00 | INFO  | --- FILE: 2026_09_17_WNBA_total.csv league=wnba market=total rows=5 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.184628+00:00 | INFO  | 2026_09_17_WNBA_total.csv | 2 selected from 5 rows
+2026-10-26T19:51:17.187207+00:00 | INFO  | --- FILE: 2026_09_18_WNBA_total.csv league=wnba market=total rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.188287+00:00 | INFO  | 2026_09_18_WNBA_total.csv | 2 selected from 3 rows
+2026-10-26T19:51:17.190769+00:00 | INFO  | --- FILE: 2026_09_19_WNBA_total.csv league=wnba market=total rows=3 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.191786+00:00 | INFO  | 2026_09_19_WNBA_total.csv | 2 selected from 3 rows
+2026-10-26T19:51:17.194342+00:00 | INFO  | --- FILE: 2026_09_20_WNBA_total.csv league=wnba market=total rows=5 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.195409+00:00 | INFO  | 2026_09_20_WNBA_total.csv | 0 selected from 5 rows
+2026-10-26T19:51:17.196914+00:00 | INFO  | --- FILE: 2026_09_21_WNBA_total.csv league=wnba market=total rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.197655+00:00 | INFO  | 2026_09_21_WNBA_total.csv | 0 selected from 2 rows
+2026-10-26T19:51:17.199143+00:00 | INFO  | --- FILE: 2026_09_22_WNBA_total.csv league=wnba market=total rows=5 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.200173+00:00 | INFO  | 2026_09_22_WNBA_total.csv | 0 selected from 5 rows
+2026-10-26T19:51:17.201676+00:00 | INFO  | --- FILE: 2026_09_23_WNBA_total.csv league=wnba market=total rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.202543+00:00 | INFO  | 2026_09_23_WNBA_total.csv | 1 selected from 2 rows
+2026-10-26T19:51:17.205095+00:00 | INFO  | --- FILE: 2026_09_24_WNBA_total.csv league=wnba market=total rows=5 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.206484+00:00 | INFO  | 2026_09_24_WNBA_total.csv | 3 selected from 5 rows
+2026-10-26T19:51:17.208972+00:00 | INFO  | --- FILE: 2026_09_27_WNBA_total.csv league=wnba market=total rows=4 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.210043+00:00 | INFO  | 2026_09_27_WNBA_total.csv | 1 selected from 4 rows
+2026-10-26T19:51:17.212807+00:00 | INFO  | --- FILE: 2026_09_29_WNBA_total.csv league=wnba market=total rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.213571+00:00 | INFO  | 2026_09_29_WNBA_total.csv | 0 selected from 2 rows
+2026-10-26T19:51:17.215070+00:00 | INFO  | --- FILE: 2026_09_30_WNBA_total.csv league=wnba market=total rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.215808+00:00 | INFO  | 2026_09_30_WNBA_total.csv | 0 selected from 2 rows
+2026-10-26T19:51:17.217301+00:00 | INFO  | --- FILE: 2026_10_01_WNBA_total.csv league=wnba market=total rows=1 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.217900+00:00 | INFO  | 2026_10_01_WNBA_total.csv | 0 selected from 1 rows
+2026-10-26T19:51:17.219356+00:00 | INFO  | --- FILE: 2026_10_02_WNBA_total.csv league=wnba market=total rows=1 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.219953+00:00 | INFO  | 2026_10_02_WNBA_total.csv | 0 selected from 1 rows
+2026-10-26T19:51:17.221414+00:00 | INFO  | --- FILE: 2026_10_04_WNBA_total.csv league=wnba market=total rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.222230+00:00 | INFO  | 2026_10_04_WNBA_total.csv | 1 selected from 2 rows
+2026-10-26T19:51:17.224763+00:00 | INFO  | --- FILE: 2026_10_07_WNBA_total.csv league=wnba market=total rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.225492+00:00 | INFO  | 2026_10_07_WNBA_total.csv | 0 selected from 2 rows
+2026-10-26T19:51:17.226964+00:00 | INFO  | --- FILE: 2026_10_09_WNBA_total.csv league=wnba market=total rows=2 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.227822+00:00 | INFO  | 2026_10_09_WNBA_total.csv | 1 selected from 2 rows
+2026-10-26T19:51:17.230372+00:00 | INFO  | --- FILE: 2026_10_17_WNBA_total.csv league=wnba market=total rows=1 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.230974+00:00 | INFO  | 2026_10_17_WNBA_total.csv | 0 selected from 1 rows
+2026-10-26T19:51:17.232428+00:00 | INFO  | --- FILE: 2026_10_24_WNBA_total.csv league=wnba market=total rows=1 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.233036+00:00 | INFO  | 2026_10_24_WNBA_total.csv | 0 selected from 1 rows
+2026-10-26T19:51:17.234506+00:00 | INFO  | --- FILE: 2026_10_26_WNBA_total.csv league=wnba market=total rows=1 mode=all_qualifying model_edge=0.0
+2026-10-26T19:51:17.235113+00:00 | INFO  | 2026_10_26_WNBA_total.csv | 0 selected from 1 rows
+2026-10-26T19:51:17.378215+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/nba/daily_picks/2026_10_20_nba_selected.csv (3 rows)
+2026-10-26T19:51:17.379783+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/nba/daily_picks/2026_10_21_nba_selected.csv (4 rows)
+2026-10-26T19:51:17.381150+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/nba/daily_picks/2026_10_22_nba_selected.csv (3 rows)
+2026-10-26T19:51:17.382600+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/nba/daily_picks/2026_10_23_nba_selected.csv (4 rows)
+2026-10-26T19:51:17.383983+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/nba/daily_picks/2026_10_24_nba_selected.csv (4 rows)
+2026-10-26T19:51:17.385438+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/nba/daily_picks/2026_10_26_nba_selected.csv (4 rows)
+2026-10-26T19:51:17.386414+00:00 | INFO  | NO FINAL SELECTED ROWS FOR LEAGUE: ncaam; daily pick files not written
+2026-10-26T19:51:17.389890+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_05_08_wnba_selected.csv (4 rows)
+2026-10-26T19:51:17.391471+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_05_09_wnba_selected.csv (5 rows)
+2026-10-26T19:51:17.392827+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_05_10_wnba_selected.csv (4 rows)
+2026-10-26T19:51:17.394007+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_05_14_wnba_selected.csv (2 rows)
+2026-10-26T19:51:17.395226+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_05_17_wnba_selected.csv (3 rows)
+2026-10-26T19:51:17.396358+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_05_18_wnba_selected.csv (2 rows)
+2026-10-26T19:51:17.397501+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_05_20_wnba_selected.csv (1 rows)
+2026-10-26T19:51:17.398548+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_05_21_wnba_selected.csv (1 rows)
+2026-10-26T19:51:17.399646+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_05_22_wnba_selected.csv (2 rows)
+2026-10-26T19:51:17.400671+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_05_23_wnba_selected.csv (1 rows)
+2026-10-26T19:51:17.401824+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_05_25_wnba_selected.csv (2 rows)
+2026-10-26T19:51:17.402872+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_05_27_wnba_selected.csv (1 rows)
+2026-10-26T19:51:17.403927+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_05_29_wnba_selected.csv (1 rows)
+2026-10-26T19:51:17.405019+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_06_05_wnba_selected.csv (1 rows)
+2026-10-26T19:51:17.406078+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_06_06_wnba_selected.csv (1 rows)
+2026-10-26T19:51:17.407111+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_06_07_wnba_selected.csv (1 rows)
+2026-10-26T19:51:17.408189+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_06_08_wnba_selected.csv (1 rows)
+2026-10-26T19:51:17.409380+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_06_09_wnba_selected.csv (2 rows)
+2026-10-26T19:51:17.410526+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_06_10_wnba_selected.csv (2 rows)
+2026-10-26T19:51:17.412005+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_06_17_wnba_selected.csv (4 rows)
+2026-10-26T19:51:17.413226+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_06_19_wnba_selected.csv (2 rows)
+2026-10-26T19:51:17.414388+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_06_20_wnba_selected.csv (2 rows)
+2026-10-26T19:51:17.415470+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_06_21_wnba_selected.csv (1 rows)
+2026-10-26T19:51:17.416839+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_06_22_wnba_selected.csv (4 rows)
+2026-10-26T19:51:17.417919+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_06_24_wnba_selected.csv (1 rows)
+2026-10-26T19:51:17.419024+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_07_02_wnba_selected.csv (1 rows)
+2026-10-26T19:51:17.420063+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_07_03_wnba_selected.csv (1 rows)
+2026-10-26T19:51:17.421089+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_07_04_wnba_selected.csv (1 rows)
+2026-10-26T19:51:17.422117+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_07_05_wnba_selected.csv (1 rows)
+2026-10-26T19:51:17.423209+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_07_06_wnba_selected.csv (1 rows)
+2026-10-26T19:51:17.424496+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_07_08_wnba_selected.csv (3 rows)
+2026-10-26T19:51:17.425729+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_07_09_wnba_selected.csv (2 rows)
+2026-10-26T19:51:17.427187+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_07_11_wnba_selected.csv (2 rows)
+2026-10-26T19:51:17.428441+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_07_12_wnba_selected.csv (2 rows)
+2026-10-26T19:51:17.429613+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_07_13_wnba_selected.csv (2 rows)
+2026-10-26T19:51:17.430830+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_07_15_wnba_selected.csv (3 rows)
+2026-10-26T19:51:17.432245+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_07_17_wnba_selected.csv (4 rows)
+2026-10-26T19:51:17.433534+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_07_18_wnba_selected.csv (3 rows)
+2026-10-26T19:51:17.434705+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_07_19_wnba_selected.csv (2 rows)
+2026-10-26T19:51:17.435753+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_07_20_wnba_selected.csv (1 rows)
+2026-10-26T19:51:17.437031+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_07_22_wnba_selected.csv (3 rows)
+2026-10-26T19:51:17.438083+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_07_28_wnba_selected.csv (1 rows)
+2026-10-26T19:51:17.439222+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_07_30_wnba_selected.csv (2 rows)
+2026-10-26T19:51:17.440484+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_07_31_wnba_selected.csv (3 rows)
+2026-10-26T19:51:17.441754+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_08_02_wnba_selected.csv (3 rows)
+2026-10-26T19:51:17.442807+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_08_04_wnba_selected.csv (1 rows)
+2026-10-26T19:51:17.443921+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_08_05_wnba_selected.csv (1 rows)
+2026-10-26T19:51:17.445212+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_08_06_wnba_selected.csv (4 rows)
+2026-10-26T19:51:17.446214+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_08_08_wnba_selected.csv (1 rows)
+2026-10-26T19:51:17.447210+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_08_09_wnba_selected.csv (1 rows)
+2026-10-26T19:51:17.448198+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_08_14_wnba_selected.csv (1 rows)
+2026-10-26T19:51:17.449178+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_08_19_wnba_selected.csv (1 rows)
+2026-10-26T19:51:17.450303+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_08_20_wnba_selected.csv (2 rows)
+2026-10-26T19:51:17.451617+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_08_30_wnba_selected.csv (4 rows)
+2026-10-26T19:51:17.453050+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_09_17_wnba_selected.csv (5 rows)
+2026-10-26T19:51:17.454457+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_09_18_wnba_selected.csv (4 rows)
+2026-10-26T19:51:17.455850+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_09_19_wnba_selected.csv (4 rows)
+2026-10-26T19:51:17.457281+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_09_20_wnba_selected.csv (4 rows)
+2026-10-26T19:51:17.458470+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_09_21_wnba_selected.csv (2 rows)
+2026-10-26T19:51:17.459729+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_09_22_wnba_selected.csv (3 rows)
+2026-10-26T19:51:17.461145+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_09_23_wnba_selected.csv (3 rows)
+2026-10-26T19:51:17.462448+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_09_24_wnba_selected.csv (3 rows)
+2026-10-26T19:51:17.463986+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_09_27_wnba_selected.csv (5 rows)
+2026-10-26T19:51:17.465200+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_09_29_wnba_selected.csv (2 rows)
+2026-10-26T19:51:17.466388+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_09_30_wnba_selected.csv (2 rows)
+2026-10-26T19:51:17.467473+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_10_01_wnba_selected.csv (1 rows)
+2026-10-26T19:51:17.468529+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_10_02_wnba_selected.csv (1 rows)
+2026-10-26T19:51:17.469812+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_10_04_wnba_selected.csv (3 rows)
+2026-10-26T19:51:17.470973+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_10_07_wnba_selected.csv (2 rows)
+2026-10-26T19:51:17.472144+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_10_09_wnba_selected.csv (2 rows)
+2026-10-26T19:51:17.473190+00:00 | INFO  | WROTE DAILY PICKS: docs/win/basketball/04_select/wnba/daily_picks/2026_10_26_wnba_selected.csv (1 rows)
 
 ======================================================================
-SUMMARY  2026-10-26T19:27:11.146477+00:00
+SUMMARY  2026-10-26T19:51:17.473445+00:00
 ======================================================================
-  files_processed       : 6
-  candidate_selected    : 15
-  total_selected        : 4
-  nba_bets              : 4
+  files_processed       : 357
+  candidate_selected    : 294
+  total_selected        : 177
+  nba_bets              : 22
   ncaam_bets            : 0
-  wnba_bets             : 0
-  ml_vs_spread_dropped  : 0
-  exposure_dropped      : 11
-  exposure_capped       : 3
+  wnba_bets             : 155
+  ml_vs_spread_dropped  : 61
+  exposure_dropped      : 56
+  exposure_capped       : 46
   skipped               : 0
   errors                : 0
   kelly_fraction        : 0.25
@@ -47,22 +854,378 @@ SUMMARY  2026-10-26T19:27:11.146477+00:00
   ml_vs_spread_tiebreak : kelly
 
 --- Filter Reject Counts ---
-  deleted_old_daily_pick_files : 0
-  fail_model_edge_moneyline    : 13
-  fail_model_edge_spread       : 19
-  fail_model_edge_total        : 12
-  fail_model_prob              : 1
-  rejected_ml                  : 13
-  rejected_spread              : 19
-  rejected_total               : 13
-  selected                     : 15
+  deleted_old_daily_pick_files : 30
+  fail_model_edge_moneyline    : 571
+  fail_model_edge_spread       : 630
+  fail_model_edge_total        : 607
+  fail_model_prob              : 14
+  invalid_adjusted_moneyline   : 22
+  invalid_adjusted_spread      : 24
+  invalid_adjusted_total       : 22
+  ml_vs_spread_dropped_moneyline : 28
+  ml_vs_spread_dropped_spread  : 33
+  rejected_ml                  : 593
+  rejected_spread              : 654
+  rejected_total               : 643
+  selected                     : 294
 
   file                                             market     league  selected     status
-  2026_10_26_NBA_moneyline.csv                     moneyline     NBA         7         ok
-  2026_10_26_NBA_spread.csv                        spread        NBA         1         ok
+  2026_10_20_NBA_moneyline.csv                     moneyline     NBA         3         ok
+  2026_10_21_NBA_moneyline.csv                     moneyline     NBA        11         ok
+  2026_10_22_NBA_moneyline.csv                     moneyline     NBA         2         ok
+  2026_10_23_NBA_moneyline.csv                     moneyline     NBA        12         ok
+  2026_10_24_NBA_moneyline.csv                     moneyline     NBA         8         ok
+  2026_10_26_NBA_moneyline.csv                     moneyline     NBA         8         ok
+  2026_10_20_NBA_spread.csv                        spread        NBA         2         ok
+  2026_10_21_NBA_spread.csv                        spread        NBA         7         ok
+  2026_10_22_NBA_spread.csv                        spread        NBA         0         ok
+  2026_10_23_NBA_spread.csv                        spread        NBA         2         ok
+  2026_10_24_NBA_spread.csv                        spread        NBA         4         ok
+  2026_10_26_NBA_spread.csv                        spread        NBA         2         ok
+  2026_10_20_NBA_total.csv                         total         NBA         3         ok
+  2026_10_21_NBA_total.csv                         total         NBA         5         ok
+  2026_10_22_NBA_total.csv                         total         NBA         1         ok
+  2026_10_23_NBA_total.csv                         total         NBA         4         ok
+  2026_10_24_NBA_total.csv                         total         NBA         4         ok
   2026_10_26_NBA_total.csv                         total         NBA         7         ok
+  2026_05_08_WNBA_moneyline.csv                    moneyline    WNBA         2         ok
+  2026_05_09_WNBA_moneyline.csv                    moneyline    WNBA         1         ok
+  2026_05_10_WNBA_moneyline.csv                    moneyline    WNBA         1         ok
+  2026_05_12_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_05_13_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_05_14_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_05_15_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_05_17_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_05_18_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_05_19_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_05_20_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_05_21_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_05_22_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_05_23_WNBA_moneyline.csv                    moneyline    WNBA         1         ok
+  2026_05_24_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_05_25_WNBA_moneyline.csv                    moneyline    WNBA         2         ok
+  2026_05_27_WNBA_moneyline.csv                    moneyline    WNBA         1         ok
+  2026_05_28_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_05_29_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_05_30_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_05_31_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_06_01_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_06_02_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_06_03_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_06_04_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_06_05_WNBA_moneyline.csv                    moneyline    WNBA         1         ok
+  2026_06_06_WNBA_moneyline.csv                    moneyline    WNBA         1         ok
+  2026_06_07_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_06_08_WNBA_moneyline.csv                    moneyline    WNBA         1         ok
+  2026_06_09_WNBA_moneyline.csv                    moneyline    WNBA         2         ok
+  2026_06_10_WNBA_moneyline.csv                    moneyline    WNBA         2         ok
+  2026_06_11_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_06_12_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_06_13_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_06_14_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_06_15_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_06_16_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_06_17_WNBA_moneyline.csv                    moneyline    WNBA         3         ok
+  2026_06_18_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_06_19_WNBA_moneyline.csv                    moneyline    WNBA         2         ok
+  2026_06_20_WNBA_moneyline.csv                    moneyline    WNBA         2         ok
+  2026_06_21_WNBA_moneyline.csv                    moneyline    WNBA         1         ok
+  2026_06_22_WNBA_moneyline.csv                    moneyline    WNBA         2         ok
+  2026_06_23_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_06_24_WNBA_moneyline.csv                    moneyline    WNBA         1         ok
+  2026_06_25_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_06_26_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_06_27_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_06_28_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_07_02_WNBA_moneyline.csv                    moneyline    WNBA         1         ok
+  2026_07_03_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_07_04_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_07_05_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_07_06_WNBA_moneyline.csv                    moneyline    WNBA         1         ok
+  2026_07_07_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_07_08_WNBA_moneyline.csv                    moneyline    WNBA         2         ok
+  2026_07_09_WNBA_moneyline.csv                    moneyline    WNBA         1         ok
+  2026_07_10_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_07_11_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_07_12_WNBA_moneyline.csv                    moneyline    WNBA         2         ok
+  2026_07_13_WNBA_moneyline.csv                    moneyline    WNBA         1         ok
+  2026_07_14_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_07_15_WNBA_moneyline.csv                    moneyline    WNBA         2         ok
+  2026_07_16_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_07_17_WNBA_moneyline.csv                    moneyline    WNBA         2         ok
+  2026_07_18_WNBA_moneyline.csv                    moneyline    WNBA         2         ok
+  2026_07_19_WNBA_moneyline.csv                    moneyline    WNBA         1         ok
+  2026_07_20_WNBA_moneyline.csv                    moneyline    WNBA         1         ok
+  2026_07_22_WNBA_moneyline.csv                    moneyline    WNBA         2         ok
+  2026_07_28_WNBA_moneyline.csv                    moneyline    WNBA         1         ok
+  2026_07_29_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_07_30_WNBA_moneyline.csv                    moneyline    WNBA         1         ok
+  2026_07_31_WNBA_moneyline.csv                    moneyline    WNBA         1         ok
+  2026_08_01_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_08_02_WNBA_moneyline.csv                    moneyline    WNBA         1         ok
+  2026_08_03_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_08_04_WNBA_moneyline.csv                    moneyline    WNBA         1         ok
+  2026_08_05_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_08_06_WNBA_moneyline.csv                    moneyline    WNBA         1         ok
+  2026_08_07_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_08_08_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_08_09_WNBA_moneyline.csv                    moneyline    WNBA         1         ok
+  2026_08_10_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_08_11_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_08_12_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_08_13_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_08_14_WNBA_moneyline.csv                    moneyline    WNBA         1         ok
+  2026_08_15_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_08_16_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_08_17_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_08_18_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_08_19_WNBA_moneyline.csv                    moneyline    WNBA         1         ok
+  2026_08_20_WNBA_moneyline.csv                    moneyline    WNBA         1         ok
+  2026_08_30_WNBA_moneyline.csv                    moneyline    WNBA         1         ok
+  2026_09_17_WNBA_moneyline.csv                    moneyline    WNBA         2         ok
+  2026_09_18_WNBA_moneyline.csv                    moneyline    WNBA         3         ok
+  2026_09_19_WNBA_moneyline.csv                    moneyline    WNBA         2         ok
+  2026_09_20_WNBA_moneyline.csv                    moneyline    WNBA         4         ok
+  2026_09_21_WNBA_moneyline.csv                    moneyline    WNBA         1         ok
+  2026_09_22_WNBA_moneyline.csv                    moneyline    WNBA         4         ok
+  2026_09_23_WNBA_moneyline.csv                    moneyline    WNBA         1         ok
+  2026_09_24_WNBA_moneyline.csv                    moneyline    WNBA         3         ok
+  2026_09_27_WNBA_moneyline.csv                    moneyline    WNBA         4         ok
+  2026_09_29_WNBA_moneyline.csv                    moneyline    WNBA         2         ok
+  2026_09_30_WNBA_moneyline.csv                    moneyline    WNBA         2         ok
+  2026_10_01_WNBA_moneyline.csv                    moneyline    WNBA         1         ok
+  2026_10_02_WNBA_moneyline.csv                    moneyline    WNBA         1         ok
+  2026_10_04_WNBA_moneyline.csv                    moneyline    WNBA         2         ok
+  2026_10_07_WNBA_moneyline.csv                    moneyline    WNBA         2         ok
+  2026_10_09_WNBA_moneyline.csv                    moneyline    WNBA         2         ok
+  2026_10_17_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
+  2026_10_24_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
   2026_10_26_WNBA_moneyline.csv                    moneyline    WNBA         0         ok
-  2026_10_26_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_05_08_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_05_09_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_05_10_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_05_12_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_05_13_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_05_14_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_05_15_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_05_17_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_05_18_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_05_19_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_05_20_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_05_21_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_05_22_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_05_23_WNBA_spread.csv                       spread       WNBA         1         ok
+  2026_05_24_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_05_25_WNBA_spread.csv                       spread       WNBA         2         ok
+  2026_05_27_WNBA_spread.csv                       spread       WNBA         1         ok
+  2026_05_28_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_05_29_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_05_30_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_05_31_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_06_01_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_06_02_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_06_03_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_06_04_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_06_05_WNBA_spread.csv                       spread       WNBA         1         ok
+  2026_06_06_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_06_07_WNBA_spread.csv                       spread       WNBA         1         ok
+  2026_06_08_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_06_09_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_06_10_WNBA_spread.csv                       spread       WNBA         1         ok
+  2026_06_11_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_06_12_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_06_13_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_06_14_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_06_15_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_06_16_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_06_17_WNBA_spread.csv                       spread       WNBA         1         ok
+  2026_06_18_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_06_19_WNBA_spread.csv                       spread       WNBA         1         ok
+  2026_06_20_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_06_21_WNBA_spread.csv                       spread       WNBA         1         ok
+  2026_06_22_WNBA_spread.csv                       spread       WNBA         1         ok
+  2026_06_23_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_06_24_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_06_25_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_06_26_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_06_27_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_06_28_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_07_02_WNBA_spread.csv                       spread       WNBA         1         ok
+  2026_07_03_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_07_04_WNBA_spread.csv                       spread       WNBA         1         ok
+  2026_07_05_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_07_06_WNBA_spread.csv                       spread       WNBA         1         ok
+  2026_07_07_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_07_08_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_07_09_WNBA_spread.csv                       spread       WNBA         1         ok
+  2026_07_10_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_07_11_WNBA_spread.csv                       spread       WNBA         1         ok
+  2026_07_12_WNBA_spread.csv                       spread       WNBA         1         ok
+  2026_07_13_WNBA_spread.csv                       spread       WNBA         1         ok
+  2026_07_14_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_07_15_WNBA_spread.csv                       spread       WNBA         1         ok
+  2026_07_16_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_07_17_WNBA_spread.csv                       spread       WNBA         1         ok
+  2026_07_18_WNBA_spread.csv                       spread       WNBA         1         ok
+  2026_07_19_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_07_20_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_07_22_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_07_28_WNBA_spread.csv                       spread       WNBA         1         ok
+  2026_07_29_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_07_30_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_07_31_WNBA_spread.csv                       spread       WNBA         1         ok
+  2026_08_01_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_08_02_WNBA_spread.csv                       spread       WNBA         2         ok
+  2026_08_03_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_08_04_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_08_05_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_08_06_WNBA_spread.csv                       spread       WNBA         1         ok
+  2026_08_07_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_08_08_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_08_09_WNBA_spread.csv                       spread       WNBA         1         ok
+  2026_08_10_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_08_11_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_08_12_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_08_13_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_08_14_WNBA_spread.csv                       spread       WNBA         1         ok
+  2026_08_15_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_08_16_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_08_17_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_08_18_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_08_19_WNBA_spread.csv                       spread       WNBA         1         ok
+  2026_08_20_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_08_30_WNBA_spread.csv                       spread       WNBA         2         ok
+  2026_09_17_WNBA_spread.csv                       spread       WNBA         3         ok
+  2026_09_18_WNBA_spread.csv                       spread       WNBA         2         ok
+  2026_09_19_WNBA_spread.csv                       spread       WNBA         3         ok
+  2026_09_20_WNBA_spread.csv                       spread       WNBA         3         ok
+  2026_09_21_WNBA_spread.csv                       spread       WNBA         2         ok
+  2026_09_22_WNBA_spread.csv                       spread       WNBA         5         ok
+  2026_09_23_WNBA_spread.csv                       spread       WNBA         1         ok
+  2026_09_24_WNBA_spread.csv                       spread       WNBA         2         ok
+  2026_09_27_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_09_29_WNBA_spread.csv                       spread       WNBA         1         ok
+  2026_09_30_WNBA_spread.csv                       spread       WNBA         1         ok
+  2026_10_01_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_10_02_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_10_04_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_10_07_WNBA_spread.csv                       spread       WNBA         1         ok
+  2026_10_09_WNBA_spread.csv                       spread       WNBA         1         ok
+  2026_10_17_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_10_24_WNBA_spread.csv                       spread       WNBA         0         ok
+  2026_10_26_WNBA_spread.csv                       spread       WNBA         1         ok
+  2026_05_08_WNBA_total.csv                        total        WNBA         2         ok
+  2026_05_09_WNBA_total.csv                        total        WNBA         4         ok
+  2026_05_10_WNBA_total.csv                        total        WNBA         3         ok
+  2026_05_12_WNBA_total.csv                        total        WNBA         0         ok
+  2026_05_13_WNBA_total.csv                        total        WNBA         0         ok
+  2026_05_14_WNBA_total.csv                        total        WNBA         2         ok
+  2026_05_15_WNBA_total.csv                        total        WNBA         0         ok
+  2026_05_17_WNBA_total.csv                        total        WNBA         4         ok
+  2026_05_18_WNBA_total.csv                        total        WNBA         2         ok
+  2026_05_19_WNBA_total.csv                        total        WNBA         0         ok
+  2026_05_20_WNBA_total.csv                        total        WNBA         1         ok
+  2026_05_21_WNBA_total.csv                        total        WNBA         1         ok
+  2026_05_22_WNBA_total.csv                        total        WNBA         2         ok
+  2026_05_23_WNBA_total.csv                        total        WNBA         0         ok
+  2026_05_24_WNBA_total.csv                        total        WNBA         0         ok
+  2026_05_25_WNBA_total.csv                        total        WNBA         0         ok
+  2026_05_27_WNBA_total.csv                        total        WNBA         0         ok
+  2026_05_28_WNBA_total.csv                        total        WNBA         0         ok
+  2026_05_29_WNBA_total.csv                        total        WNBA         1         ok
+  2026_05_30_WNBA_total.csv                        total        WNBA         0         ok
+  2026_05_31_WNBA_total.csv                        total        WNBA         0         ok
+  2026_06_01_WNBA_total.csv                        total        WNBA         0         ok
+  2026_06_02_WNBA_total.csv                        total        WNBA         0         ok
+  2026_06_03_WNBA_total.csv                        total        WNBA         0         ok
+  2026_06_04_WNBA_total.csv                        total        WNBA         0         ok
+  2026_06_05_WNBA_total.csv                        total        WNBA         0         ok
+  2026_06_06_WNBA_total.csv                        total        WNBA         0         ok
+  2026_06_07_WNBA_total.csv                        total        WNBA         0         ok
+  2026_06_08_WNBA_total.csv                        total        WNBA         0         ok
+  2026_06_09_WNBA_total.csv                        total        WNBA         0         ok
+  2026_06_10_WNBA_total.csv                        total        WNBA         0         ok
+  2026_06_11_WNBA_total.csv                        total        WNBA         0         ok
+  2026_06_12_WNBA_total.csv                        total        WNBA         0         ok
+  2026_06_13_WNBA_total.csv                        total        WNBA         0         ok
+  2026_06_14_WNBA_total.csv                        total        WNBA         0         ok
+  2026_06_15_WNBA_total.csv                        total        WNBA         0         ok
+  2026_06_16_WNBA_total.csv                        total        WNBA         0         ok
+  2026_06_17_WNBA_total.csv                        total        WNBA         0         ok
+  2026_06_18_WNBA_total.csv                        total        WNBA         0         ok
+  2026_06_19_WNBA_total.csv                        total        WNBA         0         ok
+  2026_06_20_WNBA_total.csv                        total        WNBA         0         ok
+  2026_06_21_WNBA_total.csv                        total        WNBA         0         ok
+  2026_06_22_WNBA_total.csv                        total        WNBA         1         ok
+  2026_06_23_WNBA_total.csv                        total        WNBA         0         ok
+  2026_06_24_WNBA_total.csv                        total        WNBA         0         ok
+  2026_06_25_WNBA_total.csv                        total        WNBA         0         ok
+  2026_06_26_WNBA_total.csv                        total        WNBA         0         ok
+  2026_06_27_WNBA_total.csv                        total        WNBA         0         ok
+  2026_06_28_WNBA_total.csv                        total        WNBA         0         ok
+  2026_07_02_WNBA_total.csv                        total        WNBA         0         ok
+  2026_07_03_WNBA_total.csv                        total        WNBA         1         ok
+  2026_07_04_WNBA_total.csv                        total        WNBA         0         ok
+  2026_07_05_WNBA_total.csv                        total        WNBA         1         ok
+  2026_07_06_WNBA_total.csv                        total        WNBA         0         ok
+  2026_07_07_WNBA_total.csv                        total        WNBA         0         ok
+  2026_07_08_WNBA_total.csv                        total        WNBA         1         ok
+  2026_07_09_WNBA_total.csv                        total        WNBA         1         ok
+  2026_07_10_WNBA_total.csv                        total        WNBA         0         ok
+  2026_07_11_WNBA_total.csv                        total        WNBA         1         ok
+  2026_07_12_WNBA_total.csv                        total        WNBA         0         ok
+  2026_07_13_WNBA_total.csv                        total        WNBA         1         ok
+  2026_07_14_WNBA_total.csv                        total        WNBA         0         ok
+  2026_07_15_WNBA_total.csv                        total        WNBA         1         ok
+  2026_07_16_WNBA_total.csv                        total        WNBA         0         ok
+  2026_07_17_WNBA_total.csv                        total        WNBA         2         ok
+  2026_07_18_WNBA_total.csv                        total        WNBA         2         ok
+  2026_07_19_WNBA_total.csv                        total        WNBA         1         ok
+  2026_07_20_WNBA_total.csv                        total        WNBA         0         ok
+  2026_07_22_WNBA_total.csv                        total        WNBA         1         ok
+  2026_07_28_WNBA_total.csv                        total        WNBA         0         ok
+  2026_07_29_WNBA_total.csv                        total        WNBA         0         ok
+  2026_07_30_WNBA_total.csv                        total        WNBA         1         ok
+  2026_07_31_WNBA_total.csv                        total        WNBA         2         ok
+  2026_08_01_WNBA_total.csv                        total        WNBA         0         ok
+  2026_08_02_WNBA_total.csv                        total        WNBA         1         ok
+  2026_08_03_WNBA_total.csv                        total        WNBA         0         ok
+  2026_08_04_WNBA_total.csv                        total        WNBA         0         ok
+  2026_08_05_WNBA_total.csv                        total        WNBA         1         ok
+  2026_08_06_WNBA_total.csv                        total        WNBA         3         ok
+  2026_08_07_WNBA_total.csv                        total        WNBA         0         ok
+  2026_08_08_WNBA_total.csv                        total        WNBA         1         ok
+  2026_08_09_WNBA_total.csv                        total        WNBA         0         ok
+  2026_08_10_WNBA_total.csv                        total        WNBA         0         ok
+  2026_08_11_WNBA_total.csv                        total        WNBA         0         ok
+  2026_08_12_WNBA_total.csv                        total        WNBA         0         ok
+  2026_08_13_WNBA_total.csv                        total        WNBA         0         ok
+  2026_08_14_WNBA_total.csv                        total        WNBA         0         ok
+  2026_08_15_WNBA_total.csv                        total        WNBA         0         ok
+  2026_08_16_WNBA_total.csv                        total        WNBA         0         ok
+  2026_08_17_WNBA_total.csv                        total        WNBA         0         ok
+  2026_08_18_WNBA_total.csv                        total        WNBA         0         ok
+  2026_08_19_WNBA_total.csv                        total        WNBA         0         ok
+  2026_08_20_WNBA_total.csv                        total        WNBA         1         ok
+  2026_08_30_WNBA_total.csv                        total        WNBA         2         ok
+  2026_09_17_WNBA_total.csv                        total        WNBA         2         ok
+  2026_09_18_WNBA_total.csv                        total        WNBA         2         ok
+  2026_09_19_WNBA_total.csv                        total        WNBA         2         ok
+  2026_09_20_WNBA_total.csv                        total        WNBA         0         ok
+  2026_09_21_WNBA_total.csv                        total        WNBA         0         ok
+  2026_09_22_WNBA_total.csv                        total        WNBA         0         ok
+  2026_09_23_WNBA_total.csv                        total        WNBA         1         ok
+  2026_09_24_WNBA_total.csv                        total        WNBA         3         ok
+  2026_09_27_WNBA_total.csv                        total        WNBA         1         ok
+  2026_09_29_WNBA_total.csv                        total        WNBA         0         ok
+  2026_09_30_WNBA_total.csv                        total        WNBA         0         ok
+  2026_10_01_WNBA_total.csv                        total        WNBA         0         ok
+  2026_10_02_WNBA_total.csv                        total        WNBA         0         ok
+  2026_10_04_WNBA_total.csv                        total        WNBA         1         ok
+  2026_10_07_WNBA_total.csv                        total        WNBA         0         ok
+  2026_10_09_WNBA_total.csv                        total        WNBA         1         ok
+  2026_10_17_WNBA_total.csv                        total        WNBA         0         ok
+  2026_10_24_WNBA_total.csv                        total        WNBA         0         ok
   2026_10_26_WNBA_total.csv                        total        WNBA         0         ok
 
 STATUS: SUCCESS
