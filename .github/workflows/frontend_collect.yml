@@ -21,7 +21,7 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Collect UFC frontend files
+      - name: Collect UFC and baseball frontend files
         run: python scripts/frontend_collect.py
 
       - name: Commit and push collected files
@@ -30,8 +30,13 @@ jobs:
           git add -A -- \
             frontend/data/ufc/graded/ \
             frontend/data/ufc/pred_sb_sel/ \
+            frontend/data/mlb/final/ \
+            frontend/data/mlb/games/ \
+            frontend/data/mlb/picks/ \
             frontend/data/dashboards/ufc.json \
-            frontend/data/pipeline_health/ufc.json
+            frontend/data/dashboards/baseball.json \
+            frontend/data/pipeline_health/ufc.json \
+            frontend/data/pipeline_health/mlb.json
 
           if git diff --cached --quiet; then
             echo "No changes to commit."
@@ -40,5 +45,5 @@ jobs:
 
           git -c user.name="github-actions[bot]" \
               -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
-              commit -m "Collect UFC frontend files"
+              commit -m "Collect UFC and baseball frontend files"
           git push origin HEAD:main
