@@ -43,8 +43,7 @@ export type Source = {
 
 // Legacy public/assets/js/bet-history/sources.js
 export const SOURCES: Source[] = [
-  { url: "history-data/MLB.csv", label: "MLB", enabled: true },
-  { url: "history-data/MLB_LINEUPS.csv", label: "MLB_LINEUPS", enabled: true },
+  { url: "https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/mlb/final/MLB_final.csv", label: "MLB", enabled: true },
   { url: "history-data/WNBA.csv", label: "WNBA", enabled: true },
   { url: "history-data/NHL.csv", label: "NHL", enabled: true },
   { url: "history-data/SOCCER.csv", label: "SOCCER", enabled: true },

@@ -83,8 +83,7 @@ interface SmhWindow {
 /* ------------------------------------------------------------------ */
 
 const SOURCES: HistorySource[] = [
-  { url: "history-data/MLB.csv", label: "MLB", enabled: true },
-  { url: "history-data/MLB_LINEUPS.csv", label: "MLB_LINEUPS", enabled: true },
+  { url: "https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/mlb/final/MLB_final.csv", label: "MLB", enabled: true },
   { url: "history-data/WNBA.csv", label: "WNBA", enabled: true },
   { url: "history-data/NHL.csv", label: "NHL", enabled: true },
   { url: "history-data/SOCCER.csv", label: "SOCCER", enabled: true },
@@ -107,7 +106,6 @@ const LEAGUE_AVAILABILITY: Record<string, boolean> = {
   cfl: false,
   nhl: true,
   mlb: true,
-  mlb_lineups: true,
   nba: false,
   ncaam: false,
   wnba: true,
@@ -126,7 +124,6 @@ const PILL_DATA: Record<string, PillData> = {
   cfb: { league: "CFB" },
   nhl: { league: "NHL" },
   mlb: { league: "MLB" },
-  mlb_lineups: { league: "MLB_LINEUPS" },
   wnba: { league: "WNBA" },
   mls: { league: "SOCCER", sub: "MLS" },
   epl: { league: "SOCCER", sub: "EPL" },
@@ -152,7 +149,6 @@ const GROUP_MLB: LeagueGroup = {
   label: "MLB",
   leagues: [
     { key: "mlb", label: "MLB" },
-    { key: "mlb_lineups", label: "MLB \u00b7 With Lineups" },
   ],
 };
 

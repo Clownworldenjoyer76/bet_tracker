@@ -247,7 +247,6 @@ const FOOTBALL: LeagueItem[] = [
 
 const MLB: LeagueItem[] = [
   { key: "mlb", label: "MLB" },
-  { key: "mlb_lineups", label: "MLB " + MID + " With Lineups" },
 ];
 
 const BASKETBALL: LeagueItem[] = [

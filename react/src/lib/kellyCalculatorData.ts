@@ -20,7 +20,6 @@ export const KELLY_LEAGUE_AVAILABILITY: Record<string, boolean> = {
   cfl: false,
   nhl: true,
   mlb: true,
-  mlb_lineups: true,
   nba: false,
   ncaam: false,
   wnba: true,
@@ -48,7 +47,6 @@ export type SportKey =
   | "cfb"
   | "nhl"
   | "mlb"
-  | "mlb_lineups"
   | "nba"
   | "wnba"
   | "mls"
@@ -65,7 +63,6 @@ export const SPORTS: { key: SportKey; label: string }[] = [
   { key: "cfb", label: "COLLEGE FOOTBALL" },
   { key: "nhl", label: "NHL" },
   { key: "mlb", label: "MLB" },
-  { key: "mlb_lineups", label: "MLB " + MID + " WITH LINEUPS" },
   { key: "nba", label: "NBA" },
   { key: "wnba", label: "WNBA" },
   { key: "mls", label: "MLS" },
@@ -82,7 +79,6 @@ export function emptyPicks(): AllPicks {
     cfb: [],
     nhl: [],
     mlb: [],
-    mlb_lineups: [],
     nba: [],
     wnba: [],
     mls: [],
@@ -99,7 +95,6 @@ const FEEDS: { sport: SportKey; configKey: string }[] = [
   { sport: "cfb", configKey: "CFB" },
   { sport: "nhl", configKey: "NHL" },
   { sport: "mlb", configKey: "MLB" },
-  { sport: "mlb_lineups", configKey: "MLB_LINEUPS" },
   { sport: "nba", configKey: "NBA" },
   { sport: "wnba", configKey: "WNBA" },
   { sport: "mls", configKey: "MLS" },
@@ -532,7 +527,7 @@ export async function loadKellyPicks(
 
         const rows = await loadConfigSelectedRows(configKey, dateStr, signal);
 
-        picks[sport] = processConfigPicks(rows, configKey, sport === "mlb_lineups" ? "mlb" : sport, dateStr);
+        picks[sport] = processConfigPicks(rows, configKey, sport, dateStr);
       } catch {
         picks[sport] = [];
       }

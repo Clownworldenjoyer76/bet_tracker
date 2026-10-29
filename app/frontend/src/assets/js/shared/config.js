@@ -278,7 +278,7 @@ function expandFootballSelections(row) {
 window.REPO_CONFIG = {
 
   leagues: [
-    "NHL", "NBA", "WNBA", "NCAAM", "MLB", "MLB_LINEUPS",
+    "NHL", "NBA", "WNBA", "NCAAM", "MLB",
     "EPL", "MLS", "LIGUE1", "LALIGA", "SERIEA", "BUNDESLIGA",
     "UFC", "CFB", "NFL",
   ],
@@ -452,37 +452,9 @@ window.REPO_CONFIG = {
     isBaseball:   true,
     leagueColumn: "league",
     joinKey:      "game_id",
-    selectFiles:  (date) => [`win/baseball/mlb/04_select/morning/${date}_MLB.csv`],
-    predFile:     (date) => [
-      `win/baseball/mlb/00_intake/predictions/pred_with_game_id/${date}_MLB.csv`,
-      `win/baseball/mlb/00_intake/predictions/${date}_MLB.csv`,
-    ],
-    bookFile:     (date) => [
-      `win/baseball/mlb/00_intake/sportsbook/${date}_MLB.csv`,
-    ],
-  },
-
-  // ─── MLB (With Lineups) ───────────────────────────────────────────────────
-  // Second MLB feed, different selection criteria. Uses filterFn instead of
-  // leagueColumn because filterRows matches the CSV `league` value against the
-  // CONFIG KEY ("MLB_LINEUPS"), which would never equal "MLB". This file is
-  // MLB-only, so accepting every row is safe.
-  MLB_LINEUPS: {
-    sport:        "baseball",
-    league:       "MLB",
-    displayName:  "MLB · With Lineups",
-    enabled:      true,
-    isBaseball:   true,
-    filterFn:     () => true,
-    joinKey:      "game_id",
-    selectFiles:  (date) => [`win/baseball/mlb/04_select/${date}_MLB.csv`],
-    predFile:     (date) => [
-      `win/baseball/mlb/00_intake/predictions/pred_with_game_id/${date}_MLB.csv`,
-      `win/baseball/mlb/00_intake/predictions/${date}_MLB.csv`,
-    ],
-    bookFile:     (date) => [
-      `win/baseball/mlb/00_intake/sportsbook/${date}_MLB.csv`,
-    ],
+    selectFiles:  (date) => ["https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/mlb/picks/" + date + "_mlb_picks.csv"],
+    predFile:     (date) => ["https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/mlb/games/" + date + "_mlb_games.csv"],
+    bookFile:     (date) => ["https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/mlb/games/" + date + "_mlb_games.csv"],
   },
 
   // ─── Soccer (6 leagues, one shared file) ──────────────────────────────────

@@ -156,86 +156,69 @@ function displayLeagueConfig(key, fallbackName) {
 }
 
 export async function loadMLB(date) {
-  const maps = await loadMLBMaps();
+  // The published consolidated CSV is the sole MLB runtime data source.
+  const csv = await fetchCSV(`https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/mlb/games/${date}_mlb_games.csv`);
 
-  const [gamesRes, predRes, bookRes, contextRes] = await Promise.all([
-    fetchCSV(`win/baseball/mlb/00_intake/games/${date}_games.csv`),
-    fetchCSV(`win/baseball/mlb/00_intake/predictions/pred_with_game_id/${date}_MLB.csv`),
-    fetchCSV(`win/baseball/mlb/00_intake/sportsbook/${date}_MLB.csv`),
-    fetchCSV(`win/baseball/mlb/00_intake/mlb_raw/${date}_game_context.csv`),
-  ]);
+  const games = csv.rows.map(row => {
+    const home = row.home_team || "";
+    const away = row.away_team || "";
+    const gameTime = row.game_time || "";
+    const homePitcher = (row.home_pitcher || "").trim().replace(/^undecided\s+undecided$/i, "Undecided");
+    const awayPitcher = (row.away_pitcher || "").trim().replace(/^undecided\s+undecided$/i, "Undecided");
 
-  const predictionByGameId = mapByGameId(predRes.rows);
-  const bookByGameId = mapByGameId(bookRes.rows);
-  const contextMap = mapMLBContext(contextRes.rows);
-
-  const games = gamesRes.rows.map(base => {
-    const pred = predictionByGameId[base.game_id] || {};
-    const book = bookByGameId[base.game_id] || {};
-    const context =
-      contextMap.byGamePk[String(base.gamePk)] ||
-      contextMap.byFallback[mlbContextFallbackKey(base)] ||
-      {};
-
-    const gameTime = base.game_time || pred.game_time || book.game_time;
-
-    const homePitcher =
-      pred.home_pitcher ||
-      pitcherName(base.home_pitcher_id, maps) ||
-      pitcherName(context.home_pitcher_id, maps);
-
-    const awayPitcher =
-      pred.away_pitcher ||
-      pitcherName(base.away_pitcher_id, maps) ||
-      pitcherName(context.away_pitcher_id, maps);
-
-    const displayLeague = displayLeagueConfig("MLB", "MLB");
+    const homeProb = row.home_model_prob_moneyline || row.home_prob || "";
+    const awayProb = row.away_model_prob_moneyline || row.away_prob || "";
+    const homeRuns = row.model_home_runs || row.home_projected_runs || "";
+    const awayRuns = row.model_away_runs || row.away_projected_runs || "";
+    const totalRuns = row.model_total_runs || row.total_projected_runs || "";
 
     return {
       league: "MLB",
       sport: "baseball",
-      displayLeague,
+      displayLeague: displayLeagueConfig("MLB", "MLB"),
       sortTime: parseSortTime(gameTime),
-      title: `${base.away_team} @ ${base.home_team}`,
+      title: `${away} @ ${home}`,
       card: {
-        date: formatDate(base.game_date),
+        date: formatDate(row.game_date),
         time: formatTime(gameTime),
-        away: base.away_team,
-        home: base.home_team,
+        away,
+        home,
         moneyline: [
-          book.away_dk_moneyline_american && `${base.away_team} ${formatOdds(book.away_dk_moneyline_american)}`,
-          book.home_dk_moneyline_american && `${base.home_team} ${formatOdds(book.home_dk_moneyline_american)}`,
+          row.away_dk_moneyline_american && `${away} ${formatOdds(row.away_dk_moneyline_american)}`,
+          row.home_dk_moneyline_american && `${home} ${formatOdds(row.home_dk_moneyline_american)}`,
         ].filter(Boolean),
         spread: [
-          book.away_run_line && `${base.away_team} ${plusLine(book.away_run_line)} (${formatOdds(book.away_dk_run_line_american)})`,
-          book.home_run_line && `${base.home_team} ${plusLine(book.home_run_line)} (${formatOdds(book.home_dk_run_line_american)})`,
+          row.away_run_line && `${away} ${plusLine(row.away_run_line)} (${formatOdds(row.away_dk_run_line_american)})`,
+          row.home_run_line && `${home} ${plusLine(row.home_run_line)} (${formatOdds(row.home_dk_run_line_american)})`,
         ].filter(Boolean),
-        total: book.total ? `Total ${book.total} O ${formatOdds(book.dk_total_over_american)} / U ${formatOdds(book.dk_total_under_american)}` : "",
-        projection: pred.total_projected_runs
-          ? `${base.away_team} ${formatOneDecimal(pred.away_projected_runs)} · ${base.home_team} ${formatOneDecimal(pred.home_projected_runs)} · Total ${formatOneDecimal(pred.total_projected_runs)}`
+        total: row.total
+          ? `Total ${row.total} O ${formatOdds(row.dk_total_over_american)} / U ${formatOdds(row.dk_total_under_american)}`
+          : "",
+        projection: homeRuns && awayRuns && totalRuns
+          ? `${away} ${formatOneDecimal(awayRuns)} \u00b7 ${home} ${formatOneDecimal(homeRuns)} \u00b7 Total ${formatOneDecimal(totalRuns)}`
           : "",
       },
       modal: cleanModalRows([
-        ["Date", formatDate(base.game_date)],
+        ["Date", formatDate(row.game_date)],
         ["Time", formatTime(gameTime)],
-        ["Venue", venueName(base.venue_id, maps)],
-        ["Double Header", doubleHeaderText(base)],
-        ["Day/Night", dayNightText(base.day_night)],
-        ["Away Pitcher", [awayPitcher, handLabel(context.away_pitcher_hand)].filter(Boolean).join(" · ")],
-        ["Home Pitcher", [homePitcher, handLabel(context.home_pitcher_hand)].filter(Boolean).join(" · ")],
-        ["Away Win Probability", formatProb(pred.away_prob)],
-        ["Home Win Probability", formatProb(pred.home_prob)],
-        ["Away Projected Runs", formatOneDecimal(pred.away_projected_runs)],
-        ["Home Projected Runs", formatOneDecimal(pred.home_projected_runs)],
-        ["Projected Total Runs", formatOneDecimal(pred.total_projected_runs)],
-        ["Away Run Line", book.away_run_line && `${plusLine(book.away_run_line)} (${formatOdds(book.away_dk_run_line_american)})`],
-        ["Home Run Line", book.home_run_line && `${plusLine(book.home_run_line)} (${formatOdds(book.home_dk_run_line_american)})`],
-        ["Total", book.total],
-        ["Total Over", formatOdds(book.dk_total_over_american)],
-        ["Total Under", formatOdds(book.dk_total_under_american)],
-        ["Away Moneyline", formatOdds(book.away_dk_moneyline_american)],
-        ["Home Moneyline", formatOdds(book.home_dk_moneyline_american)],
-        ...weatherRows(context),
+        ["Venue", row.venue_name],
+        ["Double Header", doubleHeaderText(row)],
+        ["Day/Night", dayNightText(row.day_night)],
+        ["Away Pitcher", [awayPitcher, handLabel(row.away_pitcher_hand)].filter(Boolean).join(" \u00b7 ")],
+        ["Home Pitcher", [homePitcher, handLabel(row.home_pitcher_hand)].filter(Boolean).join(" \u00b7 ")],
+        ["Away Win Probability", formatProb(awayProb)],
+        ["Home Win Probability", formatProb(homeProb)],
+        ["Away Projected Runs", formatOneDecimal(awayRuns)],
+        ["Home Projected Runs", formatOneDecimal(homeRuns)],
+        ["Projected Total Runs", formatOneDecimal(totalRuns)],
+        ["Away Run Line", row.away_run_line && `${plusLine(row.away_run_line)} (${formatOdds(row.away_dk_run_line_american)})`],
+        ["Home Run Line", row.home_run_line && `${plusLine(row.home_run_line)} (${formatOdds(row.home_dk_run_line_american)})`],
+        ["Total", row.total],
+        ["Total Over", formatOdds(row.dk_total_over_american)],
+        ["Total Under", formatOdds(row.dk_total_under_american)],
+        ["Away Moneyline", formatOdds(row.away_dk_moneyline_american)],
+        ["Home Moneyline", formatOdds(row.home_dk_moneyline_american)],
+        ...weatherRows(row),
       ]),
     };
   });

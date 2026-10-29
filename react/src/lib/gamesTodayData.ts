@@ -440,7 +440,7 @@ function displayLeagueConfig(key: string, fallbackName: string): string {
 
 export async function loadMLB(date: string, signal?: AbortSignal): Promise<LeagueResult> {
   // The published consolidated CSV is the sole MLB runtime data source.
-  const source = `https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/index_home/baseball/${date}_mlb_games_today.csv`;
+  const source = `https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/mlb/games/${date}_mlb_games.csv`;
   const csv = await fetchCSV(source, signal);
 
   const games: Game[] = csv.rows.map((row) => {

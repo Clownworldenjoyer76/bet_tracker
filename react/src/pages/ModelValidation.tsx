@@ -44,8 +44,7 @@ type Source = {
 
 const SOURCES: Source[] = [
   { url: BASE + "docs/win/hockey/nhl/05_final_scores/graded/NHL_final.csv", label: "NHL", enabled: true },
-  { url: BASE + "docs/win/baseball/mlb/05_final_scores/morning/results/graded/MLB_final.csv", label: "MLB", enabled: true },
-  { url: BASE + "docs/win/baseball/mlb/05_final_scores/results/graded/MLB_final.csv", label: "MLB_LINEUPS", enabled: true },
+  { url: BASE + "frontend/data/mlb/final/MLB_final.csv", label: "MLB", enabled: true },
   { url: BASE + "docs/win/basketball/05_final_scores/results/wnba/graded/WNBA_final.csv", label: "WNBA", enabled: true },
   { url: BASE + "docs/win/soccer/05_final_scores/results/graded/SOCCER_final.csv", label: "SOCCER", enabled: true },
   {
@@ -439,7 +438,6 @@ const KELLY_LEAGUE_AVAILABILITY: Record<string, boolean> = {
   cfl: false,
   nhl: true,
   mlb: true,
-  mlb_lineups: true,
   nba: false,
   ncaam: false,
   wnba: true,
@@ -461,7 +459,6 @@ const FOOTBALL: LeagueItem[] = [
 ];
 const MLB_ITEMS: LeagueItem[] = [
   { key: "mlb", label: "MLB", league: "MLB" },
-  { key: "mlb_lineups", label: "MLB " + MID + " With Lineups", league: "MLB_LINEUPS" },
 ];
 const BASKETBALL: LeagueItem[] = [
   { key: "nba", label: "NBA" },

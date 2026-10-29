@@ -10,13 +10,8 @@
 
 var SOURCES = [
   {
-    url: BASE + 'docs/win/baseball/mlb/05_final_scores/morning/results/graded/MLB_final.csv',
+    url: BASE + 'frontend/data/mlb/final/MLB_final.csv',
     label: 'MLB',
-    enabled: true
-  },
-  {
-    url: BASE + 'docs/win/baseball/mlb/05_final_scores/results/graded/MLB_final.csv',
-    label: 'MLB_LINEUPS',
     enabled: true
   },
   {
