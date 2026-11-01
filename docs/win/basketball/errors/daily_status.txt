@@ -1,57 +1,51 @@
 BASKETBALL DAILY STATUS
 =======================
-generated_at_utc: 2026-10-31T09:32:13Z
-game_date_new_york: 2026_10_31
-github_run_id: 41188613304
+generated_at_utc: 2026-11-01T10:27:54Z
+game_date_new_york: 2026_11_01
+github_run_id: 41297394446
 github_run_attempt: 1
-workflow_status: success
+workflow_status: failure
 
 SEASON STATUS
 -------------
 nba: in_season
-ncaam: offseason
+ncaam: in_season
 wnba: in_season
 
 SUMMARY
 -------
-txt_files_checked_this_run: 30
-txt_files_with_issues: 5
+txt_files_checked_this_run: 5
+txt_files_with_issues: 3
 txt_issue_lines: 19
-txt_issue_lines_suppressed_offseason: 14
+txt_issue_lines_suppressed_offseason: 0
 no_map_teams: 2
 no_map_teams_suppressed_offseason: 0
-system_issues: 0
+system_issues: 1
 overall: ISSUES FOUND
 
 CURRENT-RUN TXT ISSUES
 ----------------------
-[docs/win/basketball/errors/00_intake/calculate_rolling_bias.txt]
+[docs/win/basketball/errors/00_intake/basketball_drat_scraper.txt]
 run_change: REWRITTEN
-9:2026-10-31T09:32:01+00:00 | INFO  | NBA | READY_WITH_WARNINGS | margin=-1.401 total=1.132 warnings=7
-
-[docs/win/basketball/errors/00_intake/clean_basketball_inputs_wnba.txt]
-run_change: REWRITTEN
-220:2026-10-31T09:32:03.269646 | WARN | Historical raw prediction has no existing cleaned copy; not applying current bias retroactively: docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_08_21_WNBA_predictions.csv
-221:2026-10-31T09:32:03.269699 | WARN | Historical raw prediction has no existing cleaned copy; not applying current bias retroactively: docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_08_22_WNBA_predictions.csv
-222:2026-10-31T09:32:03.269748 | WARN | Historical raw prediction has no existing cleaned copy; not applying current bias retroactively: docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_08_23_WNBA_predictions.csv
-223:2026-10-31T09:32:03.269795 | WARN | Historical raw prediction has no existing cleaned copy; not applying current bias retroactively: docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_08_24_WNBA_predictions.csv
-224:2026-10-31T09:32:03.269840 | WARN | Historical raw prediction has no existing cleaned copy; not applying current bias retroactively: docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_08_25_WNBA_predictions.csv
-225:2026-10-31T09:32:03.269927 | WARN | Historical raw prediction has no existing cleaned copy; not applying current bias retroactively: docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_08_26_WNBA_predictions.csv
-226:2026-10-31T09:32:03.269980 | WARN | Historical raw prediction has no existing cleaned copy; not applying current bias retroactively: docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_08_27_WNBA_predictions.csv
-227:2026-10-31T09:32:03.270026 | WARN | Historical raw prediction has no existing cleaned copy; not applying current bias retroactively: docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_08_28_WNBA_predictions.csv
-228:2026-10-31T09:32:03.270071 | WARN | Historical raw prediction has no existing cleaned copy; not applying current bias retroactively: docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_08_29_WNBA_predictions.csv
-247:2026-10-31T09:32:03.273848 | WARN | Historical raw prediction has no existing cleaned copy; not applying current bias retroactively: docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_10_19_WNBA_predictions.csv
-248:2026-10-31T09:32:03.273921 | WARN | Historical raw prediction has no existing cleaned copy; not applying current bias retroactively: docs/win/basketball/00_intake/predictions_ensemble/wnba/2026_10_21_WNBA_predictions.csv
-
-[docs/win/basketball/errors/05_final_scores/02_basketball_results_analyze.txt]
-run_change: REWRITTEN
-9:2026-10-31T09:32:10.053217+00:00 | WARNING | [NBA] no closing-line files in docs/win/basketball/05_final_scores/closing_lines/nba; CLV will be unavailable
-18:2026-10-31T09:32:10.230985+00:00 | WARNING | [WNBA] no closing-line files in docs/win/basketball/05_final_scores/closing_lines/wnba; CLV will be unavailable
+176:2026-11-01T05:27:49.914070-05:00 | ERROR scraping wnba: WNBA returned no usable pregame predictions and has no saved predictions
+177:Traceback (most recent call last)
+180:RuntimeError: WNBA returned no usable pregame predictions and has no saved predictions
+186:2026-11-01T05:27:53.210156-05:00 | STATUS: FAILED | wnba: WNBA returned no usable pregame predictions and has no saved predictions
+187:2026-11-01T05:27:53.210491-05:00 | FATAL ERROR: DRatings scrape failed for: wnba: WNBA returned no usable pregame predictions and has no saved predictions
+188:Traceback (most recent call last)
+191:RuntimeError: DRatings scrape failed for: wnba: WNBA returned no usable pregame predictions and has no saved predictions
+193:2026-11-01T05:27:53.210558-05:00 | STATUS: FAILED
 
 [docs/win/basketball/errors/pipeline_health.txt]
 run_change: REWRITTEN
+8:status: failed
 17:WNBA drift 25: games=25 margin=-4.6656 total=2.3868 warning=True
 20:WARN: WNBA 25-game residual drift exceeds 2.0: margin=-4.666, total=2.387
+21:FATAL: stage failure: docs/win/basketball/errors/00_intake/basketball_drat_scraper.txt -> 2026-11-01T05:27:53.210558-05:00 | STATUS: FAILED
+22:FATAL: NBA: 4 scheduled games missing predictions
+23:FATAL: NBA: ensemble is enabled but current ensemble prediction file is missing: docs/win/basketball/00_intake/predictions_ensemble/nba/2026_11_01_NBA_predictions.csv
+24:FATAL: NBA: configured production source prediction file is missing: source=ensemble path=docs/win/basketball/00_intake/predictions_ensemble/nba/2026_11_01_NBA_predictions.csv
+25:FATAL: NBA: downstream cleaned prediction slate is missing: docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_11_01_NBA_predictions.csv
 
 [docs/win/basketball/errors/wnba_bias_drift.txt]
 run_change: REWRITTEN
@@ -66,5 +60,6 @@ wnba | TBD
 
 SYSTEM ISSUES
 -------------
-None
+[GITHUB WORKFLOW]
+ERROR: workflow status before daily-status generation is failure.
 
