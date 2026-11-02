@@ -1,10 +1,10 @@
 BASKETBALL DAILY STATUS
 =======================
-generated_at_utc: 2026-11-02T14:42:15Z
+generated_at_utc: 2026-11-02T15:43:42Z
 game_date_new_york: 2026_11_02
-github_run_id: 41463384338
+github_run_id: 41473966981
 github_run_attempt: 1
-workflow_status: success
+workflow_status: failure
 
 SEASON STATUS
 -------------
@@ -14,53 +14,29 @@ wnba: offseason
 
 SUMMARY
 -------
-txt_files_checked_this_run: 30
-txt_files_with_issues: 7
-txt_issue_lines: 16
-txt_issue_lines_suppressed_offseason: 27
+txt_files_checked_this_run: 11
+txt_files_with_issues: 2
+txt_issue_lines: 7
+txt_issue_lines_suppressed_offseason: 9
 no_map_teams: 28
 no_map_teams_suppressed_offseason: 2
-system_issues: 0
+system_issues: 1
 overall: ISSUES FOUND
 
 CURRENT-RUN TXT ISSUES
 ----------------------
-[docs/win/basketball/errors/00_intake/calculate_rolling_bias.txt]
+[docs/win/basketball/errors/00_intake/basketball_daily_games.txt]
 run_change: REWRITTEN
-9:2026-11-02T14:42:06+00:00 | INFO  | NBA | READY_WITH_WARNINGS | margin=-2.33 total=2.358 warnings=7
+2:2026-11-02T15:43:40.643958 | FATAL: Fresh schedule conflicts with cached game_id=401924032
+3:Traceback (most recent call last)
+14:ValueError: Fresh schedule conflicts with cached game_id=401924032
+25:2026-11-02T15:43:40.777554 | Errors: 1
+26:2026-11-02T15:43:40.777585 | STATUS: FAILED
 
-[docs/win/basketball/errors/03_edges/compute_ev_kelly.txt]
+[docs/win/basketball/errors/pipeline_health.txt]
 run_change: REWRITTEN
-8:2026-11-02T14:42:08.406484+00:00 | WARN  | INPUT FOLDER MISSING: /tmp/basketball_ev_xicshwya/input/ncaam/moneyline
-9:2026-11-02T14:42:08.406519+00:00 | WARN  | INPUT FOLDER MISSING: /tmp/basketball_ev_xicshwya/input/ncaam/spread
-10:2026-11-02T14:42:08.406547+00:00 | WARN  | INPUT FOLDER MISSING: /tmp/basketball_ev_xicshwya/input/ncaam/total
-
-[docs/win/basketball/errors/04_select/select_bets.txt]
-run_change: REWRITTEN
-17:2026-11-02T14:42:08.767591+00:00 | WARN  | INPUT FOLDER MISSING: /tmp/basketball_select_89fkb0r4/input/ncaam/moneyline
-18:2026-11-02T14:42:08.767664+00:00 | WARN  | INPUT FOLDER MISSING: /tmp/basketball_select_89fkb0r4/input/ncaam/spread
-19:2026-11-02T14:42:08.767706+00:00 | WARN  | INPUT FOLDER MISSING: /tmp/basketball_select_89fkb0r4/input/ncaam/total
-
-[docs/win/basketball/errors/05_final_scores/01_basketball_results_grade.txt]
-run_change: REWRITTEN
-18:2026-11-02T14:42:12.438313+00:00 | WARN  | [ncaam] no picks files in docs/win/basketball/04_select/ncaam/daily_picks
-20:2026-11-02T14:42:12.438598+00:00 | WARN  | [ncaam] no locked picks files in docs/win/basketball/04_select/ncaam/locked_picks
-
-[docs/win/basketball/errors/05_final_scores/02_basketball_results_analyze.txt]
-run_change: REWRITTEN
-9:2026-11-02T14:42:13.608656+00:00 | WARNING | [NBA] no closing-line files in docs/win/basketball/05_final_scores/closing_lines/nba; CLV will be unavailable
-15:2026-11-02T14:42:13.708073+00:00 | WARNING | [NCAAM] input missing: docs/win/basketball/05_final_scores/results/ncaam/graded/NCAAM_final.csv — skipping
-
-[docs/win/basketball/errors/05_final_scores/03_basketball_results_reports.txt]
-run_change: REWRITTEN
-48:2026-11-02T14:42:14.417534+00:00 | WARNING | [ncaam] missing work file: docs/win/basketball/05_final_scores/work_ncaam.csv
-
-[docs/win/basketball/errors/05_final_scores/04_basketball_results_dashboard.txt]
-run_change: REWRITTEN
-78:2026-11-02T14:42:15.064779+00:00 | WARNING | Required dashboard input missing: docs/win/basketball/05_final_scores/ncaam_summary_grand_total.csv
-80:2026-11-02T14:42:15.064952+00:00 | WARNING | Required dashboard input missing: docs/win/basketball/05_final_scores/ncaam_summary_overall.csv
-283:2026-11-02T14:42:15.172366+00:00 | WARNING | Required dashboard input missing: docs/win/basketball/05_final_scores/ncaam_summary_grand_total.csv
-284:2026-11-02T14:42:15.172512+00:00 | WARNING | Required dashboard input missing: docs/win/basketball/05_final_scores/ncaam_summary_overall.csv
+8:status: failed
+22:FATAL: stage failure: docs/win/basketball/errors/00_intake/basketball_daily_games.txt -> 2026-11-02T15:43:40.777585 | STATUS: FAILED
 
 NO-MAP TEAMS
 ------------
@@ -95,5 +71,6 @@ ncaam | West Coast Baptist Eagles
 
 SYSTEM ISSUES
 -------------
-None
+[GITHUB WORKFLOW]
+ERROR: workflow status before daily-status generation is failure.
 
