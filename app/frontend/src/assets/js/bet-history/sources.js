@@ -30,10 +30,7 @@ var SOURCES = [
     enabled: true
   },
   {
-    datePattern: function(date) {
-      return BASE + 'docs/win/hockey/nhl/05_final_scores/graded/' + date + '_results_NHL.csv';
-    },
-    startDate: '2025_10_01',
+    url: BASE + 'frontend/data/nhl/nhl_final.csv',
     label: 'NHL',
     enabled: true
   },

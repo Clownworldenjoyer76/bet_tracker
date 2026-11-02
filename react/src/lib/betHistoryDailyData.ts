@@ -45,7 +45,7 @@ export type Source = {
 export const SOURCES: Source[] = [
   { url: "https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/mlb/final/MLB_final.csv", label: "MLB", enabled: true },
   { url: "history-data/WNBA.csv", label: "WNBA", enabled: true },
-  { url: "history-data/NHL.csv", label: "NHL", enabled: true },
+  { url: "https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/nhl/nhl_final.csv", label: "NHL", enabled: true },
   { url: "history-data/SOCCER.csv", label: "SOCCER", enabled: true },
   {
     indexUrl: "https://api.github.com/repos/Clownworldenjoyer76/bet_tracker/contents/frontend/data/ufc/graded?ref=main",
@@ -618,6 +618,7 @@ export async function loadCompletedBets(signal: AbortSignal): Promise<LoadOutcom
 
     results.forEach((result) => {
       result.rows.forEach((row) => {
+        if (result.label === "NHL" && !String(row["take_bet"] || "").trim()) return;
         const prepared = prepareSourceRow(row, result.label);
         allRows.push(normalizeRow(prepared, result.label));
       });

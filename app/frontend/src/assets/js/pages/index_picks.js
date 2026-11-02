@@ -445,7 +445,7 @@ function buildModalHtml(r, picks, cfg) {
 // ─── Card ─────────────────────────────────────────────────────────────────────
 
 const GR_MAP = {
-  NHL: d => `win/hockey/nhl/05_final_scores/graded/${d}_results_NHL.csv`,
+  NHL: () => "https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/nhl/nhl_final.csv",
   MLB: () => "https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/mlb/final/MLB_final.csv",
   NBA: () => "win/basketball/05_final_scores/results/nba/graded/NBA_final.csv",
   NCAAM: () => "win/basketball/05_final_scores/results/ncaam/graded/NCAAM_final.csv",

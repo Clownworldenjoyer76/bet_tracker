@@ -43,7 +43,7 @@ type Source = {
 };
 
 const SOURCES: Source[] = [
-  { url: BASE + "docs/win/hockey/nhl/05_final_scores/graded/NHL_final.csv", label: "NHL", enabled: true },
+  { url: BASE + "frontend/data/nhl/nhl_final.csv", label: "NHL", enabled: true },
   { url: BASE + "frontend/data/mlb/final/MLB_final.csv", label: "MLB", enabled: true },
   { url: BASE + "docs/win/basketball/05_final_scores/results/wnba/graded/WNBA_final.csv", label: "WNBA", enabled: true },
   { url: BASE + "docs/win/soccer/05_final_scores/results/graded/SOCCER_final.csv", label: "SOCCER", enabled: true },
@@ -910,6 +910,7 @@ export default function ModelValidation() {
         totalFiles += result.totalFiles;
 
         result.rows.forEach((row) => {
+          if (result.label === "NHL" && !String(row["take_bet"] || "").trim()) return;
           rows.push(normalizeRow(row, result.label));
         });
       });

@@ -231,18 +231,17 @@ export async function loadMLB(date) {
 }
 
 export async function loadNHL(date) {
-  const [gamesRes, bookRes, predRes] = await Promise.all([
-    fetchCSV(`win/hockey/nhl/00_intake/games/${date}_nhl_games.csv`),
-    fetchFirstCSV([
-      `win/hockey/nhl/00_intake/sportsbook/NHL_${date}.csv`,
-      `win/hockey/nhl/00_intake/sportsbook/nhl_${date}.csv`,
-    ]),
-    fetchCSV(`win/hockey/nhl/00_intake/predictions/hockey_${date}.csv`),
-  ]);
-
-  const predictionByGameId = mapByGameId(predRes.rows);
-  const bookByGameId = mapByGameId(bookRes.rows);
-  const baseRows = gamesRes.rows.length ? gamesRes.rows : bookRes.rows;
+  const slateRes = await fetchCSV("https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/nhl/nhl_slate.csv");
+  const seenGameIds = {};
+  const baseRows = slateRes.rows.filter((row) => {
+    if (String(row.game_date || "").trim() !== date) return false;
+    const id = String(row.game_id || "").trim();
+    if (!id || seenGameIds[id]) return false;
+    seenGameIds[id] = true;
+    return true;
+  });
+  const predictionByGameId = mapByGameId(baseRows);
+  const bookByGameId = predictionByGameId;
 
   const games = baseRows.map(base => {
     const pred = predictionByGameId[base.game_id] || {};

@@ -515,21 +515,17 @@ export async function loadMLB(date: string, signal?: AbortSignal): Promise<Leagu
 }
 
 export async function loadNHL(date: string, signal?: AbortSignal): Promise<LeagueResult> {
-  const [gamesRes, bookRes, predRes] = await Promise.all([
-    fetchCSV(`win/hockey/nhl/00_intake/games/${date}_nhl_games.csv`, signal),
-    fetchFirstCSV(
-      [
-        `win/hockey/nhl/00_intake/sportsbook/NHL_${date}.csv`,
-        `win/hockey/nhl/00_intake/sportsbook/nhl_${date}.csv`,
-      ],
-      signal
-    ),
-    fetchCSV(`win/hockey/nhl/00_intake/predictions/hockey_${date}.csv`, signal),
-  ]);
-
-  const predictionByGameId = mapByGameId(predRes.rows);
-  const bookByGameId = mapByGameId(bookRes.rows);
-  const baseRows = gamesRes.rows.length ? gamesRes.rows : bookRes.rows;
+  const slateRes = await fetchCSV("https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/nhl/nhl_slate.csv", signal);
+  const seenGameIds: Record<string, boolean> = {};
+  const baseRows = slateRes.rows.filter((row: Row) => {
+    if (String(row.game_date || "").trim() !== date) return false;
+    const id = String(row.game_id || "").trim();
+    if (!id || seenGameIds[id]) return false;
+    seenGameIds[id] = true;
+    return true;
+  });
+  const predictionByGameId = mapByGameId(baseRows);
+  const bookByGameId = predictionByGameId;
 
   const games: Game[] = baseRows.map((base) => {
     const pred: Row = predictionByGameId[base.game_id] || {};

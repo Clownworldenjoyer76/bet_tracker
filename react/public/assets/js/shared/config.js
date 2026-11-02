@@ -293,12 +293,8 @@ window.REPO_CONFIG = {
     leagueColumn: "league",
     joinKey:      "game_id",
     statDecimals: 4,
-    selectFiles:  (date) => [`win/hockey/nhl/04_select/${date}_NHL.csv`],
-    predFile:     (date) => `win/hockey/nhl/00_intake/predictions/hockey_${date}.csv`,
-    bookFile:     (date) => [
-      `win/hockey/nhl/00_intake/sportsbook/NHL_${date}.csv`,
-      `win/hockey/nhl/00_intake/sportsbook/nhl_${date}.csv`,
-    ],
+    filterFn:     (r) => String(r.league || "").trim().toUpperCase() === "NHL" && String(r.take_bet || "").trim() !== "",
+    selectFiles:  () => ["https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/nhl/nhl_slate.csv"],
 
     buildBetText: (p, r) => {
       const market = (p.market_type || "").toLowerCase();
