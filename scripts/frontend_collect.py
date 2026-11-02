@@ -33,6 +33,17 @@ SOURCES = (
             ("frontend/data/pipeline_health/mlb.json", "frontend/data/pipeline_health"),
         ),
     },
+    {
+        "name": "hockey",
+        "url": "https://github.com/Clownworldenjoyer76/hockey.git",
+        "branch": "main",
+        "files": (
+            ("frontend/data/nhl_slate.csv", "frontend/data/nhl"),
+            ("frontend/data/pipeline_health/nhl.json", "frontend/data/pipeline_health"),
+            ("frontend/data/nhl/nhl_final.csv", "frontend/data/nhl"),
+            ("frontend/data/dashboards/nhl.json", "frontend/data/dashboards"),
+        ),
+    },
 )
 
 
