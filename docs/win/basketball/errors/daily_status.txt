@@ -1,8 +1,8 @@
 BASKETBALL DAILY STATUS
 =======================
-generated_at_utc: 2026-11-02T15:43:42Z
+generated_at_utc: 2026-11-02T16:25:43Z
 game_date_new_york: 2026_11_02
-github_run_id: 41473966981
+github_run_id: 41476347602
 github_run_attempt: 1
 workflow_status: failure
 
@@ -14,10 +14,10 @@ wnba: offseason
 
 SUMMARY
 -------
-txt_files_checked_this_run: 11
-txt_files_with_issues: 2
-txt_issue_lines: 7
-txt_issue_lines_suppressed_offseason: 9
+txt_files_checked_this_run: 21
+txt_files_with_issues: 3
+txt_issue_lines: 13
+txt_issue_lines_suppressed_offseason: 20
 no_map_teams: 28
 no_map_teams_suppressed_offseason: 2
 system_issues: 1
@@ -25,18 +25,27 @@ overall: ISSUES FOUND
 
 CURRENT-RUN TXT ISSUES
 ----------------------
-[docs/win/basketball/errors/00_intake/basketball_daily_games.txt]
+[docs/win/basketball/errors/00_intake/calculate_rolling_bias.txt]
 run_change: REWRITTEN
-2:2026-11-02T15:43:40.643958 | FATAL: Fresh schedule conflicts with cached game_id=401924032
-3:Traceback (most recent call last)
-14:ValueError: Fresh schedule conflicts with cached game_id=401924032
-25:2026-11-02T15:43:40.777554 | Errors: 1
-26:2026-11-02T15:43:40.777585 | STATUS: FAILED
+9:2026-11-02T16:25:41+00:00 | INFO  | NBA | READY_WITH_WARNINGS | margin=-2.242 total=3.046 warnings=11
+12:2026-11-02T16:25:42+00:00 | INFO  | NCAAM | READY_WITH_WARNINGS | margin=-0.063 total=1.2 warnings=2
+
+[docs/win/basketball/errors/01_merge/merge_intake.txt]
+run_change: REWRITTEN
+95:2026-11-02T16:25:42.777389 | Errors: 1
+96:2026-11-02T16:25:42.777403 | STATUS: FAILED
 
 [docs/win/basketball/errors/pipeline_health.txt]
 run_change: REWRITTEN
 8:status: failed
-22:FATAL: stage failure: docs/win/basketball/errors/00_intake/basketball_daily_games.txt -> 2026-11-02T15:43:40.777585 | STATUS: FAILED
+22:FATAL: stage failure: docs/win/basketball/errors/01_merge/merge_intake.txt -> 2026-11-02T16:25:42.777403 | STATUS: FAILED
+23:FATAL: NCAAM: 87 scheduled games missing predictions
+24:FATAL: NCAAM: 164 scheduled games missing sportsbook rows
+25:FATAL: NCAAM: 79 prediction games did not merge
+26:FATAL: NCAAM: current ensemble prediction row count mismatch file=docs/win/basketball/00_intake/predictions_ensemble/ncaam/2026_11_02_NCAAM_predictions.csv expected=182 actual=95
+27:FATAL: NCAAM: scheduled game_ids missing from ensemble predictions docs/win/basketball/00_intake/predictions_ensemble/ncaam/2026_11_02_NCAAM_predictions.csv: ["401909490", "401909705", "401909738", "401910993", "401910996", "401911001", "401911002", "401911208", "401911389", "401911469", "401911532", "401911707", "401917506", "401917508", "401917510", "401917948", "401918051", "401918312", "401918967", "401918976", "401919014", "401919803", "401919845", "401920122", "401920348", "401920354", "401920370", "401920434", "401920876", "401920902", "401920912", "401920951", "401921093", "401921173", "401921422", "401921423", "401921424", "401921697", "401921704", "401922043", "401922247", "401922260", "401923317", "401923324", "401924732", "401924875", "401925010", "401925062", "401925088", "401925096", "401925105", "401925640", "401925826", "401925862", "401925887", "401925892", "401925921", "401925925", "401926077", "401926116", "401926141", "401926200", "401926739", "401926776", "401926787", "401926830", "401926833", "401926862", "401927341", "401927360", "401927368", "401928351", "401928357", "401928619", "401928806", "401928852", "401928858", "401929179", "401929355", "401929365", "401929383", "401929384", "401929391", "401929394", "401929404", "401929441", "401931655"]
+28:FATAL: NCAAM: configured production source=ensemble is missing scheduled game_ids in docs/win/basketball/00_intake/predictions_ensemble/ncaam/2026_11_02_NCAAM_predictions.csv: ["401909490", "401909705", "401909738", "401910993", "401910996", "401911001", "401911002", "401911208", "401911389", "401911469", "401911532", "401911707", "401917506", "401917508", "401917510", "401917948", "401918051", "401918312", "401918967", "401918976", "401919014", "401919803", "401919845", "401920122", "401920348", "401920354", "401920370", "401920434", "401920876", "401920902", "401920912", "401920951", "401921093", "401921173", "401921422", "401921423", "401921424", "401921697", "401921704", "401922043", "401922247", "401922260", "401923317", "401923324", "401924732", "401924875", "401925010", "401925062", "401925088", "401925096", "401925105", "401925640", "401925826", "401925862", "401925887", "401925892", "401925921", "401925925", "401926077", "401926116", "401926141", "401926200", "401926739", "401926776", "401926787", "401926830", "401926833", "401926862", "401927341", "401927360", "401927368", "401928351", "401928357", "401928619", "401928806", "401928852", "401928858", "401929179", "401929355", "401929365", "401929383", "401929384", "401929391", "401929394", "401929404", "401929441", "401931655"]
+29:FATAL: NCAAM: downstream cleaned prediction slate docs/win/basketball/00_intake/predictions/predictions_cleaned/ncaam/2026_11_02_NCAAM_predictions.csv is missing scheduled game_ids=["401909490", "401909705", "401909738", "401910993", "401910996", "401911001", "401911002", "401911208", "401911389", "401911469", "401911532", "401911707", "401917506", "401917508", "401917510", "401917948", "401918051", "401918312", "401918967", "401918976", "401919014", "401919803", "401919845", "401920122", "401920348", "401920354", "401920370", "401920434", "401920876", "401920902", "401920912", "401920951", "401921093", "401921173", "401921422", "401921423", "401921424", "401921697", "401921704", "401922043", "401922247", "401922260", "401923317", "401923324", "401924732", "401924875", "401925010", "401925062", "401925088", "401925096", "401925105", "401925640", "401925826", "401925862", "401925887", "401925892", "401925921", "401925925", "401926077", "401926116", "401926141", "401926200", "401926739", "401926776", "401926787", "401926830", "401926833", "401926862", "401927341", "401927360", "401927368", "401928351", "401928357", "401928619", "401928806", "401928852", "401928858", "401929179", "401929355", "401929365", "401929383", "401929384", "401929391", "401929394", "401929404", "401929441", "401931655"]
 
 NO-MAP TEAMS
 ------------
