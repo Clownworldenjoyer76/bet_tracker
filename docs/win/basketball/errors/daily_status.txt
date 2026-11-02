@@ -1,10 +1,10 @@
 BASKETBALL DAILY STATUS
 =======================
-generated_at_utc: 2026-11-02T12:04:17Z
+generated_at_utc: 2026-11-02T14:42:15Z
 game_date_new_york: 2026_11_02
-github_run_id: 41441330555
+github_run_id: 41463384338
 github_run_attempt: 1
-workflow_status: failure
+workflow_status: success
 
 SEASON STATUS
 -------------
@@ -14,46 +14,86 @@ wnba: offseason
 
 SUMMARY
 -------
-txt_files_checked_this_run: 5
-txt_files_with_issues: 2
-txt_issue_lines: 17
-txt_issue_lines_suppressed_offseason: 5
-no_map_teams: 0
+txt_files_checked_this_run: 30
+txt_files_with_issues: 7
+txt_issue_lines: 16
+txt_issue_lines_suppressed_offseason: 27
+no_map_teams: 28
 no_map_teams_suppressed_offseason: 2
-system_issues: 1
+system_issues: 0
 overall: ISSUES FOUND
 
 CURRENT-RUN TXT ISSUES
 ----------------------
-[docs/win/basketball/errors/00_intake/basketball_drat_scraper.txt]
+[docs/win/basketball/errors/00_intake/calculate_rolling_bias.txt]
 run_change: REWRITTEN
-56:2026-11-02T07:04:09.115801-05:00 | ERROR scraping nba: NBA returned no usable pregame predictions and has no saved predictions
-57:Traceback (most recent call last)
-60:RuntimeError: NBA returned no usable pregame predictions and has no saved predictions
-115:2026-11-02T07:04:14.012097-05:00 | ERROR scraping ncaa: NCAA returned no usable pregame predictions and has no saved predictions
-116:Traceback (most recent call last)
-119:RuntimeError: NCAA returned no usable pregame predictions and has no saved predictions
-123:2026-11-02T07:04:16.474624-05:00 | STATUS: FAILED | nba: NBA returned no usable pregame predictions and has no saved predictions; ncaa: NCAA returned no usable pregame predictions and has no saved predictions
-124:2026-11-02T07:04:16.474955-05:00 | FATAL ERROR: DRatings scrape failed for: nba: NBA returned no usable pregame predictions and has no saved predictions; ncaa: NCAA returned no usable pregame predictions and has no saved predictions
-125:Traceback (most recent call last)
-128:RuntimeError: DRatings scrape failed for: nba: NBA returned no usable pregame predictions and has no saved predictions; ncaa: NCAA returned no usable pregame predictions and has no saved predictions
-130:2026-11-02T07:04:16.475012-05:00 | STATUS: FAILED
+9:2026-11-02T14:42:06+00:00 | INFO  | NBA | READY_WITH_WARNINGS | margin=-2.33 total=2.358 warnings=7
 
-[docs/win/basketball/errors/pipeline_health.txt]
+[docs/win/basketball/errors/03_edges/compute_ev_kelly.txt]
 run_change: REWRITTEN
-8:status: failed
-21:FATAL: stage failure: docs/win/basketball/errors/00_intake/basketball_drat_scraper.txt -> 2026-11-02T07:04:16.475012-05:00 | STATUS: FAILED
-22:FATAL: NBA: 15 scheduled games missing predictions
-23:FATAL: NBA: ensemble is enabled but current ensemble prediction file is missing: docs/win/basketball/00_intake/predictions_ensemble/nba/2026_11_02_NBA_predictions.csv
-24:FATAL: NBA: configured production source prediction file is missing: source=ensemble path=docs/win/basketball/00_intake/predictions_ensemble/nba/2026_11_02_NBA_predictions.csv
-25:FATAL: NBA: downstream cleaned prediction slate is missing: docs/win/basketball/00_intake/predictions/predictions_cleaned/nba/2026_11_02_NBA_predictions.csv
+8:2026-11-02T14:42:08.406484+00:00 | WARN  | INPUT FOLDER MISSING: /tmp/basketball_ev_xicshwya/input/ncaam/moneyline
+9:2026-11-02T14:42:08.406519+00:00 | WARN  | INPUT FOLDER MISSING: /tmp/basketball_ev_xicshwya/input/ncaam/spread
+10:2026-11-02T14:42:08.406547+00:00 | WARN  | INPUT FOLDER MISSING: /tmp/basketball_ev_xicshwya/input/ncaam/total
+
+[docs/win/basketball/errors/04_select/select_bets.txt]
+run_change: REWRITTEN
+17:2026-11-02T14:42:08.767591+00:00 | WARN  | INPUT FOLDER MISSING: /tmp/basketball_select_89fkb0r4/input/ncaam/moneyline
+18:2026-11-02T14:42:08.767664+00:00 | WARN  | INPUT FOLDER MISSING: /tmp/basketball_select_89fkb0r4/input/ncaam/spread
+19:2026-11-02T14:42:08.767706+00:00 | WARN  | INPUT FOLDER MISSING: /tmp/basketball_select_89fkb0r4/input/ncaam/total
+
+[docs/win/basketball/errors/05_final_scores/01_basketball_results_grade.txt]
+run_change: REWRITTEN
+18:2026-11-02T14:42:12.438313+00:00 | WARN  | [ncaam] no picks files in docs/win/basketball/04_select/ncaam/daily_picks
+20:2026-11-02T14:42:12.438598+00:00 | WARN  | [ncaam] no locked picks files in docs/win/basketball/04_select/ncaam/locked_picks
+
+[docs/win/basketball/errors/05_final_scores/02_basketball_results_analyze.txt]
+run_change: REWRITTEN
+9:2026-11-02T14:42:13.608656+00:00 | WARNING | [NBA] no closing-line files in docs/win/basketball/05_final_scores/closing_lines/nba; CLV will be unavailable
+15:2026-11-02T14:42:13.708073+00:00 | WARNING | [NCAAM] input missing: docs/win/basketball/05_final_scores/results/ncaam/graded/NCAAM_final.csv — skipping
+
+[docs/win/basketball/errors/05_final_scores/03_basketball_results_reports.txt]
+run_change: REWRITTEN
+48:2026-11-02T14:42:14.417534+00:00 | WARNING | [ncaam] missing work file: docs/win/basketball/05_final_scores/work_ncaam.csv
+
+[docs/win/basketball/errors/05_final_scores/04_basketball_results_dashboard.txt]
+run_change: REWRITTEN
+78:2026-11-02T14:42:15.064779+00:00 | WARNING | Required dashboard input missing: docs/win/basketball/05_final_scores/ncaam_summary_grand_total.csv
+80:2026-11-02T14:42:15.064952+00:00 | WARNING | Required dashboard input missing: docs/win/basketball/05_final_scores/ncaam_summary_overall.csv
+283:2026-11-02T14:42:15.172366+00:00 | WARNING | Required dashboard input missing: docs/win/basketball/05_final_scores/ncaam_summary_grand_total.csv
+284:2026-11-02T14:42:15.172512+00:00 | WARNING | Required dashboard input missing: docs/win/basketball/05_final_scores/ncaam_summary_overall.csv
 
 NO-MAP TEAMS
 ------------
-None
+ncaam | App State Mountaineers
+ncaam | Arkansas-Pine Bluff Golden Lions
+ncaam | BYU Cougars
+ncaam | Blue Mountain Christian Toppers
+ncaam | Bob Jones Bruins
+ncaam | Central College Dutch
+ncaam | Champion Christian Tigers
+ncaam | Christendom Crusaders
+ncaam | Concordia Chicago Cougars
+ncaam | Erskine Flying Fleet
+ncaam | Framingham State Rams
+ncaam | Gardner-Webb Runnin' Bulldogs
+ncaam | Grace University Lancers
+ncaam | Milwaukee Panthers
+ncaam | Pennsylvania Quakers
+ncaam | Queens University Royals
+ncaam | Randolph Wildcats
+ncaam | Regent Regent Royals
+ncaam | SE Louisiana Lions
+ncaam | Saint Mary of the Woods Pomeroys
+ncaam | Saint Mary's Gaels
+ncaam | Salish Kootenai Bison
+ncaam | Sam Houston Bearkats
+ncaam | UConn Huskies
+ncaam | UL Monroe Warhawks
+ncaam | Virginia Lynchburg Dragons
+ncaam | Webster Gorloks
+ncaam | West Coast Baptist Eagles
 
 SYSTEM ISSUES
 -------------
-[GITHUB WORKFLOW]
-ERROR: workflow status before daily-status generation is failure.
+None
 
