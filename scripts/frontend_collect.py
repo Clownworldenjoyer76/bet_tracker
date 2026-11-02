@@ -44,6 +44,20 @@ SOURCES = (
             ("frontend/data/dashboards/nhl.json", "frontend/data/dashboards"),
         ),
     },
+    {
+        "name": "basketball",
+        "url": "https://github.com/Clownworldenjoyer76/basketball.git",
+        "branch": "main",
+        "files": (
+            ("frontend/data/dashboards/basketball.json", "frontend/data/dashboards"),
+            ("frontend/data/dashboards/nba.json", "frontend/data/dashboards"),
+            ("frontend/data/dashboards/ncaam.json", "frontend/data/dashboards"),
+            ("frontend/data/dashboards/wnba.json", "frontend/data/dashboards"),
+            ("frontend/data/pipeline_health/basketball.json", "frontend/data/pipeline_health"),
+            ("frontend/basketball_final.csv", "frontend/basketball"),
+            ("frontend/basketball_slate.csv", "frontend/basketball"),
+        ),
+    },
 )
 
 
