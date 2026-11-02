@@ -743,6 +743,39 @@ def validate_canonical_identities(
         identities[identity] = game_id
 
 
+def normalize_cached_canonical_names(
+    rows: list[dict[str, str]],
+    league: str,
+) -> list[dict[str, str]]:
+    """Reconcile previously saved team aliases against the current team map.
+
+    Cached identities can predate a mapping update. Match freshly retrieved
+    events using current canonical names; do not weaken game-ID/date checks.
+    """
+    team_map = load_team_map(league)
+    updated: list[dict[str, str]] = []
+    changes = 0
+
+    for row in rows:
+        normalized = row.copy()
+        for field in ("home_team", "away_team"):
+            old_name = clean(row.get(field))
+            new_name = normalize_team_name(old_name, team_map)
+            if new_name != old_name:
+                normalized[field] = new_name
+                changes += 1
+        updated.append(normalized)
+
+    validate_canonical_identities(updated)
+    if changes:
+        log(
+            "CANONICAL CACHE NAME NORMALIZATION | "
+            f"league={LEAGUES[league]['label']} "
+            f"renamed_team_fields={changes}"
+        )
+    return updated
+
+
 def merge_canonical_rows(
     previous: list[dict[str, str]],
     fresh: list[dict[str, str]],
@@ -1496,6 +1529,12 @@ def build_league(
                 f"league={config['label']} "
                 f"path={path} error={exc}"
             )
+
+    # Reapply current alias mappings to valid cached NCAAM rows before
+    # comparing ESPN game identities. Historical mapping changes are not
+    # schedule conflicts, but changed dates/opponents still fail closed.
+    if league == "ncaam" and previous:
+        previous = normalize_cached_canonical_names(previous, league)
 
     current_nba = (
         league == "nba"
