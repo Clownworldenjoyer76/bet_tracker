@@ -111,6 +111,20 @@ jobs:
           for league in nba ncaam wnba; do
             args=(--league "$league")
             if [[ "${BASKETBALL_FULL_REBUILD:-false}" != "true" ]]; then
+              slate="docs/win/basketball/daily_games/$league/${DATE}_${league^^}.csv"
+              raw_dratings="docs/win/basketball/00_intake/predictions/$league/${DATE}_${league^^}_predictions.csv"
+              if [[ ! -f "$slate" ]]; then
+                if [[ -f "$raw_dratings" ]] && python -c 'import csv,sys; sys.exit(0 if next(csv.DictReader(open(sys.argv[1],newline="",encoding="utf-8-sig")),None) is not None else 1)' "$raw_dratings"; then
+                  echo "::error::Missing canonical $league schedule despite existing DRatings predictions: $slate"
+                  exit 1
+                fi
+                echo "SKIP SDV $league: no current-day schedule ($slate)"
+                continue
+              fi
+              if ! python -c 'import csv,sys; sys.exit(0 if next(csv.DictReader(open(sys.argv[1],newline="",encoding="utf-8-sig")),None) is not None else 1)' "$slate"; then
+                echo "SKIP SDV $league: current-day schedule is empty ($slate)"
+                continue
+              fi
               args+=(--game-date "$DATE")
             fi
             output="$(python docs/win/basketball/scripts/00_intake/sdv_predict.py "${args[@]}")"

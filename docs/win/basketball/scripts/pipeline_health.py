@@ -185,8 +185,11 @@ def current_league_health(league: str, now: datetime, config: dict):
             fatals.append(f"{label}: duplicate/conflicting current game identity")
         if daily_blank:
             fatals.append(f"{label}: {len(daily_blank)} current daily games missing game_id")
-        if dratings and (dratings_blank or dratings_dup):
-            fatals.append(f"{label}: raw DRatings game ID integrity failure")
+        if dratings_dup:
+            fatals.append(f"{label}: duplicate raw DRatings game IDs: {dratings_dup}")
+        # Unmatched DRatings rows have predictions but no canonical ESPN ID.
+        # They cannot be joined or bet on; report them instead of blocking
+        # correctly identified DRatings games.
         if preds and (pred_blank or pred_dup):
             fatals.append(f"{label}: downstream prediction game ID integrity failure")
         if merged and (merged_blank or merged_dup):
@@ -200,9 +203,9 @@ def current_league_health(league: str, now: datetime, config: dict):
         "season_config": dict(config[league]),
         "paths": {"daily_games": str(daily_path), "dratings": str(dratings_path), "predictions": str(pred_path), "sportsbook": str(book_path), "merged": str(merge_path), "selected": str(picks_path), "locked": str(locked_path)},
         "counts": {"scheduled_games": len(daily_ids), "dratings_games": len(dratings_ids), "prediction_games": len(pred_ids), "sportsbook_games": len(book_ids), "merged_games": len(merge_ids), "selected_bets": len(picks), "locked_bets": len(locked)},
-        "identity": {"daily_duplicate_composites": duplicate_comp, "daily_conflicting_game_ids": conflicting_ids, "prediction_duplicate_composites": pred_dup_comp, "prediction_conflicting_game_ids": pred_conflicting_ids, "blank_daily_game_ids": len(daily_blank), "blank_prediction_game_ids": len(pred_blank)},
+        "identity": {"daily_duplicate_composites": duplicate_comp, "daily_conflicting_game_ids": conflicting_ids, "prediction_duplicate_composites": pred_dup_comp, "prediction_conflicting_game_ids": pred_conflicting_ids, "blank_daily_game_ids": len(daily_blank), "blank_dratings_game_ids": len(dratings_blank), "blank_prediction_game_ids": len(pred_blank)},
         "coverage": {"scheduled_missing_predictions": [str(i) for i in scheduled_unmodeled], "scheduled_missing_sportsbook": [str(i) for i in unpriced], "predictions_not_merged": [str(i) for i in missing_merged], "dratings_missing_cleaned": missing_predicted},
-        "warnings": [f"{label}: {len(scheduled_unmodeled)} ESPN games omitted (no DRatings prediction)" if scheduled_unmodeled else "", f"{label}: {len(unpriced)} predicted games without sportsbook data (no bet)" if unpriced else ""],
+        "warnings": [f"{label}: {len(scheduled_unmodeled)} ESPN games omitted (no DRatings prediction)" if scheduled_unmodeled else "", f"{label}: {len(dratings_blank)} DRatings prediction rows have no canonical game ID; preserved in raw source but cannot be merged or bet on until mapped" if dratings_blank else "", f"{label}: {len(unpriced)} predicted games without sportsbook data (no bet)" if unpriced else ""],
     }
     item["warnings"] = [v for v in item["warnings"] if v]
     return item, fatals
