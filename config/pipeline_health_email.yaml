@@ -1,0 +1,30 @@
+report:
+  title: Bet Tracker - Pipeline Health
+  timezone: America/New_York
+  freshness_hours: 48
+  include:
+    warnings: true
+    fatal_errors: true
+    failed_steps: true
+    timestamps: true
+    coverage: true
+    counts: true
+    missing_outputs: true
+    model_health: true
+  include_full_game_id_lists: false
+  include_all_stage_statuses: false
+  include_zero_counts: true
+  max_items_per_section: 100
+pipelines:
+  basketball: Basketball
+  mlb: Baseball
+  cfb: College Football
+  nfl: NFL
+  nhl: NHL
+  prop_engine: NFL Prop Engine
+  soccer: Soccer
+  ufc: UFC
+email:
+  subject_prefix: '[Bet Tracker] Pipeline Health'
+  from_name: Bet Tracker
+  smtp_security: starttls
