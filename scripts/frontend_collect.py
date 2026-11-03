@@ -55,8 +55,8 @@ SOURCES = (
             ("frontend/data/dashboards/ncaam.json", "frontend/data/dashboards"),
             ("frontend/data/dashboards/wnba.json", "frontend/data/dashboards"),
             ("frontend/data/pipeline_health/basketball.json", "frontend/data/pipeline_health"),
-            ("frontend/basketball_final.csv", "frontend/basketball"),
-            ("frontend/basketball_slate.csv", "frontend/basketball"),
+            ("frontend/basketball_final.csv", "frontend/data/basketball"),
+            ("frontend/basketball_slate.csv", "frontend/data/basketball"),
         ),
     },
     {
@@ -66,8 +66,8 @@ SOURCES = (
         "files": (
             ("frontend/data/dashboards/soccer.json", "frontend/data/dashboards"),
             ("frontend/data/pipeline_health/soccer.json", "frontend/data/pipeline_health"),
-            ("frontend/soccer_final.csv", "frontend/soccer"),
-            ("frontend/soccer_slate.csv", "frontend/soccer"),
+            ("frontend/soccer_final.csv", "frontend/data/soccer"),
+            ("frontend/soccer_slate.csv", "frontend/data/soccer"),
         ),
     },
 )
