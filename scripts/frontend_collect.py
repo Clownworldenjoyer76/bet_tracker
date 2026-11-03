@@ -1,3 +1,4 @@
+
 """Collect selected frontend files from source GitHub repositories."""
 
 from pathlib import Path, PurePosixPath
@@ -56,6 +57,17 @@ SOURCES = (
             ("frontend/data/pipeline_health/basketball.json", "frontend/data/pipeline_health"),
             ("frontend/basketball_final.csv", "frontend/basketball"),
             ("frontend/basketball_slate.csv", "frontend/basketball"),
+        ),
+    },
+    {
+        "name": "soccer",
+        "url": "https://github.com/Clownworldenjoyer76/soccer.git",
+        "branch": "main",
+        "files": (
+            ("frontend/data/dashboards/soccer.json", "frontend/data/dashboards"),
+            ("frontend/data/pipeline_health/soccer.json", "frontend/data/pipeline_health"),
+            ("frontend/soccer_final.csv", "frontend/soccer"),
+            ("frontend/soccer_slate.csv", "frontend/soccer"),
         ),
     },
 )
