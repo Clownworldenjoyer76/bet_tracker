@@ -199,6 +199,7 @@ function loadAll() {
     results.forEach(function(result) {
       result.rows.forEach(function(row) {
         if (result.label === 'NHL' && !String(row.take_bet || '').trim()) return;
+        if (result.label === 'BASKETBALL' && !String(row.bet_side || '').trim()) return;
         var preparedRow = prepareSourceRow(row, result.label);
         allRows.push(normalizeRow(preparedRow, result.label));
       });

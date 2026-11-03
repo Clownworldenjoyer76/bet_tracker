@@ -45,7 +45,7 @@ type Source = {
 const SOURCES: Source[] = [
   { url: BASE + "frontend/data/nhl/nhl_final.csv", label: "NHL", enabled: true },
   { url: BASE + "frontend/data/mlb/final/MLB_final.csv", label: "MLB", enabled: true },
-  { url: BASE + "docs/win/basketball/05_final_scores/results/wnba/graded/WNBA_final.csv", label: "WNBA", enabled: true },
+  { url: BASE + "frontend/data/basketball/basketball_final.csv", label: "BASKETBALL", enabled: true },
   { url: BASE + "frontend/data/soccer/soccer_final.csv", label: "SOCCER", enabled: true },
   {
     indexUrl: API_BASE + "docs/win/football/cfb/04_final_results/graded?ref=" + BRANCH,
@@ -911,6 +911,7 @@ export default function ModelValidation() {
 
         result.rows.forEach((row) => {
           if (result.label === "NHL" && !String(row["take_bet"] || "").trim()) return;
+          if (result.label === "BASKETBALL" && !String(row["bet_side"] || "").trim()) return;
           rows.push(normalizeRow(row, result.label));
         });
       });

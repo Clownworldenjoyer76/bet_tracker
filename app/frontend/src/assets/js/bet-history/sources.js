@@ -15,18 +15,8 @@ var SOURCES = [
     enabled: true
   },
   {
-    url: BASE + 'docs/win/basketball/05_final_scores/results/nba/graded/NBA_final.csv',
-    label: 'NBA',
-    enabled: true
-  },
-  {
-    url: BASE + 'docs/win/basketball/05_final_scores/results/ncaam/graded/NCAAM_final.csv',
-    label: 'NCAAM',
-    enabled: true
-  },
-  {
-    url: BASE + 'docs/win/basketball/05_final_scores/results/wnba/graded/WNBA_final.csv',
-    label: 'WNBA',
+    url: BASE + 'frontend/data/basketball/basketball_final.csv',
+    label: 'BASKETBALL',
     enabled: true
   },
   {

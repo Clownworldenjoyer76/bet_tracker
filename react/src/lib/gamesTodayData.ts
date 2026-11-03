@@ -671,38 +671,21 @@ export async function loadCFB(date: string, signal?: AbortSignal): Promise<Leagu
 }
 
 export async function loadBasketball(league: string, date: string, signal?: AbortSignal): Promise<LeagueResult> {
-  const lower = league.toLowerCase();
   const upper = league.toUpperCase();
 
-  const [gamesRes, predRes, bookRes] = await Promise.all([
-    fetchFirstCSV(
-      [
-        `win/basketball/daily_games/${lower}/${date}_${lower}.csv`,
-        `win/basketball/daily_games/${lower}/${date}_${upper}.csv`,
-        `win/basketball/daily_games/${upper}/${date}_${lower}.csv`,
-        `win/basketball/daily_games/${upper}/${date}_${upper}.csv`,
-      ],
-      signal
-    ),
-    fetchFirstCSV(
-      [
-        `win/basketball/00_intake/predictions/predictions_cleaned/${lower}/${date}_${lower}_predictions.csv`,
-        `win/basketball/00_intake/predictions/predictions_cleaned/${lower}/${date}_${upper}_predictions.csv`,
-        `win/basketball/00_intake/predictions/predictions_cleaned/${upper}/${date}_${lower}_predictions.csv`,
-        `win/basketball/00_intake/predictions/predictions_cleaned/${upper}/${date}_${upper}_predictions.csv`,
-      ],
-      signal
-    ),
-    fetchFirstCSV(
-      [
-        `win/basketball/00_intake/sportsbook/sportsbook_cleaned/${lower}/${date}_${lower}_odds.csv`,
-        `win/basketball/00_intake/sportsbook/sportsbook_cleaned/${lower}/${date}_${upper}_odds.csv`,
-        `win/basketball/00_intake/sportsbook/sportsbook_cleaned/${upper}/${date}_${lower}_odds.csv`,
-        `win/basketball/00_intake/sportsbook/sportsbook_cleaned/${upper}/${date}_${upper}_odds.csv`,
-      ],
-      signal
-    ),
-  ]);
+  const slateRes = await fetchCSV("https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/basketball/basketball_slate.csv", signal);
+  const seenGameIds: Record<string, boolean> = {};
+  const slateRows = slateRes.rows.filter((row: Row) => {
+    if (String(row.league || "").trim().toUpperCase() !== upper) return false;
+    if (String(row.game_date || "").trim() !== date) return false;
+    const id = String(row.game_id || "").trim();
+    if (!id || seenGameIds[id]) return false;
+    seenGameIds[id] = true;
+    return true;
+  });
+  const gamesRes = { rows: slateRows };
+  const predRes = { rows: slateRows };
+  const bookRes = { rows: slateRows };
 
   const predictionByGameId = mapByGameId(predRes.rows);
   const bookByGameId = mapByGameId(bookRes.rows);

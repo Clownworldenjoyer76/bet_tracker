@@ -259,12 +259,8 @@ export const REPO_CONFIG: Record<string, LeagueCfg> = {
     enabled: true,
     leagueColumn: "league",
     joinKey: "game_id",
-    selectFiles: (date) => [
-      "win/basketball/04_select/nba/daily_picks/" + date + "_nba_selected.csv",
-      "win/basketball/04_select/daily_slate/nba_selected.csv",
-    ],
-    predFile: (date) => "win/basketball/00_intake/predictions/basketball_NBA_" + date + ".csv",
-    bookFile: (date) => "win/basketball/00_intake/sportsbook/sportsbook_cleaned/nba/" + date + "_NBA_odds.csv",
+    filterFn: (r) => String(r.league || "").trim().toUpperCase() === "NBA" && String(r.bet_side || "").trim() !== "",
+    selectFiles: () => ["https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/basketball/basketball_slate.csv"],
   },
 
   // --- WNBA -----------------------------------------------------------------
@@ -275,12 +271,8 @@ export const REPO_CONFIG: Record<string, LeagueCfg> = {
     enabled: true,
     leagueColumn: "league",
     joinKey: "game_id",
-    selectFiles: (date) => [
-      "win/basketball/04_select/wnba/daily_picks/" + date + "_wnba_selected.csv",
-      "win/basketball/04_select/daily_slate/wnba_selected.csv",
-    ],
-    predFile: (date) => "win/basketball/00_intake/predictions/basketball_WNBA_" + date + ".csv",
-    bookFile: (date) => "win/basketball/00_intake/sportsbook/sportsbook_cleaned/wnba/" + date + "_WNBA_odds.csv",
+    filterFn: (r) => String(r.league || "").trim().toUpperCase() === "WNBA" && String(r.bet_side || "").trim() !== "",
+    selectFiles: () => ["https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/basketball/basketball_slate.csv"],
 
     buildBetText: (p, r) => {
       const market = (p.market_type || "").toLowerCase();
@@ -339,12 +331,8 @@ export const REPO_CONFIG: Record<string, LeagueCfg> = {
     enabled: true,
     leagueColumn: "league",
     joinKey: "game_id",
-    selectFiles: (date) => [
-      "win/basketball/04_select/ncaam/daily_picks/" + date + "_ncaam_selected.csv",
-      "win/basketball/04_select/daily_slate/ncaam_selected.csv",
-    ],
-    predFile: (date) => "win/basketball/00_intake/predictions/basketball_NCAAM_" + date + ".csv",
-    bookFile: (date) => "win/basketball/00_intake/sportsbook/sportsbook_cleaned/ncaam/" + date + "_NCAAM_odds.csv",
+    filterFn: (r) => String(r.league || "").trim().toUpperCase() === "NCAAM" && String(r.bet_side || "").trim() !== "",
+    selectFiles: () => ["https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/basketball/basketball_slate.csv"],
   },
 
   // --- MLB ------------------------------------------------------------------

@@ -447,9 +447,9 @@ function buildModalHtml(r, picks, cfg) {
 const GR_MAP = {
   NHL: () => "https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/nhl/nhl_final.csv",
   MLB: () => "https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/mlb/final/MLB_final.csv",
-  NBA: () => "win/basketball/05_final_scores/results/nba/graded/NBA_final.csv",
-  NCAAM: () => "win/basketball/05_final_scores/results/ncaam/graded/NCAAM_final.csv",
-  WNBA: () => "win/basketball/05_final_scores/results/wnba/graded/WNBA_final.csv"
+  NBA: () => "https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/basketball/basketball_final.csv",
+  NCAAM: () => "https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/basketball/basketball_final.csv",
+  WNBA: () => "https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/basketball/basketball_final.csv"
 };
 ["EPL", "MLS", "LIGUE1", "LALIGA", "SERIEA", "BUNDESLIGA"].forEach(k => { GR_MAP[k] = () => "https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/soccer/soccer_final.csv"; });
 function gKey(r) { return [r.game_id, r.market_type || r.market, r.bet_side || r.side].map(v => String(v || "").trim().toLowerCase()).join("|"); }

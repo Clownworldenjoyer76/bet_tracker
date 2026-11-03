@@ -44,7 +44,7 @@ export type Source = {
 // Legacy public/assets/js/bet-history/sources.js
 export const SOURCES: Source[] = [
   { url: "https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/mlb/final/MLB_final.csv", label: "MLB", enabled: true },
-  { url: "history-data/WNBA.csv", label: "WNBA", enabled: true },
+  { url: "https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/basketball/basketball_final.csv", label: "BASKETBALL", enabled: true },
   { url: "https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/nhl/nhl_final.csv", label: "NHL", enabled: true },
   { url: "https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/soccer/soccer_final.csv", label: "SOCCER", enabled: true },
   {
@@ -619,6 +619,7 @@ export async function loadCompletedBets(signal: AbortSignal): Promise<LoadOutcom
     results.forEach((result) => {
       result.rows.forEach((row) => {
         if (result.label === "NHL" && !String(row["take_bet"] || "").trim()) return;
+        if (result.label === "BASKETBALL" && !String(row["bet_side"] || "").trim()) return;
         const prepared = prepareSourceRow(row, result.label);
         allRows.push(normalizeRow(prepared, result.label));
       });

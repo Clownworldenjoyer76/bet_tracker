@@ -84,7 +84,7 @@ interface SmhWindow {
 
 const SOURCES: HistorySource[] = [
   { url: "https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/mlb/final/MLB_final.csv", label: "MLB", enabled: true },
-  { url: "history-data/WNBA.csv", label: "WNBA", enabled: true },
+  { url: "https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/basketball/basketball_final.csv", label: "BASKETBALL", enabled: true },
   { url: "https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/nhl/nhl_final.csv", label: "NHL", enabled: true },
   { url: "https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/soccer/soccer_final.csv", label: "SOCCER", enabled: true },
   {
@@ -1612,6 +1612,7 @@ export default function BetHistory() {
       results.forEach((result) => {
         result.rows.forEach((row) => {
           if (result.label === "NHL" && !String(row["take_bet"] || "").trim()) return;
+          if (result.label === "BASKETBALL" && !String(row["bet_side"] || "").trim()) return;
           next.push(normalizeRow(prepareSourceRow(row, result.label), result.label));
         });
       });
