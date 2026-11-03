@@ -451,7 +451,7 @@ const GR_MAP = {
   NCAAM: () => "win/basketball/05_final_scores/results/ncaam/graded/NCAAM_final.csv",
   WNBA: () => "win/basketball/05_final_scores/results/wnba/graded/WNBA_final.csv"
 };
-["EPL", "MLS", "LIGUE1", "LALIGA", "SERIEA", "BUNDESLIGA"].forEach(k => { GR_MAP[k] = () => "win/soccer/05_final_scores/results/graded/SOCCER_final.csv"; });
+["EPL", "MLS", "LIGUE1", "LALIGA", "SERIEA", "BUNDESLIGA"].forEach(k => { GR_MAP[k] = () => "https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/soccer/soccer_final.csv"; });
 function gKey(r) { return [r.game_id, r.market_type || r.market, r.bet_side || r.side].map(v => String(v || "").trim().toLowerCase()).join("|"); }
 async function loadGraded(league, d) {
   const f = GR_MAP[league];

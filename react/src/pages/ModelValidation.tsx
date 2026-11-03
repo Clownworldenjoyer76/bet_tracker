@@ -46,7 +46,7 @@ const SOURCES: Source[] = [
   { url: BASE + "frontend/data/nhl/nhl_final.csv", label: "NHL", enabled: true },
   { url: BASE + "frontend/data/mlb/final/MLB_final.csv", label: "MLB", enabled: true },
   { url: BASE + "docs/win/basketball/05_final_scores/results/wnba/graded/WNBA_final.csv", label: "WNBA", enabled: true },
-  { url: BASE + "docs/win/soccer/05_final_scores/results/graded/SOCCER_final.csv", label: "SOCCER", enabled: true },
+  { url: BASE + "frontend/data/soccer/soccer_final.csv", label: "SOCCER", enabled: true },
   {
     indexUrl: API_BASE + "docs/win/football/cfb/04_final_results/graded?ref=" + BRANCH,
     indexItemToUrl: (item) => {

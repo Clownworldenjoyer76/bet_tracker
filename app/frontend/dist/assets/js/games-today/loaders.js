@@ -495,10 +495,18 @@ export async function loadBasketball(league, date) {
 }
 
 export async function loadSoccer(meta, date) {
-  const [predRes, bookRes] = await Promise.all([
-    fetchCSV(`win/soccer/00_intake/predictions/normalized/${date}_${meta.slug}.csv`),
-    fetchCSV(`win/soccer/00_intake/sportsbook/normalized/${date}_${meta.slug}.csv`),
-  ]);
+  const slateRes = await fetchCSV("https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/soccer/soccer_slate.csv");
+  const seenGameIds = {};
+  const slateRows = slateRes.rows.filter(row => {
+    if (String(row.league || "").trim().toLowerCase() !== meta.slug) return false;
+    if (String(row.match_date || "").trim() !== date) return false;
+    const id = String(row.game_id || "").trim();
+    if (!id || seenGameIds[id]) return false;
+    seenGameIds[id] = true;
+    return true;
+  });
+  const predRes = { rows: slateRows };
+  const bookRes = { rows: slateRows };
 
   const bookByGameId = mapByGameId(bookRes.rows);
 

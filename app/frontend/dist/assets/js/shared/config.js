@@ -70,7 +70,8 @@ const SOCCER_BASE = {
   isSoccer:     true,
   leagueColumn: "league",
   joinKey:      "game_id",
-  selectFiles:  (date) => [`win/soccer/04_select/${date}_soccer_bets.csv`],
+  filterFn:     (r, _d, target) => String(r.league || "").trim().toUpperCase() === target && String(r.side || "").trim() !== "",
+  selectFiles:  () => ["https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/soccer/soccer_slate.csv"],
   // Soccer CSV uses different column names than the basketball/baseball/hockey schema.
   // Remap into the canonical shape so the existing renderer/filter code "just works".
   normalizeRow: (r) => ({

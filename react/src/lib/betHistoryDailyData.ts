@@ -46,7 +46,7 @@ export const SOURCES: Source[] = [
   { url: "https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/mlb/final/MLB_final.csv", label: "MLB", enabled: true },
   { url: "history-data/WNBA.csv", label: "WNBA", enabled: true },
   { url: "https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/nhl/nhl_final.csv", label: "NHL", enabled: true },
-  { url: "history-data/SOCCER.csv", label: "SOCCER", enabled: true },
+  { url: "https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/soccer/soccer_final.csv", label: "SOCCER", enabled: true },
   {
     indexUrl: "https://api.github.com/repos/Clownworldenjoyer76/bet_tracker/contents/frontend/data/ufc/graded?ref=main",
     indexItemToUrl: (item) => {

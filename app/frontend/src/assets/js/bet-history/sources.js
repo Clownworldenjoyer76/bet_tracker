@@ -35,7 +35,7 @@ var SOURCES = [
     enabled: true
   },
   {
-    url: BASE + 'docs/win/soccer/05_final_scores/results/graded/SOCCER_final.csv',
+    url: BASE + 'frontend/data/soccer/soccer_final.csv',
     label: 'SOCCER',
     enabled: true
   },
