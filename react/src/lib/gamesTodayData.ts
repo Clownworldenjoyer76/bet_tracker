@@ -588,29 +588,25 @@ export async function loadNHL(date: string, signal?: AbortSignal): Promise<Leagu
 
 export async function loadCFB(date: string, signal?: AbortSignal): Promise<LeagueResult> {
   const gameDate = String(date || "").replace(/_/g, "-");
-  const season = gameDate.slice(0, 4);
   const displayLeague = displayLeagueConfig("CFB", "CFB");
 
-  const scheduleRes = await fetchCSV(`win/football/cfb/00_intake/schedule/${season}_schedule.csv`, signal);
+  const slateRes = await fetchCSV("https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/football/football_slate.csv", signal);
 
-  const scheduleRows = scheduleRes.rows.filter((row) => String(row.game_date || "") === gameDate);
+  const seenGameIds: Record<string, boolean> = {};
+  const scheduleRows = slateRes.rows.filter((row: Row) => {
+    if (String(row.league || "").trim().toUpperCase() !== "CFB") return false;
+    if (String(row.game_date || "") !== gameDate) return false;
+    const id = String(row.game_id || "").trim();
+    if (!id || seenGameIds[id]) return false;
+    seenGameIds[id] = true;
+    return true;
+  });
 
   if (!scheduleRows.length) {
     return { league: "CFB", displayName: displayLeague, games: [] };
   }
 
-  const weeks = Array.from(
-    new Set(scheduleRows.map((row) => String(row.week || "").trim()).filter(Boolean))
-  );
-
-  const weeklyResults = await Promise.all(
-    weeks.map((week) =>
-      fetchCSV(`win/football/cfb/00_intake/schedule/weekly/week_${week}_CFB_weekly_schedule.csv`, signal)
-    )
-  );
-
-  const weeklyRows = weeklyResults.flatMap((result) => result.rows);
-  const weeklyByGameId = mapByGameId(weeklyRows);
+  const weeklyByGameId = mapByGameId(scheduleRows);
 
   const games: Game[] = scheduleRows.map((base) => {
     const book: Row = weeklyByGameId[String(base.game_id)] || {};

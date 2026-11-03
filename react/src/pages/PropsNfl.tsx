@@ -39,7 +39,7 @@ const BULLET = String.fromCharCode(0x2022);
 
 const RAW_ROOT = "https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main";
 
-const SETTINGS_URL = `${RAW_ROOT}/docs/win/football/prop_engine/config/settings.yaml`;
+const SETTINGS_URL = `${RAW_ROOT}/frontend/data/football/prop_engine/config/settings.yaml`;
 
 const AVAILABLE_SEASONS = [2026];
 const AVAILABLE_WEEKS = Array.from({ length: 18 }, (_, i) => i + 1);
@@ -198,21 +198,6 @@ async function fetchCsv(url: string, signal: AbortSignal): Promise<Row[]> {
   return parseCsv(await response.text());
 }
 
-function stage2Url(season: number, week: number, config: PropType): string {
-  return (
-    `${RAW_ROOT}/docs/win/football/prop_engine/prop_picks_final/` +
-    `${season}/stage_2/week_${week}/${config.path}/` +
-    `week_${week}_${config.suffix}.csv`
-  );
-}
-
-function scheduleUrl(week: number): string {
-  return (
-    `${RAW_ROOT}/docs/win/football/nfl/00_intake/schedule/weekly/` +
-    `week_${week}_NFL_weekly_schedule.csv`
-  );
-}
-
 function numeric(value: unknown): number | null {
   const n = Number(value);
   return Number.isFinite(n) ? n : null;
@@ -256,27 +241,34 @@ export default function PropsNfl() {
 
     setStatus(`Loading ${seasonValue} Week ${weekValue}...`);
 
-    const schedulePromise = fetchCsv(scheduleUrl(weekValue), ctl.signal).catch(
-      (): Row[] => []
-    );
+    const schedulePromise = fetchCsv("https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/football/football_slate.csv", ctl.signal)
+      .then((rows) =>
+        rows.filter(
+          (row) =>
+            String(row.league || "").trim().toUpperCase() === "NFL" &&
+            String(row.season || "").trim() === String(seasonValue) &&
+            String(row.week || "").trim() === String(weekValue)
+        )
+      )
+      .catch((): Row[] => []);
 
-    const propPromises = PROP_TYPES.map(async (config) => {
-      try {
-        const rows = await fetchCsv(stage2Url(seasonValue, weekValue, config), ctl.signal);
-        return rows.map((row) => ({ ...row, prop_type: config.key }));
-      } catch (_) {
-        return [] as Row[];
-      }
-    });
+    const propsPromise = fetchCsv("https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/football/football_props.csv", ctl.signal)
+      .then((rows) =>
+        rows.filter(
+          (row) =>
+            String(row.season || "").trim() === String(seasonValue) &&
+            String(row.week || "").trim() === String(weekValue)
+        )
+      )
+      .catch((): Row[] => []);
 
-    const [sched, propGroups] = await Promise.all([schedulePromise, Promise.all(propPromises)]);
+    const [sched, allProps] = await Promise.all([schedulePromise, propsPromise]);
 
     if (ctl.signal.aborted) return;
 
     const filteredSchedule = sched.filter(
       (row) => !row.season || String(row.season) === String(seasonValue)
     );
-    const allProps = propGroups.flat();
 
     setSchedule(filteredSchedule);
     setProps(allProps);

@@ -304,16 +304,19 @@ export async function loadNHL(date) {
 
 export async function loadCFB(date) {
   const gameDate = String(date || "").replaceAll("_", "-");
-  const season = gameDate.slice(0, 4);
   const displayLeague = displayLeagueConfig("CFB", "CFB");
 
-  const scheduleRes = await fetchCSV(
-    `win/football/cfb/00_intake/schedule/${season}_schedule.csv`
-  );
+  const slateRes = await fetchCSV("https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/football/football_slate.csv");
 
-  const scheduleRows = scheduleRes.rows.filter(
-    row => String(row.game_date || "") === gameDate
-  );
+  const seenGameIds = {};
+  const scheduleRows = slateRes.rows.filter(row => {
+    if (String(row.league || "").trim().toUpperCase() !== "CFB") return false;
+    if (String(row.game_date || "") !== gameDate) return false;
+    const id = String(row.game_id || "").trim();
+    if (!id || seenGameIds[id]) return false;
+    seenGameIds[id] = true;
+    return true;
+  });
 
   if (!scheduleRows.length) {
     return {
@@ -323,24 +326,7 @@ export async function loadCFB(date) {
     };
   }
 
-  const weeks = [
-    ...new Set(
-      scheduleRows
-        .map(row => String(row.week || "").trim())
-        .filter(Boolean)
-    ),
-  ];
-
-  const weeklyResults = await Promise.all(
-    weeks.map(week =>
-      fetchCSV(
-        `win/football/cfb/00_intake/schedule/weekly/week_${week}_CFB_weekly_schedule.csv`
-      )
-    )
-  );
-
-  const weeklyRows = weeklyResults.flatMap(result => result.rows);
-  const weeklyByGameId = mapByGameId(weeklyRows);
+  const weeklyByGameId = mapByGameId(scheduleRows);
 
   const games = scheduleRows.map(base => {
     const book = weeklyByGameId[String(base.game_id)] || {};

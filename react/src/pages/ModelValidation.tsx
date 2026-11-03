@@ -47,17 +47,7 @@ const SOURCES: Source[] = [
   { url: BASE + "frontend/data/mlb/final/MLB_final.csv", label: "MLB", enabled: true },
   { url: BASE + "frontend/data/basketball/basketball_final.csv", label: "BASKETBALL", enabled: true },
   { url: BASE + "frontend/data/soccer/soccer_final.csv", label: "SOCCER", enabled: true },
-  {
-    indexUrl: API_BASE + "docs/win/football/cfb/04_final_results/graded?ref=" + BRANCH,
-    indexItemToUrl: (item) => {
-      if (!item || item.type !== "file") return "";
-      if (!/^week_\d+_CFB_graded\.csv$/i.test(item.name || "")) return "";
-      return item.download_url || "";
-    },
-    adapter: "cfb",
-    label: "CFB",
-    enabled: true,
-  },
+  { url: BASE + "frontend/data/football/football_final.csv", label: "CFB", adapter: "cfb", enabled: true },
   {
     indexUrl: API_BASE + "frontend/data/ufc/graded?ref=" + BRANCH,
     indexItemToUrl: (item) => {

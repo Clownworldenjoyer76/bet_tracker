@@ -199,7 +199,21 @@ export async function resolveFootballSelections(
     return { ok: true, rows: [] };
   }
 
-  let foundReadableFile = false;
+  const slate = await loadCsv("https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/football/football_slate.csv", signal);
+
+  if (!slate.ok) {
+    return { ok: false, rows: [] };
+  }
+
+  const leagueRows = slate.rows.filter(
+    (row) =>
+      String(row.league || "").trim().toUpperCase() === league &&
+      (String(row.ml_selected || "").trim() === "1" ||
+        String(row.spread_selected || "").trim() === "1" ||
+        String(row.total_selected || "").trim() === "1")
+  );
+
+  const foundReadableFile = true;
 
   for (let week = target.week; week >= 1; week--) {
     if (signal.aborted) {
@@ -208,24 +222,9 @@ export async function resolveFootballSelections(
       );
     }
 
-    const path =
-      "win/football/" +
-      league.toLowerCase() +
-      "/03_picks/selected/week_" +
-      week +
-      "_" +
-      league +
-      "_select_picks.csv";
+    const path = "https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/football/football_slate.csv";
 
-    const result = await loadCsv(path, signal);
-
-    if (!result.ok) {
-      continue;
-    }
-
-    foundReadableFile = true;
-
-    const rows = result.rows.filter(
+    const rows = leagueRows.filter(
       (row) =>
         Number(row.season) === target.season &&
         Number(row.week) === week &&

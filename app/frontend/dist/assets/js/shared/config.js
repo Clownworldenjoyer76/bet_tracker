@@ -463,15 +463,9 @@ window.REPO_CONFIG = {
     filterFn:     () => true,
     joinKey:      "game_id",
 
-    selectFiles: (date) => {
-      const week = footballWeekForDate("CFB", date);
+    selectFiles: () => ["https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/football/football_slate.csv"],
 
-      return week
-        ? [`win/football/cfb/03_picks/selected/week_${week}_CFB_select_picks.csv`]
-        : [];
-    },
-
-    expandRows:   expandFootballSelections,
+    expandRows:   (row) => String(row.league || "").trim().toUpperCase() === "CFB" ? expandFootballSelections(row) : [],
     buildBetText: buildFootballBetText,
   },
 
@@ -486,15 +480,9 @@ window.REPO_CONFIG = {
     filterFn:     () => true,
     joinKey:      "game_id",
 
-    selectFiles: (date) => {
-      const week = footballWeekForDate("NFL", date);
+    selectFiles: () => ["https://raw.githubusercontent.com/Clownworldenjoyer76/bet_tracker/main/frontend/data/football/football_slate.csv"],
 
-      return week
-        ? [`win/football/nfl/03_picks/selected/week_${week}_NFL_select_picks.csv`]
-        : [];
-    },
-
-    expandRows:   expandFootballSelections,
+    expandRows:   (row) => String(row.league || "").trim().toUpperCase() === "NFL" ? expandFootballSelections(row) : [],
     buildBetText: buildFootballBetText,
   },
 
