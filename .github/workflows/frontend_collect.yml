@@ -1,3 +1,4 @@
+
 name: Frontend Collect
 
 on:
@@ -21,7 +22,7 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Collect UFC, baseball, NHL, and basketball frontend files
+      - name: Collect UFC, baseball, NHL, basketball, and soccer frontend files
         run: python scripts/frontend_collect.py
 
       - name: Commit and push collected files
@@ -37,6 +38,8 @@ jobs:
             frontend/data/nhl/nhl_final.csv \
             frontend/basketball/basketball_final.csv \
             frontend/basketball/basketball_slate.csv \
+            frontend/soccer/soccer_final.csv \
+            frontend/soccer/soccer_slate.csv \
             frontend/data/dashboards/ufc.json \
             frontend/data/dashboards/baseball.json \
             frontend/data/dashboards/nhl.json \
@@ -44,10 +47,12 @@ jobs:
             frontend/data/dashboards/nba.json \
             frontend/data/dashboards/ncaam.json \
             frontend/data/dashboards/wnba.json \
+            frontend/data/dashboards/soccer.json \
             frontend/data/pipeline_health/ufc.json \
             frontend/data/pipeline_health/mlb.json \
             frontend/data/pipeline_health/nhl.json \
-            frontend/data/pipeline_health/basketball.json
+            frontend/data/pipeline_health/basketball.json \
+            frontend/data/pipeline_health/soccer.json
 
           if git diff --cached --quiet; then
             echo "No changes to commit."
@@ -56,5 +61,5 @@ jobs:
 
           git -c user.name="github-actions[bot]" \
               -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
-              commit -m "Collect UFC, baseball, NHL, and basketball frontend files"
+              commit -m "Collect UFC, baseball, NHL, basketball, and soccer frontend files"
           git push origin HEAD:main
