@@ -70,6 +70,25 @@ SOURCES = (
             ("frontend/soccer_slate.csv", "frontend/data/soccer"),
         ),
     },
+    {
+        "name": "football_for_mat",
+        "url": "https://github.com/Clownworldenjoyer76/football_for_mat.git",
+        "branch": "main",
+        "files": (
+            ("frontend/data/dashboards/cfb.json", "frontend/data/dashboards"),
+            ("frontend/data/dashboards/nfl.json", "frontend/data/dashboards"),
+            ("frontend/data/pipeline_health/cfb.json", "frontend/data/pipeline_health"),
+            ("frontend/data/pipeline_health/nfl.json", "frontend/data/pipeline_health"),
+            ("frontend/data/pipeline_health/prop_engine.json", "frontend/data/pipeline_health"),
+            (
+                "docs/win/football/prop_engine/config/settings.yaml",
+                "frontend/data/football/prop_engine/config",
+            ),
+            ("frontend/data/football/football_final.csv", "frontend/data/football"),
+            ("frontend/data/football/football_props.csv", "frontend/data/football"),
+            ("frontend/data/football/football_slate.csv", "frontend/data/football"),
+        ),
+    },
 )
 
 
