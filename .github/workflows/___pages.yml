@@ -1,6 +1,5 @@
-name: __Manual Deploy Both Sites
+name: __Manual Publish GitHub Pages
 
-# Manual releases only. No push, pull-request, or scheduled triggers.
 on:
   workflow_dispatch:
 
@@ -10,257 +9,77 @@ permissions:
   id-token: write
 
 concurrency:
-  group: smh-manual-site-release
+  group: smh-pages-manual
   cancel-in-progress: false
 
 jobs:
-  build:
-    if: github.ref == 'refs/heads/main'
+  publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
-    steps:
-      - name: Checkout main
-        uses: actions/checkout@v6
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-          cache: npm
-          cache-dependency-path: react/package-lock.json
-
-      - name: Install React dependencies
-        working-directory: react
-        run: npm ci
-
-      - name: Build and type-check the current website
-        working-directory: react
-        run: npm run build
-
-      - name: Assemble the single release for both sites
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p _site
-          cp -a app/frontend/dist/. _site/
-
-          # Replace outdated compiled React assets, preserving all legacy assets.
-          find _site/assets -maxdepth 1 -type f \
-            \( -name 'main-*.js' -o -name 'main-*.css' \
-            -o -name 'dashboard-*.js' -o -name 'pipeline-health-*.js' \) \
-            -delete
-          cp -a react/react-dist/. _site/
-
-          # Protect special pages and the GitHub Pages configuration.
-          for f in index.html the_picks.html login.html account.html \
-                   cfl_dashboard.html nav.html; do
-            test -s "_site/$f" || { echo "Missing required file: $f"; exit 1; }
-          done
-          # .nojekyll is normally an empty file; its existence is enough.
-          test -f _site/.nojekyll
-
-          # All generated React pages must reference the same available build.
-          python3 - <<'PY'
-          import pathlib, re, sys
-          root = pathlib.Path('_site')
-          react = pathlib.Path('react/react-dist')
-          js = sorted(p.name for p in (root / 'assets').glob('main-*.js'))
-          css = sorted(p.name for p in (root / 'assets').glob('main-*.css'))
-          pages = sorted(react.glob('*.html'))
-          if len(js) != 1 or len(css) != 1 or len(pages) < 40:
-              sys.exit(f'Invalid compiled build: JS={js}, CSS={css}, pages={len(pages)}')
-          for page in pages:
-              content = (root / page.name).read_text(encoding='utf-8')
-              if js[0] not in content or css[0] not in content:
-                  sys.exit(f'Incorrect bundle references in {page.name}')
-          print(f'BUILD VERIFIED: {len(pages)} React pages, {js[0]}, {css[0]}')
-          PY
-
-      - name: Package the exact release for both destinations
-        uses: actions/upload-artifact@v4
-        with:
-          name: smh-site-${{ github.run_id }}-${{ github.run_attempt }}
-          path: _site/
-          include-hidden-files: true
-          if-no-files-found: error
-          retention-days: 7
-
-  publish_windows:
-    name: Publish to Windows Django server
-    needs: build
-    # Add the 'smh-production' label when registering your Windows runner.
-    runs-on: [self-hosted, windows, x64, smh-production]
-    timeout-minutes: 25
-    steps:
-      - name: Download the tested release
-        uses: actions/download-artifact@v4
-        with:
-          name: smh-site-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/smh_site_payload
-
-      - name: Back up, publish, verify, and roll back on failure
-        shell: powershell
-        env:
-          SMH_RELEASE_ID: ${{ github.run_id }}-${{ github.run_attempt }}
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $src = Join-Path $env:RUNNER_TEMP 'smh_site_payload'
-          $dst = 'G:\bet_tracker\app\frontend\dist'
-          $backup = Join-Path 'C:\Users\Mat\Downloads' ('SMH_site_release_' + $env:SMH_RELEASE_ID)
-          $before = Join-Path $backup 'before'
-          if (-not (Test-Path -LiteralPath $dst -PathType Container)) { throw "Django frontend does not exist: $dst" }
-          foreach ($needed in @('index.html', 'the_picks.html', 'login.html', 'account.html', 'cfl_dashboard.html', 'nav.html', '.nojekyll')) {
-            if (-not (Test-Path -LiteralPath (Join-Path $src $needed) -PathType Leaf)) { throw "Release is missing $needed" }
-          }
-          if (Test-Path -LiteralPath $backup) { throw "Backup path already exists: $backup" }
-          $newJs = @(Get-ChildItem -LiteralPath (Join-Path $src 'assets') -File -Filter 'main-*.js')
-          $newCss = @(Get-ChildItem -LiteralPath (Join-Path $src 'assets') -File -Filter 'main-*.css')
-          if ($newJs.Count -ne 1 -or $newCss.Count -ne 1) { throw 'Release must contain exactly one compiled main JS and CSS file.' }
-          # Publish scripts, styles and data before HTML to avoid broken references mid-copy.
-          $files = @(Get-ChildItem -LiteralPath $src -Recurse -File -Force |
-            Sort-Object @{Expression={ if ($_.Extension -eq '.html') { 2 } else { 1 } }}, FullName)
-          if ($files.Count -lt 50) { throw 'Release contains unexpectedly few files.' }
-
-          # All backups and the recovery manifest stay in Downloads.
-          New-Item -ItemType Directory -Path $backup -Force | Out-Null
-          Copy-Item -LiteralPath $dst -Destination $before -Recurse -Force
-          if (-not (Test-Path -LiteralPath (Join-Path $before 'index.html'))) { throw 'Backup verification failed; production was not changed.' }
-          $added = @(
-            foreach ($f in $files) {
-              $rel = $f.FullName.Substring($src.Length).TrimStart([char[]]@('\','/'))
-              if (-not (Test-Path -LiteralPath (Join-Path $dst $rel))) { $rel }
-            }
-          )
-          $added | Set-Content -LiteralPath (Join-Path $backup 'added-files.txt') -Encoding UTF8
-          $newJs[0].Name | Set-Content -LiteralPath (Join-Path $backup 'deployed-js.txt') -Encoding ASCII
-
-          try {
-            foreach ($f in $files) {
-              $rel = $f.FullName.Substring($src.Length).TrimStart([char[]]@('\','/'))
-              $target = Join-Path $dst $rel
-              $parent = Split-Path -Parent $target
-              if (-not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
-              Copy-Item -LiteralPath $f.FullName -Destination $target -Force
-              if ((Get-FileHash -LiteralPath $f.FullName -Algorithm SHA256).Hash -ne
-                  (Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash) { throw "File verification failed: $rel" }
-            }
-            foreach ($route in @('/healthz', '/readyz', '/the_picks.html', '/login.html', '/account.html')) {
-              $response = Invoke-WebRequest -Uri ('http://127.0.0.1:8000' + $route) -UseBasicParsing -TimeoutSec 15
-              if ($response.StatusCode -ne 200) { throw "Django check failed: $route" }
-              if ($route -eq '/the_picks.html' -and $response.Content -notmatch [regex]::Escape($newJs[0].Name)) {
-                throw 'Django is not serving the deployed JavaScript version.'
-              }
-            }
-            Write-Host "WINDOWS DEPLOY VERIFIED: $($newJs[0].Name)"
-            Write-Host "BACKUP: $backup"
-          }
-          catch {
-            $originalError = $_
-            Write-Warning "Windows deployment failed. Restoring the pre-deployment frontend from $before"
-            try {
-              foreach ($f in @(Get-ChildItem -LiteralPath $before -Recurse -File -Force)) {
-                $rel = $f.FullName.Substring($before.Length).TrimStart([char[]]@('\','/'))
-                $target = Join-Path $dst $rel
-                $parent = Split-Path -Parent $target
-                if (-not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
-                Copy-Item -LiteralPath $f.FullName -Destination $target -Force
-              }
-              foreach ($rel in $added) {
-                $target = Join-Path $dst $rel
-                if (Test-Path -LiteralPath $target -PathType Leaf) { Remove-Item -LiteralPath $target -Force }
-              }
-              Write-Warning 'Previous Windows frontend restored.'
-            }
-            catch { Write-Error "Automatic restore also failed: $_" -ErrorAction Continue }
-            throw "Windows deployment FAILED: $originalError"
-          }
-
-  publish_pages:
-    name: Publish the identical release to GitHub Pages
-    needs: [build, publish_windows]
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Download the same tested release
-        uses: actions/download-artifact@v4
-        with:
-          name: smh-site-${{ github.run_id }}-${{ github.run_attempt }}
-          path: _site/
+      - name: Check out the committed website
+        uses: actions/checkout@v6
 
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload site to Pages
-        uses: actions/upload-pages-artifact@v5
-        with:
-          path: ./_site
-          include-hidden-files: true
-
-      - name: Deploy GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-
-      - name: Confirm the published website uses this exact build
+      - name: Verify the committed complete release
         shell: bash
-        env:
-          RELEASE_ID: ${{ github.run_id }}-${{ github.run_attempt }}
         run: |
           set -euo pipefail
-          main_js="$(find _site/assets -maxdepth 1 -name 'main-*.js' -printf '%f\n')"
-          test -n "$main_js"
-          for attempt in $(seq 1 12); do
-            html="$(curl -fsSL --max-time 15 \
-              "https://bt.sportsmodelhub.com/the_picks.html?release=$RELEASE_ID" || true)"
-            if [[ "$html" == *"$main_js"* ]]; then
-              if curl -fsSL --max-time 20 \
-                   "https://bt.sportsmodelhub.com/assets/$main_js?release=$RELEASE_ID" \
-                   -o "$RUNNER_TEMP/smh-live-main.js" && \
-                   cmp -s "_site/assets/$main_js" "$RUNNER_TEMP/smh-live-main.js"; then
-                echo "BOTH SITES DEPLOYED: $main_js"
-                exit 0
-              fi
-            fi
-            sleep 5
-          done
-          echo "GitHub Pages did not serve the verified release. Check the deployment and Cloudflare cache." >&2
-          exit 1
+          python3 - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
 
-  restore_windows_if_pages_failed:
-    name: Restore prior Windows frontend if Pages release fails
-    needs: [publish_windows, publish_pages]
-    if: ${{ always() && needs.publish_windows.result == 'success' && needs.publish_pages.result != 'success' }}
-    runs-on: [self-hosted, windows, x64, smh-production]
-    timeout-minutes: 15
-    steps:
-      - name: Restore Windows frontend from this run's backup
-        shell: powershell
-        env:
-          SMH_RELEASE_ID: ${{ github.run_id }}-${{ github.run_attempt }}
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $dst = 'G:\bet_tracker\app\frontend\dist'
-          $backup = Join-Path 'C:\Users\Mat\Downloads' ('SMH_site_release_' + $env:SMH_RELEASE_ID)
-          $before = Join-Path $backup 'before'
-          if (-not (Test-Path -LiteralPath (Join-Path $before 'index.html'))) { throw 'Cannot restore: release backup is missing.' }
-          $expectedJs = (Get-Content -LiteralPath (Join-Path $backup 'deployed-js.txt') -Raw).Trim()
-          $currentPicks = Get-Content -LiteralPath (Join-Path $dst 'the_picks.html') -Raw
-          if ($currentPicks -notmatch [regex]::Escape($expectedJs)) { throw 'Windows frontend changed since release; refusing to overwrite later changes.' }
-          foreach ($f in @(Get-ChildItem -LiteralPath $before -Recurse -File -Force)) {
-            $rel = $f.FullName.Substring($before.Length).TrimStart([char[]]@('\','/'))
-            $target = Join-Path $dst $rel
-            $parent = Split-Path -Parent $target
-            if (-not (Test-Path -LiteralPath $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
-            Copy-Item -LiteralPath $f.FullName -Destination $target -Force
-          }
-          foreach ($rel in @(Get-Content -LiteralPath (Join-Path $backup 'added-files.txt') -ErrorAction SilentlyContinue)) {
-            if (-not [string]::IsNullOrWhiteSpace($rel)) {
-              $target = Join-Path $dst $rel
-              if (Test-Path -LiteralPath $target -PathType Leaf) { Remove-Item -LiteralPath $target -Force }
-            }
-          }
-          $ready = Invoke-WebRequest -Uri 'http://127.0.0.1:8000/readyz' -UseBasicParsing -TimeoutSec 15
-          if ($ready.StatusCode -ne 200) { throw 'Django readiness check failed after restore.' }
-          Write-Host "WINDOWS FRONTEND RESTORED: $backup"
+          root = Path('app/frontend/dist')
+          manifest_path = root / '.smh-release-manifest.json'
+          if not root.is_dir() or not manifest_path.is_file():
+              raise SystemExit('Committed release or manifest is missing')
+          if not (root / 'index.html').is_file() or not (root / '.nojekyll').is_file():
+              raise SystemExit('Required site entry point or .nojekyll missing')
+          manifest = json.loads(manifest_path.read_text(encoding='utf-8-sig'))
+          if manifest.get('schema') != 1:
+              raise SystemExit('Unsupported release manifest format')
+          expected = {}
+          for record in manifest['files']:
+              relative = record['path']
+              candidate = root / relative
+              if (relative.startswith('/') or '\\' in relative or
+                  any(piece in ('', '.', '..') for piece in relative.split('/')) or
+                  relative in expected or relative == '.smh-release-manifest.json'):
+                  raise SystemExit('Invalid or duplicate manifest path: ' + relative)
+              expected[relative] = record
+              if not candidate.is_file() or candidate.is_symlink():
+                  raise SystemExit('Manifest file missing or not regular: ' + relative)
+              data = candidate.read_bytes()
+              if (len(data) != record['size'] or
+                  hashlib.sha256(data).hexdigest().upper() != record['sha256'].upper()):
+                  raise SystemExit('Release hash mismatch: ' + relative)
+          actual = set()
+          for path in root.rglob('*'):
+              if path.is_symlink():
+                  raise SystemExit('Symbolic links cannot be published: ' + str(path))
+              if path.is_file() and path != manifest_path:
+                  actual.add(path.relative_to(root).as_posix())
+          if actual != set(expected):
+              raise SystemExit('Committed site differs from manifest: missing=' +
+                               repr(sorted(set(expected) - actual)) + ', extra=' +
+                               repr(sorted(actual - set(expected))))
+          html_files = [name for name in expected if name.lower().endswith('.html')]
+          if not html_files:
+              raise SystemExit('Release does not contain HTML pages')
+          print(f'Validated {len(expected)} exact committed files; {len(html_files)} HTML pages')
+          PY
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload the unchanged committed website, including hidden files
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: ./app/frontend/dist
+          include-hidden-files: true
+
+      - name: Publish GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
