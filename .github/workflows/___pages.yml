@@ -1,3 +1,4 @@
+
 name: __Auto Deploy Frontend
 
 on:
@@ -5,6 +6,8 @@ on:
     branches:
       - main
     paths:
+      - "react/**"
+      - "frontend/data/**"
       - "app/frontend/**"
       - ".github/workflows/___pages.yml"
 
@@ -31,16 +34,57 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      # No build step: Pages publishes the committed app/frontend/dist exactly as committed.
-      # dist is produced by G:\bet_tracker\react (react-dist -> deploy-react-to-production.ps1) and committed manually.
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: react/package-lock.json
+
+      - name: Install React dependencies
+        working-directory: ./react
+        run: npm ci
+
+      - name: Build current React website
+        working-directory: ./react
+        run: npm run build
+
+      - name: Assemble complete website
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Preserve existing site files, including legacy pages.
+          mkdir -p _site
+          cp -a app/frontend/dist/. _site/
+
+          # Remove outdated Vite-generated bundles only.
+          # Keep legacy CSS, JS, images, and other files.
+          find _site/assets -maxdepth 1 -type f \
+            \( -name 'main-*.js' \
+            -o -name 'main-*.css' \
+            -o -name 'dashboard-*.js' \
+            -o -name 'pipeline-health-*.js' \) \
+            -delete
+
+          # Install the freshly built React pages and assets.
+          cp -a react/react-dist/. _site/
+
+          # Verify critical pages were preserved.
+          test -f _site/index.html
+          test -f _site/the_picks.html
+          test -f _site/cfl_dashboard.html
+          test -f _site/.nojekyll
+
+          echo "Complete website assembled successfully."
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
-      - name: Upload frontend
+      - name: Upload complete website
         uses: actions/upload-pages-artifact@v5
         with:
-          path: ./app/frontend/dist
+          path: ./_site
           include-hidden-files: true
 
       - name: Deploy GitHub Pages
