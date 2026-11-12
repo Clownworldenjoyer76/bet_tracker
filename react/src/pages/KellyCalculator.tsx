@@ -34,8 +34,8 @@
   Difference: text from CSV is now rendered as text (legacy inserted it as HTML).
 */
 import { useEffect, useMemo, useRef, useState } from "react";
-import "../../../app/frontend/src/assets/js/shared/config.js";
-import "../../../app/frontend/src/assets/css/pages/kelly_calculator.css";
+import "../lib/shared/config.js";
+import "../styles/pages/kelly_calculator.css";
 import {
   DASH,
   KELLY_LEAGUE_AVAILABILITY,

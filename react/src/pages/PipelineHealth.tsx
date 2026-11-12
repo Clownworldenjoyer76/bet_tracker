@@ -31,7 +31,7 @@
 */
 import { useEffect, useState } from "react";
 import { fetchLiveJson, loadSnapshot } from "../lib/liveData";
-import "../../../app/frontend/src/assets/css/pages/pipeline_health.css";
+import "../styles/pages/pipeline_health.css";
 
 const MID = String.fromCharCode(0xb7);
 const EMDASH = String.fromCharCode(0x2014);

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
-import "../../../app/frontend/src/assets/js/shared/config.js";
+import "../lib/shared/config.js";
 import { loadAllLeagues, type Game } from "../lib/gamesTodayData";
 import {
   buildDayCards,

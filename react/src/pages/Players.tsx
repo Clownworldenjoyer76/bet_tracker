@@ -32,7 +32,7 @@
 */
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import LeagueNav from "../lib/leagueNav";
-import "../../../app/frontend/src/assets/css/pages/players.css";
+import "../styles/pages/players.css";
 
 const MID = String.fromCharCode(0xb7);
 const DASH = String.fromCharCode(0x2014);

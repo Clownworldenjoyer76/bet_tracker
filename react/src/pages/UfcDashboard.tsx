@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-import "../../../app/frontend/src/assets/css/generated/ufc-dashboard.css";
+import "../styles/generated/ufc-dashboard.css";
 
 import { DashboardDataStatus, SavedDataNotice, useDashboardData } from "../lib/liveData";
 import reportColumns from "../data/ufc-report-columns.json";

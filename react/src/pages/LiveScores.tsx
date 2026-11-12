@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import "../../../app/frontend/src/assets/js/shared/config.js";
-import "../../../app/frontend/src/assets/css/pages/live_scores.css";
+import "../lib/shared/config.js";
+import "../styles/pages/live_scores.css";
 
 type League = {
   key: string;

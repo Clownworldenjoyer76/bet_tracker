@@ -1,5 +1,5 @@
-import "../../../app/frontend/src/assets/css/generated/sport-summary-dashboard.css";
-import "../../../app/frontend/src/assets/css/pages/football_dashboard.css";
+import "../styles/generated/sport-summary-dashboard.css";
+import "../styles/pages/football_dashboard.css";
 
 const props = [
   { name: "Prop Engine", description: "Player prop analysis", href: "/prop_engine.html" },

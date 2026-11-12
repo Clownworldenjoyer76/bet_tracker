@@ -15,8 +15,8 @@
    9. Not present in legacy: URL params, localStorage, auto-refresh, POST, credentials.
 */
 import { useEffect, useMemo, useState } from "react";
-import "../../../app/frontend/src/assets/js/shared/config.js";
-import "../../../app/frontend/src/assets/css/pages/final_scores.css";
+import "../lib/shared/config.js";
+import "../styles/final_scores.css";
 import {
   DASH,
   DOT,

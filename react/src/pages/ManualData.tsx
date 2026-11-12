@@ -5,7 +5,7 @@
   league/market/source/raw_text, ref main, workflow _manual_intake.yml, success on HTTP 204).
 */
 import { useState } from "react";
-import "../../../app/frontend/src/assets/css/pages/manual_data.css";
+import "../styles/pages/manual_data.css";
 
 const OWNER = "Clownworldenjoyer76";
 const REPO = "bet_tracker";

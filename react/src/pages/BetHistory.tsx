@@ -4,7 +4,7 @@
 //   src\pages\history-react-fix.css
 //   global CSS imported by src\main.tsx (matstheme.css, site-polish.css from the legacy tree)
 import { useCallback, useEffect, useRef, useState } from "react";
-import "../../../app/frontend/src/assets/css/pages/bet_history.css";
+import "../styles/bet_history.css";
 import "./history-react-fix.css";
 
 /* ------------------------------------------------------------------ */

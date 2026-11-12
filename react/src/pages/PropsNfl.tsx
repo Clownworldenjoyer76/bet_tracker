@@ -32,7 +32,7 @@
   (legacy escaped it into innerHTML); before the first load finishes the buttons and results are empty, as in legacy.
 */
 import { useEffect, useRef, useState } from "react";
-import "../../../app/frontend/src/assets/css/pages/props_nfl.css";
+import "../styles/pages/props_nfl.css";
 
 const MID = String.fromCharCode(0xb7);
 const BULLET = String.fromCharCode(0x2022);

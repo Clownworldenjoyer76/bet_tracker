@@ -28,7 +28,7 @@
   Difference: no replaceAll - split/join is used (same result).
 */
 import { useEffect, useMemo, useState } from "react";
-import "../../../app/frontend/src/assets/css/pages/index.css";
+import "../styles/pages/index.css";
 import "./history-react-fix.css";
 import {
   buildDayCards,

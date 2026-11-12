@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import "../../../app/frontend/src/assets/css/pages/auth.css";
+import "../styles/auth.css";
 
 export const ACCOUNT_ORIGIN = "https://api.sportsmodelhub.com";
 export type Message = {

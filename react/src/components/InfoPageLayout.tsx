@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import "../../../app/frontend/src/assets/css/pages/info.css";
+import "../styles/info.css";
 
 type Props = { title: string; eyebrow?: string; children: ReactNode };
 export default function InfoPageLayout({ title, eyebrow, children }: Props) {

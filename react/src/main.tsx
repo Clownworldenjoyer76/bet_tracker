@@ -2,7 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router";
 
-import "../../app/frontend/src/assets/css/matstheme.css";
+import "./styles/matstheme.css";
 import "./styles/site-polish.css";
 import "./styles/react-transitions.css";
 

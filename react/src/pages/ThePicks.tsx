@@ -27,7 +27,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { PICKS_LEAGUES, REPO_CONFIG, type LeagueCfg, type Row } from "../lib/picksConfig";
 import { resolveFootballSelections } from "../lib/footballPicks";
 import { findUfcEventDate, fetchUfcSelection, toSelectedUfcRows } from "../lib/ufcSources";
-import "../../../app/frontend/src/assets/css/pages/the_picks.css";
+import "../styles/pages/the_picks.css";
 
 const MID = String.fromCharCode(0xb7);
 const DASH = String.fromCharCode(0x2014);

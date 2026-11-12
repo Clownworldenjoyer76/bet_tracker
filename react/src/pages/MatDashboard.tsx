@@ -1,4 +1,4 @@
-import "../../../app/frontend/src/assets/css/pages/mat.css";
+import "../styles/pages/mat.css";
 
 const links = [
   ["Daily Picks", "/the_picks.html"],

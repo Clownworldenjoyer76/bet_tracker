@@ -22,7 +22,7 @@
   Difference: ESPN text is rendered as React text (legacy escaped it into innerHTML) - same visible result.
 */
 import { useEffect, useMemo, useState } from "react";
-import "../../../app/frontend/src/assets/css/pages/news-html.css";
+import "../styles/pages/news-html.css";
 
 const MID = String.fromCharCode(0xb7);
 const ARROW = String.fromCharCode(0x2192);

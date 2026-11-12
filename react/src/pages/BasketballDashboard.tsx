@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 
-import "../../../app/frontend/src/assets/css/generated/basketball-dashboard.css";
+import "../styles/generated/basketball-dashboard.css";
 
 import { DashboardDataStatus, SavedDataNotice, useDashboardData } from "../lib/liveData";
 

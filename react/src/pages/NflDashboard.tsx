@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import "../../../app/frontend/src/assets/css/matstheme.css";
-import "../../../app/frontend/src/assets/css/dashboard.css";
+import "../styles/matstheme.css";
+import "../styles/dashboard.css";
 import "./nfl-dashboard.css";
 import "../styles/site-polish.css";
 

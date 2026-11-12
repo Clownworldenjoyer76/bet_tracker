@@ -35,7 +35,7 @@
   (legacy inserted it into innerHTML).
 */
 import { useEffect, useRef, useState } from "react";
-import "../../../app/frontend/src/assets/css/pages/prop_engine.css";
+import "../styles/pages/prop_engine.css";
 
 const MID = String.fromCharCode(0xb7);
 const DASH = String.fromCharCode(0x2014);

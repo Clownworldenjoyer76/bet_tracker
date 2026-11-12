@@ -8,7 +8,7 @@ from django.test import SimpleTestCase, TestCase
 
 class FrontendCompatibilityTests(SimpleTestCase):
     # Pages under these names are rendered by Django (accounts.urls), not served from dist.
-    DJANGO_OWNED_PAGES = {"index.html", "contact.html"}
+    DJANGO_OWNED_PAGES = {"index.html", "contact.html", "account.html", "login.html", "register.html", "password_reset.html", "password_reset_done.html", "password_reset_complete.html"}
 
     def _body(self, response):
         if getattr(response, "streaming", False):

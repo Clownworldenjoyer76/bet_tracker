@@ -19,7 +19,7 @@
   Not present in legacy: URL params, localStorage, auto-refresh (nav.js is loaded by SiteShell).
 */
 import { useEffect, useState, type CSSProperties } from "react";
-import "../../../app/frontend/src/assets/css/pages/model_validation.css";
+import "../styles/pages/model_validation.css";
 
 // ---------------------------------------------------------------- config.js / sources.js
 const REPO = "Clownworldenjoyer76/bet_tracker";

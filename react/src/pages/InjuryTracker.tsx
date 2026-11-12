@@ -27,8 +27,8 @@
   13. Not present in legacy: URL params, localStorage, auto-refresh, POST, credentials (nav.js is loaded by SiteShell).
 */
 import { useEffect, useMemo, useState } from "react";
-import "../../../app/frontend/src/assets/js/shared/config.js";
-import "../../../app/frontend/src/assets/css/pages/injury_tracker.css";
+import "../lib/shared/config.js";
+import "../styles/pages/injury_tracker.css";
 import {
   DASH,
   MID,

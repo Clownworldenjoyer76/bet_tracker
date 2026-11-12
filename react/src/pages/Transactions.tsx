@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent } from "react";
 
-import "../../../app/frontend/src/assets/css/pages/transactions.css";
+import "../styles/pages/transactions.css";
 
 type FilterType = "all" | "group" | "league";
 type GroupKey = "football" | "basketball" | "soccer";
